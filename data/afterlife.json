@@ -1,0 +1,17 @@
+{
+    "_doc": "After the player dies (player/afterlife.js): who they can come back as, and how the world turns while they wait. stations: what each walk of life starts with as a new character (gold range, stat and skill bonuses on top of the base 5s and 1s).",
+    "candidates": 4,
+    "minAge": 17,
+    "maxAge": 42,
+    "autoPlayMs": 220,
+    "roleWeights": { "villager": 4, "farmer": 3, "merchant": 1.4, "guard": 1.4, "blacksmith_npc": 1, "priest": 0.6, "noble": 0.35 },
+    "stations": {
+        "villager":       { "title": "Commoner",   "gold": [60, 220],    "stats": { "strength": 1 },                     "skills": {} },
+        "farmer":         { "title": "Farmer",     "gold": [90, 260],    "stats": { "strength": 2 },                     "skills": {} },
+        "merchant":       { "title": "Merchant",   "gold": [700, 1800],  "stats": { "charisma": 1, "intelligence": 1 },  "skills": { "commerce": 2 } },
+        "guard":          { "title": "Soldier",    "gold": [150, 400],   "stats": { "strength": 2 },                     "skills": { "combat": 2 } },
+        "blacksmith_npc": { "title": "Smith",      "gold": [300, 700],   "stats": { "strength": 2 },                     "skills": { "combat": 1, "commerce": 1 } },
+        "priest":         { "title": "Priest",     "gold": [120, 320],   "stats": { "faith": 3, "intelligence": 1 },     "skills": { "diplomacy": 1 } },
+        "noble":          { "title": "Minor Noble", "gold": [2500, 6000], "stats": { "charisma": 2, "intelligence": 1 },  "skills": { "leadership": 2, "diplomacy": 2 } }
+    }
+}

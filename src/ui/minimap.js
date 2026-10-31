@@ -4,6 +4,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
+import { buildingGlyph, drawGlyph, furnitureGlyph } from './icons.js';
 
 /** Inner-map minimap zoom levels in pixels per tile (0 = fit the whole map). */
 const INNER_ZOOM_LEVELS = [0, 2, 3, 4, 6];
@@ -317,10 +318,9 @@ export class Minimap {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // ── Building icons (outer map) ──
+        // ── Building markers (outer map) ──
         if (!InnerMap._insideBuilding && InnerMap.buildings && InnerMap.buildings.length > 0) {
             const iconSize = Math.max(8, Math.min(16, Math.floor(scale * 3)));
-            ctx.font = `${iconSize}px sans-serif`;
 
             for (const bldg of InnerMap.buildings) {
                 const tile = InnerMap.tiles[bldg.r] && InnerMap.tiles[bldg.r][bldg.q];
@@ -330,26 +330,27 @@ export class Minimap {
                 const by = toY(bldg.r + 0.5);
                 if (bx < -iconSize || by < -iconSize || bx > w + iconSize || by > h + iconSize) continue;
 
-                // Dark background circle for readability
-                ctx.fillStyle = 'rgba(0,0,0,0.55)';
+                // Dark plate with a gold rim, the building's glyph on it
+                ctx.fillStyle = 'rgba(10, 13, 22, 0.85)';
                 ctx.beginPath();
-                ctx.arc(bx, by, iconSize * 0.55, 0, Math.PI * 2);
+                ctx.arc(bx, by, iconSize * 0.6, 0, Math.PI * 2);
                 ctx.fill();
-
-                ctx.fillStyle = '#ffffff';
-                ctx.fillText(bldg.icon || '🏠', bx, by);
+                ctx.lineWidth = 0.8;
+                ctx.strokeStyle = 'rgba(232, 192, 112, 0.7)';
+                ctx.stroke();
+                drawGlyph(ctx, buildingGlyph(bldg), bx, by, iconSize * 0.95, '#ecd9a8', 2.2);
             }
         }
 
-        // ── Furniture icons (interiors are drawn large enough to read them) ──
+        // ── Furniture glyphs (interiors are drawn large enough to read them) ──
         if (InnerMap._insideBuilding && scale >= 8) {
-            ctx.font = `${Math.min(14, Math.floor(scale * 0.8))}px sans-serif`;
+            const size = Math.min(14, scale * 0.85);
             for (let r = 0; r < InnerMap.height; r++) {
                 const row = InnerMap.tiles[r];
                 if (!row) continue;
                 for (let q = 0; q < InnerMap.width; q++) {
-                    const furn = row[q] && row[q]._furniture;
-                    if (furn && furn.icon) ctx.fillText(furn.icon, toX(q + 0.5), toY(r + 0.5));
+                    const glyph = furnitureGlyph(row[q] && row[q]._furniture);
+                    if (glyph) drawGlyph(ctx, glyph, toX(q + 0.5), toY(r + 0.5), size, '#f4e6c4', 2.2);
                 }
             }
         }
@@ -462,8 +463,10 @@ export class Minimap {
         const q = Math.max(0, Math.min(world.width - 1, Math.floor((mx - ox) / tileW)));
         const r = Math.max(0, Math.min(world.height - 1, Math.floor((my - oy) / tileH)));
 
-        // Move camera to this position using the renderer's coordinate system
+        // Look at the clicked spot; the camera stops following the player
+        // until they set out again or recentre (C / the minimap's reset)
         const pos = this.game.renderer.getHexPixelPos(q, r);
+        this.game.camera.following = false;
         this.game.camera.follow(pos.x, pos.y);
     }
 

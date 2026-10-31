@@ -12,7 +12,7 @@ This folder contains the `Game` class split into focused modules. The class is a
 | `gameLoop.js` | ~763 | Game loop tick, input handlers, `handleClick`, `handleDoubleClick` |
 | `innerMap.js` | ~642 | Enter/exit inner map, inner map UI, Tiled export/import |
 | `endDay.js` | ~643 | `onPlayerArrived`, full `endDay` turn processing |
-| `combat.js` | ~432 | Food purchase modal, hostile encounters, `_triggerDeath`, end-day confirm |
+| `combat.js` | ~450 | Food purchase modal, hostile encounters (`_checkHostileEncounters` opens the encounter dialog, `ActionMenu.showEncounter`; headless it resolves automatically; `_settlePendingCombat` settles a dialog or battle walked away from), `_triggerDeath`, end-day confirm |
 | `index.js` | ~20 | Assembles all modules → exports `{ Game }` |
 | `_gameImports.js` | ~50 | Re-exports all shared dependencies so each file uses a single import line |
 

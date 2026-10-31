@@ -5,9 +5,12 @@ import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMil
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Crafting } from '../../player/crafting.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { updateCounselBadge } from '../actionMenu/counsel.js';
+import { updateFirstStepsCard } from '../firstStepsCard.js';
 import { uiZoom } from '../uiScale.js';
+import { NpcPortrait } from '../npcPortrait.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -37,12 +40,17 @@ Object.assign(UI.prototype, {
 
         // Sagas journal button (systems/sagas.js)
         document.getElementById('btnSagas')?.addEventListener('click', () => ActionMenu.showSagasJournal(this.game));
+        // Letters inbox (systems/courtLetters.js)
+        document.getElementById('btnLetters')?.addEventListener('click', () => ActionMenu.showLetters(this.game));
+        document.getElementById('btnPeople')?.addEventListener('click', () => ActionMenu.showTownsfolkJournal(this.game));
         // Discoveries log: uncharted lands (systems/discovery.js)
         document.getElementById('btnDiscoveries')?.addEventListener('click', () => ActionMenu.showDiscoveries(this.game));
         // Outlaw lairs you know of (systems/outlawLairs.js)
         document.getElementById('btnOutlaws')?.addEventListener('click', () => ActionMenu.showOutlawLairs(this.game));
         // Deeds & Records: every system's counters, House and reign (systems/deeds.js)
         document.getElementById('btnDeeds')?.addEventListener('click', () => ActionMenu.showDeeds(this.game));
+        // The Annals: the life and dynasty told as a book (systems/annals.js)
+        document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');
@@ -206,6 +214,7 @@ Object.assign(UI.prototype, {
         // Keyboard shortcuts: Space = toggle pause, 1/2/3 = speeds
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+            if (e.target.isContentEditable) return;
             if (e.code === 'Space' && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 setSpeed(this.game.timeSpeed === 0 ? 1 : 0);
@@ -349,6 +358,8 @@ Object.assign(UI.prototype, {
         this.updateRegionPanel(player, world);
         this.updateEventsPanel();
         updateCounselBadge(this.game);
+        // The guided first month: credit steps just done, redraw the tracker (ui/firstStepsCard.js)
+        updateFirstStepsCard(this.game);
 
         // Show jail status if active
         let jailEl = document.getElementById('jailDisplay');
@@ -833,7 +844,11 @@ Object.assign(UI.prototype, {
             activeTile = tile;
             tile.classList.add('active');
 
-            const d = tile.dataset;
+            // dataset hands back the attribute values decoded, so escape them
+            // again before they go into innerHTML
+            const raw = tile.dataset;
+            const d = {};
+            for (const k of Object.keys(raw)) d[k] = this._escAttr(raw[k]);
             let html = `<div class="srel-tooltip-name">${d.ttName}</div>`;
             html += `<span class="srel-tooltip-badge ${d.ttBadgeclass}">${d.ttBadge}</span>`;
             if (d.ttSubtitle) html += `<div style="font-size:9px;color:rgba(160,196,176,0.4);font-style:italic;margin-top:3px;">${d.ttSubtitle}</div>`;
@@ -848,15 +863,14 @@ Object.assign(UI.prototype, {
             // Position above the tile (the tooltip is zoomed: rects → its own px)
             const z = uiZoom();
             const rect = tile.getBoundingClientRect();
-            tooltip.style.left = Math.max(4, (rect.left + rect.width / 2) / z - 100) + 'px';
-            tooltip.style.top = (rect.top / z - tooltip.offsetHeight - 8) + 'px';
-
-            // Make visible and re-check position (may need to flip below)
+            const maxLeft = window.innerWidth / z - tooltip.offsetWidth - 4;
+            const left = Math.min(maxLeft, (rect.left + rect.width / 2) / z - tooltip.offsetWidth / 2);
+            tooltip.style.left = Math.max(4, left) + 'px';
+            let top = rect.top / z - tooltip.offsetHeight - 8;
+            // No room above: flip below the tile
+            if (top < 4) top = rect.bottom / z + 8;
+            tooltip.style.top = Math.max(4, Math.min(window.innerHeight / z - tooltip.offsetHeight - 4, top)) + 'px';
             tooltip.classList.add('visible');
-            const ttRect = tooltip.getBoundingClientRect();
-            if (ttRect.top < 4) {
-                tooltip.style.top = (rect.bottom / z + 8) + 'px';
-            }
         };
 
         const hideTooltip = () => {
@@ -881,12 +895,17 @@ Object.assign(UI.prototype, {
             });
         });
 
-        // Hide on click outside
-        document.addEventListener('click', () => {
-            tooltip.classList.remove('visible');
-            if (activeTile) activeTile.classList.remove('active');
-            activeTile = null;
-        }, { once: true });
+        // Hide on any click outside a tile (tile clicks stop propagation).
+        // One document listener for the tooltip's lifetime: a { once } listener
+        // per render only worked for the first outside click.
+        if (!tooltip._outsideClickBound) {
+            tooltip._outsideClickBound = true;
+            document.addEventListener('click', () => {
+                if (!tooltip.classList.contains('visible')) return;
+                tooltip.classList.remove('visible');
+                document.querySelectorAll('.srel-tile.active').forEach(t => t.classList.remove('active'));
+            });
+        }
     },
 
     /**
@@ -909,11 +928,12 @@ Object.assign(UI.prototype, {
             const icon = (item && item.icon) ? item.icon : '📦';
             const name = (item && item.name) ? item.name : fallbackName;
             const fx = Treasures.describe(itemId);
-            const tip = `${name} ×${quantity}${item && item.basePrice ? ` (~${item.basePrice}g each)` : ''}${fx.length ? ' — ' + fx.join('; ') : ''}`.replace(/"/g, '&quot;');
+            const qTag = Crafting.qualityTag(player, itemId);
+            const tip = `${name} ×${quantity}${qTag ? ` [${qTag}]` : ''}${item && item.basePrice ? ` (~${item.basePrice}g each)` : ''}${fx.length ? ' — ' + fx.join('; ') : ''}`.replace(/"/g, '&quot;');
             html += `<div class="sinv-tile" title="${tip}">`;
             html += `<span class="sinv-tile-icon">${icon}</span>`;
             if (quantity > 1) html += `<span class="sinv-tile-qty">${quantity}</span>`;
-            html += `<span class="sinv-tile-name">${name}</span>`;
+            html += `<span class="sinv-tile-name">${name}${qTag ? ` <span class="sinv-tile-quality">${qTag.split(' ')[0]}</span>` : ''}</span>`;
             html += `</div>`;
         }
         body.innerHTML = html || '<p class="srel-empty">Your pack is empty.</p>';
@@ -926,42 +946,55 @@ Object.assign(UI.prototype, {
         const container = document.getElementById('simsRelFilters');
         if (!container) return;
         const buttons = container.querySelectorAll('.srel-filter-btn');
-        const body = document.getElementById('simsRelBody');
+
+        // The panel re-renders every time the tab opens: keep the chosen
+        // filter applied to the fresh tiles
+        const current = container.querySelector('.srel-filter-btn.active');
+        if (current) this._applyRelFilter(current.dataset.filter);
+
+        // Bind once — this runs on every switch to the tab, and stacking a
+        // listener per visit re-ran the filter once per past visit
+        if (container.dataset.bound) return;
+        container.dataset.bound = '1';
 
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
                 // Toggle active state
                 buttons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
-                const filter = btn.dataset.filter;
-                if (!body) return;
-                const tiles = body.querySelectorAll('.srel-tile');
-                const sections = body.querySelectorAll('.srel-section-label');
-
-                if (filter === 'all') {
-                    tiles.forEach(c => c.style.display = '');
-                    sections.forEach(s => s.style.display = '');
-                } else {
-                    tiles.forEach(c => {
-                        const cats = (c.dataset.category || '').split(' ');
-                        c.style.display = cats.includes(filter) ? '' : 'none';
-                    });
-                    // Hide section labels if all their following tiles are hidden
-                    sections.forEach(s => {
-                        let nextEl = s.nextElementSibling;
-                        let anyVisible = false;
-                        while (nextEl && !nextEl.classList.contains('srel-section-label')) {
-                            if (nextEl.classList.contains('srel-tile') && nextEl.style.display !== 'none') {
-                                anyVisible = true;
-                            }
-                            nextEl = nextEl.nextElementSibling;
-                        }
-                        s.style.display = anyVisible ? '' : 'none';
-                    });
-                }
+                this._applyRelFilter(btn.dataset.filter);
             });
         });
+    },
+
+    /** Show only the relationship tiles in `filter` ('all' shows every tile). */
+    _applyRelFilter(filter) {
+        const body = document.getElementById('simsRelBody');
+        if (!body || !filter) return;
+        const tiles = body.querySelectorAll('.srel-tile');
+        const sections = body.querySelectorAll('.srel-section-label');
+
+        if (filter === 'all') {
+            tiles.forEach(c => c.style.display = '');
+            sections.forEach(s => s.style.display = '');
+        } else {
+            tiles.forEach(c => {
+                const cats = (c.dataset.category || '').split(' ');
+                c.style.display = cats.includes(filter) ? '' : 'none';
+            });
+            // Hide section labels if all their following tiles are hidden
+            sections.forEach(s => {
+                let nextEl = s.nextElementSibling;
+                let anyVisible = false;
+                while (nextEl && !nextEl.classList.contains('srel-section-label')) {
+                    if (nextEl.classList.contains('srel-tile') && nextEl.style.display !== 'none') {
+                        anyVisible = true;
+                    }
+                    nextEl = nextEl.nextElementSibling;
+                }
+                s.style.display = anyVisible ? '' : 'none';
+            });
+        }
     },
 });
 
@@ -1061,8 +1094,12 @@ Object.assign(UI.prototype, {
         const port = document.getElementById('charCardPortrait');
         if (port) {
             const icon = player.icon || '🧑';
-            if (port.textContent !== icon) port.textContent = icon;
+            const glyph = port.firstChild && port.firstChild.nodeType === 3 ? port.firstChild : null;
+            if (glyph) { if (glyph.nodeValue !== icon) glyph.nodeValue = icon; }
+            else if (!port.dataset || !port.dataset.preset) port.textContent = icon;
+            NpcPortrait.attachPlayer(port, player);
         }
+        NpcPortrait.attachPlayer(document.getElementById('tbPortrait'), player);
     },
 
     /** Bottom-bar mood label + meter, derived from morale so it reads high at full health. */
@@ -1111,14 +1148,16 @@ Object.assign(UI.prototype, {
             return;
         }
 
-        const obj = q.objectives.find(o => !o.completed) || q.objectives[q.objectives.length - 1];
+        const objectives = q.objectives || [];
+        const obj = objectives.find(o => !o.completed) || objectives[objectives.length - 1];
         if (titleEl && titleEl.textContent !== q.title) titleEl.textContent = q.title;
         if (descEl) {
-            const text = obj ? obj.text : q.description;
+            const text = (obj && obj.text) || q.description || '';
             if (descEl.textContent !== text) descEl.textContent = text;
         }
-        if (progEl && obj) {
-            const s = `${obj.current || 0} / ${obj.target}`;
+        if (progEl) {
+            // Objectives without a numeric target (visit/talk) show no counter
+            const s = obj && obj.target != null ? `${obj.current || 0} / ${obj.target}` : '';
             if (progEl.textContent !== s) progEl.textContent = s;
         }
     },
@@ -1208,10 +1247,7 @@ Object.assign(UI.prototype, {
             if (el) el.addEventListener('click', fn);
         };
         const tileAt = () => game.world.getTile(game.player.q, game.player.r);
-        const recenter = () => {
-            const pos = game.renderer.getHexPixelPos(game.player.q, game.player.r);
-            if (game.camera && game.camera.centerOn) game.camera.centerOn(pos.x, pos.y);
-        };
+        const recenter = () => game.recenterCamera();
 
         // Top tabs — Map/Kingdom/Journal are dropdown buttons (see setupCivDropdowns);
         // Quests and Diplomacy are direct-action tabs.

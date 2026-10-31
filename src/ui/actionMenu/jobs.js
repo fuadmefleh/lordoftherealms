@@ -1,9 +1,12 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { panelClosed } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
+import { OddJobs } from '../../player/oddJobs.js';
+import { startTrapping, startIceFishing } from './winterScenes.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -17,7 +20,7 @@ Object.assign(ActionMenu, {
         if (!settlement) return;
 
         // Determine settlement tier
-        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
+        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' || settlement.type === 'city' ? 'town' : 'village');
 
         // Get job list from data (or fallback)
         const jobData = ActionMenu._getJobData();
@@ -39,6 +42,7 @@ Object.assign(ActionMenu, {
         for (let i = 0; i < todayJobs.length; i++) {
             const job = todayJobs[i];
             const statVal = ActionMenu._getPlayerStat(game.player, job.stat);
+            const payMult = Math.round(OddJobs.wageFactor(settlement, job.sector) * OddJobs.seasonFactor(game.world, settlement, job) * 100) / 100;
             const statLabel = job.stat.charAt(0).toUpperCase() + job.stat.slice(1);
             const dColor = diffColors[job.difficulty] || '#f39c12';
 
@@ -52,7 +56,7 @@ Object.assign(ActionMenu, {
                     <div style="flex: 1;">
                         <div style="font-weight: 600; font-size: 13px;">${job.name}${job.seasonal ? ` <span style="font-size:10px; color:#2ecc71; font-weight:400;">${Seasons.ICONS[Seasons.seasonOf(game.world.day)] || ''} seasonal</span>` : ''}</div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${job.description}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${statLabel}: ${statVal} · Pay: ${job.pay.min}-${job.pay.max}g</div>
+                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${statLabel}: ${statVal} · Pay: ${Math.floor(job.pay.min * payMult)}-${Math.floor(job.pay.max * payMult)}g${payMult !== 1 ? ` (local wages ×${payMult})` : ''}</div>
                     </div>
                     <div style="text-align: right;">
                         <div style="font-size: 12px; color: #e67e22; font-weight: 600;">▶ Work</div>
@@ -105,31 +109,10 @@ Object.assign(ActionMenu, {
      */
     _laborReward(game, tile, job, scorePercent) {
         const player = game.player;
-        const statVal = ActionMenu._getPlayerStat(player, job.stat);
-        const basePay = job.pay.min + Math.floor(Math.random() * (job.pay.max - job.pay.min + 1));
-        const qualityMult = 0.3 + (scorePercent / 100) * 1.0;
-        const statBonus = Math.floor(statVal * 1.5);
-        const actualPay = Math.max(1, Math.floor((basePay + statBonus) * qualityMult));
-
-        player.gold += actualPay;
-        if (scorePercent >= 40) player.renown += 1;
-
-        // Track for quests
-        if (!player.jobsCompleted) player.jobsCompleted = 0;
-        player.jobsCompleted++;
-
-        // Skill up — better performance = better chance
-        if (player.skills && player.skills[job.stat] !== undefined) {
-            const skillChance = 0.15 + scorePercent * 0.002;
-            if (Math.random() < skillChance) {
-                player.skills[job.stat] = Math.min(10, player.skills[job.stat] + 0.1);
-            }
-        }
-
-        // Finance tracking
-        if (player.financeToday) {
-            player.financeToday.income.jobs = (player.financeToday.income.jobs || 0) + actualPay;
-        }
+        // Pay by the town's going wage and the season, training, the town's
+        // own gain where it is short of hands (player/oddJobs.js)
+        const res = OddJobs.complete(player, game.world, tile.settlement, job, scorePercent);
+        const actualPay = res.pay;
 
         // Rating
         const rating = scorePercent >= 90 ? 'Masterful Work! 🌟' : scorePercent >= 70 ? 'Great Job! 👏' : scorePercent >= 50 ? 'Decent Work 👍' : scorePercent >= 25 ? 'Sloppy Work 😐' : 'Barely Finished 😬';
@@ -145,6 +128,16 @@ Object.assign(ActionMenu, {
         html += `<div style="margin-bottom: 12px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
         html += `<div style="font-size: 24px; color: var(--gold); font-weight: bold; margin: 8px 0;">+${actualPay} gold</div>`;
         if (scorePercent >= 40) html += `<div style="font-size: 12px; color: #9b59b6;">+1 Renown</div>`;
+        const f = res.factors;
+        const notes = [];
+        if (f.wage !== 1) notes.push(`${f.wage > 1 ? 'hands are scarce' : 'hands are plentiful'} here (wages ×${f.wage})`);
+        if (f.season !== 1) notes.push(`${f.season > 1 ? 'a bumper harvest' : 'a thin harvest'} (×${f.season})`);
+        if (notes.length) html += `<div style="font-size: 11px; color: var(--text-secondary);">${notes.join(' · ')}</div>`;
+        for (const g of res.gains) {
+            const name = g.id.charAt(0).toUpperCase() + g.id.slice(1);
+            html += `<div style="font-size: 12px; color: #2ecc71;">${name} +${g.by}</div>`;
+        }
+        if (res.contribution) html += `<div style="font-size: 11px; color: #7db4ff;">The town was short of hands: your work brought ${res.contribution.qty} ${res.contribution.good} to its market.</div>`;
 
         html += `<button onclick="window._laborContinue()"
             style="padding: 10px 32px; margin-top: 16px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
@@ -593,6 +586,7 @@ Object.assign(ActionMenu, {
 
         intervalId = setInterval(() => {
             if (locked) return;
+            if (panelClosed()) { locked = true; clearInterval(intervalId); return; }
 
             // Random drift
             const drift = (Math.random() - 0.45) * driftRate * 2;
@@ -750,28 +744,25 @@ Object.assign(ActionMenu, {
 
     // ── Seasonal work (player/seasonalWork.js) ──
 
-    /** Winter: run a trap line on cold ground. Takes the day. */
+    /**
+     * Winter: run the traps for a day or lay a trap line; on a line already
+     * set, empty / re-bait / take it up (ui/actionMenu/winterScenes.js).
+     */
     doTrapFurs(game, tile) {
-        const res = SeasonalWork.trapFurs(game.player, tile, game.world);
-        if (!res.success) {
-            game.ui.showNotification('🦊 Trapping', res.reason, 'default');
+        if (!SeasonalWork.canTrapFurs(tile, game.world)) {
+            game.ui.showNotification('🦊 Trapping', 'Trapping needs cold winter ground in the wilds.', 'default');
             return;
         }
-        game.ui.showNotification('🦊 Trap Line', res.message, Object.keys(res.lost || {}).length ? 'warning' : 'success');
-        game.ui.updateStats(game.player, game.world);
-        game.endDay();
+        ActionMenu.showScene(game, 'trap_furs', startTrapping(game, tile));
     },
 
-    /** Winter: fish through the ice. Takes the day. */
+    /** Winter: fish through the ice — near the shore, or out where it is thin. */
     doIceFish(game, tile) {
-        const res = SeasonalWork.iceFish(game.player, tile, game.world);
-        if (!res.success) {
-            game.ui.showNotification('🧊 Ice Fishing', res.reason, 'default');
+        if (!SeasonalWork.canIceFish(tile, game.world)) {
+            game.ui.showNotification('🧊 Ice Fishing', 'Ice fishing needs a frozen river or lake in winter.', 'default');
             return;
         }
-        game.ui.showNotification('🧊 Ice Fishing', res.message, Object.keys(res.lost || {}).length ? 'warning' : 'success');
-        game.ui.updateStats(game.player, game.world);
-        game.endDay();
+        ActionMenu.showScene(game, 'ice_fishing', startIceFishing(game, tile));
     },
 
     /** Spring: sow a settlement's fields for a share of the harvest. Takes the day. */
@@ -1614,24 +1605,13 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            // For instant bounties, resolve immediately with skill check
+            // For instant bounties, resolve immediately with a skill check (player/oddJobs.js)
             if (bounty.type === 'instant') {
-                const stat = bounty.stat || 'combat';
-                const statVal = ActionMenu._getPlayerStat(game.player, stat);
-                const roll = Math.random() * 10;
-                const success = roll < statVal + 3;
-
-                if (success) {
-                    game.player.gold += bounty.actualPay;
-                    game.player.renown += 2;
-                    if (game.player.financeToday) {
-                        game.player.financeToday.income.bounties = (game.player.financeToday.income.bounties || 0) + bounty.actualPay;
-                    }
-                    game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${bounty.actualPay} gold!`, 'success');
+                const res = OddJobs.resolveInstantBounty(game.player, bounty);
+                if (res.success) {
+                    game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${res.pay} gold!`, 'success');
                 } else {
-                    const dmg = Math.floor(Math.random() * 10) + 5;
-                    game.player.health = Math.max(1, game.player.health - dmg);
-                    game.ui.showNotification('Failed!', `${bounty.name} — you struggled and lost ${dmg} health.`, 'error');
+                    game.ui.showNotification('Failed!', `${bounty.name} — you struggled and lost ${res.damage} health.`, 'error');
                 }
                 game.ui.updateStats(game.player, game.world);
                 game.ui.hideCustomPanel();

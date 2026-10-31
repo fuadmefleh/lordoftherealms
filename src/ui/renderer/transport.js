@@ -49,15 +49,15 @@ Object.assign(Renderer.prototype, {
             ctx.stroke();
             if (band === 'closed') {
                 const mid = pts[Math.floor(pts.length / 2)];
-                if (explored(mid)) icons.push([scr(mid.q, mid.r), st.cl === 'snow' ? '❄️' : '🌊']);
+                if (explored(mid)) icons.push([scr(mid.q, mid.r), st.cl === 'snow' ? 'snowflake' : 'wave']);
             }
             for (const i of seg.rivers) {
                 const p = Transport.hexOf(world, i);
-                if (st.x !== 'bridge' && explored(p)) icons.push([scr(p.q, p.r), st.x === 'ferry' ? '⛴️' : '🌊']);
+                if (st.x !== 'bridge' && explored(p)) icons.push([scr(p.q, p.r), st.x === 'ferry' ? 'boat' : 'wave']);
             }
             if (st.toll && seg.gate >= 0) {
                 const p = Transport.hexOf(world, seg.gate);
-                if (explored(p)) icons.push([scr(p.q, p.r), '💰']);
+                if (explored(p)) icons.push([scr(p.q, p.r), 'coins']);
             }
         }
         ctx.setLineDash([]);
@@ -81,15 +81,12 @@ Object.assign(Renderer.prototype, {
         for (const w of tr.works || []) {
             if (!w || (w.status !== 'building' && w.status !== 'stalled')) continue;
             const t = world.getTile(w.q, w.r);
-            if (t && t.explored) icons.push([scr(w.q, w.r), '🚧']);
+            if (t && t.explored) icons.push([scr(w.q, w.r), 'barrier']);
         }
         ctx.globalAlpha = 1;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `${Math.max(11, size * 0.42)}px serif`;
         for (const [s, icon] of icons) {
             if (off(s)) continue;
-            ctx.fillText(icon, s.x + size * 0.28, s.y - size * 0.28);
+            this.drawMapMarker(ctx, icon, s.x + size * 0.28, s.y - size * 0.28, Math.max(9, size * 0.22));
         }
         ctx.restore();
     },

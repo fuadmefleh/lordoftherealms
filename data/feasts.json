@@ -1,0 +1,64 @@
+{
+    "_comment": "Feasts (systems/feasts.js). A feast is planned: guests (realm rulers within reach, notable townsfolk of the town), a menu tier whose courses are drawn from the host's own stores first and bought at the town's market for the rest, and entertainment. Each guest who comes judges it (menu, entertainment, their traits, their regard); incidents may follow. Effects: renown, reputation, town happiness, each guest's opinion (NpcLords.rememberDeed when present, reputation in their realm otherwise), a deed rumour. Cooldown between feasts; the same town tires of them.",
+    "config": {
+        "cooldownDays": 7,
+        "townRepeatDays": 30,
+        "townRepeatMult": 0.5,
+        "maxGuests": 6,
+        "lordRange": 14,
+        "maxLords": 4,
+        "maxFolk": 5,
+        "honouredAt": 60,
+        "slightedBelow": 35,
+        "uninvitedSlight": true,
+        "folkRoles": ["noble", "merchant", "priest", "guard", "blacksmith_npc"]
+    },
+    "menus": {
+        "modest": {
+            "label": "A modest table", "icon": "🍲", "quality": 40, "renown": 3, "karma": 1, "happiness": 2, "reputation": 2,
+            "courses": [ { "label": "Bread and stew", "goods": ["bread", "meat", "fish", "dried_meat", "cheese", "preserved_fish", "large_fish", "grain"], "qty": 8 },
+                         { "label": "Ale", "goods": ["beer", "wine", "liquor"], "qty": 4 } ]
+        },
+        "fine": {
+            "label": "A fine spread", "icon": "🍗", "quality": 60, "renown": 6, "karma": 2, "happiness": 4, "reputation": 4,
+            "courses": [ { "label": "Roasts and pies", "goods": ["meat", "bread", "cheese", "large_fish", "dried_meat", "fish", "preserved_fish"], "qty": 16 },
+                         { "label": "Ale and wine", "goods": ["wine", "beer", "liquor"], "qty": 8 },
+                         { "label": "Honey cakes", "goods": ["honey", "spices", "tea"], "qty": 2 } ]
+        },
+        "grand": {
+            "label": "A grand banquet", "icon": "🦢", "quality": 80, "renown": 12, "karma": 3, "happiness": 6, "reputation": 7,
+            "courses": [ { "label": "A procession of roasts", "goods": ["meat", "large_fish", "cheese", "bread", "swordfish", "lobster", "crab", "dried_meat"], "qty": 30 },
+                         { "label": "Wine and spirits", "goods": ["wine", "liquor", "beer"], "qty": 15 },
+                         { "label": "Spiced sweets", "goods": ["spices", "exotic_spices", "honey", "tea"], "qty": 6 } ]
+        }
+    },
+    "entertainment": {
+        "none": { "label": "Conversation only", "icon": "🗣️", "cost": 0, "bonus": 0 },
+        "minstrels": { "label": "Minstrels", "icon": "🎵", "cost": 30, "bonus": 8 },
+        "jesters": { "label": "Jesters and tumblers", "icon": "🤹", "cost": 45, "bonus": 10, "insultRisk": 0.1 },
+        "bard": { "label": "A bard's epic of your deeds", "icon": "📜", "cost": 70, "bonus": 12, "renown": 3 },
+        "games": { "label": "Games of strength", "icon": "💪", "cost": 40, "bonus": 9, "brawlRisk": 0.25 }
+    },
+    "traitTaste": {
+        "greedy": { "grand": 12, "modest": -10 },
+        "pious": { "modest": 6, "grand": -6, "jesters": -8 },
+        "honorable": { "bard": 4 },
+        "cruel": { "games": 8, "minstrels": -4 },
+        "brave": { "games": 8 },
+        "ambitious": { "grand": 6, "bard": -6 },
+        "cunning": { "jesters": 6 },
+        "cautious": { "games": -6 }
+    },
+    "incidents": {
+        "insult": { "weight": 3, "icon": "😤", "text": "{guest} takes the seating as an insult and says so before the hall." },
+        "betrothal": { "weight": 2, "icon": "💍", "minQuality": 55, "text": "Over the sweets, {guest} suggests that your Houses might be joined by a betrothal." },
+        "brawl": { "weight": 2, "icon": "🍺", "drinkAt": 8, "text": "Deep in his cups, {brawler} knocks over a bench and calls you out in front of everyone." },
+        "toast": { "weight": 3, "icon": "🥂", "minQuality": 50, "renown": 3, "text": "{guest} raises a cup to your name, and the whole hall answers." },
+        "gossip": { "weight": 2, "icon": "🤫", "text": "Between courses {guest} lets slip what is being said at court." }
+    },
+    "incidentChance": 0.55,
+    "secondIncidentChance": 0.25,
+    "opinion": { "honoured": 6, "slighted": -6, "uninvited": -3, "betrothal": 4, "insulted": -8 },
+    "folkDisposition": { "honoured": 12, "slighted": -6 },
+    "brawl": { "calmCharisma": 0.07, "calmBase": 0.25, "winRenown": 3, "loseRenown": -2, "calmRenown": 1 }
+}

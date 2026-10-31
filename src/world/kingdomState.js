@@ -424,6 +424,8 @@ export const KingdomStability = {
         }
         // Trade treaties, embargoes, trade wars and granary relief (systems/tradePolicy.js → kingdom.tradePolicy.stab)
         if (kingdom.tradePolicy && Number.isFinite(kingdom.tradePolicy.stab)) t += add('Trade policy', kingdom.tradePolicy.stab);
+        // Tales about the ruler running hot in the taverns (systems/whispers.js → kingdom.scandal.stab)
+        if (kingdom.scandal && Number.isFinite(kingdom.scandal.stab)) t += add('Court scandal', kingdom.scandal.stab);
         if (kingdom.religion && typeof kingdom.religion.unity === 'number') {
             t += add('Faith unity', (kingdom.religion.unity - 50) * 0.1);
         }

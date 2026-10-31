@@ -1,5 +1,6 @@
 // ActionMenu — colony methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { DevotionPanel } from './devotion.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -112,127 +113,15 @@ Object.assign(ActionMenu, {
     // PILGRIMAGE / HOLY SITES
     // ─────────────────────────────────────────────
     /**
-     * Visit a holy site (pilgrimage)
+     * Visit a holy site: kneel with an offering (the pilgrim pays), keep a
+     * sworn pilgrimage, pray, swear a new one (systems/devotion.js)
      */
     visitHolySite(game, tile) {
-        if (typeof Religion === 'undefined' || !tile.holySite) return;
-
-        const site = tile.holySite;
-        const faith = site.faithId ? Religion.FAITHS[site.faithId] : null;
-
-        let html = '<div>';
-        html += `
-            <div style="text-align: center; padding: 16px 0;">
-                <div style="font-size: 48px;">${site.icon}</div>
-                <h3 style="margin: 8px 0; color: var(--gold);">${site.name}</h3>
-                <p style="font-size: 13px; color: var(--text-secondary);">${site.description}</p>
-                ${faith ? `<div style="margin-top: 8px; font-size: 12px;">${faith.icon} Associated with: <strong>${faith.name}</strong></div>` : ''}
-                ${site.controller ? `<div style="margin-top: 4px; font-size: 12px;">Controlled by: <strong>${game.world.getKingdom(site.controller)?.name || 'Unknown'}</strong></div>` : '<div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary);">Unclaimed holy site</div>'}
-            </div>
-            <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 12px;">
-                <div style="font-size: 13px; margin-bottom: 8px;"><strong>Pilgrimage Rewards:</strong></div>
-                <div style="font-size: 12px;">💰 Gold reward • ☯ Karma • ⭐ Renown • 🙏 Faith</div>
-                ${site.bonusType === 'healing' ? '<div style="font-size: 12px; color: #27ae60; margin-top: 4px;">💚 Special: Healing waters restore health</div>' : ''}
-                ${site.contested ? `<div style="font-size: 12px; color: #e67e22; margin-top: 4px;">⚔️ Contested: recently seized — tense crowds, thinner offerings (${site.contestedDaysLeft || 'some'} days to settle)</div>` : ''}
-            </div>
-            <button onclick="window._completePilgrimage()" 
-                style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">
-                🙏 Complete Pilgrimage
-            </button>
-        `;
-        html += '</div>';
-
-        game.ui.showCustomPanel('⛲ Holy Site', html);
-
-        window._completePilgrimage = () => {
-            const result = Religion.completePilgrimage(game.player, tile, game.world);
-            if (result.success) {
-                game.ui.showNotification('Pilgrimage Complete!',
-                    `${result.siteName}: +${result.goldReward} gold, +${result.karmaGained} karma, +${result.renownGained} renown${result.healed ? ', health restored!' : ''}${result.contested ? ' The shrine is contested — offerings were thin amid the tension.' : ''}`,
-                    'success'
-                );
-                game.ui.updateStats(game.player, game.world);
-                game.ui.hideCustomPanel();
-            } else {
-                game.ui.showNotification('Cannot Complete', result.reason, 'error');
-            }
-        };
+        if (!tile || !tile.holySite) return;
+        DevotionPanel.showPilgrimage(game, tile);
     },
 
-    /**
-     * Post bail to get out of jail
-     */
-    postBail(game) {
-        const player = game.player;
-        if (!player.jailState) return;
-        const bail = player.jailState.bailCost;
-        if (player.gold < bail) {
-            game.ui.showNotification('Cannot Post Bail', `You need ${bail} gold (have ${Math.floor(player.gold)}).`, 'error');
-            return;
-        }
-        player.gold -= bail;
-        if (player.financeToday) {
-            player.financeToday.expenses = player.financeToday.expenses || {};
-            player.financeToday.expenses.bail = (player.financeToday.expenses.bail || 0) + bail;
-        }
-        const settlement = player.jailState.settlement;
-        player.jailState = null;
-        player.stamina = player.maxStamina;
-        player.movementRemaining = player.maxStamina;
-        game.ui.showNotification('💰 Bail Posted', `You paid ${bail} gold and were released from jail in ${settlement}.`, 'success');
-        game.ui.updateStats(player, game.world);
-    },
-
-    /**
-     * Attempt to escape from jail
-     */
-    attemptJailbreak(game) {
-        const player = game.player;
-        if (!player.jailState) return;
-        const jail = player.jailState;
-        const roll = Math.random();
-
-        if (roll < (jail.escapeChance || 0.1)) {
-            // Successful jailbreak
-            const settlement = jail.settlement;
-            player.jailState = null;
-            player.stamina = player.maxStamina;
-            player.movementRemaining = player.maxStamina;
-            player.karma = (player.karma || 0) - 2;
-            // Stealth skill up
-            if (player.skills) {
-                player.skills.stealth = Math.min((player.skills.stealth || 1) + 0.5, 10);
-            }
-            // Major reputation hit — you're a fugitive
-            const tile = game.world.getTile(player.q, player.r);
-            if (tile?.settlement?.kingdom && player.reputation) {
-                player.reputation[tile.settlement.kingdom] = (player.reputation[tile.settlement.kingdom] || 0) - 10;
-            }
-            game.ui.showNotification('🏃 Jailbreak!', `You escaped from jail in ${settlement}! -2 karma, -10 reputation.`, 'success');
-        } else {
-            // Failed jailbreak — more time
-            const addedDays = Utils.randInt(2, 5);
-            jail.daysRemaining += addedDays;
-            jail.totalDays += addedDays;
-            jail.escapeChance = Math.max(0.03, (jail.escapeChance || 0.1) - 0.02);
-            player.health = Math.max(10, player.health - Utils.randInt(3, 10));
-            game.ui.showNotification('❌ Jailbreak Failed', `The guards caught you! +${addedDays} days added to your sentence. You were roughed up.`, 'error');
-        }
-        game.ui.updateStats(player, game.world);
-    },
-
-    /**
-     * Attempt to escape indentured servitude
-     */
-    attemptServitudeEscape(game) {
-        const result = PlayerMilitary.attemptEscape(game.player);
-        if (result.success) {
-            game.ui.showNotification('Escaped!', result.message, 'success');
-        } else {
-            game.ui.showNotification('Escape Failed!', result.message, 'error');
-        }
-        game.ui.updateStats(game.player, game.world);
-    },
+    // postBail, attemptJailbreak and attemptServitudeEscape: ./prisonScenes.js (player/prison.js)
 
     /**
      * Buy freedom from indentured servitude
@@ -1392,62 +1281,5 @@ Object.assign(ActionMenu, {
         if (tile) ActionMenu.showMapTradeMenu(game, tile);
     },
 
-    /**
-     * Attempt to steal a map
-     */
-    attemptStealMap(game, tile) {
-        const result = Cartography.attemptStealMap(game.player, game.world, tile);
-
-        if (result.success) {
-            // Auto-reveal the stolen map area on the world
-            Cartography.applyMap(game.player, result.map, game.world);
-            game.ui.showNotification('Map Stolen!', result.message + ' The area has been revealed on your map.', 'success');
-        } else if (result.caught) {
-            // Jail for map theft
-            const player = game.player;
-            const settlement = tile.settlement;
-            if (settlement) {
-                if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0, mapTheft: 0 };
-                player.criminalRecord.mapTheft = (player.criminalRecord.mapTheft || 0) + 1;
-                const offenses = player.criminalRecord.mapTheft;
-                const jailDays = offenses === 1 ? 2 : offenses === 2 ? 5 : offenses === 3 ? 8 : 10 + (offenses - 4) * 3;
-                const bailCost = jailDays * 25;
-                player.karma = (player.karma || 0) - 2;
-                player.jailState = {
-                    daysRemaining: jailDays,
-                    totalDays: jailDays,
-                    offense: 'map theft',
-                    offenseNumber: offenses,
-                    settlement: settlement.name,
-                    bailCost: bailCost,
-                    escapeChance: 0.08 + ((player.skills?.stealth || 0) * 0.03),
-                };
-                player.stamina = 0;
-                player.movementRemaining = 0;
-                game.ui.showNotification('🚔 Arrested!',
-                    `${result.message} Sentenced to ${jailDays} days in jail (offense #${offenses}). -2 karma.`, 'error');
-            } else {
-                game.ui.showNotification('Caught!', result.message, 'error');
-            }
-        } else {
-            game.ui.showNotification('Failed', result.message, 'default');
-        }
-        game.ui.updateStats(game.player, game.world);
-    },
-
-    /**
-     * Dig for treasure
-     */
-    digTreasure(game, tile) {
-        const result = Cartography.digTreasure(game.player, game.world, game.player.q, game.player.r);
-
-        if (result.success) {
-            game.ui.showNotification('Treasure Found!', 
-                `You dug up ${result.gold} gold!${result.bonusText || ''}`, 'success');
-            game.endDay();
-        } else {
-            game.ui.showNotification('Nothing Here', result.reason, 'default');
-        }
-        game.ui.updateStats(game.player, game.world);
-    },
+    // attemptStealMap and digTreasure: ./treasureScenes.js (systems/mapTheft.js, systems/treasureDigs.js)
 });

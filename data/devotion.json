@@ -1,0 +1,154 @@
+{
+    "_comment": "Devotion (systems/devotion.js): prayer and meditation by faith and place, vows, omens, alms by recipient, pilgrimages declared and kept, clergy standing. The soul pact (systems/soulPact.js) is under 'pact'. Every roll comes from the system's own seeded stream.",
+    "config": {
+        "dayDiminish": [1, 0.6, 0.35, 0.15],
+        "placeRepeatDays": 6,
+        "placeRepeatMult": 0.5,
+        "dailyKarmaCap": 6,
+        "statCaps": { "faith": 2.5, "intelligence": 1.5 },
+        "statStep": { "faith": 0.25, "intelligence": 0.2 },
+        "absoluteStatMax": 10,
+        "kinds": {
+            "meditate": { "label": "Meditation", "heal": 12, "healPerFaith": 2, "karma": 1.5, "faithChance": 0.08, "intChance": 0.12, "faithBound": 0.4, "piety": 0.5 },
+            "pray": { "label": "Prayer", "heal": 4, "healPerFaith": 1, "karma": 2.5, "faithChance": 0.15, "intChance": 0, "faithBound": 1, "piety": 1 }
+        },
+        "places": {
+            "field": { "label": "in the open", "mult": 0.6, "omen": 0.03, "heal": 0 },
+            "altar": { "label": "at an altar", "mult": 1, "omen": 0.05, "heal": 0 },
+            "temple": { "label": "in a temple", "mult": 1.2, "omen": 0.06, "heal": 4 },
+            "holy": { "label": "at a holy site", "mult": 1.8, "omen": 0.14, "heal": 12 }
+        },
+        "match": { "same": 1.4, "none": 0.7, "foreign": 0.6, "unaligned": 1 },
+        "matchText": {
+            "same": "The rite is your own; the words come easily.",
+            "none": "You keep no creed. The prayer is honest, if aimless.",
+            "foreign": "The rite here belongs to another faith. You kneel as a guest.",
+            "unaligned": "No priest claims this ground. It listens to anyone."
+        },
+        "desecratedMult": 0.6,
+        "hostileSite": { "risk": 0.3, "fineMin": 10, "fineMax": 60, "reputation": -3, "harm": 8 },
+        "contestedSite": { "risk": 0.2, "harm": 10, "renown": 2 },
+        "tenets": {
+            "Mysticism": { "omen": 0.08 },
+            "Peace": { "meditateHeal": 0.25 },
+            "Humility": { "karmaCap": 2 },
+            "Charity": { "donationKarma": 0.25 },
+            "Wisdom": { "reading": 0.5 },
+            "Valor": { "vowRenown": 2 }
+        },
+        "omen": { "cooldownDays": 6, "radius": 14 },
+        "vowChance": 0.14,
+        "vowOfferCooldownDays": 4,
+        "maxVows": 2,
+        "soulSoldMult": 0.4,
+        "cursedMult": 0,
+        "apostasy": { "karma": -5, "cooldownDays": 30 },
+        "standing": { "max": 100, "perGold": 0.08, "maxPerGift": 6, "prayer": 0.3, "templeDiscountPer": 0.004, "maxDiscount": 0.35 }
+    },
+    "omens": {
+        "delve": { "icon": "🕳️", "text": "In the stillness you see a stair going down into the dark, {dist} hexes to the {dir}. Something waits in {name}." },
+        "lair": { "icon": "🗡️", "text": "A vision of smoke and stolen goods: outlaws keep a den {dist} hexes to the {dir}." },
+        "holy": { "icon": "✨", "text": "A light rises {dist} hexes to the {dir}: {name}, a holy place you have not yet knelt at." },
+        "poi": { "icon": "🗺️", "text": "Unbidden, a place comes to you: {name}, {dist} hexes to the {dir}, untouched by any traveller." },
+        "none": { "icon": "🌫️", "text": "For a moment the veil thins — and shows you only fog." }
+    },
+    "vows": {
+        "peace": {
+            "name": "Vow of Peace", "icon": "🕊️", "days": 10,
+            "desc": "Raise no hand in battle or bloodshed for {days} days.",
+            "watch": { "deeds": ["valor", "cruelty", "dread"], "stats": ["battles_won"] },
+            "keep": { "karma": 8, "faith": 0.25, "renown": 3, "deeds": { "piety": 2, "mercy": 1 } },
+            "break": { "karma": -8, "faith": -0.25, "deeds": { "deceit": 1 } }
+        },
+        "sobriety": {
+            "name": "Vow of Sobriety", "icon": "💧", "days": 7,
+            "desc": "Set no foot in a taproom and touch no drink for {days} days.",
+            "watch": { "deeds": ["drinking"] },
+            "keep": { "karma": 5, "faith": 0.25, "deeds": { "piety": 1 } },
+            "break": { "karma": -5, "deeds": { "deceit": 0.5 } }
+        },
+        "temperance": {
+            "name": "Vow against Dice", "icon": "🎲", "days": 7,
+            "desc": "Wager nothing on dice or cards for {days} days.",
+            "watch": { "deeds": ["gambling"] },
+            "keep": { "karma": 5, "faith": 0.25, "deeds": { "piety": 1, "honesty": 1 } },
+            "break": { "karma": -5, "deeds": { "deceit": 0.5 } }
+        },
+        "alms": {
+            "name": "Vow of Alms", "icon": "🤲", "days": 12,
+            "desc": "Give {gold} gold in alms (temples, the poor, the needy) within {days} days.",
+            "gold": { "base": 40, "perRenown": 0.5, "max": 300 },
+            "keep": { "karma": 10, "faith": 0.25, "renown": 2, "deeds": { "generosity": 2, "piety": 1 } },
+            "break": { "karma": -6, "deeds": { "greed": 1 } }
+        },
+        "pilgrimage": {
+            "name": "Vow of Pilgrimage", "icon": "🥾", "baseDays": 8, "perHex": 1.6,
+            "desc": "Walk to {site} and kneel there within {days} days.",
+            "keep": { "karma": 6, "faith": 0.25, "renown": 4, "deeds": { "piety": 2, "travel": 1 } },
+            "break": { "karma": -6, "renown": -2, "deeds": { "deceit": 0.5 } }
+        }
+    },
+    "pilgrimage": {
+        "offerings": [
+            { "id": "token", "label": "A candle and a prayer", "gold": 5, "mult": 0.8 },
+            { "id": "alms", "label": "Alms for the shrine", "gold": 25, "mult": 1 },
+            { "id": "rich", "label": "A rich offering", "gold": 80, "mult": 1.3 }
+        ],
+        "base": { "karmaPerFaithBonus": 0.5, "renown": 5, "faith": 0.5 },
+        "vowedMult": 1.5,
+        "repeatMult": 0.5,
+        "blessingCooldownDays": 30,
+        "foreignMult": 0.7,
+        "sameFaithMult": 1.25,
+        "hostile": { "risk": 0.35, "fineMin": 20, "fineMax": 90, "harm": 15, "reputation": -4 },
+        "contested": { "risk": 0.25, "harm": 12, "renownBonus": 3 }
+    },
+    "blessings": {
+        "healing": { "text": "The waters close your wounds and wash the fever out.", "heal": 999, "blessings": { "temple_blessing": 5 } },
+        "growth": { "text": "Seeds swell in your fields; the harvest will be heavy.", "blessings": { "harvest": 3 } },
+        "trade": { "text": "Travellers' luck: your properties will prosper.", "blessings": { "prosperity": 3 } },
+        "military": { "text": "The old bones lend you their courage. No blade will bite you for a day.", "blessings": { "protection": 1 } },
+        "militancy": { "text": "The storm fills your arm.", "skills": { "combat": 0.3 } },
+        "scholarship": { "text": "The star-charts open to you.", "skills": { "cartography": 0.3 }, "stats": { "intelligence": 0.2 } },
+        "arcane": { "text": "The crystals hum a thought you did not have before.", "stats": { "intelligence": 0.2 } },
+        "prophecy": { "text": "The moonwell shows you a road.", "omen": true },
+        "mystery": { "text": "The drowned bells ring, and you see something far away.", "omen": true },
+        "unity": { "text": "At the ancient altar you feel the long line of the faithful behind you.", "karma": 4 },
+        "pilgrimage": { "text": "The relics are carried out for you; the crowd remembers your face.", "renown": 6 },
+        "sacrifice": { "text": "The stone takes its due in blood, and gives back fire.", "harm": 10, "faith": 0.25 }
+    },
+    "donations": {
+        "minGold": 5,
+        "recentDecayPerDay": 0.04,
+        "diminishRef": 120,
+        "temple": { "label": "The temple", "icon": "⛪", "karmaPerGold": 0.06, "piety": 0.02, "maxPiety": 3, "presence": 0.0002, "maxPresence": 0.02 },
+        "poor": { "label": "The poor of the town", "icon": "🥖", "karmaPerGold": 0.1, "happinessPer100Pop": 0.6, "maxHappiness": 6, "reputationPerGold": 0.05, "maxReputation": 5 },
+        "guild": { "label": "A guild you belong to", "icon": "⚒️", "karmaPerGold": 0.02, "standingPerGold": 0.06, "maxStanding": 8 },
+        "folk": { "label": "Someone in need", "icon": "🧑", "karmaPerGold": 0.12, "disposition": 0.4, "maxDisposition": 20 }
+    },
+    "pact": {
+        "strangers": [
+            { "name": "Master Velloc", "look": "a gaunt man in a coat the colour of old wine, whose candle never gutters" },
+            { "name": "the Widow Asheld", "look": "a veiled woman who smells of cold ash and pays in coin still warm" },
+            { "name": "Grey Orrin", "look": "a smiling pedlar with no shadow on the wall behind him" },
+            { "name": "Lady Mordaunt", "look": "a noblewoman no one saw arrive, with rings on every finger and none on her thumbs" }
+        ],
+        "price": { "base": 60, "perRenown": 1.5, "perKarma": 2, "max": 400 },
+        "karma": -10,
+        "renown": -2,
+        "dueDays": [18, 32],
+        "answerDays": 8,
+        "againDays": [30, 50],
+        "demands": {
+            "pay": { "label": "Pay the debt in gold", "icon": "💰", "goldMult": 2, "text": "\"Coin was what you wanted. Coin is what I want back — {gold} of it.\"" },
+            "cruelty": { "label": "Do a cruel thing", "icon": "🩸", "deed": "cruelty", "amount": 1, "text": "\"Hurt someone who cannot hurt you back. You'll know it when you've done it. So will I.\"" },
+            "deceit": { "label": "Tell a damning lie", "icon": "🎭", "deed": "deceit", "amount": 1, "text": "\"Plant a lie about someone great — let it take root and choke them.\"" },
+            "dread": { "label": "Make a town fear you", "icon": "💀", "deed": "dread", "amount": 1, "text": "\"Let a town learn your name the way children learn of wolves.\"" }
+        },
+        "keptKarma": -4,
+        "keptGold": 30,
+        "curse": { "luck": -2, "karmaPerDay": 0.5, "renown": -5, "text": "Cold settles in your bones. Dice turn against you, prayers come back unheard." },
+        "redeem": { "goldMult": 3, "minGold": 150, "karma": 5, "renown": 2 },
+        "pilgrimRedeems": true
+    }
+}

@@ -1,0 +1,111 @@
+{
+    "moves": {
+        "strike": { "label": "Strike", "icon": "⚔️", "cost": 3, "dmg": 1.35, "hint": "A heavy cut. Beats a thrust aside; a guard turns it into a riposte." },
+        "thrust": { "label": "Thrust", "icon": "🗡️", "cost": 2, "dmg": 1.0, "hint": "A quick point. Punishes a feint; a strike beats it aside." },
+        "feint":  { "label": "Feint",  "icon": "🌀", "cost": 2, "dmg": 0.75, "drain": 3, "opening": 1.5, "hint": "Draws the guard and slips past it, winding them; a thrust punishes it." },
+        "guard":  { "label": "Guard",  "icon": "🛡️", "cost": -2, "dmg": 0.6, "hint": "Catch your breath. Turns a strike into a riposte; a feint draws it out." }
+    },
+    "beats": { "strike": "thrust", "thrust": "feint", "feint": "guard", "guard": "strike" },
+    "hit": { "base": 0.6, "perPoint": 0.05, "min": 0.12, "max": 0.95, "cleanBonus": 0.1 },
+    "regen": 1,
+    "tiredPenalty": 2,
+    "exhaustedPenalty": 1,
+    "modes": {
+        "spar":       { "label": "Sparring bout", "rounds": 5,  "yield": true,  "aiYieldAt": 0 },
+        "tournament": { "label": "Tournament bout", "rounds": 10, "yield": true,  "aiYieldAt": 0.2 },
+        "firstBlood": { "label": "Duel to first blood", "rounds": 12, "yield": true,  "aiYieldAt": 0.25 },
+        "toDeath":    { "label": "Duel to the death", "rounds": 30, "yield": false, "aiYieldAt": 0 },
+        "ambush":     { "label": "Ambush", "rounds": 14, "yield": true,  "aiYieldAt": 0.2 }
+    },
+    "temperaments": {
+        "aggressive": { "label": "Aggressive", "icon": "🔥", "weights": { "strike": 4, "thrust": 3, "feint": 1, "guard": 1.5 }, "read": 0.2, "yield": 0.1 },
+        "cautious":   { "label": "Cautious",   "icon": "🛡️", "weights": { "strike": 1.5, "thrust": 2.5, "feint": 1, "guard": 4 }, "read": 0.25, "yield": 0.6 },
+        "tricky":     { "label": "Tricky",     "icon": "🦊", "weights": { "strike": 1.5, "thrust": 2, "feint": 3.5, "guard": 2 }, "read": 0.45, "yield": 0.4 },
+        "balanced":   { "label": "Steady",     "icon": "⚖️", "weights": { "strike": 2.5, "thrust": 2.5, "feint": 2, "guard": 2.5 }, "read": 0.25, "yield": 0.3 }
+    },
+    "rivalTemperaments": {
+        "treasure_hunter": "cautious", "sellsword": "aggressive", "bounty_hunter": "tricky",
+        "crusader": "aggressive", "merchant_adventurer": "cautious", "usurper": "tricky", "duelist": "tricky"
+    },
+    "folkTemperaments": {
+        "bold": "aggressive", "stubborn": "aggressive", "stern": "aggressive",
+        "cautious": "cautious", "quiet": "cautious", "kind": "cautious",
+        "witty": "tricky", "curious": "tricky"
+    },
+    "weapons": {
+        "fists":            { "name": "bare fists", "icon": "✊", "dmg": 0, "attack": -1, "rank": 0 },
+        "tools":            { "name": "a smith's hammer", "icon": "🔨", "dmg": 1.5, "attack": 0, "rank": 1 },
+        "weapons":          { "name": "a steel sword", "icon": "⚔️", "dmg": 3, "attack": 1, "rank": 2 },
+        "enchanted_weapon": { "name": "an enchanted blade", "icon": "✨", "dmg": 5, "attack": 1.5, "rank": 3 }
+    },
+    "shields": {
+        "shield": { "name": "shield", "icon": "🛡️", "guard": 1.5, "riposte": 0.4 }
+    },
+    "armour": { "leather_armor": 0.2, "dragonscale_armor": 0.35, "amulet": 0.1 },
+    "maxArmour": 0.7,
+    "npcs": {
+        "guard":          { "attack": 4,   "defense": 3.5, "power": 8,   "hp": 34, "stamina": 12, "armour": 0.2,  "weapon": "a guardsman's spear" },
+        "blacksmith_npc": { "attack": 3,   "defense": 2.5, "power": 8,   "hp": 32, "stamina": 13, "armour": 0.1,  "weapon": "a forge hammer" },
+        "noble":          { "attack": 3,   "defense": 3,   "power": 7,   "hp": 26, "stamina": 10, "armour": 0.1,  "weapon": "a court sword" },
+        "traveler":       { "attack": 2,   "defense": 2,   "power": 6,   "hp": 26, "stamina": 11, "armour": 0,    "weapon": "a walking staff" },
+        "farmer":         { "attack": 1.5, "defense": 1.5, "power": 6,   "hp": 26, "stamina": 12, "armour": 0,    "weapon": "bare fists" },
+        "merchant":       { "attack": 1,   "defense": 1.5, "power": 5,   "hp": 22, "stamina": 9,  "armour": 0,    "weapon": "bare fists" },
+        "priest":         { "attack": 0.5, "defense": 1.5, "power": 4,   "hp": 20, "stamina": 9,  "armour": 0,    "weapon": "bare fists" },
+        "villager":       { "attack": 1,   "defense": 1.5, "power": 5,   "hp": 22, "stamina": 10, "armour": 0,    "weapon": "bare fists" },
+        "beggar":         { "attack": 0.5, "defense": 1,   "power": 4,   "hp": 18, "stamina": 7,  "armour": 0,    "weapon": "bare fists" },
+        "child":          { "attack": 0,   "defense": 0.5, "power": 2,   "hp": 12, "stamina": 8,  "armour": 0,    "weapon": "bare fists" }
+    },
+    "trainers": {
+        "capital": { "name": "Royal Swordmaster", "icon": "🗡️", "attack": 6, "defense": 5.5, "power": 7, "hp": 30, "stamina": 14, "temperament": "tricky", "weapon": "a blunted longsword" },
+        "town":    { "name": "Militia Sergeant", "icon": "⚔️", "attack": 3.5, "defense": 3.5, "power": 6, "hp": 28, "stamina": 12, "temperament": "balanced", "weapon": "a wooden sword" }
+    },
+    "tournament": {
+        "tiers": [
+            { "title": "Hedge Knight",     "attack": [2.5, 4.5], "defense": [2, 4],   "power": [6, 8],  "hp": [24, 30], "stamina": [10, 12] },
+            { "title": "Traveling Knight", "attack": [4, 6],     "defense": [3.5, 5], "power": [7, 9],  "hp": [28, 34], "stamina": [11, 13] },
+            { "title": "Arena Veteran",    "attack": [5.5, 8],   "defense": [4.5, 6.5], "power": [8, 10], "hp": [32, 38], "stamina": [12, 14] }
+        ],
+        "firstNames": ["Aldric", "Bertrand", "Cedric", "Dunstan", "Edmund", "Gareth", "Hugo", "Osric", "Roland", "Tristan", "Wulfric", "Ysolde", "Brienne", "Matilda", "Rowena"],
+        "epithets": ["the Red", "the Bold", "Ironhand", "of the Marches", "the Grey", "Oakenshield", "the Younger", "of Hollowmere", "Stormborn", "the Lame Lion"],
+        "renownPerWin": 2,
+        "championRenown": 5,
+        "runnerUpShare": 0.4,
+        "harm": [4, 14],
+        "boutRecovery": 0.5,
+        "skillUpBase": 0.2,
+        "skillUpPerWin": 0.1
+    },
+    "brawl": {
+        "base": 2, "perStrength": 1.2, "perWeaponDmg": 2, "minDamage": 3,
+        "purse": {
+            "noble": [30, 120], "merchant": [15, 60], "guard": [5, 25], "blacksmith_npc": [8, 30],
+            "priest": [3, 15], "farmer": [2, 12], "villager": [2, 14], "traveler": [6, 30], "beggar": [0, 3], "child": [0, 2]
+        },
+        "itemsTaken": [1, 2],
+        "healPerDay": 0.12,
+        "npcHitScale": 1.6,
+        "stance": {
+            "fightAt": 5,
+            "temperament": { "aggressive": 2, "cautious": -2, "tricky": 0, "balanced": 0 },
+            "playerAttackFree": 4,
+            "perPlayerAttack": 0.5,
+            "fleeBelowHp": 0.35
+        }
+    },
+    "lines": {
+        "strike>thrust":  "{a} brings a heavy cut down and beats {b}'s thrust aside.",
+        "thrust>feint":   "{b} feints; {a}'s point darts straight in through the empty motion.",
+        "feint>guard":    "{a} draws {b}'s guard high and slips under it.",
+        "guard>strike":   "{b} commits to a great cut — {a} turns it and ripostes.",
+        "strike~feint":   "{a}'s cut meets {b}'s feint — a scramble of steel.",
+        "thrust~guard":   "{a} drives the point at {b}'s guard.",
+        "strike=strike":  "Both swing at once — steel rings on steel.",
+        "thrust=thrust":  "Point meets point; both lunge.",
+        "feint=feint":    "Two feints, two flinches. Nobody commits.",
+        "guard=guard":    "Both hold their guard and circle, catching their breath.",
+        "miss":           "{b} twists away at the last instant.",
+        "hit":            "{b} takes it ({dmg}).",
+        "tired":          "{a} is blown and the move comes slow.",
+        "yield":          "{a} lowers their weapon and yields."
+    }
+}

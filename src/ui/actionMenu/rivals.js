@@ -4,6 +4,7 @@
 import { ActionMenu } from './_ref.js';
 import { Rivals } from './_imports.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, CARD } from './uiKit.js';
+import { DuelPanel } from './duel.js';
 
 
 function _esc(s) {
@@ -71,21 +72,37 @@ Object.assign(ActionMenu, {
             duel: (id, toDeath) => {
                 const r = Rivals.get(player, id);
                 if (!r) return;
-                if (!Rivals.willDuel(r, toDeath)) return fail(`${r.name}: "${Rivals.line(r, 'duelRefuse')}"`);
+                const gate = Rivals.canDuel(player, world, id, toDeath);
+                if (!gate.ok) return fail(gate.reason);
                 if (!ap('rival_duel')) return;
-                const res = Rivals.duel(player, world, id, { toDeath });
-                if (!res.success) return fail(res.reason);
-                let h = `${r.icon} <b>${_esc(r.name)}</b>: "${_esc(res.accept)}"<br>`;
-                if (res.playerWon) {
-                    h += res.rivalDied
-                        ? `<span style="color:#7fd07f;">You cut ${_esc(r.name)} down. +${res.renown} renown, -${res.harm} health.</span>`
-                        : `<span style="color:#7fd07f;">You win the duel! +${res.renown} renown, -${res.harm} health.</span>`;
-                } else {
-                    h += `<span style="color:#e08080;">You lose the duel. -${res.harm} health.${res.wound ? ` ${res.wound.icon || '🩸'} ${_esc(res.wound.name)}.` : ''}</span>`;
-                }
-                if (res.after) h += `<br><i>"${_esc(res.after)}"</i>`;
-                refresh({ html: h, color: res.playerWon ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.4)' });
+                // Fought move by move in the duel panel (systems/duels.js); the outcome goes back to Rivals
+                const { a, b } = Rivals.duelists(player, r);
+                DuelPanel.open(game, {
+                    a, b,
+                    mode: toDeath ? 'toDeath' : 'firstBlood',
+                    title: toDeath ? '💀 A Duel to the Death' : '⚔️ A Duel',
+                    intro: `${r.icon} <b>${_esc(r.name)}</b>: "${_esc(Rivals.line(r, 'duelAccept'))}"`,
+                    onFinish: (outcome) => settleDuel(id, toDeath, outcome),
+                });
             },
+        };
+        const settleDuel = (id, toDeath, outcome) => {
+            const r = Rivals.get(player, id);
+            if (!r) return;
+            const res = Rivals.duel(player, world, id, { toDeath, outcome });
+            if (!res.success) return fail(res.reason);
+            let h = `${r.icon} <b>${_esc(r.name)}</b>${res.yielded === 'a' ? ' — you yielded.' : res.yielded === 'b' ? ' yields.' : ''}<br>`;
+            if (res.playerWon) {
+                h += res.rivalDied
+                    ? `<span style="color:#7fd07f;">You cut ${_esc(r.name)} down. +${res.renown} renown, -${res.harm} health.</span>`
+                    : `<span style="color:#7fd07f;">You win the duel! +${res.renown} renown, -${res.harm} health.</span>`;
+            } else {
+                h += `<span style="color:#e08080;">You lose the duel. -${res.harm} health.${res.wound ? ` ${res.wound.icon || '🩸'} ${_esc(res.wound.name)}.` : ''}</span>`;
+            }
+            if (res.after) h += `<br><i>"${_esc(res.after)}"</i>`;
+            refresh({ html: h, color: res.playerWon ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.4)' });
+        };
+        Object.assign(window._rivals, {
             teamUp: (id) => {
                 const gate = Rivals.canTeamUp(player, Rivals.get(player, id));
                 if (!gate.ok) return fail(gate.reason);
@@ -116,7 +133,7 @@ Object.assign(ActionMenu, {
                 refresh({ html: `🗡️ ${_esc(res.text)}`, color: res.caught ? 'rgba(224,96,96,0.4)' : 'rgba(127,208,127,0.4)' });
             },
             hall: () => ActionMenu.showHallOfHeroes(game, tile),
-        };
+        });
 
         game.ui.showCustomPanel('🗡️ Adventurers Here', html);
     },

@@ -1,0 +1,166 @@
+{
+    "config": {
+        "deadlineDays": 90,
+        "searchRadius": 14,
+        "siteMinDistance": 2,
+        "newSiteRange": [3, 7],
+        "foeRange": [3, 7],
+        "townRange": [3, 22],
+        "returnDisposition": 15,
+        "altDisposition": -30,
+        "failDisposition": -12,
+        "thanksDisposition": 15,
+        "maxFailed": 20
+    },
+    "foes": {
+        "thieves": { "type": "raider", "name": "{leader}'s Cutpurses", "icon": "🗡️", "strength": [7, 13], "population": [4, 9] },
+        "brigands": { "type": "raider", "name": "{leader}'s Brigands", "icon": "🏇", "strength": [10, 18], "population": [8, 16] },
+        "outlaws": { "type": "raider", "name": "{leader}'s Band", "icon": "🏹", "strength": [12, 20], "population": [10, 20] },
+        "wolves": { "type": "beast", "name": "The Grey Pack of {town}", "icon": "🐺", "strength": [6, 12], "population": [5, 9] },
+        "dead": { "type": "monster", "name": "The Restless Dead of {town}", "icon": "💀", "strength": [10, 16], "population": [6, 12] },
+        "fugitive": { "type": "raider", "name": "{leader} the Fugitive", "icon": "⛓️", "strength": [8, 14], "population": [3, 6] },
+        "drake": { "type": "monster", "name": "The Drake of {place}", "icon": "🐉", "strength": [40, 60], "population": [1, 1] }
+    },
+    "leaders": ["Wat Crookhand", "Black Hob", "Ned Tallow", "Mother Gall", "Rook Varre", "Jory Sixfingers", "Sly Agna", "Cobb the Weasel", "Red Maud", "Tam Gristle", "Osric Nails", "Kell Blackwater"],
+    "newSites": {
+        "ruins": ["The Old Barrow", "The Broken Chapel", "Hollowstone", "The Sunken Keep", "Greyfold Ruins"],
+        "cave": ["The Weeping Cave", "Old Grim's Hole", "The Black Mouth", "Wyrmrest Hollow", "The Drip"]
+    },
+    "tasks": {
+        "missing_caravan": {
+            "type": "escort_trade_caravan",
+            "item": "the caravan's strongbox",
+            "find": ["lair", "foe:brigands"],
+            "findText": { "lair": "Take the caravan's strongbox back from the outlaws of {target}", "foe": "Run down {target} and recover the caravan's strongbox" },
+            "returnText": "Bring the strongbox back to {giver} in {town}",
+            "handIn": "*pries open the lid* It's all here. You've saved my season — here, as promised.",
+            "alt": { "id": "keep", "label": "Keep the strongbox ({gold} gold inside)", "gold": 160, "karma": -4, "text": "You kept {giver}'s strongbox and its {gold} gold.", "grievance": "I heard you found my strongbox — and kept it. Thief." }
+        },
+        "spice_supplier": {
+            "type": "merchant_delivery",
+            "item": "a letter of terms",
+            "deliver": { "role": "merchant", "reply": "a sealed reply" },
+            "deliverText": "Carry the letter of terms to {person}, {role} of {target}",
+            "returnText": "Bring {person}'s reply back to {giver} in {town}",
+            "recipientLine": "*breaks the seal and reads* Terms from {giver}, is it? Tell them I'll deal — here is my answer.",
+            "handIn": "*reads the reply and grins* We have a bargain! You're a born go-between."
+        },
+        "bandit_camp": {
+            "type": "clear_bandits",
+            "find": ["lair", "foe:outlaws"],
+            "findText": { "lair": "Clear out the outlaw lair of {target}", "foe": "Break {target}, who camp in the woods nearby" },
+            "returnText": "Report back to {giver} in {town}",
+            "handIn": "*lets out a long breath* Done? Truly? The captain will hear of this — and so will the town."
+        },
+        "lost_report": {
+            "type": "fetch_item",
+            "item": "the patrol report",
+            "fetch": { "role": "any", "sameTown": true },
+            "fetchText": "Ask {person} of {target}, who picked up a dropped report at the tavern",
+            "returnText": "Bring the patrol report back to {giver} in {town}",
+            "holderLine": "*fishes in a pocket* This? Found it under a bench. Thought it looked official — take it, I want no trouble.",
+            "handIn": "*snatches it and tucks it away* The captain need never know. I owe you, friend.",
+            "alt": { "id": "captain", "label": "Hand the report to the captain instead (40 gold reward)", "gold": 40, "karma": -1, "text": "You turned {giver}'s lost report in to the captain.", "grievance": "You gave that report to the captain. I was docked a month's pay." }
+        },
+        "livestock_killer": {
+            "type": "investigate_threat",
+            "find": ["lair:beast_den", "foe:wolves"],
+            "findText": { "lair": "Destroy the beast den of {target}", "foe": "Hunt down {target}, who have been killing the livestock" },
+            "returnText": "Tell {giver} in {town} the beasts are dead",
+            "handIn": "*wipes eyes* No more dead lambs in the morning. Bless you, bless you."
+        },
+        "missing_son": {
+            "type": "rescue_person",
+            "person": "kid",
+            "find": ["site", "newsite:cave", "foe:outlaws"],
+            "findText": { "site": "Search {target} for {person}", "foe": "Free {person} from {target}" },
+            "returnText": "Bring {person} home to {giver} in {town}",
+            "handIn": "*throws arms around {person}* You brought them home! I'll never be able to repay you.",
+            "alt": { "id": "let_go", "label": "Let {person} go", "karma": 1, "keepRenown": true, "text": "{person} begged you not to take them back, and you let them go.", "grievance": "You found my child and let them walk away? You should have brought them home." }
+        },
+        "stolen_relic": {
+            "type": "retrieve_relic",
+            "item": "the shrine's relic",
+            "find": ["site:ruins,tomb,sunken", "newsite:ruins", "foe:thieves"],
+            "findText": { "site": "Recover the relic from {target}", "foe": "Take the relic back from {target}" },
+            "returnText": "Return the relic to {giver} in {town}",
+            "handIn": "*kneels and kisses the relic* It is home. The faithful will sing your name tonight.",
+            "alt": { "id": "sell", "label": "Sell the relic to a collector ({gold} gold)", "gold": 180, "karma": -6, "text": "You sold the shrine's relic for {gold} gold.", "grievance": "The relic was sold — and by you. The gods see everything." }
+        },
+        "restless_dead": {
+            "type": "clear_undead",
+            "find": ["site:tomb", "foe:dead"],
+            "findText": { "site": "Lay the dead to rest in {target}", "foe": "Destroy {target}" },
+            "returnText": "Tell {giver} in {town} the graves are quiet",
+            "handIn": "*makes the holy sign* The graves are quiet. Our people may visit their dead again."
+        },
+        "rare_ore": {
+            "type": "gather_resource",
+            "item": "a lump of star-iron",
+            "find": ["site:mine,cave", "bring:iron:6"],
+            "findText": { "site": "Dig the star-iron out of {target}", "bring": "Bring {giver} 6 iron" },
+            "returnText": "Bring the ore to {giver} in {town}",
+            "handIn": "*turns the ore in the firelight* Now THAT is metal. I'll make you something worthy of it."
+        },
+        "stolen_sword": {
+            "type": "retrieve_item",
+            "item": "the knight's sword",
+            "find": ["foe:thieves"],
+            "findText": { "foe": "Track down {target}, who stole the knight's sword" },
+            "returnText": "Bring the sword back to {giver} in {town}",
+            "handIn": "*runs a thumb down the edge* Not a nick on it. My name is saved — and you have a friend at this forge.",
+            "alt": { "id": "keep", "label": "Keep the sword for yourself", "items": { "weapons": 1 }, "karma": -3, "text": "You kept the knight's sword.", "grievance": "You've the knight's sword on your hip, I hear. My sword. My name." }
+        },
+        "lost_locket": {
+            "type": "retrieve_item",
+            "item": "the grandmother's locket",
+            "find": ["lair:bandit_camp", "foe:thieves"],
+            "findText": { "lair": "Take the locket back from the outlaws of {target}", "foe": "Run down {target} and take the locket back" },
+            "returnText": "Bring the locket back to {giver} in {town}",
+            "handIn": "*clutches the locket to their chest* Oh... it's really her locket. Thank you. Thank you.",
+            "alt": { "id": "sell", "label": "Sell the locket to a fence ({gold} gold)", "gold": 60, "karma": -3, "text": "You sold {giver}'s grandmother's locket for {gold} gold.", "grievance": "They say you sold my grandmother's locket to a fence. How could you?" }
+        },
+        "hermit_medicine": {
+            "type": "delivery",
+            "item": "a pouch of medicine",
+            "deliver": { "role": "any", "small": true },
+            "deliverText": "Carry the medicine to {person} of {target}",
+            "returnText": "Tell {giver} in {town} the medicine was delivered",
+            "recipientLine": "*takes the pouch with shaking hands* Medicine... from {giver}? The fever has had me a week. Thank them for me.",
+            "handIn": "*sighs with relief* Delivered, and in time? You're a good soul."
+        },
+        "rival_documents": {
+            "type": "espionage",
+            "item": "the rival's documents",
+            "fetch": { "role": "noble", "sameTown": false, "guarded": true },
+            "fetchText": "Get the documents from {person} of {target}",
+            "returnText": "Bring the documents to {giver} in {town}",
+            "holderLine": "*eyes you coolly* Papers? I keep nothing that concerns you.",
+            "handIn": "*glances through the pages and smiles thinly* Discreet and effective. My family will remember this.",
+            "alt": { "id": "return_rival", "label": "Return the documents to their owner instead (100 gold)", "gold": 100, "karma": 1, "holderDisposition": 20, "holderThanks": true, "holderReputation": 3, "text": "You sold {giver}'s scheme back to its target.", "grievance": "You played me false and took my rival's coin. I shan't forget it." }
+        },
+        "deliver_challenge": {
+            "type": "delivery",
+            "item": "a sealed challenge",
+            "deliver": { "role": "noble", "reply": "an answer to the challenge" },
+            "deliverText": "Deliver the challenge to {person} of {target}",
+            "returnText": "Bring {person}'s answer back to {giver} in {town}",
+            "recipientLine": "*reads, and flushes red* A challenge? Tell {giver} I accept — and I name the day.",
+            "handIn": "*reads the answer with relish* So the cur accepts. My house's honour will be seen to."
+        },
+        "ancient_ruins": {
+            "type": "explore_ruins",
+            "find": ["site:ruins,tomb,sunken", "newsite:ruins"],
+            "findText": { "site": "Explore {target}" },
+            "returnText": "Tell {giver} what you found",
+            "handIn": "*listens wide-eyed* Just as I dreamed! Here — my share of the finding is yours."
+        },
+        "bounty_target": {
+            "type": "bounty",
+            "find": ["foe:fugitive"],
+            "findText": { "foe": "Bring {target} to heel" },
+            "returnText": "Tell {giver} the bounty is taken",
+            "handIn": "*counts out the coin* Half the bounty, fair and square. Good hunting."
+        }
+    }
+}

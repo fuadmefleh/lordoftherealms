@@ -280,7 +280,8 @@ describe('New quest templates', () => {
             const t = Quests.QUEST_TEMPLATES[key];
             expect(t, key).toBeTruthy();
             for (const r of [].concat(t.requires || [])) expect(Quests.REQUIREMENTS[r], `${key} requires ${r}`).toBeTypeOf('function');
-            for (const o of t.objectives) {
+            // A target-naming objective (systems/npcTasks.js) falls back to a general one where nothing fits
+            for (const o of t.objectives.map(x => x.fallback || x)) {
                 expect(Quests.UNTRACKABLE_OBJECTIVES).not.toContain(o.type);
                 expect(['counter_since', 'deed_since', 'court_since', 'deliver_item'], `${key}: ${o.type}`).toContain(o.type);
                 if (o.type === 'deed_since') expect(deedKeys, `${key}: ${o.key}`).toContain(o.key);
@@ -306,7 +307,7 @@ describe('New quest templates', () => {
         }
         const patterns = emitted.map(s => new RegExp(`^${s.replace(/\$\{[^}]+\}/g, '[a-z_]+')}$`));
         const isEmitted = (stat) => patterns.some(re => re.test(stat));
-        const stats = NEW_QUESTS.flatMap(k => Quests.QUEST_TEMPLATES[k].objectives.filter(o => o.type === 'counter_since').map(o => o.stat));
+        const stats = NEW_QUESTS.flatMap(k => Quests.QUEST_TEMPLATES[k].objectives.map(o => o.fallback || o).filter(o => o.type === 'counter_since').map(o => o.stat));
         stats.push('kingmaker', 'recovered_plague', 'convoys_by_sea', 'saga_slain_wyrm_wakes', ...Achievements.DELVE_KINDS.map(k => `delve_cleared_${k}`));
         for (const s of stats) expect(isEmitted(s), `${s} is tracked somewhere`).toBe(true);
     });
@@ -354,8 +355,10 @@ describe('New quest templates', () => {
         it(`${key} progresses only from acceptance and completes`, () => {
             const { p, world } = everywherePlayer();
             const t = Quests.QUEST_TEMPLATES[key];
+            // No targets in this bare world: each objective is its general fallback
+            const objs = t.objectives.map(x => x.fallback || x);
             // Deeds done before the quest was taken don't count
-            for (const o of t.objectives) if (o.type !== 'deliver_item') advance(p, o, 7);
+            for (const o of objs) if (o.type !== 'deliver_item') advance(p, o, 7);
             p.quests.available = [Quests.createQuest(key, p)];
             expect(Quests.isReachable(p.quests.available[0], p, world)).toBe(true);
             const res = Quests.acceptQuest(p, t.id, world);
@@ -366,12 +369,12 @@ describe('New quest templates', () => {
             expect(quest.objectives.every(o => o.current === 0)).toBe(true);
 
             // Half-way: progress shows, not complete
-            for (const o of t.objectives) if (o.target > 1) advance(p, o, 1);
+            for (const o of objs) if (o.target > 1) advance(p, o, 1);
             expect(Quests.updateProgress(p, world).map(q => q.id)).not.toContain(t.id);
-            if (t.objectives.some(o => o.target > 1)) expect(quest.objectives.some(o => o.current >= 1)).toBe(true);
+            if (objs.some(o => o.target > 1)) expect(quest.objectives.some(o => o.current >= 1)).toBe(true);
 
             // Do the rest
-            for (const o of t.objectives) advance(p, o, o.target > 1 ? o.target - 1 : o.target);
+            for (const o of objs) advance(p, o, o.target > 1 ? o.target - 1 : o.target);
             const gold0 = p.gold;
             const renown0 = p.renown;
             const done = Quests.updateProgress(p, world);
@@ -380,7 +383,7 @@ describe('New quest templates', () => {
             expect(p.gold).toBe(gold0 + (t.rewards.gold || 0));
             expect(p.renown).toBe(renown0 + (t.rewards.renown || 0));
             // Goods asked for are handed over
-            for (const o of t.objectives.filter(x => x.type === 'deliver_item')) expect(p.inventory[o.item] || 0).toBe(0);
+            for (const o of objs.filter(x => x.type === 'deliver_item')) expect(p.inventory[o.item] || 0).toBe(0);
         });
     }
 });

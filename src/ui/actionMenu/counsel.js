@@ -7,6 +7,7 @@
 // Buttons route through data-am-act="counselGo" data-am-args='["itemId", "panel"|"map"]'.
 import { ActionMenu } from './_ref.js';
 import { Counsel } from '../../systems/counsel.js';
+import { firstStepsResumeHtml } from '../firstStepsCard.js';
 
 const CARD = 'background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:8px;margin-bottom:8px;';
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
@@ -82,7 +83,9 @@ export const COUNSEL_PANELS = {
 function _focus(game, q, r) {
     if (!game.renderer || !game.camera || typeof game.renderer.getHexPixelPos !== 'function') return;
     const pos = game.renderer.getHexPixelPos(q, r);
-    if (pos && game.camera.centerOn) game.camera.centerOn(pos.x, pos.y);
+    if (!pos || !game.camera.centerOn) return;
+    game.camera.following = false; // look there, not back at the player
+    game.camera.centerOn(pos.x, pos.y);
 }
 
 function _itemRow(item) {
@@ -99,6 +102,8 @@ function _itemRow(item) {
         + `<span style="display:flex;">${btns}</span></div>`;
 }
 
+const _badgeScanAt = new WeakMap();
+
 /** Refresh the threat-count badge on the Counsel top tab (called from updateStats). */
 export function updateCounselBadge(game) {
     if (typeof document === 'undefined' || !game || !game.player) return;
@@ -107,7 +112,12 @@ export function updateCounselBadge(game) {
     let n = 0;
     let worst = 'info';
     try {
-        const s = Counsel.scan(game.player, game.world);
+        // The day memo goes stale as soon as the player acts; re-read (light rules
+        // only) at most once a second so the badge follows what just happened.
+        const now = Date.now();
+        const fresh = !(now - (_badgeScanAt.get(game.player) || 0) < 1000);
+        if (fresh) _badgeScanAt.set(game.player, now);
+        const s = Counsel.scan(game.player, game.world, { fresh });
         n = s.threats.length;
         if (n) worst = s.threats[0].severity;
     } catch (e) {
@@ -148,6 +158,8 @@ Object.assign(ActionMenu, {
             if (list.length > SHOWN_PER_GROUP) html += `<div style="${MUTED} margin-top:4px;">…and ${list.length - SHOWN_PER_GROUP} lesser matters.</div>`;
             html += '</div>';
         }
+        // A skipped (or switched-off) First Steps guidance is taken up again here (ui/firstStepsCard.js)
+        html += firstStepsResumeHtml(game.player);
         html += '</div>';
         game.ui.showCustomPanel('🗝️ The Steward\'s Counsel', html);
     },

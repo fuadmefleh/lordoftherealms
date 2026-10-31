@@ -60,7 +60,7 @@ export class Game {
         if (!this.canvas) throw new Error('Game: canvas element not found');
 
         this.camera = new Camera(this.canvas);
-        this.camera.locked = true;  // Camera always follows player
+        this.camera.locked = false; // Free to pan; camera.following snaps back to the player
         this.renderer = new Renderer(this.canvas, this.camera);
         this.world = null;
         this.player = null;

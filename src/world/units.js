@@ -326,7 +326,9 @@ export class WorldUnit {
         const inSanctuary = !!(sanctuary && sanctuary.days > 0 &&
             Hex.wrappingDistance(sanctuary.q, sanctuary.r, player.q, player.r, world.width) <= sanctuary.radius);
         // A lair's riders keep a bargain struck with the player (systems/outlawLairs.js)
-        if (player && !player.indenturedServitude && !inSanctuary && !this.sparesPlayer) {
+        // and one the player paid off, talked down or drove away leaves them be a while (player/roadEncounters.js)
+        const sparing = this.sparedUntilDay != null && (world.day || 0) < this.sparedUntilDay;
+        if (player && !player.indenturedServitude && !inSanctuary && !this.sparesPlayer && !sparing) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             // A lair's raiding party bound for a town only waylays travellers on its path (pursuitRange)
             const detectionRange = Number.isFinite(this.pursuitRange) ? this.pursuitRange : (isShip ? 6 : 5);

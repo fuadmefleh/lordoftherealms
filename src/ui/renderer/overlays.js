@@ -1,7 +1,12 @@
 // Renderer — overlays methods.
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
-import { drawGlyph } from '../icons.js';
+import { drawGlyph, drawIcon } from '../icons.js';
+import { NpcPortrait } from '../npcPortrait.js';
+import { drawMapMarker, drawMarkerPlate } from '../mapInk.js';
+import { Quests } from '../../systems/quests.js';
+import { Pirates } from '../../systems/pirates.js';
+import { Hospitality } from '../../systems/hospitality.js';
 
 /** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
 const UNIT_GLYPHS = {
@@ -9,7 +14,7 @@ const UNIT_GLYPHS = {
     settler: 'tent', ship: 'ship', trade_ship: 'ship', war_fleet: 'ship', pirate: 'skull',
     fishing_boat: 'boat', lord_party: 'crown', mercenary_band: 'swords', war_host: 'swords',
     lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
-    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal',
+    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe',
 };
 
 /** Token metal by allegiance: rim/glyph colour and the enamel behind it. */
@@ -25,7 +30,7 @@ const TOKEN_METALS = {
 function unitMetal(unit) {
     if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) return TOKEN_METALS.hostile;
     switch (unit.type) {
-        case 'caravan': case 'trade_caravan': case 'ship': case 'trade_ship': return TOKEN_METALS.merchant;
+        case 'caravan': case 'trade_caravan': case 'ship': case 'trade_ship': case 'courier_rider': return TOKEN_METALS.merchant;
         case 'lord_party': return TOKEN_METALS.royal;
         case 'patrol': case 'road_patrol': case 'war_fleet': return TOKEN_METALS.watch;
         case 'settler': return TOKEN_METALS.settler;
@@ -62,16 +67,16 @@ Object.assign(Renderer.prototype, {
         ctx.lineWidth = 2.5 * this.camera.zoom;
         ctx.stroke();
 
-        // Player icon
-        const iconSize = Math.max(14, renderSize * 0.65);
-        ctx.font = `${iconSize}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        // The player: their own character's bust in the disc (a glyph at sea,
+        // in death, or while the sprites load)
+        const discR = renderSize * 0.38;
+        const glyphSize = Math.max(14, renderSize * 0.5);
         if (isDead) {
-            ctx.fillText('💀', screen.x, screen.y);
-        } else {
-            const displayIcon = this.player.boardedShip ? '⛵' : '👤';
-            ctx.fillText(displayIcon, screen.x, screen.y);
+            drawIcon(ctx, 'skull', screen.x, screen.y, glyphSize, '#e8604f', 2);
+        } else if (this.player.boardedShip) {
+            drawIcon(ctx, 'ship', screen.x, screen.y, glyphSize, '#ffe08a', 2);
+        } else if (!this._drawPlayerBust(ctx, screen.x, screen.y, discR)) {
+            drawIcon(ctx, 'person', screen.x, screen.y, glyphSize, '#f4efe4', 2);
         }
 
         // Plumbob above player on world map
@@ -138,8 +143,7 @@ Object.assign(Renderer.prototype, {
                 ctx.fillText('⛵', x, y);
             }
             if (anchored) {
-                ctx.font = `${Math.max(8, r * 0.8)}px serif`;
-                ctx.fillText('⚓', x + r * 0.8, y + r * 0.7);
+                this.drawMapMarker(ctx, 'anchor', x + r * 0.8, y + r * 0.7, Math.max(7, r * 0.42));
             }
 
             if (anchored && this.camera.zoom > 0.7) {
@@ -304,12 +308,9 @@ Object.assign(Renderer.prototype, {
             if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
             ctx.globalAlpha = 0.7;
             if (d.type === 'settlement') {
-                ctx.font = `${Math.max(12, size * 0.8)}px serif`;
-                ctx.fillText('🏘️', s.x, s.y);
+                this.drawMapMarker(ctx, 'house', s.x, s.y, Math.max(11, size * 0.38));
                 if (z > 0.6) {
-                    ctx.font = `${Math.max(9, 11 * z)}px serif`;
-                    ctx.fillStyle = 'rgba(240, 220, 170, 0.9)';
-                    ctx.fillText(d.false_settlement, s.x, s.y + size * 0.75);
+                    this.drawMapText(ctx, d.false_settlement, s.x, s.y + size * 0.75, { size: 11 * z, color: 'rgba(240, 220, 170, 0.95)' });
                 }
             } else if (d.type === 'path') {
                 ctx.strokeStyle = 'rgba(190, 150, 90, 0.8)';
@@ -321,9 +322,8 @@ Object.assign(Renderer.prototype, {
                 ctx.stroke();
                 ctx.setLineDash([]);
             } else if (d.type === 'terrain') {
-                const icon = { forest: '🌲', mountains: '⛰️', swamp: '🌿', desert: '🏜️' }[d.false_terrain] || '❔';
-                ctx.font = `${Math.max(10, size * 0.6)}px serif`;
-                ctx.fillText(icon, s.x, s.y);
+                const icon = { forest: 'tree', mountains: 'mountain', swamp: 'wheat', desert: 'sun' }[d.false_terrain] || 'help';
+                drawIcon(ctx, icon, s.x, s.y, Math.max(14, size * 0.55), 'rgba(240, 220, 170, 0.95)', 2);
             } else if (d.type === 'false_border') {
                 const k = this.world.getKingdom(d.claimedKingdom);
                 ctx.fillStyle = (k && k.color) || 'rgba(200, 60, 60, 1)';
@@ -345,29 +345,64 @@ Object.assign(Renderer.prototype, {
         if (!st || !Array.isArray(st.sites) || !this.world) return;
         const z = this.camera.zoom;
         const size = this.hexSize * z;
-        const ICON = { island: '🏝️', cove: '🌊', valley: '⛰️', reef: '🐚' };
+        const ICON = { island: 'island', cove: 'wave', valley: 'mountain', reef: 'shell' };
         ctx.save();
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         for (const site of st.sites) {
             let q = site.q;
             let r = site.r;
-            let icon = ICON[site.kind] || '❔';
+            let icon = ICON[site.kind] || 'help';
             if (!site.known) {
                 if (!site.hint) continue;
-                icon = '❔';
+                icon = 'help';
                 if (site.hint === 'rumoured') { q = site.hintQ; r = site.hintR; }
             }
             const pos = this.getHexPixelPos(q, r);
             const s = this.camera.worldToScreen(pos.x, pos.y);
             if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
-            ctx.globalAlpha = site.known ? 0.95 : 0.55;
-            ctx.font = `${Math.max(10, size * 0.55)}px serif`;
-            ctx.fillText(icon, s.x + size * 0.35, s.y - size * 0.35);
+            ctx.globalAlpha = site.known ? 1 : 0.6;
+            this.drawMapMarker(ctx, icon, s.x + size * 0.35, s.y - size * 0.35, Math.max(10, size * 0.3));
             if (site.known && z > 0.6) {
-                ctx.font = `${Math.max(9, 10 * z)}px serif`;
-                ctx.fillStyle = site.claim && site.claim.by === 'player' ? 'rgba(160, 230, 160, 0.95)' : 'rgba(240, 220, 170, 0.95)';
-                ctx.fillText(site.name, s.x, s.y + size * 0.8);
+                this.drawMapText(ctx, site.name, s.x, s.y + size * 0.8, {
+                    size: 11 * z,
+                    color: site.claim && site.claim.by === 'player' ? 'rgba(160, 230, 160, 1)' : 'rgba(240, 220, 170, 1)',
+                });
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
+     * Where the active quests point next (systems/npcTasks.js markers): a
+     * gold quest plate on the hex with a slow pulsing ring, and the target's
+     * name — the ruin to search, the band to run down, the person to see,
+     * the giver to go back to.
+     */
+    renderQuestMarkers(ctx) {
+        if (!this.player || !this.world || !this.player.quests) return;
+        const marks = Quests.taskMarkers(this.player, this.world);
+        if (!marks.length) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        const pulse = 0.55 + 0.45 * Math.sin((typeof performance !== 'undefined' ? performance.now() : 0) / 450);
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const m of marks) {
+            const pos = this.getHexPixelPos(m.q, m.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            ctx.globalAlpha = 0.35 + 0.4 * pulse;
+            ctx.strokeStyle = 'rgba(245, 197, 66, 1)';
+            ctx.lineWidth = Math.max(1.5, 2.2 * z);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, size * (0.62 + 0.08 * pulse), 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            this.drawMapMarker(ctx, m.icon || 'scroll', s.x - size * 0.38, s.y - size * 0.42, Math.max(9, size * 0.26), { rim: '#f5c542', color: '#ffe9a8' });
+            if (z > 0.55 && m.label) {
+                this.drawMapText(ctx, m.label, s.x, s.y - size * 0.95, { size: 10.5 * z, color: 'rgba(255, 226, 140, 1)' });
             }
         }
         ctx.restore();
@@ -384,7 +419,7 @@ Object.assign(Renderer.prototype, {
         if (!st || !Array.isArray(st.lairs) || !this.world) return;
         const z = this.camera.zoom;
         const size = this.hexSize * z;
-        const ICON = { bandit_camp: '🏕️', smugglers_den: '⚓', deserter_fort: '🏚️', cultist_grotto: '🕯️', beast_den: '🐺' };
+        const ICON = { bandit_camp: 'tent', smugglers_den: 'anchor', deserter_fort: 'ruin', cultist_grotto: 'candle', beast_den: 'paw' };
         const day = this.world.day || 0;
         ctx.save();
         ctx.textAlign = 'center';
@@ -397,9 +432,9 @@ Object.assign(Renderer.prototype, {
             const s = this.camera.worldToScreen(pos.x, pos.y);
             if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
             if (!lair.known) {
-                ctx.globalAlpha = 0.5;
-                ctx.font = `${Math.max(10, size * 0.5)}px serif`;
-                ctx.fillText('❔', s.x, s.y);
+                ctx.globalAlpha = 0.6;
+                this.drawMapMarker(ctx, 'help', s.x, s.y, Math.max(10, size * 0.3), { rim: '#e8604f', color: '#ffb8a8' });
+                ctx.globalAlpha = 1;
                 continue;
             }
             const bargain = lair.allied || (lair.tribute && lair.tribute.until >= day);
@@ -410,18 +445,99 @@ Object.assign(Renderer.prototype, {
             ctx.beginPath();
             ctx.arc(s.x, s.y, size * 0.7, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.globalAlpha = 0.95;
-            ctx.font = `${Math.max(12, size * 0.7)}px serif`;
-            ctx.fillText(ICON[lair.kind] || '🏕️', s.x, s.y);
+            ctx.globalAlpha = 1;
+            this.drawMapMarker(ctx, ICON[lair.kind] || 'tent', s.x, s.y, Math.max(11, size * 0.36),
+                bargain ? { rim: '#f5c542', color: '#ffe08a' } : { rim: '#e8604f', color: '#ffb8a8' });
             if (z > 0.55) {
-                ctx.font = `bold ${Math.max(9, 10 * z)}px serif`;
-                ctx.fillStyle = bargain ? 'rgba(240, 215, 130, 0.95)' : 'rgba(255, 170, 150, 0.95)';
-                ctx.fillText(lair.name, s.x, s.y + size * 0.85);
+                this.drawMapText(ctx, lair.name, s.x, s.y + size * 0.85, {
+                    size: 11 * z, color: bargain ? 'rgba(240, 215, 130, 1)' : 'rgba(255, 170, 150, 1)',
+                });
                 if (z > 0.9 && lair.leader) {
-                    ctx.font = `${Math.max(8, 9 * z)}px serif`;
-                    ctx.fillStyle = 'rgba(220, 200, 190, 0.85)';
-                    ctx.fillText(lair.leader.slain ? 'leaderless' : lair.leader.name, s.x, s.y + size * 1.15);
+                    this.drawMapText(ctx, lair.leader.slain ? 'leaderless' : lair.leader.name, s.x, s.y + size * 0.85 + Math.max(14, 13 * z), {
+                        size: 10 * z, weight: 500, family: 'body', color: 'rgba(225, 205, 195, 1)',
+                    });
                 }
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
+     * Pirate havens the player knows of (player.seaRoving, systems/pirates.js
+     * mapMarkers): an island plate in a black-and-red ring with the haven's
+     * name and the captains who sail from it (greyed while the hoard refills
+     * after a raid), and a faint skull where a captain was last sighted.
+     */
+    renderPirateHavens(ctx) {
+        if (!this.player || !this.player.seaRoving || !this.world) return;
+        const marks = Pirates.mapMarkers(this.player, this.world);
+        if (!marks.length) return;
+        const z = this.camera.zoom;
+        const size = this.hexSize * z;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const m of marks) {
+            const pos = this.getHexPixelPos(m.q, m.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -60 || s.x > this.canvas.width + 60 || s.y < -60 || s.y > this.canvas.height + 60) continue;
+            if (m.kind === 'sighting') {
+                ctx.globalAlpha = 0.55;
+                this.drawMapMarker(ctx, 'skull', s.x + size * 0.3, s.y - size * 0.3, Math.max(9, size * 0.26), { rim: '#c9c2b4', color: '#efe6d2' });
+                ctx.globalAlpha = 1;
+                if (z > 0.9) this.drawMapText(ctx, m.name, s.x, s.y + size * 0.75, { size: 9.5 * z, weight: 500, family: 'body', color: 'rgba(220, 210, 195, 0.9)' });
+                continue;
+            }
+            ctx.globalAlpha = m.raidable ? 0.9 : 0.5;
+            ctx.strokeStyle = 'rgba(20, 16, 14, 0.9)';
+            ctx.lineWidth = Math.max(3, 4 * z);
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, size * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(200, 50, 40, 0.95)';
+            ctx.lineWidth = Math.max(1.2, 1.6 * z);
+            ctx.setLineDash([size * 0.18, size * 0.12]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = m.raidable ? 1 : 0.6;
+            this.drawMapMarker(ctx, 'island', s.x, s.y, Math.max(11, size * 0.36), { rim: '#c8322a', color: '#f2e2c4' });
+            ctx.globalAlpha = 1;
+            if (z > 0.55) {
+                this.drawMapText(ctx, m.name, s.x, s.y + size * 0.85, { size: 11 * z, color: 'rgba(255, 175, 150, 1)' });
+                if (z > 0.9 && m.captains.length) {
+                    this.drawMapText(ctx, m.captains.map(c => c.name).join(', '), s.x, s.y + size * 0.85 + Math.max(14, 13 * z), {
+                        size: 10 * z, weight: 500, family: 'body', color: 'rgba(225, 205, 195, 1)',
+                    });
+                }
+            }
+        }
+        ctx.restore();
+    },
+
+    /**
+     * Roadhouses on the open road (systems/hospitality.js): a bed on a small
+     * plate where the hex is explored, the house's name when zoomed in.
+     */
+    renderRoadhouses(ctx) {
+        if (!this.world || !Hospitality.enabled()) return;
+        const z = this.camera.zoom;
+        if (z < 0.45) return;
+        const sites = Hospitality._waysideSites(this.world);
+        if (!sites.length) return;
+        const size = this.hexSize * z;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const site of sites) {
+            const tile = this.world.getTile(site.q, site.r);
+            if (!tile || !tile.explored) continue;
+            const pos = this.getHexPixelPos(site.q, site.r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
+            this.drawMapMarker(ctx, 'bed', s.x - size * 0.32, s.y - size * 0.32, Math.max(8, size * 0.22), { rim: 'rgba(214, 170, 100, 0.85)', color: '#f2e2c4' });
+            if (z > 1.1) {
+                const h = Hospitality.roadhouseAt(this.world, site.q, site.r);
+                if (h) this.drawMapText(ctx, h.name, s.x, s.y + size * 0.7, { size: 9.5 * z, weight: 500, family: 'body', color: 'rgba(235, 215, 180, 0.95)' });
             }
         }
         ctx.restore();
@@ -453,9 +569,8 @@ Object.assign(Renderer.prototype, {
             const k = Hinterland.kind(site.kind);
             if (!k) continue;
             const x = s.x + size * 0.38, y = s.y - size * 0.38;
-            ctx.globalAlpha = site.st === 'exhausted' ? 0.45 : 0.9;
-            ctx.font = `${Math.max(9, size * 0.36)}px serif`;
-            ctx.fillText(k.icon, x, y);
+            ctx.globalAlpha = site.st === 'exhausted' ? 0.5 : 1;
+            this.drawMapMarker(ctx, k.icon, x, y, Math.max(9, size * 0.22));
             if (mine.has(site.id)) {
                 ctx.strokeStyle = 'rgba(240, 200, 70, 0.95)';
                 ctx.lineWidth = Math.max(1.2, 1.5 * z);
@@ -511,37 +626,47 @@ Object.assign(Renderer.prototype, {
             ctx.stroke();
             if (ctx.setLineDash) ctx.setLineDash([]);
             this.drawMarkerPlate(ctx, p.x - size * 0.45, p.y - size * 0.45, Math.max(8, size * 0.28), '#e8604f');
-            if (!drawGlyph(ctx, 'swords', p.x - size * 0.45, p.y - size * 0.45, Math.max(10, size * 0.36), '#ff8a78', 2.2)) {
-                ctx.font = `${Math.max(10, size * 0.5)}px serif`;
-                ctx.fillText('⚔️', p.x - size * 0.45, p.y - size * 0.45);
-            }
+            drawIcon(ctx, 'swords', p.x - size * 0.45, p.y - size * 0.45, Math.max(10, size * 0.36), '#ff8a78', 2.2);
             if (z > 0.5) {
-                ctx.font = `bold ${Math.max(9, 10 * z)}px serif`;
-                ctx.fillStyle = 'rgba(255, 190, 170, 0.95)';
-                ctx.fillText(`Siege · day ${(this.world.day || 0) - s.startDay}`, p.x, p.y - size * 0.95);
+                this.drawMapText(ctx, `Siege · day ${(this.world.day || 0) - s.startDay}`, p.x, p.y - size * 0.95, {
+                    size: 11 * z, color: 'rgba(255, 190, 170, 1)',
+                });
             }
         }
         ctx.restore();
     },
 
-    /** A small dark plate with a metal rim: the ground every map marker sits on. */
-    drawMarkerPlate(ctx, x, y, r, rim = 'rgba(232, 192, 112, 0.6)') {
+    /**
+     * A map marker: the struck plate with a glyph on it. `icon` is a glyph name
+     * or an emoji from data (ui/icons.js glyphFor maps it).
+     * opts: rim (plate rim colour), color (glyph colour).
+     */
+    drawMapMarker(ctx, icon, x, y, r, opts = {}) {
+        drawMapMarker(ctx, icon, x, y, r, opts);
+    },
+
+    /**
+     * The player's character bust (their chosen look) clipped into the disc of
+     * their map token. False until the sprites have loaded.
+     */
+    _drawPlayerBust(ctx, x, y, r) {
+        const preset = NpcPortrait.playerPreset(this.player);
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-        ctx.shadowBlur = r * 0.6;
-        ctx.shadowOffsetY = r * 0.12;
-        const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
-        g.addColorStop(0, 'rgba(46, 54, 74, 0.95)');
-        g.addColorStop(1, 'rgba(10, 13, 22, 0.95)');
-        ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowColor = 'transparent';
-        ctx.lineWidth = Math.max(1, r * 0.13);
-        ctx.strokeStyle = rim;
-        ctx.stroke();
+        ctx.arc(x, y, r * 0.92, 0, Math.PI * 2);
+        ctx.clip();
+        const ok = NpcPortrait.drawBust(ctx, preset, this.time, x - r, y - r * 0.95, r * 2);
         ctx.restore();
+        if (!ok && !this._bustLoading) {
+            this._bustLoading = true;
+            NpcPortrait.ensureLoaded();
+        }
+        return ok;
+    },
+
+    /** A small dark plate with a metal rim: the ground every map marker sits on. */
+    drawMarkerPlate(ctx, x, y, r, rim) {
+        drawMarkerPlate(ctx, x, y, r, rim);
     },
 
     /**
@@ -592,12 +717,7 @@ Object.assign(Renderer.prototype, {
         ctx.arc(x, y, r * 0.78, 0, Math.PI * 2);
         ctx.stroke();
 
-        if (!glyph || !drawGlyph(ctx, glyph, x, y, r * 1.25, metal.rim, 2)) {
-            ctx.font = `${r * 1.2}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(unit.icon, x, y + r * 0.05);
-        }
+        drawIcon(ctx, glyph || unit.icon || 'help', x, y, r * 1.25, metal.rim, 2);
         ctx.restore();
     },
 
@@ -610,7 +730,8 @@ Object.assign(Renderer.prototype, {
         for (const unit of this.world.units) {
             // FOW: only show units on tiles the player can currently see
             const unitTile = this.world.getTile(unit.q, unit.r);
-            if (!unitTile || !unitTile.visible) continue;
+            // (your own house's riders and your letters' riders report in: shown through the fog — systems/courierRiders.js)
+            if (!unitTile || (!unitTile.visible && !(unit.type === 'courier_rider' && (unit.own || unit.mine)))) continue;
 
             const pos = this.getHexPixelPos(unit.q, unit.r);
             const screen = this.camera.worldToScreen(pos.x, pos.y);
@@ -633,6 +754,7 @@ Object.assign(Renderer.prototype, {
                 // NPC merchants (systems/merchantCaravans.js): gold, brighter when you guard them
                 if (unit.type === 'trade_caravan' || unit.type === 'trade_ship') color = unit.escort && unit.escort.by === 'player' ? '#ffe680' : '#e8c070';
                 if (unit.type === 'settler') color = '#ccff66';
+                if (unit.type === 'courier_rider') color = unit.own || unit.mine ? '#b8e0a0' : '#e0d0a0';
 
                 // Add to label queue with medium-low priority
                 this.addLabel(

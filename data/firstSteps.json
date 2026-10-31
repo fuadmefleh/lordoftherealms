@@ -1,0 +1,103 @@
+{
+    "_comment": "First Steps: the guided first month (systems/firstSteps.js). Each step's `check` names a reader in code that looks at real player/world state; `go` names what the tracker card's button opens (ui/firstStepsCard.js): an action-menu action type (`action`) or a panel (`panel`). Rewards are paid once, on completion: gold (recorded on the ledger as `firstSteps`), renown; the final reward adds House Prestige.",
+    "ledgerCategory": "firstSteps",
+    "steps": [
+        {
+            "id": "first_day",
+            "check": "dayPassed",
+            "icon": "🌅",
+            "title": "See a day through",
+            "why": "Everything in the realms moves by the day: wages are paid, food is eaten, wounds heal and news travels when the day ends.",
+            "how": "Press ⌛ End Turn at the bottom right of the screen.",
+            "go": { "panel": "endDay", "label": "End the day" },
+            "reward": { "gold": 10 }
+        },
+        {
+            "id": "scout",
+            "check": "starterQuest",
+            "icon": "🧭",
+            "title": "Scout the land",
+            "why": "The map is dark until you walk it. Every hex you uncover shows roads, towns, resources and danger.",
+            "how": "Click a hex next to you on the map to walk there. Uncover two new hexes to finish ‘A New Beginning’ (Quests tab).",
+            "go": { "panel": "quests", "label": "Open Quests" },
+            "reward": { "gold": 15 }
+        },
+        {
+            "id": "odd_job",
+            "check": "oddJob",
+            "icon": "🔨",
+            "title": "Earn an honest coin",
+            "why": "Day work is the surest income when you own nothing yet, and every job trains a skill.",
+            "how": "In a town or village: click your own hex → ⚔ Open Actions → 🔨 Look for Work, and take a job.",
+            "go": { "action": "odd_jobs", "label": "Look for Work" },
+            "reward": { "gold": 25 }
+        },
+        {
+            "id": "market",
+            "check": "market",
+            "icon": "⚖️",
+            "title": "Visit the market",
+            "why": "You must eat: bread and grain keep your hunger off. Prices differ from town to town, and buying cheap to sell dear is how merchants grow rich.",
+            "how": "In a town: Open Actions → ⚖️ Trade Goods, then buy or sell anything (start with some food).",
+            "go": { "action": "trade", "label": "Trade Goods" },
+            "reward": { "gold": 25 }
+        },
+        {
+            "id": "meet_people",
+            "check": "meetPeople",
+            "icon": "👥",
+            "title": "Talk to the townsfolk",
+            "why": "Friends lend help, carry news, find you work and may one day marry into your House.",
+            "how": "In a town: Open Actions → 👥 Meet People → 💬 Talk to anyone, and chat with them.",
+            "go": { "action": "meet_people", "label": "Meet People" },
+            "reward": { "gold": 15, "renown": 2 }
+        },
+        {
+            "id": "notice_board",
+            "check": "noticeBoard",
+            "icon": "📋",
+            "title": "Take on a task",
+            "why": "Bounties and quests pay far better than day work and build your name.",
+            "how": "In a town: Open Actions → 📋 Notice Board, and accept a bounty — or accept a quest from the Quests tab.",
+            "go": { "action": "bounty_board", "label": "Notice Board" },
+            "reward": { "gold": 40, "renown": 3 }
+        },
+        {
+            "id": "inn",
+            "check": "inn",
+            "icon": "🛏️",
+            "title": "Sleep under a roof",
+            "why": "A night on the road leaves you tired, dirty and open to sickness. An inn's bed and breakfast restore you.",
+            "how": "In a town: Open Actions → 🛏️ Find Lodgings (or Lodge at …), book a room, then end the day.",
+            "go": { "action": "lodging", "label": "Find Lodgings" },
+            "reward": { "gold": 20 }
+        },
+        {
+            "id": "ambition",
+            "check": "ambition",
+            "icon": "🏛️",
+            "title": "Give your House an Ambition",
+            "why": "Your House outlives you. An Ambition is its long goal: its milestones earn Prestige, which your heirs inherit.",
+            "how": "Top bar → 🗝️ Counsel → beside ‘Your House has no Ambition’ press House, then choose one.",
+            "go": { "panel": "house", "label": "Open your House" },
+            "reward": { "gold": 20, "renown": 3 }
+        },
+        {
+            "id": "second_town",
+            "check": "secondTown",
+            "icon": "🗺️",
+            "title": "Travel to a second town",
+            "why": "No town has everything. Other markets pay more for your goods, and other lords may favour you.",
+            "how": "Click a distant town on the map to set out (it may take more than one day), then enter it.",
+            "go": { "panel": "map", "label": "Show the map" },
+            "reward": { "gold": 30, "renown": 2 }
+        }
+    ],
+    "final": {
+        "title": "First Steps taken",
+        "text": "You have found your feet. From here, the Steward's 🗝️ Counsel tab names what matters most each day.",
+        "gold": 150,
+        "renown": 10,
+        "prestige": 15
+    }
+}

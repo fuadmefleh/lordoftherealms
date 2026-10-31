@@ -6,3 +6,7 @@ export { House } from '../house.js';
 export { Traits } from '../traits.js';
 export { Upbringing } from '../upbringing.js';
 export { Legacy } from '../legacy.js';
+export { Gossip } from '../gossip.js';
+export { Whispers } from '../whispers.js';
+export { Townsfolk } from '../townsfolk.js';
+export { Duels } from '../duels.js';

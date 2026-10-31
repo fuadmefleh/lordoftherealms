@@ -390,6 +390,20 @@ export const Ships = {
         return { success: true, hired: n, cost, message: `Signed on ${n} sailor${n === 1 ? '' : 's'} for ${ship.name} (${cost}g).` };
     },
 
+    /**
+     * The player's ships docked at a port on hex (q, r) with empty berths:
+     * [{ ship, open, cost }] — the sailors each still needs and their signing-on.
+     */
+    shortHandedAt(player, world, q, r) {
+        if (!player || !world || !this.isPortTile(world, q, r)) return [];
+        return this.getShipsAt(player, q, r)
+            .map(ship => {
+                const open = Math.max(0, this.getShipEffectiveStats(ship).crewRequired - this.getCrew(ship));
+                return { ship, open, cost: this.getHireCost(open) };
+            })
+            .filter(row => row.open > 0);
+    },
+
     /** Pay off sailors from a docked ship to save on wages. */
     dismissCrew(player, shipId, count = 1) {
         const ship = this.getShipById(player, shipId);
@@ -579,6 +593,7 @@ export const Ships = {
         const st = this.getShipType(used.typeId);
         return {
             success: true,
+            shipId: ship.id,
             message: `Purchased ${used.name} (${st ? st.name : 'ship'}) for ${used.price}g! She has no crew — hire sailors here before you sail.`,
         };
     },

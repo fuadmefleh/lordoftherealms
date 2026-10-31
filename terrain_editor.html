@@ -193,6 +193,20 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
 .ntb-alt-cell-lbl{font-size:8px;color:var(--text-dim);margin-top:2px;font-weight:600}
 .ntb-alt-add{width:72px;height:72px;border:2px dashed var(--border2);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text-dim);background:var(--bg);flex-shrink:0;transition:border-color .12s,color .12s}
 .ntb-alt-add:hover{border-color:var(--gold);color:var(--gold)}
+/* Live preview */
+.ntb-preview-head{display:flex;align-items:center;gap:6px;margin-top:12px;margin-bottom:4px;font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600}
+.ntb-preview-head span:first-child{flex:1}
+.ntb-preview-head select,.ntb-preview-head button{font-size:10px;padding:1px 5px}
+.ntb-preview-head label{display:flex;align-items:center;gap:3px;text-transform:none;font-weight:400;cursor:pointer}
+.ntb-preview{display:block;image-rendering:pixelated;border:1px solid var(--border2);border-radius:4px;cursor:pointer;max-width:100%}
+.ntb-preview-tip{font-size:10px;color:var(--text-dim);min-height:14px;margin-top:3px}
+.ntb-coverage{font-size:10px;line-height:1.5;margin-top:4px;padding:6px 8px;border-radius:4px;background:var(--panel2);border:1px solid var(--border)}
+.ntb-coverage .ok{color:var(--green)}
+.ntb-coverage .warn{color:var(--gold)}
+.ntb-coverage .bad{color:var(--red)}
+.ntb-coverage a{color:var(--blue);cursor:pointer;text-decoration:underline}
+.ntb-cell.ntb-flash{animation:ntbFlash .6s ease 2}
+@keyframes ntbFlash{50%{background:#1f3a14;border-color:var(--gold)}}
 </style>
 </head>
 <body>
@@ -440,6 +454,20 @@ input[type="color"]{padding:2px;width:28px;height:24px;cursor:pointer;background
         <div class="ntb-ic-grid" id="ntb-ic-grid"></div>
         <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:10px;margin-bottom:2px">Alternate Center Fills <span style="font-weight:400;text-transform:none">(optional — hash-varied interior tiles)</span></div>
         <div class="ntb-alt-row" id="ntb-alt-row"></div>
+        <div class="ntb-preview-head">
+          <span>Live Preview <span style="font-weight:400;text-transform:none">(drawn the way the game stamps it)</span></span>
+          <select id="ntb-preview-shape" onchange="ntbRenderPreview()" title="Test shape">
+            <option value="pond">Pond</option>
+            <option value="ring">Ring</option>
+            <option value="coast">Coast</option>
+            <option value="random">Random</option>
+          </select>
+          <button onclick="ntbPreviewSeed++;document.getElementById('ntb-preview-shape').value='random';ntbRenderPreview()" title="New random shape">🎲</button>
+          <label title="Outline tiles that fall back to the centre because a slot is empty"><input type="checkbox" id="ntb-preview-marks" checked onchange="ntbRenderPreview()"> gaps</label>
+        </div>
+        <canvas id="ntb-preview" class="ntb-preview" title="Click a tile to select the slot it uses"></canvas>
+        <div id="ntb-preview-tip" class="ntb-preview-tip"></div>
+        <div id="ntb-coverage" class="ntb-coverage"></div>
       </div>
       <div>
         <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-bottom:6px">Saved Brushes</div>
@@ -2297,6 +2325,13 @@ async function _loadSavedCustomSheets() {
     } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
+// The spritesheet editor's "Send to Editors" adds sheets while this editor is open.
+try {
+    new BroadcastChannel('lotr-custom-sheets').onmessage = ev => {
+        if (ev.data && Array.isArray(ev.data.keys) && ev.data.keys.includes('customSheets_terrain')) _loadSavedCustomSheets();
+    };
+} catch (e) { /* BroadcastChannel unsupported — sheets appear on next load */ }
+
 function loadImage(path) { return EditorCore.loadImage(imgCache, path); }
 
 
@@ -3318,57 +3353,14 @@ function recomputeNineTile(q, r, season) {
     if (!groupId) return;
     const brush = nineTileBrushes.find(b => b.id === groupId);
     if (!brush) return;
-
-    const hasTop    = r > 0       && brushGroupMap[r-1] && brushGroupMap[r-1][q] === groupId;
-    const hasBottom = r < mapH-1  && brushGroupMap[r+1] && brushGroupMap[r+1][q] === groupId;
-    const hasLeft   = q > 0       && brushGroupMap[r][q-1] === groupId;
-    const hasRight  = q < mapW-1  && brushGroupMap[r][q+1] === groupId;
-
-    // Pick tiles from season-specific grid, falling back to default tiles
-    const tilesGrid = (season && brush.seasonTiles && brush.seasonTiles[season])
-        ? brush.seasonTiles[season]
-        : brush.tiles;
-    const cornersArr = (season && brush.seasonInsideCorners && brush.seasonInsideCorners[season])
-        ? brush.seasonInsideCorners[season]
-        : (brush.insideCorners || null);
-    const altFillsArr = (season && brush.seasonAltFills && brush.seasonAltFills[season] && brush.seasonAltFills[season].length)
-        ? brush.seasonAltFills[season]
-        : null;
-
-    // Check for inside corners: all 4 cardinals present but a diagonal is missing
-    if (hasTop && hasBottom && hasLeft && hasRight && cornersArr) {
-        const hasTL = r > 0 && q > 0            && brushGroupMap[r-1] && brushGroupMap[r-1][q-1] === groupId;
-        const hasTR = r > 0 && q < mapW-1       && brushGroupMap[r-1] && brushGroupMap[r-1][q+1] === groupId;
-        const hasBL = r < mapH-1 && q > 0        && brushGroupMap[r+1] && brushGroupMap[r+1][q-1] === groupId;
-        const hasBR = r < mapH-1 && q < mapW-1   && brushGroupMap[r+1] && brushGroupMap[r+1][q+1] === groupId;
-
-        // IC indices: 0=TL, 1=TR, 2=BL, 3=BR
-        const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
-        if (icIdx >= 0 && cornersArr[icIdx]) {
-            const ic = cornersArr[icIdx];
-            tiles[r][q][activeLayer] = { sheetPath: ic.sheetPath, sx: ic.sx, sy: ic.sy };
-            return;
-        }
-    }
-
-    // Map to 3×3 grid: row 0=top edge, 1=middle, 2=bottom edge
-    let row = 1;
-    if (!hasTop && hasBottom) row = 0;
-    else if (hasTop && !hasBottom) row = 2;
-    // col 0=left edge, 1=middle, 2=right edge
-    let col = 1;
-    if (!hasLeft && hasRight) col = 0;
-    else if (hasLeft && !hasRight) col = 2;
-
-    let tileRef = tilesGrid[row] && tilesGrid[row][col];
-    // For the center slot, hash-pick from the alt fills pool for variety
-    if (row === 1 && col === 1 && altFillsArr && altFillsArr.length) {
-        const pool = tileRef ? [tileRef, ...altFillsArr] : altFillsArr;
-        const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
-        tileRef = pool[hash % pool.length];
-    }
-    if (tileRef) {
-        tiles[r][q][activeLayer] = { sheetPath: tileRef.sheetPath, sx: tileRef.sx, sy: tileRef.sy };
+    // Same rules the game stamps inner maps with (EditorCore twin of core/nineTile.js)
+    const has = (dq, dr) => {
+        const nq = q + dq, nr = r + dr;
+        return nq >= 0 && nq < mapW && nr >= 0 && nr < mapH && !!brushGroupMap[nr] && brushGroupMap[nr][nq] === groupId;
+    };
+    const { tile } = EditorCore.resolveNineTileCell(brush, season, has, q, r);
+    if (tile) {
+        tiles[r][q][activeLayer] = { sheetPath: tile.sheetPath, sx: tile.sx, sy: tile.sy };
     }
 }
 
@@ -3413,6 +3405,16 @@ function setPreviewSeason(season) {
     toast(`Season: ${season}`, 'ok');
 }
 
+// Filled slots (3×3 + inside corners) a saved brush has for a season.
+function ntbBrushSlotCount(brush, season) {
+    const g = brush.seasonTiles && brush.seasonTiles[season];
+    const c = brush.seasonInsideCorners && brush.seasonInsideCorners[season];
+    let n = 0;
+    if (Array.isArray(g)) for (const row of g) for (const t of (row || [])) if (t && t.sheetPath) n++;
+    if (Array.isArray(c)) for (const t of c) if (t && t.sheetPath) n++;
+    return n;
+}
+
 // ── Left panel brush list ──
 function buildNtbListPanel() {
     const list = document.getElementById('ntb-list-panel');
@@ -3448,9 +3450,9 @@ function buildNtbListPanel() {
             badge.style.cssText = 'font-size:9px;margin-left:auto;flex-shrink:0;display:flex;gap:1px';
             for (const s of SEASONS) {
                 const dot = document.createElement('span');
-                const count = ntbSeasonTileCount(brush.seasonTiles[s]);
-                dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${count === 9 ? SEASON_COLORS[s] : count > 0 ? SEASON_COLORS[s] + '60' : 'var(--border2)'}`;
-                dot.title = `${s}: ${count}/9 tiles`;
+                const count = ntbBrushSlotCount(brush, s);
+                dot.style.cssText = `width:5px;height:5px;border-radius:50%;background:${count === 13 ? SEASON_COLORS[s] : count > 0 ? SEASON_COLORS[s] + '60' : 'var(--border2)'}`;
+                dot.title = `${s}: ${count}/13 slots`;
                 badge.appendChild(dot);
             }
             card.appendChild(badge);
@@ -3466,6 +3468,209 @@ function selectNineBrush(idx) {
     refreshStampPreview();
     if (activeNineBrush !== null && activeTool !== 'paint') setTool('paint');
 }
+
+
+// ── Live preview ──
+// Paints a test shape with the brush as it stands in the editor (unsaved
+// slots included), using EditorCore.resolveNineTileCell, the same rules the
+// game stamps inner maps with. Cells that fall back because a slot is empty
+// get outlined, and clicking a cell selects the slot it uses.
+const NTB_PV_W = 14, NTB_PV_H = 9, NTB_PV_PX = 24;
+let ntbPreviewSeed = 1;
+let _ntbPreviewQueued = false;
+let _ntbPreviewCells = [];   // [r][q] → resolved cell or null
+const NTB_SLOT_NAMES = [['top-left corner', 'top edge', 'top-right corner'], ['left edge', 'centre', 'right edge'], ['bottom-left corner', 'bottom edge', 'bottom-right corner']];
+const NTB_IC_NAMES = ['inside corner TL', 'inside corner TR', 'inside corner BL', 'inside corner BR'];
+
+function ntbSchedulePreview() {
+    if (_ntbPreviewQueued) return;
+    _ntbPreviewQueued = true;
+    setTimeout(() => { _ntbPreviewQueued = false; ntbRenderPreview(); }, 0);
+}
+
+// The brush as currently edited, in the saved shape (seasonTiles etc.).
+function ntbDraftBrush() {
+    const brush = { tiles: null, insideCorners: null, seasonTiles: {}, seasonInsideCorners: {}, seasonAltFills: {} };
+    for (const s of SEASONS) {
+        brush.seasonTiles[s] = ntbSeasonTiles ? ntbSeasonTiles[s] : ntbEmptyGrid();
+        brush.seasonInsideCorners[s] = ntbSeasonCorners ? ntbSeasonCorners[s] : ntbEmptyCorners();
+        brush.seasonAltFills[s] = ntbSeasonAltFills ? ntbSeasonAltFills[s] : [];
+    }
+    // Default grid: spring, or the first season with a centre (as ntbSave does)
+    const hasCentre = s => !!(brush.seasonTiles[s] && brush.seasonTiles[s][1] && brush.seasonTiles[s][1][1]);
+    const def = hasCentre('spring') ? 'spring' : (SEASONS.find(hasCentre) || 'spring');
+    brush.tiles = brush.seasonTiles[def];
+    brush.insideCorners = brush.seasonInsideCorners[def];
+    return brush;
+}
+
+function ntbSlotLabel(slot) {
+    return slot.ic !== undefined ? NTB_IC_NAMES[slot.ic] : NTB_SLOT_NAMES[slot.row][slot.col];
+}
+
+function ntbRenderPreview() {
+    const cvs = document.getElementById('ntb-preview');
+    if (!cvs || document.getElementById('ntbModal').style.display === 'none') return;
+    const shape = document.getElementById('ntb-preview-shape').value;
+    const marks = document.getElementById('ntb-preview-marks').checked;
+    const mask = EditorCore.nineTilePreviewMask(shape, NTB_PV_W, NTB_PV_H, ntbPreviewSeed * 2654435761);
+    const brush = ntbDraftBrush();
+    const season = ntbActiveSeason;
+    const resolved = EditorCore.resolveBrushSeason(brush, season);
+    cvs.width = NTB_PV_W * NTB_PV_PX;
+    cvs.height = NTB_PV_H * NTB_PV_PX;
+    const ctx = cvs.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    // Ground the brush sits on: a quiet checker
+    for (let r = 0; r < NTB_PV_H; r++) for (let q = 0; q < NTB_PV_W; q++) {
+        ctx.fillStyle = (q + r) % 2 ? '#1a1f27' : '#151a21';
+        ctx.fillRect(q * NTB_PV_PX, r * NTB_PV_PX, NTB_PV_PX, NTB_PV_PX);
+    }
+    const missingImgs = new Set();
+    const usage = new Map(); // slot label → { count, fallbacks }
+    let gaps = 0;
+    _ntbPreviewCells = [];
+    for (let r = 0; r < NTB_PV_H; r++) {
+        _ntbPreviewCells.push([]);
+        for (let q = 0; q < NTB_PV_W; q++) {
+            if (!mask[r][q]) { _ntbPreviewCells[r].push(null); continue; }
+            const has = (dq, dr) => { const nq = q + dq, nr = r + dr; return nr >= 0 && nr < NTB_PV_H && nq >= 0 && nq < NTB_PV_W && mask[nr][nq]; };
+            const cell = EditorCore.resolveNineTileCell(brush, season, has, q, r, resolved);
+            // The slot this cell wants, before any fallback, for the tip and the coverage list
+            cell.ideal = EditorCore.pickNineTileSlot(has) || cell.slot;
+            _ntbPreviewCells[r].push(cell);
+            const x = q * NTB_PV_PX, y = r * NTB_PV_PX;
+            if (cell.tile) {
+                const img = imgCache.get(cell.tile.sheetPath);
+                if (img) ctx.drawImage(img, cell.tile.sx, cell.tile.sy, TILE, TILE, x, y, NTB_PV_PX, NTB_PV_PX);
+                else missingImgs.add(cell.tile.sheetPath);
+            } else {
+                ctx.fillStyle = 'rgba(248,81,73,0.18)';
+                ctx.fillRect(x, y, NTB_PV_PX, NTB_PV_PX);
+            }
+            if (cell.fallback) gaps++;
+            if (marks && cell.fallback) {
+                ctx.strokeStyle = cell.fallback === 'empty' ? '#f85149' : '#e6a817';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 1, y + 1, NTB_PV_PX - 2, NTB_PV_PX - 2);
+            }
+        }
+    }
+    if (missingImgs.size) Promise.all([...missingImgs].map(p => loadImage(p))).then(() => ntbSchedulePreview());
+    ntbRenderCoverage(brush, season, gaps);
+}
+
+// Which slots are filled this season, and what an empty one costs.
+function ntbRenderCoverage(brush, season, gaps) {
+    const el = document.getElementById('ntb-coverage');
+    const own = { g: ntbSeasonTiles ? ntbSeasonTiles[season] : null, c: ntbSeasonCorners ? ntbSeasonCorners[season] : null };
+    const resolved = EditorCore.resolveBrushSeason(brush, season);
+    const borrowed = resolved.tilesGrid !== own.g;
+    const missing = [];
+    let filled = 0;
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+        if (resolved.tilesGrid && resolved.tilesGrid[r] && resolved.tilesGrid[r][c]) filled++;
+        else missing.push({ label: NTB_SLOT_NAMES[r][c], sel: { row: r, col: c } });
+    }
+    for (let i = 0; i < 4; i++) {
+        if (resolved.cornersArr && resolved.cornersArr[i] && resolved.cornersArr[i].sheetPath) filled++;
+        else missing.push({ label: NTB_IC_NAMES[i], sel: { row: 3, col: i } });
+    }
+    const parts = [];
+    const from = SEASONS.find(s => ntbSeasonTiles[s] === resolved.tilesGrid) || 'spring';
+    if (borrowed && filled) {
+        parts.push(`<span class="warn">${season[0].toUpperCase() + season.slice(1)} has no tiles of its own, so the game uses the ${from} tiles (shown). Assign tiles here, or copy them from a season, to give it its own look.</span>`);
+    } else {
+        parts.push(filled === 13
+            ? `<span class="ok">✓ All 13 slots filled for ${season}.</span>`
+            : `<span class="${filled >= 9 ? 'warn' : 'bad'}">${filled}/13 slots filled for ${season}.</span>`);
+    }
+    // Slots whose tile is fully see-through draw nothing in the game
+    const clear = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+        const t = resolved.tilesGrid && resolved.tilesGrid[r] && resolved.tilesGrid[r][c];
+        if (t && ntbTileIsClear(t)) clear.push(NTB_SLOT_NAMES[r][c]);
+    }
+    if (clear.length) parts.push(`<span class="warn">See-through tile in: ${clear.join(', ')}. The ground below shows there, which is right for an overlay (like grass over dirt) but leaves a hole otherwise.</span>`);
+    if (missing.length) {
+        const links = missing.map((m, i) => `<a data-i="${i}">${m.label}</a>`).join(', ');
+        const center = missing.some(m => m.sel.row === 1 && m.sel.col === 1);
+        const icOnly = missing.every(m => m.sel.row === 3);
+        parts.push(`Empty: ${links}.`);
+        parts.push(center ? '<span class="bad">No centre: the inside of every shape is left bare.</span>'
+            : icOnly ? '<span class="warn">Without inside corners, concave turns show the centre tile instead (outlined amber).</span>'
+            : '<span class="bad">Empty edges or corners leave holes in the outline (outlined red).</span>');
+    }
+    if (gaps) parts.push(`${gaps} preview tile${gaps === 1 ? '' : 's'} fall back.`);
+    el.innerHTML = parts.join('<br>');
+    el.querySelectorAll('a[data-i]').forEach(a => {
+        a.onclick = () => ntbSelectSlot(missing[Number(a.dataset.i)].sel);
+    });
+}
+
+// Is a tile fully transparent? Sampled once per tile from its sheet.
+const _ntbClearCache = new Map();
+function ntbTileIsClear(t) {
+    const key = `${t.sheetPath}|${t.sx}|${t.sy}`;
+    if (_ntbClearCache.has(key)) return _ntbClearCache.get(key);
+    const img = imgCache.get(t.sheetPath);
+    if (!img) return false; // not loaded yet; the preview redraws once it is
+    let clear = false;
+    try {
+        const c = document.createElement('canvas');
+        c.width = TILE; c.height = TILE;
+        const cx = c.getContext('2d');
+        cx.drawImage(img, t.sx, t.sy, TILE, TILE, 0, 0, TILE, TILE);
+        const px = cx.getImageData(0, 0, TILE, TILE).data;
+        clear = true;
+        for (let i = 3; i < px.length; i += 4) if (px[i] > 8) { clear = false; break; }
+    } catch (e) { clear = false; /* tainted canvas: can't tell */ }
+    _ntbClearCache.set(key, clear);
+    return clear;
+}
+
+// Select a slot in the grid (as if clicked) and flash it.
+function ntbSelectSlot(sel) {
+    ntbSelSlot = { row: sel.row, col: sel.col };
+    ntbAltSelIdx = -1;
+    ntbBuildGrid();
+    ntbBuildAltFills();
+    const cells = sel.row === 3 ? document.querySelectorAll('#ntb-ic-grid .ntb-cell') : document.querySelectorAll('#ntb-grid .ntb-cell');
+    const cell = cells[sel.row === 3 ? sel.col : sel.row * 3 + sel.col];
+    if (cell) { cell.classList.add('ntb-flash'); cell.scrollIntoView({ block: 'nearest' }); setTimeout(() => cell.classList.remove('ntb-flash'), 1300); }
+    const hint = document.getElementById('ntb-hint');
+    if (hint) hint.textContent = `Now click a tile on the tileset for the ${ntbSlotLabel(sel.row === 3 ? { ic: sel.col } : sel)}`;
+}
+
+function ntbPreviewCellAt(ev) {
+    const cvs = ev.currentTarget;
+    const rect = cvs.getBoundingClientRect();
+    const q = Math.floor((ev.clientX - rect.left) / rect.width * NTB_PV_W);
+    const r = Math.floor((ev.clientY - rect.top) / rect.height * NTB_PV_H);
+    return (_ntbPreviewCells[r] && _ntbPreviewCells[r][q]) || null;
+}
+
+(function ntbWirePreview() {
+    const cvs = document.getElementById('ntb-preview');
+    const tip = document.getElementById('ntb-preview-tip');
+    if (!cvs) return;
+    cvs.addEventListener('mousemove', ev => {
+        const cell = ntbPreviewCellAt(ev);
+        if (!cell) { tip.textContent = ''; return; }
+        const want = ntbSlotLabel(cell.ideal);
+        tip.textContent = cell.fallback === 'noInsideCorner' ? `Wants the ${want}, which is empty, so it shows the centre. Click to fill it.`
+            : cell.fallback === 'empty' ? `Wants the ${want}, which is empty. Click to fill it.`
+            : cell.fallback === 'strip' ? 'Too thin for any slot (the game trims these), so it shows the centre.'
+            : `Uses the ${want}. Click to select that slot.`;
+    });
+    cvs.addEventListener('mouseleave', () => { tip.textContent = ''; });
+    cvs.addEventListener('click', ev => {
+        const cell = ntbPreviewCellAt(ev);
+        if (!cell || cell.fallback === 'strip') return;
+        const s = cell.ideal;
+        ntbSelectSlot(s.ic !== undefined ? { row: 3, col: s.ic } : s);
+    });
+})();
 
 // ── Nine-Tile Brush Editor Modal ──
 function openNtbEditor(editIdx) {
@@ -3569,6 +3774,7 @@ function ntbAppendBlockBadge(cell, flags, idx) {
 
 function ntbBuildGrid() {
     const grid = document.getElementById('ntb-grid');
+    ntbSchedulePreview();
     grid.innerHTML = '';
     const fallbackGrid = (ntbActiveSeason !== 'spring' && ntbSeasonTiles && ntbSeasonTiles.spring) ? ntbSeasonTiles.spring : null;
     const fallbackCorners = (ntbActiveSeason !== 'spring' && ntbSeasonCorners && ntbSeasonCorners.spring) ? ntbSeasonCorners.spring : null;
@@ -3640,6 +3846,7 @@ function ntbBuildGrid() {
 function ntbBuildAltFills() {
     const row = document.getElementById('ntb-alt-row');
     if (!row) return;
+    ntbSchedulePreview();
     row.innerHTML = '';
     // Existing alt fill slots
     ntbAltFills.forEach((tileRef, i) => {

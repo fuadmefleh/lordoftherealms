@@ -1,0 +1,143 @@
+{
+    "_doc": "Hospitality (systems/hospitality.js): guest houses (bed & breakfast), inns, grand hotels and roadside roadhouses (the motels of the realm). NPC houses are a hash of each town (no RNG) and roadhouses a hash of the roads; the player builds their own as properties (data/playerEconomy.json GUEST_HOUSE, INN, HOTEL, ROADHOUSE). Guests split among a town's houses by stars, price and reputation. Rooms set the night's rest (rest type 'inn'), the morning's comfort, cleanliness and health; services are paid on the spot.",
+    "config": {
+        "enabled": true,
+        "weekDays": 7,
+        "firstDay": 2,
+        "kinds": {
+            "guest_house": {
+                "name": "Guest House", "noun": "guest house", "icon": "🏡", "glyph": "bed",
+                "keeperTitle": "Host", "blurb": "A bed and breakfast: a few clean rooms in a family home, and breakfast at the kitchen table.",
+                "rooms": [3, 6], "stars": [2, 3.4], "tiers": ["private"], "breakfastIncluded": true,
+                "services": ["laundry", "packed_lunch"], "appeal": 0.85, "spendPerGuest": 2,
+                "costPerGuest": 2, "weeklyCosts": 14
+            },
+            "inn": {
+                "name": "Inn", "noun": "inn", "icon": "🏨", "glyph": "bed",
+                "keeperTitle": "Innkeeper", "blurb": "The town's coaching inn: a crowded common room, private rooms upstairs, a hot meal, a bath and stabling in the yard.",
+                "rooms": [6, 14], "stars": [1.6, 3.2], "tiers": ["common", "private"],
+                "services": ["supper", "breakfast", "bath", "laundry", "stabling"], "appeal": 1, "spendPerGuest": 4,
+                "costPerGuest": 3, "weeklyCosts": 30
+            },
+            "hotel": {
+                "name": "Grand Hotel", "noun": "hotel", "icon": "🏰", "glyph": "bed",
+                "keeperTitle": "Hotelier", "blurb": "Marble stairs, liveried porters and suites fit for a count. Fine dining, a bathhouse, a valet — at a price.",
+                "rooms": [12, 24], "stars": [3.4, 4.8], "tiers": ["private", "suite"], "breakfastIncluded": true,
+                "services": ["fine_dining", "bathhouse", "laundry", "valet", "stabling"], "appeal": 0.7, "spendPerGuest": 12,
+                "costPerGuest": 7, "weeklyCosts": 90, "wealthyShare": 0.35
+            },
+            "roadhouse": {
+                "name": "Roadhouse", "noun": "roadhouse", "icon": "🏚️", "glyph": "bed",
+                "keeperTitle": "Keeper", "blurb": "A wayside house on the open road: a long bunk room, a few cheap rooms, hot broth and a yard for horses. No questions asked.",
+                "rooms": [4, 9], "stars": [1, 2.4], "tiers": ["common", "private"],
+                "services": ["supper", "breakfast", "stabling", "packed_lunch"], "appeal": 1, "spendPerGuest": 3,
+                "costPerGuest": 2, "weeklyCosts": 12, "wayside": true
+            }
+        },
+        "towns": {
+            "village": [{ "kind": "guest_house", "chance": 0.6 }],
+            "town": [{ "kind": "inn", "chance": 1 }, { "kind": "guest_house", "chance": 0.75 }],
+            "city": [{ "kind": "inn", "chance": 1 }, { "kind": "guest_house", "chance": 1 }, { "kind": "hotel", "chance": 0.6 }, { "kind": "inn", "chance": 0.4 }],
+            "capital": [{ "kind": "inn", "chance": 1 }, { "kind": "guest_house", "chance": 1 }, { "kind": "hotel", "chance": 1 }, { "kind": "inn", "chance": 0.7 }, { "kind": "guest_house", "chance": 0.5 }]
+        },
+        "tiers": {
+            "common": { "name": "A bunk in the common room", "short": "Common room", "icon": "🛌", "price": 3, "comfort": -8, "hygiene": -4, "health": 0, "social": 6, "theft": 0.07 },
+            "private": { "name": "A private room", "short": "Private room", "icon": "🛏️", "price": 11, "comfort": 6, "hygiene": 4, "health": 2, "social": 0, "theft": 0.01 },
+            "suite": { "name": "A suite", "short": "Suite", "icon": "👑", "price": 40, "comfort": 22, "hygiene": 14, "health": 6, "social": 4, "fun": 10, "theft": 0 }
+        },
+        "services": {
+            "supper": { "name": "Hot supper", "icon": "🍲", "price": 5, "needs": { "hunger": 40, "comfort": 6 } },
+            "breakfast": { "name": "Breakfast in the morning", "icon": "🍳", "price": 3, "morning": true, "needs": { "hunger": 35 } },
+            "packed_lunch": { "name": "A packed lunch for the road", "icon": "🥪", "price": 3, "item": "bread", "qty": 2 },
+            "bath": { "name": "A hot bath", "icon": "🛁", "price": 6, "needs": { "hygiene": 60, "comfort": 8 } },
+            "bathhouse": { "name": "The bathhouse and steam room", "icon": "♨️", "price": 14, "needs": { "hygiene": 80, "comfort": 20, "fun": 10 }, "health": 4 },
+            "laundry": { "name": "Have your clothes washed", "icon": "🧺", "price": 4, "needs": { "hygiene": 25, "comfort": 6 } },
+            "fine_dining": { "name": "Dine in the grand hall", "icon": "🍷", "price": 22, "needs": { "hunger": 55, "fun": 20, "social": 25, "comfort": 12 } },
+            "valet": { "name": "A valet: brushed, shaved and pressed", "icon": "🎩", "price": 10, "needs": { "hygiene": 30, "comfort": 10 }, "charisma": 1 },
+            "stabling": { "name": "Stable and feed your horse", "icon": "🐴", "price": 4, "morning": true, "needsMount": true, "movement": 1 }
+        },
+        "starsComfort": 4,
+        "theftLoss": [0.04, 0.12],
+        "theftMax": 60,
+        "demand": {
+            "perPop": 0.006,
+            "type": { "village": 0.6, "town": 1, "city": 1.4, "capital": 1.8 },
+            "min": 2,
+            "max": 70,
+            "road": 1.15,
+            "war": 0.75,
+            "season": { "Spring": 1, "Summer": 1.2, "Autumn": 1.05, "Winter": 0.7 },
+            "waysideBase": 3,
+            "waysidePerRoad": 0.8,
+            "elasticity": 1.3,
+            "starsWeight": 1.2
+        },
+        "wayside": {
+            "chance": 0.35,
+            "minFromTown": 2,
+            "spacing": 4,
+            "max": 40
+        },
+        "npc": {
+            "priceStep": 0.05,
+            "priceMin": 0.6,
+            "priceMax": 1.8,
+            "fullAt": 0.85,
+            "emptyAt": 0.4,
+            "starsDrift": 0.15,
+            "repDrift": 0.15,
+            "maxHistory": 8
+        },
+        "player": {
+            "priceSteps": [0.6, 0.8, 1, 1.25, 1.5, 2],
+            "staff": {
+                "cook": { "name": "Cook", "icon": "🧑‍🍳", "wage": 4, "stars": 0.4, "spend": 0.3, "max": 3 },
+                "maid": { "name": "Chambermaid", "icon": "🧹", "wage": 3, "clean": 14, "max": 4 },
+                "porter": { "name": "Porter & watchman", "icon": "💂", "wage": 4, "stars": 0.2, "theftCut": 0.5, "max": 2 },
+                "groom": { "name": "Groom", "icon": "🐴", "wage": 3, "spend": 0.15, "max": 2 }
+            },
+            "dirtPerGuest": 1.6,
+            "cleanStars": 0.8,
+            "levelStars": 0.3,
+            "repDaily": 0.04,
+            "ownerStaysFree": true,
+            "events": {
+                "chance": 0.35,
+                "theft": { "weight": 3, "rep": -6, "text": "A guest's purse was lifted in the night at {house}. Word gets round." },
+                "brawl": { "weight": 2, "rep": -3, "cost": [20, 60], "kinds": ["inn", "roadhouse"], "text": "A brawl in the common room of {house}: broken benches and a smashed window ({cost} gold)." },
+                "noble": { "weight": 2, "minStars": 3, "rep": 4, "nights": 2, "text": "A lord's retinue took every room at {house} for the night and paid handsomely ({gold} gold)." },
+                "chronicler": { "weight": 2, "text": "A travelling chronicler stayed at {house} and wrote of it: {verdict}." },
+                "bedbugs": { "weight": 3, "maxClean": 40, "rep": -8, "text": "Bedbugs at {house}! Guests leave scratching, and tell everyone." },
+                "regular": { "weight": 2, "rep": 2, "text": "A wool merchant swears {house} is the best bed between here and the coast, and books for the season." }
+            }
+        },
+        "maxNews": 20
+    },
+    "names": {
+        "guest_house": {
+            "patterns": ["{keeper}'s Guest House", "{adj} {noun} House", "The {noun} Rest", "{keeper}'s Bed & Breakfast"],
+            "adj": ["Rose", "Ivy", "Hollyhock", "Willow", "Lavender", "Bramble", "Quiet", "Linden", "Primrose", "Honeysuckle"],
+            "noun": ["Cottage", "Lantern", "Hearth", "Garden", "Orchard", "Thistle"]
+        },
+        "inn": {
+            "patterns": ["The {adj} {noun}", "The {noun} & {noun2}", "The {adj} {noun} Inn"],
+            "adj": ["Golden", "Red", "Jolly", "Laughing", "Crooked", "Prancing", "Silver", "Black", "Drowsy", "Wandering", "Green", "Sleeping"],
+            "noun": ["Stag", "Boar", "Pony", "Lion", "Griffin", "Swan", "Plough", "Anchor", "Mitre", "Harp", "Bell", "Crown"],
+            "noun2": ["Barrel", "Key", "Lantern", "Horn", "Crown", "Feather"]
+        },
+        "hotel": {
+            "patterns": ["The {adj} {noun}", "Hotel {noun}", "The {noun} Royal"],
+            "adj": ["Grand", "Imperial", "Gilded", "Regent's", "Sovereign", "Marble", "Palatine"],
+            "noun": ["Palace", "Court", "Excelsior", "Majestic", "Belvedere", "Aurelian", "Chancery"]
+        },
+        "roadhouse": {
+            "patterns": ["The {adj} {noun}", "{noun} Roadhouse", "The Halfway {noun}", "{keeper}'s Wayhouse"],
+            "adj": ["Last", "Dusty", "Muddy", "Lonely", "Weary", "Crossroads", "Milestone", "Lantern"],
+            "noun": ["Rest", "Post", "Well", "Wagon", "Mile", "Gate", "Ford", "Toll"]
+        },
+        "keepers": {
+            "first": ["Marla", "Odo", "Hilde", "Bram", "Ysolde", "Tobin", "Agnes", "Wendel", "Ottilie", "Garrick", "Rosamund", "Fenwick", "Berthe", "Alaric", "Mabel", "Corwin"],
+            "last": ["Pennywhistle", "Brewer", "Goodbody", "Hearthstone", "Fairweather", "Underhill", "Mossgrove", "Whitlock", "Tallow", "Copperkettle"]
+        }
+    }
+}

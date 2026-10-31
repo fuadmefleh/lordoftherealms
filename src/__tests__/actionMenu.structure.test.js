@@ -32,12 +32,21 @@ import { DataLoader } from '../core/dataLoader.js';
 // showHallOfHeroes (rival adventurers) = 246, plus showPhysicianMenu (wounds, sickness
 // and medicine) = 247, plus the heirs panels (showChildPanel, showHouseChronicle,
 // showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showGuildhall and guildAct (town guilds) = 278.
-// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281, plus showEconomy and economyAct (the Economic Chronicle) = 283, plus showTradePolicy and tradePolicyAct (kingdom trade policy) = 285, plus showHinterland and hinterlandAct (mines, leases and prospecting) = 287, plus showHarvests and harvestAct (harvests & the agricultural year) = 289, plus showUnderwriter, underwriterAct, showBourse and bourseAct (underwriters & the Bourse) = 293, plus showPublicWorks and publicWorksAct (roads, canals & public works) = 295, plus showMint and mintAct (specie, mints & the price level) = 297, plus showTreasury and treasuryAct (the Crown's Purse) = 299, plus showEstates, estateAct, showPuttingOut and puttingOutAct (estates & the putting-out system) = 303.
+// showEpitaph, _heirProfileHtml, _reignsHtml) = 252, plus showSagasJournal (world storylines) = 253, plus showDiscoveries (uncharted lands) = 254, plus showTradingCompany (merchant houses) = 255, plus showHoldingSiegesPanel and holdingSiegeAct (holdings under siege) = 259, plus showDeeds (Deeds & Records) = 260, plus showRoyalCourt (kingship) = 261, plus showCounsel and counselGo (the Steward's Counsel) = 263, plus showPatronage and patronageAct (patronage & great works) = 265, plus showOutlawLairs (outlaw lairs) = 266, plus showBank and bankAct (banks, credit & coin) = 268, plus showTrader, traderBuy, traderSell, traderEscort, traderQuitEscort and traderRob (merchant caravans on the road) = 274, plus showMerchantPrince and merchantPrinceAct (invest, warehouse, contracts) = 276, plus showMerchantLedger and merchantLedgerAct (the Merchant's Ledger) = 278, plus showTownPeople (labour, classes & migration) = 281, plus showEconomy and economyAct (the Economic Chronicle) = 283, plus showTradePolicy and tradePolicyAct (kingdom trade policy) = 285, plus showHinterland and hinterlandAct (mines, leases and prospecting) = 287, plus showHarvests and harvestAct (harvests & the agricultural year) = 289, plus showUnderwriter, underwriterAct, showBourse and bourseAct (underwriters & the Bourse) = 293, plus showPublicWorks and publicWorksAct (roads, canals & public works) = 295, plus showMint and mintAct (specie, mints & the price level) = 297, plus showTreasury and treasuryAct (the Crown's Purse) = 299, plus showEstates, estateAct, showPuttingOut and puttingOutAct (estates & the putting-out system) = 303, plus showTownsfolkJournal (People You've Known) = 304, minus _meetingOptionButton (the Royal Audience is now a conversation scene) = 303, plus showWhispersPanel (the whispering corner: court scandals) = 304, plus showEncounter, encounterAct, showFieldBattle, battleAct and _settleFieldBattle (road encounters & phased battles) = 309, plus showScene and sceneAct (choice scenes: sea, stone & shackles) = 311, plus showLetters, lettersAct and updateLettersBadge (court letters & mail) = 314, plus showRider and riderAct (post riders on the road) = 316, plus showLodgings, _lodgingStayHtml, _lodgingRunHtml and lodgingAct (guest houses, inns, hotels & roadhouses) = 320. plus showHireSailorsMenu (the docks' hiring hall) = 321, plus the afterlife's 8 (a new life, the interregnum bar and jumping back in) = 329, plus showAmbitionPanel, setVictoryGoal and showVictoryScene (origins, difficulty & victory) = 332.
 const EXPECTED_KEYS = [
     'showCourtPanel', 'showDelvePanel', 'showClaimsPanel', 'showHoldingPanel',
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
     'showChildPanel', 'showHouseChronicle', 'showEpitaph', '_heirProfileHtml', '_reignsHtml',
     'showSagasJournal',
+    'showWhispersPanel',
+    'showEncounter', 'encounterAct', 'showFieldBattle', 'battleAct', '_settleFieldBattle',
+    'showScene', 'sceneAct',
+    'showLetters', 'lettersAct', 'updateLettersBadge',
+    // Directed opposition (ui/actionMenu/threats.js): +2
+    'showThreatsPanel', 'threatsAct',
+    'showRider', 'riderAct',
+    'showLodgings', '_lodgingStayHtml', '_lodgingRunHtml', 'lodgingAct',
+    'showTownsfolkJournal',
     'showDiscoveries',
     'showOutlawLairs',
     'showBank', 'bankAct',
@@ -58,6 +67,9 @@ const EXPECTED_KEYS = [
     'showTradingCompany',
     'showHoldingSiegesPanel', 'holdingSiegeAct',
     'showDeeds',
+    // The Annals (ui/actionMenu/annals.js): +2
+    'showAnnals', 'annalsAct',
+    'showAmbitionPanel', 'setVictoryGoal', 'showVictoryScene',
     'showCounsel', 'counselGo',
     'showPatronage', 'patronageAct',
     'showUnderworldPanel',
@@ -74,7 +86,7 @@ const EXPECTED_KEYS = [
     '_getGamblingData', 'DEFAULT_GAMBLING', '_getGamblingSettings', '_getGamblingGame', '_getHuntData', '_getJobData', '_getPlayerSettlementTiles', '_getPlayerStat',
     '_getRelationshipProgress', '_getTavernLuckBonus', '_handleTellStories', '_laborCharisma',
     '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth',
-    '_laborStrength', '_meetingOptionButton', '_minigameCrownAnchor', '_minigameDragonsFlip',
+    '_laborStrength', '_minigameCrownAnchor', '_minigameDragonsFlip',
     'BUILD_CATEGORIES', '_buildOutputText', '_canBuildTechBuilding', '_centerCameraOnPlayer', 'closePanel', 'closePanelAndEndDay', 'closePanelAndRefresh', '_landingCargoText', '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
     '_renderActionTile', '_renderAffectionBar', '_renderFishingResults', '_renderRelationshipXPBar',
     '_resignTitle', '_runArcheryFestivalMinigame', '_runJoustingFestivalMinigame',
@@ -97,7 +109,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performRaid', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellMapToArchive', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu', 'showUpgradeCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showHireSailorsMenu', 'showNewLife', '_showNewLifeWelcome', '_afterlifeTakeOver', 'beginInterregnum', 'renderInterregnumBar', 'stopInterregnum', 'passInterregnumDays', 'showJumpIn', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu', 'showUpgradeCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -129,8 +141,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 303 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(303);
+    it('has 336 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(336);
     });
 
     it('every member except the known data props is a function', () => {

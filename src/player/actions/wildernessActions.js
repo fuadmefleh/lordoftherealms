@@ -17,6 +17,8 @@ import { Delves } from '../../systems/delves.js';
 import { Sieges } from '../../systems/sieges.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
+import { CourierRiders } from '../../systems/courierRiders.js';
+import { Hospitality } from '../../systems/hospitality.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -29,6 +31,22 @@ export function addWildernessActions(actions, player, tile, world) {
                 ? 'Pray here for greater spiritual benefit'
                 : 'Quiet your mind to restore health and gain karma'
         });
+    }
+
+    // A roadhouse on the open road — the NPCs' or your own (systems/hospitality.js)
+    if (!tile.settlement) {
+        const houses = Hospitality.listAt(world, player, tile.q, tile.r);
+        if (houses.length) {
+            actions.push({
+                type: 'lodging',
+                label: `Stop at ${houses[0].name}`,
+                icon: '🛏️',
+                description: 'A roadhouse: a bunk or a room for the night, hot broth, a stable for your horse',
+            });
+            for (const v of houses.filter(h => h.owner === 'player')) {
+                actions.push({ type: 'manage_lodging', unitId: v.id, label: `Run ${v.name}`, icon: '📒', description: 'Your roadhouse: prices, staff, guests and takings' });
+            }
+        }
     }
 
     // Personal Fishing (at coast/lake/river adjacent tiles)
@@ -117,11 +135,28 @@ export function addWildernessActions(actions, player, tile, world) {
 
     // Winter work on cold ground (player/seasonalWork.js)
     if (SeasonalWork.canTrapFurs(tile, world)) {
-        actions.push({
+        const line = SeasonalWork.trapLineAt(player, tile.q, tile.r);
+        actions.push(line ? {
+            type: 'trap_furs',
+            label: 'Check Trap Line',
+            icon: '🕸️',
+            description: line.damaged ? 'Your snares here were wrecked — mend and re-bait them' : 'Empty your snares, re-bait them or take the line up'
+        } : {
             type: 'trap_furs',
             label: 'Trap Furs',
             icon: '🦊',
-            description: 'Run a trap line in the snow — winter pelts are thick and fetch a good price'
+            description: 'Run the traps for a day, or lay a trap line to fill over the coming days'
+        });
+    }
+
+    // Jailer: a fugitive run to ground out in the wilds (systems/titles.js)
+    const fug = player.currentTitle === 'jailer' ? player.activeFugitive : null;
+    if (fug && !tile.settlement && fug.q === tile.q && fug.r === tile.r) {
+        actions.push({
+            type: 'capture_fugitive',
+            label: '⚔️ Capture Fugitive',
+            icon: '🔒',
+            description: `Attempt to take ${fug.name} (difficulty ${fug.difficulty})`,
         });
     }
     if (SeasonalWork.canIceFish(tile, world)) {
@@ -435,6 +470,19 @@ export function addWildernessActions(actions, player, tile, world) {
             icon: trader.icon || '🐫',
             description: `${(trader.house && trader.house.name) || 'Merchants'} bound for ${trader.toName}: trade, hire on as escort, or rob it`,
             unitId: trader.id,
+        });
+    }
+
+    // Post riders on the road (systems/courierRiders.js): hail them, or rob them
+    for (const rider of CourierRiders.meetable(player, world)) {
+        actions.push({
+            type: 'meet_courier',
+            label: `Hail the ${rider.name}`,
+            icon: rider.icon || '🏇',
+            description: rider.letterId != null
+                ? `Carrying your letter to ${rider.toWhom || rider.toName}`
+                : `${rider.houseName} riding for ${rider.toName}${rider.own ? ' (your house)' : ': hail them, or rob the mailbag'}`,
+            unitId: rider.id,
         });
     }
 

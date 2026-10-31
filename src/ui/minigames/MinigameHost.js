@@ -79,8 +79,10 @@ export class MinigameHost {
         canvas.addEventListener('touchstart', this._onDown, { passive: false });
         window.addEventListener('mouseup', this._onUp);
         canvas.addEventListener('touchend', this._onUp);
-        window.addEventListener('keydown', this._onKeyDown);
-        window.addEventListener('keyup', this._onKeyUp);
+        // Capture phase, so Space reaches the game before the HUD's
+        // pause-toggle shortcut (which listens on window too)
+        window.addEventListener('keydown', this._onKeyDown, true);
+        window.addEventListener('keyup', this._onKeyUp, true);
 
         // Tear down automatically if the panel is removed by any means.
         if (typeof MutationObserver !== 'undefined') {
@@ -102,6 +104,13 @@ export class MinigameHost {
 
     _frame() {
         if (this._closed) return;
+        // showCustomPanel re-renders an open panel in place (another panel
+        // opened over the game), which drops the canvas without removing
+        // #customPanel — the observer never fires, so check here
+        if (this.canvas && !this.canvas.isConnected) {
+            this.close();
+            return;
+        }
         const t = this._now();
         let dt = (t - this._lastT) / 1000;
         this._lastT = t;
@@ -150,6 +159,7 @@ export class MinigameHost {
     _handleKeyDown(e) {
         if (e.code !== 'Space' && e.key !== ' ') return;
         e.preventDefault();
+        e.stopPropagation();
         if (this._keyHeld) return; // ignore auto-repeat
         this._keyHeld = true;
         if (this.module.onInput) this.module.onInput({ type: 'down', x: this.width / 2, y: this.height / 2 });
@@ -157,6 +167,9 @@ export class MinigameHost {
 
     _handleKeyUp(e) {
         if (e.code !== 'Space' && e.key !== ' ') return;
+        // A Space already held when the game opened was never pressed here
+        if (!this._keyHeld) return;
+        e.stopPropagation();
         this._keyHeld = false;
         if (this.module.onInput) this.module.onInput({ type: 'up', x: this.width / 2, y: this.height / 2 });
     }
@@ -185,8 +198,8 @@ export class MinigameHost {
             this.canvas.removeEventListener('touchend', this._onUp);
         }
         window.removeEventListener('mouseup', this._onUp);
-        window.removeEventListener('keydown', this._onKeyDown);
-        window.removeEventListener('keyup', this._onKeyUp);
+        window.removeEventListener('keydown', this._onKeyDown, true);
+        window.removeEventListener('keyup', this._onKeyUp, true);
 
         if (this._observer) { this._observer.disconnect(); this._observer = null; }
         this.effects.clear();

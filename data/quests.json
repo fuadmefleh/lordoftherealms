@@ -129,7 +129,7 @@
       "description": "Visit settlements across the realm.",
       "type": "exploration",
       "objectives": [
-        { "type": "settlements_visited", "target": 10, "current": 0, "text": "Visit 10 settlements" }
+        {"type": "visit_towns", "count": 5, "target": 5, "current": 0, "text": "Visit {target}", "fallback": {"type": "settlements_visited", "target": 10, "current": 0, "text": "Visit 10 settlements"}}
       ],
       "rewards": { "gold": 800, "renown": 20 },
       "difficulty": "medium"
@@ -241,7 +241,7 @@
       "description": "Clear the roads of bandits and raiders.",
       "type": "military",
       "objectives": [
-        { "type": "raiders_defeated", "target": 10, "current": 0, "text": "Defeat 10 raider bands" }
+        {"type": "lair_cleared", "radius": 30, "target": 1, "current": 0, "text": "Clear the outlaw lair of {target}", "fallback": {"type": "raiders_defeated", "target": 10, "current": 0, "text": "Defeat 10 raider bands"}}
       ],
       "rewards": { "gold": 1200, "renown": 20 },
       "difficulty": "medium"
@@ -320,7 +320,7 @@
       "description": "Discover and explore ancient ruins.",
       "type": "exploration",
       "objectives": [
-        { "type": "ruins_explored", "target": 5, "current": 0, "text": "Explore 5 ruins" }
+        {"type": "site_delved", "kinds": ["ruins", "tomb", "sunken"], "radius": 30, "target": 1, "current": 0, "text": "Explore {target}", "fallback": {"type": "ruins_explored", "target": 5, "current": 0, "text": "Explore 5 ruins"}}
       ],
       "rewards": { "gold": 2000, "renown": 20 },
       "difficulty": "medium"
@@ -443,8 +443,8 @@
       "description": "Track and slay the legendary beasts terrorizing the land.",
       "type": "military",
       "objectives": [
-        { "type": "special_creatures_defeated", "target": 1, "current": 0, "text": "Defeat a legendary creature" },
-        { "type": "army_strength", "target": 150, "current": 0, "text": "Maintain 150 army strength" }
+        {"type": "foe_slain", "foe": "drake", "range": [6, 12], "target": 1, "current": 0, "text": "Slay {target}", "fallback": {"type": "special_creatures_defeated", "target": 1, "current": 0, "text": "Defeat a legendary creature"}},
+        {"type": "army_strength", "target": 150, "current": 0, "text": "Maintain 150 army strength"}
       ],
       "rewards": { "gold": 8000, "renown": 75 },
       "difficulty": "legendary"
@@ -479,8 +479,8 @@
       "description": "The town physician has run out of herbs for poultices and fever draughts. Gather them in the wild and bring them to her.",
       "type": "exploration",
       "objectives": [
-        { "type": "deed_since", "key": "land.foragingTrips", "target": 2, "current": 0, "text": "Go foraging twice" },
-        { "type": "deliver_item", "item": "herbs", "target": 6, "current": 0, "text": "Bring 6 herbs (handed over on completion)" }
+        {"type": "deed_since", "key": "land.foragingTrips", "target": 2, "current": 0, "text": "Go foraging twice"},
+        {"type": "deliver_item", "item": "herbs", "town": true, "townRange": [2, 14], "target": 6, "current": 0, "text": "Bring 6 herbs to the physician of {target}", "fallback": {"type": "deliver_item", "item": "herbs", "target": 6, "current": 0, "text": "Bring 6 herbs (handed over on completion)"}}
       ],
       "rewards": { "gold": 150, "renown": 5, "karma": 2 },
       "difficulty": "easy"
@@ -491,8 +491,8 @@
       "description": "The furrier's racks are bare and the cold months are coming. Hunt the wilds and bring back pelts.",
       "type": "exploration",
       "objectives": [
-        { "type": "deed_since", "key": "land.huntingTrips", "target": 3, "current": 0, "text": "Go hunting 3 times" },
-        { "type": "deliver_item", "item": "pelts", "target": 4, "current": 0, "text": "Bring 4 pelts (handed over on completion)" }
+        {"type": "deed_since", "key": "land.huntingTrips", "target": 3, "current": 0, "text": "Go hunting 3 times"},
+        {"type": "deliver_item", "item": "pelts", "town": true, "townRange": [2, 14], "target": 4, "current": 0, "text": "Bring 4 pelts to the furrier of {target}", "fallback": {"type": "deliver_item", "item": "pelts", "target": 4, "current": 0, "text": "Bring 4 pelts (handed over on completion)"}}
       ],
       "rewards": { "gold": 220, "renown": 5 },
       "difficulty": "easy"
@@ -503,7 +503,7 @@
       "description": "A scholar will pay for an account of a buried tomb, taken all the way down to the burial chamber.",
       "type": "exploration",
       "objectives": [
-        { "type": "counter_since", "stat": "delve_cleared_tomb", "target": 1, "current": 0, "text": "Clear a Buried Tomb delve to the bottom" }
+        {"type": "site_delved", "kinds": ["tomb"], "cleared": true, "radius": 30, "target": 1, "current": 0, "text": "Clear {target} to its burial chamber", "fallback": {"type": "counter_since", "stat": "delve_cleared_tomb", "target": 1, "current": 0, "text": "Clear a Buried Tomb delve to the bottom"}}
       ],
       "rewards": { "gold": 900, "renown": 20 },
       "difficulty": "medium"
@@ -514,7 +514,7 @@
       "description": "The miners' guild wants to know whether an abandoned mine can be worked again. Go to the bottom and come back.",
       "type": "exploration",
       "objectives": [
-        { "type": "counter_since", "stat": "delve_cleared_mine", "target": 1, "current": 0, "text": "Clear an Abandoned Mine delve to the bottom" }
+        {"type": "site_delved", "kinds": ["mine"], "cleared": true, "radius": 30, "target": 1, "current": 0, "text": "Go down {target} to the bottom", "fallback": {"type": "counter_since", "stat": "delve_cleared_mine", "target": 1, "current": 0, "text": "Clear an Abandoned Mine delve to the bottom"}}
       ],
       "rewards": { "gold": 800, "renown": 15 },
       "difficulty": "medium"
@@ -525,7 +525,7 @@
       "description": "Herders swear something lives at the bottom of the caves above the valley. Find out.",
       "type": "exploration",
       "objectives": [
-        { "type": "counter_since", "stat": "delve_cleared_cave", "target": 1, "current": 0, "text": "Clear a Deep Cave delve to the bottom" }
+        {"type": "site_delved", "kinds": ["cave"], "cleared": true, "radius": 30, "target": 1, "current": 0, "text": "Find what lives at the bottom of {target}", "fallback": {"type": "counter_since", "stat": "delve_cleared_cave", "target": 1, "current": 0, "text": "Clear a Deep Cave delve to the bottom"}}
       ],
       "rewards": { "gold": 700, "renown": 15 },
       "difficulty": "medium"
@@ -536,7 +536,7 @@
       "description": "Sunken ruins hold the treasures of a city the sea took. Few who go down reach the last hall.",
       "type": "exploration",
       "objectives": [
-        { "type": "counter_since", "stat": "delve_cleared_sunken", "target": 1, "current": 0, "text": "Clear a Sunken Ruins delve to the bottom" }
+        {"type": "site_delved", "kinds": ["sunken"], "cleared": true, "radius": 40, "target": 1, "current": 0, "text": "Reach the last hall of {target}", "fallback": {"type": "counter_since", "stat": "delve_cleared_sunken", "target": 1, "current": 0, "text": "Clear a Sunken Ruins delve to the bottom"}}
       ],
       "rewards": { "gold": 1500, "renown": 30 },
       "difficulty": "hard"

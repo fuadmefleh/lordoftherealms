@@ -28,7 +28,6 @@
             "contracts": { "name": "Mercenary contracts", "group": "labour" },
             "forwardPenalties": { "name": "Forfeits on broken contracts", "group": "trade" },
             "seaTrade": { "name": "Sea trade (cash)", "group": "trade" },
-
             "industry": { "name": "Works' share", "group": "enterprise" },
             "worksWages": { "name": "Works' hands", "group": "enterprise" },
             "warehouseRent": { "name": "Store-room rent", "group": "enterprise" },
@@ -38,9 +37,9 @@
             "company": { "name": "Trading company", "group": "enterprise" },
             "dividends": { "name": "Merchant-house dividends", "group": "enterprise" },
             "holdings": { "name": "Holdings' upkeep", "group": "enterprise" },
-
             "loanInterest": { "name": "Loan interest", "group": "finance" },
             "depositInterest": { "name": "Deposit interest", "group": "finance" },
+            "bankCharter": { "name": "Bank charter fee", "group": "finance" },
             "bondInterest": { "name": "Bond coupons", "group": "finance" },
             "loanPayments": { "name": "Loan payments", "group": "finance" },
             "insurance": { "name": "Insurance premiums", "group": "finance" },
@@ -52,8 +51,8 @@
             "exchange": { "name": "Money changers", "group": "finance" },
             "mintLease": { "name": "Mint lease (fee and seigniorage)", "group": "enterprise" },
             "estateRents": { "name": "Estate rents", "group": "enterprise" },
+            "estateArrears": { "name": "Estate arrears collected", "group": "enterprise" },
             "puttingOut": { "name": "Putting-out: piece wages", "group": "enterprise" },
-
             "guildDues": { "name": "Guild dues", "group": "levies" },
             "guilds": { "name": "Guild income", "group": "levies" },
             "guildTolls": { "name": "Guild tolls in your sale prices", "group": "levies", "kind": "memo" },
@@ -62,33 +61,44 @@
             "roadTolls": { "name": "Road tolls", "group": "levies" },
             "fines": { "name": "Fines", "group": "levies" },
             "bail": { "name": "Bail", "group": "levies" },
-
+            "bribes": { "name": "Bribes (gaolers, overseers, accusers)", "group": "levies" },
             "taxes": { "name": "Taxes collected", "group": "state" },
             "royalLevy": { "name": "Royal levy", "group": "state" },
+            "benevolence": { "name": "Benevolences to the crown", "group": "state" },
+            "crownLoan": { "name": "Forced loans to the crown", "group": "capital", "kind": "cap" },
             "taxFarms": { "name": "Tax farms collected", "group": "state" },
             "taxFarmBids": { "name": "Tax farms bought (and bids returned)", "group": "capital", "kind": "cap" },
             "faith": { "name": "Faith", "group": "state" },
             "culture": { "name": "Culture", "group": "state" },
             "diplomacy": { "name": "Tribute & diplomacy", "group": "state" },
             "informants": { "name": "Informants", "group": "state" },
-
             "jobs": { "name": "Jobs", "group": "labour" },
             "busking": { "name": "Busking", "group": "labour" },
             "bounties": { "name": "Bounties", "group": "labour" },
             "escorts": { "name": "Escort pay", "group": "labour" },
             "exploration": { "name": "Exploration", "group": "labour" },
+            "firstSteps": { "name": "First Steps rewards", "group": "labour" },
             "tournament": { "name": "Tournaments", "group": "labour" },
             "gambling": { "name": "Gambling", "group": "labour" },
             "smuggling": { "name": "Smuggling", "group": "labour" },
             "theft": { "name": "Theft", "group": "labour" },
             "piracy": { "name": "Piracy", "group": "labour" },
             "pirateBounty": { "name": "Pirate bounties", "group": "labour" },
-
+            "ransoms": { "name": "Ransoms taken at sea", "group": "labour" },
+            "seaFines": { "name": "Fines and bribes at sea", "group": "levies" },
             "armyUpkeep": { "name": "Army upkeep", "group": "military" },
             "mercenaryWages": { "name": "Mercenary wages", "group": "military" },
             "crewWages": { "name": "Crew wages", "group": "military" },
             "ships": { "name": "Ships: upkeep, repairs, fittings", "group": "military" },
-
+            "plunder": { "name": "Battle spoils", "group": "military" },
+            "banditTolls": { "name": "Tolls paid to bandits on the road", "group": "military" },
+            "robbery": { "name": "Robbed on the road", "group": "other" },
+            "rivalTribute": { "name": "Tribute to rival Houses", "group": "other" },
+            "admirers": { "name": "Gifts from admirers", "group": "other" },
+            "ambitionRewards": { "name": "Rewards of ambition", "group": "other" },
+            "schemeLosses": { "name": "Stolen by rival plotters", "group": "other" },
+            "coalitionTerms": { "name": "Terms paid to leagues", "group": "state" },
+            "rivalAgents": { "name": "Rival agents: inquiries, turned informants", "group": "state" },
             "housing": { "name": "Housing", "group": "household" },
             "medicine": { "name": "Medicine", "group": "household" },
             "companions": { "name": "Companions", "group": "household" },
@@ -96,9 +106,9 @@
             "feast": { "name": "Feasts", "group": "household" },
             "festival": { "name": "Festivals", "group": "household" },
             "donation": { "name": "Donations", "group": "household" },
+            "pact": { "name": "A bargain with a stranger", "group": "other" },
             "training": { "name": "Training", "group": "household" },
             "patronage": { "name": "Patronage", "group": "household" },
-
             "goodsBought": { "name": "Goods bought", "group": "capital", "kind": "cap" },
             "goodsSold": { "name": "Goods sold", "group": "capital", "kind": "cap" },
             "worksBought": { "name": "Works funded and repaired", "group": "capital", "kind": "cap" },
@@ -109,12 +119,27 @@
             "shipSale": { "name": "Ships sold", "group": "capital", "kind": "cap" },
             "shipsBought": { "name": "Ships bought and built", "group": "capital", "kind": "cap" },
             "borrowed": { "name": "Borrowed", "group": "capital", "kind": "cap" },
+            "bankCapital": { "name": "Your banking house: paid in and drawn", "group": "capital", "kind": "cap" },
             "loanPrincipal": { "name": "Loan principal repaid", "group": "capital", "kind": "cap" },
             "bills": { "name": "Bills of exchange drawn and paid", "group": "capital", "kind": "cap" },
             "shares": { "name": "Shares bought and sold", "group": "capital", "kind": "cap" },
             "estatesBought": { "name": "Estates bought (with the crown's duty)", "group": "capital", "kind": "cap" },
             "estatesSold": { "name": "Estates sold", "group": "capital", "kind": "cap" },
-            "estateWorks": { "name": "Estate improvements (drainage, marl, enclosure)", "group": "capital", "kind": "cap" }
+            "estateWorks": { "name": "Estate improvements (drainage, marl, enclosure)", "group": "capital", "kind": "cap" },
+            "lordLoans": { "name": "Loans to lords: lent and repaid", "group": "capital", "kind": "cap" },
+            "lordLoanInterest": { "name": "Interest from lords' loans", "group": "finance" },
+            "postage": { "name": "Postage and riders", "group": "household" },
+            "mailGifts": { "name": "Gold sent in letters", "group": "household" },
+            "mailReceipts": { "name": "Gold sent to you by letter", "group": "other" },
+            "hushMoney": { "name": "Hush money", "group": "other" },
+            "courierHouse": { "name": "Courier house: postage takings", "group": "enterprise" },
+            "courierCosts": { "name": "Courier house: riders, horses, stations", "group": "enterprise" },
+            "courierCapital": { "name": "Courier house: founded, stations, horses bought", "group": "capital", "kind": "cap" },
+            "royalPost": { "name": "Royal Post charter: bids and fees", "group": "state" },
+            "hospitality": { "name": "Guest houses, inns & hotels", "group": "enterprise" },
+            "hospitalityCosts": { "name": "Innkeeping: staff & supplies", "group": "enterprise" },
+            "lodging": { "name": "Lodging & services", "group": "household" },
+            "pickpocketed": { "name": "Robbed in a common room", "group": "other" }
         }
     },
 
@@ -160,15 +185,69 @@
         "strata": { "nobles": 1, "merchants": 1, "clergy": 0.3, "artisans": 0.25 },
         "playerSet": { "prestige": 40, "gold": 400, "minReputation": 20, "cooldown": 60, "patronDiscount": 0.5, "power": 1.25, "longer": 1.5 },
         "list": [
-            { "id": "court_silks", "name": "Silks at Court", "icon": "🧵", "text": "silk is all the rage at court", "goods": { "textiles": 1.6, "clothes": 1.4, "silk": 1.6, "sea_silk": 1.6 } },
-            { "id": "spiced_wine", "name": "Spiced Wine", "icon": "🍷", "text": "every noble table pours spiced wine", "goods": { "wine": 1.7, "spices": 1.7, "cloudpepper": 1.6 } },
-            { "id": "northern_furs", "name": "Furs from the North", "icon": "🦊", "text": "furs from the north are the fashion", "goods": { "clothes": 1.3, "hide": 1.6, "leather": 1.4 } },
-            { "id": "jewelled_finery", "name": "Jewelled Finery", "icon": "💎", "text": "jewelled finery is the fashion at court", "goods": { "gems": 1.7, "luxuries": 1.4, "gold_ore": 1.3, "pearls": 1.6, "blue_coral": 1.6, "golden_amber": 1.5 } },
-            { "id": "blood_horses", "name": "Blood Horses", "icon": "🐎", "text": "the lords vie for blood horses", "goods": { "horse": 1.8, "horses": 1.3 } },
-            { "id": "perfumed_courts", "name": "Perfumes and Rare Blooms", "icon": "🌸", "text": "perfumes and rare blooms are the rage", "goods": { "luxuries": 1.3, "lamp_oil": 1.2, "ambergris": 1.7, "ghost_orchid": 1.7 } },
-            { "id": "great_feasts", "name": "Great Feasts", "icon": "🍖", "text": "the great houses outdo each other with feasts", "goods": { "meat": 1.5, "cheese": 1.5, "liquor": 1.3, "wine": 1.2 } },
-            { "id": "carved_ivory", "name": "Carved Ivory", "icon": "🦷", "text": "carved ivory graces every hall", "goods": { "ivory": 1.8, "luxuries": 1.2 } },
-            { "id": "pious_plainness", "name": "Pious Plainness", "icon": "⛪", "text": "plain dress and pious living are in fashion", "goods": { "luxuries": 0.6, "gems": 0.6, "wine": 0.8, "spices": 0.8, "clothes": 0.9 } }
+            {
+                "id": "court_silks",
+                "name": "Silks at Court",
+                "icon": "🧵",
+                "text": "silk is all the rage at court",
+                "goods": { "textiles": 1.6, "clothes": 1.4, "silk": 1.6, "sea_silk": 1.6 }
+            },
+            {
+                "id": "spiced_wine",
+                "name": "Spiced Wine",
+                "icon": "🍷",
+                "text": "every noble table pours spiced wine",
+                "goods": { "wine": 1.7, "spices": 1.7, "cloudpepper": 1.6 }
+            },
+            {
+                "id": "northern_furs",
+                "name": "Furs from the North",
+                "icon": "🦊",
+                "text": "furs from the north are the fashion",
+                "goods": { "clothes": 1.3, "hide": 1.6, "leather": 1.4 }
+            },
+            {
+                "id": "jewelled_finery",
+                "name": "Jewelled Finery",
+                "icon": "💎",
+                "text": "jewelled finery is the fashion at court",
+                "goods": { "gems": 1.7, "luxuries": 1.4, "gold_ore": 1.3, "pearls": 1.6, "blue_coral": 1.6, "golden_amber": 1.5 }
+            },
+            {
+                "id": "blood_horses",
+                "name": "Blood Horses",
+                "icon": "🐎",
+                "text": "the lords vie for blood horses",
+                "goods": { "horse": 1.8, "horses": 1.3 }
+            },
+            {
+                "id": "perfumed_courts",
+                "name": "Perfumes and Rare Blooms",
+                "icon": "🌸",
+                "text": "perfumes and rare blooms are the rage",
+                "goods": { "luxuries": 1.3, "lamp_oil": 1.2, "ambergris": 1.7, "ghost_orchid": 1.7 }
+            },
+            {
+                "id": "great_feasts",
+                "name": "Great Feasts",
+                "icon": "🍖",
+                "text": "the great houses outdo each other with feasts",
+                "goods": { "meat": 1.5, "cheese": 1.5, "liquor": 1.3, "wine": 1.2 }
+            },
+            {
+                "id": "carved_ivory",
+                "name": "Carved Ivory",
+                "icon": "🦷",
+                "text": "carved ivory graces every hall",
+                "goods": { "ivory": 1.8, "luxuries": 1.2 }
+            },
+            {
+                "id": "pious_plainness",
+                "name": "Pious Plainness",
+                "icon": "⛪",
+                "text": "plain dress and pious living are in fashion",
+                "goods": { "luxuries": 0.6, "gems": 0.6, "wine": 0.8, "spices": 0.8, "clothes": 0.9 }
+            }
         ]
     }
 }

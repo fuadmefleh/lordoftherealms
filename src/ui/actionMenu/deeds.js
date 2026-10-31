@@ -7,6 +7,7 @@ import { Deeds } from '../../systems/deeds.js';
 import { Achievements } from '../../systems/achievements.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
+import { Crafting } from '../../player/crafting.js';
 
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; margin: 6px 0;';
 const HEAD = 'font-size: 12px; font-weight: bold; color: var(--gold); margin-bottom: 3px;';
@@ -29,7 +30,7 @@ Object.assign(ActionMenu, {
     /** Journal → Deeds & Records. */
     showDeeds(game) {
         const player = game.player;
-        const sections = Deeds.sections(player);
+        const sections = Deeds.sections(player, game.world);
         const ruler = player.name || 'You';
         const gen = (player.house && player.house.generation) || 1;
         const counted = Deeds.reignBaseline(player) ? '' : ' (counted from the start of the House: this reign began before records were kept)';
@@ -54,6 +55,20 @@ Object.assign(ActionMenu, {
                 for (const p of Heralds.recent(player, 40).filter(x => x.delivered).slice(0, 5)) {
                     html += `<div style="font-size:11px; color:#aab; padding:1px 0;">· Day ${_fmt(p.day || 0)}: ${_esc(p.text)}</div>`;
                 }
+            }
+            if (sec.id === 'wilds') {
+                // The wilds journal (player/wilds.js): the last encounters and how they went
+                const journal = ((player.wilds && player.wilds.journal) || []).slice(-8).reverse();
+                if (journal.length) html += '<div style="font-size:10px; color:#888; margin-top:3px;">Wilds journal</div>';
+                for (const j of journal) {
+                    const how = j.passed === false ? '<span style="color:#e08080;">went wrong</span>' : '<span style="color:#7fd07f;">done</span>';
+                    html += `<div style="font-size:11px; color:#aab; padding:1px 0;" title="${_esc(j.text || '')}">· Day ${_fmt(j.day || 0)}: ${_esc(j.icon || '')} ${_esc(j.name || 'An encounter')} — ${_esc(j.choice || '')} (${how})</div>`;
+                }
+            }
+            if (sec.id === 'crafting') {
+                const rank = Crafting.rank(player);
+                const next = rank.next ? ` · ${Math.max(0, Math.ceil(rank.next.at - rank.xp))} xp to ${_esc(rank.next.name)}` : ' · mastered';
+                html += `<div style="${ROW}"><span>🔨 Crafter</span><span style="color:#ccc;">${rank.icon} ${_esc(rank.name)}${next}</span></div>`;
             }
             if (sec.id === 'land') {
                 html += _craftLine('🌿 Forager', Foraging.skill(player));

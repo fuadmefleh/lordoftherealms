@@ -1,6 +1,7 @@
 // InnerMap — interiors members (split from the original monolith).
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { sidesMask } from '../../core/tileSides.js';
 
 Object.assign(InnerMap, {
     /**
@@ -96,13 +97,18 @@ Object.assign(InnerMap, {
 
         // ── Add player property buildings (works for settlement and wilderness tiles) ──
         this._addPropertyBuildings();
+        // ── Guest houses, inns, hotels and roadhouses: their names and houses (systems/hospitality.js) ──
+        this._bindHospitality(game.world);
 
         // ── Spawn NPCs ──
         this.npcs = [];
         this._npcMoveTimer = 0;
         if (hasSettlement) {
-            this._spawnNPCs(worldTile.settlement);
-            this._assignBuildingOwners(game.player);
+            this._spawnNPCs(worldTile.settlement, game.world);
+            this._assignBuildingOwners(game.player, game.world);
+        } else {
+            // A roadhouse on the open road keeps its keeper and a guest or two
+            this._spawnRoadhouseFolk(game.world);
         }
 
         // For settlements, reveal all tiles (you're visiting a known location)
@@ -184,6 +190,66 @@ Object.assign(InnerMap, {
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 2, r: 1, passable: false },
                 { type: 'crate', icon: '📦', name: 'Crate', q: 12, r: 1, passable: false },
                 { type: 'scales', icon: '⚖️', name: 'Scales', q: 5, r: 5, passable: true },
+            ]
+        },
+        // Houses of hospitality (systems/hospitality.js): beds to take, a desk or
+        // bar for the keeper, tables to dine at, a tub to bathe in
+        guest_house: {
+            width: 10, height: 8, floor: 'wood_floor', wallColor: '#6a5040',
+            furniture: [
+                { type: 'bar', icon: '🛎️', name: 'Front Desk', q: 2, r: 2, passable: false },
+                { type: 'table', icon: '🪑', name: 'Breakfast Table', q: 5, r: 4, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Hearth', q: 5, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Guest Bed', q: 8, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Guest Bed', q: 8, r: 3, passable: false },
+                { type: 'bucket', icon: '🧺', name: 'Wash Basin', q: 1, r: 5, passable: true },
+                { type: 'candle', icon: '🕯️', name: 'Candle', q: 3, r: 4, passable: true },
+            ]
+        },
+        inn: {
+            width: 13, height: 10, floor: 'wood_floor', wallColor: '#5a4030',
+            furniture: [
+                { type: 'bar', icon: '🛎️', name: 'Innkeeper\'s Counter', q: 2, r: 2, passable: false },
+                { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 3, r: 2, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Ale Barrel', q: 1, r: 1, passable: false },
+                { type: 'table', icon: '🪑', name: 'Common Table', q: 3, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Common Table', q: 6, r: 5, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 6, r: 1, passable: false },
+                { type: 'bed', icon: '🛌', name: 'Common-Room Bunk', q: 9, r: 1, passable: false },
+                { type: 'bed', icon: '🛌', name: 'Common-Room Bunk', q: 11, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Room Bed', q: 10, r: 4, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Room Bed', q: 10, r: 6, passable: false },
+                { type: 'bucket', icon: '🛁', name: 'Bath Tub', q: 1, r: 7, passable: false },
+                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 11, r: 8, passable: true },
+            ]
+        },
+        hotel: {
+            width: 15, height: 12, floor: 'stone_floor', wallColor: '#6a6070',
+            furniture: [
+                { type: 'bar', icon: '🛎️', name: 'Reception Desk', q: 7, r: 9, passable: false },
+                { type: 'table', icon: '🍷', name: 'Dining Table', q: 3, r: 3, passable: false },
+                { type: 'table', icon: '🍷', name: 'Dining Table', q: 5, r: 3, passable: false },
+                { type: 'table', icon: '🍷', name: 'Dining Table', q: 3, r: 5, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Grand Fireplace', q: 7, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Suite Bed', q: 12, r: 2, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Guest Bed', q: 12, r: 5, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Guest Bed', q: 10, r: 5, passable: false },
+                { type: 'bucket', icon: '♨️', name: 'Bathhouse Pool', q: 2, r: 8, passable: false },
+                { type: 'banner', icon: '🚩', name: 'House Banner', q: 9, r: 1, passable: true },
+                { type: 'candle', icon: '🕯️', name: 'Chandelier', q: 7, r: 5, passable: true },
+                { type: 'stairs', icon: '🧗', name: 'Marble Stairs', q: 13, r: 10, passable: true },
+            ]
+        },
+        roadhouse: {
+            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#4a3a2a',
+            furniture: [
+                { type: 'bar', icon: '🛎️', name: 'Keeper\'s Counter', q: 2, r: 2, passable: false },
+                { type: 'table', icon: '🪑', name: 'Trestle Table', q: 4, r: 4, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Hearth', q: 5, r: 1, passable: false },
+                { type: 'bed', icon: '🛌', name: 'Bunk', q: 8, r: 1, passable: false },
+                { type: 'bed', icon: '🛌', name: 'Bunk', q: 8, r: 3, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Room Bed', q: 8, r: 5, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 1, r: 5, passable: false },
             ]
         },
         tavern: {
@@ -589,6 +655,11 @@ Object.assign(InnerMap, {
                 townhall: 'town_hall',
                 blacksmith: 'smithy',
                 smithy: 'blacksmith',
+                // Houses of hospitality borrow an authored tavern or house when they have none of their own
+                inn: 'tavern',
+                roadhouse: 'tavern',
+                guest_house: 'house',
+                hotel: 'manor',
             };
             for (const t of [...typeCandidates]) {
                 addType(typeAlias[t]);
@@ -615,7 +686,9 @@ Object.assign(InnerMap, {
 
         // ── Fallback: procedural interior from INTERIOR_LAYOUTS ──
         console.log(`[Interior] Falling back to procedural interior for "${building.name}" (type: ${building.type}, defId: ${building._customDefId || 'none'}, customInteriorsLoaded: ${typeof CustomInteriors !== 'undefined' ? CustomInteriors.hasAny() : false})`);
-        const layout = this.INTERIOR_LAYOUTS[building.type] || this.INTERIOR_LAYOUTS.house;
+        const layout = this.INTERIOR_LAYOUTS[building.type]
+            || this.INTERIOR_LAYOUTS[String(building.type || '').replace(/^player_/, '')]
+            || this.INTERIOR_LAYOUTS.house;
         const w = layout.width;
         const h = layout.height;
         const floorDef = this.INTERIOR_FLOORS[layout.floor] || this.INTERIOR_FLOORS.wood_floor;
@@ -797,6 +870,9 @@ Object.assign(InnerMap, {
                     _interiorBuildingType: building.type,
                     _furniture: hasFurn ? meta.furniture : null,
                     _isDoor: isDoor,
+                    // Sides no one can cross (core/tileSides.js): set per tile
+                    // and by the floor brush's edge slots
+                    blockedSides: sidesMask(meta.blockSides) | sidesMask(meta.brushSides),
                     effectiveTemp: 20,
                     moisture: 0.3,
                     weatherType: 'clear',

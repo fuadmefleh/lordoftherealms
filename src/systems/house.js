@@ -17,6 +17,7 @@
 
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { Ledger } from './ledger.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -28,7 +29,9 @@ const CONFIG = {
     idleWindow: 90,     // days without a notable deed before Prestige decays
     decayPerDay: 1,     // Prestige eroded per idle day
     logCap: 30,         // max recent prestigeLog entries retained
-    historyCap: 200,    // max chronicle entries retained
+    historyCap: 600,    // max chronicle entries retained (the Annals read back every generation's)
+    wealthMarkDays: 30, // the Annals' wealth curve: one mark of the purse a season
+    wealthMarkCap: 240, // marks kept (older ones thinned to every other)
     roleBaseLoyalty: 60,          // starting loyalty for a newly-appointed relative
     roleLoyaltyDriftDays: 60,     // cadence of loyalty drift
     roleDisloyaltyThreshold: 25,  // below this, a passed-over relative may press a claim
@@ -72,13 +75,15 @@ const SINKS = {
     secureSuccession: 20,    // used from Phase 4
 };
 
-// Multi-generational Ambitions. Predicates are code (they read live game
-// state), so the catalog lives here rather than in data. Each milestone/
-// capstone predicate receives a flat `metrics` object (see House._metrics).
-// Descriptive text can still be overridden via DataLoader.house.ambitionText.
+// Multi-generational Ambitions. These five are the first tier and the
+// fallback when data is missing; data/house.json `ambitions` adds their
+// rewards and the tiers that follow (each entry's `requires` names the
+// ambition it succeeds), with milestones written as `req` maps over the flat
+// `metrics` object (see House._metrics) — so a new tier is data only.
 const AMBITIONS = [
     {
         id: 'seat_of_power',
+        tier: 1,
         name: 'Seat of Power',
         blurb: 'Carve out a realm of your own.',
         milestones: [
@@ -90,6 +95,7 @@ const AMBITIONS = [
     },
     {
         id: 'faith_eternal',
+        tier: 1,
         name: 'Faith Eternal',
         blurb: 'Spread a faith that outlives you.',
         milestones: [
@@ -101,6 +107,7 @@ const AMBITIONS = [
     },
     {
         id: 'merchant_dynasty',
+        tier: 1,
         name: 'Merchant Dynasty',
         blurb: 'Dominate the flow of coin.',
         milestones: [
@@ -112,6 +119,7 @@ const AMBITIONS = [
     },
     {
         id: 'bloodline_of_kings',
+        tier: 1,
         name: 'Bloodline of Kings',
         blurb: 'Weave your blood through the realms.',
         milestones: [
@@ -123,6 +131,7 @@ const AMBITIONS = [
     },
     {
         id: 'the_great_house',
+        tier: 1,
         name: 'The Great House',
         blurb: 'Build a name that endures the ages.',
         milestones: [
@@ -133,6 +142,42 @@ const AMBITIONS = [
         capstone: { id: 'great', label: '150 Prestige across 3 generations', test: m => m.prestige >= 150 && m.generation >= 3 },
     },
 ];
+
+/** A predicate from a data `req` map: every metric at least its value (true = the flag is set). */
+function _reqTest(req) {
+    const entries = Object.entries(req || {});
+    return m => entries.length > 0 && entries.every(([k, v]) => (v === true ? !!m[k] : v === false ? !m[k] : (m[k] || 0) >= v));
+}
+
+function _compileStep(step) {
+    if (!step || !step.id) return null;
+    return { ...step, label: step.label || step.id, test: typeof step.test === 'function' ? step.test : _reqTest(step.req) };
+}
+
+let _catalogSrc;
+let _catalog = null;
+
+/** The full ambition catalog: the code tier, overlaid and extended by data/house.json. */
+function _ambitionCatalog() {
+    const gd = DataLoader._gamedata;
+    const src = gd && gd.house && Array.isArray(gd.house.ambitions) ? gd.house.ambitions : null;
+    if (_catalog && src === _catalogSrc) return _catalog;
+    _catalogSrc = src;
+    const out = AMBITIONS.map(a => ({ ...a }));
+    for (const d of src || []) {
+        if (!d || !d.id) continue;
+        const base = out.find(a => a.id === d.id);
+        const milestones = Array.isArray(d.milestones) ? d.milestones.map(_compileStep).filter(Boolean) : null;
+        const capstone = d.capstone ? _compileStep(d.capstone) : null;
+        if (base) {
+            Object.assign(base, { ...d, milestones: milestones || base.milestones, capstone: capstone || base.capstone });
+        } else if (milestones && capstone) {
+            out.push({ tier: 2, name: d.id, blurb: '', ...d, milestones, capstone });
+        }
+    }
+    _catalog = out;
+    return out;
+}
 
 // ── The "brain" seam (Spec 2 readiness) ─────────────────────────
 // Rival/claim decisions and narration route through a swappable provider whose
@@ -205,7 +250,7 @@ export const House = {
         const foundedDay = (world && world.day) ? world.day : 0;
         return {
             id: `house_${(lastName || 'player').toLowerCase().replace(/\s+/g, '_')}`,
-            name: lastName ? `House ${lastName}` : 'Your House',
+            name: lastName ? `House ${lastName}` : (player && player.firstName) ? `House ${player.firstName}` : 'Your House',
             motto: '',
             sigil: { icon: '🛡️', color: '#c9a227' },
             foundedDay,
@@ -436,20 +481,39 @@ export const House = {
 
     // ── Ambitions (multi-generational goals) ────────────────────
 
-    /** The catalog, for the ambition-choice UI. */
-    ambitions() {
-        return AMBITIONS.map(a => ({ id: a.id, name: a.name, blurb: a.blurb }));
+    /**
+     * The ambitions open to choose, for the ambition-choice UI: without a
+     * House, the first tier; with one, every ambition whose predecessor the
+     * House has fulfilled and that it has not fulfilled itself.
+     */
+    ambitions(house = null) {
+        return _ambitionCatalog()
+            .filter(a => (house ? House.canPursue(house, a.id) : (a.tier || 1) === 1))
+            .map(a => ({ id: a.id, name: a.name, blurb: a.blurb, tier: a.tier || 1, reward: a.reward || null, requires: a.requires || null }));
     },
 
     _getAmbitionDef(id) {
-        return AMBITIONS.find(a => a.id === id) || null;
+        return _ambitionCatalog().find(a => a.id === id) || null;
+    },
+
+    /** Has the House fulfilled this ambition (in any generation)? */
+    fulfilled(house, id) {
+        return !!(house && Array.isArray(house.ambitionsDone) && house.ambitionsDone.includes(id));
+    },
+
+    /** May the House take up this ambition: its predecessor fulfilled, itself not yet? */
+    canPursue(house, id) {
+        const def = House._getAmbitionDef(id);
+        if (!def || !house) return false;
+        if (House.fulfilled(house, id)) return false;
+        return !def.requires || House.fulfilled(house, def.requires);
     },
 
     /** Set the House's single active ambition. Returns the progress object or null. */
     chooseAmbition(house, id, day) {
         if (!house) return null;
         const def = House._getAmbitionDef(id);
-        if (!def) return null;
+        if (!def || !House.canPursue(house, id)) return null;
         house.ambition = {
             id: def.id,
             chosenDay: day != null ? day : (house.foundedDay || 0),
@@ -488,7 +552,46 @@ export const House = {
             married: !!player.marriageDay,
             settlementsHeld: ((house.stats && house.stats.settlementHeld) || 0)
                 + (house.holdings && house.holdings.settlements || 0),
+            karma: player.karma || 0,
+            colonies: (player.colonies || []).length,
+            isRuler: !!(player.throne && player.throne.ruling),
+            honours: Array.isArray(house.honours) ? house.honours.length : 0,
+            ambitionsDone: Array.isArray(house.ambitionsDone) ? house.ambitionsDone.length : 0,
         };
+    },
+
+    /**
+     * Pay an ambition's reward (data/house.json): Prestige, gold, renown,
+     * standing with every living realm, and a lasting honour (which raises the
+     * House's fame everywhere — systems/fame.js). Returns a summary.
+     */
+    _payReward(player, world, def) {
+        const house = player.house;
+        const r = def.reward || {};
+        const day = world && world.day;
+        const got = [];
+        if (r.prestige > 0) { House.award(house, r.prestige, `ambition fulfilled: ${def.name}`, day); got.push(`+${r.prestige} Prestige`); }
+        if (r.gold > 0) {
+            player.gold = (player.gold || 0) + r.gold;
+            Ledger.record(player, 'ambitionRewards', r.gold);
+            got.push(`+${r.gold} gold`);
+        }
+        if (r.renown > 0) { player.renown = (player.renown || 0) + r.renown; got.push(`+${r.renown} renown`); }
+        if (r.reputation) {
+            if (!player.reputation) player.reputation = {};
+            for (const k of (world && world.kingdoms) || []) {
+                if (k && k.isAlive !== false) player.reputation[k.id] = (player.reputation[k.id] || 0) + r.reputation;
+            }
+            got.push(`+${r.reputation} standing in every realm`);
+        }
+        if (r.honour && r.honour.id) {
+            if (!Array.isArray(house.honours)) house.honours = [];
+            if (!house.honours.some(h => h.id === r.honour.id)) {
+                house.honours.push({ id: r.honour.id, name: r.honour.name || r.honour.id, fame: r.honour.fame || 0, day: day || 0, generation: house.generation || 1 });
+                got.push(`the honour "${r.honour.name || r.honour.id}"`);
+            }
+        }
+        return got;
     },
 
     /**
@@ -525,8 +628,12 @@ export const House = {
         if (!house.ambition.capstoneDone && def.capstone.test(m)) {
             house.ambition.capstoneDone = true;
             out.capstoneCompleted = true;
+            if (!Array.isArray(house.ambitionsDone)) house.ambitionsDone = [];
+            if (!house.ambitionsDone.includes(def.id)) house.ambitionsDone.push(def.id);
+            out.reward = House._payReward(player, world, def);
+            out.unlocked = _ambitionCatalog().filter(a => a.requires === def.id).map(a => a.name);
             House._chronicle(house, world,
-                `${house.name} fulfils its great ambition: ${def.name}!`, ['ambition', 'capstone', def.id]);
+                `${house.name} fulfils its great ambition: ${def.name}!${out.reward.length ? ` (${out.reward.join(', ')})` : ''}`, ['ambition', 'capstone', def.id]);
         }
 
         return out;
@@ -855,6 +962,7 @@ export const House = {
         const results = {};
         const decayed = House.applyDecay(player.house, day);
         if (decayed > 0) results.prestigeDecayed = decayed;
+        House.markWealth(player, world);
         const ambition = House.evaluateAmbition(player, world);
         if (ambition && (ambition.milestonesCompleted.length || ambition.capstoneCompleted)) {
             results.ambition = ambition;
@@ -864,6 +972,32 @@ export const House = {
         const rivalAction = House._processRivals(player, world);
         if (rivalAction) results.rival = rivalAction;
         return results;
+    },
+
+    /**
+     * The Annals' wealth curve (systems/annals.js): the purse's peak and low
+     * each day, and a mark every `wealthMarkDays` — kept on the House so it
+     * outlives a succession. Reads only; draws no RNG.
+     */
+    markWealth(player, world) {
+        const house = player && player.house;
+        if (!house || !world) return;
+        const day = world.day || 0;
+        const gold = Math.round(typeof player.gold === 'number' && isFinite(player.gold) ? player.gold : 0);
+        const gen = house.generation || 1;
+        const peak = house.wealthPeak;
+        if (!peak || gold > peak.gold) house.wealthPeak = { gold, day, generation: gen };
+        const cfg = House._getConfig();
+        if (!Array.isArray(house.wealthMarks)) house.wealthMarks = [];
+        const marks = house.wealthMarks;
+        const last = marks[marks.length - 1];
+        if (last && day - last.day < cfg.wealthMarkDays) return;
+        marks.push({ day, gold, generation: gen });
+        if (marks.length > cfg.wealthMarkCap) {
+            // Thin the older half so a long dynasty keeps its whole curve
+            const half = Math.floor(marks.length / 2);
+            house.wealthMarks = marks.slice(0, half).filter((m, i) => i % 2 === 0).concat(marks.slice(half));
+        }
     },
 
     // ── Persistence ─────────────────────────────────────────────

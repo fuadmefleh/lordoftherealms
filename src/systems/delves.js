@@ -1,8 +1,8 @@
 // ============================================
 // DELVES — multi-stage expeditions into the great ruins and caves
 // ============================================
-// Minor points of interest (shrines, oases, monuments) are still searched
-// with a single Explore roll (ActionMenu.explorePOI). The major ones — ruins,
+// Minor points of interest (shrines, oases, monuments, wrecks) hold a single
+// encounter with choices (player/wilds.js via ActionMenu.explorePOI). The major ones — ruins,
 // caves, and the tombs, sunken halls and abandoned mines they turn out to be
 // (by the terrain they stand on) — are DELVES: 3–6 chambers drawn from a
 // per-kind chamber table, the last one always a deep finale.

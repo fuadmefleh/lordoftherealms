@@ -394,9 +394,7 @@ function panelsAt(game, tile) {
     if (Throne.ruledKingdom(g.player, g.world)) list.push(['showRoyalCourt', () => ActionMenu.showRoyalCourt(g, tile)]);
     const lair = (OutlawLairs.known ? OutlawLairs.known(g.player, g.world) : [])[0];
     if (lair) list.push(['showOutlawLairs(lair)', () => ActionMenu.showOutlawLairs(g, lair.id)]);
-    const trader = MerchantCaravans.traders(g.world).slice().sort((a, b) =>
-        Hex.wrappingDistance(a.q, a.r, tile.q, tile.r, g.world.width) - Hex.wrappingDistance(b.q, b.r, tile.q, tile.r, g.world.width))[0];
-    if (trader) list.push(['showTrader', () => ActionMenu.showTrader(g, trader.id)]);
+    // (showTrader is a conversation scene now, not a panel — ui/conversationScene.js)
     for (const h of Holdings.list(g.player, g.world).slice(0, 1)) {
         const ht = g.world.getTile(h.q, h.r);
         if (ht) list.push(['showHoldingPanel', () => ActionMenu.showHoldingPanel(g, ht)]);

@@ -21,6 +21,7 @@
  */
 
 import { DataLoader } from '../core/dataLoader.js';
+import { CustomSheets } from '../core/customSheets.js';
 
 const _defs     = new Map();   // id → normalised def
 const _byType   = new Map();   // buildingType → [def, ...]
@@ -41,7 +42,7 @@ function loadImg(path) {
         const img = new Image();
         img.onload  = () => { _imgCache.set(path, img); resolve(); };
         img.onerror = () => { console.warn(`[CustomBuildings] image missing: ${path}`); resolve(); };
-        img.src = path;
+        img.src = CustomSheets.resolve(path);
     });
 }
 

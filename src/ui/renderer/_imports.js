@@ -5,3 +5,4 @@ export { Economy } from '../../world/economy.js';
 export { Infrastructure } from '../../systems/infrastructure.js';
 export { WorldUnit } from '../../world/units.js';
 export { Hinterland } from '../../world/hinterland.js';
+export { Estates } from '../../world/estates.js';

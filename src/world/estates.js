@@ -27,6 +27,7 @@
 // (saved by systems/saveLoad.js). Tuned in data/estates.json.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
@@ -44,6 +45,7 @@ const DEFAULTS = {
     crops: { goods: ['grain', 'flax', 'wine'], scarcityMin: 0.6, scarcityMax: 1.6, woolYield: 0.55, sheepHands: 0.25 },
     rent: { levels: {}, enclosed: 0.6, capacity: 0.5, steward: 0.08, avgAlpha: 0.25 },
     value: {}, npc: {}, war: {}, works: {}, dowry: {}, holding: {}, puttingOut: {}, names: {}, counsel: {},
+    map: { reach: 2, terrain: ['plains', 'grassland', 'savanna', 'hills', 'highlands'], enclosedAt: 0.5, sprites: [], enclosed: [] },
     historyCap: 40,
 };
 
@@ -51,6 +53,8 @@ let _src;
 let _cfg = null;
 /** The holders' index of their estates, per state (rebuilt when an estate changes hands). */
 const _byHolder = new WeakMap();
+/** Where each estate shows on the map, per state: { sig, list, byHex } (`fieldHexes`). */
+const _fields = new WeakMap();
 
 function _build(src) {
     const d = _obj(src) || {};
@@ -62,7 +66,8 @@ function _build(src) {
     if (!_obj(C.rent.levels) || !C.rent.levels.customary) {
         C.rent.levels = { low: { label: 'Low', share: 0.18, loyalty: 78, flight: 0 }, customary: { label: 'Customary', share: 0.25, loyalty: 55, flight: 0 }, high: { label: 'High', share: 0.34, loyalty: 26, flight: 0.03 } };
     }
-    for (const k of ['value', 'npc', 'war', 'works', 'dowry', 'holding', 'puttingOut', 'names', 'counsel']) C[k] = { ...(DEFAULTS[k] || {}), ...(_obj(d[k]) || {}) };
+    for (const k of ['value', 'npc', 'war', 'works', 'dowry', 'holding', 'puttingOut', 'names', 'counsel', 'press']) C[k] = { ...(DEFAULTS[k] || {}), ...(_obj(d[k]) || {}) };
+    C.map = { ...DEFAULTS.map, ...(_obj(d.map) || {}) };
     C.enabled = d.enabled !== false;
     return C;
 }
@@ -297,6 +302,59 @@ export const Estates = {
         return rec ? rec.ests.map(id => st.estates[id]).filter(Boolean) : [];
     },
 
+    /**
+     * Where the estates show on the world map: an estate is a share of its
+     * town's farmland, not a hex, so each is drawn on a free farmland hex near
+     * its town (data/estates.json map) — nearest first, then a hash; never a
+     * settlement, a point of interest or a hinterland site. Pure and cached
+     * until the towns, their estates or the sites change. → [{ q, r, id }]
+     */
+    fieldHexes(world) {
+        const st = world && _obj(world.estates);
+        if (!st || !_obj(st.towns) || !world.getTile) return [];
+        const sites = world.hinterland && Array.isArray(world.hinterland.sites) ? world.hinterland.sites : [];
+        const sig = `${Object.keys(st.towns).length}:${Object.keys(st.estates || {}).length}:${_num(st.hv)}:${sites.length}`;
+        const hit = _fields.get(st);
+        if (hit && hit.sig === sig) return hit.list;
+        const M = Estates.config().map;
+        const farmland = new Set(Array.isArray(M.terrain) ? M.terrain : []);
+        const taken = new Set(sites.map(x => _key(x.q, x.r)));
+        const seed = Estates.seed(world);
+        const list = [];
+        for (const key of Object.keys(st.towns).sort()) {
+            const rec = st.towns[key];
+            const ests = (rec.ests || []).filter(id => st.estates[id]);
+            if (!ests.length) continue;
+            const cands = [];
+            for (const h of Hex.hexesInRange(rec.q, rec.r, Math.max(1, _num(M.reach, 2)))) {
+                const q = world.width ? Hex.wrapQ(h.q, world.width) : h.q;
+                const k = _key(q, h.r);
+                if (taken.has(k)) continue;
+                const t = world.getTile(q, h.r);
+                if (!t || t.settlement || t.improvement || !t.terrain || !farmland.has(t.terrain.id)) continue;
+                const d = Hex.wrappingDistance(rec.q, rec.r, q, h.r, world.width);
+                if (d < 1) continue;
+                cands.push({ q, r: h.r, k, d, h: _roll(`${seed}:field:${key}:${k}`) });
+            }
+            cands.sort((a, b) => a.d - b.d || a.h - b.h);
+            for (let i = 0; i < ests.length && i < cands.length; i++) {
+                taken.add(cands[i].k);
+                list.push({ q: cands[i].q, r: cands[i].r, id: ests[i] });
+            }
+        }
+        const byHex = new Map(list.map(f => [_key(f.q, f.r), f.id]));
+        _fields.set(st, { sig, list, byHex });
+        return list;
+    },
+
+    /** The estate shown on a hex (`fieldHexes`), or null. */
+    fieldAt(world, q, r) {
+        Estates.fieldHexes(world);
+        const hit = world && world.estates ? _fields.get(world.estates) : null;
+        const id = hit ? hit.byHex.get(_key(q, r)) : null;
+        return id ? Estates.estate(world, id) : null;
+    },
+
     /** Every estate a holder holds (an index rebuilt when an estate changes hands: `setHolder`). */
     heldBy(world, holderId) {
         const st = world && _obj(world.estates);
@@ -486,7 +544,9 @@ export const Estates = {
 
     /**
      * What townsfolk say of the land (systems/chatter.js): 'enclosure' (an
-     * estate here runs sheep), 'enclosure_riot', 'estate_sale' (one on the
+     * estate here runs sheep), 'enclosure_riot', 'rent_riot' (tenants risen
+     * over the rent), 'bequest' / 'dowry' (an estate left to the Church or
+     * settled on another house), 'estate_sale' (one on the
      * market, or sold lately), 'putting_out' (the cottagers have work), and
      * 'linen_glut' in the prices.
      */
@@ -504,7 +564,11 @@ export const Estates = {
         }
         for (const h of world.estates.history) {
             if (!h || day - _num(h.day) > 30) continue;
-            if (h.kind === 'riot' && h.place === s.name && !out.labour.includes('enclosure_riot')) out.labour.push('enclosure_riot');
+            if (h.kind === 'riot' && h.place === s.name) {
+                const k = h.why === 'rent' ? 'rent_riot' : 'enclosure_riot';
+                if (!out.labour.includes(k)) out.labour.push(k);
+            }
+            if ((h.kind === 'bequest' || h.kind === 'dowry') && h.place === s.name && !out.labour.includes(h.kind)) out.labour.push(h.kind);
             if (h.kind === 'sold' && h.place === s.name && !out.labour.includes('estate_sale')) out.labour.push('estate_sale');
             if (h.kind === 'linen_glut' && h.kingdomId != null && h.kingdomId === s.kingdom && !out.prices.includes('linen_glut')) out.prices.push('linen_glut');
         }

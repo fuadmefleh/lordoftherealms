@@ -9,7 +9,12 @@
 //   - Health bars shown on damaged entities
 //   - Hit flash / slash burst effect at the target
 //   - Player faces target during attack (idle anim)
-//   - NPC health tracked per-session (lost on re-entry)
+//   - Swings and hit points come from the duel engine (systems/duels.js):
+//     your weapon counts, the NPC's armour turns some of each blow
+//   - NPC health tracked per-session; a townsperson's injury is kept on
+//     their roster entry (settlement.folk, systems/townsfolk.js) and heals
+//     day by day, and one killed dies on the roster
+//   - The fallen leave their actual purse and some of the wares they carry
 //   - Auto-cancel when target moves out of range
 // ============================================
 
@@ -22,6 +27,24 @@ import { Gossip } from '../systems/gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Ailments } from '../systems/ailments.js';
+import { Duels } from '../systems/duels.js';
+import { Townsfolk } from '../systems/townsfolk.js';
+import { PlayerInventory } from '../player/inventory.js';
+import { Utils } from '../core/utils.js';
+import { drawGlyph } from './icons.js';
+import { drawMapText, labelZoom, textPx } from './mapInk.js';
+
+/**
+ * Floating combat numbers by kind: size (× camera zoom), readable floor,
+ * colour, and the pop at birth ([share of life, extra scale]).
+ */
+const FLOAT_STYLES = {
+    killed:     { size: 13, min: 12, color: '#ff5566' },
+    critical:   { size: 15, min: 13, color: '#ffaa22', pop: [0.3, 0.5], bang: true },
+    object:     { size: 11, min: 11, color: '#9be256' },
+    player_hit: { size: 14, min: 12, color: '#ff55d0', pop: [0.25, 0.6] },
+    hit:        { size: 11, min: 11, color: '#ff5f5f', pop: [0.2, 0.3] },
+};
 
 
 export const InnerMapCombat = {
@@ -51,18 +74,11 @@ export const InnerMapCombat = {
     FLOAT_RISE_SPEED:     52,    // screen-pixels per second the number rises
     HIT_FLASH_DURATION:   0.28,  // seconds a hit flash lasts
 
-    // NPC types that fight back (vs. flee)
-    FIGHTER_NPC_TYPES: new Set(['guard', 'blacksmith_npc', 'noble']),
+    // Whether an NPC fights back or flees, and how hard it hits, come from its
+    // duel profile and temperament (Duels.brawlStance / Duels.npcSwing).
 
     // How often a fighting NPC counter-attacks (seconds)
     NPC_ATTACK_INTERVAL: 0.7,
-
-    // Base damage fighting NPCs deal per swing
-    NPC_DAMAGE_BY_TYPE: {
-        guard:          18,
-        blacksmith_npc: 14,
-        noble:          10,
-    },
 
     // NPC base HP by type
     NPC_BASE_HEALTH: {
@@ -142,10 +158,12 @@ export const InnerMapCombat = {
 
     /** Begin the NPC attack loop from the current player position. */
     _beginNPCAttack(game, npc) {
-        // Initialise health if first encounter
+        // Initialise health if first encounter (a townsperson may still be hurt from last time)
         if (!this._npcHealth.has(npc.id)) {
-            const maxHp = this.NPC_BASE_HEALTH[npc.type] || 60;
-            this._npcHealth.set(npc.id, { current: maxHp, max: maxHp });
+            const maxHp = Duels.npcBrawlHp(npc) || this.NPC_BASE_HEALTH[npc.type] || 60;
+            const hurt = npc._person ? Townsfolk.injury(npc._person, this._day(game), Duels.config().brawl.healPerDay) : null;
+            const current = hurt ? Math.max(1, Math.round(maxHp * hurt.hp / hurt.max)) : maxHp;
+            this._npcHealth.set(npc.id, { current, max: maxHp });
         }
 
         const dmg = this._computePlayerDamage(game.player);
@@ -155,6 +173,7 @@ export const InnerMapCombat = {
             swingTimer: 0,          // counts up — hits on each interval
             swingInterval: 0.5,     // seconds between swings
             baseDamage: dmg,
+            npcArmour: Duels.fromNpc(npc).armour,
             game,
             _notified: false,
         };
@@ -254,11 +273,14 @@ export const InnerMapCombat = {
         const health = this._npcHealth.get(npc.id);
         if (!health) { this.cancelAttack(); return; }
 
-        const variance = 0.875 + Math.random() * 0.25;
+        const variance = 0.875 + Utils.random() * 0.25;
         const rawDmg   = Math.max(1, ia.baseDamage * variance);
-        const dmg      = Math.round(rawDmg);
-        const isCrit   = rawDmg > ia.baseDamage * 1.18;
+        // The NPC's armour (a guard's mail) turns part of the blow
+        const dmg      = Math.max(1, Math.round(rawDmg * (1 - (ia.npcArmour || 0))));
+        const isCrit   = rawDmg > ia.baseDamage * 1.09;
         health.current = Math.max(0, health.current - dmg);
+        // A townsperson carries the beating with them (healed day by day)
+        if (npc._person && health.current > 0) Townsfolk.injure(npc._person, this._day(game || ia.game), health.current, health.max);
 
         const T = InnerMapRenderer.TILE_SIZE;
         this._spawnFloat(
@@ -318,17 +340,21 @@ export const InnerMapCombat = {
             }
         }
 
-        // Small loot drop
+        // A townsperson dies on the town's roster: they will not be about next visit
+        if (npc._person && npc._folk) {
+            Townsfolk.slay(npc._folk, npc._person, this._day(game), `at the hands of ${(game && game.player && game.player.name) || 'a stranger'}`);
+        }
+
+        // Loot: the coin they actually carried, and some of their wares
         if (game && game.ui) {
-            const loot = Math.floor(Math.random() * 12 + 2);
-            if (game.player) {
-                game.player.gold += loot;
-                if (typeof game.ui.updateStats === 'function')
-                    game.ui.updateStats(game.player, game.world);
-            }
+            const { gold, items } = this._takeSpoils(npc, game);
+            const parts = [];
+            if (gold > 0) parts.push(`${gold} gold`);
+            for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
+            if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);
             game.ui.showNotification(
                 `💀 ${npc.name} defeated!`,
-                `${npc.icon || '⚔️'} ${npc.name} has fallen. You found ${loot} gold.`,
+                `${npc.icon || '⚔️'} ${npc.name} has fallen. ${parts.length ? `You take ${parts.join(', ')}.` : 'Their pockets are empty.'}`,
                 'success'
             );
         }
@@ -362,7 +388,12 @@ export const InnerMapCombat = {
     _initiateNPCReaction(npc, game) {
         if (this._npcReactions.has(npc.id)) return; // already reacting
 
-        if (this.FIGHTER_NPC_TYPES.has(npc.type)) {
+        // Stand or run: the townsperson's duel profile and temperament against
+        // how dangerous the player looks and how hurt they already are
+        const me = game && game.player ? Duels.fromPlayer(game.player, { mods: PlayerEffects.duelModifiers(game.player), fresh: true }) : null;
+        const hp = this._npcHealth.get(npc.id);
+        const { stance } = Duels.brawlStance(npc, { playerAttack: me ? me.attack : 0, hpFrac: hp && hp.max ? hp.current / hp.max : 1 });
+        if (stance === 'fight') {
             // ── Fighter: attack back ──
             this._npcReactions.set(npc.id, {
                 mode: 'fight',
@@ -440,10 +471,9 @@ export const InnerMapCombat = {
             const player = game && game.player;
             if (!player) continue;
 
-            const baseDmg  = this.NPC_DAMAGE_BY_TYPE[npc.type] || 8;
-            const variance = 0.75 + Math.random() * 0.5;
-            // Armour and Divine Protection soften the blow
-            const dmg      = PlayerEffects.scaleDamage(player, baseDmg * variance);
+            // The blow comes from their duel profile (strength, weapon); armour
+            // and Divine Protection soften it
+            const dmg      = PlayerEffects.scaleDamage(player, Duels.npcSwing(npc));
 
             // Floor at 1 so the player can’t be outright killed by the trigger
             player.health = Math.max(1, player.health - dmg);
@@ -545,15 +575,45 @@ export const InnerMapCombat = {
     // HELPERS
     // ══════════════════════════════════════════════
 
+    /**
+     * Base damage of the player's swing, from the duel engine: strength and
+     * the best weapon carried (counted double), times traits, wounds and
+     * sickness, mood and carried treasures.
+     */
     _computePlayerDamage(player) {
-        const str  = (player && player.strength) || 5;
-        const luck = (player && player.luck)     || 5;
-        const base = str * 2 + Math.floor(luck * 0.4);
-        // Mood: ±5% swing strength
-        const mood = player ? PlayerEffects.moodCombatMultiplier(player) : 1;
-        // Wounds and sickness weaken your blows
-        const hurt = player ? PlayerEffects.ailmentBattleMultiplier(player) : 1;
-        return Math.max(3, Math.round(base * mood * hurt));
+        if (!player) return 3;
+        const me = Duels.fromPlayer(player, { mods: PlayerEffects.duelModifiers(player), fresh: true });
+        return Duels.swingBase(me);
+    },
+
+    _day(game) {
+        return (game && game.world && game.world.day) || 0;
+    },
+
+    /** Take a fallen NPC's purse (kept on a townsperson's roster entry) and some wares. */
+    _takeSpoils(npc, game) {
+        const player = game && game.player;
+        const range = Duels.purseRange(npc.type);
+        let gold = 0;
+        if (npc._person && npc._folk) {
+            gold = Townsfolk.takePurse(npc._folk, npc._person, game.world, range);
+        } else {
+            if (typeof npc._purse !== 'number') npc._purse = Utils.randInt(range[0], range[1]);
+            gold = npc._purse;
+            npc._purse = 0;
+        }
+        const items = [];
+        if (player) {
+            player.gold = (player.gold || 0) + gold;
+            for (const it of Duels.brawlSpoils(npc)) {
+                const r = PlayerInventory.addItem(player, it.id, it.qty);
+                if (r.success) {
+                    items.push(it);
+                    if (npc.shopInventory && npc.shopInventory[it.id]) npc.shopInventory[it.id].qty -= it.qty;
+                }
+            }
+        }
+        return { gold, items };
     },
 
     _spawnFloat(worldX, worldY, value, type = 'normal', label = null) {
@@ -622,15 +682,9 @@ export const InnerMapCombat = {
 
         // HP text (only if bar is wide enough)
         if (barW >= 30) {
-            const fontSize = Math.max(6, Math.floor(barH * 1.0));
-            ctx.font = `bold ${fontSize}px 'Inter', monospace`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.9)';
-            ctx.shadowBlur = 2;
-            ctx.fillText(`${Math.ceil(currentHp)}/${maxHp}`, screen.x, by + barH / 2);
-            ctx.shadowBlur = 0;
+            drawMapText(ctx, `${Math.ceil(currentHp)}/${maxHp}`, screen.x, by + barH / 2, {
+                size: barH, min: 9, weight: 700, family: 'body', color: '#ffffff',
+            });
         }
     },
 
@@ -729,67 +783,22 @@ export const InnerMapCombat = {
             ctx.textAlign   = 'center';
             ctx.textBaseline = 'middle';
 
+            const style = FLOAT_STYLES[fn.type] || FLOAT_STYLES.hit;
+            const size = style.size * labelZoom(camera.zoom);
+            const pop = style.pop ? 1.0 + Math.max(0, (style.pop[0] - p) / style.pop[0]) * style.pop[1] : 1;
+            ctx.translate(sx, sy);
+            ctx.scale(pop, pop);
             if (fn.type === 'killed') {
-                // Big "Defeated!" banner
-                const fs = Math.max(10, 13 * camera.zoom);
-                ctx.font = `bold ${fs}px 'Inter', sans-serif`;
-                // Shadow
-                ctx.fillStyle  = 'rgba(0,0,0,0.7)';
-                ctx.fillText('💀 Defeated', sx + 1, sy + 1);
-                ctx.fillStyle  = '#ff4455';
-                ctx.fillText('💀 Defeated', sx, sy);
-
-            } else if (fn.type === 'critical') {
-                // Larger, orange "−dmg!" crit numbers
-                const fs = Math.max(12, 15 * camera.zoom);
-                // Subtle pop scale effect (scale up at start)
-                const scale = 1.0 + Math.max(0, (0.3 - p) / 0.3) * 0.5;
-                ctx.save();
-                ctx.translate(sx, sy);
-                ctx.scale(scale, scale);
-                ctx.font = `bold ${fs}px 'Inter', sans-serif`;
-                ctx.fillStyle  = 'rgba(0,0,0,0.7)';
-                ctx.fillText(`−${fn.value}!`, 1, 1);
-                ctx.fillStyle  = '#ffaa22';
-                ctx.fillText(`−${fn.value}!`, 0, 0);
-                ctx.restore();
-
-            } else if (fn.type === 'object') {
-                // Green numbers for object damage (harvesting / chopping)
-                const fs = Math.max(9, 11 * camera.zoom);
-                ctx.font  = `bold ${fs}px 'Inter', sans-serif`;
-                ctx.fillStyle  = 'rgba(0,0,0,0.6)';
-                ctx.fillText(`−${fn.value}`, sx + 1, sy + 1);
-                ctx.fillStyle  = '#88dd44';
-                ctx.fillText(`−${fn.value}`, sx, sy);
-
-            } else if (fn.type === 'player_hit') {
-                // Hot magenta — incoming damage ON the player from a counter-attacking NPC
-                const fs = Math.max(11, 14 * camera.zoom);
-                const scale = 1.0 + Math.max(0, (0.25 - p) / 0.25) * 0.6;
-                ctx.save();
-                ctx.translate(sx, sy);
-                ctx.scale(scale, scale);
-                ctx.font = `bold ${fs}px 'Inter', sans-serif`;
-                ctx.fillStyle  = 'rgba(0,0,0,0.7)';
-                ctx.fillText(`\u2212${fn.value}`, 1, 1);
-                ctx.fillStyle  = '#ff44cc';
-                ctx.fillText(`\u2212${fn.value}`, 0, 0);
-                ctx.restore();
-
+                // Banner: a skull and "Defeated"
+                const px = textPx(size, style.min);
+                ctx.font = `800 ${px}px 'Inter', sans-serif`;
+                const left = -(px * 1.6 + ctx.measureText('Defeated').width) / 2;
+                drawGlyph(ctx, 'skull', left + px * 0.65, 0, px * 1.3, style.color, 2.2);
+                drawMapText(ctx, 'Defeated', left + px * 1.6, 0, { size, min: style.min, family: 'body', weight: 800, color: style.color, align: 'left' });
             } else {
-                // Normal red damage numbers
-                const fs = Math.max(9, 11 * camera.zoom);
-                const scale = 1.0 + Math.max(0, (0.2 - p) / 0.2) * 0.3;
-                ctx.save();
-                ctx.translate(sx, sy);
-                ctx.scale(scale, scale);
-                ctx.font = `bold ${fs}px 'Inter', sans-serif`;
-                ctx.fillStyle  = 'rgba(0,0,0,0.6)';
-                ctx.fillText(`−${fn.value}`, 1, 1);
-                ctx.fillStyle  = '#ff5555';
-                ctx.fillText(`−${fn.value}`, 0, 0);
-                ctx.restore();
+                drawMapText(ctx, `\u2212${fn.value}${style.bang ? '!' : ''}`, 0, 0, {
+                    size, min: style.min, family: 'body', weight: 800, color: style.color,
+                });
             }
 
             ctx.restore();

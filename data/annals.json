@@ -1,0 +1,285 @@
+{
+    "_doc": "The Annals (systems/annals.js): the story of the player's life and dynasty, told from what the systems already record — the House chronicle (house.history), the reign records (house.reigns, systems/legacy.js), the wealth marks (house.wealthMarks), traits, sagas, achievements, fame, lords' memories and the ledger. Every phrase list here is picked by a hash of (event, day) — never the shared RNG — so the same save always reads the same. Tokens in {braces} are filled by the composer; {Pronoun}/{pronoun}/{poss}/{obj} follow the ruler's gender. `tagWeights` decide what is notable: an entry's weight is the highest of its tags' weights, and only entries at or above `minWeight` make the book (a chapter with fewer than `minEvents` takes its best lesser entries too). `themes` map tags to the book's themes (first match wins).",
+    "_rewrites": "Chronicle lines written as bare noun phrases, made into sentences: [pattern, replacement]; {name} is the ruler, $1.. the captures.",
+    "rewrites": [
+        ["^A claim on the throne of (.+?)[.]?$", "{name} gained a claim on the throne of $1."]
+    ],
+    "minWeight": 4,
+    "minEvents": 4,
+    "maxEventsPerChapter": 40,
+    "maxEventsPerYear": 6,
+    "quietGapYears": 3,
+    "enemyOpinion": -15,
+    "friendOpinion": 20,
+    "rivalFeudEnemy": 30,
+    "archiveCap": 6,
+    "infamousTraits": ["cruel", "greedy", "deceitful", "craven", "dread_lord", "kinslayer", "drunkard"],
+    "epithets": [
+        { "from": "player", "field": "karma", "max": -60, "epithet": "the Wicked" },
+        { "from": "player", "field": "renown", "min": 250, "epithet": "the Renowned" },
+        { "from": "player", "field": "karma", "min": 60, "epithet": "the Good" },
+        { "from": "reign", "field": "prestigeGained", "min": 150, "epithet": "the Great" },
+        { "from": "reign", "field": "children", "min": 6, "epithet": "the Fruitful" },
+        { "from": "reign", "field": "years", "min": 30, "epithet": "the Long-Lived" }
+    ],
+    "tagWeights": {
+        "founding": 9, "succession": 10, "ended": 10,
+        "throne": 9, "capstone": 9, "conquest": 8, "greatWork": 8,
+        "birth": 8, "marriage": 8, "widowed": 8, "divorce": 7, "love": 7,
+        "ambition": 7, "title": 7, "discovery": 6, "war": 6, "siege": 6,
+        "peace": 6, "betrayal": 6, "devoted": 5, "heirs": 5, "saga": 5,
+        "chronicle": 4, "patronage": 3, "companion": 4, "upbringing": 3,
+        "court": 3, "rival": 3, "scheme": 4, "threat": 3, "suspect": 2, "demand": 2,
+        "achievement": 5, "trait": 5, "faith": 5, "highlight": 5
+    },
+    "themes": [
+        { "id": "death", "tags": ["succession", "ended"] },
+        { "id": "family", "tags": ["birth", "marriage", "widowed", "divorce", "love", "heirs", "upbringing"] },
+        { "id": "war", "tags": ["war", "siege", "conquest", "peace", "saga"] },
+        { "id": "infamy", "tags": ["rival", "scheme", "betrayal", "threat", "suspect"] },
+        { "id": "wealth", "tags": ["demand"] },
+        { "id": "faith", "tags": ["faith", "piety"] },
+        { "id": "rise", "tags": [] }
+    ],
+    "themeLabels": {
+        "rise": { "label": "Rise", "icon": "🏛️" },
+        "wealth": { "label": "Wealth", "icon": "💰" },
+        "war": { "label": "War", "icon": "⚔️" },
+        "family": { "label": "Love & Family", "icon": "💞" },
+        "faith": { "label": "Faith", "icon": "🙏" },
+        "infamy": { "label": "Infamy", "icon": "🗡️" },
+        "death": { "label": "Death", "icon": "🕯️" },
+        "years": { "label": "The Years", "icon": "📜" },
+        "legacy": { "label": "Legacy", "icon": "⭐" }
+    },
+    "bookTitle": [
+        "The Annals of {house}",
+        "The Book of {house}",
+        "A Chronicle of {house}"
+    ],
+    "beforeTitle": [
+        "Before: the Annals of {house}",
+        "Before: the Line of {house}"
+    ],
+    "chapterTitle": {
+        "crowned": ["The Reign of {name}{epithet}, {ordinal} of {house}"],
+        "lord": ["The Lordship of {name}{epithet}, {ordinal} of {house}", "The Days of {name}{epithet}, {ordinal} of {house}"],
+        "life": ["The Life of {name}{epithet}, {ordinal} of {house}", "The Years of {name}{epithet}, {ordinal} of {house}"]
+    },
+    "chapterYears": {
+        "closed": ", years {from}–{to}",
+        "single": ", year {from}",
+        "live": ", year {from} to the present"
+    },
+    "opening": {
+        "founder": [
+            "In the {season} of the year {year}, {name} set {poss} name to a new House, and {house} entered the annals.",
+            "The annals of {house} begin in the {season} of the year {year}, with {name}, aged {age}, and not much else.",
+            "It was the {season} of the year {year} when {name} first called {obj}self of {house}. {Pronoun} was {age} years old."
+        ],
+        "stranger": [
+            "{name} was {station} of {town} when the old line ended, and in the {season} of the year {year} began a new House: {house}.",
+            "Out of {town} came {name}, {station}, aged {age}, to found {house} in the year {year}."
+        ],
+        "heir": [
+            "In the {season} of the year {year}, {name} took up the mantle of {house}, aged {age}.",
+            "The year {year} gave {house} a new head: {name}, {age} years old.",
+            "{name} came to the head of {house} in the {season} of the year {year}, at the age of {age}."
+        ]
+    },
+    "openingDisputed": [
+        "The succession was disputed{quelled}.",
+        "Not every voice in the House agreed{quelled}."
+    ],
+    "openingQuelled": ", though Prestige quieted the claimants",
+    "openingRegency": "A regency held the House in {poss} name until {pronoun} came of age.",
+    "traitsLine": [
+        "Men came to call {obj} {traits}.",
+        "Those who knew {name} called {obj} {traits}.",
+        "The realm would remember {obj} as {traits}."
+    ],
+    "traitEarned": [
+        "Men began to call {name} {trait}.",
+        "It was in these days that {name} was first called {trait}.",
+        "By now the talk in the taverns named {name} {trait}."
+    ],
+    "yearOpener": [
+        "In the year {year}, ",
+        "The year {year}: ",
+        "In {year}, "
+    ],
+    "seasonOpener": [
+        "In the {season}, ",
+        "That {season}, ",
+        "When {season} came, ",
+        ""
+    ],
+    "laterOpener": [
+        "Later that year, ",
+        "Before the year was out, ",
+        "And in the {season}, ",
+        "Then, in the {season}, "
+    ],
+    "overflow": [
+        "Of lesser matters that year the annals keep {n} more.",
+        "And {n} lesser matters besides, which the scribes did not think worth the ink."
+    ],
+    "quietYears": [
+        "The years {from} to {to} passed quietly, and the annals keep little of them.",
+        "Of the years between {from} and {to} the scribes wrote little.",
+        "For {n} years after, the annals fall quiet."
+    ],
+    "achievement": [
+        "The heralds cried a new honour for {name}: \"{deed}\".",
+        "The bards made a song of it, and called it \"{deed}\".",
+        "\"{deed}\", the heralds named the deed of {name}."
+    ],
+    "saga": [
+        "The tale of {saga} came to its end: {title}. {name} had a hand in it{won}.",
+        "So ended {saga}: {title}. {name} was part of that story{won}."
+    ],
+    "pilgrimage": [
+        "{name} made pilgrimage to {site}{times}.",
+        "{name} knelt at {site}{times}."
+    ],
+    "sagaWon": ", and shared in the triumph",
+    "summary": {
+        "war": [
+            "In all, {name} won {battles} battle{battlesS}{settlementsClause}.",
+            "The tally of {poss} wars: {battles} battle{battlesS} won{settlementsClause}."
+        ],
+        "warSettlements": ", and took {settlements} settlement{settlementsS}",
+        "warSieges": "{sieges} town{siegesS} besieged and {captured} taken.",
+        "warSagas": "{beasts} beast{beastsS} of legend fell to {poss} hand.",
+        "rise": [
+            "{name} gained {titles} office{titlesS} and {prestige} Prestige for the House.",
+            "The House rose under {obj}: {titles} office{titlesS} won, {prestige} Prestige gained."
+        ],
+        "risePrestige": [
+            "{name} raised the House's Prestige by {prestige}.",
+            "Under {obj} the House gained {prestige} Prestige."
+        ],
+        "riseLost": [
+            "The House's standing fell under {obj}: {prestige} Prestige lost.",
+            "It was not a reign that raised the House: {prestige} Prestige lost."
+        ],
+        "crown": [
+            "{name} wore the crown of {crown}.",
+            "{name} ruled as monarch of {crown}."
+        ],
+        "crownLost": "The crown of {crown} was {how} after {days} days.",
+        "justice": [
+            "{name} sat in judgement {ruled} time{ruledS}; the rulings remembered: {rulings}.",
+            "Of the {ruled} petition{ruledS} {name} heard, these were remembered: {rulings}."
+        ],
+        "justicePlain": "{name} sat in judgement {ruled} time{ruledS}.",
+        "quests": "{quests} quest{questsS} completed{delvesClause}.",
+        "questsDelves": ", and {delves} delve{delvesS} cleared",
+        "wealthRange": [
+            "{name} came to the House's purse with {start} gold and left it with {end}.",
+            "The coffers held {start} gold when {name} took them and {end} at the last."
+        ],
+        "wealthPeak": [
+            "At the height of {poss} fortune, in the year {year}, {name} counted {peak} gold.",
+            "The fortune peaked in the year {year}, at {peak} gold."
+        ],
+        "wealthLow": "The lean years came in {year}, when the purse fell to {low} gold.",
+        "wealthSource": [
+            "Most of the coin of late came from {source}.",
+            "Of late the House lived chiefly on {source}."
+        ],
+        "wealthSpend": "The heaviest spending of late was on {sink}.",
+        "familySpouse": [
+            "{name} was wed to {spouse}.",
+            "{spouse} stood at {poss} side."
+        ],
+        "familyChildren": [
+            "{count} child{childrenS} {wereWas} born to {obj}: {names}.",
+            "{Pronoun} fathered a line: {names} — {count} child{childrenS} in all."
+        ],
+        "familyChildrenF": [
+            "{count} child{childrenS} {wereWas} born to {obj}: {names}.",
+            "{Pronoun} mothered a line: {names} — {count} child{childrenS} in all."
+        ],
+        "familyCount": [
+            "{count} child{childrenS} {wereWas} born to {obj}.",
+            "{Pronoun} gave the House {count} child{childrenS}."
+        ],
+        "familyNone": [
+            "No child was born to {obj}.",
+            "{name} left no child of {poss} own."
+        ],
+        "familyLost": "Of them, {lost} did not live to see {poss} death.",
+        "faithPious": [
+            "{name} was known for {poss} faith: {prayers} prayer{prayersS} and {pilgrimages} pilgrimage{pilgrimagesS}.",
+            "Few doubted {poss} faith — {prayers} prayer{prayersS} said, {pilgrimages} pilgrimage{pilgrimagesS} made."
+        ],
+        "faithVows": "{kept} vow{keptS} kept, {broken} broken.",
+        "faithFounded": "{name} founded a faith of {poss} own: {religion}.",
+        "infamyKills": [
+            "{kills} {lives} ended by {poss} hand{witnessed}.",
+            "Blood: {kills} {lives} taken{witnessed}."
+        ],
+        "infamyWitnessed": ", {witnessedN} of them before witnesses",
+        "infamyCrimes": "The watch knew {obj}: {crimes} crime{crimesS}, caught {caught} time{caughtS}.",
+        "infamyWhispers": "{planted} whisper{plantedS} planted against the great.",
+        "infamyRivals": "{name} bested {rivals} rival{rivalsS}.",
+        "infamyTraits": "Men called {obj} {traits}, and did not say it kindly.",
+        "death": {
+            "closed": [
+                "{name} died of {cause} in the {season} of the year {year}, aged {age}, after {years} year{yearsS} at the head of the House.",
+                "Death came for {name} in the year {year}: {cause}. {Pronoun} was {age}, and had led the House {years} year{yearsS}.",
+                "In the {season} of the year {year}, {cause} took {name}, aged {age}."
+            ],
+            "closedNoCause": [
+                "{name} died in the {season} of the year {year}, aged {age}, after {years} year{yearsS} at the head of the House.",
+                "The annals mark {poss} passing in the year {year}, at the age of {age}."
+            ],
+            "live": [
+                "{name} lives still, aged {age}, in the {nth} year at the head of the House.",
+                "The annals of {name} are not yet closed: {pronoun} lives, aged {age}."
+            ],
+            "remembered": [
+                "{Pronoun} would be remembered as {name}{epithet}.",
+                "The scribes would call {obj} {name}{epithet}."
+            ]
+        }
+    },
+    "legacy": {
+        "title": "Legacy",
+        "headline": [
+            "So stands {house}, {generations} generation{generationsS} on: {rank}.",
+            "Such is the measure of {house} after {generations} generation{generationsS}: {rank}."
+        ],
+        "ended": [
+            "The line of {house} ended in the year {year} with {last}. {rank}.",
+            "With {last}, in the year {year}, the line of {house} ended. The scribes judged it {rank}."
+        ],
+        "prestige": "{prestige} Prestige; a legacy of {score}.",
+        "holdings": "The House holds {holdings}.",
+        "holdingsNone": "The House holds no land of its own.",
+        "best": "Its greatest was {best}{bestEpithet}.",
+        "wealth": [
+            "The family fortune rose from {first} gold to a peak of {peak} in the year {peakYear}; it stands at {last}.",
+            "From {first} gold the purse grew to {peak} at its height (year {peakYear}), and holds {last} now."
+        ],
+        "wealthFell": "From {first} gold the purse has fallen to {last}; its best was {peak}, in the year {peakYear}.",
+        "fame": "In {good} the name is {goodStage}.",
+        "infame": "In {bad} it is {badStage}.",
+        "enemies": [
+            "It has made enemies: {enemies}.",
+            "These will not forget it: {enemies}."
+        ],
+        "friends": "Friends at court: {friends}.",
+        "children": "Of its blood, {living} live{livingS}: {names}.",
+        "childrenNone": "No child of its blood lives now.",
+        "achievements": "{won} deeds sung by the bards, of {total}."
+    },
+    "scribe": {
+        "system": "You are the court scribe of a medieval House, writing its annals. Rewrite the notes you are given into one chapter of flowing chronicle prose, past tense, solemn and vivid. Use ONLY the facts in the notes: never invent people, places, numbers, battles or events, and keep every name exactly as written. No headings, no lists, no preamble.",
+        "user": "Write the chapter \"{title}\" from these annals:\n\n{text}",
+        "maxTokens": 700,
+        "minLength": 120,
+        "maxLength": 6000
+    }
+}

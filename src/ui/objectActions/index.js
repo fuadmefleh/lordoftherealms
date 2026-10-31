@@ -1,7 +1,7 @@
 // ObjectActions — assembled from ./objectActions/*.js
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
-import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE, FURNITURE_ACTIONS, BUILDING_FURNITURE_ACTIONS, PRIVATE_FURNITURE, FURNITURE_NAME_PATTERNS } from './data.js';
+import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE, FURNITURE_ACTIONS, BUILDING_FURNITURE_ACTIONS, PRIVATE_FURNITURE, FURNITURE_NAME_PATTERNS } from './data.js';
 import { ActionMenu } from '../actionMenu.js';
 import {
     _getPlayerFoods,
@@ -157,10 +157,11 @@ export const ObjectActions = {
             switch (actionDef.modal) {
                 case 'sleep': _showSleepModal(game, objDef, actionDef.sleepCost || 0); return;
                 case 'eat':   _showEatModal(game, objDef); return;
-                case 'cook':  _showRecipeModal(game, objDef, 'Cook', '🍳', COOK_RECIPES); return;
-                case 'craft': _showRecipeModal(game, objDef, 'Craft', '🔨', CRAFT_RECIPES); return;
-                case 'smelt': _showRecipeModal(game, objDef, 'Smelt', '⚒️', SMELT_RECIPES); return;
-                case 'brew':  _showRecipeModal(game, objDef, 'Brew Potion', '🧪', BREW_RECIPES); return;
+                case 'cook':  _showRecipeModal(game, objDef, 'Cook', '🍳', 'cook'); return;
+                case 'craft': _showRecipeModal(game, objDef, 'Craft', '🔨', 'craft'); return;
+                case 'smelt': _showRecipeModal(game, objDef, 'Smelt', '⚒️', 'smelt'); return;
+                case 'brew':  _showRecipeModal(game, objDef, 'Brew Potion', '🧪', 'brew'); return;
+                case 'tan':   _showRecipeModal(game, objDef, 'Tanning & Weaving', '🟫', 'tan'); return;
                 case 'fish':  _showFishModal(game, objDef); return;
                 case 'store': _showStoreModal(game, objDef, anchorQ, anchorR); return;
                 case 'heal':  _showHealModal(game, objDef); return;
@@ -172,7 +173,7 @@ export const ObjectActions = {
 
         // Run custom onExecute if present
         if (actionDef.onExecute && typeof actionDef.onExecute === 'function') {
-            const result = actionDef.onExecute(game);
+            const result = actionDef.onExecute(game, objDef, anchorQ, anchorR);
             if (result) message = result;
         }
 

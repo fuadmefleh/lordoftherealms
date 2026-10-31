@@ -14,6 +14,7 @@ export const InnerMapCharacters = {
     _presets: {},        // presetId → { layers: [...paths] }
     _npcTypeMap: {},     // npcType → [presetId, ...]
     _basePath: 'assets/lpc/Characters/',
+    playerPreset: null,  // the player's own sprite, set from the HUD portrait
 
     // ── Sprite sheet cache ──
     _imageCache: new Map(),   // full path → HTMLImageElement
@@ -145,6 +146,36 @@ export const InnerMapCharacters = {
     },
 
     /**
+     * Add (or replace) one preset at runtime and composite it — the player's
+     * own look from character creation. Loads only the sheets it needs, so it
+     * works before (or without) loadAll. Resolves true once it can be drawn.
+     */
+    registerPreset(presetId, layers) {
+        const preset = { layers: layers.slice() };
+        this._presets[presetId] = preset;
+        const anims = ['Walk', 'Idle', 'Combat 1h - Slash', ...this._EXTRA_ANIMS.map(ea => ea.file)];
+        const promises = [];
+        for (const layerPath of layers) {
+            for (const anim of anims) {
+                const fullPath = this._basePath + layerPath + '/' + anim + '.png';
+                if (this._imageCache.has(fullPath)) continue;
+                promises.push(new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = () => { this._imageCache.set(fullPath, img); resolve(); };
+                    img.onerror = () => resolve();
+                    img.src = fullPath;
+                }));
+            }
+        }
+        return Promise.all(promises).then(() => {
+            // A newer look may have replaced this one while the sheets loaded
+            if (this._presets[presetId] !== preset) return false;
+            this._compositePreset(presetId, preset);
+            return this._composited.has(presetId);
+        });
+    },
+
+    /**
      * Composite all layers for a preset into walk and idle offscreen canvases.
      */
     _compositePreset(presetId, preset) {
@@ -208,13 +239,20 @@ export const InnerMapCharacters = {
      * Get a character preset ID for an NPC based on type and seed.
      * @param {string} npcType - e.g. 'villager', 'guard'
      * @param {number} seed - Deterministic seed (e.g. npc.id)
+     * @param {string} [gender] - 'male' / 'female' to prefer that gender's presets
      * @returns {string|null} Preset ID
      */
-    getPresetForNPC(npcType, seed) {
-        const presets = this._npcTypeMap[npcType];
+    getPresetForNPC(npcType, seed, gender = null) {
+        let presets = this._npcTypeMap[npcType];
+        // A known gender picks among that gender's looks, when the type has any
+        if (gender && presets) {
+            const own = presets.filter(id => id.startsWith(`${gender}_`));
+            if (own.length) presets = own;
+        }
         if (!presets || presets.length === 0) {
-            // Fallback: pick from all presets
-            const allKeys = Object.keys(this._presets);
+            // Fallback: pick from all presets — but never the player's own
+            // look (registerPreset 'player:…'), or a stranger wears your face
+            const allKeys = Object.keys(this._presets).filter(id => !id.startsWith('player:'));
             if (allKeys.length === 0) return null;
             return allKeys[Math.abs(seed) % allKeys.length];
         }

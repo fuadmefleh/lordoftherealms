@@ -4,6 +4,8 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, Trading, WorldUnit } from './_gameImports.js';
 import { resolveHostileEncounter } from './combat.logic.js';
+import { RoadEncounters } from '../../player/roadEncounters.js';
+import { FieldBattle } from '../../player/fieldBattle.js';
 import { PlayerReligion } from '../../player/playerReligion.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -181,7 +183,7 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
 
     const cleanup = () => {
         overlay.remove();
-        window.removeEventListener('keydown', keyHandler);
+        window.removeEventListener('keydown', keyHandler, true);
     };
 
     const cancelJourney = () => {
@@ -229,15 +231,21 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
         document.getElementById('foodBuy').addEventListener('click', buyAndGo);
     }
 
-    // Keyboard: Enter to buy (if available), Escape to cancel
+    // Keyboard: Enter to buy (if available), Escape to cancel. Captured and
+    // stopped so the game's own Escape (cancel travel, leave the inner map)
+    // does not act on the same key press.
     const keyHandler = (e) => {
         if (e.key === 'Enter' && hasAnyFood) {
+            e.preventDefault();
+            e.stopPropagation();
             buyAndGo();
         } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
             cancelJourney();
         }
     };
-    window.addEventListener('keydown', keyHandler);
+    window.addEventListener('keydown', keyHandler, true);
 }
 
 /**
@@ -245,31 +253,47 @@ export function _showFoodPurchaseModal(pathLen, foodCount, tile, targetHex) {
  * @param {string} [cause] - Death cause passed to showDeathScreen
  */
 export function _triggerDeath(cause) {
+    // Cheats: god mode turns death away
+    if (this._cheats && this._cheats.godMode) {
+        this.isProcessingTurn = false;
+        document.body.style.cursor = 'default';
+        this.player.health = this.player.maxHealth;
+        this.ui.showNotification('🛡️ God mode', `You shrug off death${cause ? ` (${cause})` : ''}.`, 'info');
+        return;
+    }
     if (typeof Relationships !== 'undefined') Relationships.prepareForSave(this.player);
     this.isProcessingTurn = false;
     document.body.style.cursor = 'default';
 
     if (InnerMap.active) {
-        InnerMap.active = false;
-        this.innerMapMode = false;
+        // A full exit, not just active = false: otherwise the inner map's
+        // toolbar, hotbar, context menu and dialog outlive it, and an heir who
+        // carries on finds a "Return to World Map" button that does nothing
+        this.exitInnerMap({ quiet: true });
     }
     this.player._isDead = true;
     setTimeout(() => ActionMenu.showDeathScreen(this, cause), 1200);
 }
 
 /**
- * Check if any hostile units (raiders/pirates) have reached the player
- * and trigger a combat encounter if so.
+ * Check if any hostile units (raiders/pirates/beasts/war hosts) have reached
+ * the player. With a UI the player chooses what to do (ActionMenu.showEncounter:
+ * flee, pay, parley, hide or fight — player/roadEncounters.js); headless, or
+ * when the last encounter / battle was walked away from, it resolves with the
+ * defaults.
  */
 export function _checkHostileEncounters() {
     if (!this.world || !this.player) return;
+    this._settlePendingCombat();
     if (this.player.indenturedServitude) return; // Already captive
     // Holy Sanctuary: no blood may be shed on consecrated ground
     if (PlayerReligion.isInSanctuary(this.player, this.player.q, this.player.r, this.world.width)) return;
 
+    const day = this.world.day;
     const hostiles = this.world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer && // a lair's riders under a bargain (systems/outlawLairs.js)
+        !RoadEncounters.isSparing(u, day) && // paid off, talked down, driven off
         WorldUnit.HOSTILE_TYPES.includes(u.type) &&
         Hex.wrappingDistance(u.q, u.r, this.player.q, this.player.r, this.world.width) <= 1
     );
@@ -283,18 +307,46 @@ export function _checkHostileEncounters() {
     audioManager.playSFX('combat_hit');
     audioManager.setScene('combat');
 
-    // Resolve the encounter (pure logic — mutates state, returns effects to render)
-    const outcome = resolveHostileEncounter(this.player, attacker, this.world);
-    this.ui.showNotification(
-        outcome.notification.title,
-        outcome.notification.body,
-        outcome.notification.type
-    );
+    if (this.ui && typeof this.ui.showCustomPanel === 'function' && typeof document !== 'undefined') {
+        // The player decides (the odds are shown); see ActionMenu.encounterAct
+        this.player.isMoving = false;
+        this._pendingEncounter = { unitId: attacker.id, day };
+        ActionMenu.showEncounter(this, attacker.id);
+    } else {
+        // Headless: the old automatic resolution (pure logic — mutates state, returns effects)
+        const outcome = resolveHostileEncounter(this.player, attacker, this.world);
+        this.ui.showNotification(outcome.notification.title, outcome.notification.body, outcome.notification.type);
+    }
 
     // Restore music scene after combat
     setTimeout(() => {
         audioManager.updateSceneFromGameState(this);
     }, 3000);
+}
+
+/**
+ * An encounter dialog closed without a choice, or a battle left mid-way: the
+ * hostile falls on the player as of old, the battle is fought out with the
+ * default stances.
+ */
+export function _settlePendingCombat() {
+    const b = this._fieldBattle;
+    if (b && !b.done) {
+        FieldBattle.auto(this.player, b, this.world);
+        // Your captains fight it to its end without you (reported by _settleFieldBattle)
+        ActionMenu._settleFieldBattle(this);
+    }
+    if (b && b.done) {
+        this._fieldBattle = null;
+        this._fieldBattleSource = null;
+    }
+    const pending = this._pendingEncounter;
+    if (!pending) return;
+    this._pendingEncounter = null;
+    const unit = this.world.units.find(u => u.id === pending.unitId && !u.destroyed);
+    if (!unit) return;
+    const outcome = RoadEncounters.resolve(this.player, unit, this.world, RoadEncounters.autoChoice(), { auto: true, legacy: true });
+    if (outcome.notification) this.ui.showNotification(outcome.notification.title, outcome.notification.body, outcome.notification.type);
 }
 
 /**
@@ -358,34 +410,40 @@ export function _showEndDayConfirm() {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    // Click outside to cancel
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
-
-    document.getElementById('endDayCancel').addEventListener('click', () => {
+    // Every way out removes the key handler too — a handler left behind by a
+    // mouse close would end the day (unconfirmed) on the next Enter anywhere
+    const close = () => {
         overlay.remove();
-    });
-
-    document.getElementById('endDayConfirm').addEventListener('click', () => {
-        overlay.remove();
+        window.removeEventListener('keydown', keyHandler, true);
+    };
+    const confirm = () => {
+        close();
         this._endDayConfirmed = true;
         this.endDay();
+    };
+
+    // Click outside to cancel
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
     });
 
-    // Keyboard: Enter to confirm, Escape to cancel
+    document.getElementById('endDayCancel').addEventListener('click', close);
+    document.getElementById('endDayConfirm').addEventListener('click', confirm);
+
+    // Keyboard: Enter to confirm, Escape to cancel (captured and stopped, so
+    // Escape does not also cancel travel or leave the inner map)
     const keyHandler = (e) => {
         if (e.key === 'Enter') {
-            overlay.remove();
-            window.removeEventListener('keydown', keyHandler);
-            this._endDayConfirmed = true;
-            this.endDay();
+            e.preventDefault();
+            e.stopPropagation();
+            confirm();
         } else if (e.key === 'Escape') {
-            overlay.remove();
-            window.removeEventListener('keydown', keyHandler);
+            e.preventDefault();
+            e.stopPropagation();
+            close();
         }
     };
-    window.addEventListener('keydown', keyHandler);
+    window.addEventListener('keydown', keyHandler, true);
 }
 
 

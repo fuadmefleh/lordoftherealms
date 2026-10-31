@@ -16,6 +16,8 @@ export class Player {
         this.name = this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
         this.gender = profile.gender || 'male';
         this.age = profile.age || 20;
+        // The look chosen at character creation (ui/playerAppearance.js); null = default noble
+        this.appearance = profile.appearance || null;
         this.title = 'Nobody';
 
         // Core stats

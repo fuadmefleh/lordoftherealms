@@ -124,22 +124,21 @@ Object.assign(Renderer.prototype, {
             ctx.strokeStyle = label.color;
             ctx.lineWidth = Math.max(2, 3 * z);
             ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.font = `bold ${Math.max(9, 12 * z)}px sans-serif`;
-            ctx.fillText(`${k.ask}g`, s.x, s.y - size * 0.55);
-            ctx.font = `${Math.max(8, 9.5 * z)}px sans-serif`;
-            ctx.fillStyle = k.age > C.staleDays ? 'rgba(255, 170, 150, 0.95)' : 'rgba(230, 230, 230, 0.95)';
-            const src = PriceKnowledge.sourceInfo(k.src);
-            ctx.fillText(`${src.icon} ${PriceKnowledge.ageText(k.age)}`, s.x, s.y - size * 0.55 + Math.max(14, size * 0.6));
+            this.drawMapText(ctx, `${k.ask}g`, s.x, s.y - size * 0.55, { size: 12 * z, weight: 700, family: 'body', color: '#fff' });
+            this.drawMapText(ctx, PriceKnowledge.ageText(k.age),
+                s.x, s.y - size * 0.55 + Math.max(16, size * 0.62), {
+                    size: 10 * z, weight: 500, family: 'body',
+                    color: k.age > C.staleDays ? 'rgba(255, 170, 150, 1)' : 'rgba(235, 235, 235, 1)',
+                });
         }
         ctx.globalAlpha = 1;
 
         // The legend
         const lines = [
-            `${good.icon || '📦'} ${good.name} — what you know (${towns.length} towns)`,
+            `${good.name} — what you know (${towns.length} towns)`,
             'G: next good · Shift+G: previous · M: map modes',
         ];
-        ctx.font = '12px sans-serif';
+        ctx.font = "500 13px 'Inter', sans-serif";
         const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 20;
         ctx.fillStyle = 'rgba(12, 18, 32, 0.88)';
         ctx.fillRect(10, 60, w, 22 + lines.length * 16 + 16);

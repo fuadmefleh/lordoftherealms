@@ -226,36 +226,36 @@ export const WEATHER_COMMENTS = {
 
 export const NPC_QUEST_HOOKS = {
     merchant: [
-        { text: 'Actually... I have a problem you might help with. A caravan of mine went missing on the northern road. Find it and I\'ll make it worth your while.', type: 'escort_trade_caravan', reward: 'gold' },
-        { text: 'I\'ve been trying to get a shipment of rare spices, but the supplier won\'t deal with middlemen. Could you negotiate on my behalf?', type: 'merchant_delivery', reward: 'gold' },
+        { text: 'Actually... I have a problem you might help with. A caravan of mine went missing on the northern road. Find it and I\'ll make it worth your while.', type: 'escort_trade_caravan', task: 'missing_caravan', reward: 'gold' },
+        { text: 'I\'ve been trying to get a shipment of rare spices, but the supplier won\'t deal with middlemen. Could you negotiate on my behalf?', type: 'merchant_delivery', task: 'spice_supplier', reward: 'gold' },
     ],
     guard: [
-        { text: 'Look, I\'m not supposed to ask civilians, but... we\'re understaffed. There\'s a bandit camp in the forest that needs clearing out. Interested?', type: 'clear_bandits', reward: 'reputation' },
-        { text: 'Between us, I lost a patrol report. If the captain finds out... Could you help me search the tavern? I think I dropped it there.', type: 'fetch_item', reward: 'favor' },
+        { text: 'Look, I\'m not supposed to ask civilians, but... we\'re understaffed. There\'s a bandit camp in the forest that needs clearing out. Interested?', type: 'clear_bandits', task: 'bandit_camp', reward: 'reputation' },
+        { text: 'Between us, I lost a patrol report. If the captain finds out... Could you help me search the tavern? I think I dropped it there.', type: 'fetch_item', task: 'lost_report', reward: 'favor' },
     ],
     farmer: [
-        { text: 'Something\'s been attacking my livestock at night. I can\'t afford to lose more animals. Could you investigate? I\'ll pay what I can.', type: 'investigate_threat', reward: 'gold' },
-        { text: 'My son went into the old forest three days ago and hasn\'t returned. Please, if you could look for him...', type: 'rescue_person', reward: 'reputation' },
+        { text: 'Something\'s been attacking my livestock at night. I can\'t afford to lose more animals. Could you investigate? I\'ll pay what I can.', type: 'investigate_threat', task: 'livestock_killer', reward: 'gold' },
+        { text: 'My son went into the old forest three days ago and hasn\'t returned. Please, if you could look for him...', type: 'rescue_person', task: 'missing_son', reward: 'reputation' },
     ],
     priest: [
-        { text: 'There is a holy relic that was stolen from our shrine. I believe it was taken to the ruins east of here. Can you retrieve it?', type: 'retrieve_relic', reward: 'blessing' },
-        { text: 'A plague of dark spirits haunts the old cemetery. The faithful are too afraid to visit their ancestors\' graves. Will you help?', type: 'clear_undead', reward: 'blessing' },
+        { text: 'There is a holy relic that was stolen from our shrine. I believe it was taken to the ruins east of here. Can you retrieve it?', type: 'retrieve_relic', task: 'stolen_relic', reward: 'blessing' },
+        { text: 'A plague of dark spirits haunts the old cemetery. The faithful are too afraid to visit their ancestors\' graves. Will you help?', type: 'clear_undead', task: 'restless_dead', reward: 'blessing' },
     ],
     blacksmith_npc: [
-        { text: 'I need rare ore from the mountain caves. The regular miners won\'t go — say it\'s too dangerous. I\'ll forge you a masterwork if you bring me some.', type: 'gather_resource', reward: 'equipment' },
-        { text: 'A knight\'s sword I forged was stolen. My reputation is at stake! Track down the thief and I\'ll owe you one.', type: 'retrieve_item', reward: 'equipment' },
+        { text: 'I need rare ore from the mountain caves. The regular miners won\'t go — say it\'s too dangerous. I\'ll forge you a masterwork if you bring me some.', type: 'gather_resource', task: 'rare_ore', reward: 'equipment' },
+        { text: 'A knight\'s sword I forged was stolen. My reputation is at stake! Track down the thief and I\'ll owe you one.', type: 'retrieve_item', task: 'stolen_sword', reward: 'equipment' },
     ],
     villager: [
-        { text: 'My grandmother\'s locket was taken by those awful bandits. It\'s all I have left of her. Could you... could you try to get it back?', type: 'retrieve_item', reward: 'gratitude' },
-        { text: 'We need someone to deliver medicine to the old hermit in the hills. It\'s too dangerous for us townsfolk.', type: 'delivery', reward: 'gold' },
+        { text: 'My grandmother\'s locket was taken by those awful bandits. It\'s all I have left of her. Could you... could you try to get it back?', type: 'retrieve_item', task: 'lost_locket', reward: 'gratitude' },
+        { text: 'We need someone to deliver medicine to the old hermit in the hills. It\'s too dangerous for us townsfolk.', type: 'delivery', task: 'hermit_medicine', reward: 'gold' },
     ],
     noble: [
-        { text: 'I need a discreet individual for a delicate matter. A rival noble has documents that could... embarrass my family. Retrieve them.', type: 'espionage', reward: 'gold' },
-        { text: 'There is a matter of honor that requires attention. A minor lord has insulted my house. I need someone to deliver my challenge.', type: 'delivery', reward: 'reputation' },
+        { text: 'I need a discreet individual for a delicate matter. A rival noble has documents that could... embarrass my family. Retrieve them.', type: 'espionage', task: 'rival_documents', reward: 'gold' },
+        { text: 'There is a matter of honor that requires attention. A minor lord has insulted my house. I need someone to deliver my challenge.', type: 'delivery', task: 'deliver_challenge', reward: 'reputation' },
     ],
     traveler: [
-        { text: 'I discovered the entrance to ancient ruins on my last journey. I lack the courage to explore alone. Join me and we split the findings?', type: 'explore_ruins', reward: 'treasure' },
-        { text: 'I know where a bounty target is hiding. Help me bring them in and we\'ll split the reward.', type: 'bounty', reward: 'gold' },
+        { text: 'I discovered the entrance to ancient ruins on my last journey. I lack the courage to explore alone. Join me and we split the findings?', type: 'explore_ruins', task: 'ancient_ruins', reward: 'treasure' },
+        { text: 'I know where a bounty target is hiding. Help me bring them in and we\'ll split the reward.', type: 'bounty', task: 'bounty_target', reward: 'gold' },
     ],
 };
 

@@ -1,7 +1,13 @@
 // ActionMenu — skills methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { panelClosed } from './uiKit.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Ailments } from '../../systems/ailments.js';
+import { Duels } from '../../systems/duels.js';
+import { PlayerEffects } from '../../player/playerEffects.js';
+import { DuelPanel } from './duel.js';
+import { DevotionPanel } from './devotion.js';
+import { Devotion } from '../../systems/devotion.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -17,7 +23,7 @@ Object.assign(ActionMenu, {
 
         const stealthSkill = player.skills?.stealth || 1;
         const luckStat = player.luck || 5;
-        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' ? 'town' : 'village');
+        const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' || settlement.type === 'city' ? 'town' : 'village');
 
         // ── Target generation ──
         const targetPool = [
@@ -882,6 +888,7 @@ Object.assign(ActionMenu, {
 
             // Start patrol animation
             smuggleTimer = setInterval(() => {
+                if (phase === 'sneaking' && panelClosed()) phase = 'abandoned';
                 if (phase !== 'sneaking') { clearInterval(smuggleTimer); return; }
                 updateGuards();
                 // Passive suspicion decay
@@ -1038,273 +1045,85 @@ Object.assign(ActionMenu, {
     },
 
     _doTrainCombatMinigame(game, tile, player, settlement, cost) {
-        // ── Combat Training Minigame: Sparring duel ──
-        const combatSkill = player.skills?.combat || 1;
+        // ── Combat Training: a sparring bout on the duel engine (systems/duels.js) ──
         const isCapital = settlement.type === 'capital';
-        const opponentName = isCapital ? 'Royal Swordmaster' : 'Militia Sergeant';
-        const opponentIcon = isCapital ? '🗡️' : '⚔️';
-        const rounds = 5;
-        let currentRound = 0;
-        let playerScore = 0;
-        let opponentScore = 0;
-        let phase = 'ready'; // ready → choose → clash → result
-        let playerChoice = null;
-        let opponentChoice = null;
-        let clashResult = '';
-        let statusMsg = '';
-        let sparInterval = null;
-        let timeLeft = 0;
+        const trainer = Duels.trainer(settlement);
+        const me = Duels.fromPlayer(player, { mods: PlayerEffects.duelModifiers(player), fresh: true });
 
-        const moves = [
-            { id: 'slash',  icon: '⚔️',  label: 'Slash',  beats: 'thrust' },
-            { id: 'thrust', icon: '🗡️',  label: 'Thrust', beats: 'block' },
-            { id: 'block',  icon: '🛡️',  label: 'Block',  beats: 'slash' },
-        ];
+        DuelPanel.open(game, {
+            a: me,
+            b: trainer,
+            mode: 'spar',
+            title: '⚔️ Combat Training',
+            intro: `${settlement.name} — sparring with ${trainer.icon} ${trainer.name} (paid ${cost}g). Blunted steel: five exchanges, the one with more left standing wins.`,
+            continueLabel: 'See what you learned',
+            onFinish: (r) => {
+                const won = r.playerWon;
+                const tied = r.draw;
+                const msgs = [];
 
-        const getMove = (id) => moves.find(m => m.id === id);
-
-        const cleanup = () => {
-            if (sparInterval) { clearInterval(sparInterval); sparInterval = null; }
-        };
-
-        const render = () => {
-            let html = '<div style="max-width: 440px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">⚔️ Combat Training</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">${settlement.name} — Sparring with ${opponentIcon} ${opponentName} (paid ${cost}g)</p>`;
-
-            if (phase === 'ready' || phase === 'choose') {
-                // Scoreboard
-                html += `<div style="display: flex; justify-content: space-around; margin-bottom: 12px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    <div>
-                        <div style="font-size: 11px; color: var(--text-muted);">You</div>
-                        <div style="font-size: 28px; color: #2ecc71; font-weight: bold;">${playerScore}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: var(--text-muted);">Round</div>
-                        <div style="font-size: 20px; color: var(--text-primary); font-weight: bold;">${currentRound + 1}/${rounds}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; color: var(--text-muted);">${opponentName}</div>
-                        <div style="font-size: 28px; color: #e74c3c; font-weight: bold;">${opponentScore}</div>
-                    </div>
-                </div>`;
-
-                if (phase === 'choose') {
-                    // Timer bar
-                    html += `<div style="margin-bottom: 8px;">
-                        <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 8px; overflow: hidden;">
-                            <div style="width: ${timeLeft}%; height: 100%; background: ${timeLeft < 30 ? '#e74c3c' : '#f39c12'}; transition: width 0.1s; border-radius: 5px;"></div>
-                        </div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Choose your move!</div>
-                    </div>`;
-                }
-
-                html += `<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Choose your technique:</div>`;
-                html += `<div style="display: flex; gap: 10px; justify-content: center;">`;
-                for (const m of moves) {
-                    const beatsMove = getMove(m.beats);
-                    html += `<button onclick="window._sparMove('${m.id}')"
-                        style="flex: 1; padding: 16px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-                               border-radius: 10px; cursor: pointer; color: var(--text-primary); transition: all 0.15s; text-align: center;"
-                        onmouseenter="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--gold)'"
-                        onmouseleave="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.1)'">
-                        <div style="font-size: 28px; margin-bottom: 4px;">${m.icon}</div>
-                        <div style="font-size: 13px; font-weight: bold;">${m.label}</div>
-                        <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">beats ${beatsMove.label}</div>
-                    </button>`;
-                }
-                html += `</div>`;
-
-                if (statusMsg) html += `<div style="margin-top: 10px; font-size: 12px;">${statusMsg}</div>`;
-
-            } else if (phase === 'clash') {
-                const pm = getMove(playerChoice);
-                const om = getMove(opponentChoice);
-                html += `<div style="display: flex; justify-content: space-around; align-items: center; margin: 16px 0;">
-                    <div>
-                        <div style="font-size: 48px;">${pm.icon}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Your ${pm.label}</div>
-                    </div>
-                    <div style="font-size: 24px; color: var(--gold);">⚡</div>
-                    <div>
-                        <div style="font-size: 48px;">${om.icon}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${opponentName}'s ${om.label}</div>
-                    </div>
-                </div>`;
-                html += `<div style="font-size: 16px; font-weight: bold; margin-bottom: 12px;">${clashResult}</div>`;
-
-                // Scoreboard
-                html += `<div style="display: flex; justify-content: space-around; margin-bottom: 12px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    <div style="font-size: 24px; color: #2ecc71; font-weight: bold;">${playerScore}</div>
-                    <div style="font-size: 14px; color: var(--text-muted);">Round ${currentRound}/${rounds}</div>
-                    <div style="font-size: 24px; color: #e74c3c; font-weight: bold;">${opponentScore}</div>
-                </div>`;
-
-                if (currentRound < rounds) {
-                    html += `<button onclick="window._sparNext()"
-                        style="padding: 10px 32px; background: rgba(255,255,255,0.08); border: 1px solid var(--gold); border-radius: 8px;
-                               cursor: pointer; color: var(--gold); font-weight: bold; font-size: 13px;">Next Round →</button>`;
+                // Combat skill — high chance if won, lower if lost
+                const combatChance = won ? (isCapital ? 0.65 : 0.45) :
+                                     tied ? (isCapital ? 0.35 : 0.20) :
+                                            (isCapital ? 0.20 : 0.10);
+                if (Math.random() < combatChance && player.skills) {
+                    player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
+                    msgs.push('⚔️ Combat skill improved!');
                 } else {
-                    html += `<button onclick="window._sparFinish()"
-                        style="padding: 10px 32px; background: var(--gold); border: none; border-radius: 8px;
-                               cursor: pointer; font-weight: bold; font-size: 13px;">See Results</button>`;
+                    msgs.push(won ? 'Good fight, but no skill breakthrough.' : 'A humbling lesson.');
                 }
 
-            } else if (phase === 'result') {
-                const won = playerScore > opponentScore;
-                const tied = playerScore === opponentScore;
-                html += `<div style="font-size: 48px; margin: 8px 0;">${won ? '🏆' : tied ? '🤝' : '😤'}</div>`;
-                html += `<div style="font-size: 18px; color: ${won ? '#2ecc71' : tied ? '#f39c12' : '#e74c3c'}; font-weight: bold; margin-bottom: 4px;">
-                    ${won ? 'Victory!' : tied ? 'Draw!' : 'Defeated!'}
-                </div>`;
-                html += `<div style="font-size: 14px; margin-bottom: 8px;">${playerScore} - ${opponentScore}</div>`;
+                // Strength improvement
+                if (Math.random() < (won ? 0.20 : 0.10)) {
+                    player.strength = (player.strength || 5) + 1;
+                    msgs.push('💪 Strength increased!');
+                }
 
-                if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); white-space: pre-line; margin-bottom: 8px;">${statusMsg}</div>`;
+                // Army XP if player has troops
+                if (player.army && player.army.length > 0) {
+                    const xpGain = isCapital ? 15 : 10;
+                    const bonus = won ? 5 : 0;
+                    for (const unit of player.army) {
+                        unit.experience = (unit.experience || 0) + xpGain + bonus;
+                    }
+                    msgs.push(`🎖️ Army gained ${xpGain + bonus} XP from drills.`);
+                }
 
+                const verdict = won ? '🏆 You won the bout' : tied ? '🤝 An even bout' : '😤 The trainer had the better of you';
+                let html = '<div style="max-width: 440px; text-align: center;">';
+                html += `<div style="font-size: 16px; font-weight: bold; margin: 6px 0;">${verdict}</div>`;
+                html += `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">You landed ${r.dealt}, took ${r.taken} with ${me.weapon}.</div>`;
+                html += `<div style="font-size: 12px; white-space: pre-line; margin-bottom: 8px;">${msgs.join('\n')}</div>`;
                 html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 8px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
-            }
-
-            html += '</div>';
-            game.ui.showCustomPanel('⚔️ Combat Training', html);
-        };
-
-        // Start first round
-        phase = 'choose';
-        timeLeft = 100;
-        render();
-
-        // Timer for each round
-        const startTimer = () => {
-            timeLeft = 100;
-            cleanup();
-            sparInterval = setInterval(() => {
-                timeLeft -= 5;
-                if (timeLeft <= 0) {
-                    // Auto-pick random move
-                    cleanup();
-                    const autoMove = moves[Math.floor(Math.random() * moves.length)];
-                    resolveClash(autoMove.id);
-                }
-                // Light re-render of just the timer would be complex, so we re-render
-                if (timeLeft > 0 && phase === 'choose') render();
-            }, 200);
-        };
-        startTimer();
-
-        const resolveClash = (pMoveId) => {
-            cleanup();
-            playerChoice = pMoveId;
-            // Opponent AI — slightly favors beating the player's last move at higher levels
-            const opMoves = moves.map(m => m.id);
-            opponentChoice = opMoves[Math.floor(Math.random() * opMoves.length)];
-
-            const pm = getMove(playerChoice);
-            const om = getMove(opponentChoice);
-
-            if (pm.beats === om.id) {
-                playerScore++;
-                clashResult = `<span style="color: #2ecc71;">Your ${pm.label} beats ${om.label}! Hit!</span>`;
-            } else if (om.beats === pm.id) {
-                opponentScore++;
-                clashResult = `<span style="color: #e74c3c;">${om.label} beats your ${pm.label}! Counter-hit!</span>`;
-            } else {
-                clashResult = `<span style="color: #f39c12;">Both ${pm.label} — Clash! No point.</span>`;
-            }
-
-            currentRound++;
-            phase = 'clash';
-            render();
-        };
-
-        window._sparMove = (moveId) => {
-            if (phase !== 'choose') return;
-            resolveClash(moveId);
-        };
-
-        window._sparNext = () => {
-            if (currentRound >= rounds) return;
-            phase = 'choose';
-            statusMsg = '';
-            render();
-            startTimer();
-        };
-
-        window._sparFinish = () => {
-            cleanup();
-            phase = 'result';
-            let msgs = [];
-
-            const won = playerScore > opponentScore;
-            const tied = playerScore === opponentScore;
-
-            // Combat skill — high chance if won, lower if lost
-            const combatChance = won ? (isCapital ? 0.65 : 0.45) :
-                                 tied ? (isCapital ? 0.35 : 0.20) :
-                                        (isCapital ? 0.20 : 0.10);
-            if (Math.random() < combatChance && player.skills) {
-                player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
-                msgs.push('⚔️ Combat skill improved!');
-            } else {
-                msgs.push(won ? 'Good fight, but no skill breakthrough.' : 'A humbling lesson.');
-            }
-
-            // Strength improvement
-            if (Math.random() < (won ? 0.20 : 0.10)) {
-                player.strength = (player.strength || 5) + 1;
-                msgs.push('💪 Strength increased!');
-            }
-
-            // Army XP if player has troops
-            if (player.army && player.army.length > 0) {
-                const xpGain = isCapital ? 15 : 10;
-                const bonus = won ? 5 : 0;
-                for (const unit of player.army) {
-                    unit.experience = (unit.experience || 0) + xpGain + bonus;
-                }
-                msgs.push(`🎖️ Army gained ${xpGain + bonus} XP from drills.`);
-            }
-
-            statusMsg = msgs.join('\n');
-            render();
-            game.ui.updateStats(player, game.world);
-        };
+                html += '</div>';
+                game.ui.showCustomPanel('⚔️ Combat Training', html);
+                game.ui.updateStats(player, game.world);
+            },
+        });
     },
 
     /**
-     * Meditate — restore health, gain karma, faith bonus at holy sites
+     * Meditate — rest and devotion by the devotion model (systems/devotion.js):
+     * worth less each time today and at the same place, karma capped per day,
+     * faith-bound at holy sites; an omen or a vow may come of it.
      */
     doMeditate(game, tile) {
         const player = game.player;
         const isHolySite = !!tile.holySite;
         const faithStat = player.faith || 5;
         const intStat = player.intelligence || 5;
-
-        const baseHeal = Math.max(5, 10 + ((faithStat - 3) * 2) + (isHolySite ? 15 : 0));
-        const baseKarma = isHolySite ? 5 : 2;
+        const place = isHolySite ? 'holy' : (tile.religiousBuilding ? 'temple' : 'field');
+        const pre = Devotion.preview(player, game.world, { kind: 'meditate', place, tile });
+        const worth = Math.round(pre.mult * pre.soul * 100);
 
         ActionMenu._showMinigamePrompt(game, {
             title: '🧘 Meditation',
             icon: '🧘',
-            description: `Meditate peacefully${isHolySite ? ' at this holy site' : ''}.`,
-            baseRewardText: `+${baseHeal} HP, +${baseKarma} karma`,
+            description: `Meditate peacefully${isHolySite ? ' at this holy site' : ''}. ${pre.notes.join(' ')}`,
+            baseRewardText: `rest and karma (worth ${worth}% today${pre.karmaRoom <= 0 ? ', no more karma today' : ''})`,
             onSkip: () => {
-                // Base reward: simple instant heal + karma (original pre-minigame behavior)
-                player.health = Math.min(player.maxHealth || 100, player.health + baseHeal);
-                player.karma = (player.karma || 0) + baseKarma;
-                let msg = `Meditated peacefully. +${baseHeal} HP, +${baseKarma} karma.`;
-                if (Math.random() < (isHolySite ? 0.35 : 0.1)) {
-                    player.faith = (player.faith || 5) + 1;
-                    msg += ' Your faith deepened.';
-                }
-                if (Math.random() < 0.1) {
-                    player.intelligence = (player.intelligence || 5) + 1;
-                    msg += ' Your mind feels sharper.';
-                }
-                if (isHolySite) msg += ' The holy site amplified your meditation!';
-                game.ui.showNotification('🧘 Meditation', msg, 'success');
-                game.ui.updateStats(player, game.world);
-                game.endDay();
+                DevotionPanel.devote(game, tile, 'meditate', { place, quality: 0.5, endDay: true });
             },
             onPlay: () => { ActionMenu._doMeditateMinigame(game, tile, player, isHolySite, faithStat, intStat); }
         });
@@ -1403,26 +1222,9 @@ Object.assign(ActionMenu, {
                 html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Click when the circle is at its fullest. Breathe with the rhythm.</div>`;
 
             } else {
-                // Results
+                // Results: the devotion model takes the score as the meditation's quality (once)
                 const scorePercent = focusScore / totalBreaths;
-                const baseHeal = 10;
-                const faithBonus = (faithStat - 3) * 2;
-                const perfBonus = Math.floor(scorePercent * 15);
-                const heal = Math.max(5, baseHeal + faithBonus + perfBonus + (isHolySite ? 15 : 0));
-                player.health = Math.min(player.maxHealth || 100, player.health + heal);
-
-                const karmaGain = (isHolySite ? 5 : 2) + (scorePercent >= 0.75 ? 2 : 0);
-                player.karma = (player.karma || 0) + karmaGain;
-
-                let bonusMsg = '';
-                if (Math.random() < (isHolySite ? 0.35 : 0.1) + scorePercent * 0.1) {
-                    player.faith = (player.faith || 5) + 1;
-                    bonusMsg += ' 🙏 Your faith deepened.';
-                }
-                if (Math.random() < 0.1 + scorePercent * 0.08) {
-                    player.intelligence = (player.intelligence || 5) + 1;
-                    bonusMsg += ' 🧠 Your mind feels sharper.';
-                }
+                if (!devoRes) devoRes = Devotion.devote(player, game.world, { kind: 'meditate', place: isHolySite ? 'holy' : (tile.religiousBuilding ? 'temple' : 'field'), tile, quality: scorePercent });
 
                 const grade = scorePercent >= 0.9 ? 'Perfect Serenity' : scorePercent >= 0.7 ? 'Deep Focus' : scorePercent >= 0.5 ? 'Calm Meditation' : scorePercent >= 0.3 ? 'Distracted Mind' : 'Restless Thoughts';
                 const gradeColor = scorePercent >= 0.7 ? '#2ecc71' : scorePercent >= 0.4 ? '#f39c12' : '#e74c3c';
@@ -1430,13 +1232,8 @@ Object.assign(ActionMenu, {
                 html += `<div style="font-size: 48px; margin: 12px 0;">🧘</div>`;
                 html += `<div style="font-size: 18px; color: ${gradeColor}; font-weight: bold; margin-bottom: 8px;">${grade}</div>`;
                 html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Focused breaths: ${focusScore}/${totalBreaths}</div>`;
-
-                html += `<div style="text-align: left; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 6px; margin-bottom: 8px;">`;
-                html += `<div style="margin-bottom: 4px;">❤️ Healed: <span style="color: #2ecc71;">+${heal} HP</span></div>`;
-                html += `<div style="margin-bottom: 4px;">☯️ Karma: <span style="color: #3498db;">+${karmaGain}</span></div>`;
-                if (bonusMsg) html += `<div style="color: #f5c542;">${bonusMsg.trim()}</div>`;
-                if (isHolySite) html += `<div style="color: #9b59b6; margin-top: 4px;">✨ Holy site amplified your meditation!</div>`;
-                html += `</div>`;
+                html += DevotionPanel.resultHtml(devoRes);
+                html += `<button onclick="window._devo && window._devo.journal()" style="padding: 6px 10px; background: rgba(255,255,255,0.12); border: none; border-radius: 4px; cursor: pointer; color: var(--text-primary);">📿 Your devotions</button>`;
 
                 html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 8px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
@@ -1444,13 +1241,16 @@ Object.assign(ActionMenu, {
 
             html += '</div>';
             game.ui.showCustomPanel('🧘 Meditation', html);
+            if (devoRes) { DevotionPanel._bind(game, tile); game.ui.updateStats(player, game.world); }
         };
 
         // Track per-breath results
         const breathResults = [];
+        let devoRes = null;
 
         // Animation loop
         medTimer = setInterval(() => {
+            if (phase === 'meditating' && panelClosed()) phase = 'abandoned';
             if (phase !== 'meditating') { clearInterval(medTimer); return; }
 
             breathPhase += breathSpeed;
@@ -1920,6 +1720,7 @@ Object.assign(ActionMenu, {
 
             // Fish AI: fights by changing tension + pulling back progress
             reelInterval = setInterval(() => {
+                if (phase === 'reel' && panelClosed()) phase = 'abandoned';
                 if (phase !== 'reel') { clearInterval(reelInterval); return; }
 
                 // Fish erratically fights: pushes tension around
@@ -2544,6 +2345,7 @@ Object.assign(ActionMenu, {
 
         // Game loop — horse naturally gets restless
         gameInterval = setInterval(() => {
+            if (phase === 'taming' && panelClosed()) { phase = 'abandoned'; cleanup(); return; }
             if (phase !== 'taming') return;
 
             // Horse naturally drifts (gets nervous)

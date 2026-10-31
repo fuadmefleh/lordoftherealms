@@ -30,6 +30,22 @@
         "cattle_ranch": { "name": "Cattle ranch",  "icon": "🐄", "good": { "hide": 0.7 },              "resource": "cattle",   "priority": 2,  "hands": 6 }
     },
 
+    "_sprites": "How each kind's site is drawn on the world map (ui/renderer/features.js renderRuralSites): a list of variants, one picked per hex by a hash. A variant is an image path under assets/tiles/ or a list of layers; a layer is a path or { img, x, y, s }: x, y place the image's bottom-centre in hex radii from the hex centre (default 0, 0.5), s scales it (1 = the settlements' scale). Full hex tiles (384px tall) are centred on the hex like a town. A kind with no sprites (fisheries, out on the water) keeps only its marker.",
+    "sprites": {
+        "iron_mine":    [["buildings/mines04.png"], [{ "img": "buildings/mines05.png", "s": 1.1 }]],
+        "copper_mine":  [[{ "img": "buildings/mines05.png", "s": 1.1 }], [{ "img": "buildings/mines02.png", "s": 1.2 }]],
+        "silver_mine":  [[{ "img": "buildings/mines02.png", "s": 1.2 }], [{ "img": "buildings/mines04.png" }]],
+        "gold_mine":    [[{ "img": "buildings/mines03.png", "s": 1.2, "x": -0.12 }, { "img": "buildings/tent00.png", "x": 0.42, "y": 0.62, "s": 0.9 }]],
+        "gem_mine":     [[{ "img": "buildings/mines00.png", "s": 1.3 }], [{ "img": "buildings/mines03.png", "s": 1.3 }]],
+        "coal_pit":     [[{ "img": "buildings/clayPit01.png", "s": 0.55, "y": 0.62 }, { "img": "buildings/mines01.png", "s": 1.2, "x": -0.05, "y": 0.4 }]],
+        "quarry":       [[{ "img": "buildings/clayPit00.png", "s": 0.7, "y": 0.62 }, { "img": "buildings/foresterShed00.png", "x": 0.38, "y": 0.3, "s": 0.8 }]],
+        "salt_pan":     [[{ "img": "buildings/clayPit01.png", "s": 0.65, "y": 0.62 }, { "img": "buildings/well01.png", "x": -0.35, "y": 0.35 }]],
+        "sheep_run":    [[{ "img": "buildings/pasture00_sheep.png", "s": 1.2, "y": 0.62 }, { "img": "buildings/barnWood00.png", "x": -0.42, "y": 0.2 }], [{ "img": "buildings/pasture00_sheep.png", "s": 1.3, "y": 0.6 }]],
+        "timber_camp":  [[{ "img": "buildings/loggingCamp00.png", "s": 1.05 }], [{ "img": "buildings/loggingCamp01.png", "s": 1.0 }]],
+        "horse_stud":   [[{ "img": "buildings/corral01.png", "s": 1.1, "y": 0.62 }, { "img": "buildings/barn00.png", "x": -0.4, "y": 0.25, "s": 0.95 }], [{ "img": "buildings/corral02.png", "s": 1.1, "y": 0.62 }, { "img": "buildings/barn00.png", "x": 0.35, "y": 0.2, "s": 0.95 }]],
+        "cattle_ranch": [[{ "img": "buildings/corral00_cows.png", "s": 1.2, "y": 0.62 }, { "img": "buildings/barnWood00.png", "x": 0.4, "y": 0.22 }], [{ "img": "buildings/corral01_cows.png", "s": 1.1, "y": 0.62 }]]
+    },
+
     "_yield": "A deposit's yield: 1 while at least `knee` of its reserve is left, then down in a line to `min` at the bottom.",
     "yield": { "knee": 0.5, "min": 0.35 },
 

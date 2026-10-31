@@ -1,0 +1,136 @@
+{
+    "_doc": "The post: courier houses based in towns (systems/couriers.js, state on world.post) and the letters the player sends through them (systems/mail.js, state on player.mail). A courier house has an owner (an NPC or the player), stations (towns it serves), riders, relay horses, guards, a speed tier, a postage price, a reputation and cash. Each week every town writes letters (demand from its size and its court), split among the couriers with a station there by price, speed and reputation; wages, horses and stations are paid; riders on dangerous roads (war, raiders, outlaw lairs) are robbed. NPC houses are founded where a town goes unserved, open stations when rich, cut prices when losing and go bankrupt. A crown may grant one house a Royal Post charter: only it carries that realm's mail. The player's letters travel real days by distance, roads and season, and may be lost, delayed, robbed or intercepted; the recipient's answer comes back to Journal -> Letters.",
+
+    "config": {
+        "enabled": true,
+        "weekDays": 7,
+        "firstDay": 3,
+        "demand": { "perPop": 0.004, "type": { "village": 0.4, "town": 1, "city": 1.6, "capital": 2.4 }, "min": 1, "max": 40, "unservedToFound": 16, "revenuePerLetter": 1.5, "priceElasticity": 0.8 },
+        "speeds": {
+            "standard": { "name": "Standard post", "icon": "✉️", "hexesPerDay": 7, "price": 1, "wage": 1, "appeal": 1 },
+            "express": { "name": "Express riders", "icon": "🏇", "hexesPerDay": 11, "price": 1.5, "wage": 1.5, "appeal": 1.3 },
+            "relay": { "name": "Relay of fresh horses", "icon": "🐎", "hexesPerDay": 16, "price": 2.2, "wage": 2, "appeal": 1.6, "horsesPerStation": 2 }
+        },
+        "costs": { "riderWage": 6, "horseUpkeep": 2, "stationUpkeep": 8, "guardWage": 5, "riderHire": 20, "horsePrice": 30, "guardHire": 15, "stationPrice": 150, "foundPrice": 400, "licence": 100, "maxRiders": 60, "maxHorses": 60, "maxGuards": 30 },
+        "price": { "base": 4, "min": 1, "max": 20, "perHex": 0.12, "elasticity": 1.3 },
+        "npc": { "maxCouriers": 14, "startCash": [300, 900], "startStations": [2, 4], "expandAt": 520, "expandRange": 14, "maxStations": 10, "bankruptCash": -150, "lossWeeksToCut": 2, "priceCut": 0.9, "priceRaise": 1.05, "ridersPerStation": 2, "foundCash": [250, 600], "minPriceMult": 0.6, "maxPriceMult": 1.6 },
+        "reliability": { "base": 0.8, "horses": 0.1, "guards": 0.05, "repWeight": 0.002, "min": 0.4, "max": 0.98, "offNetwork": 0.9, "offNetworkDays": 1.3 },
+        "danger": { "war": 0.35, "raider": 0.4, "lair": 0.3, "raiderRange": 4, "lairRange": 5, "robChance": 0.35, "robRep": 3, "robCash": [10, 40] },
+        "charter": { "everyDays": 28, "grantChance": 0.25, "minStations": 3, "playerMinStations": 2, "minReputation": 55, "feePerTown": 6, "playerBid": 300, "bidCooldown": 30, "demandBonus": 1.2 },
+        "events": { "bagChance": 0.12, "foundOut": 0.25, "sellFoundOut": 0.35, "sellPrice": [60, 150], "sabotageChance": 0.06, "maxNews": 30, "maxHistory": 8 },
+        "mail": {
+            "maxInTransit": 4, "perDay": 2, "recentDays": 45, "courtesyCap": 2, "maxSent": 30,
+            "lossShare": 0.5, "delay": 0.1, "winterDelay": 0.2, "delayDays": [1, 3], "winterSpeed": 0.8, "roadSpeed": 1.15, "noRoadSpeed": 0.85, "closedDays": 3,
+            "intercept": 0.04, "interceptPerEnemy": 0.04, "interceptRival": 0.05, "interceptMax": 0.25, "foundOut": 0.6,
+            "ownRiderFee": 12, "ownRiderPerHex": 0.5, "ownRiderReliability": 0.85, "ownRiderHexes": 8,
+            "replyChance": 0.85, "replyExpiry": 14, "favourDays": 60,
+            "giftPresets": [25, 100, 300], "ransom": [150, 2000], "freeReleaseRegard": 45,
+            "recallApproval": 45, "recallDeserted": 60
+        }
+    },
+
+    "_riders": "Riders on the map (systems/courierRiders.js; the game's own day only, never the headless harness): each letter the player sends from the Letters panel rides as a 'courier_rider' unit along the road, due at the recipient's town on the letter's arrival day. A sample of the houses' traffic rides too: every everyDays days a house may send one rider (npcChance, at most npcPerHouse) between two stations when an end is within nearRange of the player, at most npcMax on the map; the player's own house sends up to ownHouseMax (ownHouseChance), shown even in the fog. On the road: a raider band or lair beast within hostileRange robs with chance its strength / (its strength + the rider's guards) x robShare; an active outlaw lair within lairRange with lairChance x (1 - guard cover); a realm at war with the recipient's realm reads a lord's, rival's or child's letter (warIntercept) or seizes a house rider's bag (warSeize). Guards: guardBase + guard cover x guardPer. Bags: bagLetters, bagGold coin, a lord's sealed letter (sealedChance). Robbed by the player: Underworld crime robbery.crime (data/underworld.json), robbery.reputation lost in the realm, the house's reputation -robbery.houseRep, a sealed letter to the inbox (courtLetters stolen_mailbag) worth robbery.sealedPrice to the lord's enemy.",
+    "riders": {
+        "enabled": true, "icon": "🏇", "ownIcon": "🐴", "everyDays": 2,
+        "npcMax": 6, "npcPerHouse": 1, "npcChance": 0.5, "nearRange": 16, "ownHouseMax": 3, "ownHouseChance": 0.6,
+        "hostileRange": 1, "lairRange": 2, "lairChance": 0.35, "robShare": 0.7, "warIntercept": 0.3, "warSeize": 0.2,
+        "guardBase": 2, "guardPer": 6, "bagLetters": [2, 9], "bagGold": [4, 30], "sealedChance": 0.3, "noticeRange": 6, "meetRange": 1,
+        "robbery": { "crime": "mail_robbery", "reputation": 8, "houseRep": 3, "sealedPrice": [40, 120], "failScale": 0.5 }
+    },
+
+    "names": {
+        "first": ["Swift", "Crown", "Silver", "Northroad", "Greyhorse", "Red Seal", "Wayfarer", "Lantern", "Iron Spur", "Hartwell", "Oakmere", "Falcon", "Blackwing", "Kingsway", "Thornbury", "Golden Horn"],
+        "last": ["Post", "Riders", "Couriers", "Letter-Carriers", "Mail", "Post House"],
+        "owners": ["Master Aldous Penn", "Dame Hild Marrow", "Goodman Tobin Reeve", "Mistress Ysolde Vane", "Master Corvin Hale", "Widow Ebba Strand", "Master Garrick Thorne", "Mistress Lina Fairweather"]
+    },
+
+    "recipientTypes": {
+        "lord": { "name": "Lords", "icon": "👑" },
+        "rival": { "name": "Rival Houses", "icon": "⚔️" },
+        "spouse": { "name": "Your spouse", "icon": "💍" },
+        "child": { "name": "Your children abroad", "icon": "👶" },
+        "npc": { "name": "Friends & loves", "icon": "🤝" },
+        "folk": { "name": "Townsfolk you know", "icon": "🏘️" },
+        "house": { "name": "Merchant houses", "icon": "⚖️" },
+        "companion": { "name": "Companions away", "icon": "🧭" }
+    },
+
+    "kinds": {
+        "courtesy": {
+            "icon": "✉️", "name": "Courtesy & news", "to": ["lord", "rival", "spouse", "child", "npc", "folk", "house", "companion"],
+            "desc": "Compliments, news, a word to keep the friendship warm. Helps a little, and less each time you write the same person.",
+            "subject": "A letter of courtesy",
+            "warm": "{to} writes back warmly and thanks you for your news.",
+            "cool": "{to} acknowledges your letter, briefly.",
+            "hostile": "{to} sends your letter back unopened in all but name: a single cold line.",
+            "tiresome": "{to} has had a great many letters from you lately, and the reply is short."
+        },
+        "gift": {
+            "icon": "🎁", "name": "A gift enclosed", "to": ["lord", "rival", "spouse", "child", "npc", "folk", "house", "companion"], "enclose": true,
+            "desc": "Enclose gold or one of your goods. Riders are robbed on bad roads: what is stolen never arrives.",
+            "subject": "A gift, with your compliments",
+            "warm": "{to} thanks you handsomely for the gift.",
+            "cool": "{to} accepts the gift without much warmth.",
+            "hostile": "{to} keeps the gift and the grudge both.",
+            "stolen": "{to} writes that your letter came with its seal cut and nothing inside it."
+        },
+        "favour": {
+            "icon": "🙏", "name": "Ask a favour", "to": ["lord", "npc", "folk", "house", "child", "companion"],
+            "desc": "Ask for help: a purse, an introduction, a good word. Only friends say yes, and asking costs a little goodwill. Once in a while per person. A companion away: ask them to come back to your company (those who still approve of you come; a governor hands over their post).",
+            "subject": "A favour asked",
+            "warm": "{to} grants your request.",
+            "cool": "{to} regrets that they cannot help you at present.",
+            "hostile": "{to} is astonished you would ask.",
+            "tiresome": "{to} reminds you that you asked a favour only lately."
+        },
+        "proposal": {
+            "icon": "🤝", "name": "A proposal", "to": ["lord", "rival", "npc", "house"],
+            "desc": "Lords: a pact of friendship (an alliance if you rule a realm). Rival Houses: a truce. A love: marriage. A merchant house: partnership.",
+            "subject": "A proposal",
+            "warm": "{to} welcomes your proposal.",
+            "cool": "{to} will think on it, which is to say no.",
+            "hostile": "{to} laughs at your proposal, and makes sure others hear of it."
+        },
+        "apology": {
+            "icon": "🕊️", "name": "An apology", "to": ["lord", "rival", "spouse", "npc", "folk", "house"],
+            "desc": "Make amends. Softens a grudge; does nothing where there is no grudge.",
+            "subject": "An apology",
+            "warm": "{to} accepts your apology.",
+            "cool": "{to} notes your apology. The wound is not healed.",
+            "hostile": "{to} does not forgive so easily.",
+            "puzzled": "{to} writes back, puzzled: there was nothing to forgive."
+        },
+        "threat": {
+            "icon": "🗡️", "name": "A threat or demand", "to": ["lord", "rival", "npc", "folk", "house"],
+            "desc": "Demand gold or obedience. The weak sometimes pay; everyone remembers. A threat that falls into an enemy's hands may please them.",
+            "subject": "A demand",
+            "warm": "{to} is frightened enough to pay.",
+            "cool": "{to} refuses your demand.",
+            "hostile": "{to} answers your threat with one of their own."
+        },
+        "love": {
+            "icon": "💌", "name": "A love letter", "to": ["spouse", "npc"],
+            "desc": "Sweet words for a love or your spouse. If you are married and it is not to your spouse, an opened letter becomes a scandal.",
+            "subject": "A letter of the heart",
+            "warm": "{to} writes back with a pressed flower and more than a few kind words.",
+            "cool": "{to} is touched, but careful in reply.",
+            "hostile": "{to} asks you not to write such things again."
+        },
+        "ransom": {
+            "icon": "⛓️", "name": "Negotiate a release", "to": ["lord"], "needsHeld": true,
+            "desc": "Open talks for a child held as a hostage at that court: they name their price, or let the child go for friendship's sake.",
+            "subject": "Concerning {child}",
+            "warm": "{to} agrees to send {child} home.",
+            "cool": "{to} names a price for {child}'s release.",
+            "hostile": "{to} names a hard price for {child}'s release."
+        },
+        "warning": {
+            "icon": "🕵️", "name": "A warning or intelligence", "to": ["lord", "companion"], "needsEnemy": true,
+            "desc": "Warn a lord of their enemy's strength. Valued, unless the enemy's spies read it first. A companion away: a word of danger about their road or their post, and they think the better of you.",
+            "subject": "A warning",
+            "warm": "{to} thanks you for the warning.",
+            "cool": "{to} thanks you, though they knew most of it.",
+            "hostile": "{to} suspects your motives."
+        }
+    }
+}

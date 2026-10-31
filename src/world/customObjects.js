@@ -58,6 +58,7 @@
  */
 
 import { DataLoader } from '../core/dataLoader.js';
+import { CustomSheets } from '../core/customSheets.js';
 
 // id → full definition (includes sheetName, sheetPath, tileW/H merged in)
 const _defs       = new Map();
@@ -170,7 +171,7 @@ export const CustomObjects = {
                     const img = new Image();
                     img.onload  = () => { _images.set(path, img); resolve(); };
                     img.onerror = () => { console.warn(`Objects: image not found — ${path}`); resolve(); };
-                    img.src = path;
+                    img.src = CustomSheets.resolve(path);
                 });
                 imgPromises.push(p);
             }

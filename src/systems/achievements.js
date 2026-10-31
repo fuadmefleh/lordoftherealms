@@ -665,9 +665,19 @@ export const Achievements = {
             id: 'guildmaster', name: 'Guildmaster', description: 'Be elected guildmaster of a town guild', icon: '👑', tier: 'gold',
             check: (player) => Achievements._guildRank(player) >= 3,
         },
+        // The player's own bench (player/crafting.js → player.crafting.masterworks)
+        MASTERWORK: {
+            id: 'masterwork', name: 'Masterwork', description: 'Craft a piece of Masterwork quality with your own hands', icon: '🌟', tier: 'silver',
+            check: (player) => Achievements._deed(player, 'crafting.masterworks') >= 1,
+        },
         THE_LINE_ENDURES: {
             id: 'the_line_endures', name: 'The Line Endures', description: 'Pass the House to an heir', icon: '🌳', tier: 'silver',
             check: (player) => ((player.house && player.house.reigns) || []).length >= 1,
+        },
+        // The guided first month finished, every step done (systems/firstSteps.js)
+        FIRST_STEPS: {
+            id: 'first_steps', name: 'First Steps', description: 'Finish every step of the guided first month', icon: '🎓', tier: 'bronze',
+            check: (player) => !!(player.firstSteps && player.firstSteps.finishedDay != null),
         },
     },
 

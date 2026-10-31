@@ -125,7 +125,7 @@ export const Festivals = {
         }
 
         const settlementType = settlementTile.settlement.type;
-        if (!['town', 'capital'].includes(settlementType)) {
+        if (!['town', 'city', 'capital'].includes(settlementType)) {
             return { ok: false, reason: 'Only towns and capitals can host major festivals.' };
         }
 

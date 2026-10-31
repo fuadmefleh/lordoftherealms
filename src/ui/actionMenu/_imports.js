@@ -55,6 +55,7 @@ export { Holdings } from '../../systems/holdings.js';
 export { Rivals } from '../../systems/rivals.js';
 export { MerchantHouses } from '../../systems/merchantHouses.js';
 export { Sagas } from '../../systems/sagas.js';
+export { Townsfolk } from '../../systems/townsfolk.js';
 export { Discovery } from '../../systems/discovery.js';
 export { OutlawLairs } from '../../systems/outlawLairs.js';
 export { MerchantCaravans } from '../../systems/merchantCaravans.js';

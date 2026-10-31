@@ -9,6 +9,8 @@ import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay } from './choices.js';
 import { Traits } from '../../systems/traits.js';
 import { Chatter } from '../../systems/chatter.js';
+import { NpcKnowledge } from '../../systems/npcKnowledge.js';
+import { Fame } from '../../systems/fame.js';
 
 export function _mem(npc) {
     return NpcDisposition.getMemory(npc);
@@ -86,7 +88,10 @@ export function _getPlayerTitle() {
 
 export function _isPlayerRenowned() {
     if (!dialogState._game?.player) return false;
-    return (dialogState._game.player.renown || 0) >= 20 || !!_getPlayerTitle();
+    // Celebrated or better here (systems/fame.js), or titled
+    const settlement = _getSettlement();
+    const stage = Fame.stageIn(dialogState._game.player, settlement ? settlement.kingdom : null);
+    return stage.id === 'celebrated' || stage.id === 'legend' || (dialogState._game.player.renown || 0) >= 20 || !!_getPlayerTitle();
 }
 
 export function _getGreeting(npc) {
@@ -104,6 +109,17 @@ export function _getGreeting(npc) {
     // Word of who you have become travels ahead of you (earned traits)
     const traitLine = Traits.greetingLine(dialogState._game?.player, Math.random(), Math.random());
     if (traitLine) return traitLine;
+
+    // Your name here (systems/fame.js): the celebrated are hailed, the shunned spat at
+    const fg = dialogState._game;
+    if (fg && fg.player && fg.world) {
+        const settlement = _getSettlement();
+        const stage = settlement ? Fame.stageIn(fg.player, settlement.kingdom) : null;
+        if (stage && stage.id !== 'stranger' && Chatter.hash(`${_npcKey(npc)}|fame|${fg.world.day || 0}|${mem.timesSpoken}`) < 0.35) {
+            const line = Fame.greeting(fg.player, fg.world, settlement, `${_npcKey(npc)}|${mem.timesSpoken}`);
+            if (line) return line;
+        }
+    }
 
     // Talk of what is happening in the world (systems/chatter.js): wars, sieges,
     // plague, sagas, the player's deeds and name. Only from those not hostile.
@@ -192,6 +208,12 @@ export function _getNews(npc) {
     if (Chatter.hash(`${_npcKey(npc)}|news|${day}|${mem.rumorsTold}`) < Chatter.config().newsChance) {
         const chat = _chatterLine(npc, 'news');
         if (chat) return chat.text;
+    }
+    // A rumour drawn from the world as it is (systems/npcKnowledge.js); the old table only when the world is quiet
+    const g = dialogState._game;
+    if (g && g.world && g.player) {
+        const r = NpcKnowledge.rumour(g.world, g.player, npc, { settlement: _getSettlement(), seed: `${_npcKey(npc)}|rumour|${day}|${mem.rumorsTold}` });
+        if (r) return r;
     }
     return _getRumor(npc.type || 'villager');
 }

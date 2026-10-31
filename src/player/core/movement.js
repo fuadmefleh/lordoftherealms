@@ -122,6 +122,32 @@ export const PlayerMovementMethods = {
     },
 
     /**
+     * Extra route-planning weight for leaving the road. Stamina costs are
+     * whole numbers (at least 1), so on open ground a road hex costs the same
+     * as the grass beside it and the route ignored it; travellers keep to the
+     * road unless going cross-country is clearly shorter. Planning only — the
+     * stamina actually spent is still _hexMoveCost.
+     */
+    OFF_ROAD_PATH_PENALTY: 0.35,
+
+    /** Is this hex on a finished road or bridge (world-built or the player's)? */
+    _isRoadHex(tile) {
+        if (!tile) return false;
+        const inf = tile.infrastructure;
+        if (inf && !inf.underConstruction) {
+            return inf.id === 'dirt_road' || inf.id === 'stone_road' || inf.id === 'bridge';
+        }
+        return !!tile.hasRoad;
+    },
+
+    /** Route-planning cost of entering a tile: stamina plus the off-road weight on foot. */
+    _hexPathCost(tile) {
+        const cost = this._hexMoveCost(tile);
+        if (this.boardedShip || !Number.isFinite(cost)) return cost;
+        return this._isRoadHex(tile) ? cost : cost + this.OFF_ROAD_PATH_PENALTY;
+    },
+
+    /**
      * Request to move to target hex
      */
     moveTo(targetQ, targetR, world) {
@@ -134,7 +160,7 @@ export const PlayerMovementMethods = {
             targetQ, targetR,
             world.width, world.height,
             (q, r) => this._canEnterHex(q, r, world),
-            (q, r) => this._hexMoveCost(world.getTile(q, r))
+            (q, r) => this._hexPathCost(world.getTile(q, r))
         );
 
         if (path && path.length > 1) {

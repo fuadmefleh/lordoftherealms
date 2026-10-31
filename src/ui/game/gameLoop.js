@@ -3,15 +3,23 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, PlayerInventory } from './_gameImports.js';
+import { Afterlife } from '../../player/afterlife.js';
 
-export function gameLoop(timestamp) {
+export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
+    // One rAF chain per game: a fresh start (called without an id — new game,
+    // resume, HMR recovery) supersedes any chain still pending, so re-entering
+    // never leaves two loops ticking the simulation at double speed.
+    if (loopId === undefined) loopId = this._loopId = (this._loopId || 0) + 1;
+    else if (loopId !== this._loopId) return;
 
     const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
 
     // -- Inner Map Mode --
     if (InnerMap.active) {
+        // The world camera shares the canvas; keep it from panning in here
+        this.camera.locked = true;
         try {
         this.innerMapCamera.update(deltaTime);
         this.innerMapCamera.precomputeFrame();
@@ -78,6 +86,12 @@ export function gameLoop(timestamp) {
 
         // Update player walking animation
         const playerStepResult = InnerMap.updatePlayer(simDelta);
+        // Wilderness encounters come into sight a few paces off (player/wilds.js)
+        if (InnerMap._playerWalking || playerStepResult) {
+            for (const e of InnerMap.spotWildEncounters(6)) {
+                this.ui.showNotification(`${e.icon} ${e.name}`, `${e.description} (walk to it, or select it and Examine)`, 'info');
+            }
+        }
         if (playerStepResult) {
             if (playerStepResult.moved) {
                 const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
@@ -87,6 +101,9 @@ export function gameLoop(timestamp) {
 
                 if (playerStepResult.encounter) {
                     this._showEncounterNotification(playerStepResult.encounter);
+                } else if (arrivedTile && arrivedTile.encounter && arrivedTile.encounter.slot != null) {
+                    // Walking onto an encounter already spotted from afar
+                    this._showEncounterNotification(arrivedTile.encounter);
                 }
 
                 // ── Auto-enter building when stepping on a door tile ──
@@ -243,25 +260,27 @@ export function gameLoop(timestamp) {
         } catch (innerErr) {
             console.error('CRASH in inner map branch of gameLoop:', innerErr);
         }
-        requestAnimationFrame((t) => this.gameLoop(t));
+        requestAnimationFrame((t) => this.gameLoop(t, loopId));
         return;
     }
 
     // While inner map is loading, skip world-map updates/rendering.
     if (this._enteringInnerMap) {
-        requestAnimationFrame((t) => this.gameLoop(t));
+        requestAnimationFrame((t) => this.gameLoop(t, loopId));
         return;
     }
 
-    // Update camera (locked to player position)
-    this.camera.update(deltaTime);
-    this.camera.precomputeFrame();
-
-    // Always follow the player on the world map
-    {
+    // A throw anywhere below must not end the rAF chain (a frozen game);
+    // log it and draw the next frame, as the inner-map branch does.
+    try {
+    // Follow the player unless the camera was panned away (drag, keys, minimap)
+    this.camera.locked = false;
+    if (this.camera.following) {
         const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
         this.camera.follow(pos.x, pos.y);
     }
+    this.camera.update(deltaTime);
+    this.camera.precomputeFrame();
 
     // Update weather
     if (this.world && this.world.weather) {
@@ -296,10 +315,14 @@ export function gameLoop(timestamp) {
     //     }
     // }
 
+    // Standing cheats (infinite movement, god mode) hold every frame
+    if (this._cheats) this.ui.applyCheats();
+
     // Update player movement
     if (this.player.isMoving) {
         const moved = this.player.stepAlongPath(this.world, deltaTime);
         if (moved) {
+            if (this._cheats && this._cheats.fullVision) this.ui.applyCheats(true);
             this.ui.updateStats(this.player, this.world);
             this.minimap.invalidate();
 
@@ -317,9 +340,11 @@ export function gameLoop(timestamp) {
                 }
             }
 
-            // Camera follows player while moving
-            const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
-            this.camera.follow(pos.x, pos.y);
+            // Camera follows player while moving (unless panned away)
+            if (this.camera.following) {
+                const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
+                this.camera.follow(pos.x, pos.y);
+            }
         }
     }
 
@@ -339,7 +364,18 @@ export function gameLoop(timestamp) {
     // Render minimap (less frequently)
     this.minimap.render();
 
-    requestAnimationFrame((t) => this.gameLoop(t));
+    } catch (worldErr) {
+        console.error('CRASH in world map branch of gameLoop:', worldErr);
+    }
+    requestAnimationFrame((t) => this.gameLoop(t, loopId));
+}
+
+/** Snap the world camera back onto the player and follow them again */
+export function recenterCamera() {
+    if (!this.player || !this.renderer) return;
+    const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
+    this.camera.centerOn(pos.x, pos.y);
+    this.camera.following = true;
 }
 
 /**
@@ -412,7 +448,25 @@ export function setupInputHandlers() {
 
     // Keyboard shortcut: M to cycle map modes
     window.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+        // Nothing to drive until a game is running (title/loading: no UI, world or player yet)
+        if (!this.ui || !this.world || !this.player) return;
+        // Cheats panel: ` or F9
+        if (e.key === '`' || e.key === 'F9') {
+            e.preventDefault();
+            this.ui.toggleCheatsPanel();
+            return;
+        }
+        if (e.key === 'Escape' && this._cheatTeleportArmed) {
+            this._cheatTeleportArmed = false;
+            this.ui.showNotification('🧪 Teleport', 'Cancelled', 'default');
+            return;
+        }
+        // C: snap the world camera back to the player
+        if ((e.key === 'c' || e.key === 'C') && !InnerMap.active && !e.ctrlKey && !e.metaKey) {
+            this.recenterCamera();
+        }
         if (e.key === 'm' || e.key === 'M') {
             const modes = ['normal', 'political', 'religion', 'wealth', 'military', 'trade', 'prices', 'culture'];
             const current = this.renderer.mapMode;
@@ -427,32 +481,35 @@ export function setupInputHandlers() {
             this.ui.showNotification('📈 Trade Map', `Showing ${id}`, 'info');
         }
         if (e.key === 'Escape') {
+            // An open panel takes Escape first: close the topmost one rather
+            // than also cancelling travel or leaving the inner map
+            if (document.getElementById('actionMenu')) {
+                ActionMenu.close();
+                return;
+            }
+            const customPanel = document.getElementById('customPanel');
+            if (customPanel) {
+                // A locked panel (the death screen) closes only through its own buttons
+                if (!customPanel._locked) this.ui.hideCustomPanel();
+                return;
+            }
+            const openSide = ['characterPanel', 'kingdomPanel', 'hexInfoPanel'].find(id => {
+                const el = document.getElementById(id);
+                return el && !el.classList.contains('hidden');
+            });
+            if (openSide) {
+                this.ui.hidePanel(openSide);
+                return;
+            }
             // Exit inner map mode
             if (InnerMap.active) {
                 // If inside a building, exit the building first
                 if (InnerMap._insideBuilding) {
                     InnerMapRenderer.closeContextMenu();
                     InnerMap.exitBuilding(this);
-                    // Re-setup the camera for the outer inner map
-                    const tileSize = InnerMapRenderer.tileSize;
-                    const innerPixelWidth = tileSize * InnerMap.width;
-                    const innerPixelHeight = tileSize * InnerMap.height;
-                    if (this.innerMapCamera) {
-                        this.innerMapCamera.setWorldBounds(0, innerPixelHeight);
-                        const canvasW = this.canvas.width;
-                        const canvasH = this.canvas.height;
-                        const VISIBLE_TILES = 10;
-                        const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
-                        const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
-                        this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
-                        this.innerMapCamera.maxZoom = clampedZoom * 2.0;
-                        this.innerMapCamera.zoom = clampedZoom;
-                        this.innerMapCamera.targetZoom = clampedZoom;
-                        // Center on player position (camera locked to player)
-                        const pWorld = InnerMap.getPlayerWorldPos();
-                        this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
-                        this.innerMapCamera.precomputeFrame();
-                    }
+                    // Re-setup the camera for the outer inner map (and drop the
+                    // interior's selection, whose coordinates no longer apply)
+                    this._configureInnerMapCamera('outer');
                     this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
                     return;
                 }
@@ -653,8 +710,21 @@ export function handleClick(screenX, screenY, button = 'left') {
     const hex = this.renderer.getHexAtScreen(screenX, screenY);
     if (!hex) return;
 
+    // Cheats: an armed teleport takes the next map click
+    if (this._cheatTeleportArmed) {
+        this.ui.cheatTeleportTo(hex.q, hex.r);
+        return;
+    }
+
     const tile = this.world.getTile(hex.q, hex.r);
     if (!tile) return;
+
+    // Dead and waiting (player/afterlife.js): the map can be looked at, not walked
+    if (Afterlife.active(this.player)) {
+        this.renderer.selectedHex = hex;
+        this.ui.showHexInfo(tile, hex.q, hex.r);
+        return;
+    }
 
     // Left click on current tile = show info/action menu
     if (button === 'left') {
@@ -688,6 +758,8 @@ export function handleClick(screenX, screenY, button = 'left') {
 
             const success = this.player.moveTo(hex.q, hex.r, this.world);
             if (success) {
+                // Setting out brings the camera back to the player
+                this.camera.following = true;
                 // Check if low on food and at a settlement — offer auto-purchase
                 const pathLen = this.player.path ? this.player.path.length - 1 : 0;
                 const foodCount = this.player.getFoodCount();

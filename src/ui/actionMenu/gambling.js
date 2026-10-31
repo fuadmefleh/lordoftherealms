@@ -1,5 +1,7 @@
 // ActionMenu — gambling methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { panelClosed } from './uiKit.js';
+import { Traits } from '../../systems/traits.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -447,6 +449,8 @@ Object.assign(ActionMenu, {
      * Record gambling winnings/losses in finance tracker
      */
     _gamblingFinance(game, netGold) {
+        // A stake laid down is a wager: it feeds the Gambler trait and breaks a vow against dice (systems/devotion.js)
+        if (netGold < 0) Traits.recordDeed(game.player, 'gambling', 0.5);
         if (!game.player.financeToday) return;
         if (netGold > 0) {
             game.player.financeToday.income.gambling = (game.player.financeToday.income.gambling || 0) + netGold;
@@ -1267,6 +1271,7 @@ Object.assign(ActionMenu, {
         // Game loop
         gameInterval = setInterval(() => {
             if (gameOver) return;
+            if (panelClosed()) { gameOver = true; cleanup(); document.removeEventListener('keydown', keyHandler); return; }
 
             // Spawn new item
             spawnTimer++;
@@ -1502,6 +1507,7 @@ Object.assign(ActionMenu, {
         // ── Game loop — 50ms ticks ───────────────────────────────────────────
         gameInterval = setInterval(() => {
             if (gameOver) return;
+            if (panelClosed()) { gameOver = true; cleanup(); return; }
             tick++;
             if (feedbackTimer > 0) feedbackTimer--;
 
@@ -1680,6 +1686,7 @@ Object.assign(ActionMenu, {
 
             cleanup();
             timerInterval = setInterval(() => {
+                if (panelClosed()) { cleanup(); return; }
                 timeLeft -= 4;
                 if (timeLeft <= 0) {
                     cleanup();

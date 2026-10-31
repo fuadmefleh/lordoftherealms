@@ -37,3 +37,5 @@ export { KingdomAtlas } from '../../world/kingdomAtlas.js';
 export { Treasures } from '../../player/treasures.js';
 export { KingdomAI } from '../../world/kingdomAI.js';
 export { KingdomNavy } from '../../world/kingdomNavy.js';
+export { Hinterland } from '../../world/hinterland.js';
+export { Estates } from '../../world/estates.js';

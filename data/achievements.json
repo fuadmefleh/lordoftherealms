@@ -609,6 +609,13 @@
       "icon": "🌳",
       "tier": "silver"
     },
+    "FIRST_STEPS": {
+      "id": "first_steps",
+      "name": "First Steps",
+      "description": "Finish every step of the guided first month",
+      "icon": "🎓",
+      "tier": "bronze"
+    },
     "DEAD_OR_ALIVE": {
       "id": "dead_or_alive",
       "name": "Dead or Alive",
@@ -685,6 +692,13 @@
       "description": "Be elected guildmaster of a town guild",
       "icon": "👑",
       "tier": "gold"
+    },
+    "MASTERWORK": {
+      "id": "masterwork",
+      "name": "Masterwork",
+      "description": "Craft a piece of Masterwork quality with your own hands",
+      "icon": "🌟",
+      "tier": "silver"
     },
     "A_GOLDEN_AGE": {
       "id": "a_golden_age",

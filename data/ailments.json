@@ -90,7 +90,8 @@
             "healing_salve": { "name": "Healing Salve", "health": 10, "dress": 6, "mend": 2, "clearInfection": 0.5 },
             "potion": { "name": "Healing Potion", "health": 15, "ease": 0.6, "easeDays": 4, "stageDown": 0.3 },
             "elixir": { "name": "Elixir", "health": 20, "ease": 0.7, "easeDays": 3 },
-            "holy_water": { "name": "Holy Water", "health": 10, "dress": 3, "stageDown": 0.25, "stageDownPerFaith": 0.03 }
+            "holy_water": { "name": "Holy Water", "health": 10, "dress": 3, "stageDown": 0.25, "stageDownPerFaith": 0.03 },
+            "antidote": { "name": "Antidote", "health": 8, "dress": 2, "clearInfection": 0.85, "ease": 0.5, "easeDays": 4, "stageDown": 0.4, "cures": ["flux", "wound_fever", "marsh_fever"] }
         }
     },
     "ailments": {

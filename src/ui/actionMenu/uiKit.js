@@ -23,6 +23,16 @@ export const BTN_OFF = BTN + 'background: #333; color: #777; cursor: not-allowed
 export const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
 export const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 
+/**
+ * True once the player has closed the custom panel. A minigame whose loop
+ * re-shows the panel every tick checks this and stops — otherwise closing it
+ * just makes it pop straight back until the game runs out.
+ */
+export function panelClosed() {
+    return typeof document !== 'undefined' && typeof document.getElementById === 'function'
+        && !document.getElementById('customPanel');
+}
+
 export function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

@@ -9,3 +9,5 @@ export { SettlementGenerator } from '../settlementGenerator.js';
 export { DataLoader } from '../../core/dataLoader.js';
 export { Terrain } from '../terrain.js';
 export { NpcFamily } from '../../systems/npcFamily.js';
+export { Townsfolk } from '../../systems/townsfolk.js';
+export { Hospitality } from '../../systems/hospitality.js';

@@ -1,0 +1,118 @@
+{
+    "enabled": true,
+    "_doc": "Local fame (systems/fame.js): how the people of one realm see the player. good = renown*renownWeight + max(0,rep)*repWeight + max(0,karma)*karmaWeight + House honours; ill = max(0,-rep)*badRepWeight + max(0,-karma)*badKarmaWeight + heat*heatWeight. An ill-fame stage applies when ill reaches its threshold and is at least the good score.",
+    "weights": {
+        "renown": 0.35,
+        "rep": 0.45,
+        "karma": 0.08,
+        "badRep": 0.7,
+        "badKarma": 0.35,
+        "heat": 0.5,
+        "rivalFeud": 0.15
+    },
+    "perkCooldownDays": 7,
+    "crowdCooldownDays": 10,
+    "stages": [
+        {
+            "id": "stranger", "kind": "good", "min": 0, "label": "Stranger", "icon": "🚶", "color": "#9a9a9a",
+            "blurb": "No one here knows your name.",
+            "price": 0, "disposition": 0
+        },
+        {
+            "id": "known", "kind": "good", "min": 15, "label": "Known", "icon": "🗣️", "color": "#c9b77a",
+            "blurb": "Folk here have heard of you.",
+            "price": -0.03, "disposition": 5
+        },
+        {
+            "id": "celebrated", "kind": "good", "min": 40, "label": "Celebrated", "icon": "🌟", "color": "#e8c547",
+            "blurb": "Your name is toasted here. Innkeepers stand you a meal and a bed; crowds gather when you ride in.",
+            "price": -0.06, "disposition": 10,
+            "freeMeal": true, "freeRoom": true, "crowd": true
+        },
+        {
+            "id": "legend", "kind": "good", "min": 80, "label": "Legend", "icon": "👑", "color": "#ffd76a",
+            "blurb": "Songs are sung of you here. Every door is open; people press gifts and petitions on you.",
+            "price": -0.1, "disposition": 18,
+            "freeMeal": true, "freeRoom": true, "crowd": true, "gifts": [5, 25]
+        },
+        {
+            "id": "distrusted", "kind": "ill", "min": 25, "label": "Distrusted", "icon": "🤨", "color": "#d08a5a",
+            "blurb": "Folk here have heard of you, and none of it good. Traders pad their prices; the watch takes a bigger bribe.",
+            "price": 0.06, "disposition": -8, "bribeMult": 1.25
+        },
+        {
+            "id": "shunned", "kind": "ill", "min": 55, "label": "Shunned", "icon": "🚫", "color": "#e05a5a",
+            "blurb": "Doors close as you pass. Guards shadow you through the streets and every bribe costs dear.",
+            "price": 0.15, "disposition": -18, "bribeMult": 1.6, "shadowed": true, "shadowCatch": 0.08
+        }
+    ],
+    "crowdLines": {
+        "celebrated": [
+            "A small crowd gathers to see you ride into {town}. Someone starts a cheer.",
+            "Children run ahead of you through {town}, shouting your name."
+        ],
+        "legend": [
+            "{town} turns out to see you: the streets are lined, and a minstrel strikes up a song about you.",
+            "Bells ring as you enter {town}. Folk press close just to touch your cloak."
+        ]
+    },
+    "giftLines": [
+        "An old woman presses {gold} gold into your hand: 'For luck, and for what you did.'",
+        "A merchant insists you take {gold} gold. 'It's an honour,' he says, and will hear no refusal."
+    ],
+    "shadowLines": [
+        "Two guards fall in behind you as you enter {town}, and do not leave.",
+        "The watch at {town} marks you at the gate. A guard trails you through the streets."
+    ],
+    "greetings": {
+        "known": [
+            "I know that face. You're {player}, aren't you?",
+            "{player}! I've heard your name in the tavern."
+        ],
+        "celebrated": [
+            "Is it really {player}? Wait till I tell my sister!",
+            "{player}, here in {town}! You honour us.",
+            "Everyone in {town} talks of you, {player}. Welcome, welcome!"
+        ],
+        "legend": [
+            "*goes down on one knee* {player}... I never thought I'd see you with my own eyes.",
+            "They sing of you in every hall in {kingdom}, {player}. What brings a legend to {town}?"
+        ],
+        "distrusted": [
+            "*eyes you warily* I've heard about you, {player}.",
+            "Keep your hands where I can see them, {player}. I know your sort."
+        ],
+        "shunned": [
+            "*spits* You're not welcome in {town}, {player}.",
+            "Get away from me. Everyone knows what you are."
+        ]
+    },
+    "rivalSeed": {
+        "_doc": "In a realm ruled by a rival House, townsfolk start colder by feud*perFeud (to -max), and speak of the feud.",
+        "perFeud": 0.25,
+        "max": 20,
+        "minFeud": 15
+    },
+    "requests": {
+        "_doc": "The famous are asked for help (systems/fame.js townRequest): arriving in a town where the crowd gathers, a celebrated/legendary player is begged for a favour with chance[stage], at most once per cooldownDays anywhere and townCooldownDays per town, with no more than maxOpen such favours open. The asker is a real townsperson (settlement.folk) where there is one. Each hook is a quest hook for Quests.createNpcTask (type: a Quests.NPC_TASK_OBJECTIVES key; task: a data/npcTasks.json task; reward: a Quests.NPC_TASK_REWARDS kind). Drawn on its own seeded stream. lines: the lead-in ({who}, {town}, {player}, {stage}).",
+        "enabled": true,
+        "chance": { "celebrated": 0.15, "legend": 0.35 },
+        "cooldownDays": 20,
+        "townCooldownDays": 45,
+        "maxOpen": 1,
+        "hooks": [
+            { "text": "Outlaws took my grandmother's locket on the road. They say nothing is beyond you. Please, get it back.", "type": "retrieve_item", "task": "lost_locket", "reward": "gratitude", "role": "widow" },
+            { "text": "My boy went into the old forest after a dare and never came out. If anyone can find him, it is you.", "type": "rescue_person", "task": "missing_son", "reward": "reputation", "role": "farmer" },
+            { "text": "A pack has been at our flocks every night. The watch shrugs. You would not.", "type": "investigate_threat", "task": "livestock_killer", "reward": "gold", "role": "shepherd" },
+            { "text": "Our shrine's relic was stolen and carried into the ruins. The priest says only a hero would dare.", "type": "retrieve_relic", "task": "stolen_relic", "reward": "blessing", "role": "acolyte" },
+            { "text": "A caravan of ours vanished on the road. We pooled what we have: find it, great one.", "type": "escort_trade_caravan", "task": "missing_caravan", "reward": "gold", "role": "merchant" },
+            { "text": "There is a bandit camp in the woods and the lord will not send men. Will you?", "type": "clear_bandits", "task": "bandit_camp", "reward": "reputation", "role": "guardsman" },
+            { "text": "The old hermit in the hills needs his medicine and the road is not safe for us. You fear nothing, they say.", "type": "delivery", "task": "hermit_medicine", "reward": "gold", "role": "herbwife" }
+        ],
+        "lines": [
+            "{who} pushes through the crowd and falls to one knee: the tales of you reached {town} long before you did.",
+            "Before the cheering has died, {who} catches your sleeve: \"You are {player}? Then you can help us.\"",
+            "{who} has waited at the gate all morning for a glimpse of you, and will not let you pass without a plea."
+        ]
+    }
+}

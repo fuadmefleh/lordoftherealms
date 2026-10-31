@@ -1125,6 +1125,7 @@ function delve(game, stats) {
         if (!Delves.isDelveSite(tile) || player.health < 50) return;
         if (!Delves.start(player, world, tile).success) return;
         count(stats, 'delvesStarted');
+        game.delved = true;
     }
     let guard = 0;
     while (Delves.active(player) && guard++ < 12) {
@@ -1161,16 +1162,22 @@ function foundColony(game, stats) {
 function chooseDestination(game) {
     const { player, world } = game;
     const roll = Utils.random();
-    if (roll < 0.2) {
-        // A delve site nearby
-        const sites = [];
-        for (const h of Hex.hexesInRange(player.q, player.r, 12)) {
+    if (roll < 0.2 || (!game.delved && (MerchantHouses.company(player) || world.day >= 45))) {
+        // The nearest delve site the bot hasn't failed to reach. Until it has
+        // delved once it looks every time (after its company is founded, or
+        // day 45): sites are few, a handful a map, and others explore them,
+        // so a chance look can miss them all game
+        const bad = game.unreachableSites || (game.unreachableSites = new Set());
+        let best = null;
+        for (const h of Hex.hexesInRange(player.q, player.r, 24)) {
             if (h.r < 0 || h.r >= world.height) continue;
             const q = Hex.wrapQ(h.q, world.width);
             const t = world.getTile(q, h.r);
-            if (t && t.terrain.passable && Delves.isDelveSite(t)) sites.push({ q, r: h.r });
+            if (!t || !t.terrain.passable || !Delves.isDelveSite(t) || bad.has(`${q},${h.r}`)) continue;
+            const d = Hex.distance(player.q, player.r, h.q, h.r);
+            if (!best || d < best.d) best = { q, r: h.r, d };
         }
-        if (sites.length) return Utils.randPick(sites);
+        if (best) return { q: best.q, r: best.r, delve: true };
     }
     // Colonies hold court; drop by now and then
     if (roll < 0.3 && (player.colonies || []).length) return { q: player.colonies[0].q, r: player.colonies[0].r };
@@ -1461,16 +1468,28 @@ export function botDay(game, stats) {
         }
     }
     // Sick in a town with money to spare: see the physician, as a player would
-    // before a fever or the flux reaches its deadly stage
+    // before a fever or the flux reaches its deadly stage, or a wound festers
+    const dangerous = (rec) => {
+        if (!rec) return false;
+        if (rec.kind === 'wound') return !!rec.infected;
+        const def = Ailments.def(rec.id);
+        return !!(def && def.stages && (def.stages[rec.stage] || {}).deathChance > 0);
+    };
     const sickAt = world.getTile(player.q, player.r);
     if (sickAt && sickAt.settlement) {
         for (const opt of Ailments.treatmentOptions(player, world, sickAt.settlement)) {
-            if (opt.kind !== 'disease' || !opt.can || player.gold < Math.max(500, opt.cost * 5)) continue;
-            const rec = Ailments.list(player).find(a => a.key === opt.key);
-            const def = rec && Ailments.def(rec.id);
-            const stage = def && def.stages && def.stages[rec.stage];
-            if (!stage || !(stage.deathChance > 0)) continue;
+            if ((opt.kind !== 'disease' && opt.kind !== 'wound') || !opt.can || player.gold < Math.max(500, opt.cost * 5)) continue;
+            if (!dangerous(Ailments.list(player).find(a => a.key === opt.key))) continue;
             if (booked(game, 'medicine', () => Ailments.treat(player, world, sickAt.settlement, opt.key)).success) count(stats, 'treated');
+        }
+    } else if (player.gold >= 500 && Ailments.list(player).some(dangerous)) {
+        // Out on the road with a festering wound or a dangerous fever: make for a physician
+        const town = nearest(world, player, settlementTiles(world), 3)[0];
+        if (town) {
+            game.dest = { q: town.q, r: town.r };
+            travelTo(game, town.q, town.r);
+            count(stats, 'soughtPhysician');
+            return;
         }
     }
     if (booked(game, 'holdingSieges', () => defendHoldings(game, stats))) return;
@@ -1493,7 +1512,8 @@ export function botDay(game, stats) {
     if (booked(game, 'colony', () => foundColony(game, stats))) return;
     if (booked(game, 'caravans', () => caravans(game, stats))) return;
 
-    if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || Utils.random() < 0.05) {
+    // A delve site is held to until reached; other destinations drift
+    if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve)) {
         game.dest = chooseDestination(game);
     }
     if (game.dest) {
@@ -1501,6 +1521,7 @@ export function botDay(game, stats) {
         travelTo(game, game.dest.q, game.dest.r);
         // No way there (another island, or beyond the pathfinder's reach): pick again
         if (`${player.q},${player.r}` === from) {
+            if (game.dest.delve) (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
             game.dest = null;
             count(stats, 'unreachable');
         }

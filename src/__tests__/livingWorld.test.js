@@ -111,6 +111,10 @@ describe('chatter data', () => {
             // The cost of living and a fashion at court (world/economyIndex.js, world/fashions.js)
             prices: ['dear_food', 'inflation'], priceInfo: { pct: 22, foodPct: 22, goodsPct: 15, since: 'spring' },
             fashions: [{ id: 'court_silks', name: 'Silks at Court', text: 'silk is all the rage at court', place: 'Highmarket', goods: 'textiles and clothes' }],
+            // A court scandal told here (systems/whispers.js)
+            scandals: [{ kind: 'debts', subject: 'Queen Maud', tale: 'They say Queen Maud pawned the crown jewels.', place: 'Brindle', realm: 'Arvenland' }],
+            // A rival House of the player's ruling here (systems/fame.js)
+            rivalHouse: 'House Varr',
         };
         for (const g of Chatter.groups()) {
             for (const line of g.lines) {

@@ -1,6 +1,9 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
-import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, KingdomNavy, WEATHER_TYPES, Cartography, Terrain } from './_imports.js';
+import { Fame } from '../../systems/fame.js';
+import { Kingship } from '../../systems/kingship.js';
+import { Pirates } from '../../systems/pirates.js';
+import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, KingdomNavy, WEATHER_TYPES, Cartography, Terrain, Hinterland, Estates } from './_imports.js';
 
 Object.assign(UI.prototype, {
     /**
@@ -33,7 +36,8 @@ Object.assign(UI.prototype, {
                     This area has not been explored yet. Travel nearby or acquire maps to reveal it.
                 </div>
             `;
-            panel.classList.add('visible');
+            // The panel is shown by dropping .hidden (a .visible class does nothing)
+            this.showPanel('hexInfoPanel');
             return;
         }
 
@@ -357,6 +361,48 @@ Object.assign(UI.prototype, {
             `;
         }
 
+        // The countryside's working places drawn on this hex (renderer/features.js renderRuralSites)
+        const world = this.game.world;
+        const townOf = (key) => {
+            const [tq, tr] = String(key || '').split(',').map(Number);
+            const t = Number.isFinite(tq) ? world.getTile(tq, tr) : null;
+            return t && t.settlement ? t.settlement.name : null;
+        };
+        const site = Hinterland.siteAt(world, q, r);
+        const siteInfo = site && Hinterland.describe(site);
+        const estate = !site && Estates.enabled() ? Estates.fieldAt(world, q, r) : null;
+        if (siteInfo || estate) {
+            const rows = [];
+            if (siteInfo) {
+                const home = townOf(site.h);
+                const state = site.st === 'exhausted' ? 'Worked out' : site.st === 'open' ? `Working · yield ${Math.round(siteInfo.yield * 100)}%` : site.st;
+                rows.push(['Site', `${siteInfo.icon} ${siteInfo.name}`]);
+                if (home) rows.push(['Worked by', home]);
+                rows.push(['State', state]);
+                if (siteInfo.deposit && site.st !== 'exhausted') rows.push(['Reserve', `${Math.round(siteInfo.reserve * 100)}% left`]);
+            } else {
+                const M = Estates.config().map;
+                const town = townOf(estate.town);
+                rows.push(['Estate', `🌾 ${estate.name}`]);
+                rows.push(['Held by', estate.holder === 'player' ? 'You' : Estates.holderName(world, estate.holder)]);
+                if (town) rows.push(['Farmland of', town]);
+                if ((estate.enclosed || 0) >= M.enclosedAt) rows.push(['Fields', 'Enclosed for sheep']);
+            }
+            html += `
+                <div class="info-section-title">Countryside</div>
+                ${rows.map(([l, v]) => `<div class="info-row"><span class="info-label">${l}</span><span class="info-value">${v}</span></div>`).join('')}
+            `;
+        }
+
+        // A pirate haven you know of here, or a captain lately sighted (systems/pirates.js)
+        const rovers = this.game.player ? Pirates.hexInfo(this.game.player, world, q, r) : [];
+        if (rovers.length) {
+            html += `
+                <div class="info-section-title">Sea Rovers</div>
+                ${rovers.map(line => `<div class="info-row"><span class="info-value" style="text-align:left;">${String(line).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span></div>`).join('')}
+            `;
+        }
+
         // Add units on this tile
         const units = this.game.world.units.filter(u => u.q === q && u.r === r);
         if (units.length > 0) {
@@ -373,7 +419,7 @@ Object.assign(UI.prototype, {
 
                 // Format destination string
                 let destStr = '';
-                if (unit.targetQ !== null && unit.targetR !== null) {
+                if (unit.targetQ != null && unit.targetR != null) {
                     let destName = `(${unit.targetQ}, ${unit.targetR})`;
                     // Try to find a settlement at target coordinates
                     const targetTile = this.game.world.getTile(unit.targetQ, unit.targetR);
@@ -385,7 +431,7 @@ Object.assign(UI.prototype, {
 
                 // Format origin string
                 let originStr = '';
-                if (unit.sourceQ !== undefined && unit.sourceR !== undefined) {
+                if (unit.sourceQ != null && unit.sourceR != null) {
                     let originName = `(${unit.sourceQ}, ${unit.sourceR})`;
                     // Try to find a settlement at source coordinates
                     const sourceTile = this.game.world.getTile(unit.sourceQ, unit.sourceR);
@@ -744,7 +790,7 @@ Object.assign(UI.prototype, {
         if (knows('diplomacy')) {
         for (const k of this.game.world.kingdoms) {
             if (k.id === kingdom.id) continue;
-            const rel = kingdom.relations[k.id] || 0;
+            const rel = (kingdom.relations && kingdom.relations[k.id]) || 0;
             const relColor = rel > 20 ? '#27ae60' : rel < -20 ? '#c0392b' : '#9a8e7e';
             const relLabel = rel > 20 ? 'Friendly' : rel < -20 ? 'Hostile' : 'Neutral';
             relationsHtml += `
@@ -805,7 +851,7 @@ Object.assign(UI.prototype, {
             const cd = kingdom.characterData;
             const ruler = cd.ruler;
             if (ruler && ruler.isAlive) {
-                const traitBadges = ruler.traits.map(t => {
+                const traitBadges = (ruler.traits || []).map(t => {
                     const colorMap = { positive: '#27ae60', negative: '#c0392b', neutral: '#f1c40f' };
                     const color = colorMap[t.category] || '#9a8e7e';
                     return `<span style="background:${color}22; color:${color}; padding:1px 6px; border-radius:4px; font-size:11px; margin-right:3px;" title="${t.description}">${t.icon || ''} ${t.name}</span>`;
@@ -903,6 +949,7 @@ Object.assign(UI.prototype, {
                     for (const [roleId, advisor] of Object.entries(cd.advisors)) {
                         if (!advisor) continue;
                         const role = Characters.ADVISOR_ROLES[roleId];
+                        if (!role) continue;
                         const loyaltyColor = advisor.loyalty > 60 ? '#27ae60' : advisor.loyalty > 30 ? '#f39c12' : '#c0392b';
                         lordHtml += `
                             <div class="info-row">
@@ -919,7 +966,7 @@ Object.assign(UI.prototype, {
             }
         } else if (kingdom.lord) {
             const lord = kingdom.lord;
-            const traitNames = lord.traits.map(t => t.name).join(', ');
+            const traitNames = (lord.traits || []).map(t => t.name).join(', ');
             lordHtml = `
                 <div class="info-section-title">Lord</div>
                 <div class="info-row">
@@ -1017,7 +1064,7 @@ Object.assign(UI.prototype, {
             <div class="info-section-title">Kingdom Stats</div>
             <div class="info-row">
                 <span class="info-label">Territory</span>
-                <span class="info-value">${kingdom.territory.length} tiles</span>
+                <span class="info-value">${(kingdom.territory || []).length} tiles</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Population</span>
@@ -1027,6 +1074,11 @@ Object.assign(UI.prototype, {
                 <span class="info-label">Stability</span>
                 <span class="info-value" style="color:${KingdomStability.color(kingdom.stability)};">🏛️ ${Math.round(kingdom.stability)}/100 · ${KingdomStability.label(kingdom.stability)}</span>
             </div>` : ''}
+            ${(() => {
+                // The crown's policies: a player-king's edicts, any crown's Royal Post (systems/kingship.js)
+                const pol = Kingship.crownPolicies(this.game.player, this.game.world, kingdom.id);
+                return pol.length ? `<div class="info-row"><span class="info-label">Crown policy</span><span class="info-value" style="font-size: 11px;">${pol.map(p => `${p.icon} ${p.label}${p.id === 'royal_post' ? ` (${p.text})` : ''}`).join(' · ')}</span></div>` : '';
+            })()}
             ${knows('military') ? `<div class="info-row">
                 <span class="info-label">Military</span>
                 <span class="info-value" title="Standing army / what the realm can support">⚔️ ${Utils.formatNumber(kingdom.military || 0)}${typeof kingdom.militaryCap === 'number' ? ` <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.militaryCap)}</span>` : ''}</span>
@@ -1046,7 +1098,7 @@ Object.assign(UI.prototype, {
                 <span class="info-value" style="color:#666;">Unknown</span>
             </div>`}
             <p style="margin-top:12px; color: var(--text-secondary); font-size: 12px; font-style: italic;">
-                "${kingdom.description}"
+                "${kingdom.description || 'Little is written of this realm.'}"
             </p>
             ${religionHtml}
             ${cultureHtml}
@@ -1057,8 +1109,16 @@ Object.assign(UI.prototype, {
             <div class="info-section-title">Your Reputation</div>
             <div class="info-row">
                 <span class="info-label">Standing</span>
-                <span class="info-value">${this.game.player.reputation[kingdom.id] || 0}</span>
+                <span class="info-value">${(this.game.player.reputation && this.game.player.reputation[kingdom.id]) || 0}</span>
             </div>
+            ${(() => {
+                const fame = Fame.stageIn(this.game.player, kingdom.id);
+                const rh = Fame.rivalHouse(this.game.player, kingdom.id);
+                return `<div class="info-row" title="${(fame.blurb || '').replace(/"/g, '&quot;')}">
+                <span class="info-label">${fame.icon || '🗣️'} Your Name</span>
+                <span class="info-value" style="color:${fame.color || 'inherit'};">${fame.label}</span>
+            </div>${rh ? `<div class="info-row"><span class="info-label">⚔️ Rival House</span><span class="info-value">${rh.name} (feud ${Math.round(rh.feud)})</span></div>` : ''}`;
+            })()}
         `;
 
         this.showPanel('kingdomPanel');

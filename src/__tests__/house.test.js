@@ -42,6 +42,8 @@ describe('House — Phase 0 scaffolding', () => {
         const house = House.initialize(makePlayer({ lastName: '' }), { day: 1 });
         expect(house.name).toBe('Your House');
         expect(house.id).toBe('house_player');
+        // ...or after the founder's own name when one is known
+        expect(House.initialize(makePlayer({ lastName: '', firstName: 'Wanderer' }), { day: 1 }).name).toBe('House Wanderer');
     });
 
     it('initialize() is idempotent — it does not clobber an existing House', () => {
@@ -53,13 +55,16 @@ describe('House — Phase 0 scaffolding', () => {
         expect(player.house.prestige).toBe(42);
     });
 
-    it('processDaily() is a no-op that returns an empty results bag', () => {
+    it('processDaily() returns an empty results bag and only marks the purse (the Annals\' wealth curve)', () => {
         const player = makePlayer();
         House.initialize(player, { day: 1 });
-        const before = JSON.stringify(player.house);
+        const before = JSON.parse(JSON.stringify(player.house));
         const result = House.processDaily(player, { day: 2 });
         expect(result).toEqual({});
-        expect(JSON.stringify(player.house)).toBe(before);
+        const { wealthMarks, wealthPeak, ...rest } = player.house;
+        expect(rest).toEqual(before);
+        expect(wealthMarks).toHaveLength(1);
+        expect(wealthPeak.day).toBe(2);
     });
 
     it('processDaily() tolerates a player with no House', () => {

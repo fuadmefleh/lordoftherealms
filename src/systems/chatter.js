@@ -34,6 +34,8 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Traits } from './traits.js';
 import { Heralds } from './heralds.js';
+import { Whispers } from './whispers.js';
+import { Gossip } from './gossip.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { TownLabour } from '../world/townLabour.js';
 import { EconomyIndex } from '../world/economyIndex.js';
@@ -43,6 +45,8 @@ import { Estates } from '../world/estates.js';
 import { Transport } from '../world/transport.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Engrossing } from './engrossing.js';
+import { Fame } from './fame.js';
 
 const DEFAULT_CONFIG = {
     localRadius: 8, eventRadius: 10, sagaRadius: 14, siegeRadius: 6, rivalRadius: 6, outlawRadius: 10,
@@ -57,8 +61,9 @@ const CONDITIONS = {
     money: 'boolOrList', labour: 'boolOrList', prices: 'boolOrList', fashion: 'boolOrList', harvest: 'boolOrList', roads: 'boolOrList',
     event: 'list', season: 'list', trait: 'list', court: 'list', title: 'list',
     occupation: 'list', personality: 'list',
-    saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList',
+    saga: 'boolOrList', proclamation: 'boolOrList', deed: 'boolOrList', scandal: 'boolOrList',
     houseGen: 'num', prestige: 'num', karmaMin: 'num', karmaMax: 'num', renownMin: 'num',
+    fame: 'list', rivalHouse: 'bool',
     dispositionMin: 'num', dispositionMax: 'num',
 };
 
@@ -66,9 +71,9 @@ export const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'];
 /** What townsfolk say about money (systems/finance.js): the `money` condition's kinds. */
 export const MONEY_KINDS = ['debased', 'levy', 'default', 'bank_run', 'bank_failed', 'bank', 'mania', 'crash', 'insurers_failed', 'coin_short', 'coin_flood', 'recoinage', 'tax_revolt', 'tax_farm', 'heavy_taxes', 'army_unpaid'];
 /** What townsfolk say about work and the people (world/townLabour.js): the `labour` condition's kinds. */
-export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed', 'enclosure', 'enclosure_riot', 'estate_sale', 'putting_out'];
+export const LABOUR_KINDS = ['idle', 'refugees', 'strike', 'boom', 'hardship', 'mine_strike', 'mine_closed', 'enclosure', 'enclosure_riot', 'rent_riot', 'estate_sale', 'bequest', 'dowry', 'putting_out'];
 /** What townsfolk say about the cost of living (world/economyIndex.js): the `prices` condition's kinds. */
-export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation', 'linen_glut'];
+export const PRICE_KINDS = ['dear_food', 'cheap_food', 'inflation', 'linen_glut', 'engrossing'];
 /** What townsfolk say of the harvest in their region (world/harvests.js talk): the `harvest` condition's kinds (and the blights' ids). */
 export const HARVEST_KINDS = ['failing', 'bumper', 'poor', 'plenty'];
 /** What townsfolk say of the roads out of town (world/transport.js talk): the `roads` condition's kinds. */
@@ -86,6 +91,8 @@ const TOKEN_NEEDS = {
     lair: 'outlaws', leader: 'outlaws', dearthGood: 'dearth', glutGood: 'glut', strikeGuild: 'strike', strikeGood: 'strike',
     bank: 'money', listing: 'money',
     pricePct: 'prices', sinceSeason: 'prices', fashionPlace: 'fashion', fashionText: 'fashion', fashionGoods: 'fashion',
+    scandalSubject: 'scandal', scandalTale: 'scandal', scandalPlace: 'scandal', scandalRealm: 'scandal',
+    rivalHouse: 'rivalHouse',
 };
 const ALWAYS_TOKENS = ['settlement', 'kingdom', 'ruler', 'player', 'house', 'season', 'title'];
 
@@ -180,7 +187,7 @@ export const Chatter = {
             siege: false, siegeTown: null,
             events: [], revolt: false, sagas: [], rival: null, newRuler: false, oldRuler: null, outlaws: null, money: [], labour: [],
             prices: [], priceInfo: null, fashions: [], harvest: [], roads: [],
-            proclamations: [], deeds: [],
+            proclamations: [], deeds: [], scandals: [], fame: [], rivalHouse: null,
             traits: [], court: [], titles: [], titleLabel: '',
             houseGen: house ? _num(house.generation) || 1 : 0,
             prestige: house ? _num(house.prestige) : 0,
@@ -278,6 +285,9 @@ export const Chatter = {
             const land = Estates.talk(world, settlement);
             for (const k of land.labour) if (!ctx.labour.includes(k)) ctx.labour.push(k);
             for (const k of land.prices) if (!ctx.prices.includes(k)) ctx.prices.push(k);
+            // The grain dealers' lofts full while a harvest fails, or a crown's edict against them (systems/engrossing.js)
+            const edict = settlement.kingdom != null && Engrossing.recent(world, 30).some(h => h.kind === 'edict' && h.kingdomId === settlement.kingdom);
+            if ((Engrossing.held(settlement) >= 1 || edict) && !ctx.prices.includes('engrossing')) ctx.prices.push('engrossing');
         }
         // The harvest in its region: failing or bumper, a blight; poor or plenty once it is in (world/harvests.js)
         if (settlement && world) ctx.harvest = Harvests.talk(world, settlement);
@@ -386,10 +396,18 @@ export const Chatter = {
             const key = `${q},${r}`;
             const types = (DataLoader.gossip && DataLoader.gossip.rumorTypes) || {};
             for (const rumor of player.gossip.rumors) {
-                if (!rumor || rumor.expired || !(types[rumor.type] && types[rumor.type].deed)) continue;
+                const def = rumor && types[rumor.type];
+                if (!rumor || rumor.expired || !(def && (def.deed || def.talk))) continue;
                 if (!(rumor.spreadTo || []).includes(key)) continue;
+                // Here the deed is told as someone else's
+                const telling = Gossip.tellingAt(rumor, key);
+                if (telling && telling.stolen) continue;
                 ctx.deeds.push({ type: rumor.type, place: rumor.locationName || 'these parts', victim: (rumor.victim && rumor.victim.name) || 'someone' });
             }
+        }
+        // The tales about the great told here (systems/whispers.js)
+        if (player && q != null) {
+            ctx.scandals = Whispers.talkAt(player, q, r).map(s => ({ kind: s.kind, subject: s.subject.name, tale: Whispers.text(s), place: s.place, realm: s.kingdomName }));
         }
 
         // Who the player has become
@@ -399,6 +417,10 @@ export const Chatter = {
             if (court) ctx.court = COURT_AXES.filter(a => _num(court[a]) >= cfg.courtThreshold);
             ctx.titles = Chatter._titles(world, player, kid);
             ctx.titleLabel = player.kingdomTitle || (player.title && player.title !== 'Nobody' ? player.title : '') || 'traveller';
+            // The player's name in this realm, and a rival House that holds it (systems/fame.js)
+            ctx.fame = [Fame.stageIn(player, kid).id];
+            const rh = Fame.rivalHouse(player, kid);
+            if (rh && rh.feud >= _num(Fame.config().rivalSeed.minFeud, 15)) ctx.rivalHouse = rh.name;
         }
         return ctx;
     },
@@ -459,6 +481,7 @@ export const Chatter = {
             case 'saga': return v === true ? ctx.sagas.length > 0 : v === false ? ctx.sagas.length === 0 : Chatter._anyIn(v, ctx.sagas.map(s => s.id));
             case 'proclamation': return v === true ? ctx.proclamations.length > 0 : v === false ? ctx.proclamations.length === 0 : Chatter._anyIn(v, ctx.proclamations.map(p => p.kind));
             case 'deed': return v === true ? ctx.deeds.length > 0 : v === false ? ctx.deeds.length === 0 : Chatter._anyIn(v, ctx.deeds.map(d => d.type));
+            case 'scandal': { const l = ctx.scandals || []; return v === true ? l.length > 0 : v === false ? l.length === 0 : Chatter._anyIn(v, l.map(s => s.kind)); }
             case 'season': return ctx.season != null && Array.isArray(v) && v.includes(ctx.season);
             case 'trait': return Chatter._anyIn(v, ctx.traits);
             case 'court': return Chatter._anyIn(v, ctx.court);
@@ -470,6 +493,8 @@ export const Chatter = {
             case 'karmaMin': return ctx.karma >= v;
             case 'karmaMax': return ctx.karma <= v;
             case 'renownMin': return ctx.renown >= v;
+            case 'fame': return Chatter._anyIn(v, ctx.fame || []);
+            case 'rivalHouse': return !!ctx.rivalHouse === !!v;
             case 'dispositionMin': return ctx.disposition != null && ctx.disposition >= v;
             case 'dispositionMax': return ctx.disposition != null && ctx.disposition <= v;
             default: return false;
@@ -490,6 +515,7 @@ export const Chatter = {
         const saga = Chatter._first(ctx.sagas, when.saga, 'id');
         const pr = Chatter._first(ctx.proclamations, when.proclamation, 'kind');
         const deed = Chatter._first(ctx.deeds, when.deed, 'type');
+        const scandal = Chatter._first(ctx.scandals || [], when.scandal, 'kind');
         const money = Chatter._first((ctx.money || []).filter(m => m.bank || m.listing), when.money, 'kind');
         const map = {
             settlement: ctx.settlementName, kingdom: ctx.kingdomName, ruler: ctx.ruler,
@@ -502,6 +528,8 @@ export const Chatter = {
             oldRuler: ctx.oldRuler,
             proclamation: pr && pr.text,
             deedPlace: deed && deed.place, deedVictim: deed && deed.victim,
+            scandalSubject: scandal && scandal.subject, scandalTale: scandal && scandal.tale,
+            scandalPlace: scandal && scandal.place, scandalRealm: scandal && scandal.realm,
             lair: ctx.outlaws && ctx.outlaws.name, leader: ctx.outlaws && ctx.outlaws.leader,
             dearthGood: ctx.dearth && ctx.dearth.label, glutGood: ctx.glut && ctx.glut.label,
             strikeGuild: ctx.strike && ctx.strike.guild, strikeGood: ctx.strike && ctx.strike.good,
@@ -511,6 +539,7 @@ export const Chatter = {
             fashionPlace: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).place,
             fashionText: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).text,
             fashionGoods: (Chatter._first(ctx.fashions || [], when.fashion, 'id') || {}).goods,
+            rivalHouse: ctx.rivalHouse,
         };
         return String(text).replace(/\{(\w+)\}/g, (m, k) => (map[k] != null ? map[k] : m));
     },
@@ -648,23 +677,37 @@ export const Chatter = {
         for (const ev of ctx.events.slice(0, 3)) f.push(`There is ${ev.name} at ${ev.place}.`);
         if (ctx.revolt) f.push('Lords or peasants are in revolt in the realm.');
         for (const s of ctx.sagas) f.push(`Everyone talks of "${s.name}".`);
-        if (ctx.dearth) f.push(`The market here is short of ; prices are high.`);
-        if (ctx.glut) f.push(`The market here is glutted with ; it sells cheap.`);
+        if (ctx.dearth) f.push(`The market here is short of ${ctx.dearth.label}; prices are high.`);
+        if (ctx.glut) f.push(`The market here is glutted with ${ctx.glut.label}; it sells cheap.`);
         if (ctx.strike) f.push(`The ${ctx.strike.guild} is on strike; ${ctx.strike.good} is short.`);
         if (ctx.outlaws) f.push(`Outlaws led by ${ctx.outlaws.leader} hold ${ctx.outlaws.name} nearby and raid the roads.`);
         const MONEY = { debased: 'The coin of the realm has been debased and prices are rising.', levy: 'The crown has raised an extraordinary war levy.',
             default: 'The crown has refused to pay its debts.', bank_run: 'Depositors are running on the bank.', bank_failed: 'A banking house has failed.',
             coin_short: 'Coin is short in the realm: prices are low and silver hard to come by.', coin_flood: 'The realm is awash with coin, and prices are rising with it.',
-            recoinage: 'The crown has called in the clipped coin and struck it anew at full weight.' };
-        for (const m of ctx.money || []) if (MONEY[m.kind]) f.push(MONEY[m.kind]);
+            recoinage: 'The crown has called in the clipped coin and struck it anew at full weight.',
+            tax_revolt: 'The town has risen against the tax collectors of the crown.', tax_farm: 'The crown has sold its taxes here to a tax farmer, who squeezes hard.',
+            heavy_taxes: 'The taxes of the crown lie heavy on the realm.', army_unpaid: 'The soldiers of the crown have gone unpaid and some are deserting.',
+            mania: 'Everyone is buying shares on the Bourse; prices there have run wild.', crash: 'The Bourse has crashed and many have lost their savings.',
+            insurers_failed: 'An underwriting house has failed and cannot pay its claims.', bank: 'A banking house keeps its counting-room in this town.' };
+        for (const m of ctx.money || []) {
+            if (!MONEY[m.kind]) continue;
+            let line = MONEY[m.kind];
+            if (m.kind === 'tax_farm' && m.bank) line = `The crown has sold its taxes here to ${m.bank}, who squeezes hard.`;
+            else if ((m.kind === 'bank' || m.kind === 'insurers_failed' || m.kind === 'bank_failed' || m.kind === 'bank_run') && m.bank) line = `${line} (${m.bank})`;
+            else if ((m.kind === 'mania' || m.kind === 'crash') && m.listing) line = `${line} (${m.listing})`;
+            f.push(line);
+        }
         const WORK = { idle: 'Many here are out of work.', refugees: 'Refugees have crowded into the town.', strike: 'The artisans are on strike over the price of bread.',
             boom: 'Times are good: there is work for all and newcomers keep arriving.', hardship: 'The poor are hard-pressed: wages do not cover bread and fuel.',
             mine_strike: 'A new vein has been struck in the hills nearby; miners are coming in.', mine_closed: 'The mine nearby is worked out and its miners are leaving.',
             enclosure: 'A landlord nearby has hedged his fields for sheep and turned his tenants out.', enclosure_riot: 'The cottagers rioted over the enclosures and tore down the hedges.',
+            rent_riot: 'The tenants of an estate nearby rose against their landlord over the rent and beat the bailiff.',
+            bequest: 'A lord nearby has left one of his estates to the Church.', dowry: 'An estate nearby has passed to another noble house as a dowry.',
             estate_sale: 'An estate nearby is up for sale, or has lately changed hands.', putting_out: 'The merchants put out wool and flax to the cottagers to spin and weave at home.' };
         for (const k of ctx.labour || []) if (WORK[k]) f.push(WORK[k]);
         if (ctx.priceInfo && (ctx.prices || []).includes('dear_food')) f.push(`Bread is dear: food costs ${ctx.priceInfo.foodPct}% more than in ${ctx.priceInfo.since}.`);
         if ((ctx.prices || []).includes('linen_glut')) f.push('Linen is cheap: the cottage looms have flooded the markets.');
+        if ((ctx.prices || []).includes('engrossing')) f.push('The grain dealers are hoarding grain in their lofts against a bad harvest, and bread is dearer for it.');
         if (ctx.priceInfo && (ctx.prices || []).includes('inflation')) f.push(`Prices have risen ${ctx.priceInfo.goodsPct}% since ${ctx.priceInfo.since}.`);
         for (const x of (ctx.fashions || []).slice(0, 1)) f.push(`The fashion at court, from ${x.place}: ${x.text} (${x.goods} are wanted).`);
         const CROP = { failing: 'The harvest hereabouts is failing; bread will be dear by spring.', bumper: 'A bumper harvest is coming; grain will be cheap.',
@@ -679,6 +722,7 @@ export const Chatter = {
         if (ctx.newRuler) f.push(`${ctx.ruler} has newly taken the throne from ${ctx.oldRuler}.`);
         if (ctx.proclamations.length) f.push(`The heralds proclaimed: ${ctx.proclamations[0].text}`);
         for (const d of ctx.deeds.slice(0, 2)) f.push(`Gossip about the player: ${String(d.type).replace(/_/g, ' ')} at ${d.place}.`);
+        for (const s of (ctx.scandals || []).slice(0, 2)) f.push(`Everyone whispers about ${s.subject}: "${s.tale}" Nobody knows if it is true.`);
         if (ctx.traits.length) f.push(`The player is known as: ${ctx.traits.map(t => (Traits.TRAITS[t] && Traits.TRAITS[t].name) || t).join(', ')}.`);
         if (ctx.court.length) f.push(`The player's court is known for ${ctx.court.join(' and ')}.`);
         const t = ctx.titles;
@@ -706,10 +750,11 @@ export const Chatter = {
         const traits = Object.keys(Traits.TRAITS || {});
         const eventIds = Object.values(WorldEvents.TEMPLATES || {}).map(t => t.id);
         const sagaIds = Object.keys((DataLoader.sagas && DataLoader.sagas.sagas) || {});
-        const deedIds = Object.entries((DataLoader.gossip && DataLoader.gossip.rumorTypes) || {}).filter(([, d]) => d && d.deed).map(([id]) => id);
+        const deedIds = Object.entries((DataLoader.gossip && DataLoader.gossip.rumorTypes) || {}).filter(([, d]) => d && (d.deed || d.talk)).map(([id]) => id);
+        const scandalIds = Object.keys(Whispers.kinds());
         const heraldKinds = Object.keys(((Chatter.data().heralds || {}).templates) || {});
         const fashionIds = Fashions.config().list.map(x => x && x.id).filter(Boolean);
-        const enums = { season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds], roads: ROAD_KINDS };
+        const enums = { fame: Fame.config().stages.map(x => x.id), season: SEASONS, trait: traits, court: COURT_AXES, title: TITLES, occupation: OCCUPATIONS, personality: PERSONALITIES, event: eventIds, saga: sagaIds, deed: deedIds, scandal: scandalIds, proclamation: heraldKinds, money: MONEY_KINDS, labour: LABOUR_KINDS, prices: PRICE_KINDS, fashion: fashionIds, harvest: [...HARVEST_KINDS, ...Harvests.config().blightIds], roads: ROAD_KINDS };
         const seen = new Set();
         for (const g of Chatter.groups()) {
             const gid = g && g.id;

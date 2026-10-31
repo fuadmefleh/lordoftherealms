@@ -388,6 +388,16 @@ describe('The quest board refills and sheds stale postings', () => {
 // ── 5. Hollow sweep of the newest systems ───────────────────────────
 
 describe('NPC tasks credit the giver and the realm', () => {
+    /** Delve the ruin a concrete "explore the ruins" task names (systems/npcTasks.js). */
+    function delveTarget(world, player, quest) {
+        const o = quest.objectives.find(x => x.type === 'site_delved');
+        expect(o, 'the task names a ruin').toBeTruthy();
+        const poi = world.getTile(o.q, o.r).improvement;
+        poi.explored = true;
+        poi.delved = { day: world.day, depth: 3, of: 4, reason: 'retreat' };
+        player.delves = { active: null, completed: [`${o.q},${o.r}`], injuries: [], guardians: [], stats: {} };
+    }
+
     function townGame() {
         const game = newGame(7);
         const { world, player } = game;
@@ -403,7 +413,7 @@ describe('NPC tasks credit the giver and the realm', () => {
         expect(res.quest.rewards.reputation).toEqual({ kingdomId, amount: Quests.NPC_TASK_REWARDS.reputation.reputation });
         expect(Quests.describeRewards(res.quest.rewards)).toMatch(/reputation/);
         const rep0 = (player.reputation && player.reputation[kingdomId]) || 0;
-        Quests.track(player, 'ruins_explored');
+        delveTarget(world, player, res.quest);
         const done = Quests.updateProgress(player, world);
         expect(done.map(q => q.id)).toContain(res.quest.id);
         expect(player.reputation[kingdomId]).toBe(Math.min(100, rep0 + Quests.NPC_TASK_REWARDS.reputation.reputation));
@@ -419,7 +429,7 @@ describe('NPC tasks credit the giver and the realm', () => {
         const { world, player } = townGame();
         const res = Quests.createNpcTask(player, { text: 'x', type: 'explore_ruins', reward: 'gold' }, { id: 42, name: 'Bran' }, world);
         expect(Quests.collectThanks(player, { id: 42, name: 'Bran' })).toBe(null);
-        Quests.track(player, 'ruins_explored');
+        delveTarget(world, player, res.quest);
         Quests.updateProgress(player, world);
         expect(Quests.collectThanks(player, { id: 42, name: 'Someone Else' })).toBe(null);
         const t = Quests.collectThanks(player, { id: 42, name: 'Bran' });

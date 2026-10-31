@@ -166,7 +166,8 @@
     "forged":   { "label": "Forged documents", "icon": "📜" },
     "office":   { "label": "Royal office", "icon": "🏛️" },
     "conquest": { "label": "Conquest of the capital", "icon": "⚔️" },
-    "purchased":{ "label": "Heralds and genealogists", "icon": "🛡️" }
+    "purchased":{ "label": "Heralds and genealogists", "icon": "🛡️" },
+    "blood":    { "label": "Birthright", "icon": "🩸" }
   },
 
   "crisisCauses": {

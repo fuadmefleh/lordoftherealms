@@ -2,8 +2,12 @@
 import { ActionMenu } from './_ref.js';
 import { peopleLine } from './labour.js';
 import { Guilds } from '../../systems/guilds.js';
+import { Hospitality } from '../../systems/hospitality.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { policyLine } from './tradePolicy.js';
+import { MercContracts } from '../../player/mercContracts.js';
+import { Crafting } from '../../player/crafting.js';
+import { Fame } from '../../systems/fame.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 /**
@@ -78,7 +82,7 @@ Object.assign(ActionMenu, {
                         <div style="font-weight: bold; color: white;">${dest.name}</div>
                         <div style="font-size: 11px; color: var(--text-secondary);">Distance: ${dist} hexes · ${travelDays} day${travelDays > 1 ? 's' : ''} at sea</div>
                     </div>
-                    <button onclick="window.payForPassage(${dest.q}, ${dest.r}, ${cost}, '${dest.name}', ${travelDays})" 
+                    <button onclick="window.payForPassage(${dest.q}, ${dest.r}, ${cost}, '${String(dest.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${travelDays})"
                             ${!canAfford ? 'disabled' : ''} 
                             style="padding: 6px 14px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
                         ${cost} gold
@@ -123,8 +127,7 @@ Object.assign(ActionMenu, {
                         const waitDone = setInterval(() => {
                             if (!game.isProcessingTurn) {
                                 clearInterval(waitDone);
-                                const pos = Hex.axialToPixel(q, r, game.renderer.hexSize);
-                                game.camera.centerOn(pos.x, pos.y);
+                                game.recenterCamera();
                                 game.ui.showNotification('Safe Voyage', `You arrived at ${name}. The journey took ${travelDays} day${travelDays > 1 ? 's' : ''}.`, 'success');
                                 game.ui.updateStats(game.player, game.world);
                             }
@@ -226,6 +229,10 @@ Object.assign(ActionMenu, {
         } else if (prop.type === 'tavern') {
             productionText = 'Gold (patrons)';
             prodRateText = `~${prop.todayIncome || '15-35'}`;
+        } else if (Hospitality.isKind(prop.type)) {
+            // Guest houses, inns, hotels, roadhouses are run from their own panel (ui/actionMenu/lodging.js)
+            productionText = `Guests (${prop.hosp ? prop.hosp.guests : 0} last night) · <a href="#" data-am-act="lodgingAct" data-am-args='${JSON.stringify(['tab', `p:${tile.q},${tile.r}:${prop.type}`, 'run'])}' style="color:var(--gold);">Run the house</a>`;
+            prodRateText = `~${prop.todayIncome || 0}`;
         } else {
             // Standard prop
             const goodKey = (prop.produces || '').toUpperCase();
@@ -276,15 +283,23 @@ Object.assign(ActionMenu, {
             html += `</div>`;
             game.ui.showCustomPanel('Manage Property', html);
 
+            // (There is no PlayerEconomy.sellProperty — this button used to throw.)
             window.sellPropertyAction = () => {
-                const result = PlayerEconomy.sellProperty(game.player, tile, game.world);
-                if (result.success) {
-                    game.ui.showNotification('Property Sold', `${result.name} sold for ${result.refund} gold`, 'success');
-                    game.ui.updateStats(game.player, game.world);
-                    game.ui.hideCustomPanel();
-                } else {
-                    game.ui.showNotification('Cannot Sell', result.reason || 'Error', 'error');
+                const player = game.player;
+                if (tile.playerProperty !== prop) {
+                    game.ui.showNotification('Cannot Sell', 'That property is no longer yours.', 'error');
+                    return;
                 }
+                const refund = Math.floor(propType.cost * 0.25);
+                if (Array.isArray(tile.playerProperties)) tile.playerProperties = tile.playerProperties.filter(p => p !== prop);
+                tile.playerProperty = (tile.playerProperties && tile.playerProperties[0]) || null;
+                if (tile.playerProperties && !tile.playerProperties.length) tile.playerProperties = null;
+                const idx = (player.properties || []).findIndex(r => r.q === tile.q && r.r === tile.r && r.type === prop.type);
+                if (idx !== -1) player.properties.splice(idx, 1);
+                player.gold += refund;
+                game.ui.showNotification('Property Sold', `${prop.name} sold for ${refund} gold`, 'success');
+                game.ui.updateStats(player, game.world);
+                game.ui.hideCustomPanel();
             };
             return;
         }
@@ -957,8 +972,9 @@ Object.assign(ActionMenu, {
                 // What this town pays for the first unit (its stock sets it)
                 // ...less the crown's duty on goods bought in another realm (systems/tradePolicy.js)
                 const policy = TradePolicy.saleCheck(game.player, game.world, tile.settlement, goodId, 1);
-                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world) * (policy.ok ? policy.mult : 1));
-                sellItems.push({ ...good, quantity, sellPrice });
+                // ...and the quality of crafted goods (player/crafting.js; Trading.sellGoods applies it)
+                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world) * (policy.ok ? policy.mult : 1) * Crafting.saleMult(game.player, goodId));
+                sellItems.push({ ...good, quantity, sellPrice, quality: Crafting.qualityTag(game.player, goodId) });
             }
         }
 
@@ -1126,7 +1142,7 @@ Object.assign(ActionMenu, {
                 html += `<div class="trade-row">
                     <span class="trade-icon">${item.icon}</span>
                     <div>
-                        <div class="trade-name">${item.name}</div>
+                        <div class="trade-name">${item.name}${item.quality ? ` <span style="color:#8fc3ff; font-size:11px;" title="The quality of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
                         <div class="trade-meta">You have: ${item.quantity}</div>
                         ${guildBadge(item.id)}
                         ${policyBadge(item.id, true)}
@@ -1210,7 +1226,9 @@ Object.assign(ActionMenu, {
         }
 
         // Disposition & personality set this trader's prices (both ways)
-        const priceMods = NpcDisposition.getPriceModifiers(npc);
+        // ...and the player's name in this realm (systems/fame.js)
+        const fameCtx = { player: game.player, kingdomId: Fame._kingdomAt(game.world, game.player.q, game.player.r) };
+        const priceMods = NpcDisposition.getPriceModifiers(npc, fameCtx);
         if (priceMods.refuses) {
             game.ui.showNotification('🚫 No Deal', priceMods.refuseReason, 'warning');
             return;
@@ -1250,7 +1268,7 @@ Object.assign(ActionMenu, {
         for (const [itemId, data] of Object.entries(npc.shopInventory)) {
             const goodDef = PlayerEconomy.GOODS[itemId.toUpperCase()] || Object.values(PlayerEconomy.GOODS).find(g => g.id === itemId);
             if (!goodDef || data.qty <= 0) continue;
-            const price = NpcDisposition.buyPrice(npc, goodDef.basePrice * (data.markup || 1));
+            const price = NpcDisposition.buyPrice(npc, goodDef.basePrice * (data.markup || 1), fameCtx);
             shopGoods.push({ ...goodDef, quantity: data.qty, price, _itemId: itemId });
         }
 
@@ -1269,8 +1287,8 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
-                const sellPrice = NpcDisposition.sellPrice(npc, good.basePrice * 0.65);
-                sellItems.push({ ...good, quantity, sellPrice });
+                const sellPrice = Math.floor(NpcDisposition.sellPrice(npc, good.basePrice * 0.65, fameCtx) * Crafting.saleMult(game.player, goodId));
+                sellItems.push({ ...good, quantity, sellPrice, quality: Crafting.qualityTag(game.player, goodId) });
             }
         }
 
@@ -1348,7 +1366,7 @@ Object.assign(ActionMenu, {
                 html += `<div class="npc-row">
                     <span class="npc-ico">${item.icon}</span>
                     <div>
-                        <div class="npc-gname">${item.name}</div>
+                        <div class="npc-gname">${item.name}${item.quality ? ` <span style="color:#8fc3ff; font-size:11px;">${item.quality}</span>` : ''}</div>
                         <div class="npc-gmeta">You have: ${item.quantity}</div>
                     </div>
                     <div class="npc-gprice" style="color:#2ecc71;">${item.sellPrice} 💰<span class="npc-qty">per unit</span></div>
@@ -1409,6 +1427,7 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('Cannot Sell', 'You don\'t have enough of this item.', 'error');
                     return;
                 }
+                Crafting.takeForSale(game.player, goodId, qty);
                 game.player.inventory[goodId] -= qty;
                 if (game.player.inventory[goodId] <= 0) delete game.player.inventory[goodId];
                 game.player.gold += totalEarned;
@@ -1560,7 +1579,7 @@ Object.assign(ActionMenu, {
             for (const [key, unit] of Object.entries(Technology.TECH_UNITS)) {
                 if (!unit.requiredTech || !Technology.isImplemented(game.player, unit.requiredTech)) continue;
 
-                const techAvail = PlayerMilitary.isTechUnitAvailable(unit, settlement);
+                const techAvail = PlayerMilitary.isTechUnitAvailable(unit, settlement, recruitContext);
                 if (techAvail.available) {
                     html += `
                         <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.06); border: 1px solid rgba(156, 39, 176, 0.2); border-radius: 4px;">
@@ -1614,7 +1633,7 @@ Object.assign(ActionMenu, {
             if (!unit) return;
 
             // Check settlement availability
-            const techAvail = PlayerMilitary.isTechUnitAvailable(unit, tile.settlement);
+            const techAvail = PlayerMilitary.isTechUnitAvailable(unit, tile.settlement, recruitContext);
             if (!techAvail.available) {
                 game.ui.showNotification('Cannot Recruit', techAvail.reason, 'error');
                 return;
@@ -1727,7 +1746,10 @@ Object.assign(ActionMenu, {
         html += '<div style="font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Famous Companies for Hire</div>';
 
         if (offers.length === 0) {
-            html += '<div style="font-size: 12px; color: var(--text-secondary); padding: 8px; background: rgba(255,255,255,0.04); border-radius: 4px;">No companies are recruiting here today.</div>';
+            const why = PlayerMilitary.hostsMercenaryCompanies(tile.settlement)
+                ? 'No companies are recruiting here today.'
+                : 'No free company seeks work in a village. Look for them in the towns.';
+            html += `<div style="font-size: 12px; color: var(--text-secondary); padding: 8px; background: rgba(255,255,255,0.04); border-radius: 4px;">${why}</div>`;
         } else {
             for (const offer of offers) {
                 const totalUnits = (offer.roster || []).reduce((sum, row) => sum + row.count, 0);
@@ -1783,17 +1805,22 @@ Object.assign(ActionMenu, {
         html += '<div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 6px;">';
         html += '<div style="font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Take Mercenary Work</div>';
 
+        const mercRep = MercContracts.repWith(game.player, tile.settlement && tile.settlement.kingdom);
+        if (mercRep) html += `<div style="font-size: 11px; color: ${mercRep > 0 ? '#2ecc71' : '#e67e22'}; margin-bottom: 6px;">Your name as a sellsword here: ${mercRep > 0 ? '+' : ''}${Math.round(mercRep)} (fees ${mercRep > 0 ? 'raised' : 'cut'})</div>`;
         for (const [key, contract] of Object.entries(PlayerMilitary.CONTRACT_TYPES)) {
-            const canAccept = armyStrength >= contract.minStrength;
+            const quote = MercContracts.quote(game.player, contract, tile.settlement);
+            const canAccept = armyStrength >= contract.minStrength && !quote.refused && !game.player.activeContract;
+            const winPct = Math.round(MercContracts.winChance(armyStrength, quote.opposition) * 100);
             html += `
                 <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canAccept ? 'opacity: 0.5;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <div><span style="font-size: 20px;">${contract.icon}</span> <strong>${contract.name}</strong></div>
                             <div style="font-size: 12px; color: var(--text-secondary);">${contract.description}</div>
-                            <div style="font-size: 12px;">Duration: ${contract.duration} days | Min Strength: ${contract.minStrength}</div>
+                            <div style="font-size: 12px;">Duration: ${contract.duration} days | Min Strength: ${contract.minStrength} | Foe ≈${quote.opposition} | Odds ≈${winPct}%</div>
+                            ${quote.refused ? `<div style="font-size: 11px; color: #e74c3c;">${quote.reason}</div>` : ''}
                         </div>
-                        <button onclick="window.acceptContract('${key}')" ${!canAccept ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${contract.payment} gold</button>
+                        <button onclick="window.acceptContract('${key}')" ${!canAccept ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${quote.payment} gold</button>
                     </div>
                 </div>
             `;

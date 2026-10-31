@@ -317,6 +317,7 @@ export const Finance = {
 
     /** Reserves against what the house started with (1 = as founded). */
     reserveRatio(bank) {
+        if (bank && bank.owner === 'player') return _num(bank.capital) / Math.max(1, Finance.ownReserveNeed(bank));
         return bank ? _num(bank.capital) / Math.max(1, _num(bank.baseCapital, 1)) : 0;
     },
 
@@ -348,6 +349,313 @@ export const Finance = {
         const B = Finance.cfg('banks');
         const short = _num(B.targetReserve, 0.8) - Finance.reserveRatio(bank);
         return _clamp(_num(D.apr, 0.045) * (1 + short * _num(D.reserveSensitivity, 0.5)), _num(D.minApr, 0.03), _num(D.maxApr, 0.075));
+    },
+
+    // ──────────── THE PLAYER'S OWN HOUSE ────────────
+    // A house the player charters is one more entry in st.banks (owner:
+    // 'player'), so the crowns borrow from it and runs, ventures, seizures and
+    // failure reach it like any other. On top of that it keeps the books only
+    // an owner sees: the townsfolk's deposits (bank.publicDeposits, a debt to
+    // them), the merchant loan book (bank.loanBook), the lending policy and a
+    // daily profit account. bank.capital stays what it is for every house —
+    // the coin in the vault — so equity = vault + loan book + crown loans −
+    // deposits.
+
+    /** The player's open house, if any. */
+    ownBank(player) {
+        return Finance.openBanks(player).find(b => b.owner === 'player') || null;
+    },
+
+    /** The coin the house must keep against its depositors. */
+    ownReserveNeed(bank) {
+        const P = Finance.cfg('playerBank');
+        return Math.max(_num(P.reserveFloor, 1500), _num(bank && bank.publicDeposits) * _num(P.reserveShare, 0.35));
+    },
+
+    ownPolicy(bank) {
+        const pol = Finance.cfg('playerBank').policies || {};
+        return pol[bank && bank.policy] || pol.steady || { lend: 0.6, apr: 0.18, lossApr: 0.03, crowns: true };
+    },
+
+    /** What the crowns owe a house. */
+    crownLoansOf(world, bankId) {
+        let owed = 0;
+        for (const k of (world && world.kingdoms) || []) {
+            const f = k && k.finance;
+            if (f && Array.isArray(f.debt)) for (const d of f.debt) if (d && d.bankId === bankId) owed += _num(d.owed);
+        }
+        return owed;
+    },
+
+    /** The house's worth to its owner: vault + loan book + crown loans − deposits. */
+    ownEquity(world, bank) {
+        if (!bank || bank.status !== 'open') return 0;
+        return _num(bank.capital) + _num(bank.loanBook) + Finance.crownLoansOf(world, bank.id) - _num(bank.publicDeposits);
+    },
+
+    /** The settlement that seats a house (its tile's settlement). */
+    _seatOf(world, bank) {
+        const t = world && typeof world.getTile === 'function' ? world.getTile(bank.q, bank.r) : null;
+        return (t && t.settlement) || null;
+    },
+
+    /** How far the townsfolk trust the house with their savings (scales the deposits it draws). */
+    ownTrust(player, world, bank) {
+        const T = Finance.cfg('playerBank').trust || {};
+        const day = _day(world);
+        const rep = _num(player && player.reputation && player.reputation[bank.kingdomId]);
+        const years = Math.max(0, day - _num(bank.founded, day)) / Finance.yearDays();
+        let t = _num(T.base, 0.6) + rep * _num(T.perRep, 0.006) + Math.min(_num(T.ageMax, 0.3), years * _num(T.agePerYear, 0.1));
+        if (bank.lastRunDay != null && day - bank.lastRunDay < _num(T.afterRunDays, 60)) t -= _num(T.runPenalty, 0.3);
+        return _clamp(t, _num(T.min, 0.25), _num(T.max, 1.3));
+    },
+
+    /**
+     * Can the player charter a house where they stand? → { ok, reason, fee,
+     * minCapital, capitalOptions, seat, kingdom }.
+     */
+    charterTerms(player, world) {
+        const P = Finance.cfg('playerBank');
+        const tile = Finance._here(player, world);
+        const s = tile && tile.settlement;
+        const res = { ok: false, reason: null, fee: _num(P.charterFee, 2500), minCapital: _num(P.minCapital, 5000), capitalOptions: P.capitalOptions || [5000, 10000, 25000], seat: s ? s.name : null, kingdom: null };
+        if (!s) { res.reason = 'A house is chartered in a city or capital.'; return res; }
+        if (!(P.seatTypes || ['capital', 'city']).includes(s.type)) { res.reason = `Only a city or capital can seat a banking house (${s.name} is a ${s.type}).`; return res; }
+        const k = _kingdom(world, s.kingdom);
+        if (!k || k.isAlive === false) { res.reason = 'No crown here grants charters.'; return res; }
+        res.kingdom = k.name;
+        if (s.type === 'capital') res.fee = Math.round(res.fee * _num(P.capitalSeatFeeMult, 1.5));
+        const st = Finance.state(player);
+        const own = Finance.ownBank(player);
+        if (own) { res.reason = `You already own ${own.name}.`; return res; }
+        if (st.banks.some(b => b.status === 'open' && b.q === tile.q && b.r === tile.r)) { res.reason = `${s.name} already seats a banking house.`; return res; }
+        if (Object.keys(st.blacklist).length) { res.reason = 'No crown charters a known defaulter: make good your old debts first.'; return res; }
+        const rep = _num(player.reputation && player.reputation[s.kingdom]);
+        if (rep < _num(P.minReputation, 10)) { res.reason = `${k.name} charters only those it trusts (reputation ${_num(P.minReputation, 10)}+, yours ${Math.round(rep)}).`; return res; }
+        if (_num(player.gold) < res.fee + res.minCapital) { res.reason = `A charter costs ${res.fee}g and the house needs at least ${res.minCapital}g paid in.`; return res; }
+        res.ok = true;
+        return res;
+    },
+
+    /** Charter a house where the player stands, paying `capital` into its vault. */
+    foundBank(player, world, capital, name = null) {
+        const terms = Finance.charterTerms(player, world);
+        if (!terms.ok) return { success: false, reason: terms.reason };
+        capital = Math.floor(_num(capital));
+        if (capital < terms.minCapital) return { success: false, reason: `Pay in at least ${terms.minCapital}g.` };
+        if (_num(player.gold) < capital + terms.fee) return { success: false, reason: `You need ${capital + terms.fee}g (charter ${terms.fee}g + capital ${capital}g).` };
+        const st = Finance.state(player);
+        if (!st.initialized) Finance._initBanks(world, st);
+        const tile = Finance._here(player, world);
+        const s = tile.settlement;
+        const k = _kingdom(world, s.kingdom);
+        const bank = Finance._newBank(world, st, { q: tile.q, r: tile.r, name: s.name, kingdom: s.kingdom, population: s.population });
+        const clean = String(name || '').replace(/[<>"'&]/g, '').trim().slice(0, 40);
+        const surname = player.lastName || (player.house && player.house.name) || player.name || 'the Founder';
+        bank.name = clean || `The House of ${surname}`;
+        bank.owner = 'player';
+        bank.capital = capital;
+        bank.baseCapital = capital;
+        bank.paidIn = capital;
+        bank.publicDeposits = 0;
+        bank.loanBook = 0;
+        bank.policy = 'steady';
+        bank.book = { profit: 0, drawn: 0, days: [] };
+        bank.lastRunDay = null;
+        player.gold -= capital + terms.fee;
+        if (k) k.treasury = _num(k.treasury) + terms.fee;
+        Ledger.record(player, 'bankCharter', -terms.fee);
+        Ledger.record(player, 'bankCapital', -capital);
+        Finance._record(st, world, { kind: 'bank_founded', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
+        return { success: true, bank, text: `${terms.kingdom} grants the charter. ${bank.name} opens its counters in ${s.name} with ${capital}g in the vault.` };
+    },
+
+    _ownAtSeat(player, world, bank) {
+        const t = Finance._here(player, world);
+        return !!(t && bank && t.q === bank.q && t.r === bank.r);
+    },
+
+    /** Pay more of the player's gold into the house's vault. */
+    injectCapital(player, world, amount) {
+        const bank = Finance.ownBank(player);
+        amount = Math.floor(_num(amount));
+        if (!bank) return { success: false, reason: 'You own no banking house.' };
+        if (!Finance._ownAtSeat(player, world, bank)) return { success: false, reason: `The strongroom is in ${bank.seat}.` };
+        if (amount <= 0 || _num(player.gold) < amount) return { success: false, reason: 'Not enough gold.' };
+        player.gold -= amount;
+        bank.capital = _num(bank.capital) + amount;
+        bank.paidIn = _num(bank.paidIn) + amount;
+        Ledger.record(player, 'bankCapital', -amount);
+        return { success: true, text: `${amount}g into the vault of ${bank.name}.` };
+    },
+
+    /** The most the owner can take out and still keep the reserve the depositors need. */
+    drawable(bank) {
+        if (!bank || bank.status !== 'open') return 0;
+        const P = Finance.cfg('playerBank');
+        return Math.max(0, Math.floor(_num(bank.capital) - Finance.ownReserveNeed(bank) * _num(P.drawFloor, 1.2)));
+    },
+
+    /** Take coin out of the house (profit, or capital while the reserve allows). */
+    drawFromBank(player, world, amount = null) {
+        const bank = Finance.ownBank(player);
+        if (!bank) return { success: false, reason: 'You own no banking house.' };
+        if (!Finance._ownAtSeat(player, world, bank)) return { success: false, reason: `The strongroom is in ${bank.seat}.` };
+        if (Finance.inPanic(bank, _day(world))) return { success: false, reason: 'Not during a run: every coin is wanted at the counters.' };
+        const room = Finance.drawable(bank);
+        const want = Math.floor(amount == null ? room : Math.min(_num(amount), room));
+        if (want <= 0) return { success: false, reason: 'The vault holds no more than the depositors need.' };
+        bank.capital -= want;
+        bank.paidIn = Math.max(0, _num(bank.paidIn) - want);
+        bank.book.drawn = _num(bank.book.drawn) + want;
+        player.gold = _num(player.gold) + want;
+        Ledger.record(player, 'bankCapital', want);
+        return { success: true, amount: want, text: `You draw ${want}g from ${bank.name}.` };
+    },
+
+    /** Lending policy: cautious, steady or bold. */
+    setBankPolicy(player, policy) {
+        const bank = Finance.ownBank(player);
+        const pol = Finance.cfg('playerBank').policies || {};
+        if (!bank) return { success: false, reason: 'You own no banking house.' };
+        if (!pol[policy]) return { success: false, reason: 'No such policy.' };
+        bank.policy = policy;
+        return { success: true, text: `${bank.name} now follows a ${(pol[policy].label || policy).toLowerCase()} policy.` };
+    },
+
+    /**
+     * Wind the house up: the depositors are paid from the vault, the loan
+     * book is called in (at a loss), the crowns' debts are sold to another
+     * house at a discount, and what is left comes to the owner.
+     */
+    windUpBank(player, world) {
+        const bank = Finance.ownBank(player);
+        const P = Finance.cfg('playerBank');
+        if (!bank) return { success: false, reason: 'You own no banking house.' };
+        if (!Finance._ownAtSeat(player, world, bank)) return { success: false, reason: `The house is wound up in ${bank.seat}.` };
+        if (Finance.inPanic(bank, _day(world))) return { success: false, reason: 'Not during a run.' };
+        const recovered = Math.floor(_num(bank.loanBook) * _num(P.windUpRecovery, 0.85));
+        const buyer = Finance.openBanks(player).find(b => b.id !== bank.id && b.owner !== 'player') || null;
+        const crown = Math.floor(Finance.crownLoansOf(world, bank.id) * (buyer ? _num(P.crownSaleShare, 0.7) : 0));
+        const net = Math.floor(_num(bank.capital) + recovered + crown - _num(bank.publicDeposits));
+        if (net < 0) return { success: false, reason: `The house cannot pay its depositors in full (${-net}g short): put more in first.` };
+        for (const k of world.kingdoms || []) {
+            const f = k && k.finance;
+            if (!f || !Array.isArray(f.debt)) continue;
+            if (buyer) for (const d of f.debt) if (d.bankId === bank.id) d.bankId = buyer.id;
+            f.debt = f.debt.filter(d => d.bankId !== bank.id);
+        }
+        bank.status = 'closed';
+        bank.capital = 0;
+        bank.loanBook = 0;
+        bank.publicDeposits = 0;
+        bank.refounded = true;
+        player.gold = _num(player.gold) + net;
+        Ledger.record(player, 'bankCapital', net);
+        Finance._record(Finance.state(player), world, { kind: 'bank_closed', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
+        return { success: true, amount: net, text: `${bank.name} pays its depositors and shuts its doors. ${net}g comes to you.` };
+    },
+
+    /** The owner's view of the books (null when the player owns no house). */
+    ownBook(player, world) {
+        const bank = Finance.ownBank(player);
+        if (!bank) return null;
+        const days = (bank.book && bank.book.days) || [];
+        const sum = (n, key) => days.slice(-n).reduce((s, d) => s + _num(d[key]), 0);
+        const seat = Finance._seatOf(world, bank);
+        return {
+            bank, policy: bank.policy, policyDef: Finance.ownPolicy(bank),
+            vault: Math.floor(_num(bank.capital)), deposits: Math.floor(_num(bank.publicDeposits)), loanBook: Math.floor(_num(bank.loanBook)),
+            crownLoans: Math.floor(Finance.crownLoansOf(world, bank.id)), equity: Math.floor(Finance.ownEquity(world, bank)),
+            paidIn: Math.floor(_num(bank.paidIn)), need: Math.floor(Finance.ownReserveNeed(bank)), ratio: Finance.reserveRatio(bank),
+            trust: Finance.ownTrust(player, world, bank), depositApr: Finance.depositApr(bank), drawable: Finance.drawable(bank),
+            profit30: Math.round(sum(30, 'profit')), interest30: Math.round(sum(30, 'interest')), paidOut30: Math.round(sum(30, 'depInterest')),
+            losses30: Math.round(sum(30, 'losses')), costs30: Math.round(sum(30, 'costs')), profitAll: Math.round(_num(bank.book && bank.book.profit)),
+            drawn: Math.floor(_num(bank.book && bank.book.drawn)), seatPopulation: _num(seat && seat.population),
+            atSeat: Finance._ownAtSeat(player, world, bank), panic: Finance.inPanic(bank, _day(world)),
+        };
+    },
+
+    /** One day of the player's house: deposits come and go, the loan book earns and loses, clerks are paid. */
+    _ownedBankDay(world, player, st, bank, out) {
+        const P = Finance.cfg('playerBank');
+        const yd = Finance.yearDays();
+        const day = _day(world);
+        const pol = Finance.ownPolicy(bank);
+        const k = _kingdom(world, bank.kingdomId);
+        const seat = Finance._seatOf(world, bank);
+        bank.publicDeposits = _num(bank.publicDeposits);
+        bank.loanBook = _num(bank.loanBook);
+        if (!bank.book || typeof bank.book !== 'object') bank.book = { profit: 0, drawn: 0, days: [] };
+        if (!Array.isArray(bank.book.days)) bank.book.days = [];
+        const rec = { day, interest: 0, depInterest: 0, losses: 0, costs: 0, profit: 0 };
+
+        if (Finance.inPanic(bank, day)) {
+            // A run: each day the depositors take their coin. Short of it, the
+            // house calls in loans at a loss; with nothing left to call, it fails
+            const pull = Math.min(bank.publicDeposits, Math.ceil(bank.publicDeposits * _num(P.runWithdrawShare, 0.12)));
+            const recovery = _num(P.runCallRecovery, 0.8);
+            const short = pull - Math.max(0, _num(bank.capital));
+            if (short > bank.loanBook * recovery) {
+                Finance._fail(world, player, st, bank, out);
+                return;
+            }
+            if (short > 0) {
+                const call = short / recovery;
+                rec.losses += call - short;
+                bank.loanBook -= call;
+                bank.capital = _num(bank.capital) + short;
+            }
+            bank.capital -= pull;
+            bank.publicDeposits -= pull;
+        } else {
+            // Deposits drift toward what the town will trust the house with
+            const target = _num(seat && seat.population, 4000) * _num(P.depositsPerHead, 2.5) * Finance.ownTrust(player, world, bank);
+            const move = (target - bank.publicDeposits) * _num(P.depositDrift, 0.03);
+            const flow = move < 0 ? -Math.min(-move, bank.publicDeposits, Math.max(0, _num(bank.capital))) : move;
+            bank.publicDeposits += flow;
+            bank.capital = _num(bank.capital) + flow;
+        }
+
+        // The loan book moves toward the policy's share of what the house holds
+        // (called in during a run), never lending out the depositors' reserve
+        const lendable = Math.max(0, _num(bank.capital) + bank.loanBook);
+        const targetBook = Finance.inPanic(bank, day) ? bank.loanBook : lendable * _num(pol.lend, 0.6);
+        let shift = (targetBook - bank.loanBook) * _num(P.bookDrift, 0.05);
+        if (shift > 0) shift = Math.min(shift, Math.max(0, _num(bank.capital) - Finance.ownReserveNeed(bank) * _num(P.lendFloor, 0.5)));
+        bank.loanBook += shift;
+        bank.capital -= shift;
+
+        // What the merchants pay, and what they never will
+        rec.interest = bank.loanBook * _num(pol.apr, 0.18) / yd;
+        let lossApr = _num(pol.lossApr, 0.03);
+        if (k && Array.isArray(k.wars) && k.wars.length) lossApr *= _num(P.warLossMult, 2);
+        let losses = bank.loanBook * lossApr / yd * (0.5 + Utils.random());
+        const bad = P.badDebt || {};
+        if (bank.loanBook > 0 && Utils.random() < _num(bad.chance, 0.003) * _num(pol.riskMult, 1)) {
+            const hit = bank.loanBook * _between(bad.share || [0.04, 0.1], Utils.random());
+            losses += hit;
+            Finance._note(out, '📉', `A bad debt at ${bank.name}`, `A merchant who borrowed from your house has gone under, owing ${Math.round(hit)}g.`, 'warning');
+        }
+        losses = Math.min(losses, bank.loanBook);
+        bank.loanBook -= losses;
+        rec.losses += losses;
+
+        // Interest to the depositors and the clerks' wages, from the vault
+        rec.depInterest = bank.publicDeposits * Finance.depositApr(bank) / yd;
+        rec.costs = _num(P.clerksPerDay, 2) + (bank.publicDeposits + bank.loanBook) / 1000 * _num(P.costPerThousand, 0.02);
+        bank.capital = _num(bank.capital) + rec.interest - rec.depInterest - rec.costs;
+        rec.profit = rec.interest - rec.depInterest - rec.losses - rec.costs;
+
+        for (const key of ['interest', 'depInterest', 'losses', 'costs', 'profit']) rec[key] = _round2(rec[key]);
+        bank.book.profit = _round2(_num(bank.book.profit) + rec.profit);
+        bank.book.days.push(rec);
+        if (bank.book.days.length > 120) bank.book.days.splice(0, bank.book.days.length - 120);
+        bank.capital = _round2(bank.capital);
+        bank.publicDeposits = _round2(Math.max(0, bank.publicDeposits));
+        bank.loanBook = _round2(Math.max(0, bank.loanBook));
+        // A vault in the red with nothing to call in: the counters close
+        if (bank.capital < 0 && bank.loanBook <= 0 && !Finance.inPanic(bank, day)) Finance._startRun(world, player, st, bank, out, 'an empty vault');
     },
 
     // ──────────── CREDIT ────────────
@@ -480,6 +788,7 @@ export const Finance = {
             const totalOwed = Math.floor(_num(p.amount) * (1 + rate));
             let reason = null;
             if (bank.status !== 'open') reason = 'The house has failed.';
+            else if (bank.owner === 'player') reason = 'A house does not lend to its own owner.';
             else if (st.blacklist[bank.id] != null) reason = 'The house will not lend to a defaulter until the old debt is made good.';
             else if (Finance.inPanic(bank, day)) reason = 'A run on the house: no new loans until it passes.';
             else if (mine >= _num(B.maxLoansPerBank, 3)) reason = `At most ${_num(B.maxLoansPerBank, 3)} loans from one house.`;
@@ -611,6 +920,7 @@ export const Finance = {
         const D = Finance.cfg('deposits');
         amount = Math.floor(_num(amount));
         if (!bank || bank.status !== 'open') return { success: false, reason: 'That house is not trading.' };
+        if (bank.owner === 'player') return { success: false, reason: 'Your own house takes your coin as capital, at the owner’s desk.' };
         if (!Finance._serves(player, world, bank)) return { success: false, reason: `Visit ${bank.name} in ${bank.seat} or one of its branches.` };
         if (Finance.inPanic(bank, _day(world))) return { success: false, reason: 'Nobody sane deposits during a run on the house.' };
         if (amount < _num(D.minDeposit, 50)) return { success: false, reason: `The smallest deposit is ${_num(D.minDeposit, 50)}g.` };
@@ -783,8 +1093,11 @@ export const Finance = {
         const yd = Finance.yearDays();
         for (const bank of st.banks) {
             if (bank.status !== 'open') continue;
-            // The house's own lending to merchants earns its yield
-            if (bank.capital > 0) bank.capital = _round2(bank.capital * (1 + _num(B.yield, 0.07) / yd));
+            // The house's own lending to merchants earns its yield (the
+            // player's house keeps real books: deposits, loan book, costs)
+            if (bank.owner === 'player') Finance._ownedBankDay(world, player, st, bank, out);
+            else if (bank.capital > 0) bank.capital = _round2(bank.capital * (1 + _num(B.yield, 0.07) / yd));
+            if (bank.status !== 'open') continue;
             if (bank.panic && _num(bank.panic.until) < day) Finance._endPanic(world, player, st, bank, out);
         }
     },
@@ -1169,10 +1482,13 @@ export const Finance = {
         const capRoom = Finance.crownCapacity(k) * _num(C.crisisRatio, 1.2) - Finance.crownDebt(k);
         const amount0 = Math.floor(Math.min(want, capRoom));
         if (amount0 < _num(C.minLoan, 2000)) return null;
-        const lenders = st.banks.filter(b => b.status === 'open' && !Finance.inPanic(b, day) && _num(b.relations[k.id], 0) >= 0)
+        const lenders = st.banks.filter(b => b.status === 'open' && !Finance.inPanic(b, day) && _num(b.relations[k.id], 0) >= 0
+                && (b.owner !== 'player' || Finance.ownPolicy(b).crowns))
             .map(b => {
                 const exposure = f.debt.filter(d => d.bankId === b.id).reduce((s, d) => s + _num(d.owed), 0);
-                const liquid = _num(b.capital) - _num(b.baseCapital) * _num(B.crownReserveFloor, 0.6);
+                const liquid = b.owner === 'player'
+                    ? _num(b.capital) - Finance.ownReserveNeed(b) * _num(Finance.cfg('playerBank').drawFloor, 1.2)
+                    : _num(b.capital) - _num(b.baseCapital) * _num(B.crownReserveFloor, 0.6);
                 return { b, room: Math.floor(Math.min(_num(b.capital) * _num(B.maxCrownShare, 0.45) - exposure, liquid)) };
             })
             .filter(x => x.room >= _num(C.minLoan, 2000))
@@ -1450,6 +1766,7 @@ export const Finance = {
     _exposed(player, bank) {
         const st = player && player.finance;
         if (!st) return false;
+        if (bank.owner === 'player') return true;
         return _num(st.accounts[bank.id] && st.accounts[bank.id].balance) > 0 || st.loans.some(l => l.bankId === bank.id);
     },
 
@@ -1458,6 +1775,7 @@ export const Finance = {
         if (!run || bank.status !== 'open') return;
         const day = _day(world);
         bank.panic = { since: day, until: day + _num(run.days, 10), cause: cause || null, paid: 0, paidDay: null };
+        if (bank.owner === 'player') bank.lastRunDay = day;
         Finance._record(st, world, { kind: 'bank_run', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
         if (out && Finance._exposed(player, bank)) {
             Finance._note(out, run.icon || '🏃', `${run.name || 'Run on the bank'}: ${bank.name}`,
@@ -1470,6 +1788,10 @@ export const Finance = {
         const run = Finance.event('bank_run') || {};
         const ratio = Finance.reserveRatio(bank);
         bank.panic = null;
+        if (bank.owner === 'player') {
+            Finance._note(out, '🏦', 'Your House Stands', `The run on ${bank.name} is over: you paid every depositor who came. Trust will take a while to return.`, 'success');
+            return;
+        }
         const fail = _clamp(_num(run.failBase, 0.1) + (0.6 - ratio) * _num(run.failPerReserve, 0.8), _num(run.failMin, 0.02), _num(run.failMax, 0.9));
         if (_num(bank.capital) <= 0 || Utils.random() < fail) {
             Finance._fail(world, player, st, bank, out);
@@ -1496,8 +1818,22 @@ export const Finance = {
             text += ` The receivers pay you ${back}g of your ${Math.floor(acct.balance)}g on deposit.`;
         }
         delete st.accounts[bank.id];
+        if (bank.owner === 'player') {
+            const P = Finance.cfg('playerBank');
+            const lost = Math.max(0, Math.round(Finance.ownEquity(world, bank)));
+            for (const k of world.kingdoms || []) {
+                if (k && k.finance && Array.isArray(k.finance.debt)) k.finance.debt = k.finance.debt.filter(d => d.bankId !== bank.id);
+            }
+            bank.capital = 0;
+            bank.loanBook = 0;
+            bank.publicDeposits = 0;
+            Finance._repHit(player, bank.kingdomId, _num(P.failRep, 20));
+            const prestige = Math.min(House.getPrestige(player), _num(P.failPrestige, 25));
+            if (prestige > 0 && player.house) House.spend(player.house, prestige, `the failure of ${bank.name}`, day);
+            text = `Your house, ${bank.name}, has failed. The receivers take what is left for the depositors${lost ? `, and your ${lost}g stake is gone` : ''}. ${bank.seat} will not soon forget it.`;
+        }
         Finance._record(st, world, { kind: 'bank_failed', bankId: bank.id, bank: bank.name, kingdomId: bank.kingdomId, place: bank.seat });
-        Finance._note(out, '🏚️', 'A Banking House Fails', text, acct ? 'error' : 'warning');
+        Finance._note(out, '🏚️', 'A Banking House Fails', text, acct || bank.owner === 'player' ? 'error' : 'warning');
     },
 
     /** A failed house's seat gets a new house after a while. */

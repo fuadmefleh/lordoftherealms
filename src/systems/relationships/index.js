@@ -5,5 +5,7 @@ import { Relationships } from './_ref.js';
 import './npcs.js';
 import './actions.js';
 import './family.js';
+import './matters.js';
+import './folk.js';
 
 export { Relationships };

@@ -32,7 +32,7 @@ Object.assign(UI.prototype, {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <div>
                             <span style="font-size: 18px;">🔬</span>
-                            <strong style="color: var(--gold); margin-left: 4px;">Researching: ${tech.name}</strong>
+                            <strong style="color: var(--gold); margin-left: 4px;">Researching: ${tech ? tech.name : current.techId}</strong>
                             <span style="color: var(--text-secondary); font-size: 12px; margin-left: 8px;">${remaining} day${remaining !== 1 ? 's' : ''} remaining</span>
                         </div>
                         <button onclick="window.cancelResearch()" style="padding: 4px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Cancel</button>

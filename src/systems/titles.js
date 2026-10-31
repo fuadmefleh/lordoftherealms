@@ -5,6 +5,39 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { House } from './house.js';
+import { BountyHunting } from './bountyHunting.js';
+import { Ledger } from './ledger.js';
+import { Traits } from './traits.js';
+import { CrownBooks } from '../world/crownBooks.js';
+
+// Tax collection as a choice and its audit; the chaplain's blessing; tuning
+// in data/titles.json → taxCollection / blessing (these are the defaults).
+const TAX_DEFAULTS = {
+    modes: {
+        fair: { fee: 1, levy: 1, happiness: 0, rep: 1, karma: 0, renown: 0, resentment: 0, unrest: 0 },
+        squeeze: { fee: 1.6, levy: 1.5, happiness: -8, rep: 2, karma: -1, renown: 0, resentment: 2, unrest: 8 },
+        spare: { fee: 0.5, levy: 0.6, happiness: 5, rep: 0, karma: 1, renown: 1, resentment: -1, unrest: -3 },
+        skim: { fee: 1, levy: 1, skim: 0.9, happiness: -1, rep: 1, karma: -1, renown: 0, resentment: 0, unrest: 0 },
+    },
+    resentmentDecayDays: 15, resentmentYield: 0.12, maxResentment: 6, minYield: 0.4,
+    riotPerResentment: 0.08, riotHealth: [5, 12], riotHappiness: -4,
+    unheldUnrestHappiness: 0.5, riotRevoltDays: 10,
+    crownLines: { land: 0.5, poll: 0.25, excise: 0.25 },
+    audit: { base: 0.1, perGold: 0.003, max: 0.85, commerce: 0.02, repay: 2, reputation: -15, renown: -3 },
+};
+const BLESSING_DEFAULTS = { days: 20, happiness: 3, sicknessMult: 0.6 };
+
+function _clampN(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function _num0(v) { return typeof v === 'number' && Number.isFinite(v) ? v : 0; }
+function _strHash(str) {
+    let h = 2166136261;
+    const s = String(str);
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
 
 
 export const Titles = {
@@ -245,40 +278,209 @@ export const Titles = {
 
     // ── Duty Actions ──
 
-    /**
-     * Tax Collector: collect taxes at a settlement
-     */
-    collectTaxAtSettlement(player, tile, world) {
-        if (player.currentTitle !== 'tax_collector') return { success: false, reason: 'You are not the Tax Collector.' };
-        if (!tile.settlement || tile.settlement.kingdom !== player.allegiance) {
-            return { success: false, reason: 'This is not a settlement of your kingdom.' };
-        }
+    // ── Tax collection: a choice ──
 
-        const progress = player.titleProgress;
+    _taxCfg() {
+        const d = (Titles._getData() || {}).taxCollection || {};
+        const modes = {};
+        for (const [k, v] of Object.entries(TAX_DEFAULTS.modes)) modes[k] = { ...v, ...((d.modes || {})[k] || {}) };
+        return { ...TAX_DEFAULTS, ...d, modes, audit: { ...TAX_DEFAULTS.audit, ...(d.audit || {}) } };
+    },
+
+    /** How much a settlement still resents the last hard collection (decays with time). */
+    taxResentment(settlement, day) {
+        const rec = settlement && settlement.crownLevy;
+        if (!rec || !(rec.resentment > 0)) return 0;
+        const cfg = Titles._taxCfg();
+        const faded = Number.isFinite(day) && Number.isFinite(rec.day) ? Math.floor((day - rec.day) / Math.max(1, cfg.resentmentDecayDays)) : 0;
+        return Math.max(0, rec.resentment - faded);
+    },
+
+    /** Yield multiplier of a settlement: its mood and its resentment of the collector. */
+    taxYieldMult(settlement, day) {
+        const cfg = Titles._taxCfg();
+        const happiness = typeof settlement.happiness === 'number' ? settlement.happiness : 50;
+        const mood = 0.75 + happiness / 200;
+        const resent = _clampN(1 - cfg.resentmentYield * Titles.taxResentment(settlement, day), cfg.minYield, 1);
+        return mood * resent;
+    },
+
+    /** Why the tax collector cannot collect here, or null. */
+    _taxBlock(player, tile) {
+        if (player.currentTitle !== 'tax_collector') return 'You are not the Tax Collector.';
+        if (!tile || !tile.settlement || tile.settlement.kingdom !== player.allegiance) return 'This is not a settlement of your kingdom.';
         const sKey = `${tile.q},${tile.r}`;
-        if (progress.settlementsVisited && progress.settlementsVisited.includes(sKey)) {
-            return { success: false, reason: 'You already collected taxes here this month.' };
-        }
+        if (player.titleProgress && (player.titleProgress.settlementsVisited || []).includes(sKey)) return 'You already collected taxes here this month.';
+        return null;
+    },
 
-        const title = Titles.getTitleDefinitions().tax_collector;
-        const perks = title.perks;
+    /**
+     * Assess a settlement before collecting: the collector's fee (rolled
+     * once), the crown's levy, the town's mood and grudges. Returns null when
+     * no collection is possible here.
+     */
+    taxAssessment(player, tile, world) {
+        if (Titles._taxBlock(player, tile)) return null;
+        const perks = Titles.getTitleDefinitions().tax_collector.perks;
         const collected = Utils.randInt(perks.goldPerCollection.min, perks.goldPerCollection.max);
-
-        // Scale by settlement size
         const sizeMult = { village: 0.6, town: 1.0, city: 1.5, capital: 2.0 };
-        const finalGold = Math.round(collected * (sizeMult[tile.settlement.type] || 1));
-        player.gold += finalGold;
+        const s = tile.settlement;
+        const day = world ? world.day : null;
+        const fee = collected * (sizeMult[s.type] || 1);
+        return {
+            q: tile.q, r: tile.r, settlement: s.name,
+            fee, levy: fee * 4, mult: Titles.taxYieldMult(s, day),
+            resentment: Titles.taxResentment(s, day),
+            happiness: Math.round(typeof s.happiness === 'number' ? s.happiness : 50),
+        };
+    },
+
+    /** The ways to collect, with the gold each brings: [{ id, fee, skim, levy, riotChance, happiness }]. */
+    taxOptions(player, assessment) {
+        const cfg = Titles._taxCfg();
+        return Object.entries(cfg.modes).map(([id, m]) => ({
+            id,
+            fee: Math.max(1, Math.round(assessment.fee * m.fee * assessment.mult)),
+            skim: m.skim ? Math.round(assessment.fee * m.skim * assessment.mult) : 0,
+            levy: Math.round(assessment.levy * m.levy * assessment.mult),
+            riotChance: id === 'squeeze' ? Math.min(0.6, cfg.riotPerResentment * assessment.resentment) : 0,
+            happiness: m.happiness,
+        }));
+    },
+
+    /**
+     * Tax Collector: collect taxes at a settlement. mode: 'fair' (as of old),
+     * 'squeeze' (more for the crown and you; the town is angered and stays
+     * resentful — later collections there yield less and may riot), 'spare'
+     * (spare the poor: less gold, the town warms to you), 'skim' (pocket
+     * extra beyond your fee — the month's audit may find it). The collector
+     * keeps the fee; the levy goes to the crown.
+     */
+    collectTaxAtSettlement(player, tile, world, mode = 'fair', assessment = null) {
+        const block = Titles._taxBlock(player, tile);
+        if (block) return { success: false, reason: block };
+        const cfg = Titles._taxCfg();
+        const m = cfg.modes[mode];
+        if (!m) return { success: false, reason: 'Unknown way of collecting.' };
+        const a = assessment || Titles.taxAssessment(player, tile, world);
+        const opt = Titles.taxOptions(player, a).find(o => o.id === mode);
+        const s = tile.settlement;
+        const day = world && Number.isFinite(world.day) ? world.day : 0;
+        const progress = player.titleProgress;
+        const perks = Titles.getTitleDefinitions().tax_collector.perks;
+
+        let fee = opt.fee;
+        let riot = null;
+        if (opt.riotChance > 0 && Utils.random() < opt.riotChance) {
+            // The town has had enough: a crowd at the tax-house door
+            fee = Math.round(fee / 2);
+            const hurt = Utils.randInt(cfg.riotHealth[0], cfg.riotHealth[1]);
+            player.health = Math.max(1, (player.health || 100) - hurt);
+            s.happiness = _clampN((typeof s.happiness === 'number' ? s.happiness : 50) + cfg.riotHappiness, 0, 100);
+            riot = { healthLost: hurt };
+        }
+        // A town with books can only pay what its purse holds: the fee comes first, then any skim
+        let skim = opt.skim;
+        const purse = s.economy && Number.isFinite(s.economy.gold) ? Math.max(0, Math.floor(s.economy.gold)) : null;
+        if (purse != null) {
+            fee = Math.min(fee, purse);
+            skim = Math.min(skim, purse - fee);
+        }
+        player.gold += fee;
+        Ledger.record(player, 'officeFees', fee);
+        if (skim > 0) {
+            player.gold += skim;
+            progress.skimmed = (progress.skimmed || 0) + skim;
+            Ledger.record(player, 'embezzlement', skim);
+            Traits.recordDeeds(player, { greed: 1, deceit: 1 });
+        }
+        if (mode === 'squeeze') Traits.recordDeeds(player, { greed: 0.5, cruelty: 0.5 });
+        if (mode === 'spare') Traits.recordDeeds(player, { mercy: 1 });
+
+        // The town remembers
+        s.happiness = _clampN((typeof s.happiness === 'number' ? s.happiness : 50) + m.happiness, 0, 100);
+        const resentment = _clampN(Titles.taxResentment(s, day) + m.resentment, 0, cfg.maxResentment);
+        s.crownLevy = { day, mode, resentment, by: player.name || 'the collector' };
+        if (m.unrest && s.holding && typeof s.holding.unrest === 'number') s.holding.unrest = _clampN(s.holding.unrest + m.unrest, 0, 100);
+        // A town the player does not hold has no holding unrest: the anger lands on its mood
+        else if (m.unrest) s.happiness = _clampN(s.happiness - m.unrest * _num0(cfg.unheldUnrestHappiness), 0, 100);
+        // A riot shuts the tax-house: the crown's own collectors are refused for a while (systems/fiscal.js reads taxRevolt)
+        if (riot && cfg.riotRevoltDays > 0) s.taxRevolt = Math.max(_num0(s.taxRevolt), day + cfg.riotRevoltDays);
+
+        // The crown's share reaches the treasury, out of the town's purse (no coin is minted):
+        // the collector's fee is taken first, a skim comes out of the crown's levy
+        const crown = Titles._payCrown(world, s, riot ? Math.round(opt.levy / 2) : opt.levy, fee, skim);
+
+        if (player.reputation && m.rep) player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + m.rep * (perks.reputationGain || 1);
+        if (m.karma) player.karma = (player.karma || 0) + m.karma;
+        if (m.renown) player.renown = (player.renown || 0) + m.renown;
 
         if (!progress.settlementsVisited) progress.settlementsVisited = [];
-        progress.settlementsVisited.push(sKey);
+        progress.settlementsVisited.push(`${tile.q},${tile.r}`);
         progress.collectionsCompleted = (progress.collectionsCompleted || 0) + 1;
+        progress.levyRaised = (progress.levyRaised || 0) + (riot ? Math.round(opt.levy / 2) : opt.levy);
+        progress.crownPaid = (progress.crownPaid || 0) + crown;
 
-        // Small rep gain
-        if (player.reputation) {
-            player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + (perks.reputationGain || 1);
+        return {
+            success: true, mode, gold: fee + skim, fee, skim, levy: opt.levy, crown,
+            settlement: s.name, count: progress.collectionsCompleted, riot,
+            happiness: Math.round(s.happiness), resentment,
+        };
+    },
+
+    /**
+     * Pay the crown its share of a collection: drawn from the town's purse
+     * (settlement.economy.gold, as systems/fiscal.js collects) after the
+     * collector's fee, less what was skimmed; credited to the kingdom's
+     * treasury and booked on its tax lines (world/crownBooks.js). Returns the
+     * gold the crown received.
+     */
+    _payCrown(world, s, levy, fee, skim) {
+        const k = world && s && s.kingdom != null ? ((typeof world.getKingdom === 'function' && world.getKingdom(s.kingdom))
+            || (world.kingdoms || []).find(x => x && x.id === s.kingdom)) : null;
+        if (!k || !(levy > 0)) return 0;
+        const e = s.economy;
+        const purse = e && Number.isFinite(e.gold) ? Math.max(0, e.gold) : null;
+        const cut = Math.max(0, _num0(fee)) + Math.max(0, _num0(skim));
+        const want = Math.max(0, levy - Math.max(0, _num0(skim)));
+        // The town pays the levy and the fee; a town without books pays what the rolls say
+        const take = purse == null ? want + cut : Math.min(purse, want + cut);
+        if (purse != null) e.gold = Math.round((purse - take) * 100) / 100;
+        const paid = Math.max(0, Math.min(want, take - cut));
+        if (!(paid > 0)) return 0;
+        k.treasury = (Number.isFinite(k.treasury) ? k.treasury : 0) + paid;
+        const lines = Titles._taxCfg().crownLines || {};
+        const total = Object.values(lines).reduce((a, v) => a + (v > 0 ? v : 0), 0) || 1;
+        for (const [line, w] of Object.entries(lines)) if (w > 0) CrownBooks.note(k, line, paid * w / total);
+        return Math.round(paid);
+    },
+
+    /**
+     * The month's audit of a collector who skimmed (rolled on its own seeded
+     * stream). Exposed: repay (twice over), reputation and renown lost, and
+     * it counts as a failed month. Returns null when nothing was skimmed.
+     */
+    _audit(player, world) {
+        const skimmed = (player.titleProgress && player.titleProgress.skimmed) || 0;
+        if (!(skimmed > 0)) return null;
+        const A = Titles._taxCfg().audit;
+        const commerce = (player.skills && player.skills.commerce) || 0;
+        const chance = _clampN(A.base + skimmed * A.perGold - commerce * A.commerce, 0.02, A.max);
+        const seed = (world && world.generationParams && world.generationParams.seed) || 0;
+        const rng = Utils.seededRandom((_strHash(`${seed}:audit:${world ? world.day : 0}:${skimmed}`) % 233279) + 1);
+        const exposed = rng() < chance;
+        if (!exposed) return { exposed: false, skimmed, chance };
+        const owed = skimmed * A.repay;
+        const paid = Math.min(Math.max(0, Math.floor(player.gold || 0)), owed);
+        player.gold -= paid;
+        Ledger.record(player, 'fines', -paid);
+        if (player.reputation && player.allegiance) {
+            const short = owed > 0 ? (owed - paid) / owed : 0;
+            player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + Math.round(A.reputation * (1 + short));
         }
-
-        return { success: true, gold: finalGold, settlement: tile.settlement.name, count: progress.collectionsCompleted };
+        player.renown = Math.max(0, (player.renown || 0) + A.renown);
+        Traits.recordDeeds(player, { deceit: 1 });
+        return { exposed: true, skimmed, owed, paid, chance };
     },
 
     /**
@@ -303,19 +505,60 @@ export const Titles = {
         } while (attempts < 200 && (!world.tiles[fr] || !world.tiles[fr][fq] ||
             !world.tiles[fr][fq].terrain.passable));
 
+        const perks = (Titles.getTitleDefinitions().jailer || {}).perks || {};
+        const gp = perks.goldPerCapture || { min: 25, max: 60 };
         player.activeFugitive = {
             ...template,
             q: fq,
             r: fr,
             spawnDay: world.day,
             daysRemaining: 20 + Utils.randInt(0, 10),
+            // The crown's warrant: paid on delivery (with the hunter's rank bonus, systems/bountyHunting.js)
+            pay: Utils.randInt(gp.min, gp.max) + (template.reward || 0),
+            warrantId: `warrant_${world.day}_${fq}_${fr}`,
+            escapes: 0,
         };
 
         return { success: true, fugitive: player.activeFugitive };
     },
 
     /**
-     * Jailer: attempt to capture a fugitive (player must be on their tile)
+     * The jailer's fugitive as a BountyHunting criminal hunt (jailerWarrant):
+     * captured with BountyHunting.attemptCapture and judged with its turn-in
+     * or recruit choice (resolveCapturedTarget credits the jailer's duty).
+     */
+    fugitiveBounty(player, fug) {
+        const perks = (Titles.getTitleDefinitions().jailer || {}).perks || {};
+        const difficulty = Math.max(1, Math.min(10, fug.difficulty || 5));
+        return {
+            id: fug.warrantId || `warrant_${fug.spawnDay || 0}_${fug.q}_${fug.r}`,
+            type: 'criminal_hunt',
+            icon: fug.icon || '⛓️',
+            name: `Warrant: ${fug.name}`,
+            targetName: fug.name,
+            targetBackstory: fug.backstory || `Wanted by the crown for ${fug.crime || 'crimes against the realm'}; the dungeons want them back.`,
+            crime: fug.crime || 'crimes against the realm',
+            notoriety: difficulty >= 8 ? 'dangerous' : 'wanted',
+            difficulty,
+            actualPay: fug.pay || ((perks.goldPerCapture && perks.goldPerCapture.min) || 25) + (fug.reward || 0),
+            daysLimit: fug.daysRemaining || 10,
+            daysElapsed: 0,
+            fromSettlement: 'the royal dungeons',
+            targetQ: fug.q, targetR: fug.r, lastKnownQ: fug.q, lastKnownR: fug.r,
+            status: 'active',
+            escapes: fug.escapes || 0,
+            canRecruit: true,
+            recruitedUnit: { name: fug.name, icon: fug.icon || '⛓️', strength: 8 + difficulty * 2, upkeep: 6 + Math.floor(difficulty / 2) },
+            jailerWarrant: { karma: perks.karmaGain || 1, renown: perks.renownGain || 2, recruitKarma: 3 },
+            description: `${fug.name} escaped the crown's dungeons.`,
+        };
+    },
+
+    /**
+     * Jailer: attempt to capture the fugitive (player must be on their tile),
+     * as a bounty hunter would (BountyHunting.attemptCapture). Taken, the
+     * fugitive awaits judgment among the player's bounties: turn them in
+     * (the duty, the bounty, the jailer's perks) or recruit them.
      */
     captureFugitive(player, world) {
         if (!player.activeFugitive) return { success: false, reason: 'No active fugitive to capture.' };
@@ -325,36 +568,20 @@ export const Titles = {
             return { success: false, reason: `The fugitive is not here. Last seen near (${fug.q}, ${fug.r}).` };
         }
 
-        // Combat check
-        const combatSkill = (player.skills && player.skills.combat) || 1;
-        const roll = Utils.randInt(1, 10) + combatSkill;
-        if (roll < fug.difficulty) {
-            // Fugitive escapes — relocate them
-            let nq, nr, attempts = 0;
-            do {
-                nq = Utils.randInt(Math.max(0, fug.q - 5), Math.min(world.width - 1, fug.q + 5));
-                nr = Utils.randInt(Math.max(0, fug.r - 5), Math.min(world.height - 1, fug.r + 5));
-                attempts++;
-            } while (attempts < 50 && (!world.tiles[nr] || !world.tiles[nr][nq] || !world.tiles[nr][nq].terrain.passable));
-
-            fug.q = nq;
-            fug.r = nr;
-            return { success: false, escaped: true, reason: `${fug.name} fought back and escaped! Last seen heading toward (${nq}, ${nr}).` };
+        const bounty = Titles.fugitiveBounty(player, fug);
+        const capture = BountyHunting.attemptCapture(player, bounty, world);
+        if (!capture.success) {
+            // Fled: the hunt goes on where they ran
+            fug.q = bounty.targetQ;
+            fug.r = bounty.targetR;
+            fug.escapes = bounty.escapes;
+            return { success: false, escaped: true, reason: capture.reason || `${fug.name} fought free and fled toward (${fug.q}, ${fug.r}).` };
         }
 
-        // Success
-        const title = Titles.getTitleDefinitions().jailer;
-        const gold = Utils.randInt(title.perks.goldPerCapture.min, title.perks.goldPerCapture.max);
-        player.gold += gold;
-        player.karma = (player.karma || 0) + (title.perks.karmaGain || 1);
-        player.renown = (player.renown || 0) + (title.perks.renownGain || 2);
-
-        const progress = player.titleProgress;
-        progress.capturesMade = (progress.capturesMade || 0) + 1;
-        const captured = { ...fug };
+        BountyHunting.initialize(player);
+        player.activeBounties.push(bounty);
         player.activeFugitive = null;
-
-        return { success: true, fugitive: captured, gold, captureCount: progress.capturesMade };
+        return { success: true, captured: true, bounty, fugitive: { ...fug } };
     },
 
     /**
@@ -400,8 +627,27 @@ export const Titles = {
         return null;
     },
 
+    _blessCfg() {
+        return { ...BLESSING_DEFAULTS, ...((Titles._getData() || {}).blessing || {}) };
+    },
+
+    /** Is this settlement under a chaplain's blessing on `day`? */
+    isBlessed(settlement, day) {
+        const b = settlement && settlement.blessing;
+        return !!(b && Number.isFinite(day) && day <= b.until);
+    },
+
     /**
-     * Court Chaplain: bless a settlement
+     * Sickness multiplier for someone in this settlement (read by
+     * systems/ailments.js): a blessed town catches fewer fevers.
+     */
+    blessingSicknessMult(settlement, day) {
+        return Titles.isBlessed(settlement, day) ? Titles._blessCfg().sicknessMult : 1;
+    },
+
+    /**
+     * Court Chaplain: bless a settlement — its mood lifts and for a while its
+     * people (and you among them) fall sick less often.
      */
     blessSettlement(player, tile, world) {
         if (player.currentTitle !== 'court_chaplain') return { success: false, reason: 'You are not the Court Chaplain.' };
@@ -426,7 +672,14 @@ export const Titles = {
             player.reputation[player.allegiance] = (player.reputation[player.allegiance] || 0) + 1;
         }
 
-        return { success: true, settlement: tile.settlement.name, count: progress.settlementsBlesssed.length };
+        // The town itself: happier, and spared some sickness for a while
+        const cfg = Titles._blessCfg();
+        const s = tile.settlement;
+        const day = world && Number.isFinite(world.day) ? world.day : 0;
+        s.happiness = _clampN((typeof s.happiness === 'number' ? s.happiness : 50) + cfg.happiness, 0, 100);
+        s.blessing = { day, until: day + cfg.days, sicknessMult: cfg.sicknessMult, by: player.name || 'the chaplain' };
+
+        return { success: true, settlement: s.name, count: progress.settlementsBlesssed.length, happiness: cfg.happiness, days: cfg.days, until: s.blessing.until };
     },
 
     /**
@@ -546,7 +799,14 @@ export const Titles = {
 
         // Check monthly deadline
         if (world.day >= player.titleDutyDeadline) {
+            // A collector who skimmed faces the month's audit (its own seeded stream)
+            const audit = player.currentTitle === 'tax_collector' ? Titles._audit(player, world) : null;
+            if (audit) results.audit = audit;
             const evaluation = Titles._evaluateDuties(player, title, world);
+            if (audit && audit.exposed) {
+                evaluation.passed = false;
+                evaluation.progress = `${evaluation.progress || ''} — the audit found ${audit.skimmed} gold missing from the crown's books`.replace(/^ — /, '');
+            }
             results.evaluation = evaluation;
 
             if (evaluation.passed) {

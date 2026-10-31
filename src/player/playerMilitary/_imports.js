@@ -17,3 +17,4 @@ export { Peoples } from '../../systems/peoples.js';
 export { Ships } from '../../systems/ships.js';
 export { Economy } from '../../world/economy.js';
 export { Kingdom } from '../../world/kingdom.js';
+export { SettlementSize } from '../../core/settlementSize.js';

@@ -9,6 +9,7 @@ import { Traits } from './traits.js';
 import { Deeds } from './deeds.js';
 import { Ships } from './ships.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { NpcTasks } from './npcTasks.js';
 
 
 export const Quests = {
@@ -328,7 +329,7 @@ export const Quests = {
             title: `A Favour for ${who}`,
             description: hook.text,
             type: 'npc_task',
-            giver: { id: npc ? npc.id : null, name: who, kingdomId },
+            giver: { id: npc ? (npc.uid || npc.id) : null, name: who, kingdomId },
             objectives: [{
                 type: 'counter_since', stat: objDef.stat, baseline: Quests._counter(player, objDef.stat),
                 target: objDef.target, current: 0, text: objDef.text,
@@ -338,8 +339,40 @@ export const Quests = {
             status: 'active',
             startedAt: world ? world.day : 0,
         };
+        // Made concrete: a real place, band or person, and back to the giver (systems/npcTasks.js)
+        const taskId = NpcTasks.taskFor(hook);
+        if (taskId && world && tile) {
+            const giver = Quests._giverOf(npc, world, player, who, kingdomId);
+            const built = NpcTasks.build(taskId, { player, world, giver, seed: `${id}|${world.day || 0}` });
+            if (built) Quests._applyTask(quest, taskId, built, giver, world);
+        }
         player.quests.active.push(quest);
         return { success: true, quest };
+    },
+
+    /** Who asked, and where they live: a townsperson's home from their uid, else where the player stands. */
+    _giverOf(npc, world, player, name, kingdomId) {
+        const uid = npc && typeof npc.uid === 'string' && NpcTasks.parseUid(npc.uid) ? npc.uid : null;
+        const at = uid ? NpcTasks.parseUid(uid) : { q: player.q, r: player.r };
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(at.q, at.r) : null;
+        return {
+            id: npc ? (npc.uid || npc.id) : null, uid, name, kingdomId,
+            q: at.q, r: at.r, town: (tile && tile.settlement && tile.settlement.name) || 'town',
+        };
+    },
+
+    /** Put a built task (NpcTasks.build) on a quest. */
+    _applyTask(quest, taskId, built, giver, world) {
+        quest.v = 2;
+        quest.task = taskId;
+        quest.giver = giver;
+        quest.objectives = built.objectives;
+        quest.item = built.item;
+        quest.carrying = null;
+        quest.person = built.person || null;
+        quest.alt = built.alt || null;
+        quest.deadlineDay = built.deadline;
+        if (built.person) NpcTasks.hideKid(world, built.person, quest.objectives[0] && (quest.objectives[0].name || quest.objectives[0].town));
     },
 
     /** "200 gold, 3 renown" — rewards as words. */
@@ -519,6 +552,8 @@ export const Quests = {
         delete quest.postedDay; // a taken quest no longer comes down with the board
         delete quest.expiresDay;
         quest.startedAt = world ? world.day : 0;
+        // Targets named on taking the quest (a tomb, a lair, a town), or the general objective
+        Quests._resolveSpecs(quest, player, world);
         // "Since" objectives count only what is done from now on
         let deeds = null;
         for (const obj of quest.objectives || []) {
@@ -597,8 +632,11 @@ export const Quests = {
         const completed = [];
         let deeds = null;
 
+        const failed = [];
         for (const quest of player.quests.active) {
             let allComplete = true;
+            Quests._prepare(quest, player, world);
+            let failure = null;
 
             for (const objective of quest.objectives) {
                 // Update objective progress
@@ -613,6 +651,21 @@ export const Quests = {
                     case 'deliver_item':
                         // Goods carried for the giver; handed over when the quest completes
                         objective.current = Math.min(objective.target, (player.inventory && player.inventory[objective.item]) || 0);
+                        break;
+                    case 'site_delved':
+                    case 'lair_cleared':
+                    case 'foe_slain':
+                    case 'visit_towns': {
+                        // A named place, lair or band (systems/npcTasks.js)
+                        const res = NpcTasks.evaluate(objective, player, world);
+                        objective.current = res.current;
+                        if (res.failed && !failure) failure = res.failed;
+                        break;
+                    }
+                    case 'talk_to':
+                    case 'return_to':
+                        // Done in conversation (Quests.talkToTask / handInNpcTask)
+                        objective.current = objective.current || 0;
                         break;
                     case 'gold':
                         objective.current = player.gold;
@@ -714,7 +767,20 @@ export const Quests = {
                 }
 
                 objective.completed = objective.current >= objective.target;
+                // Goods for a named town count only once they are there
+                if (objective.type === 'deliver_item' && objective.atQ != null && !(player.q === objective.atQ && player.r === objective.atR)) objective.completed = false;
                 if (!objective.completed) allComplete = false;
+            }
+
+            if (quest.v === 2) {
+                Quests._noteFound(player, quest);
+                if (!failure && typeof quest.deadlineDay === 'number' && world && typeof world.day === 'number' && world.day > quest.deadlineDay && !allComplete) {
+                    failure = 'the time ran out';
+                }
+            }
+            if (failure && quest.status === 'active') {
+                failed.push({ quest, reason: failure });
+                continue;
             }
 
             // Check if quest is complete
@@ -723,6 +789,8 @@ export const Quests = {
                 completed.push(quest);
             }
         }
+
+        for (const f of failed) Quests._failTask(player, world, f.quest, f.reason);
 
         // Move completed quests
         for (const quest of completed) {
@@ -811,8 +879,9 @@ export const Quests = {
             player.reputation[rep.kingdomId] = Utils.clamp((player.reputation[rep.kingdomId] || 0) + rep.amount, -100, 100);
         }
 
-        // The NPC who asked owes the player thanks (Quests.collectThanks, on next speaking)
-        if (quest.type === 'npc_task' && quest.giver && quest.giver.id != null && player.quests) {
+        // The NPC who asked owes the player thanks (Quests.collectThanks, on next speaking);
+        // a task handed in to their face was thanked there and then
+        if (quest.type === 'npc_task' && !quest.handedIn && quest.giver && quest.giver.id != null && player.quests) {
             const owed = player.quests.thanksOwed && typeof player.quests.thanksOwed === 'object' ? player.quests.thanksOwed : {};
             owed[quest.giver.id] = { name: quest.giver.name, title: quest.title };
             const keys = Object.keys(owed);
@@ -836,10 +905,308 @@ export const Quests = {
     collectThanks(player, npc) {
         const owed = player && player.quests && player.quests.thanksOwed;
         if (!owed || !npc || npc.id == null) return null;
-        const t = owed[npc.id];
+        const key = npc.uid && owed[npc.uid] ? npc.uid : npc.id;
+        const t = owed[key];
         if (!t || (t.name && npc.name && t.name !== npc.name)) return null;
-        delete owed[npc.id];
+        delete owed[key];
         return t;
+    },
+
+    // ──────────── CONCRETE TARGETS (systems/npcTasks.js) ────────────
+
+    /**
+     * A quest-board objective that names a target (a template objective with
+     * a `fallback`) becomes concrete when the quest is taken — the nearest
+     * tomb, lair or town — or the general objective when nothing fits.
+     */
+    _resolveSpecs(quest, player, world) {
+        const objs = quest.objectives || [];
+        for (let i = 0; i < objs.length; i++) {
+            const spec = objs[i];
+            if (!spec || !spec.fallback || spec.resolved) continue;
+            const concrete = world ? NpcTasks.resolveBoard(spec, player, world, quest.id) : null;
+            objs[i] = concrete || { ...spec.fallback, current: 0 };
+        }
+    },
+
+    /** Before a day's progress: an old save's general NPC task is made concrete; a board spec is resolved. */
+    _prepare(quest, player, world) {
+        if ((quest.objectives || []).some(o => o && o.fallback && !o.resolved)) {
+            Quests._resolveSpecs(quest, player, world);
+        }
+        if (quest.type === 'npc_task' && !quest.v) Quests._migrateLegacy(quest, player, world);
+    },
+
+    /**
+     * Saves from before concrete tasks: a request still open ("explore any
+     * ruin") is given a real target from where its giver lives (or where the
+     * player stands). Done once per quest; left general when nothing fits.
+     */
+    _migrateLegacy(quest, player, world) {
+        if (!world || !Array.isArray(world.tiles) || !world.tiles.length || typeof world.getTile !== 'function') return;
+        quest.v = 1;
+        const o = quest.objectives && quest.objectives[0];
+        if (!o || o.type !== 'counter_since' || Quests._counter(player, o.stat) - (o.baseline || 0) >= o.target) return;
+        const type = Object.keys(Quests.NPC_TASK_OBJECTIVES).find(k => Quests.NPC_TASK_OBJECTIVES[k].text === o.text);
+        let taskId = type ? NpcTasks.LEGACY_TASK[type] : null;
+        const desc = String(quest.description || '');
+        if (type === 'retrieve_item' && /locket/i.test(desc)) taskId = 'lost_locket';
+        if (type === 'delivery' && /challenge/i.test(desc)) taskId = 'deliver_challenge';
+        if (!taskId) return;
+        const g = quest.giver || {};
+        const giver = Quests._giverOf(typeof g.id === 'string' ? { uid: g.id, id: g.id } : null, world, player, g.name || 'a local', g.kingdomId || null);
+        if (giver.id == null) giver.id = g.id != null ? g.id : null;
+        const built = NpcTasks.build(taskId, { player, world, giver, seed: `${quest.id}|${world.day || 0}|old` });
+        if (!built) return;
+        Quests._applyTask(quest, taskId, built, giver, world);
+        quest.migrated = true;
+    },
+
+    /** The thing (or person) a task was after is found: carried now, back to the giver. */
+    _noteFound(player, quest) {
+        if (quest.carrying || !quest.item) return;
+        const find = (quest.objectives || []).filter(o => o.type !== 'return_to');
+        if (!find.length || !find.every(o => o.current >= o.target)) return;
+        if (find.some(o => o.type === 'talk_to' || o.type === 'deliver_item')) return; // set in conversation / carried as goods
+        const ret = quest.objectives.find(o => o.type === 'return_to');
+        quest.carrying = quest.item;
+        Quests._notice(player, '📜 Found', ret
+            ? `${Quests._cap(quest.item)} — now take ${quest.person ? 'them' : 'it'} back to ${ret.giver} in ${ret.town}.`
+            : `${Quests._cap(quest.item)} — ${quest.title} is done.`, 'success');
+    },
+
+    _cap(s) { return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : ''; },
+
+    /** A note for the day's end (Quests.takeNotices). */
+    _notice(player, title, text, type = 'info') {
+        if (!player || !player.quests) return;
+        if (!Array.isArray(player.quests.notices)) player.quests.notices = [];
+        player.quests.notices.push({ title, text, type });
+        if (player.quests.notices.length > 12) player.quests.notices.splice(0, player.quests.notices.length - 12);
+    },
+
+    /** Notices since last asked (found, failed), cleared. */
+    takeNotices(player) {
+        const n = player && player.quests && Array.isArray(player.quests.notices) ? player.quests.notices : [];
+        if (player && player.quests) player.quests.notices = [];
+        return n;
+    },
+
+    /** A task that can no longer be done: the giver is let down. */
+    _failTask(player, world, quest, reason) {
+        const i = player.quests.active.indexOf(quest);
+        if (i === -1) return;
+        player.quests.active.splice(i, 1);
+        quest.status = 'failed';
+        quest.failReason = reason;
+        quest.endedDay = world && typeof world.day === 'number' ? world.day : null;
+        if (!Array.isArray(player.quests.failed)) player.quests.failed = [];
+        player.quests.failed.push(quest);
+        const cap = NpcTasks.config().maxFailed;
+        if (player.quests.failed.length > cap) player.quests.failed.splice(0, player.quests.failed.length - cap);
+        const g = quest.giver;
+        // A plea pressed on a famous visitor was never agreed to: the asker is only a little disappointed
+        if (g && g.id != null && quest.fameRequest) {
+            Quests._grieve(player, g, { kind: 'letDown', text: 'I suppose someone like you has greater cares than mine.', delta: Math.round(NpcTasks.config().failDisposition / 4) });
+        } else if (g && g.id != null) {
+            const what = quest.item ? `bring back ${quest.item}` : 'what you promised';
+            Quests._grieve(player, g, { kind: 'letDown', text: `You never did ${what}. I counted on you.`, delta: NpcTasks.config().failDisposition });
+        }
+        Quests._notice(player, '📜 Task Failed', `${quest.title}: ${reason}.`, 'warning');
+    },
+
+    /** Remember what the giver will say (and feel) the next time the player speaks with them. */
+    _grieve(player, giver, g) {
+        const map = player.quests.grievances && typeof player.quests.grievances === 'object' ? player.quests.grievances : {};
+        map[giver.id] = { name: giver.name, ...g };
+        const keys = Object.keys(map);
+        for (const k of keys.slice(0, Math.max(0, keys.length - 20))) delete map[k];
+        player.quests.grievances = map;
+    },
+
+    /** A let-down or a betrayal the NPC holds against the player (or null), consumed. */
+    collectGrievance(player, npc) {
+        const map = player && player.quests && player.quests.grievances;
+        if (!map || !npc) return null;
+        const key = npc.uid && map[npc.uid] ? npc.uid : npc.id;
+        const g = key != null ? map[key] : null;
+        if (!g || (g.name && npc.name && g.name !== npc.name)) return null;
+        delete map[key];
+        return g;
+    },
+
+    _activeTask(player, questId) {
+        const quest = player && player.quests && player.quests.active.find(q => q.id === questId);
+        return quest && quest.v === 2 ? quest : null;
+    },
+
+    /** Everything before the return to the giver is done. */
+    taskReady(quest) {
+        return !!quest && (quest.objectives || []).filter(o => o.type !== 'return_to').every(o => o.current >= o.target);
+    },
+
+    /** A line of a task's definition, filled in with its names. */
+    taskLine(quest, key) {
+        const def = NpcTasks.task(quest && quest.task);
+        if (!def || !def[key]) return null;
+        const find = quest.objectives.find(o => o.type !== 'return_to') || {};
+        const vars = {
+            giver: quest.giver && quest.giver.name, town: quest.giver && quest.giver.town,
+            person: quest.person ? quest.person.name : find.person, target: find.name || find.town,
+        };
+        return String(def[key]).replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
+    },
+
+    /**
+     * Talk to the person a task names (or a townsperson standing in for them):
+     * hand over what was carried, or get what they hold. `how` for a guarded
+     * holder: 'bribe' (gold) or 'steal' (the caller rolled `stole`).
+     */
+    talkToTask(player, world, questId, how = 'ask', stole = false) {
+        const quest = Quests._activeTask(player, questId);
+        const o = quest && NpcTasks.nextObjective(quest);
+        if (!o || o.type !== 'talk_to') return { success: false, reason: 'Nothing to do here for that task' };
+        let cost = 0;
+        if (o.mode === 'fetch' && o.guarded) {
+            if (how === 'bribe') {
+                cost = 80;
+                if ((player.gold || 0) < cost) return { success: false, reason: `You need ${cost} gold` };
+                player.gold -= cost;
+            } else if (how === 'steal') {
+                if (!stole) {
+                    Traits.recordDeed(player, 'greed', 0.5);
+                    return { success: false, caught: true, reason: 'Caught with a hand in the papers' };
+                }
+            } else {
+                return { success: false, refused: true, line: Quests.taskLine(quest, 'holderLine') };
+            }
+        }
+        o.current = 1;
+        o.completed = true;
+        quest.carrying = o.reply || (o.mode === 'fetch' ? (o.item || quest.item) : null);
+        let line = null;
+        if (o.mode === 'deliver') line = Quests.taskLine(quest, 'recipientLine');
+        else if (how === 'bribe') line = '*counts the coin, then hands the papers over without a word*';
+        else if (how !== 'steal') line = Quests.taskLine(quest, 'holderLine');
+        // The recipient remembers who brought it
+        if (o.uid && o.mode === 'deliver') NpcTasks.remember(world, o.uid, 'favour', quest.title, 5);
+        const ret = quest.objectives.find(x => x.type === 'return_to');
+        if (!ret) {
+            // Nobody to go back to: done here
+            Quests._complete(player, world, quest, 'done');
+            Quests.grantRewards(player, quest);
+        }
+        return { success: true, quest, line, cost, carrying: quest.carrying, done: !ret };
+    },
+
+    /** Move a task off the active list with how it ended. */
+    _complete(player, world, quest, outcome) {
+        const i = player.quests.active.indexOf(quest);
+        if (i !== -1) player.quests.active.splice(i, 1);
+        quest.status = 'completed';
+        quest.outcome = outcome;
+        quest.endedDay = world && typeof world.day === 'number' ? world.day : null;
+        player.quests.completed.push(quest);
+    },
+
+    /**
+     * Hand a finished task in to its giver, face to face: the reward, the
+     * thing brought back (a child home again), and their thanks.
+     * @returns {{ success, quest?, line?, disposition?, reason? }}
+     */
+    handInNpcTask(player, world, questId) {
+        const quest = Quests._activeTask(player, questId);
+        if (!quest) return { success: false, reason: 'No such task' };
+        if (!Quests.taskReady(quest)) return { success: false, reason: 'Not done yet' };
+        const ret = quest.objectives.find(o => o.type === 'return_to');
+        if (ret) { ret.current = 1; ret.completed = true; }
+        quest.handedIn = true;
+        Quests._complete(player, world, quest, 'returned');
+        Quests._handOver(player, quest);
+        Quests.grantRewards(player, quest);
+        Traits.recordDeed(player, 'honesty', 2); // a promise kept
+        if (quest.person) NpcTasks.settleKid(world, quest.person, true);
+        if (quest.giver && quest.giver.uid) NpcTasks.remember(world, quest.giver.uid, 'favour', quest.title);
+        Quests.generateAvailableQuests(player, world);
+        return { success: true, quest, line: Quests.taskLine(quest, 'handIn'), disposition: NpcTasks.config().returnDisposition };
+    },
+
+    /**
+     * Turn down a plea pressed on a famous visitor (systems/fame.js
+     * townRequest): it never was agreed to, so saying no outright stings
+     * less than letting it lapse, and the pleas return to the town in time.
+     */
+    declinePlea(player, world, questId) {
+        const act = player && player.quests && Array.isArray(player.quests.active) ? player.quests.active : [];
+        const quest = act.find(q => q && q.id === questId && q.fameRequest);
+        if (!quest) return { success: false, reason: 'No such plea.' };
+        act.splice(act.indexOf(quest), 1);
+        quest.status = 'declined';
+        quest.endedDay = world && typeof world.day === 'number' ? world.day : null;
+        const g = quest.giver;
+        if (g && g.id != null) Quests._grieve(player, g, { kind: 'letDown', text: 'You told me plainly. I will not ask again.', delta: Math.round(NpcTasks.config().failDisposition / 8) });
+        return { success: true, quest, message: `You tell ${g && g.name ? g.name : 'them'} you cannot help.` };
+    },
+
+    /**
+     * The other way out of a task, taken from the journal: sell the locket,
+     * keep the sword, let the son go. Pays what the choice pays; the giver
+     * hears of it and holds it against the player.
+     */
+    resolveTaskAlt(player, world, questId) {
+        const quest = Quests._activeTask(player, questId);
+        if (!quest || !quest.alt) return { success: false, reason: 'No other way out of this one' };
+        if (!Quests.taskReady(quest)) return { success: false, reason: 'You have not found it yet' };
+        const alt = quest.alt;
+        const got = {};
+        if (alt.gold) { player.gold = (player.gold || 0) + alt.gold; got.gold = alt.gold; }
+        if (alt.items) got.items = PlayerInventory.addOrSell(player, alt.items);
+        if (alt.karma) player.karma = (player.karma || 0) + alt.karma;
+        if (alt.keepRenown && quest.rewards && quest.rewards.renown) { player.renown = (player.renown || 0) + quest.rewards.renown; got.renown = quest.rewards.renown; }
+        if (alt.karma < 0) Traits.recordDeed(player, 'greed', 2);
+        // The other side of the bargain: the person the task named (the rival
+        // whose documents you hand back) is in your debt — their disposition,
+        // their thanks next time you speak, and your name in their realm
+        const held = (quest.objectives || []).find(o => o.type === 'talk_to' && o.mode === 'fetch' && o.uid);
+        if (held && (alt.holderDisposition || alt.holderThanks || alt.holderReputation)) {
+            if (alt.holderDisposition) NpcTasks.remember(world, held.uid, 'favour', quest.title, alt.holderDisposition);
+            if (alt.holderThanks && player.quests) {
+                const owed = player.quests.thanksOwed && typeof player.quests.thanksOwed === 'object' ? player.quests.thanksOwed : {};
+                owed[held.uid] = { name: held.person, title: quest.title };
+                player.quests.thanksOwed = owed;
+            }
+            const tile = world && typeof world.getTile === 'function' && held.q != null ? world.getTile(held.q, held.r) : null;
+            const kId = tile && tile.settlement ? tile.settlement.kingdom : null;
+            if (kId && alt.holderReputation) {
+                if (!player.reputation) player.reputation = {};
+                player.reputation[kId] = (player.reputation[kId] || 0) + alt.holderReputation;
+                got.reputation = alt.holderReputation;
+            }
+            got.holder = held.person;
+        }
+        if (alt.karma) got.karma = alt.karma;
+        Quests._complete(player, world, quest, alt.id || 'alt');
+        if (quest.person) {
+            const g = quest.giver || {};
+            const town = NpcTasks.findTown(world, g.q, g.r, { seed: `${quest.id}|gone`, range: [4, 30] });
+            NpcTasks.settleKid(world, quest.person, false, town ? town.name : null);
+        }
+        if (quest.giver && quest.giver.id != null) {
+            const C = NpcTasks.config();
+            const known = quest.giver.uid ? NpcTasks.remember(world, quest.giver.uid, 'wronged', quest.title, C.altDisposition) : null;
+            Quests._grieve(player, quest.giver, { kind: 'wronged', text: alt.grievance || 'I heard what you did.', delta: known ? 0 : C.altDisposition, grudge: true });
+        }
+        return { success: true, quest, text: alt.text, got };
+    },
+
+    /** Map markers for the active quests' next targets (systems/npcTasks.js). */
+    taskMarkers(player, world) {
+        return NpcTasks.markers(player, world);
+    },
+
+    /** "Mysterious Cave — 7 hexes north-east" for an objective, or ''. */
+    whereLine(obj, player, world) {
+        return NpcTasks.whereLine(obj, player, world);
     },
 
     /** Terrain that counts for "explore mountain tiles" objectives. */

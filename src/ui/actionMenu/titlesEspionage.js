@@ -1,5 +1,6 @@
 // ActionMenu — titlesEspionage methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { startTaxRound } from './dutyScenes.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -226,28 +227,14 @@ Object.assign(ActionMenu, {
     doCollectTax(game, tile) {
         const player = game.player;
         if (typeof Titles === 'undefined') return;
-
-        const result = Titles.collectTaxAtSettlement(player, tile, game.world);
-        if (!result.success) {
-            game.ui.showNotification('❌ Cannot Collect', result.reason, 'error');
+        // How to collect is a choice: fair, squeeze, spare the poor, skim (ui/actionMenu/dutyScenes.js)
+        const state = startTaxRound(game, tile);
+        if (!state) {
+            const res = Titles.collectTaxAtSettlement(player, tile, game.world);
+            game.ui.showNotification('❌ Cannot Collect', res.reason || 'No taxes can be collected here.', 'error');
             return;
         }
-
-        let html = `<div style="padding:15px; text-align:center;">
-            <span style="font-size:42px;">💰</span>
-            <h3 style="color:#ffd700;">Taxes Collected!</h3>
-            <p style="color:#aaa;">You collected <span style="color:#ffd700;">${result.gold} gold</span> in taxes from <span style="color:#4fc3f7;">${result.settlement}</span>.</p>
-            <div style="background:#1a2a1a; padding:8px; border-radius:4px; margin:10px 0;">
-                <div style="color:#4caf50;">Settlements this month: ${result.count}</div>
-            </div>
-            <button data-am-act="closePanelAndRefresh" style="
-                width:100%; padding:10px; margin-top:8px;
-                background:#444; border:1px solid #666; border-radius:6px;
-                color:#eee; cursor:pointer; font-size:14px;
-            ">Continue</button>
-        </div>`;
-
-        game.ui.showCustomPanel('📜 Tax Collection', html);
+        ActionMenu.showScene(game, 'tax_round', state);
     },
 
     /**
@@ -276,6 +263,7 @@ Object.assign(ActionMenu, {
                     <span style="color:#888;">⏰ ${fug.daysRemaining} days</span>
                     <span style="color:#888;">📍 Last seen: (${fug.q}, ${fug.r})</span>
                 </div>
+                <div style="font-size:12px; color:#ffd700; margin-top:6px;">💰 Warrant pays ${fug.pay || '?'} gold on delivery — or take them into your service instead.</div>
             </div>
             <p style="color:#aaa; font-size:12px;">Travel to the fugitive's location and capture them before time runs out!</p>
             <button data-am-act="closePanelAndRefresh" style="
@@ -295,40 +283,28 @@ Object.assign(ActionMenu, {
         const player = game.player;
         if (typeof Titles === 'undefined') return;
 
+        // Taken as a bounty hunter takes a quarry (systems/bountyHunting.js), then judged
         const result = Titles.captureFugitive(player, game.world);
-        let html;
-
         if (result.success) {
-            html = `<div style="padding:15px; text-align:center;">
-                <span style="font-size:42px;">⛓️</span>
-                <h3 style="color:#4caf50;">Fugitive Captured!</h3>
-                <p style="color:#aaa;">You have captured <span style="color:#ffd700;">${result.fugitive.name}</span>!</p>
-                <div style="background:#1a2a1a; padding:8px; border-radius:4px; margin:10px 0;">
-                    <div style="color:#ffd700;">💰 Bounty: ${result.gold} gold</div>
-                    <div style="color:#4caf50;">Total captures: ${result.captureCount}</div>
-                </div>
-                <button data-am-act="closePanelAndRefresh" style="
-                    width:100%; padding:10px; margin-top:8px;
-                    background:#444; border:1px solid #666; border-radius:6px;
-                    color:#eee; cursor:pointer; font-size:14px;
-                ">Continue</button>
-            </div>`;
-        } else if (result.escaped) {
-            html = `<div style="padding:15px; text-align:center;">
-                <span style="font-size:42px;">💨</span>
-                <h3 style="color:#ff9800;">Fugitive Escaped!</h3>
-                <p style="color:#aaa;">${result.reason}</p>
-                <button data-am-act="closePanel" style="
-                    width:100%; padding:10px; margin-top:8px;
-                    background:#444; border:1px solid #666; border-radius:6px;
-                    color:#eee; cursor:pointer; font-size:14px;
-                ">Continue Pursuit</button>
-            </div>`;
-        } else {
+            game.ui.showNotification('⛓️ Fugitive Captured!', `${result.fugitive.name} is in your custody. Turn them in, or take them into your service.`, 'success');
+            game.ui.updateStats(player, game.world);
+            ActionMenu._showCapturedBountyDecision(game, result.bounty);
+            return;
+        }
+        if (!result.escaped) {
             game.ui.showNotification('❌ Cannot Capture', result.reason, 'error');
             return;
         }
-
+        const html = `<div style="padding:15px; text-align:center;">
+            <span style="font-size:42px;">💨</span>
+            <h3 style="color:#ff9800;">Fugitive Escaped!</h3>
+            <p style="color:#aaa;">${result.reason}</p>
+            <button data-am-act="closePanelAndRefresh" style="
+                width:100%; padding:10px; margin-top:8px;
+                background:#444; border:1px solid #666; border-radius:6px;
+                color:#eee; cursor:pointer; font-size:14px;
+            ">Continue Pursuit</button>
+        </div>`;
         game.ui.showCustomPanel('🔒 Fugitive Hunt', html);
     },
 
@@ -352,6 +328,7 @@ Object.assign(ActionMenu, {
             <div style="background:#1a1a2a; padding:8px; border-radius:4px; margin:10px 0;">
                 <div style="color:#9c27b0;">☯ Karma +2</div>
                 <div style="color:#4fc3f7;">⭐ Renown +1</div>
+                <div style="color:#ffd700;">🙂 Mood in ${result.settlement} +${result.happiness || 0}; fewer fall sick there for ${result.days || 0} days</div>
                 <div style="color:#4caf50;">Settlements blessed: ${result.count}</div>
             </div>
             <button data-am-act="closePanelAndRefresh" style="

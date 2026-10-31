@@ -217,7 +217,7 @@ Object.assign(Relationships, {
     /**
      * Get or generate NPCs for a settlement tile
      */
-    getNPCsAtSettlement(tile, world) {
+    getNPCsAtSettlement(tile, world, player = null) {
         if (!tile.settlement) return [];
 
         const settlementName = tile.settlement.name;
@@ -229,6 +229,18 @@ Object.assign(Relationships, {
         // Generate new NPCs if settlement has too few
         const targetCount = tile.settlement.type === 'capital' ? 5 :
                            tile.settlement.type === 'town' ? 3 : 2;
+
+        // A town whose people the player has walked among: its own townsfolk
+        // (systems/townsfolk.js) are the people to meet, those already spoken with first
+        const folk = tile.settlement.folk;
+        if (folk && Array.isArray(folk.people) && npcs.length < targetCount) {
+            for (const p of Relationships.folkCandidates(world, folk)) {
+                if (npcs.length >= targetCount) break;
+                if (p.rnpc) continue;
+                const res = Relationships.fromTownsperson(player, world, folk, p, tile.settlement);
+                if (res.success && !npcs.includes(res.npc)) npcs.push(res.npc);
+            }
+        }
 
         while (npcs.length < targetCount) {
             const npc = Relationships.generateNPC(tile.settlement, world);
@@ -306,6 +318,8 @@ Object.assign(Relationships, {
         chance += ((player.skills?.diplomacy || 1) - 1) * 0.02;
 
         if (player.spouse === npcId) chance += 0.45;
+        // Loyalty earned (a kinsman bailed out, a hard truth told: ./matters.js) or lost
+        chance += ((Number.isFinite(npc.loyalty) ? npc.loyalty : 50) - 50) * 0.006;
 
         const traitList = npc.traits || [];
         if (traitList.includes('adventurous')) chance += 0.18;
@@ -319,6 +333,8 @@ Object.assign(Relationships, {
         if (roll <= chance) {
             player.travelParty.push(npcId);
             npc.isTravelingWithPlayer = true;
+            // A townsperson leaves their town to take the road (./folk.js)
+            if (npc.folkUid && world) Relationships._syncOne(player, world, npc);
             npc.lastInteraction = world?.day || npc.lastInteraction || 0;
 
             rel.score = Math.min(100, (rel.score || 0) + 2);

@@ -9,7 +9,8 @@ React UI components. These are pure display/interaction shells — they read fro
 | `EditorOverlay.jsx` | Full-screen iframe wrapper for the world editor and modding tools |
 | `GameView.jsx` | Main game canvas container; mounts and starts the game loop |
 | `LoadingOverlay.jsx` | Loading spinner shown during world generation |
-| `SettingsScreen.jsx` | New game setup: character creation, world seed, difficulty |
+| `SettingsScreen.jsx` | New game setup: character creation, world seed, and **Origin & Challenge** (origin, difficulty and victory goal read from `data/scenarios.json`; picking an origin also sets its suggested goal and guided start). These are passed as `origin` / `difficulty` / `victory` in the settings to `_doStartNewGame` → `Scenarios.apply` |
+| `CharacterForge.jsx` | Character-creation look picker: turnable figure, HUD bust preview, a cycler per feature |
 | `TitleScreen.jsx` | Title screen with New Game / Load Game / Editor buttons |
 | `Icon.jsx` | `<Icon name="…" />` — one engraved glyph from `ui/icons.js`, used across the HUD chrome |
 | `TitleBackdrop.jsx` | Canvas for `ui/titleBackdrop.js`; mounted once by `App` across title → settings → loading so the flight never cuts |

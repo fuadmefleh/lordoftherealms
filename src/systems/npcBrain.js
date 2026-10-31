@@ -205,6 +205,37 @@ export const NpcBrain = {
         return line;
     },
 
+    // ── The court scribe (on-demand async) ──────────────────────
+
+    /**
+     * Rewrite a chapter of the Annals (systems/annals.js) into prose. The
+     * template text is the factual source; the model may only retell it.
+     * opts: { title, system, user (with {title}/{text}), maxTokens, minLength,
+     * maxLength }. Resolves { ok:true, text, cached } or { ok:false, reason }
+     * — never throws; the caller keeps the template text on a failure.
+     */
+    async writeChronicle(sourceText, opts = {}) {
+        if (!enabled) return { ok: false, reason: 'disabled' };
+        if (typeof sourceText !== 'string' || !sourceText.trim()) return { ok: false, reason: 'nothing to write' };
+        const key = `scribe:${NpcBrain._hash(`${opts.title || ''}\n${sourceText}`)}`;
+        const cached = cache.get(key);
+        if (cached && cached.kind === 'scribe') return { ok: true, text: cached.value, cached: true };
+        if (!(await LlmClient.isAvailable())) return { ok: false, reason: 'unavailable' };
+        const fill = (t) => String(t || '').replace('{title}', opts.title || 'the chapter').replace('{text}', sourceText);
+        const res = await LlmClient.chat([
+            { role: 'system', content: opts.system || 'You are a court scribe. Retell the notes as chronicle prose, inventing nothing.' },
+            { role: 'user', content: NpcBrain._noThink(fill(opts.user || 'Write the chapter "{title}" from these annals:\n\n{text}')) },
+        ], { maxTokens: opts.maxTokens || 700 });
+        if (!res.ok) return { ok: false, reason: res.reason };
+        let text = NpcBrain._stripReasoning(res.text);
+        text = typeof text === 'string' ? text.replace(/^#+\s.*$/gm, '').trim() : '';
+        if (text.length < (opts.minLength || 80)) return { ok: false, reason: 'too short' };
+        const max = opts.maxLength || 6000;
+        if (text.length > max) text = text.slice(0, max).replace(/\s+\S*$/, '') + '…';
+        cacheSet(key, { kind: 'scribe', value: text });
+        return { ok: true, text, cached: false };
+    },
+
     // ── Prompt building ─────────────────────────────────────────
 
     _recentChronicle(house, n = 4) {

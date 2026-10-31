@@ -35,6 +35,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { Difficulty } from '../core/difficulty.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Seasons } from '../world/seasons.js';
 import { Traits } from './traits.js';
@@ -366,10 +367,20 @@ export const Ailments = {
         return Math.max(0.3, (_num(cfg.sicknessMult) || 1) * (1 - (strength - 5) * _num(cfg.strengthResist)));
     },
 
+    /**
+     * In a town under a court chaplain's blessing (systems/titles.js →
+     * settlement.blessing), fevers take fewer people. Draws nothing.
+     */
+    _blessingMult(player, world) {
+        const tile = world && typeof world.getTile === 'function' && typeof player.q === 'number' ? world.getTile(player.q, player.r) : null;
+        const b = tile && tile.settlement && tile.settlement.blessing;
+        return b && _day(world) <= _num(b.until, -1) ? (_num(b.sicknessMult) || 1) : 1;
+    },
+
     /** Try to catch a disease with a base chance. Returns the report or null. */
     _tryCatch(player, world, diseaseId, chance, source, out) {
         if (!diseaseId || Ailments.has(player, diseaseId)) return null;
-        if (!(Utils.random() < chance * Ailments._catchMult(player))) return null;
+        if (!(Utils.random() < chance * Ailments._catchMult(player) * Ailments._blessingMult(player, world))) return null;
         const rep = Ailments.inflict(player, world, diseaseId, { source });
         if (rep && out) out.caught.push({ ...rep, source });
         return rep;
@@ -440,6 +451,9 @@ export const Ailments = {
             const def = Ailments.def(rec.id);
             if (def && def.ashoreCare && !player.boardedShip && Ailments._freshOrTown(player, world)) { m *= def.ashoreCare; parts.push('fresh food ashore'); }
         }
+        // The difficulty: a kinder or crueller world (core/difficulty.js; 1 on Normal)
+        const dm = Difficulty.mult(player, 'illness');
+        if (dm !== 1) { m *= dm; parts.push(dm < 1 ? 'a forgiving world' : 'a cruel world'); }
         return { mult: Math.max(_num(c.min) || 0.1, m), parts };
     },
 
@@ -976,6 +990,7 @@ export const Ailments = {
     /** Is a remedy any use against this condition? */
     remedyFits(def, rec) {
         if (!def || !rec) return false;
+        if (Array.isArray(def.cures) && def.cures.includes(rec.id)) return true;
         if (rec.kind === 'wound') return !!(def.dress || def.mend || def.clearInfection);
         return !!(def.ease || def.stageDown);
     },
@@ -994,6 +1009,12 @@ export const Ailments = {
         const day = _day(world);
         const lines = [];
         const name = Ailments.displayName(rec);
+        // A true antidote purges what it is made against outright (data/ailments.json remedies.*.cures)
+        if (Array.isArray(def.cures) && def.cures.includes(rec.id)) {
+            Ailments._remove(player, rec);
+            if (def.health) player.health = Math.min(player.maxHealth || 100, _num(player.health) + def.health);
+            return { success: true, cured: true, message: `You take ${def.name}: the ${name.toLowerCase()} is purged from your body.` };
+        }
         if (rec.kind === 'wound') {
             if (def.dress) { rec.dressedUntil = Math.max(rec.dressedUntil || -1, day + def.dress); lines.push(`dressed for ${def.dress} days`); }
             if (def.mend) { rec.daysLeft = Math.max(1, _num(rec.daysLeft) - def.mend); lines.push('it knits faster'); }

@@ -88,6 +88,11 @@ function budgetTab(game) {
     if (b.deficitWeeks > 0) html += ` · <span style="color:#e8a040;">${b.deficitWeeks} week(s) in deficit</span>`;
     html += '</span></div>';
     html += linesTable(b);
+    const S = b.stats || {};
+    const tally = [['revenue', 'taxes and dues taken', 'g'], ['expense', 'spent', 'g'], ['revolts', 'tax revolts', ''], ['farmsSold', 'tax farms sold', ''],
+        ['officesSold', 'offices sold', ''], ['landSold', 'crown estates sold', ''], ['deserted', 'soldiers deserted', '']]
+        .filter(([key]) => (S[key] || 0) > 0).map(([key, label, unit]) => `${g0(S[key])}${unit} ${label}`);
+    if (tally.length) html += `<div style="${NOTE} margin-top:6px;">The crown's books, all told: ${tally.join(' · ')}.</div>`;
     if (b.farms.length) html += `<div style="${NOTE} margin-top:6px;">Farmed out: ${b.farms.map(f => `${esc(f.town)} (${esc(f.holderName)}, to day ${f.until})`).join(' · ')}</div>`;
     return html;
 }

@@ -34,7 +34,8 @@
             "bank_failed": 6, "crown_default": 7, "coin_debased": 5, "caravan_taken": 4,
             "coin_recoinage": 4, "coin_shortage": 3, "coin_flood": 3,
             "tax_revolt": 5, "tax_farm": 3, "taxes_raised": 4, "army_unpaid": 6, "offices_sold": 4, "crown_land_sold": 4,
-            "estate_enclosure": 3, "estate_riot": 5, "estate_sold": 3, "estate_confiscated": 4, "estate_ceded": 4, "linen_glut": 3,
+            "estate_enclosure": 3, "estate_riot": 5, "estate_sold": 3, "estate_confiscated": 4, "estate_ceded": 4, "estate_bequest": 2, "estate_dowry": 2, "estate_rent_riot": 5, "linen_glut": 3,
+            "grain_engrossed": 4, "engrossing_edict": 5,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
@@ -52,7 +53,8 @@
             "bank_failed": "🏚️", "crown_default": "📛", "coin_debased": "💱", "caravan_taken": "🐫",
             "coin_recoinage": "💰", "coin_shortage": "💰", "coin_flood": "💰",
             "tax_revolt": "🔥", "tax_farm": "📜", "taxes_raised": "💰", "army_unpaid": "⚔️", "offices_sold": "📜", "crown_land_sold": "🌾",
-            "estate_enclosure": "🐑", "estate_riot": "🔥", "estate_sold": "🌾", "estate_confiscated": "⚖️", "estate_ceded": "📜", "linen_glut": "👚",
+            "estate_enclosure": "🐑", "estate_riot": "🔥", "estate_sold": "🌾", "estate_confiscated": "⚖️", "estate_ceded": "📜", "estate_bequest": "⛪", "estate_dowry": "💍", "estate_rent_riot": "🔥", "linen_glut": "👚",
+            "grain_engrossed": "🌾", "engrossing_edict": "📜",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
@@ -111,6 +113,26 @@
             "estate_ceded": [
                 "By the terms of peace, {holder} cedes {estate} near {place} to {buyer}.",
                 "{estate} near {place} is given up to {buyer}: the price of a lost war for {holder}."
+            ],
+            "estate_bequest": [
+                "{holder} has left {estate} near {place} to {buyer}, for the good of his soul.",
+                "By the will of {holder}, the Church takes {estate} near {place}. Its tenants pay their rent to the abbey now."
+            ],
+            "estate_dowry": [
+                "{estate} near {place} goes with a bride: {holder} settles it on {buyer} as a dowry.",
+                "A marriage between noble houses of {kingdom}: {buyer} has {estate} near {place} from {holder}, as the bride's portion."
+            ],
+            "estate_rent_riot": [
+                "Riot at {place}! The tenants of {estate} have risen against {holder} over the rent, and the bailiff is beaten.",
+                "No rent at {estate} near {place} this month, only cudgels: the tenants of {holder} will not pay what is asked."
+            ],
+            "grain_engrossed": [
+                "The harvest is failing in {kingdom}, and the grain dealers are buying it up: {amount} loads gone into their lofts. Bread will be dear.",
+                "Engrossers in {kingdom}! The dealers hoard grain against the hungry months, and the price climbs already."
+            ],
+            "engrossing_edict": [
+                "By order of the crown of {kingdom}: no man shall hoard grain. The dealers' lofts at {place} are thrown open; {amount} grain comes to market.",
+                "The crown of {kingdom} forbids engrossing! The hoarders of {place} must sell, and bread is cheaper by nightfall."
             ],
             "linen_glut": [
                 "Linen is cheap in {kingdom}: the cottage looms have flooded the markets of {place} and {n} towns besides.",
@@ -584,6 +606,18 @@
             "They pulled the hedges down by night and drove the sheep into the river. The bailiff hasn't shown his face since.",
             "A riot over the enclosures, and the sheriff's men out hunting the ringleaders. Bad times for honest folk."
         ]},
+        { "id": "land_rent_riot", "when": { "labour": ["rent_riot"] }, "weight": 3, "lines": [
+            "The tenants rose over the rent. Beat the bailiff black and blue and sent him running back to town.",
+            "Rent riot out at the manor. When a landlord asks more than the land gives, this is what he gets."
+        ]},
+        { "id": "land_bequest", "when": { "labour": ["bequest"] }, "weight": 1, "lines": [
+            "The old lord left his manor to the Church. The monks keep the rents low, they say, but they never forget a tithe.",
+            "Our landlord's the abbey now, by the old lord's will. We'll see if prayers pay the rent."
+        ]},
+        { "id": "land_dowry", "when": { "labour": ["dowry"] }, "weight": 1, "lines": [
+            "The manor went with a bride to another house. New lord, new bailiff, same rent, I'll wager.",
+            "They married off the lord's daughter and the estate went with her. Nobody asked the tenants."
+        ]},
         { "id": "land_estate_sale", "when": { "labour": ["estate_sale"] }, "weight": 1, "lines": [
             "There's an estate going hereabouts. The old lord's in debt to his ears, they say.",
             "New landlord on the manor. We'll see if he keeps the old rents or raises them."
@@ -977,6 +1011,50 @@
             "They're saying you put {deedVictim} on their back. Was it a clean fight?",
             "The duel near {deedPlace} is all anyone talks about. You've made a name, friend."
         ]},
+        { "id": "deed_beast_slain", "when": { "deed": ["beast_slain"] }, "weight": 3, "lines": [
+            "They say you faced down {deedVictim} out past {deedPlace}. Rather you than me.",
+            "Is it true about {deedVictim}? The hunters at {deedPlace} won't stop talking of it."
+        ]},
+        { "id": "deed_wilds_rescue", "when": { "deed": ["wilds_rescue"] }, "weight": 3, "lines": [
+            "You're the one who saved {deedVictim} in the wilds near {deedPlace}. Good on you.",
+            "Word is you brought {deedVictim} in alive from out past {deedPlace}. Not everyone would have stopped."
+        ]},
+        { "id": "deed_wilds_find", "when": { "deed": ["wilds_find"] }, "weight": 3, "lines": [
+            "Folk say you came back from the wilds by {deedPlace} with {deedVictim}. Lucky, or did you know where to dig?",
+            "Heard about {deedVictim}. Half of {deedPlace} will be out tramping the hills looking for more."
+        ]},
+        { "id": "deed_affair", "when": { "deed": ["affair"] }, "weight": 3, "lines": [
+            "*grins* You and {deedVictim} of {deedPlace}, eh? Your spouse know about that?",
+            "Half the town's heard about you and {deedVictim}. The other half is pretending they haven't.",
+            "None of my business who you keep company with. Though {deedVictim}... really?"
+        ]},
+
+        { "id": "scandal_any", "when": { "scandal": true }, "weight": 3, "lines": [
+            "Have you heard? {scandalTale}",
+            "*lowers voice* {scandalTale} Don't say you heard it from me.",
+            "Everyone in {settlement} has a theory about {scandalSubject}. Mine's the worst, and I'd bet on it.",
+            "They're saying it started in {scandalPlace}. Smoke and fire, I say. About {scandalSubject}, there's always fire."
+        ]},
+        { "id": "scandal_doubter", "when": { "scandal": true, "personality": ["kind", "cautious", "generous"] }, "weight": 2, "lines": [
+            "People will say anything about {scandalSubject}. I'll believe it when there's proof.",
+            "That talk about {scandalSubject}? Cruel, if it's a lie. Crueller if it isn't."
+        ]},
+        { "id": "scandal_guard", "when": { "scandal": true, "occupation": ["guard"] }, "weight": 2, "lines": [
+            "We've orders to box the ears of anyone repeating that tale about {scandalSubject}. So I've not heard it. Have you?",
+            "Captain says the talk about {scandalSubject} is treason. Captain also stopped smiling this week."
+        ]},
+        { "id": "scandal_merchant", "when": { "scandal": ["debts"], "occupation": ["merchant"] }, "weight": 3, "lines": [
+            "If {scandalSubject} really pawned the jewels, the coin's worth less tomorrow. I'm pricing it in today.",
+            "Crown debts. You hear that and you start asking to be paid in grain, not silver."
+        ]},
+        { "id": "scandal_priest", "when": { "scandal": ["heresy"], "occupation": ["priest"] }, "weight": 3, "lines": [
+            "We are told to pray for {scandalSubject}'s soul. Some of us are praying harder than others.",
+            "An idol in the palace? The bishop has not slept since he heard."
+        ]},
+        { "id": "scandal_war", "when": { "scandal": ["pact", "coward"], "war": true }, "weight": 3, "lines": [
+            "Our lads bleed against {enemy} and the talk is {scandalSubject} is soft on them. You can feel the mood turning.",
+            "If it's true what they say of {scandalSubject}, the war with {enemy} is a farce. If it's false, someone should hang for saying it."
+        ]},
 
         { "id": "trait_dread_lord", "when": { "trait": ["dread_lord"] }, "weight": 3, "lines": [
             "*goes pale* Y-yes, my lord. Whatever you need. Anything.",
@@ -1147,6 +1225,43 @@
         { "id": "renowned_traveler", "when": { "renownMin": 80, "occupation": ["traveler"] }, "weight": 2, "lines": [
             "Your name's known three kingdoms over, {player}. I heard it in a tavern by the sea."
         ]},
+        { "id": "fame_known", "when": { "fame": ["known"] }, "weight": 1, "lines": [
+            "You're {player}, aren't you? My cousin swore you passed through {settlement} once.",
+            "Folk in {kingdom} have started saying your name, {player}. Not loudly, yet."
+        ]},
+        { "id": "fame_celebrated", "when": { "fame": ["celebrated"] }, "weight": 2, "lines": [
+            "They drink your health in every alehouse in {kingdom}, {player}.",
+            "My boy plays at being {player} with a stick for a sword. You've a following here."
+        ]},
+        { "id": "fame_celebrated_merchant", "when": { "fame": ["celebrated", "legend"], "occupation": ["merchant", "blacksmith_npc"] }, "weight": 2, "lines": [
+            "For you, {player}, a fair price. Folk will buy from me just to say you did."
+        ]},
+        { "id": "fame_legend", "when": { "fame": ["legend"] }, "weight": 3, "lines": [
+            "There's a song about you, {player}. Half of it's lies, but I'd wager the best half's true.",
+            "Grandchildren will hear how {player} came to {settlement}. I'll make sure of it."
+        ]},
+        { "id": "fame_legend_noble", "when": { "fame": ["legend"], "occupation": ["noble"] }, "weight": 2, "lines": [
+            "Every house in {kingdom} would give a daughter's dowry to dine with {house}. And here you are."
+        ]},
+        { "id": "fame_distrusted", "when": { "fame": ["distrusted"] }, "weight": 2, "lines": [
+            "I've heard what folk say of you, {player}. I'll count my change twice.",
+            "There are stories about you in {kingdom}. None of them make me want to stand close."
+        ]},
+        { "id": "fame_shunned", "when": { "fame": ["shunned"] }, "weight": 3, "lines": [
+            "Mothers call their children in when you walk by, {player}.",
+            "The watch has your face drawn on a board by the gate. Did you know?"
+        ]},
+        { "id": "fame_shunned_guard", "when": { "fame": ["shunned"], "occupation": ["guard"] }, "weight": 3, "lines": [
+            "I'm to keep an eye on you while you're in {settlement}. Orders. Don't make it interesting."
+        ]},
+        { "id": "rival_house_realm", "when": { "rivalHouse": true }, "weight": 2, "lines": [
+            "{rivalHouse} holds sway in {kingdom}, and they've no love for {house}. Folk here know it.",
+            "You'll find doors shut here, friend. {rivalHouse} pays well to keep them that way against {house}.",
+            "Everyone in {settlement} knows {rivalHouse} and {house} are at each other's throats."
+        ]},
+        { "id": "rival_house_guard", "when": { "rivalHouse": true, "occupation": ["guard", "noble"] }, "weight": 2, "lines": [
+            "My lord's kin are of {rivalHouse}. I'd not linger in {kingdom}, were I of {house}."
+        ]},
         { "id": "prices_dear_food", "when": { "prices": ["dear_food"] }, "weight": 2, "lines": [
             "Bread is dear in {kingdom}: up {pricePct}% since {sinceSeason}. My children eat porridge twice a day now.",
             "A loaf costs what a pie did in {sinceSeason}. {pricePct}% more, the baker says, and he's not lying.",
@@ -1159,6 +1274,11 @@
         { "id": "prices_linen_glut", "when": { "prices": ["linen_glut"] }, "weight": 1, "lines": [
             "Linen's cheaper than it's been in years. Every cottage has a loom going.",
             "You can't sell linen for what the flax cost. The cottagers weave it faster than folk can wear it out."
+        ]},
+        { "id": "prices_engrossing", "when": { "prices": ["engrossing"] }, "weight": 2, "lines": [
+            "The grain dealers are buying up every sack against a bad harvest. They'll sell it back to us at twice the price come spring.",
+            "Engrossers, the lot of them. Lofts full of grain while the baker can't get flour. The crown should throw them open.",
+            "Word is the dealers have been hoarding grain. If the crown has any sense it'll forbid it before the hungry months."
         ]},
         { "id": "prices_inflation", "when": { "prices": ["inflation"] }, "weight": 2, "lines": [
             "Everything costs {pricePct}% more than in {sinceSeason}. My wages don't.",

@@ -3,6 +3,8 @@
 // ============================================
 
 import { icon } from '../icons.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
+import { Scenarios } from '../../player/scenarios.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
@@ -425,7 +427,8 @@ export async function _doStartNewGame(settingsOverride) {
         firstName: charFirstName,
         lastName: charLastName,
         gender: charGender,
-        age: charAge
+        age: charAge,
+        appearance: s.charAppearance || null
     });
     this.player.placeInWorld(this.world);
 
@@ -487,6 +490,26 @@ export async function _doStartNewGame(settingsOverride) {
         Councils.initializePlayer(this.player);
     }
 
+    // Origin, difficulty and victory goal (player/scenarios.js): shapes the
+    // player and sets player.scenario before the onboarding below reads it
+    const scenarioStart = Scenarios.apply(this.player, this.world, {
+        origin: s.origin, difficulty: s.difficulty, victory: s.victory,
+        // (the New Game sheet sets the guided start from the origin; the player may override it)
+        guidedStart: typeof s.guidedStart === 'boolean' ? s.guidedStart : undefined,
+    });
+    {
+        // An origin may begin somewhere else: look there
+        const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
+        this.camera.centerOn(pos.x, pos.y);
+    }
+
+    // The guided first month (systems/firstSteps.js): on unless the "Guided start"
+    // setting or the chosen scenario (player.scenario.guidedStart) turns it off
+    FirstSteps.initialize(this.player, this.world, {
+        enabled: s.guidedStart !== false && this.player.scenario?.guidedStart !== false,
+    });
+    this.ui.updateStats(this.player, this.world); // draws the First Steps card
+
     console.log('Game started!');
     // Hide title and settings screen (legacy DOM path)
     if (!this._reactMode) {
@@ -500,7 +523,8 @@ export async function _doStartNewGame(settingsOverride) {
     const totalTiles = this.world.width * this.world.height;
     const mapDesc = totalTiles > 40000 ? 'vast' : totalTiles > 15000 ? 'large' : 'ready';
     setTimeout(() => {
-        this.ui.showNotification('Welcome, ' + this.player.name, `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
+        // (the origin's welcome — the Wanderer's is the classic one)
+        this.ui.showNotification(`${scenarioStart.icon || ''} Welcome, ${this.player.name}`.trim(), scenarioStart.welcome || `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
     }, 1200);
 
     // Start game loop

@@ -2,10 +2,12 @@
 // NPC fear, contested holy sites, settlement growth, festival envoys,
 // botched bounty arrests and the kingdom military cap.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Religion } from '../systems/religion.js';
+import { Devotion } from '../systems/devotion.js';
 import { Taxation } from '../systems/marketDynamics.js';
 import { Festivals } from '../systems/festivals.js';
 import { BountyHunting } from '../systems/bountyHunting.js';
@@ -81,16 +83,24 @@ describe('contested holy sites', () => {
         expect(tile.holySite.contestedDaysLeft).toBe(Religion.CONTESTED_SITE.days);
     });
 
-    it('pilgrims at a contested site receive thinner offerings', () => {
-        const player = () => ({ karma: 0, gold: 0, renown: 0, faith: 0, health: 50, maxHealth: 100, quests: {} });
+    beforeAll(async () => {
+        if (!DataLoader._gamedata) await DataLoader.initializeAll();
+    });
+
+    it('pilgrims pay at the shrine, and a contested site is flagged as a risk (systems/devotion.js)', () => {
+        const player = () => ({ karma: 0, gold: 100, renown: 0, faith: 5, health: 50, maxHealth: 100, quests: {}, q: 5, r: 5 });
         const calm = setup(false);
         const hot = setup(true);
-        Utils.setSeed(11);
-        const a = Religion.completePilgrimage(player(), calm.tile, calm.world);
-        Utils.setSeed(11);
-        const b = Religion.completePilgrimage(player(), hot.tile, hot.world);
-        expect(b.contested).toBe(true);
-        expect(b.goldReward).toBe(Math.floor(a.goldReward * Religion.CONTESTED_SITE.pilgrimGoldMult));
+        calm.tile.q = hot.tile.q = 0;
+        calm.tile.r = hot.tile.r = 0;
+        const a = Devotion.completePilgrimage(player(), calm.world, calm.tile, 'alms');
+        const p = player();
+        const b = Devotion.completePilgrimage(p, hot.world, hot.tile, 'alms');
+        expect(a.success && b.success).toBe(true);
+        expect(p.gold).toBe(75); // the pilgrim gave 25, received nothing
+        expect(hot.kingdom.treasury).toBe(25);
+        expect(Devotion.siteRisk(p, hot.world, hot.site).contested).toBe(true);
+        expect(b.renown).toBeGreaterThan(a.renown); // braving the tension is talked of
     });
 });
 

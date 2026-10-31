@@ -167,6 +167,48 @@ export const NpcFamily = {
     },
 
     /**
+     * Rebuild the family groups and bonds from NPCs whose kin links are
+     * already set (the persistent townsfolk — systems/townsfolk.js), then
+     * draw the social bonds as generateFamilies does.
+     */
+    adoptFamilies(npcs, rng) {
+        _npcRelationships = {};
+        _familyGroups = [];
+        if (!npcs || npcs.length === 0) return;
+
+        const byId = new Map(npcs.map(n => [n.id, n]));
+        const linked = n => [n.spouseId, ...(n.parentIds || []), ...(n.childIds || [])].filter(id => id != null && byId.has(id));
+        for (const start of npcs) {
+            if (start.familyGroupId != null || linked(start).length === 0) continue;
+            const fam = { id: _familyGroups.length, lastName: start.lastName, parentIds: [], childIds: [] };
+            const stack = [start];
+            while (stack.length) {
+                const n = stack.pop();
+                if (n.familyGroupId != null) continue;
+                n.familyGroupId = fam.id;
+                if ((n.childIds || []).length > 0 || n.spouseId != null) fam.parentIds.push(n.id);
+                else fam.childIds.push(n.id);
+                for (const id of linked(n)) stack.push(byId.get(id));
+            }
+            _familyGroups.push(fam);
+        }
+
+        for (const n of npcs) {
+            if (n.spouseId != null && n.id < n.spouseId) {
+                NpcFamily._setNpcRelationship(n.id, n.spouseId, { score: 60 + Math.floor(rng() * 35), type: FAMILY_BOND.SPOUSE, events: [] });
+            }
+            for (const cId of (n.childIds || [])) {
+                NpcFamily._setNpcRelationship(n.id, cId, { score: 75 + Math.floor(rng() * 25), type: FAMILY_BOND.PARENT, events: [] });
+            }
+            for (const sId of (n.siblingIds || [])) {
+                if (n.id < sId) NpcFamily._setNpcRelationship(n.id, sId, { score: 40 + Math.floor(rng() * 40), type: FAMILY_BOND.SIBLING, events: [] });
+            }
+        }
+
+        NpcFamily._generateSocialBonds(npcs, rng);
+    },
+
+    /**
      * Assign age, gender, and base social attributes to NPCs
      */
     _assignDemographics(npcs, rng) {

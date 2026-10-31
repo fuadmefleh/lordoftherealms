@@ -27,7 +27,9 @@ function paintPlaceView(game, tile, view) {
     const sx = Math.max(0, Math.min(r.canvas.width - cw, c.x - cw * 0.62));
     const sy = Math.max(0, Math.min(r.canvas.height - ch, c.y + 0.13 * s - ch / 2));
     try {
-        view.getContext('2d').drawImage(r.canvas, sx, sy, cw, ch, 0, 0, view.width, view.height);
+        // The world canvas's backing store is at the screen's pixel ratio (ui/hiDpi.js)
+        const k = r.canvas.pixelRatio || 1;
+        view.getContext('2d').drawImage(r.canvas, sx * k, sy * k, cw * k, ch * k, 0, 0, view.width, view.height);
         view.classList.add('painted');
     } catch (e) {
         // A tainted or unavailable canvas just leaves the plain card
@@ -107,12 +109,12 @@ Object.assign(ActionMenu, {
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
-            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', explore_inner_map: 'general',
+            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', sea_rovers: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce',
-            tavern: 'social', talk_locals: 'social', preach: 'social', denounce_heresy: 'social',
+            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'economy', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -132,7 +134,7 @@ Object.assign(ActionMenu, {
             recruit_settlers: 'frontier', post_signboard: 'frontier', wait_here: 'frontier',
             cartography: 'cartography', map_trade: 'cartography',
             steal_map: 'cartography',
-            jail_wait: 'jail', jail_bail: 'jail', jail_escape: 'jail',
+            jail_wait: 'jail', jail_bail: 'jail', jail_escape: 'jail', jail_cell: 'jail',
             servitude_wait: 'servitude', servitude_escape: 'servitude',
             servitude_buy_freedom: 'servitude',
             seek_title: 'social', view_title_status: 'social', resign_title: 'social',
@@ -141,9 +143,10 @@ Object.assign(ActionMenu, {
             espionage_menu: 'social', manage_spies: 'social',
             hold_court: 'social', manage_holding: 'frontier',
             rivals_here: 'social', hall_of_heroes: 'social', patronage: 'social',
-            bank: 'commerce',
+            bank: 'commerce', found_bank: 'commerce',
             underworld: 'commerce',
             guildhall: 'commerce',
+            post_house: 'commerce',
         };
 
         for (const action of actions) {
@@ -414,14 +417,15 @@ Object.assign(ActionMenu, {
         eat_meal: 0,
         disembark: 0,
         explore_inner_map: 0,
-        jail_wait: 0, jail_bail: 0, jail_escape: 0,
+        jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
         servitude_wait: 0, servitude_escape: 0, servitude_buy_freedom: 0,
         view_relationships: 0, manage_dynasty: 0,
         manage_fleet: 0, manage_house: 0, manage_property: 0, manage_colony: 0,
-        hold_court: 0, manage_holding: 0, patronage: 0, bank: 0,
+        hold_court: 0, manage_holding: 0, patronage: 0, bank: 0, found_bank: 0,
         seek_physician: 0, // treatment costs gold, not time
         underworld: 0, // jobs inside the panel cost their own AP
         guildhall: 0,
+        post_house: 0, // the Post House panel; letters cost postage, not time
 
         // Light actions (1 AP)
         trade: 1, collect_goods: 1, donate: 1,
@@ -457,7 +461,7 @@ Object.assign(ActionMenu, {
 
         // Combat / Major ship operations (8 AP)
         attack_unit: 8, attack_settlement: 8, siege_camp: 0,
-        board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, make_for_port: 0, hunt_pirates: 10, commit_piracy: 10,
+        board_ship: 8, visit_shipyard: 1, row_ashore: 4, row_to_ship: 4, ship_hold: 0, port_market: 0, explore_ocean: 6, make_for_port: 0, hunt_pirates: 10, commit_piracy: 10, raid_haven: 10, sea_rovers: 0,
 
         // Title actions
         seek_title: 1, view_title_status: 0, resign_title: 1,
@@ -471,7 +475,9 @@ Object.assign(ActionMenu, {
         rivals_here: 0, hall_of_heroes: 0,
 
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
-        meet_trader: 0,
+        meet_trader: 0, meet_courier: 0,
+        // Lodgings (rooms and services are paid in gold, not time)
+        lodging: 0, manage_lodging: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -518,6 +524,8 @@ Object.assign(ActionMenu, {
         'attack_unit', 'attack_settlement',
         'request_meeting', 'buy_house', 'seek_title', 'visit_shipyard',
         'delve',
+        // Choice scenes charge their AP on the first real choice (ui/actionMenu/treasureScenes.js)
+        'steal_map', 'dig_treasure',
     ]),
 
     /**
@@ -528,13 +536,15 @@ Object.assign(ActionMenu, {
     commitPendingAP(game) {
         if (ActionMenu._pendingAP === null) return true; // nothing pending, already paid or free
         const cost = ActionMenu._pendingAP;
-        ActionMenu._pendingAP = null;
-        if (cost === 0) return true;
+        if (cost === 0) { ActionMenu._pendingAP = null; return true; }
         if ((game.player.actionPoints || 0) < cost) {
+            // Keep the cost pending: clearing it here made the sub-menu's
+            // next confirm free after a refusal
             game.ui.showNotification('⚡ Not Enough Action Points',
                 `This action requires ${cost} AP but you only have ${game.player.actionPoints || 0}. Rest to start a new day.`, 'error');
             return false;
         }
+        ActionMenu._pendingAP = null;
         game.player.actionPoints -= cost;
         game.ui.updateStats(game.player, game.world);
         return true;
@@ -709,6 +719,8 @@ Object.assign(ActionMenu, {
             case 'explore_ocean':
             case 'hunt_pirates':
             case 'commit_piracy':
+            case 'raid_haven':
+            case 'sea_rovers':
                 ActionMenu.doSeaActivity(game, actionType);
                 break;
             case 'miracle':
@@ -742,6 +754,9 @@ Object.assign(ActionMenu, {
             case 'meet_trader':
                 ActionMenu.showTrader(game, unitId);
                 break;
+            case 'meet_courier':
+                ActionMenu.showRider(game, unitId);
+                break;
             case 'outlaw_lair': {
                 const lair = OutlawLairs.lairNear(game.player, game.world, tile.q, tile.r, 1);
                 ActionMenu.showOutlawLairs(game, lair ? lair.id : null);
@@ -749,6 +764,12 @@ Object.assign(ActionMenu, {
             }
             case 'tavern':
                 ActionMenu.showTavernMenu(game, tile);
+                break;
+            case 'lodging':
+                ActionMenu.showLodgings(game, tile, unitId || null);
+                break;
+            case 'manage_lodging':
+                ActionMenu.lodgingAct(game, 'tab', unitId, 'run');
                 break;
             case 'talk_locals':
                 ActionMenu.showTalkLocalsMenu(game, tile);
@@ -770,6 +791,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'jail_escape':
                 ActionMenu.attemptJailbreak(game);
+                break;
+            case 'jail_cell':
+                ActionMenu.attemptJailbreak(game, 'cell');
                 break;
             case 'servitude_wait':
                 game.endDay();
@@ -880,6 +904,9 @@ Object.assign(ActionMenu, {
             case 'bank':
                 ActionMenu.showBank(game, tile);
                 break;
+            case 'found_bank':
+                ActionMenu.showBank(game, tile, 'house');
+                break;
             case 'underwriter':
                 ActionMenu.showUnderwriter(game, tile);
                 break;
@@ -967,6 +994,9 @@ Object.assign(ActionMenu, {
             case 'board_ship':
                 ActionMenu.showBoardShipMenu(game, tile);
                 break;
+            case 'hire_sailors':
+                ActionMenu.showHireSailorsMenu(game, tile);
+                break;
             case 'manage_fleet':
                 ActionMenu.showFleetMenu(game, tile);
                 break;
@@ -1001,6 +1031,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'guildhall':
                 ActionMenu.showGuildhall(game, tile);
+                break;
+            case 'post_house':
+                ActionMenu.lettersAct(game, 'tab', 'post');
                 break;
             case 'hold_court':
                 ActionMenu.showCourtPanel(game, tile);

@@ -93,7 +93,8 @@ const FALLBACK_POLICIES = {
     faith: { label: 'Faith', default: 'devout', options: { devout: { label: 'Devout', mods: {} } } },
 };
 const HISTORY_CAP = 40;
-const CLAIM_SOURCES = ['marriage', 'forged', 'office', 'conquest', 'purchased'];
+// 'blood': a birthright the player started with (player/scenarios.js Origins)
+const CLAIM_SOURCES = ['marriage', 'forged', 'office', 'conquest', 'purchased', 'blood'];
 
 /** Deterministic noise in [-1, 1] from a string (no RNG draws). */
 function _noise(key) {
@@ -398,7 +399,7 @@ export const Throne = {
         a += add('Claim', Throne.claimStrength(player, kingdom.id) * L.claimWeight);
         a += add('Reputation', Utils.clamp(opts.reputation != null ? opts.reputation : _rep(player, kingdom.id), -100, 100) * L.reputationWeight);
         a += add('Prestige', Math.min(L.prestigeCap, House.getPrestige(player) / L.prestigePer));
-        a += add('The court\'s opinion', Utils.clamp(NPCLords.getLordOpinion(kingdom.lord, player) * L.opinionWeight, -L.opinionCap, L.opinionCap));
+        a += add('The court\'s opinion', Utils.clamp(NPCLords.getLordOpinion(kingdom.lord, player, world) * L.opinionWeight, -L.opinionCap, L.opinionCap));
         // Flat trait opinion plus the king's own affinities (a Pious king likes a Pious pretender)
         a += add('Your traits', Utils.clamp(Traits.lordOpinion(player, kingdom.lord), -L.traitCap, L.traitCap));
         const stability = typeof kingdom.stability === 'number' ? kingdom.stability : 60;

@@ -14,6 +14,7 @@
 
 import { CustomInteriors } from './customInteriors.js';
 import { CustomObjects }   from './customObjects.js';
+import { SIDE, brushSlotSides } from '../core/tileSides.js';
 
 // ─── Grid sizes per building type ───────────────────────────────
 // [minW, maxW, minH, maxH]
@@ -32,6 +33,10 @@ const BUILDING_DIMS = {
     stable:      [9,  11, 7,  9],
     guard_tower: [5,  7,  7,  9],
     farm:        [7,  9,  5,  7],
+    guest_house: [8,  10, 7,  9],
+    inn:         [11, 14, 9, 11],
+    hotel:       [13, 16, 11, 13],
+    roadhouse:   [8,  10, 7,  9],
     // defaults for unknown types
     _default:    [8,  12, 7, 10],
 };
@@ -53,6 +58,10 @@ const BUILDING_OBJECT_COUNTS = {
     stable:      [2, 4],
     guard_tower: [2, 3],
     farm:        [2, 3],
+    guest_house: [3, 5],
+    inn:         [5, 7],
+    hotel:       [6, 8],
+    roadhouse:   [3, 5],
     _default:    [2, 4],
 };
 
@@ -136,6 +145,17 @@ export function generateSpriteInterior(building, seed) {
         }
     }
 
+    // Floor cells (door included, so the cell above it isn't an edge) share
+    // one brushId, so the floor brush lays its border along the walls.
+    if (floorBrush) {
+        for (let r = 0; r < h; r++) {
+            for (let q = 0; q < w; q++) {
+                if (!isWallCell(q, r)) brushGroupMap[`${q},${r}`] = { brushId: floorBrush.id, layer: 'floor' };
+            }
+        }
+    }
+    const isFloorCell = (q, r) => q >= 0 && q < w && r >= 0 && r < h && !isWallCell(q, r);
+
     // ── Collect all sheet paths for preloading ───────────────────
     const sheetPaths = new Set();
     const collectBrushPaths = (brush) => {
@@ -191,8 +211,19 @@ export function generateSpriteInterior(building, seed) {
             if (wall && wallBrush) {
                 const tileRef = CustomInteriors.resolveNineTile(wallBrush, q, r, brushGroupMap, w, h);
                 if (tileRef) tile._customTile = { walls: tileRef };
-            } else if (!wall && !door && floorBrush && floorCenter) {
-                tile._customTile = { floor: floorCenter };
+            } else if (!wall && !door && floorBrush) {
+                const tileRef = CustomInteriors.resolveNineTile(floorBrush, q, r, brushGroupMap, w, h) || floorCenter;
+                if (tileRef) tile._customTile = { floor: tileRef };
+                // Edges the brush blocks (see core/tileSides.js), never the
+                // side facing the door
+                let sides = brushSlotSides(floorBrush, (dq, dr) => isFloorCell(q + dq, r + dr));
+                if (sides) {
+                    if (isDoorCell(q, r - 1)) sides &= ~SIDE.n;
+                    if (isDoorCell(q + 1, r)) sides &= ~SIDE.e;
+                    if (isDoorCell(q, r + 1)) sides &= ~SIDE.s;
+                    if (isDoorCell(q - 1, r)) sides &= ~SIDE.w;
+                    if (sides) tile.blockedSides = sides;
+                }
             }
 
             tiles[r][q] = tile;

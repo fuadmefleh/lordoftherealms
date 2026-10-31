@@ -9,6 +9,32 @@ import { Seasons } from './seasons.js';
 
 export const WorldEvents = {
     /**
+     * A realm's towns. Generated worlds keep settlements on their tiles and
+     * leave kingdom.settlements empty; small hand-made worlds fill the list.
+     */
+    _townsOf(world, kingdom) {
+        if (world && typeof world.getSettlementViews === 'function') {
+            return world.getSettlementViews().filter(s => s.kingdom === kingdom.id);
+        }
+        return kingdom.settlements || [];
+    },
+
+    /**
+     * Which of a realm's towns an event strikes. Drawn from its own stream
+     * (world seed + day + realm + event) so the daily event roll leaves the
+     * main RNG where it was.
+     */
+    _pickTown(world, kingdom, eventId) {
+        const towns = WorldEvents._townsOf(world, kingdom);
+        if (!towns.length) return null;
+        const seed = (world && world.generationParams && world.generationParams.seed) || 0;
+        const key = `${seed}:${world && world.day}:${kingdom.id}:${eventId}`;
+        let h = 2166136261;
+        for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619) >>> 0;
+        return Utils.withRng(Utils.seededRandom((h % 233279) + 1), () => Utils.randPick(towns));
+    },
+
+    /**
      * Generate initial world history
      */
     generateHistory(world) {
@@ -158,8 +184,8 @@ export const WorldEvents = {
 
             case 'rebellion':
                 // Small rebellion reduces population
-                if (kingdom.settlements && kingdom.settlements.length > 0) {
-                    const settlement = Utils.randPick(kingdom.settlements);
+                {
+                    const settlement = WorldEvents._pickTown(world, kingdom, type);
                     if (settlement) {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
@@ -272,8 +298,8 @@ export const WorldEvents = {
                 };
 
             case 'discovery':
-                if (kingdom.settlements && kingdom.settlements.length > 0) {
-                    const settlement = Utils.randPick(kingdom.settlements);
+                {
+                    const settlement = WorldEvents._pickTown(world, kingdom, type);
                     if (settlement) {
                         kingdom.treasury += 800;
                         return {
@@ -377,8 +403,8 @@ export const WorldEvents = {
 
         switch (type) {
             case 'plague':
-                if (kingdom.settlements && kingdom.settlements.length > 0) {
-                    const settlement = Utils.randPick(kingdom.settlements);
+                {
+                    const settlement = WorldEvents._pickTown(world, kingdom, type);
                     if (settlement) {
                         const tile = world.getTile(settlement.q, settlement.r);
                         if (tile && tile.settlement) {
@@ -406,8 +432,8 @@ export const WorldEvents = {
                 };
 
             case 'flood':
-                if (kingdom.settlements && kingdom.settlements.length > 0) {
-                    const floodSettlement = Utils.randPick(kingdom.settlements);
+                {
+                    const floodSettlement = WorldEvents._pickTown(world, kingdom, type);
                     if (floodSettlement) {
                         kingdom.treasury = Math.floor(kingdom.treasury * 0.85);
                         return {

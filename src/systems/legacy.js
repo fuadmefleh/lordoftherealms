@@ -202,6 +202,17 @@ export const Legacy = {
         rec.crownsLost = (((house.crownLedger || {}).records) || [])
             .filter(c => _num(c.until) >= r.startDay && _num(c.until) <= day)
             .map(c => ({ kingdomName: c.kingdomName, how: c.how, days: c.days }));
+        // Who they were and what else the reign added to the counters — the
+        // Annals (systems/annals.js) tell infamy, faith and the hunt from these
+        rec.gender = player.gender || null;
+        rec.deedsDelta = {};
+        for (const k of Object.keys(now.deeds || {})) {
+            const v = deed(k);
+            if (v > 0) rec.deedsDelta[k] = Math.round(v * 100) / 100;
+        }
+        const dev = player.devotion && player.devotion.stats;
+        if (dev) rec.devotion = { prayers: _num(dev.prayers), pilgrimages: _num(dev.pilgrimages), vowsKept: _num(dev.vowsKept), vowsBroken: _num(dev.vowsBroken) };
+        if (player.religion && player.religion.name) rec.religion = player.religion.name;
         rec.epithet = Legacy.epithet(rec);
         rec.score = Legacy.reignScore(rec);
         return rec;

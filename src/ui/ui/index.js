@@ -8,5 +8,6 @@ import './panels.js';
 import './panels2.js';
 import './techTreasury.js';
 import './propertiesSettings.js';
+import './cheats.js';
 
 export { UI, routeDelegatedClick };

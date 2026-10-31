@@ -325,6 +325,10 @@ export function open(game, anchorQ, anchorR) {
 
 export function close() {
     bcState._isOpen = false;
+    if (bcState._onWindowMouseUp) {
+        window.removeEventListener('mouseup', bcState._onWindowMouseUp);
+        bcState._onWindowMouseUp = null;
+    }
     if (bcState._overlay) {
         bcState._overlay.remove();
         bcState._overlay = null;

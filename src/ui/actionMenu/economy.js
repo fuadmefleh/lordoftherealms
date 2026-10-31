@@ -156,7 +156,7 @@ function worthTab(game) {
     html += `<table style="border-collapse:collapse; font-size:12px; min-width:280px;">`;
     html += line('💰 Gold in hand', A.gold) + line('🏦 Bank deposits', A.deposits) + line('📜 Royal bonds', A.bonds)
         + line('📦 Goods (at the best price you know the stalls pay)', A.goods) + line('🏠 Properties (book value)', A.properties)
-        + line('🏭 Works (what you put in, as they stand)', A.works) + line('⛵ Ships', A.ships) + line('⚖️ Trading company', A.company)
+        + line('🏭 Works (what you put in, as they stand)', A.works) + line('⛵ Ships', A.ships) + line('⚖️ Trading company', A.company) + line('🏛️ Your banking house (equity)', A.bank)
         + line('Loans owed', D.loans, true) + line('Guild loans', D.guildLoans, true) + line('Rent in arrears', D.arrears, true);
     html += '</table>';
     html += '<h5 style="margin:10px 0 4px;">Week by week</h5>';

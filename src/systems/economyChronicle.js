@@ -26,6 +26,7 @@ import { Fashions } from '../world/fashions.js';
 import { PriceKnowledge } from './priceKnowledge.js';
 import { Ships } from './ships.js';
 import { MerchantHouses } from './merchantHouses.js';
+import { Finance } from './finance.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -225,7 +226,7 @@ export const EconomyChronicle = {
      */
     netWorth(player, world) {
         const C = EconomyChronicle.config().netWorth;
-        const a = { gold: 0, deposits: 0, bonds: 0, goods: 0, properties: 0, works: 0, ships: 0, company: 0 };
+        const a = { gold: 0, deposits: 0, bonds: 0, goods: 0, properties: 0, works: 0, ships: 0, company: 0, bank: 0 };
         const d = { loans: 0, guildLoans: 0, arrears: 0 };
         if (!player) return { total: 0, assets: a, debts: d };
         a.gold = Math.max(0, _num(player.gold));
@@ -266,6 +267,8 @@ export const EconomyChronicle = {
         }
         for (const ship of _arr(player.ships)) a.ships += _num(Ships.getShipValue(ship)) * _num(C.shipShare, 0.6);
         a.company = MerchantHouses.company(player) ? _num(MerchantHouses.companyValue(player)) : 0;
+        const own = Finance.ownBank(player);
+        a.bank = own ? Math.max(0, Finance.ownEquity(world, own)) : 0;
         const gl = _obj(player.guilds);
         for (const l of _arr(gl && gl.loans)) d.guildLoans += Math.max(0, _num(l && l.owed));
         for (const k of Object.keys(a)) a[k] = Math.round(a[k]);

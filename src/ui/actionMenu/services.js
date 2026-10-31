@@ -2,6 +2,7 @@
 // guard tower, town hall, manor). Logic lives in player/settlementServices.js;
 // these panels present it and route to existing menus where one already exists.
 import { ActionMenu } from './_ref.js';
+import { DevotionPanel } from './devotion.js';
 import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from './_imports.js';
 import { Ailments } from '../../systems/ailments.js';
 
@@ -96,9 +97,12 @@ Object.assign(ActionMenu, {
             });
             html += '</div>';
         }
+        // Prayer, alms, vows and pilgrimages, the soul's redemption (ui/actionMenu/devotion.js)
+        html += DevotionPanel.templeCardHtml(game, tile);
         html += '</div>';
 
         game.ui.showCustomPanel('⛪ Temple', html);
+        DevotionPanel.bindTemple(game, tile);
         const reopen = () => ActionMenu.showBlessingMenu(game, tile);
         window._svc = {
             bless: () => ActionMenu._serviceResult(game, '✨ Blessing', SettlementServices.seekBlessing(player, settlement), reopen),

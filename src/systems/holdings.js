@@ -436,6 +436,13 @@ export const Holdings = {
             fx.raidReduction += i * G.raidPerIntrigue;
             fx.skim = Holdings.skimRate(gov);
         }
+        // An official in a rival House's pay (systems/rivalAgents.js) skims the
+        // collections and holds up the permits for the works
+        const bribed = h.bribed && typeof h.bribed === 'object' ? h.bribed : null;
+        if (bribed && !h.lost) {
+            fx.skim = _clamp(fx.skim + _num(bribed.skim), 0, 0.9);
+            fx.buildSpeed -= _num(bribed.buildDrag);
+        }
         fx.raidReduction = Math.min(_num(cfg.caps.raidReduction, 0.85), fx.raidReduction);
         fx.defense = Math.min(_num(cfg.caps.defense, 1.5), fx.defense);
         fx.rebellion = !!h.rebellion;

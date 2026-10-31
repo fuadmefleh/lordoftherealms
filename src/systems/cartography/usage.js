@@ -3,6 +3,7 @@ import { Cartography } from './_ref.js';
 import { Utils, Hex, KingdomAtlas } from './_imports.js';
 import { Quests } from '../quests.js';
 import { Discovery } from '../discovery.js';
+import { TreasureDigs } from '../treasureDigs.js';
 
 Object.assign(Cartography, {
     // ── Map Reading / Applying ─────────────────
@@ -190,20 +191,21 @@ Object.assign(Cartography, {
         if (!tile) return { success: false, reason: 'Invalid location.' };
 
         if (tile.buried && !tile.buried.discovered) {
-            const gold = tile.buried.gold;
-            player.gold += gold;
-            tile.buried.discovered = true;
-
-            // Remove the treasure POI
-            if (tile.improvement && tile.improvement.type === 'treasure_cache') {
-                tile.improvement = null;
-            }
+            const hadRelic = !!(tile.buried.items && tile.buried.items.length > 0);
+            // The gold, and the buried goods themselves into the packs (what
+            // doesn't fit stays buried here: systems/treasureDigs.js)
+            const loot = TreasureDigs.giveLoot(player, world, tile, 1);
+            const gold = loot.gold;
 
             let bonusText = '';
-            if (tile.buried.items && tile.buried.items.length > 0) {
+            if (hadRelic) {
                 player.renown = (player.renown || 0) + 10;
                 bonusText = ' You also found an ancient relic! (+10 renown)';
             }
+            const got = Object.entries(loot.added).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ');
+            const left = Object.entries(loot.left).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ');
+            if (got) bonusText += ` Into your packs: ${got}.`;
+            if (left) bonusText += ` No room for ${left}: it stays buried here.`;
 
             player.skills.cartography = Math.min(10, (player.skills.cartography || 0) + 0.3);
             Quests.track(player, 'treasures_found');

@@ -2,11 +2,12 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
-import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
+import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import {
     _getPlayerFoods,
     _getCookableItems,
     _canCraftRecipe,
+    _canWorkStation,
     _consumeIngredients,
     _giveResults,
     _advanceTime,
@@ -25,6 +26,34 @@ import {
     _showHealModal,
     _settlementTile,
 } from './logic.js';
+import { Devotion } from '../../systems/devotion.js';
+import { Books } from '../../systems/books.js';
+import { DevotionPanel } from '../actionMenu/devotion.js';
+
+/** Building types whose altar is a temple's (place 'temple' for devotion; a temple's shelf holds rare books). */
+const TEMPLE_BUILDINGS = ['temple', 'church', 'cathedral', 'monastery', 'shrine', 'chapel'];
+
+/**
+ * Pray at an altar or meditate on a pew through the devotion model. Returns
+ * the notification text; an omen, an offered vow or trouble at the shrine
+ * open the devotion result panel instead.
+ */
+function _furnitureDevotion(game, kind) {
+    const tile = _settlementTile(game) || (game.world && game.world.getTile ? game.world.getTile(game.player.q, game.player.r) : null);
+    const inside = InnerMap._insideBuilding;
+    const place = tile && tile.holySite ? 'holy' : (inside && TEMPLE_BUILDINGS.includes(inside.type)) ? 'temple' : 'altar';
+    const res = Devotion.devote(game.player, game.world, { kind, place, tile });
+    if (res.omen || res.vowOffers.length || res.fine || res.harm) {
+        DevotionPanel.showResult(game, tile, res, { kind });
+    }
+    const bits = [];
+    if (res.heal) bits.push(`+${res.heal} HP`);
+    bits.push(res.karma ? `+${res.karma} karma` : 'no karma (enough for today)');
+    if (res.faith) bits.push(`faith +${res.faith}`);
+    if (res.intelligence) bits.push(`intelligence +${res.intelligence}`);
+    const lead = kind === 'meditate' ? 'You meditate in silence.' : 'You offer a prayer.';
+    return `${lead} ${bits.join(', ')}. ${res.notes[0] || ''}`.trim();
+}
 
 export const OBJECT_ACTIONS = {
     // ──────────── REST & RECOVERY ────────────
@@ -125,28 +154,17 @@ export const OBJECT_ACTIONS = {
         effects: { fun: 20, comfort: 8, social: -3 },
         message: null, // dynamic message
         timeSkip: 2,
-        onExecute: (game) => {
-            // Each topic trains a skill the game actually checks (all capped at 10).
-            const topics = [
-                { text: 'You read about ancient battle tactics.', skill: 'leadership', xp: 0.2 },
-                { text: 'You study a treatise on trade routes.', skill: 'commerce', xp: 0.2 },
-                { text: 'You read thrilling tales of adventure.', skill: null, xp: 0 },
-                { text: 'You read a chronicle of duels and sieges.', skill: 'combat', xp: 0.2 },
-                { text: 'You read the letters of a famous envoy.', skill: 'diplomacy', xp: 0.2 },
-                { text: "You find a primer on thieves' cant tucked between the pages.", skill: 'stealth', xp: 0.2 },
-                { text: 'You read poetry and feel inspired.', skill: null, xp: 0 },
-                { text: 'You study a map and learn about nearby regions.', skill: 'cartography', xp: 0.2 },
-            ];
-            const topic = topics[Math.floor(Math.random() * topics.length)];
-            if (topic.skill && topic.xp && game.player.skills) {
-                const before = game.player.skills[topic.skill] || 0;
-                game.player.skills[topic.skill] = Math.min(10, Math.round((before + topic.xp) * 100) / 100);
-                if (game.player.skills[topic.skill] > before) {
-                    const name = topic.skill.charAt(0).toUpperCase() + topic.skill.slice(1);
-                    return `${topic.text} (${name} +${topic.xp})`;
-                }
-            }
-            return topic.text;
+        // Real books (systems/books.js, data/books.json): the open book, or one
+        // the shelf holds; a few sittings each, the reward once on finishing
+        onExecute: (game, objDef, anchorQ, anchorR) => {
+            const tile = _settlementTile(game);
+            const inside = InnerMap._insideBuilding;
+            const r = Books.read(game.player, game.world, {
+                shelfKey: `${tile ? `${tile.q},${tile.r}` : 'wilds'}:${inside ? inside.type : 'out'}:${anchorQ},${anchorR}`,
+                settlementType: tile && tile.settlement ? tile.settlement.type : null,
+                temple: !!(inside && TEMPLE_BUILDINGS.includes(inside.type)),
+            });
+            return r.text;
         },
     },
     play_instrument: {
@@ -178,10 +196,8 @@ export const OBJECT_ACTIONS = {
         effects: { comfort: 18, fun: 5, social: -3 },
         message: 'You offer a prayer. A sense of peace washes over you.',
         timeSkip: 1,
-        onExecute: (game) => {
-            game.player.karma = (game.player.karma || 0) + 1;
-            return null; // use default message
-        },
+        // The devotion model (systems/devotion.js): faith, place, diminishing returns
+        onExecute: (game) => _furnitureDevotion(game, 'pray'),
     },
     meditate: {
         label: 'Meditate',
@@ -192,6 +208,7 @@ export const OBJECT_ACTIONS = {
         effects: { comfort: 15, energy: 10, fun: 5 },
         message: 'You meditate in silence. Your mind feels clear and focused.',
         timeSkip: 2,
+        onExecute: (game) => _furnitureDevotion(game, 'meditate'),
     },
     // ──────────── CRAFTING & PRODUCTION ────────────
     craft: {
@@ -207,11 +224,8 @@ export const OBJECT_ACTIONS = {
         desc: 'Smelt raw ore into metal ingots',
         category: 'production',
         modal: 'smelt',
-        condition: (game) => {
-            const inv = game.player.inventory || {};
-            return (inv.iron || 0) >= 3 || (inv.gold_ore || 0) >= 3;
-        },
-        conditionFail: 'You need at least 3 ore to smelt.',
+        condition: (game) => _canWorkStation(game, 'smelt'),
+        conditionFail: 'You need ore to smelt (3 iron, 3 gold ore, 2 copper…).',
     },
     brew: {
         label: 'Brew Potion',
@@ -219,34 +233,17 @@ export const OBJECT_ACTIONS = {
         desc: 'Brew healing potions from herbs',
         category: 'production',
         modal: 'brew',
-        condition: (game) => {
-            const inv = game.player.inventory || {};
-            return (inv.herbs || 0) >= 2;
-        },
+        condition: (game) => _canWorkStation(game, 'brew'),
         conditionFail: 'You need at least 2 herbs to brew.',
     },
     tan: {
-        label: 'Tan Leather',
+        label: 'Tan & Weave',
         icon: '🟫',
-        desc: 'Tan hides into usable leather',
+        desc: 'Tan hides into leather, weave flax and wool into cloth',
         category: 'production',
-        modal: null,
-        condition: (game) => {
-            const inv = game.player.inventory || {};
-            return (inv.leather || 0) >= 2;
-        },
-        conditionFail: 'You need at least 2 raw hides.',
-        effects: {},
-        timeSkip: 2,
-        onExecute: (game) => {
-            game.player.inventory.leather -= 2;
-            if (!PlayerInventory.addItem(game.player, 'leather_armor', 1).success) {
-                // No room for the armor — keep the hides rather than destroy them
-                game.player.inventory.leather += 2;
-                return `You set the hides aside untouched. ${PlayerInventory.fullMessage(game.player)}`;
-            }
-            return 'You tan the hides. Gained 1 leather armor piece.';
-        },
+        modal: 'tan',
+        condition: (game) => _canWorkStation(game, 'tan'),
+        conditionFail: 'You need hides and salt, flax or wool.',
     },
     // ──────────── GATHERING ────────────
     fish: {
@@ -298,6 +295,36 @@ export const OBJECT_ACTIONS = {
         sleepCost: 5,
         condition: (game) => game.player.gold >= 5,
         conditionFail: "You can't afford a room (5 gold).",
+    },
+    // A guest house's, inn's, hotel's or roadhouse's furniture opens its rooms
+    // and services (ui/actionMenu/lodging.js — the house is the one you're in)
+    take_room: {
+        label: 'Take a Room',
+        icon: '🛏️',
+        desc: 'A bunk, a room or a suite for the night',
+        category: 'rest',
+        panel: 'showLodgings',
+    },
+    lodging_desk: {
+        label: 'Ask at the Desk',
+        icon: '🛎️',
+        desc: 'Rooms, meals, baths, laundry — and their prices',
+        category: 'service',
+        panel: 'showLodgings',
+    },
+    dine_here: {
+        label: 'Order a Meal',
+        icon: '🍲',
+        desc: 'Supper, breakfast or the grand hall',
+        category: 'service',
+        panel: 'showLodgings',
+    },
+    bathe_here: {
+        label: 'Bathe',
+        icon: '🛁',
+        desc: 'A hot bath, the laundry or the bathhouse',
+        category: 'service',
+        panel: 'showLodgings',
     },
     // ──────────── SETTLEMENT SERVICES ────────────
     // Furniture inside town buildings opens the same services as the world

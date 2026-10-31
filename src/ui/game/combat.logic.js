@@ -2,27 +2,18 @@
 // COMBAT LOGIC (pure) — hostile-encounter resolution
 // ============================================
 //
-// The state-mutating core of a hostile encounter, split out from the UI mixin
-// in combat.js so it can be unit-tested in isolation. It mutates player /
-// attacker / world state and RETURNS a descriptor of the effects the UI should
-// render (a notification). No DOM, no audio, no setTimeout, no `this` — and all
-// randomness flows through the seedable Utils RNG, so outcomes are reproducible
-// under Utils.setSeed(n).
+// The automatic resolution of a hostile encounter (robbed / mauled / a
+// one-shot battle). It now lives in the player layer as
+// RoadEncounters.ambush (player/roadEncounters.js), next to the choices the
+// encounter dialog offers (flee, toll, parley, hide, fight). This module keeps
+// the old entry point for the headless paths and their tests: the playtest
+// harness resolves every encounter with it, so the soak's dice are unchanged.
 
-import { Utils } from '../../core/utils.js';
-import { PlayerMilitary } from '../../player/playerMilitary.js';
-import { PlayerEffects } from '../../player/playerEffects.js';
-import { Ailments } from '../../systems/ailments.js';
-import { Bills } from '../../systems/bills.js';
-
-/** " You suffer a Deep Gash." — the wound a fight left you with, if any. */
-function _woundText(wound) {
-    return wound ? ` ${wound.icon} You suffer ${/^[aeiou]/i.test(wound.name) ? 'an' : 'a'} ${wound.name.toLowerCase()}.` : '';
-}
+import { RoadEncounters } from '../../player/roadEncounters.js';
 
 /**
- * Resolve a hostile encounter between the player and an adjacent attacker unit.
- * Mutates player/attacker/world in place.
+ * Resolve a hostile encounter between the player and an adjacent attacker unit
+ * automatically. Mutates player/attacker/world in place.
  *
  * @returns {{kind:'robbed'|'victory'|'defeat',
  *            notification:{title:string, body:string, type:string},
@@ -30,138 +21,5 @@ function _woundText(wound) {
  *            result?:object}}
  */
 export function resolveHostileEncounter(player, attacker, world) {
-    // Can anything of the player's fight here? Galleys can't defend you on
-    // land; aboard ship your vessel and squadron can
-    const here = world && typeof world.getTile === 'function' && typeof player.q === 'number'
-        ? world.getTile(player.q, player.r) : null;
-    const theatre = PlayerMilitary.tileTheatre(here, player);
-    const playerArmySize = PlayerMilitary.getTheatreStrength(player, theatre) > 0 ? (player.army || []).length || 1 : 0;
-
-    if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
-        // --- No army vs. a creature: mauled, nothing stolen ---
-        // Armour and Divine Protection soften the blow
-        const healthLost = PlayerEffects.scaleDamage(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18));
-        player.health = Math.max(1, player.health - healthLost);
-        attacker.targetQ = null;
-        attacker.targetR = null;
-        // Tooth and claw can leave a wound that lasts (systems/ailments.js)
-        const wound = healthLost > 0 ? Ailments.maybeWound(player, world, attacker.type) : null;
-        return {
-            kind: 'robbed',
-            goldStolen: 0,
-            healthLost,
-            stolenItems: {},
-            wound,
-            notification: {
-                title: `${attacker.icon || '🐺'} ${attacker.name} Attack!`,
-                body: `A ${attacker.name} fell on you! Without an army you barely escaped. You lost ${healthLost} health.${_woundText(wound)}`,
-                type: 'error',
-            },
-        };
-    }
-
-    if (playerArmySize === 0) {
-        // --- No army: player is robbed / roughed up ---
-        const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4)));
-        const healthLost = PlayerEffects.scaleDamage(player, Utils.randInt(5, 15));
-
-        player.gold -= goldStolen;
-        player.health = Math.max(1, player.health - healthLost);
-
-        // Steal random inventory items
-        const stolenItems = {};
-        if (player.inventory) {
-            const itemKeys = Object.keys(player.inventory).filter(
-                (k) => k !== 'quest' && player.inventory[k] > 0
-            );
-            const itemsToSteal = Math.min(itemKeys.length, Utils.randInt(1, 3));
-            for (let i = 0; i < itemsToSteal; i++) {
-                const key = Utils.randPick(itemKeys);
-                const qty = Math.min(
-                    player.inventory[key],
-                    Utils.randInt(1, Math.ceil(player.inventory[key] * 0.5))
-                );
-                if (qty > 0) {
-                    player.inventory[key] -= qty;
-                    stolenItems[key] = qty;
-                    if (player.inventory[key] <= 0) delete player.inventory[key];
-                }
-            }
-        }
-
-        // Bills of exchange go with the purse (systems/bills.js: stop them at the paying house)
-        const billsTaken = Bills.onRobbed(player, world);
-
-        // Transfer stolen goods to attacker
-        attacker.inventory['gold'] = (attacker.inventory['gold'] || 0) + goldStolen;
-        for (const [item, qty] of Object.entries(stolenItems)) {
-            attacker.inventory[item] = (attacker.inventory[item] || 0) + qty;
-        }
-
-        // Build notification message
-        let msg = `A ${attacker.name} ambushed you! Without an army you were defenseless.`;
-        if (goldStolen > 0) msg += ` They stole ${goldStolen} gold.`;
-        const stolenList = Object.entries(stolenItems)
-            .map(([k, v]) => `${v} ${k}`)
-            .join(', ');
-        if (stolenList) msg += ` They also took: ${stolenList}.`;
-        if (billsTaken.length) msg += ` They took ${billsTaken.length === 1 ? 'a bill of exchange' : `${billsTaken.length} bills of exchange`} (${billsTaken.reduce((a, b) => a + b.amount, 0)}g): stop ${billsTaken.length === 1 ? 'it' : 'them'} at the paying house before a forger cashes ${billsTaken.length === 1 ? 'it' : 'them'}.`;
-        msg += ` You lost ${healthLost} health.`;
-        const wound = healthLost > 0 ? Ailments.maybeWound(player, world, 'ambush') : null;
-        msg += _woundText(wound);
-
-        if (world && world.events) {
-            world.events.push({
-                text: `${player.name || 'A traveller'} was robbed by a ${attacker.name}!`,
-                type: 'military',
-            });
-        }
-
-        // The raider moves on after robbing (pick new target)
-        attacker.targetQ = null;
-        attacker.targetR = null;
-
-        return {
-            kind: 'robbed',
-            goldStolen,
-            healthLost,
-            stolenItems,
-            wound,
-            notification: { title: `⚔️ ${attacker.name} Attack!`, body: msg, type: 'error' },
-        };
-    }
-
-    // --- Player has army: full combat ---
-    const result = PlayerMilitary.attackUnit(player, attacker, world, { defending: true });
-
-    if (result.victory) {
-        let lootMsg = `Victory! You defeated the ${attacker.name}!`;
-        if (result.casualties > 0) lootMsg += ` Lost ${result.casualties} soldiers.`;
-        if (result.wounded > 0) lootMsg += ` ${result.wounded} wounded saved by surgeons.`;
-        if (result.commanderSlain) lootMsg += ` Your assassins slew their commander!`;
-        if (result.loot > 0) lootMsg += ` Gained ${result.loot} gold.`;
-        const itemLoot = Object.entries(result.inventoryLoot || {})
-            .map(([k, v]) => `${v} ${k}`)
-            .join(', ');
-        if (itemLoot) lootMsg += ` Seized: ${itemLoot}.`;
-        if (result.lootLeftBehind && Object.keys(result.lootLeftBehind).length > 0) {
-            lootMsg += ` Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}.`;
-        }
-        if (result.renownChange > 0) lootMsg += ` +${result.renownChange} renown!`;
-        // You fought in the line yourself (systems/ailments.js)
-        const wound = result.noArmy ? null : Ailments.afterBattle(player, world, true, { sea: theatre === 'sea' });
-        lootMsg += _woundText(wound);
-
-        return { kind: 'victory', result, wound, notification: { title: `⚔️ Victory!`, body: lootMsg, type: 'success' } };
-    }
-
-    let defeatMsg = `Defeated by the ${attacker.name}!`;
-    if (result.casualties > 0) defeatMsg += ` Lost ${result.casualties} soldiers.`;
-    if (result.captured) {
-        defeatMsg += ` You have been captured and forced into servitude for ${result.servitudeDays} days!`;
-        if (result.goldConfiscated > 0) defeatMsg += ` ${result.goldConfiscated} gold confiscated.`;
-    }
-    const wound = result.noArmy ? null : Ailments.afterBattle(player, world, false, { sea: theatre === 'sea' });
-    defeatMsg += _woundText(wound);
-    return { kind: 'defeat', result, wound, notification: { title: `💀 Defeat!`, body: defeatMsg, type: 'error' } };
+    return RoadEncounters.ambush(player, attacker, world);
 }

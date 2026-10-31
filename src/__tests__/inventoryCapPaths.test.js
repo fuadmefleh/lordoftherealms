@@ -56,7 +56,7 @@ describe('inventory cap is respected by every gain path', () => {
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'horse'/);
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'cooked_fish'/);
         uses('ui/actionMenu/skills.js', /PlayerInventory\.addItem\(player, 'cooked_meat'/);
-        uses('ui/objectActions/actions.js', /PlayerInventory\.addItem\(game\.player, 'leather_armor'/);
+        uses('player/crafting.js', /PlayerInventory\.addItems\(player, recipe\.result/);
         uses('ui/objectActions/logic.js', /PlayerInventory\.addItem\(game\.player, 'fish'/);
         uses('ui/game/gameLoop.js', /PlayerInventory\.addItem\(this\.player, resType/);
     });

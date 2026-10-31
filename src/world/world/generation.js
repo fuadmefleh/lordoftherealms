@@ -737,14 +737,16 @@ Object.assign(World.prototype, {
 
 // ── Custom-world vocabulary (world_editor.html) ──────────────────────
 
-// Editor overlay type → the settlement it founds in play
+// Editor overlay type → the settlement it founds in play. Play knows villages,
+// towns and capitals (a realm's seat becomes its capital in Kingdom.foundAt), so a
+// placed City is a great town — its population opens up the bigger town services.
 World.EDITOR_SETTLEMENTS = {
     village: { type: 'village', label: 'Village', level: 0, pop: [50, 500] },
     outpost: { type: 'village', label: 'Outpost', level: 0, pop: [30, 200] },
     town: { type: 'town', label: 'Town', level: 1, pop: [500, 3000] },
     port: { type: 'town', label: 'Port', level: 1, pop: [800, 3000] },
-    city: { type: 'city', label: 'City', level: 2, pop: [3000, 8000] },
-    capital: { type: 'city', label: 'Capital', level: 2, pop: [4000, 9000] },
+    city: { type: 'town', label: 'City', level: 2, pop: [3000, 8000] },
+    capital: { type: 'town', label: 'Capital', level: 2, pop: [4000, 9000] },
 };
 
 // Editor landmark → the point of interest it becomes (ruins and caves can be delved)

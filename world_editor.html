@@ -135,7 +135,7 @@ input[type="checkbox"]{accent-color:var(--gold)}
     <div class="menu-pop">
       <button onclick="newMapDialog()">New map… <span class="kbd"></span></button>
       <button onclick="importJson()">Import .json… <span class="kbd"></span></button>
-      <button onclick="exportJson()">Export .json <span class="kbd">Ctrl+S</span></button>
+      <button onclick="exportJson()">Export .json <span class="kbd">Ctrl+Shift+S</span></button>
       <button onclick="exportPng()">Export picture (.png)</button>
       <hr>
       <button onclick="restoreAutosave(true)">Restore autosave</button>
@@ -1660,7 +1660,13 @@ function onKey(e) {
     const k = e.key.toLowerCase();
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return; }
-    if ((e.ctrlKey || e.metaKey) && k === 's') { e.preventDefault(); exportJson(); return; }
+    // Inside the game, Ctrl+S saves to its world list; Ctrl+Shift+S (or standalone) exports a file
+    if ((e.ctrlKey || e.metaKey) && k === 's') {
+        e.preventDefault();
+        if (window.parent !== window && !e.shiftKey) window.parent.postMessage({ type: 'requestSave' }, '*');
+        else exportJson();
+        return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Space') { e.preventDefault(); spaceDown = true; document.getElementById('canvas-area').classList.add('space'); return; }
     const tools = { b: 'paint', g: 'fill', r: 'rect', l: 'line', i: 'pick', e: 'raise', d: 'lower', s: 'smooth' };
@@ -1703,7 +1709,7 @@ function showHelp() {
         ['Arrows', 'Pan'],
         ['H · W', 'Grid · show the east-west wrap'],
         ['Ctrl+Z · Ctrl+Y', 'Undo · redo'],
-        ['Ctrl+S', 'Export .json'],
+        ['Ctrl+S', 'Save (in the game) / export'], ['Ctrl+Shift+S', 'Export .json'],
         ['Delete', 'Remove the selected place'],
     ];
     EditorUI.modal({
@@ -1917,6 +1923,7 @@ window.addEventListener('message', ev => {
     if (!ev.data) return;
     if (ev.data.type === 'loadWorld') { checkpoint(); loadWorldData(ev.data.world, { keepHistory: true }); }
     // The parent is about to playtest: come back to this map afterwards
+    if (ev.data.type === 'setWorldName' && typeof ev.data.name === 'string') { document.getElementById('world-name').value = ev.data.name; markDirty(); }
     if (ev.data.type === 'beforePlaytest') { autosave(); try { sessionStorage.setItem(RESUME_KEY, '1'); } catch (e) { /* storage off */ } }
 });
 window.getExportData = getExportData;

@@ -20,9 +20,22 @@ import { Delves } from './delves.js';
 import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Kingship } from './kingship.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
+import { Whispers } from './whispers.js';
+import { Devotion } from './devotion.js';
+import { SoulPact } from './soulPact.js';
+import { Books } from './books.js';
+import { Feasts } from './feasts.js';
+import { Fame } from './fame.js';
+import { CourtLetters } from './courtLetters.js';
+import { Coalitions } from './coalitions.js';
+import { RivalAgents } from './rivalAgents.js';
+import { Mail } from './mail.js';
+import { Couriers } from './couriers.js';
+import { Hospitality } from './hospitality.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
@@ -47,6 +60,7 @@ import { MarketDynamics } from './marketDynamics.js';
 import { TradePolicy } from './tradePolicy.js';
 import { Mints } from './mints.js';
 import { LandMarket } from './landMarket.js';
+import { FirstSteps } from './firstSteps.js';
 import { Estates } from '../world/estates.js';
 import { Engrossing } from './engrossing.js';
 import { MoneySupply } from '../world/moneySupply.js';
@@ -154,6 +168,13 @@ export const SaveLoad = {
             // heralds (systems/merchantCaravans.js; the traders and road
             // wardens themselves are world units above)
             merchantTrade: MerchantCaravans.serialize(world),
+            // The courier houses (the player's among them), their stations, riders,
+            // takings, the Royal Post charters and the post's news (systems/couriers.js)
+            post: Couriers.serialize(world),
+            // The guest houses, inns, hotels and roadhouses of the towns and roads, their
+            // keepers, stars, prices and guests (systems/hospitality.js; the player's own
+            // houses travel with their properties: property.hosp)
+            hospitality: Hospitality.serialize(world),
             // Settlement markets travel with their tiles (settlement.market);
             // the old regional table is kept empty for older readers
             markets: {},
@@ -322,6 +343,21 @@ export const SaveLoad = {
         'culturalBuildings',
         // "Pretender to X", "Exile", an office's title — a fresh Player says "Nobody"
         'title',
+        // Crafting rank and the quality of crafted goods held (player/crafting.js),
+        // trained stats' progress (player/oddJobs.js), sellsword standing (player/mercContracts.js)
+        'crafting', 'craftQuality', 'attrXp', 'skillXp', 'mercRep',
+        // Winter trap lines left set in the snow (player/seasonalWork.js)
+        'trapLines',
+        // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)
+        'seaRoving',
+        // Map owners you robbed, and whether they found out (systems/mapTheft.js)
+        'mapGrudges',
+        // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
+        'interregnum', 'origin',
+        // The book of the line that ended for this new life (systems/annals.js archive)
+        'annalsPast',
+        // Origin, difficulty and victory goal (player/scenarios.js, core/difficulty.js)
+        'scenario',
     ],
 
     _pickDefined(obj, keys) {
@@ -435,6 +471,7 @@ export const SaveLoad = {
             marriageDay: player.marriageDay || null,
             age: player.age || 20,
             gender: player.gender || 'male',
+            appearance: player.appearance || null,
             name: player.name || 'Wanderer',
             firstName: player.firstName || 'Wanderer',
             lastName: player.lastName || '',
@@ -476,6 +513,8 @@ export const SaveLoad = {
             companions: Companions.serialize(player),
             // Delves (an in-progress delve, delved sites, injuries, awakened guardians)
             delves: Delves.serialize(player),
+            // Wilderness encounters dealt with, per hex, and their journal (player/wilds.js)
+            wilds: player.wilds ? JSON.parse(JSON.stringify(player.wilds)) : null,
             // Wounds and sickness, sick companions and crews (systems/ailments.js)
             ailments: Ailments.serialize(player),
             // Claims, crises, a civil war, a crown (systems/throne.js)
@@ -484,6 +523,24 @@ export const SaveLoad = {
             holdings: Holdings.serialize(player),
             // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
             rivals: Rivals.serialize(player),
+            // Court scandals and whisper campaigns: live tales, what the player knows of them, the record (systems/whispers.js)
+            whispers: Whispers.serialize(player),
+            // Devotion: creed, vows, omens, alms by town, pilgrimages, clergy standing (systems/devotion.js);
+            // the soul pact (systems/soulPact.js); books read and in hand (systems/books.js); feasts held (systems/feasts.js)
+            devotion: Devotion.serialize(player),
+            soulPact: SoulPact.serialize(player),
+            reading: Books.serialize(player),
+            feasts: Feasts.serialize(player),
+            // Local fame: free meals and rooms taken, crowds met, town by town (systems/fame.js)
+            fame: Fame.serialize(player),
+            // Court letters: the inbox, answered letters, loans to lords, promises to ride, a child at risk (systems/courtLetters.js)
+            letters: CourtLetters.serialize(player),
+            // Directed opposition: the realms' regard, a league against the player, past leagues (systems/coalitions.js);
+            // the rival Houses' bought townsfolk (systems/rivalAgents.js)
+            coalitions: Coalitions.serialize(player),
+            rivalAgents: RivalAgents.serialize(player),
+            // Letters the player sent: on the road, replies awaited, the record (systems/mail.js)
+            mail: Mail.serialize(player),
             // Sagas: running and concluded storylines, what the player heard (systems/sagas.js)
             sagas: Sagas.serialize(player),
             // A siege in progress, tribute owed, past sieges (systems/sieges.js)
@@ -523,6 +580,8 @@ export const SaveLoad = {
             mints: Mints.serialize(player),
             // Land & putting-out: the cloth put out to the cottagers, the land log (systems/landMarket.js)
             land: LandMarket.serializePlayer(player),
+            // The guided first month: steps done, skipped or not (systems/firstSteps.js)
+            firstSteps: FirstSteps.serialize(player),
         };
     },
 
@@ -619,6 +678,9 @@ export const SaveLoad = {
         if (Array.isArray(saveData.units)) world.units = SaveLoad.restoreUnits(saveData.units);
         // The roads' trade record (older saves: a blank one; no traders on the road yet)
         MerchantCaravans.restore(saveData.merchantTrade, world);
+        // The courier houses (older saves: none — the first are founded on the next days)
+        Couriers.restore(saveData.post, world);
+        Hospitality.restore(saveData.hospitality, world);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
@@ -778,11 +840,28 @@ export const SaveLoad = {
         // Claims & Crowns — older saves get a blank record (and a crown if they
         // had founded a kingdom with the old Form Kingdom action)
         Throne.load(player, world);
+        // Origin, difficulty, victory goal: older saves are the Wanderer on Normal with no goal
+        Difficulty.state(player);
         Kingship.load(player, world); // the royal court rides inside player.throne
         // Holdings — older saves have none; owned settlements get a blank record and fresh effects
         Holdings.loadState(player, world);
         // Rival adventurers — older saves get a blank record (the cast arrives next day)
         Rivals.loadState(player);
+        Whispers.loadState(player);
+        // Devotion, the soul pact, books, feasts — older saves have none (each backfills lazily)
+        Devotion.loadState(player);
+        SoulPact.loadState(player);
+        Books.loadState(player);
+        Feasts.loadState(player);
+        // Local fame — older saves start with no inn favours taken
+        Fame.restore(player, player.fame);
+        // Court letters — older saves get a blank inbox (the first letter comes on schedule)
+        CourtLetters.loadState(player);
+        // Leagues and rival agents — older saves get blank records (the realms take their measure next week)
+        Coalitions.loadState(player);
+        RivalAgents.loadState(player);
+        // Mail sent — older saves get a blank record
+        Mail.loadState(player);
         // Sagas — older saves get a blank record (the first saga starts on schedule)
         Sagas.loadState(player);
         // Sieges — older saves get a blank record
@@ -821,6 +900,8 @@ export const SaveLoad = {
         Mints.loadState(player);
         // Land & putting-out — older saves have none (a blank record)
         LandMarket.loadState(player);
+        // First Steps — older saves get the guidance switched off for good (no tutorial mid-game)
+        FirstSteps.loadState(player);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

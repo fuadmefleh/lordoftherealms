@@ -65,6 +65,7 @@ function _build(src) {
             priority: _num(k.priority), hands: Math.max(0, _num(k.hands, 8)), deposit: !!k.deposit,
             reserve: Array.isArray(k.reserve) ? [_num(k.reserve[0], 500), _num(k.reserve[1], 1000)] : [0, 0],
             leasable: !!k.leasable,
+            sprites: Array.isArray(d.sprites && d.sprites[id]) ? d.sprites[id] : [],
         };
     }
     const byResource = {}, byTerrain = {};

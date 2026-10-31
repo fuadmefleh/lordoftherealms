@@ -19,6 +19,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { PlayerEffects } from './playerEffects.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { Quests } from '../systems/quests.js';
+import { NPCLords } from '../world/npcLords.js';
 
 export const REALM_POLITICS = {
     broker: { fee: 50, cooldownDays: 10, base: 0.2, perDiplomacy: 0.04, maxRenownBonus: 0.15, lopsidedPenalty: 0.15, renown: 8, reputation: 8 },
@@ -125,6 +126,7 @@ export const RealmPolitics = {
             if (!player.reputation) player.reputation = {};
             const gain = PlayerEffects.scaleReputationGain(player, B.reputation);
             for (const k of [war.a, war.b]) player.reputation[k.id] = Math.min(100, (player.reputation[k.id] || 0) + gain);
+            for (const k of [war.a, war.b]) NPCLords.rememberDeed(world, k.lord, 'broker_peace', { note: `with ${(k === war.a ? war.b : war.a).name}` });
             return { success: true, message: `You broker a truce between ${war.a.name} and ${war.b.name}. +${B.renown} renown, +${gain} reputation with both.` };
         }
         st.brokerCooldown[key] = day + B.cooldownDays;
@@ -210,6 +212,7 @@ export const RealmPolitics = {
             if (!player.reputation) player.reputation = {};
             const gain = PlayerEffects.scaleReputationGain(player, A.reputation);
             for (const k of [a, b]) player.reputation[k.id] = Math.min(100, (player.reputation[k.id] || 0) + gain);
+            for (const k of [a, b]) NPCLords.rememberDeed(world, k.lord, 'broker_alliance', { note: `with ${(k === a ? b : a).name}` });
             Quests.track(player, 'alliances_formed');
             return { success: true, message: `${a.name} and ${b.name} seal an alliance at your urging. +${A.renown} renown, +${gain} reputation with both.` };
         }
@@ -259,6 +262,8 @@ export const RealmPolitics = {
             if (!player.reputation) player.reputation = {};
             const gain = PlayerEffects.scaleReputationGain(player, C.reputation);
             player.reputation[opts.liege.id] = Math.min(100, (player.reputation[opts.liege.id] || 0) + gain);
+            NPCLords.rememberDeed(world, opts.liege.lord, 'war_aid', { note: `against ${enemy.name}` });
+            NPCLords.rememberDeed(world, enemy.lord, 'war_on_us', { weight: -4, note: `for ${opts.liege.name}` });
             return {
                 success: true, battle,
                 message: `You rout a ${enemy.name} vanguard for ${opts.liege.name}. +${C.wage}g wages, +${gain} reputation; the war turns in your liege's favour.`,
@@ -385,10 +390,15 @@ export const RealmPolitics = {
             player.renown = (player.renown || 0) + R.renown;
             player.reputation[t.fallen.id] = Math.min(100, (player.reputation[t.fallen.id] || 0) + R.reputationRestored);
             player.reputation[t.occupier.id] = Math.max(-100, (player.reputation[t.occupier.id] || 0) + R.reputationOccupier);
+            NPCLords.rememberDeed(world, t.fallen.lord, 'restored_crown', { note: tile.settlement.name });
+            NPCLords.rememberDeed(world, t.occupier.lord, 'rebellion_funded', { note: tile.settlement.name });
             return { success: true, message: `Your gold arms the rising: ${t.fallen.name} is restored in ${tile.settlement.name}! +${R.renown} renown; its crown owes you everything.` };
         }
         const caught = Utils.random() < R.caughtChance;
-        if (caught) player.reputation[t.occupier.id] = Math.max(-100, (player.reputation[t.occupier.id] || 0) + R.caughtReputation);
+        if (caught) {
+            player.reputation[t.occupier.id] = Math.max(-100, (player.reputation[t.occupier.id] || 0) + R.caughtReputation);
+            NPCLords.rememberDeed(world, t.occupier.lord, 'rebellion_funded', { note: tile.settlement.name });
+        }
         return {
             success: true, failed: true,
             message: `The rising is crushed before it begins and your ${t.cost} gold is lost.${caught ? ` ${t.occupier.name} learns who paid for it (${R.caughtReputation} reputation).` : ''}`,

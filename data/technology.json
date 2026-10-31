@@ -827,6 +827,7 @@
         },
         "MERCHANT_GUILD": {
             "id": "merchant_guild_building",
+            "minSettlement": "town",
             "name": "Merchant Guild",
             "icon": "🏦",
             "cost": 1500,
@@ -879,6 +880,7 @@
         },
         "HOSPITAL": {
             "id": "hospital_building",
+            "minSettlement": "town",
             "name": "Hospital",
             "icon": "🏥",
             "cost": 1200,
@@ -892,6 +894,8 @@
         },
         "UNIVERSITY": {
             "id": "university_building",
+            "minSettlement": "town",
+            "minPopulation": 2000,
             "name": "University",
             "icon": "🎓",
             "cost": 2000,
@@ -923,6 +927,7 @@
     "TECH_UNITS": {
         "LONGBOWMAN": {
             "id": "longbowman",
+            "minSettlement": "town",
             "name": "Longbowman",
             "icon": "🎯",
             "cost": 150,
@@ -934,6 +939,8 @@
         },
         "CAVALRY": {
             "id": "cavalry",
+            "minSettlement": "town",
+            "minPopulation": 2000,
             "name": "Light Cavalry",
             "icon": "🐎",
             "cost": 250,
@@ -944,6 +951,8 @@
         },
         "SIEGE_ENGINE": {
             "id": "siege_engine",
+            "minSettlement": "town",
+            "minPopulation": 2000,
             "name": "Siege Engine",
             "icon": "🏰",
             "cost": 500,
@@ -955,6 +964,8 @@
         },
         "WARSHIP": {
             "id": "warship",
+            "minSettlement": "town",
+            "requiresPort": true,
             "name": "Warship",
             "icon": "⚓",
             "cost": 400,
@@ -965,6 +976,8 @@
         },
         "HEAVY_CAVALRY": {
             "id": "heavy_cavalry",
+            "minSettlement": "town",
+            "minPopulation": 2500,
             "name": "Heavy Cavalry",
             "icon": "🐎",
             "cost": 400,
@@ -975,6 +988,8 @@
         },
         "CROSSBOWMAN": {
             "id": "crossbowman",
+            "minSettlement": "town",
+            "minPopulation": 2000,
             "name": "Crossbowman",
             "icon": "🏹",
             "cost": 180,

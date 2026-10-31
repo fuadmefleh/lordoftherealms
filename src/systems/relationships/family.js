@@ -1,6 +1,7 @@
 // Relationships — family members (split from the original monolith).
 import { Relationships } from './_ref.js';
-import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy } from './_imports.js';
+import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Townsfolk } from './_imports.js';
+import { NPCLords } from '../../world/npcLords.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -92,6 +93,8 @@ Object.assign(Relationships, {
         player.marriageDay = world ? world.day : 0;
         npc.isMarried = true;
         npc.isRomantic = true;
+        // A townsperson leaves home to wed (./folk.js)
+        if (npc.folkUid && world) Relationships._syncOne(player, world, npc);
         rel.affection = Math.max(rel.affection, 80);
         rel.romantic = true;
 
@@ -118,11 +121,15 @@ Object.assign(Relationships, {
             if (npc.kingdomId && player.reputation) {
                 player.reputation[npc.kingdomId] = (player.reputation[npc.kingdomId] || 0) + 15;
             }
+            if (npc.kingdomId && world) NPCLords.rememberRealm(world, npc.kingdomId, 'marriage_kin', { note: `${npc.firstName} ${npc.dynasty || ''}`.trim() });
             House.recordPlayerDeed(player, world, 'nobleMarriage', {
                 reason: `married ${npc.firstName} ${npc.dynasty}`,
                 chronicle: `${npc.firstName} of House ${npc.dynasty} marries into the family.`,
                 tags: ['marriage'],
             });
+        } else if (player.house) {
+            // A love match: no Prestige, but the Annals (systems/annals.js) tell it
+            House._chronicle(player.house, world, `${player.name} weds ${`${npc.firstName} ${npc.dynasty || ''}`.trim()}.`, ['marriage', 'love']);
         }
 
         return { success: true, npc, spouse: npc };
@@ -148,6 +155,7 @@ Object.assign(Relationships, {
         player.marriageDay = null;
         player.karma = (player.karma || 0) - 5;
         player.renown = Math.max(0, (player.renown || 0) - 2);
+        if (player.house && npc) House._chronicle(player.house, world, `${player.name} and ${npc.firstName} part; the marriage is ended.`, ['divorce']);
 
         return { success: true, exSpouse: npc };
     },
@@ -301,19 +309,30 @@ Object.assign(Relationships, {
 
         player.age++;
 
-        // Age spouse
-        const spouse = player.spouse ? Relationships.getNPC(player.spouse) : null;
-        if (spouse) spouse.age++;
-
-        // Age all known NPCs
+        // Age all known NPCs (the spouse among them — once, not twice)
+        const deaths = [];
         for (const npc of Relationships._npcs) {
-            if (npc.isAlive) npc.age++;
+            if (!npc.isAlive) continue;
+            if (npc.folkUid) {
+                // A townsperson (./folk.js): their town's seasons age them and,
+                // while they are at home, decide their death
+                const f = Relationships.folkPerson(world, npc.folkUid);
+                if (f) npc.age = Townsfolk.age(f.p, world.day);
+                if (!(f && f.p.away && f.p.away.withPlayer)) continue;
+            } else {
+                npc.age++;
+            }
             // NPC death (old age)
             if (npc.age > Utils.randInt(55, 85) && Utils.random() < 0.15) {
                 npc.isAlive = false;
+                npc.deathDay = world.day;
+                npc.deathCause = 'old age';
+                const rel = player.relationships && player.relationships[npc.id];
+                if (player.spouse === npc.id || (rel && rel.score >= 20)) deaths.push(npc);
                 if (player.spouse === npc.id) {
                     player.spouse = null;
                     player.marriageDay = null;
+                    if (player.house) House._chronicle(player.house, world, `${npc.firstName}, ${npc.gender === 'male' ? 'husband' : 'wife'} of ${player.name}, dies of old age.`, ['widowed']);
                 }
             }
         }
@@ -326,7 +345,7 @@ Object.assign(Relationships, {
             const yearsOver = player.age - player.maxLifespan;
             const deathChance = yearsOver * settings.deathChancePerYearOverMax;
             if (Utils.random() < deathChance) {
-                return { aged: true, died: true, age: player.age };
+                return { aged: true, died: true, age: player.age, deaths };
             }
         }
 
@@ -339,7 +358,7 @@ Object.assign(Relationships, {
             }
         }
 
-        return { aged: true, died: false, age: player.age };
+        return { aged: true, died: false, age: player.age, deaths };
     },
 
     // ────────────────────────────────────────────────────────────────────
@@ -378,6 +397,23 @@ Object.assign(Relationships, {
     _seatHeirSpouse(player, child, world) {
         const sp = child && child.upbringing && child.upbringing.spouse;
         if (!sp || !world) return null;
+        // A match made in town (Heirs.marryTownsperson): the townsperson themself
+        if (sp.kind === 'local' && sp.folkUid) {
+            const f = Relationships.folkPerson(world, sp.folkUid);
+            const res = f ? Relationships.fromTownsperson(null, world, f.folk, f.p, f.settlement) : null;
+            if (!res || !res.success) return null;
+            const npc = res.npc;
+            npc.isMarried = true;
+            npc.marriedTo = null;
+            player.spouse = npc.id;
+            player.marriageDay = sp.day != null ? sp.day : ((world && world.day) || 0);
+            player.marriageAllianceKingdom = null;
+            const rel = Relationships.getRelationship(player, npc.id);
+            rel.affection = Math.max(rel.affection || 0, 70);
+            rel.score = Math.max(rel.score || 0, 40);
+            rel.romantic = true;
+            return npc;
+        }
         const k = sp.kingdomId && typeof world.getKingdom === 'function' ? world.getKingdom(sp.kingdomId) : null;
         const home = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
         const settlement = (home && home.settlement) || { name: sp.kingdomName || 'abroad', kingdom: sp.kingdomId || null };
@@ -624,6 +660,9 @@ Object.assign(Relationships, {
                 if (rel.affection > 0 && !npc.isMarried) rel.affection = Math.max(0, rel.affection - 1);
             }
         }
+
+        // Loans, confidences, pleas, rival suitors, rumours, jealousy, grudges (./matters.js)
+        events.push(...Relationships.processMatters(player, world));
 
         return events;
     },

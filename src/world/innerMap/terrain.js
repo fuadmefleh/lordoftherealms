@@ -1,6 +1,7 @@
 // InnerMap — terrain members (split from the original monolith).
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // Cardinal steps a water blob can grow along, as [dq, dr].
 const WATER_GROWTH_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -126,94 +127,36 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * Pick the correct tile from a 9-tile brush for a given position in a
-     * boolean mask, using the same auto-tiling logic as the terrain editor:
-     *   - Check 4 cardinal neighbors to determine edge/center
-     *   - If all 4 cardinals present, check diagonals for inside corners
-     * Returns { row, col } for the 3×3 tiles grid, or { ic: 0-3 } for an
-     * inside corner, or null if no tile should be placed.
+     * Pick the slot of a 9-tile brush for a cell of a boolean mask (see
+     * core/nineTile.js, shared with the terrain editor). Returns { row, col }
+     * for the 3×3 grid, { ic: 0-3 } for an inside corner, or null when no
+     * slot fits (no neighbours on a whole axis).
      */
     _pickNineTileInfo(mask, q, r) {
         const H = mask.length;
         const W = H > 0 ? mask[0].length : 0;
-        const has = (nq, nr) => (nr >= 0 && nr < H && nq >= 0 && nq < W) ? !!mask[nr][nq] : false;
-
-        const hasTop = has(q, r - 1);
-        const hasBottom = has(q, r + 1);
-        const hasLeft = has(q - 1, r);
-        const hasRight = has(q + 1, r);
-
-        // Check for inside corners: all 4 cardinals present but a diagonal is missing
-        if (hasTop && hasBottom && hasLeft && hasRight) {
-            const hasTL = has(q - 1, r - 1);
-            const hasTR = has(q + 1, r - 1);
-            const hasBL = has(q - 1, r + 1);
-            const hasBR = has(q + 1, r + 1);
-
-            // IC indices: 0=TL, 1=TR, 2=BL, 3=BR (which diagonal is MISSING)
-            const icIdx = !hasTL ? 0 : !hasTR ? 1 : !hasBL ? 2 : !hasBR ? 3 : -1;
-            if (icIdx >= 0) return { ic: icIdx };
-        }
-
-        // Degenerate case: both sides of an axis missing → no valid 3×3 tile.
-        // Return null so the tile gets no grass overlay (base dirt shows through).
-        if ((!hasTop && !hasBottom) || (!hasLeft && !hasRight)) return null;
-
-        // Map to 3×3 grid: row 0=top edge, 1=middle, 2=bottom edge
-        let row = 1;
-        if (!hasTop && hasBottom) row = 0;
-        else if (hasTop && !hasBottom) row = 2;
-        // col 0=left edge, 1=middle, 2=right edge
-        let col = 1;
-        if (!hasLeft && hasRight) col = 0;
-        else if (hasLeft && !hasRight) col = 2;
-
-        return { row, col };
+        return pickNineTileSlot((dq, dr) => {
+            const nq = q + dq, nr = r + dr;
+            return nr >= 0 && nr < H && nq >= 0 && nq < W ? !!mask[nr][nq] : false;
+        });
     },
 
     /**
-     * Remove mask cells that have no valid 9-tile representation — a cell whose
-     * neighbours don't span a full axis (e.g. a single-tile protrusion with mask
-     * only below it) makes _pickNineTileInfo return null, and the caller then
-     * falls back to the opaque centre fill, which renders as a hard-edged square
-     * floating in the surrounding terrain. Iterates because each removal can
-     * expose a new stub, so thin peninsulas peel back to the solid patch.
-     * @param {Array<Array<boolean>>} mask - mutated in place
+     * Remove mask cells that have no valid 9-tile representation (one-wide
+     * strips and stubs would otherwise fall back to the opaque centre fill and
+     * show as hard-edged squares). Mutates the mask.
      */
     _erodeUntileableStubs(mask) {
-        const H = mask.length;
-        const W = H > 0 ? mask[0].length : 0;
-        let eroded = true;
-        while (eroded) {
-            eroded = false;
-            const toClear = [];
-            for (let r = 0; r < H; r++) {
-                for (let q = 0; q < W; q++) {
-                    if (mask[r][q] && !this._pickNineTileInfo(mask, q, r)) toClear.push([r, q]);
-                }
-            }
-            for (const [r, q] of toClear) {
-                mask[r][q] = false;
-                eroded = true;
-            }
-        }
+        erodeUntileableStubs(mask);
     },
 
     /**
-     * Resolve which of a brush's grids apply for a season. A brush authored in
-     * one season still has (empty) grids saved for the others, so a season grid
-     * only wins if it actually has a centre tile — otherwise the default grid does.
+     * Which of a brush's grids apply for a season: a season's grid or inside
+     * corners win only when they hold a tile (see core/nineTile.js).
      * @returns {{tilesGrid: Array, cornersArr: Array|null, altFills: Array|null}}
      */
     _resolveBrushSeason(brush, season) {
-        const seasonGrid = brush.seasonTiles && brush.seasonTiles[season];
-        const seasonAlts = brush.seasonAltFills && brush.seasonAltFills[season];
-        return {
-            tilesGrid: (seasonGrid && seasonGrid[1] && seasonGrid[1][1]) ? seasonGrid : brush.tiles,
-            cornersArr: (brush.seasonInsideCorners && brush.seasonInsideCorners[season])
-                || brush.insideCorners || null,
-            altFills: (seasonAlts && seasonAlts.length) ? seasonAlts : null,
-        };
+        return resolveBrushSeason(brush, season);
     },
 
     /**
@@ -226,7 +169,7 @@ Object.assign(InnerMap, {
         const H = mask.length;
         const W = H > 0 ? mask[0].length : 0;
         const season = (this.season || 'spring').toLowerCase();
-        const { tilesGrid, cornersArr, altFills } = this._resolveBrushSeason(brush, season);
+        const resolved = this._resolveBrushSeason(brush, season);
 
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {
@@ -234,27 +177,12 @@ Object.assign(InnerMap, {
                 const tile = tiles[r][q];
                 if (!tile) continue;
 
-                // Degenerate cells (no neighbours on one axis) use the centre fill
-                // rather than being skipped — a real brush centre fills them nicely.
-                let info = this._pickNineTileInfo(mask, q, r) || { row: 1, col: 1 };
-                // An inside corner with no IC tile defined also falls back to the
-                // centre fill — so passability follows the slot actually used.
-                if (info.ic !== undefined && !(cornersArr && cornersArr[info.ic] && cornersArr[info.ic].sheetPath)) {
-                    info = { row: 1, col: 1 };
-                }
-
-                let tileRef;
-                if (info.ic !== undefined) {
-                    tileRef = cornersArr[info.ic];
-                } else {
-                    tileRef = tilesGrid && tilesGrid[info.row] ? tilesGrid[info.row][info.col] : null;
-                    // Centre slot: hash-pick from the alt fills pool for variety
-                    if (info.row === 1 && info.col === 1 && altFills) {
-                        const pool = tileRef ? [tileRef, ...altFills] : altFills;
-                        const hash = Math.abs((q * 73856093 ^ r * 19349663)) >>> 0;
-                        tileRef = pool[hash % pool.length];
-                    }
-                }
+                // Strips and inside corners without a tile use the centre fill,
+                // so passability follows the slot actually used
+                const { slot: info, tile: tileRef } = resolveNineTileCell(brush, season, (dq, dr) => {
+                    const nq = q + dq, nr = r + dr;
+                    return nr >= 0 && nr < H && nq >= 0 && nq < W ? !!mask[nr][nq] : false;
+                }, q, r, resolved);
 
                 tile.terrainDetail = (tileRef && tileRef.sheetPath)
                     ? {
@@ -590,7 +518,7 @@ Object.assign(InnerMap, {
                     selectedTerrain = primaryTerrains[0]; // Default to primary
                 }
 
-                // No per-tile encounters (removed)
+                // Encounters are placed after the map is built (encounters.js)
                 const encounter = null;
 
                 const passable = selectedTerrain.passable !== false;
@@ -655,10 +583,16 @@ Object.assign(InnerMap, {
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
 
+        // --- A roadhouse on an open road (systems/hospitality.js; hash-placed: draws nothing from rng) ---
+        this._placeRoadhouse(tiles, worldTile, worldQ, worldR, game && game.world);
+
         // --- Scatter custom editor-authored objects on terrain ---
         if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded() && CustomObjects.hasAnyBindings()) {
             this._scatterCustomObjects(tiles, rng, game ? (game.world ? (game.world.day || 0) : 0) : 0);
         }
+
+        // --- Wilderness encounters (hash-placed: draws nothing from rng) ---
+        this._placeWildEncounters(tiles, worldTile, worldQ, worldR, game);
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);

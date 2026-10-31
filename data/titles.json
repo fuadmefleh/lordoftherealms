@@ -223,6 +223,26 @@
     "4": { "label": "Chancellor", "icon": "👑" }
   },
 
+  "taxCollection": {
+    "_doc": "How a Tax Collector collects (systems/titles.js). fee/levy/skim multiply the rolled fee (the collector's take) and the crown's levy (4x the fee); happiness, karma, renown, rep (x the office's reputationGain) apply per collection; resentment is a grudge kept on the settlement (crownLevy) that fades one point per resentmentDecayDays and cuts later yields by resentmentYield per point; squeezing a resentful town risks a riot. A skimmer faces the month's audit. The crown's share (the levy, less any skim, halved by a riot) is drawn from the town's purse (economy.gold) after the collector's fee and credited to the kingdom's treasury on the crownLines tax lines (world/crownBooks.js). unrest goes to the player's holding there, or (x unheldUnrestHappiness) onto the mood of a town he does not hold; a riot shuts the crown's tax-house for riotRevoltDays (settlement.taxRevolt, read by systems/fiscal.js).",
+    "modes": {
+      "fair": { "fee": 1, "levy": 1, "happiness": 0, "rep": 1, "karma": 0, "renown": 0, "resentment": 0, "unrest": 0 },
+      "squeeze": { "fee": 1.6, "levy": 1.5, "happiness": -8, "rep": 2, "karma": -1, "renown": 0, "resentment": 2, "unrest": 8 },
+      "spare": { "fee": 0.5, "levy": 0.6, "happiness": 5, "rep": 0, "karma": 1, "renown": 1, "resentment": -1, "unrest": -3 },
+      "skim": { "fee": 1, "levy": 1, "skim": 0.9, "happiness": -1, "rep": 1, "karma": -1, "renown": 0, "resentment": 0, "unrest": 0 }
+    },
+    "resentmentDecayDays": 15, "resentmentYield": 0.12, "maxResentment": 6, "minYield": 0.4,
+    "riotPerResentment": 0.08, "riotHealth": [5, 12], "riotHappiness": -4,
+    "unheldUnrestHappiness": 0.5, "riotRevoltDays": 10,
+    "crownLines": { "land": 0.5, "poll": 0.25, "excise": 0.25 },
+    "audit": { "base": 0.1, "perGold": 0.003, "max": 0.85, "commerce": 0.02, "repay": 2, "reputation": -15, "renown": -3 }
+  },
+
+  "blessing": {
+    "_doc": "A Court Chaplain's blessing on a settlement: mood up by happiness, and for `days` days anyone there catches disease at sicknessMult of the usual chance (systems/ailments.js).",
+    "days": 20, "happiness": 3, "sicknessMult": 0.6
+  },
+
   "fugitives": [
     { "name": "Scarface", "crime": "murder", "reward": 40, "difficulty": 6, "icon": "🗡️" },
     { "name": "The Rat", "crime": "theft", "reward": 25, "difficulty": 4, "icon": "🐀" },

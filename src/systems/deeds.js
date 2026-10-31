@@ -4,7 +4,10 @@
 // Many systems keep counters about the player (delves, petitions, sagas,
 // companions, the underworld, holdings, ailments, rivals, sieges, the trading
 // company, discoveries, voyages, the throne and the royal court, sieges of the
-// player's holdings, bounties, foraging and hunting, patronage).
+// player's holdings, bounties, foraging and hunting, patronage, whisper
+// campaigns, land and the putting-out trade, notoriety, money and trade) —
+// and, given the world, the realms' own tallies (the grain dealers'
+// engrossing, the crowns' tax farms and revolts), shown as present facts.
 // Deeds gathers them into one flat map of numbers (collect) and a sectioned
 // view (sections) with two columns: the House's lifetime total, and this
 // reign's share — measured against the snapshot Legacy takes when a ruler
@@ -121,13 +124,57 @@ export const DEED_SECTIONS = [
     { id: 'land', title: 'Living off the Land', icon: '🌿', rows: [
         ['land.foragingTrips', 'Foraging trips'], ['land.huntingTrips', 'Hunts'],
     ] },
+    { id: 'wilds', title: 'The Wilds', icon: '🌲', rows: [
+        ['wilds.met', 'Encounters met'], ['wilds.resolved', 'Encounters dealt with'], ['wilds.passed', 'Risks that paid off'],
+        ['wilds.failed', 'Risks that went wrong'], ['wilds.poi', 'Places of interest explored'],
+    ] },
+    { id: 'crafting', title: 'Crafting', icon: '🔨', rows: [
+        ['crafting.made', 'Things crafted'], ['crafting.masterworks', 'Masterworks'], ['crafting.failed', 'Spoiled attempts'],
+    ] },
+    { id: 'work', title: 'Work & Hire', icon: '🧰', rows: [
+        ['work.jobsCompleted', 'Jobs completed'],
+    ] },
+    { id: 'whispers', title: 'Whisper Campaigns', icon: '🕯️', rows: [
+        ['whispers.planted', 'Tales planted'], ['whispers.fanned', 'Tales fanned'], ['whispers.quashed', 'Tales quashed'],
+        ['whispers.hardened', 'Lies now believed'], ['whispers.debunked', 'Your lies debunked'], ['whispers.traced', 'Whispers traced to you'],
+        ['whispers.blackmailed', 'Rulers blackmailed'], ['whispers.sold', 'Proofs sold to enemy crowns'],
+    ] },
+    { id: 'notoriety', title: 'Notoriety', icon: '🗡️', rows: [
+        ['gossip.kills', 'Killings'], ['gossip.witnessedKills', 'Killings witnessed'], ['gossip.unwitnessedKills', 'Killings unseen'],
+        ['gossip.bounties', 'Bounties on your head', true], ['gossip.bountyGold', 'Gold on your head', true],
+    ] },
+    { id: 'estates', title: 'Estates & Land', icon: '🌾', rows: [
+        ['estates.bought', 'Estates bought'], ['estates.sold', 'Estates sold'], ['estates.spent', 'Gold paid for land'],
+        ['estates.received', 'Gold from land sold'], ['estates.rents', 'Rents banked'], ['estates.arrears', 'Arrears collected'],
+        ['estates.pressed', 'Times you pressed for arrears'], ['estates.works', 'Improvements made'], ['estates.enclosed', 'Estates enclosed'],
+        ['estates.dowries', 'Estates settled as dowries'], ['estates.confiscated', 'Estates confiscated'],
+    ] },
+    { id: 'puttingOut', title: 'The Putting-Out Trade', icon: '🧶', rows: [
+        ['puttingOut.putOut', 'Units put out to the cottagers'], ['puttingOut.cloth', 'Cloth collected'], ['puttingOut.wages', 'Piece wages paid'],
+        ['puttingOut.fines', 'Guild fines paid'], ['puttingOut.seized', 'Units seized by the guilds'],
+    ] },
+    { id: 'money', title: 'Money & Trade', icon: '💰', rows: [
+        ['bills.drawn', 'Gold drawn by bills of exchange'], ['bills.forged', 'Gold got by forged bills'], ['bills.forgeriesCaught', 'Your forgeries caught'],
+        ['finance.bondsBought', 'Gold put into crown bonds'], ['finance.couponsEarned', 'Bond coupons earned'],
+        ['bourse.buyBacks', 'Shares bought back'], ['merchant.forwardsDone', 'Forward contracts delivered'], ['merchant.forwardsFailed', 'Forward contracts failed'],
+        ['trade.breaches', 'Trade laws breached'], ['trade.smuggled', 'Goods smuggled'], ['trade.caught', 'Times caught smuggling'],
+    ] },
+    { id: 'realms', title: 'The Realms\' Books', icon: '📒', rows: [
+        ['engrossing.bought', 'Grain engrossed by the dealers', true], ['engrossing.released', 'Engrossed grain sold back', true],
+        ['engrossing.spoiled', 'Engrossed grain spoiled', true], ['engrossing.edicts', 'Edicts against engrossers', true],
+        ['engrossing.opened', 'Grain thrown open by edict', true], ['fiscal.farmsSold', 'Tax farms sold', true],
+        ['fiscal.playerFarms', 'Tax farms you bought', true], ['fiscal.revolts', 'Tax revolts', true],
+    ] },
 ];
 
 export const Deeds = {
     SECTIONS: DEED_SECTIONS,
 
-    /** Every counter as a flat { key: number } map (read straight from player state). */
-    collect(player) {
+    /**
+     * Every counter as a flat { key: number } map (read straight from player
+     * state; with `world`, the realms' tallies too).
+     */
+    collect(player, world = null) {
         const out = {};
         if (!player) return out;
         const put = (prefix, src, keys) => {
@@ -207,6 +254,39 @@ export const Deeds = {
         put('heralds', _obj(player.heralds).stats, ['proclaimed', 'cried']);
         out['land.foragingTrips'] = _num(player.foragingTrips);
         out['land.huntingTrips'] = _num(player.huntingTrips);
+        // The wilds (player/wilds.js), the bench (player/crafting.js), odd jobs (player.jobsCompleted)
+        put('wilds', _obj(player.wilds).stats, ['met', 'resolved', 'passed', 'failed', 'poi']);
+        put('crafting', player.crafting, ['made', 'masterworks', 'failed']);
+        out['work.jobsCompleted'] = _num(player.jobsCompleted);
+
+        // Whisper campaigns (systems/whispers.js) and the talk about the player's killings (systems/gossip.js)
+        put('whispers', _obj(player.whispers).stats, ['planted', 'fanned', 'quashed', 'hardened', 'debunked', 'traced', 'blackmailed', 'sold']);
+        const gos = _obj(player.gossip);
+        out['gossip.kills'] = _num(gos.totalKills);
+        out['gossip.witnessedKills'] = _num(gos.witnessedKills);
+        out['gossip.unwitnessedKills'] = _num(gos.unwitnessedKills);
+        const bounties = Array.isArray(gos.bounties) ? gos.bounties : [];
+        out['gossip.bounties'] = bounties.length;
+        out['gossip.bountyGold'] = bounties.reduce((s, b) => s + _num(b && b.gold), 0);
+
+        // Land and the putting-out trade (systems/landMarket.js, systems/puttingOut.js: player.land.stats)
+        const ls = _obj(player.land).stats;
+        put('estates', ls, ['bought', 'sold', 'spent', 'received', 'rents', 'arrears', 'pressed', 'works', 'enclosed', 'dowries', 'confiscated']);
+        put('puttingOut', ls, ['putOut', 'cloth', 'wages', 'fines', 'seized']);
+
+        // Money and trade: bills, bonds, the Bourse, forwards, the trade laws
+        put('bills', _obj(player.bills).stats, ['drawn', 'forged', 'forgeriesCaught']);
+        put('finance', _obj(player.finance).stats, ['bondsBought', 'couponsEarned']);
+        put('bourse', _obj(player.bourse).stats, ['buyBacks']);
+        put('merchant', _obj(player.merchantPrince).stats, ['forwardsDone', 'forwardsFailed']);
+        put('trade', _obj(player.tradePolicy).stats, ['breaches', 'smuggled', 'caught']);
+
+        // The realms' books (world.engrossing, world.fiscal): present facts of the world
+        if (world) {
+            put('engrossing', _obj(world.engrossing).stats, ['bought', 'released', 'spoiled', 'edicts', 'opened']);
+            put('fiscal', _obj(world.fiscal).stats, ['farmsSold', 'playerFarms', 'revolts']);
+        }
+        for (const k of Object.keys(out)) out[k] = Math.round(out[k] * 100) / 100;
         return out;
     },
 
@@ -222,8 +302,8 @@ export const Deeds = {
      * reign, current }], empty }]. `reign` is null for present-tense rows.
      * Sections with nothing to show are flagged `empty` (the panel folds them).
      */
-    sections(player) {
-        const now = Deeds.collect(player);
+    sections(player, world = null) {
+        const now = Deeds.collect(player, world);
         const base = Deeds.reignBaseline(player) || {};
         return DEED_SECTIONS.map(sec => {
             const rows = sec.rows.map(([key, label, current]) => {

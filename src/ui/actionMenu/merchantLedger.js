@@ -147,7 +147,7 @@ function statementHtml(game) {
     const nw = EconomyChronicle.netWorth(player, world);
     const A = nw.assets;
     html += `<h5 style="margin:10px 0 4px;">💰 Net worth: ${col(nw.total)}</h5>`;
-    html += `<div style="${NOTE}">gold ${A.gold.toLocaleString()} · deposits ${A.deposits.toLocaleString()} · bonds ${A.bonds.toLocaleString()} · goods ${A.goods.toLocaleString()} · properties ${A.properties.toLocaleString()} · works ${A.works.toLocaleString()} · ships ${A.ships.toLocaleString()} · company ${A.company.toLocaleString()} − debts ${(nw.debts.loans + nw.debts.guildLoans + nw.debts.arrears).toLocaleString()} ${act('📰 More', ['economy', 'worth'])}</div>`;
+    html += `<div style="${NOTE}">gold ${A.gold.toLocaleString()} · deposits ${A.deposits.toLocaleString()} · bonds ${A.bonds.toLocaleString()} · goods ${A.goods.toLocaleString()} · properties ${A.properties.toLocaleString()} · works ${A.works.toLocaleString()} · ships ${A.ships.toLocaleString()} · company ${A.company.toLocaleString()}${A.bank ? ` · bank ${A.bank.toLocaleString()}` : ''} − debts ${(nw.debts.loans + nw.debts.guildLoans + nw.debts.arrears).toLocaleString()} ${act('📰 More', ['economy', 'worth'])}</div>`;
     return html;
 }
 

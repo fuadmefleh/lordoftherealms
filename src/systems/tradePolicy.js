@@ -1116,7 +1116,42 @@ export const TradePolicy = {
     saleCheck(player, world, settlement, goodId, qty) {
         if (!player || !world || !settlement) return { ok: true, mult: 1, rate: 0, held: 0, embargoed: 0, breach: [] };
         const held = _num(player.inventory && player.inventory[goodId]);
-        return TradePolicy._assess(player, world, held > 0 ? TradePolicy._ledger(player, goodId) : {}, held, settlement, goodId, qty);
+        const out = TradePolicy._assess(player, world, held > 0 ? TradePolicy._ledger(player, goodId) : {}, held, settlement, goodId, qty);
+        // A realm sworn into a league against the player levies everything they sell there (systems/coalitions.js)
+        const bar = out.ok ? TradePolicy.playerBar(player, settlement.kingdom) : null;
+        if (bar) {
+            out.rate = Math.min(0.9, out.rate + _num(bar.levy));
+            out.mult = 1 - out.rate;
+            out.barred = bar.why || true;
+        }
+        return out;
+    },
+
+    // ── A league's levy on the player (systems/coalitions.js) ──
+
+    /** The levy a realm lays on whatever the player sells in its towns: { levy, why, since } or null. */
+    playerBar(player, kid) {
+        const st = player && _obj(player.tradePolicy);
+        const bars = st && _obj(st.bars);
+        const b = bars && kid != null ? bars[kid] : null;
+        return _obj(b) && _num(b.levy) > 0 ? b : null;
+    },
+
+    /** Lay (or keep) a realm's levy on the player; their licence from it is cancelled. */
+    barPlayer(player, world, kid, { levy = 0.25, why = '' } = {}) {
+        if (!player || kid == null) return null;
+        const st = TradePolicy.playerState(player);
+        if (!_obj(st.bars)) st.bars = {};
+        const had = st.bars[kid];
+        st.bars[kid] = { levy: _clamp(_num(levy), 0, 0.9), why, since: had ? _num(had.since) : _day(world) };
+        if (st.licences[kid]) delete st.licences[kid];
+        return st.bars[kid];
+    },
+
+    /** Lift a realm's levy on the player. */
+    unbarPlayer(player, kid) {
+        const st = player && _obj(player.tradePolicy);
+        if (st && _obj(st.bars) && kid != null) delete st.bars[kid];
     },
 
     /**
@@ -1410,10 +1445,12 @@ export const TradePolicy = {
         if (!player || !k) return { ok: false, reason: 'No such realm.' };
         const L = TradePolicy.config().player.licence;
         if (TradePolicy._ruled(world, player) === k) return { ok: false, reason: 'Your own crown needs no petition.' };
+        const bar = TradePolicy.playerBar(player, k.id);
+        if (bar) return { ok: false, reason: `${k.name} is sworn to ${bar.why || 'a league against you'}; its court grants you nothing.` };
         const rep = _num(player.reputation && player.reputation[k.id]);
         if (rep < _num(L.minRep)) return { ok: false, reason: `${k.name}'s court will not hear you (reputation ${Math.round(rep)}).` };
         if (Underworld.getHeat(player, k.id) >= _num(L.maxHeat)) return { ok: false, reason: `The watch of ${k.name} knows your name too well.` };
-        const towns = (k.settlements || []).length;
+        const towns = world && typeof world.getSettlementsOf === 'function' ? world.getSettlementsOf(k.id).length : (k.settlements || []).length;
         let cost = Math.round(_num(L.base) + _num(L.perTown) * towns);
         if (rep >= _num(L.goodRep)) cost = Math.round(cost * _num(L.discount, 1));
         return { ok: true, cost, days: _num(L.days, 120), rep, kingdom: k };

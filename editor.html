@@ -203,6 +203,52 @@ textarea{resize:vertical;font-family:inherit}
 #tt-prereq-list label input{flex-shrink:0}
 #tt-prereq-box .modal-actions{display:flex;justify-content:flex-end;padding:10px 16px;border-top:1px solid var(--border);gap:8px}
 
+/* ════════════════════════════════════════════════════
+   GAME DATA EDITOR (any gamedata section, saved as patches)
+   ════════════════════════════════════════════════════ */
+#gd-editor{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
+#gd-toolbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#gd-toolbar h2{font-size:12px;font-weight:700;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+#gd-toolbar .gd-hint{font-size:11px;color:var(--text-dim)}
+#gd-main{display:flex;flex:1;overflow:hidden}
+.gd-col{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+#gd-sections{width:230px}
+#gd-entries{width:280px}
+.gd-col-head{display:flex;align-items:center;gap:6px;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--border);flex-shrink:0;min-height:34px}
+.gd-col-head h3{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-col-head label{font-size:10px;color:var(--text-dim);display:flex;gap:4px;align-items:center;cursor:pointer}
+.gd-search{width:100%;background:#0d1117;border:none;border-bottom:1px solid var(--border);padding:6px 12px;color:var(--text);font-size:12px;flex-shrink:0}
+.gd-search:focus{outline:none;border-bottom-color:var(--gold)}
+.gd-scroll{flex:1;overflow-y:auto;padding:4px}
+.gd-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:5px;cursor:pointer;border:1px solid transparent;font-size:12px;margin-bottom:1px}
+.gd-row:hover{background:var(--hover)}
+.gd-row.selected{background:var(--accent-bg,#0b2a4a);border-color:var(--gold)}
+.gd-row .gd-key{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.gd-row .gd-sub{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;font-weight:400}
+.gd-row .gd-meta{font-size:10px;color:var(--text-dim);flex-shrink:0;font-family:monospace}
+.gd-row .gd-drill{flex-shrink:0;padding:0 6px;font-size:12px;line-height:18px}
+.gd-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:transparent}
+.gd-dot.mod{background:var(--gold);box-shadow:0 0 4px var(--gold)}
+.gd-dot.new{background:var(--green)}
+.gd-crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:11px;flex-shrink:0;background:var(--panel2,#0d1117)}
+.gd-crumbs a{color:var(--gold);cursor:pointer;text-decoration:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gd-crumbs a:hover{text-decoration:underline}
+.gd-crumbs span{color:var(--text-dim)}
+#gd-edit{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#gd-edit-head{display:flex;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;background:var(--panel)}
+#gd-edit-path{font-family:monospace;font-size:12px;color:var(--gold);flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gd-text-wrap{flex:1;display:flex;overflow:hidden;position:relative}
+#gd-gutter{width:48px;flex-shrink:0;background:#0b0f16;color:#4b5563;font:12px/18px monospace;text-align:right;padding:8px 6px 8px 0;overflow:hidden;white-space:pre;user-select:none;border-right:1px solid var(--border)}
+#gd-gutter .err{color:var(--red);font-weight:700}
+#gd-text{flex:1;resize:none;border:none;border-radius:0;background:#0d1117;font:12px/18px 'Consolas','Menlo',monospace;padding:8px 10px;white-space:pre;overflow:auto;tab-size:2}
+#gd-text:focus{outline:none;border:none}
+#gd-status{display:flex;align-items:center;gap:10px;padding:5px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);flex-shrink:0;background:var(--panel)}
+#gd-status .ok{color:var(--green)}
+#gd-status .err{color:var(--red)}
+#gd-status .warn{color:var(--gold)}
+#gd-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-dim);font-size:12px;text-align:center;padding:30px;line-height:1.6}
+#gd-empty kbd{background:#21262d;border:1px solid var(--border2);border-radius:3px;padding:0 4px;font-size:10px}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -236,8 +282,11 @@ textarea{resize:vertical;font-family:inherit}
   <div class="nav-tab" data-tab="techtree" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('techtree')">
     <span class="tab-icon">🔬</span> Tech Tree
   </div>
+  <div class="nav-tab" data-tab="gamedata" role="tab" tabindex="-1" aria-selected="false" onclick="switchTab('gamedata')" title="Edit any game content: quests, ailments, religions, units…">
+    <span class="tab-icon">📜</span> Game Data
+  </div>
   <div class="nav-spacer"></div>
-  <button class="green btn-sm" onclick="newGamedata()">📄 New</button>
+  <button class="green btn-sm" onclick="confirmNewGamedata()" title="Start an empty mod (clears everything you made)">📄 New</button>
   <button class="purple btn-sm" onclick="triggerImport()">⬆ Import</button>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="handleImport(event)">
   <button class="gold btn-sm" onclick="exportGamedata()">⬇ Export gamedata.json</button>
@@ -511,6 +560,67 @@ textarea{resize:vertical;font-family:inherit}
     </div>
   </div>
 
+  <!-- Game Data editor: any gamedata section, saved as patches -->
+  <div class="editor-pane" id="pane-gamedata">
+    <div id="gd-editor">
+      <div id="gd-toolbar">
+        <h2>Game Data</h2>
+        <div class="tb-sep"></div>
+        <span class="gd-hint">Edit any game content. Only your changes are saved, as a patch over the base game, so game updates still reach everything you left alone.</span>
+        <div class="nav-spacer"></div>
+        <span id="gd-summary" class="status-badge">no changes</span>
+        <button class="btn-sm" onclick="gdExportPatches()" title="Download only your Game Data changes, to share as a mod">⬇ Export changes</button>
+        <button class="btn-sm" onclick="document.getElementById('gd-import-file').click()" title="Load a changes file someone shared">⬆ Import changes</button>
+        <input type="file" id="gd-import-file" accept=".json" style="display:none" onchange="gdImportPatches(event)">
+      </div>
+      <div id="gd-main">
+        <div class="gd-col" id="gd-sections">
+          <div class="gd-col-head">
+            <h3>Sections (<span id="gd-section-count">0</span>)</h3>
+            <label title="Show only sections you changed"><input type="checkbox" id="gd-mod-only" onchange="gdRenderSections()"> changed</label>
+          </div>
+          <input class="gd-search" id="gd-section-search" type="text" placeholder="🔍  Filter sections…" oninput="gdRenderSections()">
+          <input class="gd-search" id="gd-global-search" type="text" placeholder="🔎  Find anywhere (names, ids, text)…" oninput="gdScheduleGlobalSearch()" title="Searches keys and text in every section">
+          <div class="gd-scroll" id="gd-section-list"></div>
+        </div>
+        <div class="gd-col" id="gd-entries">
+          <div class="gd-col-head">
+            <h3 id="gd-entries-title">Entries</h3>
+            <button class="btn-sm green" id="gd-new-btn" onclick="gdNewEntry()" title="Add an entry here" disabled>＋ New</button>
+          </div>
+          <div class="gd-crumbs" id="gd-crumbs"></div>
+          <input class="gd-search" id="gd-entry-search" type="text" placeholder="🔍  Filter entries…" oninput="gdRenderEntries()">
+          <div class="gd-scroll" id="gd-entry-list"></div>
+        </div>
+        <div id="gd-edit">
+          <div id="gd-empty">
+            <div style="font-size:28px">📜</div>
+            <div>Pick a section, then an entry to edit it as JSON.<br>
+            Click an entry to edit it, or <strong>›</strong> to open what is inside.<br>
+            <kbd>Ctrl</kbd>+<kbd>S</kbd> applies, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> formats.</div>
+            <div style="font-size:11px">Sprites, buildings, interiors and terrain tiles are edited in their own tabs.</div>
+          </div>
+          <div id="gd-editor-body" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+            <div id="gd-edit-head">
+              <span id="gd-edit-path"></span>
+              <button class="btn-sm green" onclick="gdApply()" title="Apply (Ctrl+S)">✓ Apply</button>
+              <button class="btn-sm" onclick="gdFormat()" title="Format (Ctrl+Shift+F)">{ } Format</button>
+              <button class="btn-sm" onclick="gdDiscard()" title="Throw away edits you have not applied">↶ Discard</button>
+              <button class="btn-sm" onclick="gdDuplicate()" id="gd-dup-btn" title="Copy this entry under a new key, the quickest way to add content">⧉ Duplicate</button>
+              <button class="btn-sm gold" onclick="gdResetToBase()" id="gd-reset-btn" title="Put this back the way the base game has it">⟲ Reset to base</button>
+              <button class="btn-sm danger" onclick="gdDeleteEntry()" id="gd-del-btn" title="Remove this entry">🗑</button>
+            </div>
+            <div id="gd-text-wrap">
+              <div id="gd-gutter"></div>
+              <textarea id="gd-text" spellcheck="false" oninput="gdOnInput()" onscroll="gdSyncGutter()" onkeydown="gdOnKey(event)"></textarea>
+            </div>
+            <div id="gd-status"><span id="gd-valid"></span><span id="gd-diffinfo"></span><span style="flex:1"></span><span id="gd-size"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /#content -->
 
 <!-- Toast -->
@@ -527,6 +637,7 @@ textarea{resize:vertical;font-family:inherit}
   </div>
 </div>
 
+<script src="editor-core.js"></script>
 <script src="editor-modstore.js"></script>
 <script>
 'use strict';
@@ -604,6 +715,15 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// Ctrl/Cmd+S outside a sub-editor: save to the browser now, not in a second.
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 's' && e.target.id !== 'gd-text') {
+    e.preventDefault();
+    clearTimeout(_autoSaveTimer);
+    autoSaveToBrowser().then(() => toast('Saved to browser', 'ok'));
+  }
+});
+
 // Arrow-key navigation within the tablist (WAI-ARIA tabs pattern).
 document.getElementById('nav').addEventListener('keydown', (e) => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Enter' && e.key !== ' ') return;
@@ -653,6 +773,9 @@ const CATEGORY_LABELS = {
 
 // Built-in game data (technology, etc.) loaded from gamedata.json on disk
 let _builtinGamedata = null;
+// Untouched copy of gamedata.json: the base the Game Data tab patches against
+// (_builtinGamedata itself can end up as _gamedata and be edited in place).
+let _gdBaseline = null;
 
 function isLegacyBuildCostResource(id) {
   return ['wood', 'timber', 'stone', 'iron'].includes(String(id || '').toLowerCase());
@@ -689,14 +812,17 @@ function mergePlayerEconomyWithBuiltins(playerEconomy) {
   // Always fetch the full gamedata.json to get built-in data (technology tree, etc.)
   try {
     const res = await fetch('data/gamedata.json');
-    if (res.ok) _builtinGamedata = await res.json();
+    if (res.ok) {
+      _builtinGamedata = await res.json();
+      _gdBaseline = JSON.parse(JSON.stringify(_builtinGamedata));
+    }
   } catch(e) { console.warn('Could not fetch gamedata.json for built-in data:', e); }
 
   try {
     // Try loading from browser storage first (IndexedDB)
     await ModStore.init();
     const stored = await ModStore.loadModData();
-    if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy)) {
+    if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.dataPatches || stored.customTechs)) {
       _gamedata = { ...makeEmptyGamedata(), ...stored };
       _gamedata.terrain = mergeTerrainWithBuiltins(_gamedata.terrain);
       _gamedata.playerEconomy = mergePlayerEconomyWithBuiltins(_gamedata.playerEconomy);
@@ -1396,6 +1522,7 @@ function makeEmptyGamedata() {
       techs: {},
       researchCosts: {},
     },
+    dataPatches: {},
   };
 }
 
@@ -1411,6 +1538,11 @@ function syncNineTileBrushAliases() {
       : [];
   }
   _gamedata.nineTileBrushes = _gamedata.buildingNineTileBrushes || [];
+}
+
+async function confirmNewGamedata() {
+  const ok = await EditorUI.confirm('Start an empty mod? Everything made in these editors (sprites, interiors, techs, Game Data changes) is cleared. Export first if you want to keep it.', { title: 'New mod', okText: 'Clear and start over', danger: true });
+  if (ok) newGamedata();
 }
 
 function newGamedata(silent) {
@@ -1452,6 +1584,9 @@ function applyGamedata() {
 
   // Terrain editor (iframe) — send terrainSets + nineTileBrushes
   pushToTerrainEditor();
+
+  // Game Data editor — patches over the base sections
+  gdInit();
 }
 
 function pushToSpriteEditor() {
@@ -1589,8 +1724,18 @@ function handleImport(ev) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      if (!parsed.terrain && !parsed.buildings && !parsed.objects) {
+      let parsed = JSON.parse(e.target.result);
+      // A Game Data changes file goes on top of the current mod
+      if (parsed && parsed.format === 'lotr-data-patches') {
+        const done = gdMergePatchFile(parsed.patches);
+        markDirty(); gdUpdateSummary(); gdRenderSections();
+        toast(`Imported Game Data changes to ${done.length} section(s)`, 'ok');
+        ev.target.value = '';
+        return;
+      }
+      // A full mod pack (Export Mod Pack in the top bar) carries the editor data in .moddata
+      if (parsed && parsed.moddata && typeof parsed.moddata === 'object') parsed = parsed.moddata;
+      if (!parsed.terrain && !parsed.buildings && !parsed.objects && !parsed.dataPatches) {
         throw new Error('Not a valid gamedata.json — missing expected keys.');
       }
       // Merge into a full gamedata shell (so partial files still work)
@@ -1698,7 +1843,15 @@ function exportGamedata() {
   delete _gamedata.custom_objects;
   delete _gamedata.custom_interiors;
 
-  const blob = new Blob([JSON.stringify(_gamedata)], { type: 'application/json' });
+  // Bake Game Data changes into their sections so the file stands alone
+  const out = { ..._gamedata };
+  const patches = out.dataPatches || {};
+  for (const [section, patch] of Object.entries(patches)) {
+    out[section] = EditorCore.applyDataPatch(_gdBaseline ? _gdBaseline[section] : out[section], patch);
+  }
+  delete out.dataPatches;
+
+  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'gamedata.json';
@@ -2413,6 +2566,579 @@ function pushTechListToSpriteEditor() {
   try {
     iframe.contentWindow.postMessage({ type: 'techListUpdate', techs: techList }, '*');
   } catch(e) { /* ignore */ }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME DATA EDITOR
+//  Any gamedata section, edited as JSON. Edits are kept in
+//  _gamedata.dataPatches as { section: patch } against the base
+//  gamedata.json (EditorCore.createDataPatch); the game applies them
+//  on load (src/core/dataPatch.js).
+// ═══════════════════════════════════════════════════════
+
+// Sections authored by the other tabs; patching them here would fight those tabs.
+const GD_OWNED = new Set([
+  'buildings', 'objects', 'interiors', 'interiorBrushes', 'terrainSets', 'nineTileBrushes',
+  'terrainMap', 'buildingNineTileBrushes', 'terrainNineTileBrushes', 'doorCatalog',
+  'windowCatalog', 'customTechs', 'dataPatches',
+]);
+const GD_MAX_ROWS = 400;
+const GD_BIG_JSON = 400000; // characters; larger values are slow to edit as one text
+
+let _gdWorking = {};     // section → base with patch applied (built lazily)
+let _gdSection = null;   // open section key
+let _gdPath = [];        // container shown in the entry list, relative to the section
+let _gdSel = null;       // path being edited (relative to the section), or null
+let _gdTextDirty = false;
+let _gdValidateTimer = null;
+let _gdSearchTimer = null;
+
+const EC = window.EditorCore;
+
+function gdPatches() {
+  if (!_gamedata.dataPatches || typeof _gamedata.dataPatches !== 'object') _gamedata.dataPatches = {};
+  return _gamedata.dataPatches;
+}
+function gdBase(section) { return _gdBaseline ? _gdBaseline[section] : undefined; }
+function gdWorking(section) {
+  if (!(section in _gdWorking)) _gdWorking[section] = EC.applyDataPatch(gdBase(section), gdPatches()[section]);
+  return _gdWorking[section];
+}
+function gdAt(root, path) { return path.length ? EC.getAtPath(root, path) : root; }
+function gdIsContainer(v) { return v !== null && typeof v === 'object'; }
+function gdTypeLabel(v) {
+  if (Array.isArray(v)) return '[' + v.length + ']';
+  if (gdIsContainer(v)) return '{' + Object.keys(v).length + '}';
+  if (typeof v === 'string') return 'text';
+  return typeof v;
+}
+// A short human label for an entry: its name/title, else a value preview.
+function gdSummary(v) {
+  if (gdIsContainer(v) && !Array.isArray(v)) {
+    const label = v.name || v.title || v.label || v.text || v.id;
+    const icon = typeof v.icon === 'string' && v.icon.length <= 4 ? v.icon + ' ' : '';
+    return label != null ? icon + String(label) : '';
+  }
+  if (gdIsContainer(v)) return v.length ? 'list' : 'empty list';
+  return JSON.stringify(v);
+}
+function gdPathText(section, path) {
+  return [section].concat(path.map(k => typeof k === 'number' ? '[' + k + ']' : k)).join(' › ');
+}
+// How far the working copy of `section` is from the base: number of changed
+// top-level entries (0 when unpatched).
+function gdChangeCount(section) {
+  const p = gdPatches()[section];
+  if (p === undefined) return 0;
+  if (!gdIsContainer(p) || Array.isArray(p) || '$replace' in p) return 1;
+  return Object.keys(p).filter(k => k !== '$delete').length + (Array.isArray(p.$delete) ? p.$delete.length : 0);
+}
+function gdSectionKeys() {
+  if (!_gdBaseline) return [];
+  return Object.keys(_gdBaseline).filter(k => !GD_OWNED.has(k)).sort((a, b) => a.localeCompare(b));
+}
+
+function gdInit() {
+  _gdWorking = {};
+  _gdSection = null; _gdPath = []; _gdSel = null; _gdTextDirty = false;
+  gdShowEditor(false);
+  gdRenderSections();
+  gdRenderEntries();
+  gdUpdateSummary();
+}
+
+function gdUpdateSummary() {
+  const el = document.getElementById('gd-summary');
+  if (!el || !_gamedata) return;
+  const changed = Object.keys(gdPatches()).length;
+  el.textContent = changed ? `${changed} section${changed === 1 ? '' : 's'} changed` : 'no changes';
+  el.className = 'status-badge' + (changed ? ' dirty' : '');
+}
+
+// ── Section list (or global search results) ──
+function gdRenderSections() {
+  const list = document.getElementById('gd-section-list');
+  if (!list) return;
+  const gq = document.getElementById('gd-global-search').value.trim();
+  if (gq) { gdGlobalSearch(gq); return; }
+  const keys = gdSectionKeys();
+  document.getElementById('gd-section-count').textContent = keys.length;
+  if (!_gdBaseline) {
+    list.innerHTML = '<div class="list-empty">Could not read data/gamedata.json, so there is nothing to patch.</div>';
+    return;
+  }
+  const q = document.getElementById('gd-section-search').value.trim().toLowerCase();
+  const modOnly = document.getElementById('gd-mod-only').checked;
+  const rows = keys.filter(k => (!q || k.toLowerCase().includes(q)) && (!modOnly || gdChangeCount(k)));
+  list.innerHTML = rows.length ? '' : '<div class="list-empty">No sections match.</div>';
+  for (const k of rows) {
+    const n = gdChangeCount(k);
+    const row = document.createElement('div');
+    row.className = 'gd-row' + (k === _gdSection ? ' selected' : '');
+    row.title = n ? `${n} change${n === 1 ? '' : 's'} in ${k}` : k;
+    row.innerHTML = `<span class="gd-dot${n ? ' mod' : ''}"></span><span class="gd-key">${escHtml(k)}</span><span class="gd-meta">${n ? '✎' + n : gdTypeLabel(gdBase(k))}</span>`;
+    row.onclick = () => gdOpenSection(k);
+    list.appendChild(row);
+  }
+}
+
+function gdScheduleGlobalSearch() {
+  clearTimeout(_gdSearchTimer);
+  _gdSearchTimer = setTimeout(gdRenderSections, 220);
+}
+
+function gdGlobalSearch(q) {
+  const list = document.getElementById('gd-section-list');
+  const results = [];
+  for (const section of gdSectionKeys()) {
+    for (const r of EC.searchData(gdWorking(section), q, { maxResults: 40, maxDepth: 6 })) {
+      results.push({ section, path: r.path, match: r.match, text: r.text });
+      if (results.length >= 200) break;
+    }
+    if (results.length >= 200) break;
+  }
+  document.getElementById('gd-section-count').textContent = results.length + (results.length >= 200 ? '+' : '') + ' found';
+  list.innerHTML = results.length ? '' : '<div class="list-empty">Nothing found.</div>';
+  for (const r of results) {
+    const row = document.createElement('div');
+    row.className = 'gd-row';
+    row.title = gdPathText(r.section, r.path);
+    const where = gdPathText(r.section, r.path.slice(0, -1));
+    const what = r.match === 'key' ? r.text : `${r.path[r.path.length - 1]}: "${r.text.length > 60 ? r.text.slice(0, 60) + '…' : r.text}"`;
+    row.innerHTML = `<span class="gd-key">${escHtml(what)}<span class="gd-sub">${escHtml(where)}</span></span>`;
+    // Open the entry that holds the match, inside its parent container
+    row.onclick = () => {
+      const target = r.match === 'key' ? r.path : r.path.slice(0, -1);
+      const sel = target.length ? target : [];
+      gdOpenSection(r.section, sel.slice(0, -1), sel);
+    };
+    list.appendChild(row);
+  }
+}
+
+// ── Navigation ──
+async function gdConfirmLeave() {
+  if (!_gdTextDirty) return true;
+  const ok = await EditorUI.confirm('You have edits in the JSON box that are not applied yet. Throw them away?', { title: 'Unapplied edits', okText: 'Discard', danger: true });
+  if (ok) {
+    _gdTextDirty = false;
+    if (_gdSel) gdSelect(_gdSel, true); // put the box back to the applied value
+  }
+  return ok;
+}
+
+async function gdOpenSection(section, path, sel) {
+  if (!(await gdConfirmLeave())) return;
+  _gdSection = section;
+  _gdPath = path || [];
+  _gdSel = null;
+  document.getElementById('gd-entry-search').value = '';
+  gdRenderSections();
+  gdRenderEntries();
+  if (sel) gdSelect(sel, true);
+  else {
+    // Small sections open straight into the editor
+    const v = gdWorking(section);
+    if (!gdIsContainer(v) || JSON.stringify(v).length < 6000) gdSelect([], true);
+    else gdShowEditor(false);
+  }
+}
+
+async function gdGoTo(path) {
+  if (!(await gdConfirmLeave())) return;
+  _gdPath = path;
+  document.getElementById('gd-entry-search').value = '';
+  gdRenderEntries();
+}
+
+function gdRenderCrumbs() {
+  const el = document.getElementById('gd-crumbs');
+  if (!_gdSection) { el.innerHTML = '<span>Pick a section</span>'; return; }
+  el.innerHTML = '';
+  const parts = [{ label: _gdSection, path: [] }].concat(_gdPath.map((k, i) => ({ label: typeof k === 'number' ? '[' + k + ']' : String(k), path: _gdPath.slice(0, i + 1) })));
+  parts.forEach((p, i) => {
+    if (i) { const s = document.createElement('span'); s.textContent = '›'; el.appendChild(s); }
+    const a = document.createElement('a');
+    a.textContent = p.label;
+    a.title = 'Show ' + p.label;
+    a.onclick = () => gdGoTo(p.path);
+    el.appendChild(a);
+  });
+}
+
+function gdRenderEntries() {
+  gdRenderCrumbs();
+  const list = document.getElementById('gd-entry-list');
+  const title = document.getElementById('gd-entries-title');
+  const newBtn = document.getElementById('gd-new-btn');
+  if (!_gdSection) {
+    title.textContent = 'Entries';
+    list.innerHTML = '<div class="list-empty">← Pick a section.</div>';
+    newBtn.disabled = true;
+    return;
+  }
+  const work = gdAt(gdWorking(_gdSection), _gdPath);
+  const base = gdAt(gdBase(_gdSection), _gdPath);
+  newBtn.disabled = !gdIsContainer(work);
+  list.innerHTML = '';
+
+  // Edit the whole container at once
+  const whole = document.createElement('div');
+  whole.className = 'gd-row' + (_gdSel && EC.deepEqual(_gdSel, _gdPath) ? ' selected' : '');
+  whole.innerHTML = `<span class="gd-dot${EC.deepEqual(work, base) ? '' : ' mod'}"></span><span class="gd-key" style="font-weight:400;font-style:italic">Edit all of this as JSON</span><span class="gd-meta">${gdTypeLabel(work)}</span>`;
+  whole.onclick = () => gdSelect(_gdPath.slice());
+  list.appendChild(whole);
+
+  if (!gdIsContainer(work)) { title.textContent = 'Value'; return; }
+  const keys = Array.isArray(work) ? work.map((_, i) => i) : Object.keys(work);
+  title.textContent = `Entries (${keys.length})`;
+  const q = document.getElementById('gd-entry-search').value.trim().toLowerCase();
+  const shown = keys.filter(k => !q || String(k).toLowerCase().includes(q) || gdSummary(work[k]).toLowerCase().includes(q));
+  for (const k of shown.slice(0, GD_MAX_ROWS)) {
+    const v = work[k];
+    const b = gdIsContainer(base) ? base[k] : undefined;
+    const isNew = b === undefined;
+    const isMod = !isNew && !EC.deepEqual(v, b);
+    const path = _gdPath.concat(k);
+    const row = document.createElement('div');
+    row.className = 'gd-row' + (_gdSel && EC.deepEqual(_gdSel, path) ? ' selected' : '');
+    row.title = isNew ? 'Added by you' : isMod ? 'Changed by you' : '';
+    const sum = gdSummary(v);
+    row.innerHTML = `<span class="gd-dot${isNew ? ' new' : isMod ? ' mod' : ''}"></span>`
+      + `<span class="gd-key">${escHtml(Array.isArray(work) ? '[' + k + ']' : k)}${sum ? `<span class="gd-sub">${escHtml(sum.length > 80 ? sum.slice(0, 80) + '…' : sum)}</span>` : ''}</span>`
+      + `<span class="gd-meta">${gdTypeLabel(v)}</span>`;
+    row.onclick = () => gdSelect(path);
+    if (gdIsContainer(v)) {
+      const drill = document.createElement('button');
+      drill.className = 'btn-sm gd-drill';
+      drill.textContent = '›';
+      drill.title = 'Open what is inside';
+      drill.onclick = (e) => { e.stopPropagation(); gdGoTo(path); };
+      row.appendChild(drill);
+    }
+    list.appendChild(row);
+  }
+  if (shown.length > GD_MAX_ROWS) {
+    const more = document.createElement('div');
+    more.className = 'list-empty';
+    more.textContent = `…and ${shown.length - GD_MAX_ROWS} more. Filter to narrow the list.`;
+    list.appendChild(more);
+  }
+  // Entries the base game has that you removed: click to bring one back
+  if (gdIsContainer(base) && !Array.isArray(base) && !Array.isArray(work)) {
+    for (const k of Object.keys(base).filter(k => !(k in work) && (!q || k.toLowerCase().includes(q)))) {
+      const row = document.createElement('div');
+      row.className = 'gd-row';
+      row.title = 'Removed by you. Click to restore it from the base game.';
+      row.innerHTML = `<span class="gd-dot"></span><span class="gd-key" style="text-decoration:line-through;color:var(--text-dim)">${escHtml(k)}</span><span class="gd-meta">restore</span>`;
+      row.onclick = () => {
+        work[k] = JSON.parse(JSON.stringify(base[k]));
+        gdCommit();
+        gdSelect(_gdPath.concat(k), true);
+      };
+      list.appendChild(row);
+    }
+  }
+}
+
+// ── JSON editor ──
+function gdShowEditor(on) {
+  document.getElementById('gd-empty').style.display = on ? 'none' : 'flex';
+  document.getElementById('gd-editor-body').style.display = on ? 'flex' : 'none';
+}
+
+async function gdSelect(path, skipGuard) {
+  if (!skipGuard && !(await gdConfirmLeave())) return;
+  _gdSel = path;
+  _gdTextDirty = false;
+  const v = gdAt(gdWorking(_gdSection), path);
+  const text = JSON.stringify(v, null, 2);
+  const ta = document.getElementById('gd-text');
+  ta.value = text === undefined ? '' : text;
+  ta.scrollTop = 0;
+  document.getElementById('gd-edit-path').textContent = gdPathText(_gdSection, path);
+  document.getElementById('gd-del-btn').disabled = path.length === 0;
+  document.getElementById('gd-dup-btn').disabled = path.length === 0;
+  gdShowEditor(true);
+  gdValidate();
+  gdRenderEntries();
+  if (text && text.length > GD_BIG_JSON) EditorUI.toast('This is a big value; open an entry inside it (›) for faster editing.', { type: '' });
+}
+
+function gdSyncGutter() {
+  document.getElementById('gd-gutter').scrollTop = document.getElementById('gd-text').scrollTop;
+}
+
+// Parse the box; returns { ok, value } or { ok:false, message, line }.
+function gdParse() {
+  const text = document.getElementById('gd-text').value;
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (e) {
+    const msg = String(e.message || e);
+    let line = null;
+    const lc = /line (\d+)/i.exec(msg);
+    const pos = /position (\d+)/i.exec(msg);
+    if (lc) line = Number(lc[1]);
+    else if (pos) line = text.slice(0, Number(pos[1])).split('\n').length;
+    return { ok: false, message: msg.replace(/^JSON\.parse: /, ''), line };
+  }
+}
+
+function gdValidate() {
+  const text = document.getElementById('gd-text').value;
+  const res = gdParse();
+  const lines = text.split('\n').length;
+  const gutter = [];
+  for (let i = 1; i <= lines; i++) gutter.push(!res.ok && res.line === i ? `<span class="err">▶${i}</span>` : String(i));
+  document.getElementById('gd-gutter').innerHTML = gutter.join('\n');
+  gdSyncGutter();
+  const valid = document.getElementById('gd-valid');
+  const info = document.getElementById('gd-diffinfo');
+  if (!res.ok) {
+    const where = res.line && !/line \d+/i.test(res.message) ? ` (line ${res.line})` : '';
+    valid.innerHTML = `<span class="err">✕ ${escHtml(res.message)}${where}</span>`;
+    info.textContent = '';
+  } else {
+    const base = gdAt(gdBase(_gdSection), _gdSel);
+    const work = gdAt(gdWorking(_gdSection), _gdSel);
+    valid.innerHTML = '<span class="ok">✓ valid JSON</span>';
+    let note = '';
+    if (base === undefined) note = '<span class="warn">new: not in the base game</span>';
+    else if (!EC.deepEqual(base, res.value)) note = '<span class="warn">differs from the base game</span>';
+    else note = 'same as the base game';
+    if (base !== undefined && gdTypeOf(base) !== gdTypeOf(res.value)) note += ` · <span class="warn">⚠ was ${gdTypeOf(base)}, now ${gdTypeOf(res.value)}</span>`;
+    if (_gdTextDirty && !EC.deepEqual(work, res.value)) note += ' · <span class="warn">● not applied</span>';
+    info.innerHTML = note;
+  }
+  document.getElementById('gd-size').textContent = `${lines} lines`;
+  return res;
+}
+function gdTypeOf(v) { return Array.isArray(v) ? 'a list' : v === null ? 'null' : typeof v === 'object' ? 'an object' : 'a ' + typeof v; }
+
+function gdOnInput() {
+  _gdTextDirty = true;
+  clearTimeout(_gdValidateTimer);
+  _gdValidateTimer = setTimeout(gdValidate, 250);
+}
+
+function gdOnKey(e) {
+  const ta = e.target;
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 's') { e.preventDefault(); gdApply(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); gdFormat(); return; }
+  if (e.key === 'Tab' && !e.ctrlKey) {
+    e.preventDefault();
+    document.execCommand('insertText', false, '  ');
+    return;
+  }
+  if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+    // Keep the current line's indent, one deeper after an opener
+    const start = ta.selectionStart;
+    const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+    const indent = /^\s*/.exec(ta.value.slice(lineStart, start))[0];
+    const prev = ta.value.slice(lineStart, start).trimEnd();
+    const extra = /[{[]$/.test(prev) ? '  ' : '';
+    e.preventDefault();
+    document.execCommand('insertText', false, '\n' + indent + extra);
+  }
+}
+
+async function gdApply() {
+  if (!_gdSection || !_gdSel) return;
+  const res = gdValidate();
+  if (!res.ok) { EditorUI.toast('Fix the JSON first: ' + res.message, { type: 'err' }); return; }
+  const base = gdAt(gdBase(_gdSection), _gdSel);
+  if (base !== undefined && gdTypeOf(base) !== gdTypeOf(res.value)) {
+    const ok = await EditorUI.confirm(`The base game has ${gdTypeOf(base)} here and you are putting ${gdTypeOf(res.value)}. The game may not read it. Apply anyway?`, { title: 'Different kind of value', okText: 'Apply' });
+    if (!ok) return;
+  }
+  if (_gdSel.length === 0) _gdWorking[_gdSection] = res.value;
+  else EC.setAtPath(gdWorking(_gdSection), _gdSel, res.value);
+  _gdTextDirty = false;
+  gdCommit();
+  gdSelect(_gdSel, true);
+  EditorUI.toast('Applied: ' + gdPathText(_gdSection, _gdSel), { type: 'ok' });
+}
+
+// Recompute the open section's patch from its working copy and save.
+function gdCommit() {
+  const patch = EC.createDataPatch(gdBase(_gdSection), gdWorking(_gdSection));
+  if (patch === undefined) delete gdPatches()[_gdSection];
+  else gdPatches()[_gdSection] = patch;
+  markDirty();
+  gdUpdateSummary();
+  gdRenderSections();
+  gdRenderEntries();
+}
+
+function gdFormat() {
+  const res = gdParse();
+  if (!res.ok) { gdValidate(); EditorUI.toast('Cannot format: ' + res.message, { type: 'err' }); return; }
+  const ta = document.getElementById('gd-text');
+  ta.value = JSON.stringify(res.value, null, 2);
+  gdValidate();
+}
+
+function gdDiscard() {
+  if (!_gdSel) return;
+  gdSelect(_gdSel, true);
+}
+
+async function gdResetToBase() {
+  if (!_gdSel) return;
+  const base = gdAt(gdBase(_gdSection), _gdSel);
+  const label = gdPathText(_gdSection, _gdSel);
+  const msg = base === undefined
+    ? `${label} is not in the base game, so resetting removes it. Continue?`
+    : `Put ${label} back the way the base game has it? Your changes to it are lost.`;
+  if (!(await EditorUI.confirm(msg, { title: 'Reset to base', okText: 'Reset', danger: true }))) return;
+  _gdTextDirty = false;
+  if (_gdSel.length === 0) {
+    _gdWorking[_gdSection] = JSON.parse(JSON.stringify(base === undefined ? null : base));
+  } else if (base === undefined) {
+    EC.deleteAtPath(gdWorking(_gdSection), _gdSel);
+    gdCommit();
+    _gdSel = null;
+    gdShowEditor(false);
+    gdRenderEntries();
+    return;
+  } else {
+    EC.setAtPath(gdWorking(_gdSection), _gdSel, JSON.parse(JSON.stringify(base)));
+  }
+  gdCommit();
+  gdSelect(_gdSel, true);
+}
+
+// Prompt validator for a new key: EditorUI wants true when the value is fine.
+function gdKeyOk(v, parent) {
+  const k = v.trim();
+  if (!k) { EditorUI.toast('A key is needed.', { type: 'err' }); return false; }
+  if (k in parent) { EditorUI.toast(`"${k}" is already used here.`, { type: 'err' }); return false; }
+  return true;
+}
+
+// Rename a copied entry's own id when it tracked its key (CROP_ROTATION ↔ crop_rotation).
+function gdRekeyId(value, oldKey, newKey) {
+  if (!gdIsContainer(value) || Array.isArray(value) || typeof value.id !== 'string') return value;
+  if (value.id === oldKey) value.id = newKey;
+  else if (value.id === String(oldKey).toLowerCase()) value.id = String(newKey).toLowerCase();
+  return value;
+}
+
+async function gdDuplicate() {
+  if (!_gdSel || !_gdSel.length) return;
+  if (!(await gdConfirmLeave())) return;
+  const parentPath = _gdSel.slice(0, -1);
+  const parent = gdAt(gdWorking(_gdSection), parentPath);
+  const oldKey = _gdSel[_gdSel.length - 1];
+  const copy = JSON.parse(JSON.stringify(parent[oldKey]));
+  if (Array.isArray(parent)) {
+    parent.splice(Number(oldKey) + 1, 0, copy);
+    gdCommit();
+    gdSelect(parentPath.concat(Number(oldKey) + 1), true);
+    return;
+  }
+  const newKey = await EditorUI.prompt(`New key for the copy of "${oldKey}":`, {
+    title: 'Duplicate entry',
+    value: String(oldKey) + (String(oldKey) === String(oldKey).toUpperCase() ? '_COPY' : '_copy'),
+    validate: (v) => gdKeyOk(v, parent),
+  });
+  if (newKey == null) return;
+  const k = newKey.trim();
+  parent[k] = gdRekeyId(copy, oldKey, k);
+  gdCommit();
+  _gdPath = parentPath;
+  gdSelect(parentPath.concat(k), true);
+}
+
+async function gdNewEntry() {
+  if (!_gdSection) return;
+  if (!(await gdConfirmLeave())) return;
+  const parent = gdAt(gdWorking(_gdSection), _gdPath);
+  if (!gdIsContainer(parent)) return;
+  // Start from a blank of the same kind as the siblings
+  const sib = Array.isArray(parent) ? parent[0] : parent[Object.keys(parent)[0]];
+  const blank = Array.isArray(sib) ? [] : gdIsContainer(sib) ? {} : typeof sib === 'number' ? 0 : typeof sib === 'boolean' ? false : '';
+  if (Array.isArray(parent)) {
+    parent.push(blank);
+    gdCommit();
+    gdSelect(_gdPath.concat(parent.length - 1), true);
+    return;
+  }
+  const key = await EditorUI.prompt('Key for the new entry:', {
+    title: 'New entry',
+    placeholder: 'e.g. my_new_thing',
+    validate: (v) => gdKeyOk(v, parent),
+  });
+  if (key == null) return;
+  const k = key.trim();
+  parent[k] = gdIsContainer(blank) && !Array.isArray(blank) && sib && typeof sib.id === 'string' ? { id: k } : blank;
+  gdCommit();
+  gdSelect(_gdPath.concat(k), true);
+  EditorUI.toast('Tip: Duplicate an existing entry to start from a working example.', { type: '' });
+}
+
+async function gdDeleteEntry() {
+  if (!_gdSel || !_gdSel.length) return;
+  const label = gdPathText(_gdSection, _gdSel);
+  if (!(await EditorUI.confirm(`Remove ${label}? You can bring it back from the entry list or with Reset to base.`, { title: 'Remove entry', okText: 'Remove', danger: true }))) return;
+  _gdTextDirty = false;
+  EC.deleteAtPath(gdWorking(_gdSection), _gdSel);
+  _gdSel = null;
+  gdShowEditor(false);
+  gdCommit();
+}
+
+// ── Sharing just the Game Data changes ──
+function gdExportPatches() {
+  const patches = gdPatches();
+  if (!Object.keys(patches).length) { EditorUI.toast('No Game Data changes to export yet.', { type: 'err' }); return; }
+  const file = { format: 'lotr-data-patches', version: 1, exportedAt: new Date().toISOString(), patches };
+  const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'game-data-changes.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  EditorUI.toast(`Exported changes to ${Object.keys(patches).length} section(s)`, { type: 'ok' });
+}
+
+// Apply a shared patch file on top of the current changes.
+function gdMergePatchFile(patches) {
+  const sections = Object.keys(patches || {}).filter(k => !GD_OWNED.has(k));
+  for (const section of sections) {
+    _gdWorking[section] = EC.applyDataPatch(gdWorking(section), patches[section]);
+    const patch = EC.createDataPatch(gdBase(section), _gdWorking[section]);
+    if (patch === undefined) delete gdPatches()[section];
+    else gdPatches()[section] = patch;
+  }
+  return sections;
+}
+
+function gdImportPatches(ev) {
+  const file = ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const patches = parsed.format === 'lotr-data-patches' ? parsed.patches : parsed.dataPatches;
+      if (!patches || typeof patches !== 'object') throw new Error('This is not a Game Data changes file.');
+      const sections = Object.keys(patches);
+      const ok = await EditorUI.confirm(`Apply changes to ${sections.length} section(s): ${sections.slice(0, 8).join(', ')}${sections.length > 8 ? '…' : ''}? They go on top of your own changes.`, { title: 'Import changes', okText: 'Apply' });
+      if (!ok) return;
+      const done = gdMergePatchFile(patches);
+      markDirty();
+      gdUpdateSummary();
+      gdRenderSections();
+      if (_gdSection) gdOpenSection(_gdSection, _gdPath);
+      EditorUI.toast(`Imported changes to ${done.length} section(s)`, { type: 'ok' });
+    } catch (err) {
+      EditorUI.toast('Import failed: ' + err.message, { type: 'err' });
+    }
+  };
+  reader.readAsText(file);
 }
 </script>
 </body>

@@ -1,0 +1,33 @@
+{
+    "_doc": "How mercenary contracts (data/military.json contractTypes) play out — player/mercContracts.js. Each contract faces an opposition (strength, rolled within spread at signing); during the countdown a day may bring one event (weights per contract); at the end the force ratio decides victory and casualties. Employer reputation (player.mercRep[kingdomId]) moves pay, renege odds and whether a realm will hire you. contracts.<id>.items is the contract's loot table ([{ id, qty: [lo, hi], weight }]): a loot event finds goods with itemChance, a won contract takes spoils with spoilsChance. contracts.<id>.naval: the share of the war galleys' strength that counts (a pirate cove).",
+    "dailyEventChance": 0.16,
+    "riskEventChance": 0.3,
+    "spread": [0.75, 1.3],
+    "repPay": 0.01,
+    "repPayMax": 0.3,
+    "refuseBelow": -30,
+    "rep": { "victory": 4, "pyrrhic": 1, "defeat": -5, "abandoned": -10 },
+    "kingdomRep": { "victory": 2, "defeat": -1 },
+    "retainer": 0.25,
+    "renege": { "base": 0.05, "poorTreasury": 0.12, "perRep": 0.004, "max": 0.35, "share": 0.5 },
+    "ambush": { "loss": 0.08, "min": 0.02, "max": 0.25, "bloodied": 0.12 },
+    "desertion": { "poorRatio": 1.2, "unpaidGold": 50 },
+    "loot": { "min": 0.05, "max": 0.2 },
+    "itemChance": 0.5,
+    "spoilsChance": 0.6,
+    "victory": { "base": 0.45, "perRatio": 0.8, "min": 0.05, "max": 0.97, "lossBase": 0.35, "lossMax": 0.35 },
+    "defeat": { "lossBase": 0.25, "perInvRatio": 0.2, "lossMax": 0.6 },
+    "contracts": {
+        "guard_duty": { "opposition": 12, "events": { "ambush": 0.3, "desertion": 0.2, "loot": 0.2 } , "items": [{ "id": "bread", "qty": [2, 4], "weight": 2 }, { "id": "beer", "qty": [1, 3], "weight": 1 }]},
+        "bandit_hunt": { "opposition": 50, "events": { "ambush": 1, "desertion": 0.5, "loot": 1 } , "items": [{ "id": "weapons", "qty": [1, 3], "weight": 3 }, { "id": "horses", "qty": [1, 2], "weight": 1 }, { "id": "leather_armor", "qty": [1, 1], "weight": 1 }]},
+        "escort_caravan": { "opposition": 28, "events": { "ambush": 1.2, "desertion": 0.4, "loot": 0.6 } , "items": [{ "id": "textiles", "qty": [2, 5], "weight": 2 }, { "id": "spices", "qty": [1, 3], "weight": 1 }]},
+        "siege_support": { "opposition": 110, "events": { "ambush": 0.6, "desertion": 1.2, "loot": 1.2 } , "items": [{ "id": "weapons", "qty": [2, 4], "weight": 2 }, { "id": "iron", "qty": [3, 6], "weight": 2 }, { "id": "luxuries", "qty": [1, 2], "weight": 1 }]},
+        "monster_hunt": { "opposition": 85, "events": { "ambush": 1.4, "desertion": 0.8, "loot": 1 } , "items": [{ "id": "leather_armor", "qty": [1, 1], "weight": 2 }, { "id": "gems", "qty": [1, 2], "weight": 2 }, { "id": "pelts", "qty": [2, 4], "weight": 2 }]},
+        "patrol_roads": { "opposition": 22, "events": { "ambush": 0.8, "desertion": 0.3, "loot": 0.5 } , "items": [{ "id": "weapons", "qty": [1, 2], "weight": 1 }, { "id": "bread", "qty": [2, 4], "weight": 2 }]},
+        "border_defense": { "opposition": 62, "events": { "ambush": 1, "desertion": 0.8, "loot": 0.4 } , "items": [{ "id": "weapons", "qty": [1, 3], "weight": 2 }, { "id": "shield", "qty": [1, 1], "weight": 1 }, { "id": "horses", "qty": [1, 2], "weight": 1 }]},
+        "pirate_raid": { "opposition": 72, "events": { "ambush": 0.8, "desertion": 0.6, "loot": 1.5 } , "naval": 0.8, "itemChance": 0.7, "spoilsChance": 0.9, "items": [{ "id": "spices", "qty": [2, 5], "weight": 3 }, { "id": "luxuries", "qty": [1, 3], "weight": 2 }, { "id": "gems", "qty": [1, 3], "weight": 2 }, { "id": "liquor", "qty": [2, 5], "weight": 2 }]},
+        "ruin_clearance": { "opposition": 40, "events": { "ambush": 1, "desertion": 0.5, "loot": 1.3 } , "spoilsChance": 0.8, "items": [{ "id": "gems", "qty": [1, 2], "weight": 2 }, { "id": "luxuries", "qty": [1, 2], "weight": 2 }, { "id": "amulet", "qty": [1, 1], "weight": 1 }]},
+        "rebel_suppression": { "opposition": 78, "events": { "ambush": 1, "desertion": 1, "loot": 0.8 } , "items": [{ "id": "weapons", "qty": [2, 4], "weight": 2 }, { "id": "grain", "qty": [3, 6], "weight": 2 }]},
+        "assassination": { "opposition": 45, "events": { "ambush": 1.5, "desertion": 0.4, "loot": 0.4 } , "items": [{ "id": "luxuries", "qty": [1, 2], "weight": 2 }, { "id": "gems", "qty": [1, 1], "weight": 1 }]}
+    }
+}

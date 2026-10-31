@@ -199,19 +199,16 @@ export const Hex = {
      */
     findPath(startQ, startR, endQ, endR, mapWidth, mapHeight, isPassable, getCost) {
         const startTime = performance.now();
-        console.log(`[PATHFIND] Start: (${startQ},${startR}) -> (${endQ},${endR})`);
 
         // Wrap the end coordinate
         const wrappedEnd = { q: Hex.wrapQ(endQ, mapWidth), r: endR };
 
         if (!isPassable(wrappedEnd.q, wrappedEnd.r)) {
-            console.log('[PATHFIND] Target not passable');
             return null;
         }
 
         // Quick distance check - reject paths that are too far
         const estimatedDistance = Hex.wrappingDistance(startQ, startR, wrappedEnd.q, wrappedEnd.r, mapWidth);
-        console.log(`[PATHFIND] Estimated distance: ${estimatedDistance}`);
 
         if (estimatedDistance > 50) {
             console.warn('Path too far, distance:', estimatedDistance);
@@ -221,26 +218,27 @@ export const Hex = {
         const startKey = `${startQ},${startR}`;
         const endKey = `${wrappedEnd.q},${wrappedEnd.r}`;
 
-        // Priority queue (min-heap) for efficient lowest-fScore retrieval
+        // Priority queue (min-heap) for efficient lowest-fScore retrieval.
+        // A node whose score improves is pushed again; the stale entry is
+        // skipped when it surfaces (lazy deletion) — without that, a node
+        // kept its first, worse priority and the search settled for worse
+        // paths (e.g. ignoring a road it had already found)
         const openSet = new MinHeap((a, b) => a.f < b.f);
-        const openSetKeys = new Set([startKey]); // Track what's in the heap
         const closedSet = new Set(); // Track explored nodes
         const cameFrom = new Map();
         const gScore = new Map();
 
         gScore.set(startKey, 0);
-        openSet.push({ key: startKey, f: estimatedDistance });
+        openSet.push({ key: startKey, f: estimatedDistance, g: 0 });
 
         let iterations = 0;
-        const maxIterations = 1000; // Strict limit to prevent freezing
+        const maxIterations = 6000; // Strict limit to prevent freezing
 
         while (openSet.size() > 0 && iterations < maxIterations) {
-            iterations++;
-
-            // Get node with lowest fScore (O(log n) instead of O(n))
             const current = openSet.pop();
             const currentKey = current.key;
-            openSetKeys.delete(currentKey);
+            if (closedSet.has(currentKey) || current.g > gScore.get(currentKey)) continue;
+            iterations++;
 
             if (currentKey === endKey) {
                 // Reconstruct path
@@ -251,8 +249,6 @@ export const Hex = {
                     path.unshift({ q, r });
                     node = cameFrom.get(node);
                 }
-                const elapsed = performance.now() - startTime;
-                console.log(`[PATHFIND] SUCCESS in ${iterations} iterations, ${path.length} steps, ${elapsed.toFixed(2)}ms`);
                 return path;
             }
 
@@ -276,17 +272,13 @@ export const Hex = {
 
                 // Use actual movement cost if provided, otherwise default to 1
                 const moveCost = getCost ? getCost(nq, nr) : 1;
-                const tentG = (gScore.get(currentKey) || 0) + moveCost;
+                const tentG = current.g + moveCost;
 
-                if (tentG < (gScore.get(nKey) || Infinity)) {
+                if (tentG < (gScore.has(nKey) ? gScore.get(nKey) : Infinity)) {
                     cameFrom.set(nKey, currentKey);
                     gScore.set(nKey, tentG);
                     const nF = tentG + Hex.wrappingDistance(nq, nr, wrappedEnd.q, wrappedEnd.r, mapWidth);
-
-                    if (!openSetKeys.has(nKey)) {
-                        openSet.push({ key: nKey, f: nF });
-                        openSetKeys.add(nKey);
-                    }
+                    openSet.push({ key: nKey, f: nF, g: tentG });
                 }
             }
         }

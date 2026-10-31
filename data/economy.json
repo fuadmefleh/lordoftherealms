@@ -103,7 +103,16 @@
         "plantingContract": { "advance": [8, 15], "payout": [45, 80], "maxActive": 3 },
         "winterWork": {
             "trapping": { "terrains": ["woodland", "boreal_forest", "seasonal_forest", "temperate_rainforest", "tundra", "snow", "hills", "highlands"], "pelts": [1, 3], "meatChance": 0.4, "rareChance": 0.08 },
-            "iceFishing": { "fish": [2, 5], "bigChance": 0.15 }
+            "iceFishing": {
+                "fish": [2, 5], "bigChance": 0.15,
+                "far": { "breakChance": 0.12, "lateWinterDay": 22, "lateWinter": 0.08, "survivalSkill": 0.01, "health": [8, 16], "chillChance": 0.6, "fish": [4, 7], "bigChance": 0.45 }
+            },
+            "trapLine": {
+                "_doc": "A trap line left set: per day a chance of pelts/meat until maxCatch; wolves wreck a line (more often a full one), poachers steal a share of the pelts (likelier the more it holds). Lapses after maxDays or at winter's end.",
+                "maxLines": 3, "maxDays": 20, "maxCatch": 12,
+                "peltChance": 0.55, "pelts": [1, 2], "meatChance": 0.25, "rareChance": 0.03,
+                "wolfChance": 0.05, "poacherChance": 0.02, "poacherPerPelt": 0.006, "poacherShare": 0.5
+            }
         }
     }
 }

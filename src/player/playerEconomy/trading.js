@@ -10,6 +10,8 @@ import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
+import { Crafting } from '../crafting.js';
+import { Difficulty } from '../../core/difficulty.js';
 
 export const Trading = {
     /**
@@ -77,7 +79,8 @@ export const Trading = {
      */
     buyCost(player, entry, quantity, settlement) {
         // (a guild's members buy its inputs at guild rates — systems/guilds.js)
-        const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, settlement)) * (1 - Guilds.inputDiscount(player, settlement, entry && entry.id));
+        // (the difficulty's market prices — core/difficulty.js; 1 on Normal)
+        const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, settlement)) * Difficulty.mult(player, 'buyPrice') * (1 - Guilds.inputDiscount(player, settlement, entry && entry.id));
         const q = Math.max(0, Math.floor(quantity));
         if (!(entry && entry.askBase > 0) || !settlement || !settlement.market || !SettlementMarket.tracks(entry.id)) {
             return Math.ceil(((entry && entry.price) || 0) * q * disc);
@@ -120,7 +123,7 @@ export const Trading = {
         if (!at) return Infinity;
         const q = Math.max(1, Math.floor(quantity));
         const here = at.settlement || settlement;
-        const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s));
+        const discount = (s) => Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * Difficulty.mult(player, 'buyPrice');
         // Each market's price after the player's own discount there (as buyGoods charges it)
         const discounted = (ask, s) => Math.ceil(ask * discount(s));
         let flat = Infinity;
@@ -216,6 +219,7 @@ export const Trading = {
             // (a fashion at court lifts what goods no market keeps fetch: exotics — world/fashions.js)
             value = Trading.getSellPrice(good, world) * q * (1 + tradeBonus) * priceMult * SettlementMarket.fashionFactor(settlement, good.id);
         }
+        value *= Difficulty.mult(player, 'sellPrice'); // the difficulty (1 on Normal)
         return Math.min(value, Trading.saleUnitCap(player, good.id, settlement, world, null, q) * q) / q;
     },
 
@@ -320,9 +324,12 @@ export const Trading = {
         const policy = TradePolicy.saleCheck(player, world, settlement, goodId, quantity);
         if (!policy.ok) return { success: false, reason: policy.reason, embargoed: true };
 
-        const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity);
+        // Crafted goods sell by their quality: a masterwork blade fetches more than a crude one (player/crafting.js)
+        const qualityMult = Crafting.saleMult(player, goodId);
+        const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity * qualityMult);
         const duty = TradePolicy.onSale(player, world, settlement, goodId, quantity, totalEarned, policy);
 
+        Crafting.takeForSale(player, goodId, quantity);
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
         Quests.track(player, 'trade_profit', totalEarned);

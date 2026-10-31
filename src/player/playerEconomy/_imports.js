@@ -13,3 +13,4 @@ export { WEATHER_EFFECTS } from '../../world/weather.js';
 export { Economy } from '../../world/economy.js';
 export { SettlementMarket } from '../../world/settlementMarket.js';
 export { Seasons } from '../../world/seasons.js';
+export { SettlementSize } from '../../core/settlementSize.js';

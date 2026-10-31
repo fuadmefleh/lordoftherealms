@@ -5,6 +5,8 @@ import { icon, titleCrest, glyphLabel } from '../icons.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
+import { Fame } from '../../systems/fame.js';
+import { Crafting } from '../../player/crafting.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -60,7 +62,7 @@ Object.assign(UI.prototype, {
             </div>
             <div class="info-row">
                 <span class="info-label">⚡ Stamina</span>
-                <span class="info-value">${player.movementRemaining} / ${player.maxStamina}</span>
+                <span class="info-value">${Math.floor(player.movementRemaining || 0)} / ${player.maxStamina}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">🎯 Action Points</span>
@@ -78,6 +80,13 @@ Object.assign(UI.prototype, {
                 <span class="info-label">⭐ Renown</span>
                 <span class="info-value">${player.renown}</span>
             </div>
+            ${(() => {
+                const fame = Fame.here(player, this.game && this.game.world);
+                return `<div class="info-row" title="${(fame.blurb || '').replace(/"/g, '&quot;')} (good ${fame.good} · ill ${fame.ill})">
+                <span class="info-label">${fame.icon || '🗣️'} Your Name Here</span>
+                <span class="info-value" style="color:${fame.color || 'inherit'};">${fame.label}</span>
+            </div>`;
+            })()}
 
             <div class="info-section-title">Attributes</div>
             <div class="info-row">
@@ -284,7 +293,7 @@ Object.assign(UI.prototype, {
             }
 
             // Trait badges
-            const traitBadges = ruler.traits.map(t => {
+            const traitBadges = (ruler.traits || []).map(t => {
                 const colorMap = { positive: '#27ae60', negative: '#c0392b', neutral: '#f1c40f' };
                 const col = colorMap[t.category] || '#9a8e7e';
                 return `<span style="background:${col}22;color:${col};padding:1px 5px;border-radius:3px;font-size:10px;" title="${t.description}">${t.icon||''} ${t.name}</span>`;
@@ -299,7 +308,7 @@ Object.assign(UI.prototype, {
             if (cd.advisors) {
                 const advisorLines = Object.entries(cd.advisors).map(([roleId, adv]) => {
                     if (!adv) return '';
-                    const role = Characters.ADVISOR_ROLES[roleId];
+                    const role = Characters.ADVISOR_ROLES[roleId] || { icon: '👤', name: roleId };
                     const loyColor = adv.loyalty > 60 ? '#27ae60' : adv.loyalty > 30 ? '#f39c12' : '#c0392b';
                     return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
                         <span>${role.icon} ${role.name}: ${Characters.getFullName(adv)}</span>
@@ -326,7 +335,8 @@ Object.assign(UI.prototype, {
             const bonusList = KingdomBonuses.summary(kingdom)
                 .map(b => `${b.label} ${b.value > 0 ? '+' : ''}${(b.value * 100).toFixed(0)}%`);
             if (bonusList.length > 0) {
-                bonusHtml = `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
+                // Append: the realm-traits line above must survive
+                bonusHtml += `<div style="font-size:10px;color:var(--text-secondary);margin-top:4px;">${bonusList.join(' · ')}</div>`;
             }
             // The share of those bonuses that comes from the realm's peoples
             if (kingdom.peoples && kingdom.peoples.bonuses) {
@@ -398,9 +408,12 @@ Object.assign(UI.prototype, {
     },
 
     /**
-     * Show a custom panel with dynamic content
+     * Show a custom panel with dynamic content. opts.locked drops the close
+     * button and Escape: the panel only goes when one of its own buttons acts
+     * (the death screen, where closing would leave the player dead)
      */
-    showCustomPanel(title, htmlContent) {
+    showCustomPanel(title, htmlContent, opts = {}) {
+        const locked = !!opts.locked;
         // A tab bar (setPanelNav) holds while the player moves between its views:
         // it survives re-renders made from inside the panel (or its dialogs), and
         // drops when a panel is opened from elsewhere (the map, the action menu, the HUD)
@@ -435,6 +448,9 @@ Object.assign(UI.prototype, {
                 navEl.style.display = navHtml ? '' : 'none';
             }
             existing.classList.toggle('custom-panel--hub', !!navHtml);
+            existing._locked = locked;
+            const closeEl = existing.querySelector('#closeCustomPanel');
+            if (closeEl) closeEl.style.display = locked ? 'none' : '';
             const contentBody = existing.querySelector('.custom-panel-body');
             if (contentBody) {
                 contentBody.innerHTML = htmlContent;
@@ -448,6 +464,7 @@ Object.assign(UI.prototype, {
         const panel = document.createElement('div');
         panel.id = 'customPanel';
         panel.className = 'modal-panel' + (navHtml ? ' custom-panel--hub' : '');
+        panel._locked = locked;
         panel.style.cssText = `
             position: fixed;
             top: calc(7.5vh / var(--ui-zoom));
@@ -479,7 +496,7 @@ Object.assign(UI.prototype, {
             <div class="cp-head">
                 <span class="cp-crest" data-crest="${crest.glyph || crest.emoji}">${crestHtml}</span>
                 <h3 class="custom-panel-title">${crest.text}</h3>
-                <button id="closeCustomPanel" class="cp-close" title="Close (Esc)">${icon('close')}</button>
+                <button id="closeCustomPanel" class="cp-close" title="Close (Esc)"${locked ? ' style="display:none;"' : ''}>${icon('close')}</button>
             </div>
             <div class="custom-panel-nav" style="${navHtml ? '' : 'display:none;'}">${navHtml}</div>
             <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0;">
@@ -607,7 +624,18 @@ Object.assign(UI.prototype, {
 
         document.body.appendChild(overlay);
 
-        const close = () => overlay.remove();
+        // Every way out drops the Escape listener — left behind, it reopened
+        // Settings on each later Escape press
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                close();
+                this.showSettingsPanel();
+            }
+        };
+        const close = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+        };
 
         document.getElementById('mainMenuConfirmCancel').addEventListener('click', () => {
             close();
@@ -628,13 +656,6 @@ Object.assign(UI.prototype, {
         });
 
         // Close on Escape
-        const onKey = (e) => {
-            if (e.key === 'Escape') {
-                close();
-                this.showSettingsPanel();
-                document.removeEventListener('keydown', onKey);
-            }
-        };
         document.addEventListener('keydown', onKey);
     },
 
@@ -847,10 +868,13 @@ Object.assign(UI.prototype, {
                     if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
                 }
                 const title = item && item.description ? ` title="${String(item.description).replace(/"/g, '&quot;')}"` : '';
+                // Crafted goods carry their quality (player/crafting.js)
+                const qTag = Crafting.qualityTag(player, itemId);
+                const quality = qTag ? `<span style="color: #8fc3ff; font-size: 11px; margin-left: 6px;" title="Average quality of the ${name} you carry: it scales the price and the effect">${qTag}</span>` : '';
                 inventoryHtml += `
                     <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span>${icon} ${name}${worth}</span>
+                            <span>${icon} ${name}${quality}${worth}</span>
                             <span style="color: var(--gold);">×${quantity}</span>
                         </div>${extra}
                     </div>
@@ -905,6 +929,32 @@ Object.assign(UI.prototype, {
         this.showQuestsPanel();
     },
 
+    /** Take a task's other way out from the journal (sell the locket, let the son go). */
+    resolveTaskAlt(questId) {
+        const result = Quests.resolveTaskAlt(this.game.player, this.game.world, questId);
+        if (result.success) {
+            const got = result.got || {};
+            const items = got.items || {};
+            const kept = items.added && Object.keys(items.added).length ? PlayerInventory.describe(items.added) : '';
+            const sold = items.sold && Object.keys(items.sold).length ? `${PlayerInventory.describe(items.sold)} sold for ${items.gold} gold (no room)` : '';
+            const bits = [got.gold ? `+${got.gold} gold` : '', kept ? `+${kept}` : '', sold, got.renown ? `+${got.renown} renown` : '',
+                got.karma ? `karma ${got.karma > 0 ? '+' : ''}${got.karma}` : '', got.holder ? `${got.holder} is in your debt${got.reputation ? ` (+${got.reputation} reputation)` : ''}` : ''].filter(Boolean).join(', ');
+            this.showNotification('📜 Your Choice', `${result.text}${bits ? ` (${bits})` : ''} Word will get back to ${result.quest.giver ? result.quest.giver.name : 'them'}.`, 'warning');
+            this.updateStats(this.game.player, this.game.world);
+        } else {
+            this.showNotification('Cannot', result.reason, 'error');
+        }
+        this.showQuestsPanel();
+    },
+
+    /** Turn down a plea the player's fame brought them (Quests.declinePlea). */
+    declinePlea(questId) {
+        const result = Quests.declinePlea(this.game.player, this.game.world, questId);
+        if (result.success) this.showNotification('🙅 Plea Declined', result.message, 'info');
+        else this.showNotification('Cannot', result.reason, 'error');
+        this.showQuestsPanel();
+    },
+
     showQuestsPanel() {
         const player = this.game.player;
         const world = this.game.world;
@@ -946,7 +996,9 @@ Object.assign(UI.prototype, {
             jobs.push({
                 icon: '⚔️',
                 name: c.name,
-                detail: `Payment: ${c.payment}g`,
+                // ...and what has happened on the march so far (the contract's log)
+                detail: `Payment: ${c.payment}g${Number.isFinite(c.opposition) ? ` · foe ≈${c.opposition}` : ''}${c.losses ? ` · ${c.losses} lost` : ''}${c.loot ? ` · ${c.loot}g plunder` : ''}${c.items && Object.keys(c.items).length ? ` · spoils: ${PlayerInventory.describe(c.items)}` : ''}`
+                    + ((c.log || []).length ? `<div style="margin-top: 4px; font-size: 11px; color: #aab;">${c.log.slice(-4).map(e => `· ${e.day != null ? `Day ${e.day}: ` : ''}${String(e.text || '').replace(/</g, '&lt;')}`).join('<br>')}</div>` : ''),
                 status: `${c.daysRemaining} day(s) remaining`,
                 statusColor: '#3498db',
                 location: c.settlement,
@@ -991,11 +1043,16 @@ Object.assign(UI.prototype, {
         // Caravans in transit
         if (player.caravans && player.caravans.length > 0) {
             for (const c of player.caravans) {
-                const daysLeft = c.travelDays - (c.daysElapsed || 0);
+                // Caravans carry { to, goods: { id: qty }, daysRemaining } (player/playerEconomy)
+                const daysLeft = Math.max(0, Math.round(c.daysRemaining || 0));
+                const cargo = c.goods && typeof c.goods === 'object'
+                    ? Object.entries(c.goods).filter(([, n]) => n > 0)
+                        .map(([g, n]) => `${n} ${g.replace(/_/g, ' ')}`).join(', ')
+                    : c.goods;
                 jobs.push({
                     icon: '🐫',
-                    name: `Caravan to ${c.destination || 'unknown'}`,
-                    detail: `Carrying ${c.goods || 'goods'} — Expected profit: ${c.expectedProfit || '?'}g`,
+                    name: `Caravan to ${c.to || c.destination || 'unknown'}`,
+                    detail: `Carrying ${cargo || 'goods'} — Expected profit: ${c.expectedProfit != null ? Math.round(c.expectedProfit) : '?'}g`,
                     status: `${daysLeft} day(s) in transit`,
                     statusColor: '#f39c12',
                     location: null,
@@ -1065,12 +1122,18 @@ Object.assign(UI.prototype, {
                         
                         <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
                             <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Objectives:</div>
-                            ${quest.objectives.map(obj => `
+                            ${(quest.objectives || []).map(obj => {
+                                const where = !obj.completed ? Quests.whereLine(obj, player, world) : '';
+                                return `
                                 <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 4px; color: ${obj.completed ? '#2ecc71' : 'var(--text-secondary)'};">
-                                    <span style="font-size: 16px;">${obj.completed ? '✅' : '⭕'}</span> 
-                                    <span>${obj.text} (${obj.current}/${obj.target})</span>
+                                    <span style="font-size: 16px;">${obj.completed ? '✅' : '⭕'}</span>
+                                    <span>${obj.text} (${obj.current}/${obj.target})${where ? `<br><span style="font-size: 11px; color: var(--gold);">📍 ${where}</span>` : ''}</span>
                                 </div>
-                            `).join('')}
+                            `; }).join('')}
+                            ${quest.carrying ? `<div style="font-size: 12px; margin-top: 6px; color: var(--text-primary);">🎒 Carrying: ${quest.carrying}</div>` : ''}
+                            ${typeof quest.deadlineDay === 'number' && world ? `<div style="font-size: 11px; margin-top: 4px; color: var(--text-muted);">⏳ ${Math.max(0, quest.deadlineDay - (world.day || 0))} days left before ${quest.giver ? quest.giver.name : 'they'} give${quest.giver ? 's' : ''} up on you</div>` : ''}
+                            ${quest.fameRequest ? `<button data-ui-act="declinePlea" data-ui-args='["${quest.id}"]' title="${quest.giver ? quest.giver.name : 'They'} will be a little disappointed" style="margin-top: 8px; margin-right: 6px; padding: 4px 10px; border: 1px solid rgba(160,160,180,0.5); border-radius: 4px; background: rgba(160,160,180,0.1); color: #ccd; cursor: pointer; font-size: 12px;">🙅 Turn the plea down</button>` : ''}
+                            ${quest.alt && Quests.taskReady(quest) ? `<button data-ui-act="resolveTaskAlt" data-ui-args='["${quest.id}"]' title="${quest.giver ? quest.giver.name : 'They'} will hear of it" style="margin-top: 8px; padding: 4px 10px; border: 1px solid rgba(231,76,60,0.6); border-radius: 4px; background: rgba(231,76,60,0.12); color: #f5b7b1; cursor: pointer; font-size: 12px;">${quest.alt.label}</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -1101,6 +1164,15 @@ Object.assign(UI.prototype, {
             html += '<p style="color: var(--text-secondary); font-style: italic;">No new quests available.</p>';
         }
 
+        // Tasks that came to nothing
+        const failed = (player.quests && player.quests.failed) || [];
+        if (failed.length) {
+            html += `<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Failed (${failed.length})</h4>`;
+            for (const q of failed.slice(-5).reverse()) {
+                html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">✖ ${q.title} — ${q.failReason || 'abandoned'}</div>`;
+            }
+        }
+
         // Completed quests
         if (player.quests && player.quests.completed && player.quests.completed.length > 0) {
             html += `<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Completed (${player.quests.completed.length})</h4>`;
@@ -1115,11 +1187,16 @@ Object.assign(UI.prototype, {
      */
     showNotification(title, message, type = 'default') {
         const area = document.getElementById('notificationArea');
+        if (!area) {
+            // No HUD mounted (title screen, tests): still keep the log
+            this._logNotification(title, message, type);
+            return;
+        }
         const notif = document.createElement('div');
         notif.className = `notification ${type}`;
 
         // Icon per type
-        const typeIcons = { success: '✅', error: '❌', info: 'ℹ️', default: '📌' };
+        const typeIcons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️', default: '📌' };
         const icon = typeIcons[type] || typeIcons.default;
 
         notif.innerHTML = `
@@ -1182,7 +1259,15 @@ Object.assign(UI.prototype, {
             else audioManager.playSFX('notify');
         }
 
-        // Log notification for history
+        this._logNotification(title, message, type);
+
+        // Auto-remove based on settings duration
+        const duration = this._notifDuration || 4000;
+        setTimeout(dismiss, duration);
+    },
+
+    /** Record a notification in the event log (capped at 200 entries). */
+    _logNotification(title, message, type) {
         const world = this.game && this.game.world;
         const dayInSeason = world ? ((world.day - 1) % 30) + 1 : 1;
         const season = world ? world.season : 'Spring';
@@ -1192,14 +1277,9 @@ Object.assign(UI.prototype, {
             day: dayInSeason, season, year,
             timestamp: Date.now()
         });
-        // Cap log at 200 entries
         if (this.notificationLog.length > 200) {
             this.notificationLog = this.notificationLog.slice(-200);
         }
-
-        // Auto-remove based on settings duration
-        const duration = this._notifDuration || 4000;
-        setTimeout(dismiss, duration);
     },
 
     /**
@@ -1214,7 +1294,7 @@ Object.assign(UI.prototype, {
         } else {
             // Show newest first
             const typeIcons = {
-                success: '✅', error: '❌', info: 'ℹ️', default: '📌'
+                success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️', default: '📌'
             };
             const typeBorders = {
                 success: 'var(--accent-green)', error: 'var(--accent-red)',

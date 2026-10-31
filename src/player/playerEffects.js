@@ -20,6 +20,7 @@ import { Traits } from '../systems/traits.js';
 import { Companions } from '../systems/companions.js';
 import { Underworld } from '../systems/underworld.js';
 import { Ailments } from '../systems/ailments.js';
+import { Crafting } from './crafting.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -283,7 +284,8 @@ export const PlayerEffects = {
         let mult = 1;
         const inv = player.inventory || {};
         for (const [item, reduction] of Object.entries(ARMOR_REDUCTION)) {
-            if (inv[item] > 0) mult *= 1 - reduction;
+            // Crafted armour protects by its quality (player/crafting.js)
+            if (inv[item] > 0) mult *= 1 - Math.min(0.45, reduction * Crafting.effectMult(player, item));
         }
         // Dragon scale and dragonscale armour
         mult *= 1 - this.treasureBonus(player, 'damageReduction');
@@ -294,6 +296,32 @@ export const PlayerEffects = {
     scaleDamage(player, raw) {
         const mult = this.personalDamageMultiplier(player);
         return mult === 0 ? 0 : Math.max(1, Math.round(raw * mult));
+    },
+
+    /**
+     * What the player layer adds to a personal duel (systems/duels.js reads
+     * traits, wounds and gear itself): mood × carried treasures' battlePower,
+     * and the treasures' damage reduction.
+     */
+    duelModifiers(player) {
+        return {
+            attackMult: this.moodCombatMultiplier(player) * (1 + (this.treasureBonus(player, 'battlePower') || 0)),
+            damageReduction: this.treasureBonus(player, 'damageReduction') || 0,
+            // Crafted arms and armour fight by their quality (player/crafting.js)
+            quality: this.craftedQuality(player),
+        };
+    },
+
+    /** { itemId: effectMult } for every crafted stack the player carries (Fine > 1, Crude < 1). */
+    craftedQuality(player) {
+        const out = {};
+        const q = player && player.craftQuality;
+        if (!q || typeof q !== 'object') return out;
+        for (const id of Object.keys(q)) {
+            const m = Crafting.effectMult(player, id);
+            if (m !== 1) out[id] = m;
+        }
+        return out;
     },
 
     // ──────────── EARNED TRAITS ────────────

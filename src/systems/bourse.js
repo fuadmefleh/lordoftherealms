@@ -253,6 +253,8 @@ export const Bourse = {
             if (l && r.status !== 'active') Bourse._delist(world, player, st, l, r.status === 'bought' ? 'bought' : 'ruined');
         }
         for (const b of (player.finance && player.finance.banks) || []) {
+            // The player's own house is not floated on the exchange
+            if (b.owner === 'player') continue;
             let l = st.listings.find(x => x.kind === 'bank' && x.ref === b.id && x.status === 'listed');
             if (!l && b.status === 'open') {
                 l = Bourse._backfillListing({

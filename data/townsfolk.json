@@ -1,0 +1,82 @@
+{
+    "enabled": true,
+    "daysPerYear": 120,
+    "tickDays": 30,
+    "comeOfAge": 16,
+    "onMapMinAge": 4,
+    "mortality": [
+        { "under": 5, "rate": 0.04 },
+        { "under": 16, "rate": 0.006 },
+        { "under": 40, "rate": 0.008 },
+        { "under": 55, "rate": 0.016 },
+        { "under": 65, "rate": 0.045 },
+        { "under": 75, "rate": 0.11 },
+        { "under": 85, "rate": 0.22 },
+        { "under": 999, "rate": 0.4 }
+    ],
+    "hardship": {
+        "dearth": 2.0,
+        "plague": 4.0,
+        "winterOld": 1.4,
+        "warSoldierDeath": 0.03
+    },
+    "marriage": {
+        "minAge": 17,
+        "maxAge": 45,
+        "chance": 0.22,
+        "outsiderChance": 0.06
+    },
+    "birth": {
+        "motherMin": 18,
+        "motherMax": 42,
+        "chance": 0.32,
+        "maxChildren": 5,
+        "childbedDeath": 0.02,
+        "namedForKin": 0.3
+    },
+    "departure": {
+        "minAge": 17,
+        "maxAge": 30,
+        "chance": 0.05,
+        "crowdedChance": 0.15
+    },
+    "arrival": {
+        "belowShare": 0.85,
+        "chance": 0.9
+    },
+    "retireAge": 62,
+    "retiringRoles": ["guard", "farmer", "blacksmith_npc"],
+    "inheritRoleChance": 0.55,
+    "roleWeights": { "villager": 4, "farmer": 2, "merchant": 1, "guard": 1, "priest": 0.25 },
+    "inheritableRoles": ["farmer", "blacksmith_npc", "merchant", "priest", "guard", "noble"],
+    "reunionAfterDays": 60,
+    "maxAnnals": 60,
+    "maxLog": 14,
+    "pruneAfterYears": 40,
+    "names": {
+        "male": ["Brom", "Dorn", "Finn", "Holt", "Jace", "Lars", "Nils", "Per", "Rolf", "Tor", "Voss", "Arne", "Bjorn", "Dag", "Frey", "Hakon", "Jarl", "Knut", "Njord", "Peder", "Sven", "Ulf", "Viggo", "Eirik", "Gunnar", "Halvard", "Ivar", "Leif", "Magnus", "Odd", "Rurik", "Stig", "Tormod", "Vidar", "Aksel", "Birger"],
+        "female": ["Ada", "Clara", "Eva", "Greta", "Iris", "Kira", "Maeve", "Ora", "Quinn", "Siv", "Una", "Wren", "Xara", "Zara", "Cora", "Elsa", "Gerd", "Inga", "Lena", "Marta", "Olga", "Ragna", "Thora", "Ylva", "Astrid", "Brynja", "Dagny", "Freya", "Gudrun", "Hilde", "Ingrid", "Liv", "Sigrid", "Solveig", "Tove", "Vigdis"]
+    },
+    "lastNames": ["Stoneheart", "Ironwood", "Oakshield", "Ashborne", "Blackthorn", "Ravencrest", "Whitfield", "Wolfsbane", "Thornwall", "Greymoor", "Deepwell", "Brightwater", "Coldhaven", "Firebrand", "Goldenleaf", "Hawkridge", "Stormveil", "Silverbrook", "Duskwood", "Frostholm", "Redforge", "Copperfield", "Bramblewood", "Wyndham", "Flintlock", "Ashford", "Millbrook", "Hayward", "Alderton", "Crestfall"],
+    "causes": {
+        "infant": ["a fever in the cradle", "the coughing sickness", "a cold that settled in the chest"],
+        "old": ["old age", "a long sleep in the night", "a failing heart", "the weight of years"],
+        "common": ["a fever", "a wasting sickness", "a bad fall", "a wound gone foul", "the bloody flux", "a kick from a horse", "drowning in the river"],
+        "winter": ["the winter cold", "a chill that never left", "the lung-rot of a hard winter"],
+        "dearth": ["hunger in the dearth", "the hunger-sickness"],
+        "plague": ["the plague", "the pestilence"],
+        "childbed": ["childbed"],
+        "war": ["the fighting against {enemy}", "a skirmish on the border"]
+    },
+    "roleTitles": {
+        "villager": "townsman",
+        "farmer": "farmer",
+        "merchant": "merchant",
+        "guard": "guard",
+        "priest": "priest",
+        "blacksmith_npc": "smith",
+        "noble": "noble",
+        "beggar": "beggar",
+        "child": "child"
+    }
+}

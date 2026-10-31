@@ -83,6 +83,25 @@ function _edictsTab(player, world) {
         if (def.likes && def.likes.length) facts.push(`lords who seek ${def.likes.join('/')} approve`);
         if (def.hates && def.hates.length) facts.push(`lords who seek ${def.hates.join('/')} object`);
         html += `<div style="${MUTED}">${_esc(facts.join(' · '))}</div>`;
+        if (def.royalPost) {
+            // The Royal Post names its house (systems/couriers.js): proclaim it for one, or hand it on
+            const cands = Kingship.royalPostCandidates(player, world);
+            const holder = cands.find(c => c.holder);
+            let why = '';
+            if (holder) html += `<div style="margin-top:4px;">Held by <b>${_esc(holder.name)}</b> · ${holder.stations} station${holder.stations === 1 ? '' : 's'} in the realm · ${holder.fee}g a week to the treasury</div>`;
+            if (!cands.length) html += `<div style="${MUTED}">No courier house keeps a station in the realm.</div>`;
+            for (const c of cands.filter(x => !x.holder).slice(0, 5)) {
+                const chk = active ? { ok: true } : Kingship.canPass(player, world, id, { courierId: c.id });
+                const ok = chk.ok;
+                if (!ok) why = chk.reason;
+                html += `<div style="font-size:11px;">${c.icon} ${_esc(c.name)}${c.own ? ' (yours)' : ''} <span style="${MUTED}">· ${c.stations} station${c.stations === 1 ? '' : 's'} · rep ${c.reputation} · fee ${c.fee}g/wk</span> `;
+                html += _btn(active ? 'Transfer' : `Proclaim for them (${def.passCost != null ? def.passCost : 150}g)`, `window._court.royalPost('${_esc(c.id)}')`, ok) + '</div>';
+            }
+            if (active) html += _btn('Revoke', `window._court.revoke('${id}')`, true, BTN_RED);
+            else if (why) html += `<span style="${MUTED}"> ${_esc(why)}</span>`;
+            html += '</div>';
+            continue;
+        }
         if (active) html += _btn('Revoke', `window._court.revoke('${id}')`, true, BTN_RED);
         else {
             html += _btn(`Proclaim (${def.passCost != null ? def.passCost : 150}g)`, `window._court.pass('${id}')`, can.ok);
@@ -210,6 +229,7 @@ Object.assign(ActionMenu, {
             dismiss: (office) => result('🏛️ The Council', Kingship.dismiss(player, world, office)),
             pass: (id) => result('📜 Edict', Kingship.passEdict(player, world, id)),
             revoke: (id) => result('📜 Edict', Kingship.revokeEdict(player, world, id)),
+            royalPost: (courierId) => result('📮 The Royal Post', Kingship.grantRoyalPost(player, world, courierId)),
             feast: () => result('🍖 Royal Feast', Kingship.holdFeast(player, world)),
             concede: (id) => result('🏳️ Faction', Kingship.concede(player, world, id)),
             arrest: (id) => result('⛓️ Faction', Kingship.arrestLeader(player, world, id)),

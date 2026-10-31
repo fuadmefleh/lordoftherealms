@@ -22,6 +22,9 @@ import { Utils } from '../core/utils.js';
 import { House } from './house.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
+import { Townsfolk } from './townsfolk.js';
+import { Ledger } from './ledger.js';
+import { Traits } from './traits.js';
 
 const CONFIG = {
     plotCadence: 20,          // days between rival plotting rolls
@@ -41,7 +44,33 @@ const CONFIG = {
     feudOnBribe: -15,
     spyFoilBase: 0.35,
     spyFoilPerLevel: 0.1,
+    // Faces in town: the townsperson a rival works through (see Schemes._cast)
+    suspectDays: 90,          // how long a named suspect can be confronted
+    feudOnExposed: 5,         // a public accusation shames the rival
+    feudOnMercy: -3,          // mercy to its man takes the edge off the grudge
+    exposeReputation: 3,      // the realm's standing for rooting out a traitor
+    recoverShare: 0.5,        // share of stolen gold an accused thief gives back
+    turnBase: 60,             // gold to turn a suspect informant: base + perFeud * feud
+    turnPerFeud: 2,
+    informantDays: 120,       // an informant watches their rival this long
+    informantReveal: 0.15,    // daily reveal chance an informant adds against their rival
+    mercyKarma: 3,
 };
+
+/** Who a rival hires for each kind of plot (townsfolk roles, best first), and what they do. */
+const AGENTS = {
+    slander: { roles: ['traveler', 'merchant', 'villager', 'priest'], deed: 'spread lies about {house}' },
+    theft: { roles: ['merchant', 'villager'], deed: 'let thieves at the treasury of {house}' },
+    sabotage: { roles: ['blacksmith_npc', 'farmer', 'villager'], deed: 'wrecked the works of {house}' },
+    raid_property: { roles: ['guard', 'villager'], deed: 'opened the way to raiders against {house}' },
+    incite_unrest: { roles: ['priest', 'farmer', 'villager'], deed: 'stirred revolt against {house}' },
+    assassin: { roles: ['villager', 'merchant', 'guard'], deed: 'sheltered an assassin sent against {house}' },
+};
+
+/** A unit roll from a string — the shared RNG is never drawn for the faces. */
+function _hroll(key) {
+    return ((Utils.hashStr(String(key)) >>> 0) % 100000) / 100000;
+}
 
 const goldOf = p => p.gold || 0;
 
@@ -102,9 +131,11 @@ const SCHEME_TYPES = {
         pickTarget: () => ({ label: 'your treasury' }),
         describe: () => 'send thieves after your treasury',
         guard: { cost: 40, success: 0.8, label: 'Hire vault guards' },
-        resolve(player) {
+        resolve(player, world, scheme) {
             const loss = Math.min(2000, Math.floor(goldOf(player) * Utils.randFloat(0.08, 0.15)));
             player.gold = goldOf(player) - loss;
+            if (scheme) scheme.loss = loss;
+            Ledger.record(player, 'schemeLosses', -loss);
             return `Thieves empty part of your treasury: −${loss} gold.`;
         },
     },
@@ -248,8 +279,232 @@ export const Schemes = {
             guarded: false,
             spyTried: false,
         };
+        const agent = Schemes._cast(player, world, scheme);
+        if (agent) scheme.agent = agent;
         house.schemes.push(scheme);
         return scheme;
+    },
+
+    // ── Faces in town ───────────────────────────────────────────
+
+    /** The settlement whose people a scheme works through: the one nearest its target (or the player). */
+    _townOf(player, world, scheme) {
+        const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        const t = scheme && scheme.target;
+        const q = t && t.q != null ? t.q : player && player.q;
+        const r = t && t.q != null ? t.r : player && player.r;
+        let best = null;
+        for (const s of views) {
+            const folk = s && s.folk;
+            if (!folk || !Array.isArray(folk.people) || Townsfolk.residents(folk).length < 3) continue;
+            const d = q != null ? Hex.distance(q, r, folk.q, folk.r) : 0;
+            if (!best || d < best.d) best = { s, folk, d };
+        }
+        return best;
+    },
+
+    /** An adult resident of `folk` suited to `roles` (not one in the player's own life), by hash. */
+    _castPerson(folk, world, roles, key, exclude = null) {
+        const day = (world && world.day) || 0;
+        const pool = Townsfolk.residents(folk).filter(p => p !== exclude && !p.rnpc && !p.wedHouse
+            && Townsfolk.age(p, day) >= 17 && p.role !== 'child' && p.role !== 'noble');
+        if (!pool.length) return null;
+        for (const role of roles || []) {
+            const fit = pool.filter(p => p.role === role);
+            if (fit.length) return fit[Math.floor(_hroll(`${key}|${role}`) * fit.length) % fit.length];
+        }
+        return pool[Math.floor(_hroll(`${key}|any`) * pool.length) % pool.length];
+    },
+
+    /** Pick the townsperson a scheme works through: { q, r, pid, name, role, town } or null. */
+    _cast(player, world, scheme) {
+        const town = Schemes._townOf(player, world, scheme);
+        if (!town) return null;
+        const seed = (world && world.generationParams && world.generationParams.seed) || 1;
+        const a = AGENTS[scheme.type] || AGENTS.slander;
+        const p = Schemes._castPerson(town.folk, world, a.roles, `${seed}|scheme${scheme.id}|${scheme.startDay}|${scheme.rivalId}`);
+        if (!p) return null;
+        return { q: town.folk.q, r: town.folk.r, pid: p.id, name: Townsfolk.name(p), role: Townsfolk.roleTitle(p), town: town.s.name || 'the town' };
+    },
+
+    /** The live roster and person behind an agent record, or null when they are gone. */
+    _agentPerson(world, agent) {
+        if (!agent || !world || typeof world.getTile !== 'function') return null;
+        const tile = world.getTile(agent.q, agent.r);
+        const folk = tile && tile.settlement && tile.settlement.folk;
+        const p = folk ? Townsfolk.get(folk, agent.pid) : null;
+        return p ? { folk, person: p, settlement: tile.settlement } : null;
+    },
+
+    /** "spread lies about House X" for an agent of this scheme. */
+    _deed(player, scheme) {
+        const a = AGENTS[scheme.type] || AGENTS.slander;
+        return a.deed.replace('{house}', (player.house && player.house.name) || 'your House');
+    },
+
+    /** Name the scheme's agent a suspect the player can confront in town. */
+    _suspect(player, world, scheme, status) {
+        const house = player.house;
+        if (!house || !scheme.agent) return null;
+        if (!Array.isArray(house.suspects)) house.suspects = [];
+        const found = Schemes._agentPerson(world, scheme.agent);
+        if (!found || !Townsfolk.isHere(found.person)) return null;
+        let s = house.suspects.find(x => x.schemeId === scheme.id);
+        const day = (world && world.day) || 0;
+        if (!s) {
+            house._nextSuspectId = (house._nextSuspectId || 0) + 1;
+            s = {
+                id: house._nextSuspectId, schemeId: scheme.id, type: scheme.type,
+                rivalId: scheme.rivalId, rivalName: scheme.rivalName,
+                ...scheme.agent, status, day, untilDay: day + CONFIG.suspectDays, loss: scheme.loss || 0,
+            };
+            house.suspects.push(s);
+            // Keep the record short: drop long-settled ones
+            if (house.suspects.length > 20) house.suspects = house.suspects.filter(x => !x.outcome && day <= x.untilDay).slice(-20);
+        } else {
+            s.status = status;
+            s.loss = scheme.loss || s.loss || 0;
+        }
+        return s;
+    },
+
+    /** Suspects the player can still confront (alive, in town, not yet dealt with). */
+    suspects(player, world) {
+        const house = player && player.house;
+        if (!house || !Array.isArray(house.suspects)) return [];
+        const day = (world && world.day) || 0;
+        return house.suspects.filter(s => {
+            if (s.outcome || day > s.untilDay) return false;
+            const f = Schemes._agentPerson(world, s);
+            return !!f && Townsfolk.isHere(f.person);
+        });
+    },
+
+    /** The open suspect record for this townsperson, or null. */
+    suspectFor(player, world, folk, person) {
+        if (!folk || !person) return null;
+        return Schemes.suspects(player, world).find(s => s.q === folk.q && s.r === folk.r && s.pid === person.id) || null;
+    },
+
+    /** Gold to turn a suspect into the player's informant. */
+    turnCost(player, suspect) {
+        const rival = player.house && player.house.rivals && player.house.rivals[suspect.rivalId];
+        return CONFIG.turnBase + CONFIG.turnPerFeud * Math.round((rival && rival.feud) || 0);
+    },
+
+    /**
+     * Confront a suspect: 'accuse' (named a traitor and driven out; a plot
+     * still in hand is foiled, the realm thanks you, the rival is shamed and
+     * angrier, their kin turn on you; a thief gives back part of the haul),
+     * 'turn' (pay them to inform on their master: the plot is foiled and
+     * that rival's next plots come to light far more easily), or 'release'
+     * (mercy: karma, a friend for life, the grudge cools — but a plot still
+     * in hand goes on).
+     * @returns {{ success, text, outcome, gold? }}
+     */
+    confront(player, world, suspectId, choice) {
+        const house = player && player.house;
+        const s = house && Array.isArray(house.suspects) ? house.suspects.find(x => x.id === suspectId) : null;
+        if (!s || s.outcome) return { success: false, reason: 'They are no longer a suspect.' };
+        const found = Schemes._agentPerson(world, s);
+        if (!found || !Townsfolk.isHere(found.person)) return { success: false, reason: 'They are gone from town.' };
+        const { folk, person, settlement } = found;
+        const day = (world && world.day) || 0;
+        const scheme = Schemes._find(player, s.schemeId);
+        if (scheme) scheme._confronted = true;
+        const kingdomId = settlement && settlement.kingdom;
+        if (!person.mem) person.mem = { timesSpoken: 0, disposition: 50, lastAction: null, giftsReceived: 0, threatened: false, flattered: false, questOffered: false, rumorsTold: 0, playerTitle: null };
+        const mem = person.mem;
+        const disp = () => (typeof mem.disposition === 'number' ? mem.disposition : 50);
+        const out = { success: true, outcome: choice };
+
+        if (choice === 'accuse') {
+            if (scheme) Schemes._settle(player, world, scheme, 'foiled', `${s.name} of ${s.town} was unmasked as their agent; the plot is broken.`);
+            House.accrueRivalFeud(player, world, s.rivalId, CONFIG.feudOnExposed, 'exposed in public');
+            if (kingdomId) {
+                if (!player.reputation) player.reputation = {};
+                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + CONFIG.exposeReputation;
+            }
+            if (!scheme && s.loss > 0) {
+                const gold = Math.floor(s.loss * CONFIG.recoverShare);
+                player.gold = goldOf(player) + gold;
+                Ledger.record(player, 'schemeLosses', gold);
+                out.gold = gold;
+            }
+            mem.disposition = 0;
+            mem.grudge = true;
+            // Their kin take it hard
+            for (const id of [person.spouse, ...(person.parents || []), ...(person.kids || [])]) {
+                const k = id != null ? Townsfolk.get(folk, id) : null;
+                if (k && k.mem) k.mem.disposition = Math.max(0, (typeof k.mem.disposition === 'number' ? k.mem.disposition : 50) - 20);
+            }
+            Townsfolk.exile(folk, person, day, `exile, for serving ${s.rivalName}`);
+            Townsfolk.record(folk, world, day, { k: 'exiled', a: person.id, x: `for serving ${s.rivalName}` });
+            House._chronicle(house, world, `${house.name} unmasks ${s.name} of ${s.town} as an agent of ${s.rivalName}.`, ['rival', 'scheme', 'suspect']);
+            out.text = `You name ${s.name} a traitor before all ${s.town}, and they are driven out of town.${scheme ? ' The plot is broken.' : ''}${out.gold ? ` ${out.gold} gold of what was stolen is recovered.` : ''} ${s.rivalName} is shamed — and angrier.`;
+        } else if (choice === 'turn') {
+            const cost = Schemes.turnCost(player, s);
+            if (goldOf(player) < cost) return { success: false, reason: `They want ${cost} gold.` };
+            player.gold = goldOf(player) - cost;
+            Ledger.record(player, 'informants', -cost);
+            out.gold = -cost;
+            if (scheme) Schemes._settle(player, world, scheme, 'foiled', `${s.name} of ${s.town}, turned by your coin, fed the plotters false word.`);
+            if (!house.informants || typeof house.informants !== 'object') house.informants = {};
+            house.informants[s.rivalId] = { name: s.name, town: s.town, q: s.q, r: s.r, pid: s.pid, untilDay: day + CONFIG.informantDays };
+            mem.disposition = Math.min(100, disp() + 15);
+            Townsfolk.note(person, day, 'informant', null, s.rivalName);
+            House._chronicle(house, world, `${s.name} of ${s.town} turns informant against ${s.rivalName}.`, ['rival', 'scheme', 'suspect']);
+            out.text = `${cost} gold buys ${s.name}'s loyalty. ${scheme ? 'They feed the plotters false word, and the plot comes to nothing. ' : ''}For the next ${CONFIG.informantDays} days they will warn you of ${s.rivalName}'s plots.`;
+        } else if (choice === 'release') {
+            player.karma = (player.karma || 0) + CONFIG.mercyKarma;
+            Traits.recordDeeds(player, { mercy: 1 });
+            House.accrueRivalFeud(player, world, s.rivalId, CONFIG.feudOnMercy);
+            mem.disposition = Math.min(100, disp() + 25);
+            Townsfolk.note(person, day, 'spared', null, `serving ${s.rivalName}`);
+            if (scheme) scheme._confronted = false;
+            out.text = `You let ${s.name} go. They weep their thanks.${scheme ? ` ${s.rivalName}'s plot goes on without them.` : ''} (+${CONFIG.mercyKarma} karma)`;
+        } else {
+            if (scheme) scheme._confronted = false;
+            return { success: false, reason: 'Unknown choice.' };
+        }
+        s.outcome = choice;
+        s.outcomeDay = day;
+        return out;
+    },
+
+    /** The faces of a plot that struck or failed: the town annals, a guard slain, a suspect named. */
+    _faces(player, world, scheme, outcome) {
+        const found = scheme.agent ? Schemes._agentPerson(world, scheme.agent) : null;
+        const day = (world && world.day) || 0;
+        if (!found || !Townsfolk.isHere(found.person)) return null;
+        const { folk, person } = found;
+        const parts = [];
+        if (outcome === 'struck') {
+            Townsfolk.record(folk, world, day, { k: 'plot', a: person.id, x: `${scheme.rivalName}|${Schemes._deed(player, scheme)}` });
+            Townsfolk.note(person, day, 'plotted', null, scheme.rivalName);
+            parts.push(`Word in ${scheme.agent.town} is that ${scheme.agent.name}, ${scheme.agent.role}, did their work.`);
+            if (scheme.type === 'raid_property') {
+                const seed = (world && world.generationParams && world.generationParams.seed) || 1;
+                const victim = Schemes._castPerson(folk, world, ['guard'], `${seed}|scheme${scheme.id}|victim`, person);
+                if (victim && victim.role === 'guard') {
+                    const cause = `cut down by ${scheme.rivalName}'s raiders`;
+                    Townsfolk.slay(folk, victim, day, cause);
+                    Townsfolk.record(folk, world, day, { k: 'died', a: victim.id, x: cause });
+                    parts.push(`${Townsfolk.name(victim)}, a guard of ${scheme.agent.town}, died defending your holding.`);
+                }
+                for (const p of Townsfolk.residents(folk).filter(x => x !== person && x.mem && x.mem.timesSpoken > 0).slice(0, 2)) {
+                    Townsfolk.note(p, day, 'raided', null, `${scheme.rivalName}'s raiders`);
+                }
+            }
+        } else if (outcome === 'foiled') {
+            Townsfolk.record(folk, world, day, { k: 'plotFoiled', a: person.id, x: scheme.rivalName });
+            parts.push(`${scheme.agent.name}, ${scheme.agent.role} of ${scheme.agent.town}, was seen slipping away.`);
+        } else {
+            return null;
+        }
+        const suspect = Schemes._suspect(player, world, scheme, outcome);
+        if (suspect) parts.push(`Confront them in ${suspect.town}.`);
+        return parts.join(' ');
     },
 
     /**
@@ -257,10 +512,13 @@ export const Schemes = {
      * adds its detectionBonus; a scheme aimed at a holding within the
      * station's counterRadius is watched twice over.
      */
-    revealChance(player, scheme = null) {
+    revealChance(player, scheme = null, day = null) {
         let c = CONFIG.revealBase;
         const house = player.house;
         if (house && house.roles && house.roles.spymaster) c += CONFIG.revealSpymaster;
+        // A townsperson turned informant against this rival (Schemes.confront 'turn')
+        const inf = scheme && house && house.informants ? house.informants[scheme.rivalId] : null;
+        if (inf && (day == null || day <= inf.untilDay)) c += CONFIG.informantReveal;
         const esp = player.espionage;
         if (esp) {
             const idle = (esp.spies || []).filter(s => s.status === 'idle').length;
@@ -270,6 +528,13 @@ export const Schemes = {
                 c += detectionBonus;
                 if (scheme && Schemes.isCovered(player, scheme)) c += detectionBonus;
             }
+        }
+        // ...while one of the rival's own informants in your towns warns them (systems/rivalAgents.js)
+        const ra = player.rivalAgents && Array.isArray(player.rivalAgents.agents) ? player.rivalAgents.agents : null;
+        if (scheme && ra && ra.some(a => a && a.rivalId === scheme.rivalId && a.kind === 'informant' && !a.turned)) {
+            const g = DataLoader._gamedata;
+            const inf = g && g.coalitions && g.coalitions.agents && g.coalitions.agents.kinds ? g.coalitions.agents.kinds.informant : null;
+            c *= inf && typeof inf.revealCut === 'number' ? inf.revealCut : 0.5;
         }
         return Math.min(0.9, c);
     },
@@ -302,17 +567,23 @@ export const Schemes = {
     },
 
     /** Expose every hidden scheme (a successful counter-espionage sweep). */
-    revealAll(player) {
+    revealAll(player, world = null) {
         const out = [];
         for (const s of Schemes.active(player)) {
-            if (!s.revealed) { s.revealed = true; out.push(s); }
+            if (!s.revealed) {
+                s.revealed = true;
+                out.push(s);
+                if (world) Schemes._suspect(player, world, s, 'plotting');
+            }
         }
         return out;
     },
 
     describe(scheme) {
         const def = SCHEME_TYPES[scheme.type];
-        return `${scheme.rivalName} plots to ${def ? def.describe(scheme.target) : 'move against you'}`;
+        const a = scheme.revealed && scheme.agent;
+        return `${scheme.rivalName} plots to ${def ? def.describe(scheme.target) : 'move against you'}`
+            + (a ? ` — through ${a.name}, ${a.role} of ${a.town}` : '');
     },
 
     // ── Counter-play ────────────────────────────────────────────
@@ -396,7 +667,9 @@ export const Schemes = {
         const feudDelta = outcome === 'struck' ? CONFIG.feudOnSuccess : outcome === 'foiled' ? CONFIG.feudOnFoiled : 0;
         if (feudDelta) House.accrueRivalFeud(player, world, scheme.rivalId, feudDelta);
         if (text) House._chronicle(player.house, world, `${scheme.rivalName}: ${text}`, ['rival', 'scheme', outcome]);
-        return { scheme, outcome, text, revealed: scheme.revealed };
+        // The townsfolk it worked through (a plot settled by confronting its agent names no one new)
+        const faces = text && !scheme._confronted ? Schemes._faces(player, world, scheme, outcome) : null;
+        return { scheme, outcome, text: faces ? `${text} ${faces}` : text, revealed: scheme.revealed };
     },
 
     _resolve(player, world, scheme) {
@@ -497,8 +770,9 @@ export const Schemes = {
         for (const scheme of house.schemes.slice()) {
             if (day >= scheme.dueDay) {
                 out.resolved.push(Schemes._resolve(player, world, scheme));
-            } else if (!scheme.revealed && Utils.random() < Schemes.revealChance(player, scheme)) {
+            } else if (!scheme.revealed && Utils.random() < Schemes.revealChance(player, scheme, day)) {
                 scheme.revealed = true;
+                Schemes._suspect(player, world, scheme, 'plotting');
                 out.revealed.push(scheme);
             }
         }

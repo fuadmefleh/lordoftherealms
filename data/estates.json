@@ -35,8 +35,12 @@
         "loyaltyStep": 0.35, "kindBonus": 6, "arrearsHit": 8, "putOutBonus": 5, "enclosureHit": 15, "drainBonus": 3,
         "strikeBelow": 20, "strikeChance": 0.4,
         "sullenBelow": 25, "sullenMood": 1.5, "contentAbove": 70, "contentMood": 0.5,
-        "riotBelow": 20, "riotChance": 0.25, "riotMood": 5
+        "riotBelow": 20, "riotChance": 0.25, "riotMood": 5,
+        "arrearsShare": 0.5, "arrearsForgive": 0.1
     },
+
+    "_press": "Pressing tenants for their arrears (the player's estates): the bailiff collects up to `share` of what is owed (no more than a month's capacity of the crop, nor than the town's coin), once every `everyDays`; it costs `loyalty`. If loyalty falls below riotBelow, a hash roll (riotChance x the shortfall below riotBelow / riotBelow + 0.1, at most riotMax) raises a rent riot: nothing is collected, the town's mood falls, and riotForgive of the arrears are written off. In a good month (no arrears that month) tenants pay back arrearsShare of their spare capacity (the crop above what was due) by collection; the bailiff then writes off arrearsForgive of what is left.",
+    "press": { "share": 0.6, "everyDays": 30, "loyalty": 12, "riotBelow": 35, "riotChance": 0.5, "riotMax": 0.9, "riotForgive": 0.25 },
 
     "_value": "Land price = expected yearly net rent (at the estate's own rent, mode and loyalty) / the land rate. Land rate = base + bondShare x (the realm's bond rate - bondRef) (systems/finance.js), +war while the realm fights, +unrest while its stability is under 35, within [min, max]; free towns pay `free`. Buyer's duty: the crown takes `duty` of a purchase. Offers for an estate not on the market: the holder asks value x premium (indebted holders x distressAsk); the church never sells (mortmain), a crown only to a buyer of at least crownRep reputation. A quick sale to the richest buyer about fetches quickSale x value; no buyer with the purse for it: it goes on the market at listAsk x value.",
     "value": {
@@ -106,6 +110,23 @@
         "house": ["Ashby", "Beauchamp", "Carew", "Darnell", "Everard", "Fitzwalter", "Grey", "Harcourt", "Ingram", "Joscelin", "Kendal", "Lacy", "Mortain", "Neville", "Ormond", "Percival", "Quincy", "Redvers", "Stafford", "Talbot", "Umfrey", "Vere", "Warenne"]
     },
 
+    "_map": "Where the estates show on the world map (world/estates.js fieldHexes, ui/renderer/features.js renderRuralSites): an estate is a share of its town's farmland, not a hex of its own, so each is drawn on a free hex of `terrain` within `reach` of its town (nearest first, then a hash; never a settlement, a point of interest or a hinterland site). sprites: the variants for a working estate, enclosed: for one turned mostly (>= enclosedAt) to sheep; the format is data/hinterland.json `sprites`.",
+    "map": {
+        "reach": 2,
+        "terrain": ["plains", "grassland", "savanna", "hills", "highlands"],
+        "enclosedAt": 0.5,
+        "sprites": [
+            [{ "img": "pop_center_images/farm00.png", "s": 0.82 }],
+            [{ "img": "pop_center_images/farm01.png", "s": 0.82 }],
+            [{ "img": "pop_center_images/farm02.png", "s": 0.82 }],
+            [{ "img": "pop_center_images/farm03.png", "s": 0.82 }],
+            [{ "img": "buildings/windmillFields00.png", "s": 0.82 }],
+            [{ "img": "pop_center_images/field00.png", "x": -0.3, "y": 0.45, "s": 1.1 }, { "img": "pop_center_images/field05.png", "x": 0.32, "y": 0.68, "s": 1.1 }, { "img": "buildings/barn00.png", "x": 0.22, "y": 0.12 }, { "img": "buildings/granary00.png", "x": -0.05, "y": 0.1 }]
+        ],
+        "enclosed": [
+            [{ "img": "buildings/pasture00_sheep.png", "s": 1.3, "y": 0.62 }, { "img": "buildings/barn00.png", "x": -0.4, "y": 0.22 }]
+        ]
+    },
     "_counsel": "The Steward's Counsel: estates on the market within saleRadius hexes at no more than bargainAt x their value that the player can afford; the player's tenants restless under restlessBelow loyalty.",
     "counsel": { "saleRadius": 12, "bargainAt": 1.0, "restlessBelow": 30 },
     "historyCap": 40

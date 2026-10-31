@@ -7,6 +7,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
+import { Crafting } from '../player/crafting.js';
 
 const SLOT_COUNT = 7;
 
@@ -265,7 +266,8 @@ export const Hotbar = {
                     tooltipEl.className = 'hotbar-tooltip';
                     el.appendChild(tooltipEl);
                 }
-                tooltipEl.textContent = `${name} (${qty})`;
+                const qTag = Crafting.qualityTag(_game.player, itemId);
+                tooltipEl.textContent = `${name}${qTag ? ` · ${qTag}` : ''} (${qty})`;
             } else if (tooltipEl) {
                 tooltipEl.textContent = '';
             }
@@ -306,6 +308,8 @@ export const Hotbar = {
 
             // Only handle hotbar keys when inner map is active & hotbar visible
             if (!InnerMap.active || !this.visible) return;
+            // A conversation owns the number keys (its choices)
+            if (document.getElementById('npcDialogOverlay')) return;
 
             // Only claim the key when the slot holds an item, so empty slots
             // leave 1/2/3 free for the speed shortcuts.

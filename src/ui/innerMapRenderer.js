@@ -8,6 +8,8 @@ import { CustomInteriors } from '../world/customInteriors.js';
 import { LightSystem } from './lightSystem.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawHoverCoords } from './hoverCoords.js';
+import { resetCanvasTransform } from './hiDpi.js';
+import { CustomSheets } from '../core/customSheets.js';
 
 // ============================================
 // INNER MAP RENDERER — LPC (Liberated Pixel Cup) Style
@@ -124,7 +126,7 @@ export const InnerMapRenderer = {
                     if (typeof InnerMap !== 'undefined' && InnerMap.npcs) {
                         for (const npc of InnerMap.npcs) {
                             if (!npc.preset) {
-                                npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id);
+                                npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
                             }
                         }
                     }
@@ -259,7 +261,7 @@ export const InnerMapRenderer = {
             console.warn(`InnerMapRenderer: failed to load sheet path ${path}`);
             this._sheetPathCache.set(path, { status: 'error', img: null });
         };
-        img.src = path;
+        img.src = CustomSheets.resolve(path);
         return null;
     },
 
@@ -615,6 +617,7 @@ export const InnerMapRenderer = {
     render(ctx, canvas, camera, deltaTime) {
         if (!InnerMap.active || !InnerMap.tiles) return;
 
+        resetCanvasTransform(ctx);
         const w = canvas.width, h = canvas.height;
 
         // Pixel-art: nearest-neighbor scaling
@@ -624,6 +627,10 @@ export const InnerMapRenderer = {
         ctx.fillStyle = '#0a0e17';
         ctx.fillRect(0, 0, w, h);
         ctx.save();
+        // A throwing layer must not skip the restore: the game loop catches the
+        // error and carries on, and an unbalanced save would leak its state
+        // (alpha, shadow, clip) into every following frame
+        try {
 
         // Cache visible tile range once per frame for all layers
         this._frameRange = this._getVisibleTileRange(camera);
@@ -690,7 +697,9 @@ export const InnerMapRenderer = {
             }
         }
 
-        ctx.restore();
+        } finally {
+            ctx.restore();
+        }
 
         // ── Layer 9: Dynamic lighting & ambient overlays ──
         // The light system replaces the old flat ambient overlay with proper

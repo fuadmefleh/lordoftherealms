@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy, SettlementSize } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -440,7 +440,7 @@ Object.assign(PlayerMilitary, {
     /**
      * Settlement tier hierarchy for recruitment checks
      */
-    SETTLEMENT_TIER: { village: 1, town: 2, city: 3, capital: 4 },
+    SETTLEMENT_TIER: SettlementSize.TIER,
 
     /**
      * Max units that can be recruited from a settlement based on population
@@ -460,25 +460,22 @@ Object.assign(PlayerMilitary, {
      * Check if a unit type is available at a given settlement
      */
     isUnitAvailable(unit, settlement, context = {}) {
-        const tierMap = PlayerMilitary.SETTLEMENT_TIER;
-        const settTier = tierMap[settlement.type] || 0;
-        const reqTier = tierMap[unit.minSettlement || 'village'] || 1;
-        if (settTier < reqTier) return { available: false, reason: `Requires ${unit.minSettlement || 'town'} or larger` };
+        const size = SettlementSize.meets({ minSettlement: 'village', ...unit }, settlement);
+        if (!size.ok) return { available: false, reason: size.reason };
         // Warships are built and manned at ports (context.isPort, from the caller's world)
         if (unit.requiresPort && !context.isPort) return { available: false, reason: 'Requires a port (a settlement on the water)' };
-        if (unit.minPopulation && (settlement.population || 0) < unit.minPopulation) {
-            return { available: false, reason: `Requires population ≥ ${unit.minPopulation}` };
-        }
         return { available: true };
     },
 
     /**
      * Check if a tech unit type is available at a given settlement
      */
-    isTechUnitAvailable(unit, settlement) {
+    isTechUnitAvailable(unit, settlement, context = {}) {
+        // Data-driven units (data/technology.json → minSettlement) use the common check
+        if (unit.minSettlement) return PlayerMilitary.isUnitAvailable(unit, settlement, context);
         const tierMap = PlayerMilitary.SETTLEMENT_TIER;
         const settTier = tierMap[settlement.type] || 0;
-        // Longbowman: town+  |  Cavalry & Siege Engine: capital only
+        // Longbowman: town+  |  Cavalry: city+  |  Siege Engine: capital only
         if (unit.id === 'longbowman' && settTier < 2) return { available: false, reason: 'Requires town or larger' };
         if (unit.id === 'cavalry' && settTier < 3) return { available: false, reason: 'Requires city or capital' };
         if (unit.id === 'siege_engine' && settTier < 4) return { available: false, reason: 'Requires a capital' };

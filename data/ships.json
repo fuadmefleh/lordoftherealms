@@ -14,7 +14,7 @@
             "dailyUpkeep": 1,
             "buildDays": 3,
             "customizations": ["oar_upgrade"],
-            "availableIn": ["village", "town", "capital"]
+            "availableIn": ["village", "town", "city", "capital"]
         },
         {
             "id": "fishing_vessel",
@@ -30,7 +30,7 @@
             "dailyUpkeep": 3,
             "buildDays": 5,
             "customizations": ["reinforced_hull", "fishing_nets"],
-            "availableIn": ["village", "town", "capital"]
+            "availableIn": ["village", "town", "city", "capital"]
         },
         {
             "id": "sloop",
@@ -46,7 +46,7 @@
             "dailyUpkeep": 6,
             "buildDays": 10,
             "customizations": ["reinforced_hull", "extra_sails", "ram", "cargo_hold"],
-            "availableIn": ["town", "capital"]
+            "availableIn": ["town", "city", "capital"]
         },
         {
             "id": "cog",
@@ -62,7 +62,7 @@
             "dailyUpkeep": 10,
             "buildDays": 18,
             "customizations": ["reinforced_hull", "cargo_hold", "navigator_quarters", "extra_sails"],
-            "availableIn": ["town", "capital"]
+            "availableIn": ["town", "city", "capital"]
         },
         {
             "id": "caravel",

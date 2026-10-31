@@ -1,0 +1,159 @@
+{
+    "_comment": "Pirates and the open sea (systems/pirates.js): named pirate captains who persist and remember you, their havens on the map, the infamy a player-pirate earns and the hunters it sends after them, merchant prey, and the sea events of Explore the Waters (each a choice). Odds are fractions; [lo, hi] ranges are rolled.",
+    "config": {
+        "activeCaptains": 4,
+        "havenCount": 3,
+        "havenMinSettlementDistance": 5,
+        "havenSpacing": 12,
+        "successorDays": [18, 36],
+        "growthPerDay": 0.04,
+        "maxStrength": 60,
+        "find": { "hunt": 0.5, "prey": 0.6, "lookout": 0.05 },
+        "captainMeetRadius": 40,
+        "sightingDays": 20,
+        "havenRaidCooldownDays": 30,
+        "chase": { "base": 0.45, "speed": 0.07, "seafaring": 0.02, "stealth": 0.0 },
+        "shadow": { "base": 0.25, "stealth": 0.06, "shipStealth": 0.08 },
+        "flee": { "base": 0.45, "speed": 0.08, "stealth": 0.03 },
+        "parley": { "base": 0.15, "diplomacy": 0.04, "charisma": 0.01, "renownPer": 400, "renownCap": 0.15, "regard": 0.004, "honourable": 0.1, "cruel": -0.15, "infamy": 0.002 },
+        "broadside": { "enemyLoss": [0.2, 0.4], "hull": [3, 9], "enemyHull": [4, 10], "strikeBelow": 0.35 },
+        "board": { "variance": 0.2, "unready": 1.25, "crewLossShare": [0.05, 0.15] },
+        "duel": { "combat": 5, "strength": 1.5, "base": 10, "captainMult": 0.9 },
+        "withdraw": { "hull": [2, 6] },
+        "bountyPerStrength": 9,
+        "ransomPerStrength": 14,
+        "prizeSalePerStrength": 14,
+        "plunderPerStrength": [2, 5],
+        "renown": { "victory": 3, "captain": 6, "hanged": 4, "scuttle": 1 },
+        "karma": { "victory": 2, "spare": 3, "hang": -1, "press": -1, "sinkMerchant": -10, "ransomPassengers": -3 },
+        "press": { "share": [0.25, 0.5], "morale": -8 },
+        "prizeCrew": 2,
+        "merchant": { "strength": [3, 15], "gold": [50, 300], "cargoUnits": [3, 10], "escortChance": 0.2, "escortStrength": [6, 14] },
+        "infamy": {
+            "piracy": 10, "witnesses": 8, "sunk": 2, "ransom": 6, "prize": 5, "falseColours": -3,
+            "decayPerDay": 0.4, "portDecayPerDay": 1.2, "max": 100,
+            "huntersAt": 25, "hunterChance": 0.02, "hunterChancePerInfamy": 0.002, "hunterCooldownDays": 6,
+            "merchantsYieldPer": 0.004
+        },
+        "hunters": { "strength": [14, 30], "perInfamy": 0.35, "finePerInfamy": 8, "bribePerInfamy": 5, "surrenderInfamy": -20, "beatInfamy": 6 },
+        "vengeance": { "chance": 0.03, "regardBelow": -30, "cooldownDays": 10 },
+        "haven": { "lootPerStrength": [8, 14], "renown": 10, "spotChance": 0.5 }
+    },
+    "captains": [
+        { "id": "red_maud", "name": "Red Maud", "epithet": "the Widow of the Shoals", "icon": "🏴‍☠️", "shipName": "Black Widow", "shipType": "caravel", "strength": [18, 26], "temperament": "cruel" },
+        { "id": "one_eyed_tobin", "name": "One-Eyed Tobin", "epithet": "the Gull", "icon": "🦜", "shipName": "Laughing Gull", "shipType": "sloop", "strength": [10, 16], "temperament": "greedy" },
+        { "id": "silas_crane", "name": "Silas Crane", "epithet": "the Gentleman Rover", "icon": "🎩", "shipName": "Courteous Thief", "shipType": "sloop", "strength": [12, 18], "temperament": "honourable" },
+        { "id": "hagen_ironhook", "name": "Hagen Ironhook", "epithet": "the Butcher of the Reach", "icon": "⚓", "shipName": "Iron Maw", "shipType": "war_galley", "strength": [24, 34], "temperament": "cruel" },
+        { "id": "salt_annie", "name": "Salt Annie", "epithet": "Queen of the Keys", "icon": "👑", "shipName": "Brine Queen", "shipType": "caravel", "strength": [16, 24], "temperament": "honourable" },
+        { "id": "jory_blackwater", "name": "Jory Blackwater", "epithet": "the Smiling", "icon": "😁", "shipName": "Merry Drowning", "shipType": "sloop", "strength": [9, 14], "temperament": "greedy" },
+        { "id": "the_grey_abbot", "name": "the Grey Abbot", "epithet": "who was once a monk", "icon": "⛪", "shipName": "Last Rites", "shipType": "cog", "strength": [12, 20], "temperament": "honourable" },
+        { "id": "vesna_coldtide", "name": "Vesna Coldtide", "epithet": "the Wolf of the Fogbanks", "icon": "🐺", "shipName": "Fogwolf", "shipType": "caravel", "strength": [18, 28], "temperament": "cruel" },
+        { "id": "barnaby_quill", "name": "Barnaby Quill", "epithet": "the Forger of Flags", "icon": "✒️", "shipName": "False Friend", "shipType": "sloop", "strength": [10, 15], "temperament": "greedy" },
+        { "id": "admiral_nobody", "name": "Admiral Nobody", "epithet": "of no nation", "icon": "☠️", "shipName": "Nobody's Fortune", "shipType": "galleon", "strength": [30, 42], "temperament": "honourable" }
+    ],
+    "successorNames": {
+        "first": ["Black", "Long", "Mad", "Gentle", "Bloody", "Lucky", "Old", "Pale", "Bonny", "Cutthroat"],
+        "last": ["Ned", "Meg", "Corwin", "Isolde", "Garrick", "Wren", "Bartholomew", "Sable", "Fenn", "Tamsin"],
+        "epithets": ["the Younger", "the Drowned Man's Heir", "of the Cove", "the Mate Who Rose", "the Unhanged", "the Salt-Bitten"],
+        "ships": ["Second Chance", "Vengeance", "Widowmaker", "Gilded Rat", "Sea Hag", "Red Tide", "Gallows Bird"]
+    },
+    "havenNames": ["Gallows Cove", "Skull Key", "Smugglers' Rest", "Rotgut Harbour", "the Drowned Bell", "Free Port of Brine", "Crow's Hollow"],
+    "hunterNames": ["Commodore Alys Venn", "Captain Ormond Strake", "the Lady Marisol's Squadron", "Vice-Admiral Hult", "the Sea-Reeves of the Crown"],
+    "merchantNames": ["Fair Margery", "Golden Hind", "Pilgrim's Purse", "Saint Ebba", "Plentiful", "Merchant's Hope", "Silver Bough", "Good Intent"],
+    "seaEvents": [
+        {
+            "id": "derelict", "weight": 14, "icon": "🛶", "title": "A Drifting Derelict",
+            "text": "A hulk wallows in the swell, sails in rags, no one at the wheel. Something went badly wrong aboard her.",
+            "options": [
+                { "id": "board", "icon": "🔦", "label": "Board and search her", "hint": "Whatever she carried may still be aboard — or whatever killed her crew.",
+                  "check": { "base": 0.55, "skill": "stealth", "per": 0.03, "luck": 0.02 },
+                  "success": { "gold": [40, 140], "cargo": { "wine": [1, 4] }, "text": "In the captain's cabin: a strongbox and a few casks still sound." },
+                  "failure": { "ailment": "flux", "health": [3, 8], "text": "The stench below was the flux. Some of it came back aboard with you." } },
+                { "id": "tow", "icon": "⚓", "label": "Strip her timbers and fittings", "hint": "Slow, safe salvage: certain but modest.",
+                  "success": { "gold": [25, 60], "hull": [-6, -2], "text": "Your carpenters strip her of good timber and brass; your own hull gets a patch or two." } },
+                { "id": "leave", "icon": "🌊", "label": "Leave her to the sea", "hint": "Some ships are better left alone.", "success": { "text": "You sail on. The crew mutters a prayer as she falls astern." } }
+            ]
+        },
+        {
+            "id": "castaways", "weight": 12, "icon": "🆘", "title": "Smoke on a Sandbar",
+            "text": "A thin column of smoke rises from a sandbar: castaways, waving shirts on oars.",
+            "options": [
+                { "id": "rescue", "icon": "⛵", "label": "Send the boat for them", "hint": "Hands for your crew and a good deed — if they are what they seem.",
+                  "check": { "base": 0.8, "skill": "diplomacy", "per": 0.01 },
+                  "success": { "crew": [2, 4], "karma": 4, "renown": 1, "rumour": true, "text": "Shipwrecked sailors, grateful to the bone. Some sign on; one tells of land nobody charts." },
+                  "failure": { "crew": [-2, -1], "morale": -8, "gold": [-60, -20], "text": "Mutineers marooned for cause: they knifed two of your men and made off with the purse before you put them ashore again." } },
+                { "id": "supplies", "icon": "📦", "label": "Throw them a cask and sail on", "hint": "A small mercy without the risk.", "success": { "karma": 1, "text": "You float a cask of water and biscuit to them. They will live a while yet." } },
+                { "id": "ignore", "icon": "🌊", "label": "Sail on", "hint": "Not your concern.", "success": { "karma": -2, "morale": -3, "text": "The crew watch the smoke a long time." } }
+            ]
+        },
+        {
+            "id": "strange_lights", "weight": 10, "icon": "✨", "title": "Lights Over the Water",
+            "text": "At dusk a green glow dances on the horizon, where the charts show nothing at all.",
+            "options": [
+                { "id": "follow", "icon": "🧭", "label": "Follow the lights", "hint": "A day off your course. Sailors' tales say such lights mark uncharted land.",
+                  "check": { "base": 0.6, "skill": "cartography", "per": 0.03, "luck": 0.02 },
+                  "success": { "rumour": true, "renown": 1, "text": "By moonlight you take a bearing on a dark shape the charts do not show." },
+                  "failure": { "hull": [4, 10], "text": "The lights led you onto shoals. You scrape free with a gash in the hull." } },
+                { "id": "ignore", "icon": "🌊", "label": "Hold your course", "hint": "Will-o'-the-wisps drown sailors.", "success": { "text": "The glow fades. The crew sleep badly." } }
+            ]
+        },
+        {
+            "id": "bottle", "weight": 8, "icon": "🍾", "title": "A Bottle in the Swell",
+            "text": "A sealed bottle bobs alongside, wax still on the cork.",
+            "options": [
+                { "id": "open", "icon": "📜", "label": "Fish it out and open it", "hint": "Letters, a will — or a map.",
+                  "check": { "base": 0.5, "luck": 0.04 },
+                  "success": { "map": "treasure", "text": "Inside: a stained chart with an X and a drowned man's last boast." },
+                  "failure": { "gold": [5, 20], "text": "A love letter, and a coin for luck." } },
+                { "id": "ignore", "icon": "🌊", "label": "Let it drift", "hint": "Someone else's story.", "success": { "text": "The bottle drifts away on the tide." } }
+            ]
+        },
+        {
+            "id": "sea_monster", "weight": 6, "icon": "🐙", "title": "Something Rises From the Deep",
+            "text": "The sea boils. A tentacle as thick as a mast slaps the deck.",
+            "enemy": [12, 22],
+            "options": [
+                { "id": "fight", "icon": "⚔️", "label": "Fight it", "hint": "Harpoons, axes and your guns against the beast.", "fight": true,
+                  "success": { "gold": [100, 260], "renown": 5, "deed": { "valor": 2 }, "track": "special_creatures_defeated", "text": "It sinks back, bleeding ink. Ambergris and a wrecked ship's gold tangled in its arms come aboard." },
+                  "failure": { "hull": [10, 24], "crew": [-3, -1], "health": [5, 12], "text": "It tears at the rigging and drags men under before it tires of you." } },
+                { "id": "oil", "icon": "🔥", "label": "Pour burning oil on the water", "hint": "Costs your lamp oil, if you carry any; fire may drive it off.",
+                  "check": { "base": 0.45, "item": "lamp_oil", "itemBonus": 0.3 },
+                  "success": { "renown": 2, "text": "The burning slick drives it under. You are away before it returns." },
+                  "failure": { "hull": [6, 14], "text": "It comes up through the flames." } },
+                { "id": "flee", "icon": "💨", "label": "Crowd on sail and run", "hint": "Speed against something that lives here.", "check": { "base": 0.45, "speed": 0.07 },
+                  "success": { "text": "You outrun it, the crew laughing like madmen." },
+                  "failure": { "hull": [6, 14], "crew": [-2, 0], "text": "It catches your stern before you clear its water." } }
+            ]
+        },
+        {
+            "id": "squall", "weight": 10, "icon": "⛈️", "title": "A Squall Line",
+            "text": "A black wall of cloud comes down on you, the sea white under it.",
+            "options": [
+                { "id": "reef", "icon": "⛵", "label": "Reef sails and ride it out", "hint": "Slow and careful; a little damage at most.",
+                  "check": { "base": 0.8, "skill": "leadership", "per": 0.02 },
+                  "success": { "hull": [1, 3], "text": "You ride it out under bare poles." },
+                  "failure": { "hull": [4, 9], "text": "Even reefed, the squall springs a seam." } },
+                { "id": "run", "icon": "💨", "label": "Run before it", "hint": "Use the wind: miles gained, or a mast lost.",
+                  "check": { "base": 0.55, "speed": 0.05 },
+                  "success": { "stamina": 3, "morale": 4, "text": "You fly before the gale; the crew whoop as the miles run past." },
+                  "failure": { "hull": [8, 16], "crew": [-1, 0], "text": "A spar goes over the side, and a man with it." } }
+            ]
+        },
+        {
+            "id": "whale", "weight": 8, "icon": "🐋", "title": "Whales Off the Bow",
+            "text": "A pod of whales breaches, close enough to wet the deck.",
+            "options": [
+                { "id": "watch", "icon": "👀", "label": "Heave to and watch", "hint": "A good omen, the old hands say.", "success": { "morale": 6, "karma": 1, "text": "The crew take it as a blessing." } },
+                { "id": "hunt", "icon": "🔱", "label": "Lower the boats and hunt", "hint": "Oil and meat — and a whale's tail can stove in a boat.",
+                  "check": { "base": 0.45, "skill": "combat", "per": 0.03 },
+                  "success": { "gold": [50, 120], "cargo": { "fish": [3, 6] }, "text": "A long, ugly day's work, and the hold full of oil and meat." },
+                  "failure": { "crew": [-2, -1], "morale": -6, "text": "A flukes-blow smashes a boat; two men don't come back." } }
+            ]
+        },
+        {
+            "id": "pirate_sail", "weight": 10, "icon": "🏴‍☠️", "title": "A Sail on the Horizon",
+            "text": "The lookout calls a sail — and no honest flag.", "pirate": true,
+            "options": []
+        }
+    ]
+}

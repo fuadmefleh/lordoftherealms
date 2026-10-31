@@ -12,7 +12,7 @@
             "staminaBonus": 0,
             "healthRegenBonus": 1,
             "maxUpgradeSlots": 1,
-            "availableIn": ["village", "town", "capital"],
+            "availableIn": ["village", "town", "city", "capital"],
             "requiredRenown": 0
         },
         {
@@ -27,7 +27,7 @@
             "staminaBonus": 1,
             "healthRegenBonus": 2,
             "maxUpgradeSlots": 2,
-            "availableIn": ["village", "town", "capital"],
+            "availableIn": ["village", "town", "city", "capital"],
             "requiredRenown": 5
         },
         {
@@ -42,7 +42,7 @@
             "staminaBonus": 1,
             "healthRegenBonus": 3,
             "maxUpgradeSlots": 3,
-            "availableIn": ["town", "capital"],
+            "availableIn": ["town", "city", "capital"],
             "requiredRenown": 15
         },
         {
@@ -57,7 +57,7 @@
             "staminaBonus": 2,
             "healthRegenBonus": 5,
             "maxUpgradeSlots": 4,
-            "availableIn": ["town", "capital"],
+            "availableIn": ["town", "city", "capital"],
             "requiredRenown": 35
         },
         {

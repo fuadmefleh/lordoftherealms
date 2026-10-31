@@ -3,6 +3,8 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { Afterlife } from '../../player/afterlife.js';
+import { Scenarios } from '../../player/scenarios.js';
 
 export function resumeGame() {
     const result = SaveLoad.loadGame();
@@ -82,6 +84,13 @@ export function resumeGame() {
     // Initialize title system from save
     if (typeof Titles !== 'undefined') {
         Titles.initialize(this.player);
+    }
+
+    // Saved while the world turned without the player: back to waiting (player/afterlife.js)
+    if (Afterlife.active(this.player)) {
+        this.player._isDead = true;
+        if (this.camera) this.camera.following = false;
+        ActionMenu.renderInterregnumBar(this);
     }
 
     this.isRunning = true;
@@ -395,6 +404,8 @@ export function startCustomWorld(editorWorldData) {
             if (!this.player.taxRate) this.player.taxRate = 'moderate';
             if (typeof Titles !== 'undefined') Titles.initialize(this.player);
             if (typeof Councils !== 'undefined') Councils.initializePlayer(this.player);
+            // A hand-made map starts as the Wanderer on Normal, no goal (player/scenarios.js)
+            Scenarios.apply(this.player, this.world, {});
 
             // Hide title screen, show game
             document.getElementById('settingsScreen')?.classList.add('hidden');

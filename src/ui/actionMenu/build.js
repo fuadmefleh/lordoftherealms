@@ -1,15 +1,23 @@
 // ActionMenu — build methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { DevotionPanel } from './devotion.js';
+import { Hospitality } from '../../systems/hospitality.js';
+import { SettlementSize } from '../../core/settlementSize.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, InnerMap, PlayerInventory } from './_imports.js';
+import { Wilds } from '../../player/wilds.js';
+import { showWildsEncounter } from '../wildsEncounter.js';
 
 Object.assign(ActionMenu, {
     /**
      * Preach at settlement
      */
     preach(game, tile) {
-        const result = PlayerReligion.preach(game.player, tile.settlement, tile);
+        const result = PlayerReligion.preach(game.player, tile.settlement, tile, game.world);
         if (result.success) {
-            game.ui.showNotification('Preaching Success!', `+${result.followersGained} followers, +${result.karmaGained} karma`, 'success');
+            const tired = result.saturation >= 0.3 ? ' The crowd has heard you before and thins.' : '';
+            const weak = result.weakBonus >= 0.15 ? ' Faith runs thin here: they listen hungrily.' : '';
+            game.ui.showNotification('Preaching Success!', `+${result.followersGained} followers, +${result.karmaGained} karma${result.alms ? `, +${result.alms}g alms` : ''}.${weak}${tired}`, 'success');
+            if (result.clergy) game.ui.showNotification(result.clergy.bannedUntil ? '⛔ Preaching Banned' : '⛪ The Clergy Object', result.clergy.message, 'error');
             game.ui.updateStats(game.player, game.world);
         } else {
             game.ui.showNotification('Cannot Preach', result.reason, 'error');
@@ -37,6 +45,7 @@ Object.assign(ActionMenu, {
         { id: 'food', label: 'Food & Drink', icon: '🍞' },
         { id: 'crafts', label: 'Crafts', icon: '🔨' },
         { id: 'commerce', label: 'Commerce', icon: '💰' },
+        { id: 'hospitality', label: 'Hospitality', icon: '🛏️' },
         { id: 'tech', label: 'Tech', icon: '🔬' },
     ],
 
@@ -60,6 +69,8 @@ Object.assign(ActionMenu, {
         if (prop.requiredSettlement && !tile.settlement) {
             return { canBuild: false, reason: 'Requires settlement' };
         }
+        const size = SettlementSize.meets(prop, tile.settlement);
+        if (!size.ok) return { canBuild: false, reason: size.reason };
         const cost = PlayerEconomy.getBuildCost(game.player, prop, tile, game.world);
         if (game.player.gold < cost) return { canBuild: false, reason: `Need ${cost} gold (have ${Math.floor(game.player.gold)})` };
         return { canBuild: true };
@@ -100,6 +111,7 @@ Object.assign(ActionMenu, {
         }
         if (prop.id === 'mine') return tile.resource ? goodName(tile.resource.id) : 'Tile resource';
         if (prop.id === 'tavern') return '💰 Gold from patrons';
+        if (Hospitality.isKind(prop.id)) return '🛏️ Guests from the travellers';
         if (prop.id === 'trading_post') return '🐪 Attracts merchants';
         if (!prop.produces) return 'Special';
         return `${goodName(prop.produces)}${prop.productionRate ? ` · ${prop.productionRate}/day` : ''}`;
@@ -763,6 +775,28 @@ Object.assign(ActionMenu, {
             return;
         }
 
+        // Shrines, oases, monuments and wrecks hold an encounter with choices
+        // (player/wilds.js, data/innerMap.json → poiEncounters)
+        const encId = Wilds.poiEncounterId(game.world, tile);
+        if (encId) {
+            const player = game.player;
+            showWildsEncounter(game, {
+                title: poi.name,
+                ctx: { id: encId, wq: tile.q, wr: tile.r, terrain: tile.terrain && tile.terrain.id, poi: { type: poi.type, name: poi.name } },
+                canLeave: false,
+                extraLines: () => {
+                    if (poi.type === 'ruins') Quests.track(player, 'ruins_explored');
+                    return Wilds.finishPoi(player, game.world, tile).lines;
+                },
+                doneLabel: 'Make camp (end the day)',
+                onClose: (res) => {
+                    game.ui.updateStats(player, game.world);
+                    if (res) game.endDay();
+                },
+            });
+            return;
+        }
+
         poi.explored = true;
         const player = game.player;
         if (!player.inventory) player.inventory = {};
@@ -1227,6 +1261,20 @@ Object.assign(ActionMenu, {
             // The guild contact opens the underworld panel
             if (rumors.some(r => r.openUnderworld)) {
                 ActionMenu.showUnderworldPanel(game, tile);
+                return;
+            }
+            // The whispering corner opens the scandals panel (ui/actionMenu/whispers.js)
+            if (rumors.some(r => r.openWhispers)) {
+                ActionMenu.showWhispersPanel(game, tile);
+                return;
+            }
+            // The dice tables are the gambling den; the stranger is the soul pact (ui/actionMenu/devotion.js)
+            if (rumors.some(r => r.openGambling)) {
+                ActionMenu.showGamblingMenu(game, tile);
+                return;
+            }
+            if (rumors.some(r => r.openSoulPact)) {
+                DevotionPanel.showSoulPact(game, tile);
                 return;
             }
 

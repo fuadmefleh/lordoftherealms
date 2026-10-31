@@ -78,6 +78,7 @@
         async init() { await open(); },
         async saveModData(data) { await put('moddata', 'gamedata', data); await put('meta', 'moddata_timestamp', Date.now()); },
         async loadModData() { return await get('moddata', 'gamedata') || null; },
+        async clearModData() { await del('moddata', 'gamedata'); await del('meta', 'moddata_timestamp'); },
         async hasModData() { const ts = await get('meta', 'moddata_timestamp'); return !!ts; },
         async saveWorld(id, worldData) { worldData.savedAt = Date.now(); await put('worlds', id, worldData); },
         async loadWorld(id) { return await get('worlds', id) || null; },

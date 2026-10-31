@@ -117,14 +117,24 @@ Object.assign(Relationships, {
         const currentStage = Relationships.getCourtingStage(rel.affection || 0, isSpouse);
         const currentStageIdx = Math.max(0, stageOrder.indexOf(currentStage.id));
 
+        const affair = !!(player.spouse && player.spouse !== npcId);
+        // Promised to another (an ignored rival suitor: ./matters.js), or a grudge gone cold
+        const day = opts.world && Number.isFinite(opts.world.day) ? opts.world.day : null;
+        const closed = npc.marriedTo && player.spouse !== npcId
+            ? `${npc.firstName} is married to ${npc.marriedTo}`
+            : (day != null && Number.isFinite(rel.closedUntil) && rel.closedUntil > day ? `${npc.firstName} wants nothing to do with you (until day ${rel.closedUntil})` : null);
         return Object.values(actions).map(action => {
-            if (player.spouse && player.spouse !== npcId) {
+            if (closed) return { ...action, unlocked: false, lockReason: closed };
+            // A married player may court someone else (an affair: talk may
+            // start, and reach the spouse — ./matters.js), but not propose
+            if (affair && (action.id === 'propose' || action.requiresSpouse)) {
                 return {
                     ...action,
                     unlocked: false,
                     lockReason: 'You are already married to someone else',
                 };
             }
+            if (affair) action = { ...action, affair: true, description: `${action.description || action.label} (You are married. People talk.)` };
 
             if (action.requiresSpouse && !isSpouse) {
                 return {
@@ -263,7 +273,7 @@ Object.assign(Relationships, {
         const npc = Relationships.getNPC(npcId);
         if (!npc) return { success: false, reason: 'NPC not found' };
 
-        if (player.spouse && player.spouse !== npcId) {
+        if (player.spouse && player.spouse !== npcId && actionId === 'propose') {
             return { success: false, reason: 'You are already married!' };
         }
 
@@ -344,6 +354,9 @@ Object.assign(Relationships, {
             married = true;
         }
 
+        // Courting while married: someone may have seen
+        const affairRumor = Relationships._affairRisk(player, npc, opts.world || null);
+
         // Charisma growth chance
         let charismaUp = false;
         if (Utils.random() < 0.08) {
@@ -353,7 +366,7 @@ Object.assign(Relationships, {
 
         return {
             success: true, npc, gain: finalGain, newAffection: rel.affection,
-            married, charismaUp,
+            married, charismaUp, affairRumor: !!affairRumor,
             stage: Relationships.getCourtingStage(rel.affection, married),
         };
     },

@@ -1,0 +1,54 @@
+{
+    "_doc": "What each kind of townsperson knows of the realm and the town (systems/npcKnowledge.js). `topics` in the order they speak of them; the first `sure` they know for certain, the rest is hearsay (a band may be off by one, said with a hedge). `places` = how much they know of the land about the town.",
+    "expertise": {
+        "noble":          { "topics": ["ruler", "wars", "stability", "fiscal", "army"], "sure": 4, "places": 1 },
+        "guard":          { "topics": ["army", "wars", "stability", "ruler"], "sure": 3, "places": 3 },
+        "merchant":       { "topics": ["tariffs", "fiscal", "harvest", "wars"], "sure": 3, "places": 1 },
+        "priest":         { "topics": ["religion", "stability", "ruler", "harvest"], "sure": 2, "places": 1 },
+        "traveler":       { "topics": ["wars", "tariffs", "harvest", "ruler"], "sure": 2, "places": 3 },
+        "farmer":         { "topics": ["harvest", "fiscal", "ruler"], "sure": 1, "places": 2 },
+        "blacksmith_npc": { "topics": ["army", "wars", "ruler"], "sure": 1, "places": 2 },
+        "villager":       { "topics": ["ruler", "harvest", "wars"], "sure": 0, "places": 1 },
+        "beggar":         { "topics": ["fiscal", "ruler", "stability"], "sure": 1, "places": 2 },
+        "child":          { "topics": ["ruler", "army"], "sure": 0, "places": 2 }
+    },
+    "hedges": ["— or so folk say", "— don't hold me to it", ", if the talk at the well is true", ", I've heard", "— but what do I know?"],
+    "guarded": ["*shrugs* ", "*glances away* ", "*speaks curtly* "],
+    "openers": {
+        "sure": ["I'll tell you how things stand. ", "Plainly put: ", ""],
+        "hearsay": ["Well, I only know what I hear. ", "I'm no courtier, mind. ", ""],
+        "guarded": ["I don't say much to strangers. ", "Not much I care to tell you. "]
+    },
+    "bands": {
+        "army": ["barely an army worth the name", "a small army", "a middling army", "a large army", "the greatest host of any realm"],
+        "stability": ["close to open revolt", "restless", "settled enough", "firmly held"],
+        "harvest": ["failing", "thin", "fair", "bumper"],
+        "unity": ["split by heresy", "of many minds", "devout", "devout to a man"],
+        "treasury": ["near empty", "lean", "comfortable", "overflowing"]
+    },
+    "social": {
+        "flatter": { "base": 3, "traits": { "jovial": -1, "kind": -1, "generous": -1, "witty": 0, "curious": 0, "quiet": 1, "cautious": 1, "stern": 2, "stubborn": 2, "bold": 0 }, "types": { "noble": -1, "child": -1, "guard": 1, "priest": 1 }, "warm": -1, "cold": 1, "again": 2 },
+        "persuade": { "base": 5, "traits": { "kind": -1, "curious": -1, "jovial": 0, "cautious": 2, "stubborn": 2, "stern": 1, "quiet": 1 }, "types": { "beggar": -1, "noble": 1, "guard": 1 }, "warm": -1, "cold": 2 }
+    },
+    "favour": {
+        "minDisposition": 65,
+        "cost": 8,
+        "everyDays": 30,
+        "bargainMin": 50,
+        "bargainCost": 5,
+        "bargainMax": 0.15,
+        "_repay": "A favour's coin is a loan (mem.owed): repaid within repayDays it warms them by repaidWarmth (late: lateWarmth); asked after past due, they cool by overdueCold once.",
+        "repayDays": 30,
+        "repaidWarmth": 4,
+        "lateWarmth": 1,
+        "overdueCold": -6
+    },
+    "wideKnowledge": {
+        "_comment": "What townsfolk know of the land about (NpcKnowledge.aboutTown): outlaw lairs within lairRadius, an old place within siteRadius; with expertise places >= wideAt (a guard or traveller, liked enough) they know lairs within wideLairRadius and two old places within wideSiteRadius.",
+        "lairRadius": 10,
+        "siteRadius": 8,
+        "wideAt": 3,
+        "wideLairRadius": 16,
+        "wideSiteRadius": 14
+    }
+}

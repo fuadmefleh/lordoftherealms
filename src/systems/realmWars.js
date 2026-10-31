@@ -19,8 +19,10 @@
 
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
 import { House } from './house.js';
+import { NPCLords } from '../world/npcLords.js';
 import { Technology } from './technology.js';
 import { Holdings } from './holdings.js';
 import { HoldingSieges } from './holdingSieges.js';
@@ -86,11 +88,14 @@ export const RealmWars = {
     },
 
     /** How badly a kingdom wants war with the player (0+). */
-    hostility(player, kingdom) {
+    hostility(player, kingdom, day) {
         if (!kingdom || kingdom.id === player.allegiance) return 0;
         const rep = (player.reputation && player.reputation[kingdom.id]) || 0;
         const rival = player.house && player.house.rivals && player.house.rivals[kingdom.id];
-        return Math.max(0, -rep + ((rival && rival.feud) || 0));
+        // A lord who remembers wrongs (or kindness) leans that way (world/npcLords.js memory)
+        const memory = NPCLords.memoryOpinion(kingdom.lord, day) * NPCLords.memoryConfig().hostilityWeight;
+        // ...and the difficulty scales it (core/difficulty.js; 1 on Normal)
+        return Math.max(0, -rep + ((rival && rival.feud) || 0) - memory) * Difficulty.mult(player, 'hostility');
     },
 
     /** Everything a war host can march on: properties and colonies. */
@@ -156,6 +161,7 @@ export const RealmWars = {
         delete s.ultimatums[kingdomId];
         s.truces[kingdomId] = world.day + Math.round(CONFIG.truceDays / 2);
         if (player.reputation) player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + 20;
+        NPCLords.rememberRealm(world, kingdomId, 'tribute_paid', { note: `${u.tribute} gold` });
         House.accrueRivalFeud(player, world, kingdomId, -10);
         return { success: true, cost: u.tribute };
     },
@@ -179,6 +185,7 @@ export const RealmWars = {
         };
         s.wars[kingdom.id] = war;
         if (player.reputation) player.reputation[kingdom.id] = Math.min(player.reputation[kingdom.id] || 0, -60);
+        NPCLords.rememberDeed(world, kingdom.lord, 'war_on_us');
         if (player.house) House._chronicle(player.house, world, `${kingdom.name} declares war on ${player.house.name}.`, ['war']);
         if (world.events) world.events.push({ text: `⚔️ ${kingdom.name} has declared war on ${player.name || 'you'}!`, type: 'military', category: 'MILITARY' });
         return war;
@@ -197,6 +204,8 @@ export const RealmWars = {
         s.truces[kingdomId] = world.day + CONFIG.truceDays;
         if (player.reputation) player.reputation[kingdomId] = Math.max(player.reputation[kingdomId] || 0, -30);
         House.accrueRivalFeud(player, world, kingdomId, -30);
+        if (how === 'bought') NPCLords.rememberRealm(world, kingdomId, 'peace_bought');
+        else if (how === 'victory') NPCLords.rememberRealm(world, kingdomId, 'humbled');
         const label = { bought: 'peace was bought', victory: 'peace was won on the field', exhaustion: 'both sides were exhausted', fallen: 'the kingdom fell' }[how] || how;
         if (player.house) House._chronicle(player.house, world, `The war with ${war.name} ends: ${label}.`, ['war', 'peace']);
         return { war, how };
@@ -440,7 +449,7 @@ export const RealmWars = {
                 if (!k.isAlive || k.id === player.allegiance) continue;
                 if (s.wars[k.id] || s.ultimatums[k.id]) continue;
                 if ((s.truces[k.id] || 0) > day) continue;
-                const h = RealmWars.hostility(player, k);
+                const h = RealmWars.hostility(player, k, day);
                 if (h < CONFIG.hostilityThreshold) continue;
                 if (Utils.random() < (h - 60) / 200) {
                     out.ultimatums.push(RealmWars.issueUltimatum(player, world, k));

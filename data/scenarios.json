@@ -1,0 +1,110 @@
+{
+  "_comment": "Origins, difficulty and victory goals chosen at New Game (player/scenarios.js, core/difficulty.js, systems/victory.js). Normal difficulty is 1 on every knob and must stay so.",
+
+  "origins": {
+    "wanderer": {
+      "name": "The Wanderer",
+      "icon": "🧭",
+      "blurb": "No name, no lands, no debts. A full purse and the open road. The classic start: the world is yours to read.",
+      "guidedStart": true,
+      "suggestedVictory": "none",
+      "welcome": "You are a wanderer in a {mapDesc} world of {kingdoms} kingdoms. Click on the map to move, explore settlements, and forge your destiny."
+    },
+    "disinherited": {
+      "name": "The Disinherited",
+      "icon": "🥀",
+      "blurb": "A younger child of royal blood, cast out when your elder sibling took the family's favour. A real but weak claim on a throne, a House with some name, little gold, and a sibling who wants you gone.",
+      "guidedStart": false,
+      "suggestedVictory": "crown",
+      "gold": 400,
+      "prestige": 30,
+      "claim": 18,
+      "rivalFeud": 55,
+      "reputation": 10,
+      "stats": { "charisma": 2 },
+      "skills": { "diplomacy": 2, "leadership": 1 },
+      "title": "Disinherited",
+      "welcome": "Your blood runs back to the throne of {kingdom}, but {rival} has your family's favour and wants you gone. Your claim is weak (strength {claim}): marry well, serve the crown, or buy heralds until it can be pressed."
+    },
+    "apprentice": {
+      "name": "Guild Journeyman",
+      "icon": "⚒️",
+      "blurb": "Bound to a guild of a busy town as a journeyman: guild rates on your inputs, a little stock to sell, the trade in your hands, and a master you still owe for your indenture.",
+      "guidedStart": false,
+      "suggestedVictory": "merchant_prince",
+      "gold": 300,
+      "guildRank": 1,
+      "standing": 20,
+      "debt": 600,
+      "debtWeeks": 12,
+      "stock": 6,
+      "skills": { "commerce": 3 },
+      "stats": { "intelligence": 1 },
+      "title": "Journeyman",
+      "welcome": "You are a journeyman of the {guild} of {town}. You owe your old master {debt} gold, paid weekly from your purse: miss three payments and the guild will cast you out."
+    },
+    "exiled_monarch": {
+      "name": "The Exiled Monarch",
+      "icon": "👑",
+      "blurb": "You wore the crown of a realm until a usurper took it. A strong claim, a few loyal swords, a chest of gold and a realm in turmoil. Raise your banners while the succession is still disputed.",
+      "guidedStart": false,
+      "suggestedVictory": "crown",
+      "gold": 1500,
+      "prestige": 60,
+      "claim": 45,
+      "rivalFeud": 40,
+      "reputation": 15,
+      "crisis": true,
+      "army": { "soldier": 4, "knight": 1 },
+      "skills": { "leadership": 3, "diplomacy": 1, "combat": 1 },
+      "title": "Exiled Monarch",
+      "welcome": "{ruler} sits on your throne in {kingdom}, and the realm is split over it. Your claim is strong (strength {claim}) and loyal swords ride with you. Open Claims & Crowns from the Dynasty menu to press it before the dispute settles."
+    },
+    "pirate_widow": {
+      "name": "The Pirate's Widow",
+      "icon": "🏴‍☠️",
+      "blurb": "Your late spouse sailed under no flag. You inherited the sloop, the crew and a name the sea-lords whisper. A coastal start with a ship of your own.",
+      "guidedStart": false,
+      "suggestedVictory": "merchant_prince",
+      "gold": 700,
+      "ship": "sloop",
+      "infamy": 20,
+      "skills": { "combat": 2, "cartography": 2, "stealth": 1 },
+      "title": "Widow of the Sea",
+      "titleMale": "Widower of the Sea",
+      "welcome": "The {ship} rides at anchor in {town}, crewed and yours. The sea remembers your late spouse: some captains will know your colours (infamy {infamy})."
+    },
+    "sellsword": {
+      "name": "Sellsword Captain",
+      "icon": "⚔️",
+      "blurb": "You lead a small free company: hard men, wages owed every day, and a debt to the crown that paid for their gear. Fight for coin, or find something better to fight for.",
+      "guidedStart": false,
+      "suggestedVictory": "conqueror",
+      "gold": 500,
+      "army": { "soldier": 4, "archer": 2 },
+      "debt": 1500,
+      "debtDays": 90,
+      "mercRep": 15,
+      "stats": { "strength": 2 },
+      "skills": { "combat": 3, "leadership": 2 },
+      "title": "Sellsword Captain",
+      "welcome": "Your company of {men} is camped by {town}. They want their wages every day, and you owe {debt} gold to {lender}: take a contract at a town's board before the purse runs dry."
+    }
+  },
+
+  "difficulty": {
+    "easy":   { "name": "Easy",   "blurb": "A richer start, kinder markets, fewer wars, softer foes, gentler sickness.", "startGold": 1.5, "buyPrice": 0.9, "sellPrice": 1.1, "hostility": 0.6, "enemyStrength": 0.8, "illness": 0.6 },
+    "normal": { "name": "Normal", "blurb": "The world as it is.", "startGold": 1, "buyPrice": 1, "sellPrice": 1, "hostility": 1, "enemyStrength": 1, "illness": 1 },
+    "hard":   { "name": "Hard",   "blurb": "A leaner purse, sharper merchants, quicker wars, tougher foes, deadlier sickness.", "startGold": 0.6, "buyPrice": 1.1, "sellPrice": 0.92, "hostility": 1.3, "enemyStrength": 1.2, "illness": 1.3 },
+    "brutal": { "name": "Brutal", "blurb": "Next to nothing in your purse, a world that cheats you, hates you, outfights you and sickens you.", "startGold": 0.3, "buyPrice": 1.2, "sellPrice": 0.85, "hostility": 1.6, "enemyStrength": 1.4, "illness": 1.6 }
+  },
+
+  "victory": {
+    "none":            { "name": "Sandbox", "icon": "🌍", "blurb": "No goal: live as you please." },
+    "crown":           { "name": "Wear a Crown", "icon": "👑", "blurb": "Rule a kingdom: win a throne by civil war, or found a realm of your own." },
+    "merchant_prince": { "name": "Merchant Prince", "icon": "💰", "blurb": "Reach a net worth of {target} gold (gold, deposits, goods, properties, works, ships, company and bank, less debts).", "target": 150000 },
+    "dynasty":         { "name": "Dynasty", "icon": "🛡️", "blurb": "Keep your House alive for {generations} generations or {years} years.", "generations": 4, "years": 100 },
+    "monopoly":        { "name": "Monopolist", "icon": "⚖️", "blurb": "Hold {target} trade monopolies at once (won by your company's lobbying or granted by your crown).", "target": 3 },
+    "conqueror":       { "name": "Conqueror", "icon": "🏰", "blurb": "Hold {target} settlements in your own hands.", "target": 8 }
+  }
+}

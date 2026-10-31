@@ -1,12 +1,13 @@
 // Renderer — core: constructor + module-scoped helpers. Instance/static methods
 // are Object.assign'd onto Renderer / Renderer.prototype by the sibling modules.
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
+import { installHiDpi } from '../hiDpi.js';
 
 
 
 export class Renderer {
     constructor(canvas, camera) {
-        this.canvas = canvas;
+        this.canvas = installHiDpi(canvas);
         this.ctx = canvas.getContext('2d');
         this.camera = camera;
         this.hexSize = 54; // Radius of hex (center to vertex)

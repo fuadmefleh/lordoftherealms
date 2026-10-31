@@ -37,6 +37,10 @@ export class Camera {
         // Camera can only move via follow() / centerOn() calls
         this.locked = false;
 
+        // Following — the game loop keeps the camera on the player while this
+        // is true; panning by hand (drag, keys, the minimap) lets go of it
+        this.following = true;
+
         // ── Performance: reusable point objects to avoid per-call allocations ──
         this._screenPt = { x: 0, y: 0 };
         this._worldPt  = { x: 0, y: 0 };
@@ -74,20 +78,30 @@ export class Camera {
         // Mouse drag for panning (disabled when camera is locked)
         canvas.addEventListener('mousedown', (e) => {
             if (this.locked) return; // Camera locked to player
-            if (e.button === 1 || e.button === 2 || (e.button === 0 && e.shiftKey)) {
-                // Middle click, right click, or shift+left click to drag
+            if (e.button === 0 || e.button === 1 || e.button === 2) {
+                // Any button drags; it only pans once the pointer has really
+                // moved, so a click stays a click
                 this.isDragging = true;
+                this.dragMoved = false;
                 this.dragStartX = e.clientX;
                 this.dragStartY = e.clientY;
                 this.dragCamStartX = this.targetX;
                 this.dragCamStartY = this.targetY;
-                canvas.style.cursor = 'grabbing';
                 e.preventDefault();
             }
         });
 
         window.addEventListener('mousemove', (e) => {
             if (this.isDragging) {
+                // Locked mid-drag (e.g. entering the inner map): drop the drag
+                if (this.locked) { this.isDragging = false; return; }
+                if (!this.dragMoved) {
+                    // Same 5px slop the game uses to tell a click from a drag
+                    if (Math.hypot(e.clientX - this.dragStartX, e.clientY - this.dragStartY) < 5) return;
+                    this.dragMoved = true;
+                    this.following = false;
+                    canvas.style.cursor = 'grabbing';
+                }
                 const dx = (e.clientX - this.dragStartX) / this.zoom;
                 const dy = (e.clientY - this.dragStartY) / this.zoom;
                 this.targetX = this.dragCamStartX - dx;
@@ -110,8 +124,20 @@ export class Camera {
 
         // Keyboard controls
         this.keys = {};
-        window.addEventListener('keydown', (e) => { this.keys[e.key] = true; });
-        window.addEventListener('keyup', (e) => { this.keys[e.key] = false; });
+        // Letters are stored lower-case so Shift/Caps Lock between keydown and
+        // keyup ('a' down, 'A' up) cannot leave a pan key stuck on
+        const keyName = (e) => (e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key);
+        window.addEventListener('keydown', (e) => {
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            this.keys[keyName(e)] = true;
+        });
+        window.addEventListener('keyup', (e) => { this.keys[keyName(e)] = false; });
+        // Keys released while the window is unfocused never send keyup
+        window.addEventListener('blur', () => {
+            this.keys = {};
+            this.isDragging = false;
+        });
     }
 
     /**
@@ -139,6 +165,10 @@ export class Camera {
         // Keyboard panning (disabled when camera is locked)
         if (!this.locked) {
             const panSpeed = (this.panSpeedBase || 400) / this.zoom;
+            const k = this.keys;
+            if (k['ArrowLeft'] || k['a'] || k['ArrowRight'] || k['d'] || k['ArrowUp'] || k['w'] || k['ArrowDown'] || k['s']) {
+                this.following = false;
+            }
             if (this.keys['ArrowLeft'] || this.keys['a']) this.targetX -= panSpeed * deltaTime;
             if (this.keys['ArrowRight'] || this.keys['d']) this.targetX += panSpeed * deltaTime;
             if (this.keys['ArrowUp'] || this.keys['w']) this.targetY -= panSpeed * deltaTime;
@@ -151,7 +181,14 @@ export class Camera {
 
         // Smooth interpolation
         const t = 1 - Math.exp(-this.smoothSpeed * deltaTime);
-        this.x = Utils.lerp(this.x, this.targetX, t);
+        // Ease along the shorter way round the wrapping world, so a target
+        // just across the seam does not sweep the camera over the whole map
+        let dxTarget = this.targetX - this.x;
+        if (this.worldPixelWidth > 0) {
+            const W = this.worldPixelWidth;
+            dxTarget = ((dxTarget % W) + W * 1.5) % W - W / 2;
+        }
+        this.x += dxTarget * t;
         this.y = Utils.lerp(this.y, this.targetY, t);
         this.zoom = Utils.lerp(this.zoom, this.targetZoom, t);
 

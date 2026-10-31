@@ -30,6 +30,7 @@ import { Technology } from '../../systems/technology.js';
 import { Relationships } from '../../systems/relationships.js';
 import { House } from '../../systems/house.js';
 import { Schemes } from '../../systems/schemes.js';
+import { Demands } from '../../systems/demands.js';
 import { Titles } from '../../systems/titles.js';
 import { Councils } from '../../systems/councils.js';
 import { Housing } from '../../systems/housing.js';
@@ -48,8 +49,17 @@ import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Sagas } from '../../systems/sagas.js';
+import { Whispers } from '../../systems/whispers.js';
+import { Devotion } from '../../systems/devotion.js';
+import { SoulPact } from '../../systems/soulPact.js';
+import { CourtLetters } from '../../systems/courtLetters.js';
+import { Couriers } from '../../systems/couriers.js';
+import { Hospitality } from '../../systems/hospitality.js';
+import { Mail } from '../../systems/mail.js';
 import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
+import { Coalitions } from '../../systems/coalitions.js';
+import { RivalAgents } from '../../systems/rivalAgents.js';
 import { Discovery } from '../../systems/discovery.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Upbringing } from '../../systems/upbringing.js';
@@ -79,6 +89,9 @@ import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
+import { Pirates } from '../../systems/pirates.js';
+import { MapTheft } from '../../systems/mapTheft.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -110,6 +123,7 @@ export function newGame(seed) {
     if (!player.taxRate) player.taxRate = 'moderate';
     Titles.initialize(player);
     Councils.initializePlayer(player);
+    FirstSteps.initialize(player, world, { enabled: true });
     player.updateVisibility(world, 4);
     return { seed, world, player, log: [] };
 }
@@ -269,6 +283,7 @@ function _endDay(game) {
     mark(game, 'Relationships.processDailyEvents');
     const aging = Relationships.processAging(player, world);
     mark(game, 'Relationships.processAging');
+    Relationships.syncFolk(player, world);
     if (aging && aging.died) {
         out.died = 'old age';
         return out;
@@ -282,6 +297,8 @@ function _endDay(game) {
     mark(game, 'House.processDaily');
     Schemes.processDaily(player, world);
     mark(game, 'Schemes.processDaily');
+    Demands.processDay(world, player);
+    mark(game, 'Demands.processDay');
     Petitions.processDay(player, world);
     mark(game, 'Petitions.processDay');
     Delves.processDay(world, player);
@@ -290,14 +307,37 @@ function _endDay(game) {
     mark(game, 'Rivals.processDay');
     Sagas.processDay(world, player);
     mark(game, 'Sagas.processDay');
+    Whispers.processDay(world, player);
+    mark(game, 'Whispers.processDay');
+    Devotion.processDay(world, player);
+    SoulPact.processDay(world, player);
+    mark(game, 'Devotion.processDay');
+    MapTheft.processDay(world, player);
+    mark(game, 'MapTheft.processDay');
+    CourtLetters.processDay(world, player);
+    mark(game, 'CourtLetters.processDay');
+    Couriers.processDay(world, player);
+    mark(game, 'Couriers.processDay');
+    Mail.processDay(world, player);
+    mark(game, 'Mail.processDay');
+    Hospitality.processDay(world, player);
+    mark(game, 'Hospitality.processDay');
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);
     mark(game, 'Discovery.processDay');
+    // Sea rovers (systems/pirates.js): a threat at sea is fought out with the defaults
+    game.pirateDay = Pirates.processDay(world, player);
+    if (game.pirateDay.threat) Pirates.autoResolve(player, world, Pirates.startThreat(player, world, game.pirateDay.threat));
+    mark(game, 'Pirates.processDay');
     RealmWars.processDaily(player, world);
     mark(game, 'RealmWars.processDaily');
     game.holdingSiegeDay = HoldingSieges.processDay(world, player);
     mark(game, 'HoldingSieges.processDay');
+    game.coalitionDay = Coalitions.processDay(world, player, { armyStrength: PlayerMilitary.getArmyStrength(player) });
+    mark(game, 'Coalitions.processDay');
+    RivalAgents.processDay(world, player);
+    mark(game, 'RivalAgents.processDay');
     Throne.processDaily(player, world, { armyStrength: PlayerMilitary.getArmyStrength(player) });
     mark(game, 'Throne.processDaily');
     Kingship.processDay(world, player);
@@ -385,6 +425,8 @@ function _endDay(game) {
     mark(game, 'Traits.processDay');
     Underworld.processDay(player, world);
     mark(game, 'Underworld.processDay');
+    FirstSteps.processDay(world, player);
+    mark(game, 'FirstSteps.processDay');
     Achievements.checkAchievements(player, world);
     mark(game, 'Achievements.checkAchievements');
     // The day's books close (endDay.js's finance row, from the turn's results; systems/ledger.js)

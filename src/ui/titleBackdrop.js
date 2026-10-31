@@ -131,7 +131,13 @@ export function startTitleBackdrop(canvas, { onReady } = {}) {
         size = Math.max(34, Math.min(66, W / 30));
     };
     resize();
-    window.addEventListener('resize', resize);
+    // Resizing clears the canvas; with reduced motion no animation loop is
+    // running to repaint it, so draw the still frame again
+    const onResize = () => {
+        resize();
+        if (reduceMotion && !stopped) frame(performance.now());
+    };
+    window.addEventListener('resize', onResize);
 
     // Motes of light drifting up out of the land
     const motes = Array.from({ length: 46 }, (_, i) => ({
@@ -242,6 +248,6 @@ export function startTitleBackdrop(canvas, { onReady } = {}) {
     return function stop() {
         stopped = true;
         cancelAnimationFrame(raf);
-        window.removeEventListener('resize', resize);
+        window.removeEventListener('resize', onResize);
     };
 }

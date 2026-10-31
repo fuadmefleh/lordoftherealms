@@ -368,6 +368,125 @@ export const GLYPHS = {
     ],
     close: ['M6.5 6.5l11 11M17.5 6.5l-11 11'],
     warning: ['~M12 3.2L22 20.5H2z', 'M12 3.2L22 20.5H2z', 'M12 9.5v5', '#' + circle(12, 17.4, 1.1)],
+    // ── The map: land, its riches, its places ──
+    tree: ['~M12 2.5l5.5 7h-3l5 6.5h-15l5-6.5h-3z', 'M12 2.5l5.5 7h-3l5 6.5h-15l5-6.5h-3z', 'M12 16v5.5', 'M9 21.5h6'],
+    oak: ['~' + circle(12, 9.5, 6.5), circle(12, 9.5, 6.5), 'M12 13v8.5M12 16.5l-2.6-2.3M12 15.2l2.6-2.4', 'M8.5 21.5h7'],
+    mountain: [
+        '~M1.5 20.5L9 7.5l3.8 6.2 2.7-3.7 7 10.5z',
+        'M1.5 20.5L9 7.5l3.8 6.2 2.7-3.7 7 10.5z',
+        'M6.4 12l1.4.9 1.2-1.3 1.3 1.4 1.2-.6',
+    ],
+    ore: [
+        '~M3.5 19l2.5-8 5-4.5 6.5 2.5 3 7-3 3z',
+        'M3.5 19l2.5-8 5-4.5 6.5 2.5 3 7-3 3z',
+        'M11 6.5l1 5.5-5 3M12 12l5.5 1',
+        '#' + circle(9, 15.6, 1.1),
+        '#' + circle(15.2, 10, 1),
+    ],
+    nugget: [
+        '~M4 16.5l3-7 6-3 5.5 3 1.5 6.5-5 4H8z',
+        'M4 16.5l3-7 6-3 5.5 3 1.5 6.5-5 4H8z',
+        'M8.5 10.5l2.5 1.5M14 9.5l.5 3',
+        'M19.5 2.5v3M18 4h3M4 2.5v2M3 3.5h2',
+    ],
+    ingot: ['~M2.5 18.5l3.2-6.5h12.6l3.2 6.5z', 'M2.5 18.5l3.2-6.5h12.6l3.2 6.5z', 'M7 12l2-4.5h6L17 12', 'M8 15.5h8'],
+    coal: ['#M4.5 17.5l2-6.5 5-3.5 5.5 2 2.5 6-4 3.5H8z', 'M11.5 7.5L10 4.5M15 9l2.5-3'],
+    barrel: [
+        '~M6.5 3.5h11c1.6 5.6 1.6 11.4 0 17h-11c-1.6-5.6-1.6-11.4 0-17z',
+        'M6.5 3.5h11c1.6 5.6 1.6 11.4 0 17h-11c-1.6-5.6-1.6-11.4 0-17z',
+        'M5.3 8.5h13.4M5.3 15.5h13.4',
+    ],
+    salt: ['~M12 3l8 4.5v9L12 21l-8-4.5v-9z', 'M12 3l8 4.5v9L12 21l-8-4.5v-9z', 'M4 7.5l8 4.5 8-4.5M12 12v9'],
+    spice: [
+        '~M4.5 19.5c7 .8 12.8-4.6 13.3-12.6l2.6.6C20 16 13.2 21.5 4.5 19.5z',
+        'M4.5 19.5c7 .8 12.8-4.6 13.3-12.6l2.6.6C20 16 13.2 21.5 4.5 19.5z',
+        'M19 7.2c.1-2 1.1-3.6 2.7-4.4',
+    ],
+    cow: [
+        'M3.5 5.5c1 2.2 2.8 3.2 5 3.2M20.5 5.5c-1 2.2-2.8 3.2-5 3.2',
+        '~M7.5 8.5h9l-.8 8a3.7 3.7 0 0 1-7.4 0z',
+        'M7.5 8.5h9l-.8 8a3.7 3.7 0 0 1-7.4 0z',
+        'M4.5 10.5l3.1.6M19.5 10.5l-3.1.6',
+        '#' + circle(10.6, 17.2, 0.8),
+        '#' + circle(13.4, 17.2, 0.8),
+    ],
+    sheep: [
+        '~M8 7.5a3 3 0 0 1 4.5-1.4A3 3 0 0 1 17.5 8a3 3 0 0 1 1.3 5 3 3 0 0 1-3.3 3H9.5a3 3 0 0 1-3.3-2.7',
+        'M8 7.5a3 3 0 0 1 4.5-1.4A3 3 0 0 1 17.5 8a3 3 0 0 1 1.3 5 3 3 0 0 1-3.3 3H9.5a3 3 0 0 1-3.3-2.7',
+        '~M2.5 10.2a2.6 2.6 0 0 1 5.2 0v2a2.6 2.6 0 0 1-5.2 0z',
+        'M2.5 10.2a2.6 2.6 0 0 1 5.2 0v2a2.6 2.6 0 0 1-5.2 0z',
+        'M10 16v4.5M15.5 16v4.5',
+    ],
+    brick: ['~M3 6h18v12H3z', 'M3 6h18v12H3z', 'M3 10h18M3 14h18', 'M9 6v4M15 6v4M6 10v4M12 10v4M18 10v4M9 14v4M15 14v4'],
+    ruin: [
+        'M2.5 21h19',
+        '~M5 21V8.5h3.5V21z', 'M5 21V8.5h3.5V21', 'M4 8.5h5.5',
+        '~M15 21v-7.5l3.5-2V21z', 'M15 21v-7.5l3.5-2V21',
+        'M10.5 21v-2.5h3V21', 'M13.5 11.5l6.5-3.5',
+    ],
+    cave: ['~M1.5 20.5L9 6.5l3.2 3.6L15 6.5l7.5 14z', 'M1.5 20.5L9 6.5l3.2 3.6L15 6.5l7.5 14z', '#M8 20.5a4 5 0 0 1 8 0z'],
+    obelisk: ['~M10 19.5l.9-14L12 3l1.1 2.5.9 14z', 'M10 19.5l.9-14L12 3l1.1 2.5.9 14z', 'M7 19.5h10v2H7z'],
+    stones: ['~M4 21V10.5h4.5V21zM15.5 21V10.5H20V21z', 'M4 21V10.5h4.5V21M15.5 21V10.5H20V21', '~M3 7.5h18v3H3z', 'M3 7.5h18v3H3z', 'M2 21h20'],
+    urn: [
+        '~M9 3.5h6l-1 3c3 1.4 4.6 4 4.6 7a6.6 6.6 0 0 1-13.2 0c0-3 1.6-5.6 4.6-7z',
+        'M9 3.5h6l-1 3c3 1.4 4.6 4 4.6 7a6.6 6.6 0 0 1-13.2 0c0-3 1.6-5.6 4.6-7z',
+        'M8 3.5h8M6.6 12h10.8',
+    ],
+    bone: ['M7.6 16.4l8.8-8.8', circle(5.6, 15.8, 1.9), circle(8.2, 18.4, 1.9), circle(15.8, 5.6, 1.9), circle(18.4, 8.2, 1.9)],
+    storm: [
+        '~M6.5 14a4 4 0 0 1-.3-8 5.5 5.5 0 0 1 10.6-1 3.8 3.8 0 0 1 .7 9z',
+        'M6.5 14a4 4 0 0 1-.3-8 5.5 5.5 0 0 1 10.6-1 3.8 3.8 0 0 1 .7 9z',
+        '#M12.5 12.5l-3 5h2.5l-1.5 4.5 4.5-6h-2.6l1.6-3.5z',
+    ],
+    island: [
+        '~M3 19.5c2-2.3 16-2.3 18 0z',
+        'M2 19.5h20',
+        'M12 18c.3-4-1-7.5-3-9.5',
+        'M9 8.5C7 7.3 4.5 7.6 3 9M9 8.5c1-2 3.6-3 6-2.4M9 8.5c2.2 0 4.6 1.2 5.5 3.2M9 8.5c-1.2 1.4-1.8 3.4-1.4 5.4',
+    ],
+    bridge: [
+        '~M1.5 9.5h21V12h-21z', 'M1.5 9.5h21V12h-21z', 'M3.5 12v8.5M20.5 12v8.5',
+        'M3.5 20.5c0-5 3.8-8.5 8.5-8.5s8.5 3.5 8.5 8.5', 'M7.5 9.5V6.5M16.5 9.5V6.5',
+    ],
+    wave: ['M2 9.5c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1', 'M2 15c2.5-2.5 5-2.5 7.5 0s5 2.5 7.5 0 3.5-1.5 5-1'],
+    shell: ['~M12 20.5L4 11a8 8 0 0 1 16 0z', 'M12 20.5L4 11a8 8 0 0 1 16 0z', 'M12 20.5L7 4.8M12 20.5V3M12 20.5l5-15.7', 'M10 20.5h4'],
+    snowflake: [rays(12, 12, 0, 9.5, 6, Math.PI / 2), 'M9.8 4.5L12 6.5l2.2-2M9.8 19.5L12 17.5l2.2 2'],
+    barrier: ['~M2.5 8h19v5h-19z', 'M2.5 8h19v5h-19z', 'M6.5 8l-3 5M11.5 8l-3 5M16.5 8l-3 5M21 8.5l-2.6 4.5', 'M5 13v7.5M19 13v7.5'],
+    church: ['~M6 21V11l6-4 6 4v10z', 'M6 21V11l6-4 6 4v10', 'M12 7V2.5M10.2 4h3.6', 'M10 21v-3.5a2 2 0 0 1 4 0V21', 'M3.5 21h17'],
+    sparkle: [
+        '~M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3L12 21.5l-2.3-7.2L2.5 12l7.2-2.3z',
+        'M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3L12 21.5l-2.3-7.2L2.5 12l7.2-2.3z',
+    ],
+    // ── Inner maps: furniture and the buildings of a town ──
+    chair: ['M7 3.5v17', '~M7 12h10v2.8H7z', 'M7 12h10v2.8H7z', 'M16 14.8v5.7M8.6 14.8v5.7', 'M7 6.5h4.5M7 9.2h4.5'],
+    table: ['~M2.5 8h19v3h-19z', 'M2.5 8h19v3h-19z', 'M5 11v9.5M19 11v9.5', 'M5 15.5h14'],
+    chest: [
+        '~M3.5 10.5h17v9.5h-17z', 'M3.5 10.5h17v9.5h-17z',
+        '~M3.5 10.5c0-3.4 3.8-5.8 8.5-5.8s8.5 2.4 8.5 5.8z', 'M3.5 10.5c0-3.4 3.8-5.8 8.5-5.8s8.5 2.4 8.5 5.8',
+        'M7.5 5.8v14.2M16.5 5.8v14.2', '#M10.8 11.5h2.4v3h-2.4z',
+    ],
+    crate: ['~M3.5 4.5h17v15h-17z', 'M3.5 4.5h17v15h-17z', 'M3.5 8h17M3.5 16h17', 'M3.5 16l17-8'],
+    stairs: [
+        '~M3 20.5h18V3.5h-4.5V8H12v4.5H7.5V17H3z',
+        'M3 20.5h18V3.5h-4.5V8H12v4.5H7.5V17H3z',
+    ],
+    well: [
+        'M3.5 8.5L12 3l8.5 5.5', 'M6 7.2V14M18 7.2V14', 'M6 9.5h12', 'M12 9.5v2.5', '#M10.5 12h3v2h-3z',
+        '~M3.5 14h17v6.5h-17z', 'M3.5 14h17v6.5h-17z', 'M3.5 17.2h17',
+    ],
+    stall: [
+        '~M3 4h18l-1.5 5h-15z', 'M3 4h18l-1.5 5h-15z', 'M7.5 4l-.8 5M12 4v5M16.5 4l.8 5',
+        'M5 9v11.5M19 9v11.5', 'M5 14.5h14', 'M3 20.5h18',
+    ],
+    bowl: [
+        '~M3 11h18a9 7.5 0 0 1-18 0z', 'M3 11h18a9 7.5 0 0 1-18 0z', 'M9 18l-.5 2.5h7L15 18',
+        'M9 8.5c-.9-1.3.9-2.2-.1-3.8M12.5 8.5c-.9-1.3.9-2.2-.1-3.8M16 8.5c-.9-1.3.9-2.2-.1-3.8',
+    ],
+    bucket: ['~M5 8.5h14l-1.6 12H6.6z', 'M5 8.5h14l-1.6 12H6.6z', 'M5 8.5c0-5 14-5 14 0', 'M5.6 13h12.8'],
+    statue: [
+        '~' + circle(12, 5, 2.2), circle(12, 5, 2.2), 'M8.6 15.5l.9-6.5h5l.9 6.5',
+        '~M6.5 15.5h11v5h-11z', 'M6.5 15.5h11v5h-11z',
+    ],
 };
 
 const FILL_TINT = 0.2;
@@ -454,6 +573,83 @@ const EMOJI_GLYPHS = {
     '🌀': 'anchor', '🛒': 'coins', '📍': 'banner', '🖌': 'palette', '🗑': 'close', '🚧': 'lock', '🚪': 'house',
     '🚫': 'close', '🛤': 'wagon', '❗': 'warning', '⛔': 'close',
 };
+
+/**
+ * On the map an emoji stands for a place or a thing in the land, not a panel's
+ * theme, so some read differently there (✨ is gold in the rock, ⛪ a church).
+ */
+const MAP_GLYPHS = {
+    '🌲': 'tree', '🌳': 'oak', '🌴': 'island', '🍂': 'oak', '🌿': 'wheat', '⛰': 'mountain', '🏔': 'mountain', '🗻': 'mountain',
+    '🏜': 'sun', '❄': 'snowflake', '🧊': 'snowflake', '⛏': 'ore', '✨': 'nugget', '🟠': 'ore', '🥇': 'ingot', '🥈': 'ingot',
+    '⚫': 'coal', '🛢': 'barrel', '🧂': 'salt', '🌶': 'spice', '🐄': 'cow', '🐑': 'sheep', '🐴': 'horseshoe', '🐎': 'horseshoe',
+    '🏇': 'horseshoe', '🧱': 'brick', '🪓': 'axe', '🎣': 'fish', '🐟': 'fish', '🌾': 'wheat', '💎': 'gem', '💰': 'coins',
+    '🏚': 'ruin', '🗿': 'stones', '⛲': 'droplet', '🔭': 'spyglass', '⚱': 'urn', '🦴': 'bone', '⛈': 'storm', '🏝': 'island',
+    '🌕': 'moon', '🔴': 'orb', '🏫': 'book', '🎓': 'book', '🗽': 'obelisk', '🏟': 'tower', '🌉': 'bridge', '🌊': 'wave',
+    '🐚': 'shell', '⛴': 'boat', '🚧': 'barrier', '🏕': 'tent', '⛪': 'church', '⛩': 'church', '🛕': 'temple', '🏛': 'temple',
+    '🏗': 'hammer', '🔨': 'hammer', '❔': 'help', '❓': 'help', '👤': 'person', '💀': 'skull', '⚓': 'anchor', '🛶': 'boat',
+    '🗡': 'dagger', '🕯': 'candle', '🐺': 'paw', '🏘': 'house', '🏠': 'house', '🏰': 'castle', '🐪': 'wagon', '🐫': 'wagon',
+    // Inner maps: the furniture of a room, the trades of a town, its people
+    '🪑': 'chair', '🛏': 'bed', '📦': 'crate', '🧗': 'stairs', '🏪': 'stall', '🍲': 'bowl', '🧺': 'bucket', '💧': 'droplet',
+    '💤': 'moon', '🕌': 'temple', '⚒': 'anvil', '🗼': 'tower', '🍻': 'tankard', '🍺': 'tankard', '🗺': 'map', '🚪': 'house',
+    '💂': 'helm', '🤴': 'crown', '👸': 'crown', '👦': 'person', '👧': 'person', '🧒': 'person', '🧑': 'person', '👨': 'person',
+    '👩': 'person', '🧎': 'person', '🧳': 'satchel', '🧙': 'orb', '🛡': 'shield', '⚔': 'swords',
+};
+
+/** An inner map's furniture by its type: what the piece is, whatever emoji its data carries. */
+const FURNITURE_GLYPHS = {
+    table: 'table', pew: 'chair', chair: 'chair', bar: 'tankard', barrel: 'barrel', fireplace: 'fire', forge: 'fire',
+    bed: 'bed', bookshelf: 'book', anvil: 'anvil', altar: 'chalice', statue: 'statue', stall: 'stall', scales: 'scales',
+    crate: 'crate', chest: 'chest', throne: 'crown', well: 'well', bucket: 'bucket', candle: 'candle', banner: 'pennant',
+    stairs: 'stairs',
+};
+
+/** The glyph a piece of inner-map furniture is drawn with (racks keep their own: swords or shield). */
+export function furnitureGlyph(furniture) {
+    if (!furniture) return null;
+    return FURNITURE_GLYPHS[furniture.type] || glyphFor(furniture.icon);
+}
+
+/** A town building on the inner map by its type (a barn is no ruin, though its emoji is). */
+const BUILDING_GLYPHS = {
+    town_hall: 'temple', marketplace: 'stall', tavern: 'tankard', blacksmith: 'anvil', church: 'church',
+    temple: 'temple', barracks: 'shield', granary: 'wheat', warehouse: 'crate', well: 'well', barn: 'house',
+    house: 'house', manor: 'castle', stable: 'horseshoe', guard_tower: 'tower', farm: 'wheat', pasture: 'sheep',
+    logging_camp: 'axe', mine: 'pickaxe', workshop: 'hammer', trading_post: 'scales', fishing_wharf: 'anchor',
+    brewery: 'barrel', guest_house: 'bed', inn: 'bed', hotel: 'bed', roadhouse: 'bed',
+};
+
+/** The glyph an inner-map building is marked with. */
+export function buildingGlyph(building) {
+    if (!building) return 'house';
+    const type = String(building.type || '').replace(/^player_/, '');
+    return BUILDING_GLYPHS[type] || glyphFor(building.icon) || 'house';
+}
+
+/** The glyph a map emoji (or a glyph name) is drawn as, or null when the set has none. */
+export function glyphFor(emoji) {
+    if (!emoji) return null;
+    if (GLYPHS[emoji]) return emoji;
+    const base = String(emoji).replace(/[️‍].*$/u, '').replace(/\p{Emoji_Modifier}/gu, '');
+    const first = [...base][0];
+    return MAP_GLYPHS[base] || MAP_GLYPHS[first] || EMOJI_GLYPHS[base] || EMOJI_GLYPHS[first] || null;
+}
+
+/**
+ * Draw a map icon given as a glyph name or an emoji: its glyph when the set
+ * has one; otherwise (and under the node test runner) the emoji itself.
+ */
+export function drawIcon(ctx, iconOrName, cx, cy, size, color, lineWidth = 1.9) {
+    const name = glyphFor(iconOrName);
+    if (name && drawGlyph(ctx, name, cx, cy, size, color, lineWidth)) return true;
+    if (!iconOrName || GLYPHS[iconOrName]) return false;
+    ctx.save();
+    ctx.font = `${size * 0.85}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(iconOrName, cx, cy);
+    ctx.restore();
+    return false;
+}
 
 /** Plain titles (no emoji) by keyword → glyph; the first match wins. */
 const TITLE_GLYPHS = [

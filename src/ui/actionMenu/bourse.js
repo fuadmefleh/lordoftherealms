@@ -68,7 +68,7 @@ function boardTab(player, world, atFloor) {
 function portfolioTab(player) {
     const st = Bourse.state(player);
     const rows = Bourse.portfolio(player);
-    let html = `<div style="font-size:12px;">Dividends received ${Math.round(st.stats.dividends)}g · brokers paid ${Math.round(st.stats.fees)}g${st.stats.payouts ? ` · buy-outs paid you ${Math.round(st.stats.payouts)}g` : ''}</div>`;
+    let html = `<div style="font-size:12px;">Dividends received ${Math.round(st.stats.dividends)}g · brokers paid ${Math.round(st.stats.fees)}g${st.stats.payouts ? ` · buy-outs paid you ${Math.round(st.stats.payouts)}g` : ''}${st.stats.buyBacks ? ` · shares bought back ${Math.round(st.stats.buyBacks)}g` : ''}</div>`;
     if (!rows.length) return html + '<div style="color:#aaa; font-size:12px; margin-top:6px;">You hold no shares.</div>';
     let value = 0;
     let cost = 0;

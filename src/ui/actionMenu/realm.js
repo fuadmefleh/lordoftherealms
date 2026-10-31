@@ -1,7 +1,127 @@
 // ActionMenu — realm methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { Ailments } from '../../systems/ailments.js';
+import { Duels } from '../../systems/duels.js';
+import { DuelPanel } from './duel.js';
+import { DevotionPanel } from './devotion.js';
+import { FeastPanel } from './feast.js';
+import { BTN_GOLD, BTN_DARK, esc } from './uiKit.js';
 import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
+
+const BOUT_NAMES = ['Opening bout', 'Semi-final', 'The final'];
+
+/**
+ * The lists: a three-bout bracket on the duel engine (systems/duels.js) —
+ * named rivals nearby take places in the field, knights fill the rest. Each
+ * bout is fought in the duel panel (or on instinct); the bracket ends at the
+ * first loss, and Duels.settleTournament pays out prize, renown and harm.
+ */
+function _runTournament(game, tile, settlement, prizePool, baseRenown) {
+    const player = game.player;
+    const world = game.world;
+    const mods = PlayerEffects.duelModifiers(player);
+    const rivals = Rivals.entrantsNear(player, world, tile, 2);
+    const entrants = rivals.map(r => Duels.fromRival(r, { archetype: Rivals.archetype(r.archetype) }));
+    const field = Duels.tournamentField(settlement, entrants);
+    const bouts = [];
+    let me = Duels.fromPlayer(player, { mods });
+    const armour = me.armour;
+    const T = Duels.config().tournament;
+
+    const nextFighter = () => {
+        // Between bouts you get some wind and a little of your strength back
+        const fresh = Duels.fromPlayer(player, { mods });
+        const lost = me.maxHp - me.hp;
+        fresh.hp = Math.max(1, Math.min(fresh.maxHp, Math.round(me.hp + lost * (T.boutRecovery || 0.5))));
+        return fresh;
+    };
+
+    const record = (opp, result) => {
+        bouts.push({ opponent: opp, result });
+        if (opp.kind === 'rival' && opp.ref) Rivals.recordBout(player, world, opp.ref.id, result.playerWon);
+        me = result.a;
+    };
+
+    const finish = () => {
+        const out = Duels.settleTournament(player, { prizePool, bouts, armour, world });
+        let h = '<div>';
+        h += '<h4 style="margin-top: 0;">⚔️ Tournament Results</h4>';
+        bouts.forEach((b, i) => {
+            const r = b.result;
+            const how = r.yielded === 'b' ? ' (they yielded)' : r.yielded === 'a' ? ' (you yielded)' : '';
+            h += r.playerWon
+                ? `<div style="color: #8f8;">✓ ${BOUT_NAMES[i]}: defeated ${esc(b.opponent.name)}${how}</div>`
+                : `<div style="color: #f88;">✗ ${BOUT_NAMES[i]}: lost to ${esc(b.opponent.name)}${how}</div>`;
+        });
+        for (const w of out.wounds) h += `<div style="color: #e57373; margin-left: 12px;">${w.icon} ${esc(w.name)} (${esc(w.text)})</div>`;
+        if (out.champion) {
+            h += `<div style="color: var(--gold); font-weight: bold; margin-top: 8px;">🏆 GRAND CHAMPION! Won ${out.gold} gold! +${baseRenown + out.renown} total renown!</div>`;
+        } else if (out.finalist) {
+            h += `<div style="color: #ccc; margin-top: 8px;">🥈 Runner-up! Won ${out.gold} gold. +${baseRenown + out.renown} renown.</div>`;
+        } else {
+            h += `<div style="color: #888; margin-top: 8px;">Eliminated${out.wins ? ' in the semi-final' : ' in the opening bout'}. +${baseRenown + out.renown} renown for competing.</div>`;
+        }
+        if (out.skillUp) h += '<div style="color: #88f; margin-top: 4px;">Combat skill improved!</div>';
+        if (out.harm > 0) h += `<div style="color: #f88; margin-top: 4px;">Bruises and cuts: -${out.harm} HP</div>`;
+        h += `<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        h += '</div>';
+        game.ui.showCustomPanel('Tournament Results', h);
+        game.ui.updateStats(player, world);
+    };
+
+    const afterBout = (opp, result) => {
+        record(opp, result);
+        if (!result.playerWon || bouts.length >= field.length) return finish();
+        interlude();
+    };
+
+    const fight = () => {
+        const i = bouts.length;
+        const opp = field[i];
+        DuelPanel.open(game, {
+            a: i === 0 ? me : nextFighter(),
+            b: opp,
+            mode: 'tournament',
+            title: `⚔️ ${BOUT_NAMES[i]}`,
+            intro: `${settlement.name}'s lists — ${esc(opp.title || '')} ${esc(opp.name)}. Blunted steel; a fighter may yield.`,
+            onFinish: (r) => afterBout(opp, r),
+        });
+    };
+
+    const autoAll = () => {
+        while (bouts.length < field.length) {
+            const i = bouts.length;
+            const opp = field[i];
+            const r = Duels.autoResolve(i === 0 ? me : nextFighter(), opp, { mode: 'tournament', playerYieldAt: 0.15 });
+            record(opp, r);
+            if (!r.playerWon) break;
+        }
+        finish();
+    };
+
+    const interlude = () => {
+        const i = bouts.length;
+        let h = '<div>';
+        h += `<h4 style="margin-top: 0;">🏟️ The Lists at ${esc(settlement.name)}</h4>`;
+        if (i > 0) {
+            const last = bouts[i - 1];
+            h += `<div style="color: #8f8; margin-bottom: 6px;">✓ You beat ${esc(last.opponent.name)}.</div>`;
+        }
+        h += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">The bracket:</div>`;
+        field.forEach((o, k) => {
+            const T2 = Duels.temperament(o.temperament);
+            const mark = k < i ? '✓' : k === i ? '▶' : '·';
+            h += `<div style="font-size: 12px; ${k === i ? 'color: var(--gold);' : k < i ? 'color: #8f8;' : 'color: #ccc;'}">${mark} ${BOUT_NAMES[k]}: ${o.icon} ${esc(o.name)} <span style="color: var(--text-muted); font-size: 10px;">${esc(o.title || '')} · ${T2.icon || ''} ${esc(T2.label || '')}</span></div>`;
+        });
+        h += `<div style="font-size: 11px; color: var(--text-muted); margin: 6px 0;">🏆 Champion takes ${prizePool} gold; the runner-up ${Math.floor(prizePool * (T.runnerUpShare || 0.4))}.</div>`;
+        h += `<button onclick="window._tourney.fight()" style="${BTN_GOLD} width: 100%; padding: 9px;">⚔️ Fight the ${BOUT_NAMES[i].toLowerCase()}</button>`;
+        h += `<button onclick="window._tourney.auto()" style="${BTN_DARK} width: 100%; padding: 7px;">⚡ Fight the rest on instinct</button>`;
+        h += '</div>';
+        game.ui.showCustomPanel('Tournament', h);
+    };
+
+    window._tourney = { fight, auto: autoAll };
+    interlude();
+}
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -10,76 +130,11 @@ Object.assign(ActionMenu, {
     //               Fish, Prospect, Tame Horse, Campfire
     // ============================================
     /**
-     * Show donation menu — give gold for karma + reputation
+     * Alms: choose who receives it — the temple, the poor, a guild you belong
+     * to, a named townsperson in need (systems/devotion.js; ui/actionMenu/devotion.js)
      */
     showDonateMenu(game, tile) {
-        const player = game.player;
-        const settlement = tile.settlement;
-        const maxDonate = Math.min(player.gold, 500);
-        const kingdomId = settlement ? settlement.kingdom : null;
-        const kingdomName = kingdomId ? (game.world.getKingdom(kingdomId)?.name || 'this realm') : 'the people';
-
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">💰 Make a Donation</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">Donate gold to the people of <strong>${settlement ? settlement.name : 'this land'}</strong>. This earns you karma and reputation with ${kingdomName}.</p>`;
-        html += `<p style="font-size: 12px; color: var(--gold);">Your gold: ${Math.floor(player.gold)}</p>`;
-        html += `<div style="margin: 12px 0;">`;
-        html += `<label style="font-size: 12px;">Amount to donate:</label><br>`;
-        html += `<input type="range" id="donateAmount" min="10" max="${maxDonate}" value="${Math.min(50, maxDonate)}" oninput="document.getElementById('donateLabel').textContent = this.value" style="width: 100%;">`;
-        html += `<span id="donateLabel" style="color: var(--gold); font-weight: bold;">${Math.min(50, maxDonate)}</span> gold`;
-        html += `</div>`;
-        html += `<button onclick="window._doDonate()" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Donate</button>`;
-        html += '</div>';
-
-        game.ui.showCustomPanel('Donation', html);
-
-        window._doDonate = () => {
-            if (!ActionMenu.commitPendingAP(game)) return;
-            const amount = parseInt(document.getElementById('donateAmount')?.value || 10);
-            if (amount > player.gold) {
-                game.ui.showNotification('Not Enough', 'You can\'t afford that donation!', 'error');
-                return;
-            }
-
-            player.gold -= amount;
-            if (player.financeToday) {
-                player.financeToday.expenses = player.financeToday.expenses || {};
-                player.financeToday.expenses.donation = (player.financeToday.expenses.donation || 0) + amount;
-            }
-
-            // Karma scales with amount
-            const karmaGain = Math.floor(amount / 10) + 1;
-            player.karma = (player.karma || 0) + karmaGain;
-
-            // Reputation gain
-            if (kingdomId && player.reputation) {
-                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0)
-                    + PlayerEffects.scaleReputationGain(player, Math.floor(amount / 15) + 1);
-            }
-
-            // Renown for large donations
-            let renownGain = 0;
-            if (amount >= 100) {
-                renownGain = Math.floor(amount / 50);
-                player.renown = (player.renown || 0) + renownGain;
-            }
-
-            // Charisma might improve
-            let charismaUp = false;
-            if (amount >= 50 && Math.random() < 0.15) {
-                player.charisma = (player.charisma || 5) + 1;
-                charismaUp = true;
-            }
-
-            let msg = `You donated ${amount} gold. +${karmaGain} karma.`;
-            if (kingdomId) msg += ` Reputation with ${kingdomName} improved.`;
-            if (renownGain > 0) msg += ` +${renownGain} renown!`;
-            if (charismaUp) msg += ' Your generosity has improved your charisma!';
-
-            game.ui.showNotification('💰 Donation', msg, 'success');
-            game.ui.hideCustomPanel();
-            game.ui.updateStats(player, game.world);
-        };
+        DevotionPanel.showDonate(game, tile);
     },
 
     /**
@@ -236,87 +291,11 @@ Object.assign(ActionMenu, {
     },
 
     /**
-     * Host a feast at a settlement — costs gold, gains renown + reputation + diplomacy
+     * Host a feast: plan guests, menu and entertainment (systems/feasts.js; ui/actionMenu/feast.js)
      */
     showHostFeastMenu(game, tile) {
-        const player = game.player;
-        const settlement = tile.settlement;
-        if (!settlement) return;
-
-        const tier = settlement.type === 'capital' ? 'grand' : (settlement.type === 'town' ? 'fine' : 'modest');
-        const costs = { modest: 200, fine: 400, grand: 800 };
-        const cost = costs[tier];
-
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">🍖 Host a Feast</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">Host a ${tier} feast in <strong>${settlement.name}</strong>. The locals will remember your generosity.</p>`;
-        html += `<div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 8px 0; font-size: 12px;">`;
-        html += `<div>💰 Cost: <span style="color: var(--gold);">${cost} gold</span></div>`;
-        html += `<div>📈 Expected: +renown, +reputation, +diplomacy skill</div>`;
-        html += `<div>⏰ Takes the rest of the day</div>`;
-        html += `</div>`;
-
-        if (player.gold >= cost) {
-            html += `<button onclick="window._doFeast(${cost}, '${tier}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Host the Feast (${cost}g)</button>`;
-        } else {
-            html += `<p style="color: #ff6666; font-size: 12px;">You need ${cost} gold to host this feast.</p>`;
-        }
-        html += '</div>';
-
-        game.ui.showCustomPanel('Host Feast', html);
-
-        window._doFeast = (feastCost, feastTier) => {
-            if (!ActionMenu.commitPendingAP(game)) return;
-            if (player.gold < feastCost) {
-                game.ui.showNotification('Not Enough Gold', 'You can\'t afford this feast!', 'error');
-                return;
-            }
-
-            player.gold -= feastCost;
-            if (player.financeToday) {
-                player.financeToday.expenses = player.financeToday.expenses || {};
-                player.financeToday.expenses.feast = (player.financeToday.expenses.feast || 0) + feastCost;
-            }
-
-            // Renown
-            const renownGain = { modest: 3, fine: 6, grand: 12 }[feastTier] || 3;
-            player.renown = (player.renown || 0) + renownGain;
-
-            // Karma
-            const karmaGain = { modest: 2, fine: 4, grand: 7 }[feastTier] || 2;
-            player.karma = (player.karma || 0) + karmaGain;
-
-            // Reputation
-            const kingdomId = settlement.kingdom;
-            if (kingdomId && player.reputation) {
-                const repGain = { modest: 3, fine: 6, grand: 10 }[feastTier] || 3;
-                player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) + repGain;
-            }
-
-            // Diplomacy skill up chance
-            let diplomacyUp = false;
-            const skillChance = { modest: 0.15, fine: 0.25, grand: 0.4 }[feastTier] || 0.15;
-            if (Math.random() < skillChance && player.skills) {
-                player.skills.diplomacy = Math.min((player.skills.diplomacy || 1) + 1, 10);
-                diplomacyUp = true;
-            }
-
-            // Charisma up chance
-            let charismaUp = false;
-            if (Math.random() < 0.2) {
-                player.charisma = (player.charisma || 5) + 1;
-                charismaUp = true;
-            }
-
-            let msg = `You hosted a ${feastTier} feast! +${renownGain} renown, +${karmaGain} karma.`;
-            if (diplomacyUp) msg += ' Diplomacy skill improved!';
-            if (charismaUp) msg += ' Your charisma grew!';
-
-            game.ui.hideCustomPanel();
-            game.ui.showNotification('🍖 Feast Complete', msg, 'success');
-            game.ui.updateStats(player, game.world);
-            game.endDay();
-        };
+        if (!tile || !tile.settlement) return;
+        FeastPanel.show(game, tile);
     },
 
     /**
@@ -342,7 +321,7 @@ Object.assign(ActionMenu, {
         html += `<div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 8px 0; font-size: 12px;">`;
         html += `<div>💰 Entry/Organization cost: <span style="color: var(--gold);">${entryFee} gold</span></div>`;
         html += `<div>🏆 Prize pool: <span style="color: var(--gold);">${prizePool} gold</span></div>`;
-        html += `<div>⚔️ Your combat skill: ${player.skills?.combat || 1} | Strength: ${player.strength || 5}</div>`;
+        html += `<div>⚔️ Your combat skill: ${Math.round((player.skills?.combat || 1) * 10) / 10} | Strength: ${Math.round((player.strength || 5) * 10) / 10}</div>`;
         html += `<div>⏰ Takes the rest of the day</div>`;
         html += `</div>`;
         html += `<p style="font-size: 11px; color: #aaa;">You may compete yourself, or simply host and watch.</p>`;
@@ -380,71 +359,8 @@ Object.assign(ActionMenu, {
             player.renown = (player.renown || 0) + renownGain;
 
             if (compete) {
-                // Combat rounds — player vs 3 opponents
-                const combatSkill = (player.skills?.combat || 1);
-                const strengthBonus = ((player.strength || 5) - 5) * 0.05;
-                const playerPower = combatSkill * 2 + strengthBonus + (Math.random() * 5);
-
-                const opponents = [
-                    { name: 'Local Champion', power: 4 + Math.random() * 6 },
-                    { name: 'Traveling Knight', power: 6 + Math.random() * 7 },
-                    { name: 'Arena Veteran', power: 8 + Math.random() * 8 },
-                ];
-                // Rival adventurers nearby enter the lists by name (systems/rivals.js)
-                const rivalEntrants = Rivals.tournamentEntrants(player, game.world, tile, 2);
-                rivalEntrants.forEach((r, i) => { opponents[i] = { name: r.name, power: r.power + Math.random() * 4, rivalId: r.id }; });
-
-                let wins = 0;
-                let healthLost = 0;
-                resultHtml += '<h4 style="margin-top: 0;">⚔️ Tournament Results</h4>';
-
-                for (const opp of opponents) {
-                    const won = playerPower + Math.random() * 3 > opp.power;
-                    if (opp.rivalId) Rivals.recordBout(player, game.world, opp.rivalId, won);
-                    if (won) {
-                        wins++;
-                        resultHtml += `<div style="color: #8f8;">✓ Defeated ${opp.name}!</div>`;
-                    } else {
-                        const dmg = Math.floor(Math.random() * 10) + 5;
-                        healthLost += dmg;
-                        resultHtml += `<div style="color: #f88;">✗ Lost to ${opp.name} (-${dmg} HP)</div>`;
-                        // A lost bout can leave a real wound (systems/ailments.js)
-                        const wound = Ailments.maybeWound(player, game.world, 'duel');
-                        if (wound) resultHtml += `<div style="color: #e57373; margin-left: 12px;">${wound.icon} ${wound.name} (${wound.text})</div>`;
-                    }
-                }
-
-                player.health = Math.max(1, player.health - healthLost);
-
-                if (wins === 3) {
-                    // Grand champion!
-                    const winnings = prizePool;
-                    player.gold += winnings;
-                    if (player.financeToday) {
-                        player.financeToday.income.tournament = (player.financeToday.income.tournament || 0) + winnings;
-                    }
-                    player.renown += 5; // Bonus renown
-                    resultHtml += `<div style="color: var(--gold); font-weight: bold; margin-top: 8px;">🏆 GRAND CHAMPION! Won ${winnings} gold! +${renownGain + 5} total renown!</div>`;
-                } else if (wins >= 2) {
-                    const winnings = Math.floor(prizePool * 0.4);
-                    player.gold += winnings;
-                    if (player.financeToday) {
-                        player.financeToday.income.tournament = (player.financeToday.income.tournament || 0) + winnings;
-                    }
-                    resultHtml += `<div style="color: #ccc; margin-top: 8px;">🥈 Runner-up! Won ${winnings} gold. +${renownGain} renown.</div>`;
-                } else {
-                    resultHtml += `<div style="color: #888; margin-top: 8px;">Eliminated early. +${renownGain} renown for participating.</div>`;
-                }
-
-                // Combat skill up chance
-                if (Math.random() < 0.2 + wins * 0.1 && player.skills) {
-                    player.skills.combat = Math.min((player.skills.combat || 1) + 1, 10);
-                    resultHtml += `<div style="color: #88f; margin-top: 4px;">Combat skill improved!</div>`;
-                }
-
-                if (healthLost > 0) {
-                    resultHtml += `<div style="color: #f88; margin-top: 4px;">Total injuries: -${healthLost} HP</div>`;
-                }
+                _runTournament(game, tile, settlement, prizePool, renownGain);
+                return;
             } else {
                 // Just hosting
                 resultHtml += '<h4 style="margin-top: 0;">🏟️ Tournament Hosted</h4>';

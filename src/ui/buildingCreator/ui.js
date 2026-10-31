@@ -237,7 +237,11 @@ export function _buildUI() {
         if (!drawing) return;
         _handleCanvasClick(e);
     });
-    window.addEventListener('mouseup', () => { drawing = false; });
+    // One window listener at a time: every rebuild (open, phase 2) used to
+    // add another that was never removed
+    if (bcState._onWindowMouseUp) window.removeEventListener('mouseup', bcState._onWindowMouseUp);
+    bcState._onWindowMouseUp = () => { drawing = false; };
+    window.addEventListener('mouseup', bcState._onWindowMouseUp);
 
     // Keyboard shortcuts
     bcState._overlay.addEventListener('keydown', (e) => {

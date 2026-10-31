@@ -114,6 +114,7 @@
             "label": "Sack",
             "icon": "🔥",
             "deed": true,
+            "localRenown": false,
             "baseSeverity": 60,
             "credibility": 0.95,
             "decayDays": 90,
@@ -129,6 +130,36 @@
             "decayDays": 60,
             "spreadChance": 0.7,
             "description": "{perpetrator} fed the hungry of {location} from their own treasury"
+        },
+        "feast_given": {
+            "label": "A Feast",
+            "icon": "🍖",
+            "deed": true,
+            "baseSeverity": 25,
+            "credibility": 0.85,
+            "decayDays": 30,
+            "spreadChance": 0.55,
+            "description": "{perpetrator} kept a feast at {location} that the guests are still talking about"
+        },
+        "pilgrimage_made": {
+            "label": "Pilgrimage",
+            "icon": "🥾",
+            "deed": true,
+            "baseSeverity": 20,
+            "credibility": 0.8,
+            "decayDays": 30,
+            "spreadChance": 0.45,
+            "description": "{perpetrator} walked the pilgrim's road and knelt at {location}"
+        },
+        "feast_brawl": {
+            "label": "Brawl at a Feast",
+            "icon": "🍺",
+            "talk": true,
+            "baseSeverity": 15,
+            "credibility": 0.7,
+            "decayDays": 20,
+            "spreadChance": 0.5,
+            "description": "there was a brawl at {perpetrator}'s table in {location}, and the host was in the thick of it"
         },
         "pardon": {
             "label": "Pardon",
@@ -150,6 +181,36 @@
             "spreadChance": 0.65,
             "description": "{perpetrator} beat {victim} in a duel near {location}"
         },
+        "beast_slain": {
+            "label": "Beast Slain",
+            "icon": "🐺",
+            "deed": true,
+            "baseSeverity": 25,
+            "credibility": 0.75,
+            "decayDays": 30,
+            "spreadChance": 0.55,
+            "description": "{perpetrator} faced down {victim} in the wilds near {location}"
+        },
+        "wilds_rescue": {
+            "label": "Rescue in the Wilds",
+            "icon": "🤝",
+            "deed": true,
+            "baseSeverity": 25,
+            "credibility": 0.8,
+            "decayDays": 35,
+            "spreadChance": 0.5,
+            "description": "{perpetrator} saved {victim} out in the wilds near {location}"
+        },
+        "wilds_find": {
+            "label": "A Find in the Wilds",
+            "icon": "💰",
+            "deed": true,
+            "baseSeverity": 20,
+            "credibility": 0.7,
+            "decayDays": 30,
+            "spreadChance": 0.5,
+            "description": "{perpetrator} came back from the wilds near {location} with {victim}"
+        },
         "priest_murder": {
             "label": "Priest Murder",
             "icon": "⚖️💀",
@@ -161,7 +222,94 @@
             "decayDays": 80,
             "spreadChance": 0.75,
             "description": "{perpetrator} killed a holy person in {location}"
+        },
+        "affair": {
+            "label": "Affair",
+            "icon": "💋",
+            "talk": true,
+            "baseSeverity": 30,
+            "credibility": 0.7,
+            "decayDays": 50,
+            "spreadChance": 0.75,
+            "description": "{perpetrator} has been seen keeping close company with {victim} of {location}, and {perpetrator} a married soul"
+        },
+        "mail_opened": {
+            "label": "Broken Seals",
+            "icon": "🔓",
+            "talk": true,
+            "baseSeverity": 25,
+            "credibility": 0.7,
+            "decayDays": 60,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} has been reading other people's letters: the seal of {victim} was found lifted in {location}"
+        },
+        "whisperer": {
+            "label": "Whisperer Exposed",
+            "icon": "🐍",
+            "baseSeverity": 45,
+            "reputationPenalty": -12,
+            "renownPenalty": -5,
+            "karmaPenalty": -6,
+            "bountyGold": 0,
+            "decayDays": 45,
+            "spreadChance": 0.7,
+            "description": "{perpetrator} was the one spreading those lies about {victim}, it's been traced back to {location}"
+        },
+        "blackmailer": {
+            "label": "Blackmail",
+            "icon": "✉️",
+            "baseSeverity": 60,
+            "reputationPenalty": -20,
+            "renownPenalty": -8,
+            "karmaPenalty": -10,
+            "bountyGold": 150,
+            "decayDays": 70,
+            "spreadChance": 0.75,
+            "description": "{perpetrator} tried to blackmail {victim}, and the crown's men know it ({location})"
         }
+    },
+
+    "tellings": {
+        "_comment": "Rumours grow in the telling. Each time a rumour reaches a new town, the teller either passes on the version they heard (inherit) or changes it (chance). A telling multiplies the rumour's severity in that town (consequences, guard hostility) and replaces its text there. {base} is the plain description; {perpetrator} {victim} {location} {rival} fill as usual. 'stolen' deeds are credited to someone else; 'clears' tellings no longer name the player.",
+        "chance": 0.35,
+        "inherit": 0.65,
+        "crime": [
+            { "id": "grown", "label": "Grown in the telling", "weight": 4, "severity": 1.35,
+              "text": "{base}. And two more who tried to stop it, the way it's told here." },
+            { "id": "monstrous", "label": "Monstrous", "weight": 2, "minDepth": 2, "severity": 1.6,
+              "text": "They say {perpetrator} did unspeakable things to {victim} in {location}. Some swear there was a black rite in it." },
+            { "id": "softened", "label": "Softened", "weight": 3, "severity": 0.6,
+              "text": "Word is {perpetrator} and {victim} fell to blows in {location}. Who started it depends on who's telling." },
+            { "id": "misplaced", "label": "Blamed on a stranger", "weight": 2, "severity": 0.15, "clears": true,
+              "text": "Something ugly happened to {victim} in {location}. A stranger in a grey cloak, most say. Nobody here names {perpetrator}." },
+            { "id": "garbled", "label": "Garbled", "weight": 2, "severity": 1.0,
+              "text": "{perpetrator}, or someone with a name like it, did for {victim} somewhere past {location}. Or was it the other way round?" }
+        ],
+        "deed": [
+            { "id": "legend", "label": "Become legend", "weight": 4, "severity": 1.4, "regard": 1.2,
+              "text": "{base}. Single-handed, if you believe the telling here, and laughing the while." },
+            { "id": "stolen", "label": "Credited to another", "weight": 2, "minDepth": 2, "severity": 0.5, "regard": 0, "stolen": true, "needsRival": true,
+              "text": "{base}... except here they swear it was {rival}, not {perpetrator}." },
+            { "id": "soured", "label": "Soured", "weight": 2, "severity": 0.8, "regard": 0.3,
+              "text": "{base}, they say, though some whisper it was done for gain, not goodness." }
+        ],
+        "talk": [
+            { "id": "grown", "label": "Grown in the telling", "weight": 3, "severity": 1.4,
+              "text": "{perpetrator} and {victim} of {location}! Caught in the hayloft, they say, and not for the first time." },
+            { "id": "softened", "label": "Doubted", "weight": 2, "severity": 0.5,
+              "text": "Some say {perpetrator} is sweet on {victim} of {location}. Others say that's the ale talking." }
+        ],
+        "refuted": { "id": "refuted", "label": "Sung down", "severity": 0.3, "clears": true,
+              "text": "There's a song going round that {perpetrator} was falsely accused over {victim}. The bard tells it well." }
+    },
+
+    "deedRenown": {
+        "_comment": "A deed's word is worth deedWeight = local severity / refSeverity x the telling's regard (legend 1.2, soured 0.3, stolen 0), clamped to [minWeight, maxWeight]. Each town it reaches raises the player's reputation with that town's realm by reputationPerTown x weight (up to reputationCap); a friend there who hears it warms by matters.config.deedPraise x weight. A type with localRenown false (a sack) wins no realm's love.",
+        "refSeverity": 30,
+        "minWeight": 0,
+        "maxWeight": 2.5,
+        "reputationPerTown": 2,
+        "reputationCap": 60
     },
 
     "witnessRadius": 5,
@@ -198,5 +346,147 @@
         "guard": "guard_murder",
         "noble": "noble_murder",
         "priest": "priest_murder"
+    },
+
+    "scandals": {
+        "_comment": "Court scandals (systems/whispers.js): tales about the great (rulers, rival adventurers) that hatch at a capital or a town, spread town to town, gather heat and weigh on the realm's stability (kingdom.scandal.stab, read by world/kingdomState.js). Some are true, some are lies; nobody knows which until it is proven, debunked or forgotten. The player hears them in taverns and can fan them, quash them, dig for the truth, blackmail the subject, sell the proof to an enemy crown, or plant a tale of their own. Lines: {subject} {place} {kingdom} {enemy}. fallout.proven / fallout.debunked: what a ruler's tale does to the realm on top of the stability shock (stability, unity, piety, treasuryPct, enemyRelations, advisorLoyalty — Whispers.applyFallout).",
+        "config": {
+            "firstDay": 20,
+            "hatchEvery": [14, 28],
+            "maxLive": 3,
+            "lifeDays": [35, 60],
+            "spreadPerDay": 2,
+            "spreadChance": 0.45,
+            "maxSpreadDistance": 7,
+            "heatPerTown": 12,
+            "foreignHeat": 0.4,
+            "coolPerDay": 0.8,
+            "provenHeat": 50,
+            "stabilityAtFullHeat": 12,
+            "maxStability": 20,
+            "provenShock": 8,
+            "vindicated": 3,
+            "rulerShare": 0.75,
+            "fan": { "cost": 40, "heat": 15, "spreads": 3, "traceChance": 0.05, "enemyRep": 3, "traceBonus": 0.5, "traceOnDebunk": 0.2 },
+            "harden": { "days": 8, "base": 0.3, "perTown": 0.04, "standing": 0.5, "min": 0.05, "max": 0.8 },
+            "quash": { "cost": 60, "heat": 30, "rep": 4 },
+            "dig": { "cost": 30, "base": 0.35, "perStat": 0.05 },
+            "blackmail": { "base": 120, "perHeat": 3, "rep": -15, "refuseTraits": ["honorable", "brave"], "refuseChance": 0.6 },
+            "sell": { "base": 80, "perHeat": 2, "rep": 8 },
+            "plant": { "cost": 80, "heat": 12, "traceChancePerDay": 0.025, "traceTrueFactor": 0.4, "rep": -15 },
+            "rival": { "renownProven": 12, "attitudeIfTraced": -35 },
+            "bard": { "cost": 35 },
+            "maxResolved": 20
+        },
+        "kinds": {
+            "bastard": {
+                "label": "A Hidden Bastard", "icon": "👶", "subjects": ["ruler"], "severity": 0.8,
+                "fallout": { "proven": { "advisorLoyalty": -8 } },
+                "truth": { "base": 0.4 },
+                "lines": [
+                    "They say {subject} has a bastard hidden away in {place}, and the child has the royal eyes.",
+                    "A wet-nurse in {place} swears she suckled a child of {subject}'s. Paid in crown silver, she says."
+                ],
+                "proven": "A child of {subject}'s, born on the wrong side of the blanket, was found in {place}. The court of {kingdom} is in uproar.",
+                "debunked": "The so-called bastard of {subject} turned out to be a miller's boy with a lying mother. {subject} is vindicated."
+            },
+            "poison": {
+                "label": "A Poisoning", "icon": "🧪", "subjects": ["ruler"], "severity": 1.3,
+                "fallout": { "proven": { "advisorLoyalty": -10, "stability": -3 } },
+                "truth": { "base": 0.1, "traits": { "cruel": 0.5, "cunning": 0.35 } },
+                "lines": [
+                    "They say {subject}'s uncle didn't die of a fever. Something in the wine, from a cup {subject} poured.",
+                    "A cook from the palace fled to {place}. She won't say what she put in the soup, or who told her to."
+                ],
+                "proven": "The palace cook confessed before the priests: {subject} ordered the poison. {kingdom} reels.",
+                "debunked": "The cook who 'fled' turned up drunk in a ditch and recanted everything. The tale of {subject}'s poison dies."
+            },
+            "debts": {
+                "label": "The Crown's Debts", "icon": "💸", "subjects": ["ruler"], "severity": 1.0,
+                "fallout": { "proven": { "treasuryPct": -0.15 }, "debunked": { "stability": 1 } },
+                "truth": { "base": 0.2, "emptyTreasury": 0.65, "traits": { "greedy": 0.25 } },
+                "lines": [
+                    "They say {subject} has pawned the crown jewels to the moneylenders. Paste on the royal head, gold in a vault in {place}.",
+                    "Soldiers in {kingdom} haven't seen silver in weeks. {subject} is broke, and everyone knows it but the heralds."
+                ],
+                "proven": "The moneylenders of {place} went public with the pawn tickets. {subject} is a debtor king, and {kingdom} knows it.",
+                "debunked": "{subject} paid the garrison in full, in good coin, in the square at {place}. So much for the debts."
+            },
+            "heresy": {
+                "label": "A Secret Heresy", "icon": "🕯️", "subjects": ["ruler"], "severity": 1.1,
+                "fallout": { "proven": { "unity": -15, "piety": -6 }, "debunked": { "piety": 4 } },
+                "truth": { "base": 0.25, "traits": { "pious": -0.15, "cunning": 0.1 } },
+                "lines": [
+                    "They say {subject} keeps an old idol in a locked room and prays to it at night.",
+                    "A chapel boy in {place} saw {subject} spit on the altar. Nobody believed him. Then he vanished."
+                ],
+                "proven": "The idol was found, exactly where they said. The priests of {kingdom} turn their faces from {subject}.",
+                "debunked": "{subject} walked barefoot to the shrine at {place} and was blessed before the crowd. The heresy talk withers."
+            },
+            "pact": {
+                "label": "A Secret Pact", "icon": "📜", "subjects": ["ruler"], "severity": 1.5, "needsWar": true,
+                "fallout": { "proven": { "enemyRelations": -20 }, "debunked": { "enemyRelations": -5 } },
+                "truth": { "base": 0.15, "traits": { "cunning": 0.3, "cautious": 0.2 } },
+                "lines": [
+                    "They say {subject} writes secret letters to {enemy}. Our sons die so the crown can haggle over the peace.",
+                    "A courier was stopped near {place} with {enemy}'s seal in his boot. They say the letter was for {subject}."
+                ],
+                "proven": "The letters were real. {subject} has been bargaining with {enemy} behind {kingdom}'s back.",
+                "debunked": "The 'letters to {enemy}' were forged by a clerk with a grudge. He hanged in {place} this morning."
+            },
+            "coward": {
+                "label": "Cowardice", "icon": "🐔", "subjects": ["ruler", "rival"], "severity": 0.9,
+                "fallout": { "proven": { "advisorLoyalty": -5 } },
+                "truth": { "base": 0.3, "traits": { "brave": -0.25, "cautious": 0.3 }, "rivalDuelsLost": 0.3 },
+                "lines": [
+                    "They say {subject} ran from a fight near {place}, left their own people in the mud.",
+                    "Ask anyone in {place}: {subject} hid in a wine cellar while better folk did the fighting."
+                ],
+                "proven": "Three survivors from {place} told it the same way: {subject} ran. The name won't wash clean.",
+                "debunked": "{subject} showed the scars from {place} in the square. Nobody calls them a coward now."
+            },
+            "affair": {
+                "label": "An Affair", "icon": "💋", "subjects": ["ruler", "rival"], "severity": 0.7,
+                "fallout": { "proven": { "advisorLoyalty": -3 } },
+                "truth": { "base": 0.45 },
+                "lines": [
+                    "They say {subject} slips out at night to a house in {place}, and it isn't to pray.",
+                    "A maid in {place} found {subject}'s ring in a bed where it had no business being."
+                ],
+                "proven": "{subject} was caught leaving the house in {place} at dawn. The whole of {kingdom} is laughing.",
+                "debunked": "The house in {place} turned out to belong to {subject}'s old nurse. The affair talk sours into pity."
+            },
+            "madness": {
+                "label": "Madness", "icon": "🌀", "subjects": ["ruler"], "severity": 1.2,
+                "fallout": { "proven": { "advisorLoyalty": -12, "stability": -2 } },
+                "truth": { "base": 0.12, "oldAge": 0.3 },
+                "lines": [
+                    "They say {subject} talks to the portraits now, and waits for them to answer.",
+                    "A guard from the palace drinks in {place}. He says {subject} had the hounds tried for treason."
+                ],
+                "proven": "{subject} addressed the court of {kingdom} as if it were a flock of geese. The councillors exchange looks.",
+                "debunked": "{subject} held a sharp, cold council at {place} and dismissed the guard who'd talked. Mad as a fox, maybe."
+            },
+            "cheat": {
+                "label": "A Cheat", "icon": "🎲", "subjects": ["rival"], "severity": 1.0,
+                "truth": { "base": 0.35 },
+                "lines": [
+                    "They say {subject} rigged the lists at {place}. Bribed the marshal, loosened a rival's girth.",
+                    "{subject}'s loaded dice cleaned out half the soldiers in {place}, they say."
+                ],
+                "proven": "The marshal of {place} confessed: {subject} paid him. The name is mud in every tavern.",
+                "debunked": "The 'loaded dice' were checked by the priests of {place}: honest bone. {subject} is cleared."
+            },
+            "graverobber": {
+                "label": "Grave-Robbing", "icon": "⚰️", "subjects": ["rival"], "severity": 1.0,
+                "truth": { "base": 0.2, "rivalDelves": 0.35 },
+                "lines": [
+                    "They say {subject} sells the bones out of the old tombs to the witches in {place}.",
+                    "That gold {subject} spends so freely? Grave-goods. Someone's grandmother's rings, they say, from {place}."
+                ],
+                "proven": "A fence in {place} named {subject} as the source of the grave-goods. The priests want answers.",
+                "debunked": "The grave-goods were traced to a gang in {place}, not to {subject}. An apology is owed."
+            }
+        }
     }
 }

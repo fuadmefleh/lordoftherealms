@@ -47,7 +47,7 @@ describe('custom worlds', () => {
             },
         }));
         expect(world.tiles[8][8].settlement).toMatchObject({ type: 'town', name: 'Oakhollow' });
-        expect(world.tiles[20][30].settlement).toMatchObject({ type: 'city', name: 'Greywater' });
+        expect(world.tiles[20][30].settlement).toMatchObject({ type: 'town', name: 'Greywater' });
         expect(world.tiles[22][12].improvement).toMatchObject({ type: 'ruins', name: 'The Pit', explored: false });
         expect(world.tiles[1][1].settlement).toBeNull();
     });

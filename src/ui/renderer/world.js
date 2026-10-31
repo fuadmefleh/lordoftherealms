@@ -2,6 +2,9 @@
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
 import { drawHoverCoords } from '../hoverCoords.js';
+import { resetCanvasTransform } from '../hiDpi.js';
+import { drawIcon } from '../icons.js';
+import { fontPx, readableFont, inkText, drawMapText } from '../mapInk.js';
 
 Object.assign(Renderer.prototype, {
     /**
@@ -11,6 +14,7 @@ Object.assign(Renderer.prototype, {
         this.time += deltaTime;
         this.waterAnimFrame = Math.floor(this.time / this.waterAnimInterval);
         const ctx = this.ctx;
+        resetCanvasTransform(ctx);
         const w = this.canvas.width;
         const h = this.canvas.height;
 
@@ -20,7 +24,14 @@ Object.assign(Renderer.prototype, {
 
         if (!this.world) return;
 
+        // The inner map draws pixel art with smoothing off on this same context
+        // (outside its save/restore); hex sprites are meant to be smoothed
+        ctx.imageSmoothingEnabled = true;
+
         ctx.save();
+        // A layer that throws must not leave the context transformed/clipped
+        // for every later frame, nor let the label queue grow without end
+        try {
 
         // The cloud sea over the uncharted world (renderer/fog.js)
         this.renderUncharted(ctx);
@@ -36,6 +47,9 @@ Object.assign(Renderer.prototype, {
 
         // Render trade route lines (map mode)
         this.renderTradeRoutes(ctx);
+
+        // Mines, quarries, ranches and the estates' farms about the towns, as buildings (beneath the towns)
+        this.renderRuralSites(ctx);
 
         // Render settlements
         this.renderSettlements(ctx);
@@ -99,6 +113,12 @@ Object.assign(Renderer.prototype, {
         this.renderDiscoveries(ctx);
         // Outlaw lairs you have found or heard of (systems/outlawLairs.js)
         this.renderOutlawLairs(ctx);
+        // Pirate havens you know of, and captains lately sighted (systems/pirates.js)
+        this.renderPirateHavens(ctx);
+        // Roadhouses on the open road (systems/hospitality.js)
+        this.renderRoadhouses(ctx);
+        // Where your quests send you next (systems/npcTasks.js)
+        this.renderQuestMarkers(ctx);
         // Mines, quarries, sheep runs around the towns and their deposits (world/hinterland.js)
         this.renderHinterland(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
@@ -125,7 +145,10 @@ Object.assign(Renderer.prototype, {
             drawHoverCoords(ctx, this.canvas, this.mouseX, this.mouseY, this.hoveredHex.q, this.hoveredHex.r);
         }
 
-        ctx.restore();
+        } finally {
+            ctx.restore();
+            this.labels.length = 0;
+        }
     },
 
     /**
@@ -137,7 +160,19 @@ Object.assign(Renderer.prototype, {
      * @param {object} style - Text style (font, fillStyle, strokeStyle, etc.)
      */
     addLabel(text, x, y, priority, style) {
-        this.labels.push({ text, x, y, priority, style });
+        if (text == null || text === '') return;
+        this.labels.push({ text: String(text), x, y, priority, style: { ...style, font: readableFont(style.font) } });
+    },
+
+    /**
+     * Text on the map, inked so it reads over any terrain: a dark rounded halo
+     * under the letters and a soft shadow round that. Every label and number
+     * drawn on the world goes through here.
+     * opts: size, weight, family ('display' Cinzel | 'body' Inter), color,
+     * align, baseline, alpha, halo (colour).
+     */
+    drawMapText(ctx, text, x, y, opts = {}) {
+        drawMapText(ctx, text, x, y, opts);
     },
 
     /**
@@ -162,7 +197,7 @@ Object.assign(Renderer.prototype, {
         // The font's pixel size (a leading weight like "700 13px" is not the size)
         const m = /(\d+(?:\.\d+)?)px/.exec(label.style.font);
         const height = m ? parseFloat(m[1]) : 12;
-        const pad = label.style.plaque ? height * 0.6 : 0;
+        const pad = label.style.plaque ? height * 0.6 : height * 0.15;
         const width = metrics.width + pad * 2;
         const top = label.style.textBaseline === 'top' ? label.y - pad * 0.4 : label.y - height / 2 - pad * 0.4;
 
@@ -204,12 +239,9 @@ Object.assign(Renderer.prototype, {
         }
         ctx.restore();
         if (plaque.capital) {
-            ctx.save();
-            ctx.font = `${Math.round(h * 0.8)}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('👑', (b.left + b.right) / 2, b.top + h * 0.2);
-            ctx.restore();
+            // A crown resting on the banner's top edge
+            const cs = Math.max(12, h * 0.85);
+            drawIcon(ctx, 'crown', (b.left + b.right) / 2, b.top - cs * 0.32, cs, '#f5c542', 2.2);
         }
     },
 
@@ -246,15 +278,8 @@ Object.assign(Renderer.prototype, {
 
                 if (label.style.plaque) this.drawLabelPlaque(ctx, bounds, label.style.plaque);
 
-                // Draw shadow if specified
-                if (label.style.shadowColor) {
-                    ctx.fillStyle = label.style.shadowColor;
-                    ctx.fillText(label.text, label.x + 1, label.y + 1);
-                }
-
-                // Draw main text
-                ctx.fillStyle = label.style.fillStyle;
-                ctx.fillText(label.text, label.x, label.y);
+                inkText(ctx, label.text, label.x, label.y, fontPx(label.style.font), label.style.fillStyle,
+                    label.style.plaque ? 'rgba(6, 8, 12, 0.75)' : null);
 
                 // Save this label as rendered
                 renderedLabels.push({ ...label, bounds });
@@ -308,22 +333,14 @@ Object.assign(Renderer.prototype, {
 
             const renderSize = size * this.camera.zoom;
 
-            // Draw Icon
-            ctx.font = `${renderSize * 0.8}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-
             // Your caravan: a merchant token with a gold halo
             this.renderUnitToken(ctx, { type: 'trade_caravan', q: 0, r: 0, escort: { by: 'player' }, icon: '🐪' }, screen.x, screen.y, renderSize);
 
             // Draw Label
             if (this.camera.zoom > 0.6) {
-                ctx.font = `bold 12px sans-serif`;
-                ctx.fillStyle = '#ffcc00';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2;
-                ctx.strokeText(`${caravan.daysRemaining} days`, screen.x, screen.y - renderSize * 0.6);
-                ctx.fillText(`${caravan.daysRemaining} days`, screen.x, screen.y - renderSize * 0.6);
+                this.drawMapText(ctx, `${caravan.daysRemaining} days`, screen.x, screen.y - renderSize * 0.6, {
+                    size: 12, family: 'body', color: '#ffd75e',
+                });
             }
         }
     },

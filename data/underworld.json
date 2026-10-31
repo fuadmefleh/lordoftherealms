@@ -33,7 +33,10 @@
         "smuggling_route": { "heat": 2,  "caughtHeat": 10, "deeds": { "cunning": 0.3 }, "karma": 0 },
         "piracy":          { "heat": 12, "caughtHeat": 0,  "deeds": {}, "karma": 0 },
         "theft":           { "heat": 4,  "caughtHeat": 10, "deeds": {}, "karma": 0 },
-        "caravan_robbery": { "heat": 10, "caughtHeat": 22, "deeds": { "greed": 1.5, "cruelty": 1 }, "karma": -3 }
+        "caravan_robbery": { "heat": 10, "caughtHeat": 22, "deeds": { "greed": 1.5, "cruelty": 1 }, "karma": -3 },
+        "mail_robbery":    { "heat": 8,  "caughtHeat": 20, "deeds": { "greed": 1, "deceit": 0.5 }, "karma": -2 },
+        "jailbreak":       { "heat": 20, "caughtHeat": 0,  "deeds": { "deceit": 1, "cunning": 1 }, "karma": -2 },
+        "map_theft":       { "heat": 6,  "caughtHeat": 15, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": -1 }
     },
     "guardStrength": {
         "village": 1,
@@ -182,5 +185,35 @@
         "watched": "The watch eyes you as you pass the gate.",
         "poster":  "Wanted posters bearing your likeness hang by the gate.",
         "warrant": "The crown has a warrant out for you here — the guards are looking."
+    },
+    "prison": {
+        "_comment": "The prison loop (player/prison.js): named cellmates, guard bribes, tunnels, labour, jailbreaks once a day.",
+        "cellmates": {
+            "count": [2, 3],
+            "firstNames": ["Odo", "Brannoc", "Wenna", "Tobin", "Marl", "Hesk", "Ysolde", "Garret", "Pell", "Agnes", "Corvin", "Fenna", "Rolf", "Sabine", "Dunstan", "Ilse"],
+            "epithets": ["One-Ear", "the Crooked", "Ratcatcher", "Quickfingers", "the Grey", "Saltlip", "Halfpenny", "the Quiet", "Ironjaw", "Longshanks", "Pockface", "the Tinker"]
+        },
+        "archetypes": {
+            "smuggler": { "label": "Smuggler", "icon": "📦", "blurb": "Knows which guard carries what in his boots. Can have tools brought in.", "friendAt": 2, "toolsCost": 20 },
+            "informant": { "label": "Informant", "icon": "👂", "blurb": "Friendly, talkative, and too well fed for a prisoner.", "friendAt": 3, "betrayChance": 0.2, "breakBonus": 0.15 },
+            "veteran": { "label": "Old Soldier", "icon": "💂", "blurb": "Did his service and then some. Might follow a leader worth following.", "friendAt": 3, "breakBonus": 0.1 },
+            "fence": { "label": "Fence", "icon": "💍", "blurb": "Buys what's hot and sells it cold. Knows the guild.", "friendAt": 2, "standing": 5 }
+        },
+        "talk": { "base": 0.45, "charisma": 0.03, "diplomacy": 0.04, "foods": ["bread", "cooked_meat", "meat", "dried_meat", "cheese", "fish", "cooked_fish", "preserved_fish", "food", "fruit", "berries", "honey"] },
+        "bribe": {
+            "base": { "village": 15, "town": 30, "city": 50, "capital": 80 },
+            "perDay": 0.12, "perOffense": 0.25,
+            "lookAwayMult": 1, "releaseMult": 3, "toolsMult": 0.6,
+            "refuse": { "village": 0.1, "town": 0.2, "city": 0.3, "capital": 0.4 },
+            "diplomacy": 0.03, "lookAwayBonus": 0.35, "reportDays": [1, 3]
+        },
+        "tunnel": { "perDay": [12, 22], "strength": 1.5, "toolBreak": 0.25, "discovery": 0.06, "discoveryPer10": 0.01, "escapeChance": 0.85, "addedDays": [2, 4] },
+        "work": { "extraDays": 1, "health": 2, "strength": 0.1 },
+        "breakout": {
+            "rush": { "base": 0.12, "combat": 0.04, "strength": 0.01 },
+            "slip": { "base": 0.1, "stealth": 0.04 },
+            "failDays": [2, 5], "reputation": 10, "bounty": 60
+        },
+        "servitude": { "bribeShare": 0.4, "bribeBase": 0.5, "bribeDiplomacy": 0.04, "failDays": [1, 3], "workExtraDays": 1 }
     }
 }

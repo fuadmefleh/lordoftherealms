@@ -2,7 +2,9 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
-import { FOOD_ITEMS, COOK_RECIPES, CRAFT_RECIPES, SMELT_RECIPES, BREW_RECIPES, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
+import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
+import { Crafting } from '../../player/crafting.js';
+import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
 
 export function _getPlayerFoods(game) {
@@ -16,21 +18,16 @@ export function _getPlayerFoods(game) {
 }
 
 export function _getCookableItems(game) {
-    const inv = game.player.inventory || {};
-    return COOK_RECIPES.filter(r => {
-        for (const [item, amt] of Object.entries(r.ingredients)) {
-            if ((inv[item] || 0) < amt) return false;
-        }
-        return true;
-    });
+    return Crafting.recipes('cook').filter(r => Crafting.canCraft(game.player, r));
+}
+
+/** Any recipe of this station the player has the materials for. */
+export function _canWorkStation(game, station) {
+    return Crafting.recipes(station).some(r => Crafting.canCraft(game.player, r));
 }
 
 export function _canCraftRecipe(game, recipe) {
-    const inv = game.player.inventory || {};
-    for (const [item, amt] of Object.entries(recipe.ingredients)) {
-        if ((inv[item] || 0) < amt) return false;
-    }
-    return true;
+    return Crafting.canCraft(game.player, recipe);
 }
 
 export function _consumeIngredients(game, ingredients) {
@@ -156,7 +153,8 @@ export function _showSleepModal(game, objDef, cost = 0) {
         }
         const hpGain = _calcSleepHealth(hours);
         if (hpGain > 0) {
-            game.player.health = Math.min(game.player.maxHealth || 100, (game.player.health || 100) + hpGain);
+            const hp = game.player.health != null ? game.player.health : 100;
+            game.player.health = Math.min(game.player.maxHealth || 100, hp + hpGain);
         }
         game.ui.showNotification('💤 Slept', `You slept for ${hours} hours and feel refreshed.`, 'success');
         game.ui.updateStats(game.player, game.world);
@@ -224,14 +222,16 @@ export function _showEatModal(game, objDef) {
         if (!def) return;
         const inv = game.player.inventory || {};
         if ((inv[foodId] || 0) <= 0) return;
+        // A fine meal nourishes more than a burnt one (player/crafting.js)
+        const q = Crafting.consume(game.player, foodId, 1);
         inv[foodId]--;
         if (inv[foodId] <= 0) delete inv[foodId];
         if (game.player.modifyNeed) {
-            if (def.hunger) game.player.modifyNeed('hunger', def.hunger);
-            if (def.energy) game.player.modifyNeed('energy', def.energy);
-            if (def.fun) game.player.modifyNeed('fun', def.fun);
+            if (def.hunger) game.player.modifyNeed('hunger', Math.round(def.hunger * q));
+            if (def.energy) game.player.modifyNeed('energy', def.energy > 0 ? Math.round(def.energy * q) : def.energy);
+            if (def.fun) game.player.modifyNeed('fun', Math.round(def.fun * q));
             if (def.social) game.player.modifyNeed('social', def.social);
-            if (def.comfort) game.player.modifyNeed('comfort', def.comfort);
+            if (def.comfort) game.player.modifyNeed('comfort', Math.round(def.comfort * q));
         }
         _removeModal(id);
         game.ui.showNotification(`${def.icon} Ate ${def.label}`, `Mmm, delicious! Hunger restored.`, 'success');
@@ -241,15 +241,23 @@ export function _showEatModal(game, objDef) {
     };
 }
 
-export function _showRecipeModal(game, objDef, title, icon, recipes) {
+/**
+ * The crafting modal for one station (cook, craft, smelt, brew, tan). The
+ * rules — odds, failure, quality, rank — are player/crafting.js; smithing
+ * recipes are worked at the Forge minigame, whose score feeds the quality.
+ */
+export function _showRecipeModal(game, objDef, title, icon, station) {
     _removeModal('objActionModal');
     const id = 'objActionModal';
     const modal = document.createElement('div');
     modal.id = id;
     modal.style.cssText = MODAL_STYLE;
+    const recipes = Array.isArray(station) ? station : Crafting.recipes(station);
+    const building = InnerMap._insideBuilding || null;
+    const rank = Crafting.rank(game.player);
 
-    let recipeHtml = recipes.map((r, i) => {
-        const canMake = _canCraftRecipe(game, r);
+    const recipeHtml = recipes.map((r, i) => {
+        const canMake = Crafting.canCraft(game.player, r);
         const opacity = canMake ? '1' : '0.4';
         const cursor = canMake ? 'cursor:pointer;' : 'cursor:not-allowed;';
         const ingredientStr = Object.entries(r.ingredients).map(([k, v]) => {
@@ -258,6 +266,9 @@ export function _showRecipeModal(game, objDef, title, icon, recipes) {
             return `<span style="color:${color}">${k.replace(/_/g, ' ')} ${has}/${v}</span>`;
         }).join(' · ');
         const resultStr = Object.entries(r.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
+        const odds = Crafting.odds(game.player, r, { building });
+        const tier = Crafting.tier(odds.tier);
+        const oddsStr = `Fail ${Math.round(odds.fail * 100)}%${r.quality === false ? '' : ` · likely ${tier.icon} ${tier.name}`}${r.smith ? ' · ⚒️ forge work' : ''}`;
         return `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;opacity:${opacity};${cursor}transition:background .15s"
                  ${canMake ? `onmouseenter="this.style.background='rgba(245,197,66,0.1)'" onmouseleave="this.style.background='rgba(255,255,255,0.03)'" onclick="window._execRecipe(${i})"` : ''}>
@@ -267,17 +278,20 @@ export function _showRecipeModal(game, objDef, title, icon, recipes) {
                     <div style="font-size:11px;color:#888">${r.desc}</div>
                     <div style="font-size:10px;margin-top:2px">Needs: ${ingredientStr}</div>
                     <div style="font-size:10px;color:#6ab8db">Yields: ${resultStr}</div>
+                    <div style="font-size:10px;color:#b9a77a">${oddsStr}</div>
                 </div>
             </div>
         `;
     }).join('');
 
+    const shop = recipes.length ? Crafting.workshopBonus(recipes[0], building) : 0;
+    const rankLine = `${rank.icon} ${rank.name} crafter (${Math.floor(rank.xp)} xp${rank.next ? ` · ${rank.next.name} at ${rank.next.at}` : ''})${shop ? ' · 🏛️ proper workshop' : ''}`;
     modal.innerHTML = `
         <div style="${MODAL_HEADER_STYLE}">
             <span style="font-size:28px">${icon}</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">${title}</div>
-                <div style="font-size:11px;color:#999">Select a recipe to produce</div>
+                <div style="font-size:11px;color:#999">${rankLine}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -289,25 +303,47 @@ export function _showRecipeModal(game, objDef, title, icon, recipes) {
     `;
     document.body.appendChild(modal);
 
-    window._execRecipe = (idx) => {
-        const recipe = recipes[idx];
-        if (!recipe || !_canCraftRecipe(game, recipe)) return;
-        const invBefore = { ...(game.player.inventory || {}) };
-        _consumeIngredients(game, recipe.ingredients);
-        const given = _giveResults(game, recipe.result);
-        if (given.full) {
-            // No room for the product — undo the craft rather than destroy the ingredients
-            game.player.inventory = invBefore;
-            game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'warning');
+    const finish = (recipe, res) => {
+        if (res.full) {
+            game.ui.showNotification('🎒 Inventory Full', res.reason || PlayerInventory.fullMessage(game.player), 'warning');
+            return;
+        }
+        if (!res.success && !res.failed) {
+            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, res.reason || 'You cannot make that.', 'error');
             return;
         }
         _advanceTime(1);
-        _removeModal(id);
-        const resultStr = Object.entries(recipe.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
-        game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced ${resultStr}!`, 'success');
+        if (res.failed) {
+            game.ui.showNotification(`${recipe.icon} Spoiled`, `The work went wrong — you lost ${PlayerInventory.describe(res.lost) || 'nothing'}. (+${res.xp} crafting xp)`, 'warning');
+        } else {
+            const resultStr = Object.entries(res.results).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
+            const q = res.quality ? ` ${res.tierIcon} ${res.tierName}` : '';
+            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced${q} ${resultStr}! (+${res.xp} crafting xp)`, res.tier >= 2 ? 'success' : 'info');
+        }
+        if (res.toolWorn) game.ui.showNotification('🔧 Tools Worn', 'A set of tools wore out at the work.', 'info');
+        if (res.rankUp) game.ui.showNotification(`${res.rankUp.icon} ${res.rankUp.name}`, `Your craft improves: you are now a ${res.rankUp.name}.`, 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
+    };
+
+    window._execRecipe = (idx) => {
+        const recipe = recipes[idx];
+        if (!recipe || !Crafting.canCraft(game.player, recipe)) return;
+        _removeModal(id);
         delete window._execRecipe;
+        if (recipe.smith) {
+            // Smithing is worked at the forge: the minigame's score sets the quality
+            const host = new MinigameHost(game, { title: `🔥 ${recipe.label}`, height: 380 });
+            startForge(host, {
+                strength: game.player.strength || 5,
+                onComplete: (scorePercent) => {
+                    host.close();
+                    finish(recipe, Crafting.craft(game.player, recipe, { building, forgeScore: scorePercent }));
+                },
+            });
+            return;
+        }
+        finish(recipe, Crafting.craft(game.player, recipe, { building }));
     };
 }
 
@@ -354,7 +390,14 @@ export function _showFishModal(game, objDef) {
     ];
 
     const timer = setInterval(() => {
-        if (cancelled) { clearInterval(timer); return; }
+        // Another object action replaces #objActionModal: that abandons the
+        // cast (without this the timer ran on, granted a catch and removed
+        // the new modal by id)
+        if (cancelled || !modal.isConnected) {
+            clearInterval(timer);
+            if (window._cancelFishing === cancelFishing) delete window._cancelFishing;
+            return;
+        }
         const elapsed = Date.now() - startTime;
         const progress = Math.min(100, (elapsed / totalTime) * 100);
         const bar = document.getElementById('fishBar');
@@ -369,7 +412,8 @@ export function _showFishModal(game, objDef) {
 
         if (elapsed >= totalTime) {
             clearInterval(timer);
-            _removeModal(id);
+            modal.remove();
+            if (window._cancelFishing === cancelFishing) delete window._cancelFishing;
             _advanceTime(1);
 
             // Determine catch
@@ -396,12 +440,13 @@ export function _showFishModal(game, objDef) {
         }
     }, 100);
 
-    window._cancelFishing = () => {
+    const cancelFishing = () => {
         cancelled = true;
         clearInterval(timer);
-        _removeModal(id);
+        modal.remove();
         delete window._cancelFishing;
     };
+    window._cancelFishing = cancelFishing;
 }
 
 export function _showStoreModal(game, objDef, anchorQ, anchorR) {
@@ -498,7 +543,7 @@ export function _showHealModal(game, objDef) {
         .filter(([itemId]) => (inv[itemId] || 0) > 0)
         .map(([itemId, def]) => ({ itemId, qty: inv[itemId], ...def }));
 
-    const currentHp = game.player.health || 100;
+    const currentHp = game.player.health != null ? game.player.health : 100;
     const maxHp = game.player.maxHealth || 100;
 
     let listHtml = healItems.map(h => `
@@ -534,12 +579,16 @@ export function _showHealModal(game, objDef) {
     window._execHeal = (itemId) => {
         const def = HEAL_ITEMS[itemId];
         if (!def || (inv[itemId] || 0) <= 0) return;
+        // A masterwork potion heals more than a crude one (player/crafting.js)
+        const heal = Math.round(def.heal * Crafting.consume(game.player, itemId, 1));
         inv[itemId]--;
         if (inv[itemId] <= 0) delete inv[itemId];
-        game.player.health = Math.min(maxHp, currentHp + def.heal);
+        // Read health now: it may have changed while the modal was open
+        const hp = game.player.health != null ? game.player.health : 100;
+        game.player.health = Math.min(maxHp, hp + heal);
         if (def.energy && game.player.modifyNeed) game.player.modifyNeed('energy', def.energy);
         _removeModal(id);
-        game.ui.showNotification(`${def.icon} Healed`, `Restored ${def.heal} HP!`, 'success');
+        game.ui.showNotification(`${def.icon} Healed`, `Restored ${heal} HP!`, 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
         delete window._execHeal;

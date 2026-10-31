@@ -9,5 +9,7 @@ import './interiors.js';
 import './movement.js';
 import './npcs.js';
 import './furnitureUse.js';
+import './encounters.js';
+import './hospitality.js';
 
 export { InnerMap };

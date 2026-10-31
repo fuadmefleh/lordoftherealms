@@ -606,3 +606,92 @@ describe('the daily tick is cheap', () => {
         expect(best).toBeLessThan(0.3);
     });
 });
+
+describe('arrears: paid back, pressed for, rioted over', () => {
+    it('in a good month the tenants pay back arrears out of their spare crop: booked apart in the Ledger', () => {
+        const g = newGame(101);
+        play(g, 8);
+        const w = g.world;
+        const s = townWith(w);
+        const e = giveEstate(g, s);
+        s.economy.gold = 100000;
+        const rec = Estates.town(w, s.q, s.r);
+        e.mode = 'coin';
+        LandMarket._townMonth(w, g.player, rec, w.day, { notices: [] });
+        expect(e.lastDue).toBeGreaterThan(0);
+        expect(e.lastPaid).toBeGreaterThan(0);
+        // A debt from a bad year, then a good month
+        e.arrears = 300;
+        const before = e.arrears;
+        LandMarket._townMonth(w, g.player, rec, w.day + 30, { notices: [] });
+        expect(e.lastBack).toBeGreaterThan(0);
+        expect(e.arrears).toBeLessThan(before - e.lastBack + 1);
+        expect(e.lastPaid).toBeGreaterThan(e.lastBack);
+        expect(Ledger.today(g.player).income.estateArrears).toBeGreaterThan(0);
+        expect(LandMarket.playerState(g.player).stats.arrears).toBeGreaterThan(0);
+    });
+
+    it('pressing for arrears takes coin from the town for loyalty, once a month', () => {
+        const g = newGame(101);
+        play(g, 8);
+        const w = g.world;
+        const s = townWith(w);
+        const e = giveEstate(g, s);
+        s.economy.gold = 100000;
+        e.arrears = 400;
+        e.loyalty = 80;
+        const gold0 = g.player.gold;
+        const town0 = s.economy.gold;
+        const q = LandMarket.pressQuote(g.player, w, e.id);
+        expect(q.ok).toBe(true);
+        expect(q.risk).toBe(0);
+        const res = LandMarket.pressArrears(g.player, w, e.id);
+        expect(res.success).toBe(true);
+        expect(res.riot).toBe(false);
+        expect(res.amount).toBe(q.amount);
+        expect(g.player.gold).toBe(gold0 + res.amount);
+        expect(s.economy.gold).toBe(town0 - res.amount);
+        expect(e.arrears).toBe(400 - res.amount);
+        expect(e.loyalty).toBe(80 - q.loyalty);
+        expect(Ledger.today(g.player).income.estateArrears).toBe(res.amount);
+        expect(LandMarket.playerState(g.player).stats.pressed).toBe(1);
+        expect(LandMarket.pressArrears(g.player, w, e.id).success).toBe(false);
+        expect(LandMarket.pressQuote(g.player, w, Estates.estatesOf(w, s.q, s.r).find(x => x.holder !== 'player')?.id || 'none').ok).toBe(false);
+    });
+
+    it('pressed too hard, the tenants riot over the rent: nothing collected, and the town talks of a rent riot', () => {
+        const g = newGame(101);
+        play(g, 8);
+        const w = g.world;
+        const s = townWith(w);
+        const e = giveEstate(g, s);
+        s.economy.gold = 100000;
+        e.arrears = 400;
+        e.loyalty = 10;
+        patch('press', { ...Estates.config().press, riotChance: 100, riotMax: 1 });
+        const gold0 = g.player.gold;
+        const res = LandMarket.pressArrears(g.player, w, e.id);
+        expect(res.success).toBe(true);
+        expect(res.riot).toBe(true);
+        expect(g.player.gold).toBe(gold0);
+        expect(e.arrears).toBeLessThan(400);
+        const h = Estates.history(w).find(x => x.kind === 'riot' && x.estate === e.name);
+        expect(h.why).toBe('rent');
+        const talk = Estates.talk(w, s);
+        expect(talk.labour).toContain('rent_riot');
+        expect(talk.labour).not.toContain('enclosure_riot');
+    });
+
+    it('bequests and dowries are cried by the heralds and talked of in their towns', () => {
+        const g = newGame(101);
+        play(g, 8);
+        const w = g.world;
+        const s = townWith(w);
+        const e = Estates.estatesOf(w, s.q, s.r)[0];
+        Estates.record(w, { key: `es:beq:${e.id}:t`, kind: 'bequest', day: w.day, place: s.name, q: s.q, r: s.r, kingdomId: s.kingdom, estate: e.name, holder: 'Lord Test', buyer: 'the Church', own: false });
+        const talk = Estates.talk(w, s);
+        expect(talk.labour).toContain('bequest');
+        expect(Heralds._estateRecords(w).some(x => x.h.kind === 'bequest')).toBe(true);
+        expect(Chatter.validate()).toEqual([]);
+    });
+});

@@ -11,6 +11,7 @@ import { Colonization } from '../../world/colonization.js';
 import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Ships } from '../../systems/ships.js';
+import { Pirates } from '../../systems/pirates.js';
 import { Housing } from '../../systems/housing.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Religion } from '../../systems/religion.js';
@@ -30,6 +31,7 @@ import { Holdings } from '../../systems/holdings.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
 import { SeasonalWork } from '../seasonalWork.js';
+import { Prison } from '../prison.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
 
@@ -60,11 +62,20 @@ export const PlayerActions = {
                     description: `Pay ${jail.bailCost} gold to get out of jail immediately.`
                 });
             }
+            // The cell: cellmates, guards to bribe, a tunnel, the yard (player/prison.js)
+            actions.push({
+                type: 'jail_cell',
+                label: 'Your Cell',
+                icon: '🧱',
+                description: 'Cellmates, a guard who might take coin, a loose stone, labour in the yard.'
+            });
+            const tried = jail.prison && jail.prison.lastBreakDay === (world && world.day);
             actions.push({
                 type: 'jail_escape',
                 label: 'Attempt Jailbreak',
                 icon: '🏃',
-                description: `Try to escape (${Math.floor((jail.escapeChance || 0.1) * 100)}% chance). Failure adds more time.`
+                description: tried ? "The guards are wary after tonight's attempt. Wait for another night."
+                    : 'Rush the guard, slip out at the change of the watch, or go through your tunnel. Once a night; failure adds more time.'
             });
             return actions;
         }
@@ -82,7 +93,9 @@ export const PlayerActions = {
                 type: 'servitude_escape',
                 label: 'Attempt Escape',
                 icon: '🏃',
-                description: `Try to slip away (${Math.floor(servitude.escapeChance * 100)}% chance). Failure means punishment and extra days.`
+                description: servitude.lastEscapeDay === (world && world.day)
+                    ? 'You have tried your luck today. Wait for another night.'
+                    : `Slip away at night (${Math.floor(servitude.escapeChance * 100)}% chance), bribe an overseer, or work for an earlier release. Once a day.`
             });
             if (servitude.canBuyFreedom && player.gold >= servitude.freedomCost) {
                 actions.push({
@@ -164,6 +177,15 @@ export const PlayerActions = {
                 { type: 'hunt_pirates', label: 'Hunt Pirates', icon: '⚔️', description: 'Patrol for pirates — bounty, renown and karma if you win' },
                 { type: 'commit_piracy', label: 'Turn Pirate', icon: '🏴‍☠️', description: 'Raid a merchant ship — gold, but karma and reputation suffer' }
             );
+            // A pirate haven you know of, beside the ship (systems/pirates.js)
+            const haven = Pirates.havenNear(player, world);
+            if (haven) {
+                actions.push({ type: 'raid_haven', label: `Raid ${haven.name}`, icon: '🏝️', description: 'Fall on the pirate haven: their hoard, and their undying hatred' });
+            }
+        }
+        // What you know of the sea rovers, and what they know of you
+        if (player.boardedShip && Pirates.hasLog(player)) {
+            actions.push({ type: 'sea_rovers', label: 'Sea Rovers', icon: '🏴‍☠️', description: 'The pirate captains you have met, their havens, and your infamy at sea' });
         }
 
         // Row back out to a ship anchored offshore
@@ -228,7 +250,7 @@ export const PlayerActions = {
 
         // ── Shared tile context ──
         const isSettlement = !!tile.settlement;
-        const isCity = isSettlement && (tile.settlement.type === 'town' || tile.settlement.type === 'capital');
+        const isCity = isSettlement && ['town', 'city', 'capital'].includes(tile.settlement.type);
         const isVillage = isSettlement && tile.settlement.type === 'village';
         const isEmptyColony = isSettlement && tile.settlement.colony && tile.settlement.colony.isPlayerColony && tile.settlement.population < 10;
         const isPlayerSettlement = isSettlement && (
@@ -324,18 +346,24 @@ export const PlayerActions = {
 
         // Process jail sentence if active
         if (player.jailState) {
+            // A night in the cell: smuggled tools, a snitch, a search (player/prison.js; only
+            // once the player has looked around the cell, on its own seeded stream)
+            const prisonDay = player.jailState.prison ? Prison.processDay(player, world) : null;
             player.jailState.daysRemaining--;
             player.stamina = 0;
             player.movementRemaining = 0;
             if (player.jailState.daysRemaining <= 0) {
                 const settlement = player.jailState.settlement;
+                const hadCell = !!player.jailState.prison;
+                const rel = hadCell ? Prison.releaseServed(player, world) : null;
                 player.jailState = null;
                 player.stamina = player.maxStamina;
                 player.movementRemaining = player.maxStamina;
-                results.jailUpdate = { freed: true, message: `You have served your sentence and are released from jail in ${settlement}.` };
+                results.jailUpdate = { freed: true, message: `You have served your sentence and are released from jail in ${settlement}.${rel && rel.text ? ` ${rel.text}` : ''}` };
             } else {
                 results.jailUpdate = { freed: false, daysRemaining: player.jailState.daysRemaining, message: `${player.jailState.daysRemaining} day(s) of jail time remain.` };
             }
+            if (prisonDay && prisonDay.notices.length) results.jailUpdate.notices = prisonDay.notices;
         }
 
         // Process indentured servitude if active
@@ -360,7 +388,7 @@ export const PlayerActions = {
         results.caravansCompleted = PlayerEconomy.updateCaravans(player, world);
 
         // Update contract
-        results.contractUpdate = PlayerMilitary.updateContract(player);
+        results.contractUpdate = PlayerMilitary.updateContract(player, world);
 
         // Spread faith
         results.followersGained = PlayerReligion.spreadFaith(player, world);
@@ -385,6 +413,8 @@ export const PlayerActions = {
 
         // Spring planting contracts pay out at the harvest
         results.plantingContracts = SeasonalWork.processDaily(player, world);
+        // Winter trap lines fill (or are raided) day by day; own seeded stream
+        results.trapLines = SeasonalWork.processTrapLines(player, world);
 
         // Lord trade agreements run for a fixed term
         results.tradeAgreementsExpired = PlayerEffects.expireTradeAgreements(player, world.day || 0);

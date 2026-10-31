@@ -1,6 +1,7 @@
 // ActionMenu — houseShips methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
+import { Pirates } from '../../systems/pirates.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -360,8 +361,13 @@ Object.assign(ActionMenu, {
             if (ship.customizations && ship.customizations.length > 0) {
                 html += statPill('🔧 Mods', ship.customizations.length);
             }
+            const crewHere = Ships.getCrew(ship);
+            html += statPill('👥', `<span style="color:${crewHere >= eff.crewRequired ? '#5cb85c' : crewHere >= Ships.getMinCrew(ship) ? '#f0ad4e' : '#d9534f'}">${crewHere}/${eff.crewRequired} crew</span>`);
             html += '</div>';
             html += '<div style="display:flex;gap:6px;">';
+            if (crewHere < eff.crewRequired && Ships.isPortTile(game.world, ship.q, ship.r)) {
+                html += `<button onclick="window._hireSailorsHere()" style="flex:1;${btnPrimary}">👥 Hire Sailors</button>`;
+            }
             html += `<button onclick="window._manageShip('${ship.id}')" style="flex:1;${btnSecondary}">⚙️ Manage</button>`;
             html += `<button onclick="window._moveShipMenu('${ship.id}')" style="flex:1;${btnSecondary}">🧭 Move</button>`;
             html += '</div></div>';
@@ -410,6 +416,8 @@ Object.assign(ActionMenu, {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('⛵ Ship Purchased!', result.message, 'success');
                 game.ui.updateStats(player, game.world);
+                // She comes without a crew: straight to the docks' hiring hall
+                if (Ships.shortHandedAt(player, game.world, tile.q, tile.r).length) ActionMenu.showHireSailorsMenu(game, tile);
             } else {
                 game.ui.showNotification('Cannot Buy', result.message, 'error');
             }
@@ -422,6 +430,8 @@ Object.assign(ActionMenu, {
         window._manageShip = (shipId) => {
             ActionMenu._showShipManagePanel(game, tile, shipId);
         };
+
+        window._hireSailorsHere = () => ActionMenu.showHireSailorsMenu(game, tile);
 
         window._moveShipMenu = (shipId) => {
             ActionMenu._showMoveShipMenu(game, tile, shipId);
@@ -861,6 +871,59 @@ Object.assign(ActionMenu, {
         };
     },
 
+    /**
+     * The docks' hiring hall: every ship of yours lying here short of hands,
+     * what each still needs, and a button to sign them on (Ships.hireCrew).
+     */
+    showHireSailorsMenu(game, tile) {
+        const player = game.player;
+        const crewCfg = Ships._getCrewSettings();
+        const rows = Ships.shortHandedAt(player, game.world, tile.q, tile.r);
+
+        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
+        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
+        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
+
+        let html = '<div style="max-height:460px;overflow-y:auto;">';
+        html += '<h4 style="margin:0;">👥 Hire Sailors</h4>';
+        html += `<div style="font-size:11px;color:var(--text-secondary);margin:3px 0 10px;">Sailors sign on for ${crewCfg.hireCostPerSailor}g each and draw ${crewCfg.wagePerSailorPerDay}g a day in wages. A ship needs at least part of its crew to leave port; short-handed she sails slower and fights weaker.</div>`;
+        if (!rows.length) {
+            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">Every ship of yours docked here is fully crewed.</div>';
+        }
+        for (const { ship, open, cost } of rows) {
+            const st = Ships.getShipType(ship.typeId) || {};
+            const need = Ships.getShipEffectiveStats(ship).crewRequired;
+            const crew = Ships.getCrew(ship);
+            const canSail = crew >= Ships.getMinCrew(ship);
+            const affordable = Math.min(open, Math.floor((player.gold || 0) / Math.max(1, crewCfg.hireCostPerSailor)));
+            html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
+            html += `<div style="display:flex;justify-content:space-between;gap:8px;"><strong>${st.icon || '⛵'} ${ship.name}</strong><span style="font-size:12px;color:${canSail ? '#f0ad4e' : '#d9534f'};">${crew}/${need} crew</span></div>`;
+            html += `<div style="font-size:11px;color:var(--text-secondary);margin:4px 0 8px;">${canSail ? 'Can sail, but short-handed.' : `Needs ${Ships.getMinCrew(ship)} to leave port.`} ${open} berth${open === 1 ? '' : 's'} empty · wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day</div>`;
+            html += '<div style="display:flex;gap:6px;">';
+            if (affordable >= open) {
+                html += `<button onclick="window._hireSailors('${ship.id}')" style="flex:1;${btnPrimary}">Hire ${open} sailors (${cost}g)</button>`;
+            } else if (affordable > 0) {
+                html += `<button onclick="window._hireSailors('${ship.id}')" style="flex:1;${btnPrimary}">Hire ${affordable} of ${open} (${Ships.getHireCost(affordable)}g, all you can afford)</button>`;
+            } else {
+                html += `<div style="flex:1;font-size:11px;color:#e74c3c;">Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.</div>`;
+            }
+            html += `<button onclick="window._hireSailorsManage('${ship.id}')" style="${btnSecondary}">⚙️ Ship</button>`;
+            html += '</div></div>';
+        }
+        html += '</div>';
+        game.ui.showCustomPanel('👥 Hire Sailors', html);
+
+        window._hireSailors = (sid) => {
+            const result = Ships.hireCrew(player, game.world, sid);
+            game.ui.showNotification(result.success ? '👥 Crew Hired' : 'Cannot Hire', result.message, result.success ? 'success' : 'error');
+            if (result.success) {
+                game.ui.updateStats(player, game.world);
+                ActionMenu.showHireSailorsMenu(game, tile);
+            }
+        };
+        window._hireSailorsManage = (sid) => ActionMenu._showShipManagePanel(game, tile, sid);
+    },
+
     showBoardShipMenu(game, tile) {
         const player = game.player;
         const dockedShips = Ships.getShipsAt(player, tile.q, tile.r);
@@ -945,24 +1008,48 @@ Object.assign(ActionMenu, {
         };
     },
 
-    /** Explore, hunt pirates or turn pirate from the boarded ship. */
+    /**
+     * Explore, hunt pirates or turn pirate from the boarded ship — each a
+     * choice scene in phases (systems/pirates.js, ui/actionMenu/seaScenes.js);
+     * raid a known pirate haven beside the ship; or read the Sea Rovers log.
+     */
     doSeaActivity(game, activity) {
         const player = game.player;
-        const run = { explore_ocean: 'exploreOcean', hunt_pirates: 'huntPirates', commit_piracy: 'commitPiracy' }[activity];
-        if (!run || !player.boardedShip) {
+        if (activity === 'sea_rovers') {
+            ActionMenu.showScene(game, 'sea', { kind: 'log' });
+            return;
+        }
+        if (!player.boardedShip) {
             game.ui.showNotification('Not at Sea', 'You need to be aboard your ship on open water.', 'error');
             return;
         }
-        // Exploring can turn up an uncharted place (systems/discovery.js)
-        const result = run === 'exploreOcean'
-            ? Discovery.exploreOcean(player, player.boardedShip, game.world)
-            : Ships[run](player, player.boardedShip, game.world);
-        if (!result.success) {
-            game.ui.showNotification('At Sea', result.message, 'error');
+        if (activity === 'raid_haven') {
+            const raid = Pirates.startHavenRaid(player, game.world);
+            if (!raid) {
+                game.ui.showNotification('No Haven', 'There is no pirate haven you know of beside your ship.', 'error');
+                return;
+            }
+            ActionMenu.showScene(game, 'sea', raid);
             return;
         }
-        game.ui.showNotification(result.icon || '🌊', result.title, result.type || 'info');
-        for (const n of (result.notices || []).filter(x => !x.title.startsWith('Discovery'))) game.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+        const run = { explore_ocean: 'explore', hunt_pirates: 'hunt', commit_piracy: 'prey' }[activity];
+        if (!run) {
+            game.ui.showNotification('At Sea', 'Nothing to do here.', 'error');
+            return;
+        }
+        const res = Pirates.start(player, game.world, run);
+        if (res.success === false) {
+            game.ui.showNotification('At Sea', res.message, 'error');
+            return;
+        }
+        if (res.state) {
+            ActionMenu.showScene(game, 'sea', res.state);
+            return;
+        }
+        // Empty seas, or an uncharted place found (systems/discovery.js)
+        const n = res.notification;
+        if (n) game.ui.showNotification(n.title, n.body, n.type);
+        for (const x of (res.notices || []).filter(x => !x.title.startsWith('Discovery'))) game.ui.showNotification(`${x.icon} ${x.title}`, x.text, x.type);
         game.ui.updateStats(player, game.world);
     },
 
@@ -1051,8 +1138,7 @@ Object.assign(ActionMenu, {
 
     /** Recentre the world camera on the player (camera works in pixels, not hexes). */
     _centerCameraOnPlayer(game) {
-        const pos = game.renderer.getHexPixelPos(game.player.q, game.player.r);
-        game.camera.centerOn(pos.x, pos.y);
+        game.recenterCamera();
     },
 
     /** Describe what cargo came ashore and what had to stay aboard. */

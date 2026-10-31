@@ -18,6 +18,7 @@ import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Rivals } from '../../systems/rivals.js';
+import { Hospitality } from '../../systems/hospitality.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Patronage } from '../../systems/patronage.js';
@@ -28,6 +29,7 @@ import { Transport } from '../../world/transport.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
+import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 
@@ -119,6 +121,27 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         });
     }
 
+    // Guest houses, inns and grand hotels (systems/hospitality.js): a room, a meal, a bath
+    const lodgings = Hospitality.listAt(world, player, tile.q, tile.r);
+    if (lodgings.length) {
+        const own = lodgings.filter(v => v.owner === 'player');
+        actions.push({
+            type: 'lodging',
+            label: lodgings.length === 1 ? `Lodge at ${lodgings[0].name}` : 'Find Lodgings',
+            icon: '🛏️',
+            description: `${lodgings.map(v => `${v.name} (${v.kindName})`).join(', ')}: a bed for the night, meals, baths and more`,
+        });
+        for (const v of own) {
+            actions.push({
+                type: 'manage_lodging',
+                unitId: v.id,
+                label: `Run ${v.name}`,
+                icon: '📒',
+                description: 'Your house: prices, staff, cleanliness, guests and takings',
+            });
+        }
+    }
+
     // Tavern / Talk to Locals
     if (isCity) {
         actions.push({
@@ -191,6 +214,18 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 label: 'Board Ship',
                 icon: '🚢',
                 description: 'Board one of your ships docked here'
+            });
+        }
+
+        // Sailors sign on at the port where your short-handed ships lie
+        const shortHanded = typeof Ships !== 'undefined' ? Ships.shortHandedAt(player, world, tile.q, tile.r) : [];
+        if (shortHanded.length > 0) {
+            const open = shortHanded.reduce((n, row) => n + row.open, 0);
+            actions.push({
+                type: 'hire_sailors',
+                label: 'Hire Sailors',
+                icon: '👥',
+                description: `${open} berth${open === 1 ? '' : 's'} empty aboard ${shortHanded.map(row => row.ship.name).join(', ')}: sign on a crew at the docks`
             });
         }
     }
@@ -384,6 +419,20 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             description: b
                 ? `Deposits, loans, royal bonds and your credit report${banksHere.length > 1 ? ` (${banksHere.length} houses here)` : ''}`
                 : 'You are behind on a loan: pay before the bailiffs come',
+        });
+    }
+
+    // Charter a banking house of your own (Finance.foundBank) — in a city or
+    // capital with no house seated, once you have the purse to think about it
+    const ownBank = Finance.ownBank(player);
+    const seatTypes = Finance.cfg('playerBank').seatTypes || ['capital', 'city'];
+    if (!ownBank && seatTypes.includes(tile.settlement.type) && (player.gold || 0) >= Finance.cfg('playerBank').minCapital
+        && !banksHere.some(b => b.q === tile.q && b.r === tile.r)) {
+        actions.push({
+            type: 'found_bank',
+            label: 'Charter a Bank',
+            icon: '🏛️',
+            description: 'Found your own banking house: take the town’s deposits, lend to merchants and crowns, and keep the profit (and the risk)',
         });
     }
 
@@ -692,6 +741,19 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: 'Guildhall',
             icon: '⚒️',
             description: `The town's ${n} guild${n === 1 ? '' : 's'}: join, rise to master, contracts, loans and elections`
+        });
+    }
+
+    // The post house — courier houses with a station here; send a letter, found your own (systems/couriers.js)
+    const posts = world && world.post ? Couriers.servingAt(world, `${tile.q},${tile.r}`, tile.settlement.kingdom) : [];
+    if (world && (tile.settlement.type !== 'village' || posts.length)) {
+        actions.push({
+            type: 'post_house',
+            label: 'Post House',
+            icon: '📮',
+            description: posts.length
+                ? `${posts.map(c => c.name).join(', ')}: send a letter from here, or found a courier house of your own`
+                : 'No courier keeps a station here yet: send by your own rider, or found a courier house'
         });
     }
 

@@ -61,6 +61,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Couriers } from './couriers.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -447,13 +448,18 @@ export const Kingship = {
         return _num(R.maxEdicts) + (ch && ch.competence >= _num(R.chancellorExtraAt) ? 1 : 0);
     },
 
-    canPass(player, world, id, { free = false } = {}) {
+    canPass(player, world, id, { free = false, courierId = null } = {}) {
         const court = Kingship.court(player);
         const k = Kingship._realm(player, world);
         const def = Kingship.edicts()[id];
         if (!court || !k) return { ok: false, reason: 'You rule no realm.' };
         if (!def) return { ok: false, reason: 'No such edict.' };
         if (court.edicts[id]) return { ok: false, reason: 'That edict is already law.' };
+        // The Royal Post names its house (systems/couriers.js)
+        if (def.royalPost) {
+            const why = Kingship._royalPostBar(world, k, courierId);
+            if (why) return { ok: false, reason: why };
+        }
         if (free) return { ok: true };
         const blocking = (def.excludes || []).filter(x => court.edicts[x]);
         if (blocking.length) return { ok: false, reason: `Repeal ${blocking.map(x => (Kingship.edicts()[x] || {}).label || x).join(', ')} first.` };
@@ -488,13 +494,18 @@ export const Kingship = {
         } else {
             k.treasury -= Kingship._passCost(def);
         }
-        court.edicts[id] = { since: _day(world) };
+        court.edicts[id] = { since: _day(world), ...(def.royalPost ? { courierId: opts.courierId } : {}) };
         court.stats.edictsPassed++;
         Kingship._shiftFactions(player, def.factions, 1);
         Kingship._log(court, world, `${def.icon} The edict of ${def.label} is proclaimed.`);
         Throne._log(player, world, `${def.icon} ${k.name}: the edict of ${def.label} is proclaimed.`);
         Kingship.refresh(player, world);
         if (def.monopoly) Kingship.syncCrownMonopolies(player, world);
+        if (def.royalPost) {
+            Kingship.syncRoyalPost(player, world);
+            const c = Couriers.get(world, opts.courierId);
+            return { success: true, message: `${def.icon} ${c ? c.name : 'The house'} carries the Royal Post of ${k.name}: no other house may carry the realm's mail, and its fee comes to the treasury each week.` };
+        }
         return { success: true, message: `${def.label} is now the law of ${k.name}. ${def.blurb || ''}`.trim() };
     },
 
@@ -508,6 +519,7 @@ export const Kingship = {
         if (!opts.quiet) Kingship._log(court, world, `${def.icon} The edict of ${def.label} is ${opts.lapse ? 'lapsed — the treasury could not pay for it' : 'repealed'}.`);
         Kingship.refresh(player, world);
         if (def.monopoly) Kingship.syncCrownMonopolies(player, world);
+        if (def.royalPost) Kingship.syncRoyalPost(player, world);
         return { success: true, message: `${def.label} is ${opts.lapse ? 'lapsed' : 'repealed'}.` };
     },
 
@@ -1262,6 +1274,120 @@ export const Kingship = {
         return res;
     },
 
+    // ── The Royal Post (systems/couriers.js charters) ───────────
+
+    /** Why a house cannot hold this realm's Royal Post, or null. */
+    _royalPostBar(world, k, courierId) {
+        if (!courierId) return 'Name the courier house that will carry the realm\'s mail.';
+        const c = Couriers.get(world, courierId);
+        if (!c || c.alive === false) return 'No such courier house.';
+        if (!Couriers.stationsIn(c, k.id)) return `${c.name} has no station in ${k.name}.`;
+        return null;
+    },
+
+    /** Houses that could carry the realm's Royal Post: [{ id, name, icon, own, stations, reputation, fee, holder }]. */
+    royalPostCandidates(player, world) {
+        const k = Kingship._realm(player, world);
+        if (!k) return [];
+        const court = Kingship.court(player);
+        const e = court && court.edicts.royal_post;
+        const per = _num(Couriers.config().charter.feePerTown);
+        return Couriers.alive(world).filter(c => Couriers.stationsIn(c, k.id) > 0)
+            .map(c => ({ id: c.id, name: c.name, icon: c.icon || '✉️', own: c.owner === 'player', stations: Couriers.stationsIn(c, k.id), reputation: Math.round(_num(c.reputation)), fee: Math.round(per * Math.max(1, Couriers.stationsIn(c, k.id))), holder: !!(e && e.courierId === c.id) }))
+            .sort((a, b) => b.stations - a.stations || b.reputation - a.reputation || a.id.localeCompare(b.id));
+    },
+
+    /**
+     * Grant the realm's Royal Post to a house: proclaims the edict (its cost,
+     * a slot, the merchants' grumbling) or, with the edict in force, hands it
+     * to another house.
+     */
+    grantRoyalPost(player, world, courierId) {
+        const court = Kingship.court(player);
+        const k = Kingship._realm(player, world);
+        if (!court || !k) return { success: false, reason: 'You rule no realm.' };
+        const e = court.edicts.royal_post;
+        if (!e) return Kingship.passEdict(player, world, 'royal_post', { courierId });
+        if (e.courierId === courierId) return { success: false, reason: 'That house holds it already.' };
+        const why = Kingship._royalPostBar(world, k, courierId);
+        if (why) return { success: false, reason: why };
+        const old = Couriers.get(world, e.courierId);
+        e.courierId = courierId;
+        Kingship.syncRoyalPost(player, world);
+        const c = Couriers.get(world, courierId);
+        Kingship._log(court, world, `📮 The Royal Post passes from ${old ? old.name : 'its holder'} to ${c.name}.`);
+        return { success: true, message: `📮 ${c.name} now carries the Royal Post of ${k.name}${old ? `, in place of ${old.name}` : ''}.` };
+    },
+
+    /** Revoke the Royal Post (repeal the edict): any house may carry the realm's mail again. */
+    revokeRoyalPost(player, world) {
+        return Kingship.revokeEdict(player, world, 'royal_post');
+    },
+
+    /**
+     * Keep the realm's Royal Post charter (world.post.charters, read by
+     * systems/couriers.js) in step with the edict: the edict's house holds it;
+     * no edict, no charter. A charter the old crown granted before the player
+     * took the throne is adopted as the edict (free); an edict whose house has
+     * failed or left the realm lapses. Deterministic; no RNG.
+     */
+    syncRoyalPost(player, world) {
+        const court = Kingship.court(player);
+        const k = Kingship._realm(player, world);
+        if (!court || !k || !world || !Kingship.edicts().royal_post) return;
+        const charters = Couriers.state(world).charters;
+        const ch = charters[k.id] || null;
+        let e = court.edicts.royal_post;
+        if (!e && ch && !ch.edict && !Kingship._royalPostBar(world, k, ch.courierId)) {
+            // The old crown's grant stands, now as the player's edict
+            e = court.edicts.royal_post = { since: _num(ch.day), courierId: ch.courierId, adopted: true };
+            const c = Couriers.get(world, ch.courierId);
+            Kingship._log(court, world, `📮 ${c ? c.name : 'A house'} holds the Royal Post by the old crown's grant; it stands as your edict until you revoke it.`);
+            Couriers.setCharter(world, k.id, e.courierId, 'edict');
+            Kingship.refresh(player, world);
+            return;
+        }
+        if (e) {
+            const why = Kingship._royalPostBar(world, k, e.courierId);
+            if (why) {
+                Kingship.revokeEdict(player, world, 'royal_post', { lapse: true, quiet: true });
+                Kingship._log(court, world, `📮 The Royal Post lapses: ${why}`);
+                return;
+            }
+            if (!ch || ch.courierId !== e.courierId || !ch.edict) Couriers.setCharter(world, k.id, e.courierId, 'edict');
+            return;
+        }
+        if (ch) Couriers.setCharter(world, k.id, null, 'edict');
+    },
+
+    /**
+     * A realm's crown policies, as the realm's panels show them: the edicts in
+     * force for the player's own realm; for any realm, the Royal Post its
+     * crown granted. → [{ id, icon, label, text }]
+     */
+    crownPolicies(player, world, kingdomId) {
+        const out = [];
+        const k = kingdomId != null && world && world.getKingdom ? world.getKingdom(kingdomId) : null;
+        if (!k) return out;
+        const ruled = Kingship._realm(player, world);
+        const court = ruled && ruled.id === k.id ? Kingship.court(player) : null;
+        if (court) {
+            for (const id of Object.keys(court.edicts)) {
+                const def = Kingship.edicts()[id];
+                if (!def || def.royalPost) continue;
+                out.push({ id, icon: def.icon || '📜', label: def.label || id, text: `edict since day ${court.edicts[id].since}` });
+            }
+        }
+        const ch = Couriers.charter(world, k.id);
+        const holder = ch ? Couriers.get(world, ch.courierId) : null;
+        if (holder) {
+            const def = Kingship.edicts().royal_post || {};
+            const how = court ? 'by your edict' : ch.by === 'petition' ? 'by petition to the crown' : 'by the crown\'s grant';
+            out.push({ id: 'royal_post', icon: def.icon || '📮', label: def.label || 'The Royal Post', text: `${holder.name}, ${how} since day ${ch.day} · ${_num(ch.fee)}g a week to the crown` });
+        }
+        return out;
+    },
+
     /**
      * How hungry a realm town ({ q, r, tile, settlement }) is today: 'famine'
      * (a Hungry Months event reaches it), 'lean' (the lean weeks, or lean
@@ -1563,6 +1689,7 @@ export const Kingship = {
         Kingship._payUpkeep(player, world, court, k, out);
         Kingship._famineDole(player, world, court, k, out);
         Kingship.syncCrownMonopolies(player, world);
+        Kingship.syncRoyalPost(player, world);
         Kingship._faithDay(player, world, court, k);
         Kingship._revealPlots(player, world, court, out);
         Kingship._resolveUltimatums(player, world, court, k, out);

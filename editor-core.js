@@ -33,6 +33,18 @@
      createUndoStack({ max, snapshot, restore })
      — images —
      createImageCache(), loadImage(cache, path, ImageCtor?)
+     — data patches (same format as src/core/dataPatch.js) —
+     deepEqual(a, b), createDataPatch(base, target), applyDataPatch(base, patch)
+     — data paths (the Game Data tab) —
+     getAtPath(obj, path), setAtPath(obj, path, v), deleteAtPath(obj, path)
+     searchData(root, query, { maxResults?, maxDepth? })
+     — nine-tile brushes (same rules as src/core/nineTile.js) —
+     pickNineTileSlot(has), resolveBrushSeason(brush, season), nineTileHash(q, r)
+     resolveNineTileCell(brush, season, has, q, r, resolved?)
+     erodeUntileableStubs(mask), nineTilePreviewMask(shape, w, h, seed?)
+     — blocked tile sides (same rules as src/core/tileSides.js) —
+     sidesMask(spec), sidesString(mask), outerSidesForSlot(row, col)
+     toggleSide(spec, side, on?), sideAtPoint(fx, fy, band?)
    ============================================================ */
 (function () {
     'use strict';
@@ -268,6 +280,291 @@
         });
     }
 
+    // ── data patches ────────────────────────────────────────
+    // Twin of src/core/dataPatch.js (the game applies these patches when it
+    // loads mods); src/__tests__/dataPatch.test.js keeps the two in step.
+    // A plain-object patch is applied key by key, "$delete" lists removed
+    // keys and "$replace" swaps the whole value; anything else replaces.
+    function isPlainObject(v) {
+        return v !== null && typeof v === 'object' && !Array.isArray(v);
+    }
+    function cloneJson(v) {
+        return v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+    }
+    function hasOwn(o, k) {
+        return Object.prototype.hasOwnProperty.call(o, k);
+    }
+    function deepEqual(a, b) {
+        if (a === b) return true;
+        if (typeof a !== typeof b || a === null || b === null || typeof a !== 'object') return false;
+        if (Array.isArray(a) !== Array.isArray(b)) return false;
+        var i;
+        if (Array.isArray(a)) {
+            if (a.length !== b.length) return false;
+            for (i = 0; i < a.length; i++) if (!deepEqual(a[i], b[i])) return false;
+            return true;
+        }
+        var ka = Object.keys(a);
+        if (ka.length !== Object.keys(b).length) return false;
+        for (i = 0; i < ka.length; i++) {
+            if (!hasOwn(b, ka[i]) || !deepEqual(a[ka[i]], b[ka[i]])) return false;
+        }
+        return true;
+    }
+    function createDataPatch(base, target) {
+        if (deepEqual(base, target)) return undefined;
+        if (!isPlainObject(base) || !isPlainObject(target)) {
+            return isPlainObject(target) ? { $replace: cloneJson(target) } : cloneJson(target);
+        }
+        var patch = {};
+        var removed = Object.keys(base).filter(function (k) { return !hasOwn(target, k); });
+        if (removed.length) patch.$delete = removed;
+        Object.keys(target).forEach(function (k) {
+            var sub = hasOwn(base, k)
+                ? createDataPatch(base[k], target[k])
+                : (isPlainObject(target[k]) ? { $replace: cloneJson(target[k]) } : cloneJson(target[k]));
+            if (sub !== undefined) patch[k] = sub;
+        });
+        return patch;
+    }
+    function applyDataPatch(base, patch) {
+        if (patch === undefined) return cloneJson(base);
+        if (!isPlainObject(patch)) return cloneJson(patch);
+        if (hasOwn(patch, '$replace')) return cloneJson(patch.$replace);
+        var out = isPlainObject(base) ? cloneJson(base) : {};
+        (Array.isArray(patch.$delete) ? patch.$delete : []).forEach(function (k) { delete out[k]; });
+        Object.keys(patch).forEach(function (k) {
+            if (k !== '$delete') out[k] = applyDataPatch(out[k], patch[k]);
+        });
+        return out;
+    }
+
+    // ── data paths ──────────────────────────────────────────
+    // A path is an array of keys/indices from a root value.
+    function getAtPath(obj, path) {
+        var cur = obj;
+        for (var i = 0; i < path.length; i++) {
+            if (cur === null || typeof cur !== 'object') return undefined;
+            cur = cur[path[i]];
+        }
+        return cur;
+    }
+    // Set the value at a non-empty path, creating plain objects on the way.
+    function setAtPath(obj, path, value) {
+        var cur = obj;
+        for (var i = 0; i < path.length - 1; i++) {
+            if (cur[path[i]] === null || typeof cur[path[i]] !== 'object') cur[path[i]] = {};
+            cur = cur[path[i]];
+        }
+        cur[path[path.length - 1]] = value;
+    }
+    // Remove the value at a non-empty path; array items are spliced out.
+    function deleteAtPath(obj, path) {
+        var parent = getAtPath(obj, path.slice(0, -1));
+        var k = path[path.length - 1];
+        if (Array.isArray(parent)) parent.splice(Number(k), 1);
+        else if (parent && typeof parent === 'object') delete parent[k];
+    }
+    // Find keys and string values containing `query` (case-insensitive).
+    // Returns [{ path, match: 'key'|'value', text }], shallowest first.
+    function searchData(root, query, opts) {
+        opts = opts || {};
+        var maxResults = opts.maxResults || 200;
+        var maxDepth = opts.maxDepth || 6;
+        var q = String(query || '').trim().toLowerCase();
+        var out = [];
+        if (!q) return out;
+        var queue = [{ v: root, path: [] }];
+        while (queue.length && out.length < maxResults) {
+            var node = queue.shift();
+            var v = node.v;
+            if (v === null || typeof v !== 'object' || node.path.length >= maxDepth) continue;
+            var keys = Object.keys(v);
+            for (var i = 0; i < keys.length && out.length < maxResults; i++) {
+                var k = keys[i];
+                var child = v[k];
+                var p = node.path.concat(Array.isArray(v) ? Number(k) : k);
+                if (!Array.isArray(v) && k.toLowerCase().indexOf(q) !== -1) {
+                    out.push({ path: p, match: 'key', text: k });
+                } else if (typeof child === 'string' && child.toLowerCase().indexOf(q) !== -1) {
+                    out.push({ path: p, match: 'value', text: child });
+                }
+                if (child !== null && typeof child === 'object') queue.push({ v: child, path: p });
+            }
+        }
+        return out;
+    }
+
+    // ── nine-tile brushes ───────────────────────────────────
+    // Twin of src/core/nineTile.js, which the game stamps inner maps with;
+    // src/__tests__/nineTile.test.js keeps the two in step. `has(dq, dr)`
+    // says whether a neighbour is painted with the same brush.
+    function pickNineTileSlot(has) {
+        var hasTop = has(0, -1), hasBottom = has(0, 1), hasLeft = has(-1, 0), hasRight = has(1, 0);
+        if (hasTop && hasBottom && hasLeft && hasRight) {
+            var icIdx = !has(-1, -1) ? 0 : !has(1, -1) ? 1 : !has(-1, 1) ? 2 : !has(1, 1) ? 3 : -1;
+            if (icIdx >= 0) return { ic: icIdx };
+        }
+        if ((!hasTop && !hasBottom) || (!hasLeft && !hasRight)) return null;
+        var row = 1;
+        if (!hasTop && hasBottom) row = 0;
+        else if (hasTop && !hasBottom) row = 2;
+        var col = 1;
+        if (!hasLeft && hasRight) col = 0;
+        else if (hasLeft && !hasRight) col = 2;
+        return { row: row, col: col };
+    }
+    function ntHasTile(t) { return !!(t && t.sheetPath); }
+    function ntGridHasTile(grid) {
+        return Array.isArray(grid) && grid.some(function (row) { return Array.isArray(row) && row.some(ntHasTile); });
+    }
+    function ntListHasTile(list) { return Array.isArray(list) && list.some(ntHasTile); }
+    function resolveBrushSeason(brush, season) {
+        var st = season && brush.seasonTiles && brush.seasonTiles[season];
+        var sc = season && brush.seasonInsideCorners && brush.seasonInsideCorners[season];
+        var sa = season && brush.seasonAltFills && brush.seasonAltFills[season];
+        return {
+            tilesGrid: ntGridHasTile(st) ? st : (brush.tiles || null),
+            cornersArr: ntListHasTile(sc) ? sc : (brush.insideCorners || null),
+            altFills: ntListHasTile(sa) ? sa : null,
+        };
+    }
+    function nineTileHash(q, r) {
+        return Math.abs((q * 73856093) ^ (r * 19349663)) >>> 0;
+    }
+    // -> { slot: {row,col}|{ic}, tile|null, fallback: null|'strip'|'noInsideCorner'|'empty' }
+    function resolveNineTileCell(brush, season, has, q, r, resolved) {
+        var res = resolved || resolveBrushSeason(brush, season);
+        var cornersArr = res.cornersArr;
+        var slot = pickNineTileSlot(has);
+        var fallback = null;
+        if (!slot) {
+            slot = { row: 1, col: 1 };
+            fallback = 'strip';
+        } else if (slot.ic !== undefined && !(cornersArr && ntHasTile(cornersArr[slot.ic]))) {
+            slot = { row: 1, col: 1 };
+            fallback = 'noInsideCorner';
+        }
+        var tile;
+        if (slot.ic !== undefined) {
+            tile = cornersArr[slot.ic];
+        } else {
+            tile = res.tilesGrid && res.tilesGrid[slot.row] ? res.tilesGrid[slot.row][slot.col] : null;
+            if (slot.row === 1 && slot.col === 1 && res.altFills) {
+                var pool = ntHasTile(tile) ? [tile].concat(res.altFills) : res.altFills;
+                tile = pool[nineTileHash(q, r) % pool.length];
+            }
+        }
+        if (!ntHasTile(tile)) {
+            tile = null;
+            if (!fallback) fallback = 'empty';
+        }
+        return { slot: slot, tile: tile, fallback: fallback };
+    }
+    function erodeUntileableStubs(mask) {
+        var H = mask.length, W = H > 0 ? mask[0].length : 0;
+        function inMask(q, r) { return r >= 0 && r < H && q >= 0 && q < W && !!mask[r][q]; }
+        var eroded = true;
+        while (eroded) {
+            eroded = false;
+            var toClear = [];
+            for (var r = 0; r < H; r++) {
+                for (var q = 0; q < W; q++) {
+                    if (!mask[r][q]) continue;
+                    var qq = q, rr = r;
+                    if (!pickNineTileSlot(function (dq, dr) { return inMask(qq + dq, rr + dr); })) toClear.push([r, q]);
+                }
+            }
+            for (var i = 0; i < toClear.length; i++) {
+                mask[toClear[i][0]][toClear[i][1]] = false;
+                eroded = true;
+            }
+        }
+        return mask;
+    }
+    // A test shape for previewing a brush, as mask[r][q] booleans:
+    //   'pond'   — a blob with bays and points (every corner kind)
+    //   'ring'   — a field with a hole in it
+    //   'coast'  — a wavy shore along the bottom
+    //   'random' — scattered blobs from `seed`
+    // Shapes are eroded the way the game erodes its masks.
+    function nineTilePreviewMask(shape, w, h, seed) {
+        var mask = [], r, q;
+        for (r = 0; r < h; r++) { mask.push([]); for (q = 0; q < w; q++) mask[r].push(false); }
+        function set(q0, r0, q1, r1, v) {
+            for (var rr = Math.max(0, r0); rr <= Math.min(h - 1, r1); rr++)
+                for (var qq = Math.max(0, q0); qq <= Math.min(w - 1, q1); qq++) mask[rr][qq] = v;
+        }
+        var cx = Math.floor(w / 2), cy = Math.floor(h / 2);
+        if (shape === 'ring') {
+            set(1, 1, w - 2, h - 2, true);
+            set(cx - 2, cy - 1, cx + 1, cy + 1, false);
+            set(1, 1, 2, 2, false);
+        } else if (shape === 'coast') {
+            for (q = 0; q < w; q++) {
+                var top = Math.round(h / 2 + Math.sin(q * 0.9) * 1.6 + (q % 4 === 0 ? 1 : 0));
+                set(q, top, q, h - 1, true);
+            }
+        } else if (shape === 'random') {
+            var s = (seed >>> 0) || 1;
+            var rnd = function () { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return ((s >>> 0) % 100000) / 100000; };
+            for (var b = 0; b < 5; b++) {
+                var bq = Math.floor(rnd() * w), br = Math.floor(rnd() * h);
+                var bw = 2 + Math.floor(rnd() * 4), bh = 2 + Math.floor(rnd() * 3);
+                set(bq - bw, br - bh, bq + bw, br + bh, true);
+            }
+            for (var k = 0; k < 4; k++) {
+                var hq = Math.floor(rnd() * w), hr = Math.floor(rnd() * h);
+                set(hq, hr, hq + 1, hr + 1, false);
+            }
+        } else {
+            // pond: a body, a bay bitten from the top, a point to the right
+            set(2, 2, w - 4, h - 3, true);
+            set(cx - 1, 2, cx, 3, false);
+            set(w - 4, cy - 1, w - 2, cy, true);
+            set(3, h - 3, 5, h - 2, true);
+            set(2, 2, 3, 3, false);
+        }
+        return erodeUntileableStubs(mask);
+    }
+
+    // ── blocked tile sides ──────────────────────────────────
+    // Twin of src/core/tileSides.js. Sides are strings of n/e/s/w; nobody
+    // crosses a blocked side of a tile, though they may stand on the tile.
+    var SIDE_BITS = { n: 1, e: 2, s: 4, w: 8 };
+    var SIDE_ORDER = ['n', 'e', 's', 'w'];
+    function sidesMask(spec) {
+        if (typeof spec === 'number') return spec & 15;
+        if (!spec) return 0;
+        var m = 0, list = Array.isArray(spec) ? spec : String(spec).split('');
+        for (var i = 0; i < list.length; i++) m |= SIDE_BITS[String(list[i]).toLowerCase()] || 0;
+        return m;
+    }
+    function sidesString(mask) {
+        return SIDE_ORDER.filter(function (k) { return mask & SIDE_BITS[k]; }).join('');
+    }
+    function outerSidesForSlot(row, col) {
+        return (row === 0 ? 'n' : '') + (col === 2 ? 'e' : '') + (row === 2 ? 's' : '') + (col === 0 ? 'w' : '');
+    }
+    // Turn one side on/off (flip when `on` is omitted); returns the new string.
+    function toggleSide(spec, side, on) {
+        var m = sidesMask(spec), bit = SIDE_BITS[side] || 0;
+        if (on === undefined) on = !(m & bit);
+        return sidesString(on ? (m | bit) : (m & ~bit));
+    }
+    // Which side of a tile a point is near: fx, fy are 0..1 within the tile.
+    // Returns 'n'|'e'|'s'|'w', or null in the middle (outside the edge band).
+    function sideAtPoint(fx, fy, band) {
+        band = band || 0.25;
+        var d = { n: fy, s: 1 - fy, w: fx, e: 1 - fx };
+        var best = null;
+        for (var i = 0; i < SIDE_ORDER.length; i++) {
+            var k = SIDE_ORDER[i];
+            if (d[k] <= band && (best === null || d[k] < d[best])) best = k;
+        }
+        return best;
+    }
+
     var EditorCore = {
         slugify: slugify,
         escHtml: escHtml,
@@ -287,6 +584,24 @@
         createUndoStack: createUndoStack,
         createImageCache: createImageCache,
         loadImage: loadImage,
+        deepEqual: deepEqual,
+        createDataPatch: createDataPatch,
+        applyDataPatch: applyDataPatch,
+        getAtPath: getAtPath,
+        setAtPath: setAtPath,
+        deleteAtPath: deleteAtPath,
+        searchData: searchData,
+        pickNineTileSlot: pickNineTileSlot,
+        resolveBrushSeason: resolveBrushSeason,
+        nineTileHash: nineTileHash,
+        resolveNineTileCell: resolveNineTileCell,
+        erodeUntileableStubs: erodeUntileableStubs,
+        nineTilePreviewMask: nineTilePreviewMask,
+        sidesMask: sidesMask,
+        sidesString: sidesString,
+        outerSidesForSlot: outerSidesForSlot,
+        toggleSide: toggleSide,
+        sideAtPoint: sideAtPoint,
     };
 
     if (typeof window !== 'undefined') window.EditorCore = window.EditorCore || EditorCore;

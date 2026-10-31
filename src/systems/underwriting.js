@@ -268,7 +268,8 @@ export const Underwriting = {
     underwriters(player) {
         const out = [];
         for (const b of (player && player.finance && player.finance.banks) || []) {
-            if (b) out.push({ id: b.id, name: b.name, type: 'bank', seat: b.seat, kingdomId: b.kingdomId, status: b.status, ref: b, q: b.q, r: b.r });
+            // The player's own house keeps no insurance desk
+            if (b && b.owner !== 'player') out.push({ id: b.id, name: b.name, type: 'bank', seat: b.seat, kingdomId: b.kingdomId, status: b.status, ref: b, q: b.q, r: b.r });
         }
         for (const g of (player && player.underwriting && player.underwriting.guilds) || []) {
             if (g) out.push({ id: g.id, name: g.name, type: 'guild', seat: g.seat, kingdomId: g.kingdomId, status: g.status, ref: g, q: g.q, r: g.r });

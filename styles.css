@@ -1671,386 +1671,664 @@ body {
 }
 
 /* ============================================
-   NPC DIALOG
+   NPC DIALOG — "the audience": a letterboxed scene with the speaker's own
+   sprite as a portrait, a mood ring for their disposition, a running
+   transcript and grouped, numbered choices. --mood follows the disposition.
    ============================================ */
 
 #npcDialogOverlay {
+    --mood: #FFD54F;
+    --speech-font: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
     position: fixed;
     inset: 0;
     z-index: 1400;
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    padding-bottom: 120px;
+    padding: 0 16px calc(9vh / var(--ui-zoom));
     pointer-events: none;
 }
 
 .npc-dialog-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(3px);
     pointer-events: all;
+    background:
+        radial-gradient(ellipse 60% 55% at 50% 40%, transparent 0%, rgba(4, 6, 12, 0.45) 60%, rgba(4, 6, 12, 0.9) 100%),
+        rgba(4, 6, 12, 0.25);
+    animation: npcFadeIn 0.5s ease both;
 }
+
+.npc-dialog-letterbox {
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: calc(6.5vh / var(--ui-zoom));
+    background: #000;
+    pointer-events: none;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+}
+.npc-dialog-letterbox.top { top: 0; animation: npcLetterTop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.npc-dialog-letterbox.bottom { bottom: 0; animation: npcLetterBottom 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes npcFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes npcLetterTop { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+@keyframes npcLetterBottom { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 .npc-dialog-box {
     position: relative;
-    width: 560px;
-    max-width: calc(92vw / var(--ui-zoom));
-    background: linear-gradient(180deg, rgba(16, 20, 28, 0.98) 0%, rgba(12, 18, 32, 0.98) 100%);
-    border: 1px solid var(--border-bright);
-    border-radius: 14px;
-    box-shadow: 0 12px 64px rgba(0, 0, 0, 0.85), 0 0 40px rgba(245, 197, 66, 0.08);
-    overflow: hidden;
+    display: grid;
+    grid-template-columns: 208px minmax(0, 1fr);
+    /* the row is held to the box's max-height, so a long choice list scrolls
+       inside .npc-dialog-choices instead of spilling out of the box */
+    grid-template-rows: minmax(0, 1fr);
+    width: 920px;
+    max-width: 100%;
+    max-height: calc(80vh / var(--ui-zoom));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, transparent 30%),
+        linear-gradient(180deg, #161b27 0%, #0c1019 100%);
+    border: 1px solid rgba(245, 197, 66, 0.3);
+    border-radius: 4px;
+    box-shadow:
+        0 30px 90px rgba(0, 0, 0, 0.85),
+        0 0 0 4px rgba(6, 8, 14, 0.85),
+        0 0 0 5px rgba(245, 197, 66, 0.14),
+        0 0 70px color-mix(in srgb, var(--mood) 16%, transparent);
     pointer-events: all;
-    animation: dialogSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: npcBoxIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+    transition: box-shadow 0.8s ease;
 }
 
-@keyframes dialogSlideUp {
-    from { opacity: 0; transform: translateY(30px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.npc-dialog-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    border-bottom: 1px solid rgba(245, 197, 66, 0.15);
-    background: rgba(245, 197, 66, 0.04);
-}
-
-.npc-dialog-portrait {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(245, 197, 66, 0.1);
+/* Gilded corner brackets */
+.npc-dialog-box::before,
+.npc-dialog-box::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
     border: 2px solid var(--gold-dark);
+    pointer-events: none;
+    z-index: 2;
+}
+.npc-dialog-box::before { top: -6px; left: -6px; border-right: none; border-bottom: none; }
+.npc-dialog-box::after { bottom: -6px; right: -6px; border-left: none; border-top: none; }
+
+@keyframes npcBoxIn {
+    from { opacity: 0; transform: translateY(40px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Side: portrait, mood, what you know of them ── */
+.npc-dialog-side {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.npc-dialog-portrait-icon {
-    font-size: 26px;
-    line-height: 1;
-}
-
-.npc-dialog-header-info {
-    flex: 1;
+    gap: 10px;
+    padding: 22px 16px 18px;
+    border-right: 1px solid rgba(245, 197, 66, 0.14);
+    background:
+        radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--mood) 20%, transparent) 0%, transparent 62%),
+        rgba(0, 0, 0, 0.22);
+    transition: background 0.8s ease;
     min-width: 0;
 }
 
-.npc-dialog-name {
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--gold);
-    letter-spacing: 1px;
-}
-
-.npc-dialog-title {
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-top: 2px;
-}
-
-.npc-dialog-close {
-    width: 30px;
-    height: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-}
-
-.npc-dialog-close:hover {
-    background: rgba(255, 80, 80, 0.2);
-    border-color: rgba(255, 80, 80, 0.4);
-    color: #ff6b6b;
-}
-
-.npc-dialog-body {
-    padding: 18px 20px;
-    min-height: 80px;
-}
-
-.npc-dialog-speaker {
-    font-family: var(--font-display);
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--gold);
-    margin-bottom: 8px;
-    letter-spacing: 0.5px;
-}
-
-.npc-dialog-text {
-    font-family: var(--font-body);
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.88);
-    line-height: 1.7;
-    min-height: 24px;
-}
-
-.npc-dialog-choices {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px 14px 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.npc-dialog-choice {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 9px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.82);
-    font-family: var(--font-body);
-    font-size: 13px;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.15s;
-}
-
-.npc-dialog-choice:hover {
-    background: rgba(245, 197, 66, 0.1);
-    border-color: rgba(245, 197, 66, 0.3);
-    color: var(--gold-light);
-    transform: translateX(4px);
-}
-
-.npc-dialog-choice:active {
-    transform: translateX(4px) scale(0.98);
-}
-
-.npc-dialog-choice-icon {
-    font-size: 15px;
-    width: 22px;
-    text-align: center;
+.npc-dialog-portrait {
+    position: relative;
+    width: 156px;
+    height: 156px;
     flex-shrink: 0;
 }
 
-/* ── Disposition Bar ── */
-.npc-dialog-disposition-bar-container {
+.npc-dialog-ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    overflow: visible;
+}
+.npc-dialog-ring circle {
+    fill: none;
+    stroke-width: 5;
+}
+.npc-dialog-ring-track { stroke: rgba(255, 255, 255, 0.07); }
+.npc-dialog-disposition-fill {
+    stroke: var(--mood);
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 4px var(--mood));
+    transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.6s;
+}
+
+.npc-dialog-portrait-frame {
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    overflow: hidden;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 18px 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    position: relative;
+    justify-content: center;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 236, 190, 0.18) 0%, transparent 60%),
+        linear-gradient(180deg, #2a3348 0%, #151a27 100%);
+    box-shadow: inset 0 0 0 2px rgba(245, 197, 66, 0.35), inset 0 -18px 30px rgba(0, 0, 0, 0.5);
 }
 
-.npc-dialog-disposition-track {
-    flex: 1;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.npc-dialog-disposition-fill {
+.npc-dialog-portrait-canvas {
+    width: 100%;
     height: 100%;
-    border-radius: 3px;
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+    image-rendering: pixelated;
+    transform-origin: 50% 100%;
+}
+.npc-dialog-portrait.speaking .npc-dialog-portrait-canvas {
+    animation: npcSpeak 0.32s ease-in-out infinite;
+}
+@keyframes npcSpeak {
+    0%, 100% { transform: translateY(0) scaleY(1); }
+    50%      { transform: translateY(-1.5px) scaleY(1.012); }
 }
 
-.npc-dialog-disposition-label {
-    font-family: var(--font-display);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-    min-width: 80px;
-    text-align: right;
-    transition: color 0.4s;
+.npc-dialog-portrait-icon {
+    position: absolute;
+    font-size: 58px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+
+.npc-dialog-portrait-badge {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    background: #10141e;
+    border: 2px solid var(--gold-dark);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.npc-dialog-portrait.pulse-up .npc-dialog-ring { animation: npcRingUp 0.9s ease; }
+.npc-dialog-portrait.pulse-down .npc-dialog-ring { animation: npcRingDown 0.6s ease; }
+@keyframes npcRingUp {
+    0% { filter: none; transform: rotate(-90deg) scale(1); }
+    35% { filter: drop-shadow(0 0 10px var(--mood)); transform: rotate(-90deg) scale(1.06); }
+    100% { filter: none; transform: rotate(-90deg) scale(1); }
+}
+@keyframes npcRingDown {
+    0%, 100% { transform: rotate(-90deg) translateX(0); }
+    20% { transform: rotate(-90deg) translateY(-4px); }
+    40% { transform: rotate(-90deg) translateY(4px); }
+    60% { transform: rotate(-90deg) translateY(-2px); }
 }
 
 .npc-dialog-disp-change {
     position: absolute;
-    right: 18px;
-    top: -2px;
-    font-size: 13px;
-    font-weight: 700;
+    top: 0;
+    right: -6px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 900;
     pointer-events: none;
-    animation: dispChangeFloat 1.5s cubic-bezier(0, 0.5, 0.5, 1) forwards;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+    animation: dispChangeFloat 1.6s cubic-bezier(0, 0.5, 0.5, 1) forwards;
 }
+.npc-dialog-disp-change.is-up { color: #81C784; }
+.npc-dialog-disp-change.is-down { color: #EF5350; }
 
 @keyframes dispChangeFloat {
-    0%   { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0; transform: translateY(-20px); }
+    0%   { opacity: 0; transform: translateY(8px) scale(0.6); }
+    15%  { opacity: 1; transform: translateY(0) scale(1.15); }
+    100% { opacity: 0; transform: translateY(-26px) scale(1); }
 }
 
-/* ── NPC Dialog Meta (visits counter) ── */
-.npc-dialog-meta {
+.npc-dialog-mood {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
-    margin-top: 2px;
 }
-
-.npc-dialog-visits {
-    font-size: 10px;
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
-
-/* ── Skill Check Tags on Choices ── */
-.npc-dialog-skill-tag {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 4px;
-    margin-left: auto;
-    flex-shrink: 0;
-    letter-spacing: 0.3px;
-}
-
-.npc-dialog-skill-tag-guaranteed {
-    background: rgba(102, 187, 106, 0.15);
-    color: #66BB6A;
-    border: 1px solid rgba(102, 187, 106, 0.3);
-}
-
-.npc-dialog-skill-tag-likely {
-    background: rgba(255, 213, 79, 0.12);
-    color: #FFD54F;
-    border: 1px solid rgba(255, 213, 79, 0.3);
-}
-
-.npc-dialog-skill-tag-risky {
-    background: rgba(239, 83, 80, 0.12);
-    color: #EF5350;
-    border: 1px solid rgba(239, 83, 80, 0.3);
-}
-
-/* Skill check choices — subtle border tinting */
-.npc-dialog-skill-guaranteed {
-    border-color: rgba(102, 187, 106, 0.15);
-}
-
-.npc-dialog-skill-likely {
-    border-color: rgba(255, 213, 79, 0.12);
-}
-
-.npc-dialog-skill-risky {
-    border-color: rgba(239, 83, 80, 0.12);
-}
-
-/* ── Gift Choices ── */
-.npc-dialog-gift {
-    border-color: rgba(245, 197, 66, 0.15);
-}
-
-.npc-dialog-gift:hover {
-    background: rgba(245, 197, 66, 0.12);
-    border-color: rgba(245, 197, 66, 0.35);
-}
-
-/* ── Skill Check Result Flash ── */
-.npc-dialog-skill-result {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 10px 24px;
-    border-radius: 8px;
+.npc-dialog-disposition-label {
     font-family: var(--font-display);
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 1px;
-    pointer-events: none;
-    z-index: 10;
-    animation: skillCheckFlash 2s cubic-bezier(0, 0.5, 0.5, 1) forwards;
+    color: var(--mood);
+    transition: color 0.6s;
 }
-
-.npc-dialog-skill-success {
-    background: rgba(102, 187, 106, 0.25);
-    border: 2px solid rgba(102, 187, 106, 0.6);
-    color: #A5D6A7;
-    text-shadow: 0 0 12px rgba(102, 187, 106, 0.5);
-}
-
-.npc-dialog-skill-fail {
-    background: rgba(239, 83, 80, 0.25);
-    border: 2px solid rgba(239, 83, 80, 0.6);
-    color: #EF9A9A;
-    text-shadow: 0 0 12px rgba(239, 83, 80, 0.5);
-}
-
-@keyframes skillCheckFlash {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-    15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-    30%  { transform: translate(-50%, -50%) scale(1); }
-    80%  { opacity: 1; }
-    100% { opacity: 0; transform: translate(-50%, -60%); }
-}
-
-/* ── Family Tag in Dialog Header ── */
-.npc-dialog-family-tag {
+.npc-dialog-disposition-value {
     font-size: 11px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    font-variant-numeric: tabular-nums;
+}
+
+.npc-dialog-facts {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 11.5px;
+    text-align: center;
+}
+
+.npc-dialog-rel-badge {
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    letter-spacing: 0.3px;
+}
+.npc-dialog-visits { color: var(--text-secondary); }
+.npc-dialog-family-tag {
     color: #90A4AE;
-    margin-top: 2px;
-    line-height: 1.3;
+    line-height: 1.35;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.npc-dialog-traits {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+}
+.npc-dialog-trait {
+    font-size: 10.5px;
+    font-style: italic;
+    color: #b0bec5;
+    padding: 1px 7px;
+    border-radius: 3px;
+    background: rgba(144, 164, 174, 0.1);
+    border: 1px solid rgba(144, 164, 174, 0.18);
+}
+
+/* ── Main: who they are, what was said, what you can say ── */
+.npc-dialog-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.npc-dialog-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px 12px 24px;
+    border-bottom: 1px solid rgba(245, 197, 66, 0.12);
+    background: linear-gradient(90deg, rgba(245, 197, 66, 0.06), transparent 70%);
+}
+.npc-dialog-header-info { flex: 1; min-width: 0; }
+
+.npc-dialog-name {
+    font-family: var(--font-display);
+    font-size: 23px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 1.5px;
+    line-height: 1.15;
+    text-shadow: 0 2px 12px rgba(245, 197, 66, 0.2);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 320px;
 }
 
-/* ── Relationship Badge ── */
-.npc-dialog-rel-badge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 1px 8px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin-right: 6px;
+.npc-dialog-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
     letter-spacing: 0.3px;
 }
-
-/* ── Personality Traits ── */
-.npc-dialog-traits {
-    display: inline-block;
-    font-size: 10px;
-    color: #78909C;
+.npc-dialog-where {
     font-style: italic;
-    margin-left: 4px;
+    color: var(--text-muted);
 }
+.npc-dialog-where::before { content: '◆ '; font-style: normal; font-size: 8px; vertical-align: 2px; color: var(--gold-dark); }
 
-/* ── Ask About NPC Submenu ── */
-.npc-dialog-ask-about {
+.npc-dialog-close {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 13px;
+    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
-    border-color: rgba(79, 195, 247, 0.12);
+    justify-content: center;
+    transition: all 0.15s;
+}
+.npc-dialog-close:hover {
+    background: rgba(255, 80, 80, 0.18);
+    border-color: rgba(255, 80, 80, 0.4);
+    color: #ff6b6b;
 }
 
-.npc-dialog-ask-about:hover {
-    background: rgba(79, 195, 247, 0.08);
-    border-color: rgba(79, 195, 247, 0.30);
+/* The transcript: older lines fade upward */
+.npc-dialog-transcript {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 120px;
+    max-height: calc(30vh / var(--ui-zoom));
+    overflow-y: auto;
+    padding: 18px 26px 14px;
+    cursor: pointer;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(245, 197, 66, 0.25) transparent;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 26px);
+    mask-image: linear-gradient(180deg, transparent 0, #000 26px);
 }
 
-.npc-dialog-ask-name {
+.npc-dialog-line { animation: npcLineIn 0.35s ease both; }
+@keyframes npcLineIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.npc-dialog-line.is-npc .npc-dialog-line-text {
+    font-family: var(--speech-font);
+    font-size: 17px;
+    line-height: 1.5;
+    color: rgba(239, 230, 210, 0.5);
+    transition: color 0.4s;
+}
+.npc-dialog-line.is-npc .npc-dialog-line-text.npc-dialog-text {
+    position: relative;
+    color: #f1e8d4;
+    font-size: 19px;
+    padding-left: 22px;
+}
+.npc-dialog-line.is-npc .npc-dialog-text::before {
+    content: '“';
+    position: absolute;
+    left: -4px;
+    top: -10px;
+    font-family: var(--speech-font);
+    font-size: 46px;
+    line-height: 1;
+    color: color-mix(in srgb, var(--mood) 70%, var(--gold));
+    opacity: 0.75;
+}
+
+.npc-dialog-aside {
+    font-style: italic;
+    color: rgba(200, 186, 160, 0.75);
+}
+
+.npc-dialog-line.is-player {
+    align-self: flex-end;
+    max-width: 78%;
+}
+.npc-dialog-line.is-player .npc-dialog-line-text {
+    font-size: 13px;
+    font-style: italic;
+    color: #9fdcff;
+    padding: 5px 12px;
+    border-radius: 12px 12px 2px 12px;
+    background: rgba(79, 195, 247, 0.07);
+    border: 1px solid rgba(79, 195, 247, 0.18);
+}
+
+/* "…" while they think */
+.npc-dialog-thinking {
+    display: flex;
+    gap: 5px;
+    padding: 6px 0 2px 22px;
+}
+.npc-dialog-thinking span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mood);
+    opacity: 0.4;
+    animation: npcThink 1s ease-in-out infinite;
+}
+.npc-dialog-thinking span:nth-child(2) { animation-delay: 0.15s; }
+.npc-dialog-thinking span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes npcThink {
+    0%, 100% { transform: translateY(0); opacity: 0.3; }
+    40%      { transform: translateY(-5px); opacity: 0.9; }
+}
+
+/* ── Choices ── */
+.npc-dialog-choices {
+    padding: 8px 16px 4px 18px;
+    border-top: 1px solid rgba(245, 197, 66, 0.1);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 60%);
+    overflow-y: auto;
+    min-height: 0;
+    flex: 0 1 auto;
+}
+.npc-dialog-choices:empty { display: none; }
+
+.npc-dialog-choice-grid {
+    display: grid;
+    gap: 2px 18px;
+}
+.npc-dialog-choice-grid.cols-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.npc-dialog-choice-grid.cols-1 { grid-template-columns: minmax(0, 1fr); }
+
+.npc-dialog-choice-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.npc-dialog-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0 3px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(245, 197, 66, 0.55);
+}
+.npc-dialog-group-title::after {
+    content: '';
     flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(245, 197, 66, 0.2), transparent);
+}
+.npc-dialog-group-title.group-sway { color: rgba(186, 160, 235, 0.7); }
+.npc-dialog-group-title.group-sway::after { background: linear-gradient(90deg, rgba(186, 160, 235, 0.22), transparent); }
+
+.npc-dialog-choice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 7px 10px 7px 8px;
+    background: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    border-radius: 3px;
+    color: #e3d9c6;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    line-height: 1.3;
     text-align: left;
-    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, padding 0.15s;
+    animation: npcChoiceIn 0.32s ease both;
+    animation-delay: calc(var(--i, 0) * 30ms);
+}
+@keyframes npcChoiceIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
+.npc-dialog-choice:hover,
+.npc-dialog-choice:focus-visible {
+    outline: none;
+    background: linear-gradient(90deg, rgba(245, 197, 66, 0.15), rgba(245, 197, 66, 0.02) 80%);
+    border-left-color: var(--gold);
+    color: var(--gold-light);
+    padding-left: 12px;
+}
+.npc-dialog-choice:active { transform: scale(0.99); }
+
+.npc-dialog-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 4px;
+    flex-shrink: 0;
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+.npc-dialog-choice:hover .npc-dialog-key {
+    color: #1a1406;
+    background: var(--gold);
+    border-color: var(--gold-light);
+}
+
+.npc-dialog-choice-icon {
+    font-size: 15px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.npc-dialog-choice-label { flex: 1; min-width: 0; }
+
+.npc-dialog-check {
+    display: inline-block;
+    margin-right: 7px;
+    padding: 1px 6px;
+    font-size: 9.5px;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    vertical-align: 1px;
+    color: #cbb8f5;
+    background: rgba(149, 117, 205, 0.16);
+    border: 1px solid rgba(149, 117, 205, 0.3);
+    border-radius: 3px;
+}
+
+/* Odds dial: a little pie of the chance */
+.npc-dialog-odds {
+    --c: #FFD54F;
+    position: relative;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255, 255, 255, 0.08) 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.npc-dialog-odds::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: #121722;
+}
+.npc-dialog-odds span {
+    position: relative;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: var(--c);
+    letter-spacing: -0.3px;
+}
+.npc-dialog-skill-tag-guaranteed { --c: #66BB6A; }
+.npc-dialog-skill-tag-likely { --c: #FFD54F; }
+.npc-dialog-skill-tag-risky { --c: #EF5350; }
+
+.npc-dialog-choice-dark:hover {
+    background: linear-gradient(90deg, rgba(239, 83, 80, 0.16), rgba(239, 83, 80, 0.02) 80%);
+    border-left-color: #EF5350;
+    color: #ffcdd2;
+}
+.npc-dialog-choice-urgent {
+    color: var(--gold-light);
+    border-left-color: rgba(245, 197, 66, 0.6);
+    background: rgba(245, 197, 66, 0.06);
+    animation: npcChoiceIn 0.32s ease both, npcUrgent 2.2s ease-in-out 0.4s infinite;
+}
+@keyframes npcUrgent {
+    0%, 100% { box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.08); }
+    50%      { box-shadow: inset 0 0 0 1px rgba(245, 197, 66, 0.35); }
+}
+.npc-dialog-choice-muted { opacity: 0.55; }
+
+.npc-dialog-price {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 8px;
+}
+.npc-dialog-price.is-up { color: #EF9A9A; background: rgba(239, 83, 80, 0.12); }
+.npc-dialog-price.is-down { color: #A5D6A7; background: rgba(102, 187, 106, 0.12); }
+
+.npc-dialog-choice-leave {
+    margin-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.07);
+    border-radius: 0;
+    color: var(--text-secondary);
+    animation-delay: 0s;
+}
+
+/* Gifts */
+.npc-dialog-gift .npc-dialog-choice-label { color: #f3e2b3; }
+.npc-dialog-coin-stack {
+    flex-shrink: 0;
+    width: calc(var(--n) * 8px + 4px);
+    height: 14px;
+    background: radial-gradient(circle at 6px 7px, #ffe08a 0 3px, #c49a2a 4px 5px, transparent 5.5px) 0 0 / 8px 14px repeat-x;
+}
+.npc-dialog-qty {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Ask about someone */
+.npc-dialog-bond {
+    font-size: 11px;
+    color: #90A4AE;
+    margin-left: 4px;
+}
 .npc-dialog-ask-opinion {
+    flex-shrink: 0;
     font-size: 11px;
     font-weight: 600;
     padding: 1px 8px;
@@ -2059,6 +2337,373 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.08);
     white-space: nowrap;
 }
+
+.npc-dialog-hint {
+    padding: 8px 24px 11px;
+    min-height: 34px;
+    font-size: 12px;
+    font-style: italic;
+    line-height: 1.4;
+    color: rgba(232, 224, 212, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(0, 0, 0, 0.22);
+}
+
+/* ── Skill check: a wax seal slams onto the scene ── */
+.npc-dialog-skill-result {
+    position: absolute;
+    top: 34%;
+    left: calc(50% + 104px);
+    width: 136px;
+    height: 136px;
+    margin: -68px 0 0 -68px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    pointer-events: none;
+    z-index: 10;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    animation: npcSeal 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+.npc-dialog-skill-result::before {
+    content: '';
+    position: absolute;
+    inset: 9px;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.28);
+}
+.npc-dialog-seal-skill {
+    font-size: 10px;
+    letter-spacing: 3px;
+    opacity: 0.8;
+}
+.npc-dialog-seal-word {
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+}
+.npc-dialog-skill-success {
+    color: #fff4cc;
+    background: radial-gradient(circle at 38% 32%, #d9a93a 0%, #a8761c 45%, #6e4a0e 100%);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7), inset 0 -6px 12px rgba(0, 0, 0, 0.35), 0 0 40px rgba(245, 197, 66, 0.45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.npc-dialog-skill-fail {
+    color: #ffd9d4;
+    background: radial-gradient(circle at 38% 32%, #b8322b 0%, #7d1712 50%, #4a0a07 100%);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7), inset 0 -6px 12px rgba(0, 0, 0, 0.4), 0 0 40px rgba(239, 83, 80, 0.4);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+@keyframes npcSeal {
+    0%   { opacity: 0; transform: scale(2.6) rotate(-28deg); }
+    14%  { opacity: 1; transform: scale(0.94) rotate(-9deg); }
+    20%  { transform: scale(1.03) rotate(-10deg); }
+    26%  { transform: scale(1) rotate(-10deg); }
+    80%  { opacity: 1; transform: scale(1) rotate(-10deg); }
+    100% { opacity: 0; transform: scale(1.08) rotate(-10deg) translateY(-12px); }
+}
+
+.npc-dialog-box.npc-dialog-shake { animation: npcShake 0.45s ease 0.25s; }
+.npc-dialog-box.npc-dialog-glow { animation: npcGlow 1.2s ease 0.25s; }
+@keyframes npcShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(2px); }
+}
+@keyframes npcGlow {
+    0%, 100% { filter: brightness(1); }
+    30%      { filter: brightness(1.12); }
+}
+
+/* Narrow screens: the portrait sits above the conversation */
+@media (max-width: 820px) {
+    .npc-dialog-box { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+    .npc-dialog-side {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 12px;
+        border-right: none;
+        border-bottom: 1px solid rgba(245, 197, 66, 0.14);
+    }
+    .npc-dialog-portrait { width: 92px; height: 92px; }
+    .npc-dialog-portrait-frame { inset: 9px; }
+    .npc-dialog-portrait-badge { width: 26px; height: 26px; font-size: 13px; right: 2px; bottom: 2px; }
+    .npc-dialog-facts { display: none; }
+    .npc-dialog-choice-grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
+    .npc-dialog-skill-result { left: 50%; }
+}
+
+/* ── Conversation scenes on the overworld (ui/conversationScene.js) ── */
+.npc-scene.is-closing { opacity: 0; transition: opacity 0.18s ease; }
+
+/* (the children dim, not the button: its entrance animation holds opacity) */
+.npc-dialog-choice.is-disabled {
+    cursor: not-allowed;
+    filter: saturate(0.3);
+}
+.npc-dialog-choice.is-disabled > * { opacity: 0.4; }
+.npc-dialog-choice.is-disabled:hover { transform: none; }
+.npc-dialog-price.is-good { color: #A5D6A7; background: rgba(102, 187, 106, 0.12); }
+
+/* Outcome ribbons: what an act cost or won */
+.npc-scene-note {
+    align-self: center;
+    max-width: 92%;
+    padding: 4px 14px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-align: center;
+    border-radius: 2px;
+    border-top: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04) 20%, rgba(255, 255, 255, 0.04) 80%, transparent);
+    animation: npcNoteIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.npc-scene-note.tone-good { color: #9ccc65; border-color: rgba(156, 204, 101, 0.3); }
+.npc-scene-note.tone-bad  { color: #ef9a9a; border-color: rgba(239, 154, 154, 0.3); }
+.npc-scene-note.tone-gold { color: var(--gold-light); border-color: rgba(245, 197, 66, 0.35); }
+.npc-scene-note.tone-info { color: #90caf9; border-color: rgba(144, 202, 249, 0.25); }
+@keyframes npcNoteIn {
+    from { opacity: 0; transform: scaleX(0.6); letter-spacing: 3px; }
+    to   { opacity: 1; transform: scaleX(1); }
+}
+
+/* A block of lore or ledger set into the transcript, like a page held up */
+.npc-scene-card {
+    margin: 2px 0 4px 22px;
+    padding: 12px 14px 4px;
+    font-size: 12px;
+    color: #cfc6b2;
+    background: linear-gradient(180deg, rgba(245, 197, 66, 0.06), rgba(245, 197, 66, 0.02));
+    border: 1px solid rgba(245, 197, 66, 0.18);
+    border-left: 3px solid var(--gold-dark);
+    border-radius: 3px;
+    cursor: default;
+    animation: npcLineIn 0.4s ease both;
+}
+.npc-scene-card-title {
+    font-family: var(--speech-font);
+    font-size: 16px;
+    color: var(--gold-light);
+    margin-bottom: 8px;
+}
+.npc-scene-card > div:not(.npc-scene-card-title) { background: rgba(0, 0, 0, 0.25) !important; }
+
+/* A lord's three gifts as little gauges */
+.npc-scene-stats {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+}
+.npc-scene-stat {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 6px 5px;
+    font-size: 11px;
+    color: var(--text-secondary, #bbb);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.npc-scene-stat b { color: #eee; font-weight: 700; }
+.npc-scene-stat i {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: var(--v);
+    background: color-mix(in srgb, var(--mood) 60%, var(--gold));
+}
+
+/* The royal audience: a crimson canopy and a crown over the ring */
+.npc-scene-royal .npc-dialog-box {
+    background:
+        radial-gradient(ellipse 80% 40% at 50% 0%, rgba(140, 24, 40, 0.22), transparent 70%),
+        linear-gradient(180deg, #1a1420 0%, #0d0a12 100%);
+    border-color: rgba(245, 197, 66, 0.45);
+}
+.npc-scene-royal .npc-dialog-name {
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 18px rgba(245, 197, 66, 0.35);
+}
+.npc-scene-royal .npc-dialog-portrait::before {
+    content: '👑';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-6deg);
+    font-size: 26px;
+    z-index: 3;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+}
+.npc-scene-royal .npc-dialog-portrait-badge { display: none; }
+
+/* The caravan: road dust and lamp-light */
+.npc-scene-caravan .npc-dialog-box {
+    background:
+        radial-gradient(ellipse 70% 45% at 20% 0%, rgba(214, 140, 60, 0.16), transparent 70%),
+        linear-gradient(180deg, #1c1813 0%, #0f0c09 100%);
+}
+
+/* Townsfolk: affection as a rose-coloured gauge, romance choices in rose */
+.npc-scene-affection {
+    position: relative;
+    width: 100%;
+    padding: 3px 8px 6px;
+    font-size: 11px;
+    text-align: center;
+    color: #f8bbd0;
+    background: rgba(255, 105, 180, 0.06);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.npc-scene-affection i {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: var(--v);
+    background: linear-gradient(90deg, #ad1457, #ff80ab);
+    transition: width 0.8s ease;
+}
+.npc-scene-choice-romance .npc-dialog-choice-icon { filter: drop-shadow(0 0 6px rgba(255, 128, 171, 0.45)); }
+.npc-scene-choice-romance:not(.is-disabled):hover { border-color: rgba(255, 128, 171, 0.45); }
+.npc-dialog-group-title.group-romance { color: #f48fb1; }
+.npc-dialog-group-title.group-hostile { color: #ef9a9a; }
+
+/* Meet People: the townsfolk as cards with their portraits */
+.people-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+.people-cards .ctx-person {
+    cursor: pointer;
+    border-left: 3px solid var(--rel, #666);
+    min-width: 0;
+}
+.people-cards .ctx-person:hover { background: rgba(245, 197, 66, 0.07); }
+.people-intro { font-size: 12px; color: var(--text-secondary); margin: 0 0 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+    #npcDialogOverlay *,
+    #npcDialogOverlay *::before,
+    .npc-scene-note,
+    .npc-dialog-box { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ── "People Here" cards in the inner-map click menu ── */
+.ctx-person {
+    --mood: #FFD54F;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--mood) 9%, transparent), rgba(255, 255, 255, 0.02) 60%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 2px solid var(--mood);
+    min-width: 300px;
+}
+.ctx-person-portrait {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #2a3348 0%, #151a27 100%);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mood) 60%, transparent), inset 0 -8px 14px rgba(0, 0, 0, 0.45);
+}
+.ctx-person-portrait canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.ctx-person-emoji { font-size: 22px; line-height: 1; }
+.ctx-person-info { flex: 1; min-width: 0; }
+.ctx-person-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ctx-person-new {
+    font-family: var(--font-body);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #4FC3F7;
+    padding: 0 5px;
+    border: 1px solid rgba(79, 195, 247, 0.35);
+    border-radius: 3px;
+}
+.ctx-person-role {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ctx-person-doing { margin-left: 6px; color: var(--text-muted); }
+.ctx-person-doing::before { content: '· '; }
+.ctx-person-mood {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--mood);
+}
+.ctx-person-mood-bar {
+    width: 46px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+.ctx-person-mood-bar span { display: block; height: 100%; background: var(--mood); border-radius: 2px; }
+.ctx-person-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ctx-person-actions button {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 5px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ctx-person-talk {
+    color: #1a1406;
+    background: linear-gradient(180deg, var(--gold-light), var(--gold));
+    border: 1px solid var(--gold-dark);
+}
+.ctx-person-talk:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(245, 197, 66, 0.3); }
+.ctx-person-attack {
+    color: #ef9a9a;
+    background: rgba(239, 83, 80, 0.08);
+    border: 1px solid rgba(239, 83, 80, 0.3);
+}
+.ctx-person-attack:hover { background: rgba(239, 83, 80, 0.22); color: #fff; }
 
 /* ============================================
    NOTIFICATIONS
@@ -2114,6 +2759,10 @@ body {
     background: linear-gradient(180deg, #3498db, #2980b9);
 }
 
+.notification.warning .notif-accent {
+    background: linear-gradient(180deg, #f1c40f, #d68910);
+}
+
 .notification .notif-icon {
     width: 40px;
     height: 40px;
@@ -2138,6 +2787,11 @@ body {
     border-color: rgba(231, 76, 60, 0.15);
 }
 
+.notification.warning .notif-icon {
+    background: linear-gradient(135deg, rgba(241, 196, 15, 0.2) 0%, rgba(214, 137, 16, 0.15) 100%);
+    border-color: rgba(241, 196, 15, 0.15);
+}
+
 .notification .notif-body {
     flex: 1;
     padding: 10px 10px 10px 10px;
@@ -2160,6 +2814,10 @@ body {
 
 .notification.error .notif-title {
     color: #f07070;
+}
+
+.notification.warning .notif-title {
+    color: #f5c542;
 }
 
 .notification .notif-msg {
@@ -2205,6 +2863,11 @@ body {
 .notification.info {
     border-left: none;
     border-color: rgba(100, 160, 255, 0.25);
+}
+
+.notification.warning {
+    border-left: none;
+    border-color: rgba(241, 196, 15, 0.25);
 }
 
 @keyframes notifIn {
@@ -2598,6 +3261,62 @@ body {
     animation: modalIn 0.2s ease;
 }
 
+/* Editor overlay: saved-world rows and the small confirm/name dialog */
+.cw-world-item.current {
+    border-color: rgba(245, 197, 66, 0.5);
+}
+.cw-world-tag {
+    margin-left: 8px;
+    font-size: 10px;
+    font-family: var(--font-body);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid rgba(245, 197, 66, 0.4);
+    border-radius: 8px;
+    padding: 0 6px;
+    vertical-align: middle;
+}
+.cw-world-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+.cw-world-delete {
+    padding: 2px 8px;
+    min-width: 34px;
+}
+.cw-world-delete.armed {
+    background: rgba(220, 60, 60, 0.35);
+}
+.editor-dialog-text {
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary, #e8e2d0);
+    margin: 4px 0 12px;
+}
+.editor-dialog-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: var(--font-body);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-primary, #e8e2d0);
+    border: 1px solid rgba(245, 197, 66, 0.35);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.cw-modal .cw-modal-footer {
+    gap: 8px;
+}
+.editor-dialog-input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
 /* Centering container for the in-app world-load picker (reuses .cw-* styling).
    Scoped inside the editor overlay's stacking context (z-index sits above the
    top bar and iframe). */
@@ -2764,6 +3483,137 @@ body {
     flex: 1;
     height: 1px;
     background: var(--border-color);
+}
+
+/* ── Character Profile: fields, a turnable figure, and the look cyclers ── */
+.char-forge { grid-column: 1 / -1; }
+.char-forge-body {
+    display: grid;
+    grid-template-columns: minmax(200px, 250px) 1fr;
+    gap: 20px;
+    align-items: start;
+}
+.char-forge-fields { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.char-forge-look {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: start;
+    min-width: 0;
+}
+.char-forge-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.char-forge-figure {
+    width: 192px;
+    height: 192px;
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--gold-dark);
+    background:
+        radial-gradient(ellipse 45% 10% at 50% 86%, rgba(0, 0, 0, 0.45), transparent 70%),
+        radial-gradient(circle at 50% 38%, rgba(245, 197, 66, 0.16), transparent 62%),
+        linear-gradient(180deg, #273352, #10162a);
+    box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.55), 0 0 18px rgba(245, 197, 66, 0.12);
+    overflow: hidden;
+    cursor: pointer;
+}
+.char-forge-figure canvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    transition: opacity 0.2s ease;
+}
+.char-forge-figure.is-loading canvas { opacity: 0.55; }
+.char-forge-turn { display: flex; align-items: center; gap: 8px; width: 192px; }
+.char-forge-turn button,
+.char-forge-step {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: rgba(245, 197, 66, 0.06);
+    color: var(--gold);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.char-forge-turn button:hover,
+.char-forge-step:hover { border-color: var(--gold); background: rgba(245, 197, 66, 0.16); }
+.char-forge-name {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: 1px;
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* The bust as the HUD will show it, pinned to the figure's corner */
+.char-forge-bust {
+    position: absolute;
+    top: -10px;
+    right: -14px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 2px solid var(--gold-dark);
+    background: radial-gradient(circle at 50% 35%, #2a3550, #12182a);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+.char-forge-bust canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.char-forge-rows {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 8px 12px;
+    align-content: start;
+    min-width: 0;
+}
+.char-forge-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 6px 12px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.03);
+    min-width: 0;
+}
+.char-forge-label { font-size: 12px; color: var(--text-secondary); width: 84px; flex-shrink: 0; }
+.char-forge-value {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.char-forge-random {
+    grid-column: 1 / -1;
+    justify-self: start;
+    padding: 7px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: rgba(245, 197, 66, 0.06);
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.char-forge-random:hover { border-color: var(--gold); background: rgba(245, 197, 66, 0.16); }
+@media (max-width: 900px) {
+    .char-forge-body { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+    .char-forge-look { grid-template-columns: 1fr; justify-items: center; }
+    .char-forge-rows { width: 100%; grid-template-columns: 1fr; }
 }
 
 .input-row {
@@ -3544,6 +4394,20 @@ body {
 }
 .tb-portrait:hover { border-color: var(--gold); }
 
+/* The player's own sprite bust in the HUD portrait slots (ui/npcPortrait.js) */
+.tb-portrait, .hud-char-portrait { position: relative; overflow: hidden; }
+.hud-portrait-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    pointer-events: none;
+    visibility: hidden;
+}
+.tb-portrait.has-sprite, .hud-char-portrait.has-sprite { font-size: 0; }
+.hud-char-portrait .hud-portrait-canvas { top: -4px; }
+
 /* ── Left icon rail ── */
 #hudLeftRail {
     position: fixed;
@@ -4019,7 +4883,7 @@ body {
 
 #app-root > :not(#gameCanvas):not(#editorOverlay):not(#worldEditorOverlay):not(#titleScreen):not(#settingsScreen):not(#titleBackdrop),
 #titleContent,
-#customWorldModal .cw-modal-panel,
+#titleScreen #customWorldModal .cw-modal-panel,
 #settingsContent,
 body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
     zoom: var(--ui-zoom);
@@ -4775,4 +5639,49 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 
 @media (prefers-reduced-motion: reduce) {
     #customPanel .cp-crest .ico, #customPanel .cp-crest-emoji { animation: none; }
+}
+
+/* ── Cheats panel (src/ui/ui/cheats.js) ── */
+.cheats-panel h4 {
+    margin: 14px 0 6px;
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.cheats-panel .cheat-note {
+    margin: 0 0 4px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.cheats-panel kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    font-size: 11px;
+}
+.cheat-row,
+.cheat-toggles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.cheat-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+.cheat-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 12px;
+}
+.cheat-toggle:has(input:checked) {
+    border-color: var(--gold);
+    background: var(--bg-active);
+    color: var(--gold);
 }

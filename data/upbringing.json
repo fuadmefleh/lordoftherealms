@@ -298,6 +298,12 @@
         "wardDays": 120,
         "wardReputation": 10,
         "wardSkills": { "leadership": 1, "diplomacy": 1 },
+        "localPrestige": -2,
+        "localPrestigeGentle": 1,
+        "localReputation": 4,
+        "localKinRegard": 15,
+        "localMaxAgeGap": 12,
+        "localGentleRoles": ["noble", "merchant"],
         "wardLordTraits": {
             "brave": "brave", "brilliant_strategist": "brave", "cowardly": "craven",
             "devout": "pious", "pious": "pious", "mystic": "zealous",

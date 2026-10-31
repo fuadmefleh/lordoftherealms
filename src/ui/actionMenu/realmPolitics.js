@@ -3,7 +3,7 @@
 // player/realmPolitics.js; these panels present it.
 import { ActionMenu } from './_ref.js';
 import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
-import { BTN_GOLD, BTN_DIM, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, BTN_DARK, CARD } from './uiKit.js';
 
 
 function _bar(gains, goal, color) {
@@ -34,6 +34,8 @@ Object.assign(ActionMenu, {
         const here = tile && tile.settlement ? tile.settlement.kingdom : null;
 
         let html = '<div style="font-size:12px;">';
+        // Who stands against you, and the league if one is sworn (ui/actionMenu/threats.js)
+        html += `<button data-am-act="showThreatsPanel" style="${BTN_DARK} width:100%;">⚜️ Threats: the realms' regard${player.coalitions && player.coalitions.active ? ` — ${player.coalitions.active.name}` : ''}</button>`;
 
         if (campaign) {
             html += `<div style="${CARD}border-color:rgba(245,197,66,0.4);">`;

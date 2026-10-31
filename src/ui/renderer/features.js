@@ -1,6 +1,7 @@
 // Renderer — features methods.
 import { Renderer } from './core.js';
-import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
+import { Hex, Religion, Economy, Infrastructure, Hinterland, Estates } from './_imports.js';
+import { drawIcon } from '../icons.js';
 
 // Vertical nudge (as a fraction of a hex's on-screen size) applied to building
 // sprites so their base sits down on the hex tile instead of floating above it.
@@ -168,18 +169,14 @@ Object.assign(Renderer.prototype, {
                     ctx.globalAlpha = 1.0;
                     ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH / 2 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
                 } else {
-                    // Fallback to icon if image failed to load
-                    const icon = settlement.type === 'capital' ? '🏰' : (settlement.type === 'town' ? '🏘️' : '🏠');
-                    const iconSize = Math.max(14, renderSize * 0.9);
-                    ctx.font = `${iconSize}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(icon, screen.x, screen.y - renderSize * 0.15);
+                    // Fallback to a glyph if the sprite failed to load
+                    this.drawMapMarker(ctx, settlement.type === 'capital' ? 'castle' : 'house',
+                        screen.x, screen.y - renderSize * 0.15, Math.max(11, renderSize * 0.42));
                 }
 
                 // Draw name label
                 if (this.camera.zoom > 0.4) {
-                    const fsize = Math.max(10, labelSize * 1.1 * this.camera.zoom);
+                    const fsize = Math.max(labelSize, labelSize * 1.2 * this.camera.zoom);
                     const font = `700 ${fsize}px 'Cinzel', serif`;
                     
                     // Add to label queue with priority based on settlement type
@@ -264,13 +261,9 @@ Object.assign(Renderer.prototype, {
                     ctx.globalAlpha = 1.0;
                     ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7, imgW, imgH);
                 } else {
-                    // Fallback to Icon
-                    const iconSize = Math.max(12, renderSize * 0.7);
-                    ctx.font = `${iconSize}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
+                    // Fallback to a glyph marker
                     ctx.globalAlpha = 1.0;
-                    ctx.fillText(poi.icon, screen.x, screen.y);
+                    this.drawMapMarker(ctx, poi.icon || poi.type, screen.x, screen.y, Math.max(10, renderSize * 0.36));
                 }
 
                 // Draw name label for POIs
@@ -295,6 +288,94 @@ Object.assign(Renderer.prototype, {
                 }
             }
         }
+    },
+
+    /**
+     * The countryside's working places, drawn as buildings: the hinterland's
+     * rural sites (mines, quarries, salt pans, sheep runs, timber camps,
+     * fisheries, studs, ranches — world/hinterland.js) and the estates' farms
+     * about the towns (world/estates.js fieldHexes). Sprites come from data
+     * (`sprites` in data/hinterland.json, `map` in data/estates.json); a hex
+     * the player has built on keeps the player's own building.
+     */
+    renderRuralSites(ctx) {
+        const world = this.world;
+        if (!world) return;
+        const rs = this.hexSize * this.camera.zoom;
+        const pad = rs * 2;
+        const items = [];
+        const visible = (q, r) => {
+            const tile = world.getTile(q, r);
+            if (!tile || !tile.explored || tile.settlement || tile.playerProperty || tile.religiousBuilding) return null;
+            const pos = this.getHexPixelPos(q, r);
+            const s = this.camera.worldToScreen(pos.x, pos.y);
+            if (s.x < -pad || s.x > this.canvas.width + pad || s.y < -pad || s.y > this.canvas.height + pad) return null;
+            return s;
+        };
+        for (const site of Hinterland.sites(world)) {
+            const k = Hinterland.kind(site.kind);
+            if (!k || !k.sprites.length) continue;
+            const s = visible(site.q, site.r);
+            if (s) items.push({ q: site.q, r: site.r, s, variants: k.sprites, dim: site.st === 'exhausted' });
+        }
+        if (Estates.enabled()) {
+            const M = Estates.config().map;
+            for (const f of Estates.fieldHexes(world)) {
+                const est = Estates.estate(world, f.id);
+                const s = est && visible(f.q, f.r);
+                if (!s) continue;
+                const enclosed = (est.enclosed || 0) >= M.enclosedAt && M.enclosed.length;
+                items.push({ q: f.q, r: f.r, s, variants: enclosed ? M.enclosed : M.sprites });
+            }
+        }
+        // Back rows first, so a nearer hex's building overlaps the one behind it
+        items.sort((a, b) => a.r - b.r || a.q - b.q);
+        for (const it of items) {
+            if (!it.variants.length) continue;
+            const variant = it.variants[((it.q * 7 + it.r * 13) >>> 0) % it.variants.length];
+            ctx.save();
+            if (it.dim) {
+                ctx.globalAlpha = 0.6;
+                ctx.filter = 'grayscale(0.85)';
+            }
+            this.drawSpriteVariant(ctx, variant, it.s.x, it.s.y, rs);
+            ctx.restore();
+        }
+    },
+
+    /**
+     * Draw one sprite variant (data format: an image path under assets/tiles/,
+     * or a list of layers — a path or { img, x, y, s }) on the hex centred at
+     * (sx, sy). Layers sit by their bottom-centre at (x, y) hex radii from the
+     * centre at the settlements' scale × s; full hex tiles are centred like a town.
+     */
+    drawSpriteVariant(ctx, variant, sx, sy, rs) {
+        const layers = Array.isArray(variant) ? variant : [variant];
+        const unit = rs * 2.3 / 256;
+        for (const raw of layers) {
+            const L = typeof raw === 'string' ? { img: raw } : raw;
+            const sprite = L && L.img ? this.lazySprite(L.img) : null;
+            if (!sprite) continue;
+            const sc = unit * (L.s || 1);
+            const w = sprite.width * sc, h = sprite.height * sc;
+            const x = sx + (L.x || 0) * rs - w / 2;
+            const y = sprite.height >= 300 && L.y == null
+                ? sy - h / 2 + rs * BUILDING_BASE_NUDGE
+                : sy + (L.y != null ? L.y : 0.5) * rs - h;
+            ctx.drawImage(sprite, x, y, w, h);
+        }
+    },
+
+    /** A sprite under assets/tiles/ by its path, loaded on first use (null until it has). */
+    lazySprite(path) {
+        const img = this.tileSprites.get(path);
+        if (img) return img;
+        if (!this._lazyLoads) this._lazyLoads = new Set();
+        if (!this._lazyLoads.has(path)) {
+            this._lazyLoads.add(path);
+            this.loadTileSprite(path, 'assets/tiles/' + path);
+        }
+        return null;
     },
 
     /**
@@ -332,13 +413,10 @@ Object.assign(Renderer.prototype, {
                     ctx.fill();
                     ctx.restore();
 
-                    // Icon
-                    const iconSize = Math.max(14, renderSize * 0.85);
-                    ctx.font = `${iconSize}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
+                    // The site's glyph on a gold-rimmed plate
                     ctx.globalAlpha = 1.0;
-                    ctx.fillText(site.icon, screen.x, screen.y);
+                    this.drawMapMarker(ctx, site.icon, screen.x, screen.y, Math.max(11, renderSize * 0.4),
+                        { rim: '#f5c542', color: '#ffe08a' });
 
                     // Label
                     if (this.camera.zoom > 0.5) {
@@ -364,12 +442,8 @@ Object.assign(Renderer.prototype, {
 
                 if (hasCultural) {
                     const building = tile.culturalBuilding;
-                    const iconSize = Math.max(12, renderSize * 0.7);
-                    ctx.font = `${iconSize}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
                     ctx.globalAlpha = 1.0;
-                    ctx.fillText(building.icon, screen.x, screen.y);
+                    this.drawMapMarker(ctx, building.icon, screen.x, screen.y, Math.max(10, renderSize * 0.34));
 
                     if (this.camera.zoom > 0.7) {
                         const fsize = Math.max(8, 9 * this.camera.zoom);
@@ -431,10 +505,7 @@ Object.assign(Renderer.prototype, {
             if (finished) { ctx.shadowColor = '#f5c542'; ctx.shadowBlur = renderSize * 0.3; }
             ctx.stroke();
             ctx.shadowBlur = 0;
-            ctx.font = `${Math.max(9, radius * 1.3)}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(finished ? icon : '🏗️', x, y + 1);
+            drawIcon(ctx, finished ? icon : 'hammer', x, y, radius * 1.35, finished ? '#ffe08a' : '#c8c8c8');
             ctx.restore();
             if (finished && this.camera.zoom > 0.9) {
                 const fsize = Math.max(8, 9 * this.camera.zoom);
@@ -445,7 +516,7 @@ Object.assign(Renderer.prototype, {
             }
         };
         for (const b of built) if (b) draw(b.q, b.r, b.icon || '🏛️', b.name, true);
-        for (const p of rising) if (p) draw(p.q, p.r, '🏗️', '', false);
+        for (const p of rising) if (p) draw(p.q, p.r, 'hammer', '', false);
     },
 
     /**
@@ -516,11 +587,8 @@ Object.assign(Renderer.prototype, {
                         ctx.setLineDash([]);
                     }
                 } else if (infra.id === 'bridge') {
-                    // Draw bridge icon
-                    ctx.font = `${Math.max(14, renderSize * 0.7)}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🌉', screen.x, screen.y - renderSize * 0.1);
+                    // The bridge's glyph
+                    this.drawMapMarker(ctx, 'bridge', screen.x, screen.y - renderSize * 0.1, Math.max(10, renderSize * 0.32));
                 } else if (infra.id === 'jetty') {
                     // Timber landing stage reaching out toward the water
                     let water = null;
@@ -543,10 +611,7 @@ Object.assign(Renderer.prototype, {
                         ctx.lineTo(ex, ey);
                         ctx.stroke();
                     }
-                    ctx.font = `${Math.max(12, renderSize * 0.5)}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('⚓', screen.x, screen.y);
+                    this.drawMapMarker(ctx, 'anchor', screen.x, screen.y, Math.max(9, renderSize * 0.26));
                 } else if (infra.id === 'irrigation_channel') {
                     // Draw irrigation - blue wavy lines
                     ctx.strokeStyle = infra.renderColor || '#4FC3F7';
@@ -564,10 +629,7 @@ Object.assign(Renderer.prototype, {
 
                     // Small label
                     if (this.camera.zoom > 0.8) {
-                        ctx.font = `${Math.max(10, renderSize * 0.35)}px serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText('💧', screen.x, screen.y + renderSize * 0.45);
+                        drawIcon(ctx, 'droplet', screen.x, screen.y + renderSize * 0.45, Math.max(12, renderSize * 0.32), '#7fd3f7');
                     }
                 }
 
@@ -575,10 +637,7 @@ Object.assign(Renderer.prototype, {
                 if (isUnderConstruction) {
                     ctx.globalAlpha = 1.0;
                     // Draw construction indicator
-                    ctx.font = `${Math.max(12, renderSize * 0.5)}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('🔨', screen.x, screen.y - renderSize * 0.3);
+                    this.drawMapMarker(ctx, 'hammer', screen.x, screen.y - renderSize * 0.3, Math.max(9, renderSize * 0.26));
                 }
 
                 // Draw infrastructure name label at higher zoom
@@ -686,11 +745,8 @@ Object.assign(Renderer.prototype, {
                     ctx.globalAlpha = 1.0;
                     ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
                 } else {
-                    // Fallback Icon
-                    ctx.font = `${Math.max(14, renderSize * 0.8)}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(structure.icon, screen.x, screen.y - renderSize * 0.1);
+                    // Fallback glyph marker
+                    this.drawMapMarker(ctx, structure.icon || 'house', screen.x, screen.y - renderSize * 0.1, Math.max(10, renderSize * 0.36));
                 }
 
                 // Draw name label
@@ -738,22 +794,9 @@ Object.assign(Renderer.prototype, {
                 if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
                 if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
 
-                // Small resource icon in corner of hex
-                const iconSize = Math.max(9, renderSize * 0.4);
-                ctx.font = `${iconSize}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                // A small struck plate under the resource, so every marker reads as one family
+                // The resource's glyph on a small struck plate in the corner of the hex
                 const px = screen.x + renderSize * 0.35, py = screen.y + renderSize * 0.35;
-                this.drawMarkerPlate(ctx, px, py, iconSize * 0.68);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = `${iconSize * 0.82}px serif`;
-                ctx.fillText(tile.resource.icon || '📦', px, py + iconSize * 0.04);
-
-                // Reset shadow
-                ctx.shadowColor = 'transparent';
-                ctx.shadowBlur = 0;
+                this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27));
             }
         }
     },

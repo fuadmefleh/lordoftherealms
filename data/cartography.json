@@ -91,5 +91,71 @@
     "spotPerSkill": 0.06,
     "maxSpot": 0.9,
     "distrustLimit": 3
+  },
+  "treasureDigs": {
+    "_comment": "Digging up a treasure map's cache (systems/treasureDigs.js). The origin is picked from the hex by a hash (terrain-biased); it decides the loot and who or what stands between you and it.",
+    "legacyItems": { "ancient_relic": "ancient_artifact" },
+    "origins": {
+      "pirate_hoard": {
+        "name": "Pirate Hoard", "icon": "🏴‍☠️", "weight": 1, "terrains": ["beach", "coast", "swamp", "marsh", "tropical_rainforest", "jungle"], "terrainWeight": 5,
+        "goldMult": 1.2, "loot": { "rum": [1, 3], "gems": [0, 2], "ancient_coin": [1, 3] },
+        "encounters": { "none": 2, "trap": 3, "guardian": 1, "rivals": 4 },
+        "guardian": "a marooned crewman who swore to guard the chest", "trap": "a powder keg rigged to the lid", "rivals": "a boat's crew with spades and a copy of your map"
+      },
+      "bandit_stash": {
+        "name": "Bandit Stash", "icon": "🗡️", "weight": 1, "terrains": ["woodland", "seasonal_forest", "boreal_forest", "hills", "highlands", "foothills"], "terrainWeight": 4,
+        "goldMult": 0.9, "loot": { "weapons": [1, 2], "stolen_goods": [1, 3], "gold_bar": [0, 1] },
+        "encounters": { "none": 2, "trap": 2, "guardian": 4, "rivals": 2 },
+        "guardian": "two of the band left to watch the stash", "trap": "a spiked pit dug over the cache", "rivals": "the rest of the band, come back for their share"
+      },
+      "noble_cache": {
+        "name": "Noble's Cache", "icon": "👑", "weight": 1, "terrains": ["plains", "grassland", "seasonal_forest", "woodland"], "terrainWeight": 3,
+        "goldMult": 1.4, "loot": { "royal_seal": [0, 1], "fine_wine": [1, 2], "enchanted_ring": [0, 1], "gems": [1, 2] },
+        "encounters": { "none": 3, "trap": 3, "guardian": 1, "rivals": 3 },
+        "guardian": "an old retainer of the house, still loyal", "trap": "a false bottom that collapses into a flooded vault", "rivals": "a disinherited cousin with the other half of the map"
+      },
+      "ancient_tomb": {
+        "name": "Ancient Tomb", "icon": "⚱️", "weight": 1, "terrains": ["desert", "mountain", "snow_peak", "tundra", "steppe", "savanna"], "terrainWeight": 5,
+        "goldMult": 1.0, "loot": { "ancient_artifact": [1, 1], "ancient_coin": [1, 4], "amulet": [0, 1], "cursed_idol": [0, 1] },
+        "encounters": { "none": 1, "trap": 5, "guardian": 3, "rivals": 1 },
+        "guardian": "something that still keeps the tomb", "trap": "a stone seal that drops when the slab is lifted", "rivals": "grave robbers already at work in the passage"
+      }
+    },
+    "odds": {
+      "fight": { "base": 0.35, "combat": 0.05, "strength": 0.01, "armyBonus": 0.15 },
+      "sneak": { "base": 0.25, "stealth": 0.06 },
+      "bribe": { "base": 0.75, "diplomacy": 0.02, "costShare": 0.25, "min": 20 },
+      "prayer": { "base": 0.3, "karmaPer": 0.005, "faith": 0.02 },
+      "disarm": { "base": 0.3, "intelligence": 0.03, "cartography": 0.04 },
+      "force": { "base": 0.45, "strength": 0.02 },
+      "race": { "base": 0.35, "strength": 0.02, "mount": 0.15 },
+      "negotiate": { "base": 0.4, "diplomacy": 0.05, "charisma": 0.02 }
+    },
+    "hurt": { "trap": [8, 20], "fight": [6, 16], "guardianTomb": [12, 25] },
+    "renown": { "fight": 3, "found": 2 },
+    "minDistanceRival": 0
+  },
+  "mapTheft": {
+    "_comment": "Stealing a map from a named owner (systems/mapTheft.js). The owner remembers: the theft is found out, you are accused when you return, bounties and heat follow.",
+    "targets": {
+      "cartographer": { "label": "Cartographer", "icon": "📐", "titles": ["Master", "Mistress"], "trade": "cartographer", "base": 0.5, "stealth": 0.06, "caught": 0.4, "minType": "village", "map": "regional", "accuracy": [0.7, 0.9], "quality": "detailed", "value": [40, 90], "discoverDays": [2, 5], "followUp": "accuse", "bountyGold": 60, "restitution": 2 },
+      "captain": { "label": "Ship's Captain", "icon": "⚓", "titles": ["Captain"], "trade": "master of the", "base": 0.4, "stealth": 0.06, "caught": 0.5, "coastal": true, "map": "sea", "accuracy": [0.6, 0.85], "quality": "basic", "value": [30, 70], "treasureChance": 0.35, "discoverDays": [1, 3], "followUp": "bounty", "bountyGold": 90, "restitution": 2 },
+      "archive": { "label": "Lord's Archive", "icon": "🏛️", "titles": ["Archivist"], "trade": "keeper of the rolls of", "base": 0.25, "stealth": 0.05, "caught": 0.7, "minType": "town", "needsKingdom": true, "map": "kingdom", "accuracy": [0.8, 0.95], "quality": "detailed", "value": [80, 160], "discoverDays": [1, 4], "followUp": "heat", "bountyGold": 150, "heat": 18, "restitution": 3 }
+    },
+    "surnames": ["Vell", "Harrow", "Quill", "Ashby", "Merrow", "Dunmore", "Corran", "Tallis", "Wren", "Oakes", "Brisk", "Lindqvist"],
+    "firstNames": ["Aldric", "Bertil", "Celia", "Doran", "Elsbeth", "Fabian", "Gisela", "Hamon", "Iona", "Jory", "Kerra", "Lucan"],
+    "shipNames": ["Gull", "Saltmaiden", "Kestrel", "Fair Wind", "Black Heron", "Mercy", "Old Tom", "Wavecutter"],
+    "luck": 0.01,
+    "discoverBase": 0.75,
+    "discoverStealth": 0.05,
+    "remember": 120,
+    "accuseWaitDays": 30,
+    "accuse": {
+      "deny": { "base": 0.25, "diplomacy": 0.05, "charisma": 0.02 },
+      "bribe": { "base": 0.6, "diplomacy": 0.03, "costMult": 1.5 },
+      "flee": { "base": 0.35, "stealth": 0.05 }
+    },
+    "jailDays": [2, 5, 8],
+    "jailBailPerDay": 25
   }
 }

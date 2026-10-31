@@ -908,6 +908,36 @@ export const Discovery = {
     },
 
     /**
+     * A lead met in the wilds (a hermit's tale, an explorer's notes, a carved
+     * waymark — player/wilds.js): the nearest unknown, unhinted place within
+     * `radius` of (q, r) becomes rumoured. Draws no RNG.
+     * Returns { site, text } or null.
+     */
+    leadNear(player, world, q, r, { radius = 18, source = 'a wanderer' } = {}) {
+        if (!player || !world || typeof world.getTile !== 'function') return null;
+        const cfg = Discovery.config();
+        const st = Discovery.state(player);
+        Discovery.ensureSites(player, world);
+        let best = null;
+        let bestD = Infinity;
+        for (const s of st.sites) {
+            if (s.known || s.hint) continue;
+            const d = _dist(world, q, r, s.q, s.r);
+            if (d <= radius && d < bestD) { best = s; bestD = d; }
+        }
+        if (!best) return null;
+        const b = cfg.rumour.blur;
+        const hq = best.q + ((_hash('leadq', best.id) % (2 * b + 1)) - b);
+        const hr = Math.max(0, Math.min((world.height || 1) - 1, best.r + ((_hash('leadr', best.id) % (2 * b + 1)) - b)));
+        const wq = world.width ? Hex.wrapQ(hq, world.width) : hq;
+        Discovery._hint(best, 'rumoured', world, wq, hr, cfg.rumour.hintRadius);
+        const def = Discovery.kind(best.kind);
+        const text = `${source} speaks of a ${def.label.toLowerCase()} to the ${_dir(world, q, r, best.q, best.r)} (Journal → Discoveries)`;
+        Discovery._log(player, world, '🧭', text, best.id);
+        return { site: best, text };
+    },
+
+    /**
      * Reading an ancient or treasure map: a hash of the map's id decides
      * whether it shows one of the uncharted places (decided once per map).
      * Returns { site, text } or null.
@@ -945,8 +975,18 @@ export const Discovery = {
      * at sea (Ships.exploreOcean).
      */
     exploreOcean(player, shipId, world) {
+        return Discovery.searchWaters(player, shipId, world) || Ships.exploreOcean(player, shipId, world);
+    },
+
+    /**
+     * The first half of a day's search of the open sea: an uncharted place
+     * within reach may be found (the result, as exploreOcean returns it), or
+     * null — then the caller rolls what else the sea holds (the old table,
+     * or a sea event with choices: systems/pirates.js).
+     */
+    searchWaters(player, shipId, world) {
         const ship = Ships.getShipById(player, shipId);
-        if (!ship || !world) return Ships.exploreOcean(player, shipId, world);
+        if (!ship || !world) return null;
         Discovery.ensureSites(player, world);
         const cfg = Discovery.config();
         const E = cfg.exploreOcean;
@@ -971,7 +1011,7 @@ export const Discovery = {
                 };
             }
         }
-        return Ships.exploreOcean(player, shipId, world);
+        return null;
     },
 
     /**

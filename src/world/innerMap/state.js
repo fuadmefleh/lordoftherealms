@@ -1,6 +1,6 @@
 // InnerMap — state members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Hospitality } from './_imports.js';
 
 Object.assign(InnerMap, {
     // Configuration (loaded from JSON)
@@ -150,6 +150,12 @@ Object.assign(InnerMap, {
         stable:       { name: 'Stable',        icon: '🐴', sprite: 'buildings/barnWood00.png',        actions: ['buy_horse', 'stable_horse'] },
         guard_tower:  { name: 'Guard Tower',   icon: '🗼', sprite: 'buildings/barracks00.png',        actions: ['talk_guard', 'report_crime'] },
         farm:         { name: 'Farm',           icon: '🌾', sprite: 'farm00.png',                         actions: ['buy_food', 'forage', 'talk_locals'] },
+        // Houses of hospitality (systems/hospitality.js): each is bound to its house
+        // on world.hospitality — name, keeper, rooms and services — when the map is entered
+        guest_house:  { name: 'Guest House',   icon: '🏡', sprite: 'buildings/villageSmall00.png',    actions: ['lodging', 'talk_locals'] },
+        inn:          { name: 'Inn',           icon: '🏨', sprite: 'buildings/inn.png',              actions: ['lodging', 'talk_locals'] },
+        hotel:        { name: 'Grand Hotel',   icon: '🏰', sprite: 'buildings/village00.png',         actions: ['lodging'] },
+        roadhouse:    { name: 'Roadhouse',     icon: '🏚️', sprite: 'buildings/inn.png',              actions: ['lodging', 'talk_locals'] },
     },
 
     // ══════════════════════════════════════════════
@@ -165,6 +171,10 @@ Object.assign(InnerMap, {
         fishing_wharf: ['buildings/warehouse00.png'],
         brewery:       ['buildings/cookhouse00.png'],
         tavern:        ['buildings/inn.png'],
+        guest_house:   ['buildings/villageSmall00.png'],
+        inn:           ['buildings/inn.png'],
+        hotel:         ['buildings/village00.png'],
+        roadhouse:     ['buildings/inn.png'],
     },
 
     // ══════════════════════════════════════════════
@@ -180,6 +190,10 @@ Object.assign(InnerMap, {
         fishing_wharf: { name: 'Fishing Wharf', icon: '⚓', actions: ['manage_property', 'collect_goods'] },
         brewery:       { name: 'Brewery',       icon: '🍺', actions: ['manage_property', 'collect_goods'] },
         tavern:        { name: 'Tavern',        icon: '🍻', actions: ['manage_property'] },
+        guest_house:   { name: 'Guest House',   icon: '🏡', actions: ['lodging', 'manage_lodging'] },
+        inn:           { name: 'Inn',           icon: '🏨', actions: ['lodging', 'manage_lodging'] },
+        hotel:         { name: 'Grand Hotel',   icon: '🏰', actions: ['lodging', 'manage_lodging'] },
+        roadhouse:     { name: 'Roadhouse',     icon: '🏚️', actions: ['lodging', 'manage_lodging'] },
     },
 
     // ══════════════════════════════════════════════
@@ -206,6 +220,19 @@ Object.assign(InnerMap, {
             optional: ['house', 'house', 'house', 'house', 'house', 'house', 'stable', 'guard_tower', 'guard_tower', 'manor', 'manor', 'barn', 'farm', 'farm', 'farm', 'farm'],
             maxBuildings: 22
         }
+    },
+
+    /**
+     * A settlement's building layout: SETTLEMENT_BUILDINGS for its type, with
+     * its houses of hospitality (systems/hospitality.js kindsFor — a hash of
+     * the town, so the same each visit) joining the required buildings.
+     */
+    settlementLayout(settlement) {
+        const type = (settlement && settlement.type) || 'village';
+        const base = this.SETTLEMENT_BUILDINGS[type] || this.SETTLEMENT_BUILDINGS.village;
+        const kinds = Hospitality.kindsFor(settlement);
+        if (!kinds.length) return base;
+        return { ...base, required: [...base.required, ...kinds], maxBuildings: (base.maxBuildings || 10) + kinds.length };
     },
 
     // ══════════════════════════════════════════════
@@ -274,7 +301,7 @@ Object.assign(InnerMap, {
         villager:    { name: 'Villager',     icon: '🧑', speed: 0.5, destinations: ['house', 'marketplace', 'tavern', 'well', 'church'] },
         child:       { name: 'Child',        icon: '👦', speed: 0.7, destinations: ['house', 'well', 'tavern'] },
         noble:       { name: 'Noble',        icon: '🤴', speed: 0.3, destinations: ['town_hall', 'church', 'manor', 'marketplace'] },
-        traveler:    { name: 'Traveler',     icon: '🧳', speed: 0.5, destinations: ['tavern', 'marketplace', 'stable'] },
+        traveler:    { name: 'Traveler',     icon: '🧳', speed: 0.5, destinations: ['tavern', 'marketplace', 'stable', 'inn', 'guest_house', 'hotel', 'roadhouse'] },
         beggar:      { name: 'Beggar',       icon: '🧎', speed: 0.2, destinations: ['marketplace', 'church', 'tavern', 'well'] },
     },
 

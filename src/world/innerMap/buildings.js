@@ -528,7 +528,7 @@ Object.assign(InnerMap, {
      * Adds ownerId, ownerName, ownerTitle to each building where possible.
      * Also marks the player's own house (from player.houses) as player-owned.
      */
-    _assignBuildingOwners(player) {
+    _assignBuildingOwners(player, world = null) {
         if (!this.buildings.length) return;
 
         // Map NPC types to the building types they typically own/work at
@@ -607,6 +607,9 @@ Object.assign(InnerMap, {
                 assignedNpcs.add(master.id);
             }
         }
+
+        // Guest houses, inns and hotels: a townsperson keeps each (world/innerMap/hospitality.js)
+        if (world) this._assignHospitalityKeepers(world, assignedNpcs);
 
         // Houses: assign remaining villager/farmer NPCs as residents
         const houseBuildings = this.buildings.filter(b => b.type === 'house' && !assignedBldgs.has(b));

@@ -6,6 +6,8 @@ import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
+import { buildingGlyph, drawGlyph, glyphFor } from '../icons.js';
+import { drawMapText, drawMapMarker, inkText, labelZoom, textPx } from '../mapInk.js';
 
 Object.assign(InnerMapRenderer, {
     // ══════════════════════════════════════════════
@@ -205,11 +207,7 @@ Object.assign(InnerMapRenderer, {
 
             if (isUnderConstruction) {
                 ctx.globalAlpha = 1.0;
-                const sz = Math.max(14, ds * 0.35);
-                ctx.font = `${sz}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🔨', dx + ds / 2, dy + ds / 2);
+                drawMapMarker(ctx, 'hammer', dx + ds / 2, dy + ds / 2, Math.max(10, ds * 0.22));
             }
 
             // Building label
@@ -305,55 +303,49 @@ Object.assign(InnerMapRenderer, {
         ctx.fillText(label, dx + ds / 2, dy + ds / 2);
     },
 
+    /**
+     * A building's name on a dark banner over its roof, its trade's glyph
+     * before the name: gold for the town's, green for yours, amber while
+     * yours is still going up.
+     */
     _drawBuildingLabel(ctx, camera, bldg, q, r) {
         const T = this.TILE_SIZE;
-        const ds = T * camera.zoom;
         const screen = camera.worldToScreenFast(q * T + T / 2, r * T);
         const screenX = screen.x, screenY = screen.y;
 
-        const fontSize = Math.max(8, 10 * camera.zoom);
+        const fontSize = textPx(11 * labelZoom(camera.zoom));
+        ctx.save();
         ctx.font = `600 ${fontSize}px 'Inter', sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-
-        const labelText = `${bldg.icon} ${bldg.name}`;
-        const metrics = ctx.measureText(labelText);
-        const pillW = metrics.width + 10;
-        const pillH = fontSize + 6;
-        const pillX = screenX - pillW / 2;
-        const pillY = screenY - pillH - 4;
-
-        ctx.fillStyle = 'rgba(16, 20, 28, 0.85)';
-        ctx.beginPath();
-        const rad = 4;
-        ctx.moveTo(pillX + rad, pillY);
-        ctx.lineTo(pillX + pillW - rad, pillY);
-        ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + rad);
-        ctx.lineTo(pillX + pillW, pillY + pillH - rad);
-        ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - rad, pillY + pillH);
-        ctx.lineTo(pillX + rad, pillY + pillH);
-        ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - rad);
-        ctx.lineTo(pillX, pillY + rad);
-        ctx.quadraticCurveTo(pillX, pillY, pillX + rad, pillY);
-        ctx.closePath();
-        ctx.fill();
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
 
         const isPlayerProp = bldg.isPlayerProperty;
         const isBuilding = isPlayerProp && bldg.propertyRef && bldg.propertyRef.underConstruction;
-        if (isBuilding) {
-            ctx.strokeStyle = 'rgba(245, 197, 66, 0.7)';
-            ctx.lineWidth = 1.5;
-        } else if (isPlayerProp) {
-            ctx.strokeStyle = 'rgba(46, 204, 113, 0.6)';
-            ctx.lineWidth = 1.5;
-        } else {
-            ctx.strokeStyle = 'rgba(245, 197, 66, 0.4)';
-            ctx.lineWidth = 1;
-        }
+        const ink = isBuilding ? '#e0a040' : (isPlayerProp ? '#5fdc8f' : '#f5c542');
+
+        const glyphSize = fontSize * 1.25;
+        const gap = fontSize * 0.35;
+        const padX = fontSize * 0.55;
+        const textW = ctx.measureText(bldg.name).width;
+        const pillW = padX * 2 + glyphSize + gap + textW;
+        const pillH = Math.round(fontSize * 1.7);
+        const pillX = screenX - pillW / 2;
+        const pillY = screenY - pillH - 4;
+        const midY = pillY + pillH / 2;
+
+        ctx.fillStyle = 'rgba(12, 15, 22, 0.88)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, pillH * 0.3);
+        else ctx.rect(pillX, pillY, pillW, pillH);
+        ctx.fill();
+        ctx.strokeStyle = isBuilding ? 'rgba(245, 197, 66, 0.7)'
+            : isPlayerProp ? 'rgba(46, 204, 113, 0.6)' : 'rgba(245, 197, 66, 0.45)';
+        ctx.lineWidth = isPlayerProp ? 1.5 : 1;
         ctx.stroke();
 
-        ctx.fillStyle = isBuilding ? '#e0a040' : (isPlayerProp ? '#2ecc71' : '#f5c542');
-        ctx.fillText(labelText, screenX, pillY + pillH - 3);
+        drawGlyph(ctx, buildingGlyph(bldg), pillX + padX + glyphSize / 2, midY, glyphSize, ink, 2);
+        inkText(ctx, bldg.name, pillX + padX + glyphSize + gap, midY, fontSize, ink, 'rgba(6, 8, 12, 0.75)');
+        ctx.restore();
     },
 
     // ══════════════════════════════════════════════
@@ -501,24 +493,15 @@ Object.assign(InnerMapRenderer, {
                 ctx.arc(sx, sy, glowRadius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Icon
-                const iconSize = Math.max(12, ds * 0.5);
-                ctx.font = `${iconSize}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(tile.encounter.icon, sx, sy);
+                // Marker
+                drawMapMarker(ctx, glyphFor(tile.encounter.icon) || 'sparkle', sx, sy, Math.max(9, ds * 0.26),
+                    { rim: 'rgba(66, 245, 197, 0.8)', color: '#a8f5df' });
 
                 // Label (close zoom)
                 if (camera.zoom > 0.8) {
-                    const fontSize = Math.max(6, 7 * camera.zoom);
-                    ctx.font = `500 ${fontSize}px 'Inter', sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillStyle = 'rgba(66, 245, 197, 0.8)';
-                    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-                    ctx.shadowBlur = 2;
-                    ctx.fillText(tile.encounter.name, sx, sy + ds * 0.3);
-                    ctx.shadowBlur = 0;
+                    drawMapText(ctx, tile.encounter.name, sx, sy + ds * 0.32, {
+                        size: 10.5 * labelZoom(camera.zoom), min: 10, weight: 600, family: 'body', baseline: 'top', color: '#8ff0d4',
+                    });
                 }
             }
         }

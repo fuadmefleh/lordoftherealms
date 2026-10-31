@@ -3,6 +3,8 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { Wilds } from '../../player/wilds.js';
+import { showWildsEncounter } from '../wildsEncounter.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -62,6 +64,9 @@ export async function enterInnerMap(worldQ, worldR) {
 
         this.innerMapMode = true;
         this._innerMapDayEndShown = false;
+        this._clearInnerMapSelection();
+        // Remember the world zoom: both cameras listen to the wheel on this canvas
+        this._worldZoomBeforeInner = { zoom: this.camera.zoom, targetZoom: this.camera.targetZoom };
 
         // Set up inner map camera bounds — no horizontal wrapping (unlike world map)
         const tileSize = InnerMapRenderer.tileSize;
@@ -125,13 +130,14 @@ export async function enterInnerMap(worldQ, worldR) {
 /**
  * Exit the inner map and return to the world map
  */
-export function exitInnerMap() {
+export function exitInnerMap(opts = {}) {
     if (!InnerMap.active) return;
 
     InnerMapRenderer.closeContextMenu();
     InnerMap.exit(this);
     this.innerMapMode = false;
     this._innerMapDayEndShown = false;
+    this._clearInnerMapSelection();
 
     // Remove exit button
     this._hideInnerMapExitButton();
@@ -145,72 +151,66 @@ export function exitInnerMap() {
     // Restore world map UI
     this._showWorldMapUI();
 
-    // Re-center world map camera on player
+    // The world camera shares the canvas, so the wheel zoomed it too while
+    // inside: put back the zoom it had on entry
+    const saved = this._worldZoomBeforeInner;
+    if (saved) {
+        this.camera.zoom = saved.zoom;
+        this.camera.targetZoom = saved.targetZoom;
+        this._worldZoomBeforeInner = null;
+    }
+
+    // Re-center world map camera on player (offset-grid position, as the renderer draws it)
     if (this.player) {
-        const playerPos = Hex.axialToPixel(this.player.q, this.player.r, this.renderer.hexSize);
+        const playerPos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
         this.camera.centerOn(playerPos.x, playerPos.y);
+        this.camera.following = true;
     }
 
     // Restore normal turn display
     this.ui.updateStats(this.player, this.world);
 
-    this.ui.showNotification('🗺️ Returned to World Map', 'You returned to the world map.', 'info');
+    if (!opts.quiet) {
+        this.ui.showNotification('🗺️ Returned to World Map', 'You returned to the world map.', 'info');
+    }
+}
+
+/** Forget the inner map's hover, selected tile and selected object. */
+export function _clearInnerMapSelection() {
+    InnerMapRenderer._hoveredInnerHex = null;
+    InnerMapRenderer._selectedInnerHex = null;
+    InnerMapRenderer._selectedObject = null;
 }
 
 /**
- * Show encounter notification
+ * An encounter in the wilds (player/wilds.js): the choice modal. Called when
+ * the player steps onto one and from the Examine action. A resolved
+ * encounter leaves the map; one left alone stays for later.
  */
 export function _showEncounterNotification(encounter) {
-    if (!encounter) return;
-
-    const overlay = document.createElement('div');
-    overlay.id = 'encounterOverlay';
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 1200;
-        background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
-        display: flex; justify-content: center; align-items: center;
-    `;
-
-    const box = document.createElement('div');
-    box.style.cssText = `
-        background: rgba(16, 20, 28, 0.97);
-        border: 1px solid rgba(245, 197, 66, 0.4);
-        border-radius: 12px; padding: 24px 32px;
-        max-width: 400px; text-align: center;
-        box-shadow: 0 12px 48px rgba(0,0,0,0.85);
-        font-family: var(--font-body);
-    `;
-
-    box.innerHTML = `
-        <div style="font-size: 48px; margin-bottom: 12px;">${encounter.icon}</div>
-        <div style="font-family: var(--font-display); font-size: 18px; color: var(--gold); margin-bottom: 8px;">
-            ${encounter.name}
-        </div>
-        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5;">
-            ${encounter.description}
-        </div>
-        <button id="encounterDismiss" style="
-            background: linear-gradient(135deg, #f5c542, #d4a843);
-            color: #1a1a2e; border: none; padding: 8px 24px;
-            border-radius: 6px; font-weight: 600; cursor: pointer;
-            font-size: 13px; font-family: var(--font-body);
-        ">Continue</button>
-    `;
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    const dismiss = () => {
-        overlay.remove();
-    };
-
-    box.querySelector('#encounterDismiss').addEventListener('click', dismiss);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
-    window.addEventListener('keydown', function handler(e) {
-        if (e.key === 'Enter' || e.key === 'Escape') {
-            dismiss();
-            window.removeEventListener('keydown', handler);
-        }
+    if (!encounter || !this.player) return;
+    const def = Wilds.def(encounter.id || encounter.key);
+    if (!def || !Array.isArray(def.choices) || !def.choices.length) {
+        this.ui.showNotification(`${encounter.icon} ${encounter.name}`, encounter.description || '', 'info');
+        return;
+    }
+    if (!encounter._met) {
+        encounter._met = true;
+        Wilds.noteMet(this.player);
+    }
+    InnerMap.cancelPlayerWalk();
+    const worldTile = this.world ? this.world.getTile(encounter.wq, encounter.wr) : null;
+    showWildsEncounter(this, {
+        ctx: {
+            id: encounter.id || encounter.key,
+            wq: encounter.wq, wr: encounter.wr, slot: encounter.slot,
+            terrain: worldTile && worldTile.terrain ? worldTile.terrain.id : null,
+        },
+        onResolved: () => {
+            const t = InnerMap.getTile(encounter.iq, encounter.ir);
+            if (t && t.encounter === encounter) t.encounter = null;
+            InnerMap._cachedSummary = null;
+        },
     });
 }
 
@@ -342,7 +342,11 @@ export function _showInnerMapEndDayModal() {
 
     restBtn.addEventListener('click', () => {
         overlay.remove();
-        // Stay on inner map, advance game day, reset inner map time
+        // Stay on inner map, advance game day, reset inner map time.
+        // The choice here is the confirmation: without this, the "confirm end
+        // day" setting pops a second dialog whose Cancel left the clock reset
+        // but the day un-ended.
+        if (!this.isProcessingTurn) this._endDayConfirmed = true;
         this.endDay();
         InnerMap.timeOfDay = 8;
         InnerMap._timeAccumulator = 0;
@@ -355,6 +359,7 @@ export function _showInnerMapEndDayModal() {
         overlay.remove();
         // End the day and exit to world map
         this.exitInnerMap();
+        if (!this.isProcessingTurn) this._endDayConfirmed = true;
         this.endDay();
     });
 
@@ -396,7 +401,8 @@ export function _showInnerMapExitButton() {
     // Container for inner map toolbar
     const toolbar = document.createElement('div');
     toolbar.id = 'innerMapToolbar';
-    toolbar.style.cssText = `position: fixed; top: 52px; right: 16px; z-index: 1100; display: flex; gap: 8px; align-items: center;`;
+    // Sit left of #hudRightRail (12px gutter + 306px wide) so it never covers the cards
+    toolbar.style.cssText = `position: fixed; top: 60px; right: 330px; z-index: 1100; display: flex; gap: 8px; align-items: center;`;
 
     // ── Export to Tiled button ──
     const exportBtn = document.createElement('button');
@@ -439,6 +445,9 @@ export function _showInnerMapExitButton() {
  * @param {'outer'|'interior'} mode
  */
 export function _configureInnerMapCamera(mode) {
+    // Entering or leaving an interior swaps the tile grid: the old hover,
+    // selection and selected object point at tiles of the other map
+    this._clearInnerMapSelection();
     if (!this.innerMapCamera) return;
     const tileSize = InnerMapRenderer.tileSize;
     const innerPixelHeight = tileSize * InnerMap.height;
@@ -520,24 +529,7 @@ export function _updateBuildingExitButton() {
         exitBldgBtn.addEventListener('click', () => {
             InnerMapRenderer.closeContextMenu();
             InnerMap.exitBuilding(this);
-            const tileSize = InnerMapRenderer.tileSize;
-            const innerPixelWidth = tileSize * InnerMap.width;
-            const innerPixelHeight = tileSize * InnerMap.height;
-            if (this.innerMapCamera) {
-                this.innerMapCamera.setWorldBounds(0, innerPixelHeight);
-                const canvasW = this.canvas.width;
-                const canvasH = this.canvas.height;
-                const VISIBLE_TILES = 10;
-                const zoomLevel = Math.min(canvasW, canvasH) / (VISIBLE_TILES * tileSize);
-                const clampedZoom = Number.isFinite(zoomLevel) && zoomLevel > 0 ? zoomLevel : 2.0;
-                this.innerMapCamera.minZoom = Math.max(0.5, clampedZoom * 0.5);
-                this.innerMapCamera.maxZoom = clampedZoom * 2.0;
-                this.innerMapCamera.zoom = clampedZoom;
-                this.innerMapCamera.targetZoom = clampedZoom;
-                const pWorld = InnerMap.getPlayerWorldPos();
-                this.innerMapCamera.centerOn(pWorld.x, pWorld.y);
-                this.innerMapCamera.precomputeFrame();
-            }
+            this._configureInnerMapCamera('outer');
             this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
         });
         // Insert before the world map exit button

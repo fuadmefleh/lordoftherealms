@@ -1530,6 +1530,13 @@ async function _loadSavedCustomSheets() {
     } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
+// The spritesheet editor's "Send to Editors" adds sheets while this editor is open.
+try {
+    new BroadcastChannel('lotr-custom-sheets').onmessage = ev => {
+        if (ev.data && Array.isArray(ev.data.keys) && ev.data.keys.includes('customSheets_sprite')) _loadSavedCustomSheets();
+    };
+} catch (e) { /* BroadcastChannel unsupported — sheets appear on next load */ }
+
 // ═══════════════════════════════════════════════════════════════
 //  STAMP
 // ═══════════════════════════════════════════════════════════════

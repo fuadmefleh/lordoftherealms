@@ -3,6 +3,8 @@
 // ============================================
 
 import { ModStore } from '../systems/modStore.js';
+import { applySectionPatches, mergeCustomTechs } from './dataPatch.js';
+import { CustomSheets } from './customSheets.js';
 import { Terrain } from '../world/terrain.js';
 import { Kingdom } from '../world/kingdom.js';
 import { Characters } from '../world/characters.js';
@@ -135,9 +137,15 @@ export const DataLoader = {
                     ]);
                 await modStoreTimeout(ModStore.init());
                 const stored = await modStoreTimeout(ModStore.loadModData());
-                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.interiors || stored.interiorBrushes || stored.terrainNineTileBrushes || stored.terrainSets || stored.terrainMap || stored.nineTileBrushes)) {
+                if (stored && typeof stored === 'object' && (stored.terrain || stored.buildings || stored.objects || stored.playerEconomy || stored.interiors || stored.interiorBrushes || stored.terrainNineTileBrushes || stored.terrainSets || stored.terrainMap || stored.nineTileBrushes || stored.customTechs || stored.dataPatches)) {
                     console.log('[DataLoader] Merging editor data from browser storage (IndexedDB)');
                     this._mergeEditorData(stored);
+                }
+                // Sheets modders imported in the editors — tiles painted from
+                // them reference custom/ paths that only resolve through here.
+                if (typeof ModStore.loadCustomSheets === 'function') {
+                    const n = CustomSheets.register(await modStoreTimeout(ModStore.loadCustomSheets()));
+                    if (n) console.log(`[DataLoader] Registered ${n} custom spritesheet(s)`);
                 }
             }
         } catch (e) {
@@ -195,6 +203,19 @@ export const DataLoader = {
                     ...incomingGoods,
                 };
             }
+        }
+
+        // Tech Tree editor: custom and edited techs, categories, research costs
+        if (stored.customTechs && this._gamedata.technology) {
+            const n = mergeCustomTechs(this._gamedata.technology, stored.customTechs);
+            if (n) console.log(`[DataLoader] Merging ${n} custom tech entr${n === 1 ? 'y' : 'ies'}`);
+        }
+
+        // Game Data editor: per-section patches against the base data
+        // (see core/dataPatch.js). Applied last so they win over the above.
+        if (stored.dataPatches) {
+            const applied = applySectionPatches(this._gamedata, stored.dataPatches);
+            if (applied.length) console.log(`[DataLoader] Patched sections: ${applied.join(', ')}`);
         }
     },
 

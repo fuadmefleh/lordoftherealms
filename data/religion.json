@@ -218,6 +218,22 @@
     "Sovereignty": { "icon": "👑", "desc": "Divine right of the faithful to rule",    "summary": "+5% negotiation with lords; faithful realms warm to you twice as fast", "effects": { "negotiation": 0.05, "kingdomRelations": 1.0 } },
     "Mysticism":   { "icon": "🔮", "desc": "Seek the hidden mysteries of the cosmos", "summary": "Miracles cost 20% less karma",                               "effects": { "miracleCost": -0.20 } }
   },
+  "preaching": {
+    "_doc": "Sermons for the player's faith (PlayerReligion.preach): one a day; each town tires of the preacher (saturation, recovering by the day); faith runs weak where the state church is lax; a rival state clergy may fine, denounce and finally ban the preacher from the realm.",
+    "cooldownDays": 1,
+    "baseShare": 0.05,
+    "saturationPerSermon": 0.35,
+    "recoveryPerDay": 0.06,
+    "minEffect": 0.1,
+    "weakFaith": { "pietyRef": 50, "maxBonus": 0.5, "noChurchBonus": 0.5 },
+    "alms": { "perFollower": 0.02, "perCharisma": 0.05 },
+    "hostility": {
+      "base": 0.04, "perMilitancy": 0.07, "perPiety": 0.003, "perClergy": 1.5, "perSaturation": 0.15,
+      "min": 0, "max": 0.85,
+      "fineBase": 20, "finePerPop": 0.01, "fineMax": 400,
+      "reputationLoss": 3, "banAfter": 3, "banChancePerStrike": 0.25, "banDays": 30, "strikeDecayDays": 60
+    }
+  },
   "playerInfluence": {
     "scale": 100,
     "conversionBonus": 0.5,

@@ -284,6 +284,35 @@ export const Companions = {
         return list;
     },
 
+    /**
+     * Companions away from the party (alive, not travelling with the player,
+     * not a betrayer): governing a holding (npc.governing), dismissed, or gone
+     * off on their own. Where they are: their post, else their home town.
+     * → [{ npc, q, r, status: 'governing'|'dismissed'|'deserted'|'away' }]
+     */
+    away(player, world = null) {
+        if (!player) return [];
+        const party = new Set(Array.isArray(player.travelParty) ? player.travelParty : []);
+        const out = [];
+        for (const npc of Relationships._npcs || []) {
+            if (!npc || !npc.companion || npc.isAlive === false || party.has(npc.id)) continue;
+            const c = npc.companion;
+            if (c.leftHow === 'betrayed') continue;
+            let q = npc.settlementQ;
+            let r = npc.settlementR;
+            let status = c.leftHow === 'dismissed' || c.leftHow === 'deserted' ? c.leftHow : 'away';
+            if (npc.governing) {
+                const [gq, gr] = String(npc.governing).split(',').map(Number);
+                if (Number.isFinite(gq) && Number.isFinite(gr)) { q = gq; r = gr; }
+                status = 'governing';
+            }
+            if (!Number.isFinite(q) || !Number.isFinite(r)) continue;
+            Companions.ensure(npc, world);
+            out.push({ npc, q, r, status });
+        }
+        return out;
+    },
+
     /** Mood tier for a companion: { id, label, icon, effectiveness }. */
     tier(npc) {
         const c = npc && npc.companion;

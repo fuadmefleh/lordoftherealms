@@ -1,6 +1,7 @@
 // InnerMap — movement members (split from the original monolith).
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { stepBlockedBySides } from '../../core/tileSides.js';
 
 Object.assign(InnerMap, {
     /**
@@ -20,7 +21,7 @@ Object.assign(InnerMap, {
         }
 
         const tile = this.tiles[newR][newQ];
-        if (!tile.subTerrain.passable) {
+        if (!tile.subTerrain.passable || this._stepBlocked(this.playerInnerQ, this.playerInnerR, newQ, newR)) {
             return { moved: false, encounter: null, outOfBounds: false };
         }
 
@@ -400,7 +401,7 @@ Object.assign(InnerMap, {
 
             // Defensive: never step onto impassable tile
             const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
-            if (!stepTile || !stepTile.subTerrain.passable) {
+            if (!stepTile || !stepTile.subTerrain.passable || this._stepBlocked(this.playerInnerQ, this.playerInnerR, step.q, step.r)) {
                 this.cancelPlayerWalk();
                 return { moved: false, encounter: null, blocked: true };
             }
@@ -464,6 +465,17 @@ Object.assign(InnerMap, {
             walking: false,
             dq: 0, dr: 0
         };
+    },
+
+    /**
+     * Is the step between two neighbouring tiles crossed by a blocked side?
+     * Sides come from interiors (tile.blockedSides, see core/tileSides.js).
+     */
+    _stepBlocked(fromQ, fromR, toQ, toR) {
+        const from = this.tiles[fromR] && this.tiles[fromR][fromQ];
+        const to = this.tiles[toR] && this.tiles[toR][toQ];
+        if (!from || !to) return false;
+        return stepBlockedBySides(from.blockedSides, to.blockedSides, toQ - fromQ, toR - fromR);
     },
 
     /**
@@ -568,6 +580,9 @@ Object.assign(InnerMap, {
                 if (inClosed[ni]) continue;
                 const tile = tiles[nr][nq];
                 if (!tile.subTerrain.passable) continue;
+                // Blocked tile sides (interior floor edges, see core/tileSides.js)
+                if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
+                    stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;
 
                 if (ng < gScore[ni]) {
                     gScore[ni] = ng;

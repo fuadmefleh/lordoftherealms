@@ -7,6 +7,7 @@ import { TILE, CANVAS_ZOOM, PAL_ZOOM, bcState, _brushCosts, _imgCache, BUILDING_
 import { _recomputeNineTile, _brushPaint, _brushErase, _metaToggle, _stampPaint, _renderCanvas } from './paint.js';
 import { _showToast, _updateResourceDisplay, _buildUI, _handleCanvasClick, _buildToolButtons, _setTool, _buildLayerButtons, _buildBrushList, _selectBrush, _updateCostEditor, _updateStampPreview, _buildPaletteCats, _showPaletteCategory, _updateTotalCost } from './ui.js';
 import { _finishExteriorPhase, _prePlaceOuterWalls, _finishBuilding, _placeOnInnerMap, open, close, isOpen } from './build.js';
+import { CustomSheets } from '../../core/customSheets.js';
 
 export function _prettyResourceId(itemId) {
     return String(itemId || '').trim().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown Resource';
@@ -50,7 +51,7 @@ export function _loadImg(path) {
         const img = new Image();
         img.onload = () => { _imgCache[path] = img; resolve(img); };
         img.onerror = () => { _imgCache[path] = null; resolve(null); };
-        img.src = path;
+        img.src = CustomSheets.resolve(path);
     });
 }
 

@@ -5,7 +5,10 @@ import { Companions } from '../../systems/companions.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
+import { CourierRiders } from '../../systems/courierRiders.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
+import { NPCLords } from '../../world/npcLords.js';
+import { Difficulty } from '../../core/difficulty.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
@@ -73,6 +76,7 @@ Object.assign(PlayerMilitary, {
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
         if (context.defending) playerPower *= 1 + Housing.getTotalBonuses(player).defense / 100;
         let enemyPower = enemyStrength * Utils.randFloat(0.8, 1.2) * enemyCounterMult * enemyTerrainMult * enemyWeatherMult * enemyMorale;
+        enemyPower *= Difficulty.mult(player, 'enemyStrength'); // the difficulty (1 on Normal)
 
         // ── Unit specials & military techs ──
         // Siege engines, shield walls, longbow volleys, crossbow piercing,
@@ -114,76 +118,23 @@ Object.assign(PlayerMilitary, {
         // Only units that took the field can fall (galleys stay out of land battles)
         const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
         const casualtyCount = Math.ceil(fighting().length * casualtyRate);
+        const { casualties, woundedUnits } = PlayerMilitary._applyCasualties(player, theatre, casualtyCount);
 
-        // Surgery: each would-be casualty may be carried off wounded instead
-        const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
-        const woundedUnits = [];
-        let casualties = 0;
-        for (let i = 0; i < casualtyCount; i++) {
-            const candidates = fighting();
-            if (candidates.length === 0) break;
-            const unit = candidates[candidates.length - 1];
-            player.army.splice(player.army.lastIndexOf(unit), 1);
-            if (woundedChance > 0 && Utils.random() < woundedChance) {
-                unit.woundedDays = PlayerMilitary.WOUNDED_DAYS;
-                woundedUnits.push(unit);
-                continue;
-            }
-            casualties++;
-            // The fallen are remembered — Resurrection can call them back
-            PlayerReligion.recordFallenUnit(player, unit);
-        }
-        player.army.push(...woundedUnits.reverse());
-
-        // Rewards for victory
-        let loot = 0;
-        if (victory) {
-            loot = Math.floor(enemyStrength * Utils.randFloat(2, 5));
-            player.gold += loot;
-
-            // Experience for the survivors who fought
-            for (const unit of fighting()) {
-                unit.experience += 5;
-                if (unit.experience >= 100 && unit.level < 5) {
-                    unit.level++;
-                    unit.experience = 0;
-                    unit.strength = Math.floor(unit.strength * 1.2);
-                }
-            }
-
-            // Increase combat skill
-            player.skills.combat = Math.min(10, player.skills.combat + 0.3);
-            player.renown += Math.floor(enemyStrength / 10 * (1 + PlayerMilitary._worldEventRenownBonus(player, context)));
-        } else {
-            // Defeat — chance of capture and indentured servitude
-            if (player.army.length === 0 && Utils.random() < 0.4) {
-                // Player is captured! Enter indentured servitude
-                const servitudeDays = Utils.randInt(5, 15);
-                const captor = enemyName;
-                player.indenturedServitude = {
-                    captor: captor,
-                    daysRemaining: servitudeDays,
-                    totalDays: servitudeDays,
-                    dailyWage: 0, // Captors take your labor
-                    goldConfiscated: Math.min(player.gold, Math.floor(player.gold * 0.3)),
-                    canBuyFreedom: true,
-                    freedomCost: 200 + Math.floor(enemyStrength * 2),
-                    escapeChance: 0.1 + (player.skills.stealth || 0) * 0.03,
-                };
-                player.gold -= player.indenturedServitude.goldConfiscated;
-
-                return {
-                    victory: false,
-                    casualties,
-                    loot: 0,
-                    enemyName,
-                    playerStrength,
-                    enemyStrength,
-                    captured: true,
-                    servitudeDays,
-                    goldConfiscated: player.indenturedServitude.goldConfiscated,
-                };
-            }
+        // Rewards for victory (or, beaten and alone, capture)
+        const spoils = PlayerMilitary._battleSpoils(player, victory, enemyStrength, context, enemyName);
+        const loot = spoils.loot;
+        if (spoils.captured) {
+            return {
+                victory: false,
+                casualties,
+                loot: 0,
+                enemyName,
+                playerStrength,
+                enemyStrength,
+                captured: true,
+                servitudeDays: spoils.servitudeDays,
+                goldConfiscated: spoils.goldConfiscated,
+            };
         }
 
         return {
@@ -210,6 +161,82 @@ Object.assign(PlayerMilitary, {
                 enemyTerrainMult: Number(enemyTerrainMult.toFixed(2)),
             },
         };
+    },
+
+    /**
+     * Take `count` casualties from the units that fought in `theatre` (the
+     * last-recruited first). Surgery may carry each off wounded instead; the
+     * dead are remembered for Resurrection. Shared by combat() and the phased
+     * field battle (player/fieldBattle.js). Draws one roll per casualty only
+     * when the army has surgeons.
+     */
+    _applyCasualties(player, theatre, count) {
+        const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
+        // Surgery: each would-be casualty may be carried off wounded instead
+        const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
+        const woundedUnits = [];
+        let casualties = 0;
+        for (let i = 0; i < count; i++) {
+            const candidates = fighting();
+            if (candidates.length === 0) break;
+            const unit = candidates[candidates.length - 1];
+            player.army.splice(player.army.lastIndexOf(unit), 1);
+            if (woundedChance > 0 && Utils.random() < woundedChance) {
+                unit.woundedDays = PlayerMilitary.WOUNDED_DAYS;
+                woundedUnits.push(unit);
+                continue;
+            }
+            casualties++;
+            // The fallen are remembered — Resurrection can call them back
+            PlayerReligion.recordFallenUnit(player, unit);
+        }
+        player.army.push(...woundedUnits.reverse());
+        return { casualties, woundedUnits };
+    },
+
+    /**
+     * After the fighting: a victory's loot, the survivors' experience, the
+     * commander's combat skill and renown; a defeat with no army left may end
+     * in capture and indentured servitude. Returns { loot } or
+     * { loot: 0, captured: true, servitudeDays, goldConfiscated }.
+     */
+    _battleSpoils(player, victory, enemyStrength, context = {}, enemyName = 'Bandits') {
+        const theatre = context.theatre || 'land';
+        let loot = 0;
+        if (victory) {
+            loot = Math.floor(enemyStrength * Utils.randFloat(2, 5));
+            player.gold += loot;
+
+            // Experience for the survivors who fought
+            for (const unit of player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre))) {
+                unit.experience += 5;
+                if (unit.experience >= 100 && unit.level < 5) {
+                    unit.level++;
+                    unit.experience = 0;
+                    unit.strength = Math.floor(unit.strength * 1.2);
+                }
+            }
+
+            // Increase combat skill
+            player.skills.combat = Math.min(10, player.skills.combat + 0.3);
+            player.renown += Math.floor(enemyStrength / 10 * (1 + PlayerMilitary._worldEventRenownBonus(player, context)));
+        } else if (player.army.length === 0 && Utils.random() < 0.4) {
+            // Defeat — the player is captured! Enter indentured servitude
+            const servitudeDays = Utils.randInt(5, 15);
+            player.indenturedServitude = {
+                captor: enemyName,
+                daysRemaining: servitudeDays,
+                totalDays: servitudeDays,
+                dailyWage: 0, // Captors take your labor
+                goldConfiscated: Math.min(player.gold, Math.floor(player.gold * 0.3)),
+                canBuyFreedom: true,
+                freedomCost: 200 + Math.floor(enemyStrength * 2),
+                escapeChance: 0.1 + (player.skills.stealth || 0) * 0.03,
+            };
+            player.gold -= player.indenturedServitude.goldConfiscated;
+            return { loot: 0, captured: true, servitudeDays, goldConfiscated: player.indenturedServitude.goldConfiscated };
+        }
+        return { loot };
     },
 
     /**
@@ -372,6 +399,7 @@ Object.assign(PlayerMilitary, {
             // Reduce settlement population
             settlement.population = Math.floor(settlement.population * 0.9);
             House.accrueRivalFeud(player, world, settlement.kingdom, 10, `raided ${settlement.name}`);
+            NPCLords.rememberRealm(world, settlement.kingdom, 'raid', { note: settlement.name });
         } else {
             // Failed raid - even worse reputation
             if (settlement.kingdom) {
@@ -379,6 +407,7 @@ Object.assign(PlayerMilitary, {
                     (player.reputation[settlement.kingdom] || 0) - 30;
             }
             player.karma -= 3;
+            NPCLords.rememberRealm(world, settlement.kingdom, 'raid_failed', { note: settlement.name });
             House.accrueRivalFeud(player, world, settlement.kingdom, 5, `attempted raid on ${settlement.name}`);
         }
 
@@ -459,6 +488,7 @@ Object.assign(PlayerMilitary, {
             }
             player.karma -= 5;
             result.karmaChange = -5;
+            NPCLords.rememberRealm(world, previousKingdom, 'assault_failed', { note: settlement.name });
         }
 
         return result;
@@ -563,6 +593,11 @@ Object.assign(PlayerMilitary, {
                 const penalty = Math.round((k.id === previousKingdom ? -50 : -10) * repMult);
                 player.reputation[k.id] = (player.reputation[k.id] || 0) + penalty;
             }
+            // The crown that lost the town will not forget it
+            if (previousKingdom) {
+                const def = NPCLords.deedDef('conquest');
+                NPCLords.rememberRealm(world, previousKingdom, 'conquest', { note: settlement.name, weight: def ? def.weight * Math.max(0.25, repMult) : undefined });
+            }
 
             // Renown boost
             const renownGain = settlement.type === 'capital' ? 50 :
@@ -626,11 +661,13 @@ Object.assign(PlayerMilitary, {
     },
 
     /**
-     * Attack a world unit on the player's tile
+     * Attack a world unit on the player's tile. opts: { defending, combatResult }
+     * — a combatResult already fought (the phased field battle) skips the roll.
      */
     attackUnit(player, worldUnit, world, opts = {}) {
         const unitTile = world.getTile(worldUnit.q, worldUnit.r);
-        const combatResult = PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
+        // A phased field battle (player/fieldBattle.js) hands in its own result
+        const combatResult = opts.combatResult || PlayerMilitary.combat(player, worldUnit.strength, worldUnit.name, {
             terrainId: unitTile?.terrain?.id,
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
             world,
@@ -727,6 +764,14 @@ Object.assign(PlayerMilitary, {
                     Quests.track(player, 'piracy_committed');
                     break;
                 }
+                case 'courier_rider': {
+                    // A post rider (systems/courierRiders.js): the bag's coin is loot; a
+                    // sealed letter to the inbox, heat and the realm's displeasure
+                    const before = player.karma || 0;
+                    CourierRiders.onRobbed(player, world, worldUnit, inventoryLoot);
+                    karmaChange = (player.karma || 0) - before;
+                    break;
+                }
                 case 'patrol':
                 case 'road_patrol':
                     karmaChange = -2;
@@ -736,6 +781,7 @@ Object.assign(PlayerMilitary, {
                     if (worldUnit.kingdom) {
                         player.reputation[worldUnit.kingdom] =
                             (player.reputation[worldUnit.kingdom] || 0) - 25;
+                        NPCLords.rememberRealm(world, worldUnit.kingdom, 'patrol_attacked');
                     }
                     break;
                 case 'pilgrim_group':
@@ -772,6 +818,7 @@ Object.assign(PlayerMilitary, {
         } else {
             // Beaten off by a merchant's guards: they saw your face
             if (MerchantCaravans.isTrader(worldUnit)) MerchantCaravans.onRobberyFailed(player, world, worldUnit);
+            if (CourierRiders.isRider(worldUnit)) CourierRiders.onRobberyFailed(player, world, worldUnit);
             // Log defeat event
             if (world.events) {
                 world.events.push({

@@ -6,22 +6,46 @@ import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
+import { glyphFor } from '../icons.js';
+import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
 Object.assign(InnerMapRenderer, {
-    /** Small bobbing icon over an NPC using furniture (🍺 drinking, 🔨 hammering…). */
+    /** Small bobbing marker over an NPC using furniture (a tankard drinking, a hammer at the anvil…). */
     _drawNpcActivity(ctx, npc, sx, sy, ds, now) {
         const charScale = npc.type === 'child' ? 0.7 : 1.0;
         const bob = Math.sin(now * 2.5 + npc.id) * ds * 0.05;
         const y = sy - ds * 1.55 * charScale + bob;
-        const size = Math.max(10, ds * 0.32);
+        const r = Math.max(8, ds * 0.24);
+        drawMapMarker(ctx, glyphFor(npc.activity.icon) || 'speech', sx, y, r);
+    },
+
+    /** An NPC drawn as a token while the character sprites load. */
+    _drawNpcStandIn(ctx, npc, sx, sy, ds) {
         ctx.beginPath();
-        ctx.arc(sx, y, size * 0.75, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(20,18,28,0.65)';
+        ctx.ellipse(sx, sy + ds * 0.25, ds * 0.12, ds * 0.05, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fill();
-        ctx.font = `${size}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(npc.activity.icon, sx, y + size * 0.05);
+        drawMapMarker(ctx, glyphFor(npc.icon) || 'person', sx, sy, Math.max(8, ds * 0.22));
+    },
+
+    /** A townsfolk's name under their feet. */
+    _drawNpcName(ctx, name, sx, sy, ds, zoom) {
+        drawMapText(ctx, name, sx, sy + ds * 0.3, {
+            size: 10.5 * labelZoom(zoom), min: 10, weight: 600, family: 'body', baseline: 'top', color: 'rgba(244, 239, 228, 0.92)',
+        });
+    },
+
+    /** The player while the sprites load: a struck token (a skull once dead). */
+    _drawPlayerStandIn(ctx, dead, x, y, ds) {
+        drawMapMarker(ctx, dead ? 'skull' : 'compass', x, y, Math.max(10, ds * 0.3),
+            dead ? { rim: '#e8604f', color: '#e8604f' } : { rim: '#f5c542', color: '#ffe08a' });
+    },
+
+    /** "You" (or "Dead") under the player. */
+    _drawPlayerTag(ctx, dead, x, y, ds, zoom) {
+        drawMapText(ctx, dead ? 'Dead' : 'You', x, y + ds * 0.35, {
+            size: 12 * labelZoom(zoom), weight: 700, family: 'body', baseline: 'top', color: dead ? '#e8604f' : '#f5c542',
+        });
     },
 
     // ══════════════════════════════════════════════
@@ -40,7 +64,7 @@ Object.assign(InnerMapRenderer, {
             if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
             // Lazy preset assignment — runs once per NPC after characters are loaded
             if (charReady && !npc.preset) {
-                npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id);
+                npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
             }
             let worldX, worldY;
             let anim = 'idle';
@@ -95,31 +119,12 @@ Object.assign(InnerMapRenderer, {
                 const npcTime = now + npc.id * 0.37;
                 InnerMapCharacters.drawCharacter(ctx, npc.preset, anim, direction, npcTime, cx, cy, cw, ch);
             } else {
-                // Fallback: emoji icon (when sprites not loaded)
-                ctx.beginPath();
-                ctx.ellipse(screenX, screenY + ds * 0.25, ds * 0.12, ds * 0.05, 0, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fill();
-
-                const iconSize = Math.max(12, ds * 0.4);
-                ctx.font = `${iconSize}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(npc.icon, screenX, screenY);
+                // Stand-in token while the sprites load
+                this._drawNpcStandIn(ctx, npc, screenX, screenY, ds);
             }
 
             // Name label
-            if (camera.zoom > 0.7) {
-                const fontSize = Math.max(6, 7 * camera.zoom);
-                ctx.font = `500 ${fontSize}px 'Inter', sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                ctx.shadowColor = 'rgba(0,0,0,0.7)';
-                ctx.shadowBlur = 2;
-                ctx.fillText(npc.name, screenX, screenY + ds * 0.3);
-                ctx.shadowBlur = 0;
-            }
+            if (camera.zoom > 0.7) this._drawNpcName(ctx, npc.name, screenX, screenY, ds, camera.zoom);
             if (npc.activity) this._drawNpcActivity(ctx, npc, screenX, screenY, ds, now);
         }
     },
@@ -171,7 +176,7 @@ Object.assign(InnerMapRenderer, {
         ctx.fill();
 
         // Draw player as LPC character if available
-        const playerPreset = this._playerPreset || 'male_noble';
+        const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
 
         if (charReady && InnerMapCharacters.getComposited(playerPreset)) {
             const charW = ds * 1.2;
@@ -226,16 +231,8 @@ Object.assign(InnerMapRenderer, {
                 this._drawPlumbob(ctx, screenPX, cy - ds * 0.05, ds, now);
             }
         } else {
-            // Fallback: compass icon (or skull if dead)
-            const iconSize = Math.max(16, ds * 0.55);
-            ctx.font = `${iconSize}px serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 6;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(deathState ? '💀' : '🧭', screenPX, screenPY);
-            ctx.shadowBlur = 0;
+            // Stand-in token (a skull if dead)
+            this._drawPlayerStandIn(ctx, deathState, screenPX, screenPY, ds);
 
             if (deathState) {
                 this._drawDeadPlumbob(ctx, screenPX, screenPY - ds * 0.5, ds);
@@ -245,17 +242,7 @@ Object.assign(InnerMapRenderer, {
         }
 
         // Label
-        if (camera.zoom > 0.5) {
-            const fontSize = Math.max(8, 10 * camera.zoom);
-            ctx.font = `700 ${fontSize}px 'Inter', sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillStyle = deathState ? '#a33' : '#f5c542';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
-            ctx.fillText(deathState ? 'Dead' : 'You', screenPX, screenPY + ds * 0.35);
-            ctx.shadowBlur = 0;
-        }
+        if (camera.zoom > 0.5) this._drawPlayerTag(ctx, deathState, screenPX, screenPY, ds, camera.zoom);
     },
 
     /**
@@ -605,7 +592,7 @@ Object.assign(InnerMapRenderer, {
                 // ── Ground items (placed from hotbar) ──
                 if (tile.groundItem) {
                     const gq = q, gr = r;
-                    const gIcon = tile.groundItem.icon || '📦';
+                    const gIcon = glyphFor(tile.groundItem.icon) || 'satchel';
                     const sortY = (r + 0.5) * T; // slightly above ground
                     items.push({ sortY, zLayer: 0, sortX: q, draw() {
                         const screen = camera.worldToScreenFast(gq * T, gr * T);
@@ -622,12 +609,8 @@ Object.assign(InnerMapRenderer, {
                         ctx.ellipse(cx, cy, rad, rad * 0.5, 0, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.restore();
-                        // Draw the item icon
-                        const sz = Math.max(12, cs * 0.55);
-                        ctx.font = `${sz}px serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(gIcon, cx, dy + cs * 0.45);
+                        // The item, as a small token on the ground
+                        drawMapMarker(ctx, gIcon, cx, dy + cs * 0.45, Math.max(8, cs * 0.22));
                     }});
                 }
             }
@@ -653,11 +636,7 @@ Object.assign(InnerMapRenderer, {
                         self._drawLPCBuilding(ctx, tile.building, dx, dy, ds);
                         if (isUnder) {
                             ctx.globalAlpha = 1.0;
-                            const sz = Math.max(14, ds * 0.35);
-                            ctx.font = `${sz}px serif`;
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillText('🔨', dx + ds / 2, dy + ds / 2);
+                            drawMapMarker(ctx, 'hammer', dx + ds / 2, dy + ds / 2, Math.max(10, ds * 0.22));
                         }
                         const bldg = tile.buildingInfo;
                         if (bldg && camera.zoom > 0.4) {
@@ -694,7 +673,7 @@ Object.assign(InnerMapRenderer, {
                 // Skip NPCs that are hidden inside a building (on outdoor map)
                 if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
                 if (charReady && !npc.preset) {
-                    npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id);
+                    npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
                 }
                 let worldX, worldY;
                 let anim = 'idle';
@@ -740,27 +719,9 @@ Object.assign(InnerMapRenderer, {
                         const npcTime = now + nRef.id * 0.37;
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, npcTime, cx, cy, cw, ch);
                     } else {
-                        ctx.beginPath();
-                        ctx.ellipse(sx, sy + ds * 0.25, ds * 0.12, ds * 0.05, 0, 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                        ctx.fill();
-                        const iconSize = Math.max(12, ds * 0.4);
-                        ctx.font = `${iconSize}px serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(nRef.icon, sx, sy);
+                        self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }
-                    if (camera.zoom > 0.7) {
-                        const fontSize = Math.max(6, 7 * camera.zoom);
-                        ctx.font = `500 ${fontSize}px 'Inter', sans-serif`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'top';
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.shadowColor = 'rgba(0,0,0,0.7)';
-                        ctx.shadowBlur = 2;
-                        ctx.fillText(nRef.name, sx, sy + ds * 0.3);
-                        ctx.shadowBlur = 0;
-                    }
+                    if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, sy, ds, camera.zoom);
                     if (nRef.activity) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
@@ -810,7 +771,7 @@ Object.assign(InnerMapRenderer, {
             const sortY = pos.y + T / 2;
             const px = screen.x, py = screen.y;
             const pAnim = anim, pDir = direction;
-            const playerPreset = this._playerPreset || 'male_noble';
+            const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
             const pDeathState = deathState; // capture for closure
 
             items.push({ sortY, zLayer: 2, draw: () => {
@@ -856,27 +817,9 @@ Object.assign(InnerMapRenderer, {
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
                     }
                 } else {
-                    const iconSize = Math.max(16, ds * 0.55);
-                    ctx.font = `${iconSize}px serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.shadowBlur = 6;
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillText(pDeathState ? '💀' : '🧭', px, py);
-                    ctx.shadowBlur = 0;
+                    self._drawPlayerStandIn(ctx, pDeathState, px, py, ds);
                 }
-                if (camera.zoom > 0.5) {
-                    const fontSize = Math.max(8, 10 * camera.zoom);
-                    ctx.font = `700 ${fontSize}px 'Inter', sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillStyle = pDeathState ? '#a33' : '#f5c542';
-                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-                    ctx.shadowBlur = 4;
-                    ctx.fillText(pDeathState ? 'Dead' : 'You', px, py + ds * 0.35);
-                    ctx.shadowBlur = 0;
-                }
+                if (camera.zoom > 0.5) self._drawPlayerTag(ctx, pDeathState, px, py, ds, camera.zoom);
             }});
         }
 

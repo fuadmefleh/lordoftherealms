@@ -363,6 +363,10 @@ export const Fiscal = {
         const upkeepF = f.upkeepF;
         const mil = Math.max(0, _num(k.military));
         const recruits = Number.isFinite(f.lastMil) ? Math.max(0, mil - f.lastMil) : 0;
+        // Soldiers unpaid past the week slip away (the army's cap, CrownBooks.armyFactor): count those gone
+        if (f.arrearsDays > _num(A.desert.afterDays, 7) && Number.isFinite(f.lastMil) && mil < f.lastMil) {
+            f.stats.deserted = Math.round(_num(f.stats.deserted) + (f.lastMil - mil));
+        }
         f.lastMil = mil;
         const army = mil * _num(A.pay) * (war ? _num(A.warPay, 1.6) : 1) * _num(payLv.mult, 1) * upkeepF + recruits * _num(A.bounty);
         const Ct = C.court;

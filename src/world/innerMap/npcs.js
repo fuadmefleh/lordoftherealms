@@ -1,6 +1,6 @@
 // InnerMap — npcs members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Townsfolk } from './_imports.js';
 
 Object.assign(InnerMap, {
     // ══════════════════════════════════════════════
@@ -15,7 +15,7 @@ Object.assign(InnerMap, {
 
         const settlement = this._currentWorldTileRef.settlement;
         const type = settlement.type || 'village';
-        const layout = this.SETTLEMENT_BUILDINGS[type] || this.SETTLEMENT_BUILDINGS.village;
+        const layout = this.settlementLayout(settlement);
 
         // Collect tiles that have building sprites
         const buildingTiles = [];
@@ -61,6 +61,9 @@ Object.assign(InnerMap, {
                 if (customBuildingDef && customBuildingDef.buildingType &&
                     customBuildingDef.buildingType !== 'house') {
                     buildingType = customBuildingDef.buildingType;
+                    // An authored inn (or smithy...) fills its own slot in the layout
+                    const reqIdx = required.indexOf(buildingType);
+                    if (reqIdx !== -1) required.splice(reqIdx, 1);
                 }
             }
             // Skip player property tiles — they are handled by _addPropertyBuildings()
@@ -237,6 +240,11 @@ Object.assign(InnerMap, {
      */
     getBuildingActions(building) {
         if (!building) return [];
+        // The player's guest house, inn, hotel or roadhouse: stay, or run it
+        if (building.isPlayerProperty && building.establishmentId) {
+            const pDef = this.PROPERTY_BUILDING_DEFS[String(building.type).replace(/^player_/, '')];
+            return pDef ? [...pDef.actions] : [];
+        }
         const def = this.BUILDING_TYPES[building.type];
         if (!def) return [];
 
@@ -269,7 +277,7 @@ Object.assign(InnerMap, {
     /**
      * Spawn NPCs for the current settlement
      */
-    _spawnNPCs(settlement) {
+    _spawnNPCs(settlement, world = null) {
         this.npcs = [];
         const type = settlement.type || 'village';
         const pool = this.NPC_POOLS[type] || this.NPC_POOLS.village;
@@ -282,72 +290,124 @@ Object.assign(InnerMap, {
             return seed / 0x7fffffff;
         };
 
-        // Generate first/last names
-        const firstNames = ['Ada', 'Brom', 'Clara', 'Dorn', 'Eva', 'Finn', 'Greta', 'Holt',
-            'Iris', 'Jace', 'Kira', 'Lars', 'Maeve', 'Nils', 'Ora', 'Per', 'Quinn', 'Rolf',
-            'Siv', 'Tor', 'Una', 'Voss', 'Wren', 'Xara', 'Yves', 'Zara', 'Arne', 'Bjorn',
-            'Cora', 'Dag', 'Elsa', 'Frey', 'Gerd', 'Hakon', 'Inga', 'Jarl', 'Knut', 'Lena',
-            'Marta', 'Njord', 'Olga', 'Peder', 'Ragna', 'Sven', 'Thora', 'Ulf', 'Viggo', 'Ylva'];
-
         let npcId = 0;
         for (const [npcType, count] of Object.entries(pool)) {
-            const typeDef = this.NPC_TYPES[npcType];
-            if (!typeDef) continue;
-
             for (let i = 0; i < count; i++) {
-                // Pick random passable tile for initial position
-                let q, r, attempts = 0;
-                do {
-                    q = Math.floor(rng() * this.width);
-                    r = Math.floor(rng() * this.height);
-                    attempts++;
-                } while (attempts < 50 && (!this.tiles[r] || !this.tiles[r][q] ||
-                    !this.tiles[r][q].subTerrain.passable));
-
-                if (attempts >= 50) continue;
-
-                const name = firstNames[Math.floor(rng() * firstNames.length)];
-
-                // Character presets live in the UI layer (InnerMapCharacters), which
-                // world code can't import — the renderer falls back by NPC type.
-                const preset = null;
-
-                this.npcs.push({
-                    id: npcId++,
-                    type: npcType,
-                    name: name,
-                    icon: typeDef.icon,
-                    speed: typeDef.speed,
-                    preset: preset,         // LPC character preset ID
-                    facing: 2,              // Default facing: down
-                    q: q,
-                    r: r,
-                    // Movement
-                    targetQ: q,
-                    targetR: r,
-                    path: null,
-                    pathIndex: 0,
-                    moveProgress: 0,   // 0-1 animation between tiles
-                    prevQ: q,
-                    prevR: r,
-                    // Behavior
-                    idleTimer: rng() * 5 + 2,  // seconds until next move
-                    state: 'idle',  // idle, walking, at_building
-                    currentBuilding: null,
-                    destinations: typeDef.destinations || [],
-                    // Traveler tracking
-                    visitsLeft: npcType === 'traveler' ? (1 + Math.floor(rng() * 3)) : -1,
-                    departing: false,
-                    // Personal trade inventory (merchants, travelers, blacksmiths)
-                    shopInventory: this._generateNpcShop(npcType, rng),
-                });
+                const npc = this._makeNpc(npcType, npcId, rng);
+                if (npc) { this.npcs.push(npc); npcId++; }
             }
         }
 
         // Generate family trees and NPC-NPC relationships
         NpcFamily.setInnerMapRef(this);
         NpcFamily.generateFamilies(this.npcs, rng);
+
+        // The town's people persist, age and die between visits (systems/townsfolk.js)
+        if (world) this._settleTownsfolk(settlement, world, pool, rng);
     },
+
+    /** One walking NPC of a type at a random passable spot (null if none found). */
+    _makeNpc(npcType, id, rng) {
+        const typeDef = this.NPC_TYPES[npcType];
+        if (!typeDef) return null;
+
+        // Pick random passable tile for initial position
+        let q, r, attempts = 0;
+        do {
+            q = Math.floor(rng() * this.width);
+            r = Math.floor(rng() * this.height);
+            attempts++;
+        } while (attempts < 50 && (!this.tiles[r] || !this.tiles[r][q] ||
+            !this.tiles[r][q].subTerrain.passable));
+
+        if (attempts >= 50) return null;
+
+        const name = this.NPC_FIRST_NAMES[Math.floor(rng() * this.NPC_FIRST_NAMES.length)];
+
+        // Character presets live in the UI layer (InnerMapCharacters), which
+        // world code can't import — the renderer falls back by NPC type.
+        const preset = null;
+
+        return {
+            id,
+            type: npcType,
+            name: name,
+            icon: typeDef.icon,
+            speed: typeDef.speed,
+            preset: preset,         // LPC character preset ID
+            facing: 2,              // Default facing: down
+            q: q,
+            r: r,
+            // Movement
+            targetQ: q,
+            targetR: r,
+            path: null,
+            pathIndex: 0,
+            moveProgress: 0,   // 0-1 animation between tiles
+            prevQ: q,
+            prevR: r,
+            // Behavior
+            idleTimer: rng() * 5 + 2,  // seconds until next move
+            state: 'idle',  // idle, walking, at_building
+            currentBuilding: null,
+            destinations: typeDef.destinations || [],
+            // Traveler tracking
+            visitsLeft: npcType === 'traveler' ? (1 + Math.floor(rng() * 3)) : -1,
+            departing: false,
+            // Personal trade inventory (merchants, travelers, blacksmiths)
+            shopInventory: this._generateNpcShop(npcType, rng),
+        };
+    },
+
+    /**
+     * Swap the freshly generated residents for the town's living roster: the
+     * same people as last time, older — or gone, and others born or arrived.
+     * Travelers pass through and stay transient.
+     */
+    _settleTownsfolk(settlement, world, pool, rng) {
+        const wt = this.currentWorldTile;
+        const target = Object.entries(pool).reduce((t, [k, c]) => (k === 'traveler' ? t : t + c), 0);
+        const people = Townsfolk.attach(settlement, world, this.npcs, { q: wt.q, r: wt.r, target });
+        if (!people) return;
+
+        const buckets = {};
+        const transients = [];
+        for (const n of this.npcs) {
+            if (n.type === 'traveler') transients.push(n);
+            else (buckets[n.type] = buckets[n.type] || []).push(n);
+        }
+        const out = [];
+        let id = 0;
+        for (const p of people) {
+            const type = this.NPC_TYPES[p.role] ? p.role : 'villager';
+            const npc = (buckets[type] && buckets[type].shift()) || this._makeNpc(type, 0, rng);
+            if (!npc) continue;
+            npc.id = id++;
+            npc.icon = this.NPC_TYPES[type].icon;
+            npc.speed = this.NPC_TYPES[type].speed;
+            npc.destinations = this.NPC_TYPES[type].destinations || [];
+            Townsfolk.dress(npc, p, settlement.folk, world);
+            out.push(npc);
+        }
+        for (const t of transients) {
+            t.id = id++;
+            t.familyGroupId = null;
+            t.spouseId = null;
+            t.parentIds = [];
+            t.childIds = [];
+            t.siblingIds = [];
+            out.push(t);
+        }
+        Townsfolk.linkFamilies(out);
+        this.npcs = out;
+        NpcFamily.adoptFamilies(this.npcs, rng);
+    },
+
+    NPC_FIRST_NAMES: ['Ada', 'Brom', 'Clara', 'Dorn', 'Eva', 'Finn', 'Greta', 'Holt',
+        'Iris', 'Jace', 'Kira', 'Lars', 'Maeve', 'Nils', 'Ora', 'Per', 'Quinn', 'Rolf',
+        'Siv', 'Tor', 'Una', 'Voss', 'Wren', 'Xara', 'Yves', 'Zara', 'Arne', 'Bjorn',
+        'Cora', 'Dag', 'Elsa', 'Frey', 'Gerd', 'Hakon', 'Inga', 'Jarl', 'Knut', 'Lena',
+        'Marta', 'Njord', 'Olga', 'Peder', 'Ragna', 'Sven', 'Thora', 'Ulf', 'Viggo', 'Ylva'],
 
     /**
      * Update all NPCs — called every frame with deltaTime (seconds)
@@ -590,7 +650,7 @@ Object.assign(InnerMap, {
         // tavern/inn); guards keep patrolling their usual beat.
         let nightTypes = null;
         if (this._isNpcNight() && npc.type !== 'guard') {
-            nightTypes = npc.type === 'traveler' ? ['tavern', 'inn'] : ['house'];
+            nightTypes = npc.type === 'traveler' ? ['tavern', 'inn', 'guest_house', 'hotel', 'roadhouse'] : ['house'];
         }
         const nightCandidates = nightTypes
             ? (this.buildings || []).filter(b => nightTypes.includes(b.type) && (b.q !== npc.q || b.r !== npc.r))

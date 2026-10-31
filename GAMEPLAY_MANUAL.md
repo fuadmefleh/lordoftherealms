@@ -9,6 +9,8 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 ## Table of Contents
 
 1. [Getting Started](#1-getting-started)
+    - [The Guided First Month (First Steps)](#the-guided-first-month-first-steps) — nine beginner steps on the HUD, each with why and how, a small reward each and a final one
+    - [Origins, Difficulty & Victory](#origins-difficulty--victory) — six starting scenarios, four difficulty levels and their six knobs, optional victory goals tracked in Dynasty → Ambition of this Life
 2. [Core Mechanics](#2-core-mechanics)
     - [Harvests: Good Years and Bad](#harvests-good-years-and-bad) — regional harvests from weather, war and blights; crop mixes, soil and rotation; crop reports and grain speculation
 3. [Movement & Exploration](#3-movement--exploration)
@@ -36,6 +38,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 17. [Titles & Royal Office](#17-titles--royal-office)
     - [Claims & Crowns: the Path to the Throne](#claims--crowns-the-path-to-the-throne)
 18. [Relationships & Dynasty](#18-relationships--dynasty)
+    - [The Annals: Your Story as a Book](#the-annals-your-story-as-a-book)
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
     - [Developing Your Holdings](#developing-your-holdings) — projects, governors, garrisons, unrest and rebellion
@@ -44,6 +47,10 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 22. [Quests](#22-quests)
 23. [Achievements](#23-achievements)
 24. [World Events](#24-world-events)
+    - [Court Scandals & Whispers](#court-scandals--whispers) — tales about rulers and rivals that spread, sap stability and are proven or debunked; fan, quash, dig, blackmail, sell, or start your own
+    - [Lords' Memory & Court Letters](#lords-memory--court-letters) — rulers remember your deeds (and their heirs half-remember); lords, your liege, rival Houses, your spouse and children abroad write letters that demand an answer
+    - [Coalitions & Threats](#coalitions--threats) — the realms weigh your power; past a mark they swear a league against you (terms, wars, trade levies, cold lords); buy members out, wed them, cede towns; blood feuds down the generations; rival Houses' informants, saboteurs and bribed officials in your towns
+    - [Mail & Courier Houses](#mail--courier-houses) — write to lords, rivals, loves and townsfolk; letters ride real days and can be lost, robbed or read; found and run a courier house, win the Royal Post
     - [Sagas](#sagas) — month-long world storylines: the wyrm, the plague cult, the lost heir, the long winter, sea reavers, schism, a rogue company, the comet
     - [Outlaw Lairs](#outlaw-lairs) — bandit camps, smugglers' dens, deserters' forts, cultist grottos and beast dens that grow, raid, and must be dealt with
 25. [Cartography](#25-cartography)
@@ -63,6 +70,66 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 ### Your First Steps
 
 You begin the game as a 20-year-old wanderer near the center of a procedurally generated world. You carry **10,000 gold** and **20 bread** — enough to survive your first weeks, but not enough to be comfortable for long.
+
+### The Guided First Month (First Steps)
+
+A new game opens with a **First Steps** card at the top of the right-hand info rail. It shows one step at a time: what to do, why it matters, and exactly where to click. Its gold button takes you there (the same action as the menu entry, with its usual AP cost), **▾** folds the card to one line, and **Skip guidance** puts it away. A skipped guidance can be taken up again from the bottom of the **🗝️ Counsel** panel. The **Guided start** box in the Character Profile on the new-game screen (on by default) — or a scenario that says otherwise — starts a game without it.
+
+| # | Step | Done when | Reward |
+|---|------|-----------|--------|
+| 1 | 🌅 See a day through | a day has ended (⌛ End Turn) | 10 gold |
+| 2 | 🧭 Scout the land | the starter quest *A New Beginning* is finished (two new hexes) | 15 gold |
+| 3 | 🔨 Earn an honest coin | you finish a job from **Look for Work** | 25 gold |
+| 4 | ⚖️ Visit the market | you buy or sell anything at **Trade Goods** | 25 gold |
+| 5 | 👥 Talk to the townsfolk | you talk with someone from **Meet People** (opening the list is not enough) | 15 gold, 2 renown |
+| 6 | 📋 Take on a task | you accept a bounty from the **Notice Board** or a quest from the Quests tab | 40 gold, 3 renown |
+| 7 | 🛏️ Sleep under a roof | you book a room (**Find Lodgings**) or spend the night at an inn | 20 gold |
+| 8 | 🏛️ Give your House an Ambition | your House has an Ambition (Counsel → House) | 20 gold, 3 renown |
+| 9 | 🗺️ Travel to a second town | you have entered two different settlements | 30 gold, 2 renown |
+
+Steps are read from what you have actually done, so they can be done in any order; the card always shows the first one still open. Each reward is paid once, the moment the step is done, and the gold appears in your ledger as *First Steps rewards*. Finishing all nine pays **150 gold, 10 renown and 15 House Prestige** and earns the **First Steps** achievement. Anything your character already had at the start (a scenario's family or trade) does not count: each step asks for one more. Only the character you began with is guided — an heir or a new life is not — and games saved before First Steps existed load without it.
+
+### Origins, Difficulty & Victory
+
+The new-game screen's **Origin & Challenge** box sets who you start as, how hard the world plays, and (if you like) what you are playing for. Your choices are saved with the game, and **Dynasty → 🏆 Ambition of this Life** shows them all later, along with your progress toward the goal.
+
+**Origins.** Every origin is set up after the world and your House, using the game's own systems. Nothing about it is cosmetic:
+
+| Origin | You begin with | Suggested goal |
+|---|---|---|
+| 🧭 **The Wanderer** | The classic start: 10,000 gold, 20 bread, the open road. Guided start on. | Sandbox |
+| 🥀 **The Disinherited** | A home town in the realm your blood runs to. A **Birthright** claim of 18 on its throne (25 is needed to press a claim, so you have to strengthen it: a royal marriage, a royal office, heralds, forgeries). 30 House Prestige, +10 reputation there, +2 charisma, +2 diplomacy, +1 leadership. **400 gold**, and an **elder sibling** at that court who is your House's bitterest rival (feud 55, which feeds the realm's hostility toward you and the rival schemes). | Wear a Crown |
+| ⚒️ **Guild Journeyman** | A guild town near where you would have started. You are a **journeyman** of one of its guilds (guild rates on inputs, no outsider toll, your works protected) with standing 20, 6 of the guild's goods, +3 commerce, +1 intelligence, and 300 gold. You owe **600 gold of indenture** to the guild, paid at 50 gold a week like a guild loan. Three missed payments and the guild throws you out. | Merchant Prince |
+| 👑 **The Exiled Monarch** | A **Birthright** claim of 45 on the realm with the lowest stability (enough to press it), where a usurper now rules and a **disputed succession** has just broken out (pressing your claim during it adds the crisis bonus to every town's lean). Four soldiers and a knight, 1,500 gold (enough to raise your banners), 60 Prestige, +15 reputation there, and the usurper's House as a rival (feud 40). You start in exile, in the nearest town outside the realm. | Wear a Crown |
+| 🏴‍☠️ **The Pirate's Widow/Widower** | A port near where you would have started, a fully crewed **sloop** of your own, 20 **infamy** at sea (hunters start looking for you at 25), +2 combat, +2 cartography, +1 stealth, and 700 gold. | Merchant Prince |
+| ⚔️ **Sellsword Captain** | A town in a realm: four soldiers and two archers who draw wages every day, +3 combat, +2 leadership, +2 strength, sellsword standing +15 with that realm, 500 gold, and **1,500 gold owed to the realm's Exchequer** for their gear, paid daily over 90 days through the bank system. Missed payments hurt your credit like any loan. | Conqueror |
+
+Choosing an origin also sets its suggested goal and turns the guided start (First Steps) off for everyone except the Wanderer. You can change either before you start. The welcome message names your realm, guild, ship or creditor.
+
+**Difficulty.** Normal is the game exactly as it was. The other levels each scale six things, and each one is applied at a single point in the rules:
+
+| Knob | Easy | Normal | Hard | Brutal | Where it applies |
+|---|---|---|---|---|---|
+| Starting purse | ×1.5 | ×1 | ×0.6 | ×0.3 | the origin's gold, once at the start |
+| Prices you pay | ×0.9 | ×1 | ×1.1 | ×1.2 | every market purchase (and the sell-back cap) |
+| Prices you are paid | ×1.1 | ×1 | ×0.92 | ×0.85 | every market sale |
+| Realms' hostility | ×0.6 | ×1 | ×1.3 | ×1.6 | how much a realm wants war with you (ultimatums and wars) |
+| Foes in battle | ×0.8 | ×1 | ×1.2 | ×1.4 | the enemy's fighting power in your battles (quick and three-phase) |
+| Wounds & sickness | ×0.6 | ×1 | ×1.3 | ×1.6 | the care factor: festering wounds, deadly disease stages, sick companions |
+
+The difficulty stays with the game: an heir keeps it, and so does a new life after death.
+
+**Victory goals.** These are optional. **Sandbox** has none. A goal is checked at the end of each day (net worth and monopolies once a week). The first time you reach it, a victory scene appears, the House Chronicle records it, and you choose **Continue playing** (or **Read the Annals**, when that panel is available). You can pick or change a goal at any time from *Ambition of this Life*, but changing it starts the new goal from scratch.
+
+| Goal | Won when |
+|---|---|
+| 👑 Wear a Crown | you rule a kingdom, by winning a throne in civil war or founding your own realm |
+| 💰 Merchant Prince | your net worth (the Economic Chronicle's: gold, deposits, bonds, goods, properties, works, ships, company, bank, less debts) reaches 150,000 |
+| 🛡️ Dynasty | your House reaches its 4th generation or 100 years since its founding |
+| ⚖️ Monopolist | you hold 3 trade monopolies at once: your company's, your crown's in the realm you rule, or those of a guild you lead as guildmaster |
+| 🏰 Conqueror | you hold 8 settlements in your own name |
+
+An heir carries the goal on. A new life keeps the goal but must win it again; past wins are listed in the panel. Games saved before this feature load as the Wanderer on Normal with no goal. Tuning is in `data/scenarios.json`.
 
 ### Starting Stats
 
@@ -159,8 +226,13 @@ Furs and hides are dearest in early winter (about +25%) and cheapest in summer (
 **Seasonal work:**
 - **Spring: Planting Contract** (villages and towns, 4 AP, takes the day). Help sow the fields for an advance of 8–15g now plus a **share of the harvest (45–80g, ×1.25 in towns)**, paid a few days into autumn wherever you are. A drought or flood there at harvest time cuts the share; a bountiful harvest raises it. You can hold up to 3 at once, one per settlement per year. If the settlement is destroyed, the contract is void.
 - **Seasonal day labour** (Look for Work): each season adds its own jobs alongside the usual three. Spring has Sowing Hand and Flood Banks; Summer has Army Sutler and Haymaker; **Autumn has Harvest Reaper (35–65g), Fruit Picker and Granary Loader (40–70g)**, the best-paid labour of the year; Winter has Snow Clearer and Firewood Hauler.
+- **Day labour pays the going rate**: each job's pay is scaled by the town's wage for that kind of work (field, craft or trade — the town's labour market, ×0.6 to ×2, with a premium where it is short of hands), and **harvest work in autumn pays with the size of that town's harvest** (a bumper year wants more reapers). The job menu shows the local multiplier.
+- **Work trains you**: every job trains what it exercises — hauling builds Strength, scribing and tutoring Intelligence, crying wares or heralding Charisma (plus Commerce or Diplomacy), guard and arena work Combat, errands in the shadows Stealth. Experience accumulates; each full measure raises the stat by 0.1 (up to 10).
+- **Real labour**: a field or woodland job in a town short of hands brings its goods (grain, firewood, wool) to the town's market.
+- **Quick notices** on the board (pests in the granary…) are a roll of d10 under the stat + 3: success pays and gives +2 renown, failure costs 5–14 health.
 - **Winter: Trap Furs** (4 AP, takes the day) on cold wild ground: forest, hills, highlands, tundra or snow. You catch 1–3 pelts (+1 per 4 combat skill, up to +2), sometimes meat, and now and then a prize fur (+3 pelts).
-- **Winter: Ice Fishing** (3 AP, takes the day) on a frozen river or beside a frozen lake. You catch 2–5 fish and sometimes a large fish.
+- **Winter: Ice Fishing** (3 AP, takes the day) on a frozen river or beside a frozen lake. **Near the shore** you catch 2–5 fish and sometimes a large fish. Or **walk out onto thinner ice** (the odds are shown): 4–7 fish and a good chance of a large one — and from there **further out still** for as much again, at twice the risk, or back with what you have. Through the ice you lose 8–16 health (twice that far out), the catch goes to the bottom and the cold often gives you a Chill. The ice is thinnest late in winter (from day 22); survival skill and luck help.
+- **Winter: Trap Lines.** Instead of running the traps for a day you can **lay a trap line** (takes the day; up to 3 lines). Each day it may take pelts (55%, 1–2) or meat (25%), now and then a prize fur, up to 12 held. Wolves may wreck a line (more often a full one: re-bait it or it catches nothing) and poachers empty half the pelts of a rich one. Come back and **Check Trap Line** to empty it into your packs (what doesn't fit stays in the snares), mend and re-bait it (it runs another 20 days), or take it up. A line lapses after 20 days or when winter ends, and what it held is lost. Tuning: `data/economy.json → seasons.winterWork.trapLine / iceFishing.far`.
 
 "Cold ground" means tundra, snow or ice, or any tile whose winter temperature falls below freezing (cold northern and highland regions). Warm southern lands never freeze.
 
@@ -223,7 +295,7 @@ The soil moves about a third of the way toward its target each harvest. Intensiv
 
 **The grain dealers engross.** You are not the only one reading the crop reports. When a region's forecast falls under 88% (with at least 30% of the season seen) the grain dealers of its market towns of 1,000 people and more buy into it, from day 20 to day 70 of the year: each week 8% of the grain above 90% of the market's target, up to half a target in their lofts. That tightens the market early: grain dears before the harvest is even in. They sell it back when bread is dearest: from day 85 of the year 30% a week wherever grain stands at 1.3× or more, from day 105 60% a week whatever the price, and all of it at the turn of the year. About 1% a week rots in the lofts. Speculation shifts grain from the autumn into the lean weeks, so it blunts the late-winter peak as much as it lifts the early price.
 
-**Edicts against engrossers.** In the Hungry Months, or with a town in dearth, a crown whose dealers hold grain may forbid engrossing (a weekly chance of about one in two; mercantile crowns are slower to act, peaceful ones quicker). Every loft in the realm is thrown open at once, its towns cheer (+3 happiness), and no dealer buys grain there for 120 days. The Harvest panel shows what the dealers hold, or the edict in force.
+**Edicts against engrossers.** In the Hungry Months, or with a town in dearth, a crown whose dealers hold grain may forbid engrossing (a weekly chance of about one in two; mercantile crowns are slower to act, peaceful ones quicker). Every loft in the realm is thrown open at once, its towns cheer (+3 happiness), and no dealer buys grain there for 120 days. The Harvest panel shows what the dealers hold, or the edict in force. The heralds cry a realm's dealers engrossing and every edict against them, and townsfolk grumble about engrossers wherever the lofts are full or an edict was lately cried. Deeds & Records keeps the world's tally (grain engrossed, sold back, spoiled, edicts and grain thrown open).
 
 For other systems such as crop insurance: `Harvests.expectedYield(world, region)`, `Harvests.forecast(world, region)`, `Harvests.outcome(world, region, year)` and `Harvests.regionOf(world, q, r)` (world/harvests.js).
 
@@ -341,6 +413,41 @@ The late ruler's own traits are **not** inherited. Instead your House keeps a *r
 
 You can also die in combat (health reduced to 0), from starvation, or from sickness and festering wounds (see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)). The late ruler's wounds and diseases die with them: an heir starts hale.
 
+#### A New Life, or Letting Time Pass
+
+Besides an heir, the death screen offers two other ways on (`player/afterlife.js`, tuned in `data/afterlife.json`):
+
+- **A New Life.** Become someone living in the world now. You pick from four people: grown townsfolk of towns you've walked through, or locals of towns you haven't. **🎲 Other people** draws four more. Each starts in their own town with their station's purse and skills:
+
+  | Station | Gold | Bonuses |
+  |---------|------|---------|
+  | Commoner | 60–220 | +1 strength |
+  | Farmer | 90–260 | +2 strength |
+  | Soldier | 150–400 | +2 strength, +2 combat |
+  | Smith | 300–700 | +2 strength, +1 combat, +1 commerce |
+  | Priest | 120–320 | +3 faith, +1 intelligence, +1 diplomacy |
+  | Merchant | 700–1,800 | +1 charisma, +1 intelligence, +2 commerce |
+  | Minor Noble | 2,500–6,000 | +2 charisma, +1 intelligence, +2 leadership, +2 diplomacy |
+
+  Your old House ends and its epitaph is written. What it held in the world passes on:
+  - estates escheat to the crown of their realm;
+  - mining leases go back to the crown, and tax farms end;
+  - town works go to their towns, and toll works to their realm;
+  - inns and courier houses pass to their keepers;
+  - colonies stand alone;
+  - your buildings on the map are lost.
+
+  The new character starts a House of their own and knows no one yet, though the people of the world are the same.
+- **⏳ Let Time Pass.** The world goes on without you: kingdoms, wars, sieges, markets, harvests, caravans, banks, rival houses and the townsfolk all keep living. Your House is held in trust: its gold and holdings wait untouched, and its children grow up through their upbringing (childhood events settle themselves). Your soldiers, sellswords and companions go their own ways.
+
+  A bar at the top of the screen lets a day, week, month, season or year pass, or **▶ Let it run** until you pause it. **End Day** also passes a day. You can look around the map and inspect tiles, but not move.
+
+  **🧭 Jump In** whenever you like:
+  - as any child who has come of age (16+), with the usual inheritance;
+  - or as **A New Life**.
+
+  The bar shows who comes of age next, and a game saved while waiting resumes waiting.
+
 ---
 
 ## 3. Movement & Exploration
@@ -357,7 +464,7 @@ The world features 24 terrain types. Movement cost determines how much stamina e
 | 5 (very hard) | Mountains |
 | Impassable | Deep Ocean, Ocean, Coastal Waters, Sea, Lake, Snow Peak |
 
-Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). How much depends on the road: a track, a road or a paved highway, and its repair (see [Roads, Canals & Logistics](#roads-canals--logistics)).
+Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). When you plan a journey, the route keeps to the road even where it saves no stamina (on open ground a road hex and the grass beside it both cost 1): it leaves the road only when cutting across is clearly shorter. Ships ignore roads. How much depends on the road: a track, a road or a paved highway, and its repair (see [Roads, Canals & Logistics](#roads-canals--logistics)).
 
 **Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty (unless the road's bridge has washed out: then it is a ford, +1, or a ferry, +1 and a fare), and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
 
@@ -390,7 +497,7 @@ You can see 4 hexes in every direction. Tiles you've visited remain "explored" (
 
 ### Points of Interest
 
-Unexplored tiles may contain points of interest (POIs) — ruins, caves, monuments, shrines and oases. The minor ones (shrines, oases, monuments) are searched with a single **Explore POI** action (4 AP, ends the day) for treasure, knowledge, artifacts, or danger.
+Unexplored tiles may contain points of interest (POIs) — ruins, caves, monuments, shrines, oases and wrecks. The minor ones (shrines, oases, monuments, wrecks) are explored with **Explore POI** (4 AP, ends the day): each holds one encounter — a pilgrim at the shrine, a thief fouling the oasis, an inscription on the monument, a survivor in the wreck — with 2–3 choices, worked exactly like the [wilderness encounters](#wilderness-encounters) below. Which encounter a site holds is fixed for the world. Every one has a choice anyone can take, since the time is already spent. When it is done the site is explored: any ancient map hidden there is yours, the old relic roll is made (a legendary artifact or a fragment), and you learn something of the realm's peoples and faith.
 
 ### Delves
 
@@ -434,7 +541,7 @@ While in the wilderness, you can:
 | Action | Requirements | Effect |
 |--------|-------------|--------|
 | Rest / Camp | Anywhere | End the day, recover stamina |
-| Explore Area | Any explored tile | Search the inner map for hidden encounters |
+| Explore Interior | Your own passable tile | Walk the hex's inner map on foot — and meet its [wilderness encounters](#wilderness-encounters) |
 | Meditate / Pray | Any passable tile | Restore health, gain karma (enhanced at holy sites) |
 | Go Fishing | Near water | Catch fish for food or sale |
 | Prospect | Hills, Highlands, Mountains | Search for mineral deposits |
@@ -455,6 +562,23 @@ While in the wilderness, you can:
 - **Luck** favours the rare finds (anything 10% or rarer: truffles, pearls, fossils, a bear pelt, ivory) by +8% for each point above 5, and gives a 4% chance per point above 5 of one more in each bundle.
 - **Craft rank.** Every outing counts, and so does every hunt, hit or miss, and every trap line. Foraging: 🌱 Novice → 🌿 Gatherer (5 trips) → 🍄 Woodwise (15) → 🌺 Herb-wise (35) → 🏵️ Master Forager (60). Hunting: Novice → 🐾 Tracker → 🏹 Huntsman → 🦌 Stalker → 🐗 Master of the Hunt, at the same counts. Each rank adds +8% to the odds of a find or a drop and a 10% chance of one more in each bundle. Woodwise and Master Foragers get an extra search, and each hunting rank lowers the accuracy a shot needs by 2. Your rank shows on the search screen and in **Deeds & Records**.
 - A forager who finds 3 or more things in one outing gains +1 renown.
+
+### Wilderness Encounters
+
+Most wilderness hexes hold something to find when you **Explore Interior**: up to three encounters on the hex's inner map, drawn from its land — about a hundred in all across the eighteen kinds of country. A herb patch or a fairy ring in the woods, a wolf pack or a bear, a hermit, a woodcutter, a frozen corpse with its pack still on; scorpions, nomads and a mirage in the desert; a witch's hut and will-o'-the-wisps in the swamp; an ice bridge, a frozen artifact and an aurora in the far north; a washed-up chest, a castaway or an old wreck on the shore. Not every one is a fight: many are people to help or bargain with, places to study or pray at, tracks to follow, weather to shelter from.
+
+**Finding them.** An encounter comes into sight when you walk within a few paces (a notice, and a marker on the map). Walk onto it, or select it and **Examine**, to face it. Where they lie and which they are is fixed for the world, so a hex holds the same ones whenever you come back. Settlements hold none.
+
+**Choices.** Each encounter poses 2–3 choices, shown with their **odds** (very likely … desperate, with a percentage), their cost and what they lean on — the same rules as delve chambers:
+- **Attributes** (±5% per point from 5) and **skills** (+4% per point); **craft rank** in foraging or hunting (+4% per rank).
+- **Gear** you carry: a bow, rope, a lantern, a compass, holy water, healing salve, meat to throw to a beast.
+- **Companions**: a hunter against beasts, a healer or herbalist with the sick and with plants, a priest with spirits and shrines, a scholar with carvings, a guard or knight in a fight, a merchant at a camp.
+- **Traits**: Brave helps when you stand your ground and Craven hurts; Pious, Cunning, Wanderer, Scholar and others where you'd expect.
+- Some choices are **locked** until you meet a requirement (carry a bow, have a healer in the party, be Pious, have the gold) — the lock says what is missing.
+
+Choices cost **stamina** (today's movement; 3 health for each missing point if you are spent), sometimes gold or an item. **Leave it be** walks away and leaves the encounter for another day; once you make a choice it is done for good — it leaves the map and is remembered in your save.
+
+**What comes of it.** Encounters pay in the game's own coin: goods into your packs (respecting the inventory cap — what doesn't fit is left behind), finds from the land's forage table or a kill from its hunt table (these count as foraging and hunting trips toward your craft rank), gold (booked under Exploration in the Merchant's Ledger), health or stamina, wounds and sickness (bites, gashes, a chill, marsh fever — see [Wounds, Sickness & Medicine](#wounds-sickness--medicine)), now and then a point of skill, deeds that shape your traits (and that your companions notice), renown and karma, lore of the world's history, ancient or treasure maps, the country around charted on your map, the current prices in the nearest markets (a trader's or herdsman's word), a lead to an uncharted place (see [Uncharted Lands](#uncharted-lands)), and rarely a legendary artifact fragment. A rescue, a slain beast or a lucky find becomes a **story the towns tell** (Rescue in the Wilds, Beast Slain, A Find in the Wilds), and townsfolk will mention it.
 
 ---
 
@@ -924,6 +1048,24 @@ The interest is a flat charge for the term, repaid in equal daily payments. Your
 - **14 days, then every week:** the house seizes collateral at half its worth, in this order: your deposits with it, your most valuable property, a ship lying in port (never the one you are aboard), then your company's coffers.
 - **30 days:** you are **declared a defaulter**. The house writes off the rest and will not lend to you again until you **make good** the debt. You lose reputation in its realm (−15) and House Prestige. A debt of 1,500g or more puts a **bounty** on your head there. One of 4,000g or more sends you to the **debtors' prison** if the watch of any town in that realm catches you (5–20 days, with bail).
 
+**Your own banking house.** In a city or capital where no house is seated, the **🏛️ Charter a Bank** action lets you found one (the bank panel's **🏛️ Your House** tab). The crown wants a charter fee (2,500g, 3,750g in a capital) and a reputation of 10 with the realm, and you pay at least 5,000g of capital into the vault (5,000, 10,000 or 25,000g). You may own one house at a time, and none while a house has you on its blacklist.
+
+- **Deposits.** The townsfolk bring you their savings, drifting toward about 2.5g a head of the seat's people times their **trust**. Trust rises with your reputation in the realm and the house's age, and falls for 60 days after a run. You pay them the deposit rate (3–7.5% a year, more when your vault runs short).
+- **Lending.** The house lends to merchants out of its vault. Your **policy** sets how much and at what rate:
+
+| Policy | Lends | Rate | Ordinary losses | Lends to crowns |
+|--------|-------|------|-----------------|-----------------|
+| Cautious | 45% of its coin | 14% | 1.5% a year | no |
+| Steady | 60% | 18% | 3% | yes |
+| Bold | 85% | 24% | 7% | yes |
+
+  Losses double while the realm is at war, and now and then a borrower goes under owing 4–10% of the loan book (twice as often when bold, half as often when cautious). Under Steady and Bold, crowns in need may borrow from your house like any other, and their repayments go straight into your vault.
+- **Costs.** Clerks and the strongroom cost 2g a day plus a little for every 1,000g on the books.
+- **The vault and the reserve.** The house must keep about 35% of its deposits (at least 1,500g) in the vault. Lending never touches the last half of that reserve.
+- **The owner's desk** (at the seat only; the policy can be changed from anywhere): put more gold in, draw out anything above 120% of the reserve, or **wind the house up**. Winding up pays the depositors, calls in the loans at 85%, sells the crowns' debts to another house at 70%, and hands you the rest.
+- **Runs.** Your house can suffer a run like any other, and is likelier to when the vault falls below half its reserve. During a run your depositors take about 12% of their deposits each day. When the vault is short, the house calls in loans at a loss; when there is nothing left to call, it **fails**. A failed house loses everything you had in it, costs you 20 reputation in its realm and up to 25 Prestige, and the realm gets a new house there about three months later. A house that pays out the whole run stands.
+- Your house is not floated on the Bourse and keeps no insurance desk. Its equity (vault + loans + crown loans − deposits) counts in your **net worth**, and its books for the last 30 days are on the Your House tab.
+
 **Royal bonds.** Through any banking house you can lend to a crown, from 500g up to 20,000g per crown, for 120 or 240 days. You get interest every 7 days, the principal back at maturity, reputation with the realm (+1 per 500g, up to +10) and Prestige for your House (+1 per 400g, up to +25). A healthy crown pays about **6% a year**. A crown deep in debt, with debased coin or a recent default, pays up to 20%, because it may miss coupons, put off repayment by a month, or **repudiate** its debts and cut your bond with everyone else's. You can sell a bond back to the brokers at a discount.
 
 **Crowns in debt.** Every crown keeps a reserve of about a month's income. War costs more than a realm earns, and a crown at war (or raising a wonder) that drops below its reserve borrows from the friendliest house with coin to spare. It pays interest from its taxes and pays its debts down every week. A crown in crisis (missed payments, unpaid armies, or debts beyond what its income can carry) chooses one of three ways out:
@@ -1069,6 +1211,7 @@ In crisis, it raises an extraordinary levy (an extra 30% tax for 60 days), debas
 - the budget line by line, yesterday and last week;
 - the treasury's year as a sparkline;
 - the people's burden, corruption, arrears and the demesne.
+- the crown's books all told: taxes and dues taken, spending, tax revolts, tax farms, offices and crown estates sold, and soldiers who deserted for want of pay.
 
 There you set:
 - each tax apart (land, hearth, excise);
@@ -1084,7 +1227,7 @@ An estate is a share of the town's own fields, not extra land: its crops are alr
 
 **Rent.** The tenants pay once a month, on the town's own day:
 - **Level.** Low (18% of the crop), customary (25%) or high (34%). The tenants' loyalty heads toward 78, 55 or 26.
-- **In coin or in kind.** A coin rent is a fixed sum on the estate's usual crop. In a bad year it can be more than the tenants can hand over (half the month's crop at most), and the rest falls into arrears: loyalty falls. A **share of the crop** follows the harvest and its price, so the landlord carries the bad year; the tenants like it better (+6 loyalty).
+- **In coin or in kind.** A coin rent is a fixed sum on the estate's usual crop. In a bad year it can be more than the tenants can hand over (half the month's crop at most), and the rest falls into arrears: loyalty falls. In a good month the tenants pay some of it back out of their spare crop (half of what they could hand over above the rent, at their loyalty's collection rate), and the bailiff writes off a tenth of what is left; the Ledger books it as *Estate arrears collected*. The estate card shows each month's rent *due* and *paid* (and how much of it was arrears). **Press for arrears** sends the bailiff once a month: he takes up to 60% of what is owed (no more than a month's crop capacity, nor than the town's coin), and the tenants lose 12 loyalty. If that leaves them under 35, they may riot instead (the chance is shown on the button, up to 90%): a **rent riot**, nothing collected, the town's mood falls and a quarter of the arrears is written off. A **share of the crop** follows the harvest and its price, so the landlord carries the bad year; the tenants like it better (+6 loyalty).
 - **Loyalty.** Tenants at loyalty 0 pay 70% of what is due; from 75 they pay all of it. Under 20 they may withhold a month's rent (a rent strike) or riot. Under 25 they sour the town a little each month; over 70 they cheer it.
 - **High rents drive people away.** Each month about 3% of an estate's households leave for the nearest town, more as loyalty sinks. Pay piece wages in the town (below) and the tenants are more content.
 - **Where the gold comes from.** Your rents come out of the town's own coin, the wealth its crown taxes, so a landlord's rent is the town's money, not new money. A steward and bailiff keep 8%. The Ledger shows rents as *Estate rents*.
@@ -1126,7 +1269,7 @@ Soil is capped at 130%. **Enclosure** pays where wool is dear and grain cheap. T
 
 **Flax and linen.** The flax fields of the harvest (Harvests: Good Years and Bad) bring **flax** to market (9g base). The town linen weavers turn 1.2 flax into 1 linen. Craftsmen everywhere make some linen too, so towns far from flax aren't bare. **Linen** (30g) is worn by every class, the clergy, merchants and nobles most of all. The **Linen Loft** works can be funded like the other works, and the weavers' guild guards linen as it guards wool. When four or more of a realm's towns are awash with linen, the heralds cry a linen glut.
 
-**News.** The heralds cry enclosures, enclosure and rent riots, crown and distress sales of estates, confiscations, estates ceded in a peace, and linen gluts. Townsfolk talk of the enclosed fields, the riots, an estate up for sale, and the merchants who put out wool in the winter. The Steward's Counsel points to land for sale near you at or below its worth that you can afford, to your restless tenants and their arrears, and to cloth waiting to be collected.
+**News.** The heralds cry enclosures, enclosure and rent riots (each in its own words), crown and distress sales of estates, confiscations, estates ceded in a peace, estates left to the Church or settled as dowries, and linen gluts. Townsfolk talk of the enclosed fields, enclosure riots and rent riots, an estate left to the Church or gone with a bride, an estate up for sale, and the merchants who put out wool in the winter. The Steward's Counsel points to land for sale near you at or below its worth that you can afford, to your restless tenants and their arrears, and to cloth waiting to be collected.
 
 ### Tax Collection
 
@@ -1393,6 +1536,17 @@ The most profitable production chains are:
 3. **Wool → Textiles → Clothes**: Two-step chain, ending at 40g per piece.
 4. **Iron → Tools**: Single-step, doubling your output at 35g each.
 
+### Crafting With Your Own Hands
+
+Inside buildings, furniture lets you work materials yourself: the **anvil** (Craft), the **forge** (Smelt), the **fireplace** (Cook), the **altar/still** (Brew Potion) and a stable's stall (**Tan & Weave**). Recipes live in `data/crafting.json` — about forty of them, including tanning hides (2 hide + 1 salt → 2 leather), weaving linen (3 flax → 1 linen), spinning wool (2 wool → 1 textiles), sewing clothes (linen + textiles → 2 clothes), casting bronze (2 copper → 1 bronze), bronze tools and roast meat.
+
+- **Crafting rank** grows with every attempt (crafting xp): Novice → Apprentice (20) → Journeyman (60) → Artisan (140) → Master Artisan (300).
+- **Failure**: each recipe has a difficulty (1–5). A novice spoils hard work often (≈26% on a difficulty-3 recipe), a master almost never (2% floor). A spoiled attempt wastes half of each input (at least one) but still teaches half the xp.
+- **Quality**: a success comes out **Crude**, **Common**, **Fine** or **Masterwork**, from your rank, a fitting **workshop** (a blacksmith's anvil for smithing, a temple for brewing, a tavern hearth for cooking; better again in a building you own), **tools** in your pack for the bench, forge and tannery (they wear out now and then), the attribute the recipe leans on (strength at the forge, intelligence elsewhere), and the recipe's difficulty. Intermediates (ingots, bars, bronze, leather, linen, cloth) have no quality.
+- **Smithing at the Forge**: weapons, tools, bronze tools, shields and lanterns are worked at the Forge minigame — its score adds up to ±0.9 to the quality and moves the failure chance by up to ±20%.
+- **What quality does**: crafted goods sell for ×0.7 (Crude), ×1 (Common), ×1.35 (Fine) or ×1.8 (Masterwork); food nourishes and potions heal ×0.75 / ×1 / ×1.25 / ×1.5; crafted leather armour, shields and amulets protect by the same factor. Quality is tracked per item as an average over the units you made; goods from anywhere else count as Common, and selling or using some draws the stack down evenly.
+- **Antidote** (2 herbs + 1 mushroom): its own remedy now. Used from the Ailments panel it **purges the Bloody Flux, Marsh Fever and Wound Fever outright**, draws out wound infection (85%) and eases other sickness.
+
 ---
 
 ## 7. Caravans & Trade Routes
@@ -1572,6 +1726,26 @@ Additional unit types unlock through technology research:
 
 Recruitment capacity is limited to 1 unit per 50 population per day.
 
+#### Where Units Can Be Raised
+
+What a settlement can field depends on its size (`minSettlement` / `minPopulation` in `data/military.json` and `data/technology.json`, checked by `core/settlementSize.js`). Larger settlements offer everything smaller ones do:
+
+| Settlement | Units |
+|------------|-------|
+| Village | Militia, Archer, Scout |
+| Town | Soldier, Pikeman (pop ≥ 1,000), Shield Wall, Longbowman, Berserker, War Galley / Warship (ports only) |
+| Great town (pop ≥ 2,000) | Crossbowman, Light Cavalry, Siege Engine |
+| Great town (pop ≥ 2,500) | Knight, Assassin, Heavy Cavalry |
+| Capital | War Elephant, Battle Mage |
+
+Tech-unlocked units still need their technology as well as a big enough settlement.
+
+**Mercenary companies** don't seek work in villages. A small town (under 2,000 people) has one company for hire at a time; a great town or capital has two or three.
+
+**Properties and buildings** follow the same rule. A Tavern, Inn, Jeweler, Perfumery, Glassworks, Scriptorium, Dye Works, Merchant Guild hall or Hospital needs a town. A University needs a town of 2,000 and a Grand Hotel a town of 2,500. Workshops built beside a settlement count that settlement's size.
+
+A **City** or **Capital** marker placed in the world editor (and not chosen as a realm's seat) becomes a great town in play.
+
 #### Unit Specials
 
 Some unit types carry special stats that ride with every recruit (the recruit screen lists them; units from older saves pick them up from their type):
@@ -1629,6 +1803,31 @@ $$\text{Power} = \text{Strength} \times \text{random}(0.8, 1.2) \times \text{cou
 - **Defeat**: 20–40% casualties. If your army is wiped out, 40% chance of **capture** leading to indentured servitude.
 - **Wounded**: with Surgery, each would-be casualty has a 30% chance to be carried off wounded instead — it stays in the army at half strength for 5 days, then heals.
 - **Armour & bows**: Plate Armor makes the enemy strike 15% weaker and cuts casualties 15%; Crossbow piercing adds +25% power scaled by your archers' share of the army.
+
+This one-roll resolution is used by sieges, raids, holdings, throne wars and anything that resolves on its own. **Your own battles in the field** (attacking a unit from the map, robbing a trader, or standing to fight a hostile that closes in) are fought in phases instead:
+
+#### Field Battles in Phases
+
+A field battle has three phases. Before each one you pick a **stance**, and the panel shows each stance's estimated chance to win the battle and the share of your force you can expect to lose (a forecast assuming the default stances after this one, so it moves as the battle goes):
+
+| Phase | What matters most |
+|-------|-------------------|
+| 🏹 Opening skirmish | Archers (and the weather on them); an enemy that caught you fleeing or hiding strikes 15% harder here |
+| ⚔️ Melee | Pikemen, the full counter multiplier, morale |
+| 🐎 Pursuit | Cavalry; the side that gives way loses 60% more, the winner half as many |
+
+| Stance | Effect |
+|--------|--------|
+| 🔥 Aggressive | ×1.1 power; you lose 30% more men and they lose 20% more |
+| 🛡️ Hold the line | ×0.9 power, plus up to +25% from your pikemen's share and +10% when you are the one attacked; 30% fewer losses, 15% fewer kills |
+| 🎭 Feigned retreat | Needs 15% cavalry or Leadership 5. The chance they take the bait is shown (30% + 4% per Leadership + your cavalry share × 60%, at most 85%): if they do, they fight at ×0.65 and lose 50% more; if not, you fight at ×0.75 and lose 30% more |
+| 🐎 Commit reserves | ×1.25 power, plus up to +40% from your cavalry share; once a battle, and your men fight at ×0.9 after it |
+
+Each phase uses all the usual multipliers (counters, terrain, weather, traits, artifacts, techs, unit specials, Leadership and morale from the **current** force ratio). Losses come from the phase's balance of power: the side with the upper hand loses less, a close fight bleeds both, and your Surgery, Divine Protection and plate armour cut your share as usual. A battle also has hidden **luck** (up to ±25% on your side for the whole battle) that the forecast cannot know. A side that falls below 45% of its starting strength, or whose morale breaks while outnumbered 1.8:1, **routs**: the battle ends there, and the routed side loses more in the flight. Otherwise, after the pursuit, whoever had the better of the three phases (weighted 25% / 50% / 25%) wins.
+
+Between phases you may **🏳️ Withdraw**: a rear guard costs about 6% of your force (more against a stronger or horse-heavy enemy, less with your own cavalry). You take no loot and cannot be captured, but leaving a field you were not losing counts as cowardice. The enemy unit keeps the losses you dealt it.
+
+Victory and defeat bring the usual loot, experience, renown, capture and the consequences of whom you fought (karma, reputation, the unit destroyed). Battle spoils go on the Ledger. If you close the battle panel half-way, your captains fight on with the default stances (hold the line, then aggressive, then commit the reserves) and the result is waiting for you at day's end. Tuning lives in `data/military.json` → `fieldBattle`.
 
 ### Unit Progression
 
@@ -1692,9 +1891,48 @@ Besides caravans, raiders and patrols, the world holds **mercenary companies, pi
 
 Present gifts at a royal audience. Greedy lords value them 25% more, honourable ones 10% more. Holy Water heals 10 health, Rum gives +1 movement for the day, and Rare Herbs brew into an Elixir of Vigor at an Apothecary. Carried bonuses count once for each kind of item and are capped. Timed events (crusades, refugee waves, monster sightings, pirate surges) make their kind far more common.
 
+### Hostiles on the Road
+
+When raiders, pirates, a beast pack, a legendary creature or a war host reach you at the end of the day, the game stops and you choose what to do. The chance of each choice is shown before you commit:
+
+| Choice | Against | Odds and outcome |
+|--------|---------|------------------|
+| 🏃 Flee | anyone | 40% + 3% per Stealth, +20% on a horse, +10% × your cavalry share, −2% per company (up to −25%), +5% in forest or marsh, −5% on open ground, less when wounded or lame, less against faster foes (beasts), +5% if Craven. Escape trains Stealth. Caught: unarmed you are robbed or mauled as before; with an army they fall on you in a field battle with the advantage in the opening. Running from a weaker band at the head of an army counts as cowardice. |
+| 💰 Pay the toll | men | Certain. Unarmed they want 25% of your purse; with an army 8% plus up to 18% more the stronger they are than you (less with Diplomacy). The gold goes into the band's coffers (win it back by beating them later) and onto the Ledger. With an army it costs 1–2 renown. War hosts take no tolls. |
+| 🍖 Throw them food | beasts | 75% (35% for a legendary creature): leave 3 food (8 for a creature) behind and slip away. The food is gone either way. |
+| 🗣️ Parley / 😠 Intimidate | men | 12% + 3.5% per Diplomacy + 1% per Charisma + up to 15% from renown, +15% Dread Lord, +5% Brave, +8% Champion, −10% Craven, and your army's strength against theirs (−15% to +35%); −15% against a war host. With Dread Lord or an army half again their size you intimidate rather than talk (+1 renown and a dread deed). Trains Diplomacy. Failure: they take offence and attack. |
+| 🔥 Drive them off with fire | beasts | 30% + 3% per Combat, +25% with firewood, wood or oil in your packs (one is used), +8% Brave, +5% Champion, up to +25% from your army; −25% against a legendary creature. Success: +1 renown and a valour deed. |
+| 🌲 Hide | anyone | 15% + 5% per Stealth, +25% in forest, +15% in hills or mountains, +10% in marsh, −10% on open ground, −4% per company (up to −40%), −3% on a horse, −10% against beasts (they hunt by scent). Never at sea. Trains Stealth. Found: as if caught fleeing. |
+| ⚔️ Stand and fight | anyone | With an army: a phased field battle (above), the forecast win chance shown. Alone: your Combat ×5 + Strength ×1.5 + 10 against their strength ×3 + 10 (+5% Brave, +10% Champion, less when wounded). Win and they scatter (a band under 8 strength left is cut down to the last, and its coin is yours), with renown, a valour deed and Combat training; lose and they rob or maul you as before, and hurt you more. |
+
+A band you paid, talked down, fed or drove off leaves you alone for a while (7 days after a toll or a parley, 5 for beasts, a day after an escape) and stops hunting you. If you close the dialog without choosing, they fall on you at the end of the next day as of old (with an army, your captains fight them with the default stances). Tuning lives in `data/military.json` → `encounters`.
+
 ### Personal Protection
 
 When you are attacked without an army, or brawl on the local map, gear in your pack softens the blows: Leather Armor −20%, Shield −15%, Amulet −10% (they stack). Divine Protection blocks all damage.
+
+### Personal Combat: Duels
+
+Every fight between you and one other person uses the same duel rules: combat training, tournament bouts, duels with rival adventurers, their ambushes, and brawls on the local map.
+
+**Who you are in a fight.** Your **attack** comes from your combat skill, strength and luck and from the best weapon you carry: a Hammer (Tools) +1.5 damage, a Sword (Weapons) +3 damage and +1 attack, an Enchanted Weapon +5 damage and +1.5 attack. An equipped weapon is used ahead of the others in your pack. Bare fists hit at −1 attack. A **Shield** adds +1.5 defence and makes a parried strike hit back 40% harder. **Armour** turns part of every blow: Leather Armor 20%, Dragonscale 35%, an Amulet 10%, plus carried dragon scales, up to 70% (Divine Protection counts as the full 70%). Earned traits that change battle power (Brave, Craven, Champion, …), your mood and carried treasures scale your attack and damage. Wounds and sickness weaken you, and a Lame fighter guards worse. Your **breath** (stamina) is 8 + 0.4 × strength + up to 4 when you are rested (energy, with needs on). Your **pool** of hit points for the bout is 20 + strength + 1.5 × combat skill, and you start with less when you are already hurt.
+
+**The exchange.** Each round you and your opponent each pick a move at the same time:
+
+| Move | Breath | Beats | Loses to |
+|------|--------|-------|----------|
+| ⚔️ Strike | 3 | Thrust (the heavy cut beats the point aside) | Guard |
+| 🗡️ Thrust | 2 | Feint (the point punishes the empty motion) | Strike |
+| 🌀 Feint | 2 | Guard (draws it out, winds them by 3 and opens your next attack) | Thrust |
+| 🛡️ Guard | +2 | Strike (turns it into a riposte and winds the striker) | Feint |
+
+The other pairs are contested. In Strike against Feint, and Thrust against Guard, a roll of attack (or defence, for the guard) decides it, and the winner lands a lighter blow. When both choose the same move, two strikes or two thrusts both swing, two guards both catch their breath, and two feints do nothing. Winning the exchange does not guarantee a hit: the chance is 60% + 5% for each point your attack beats their defence (between 12% and 95%). Damage is your power times the move (Strike ×1.35, Thrust ×1, Feint ×0.75, riposte ×0.6), less their armour. If you choose a move you have no breath left for, it comes slow (−2 attack), and at zero breath you also defend worse. You get 1 breath back after every exchange that is not a guard.
+
+**Opponents have a temperament.** **Aggressive** fighters strike and thrust. **Cautious** ones guard and yield when beaten. **Tricky** ones feint, and they notice your habits: repeat a move and they counter it. **Steady** fighters mix all four. A rival's archetype sets theirs (sellswords and crusaders are aggressive; bounty hunters, usurpers and duelists are tricky; treasure hunters and merchants are cautious). A townsperson's character sets theirs (bold or stern people are aggressive, quiet or cautious ones are cautious, witty or curious ones are tricky). The duel panel shows the opponent's temperament next to their weapon and armour.
+
+**Ending a duel.** A duel ends when one side's pool runs out, someone yields, or the round limit is reached, in which case the side with more of their pool left wins. A sparring bout lasts 5 exchanges and can be drawn. Tournament bouts last 10, first-blood duels 12, and ambushes 14. In a duel to the death your opponent never yields. You can always **🏳️ Yield** (you lose, but take less harm) or **⚡ Fight on instinct** to let the rest of the duel play out, and how well your instinct reads the opponent improves with combat skill. The harm you take afterwards depends on how much of your pool you lost.
+
+**Brawls on the local map.** Attacking someone in a town is a running fight rather than a duel panel, but it uses the same numbers. Each swing does 2 + 1.2 × strength + 2 × your weapon's damage, scaled by traits, wounds, mood and treasures, so a sword hits much harder than fists. Guards wear mail that turns 20% of each blow. Guards, smiths and nobles fight back, and everyone else runs. Someone killed drops the coin they actually carry: a noble 30–120 gold, a merchant 15–60, a farmer a handful, a beggar almost nothing. You also take one or two of the wares they carry, if your packs have room. Townsfolk remember: a beaten townsperson you leave alive is still hurt the next time you meet them and heals about an eighth of their strength a day, and one you kill is dead for good, recorded in the town's annals, and missing from the streets on your next visit.
 
 ### Army Upkeep
 
@@ -1728,8 +1966,22 @@ Garrison strength scales with population, settlement tier, the realm's army and 
 If captured after defeat:
 - Duration: 5–15 days. 30% of gold confiscated.
 - **Endure**: Wait it out, gaining +0.05 commerce and +0.1 strength per day.
-- **Escape**: 10% base + (stealth × 3%) chance. Failure adds 2–5 days and costs health.
+- **Attempt Escape** (once a day) opens a choice:
+  - **Slip away at night**: 10% base + (stealth × 3%) chance. Failure adds 2–5 days and costs health.
+  - **Bribe an overseer**: about 40% of the freedom price; ~50% + 4% per Diplomacy point. Refused, he keeps the coin and tells your master (+1–3 days).
+  - **Work for an earlier release**: takes the day, which counts double against your bond.
 - **Buy Freedom**: 200g + (enemy strength × 2).
+
+### Jail: Cellmates, Bribes and Tunnels
+
+However you end up in a cell (the watch, a guard search, debtors' prison, a botched map theft), the jail is a small game of its own. **Your Cell** (and **Attempt Jailbreak**) open it; tuning in `data/underworld.json` → `prison`.
+
+- **Cellmates.** Two or three named prisoners, the same for the same sentence. Each is a type: the **Smuggler** (once a friend, has tools brought in for 20g — they arrive the next day, baked into the bread), the **Informant** (a friend tells you the guards' rounds, +15% to break out; *not* a friend, he may sell you out while you dig), the **Old Soldier** (+10% to break out; walks out with you and joins your travels as a companion) and the **Fence** (a guild contact once you are out: the fence and the black market open to you). **Talk** with each once a day (Charisma and Diplomacy) or **share food** from your packs (always works) to win them over.
+- **Bribe a guard.** To look the other way tonight (+35% to slip out), to bring you tools, or to "lose your papers" (walk out before dawn). Prices rise with the town (village 15g → capital 80g), the length of the sentence and your record; a guard may refuse (10% in a village, 40% in a capital, less with Diplomacy) — he keeps the coin and reports you (+1–3 days). Bribes to guards and overseers (and to a cellmate's smuggler) are booked under **Bribes** in the Merchant's Ledger, apart from bail.
+- **The tunnel.** With tools, a day of digging adds 12–22% (more if you are strong); tools break now and then. A cell search may find it (6% a night, more the further you get), as may an informant you never befriended: tools taken, tunnel filled in, +2–4 days. At 100% you can go out through it (~85%).
+- **Labour in the yard.** Takes the day, which counts double against your sentence.
+- **Jailbreak** — once a night: **slip out at the change of the watch** (Stealth), **rush the guard** (Combat, Strength; fail and they take your tools) or **the tunnel**. Failure adds 2–5 days and a beating, and each failure makes the next harder. An escape is a crime of its own: heat with the crown (posters and warrants follow), a gaoler's bounty and −10 reputation.
+- **Bail** and serving your time work as before; friends you made inside follow up whichever way you leave.
 
 ---
 
@@ -1737,21 +1989,28 @@ If captured after defeat:
 
 Take military contracts at settlements for steady gold income:
 
-| Contract | Payment | Duration | Min Strength | Risk |
-|----------|---------|----------|-------------|------|
-| Guard Duty | 100g | 3 days | 20 | 0% |
-| Patrol Roads | 120g | 5 days | 25 | 15% |
-| Escort Caravan | 150g | 4 days | 30 | 20% |
-| Bandit Hunt | 200g | 5 days | 50 | 30% |
-| Border Defense | 300g | 7 days | 60 | 35% |
-| Ruin Clearance | 350g | 5 days | 40 | 35% |
-| Rebel Suppression | 400g | 6 days | 75 | 40% |
-| Siege Support | 500g | 10 days | 100 | 50% |
-| Pirate Raid | 600g | 8 days | 70 | 45% |
-| Monster Hunt | 800g | 7 days | 80 | 60% |
-| Assassination | 400g | 6 days | 45 | 70% |
+| Contract | Payment | Duration | Min Strength | Risk | Foe (≈) |
+|----------|---------|----------|-------------|------|---------|
+| Guard Duty | 100g | 3 days | 20 | 0% | 12 |
+| Patrol Roads | 120g | 5 days | 25 | 15% | 22 |
+| Escort Caravan | 150g | 4 days | 30 | 20% | 28 |
+| Bandit Hunt | 200g | 5 days | 50 | 30% | 50 |
+| Border Defense | 300g | 7 days | 60 | 35% | 62 |
+| Ruin Clearance | 350g | 5 days | 40 | 35% | 40 |
+| Rebel Suppression | 400g | 6 days | 75 | 40% | 78 |
+| Siege Support | 500g | 10 days | 100 | 50% | 110 |
+| Pirate Raid | 600g | 8 days | 70 | 45% | 72 |
+| Monster Hunt | 800g | 7 days | 80 | 60% | 85 |
+| Assassination | 400g | 6 days | 45 | 70% | 45 |
 
-Risk represents the chance of taking casualties (10–30% of your army). Successful contracts grant +10 XP per unit and +0.5 combat skill.
+Contracts are fought, not just waited out (`data/mercenaryContracts.json`):
+
+- **The opposition**: each contract faces a foe whose strength is rolled at signing (×0.75–1.3 of the figure above). The contracts menu shows the foe and your odds.
+- **On the march**: any day may bring an event (likelier on risky contracts) — an **ambush** (losses fall with your force ratio; a stronger company bloodies them and the foe shrinks 12%), a **desertion** (twice as likely when you are outmatched or nearly broke), or **plunder** (5–20% of the fee in gold at once).
+- **The reckoning**: victory chance = 45% + 80% × (your strength ÷ foe − 1), between 5% and 97%. A victory pays the fee (+10 XP a unit, +0.3 combat, +0.1 leadership); casualties scale with risk and fall with the force ratio — heavy ones make it a *pyrrhic* victory. A defeat costs 25–60% of your land units and pays only a 25% retainer.
+- **The employer**: the town's realm pays from its treasury, and a realm short of coin may **renege** on half the fee (5%, +12% when its treasury is under three fees, less the better your name).
+- **Your name as a sellsword** with each realm: +4 for a victory, +1 pyrrhic, −5 defeat, −10 for abandoning a contract (your army wiped out). Each point moves the fee by 1% (up to ±30%); at −30 the realm will not hire you. Victories also add +2 to your reputation with the realm.
+- Fees and plunder are in the Ledger as *Mercenary contracts*.
 
 ---
 
@@ -1829,7 +2088,14 @@ At any settlement, you can preach to gain followers:
 
 $$\text{Followers} = \lfloor \text{population} \times 0.05 \times (1 + \text{charisma} \times 0.1 + \text{faith} \times 0.1) \rfloor$$
 
-Each preaching session grants +0.2 Faith and +0.1 Charisma.
+Each preaching session grants +0.2 Faith and +0.1 Charisma (less before a tired crowd), alms of about 2% of the converts in gold, and karma.
+
+Sermons have limits (`data/religion.json → preaching`):
+
+- **One sermon a day.**
+- **Saturation**: each sermon tires that town by 35% (followers and growth fall with it, never below 10%); it recovers 6% a day.
+- **Weak faith**: where the state church is lax, people listen — up to +50% at piety 0 (nothing at piety 50+); +50% in a town with no state church at all.
+- **Rival clergy**: in a realm whose state faith isn't yours, each sermon risks the clergy's answer — likelier the more militant the faith, the more pious the realm, the more clergy in the town and the more you have preached there (less where your faith already holds the town). They **fine** you (20g + 1% of the population, up to 400g), cost **3 reputation** with the realm, and on the **third offence** (or by chance from the second) **ban your preaching in the realm for 30 days**. Offences are forgotten after 60 quiet days. Realms you founded have no hostile clergy.
 
 ### Faith Income
 
@@ -1854,9 +2120,55 @@ Spend karma to perform divine interventions:
 
 Targeted miracles (Smite, Resurrection, Plague) check for a target first; with none, nothing is spent.
 
+### Devotion: Prayer, Meditation, Vows and Omens
+
+Prayer and meditation (the world-map **Meditate** action, a temple's **🕯️ Devotions** card, an altar or pew in the inner map) run through one devotion model (`systems/devotion.js`, `data/devotion.json`):
+
+- **Your creed.** You keep your own founded religion, or take up a living world faith (📿 *Your devotions* → *Take up …* at its temple or shrine). Leaving a faith costs 5 karma and halves your standing with its clergy; you cannot convert again within 30 days.
+- **The place.** Open ground ×0.6, an altar ×1, a temple ×1.2, a holy site ×1.8. A place of your own faith ×1.4; of another faith ×0.6 (meditation is less faith-bound); with no creed ×0.7. A shrine held by a realm of another faith is soured (×0.6). A shrine held by a realm at war with you (or that despises you, reputation ≤ −20) risks its wardens' fine and a beating; a contested one, a scuffle.
+- **Diminishing returns.** Each devotion of the day is worth less (100%, 60%, 35%, 15%); the same place again within 6 days halves again; karma from devotion is capped at **6 a day** (+2 with the Humility tenet). Faith and intelligence rise in small steps (+0.25 / +0.2) under a lifetime cap (+2.5 faith, +1.5 intelligence from devotion). The meditation minigame's score sets the quality.
+- **Omens.** Now and then (likelier at holy sites, twice as likely at a Moonwell or Sunken Temple, more with Mysticism) a vision points at a real place within 14 hexes you haven't found — an unexplored delve, a holy site, an untouched ruin, an outlaw den — and reveals it on the map. At most one every 6 days.
+- **Vows.** A devotion may move you to swear one of two offered vows (at most two at once): **Peace** (no battle or bloodshed, 10 days), **Sobriety** (no taproom or drink, 7 days), **against Dice** (no wagers, 7 days), **Alms** (give 40 + ½ renown gold within 12 days), or a **Pilgrimage**. Vows watch your real deeds (earned-trait deed records, battles won, alms given): kept, they pay karma, faith and renown; broken, they cost karma and count against your honesty.
+- **Clergy standing** rises with prayer at your own faith's temples and with temple alms; it discounts that faith's rite of redemption (up to 35%).
+- A **soul sold** dulls everything (×0.4); a **cursed** soul's prayers go unheard.
+
+### Alms
+
+**Donate** (and a temple's alms box) asks who receives the gift:
+
+| Recipient | What it does |
+|-----------|--------------|
+| ⛪ The temple | Clergy standing with the town's faith, the realm's piety (up to +3), your own faith's hold on the town if it has one |
+| 🥖 The poor | The town's happiness (by its size, up to +6), reputation with the realm, Generous/Merciful deeds |
+| ⚒️ A guild you belong to | Your standing in the guild |
+| 🧑 Someone in need | A named townsperson from the living roster (a beggar, the hurt, the old, the penniless): their purse and their regard for you |
+
+Karma follows a square-root curve on the gift. Each town tires of the same giver: recent gifts there (decaying 4% a day) make the next count for less.
+
 ### Pilgrimages
 
-Travel to holy sites scattered across the world to receive gold, karma, and renown rewards. There are **12 types** of holy sites, from Sacred Springs to Grand Reliquaries.
+There are **12 types** of holy sites. Swear a **pilgrimage** (📿 *Your devotions* → *Swear to walk there*): you have 8 + 1.6 days per hex to reach the shrine. At a holy site you **kneel with an offering** — a candle (5g), alms (25g) or a rich offering (80g); **the pilgrim pays, and the shrine's holder takes it**. Completion gives karma (½ the site's faith bonus), renown (+5), faith (+0.5) and **the site's blessing**:
+
+| Site | Blessing |
+|------|----------|
+| Sacred Spring | Full healing, and the road blessing (5 days) |
+| World Tree | Bountiful harvest (3 days) |
+| Oasis Shrine | Prosperity (3 days) |
+| Dragon Bones | Divine protection (1 day) |
+| Storm Peak | Combat +0.3 |
+| Celestial Observatory | Cartography +0.3, intelligence +0.2 |
+| Crystal Cavern | Intelligence +0.2 |
+| Moonwell / Sunken Temple | An omen |
+| Ancient Altar | +4 karma |
+| Grand Reliquary | +6 renown |
+| Blood Stone | Faith +0.25 for 10 health |
+
+A shrine of your own faith gives ×1.25, another faith's ×0.7; a sworn pilgrimage ×1.5 (and keeps the vow); each earlier visit halves it; the great blessing comes once a season (30 days) per site; once a day per site. Contested shrines add +3 renown for braving them; hostile holders may fine or beat you. Overdue pilgrimage vows are broken. Pilgrimages spread a deed rumour.
+
+### The Stranger (Soul Pact)
+
+The tavern's **Sell Your Soul** is a storyline (`systems/soulPact.js`): a named stranger buys it once for 60 + 1.5×renown + 2×karma gold (up to 400), at −10 karma and −2 renown. 18–32 days later **the debt comes due** with a demand: pay back double, or do a dark deed within 8 days — a cruel act, a damning lie, a town put in fear (your earned-trait deed records are watched). A kept demand buys 30–50 quiet days and a small purse. **Refuse**, or let the days run out, and you are **cursed**: −2 luck, −0.5 karma a day, −5 renown, prayers unanswered. The soul is bought back at a temple (three times the price, at least 150g, less your clergy standing's discount), or won back by **keeping a pilgrimage vow to a shrine of your own faith**.
+
 
 ### Heresies
 
@@ -2300,6 +2612,67 @@ While aboard on open water you can:
 - **Hunt Pirates** (10 AP) — win for a gold bounty, +3 renown and +2 karma; lose and the ship and crew take damage.
 - **Turn Pirate** (10 AP) — plunder merchant ships for gold at the cost of karma, renown and reputation with every kingdom.
 
+Each of these is an **encounter in phases**: every choice shows its odds, and what you choose changes what comes next (`systems/pirates.js`, tuning in `data/pirates.json`).
+
+**Sighting.** When you sight a pirate you can:
+- **give chase**: your speed against theirs;
+- **shadow them till dusk**: stealth and a quiet ship, to fall on them while they are unready (+25% boarding strength);
+- **hail and parley**: to demand their surrender if you clearly outgun them, buy the bearing of their haven, pay them to leave these waters, or part ways;
+- **break off.**
+
+A merchantman can be **run down**, approached **under false colours** (you board her unready, and fewer people learn your name), or ordered to **strike** under the black flag. Your infamy makes that last one easier.
+
+**Battle.**
+- **Broadside:** wears them down by 20–40% at the cost of some hull. A greedy or honourable crew strikes its colours below about a third of its strength; a cruel one never does.
+- **Grapple and board:** decides the fight.
+- **Duel their captain:** your combat and strength against theirs. When the captain falls, the crew yield.
+- **Withdraw.**
+
+If you lose to pirates, they take 10–25% of your purse, and their captain keeps it until you beat them.
+
+**Aftermath of a beaten pirate.** First you decide what happens to the captain and crew:
+- **Ransom the captain.** Their haven pays, and so you learn where it lies; the captain goes free.
+- **Hand them to the crown.** You get the bounty and renown, and the captain hangs. Their haven-mates never forgive it.
+- **Press the crew into yours.** Sailors fill your berths, morale drops, and the captain is set adrift swearing vengeance.
+- **Let them go.** +3 karma, and the captain remembers the mercy.
+
+Then you decide what happens to their ship:
+- **Seize her as a prize.** She joins your fleet: a prize crew of 2 sails her to the nearest port at 35–65% condition. This needs room in the fleet and enough crew to spare.
+- **Sell her** to a prize broker.
+- **Scuttle her.**
+- **Let them keep her,** if you spared them.
+
+**Aftermath of a taken merchant.** You always get her strongbox and as much of her cargo as fits in your hold. Beyond that you can:
+- **let her go**, and her crew talk;
+- **ransom the passengers** too, for more gold and more infamy;
+- **take the ship** for your fleet;
+- **sink her with all hands.** No witnesses means almost no infamy and no reputation loss, but −10 karma and cruelty.
+
+**Named pirate captains** (Red Maud, Silas Crane, Hagen Ironhook, …):
+- Four sail at a time. Each has a ship, a temperament (cruel, greedy or honourable) and a **haven**: a lonely cove on the coast, the same for the same world.
+- They grow stronger raiding the lanes.
+- They **remember you**: mercy, a ransom, a beating, a humiliation. This changes how readily they parley, and an honourable captain who likes you may tell you where a rival lies up.
+- A captain with a bad enough grudge **comes looking for you** at sea. You can run, parley or fight.
+- A hanged captain is replaced in time by a successor.
+
+**Havens.** Sail beside a known haven to **raid** it: storm it with your guns and boarders, or make a night landing to take the hoard by stealth. A raid wins the rovers' hoard and +10 renown, halves the strength of the captains based there, and earns their undying hatred. The **Sea Rovers** entry, aboard ship, lists the captains you have met, the havens you know, what each captain thinks of you, and your infamy. Every haven you know is also **drawn on the world map** (an island in a black-and-red ring, with its name and, zoomed in, its captains; greyed for 30 days after a raid), and a captain you met in the last 20 days is marked faintly where last sighted. The hex panel of a haven shows its strength, each captain's strength and grudge against you, and whether it can be raided.
+
+**Infamy.** Piracy earns infamy on top of the old reputation loss and underworld heat: +10 per merchant taken, +8 more if there are witnesses, more again for ransoms and stolen ships. It cools slowly at sea and faster in port. From 25 infamy, **pirate hunters** and navy squadrons come after you at sea. You can:
+- **run;**
+- **fight**: winning makes your name darker still;
+- **bribe their captain;**
+- **strike your colours**: pay a fine and lose your cargo. If you can't pay, they sail you to the nearest port, impound your ship and throw you in its cells.
+
+**Explore the Waters.** First the nearest uncharted place may be found (see Uncharted Lands). Otherwise a sea event comes with choices:
+- **a drifting derelict:** board her for her strongbox, at the risk of flux; or strip her timbers;
+- **castaways:** hands for your crew and word of uncharted land, unless they are marooned mutineers;
+- **lights over the water:** they point to an uncharted place, or onto shoals;
+- **a bottle in the swell:** sometimes a treasure map;
+- **a sea monster:** fight it, burn oil on the water, or run;
+- **a squall:** reef sails or run before it;
+- **whales:** watch or hunt;
+- **a pirate sail:** becomes a sighting.
+
 ### Royal Fleets at Sea
 
 Kingdoms keep fleets (see [Royal Fleets](#royal-fleets)), and a hostile one guards its waters. A ship of yours that is at sea, sailing or at anchor within **3 hexes of a port** of a hostile realm may be stopped by a squadron of its fleet. A realm is hostile if it's at war with you or with your liege (12% chance a day), or if your reputation with it is −50 or worse (4% a day). Ships docked in a harbour are safe. Your liege's fleet never stops you.
@@ -2557,6 +2930,25 @@ Each title comes with unique perks — the Tax Collector earns 15–40g per coll
 
 Failing to fulfill your duties risks demotion.
 
+### Duties of Office: How You Serve
+
+**Collecting taxes is a choice.** At a settlement of your kingdom the **💰 Collect Taxes** action opens the rolls; your clerks have assessed the town (its mood and any grudge it holds), and you pick how to collect. You keep the collector's **fee**; the **levy** goes to the crown.
+
+| Way | Your take | The town | Other |
+|-----|-----------|----------|-------|
+| ⚖️ Collect fairly | the fee | — | +reputation with the crown |
+| 🗜️ Squeeze them | ×1.6 fee, ×1.5 levy | −8 mood, **+2 grudge**, unrest in a holding | +2× reputation, −1 karma |
+| 🕊️ Spare the poor | ×0.5 fee | +5 mood, grudge eased | +1 karma, +1 renown |
+| 🤫 Skim the take | fee + ~0.9× fee pocketed | −1 mood | −1 karma; the audit |
+
+A **grudge** stays on the town (one point fades every 15 days): each point cuts later collections there by 12%, an unhappy town pays less than its rolls say, and **squeezing a resentful town may start a riot** (8% per point): half the fee lost and a beating. Skimmed gold is booked as embezzlement; at the month's duty review the crown's **auditors** check your books — the more you took the likelier they find it (10% + 0.3% per gold, less with Commerce, at most 85%). Caught, you repay **twice** what you took, lose 15 reputation (more if you can't pay) and 3 renown, and the month counts as failed duty. Walking away from the rolls collects fairly.
+
+**The crown's share.** The levy really reaches the kingdom's treasury: the town pays the levy and your fee out of its own purse (no coin is made), the crown books it on its land, poll and excise lines (the Treasury panel shows it), and whatever you skim is missing from the crown's share. A poor town pays only what its purse holds. Squeezing a town you do not hold sours it further (its unrest lands on its mood, −4 more for a squeeze), and a **tax riot** shuts the tax-house: the crown's own collectors are refused there for 10 days. Tuning: `data/titles.json → taxCollection`.
+
+**The chaplain's blessing** lifts a town's mood (+3) and for 20 days anyone there — you included — catches disease at 60% of the usual chance (`data/titles.json → blessing`).
+
+**The jailer's fugitive** is hunted as a bounty hunter hunts: the warrant shows the pay, the capture uses the bounty hunter's odds (your combat, stealth, leadership, soldiers and hunter rank against the fugitive's difficulty and wariness), and a fugitive who fights free flees a few hexes, warier. You can take them anywhere — out in the wilds too. Captured, they await your judgment like any bounty: **turn them in** for the warrant (with your hunter-rank bonus), the jailer's karma and renown, and the month's duty — or **recruit** them, at a heavier cost in karma and with no credit for the duty.
+
 ### Claims & Crowns: the Path to the Throne
 
 Serving a crown is not the end of the road. Open **Dynasty → 👑 Claims & Crowns** (or the **Claims & Crowns** action at any settlement once you have business there) to see your claims, the succession crises in the world, your war for a throne, and the realm you rule. Tunables live in `data/throne.json`.
@@ -2762,6 +3154,78 @@ Once a plot is uncovered, open **Dynasty → House → Plots Against You** to re
 
 When a scheme lands, the rival's feud drops by 10 (their grudge is partly satisfied). When you foil one, it rises by 5.
 
+#### The Faces Behind a Plot
+
+A rival does not work alone. Each scheme is carried out by one of the **townsfolk** of the town nearest its target (or nearest you), among the towns whose people you have walked among. Thieves bribe a merchant, saboteurs use a smith or a farmer, raiders turn a guard, agitators work through a priest, and slanderers use a traveller or a merchant. The agent is a real person on the town's roster:
+
+- When a plot is **uncovered**, the House panel and the warning name its agent: *"House Varr plots to send thieves after your treasury — through Brom Stoneheart, merchant of Ashford."*
+- When a plot **lands**, the town remembers it. The townsfolk's news and the journal tell how Brom *"let thieves at the treasury of House Ashborne for House Varr"*. A **raid** kills one of the town's guards defending your holding: they die on the roster, and their widow and children mourn them in later reunions.
+- When a plot is **foiled**, the agent is seen slipping away.
+
+The agent then becomes a **suspect** for 90 days. Suspects are listed under **Dynasty → House → Suspects**. Find them in their town and talk to them to confront them:
+
+| Choice | Effect |
+|--------|--------|
+| ⚖️ **Name them a traitor** | They are driven out of town into exile. A plot still in hand is broken. +3 standing with the realm. If they helped a theft that landed, half the gold is recovered. The rival is shamed (+5 feud). Their spouse, parents and children think 20 points worse of you |
+| 💰 **Turn them** (60 + 2 per feud point, in gold) | A plot still in hand comes to nothing. For 120 days they inform on that rival: +15% daily chance to uncover its next plots |
+| 🕊️ **Let them go** | +3 karma, a mercy deed, +25 disposition, and −3 feud. A plot still in hand goes on without them. Years later they will tell you they have not forgotten |
+
+### Ambitions That Follow
+
+Fulfilling an ambition's capstone pays a **reward** (data/house.json), records the deed in the chronicle, and gives the House an **honour** it keeps forever. Each honour adds to your good fame in every realm (see *Fame* below). A fulfilled ambition cannot be taken up again. Instead it opens a greater one:
+
+| Fulfilled | Reward | Opens |
+|-----------|--------|-------|
+| Seat of Power | +20 Prestige, +15 renown, +3 standing everywhere, *Founders of a Realm* (+6 fame) | **Crown of Realms**: hold 6 settlements, field 300 strength, reach 150 renown; capstone: rule a kingdom |
+| Crown of Realms | +40 Prestige, +30 renown, +5 standing, *A Crowned House* (+12) | **Empire of the House**: 10 settlements, 2 colonies, 600 strength; capstone: 15 settlements and a crown |
+| Faith Eternal | +20 Prestige, +10 renown, *Keepers of the Faith* (+5) | **The Holy See**: 10,000 followers, 8 temples, karma 60; capstone: 20,000 followers and 12 temples |
+| Merchant Dynasty | +15 Prestige, +2,500 gold, +8 renown, *Merchant Princes* (+5) | **Bankers to Kings**: 100,000 gold, 8 routes, 12 properties; capstone: 200,000 gold and 15 properties |
+| Bankers to Kings | +35 Prestige, +10,000 gold, +20 renown, *Bankers to Kings* (+10) | **Masters of Coin**: 400,000 gold, 12 routes, 20 properties; capstone: a million in gold |
+| Bloodline of Kings | +20 Prestige, +8 renown, +2 standing, *Blood of Kings* (+5) | **Blood of Empires**: 6 children, a 3rd generation, 120 Prestige; capstone: 8 children across 4 generations |
+| The Great House | +25 Prestige, +12 renown, *A Great House* (+6) | **The House Eternal**: 250 Prestige, 3 honours, a 4th generation; capstone: 400 Prestige across 5 generations |
+
+The last tiers (Empire, Holy See, Masters of Coin, Blood of Empires, House Eternal) pay larger rewards and honours (+12 to +20 fame). The choice screen shows each ambition's tier and reward.
+
+### Demands Upon a Rich House
+
+Gold without a crown draws hands to your purse. Every 15 days, if no demand is already open, one of these may come. Each kind has its own cooldown (crown 90 days, guild 75, rival 60):
+
+- **The crown** (your liege, or the realm you stand in) asks when its chests are low (under 30 days of spending, soldiers or officials in arrears, or at war on thin reserves), you hold 5,000+ gold and wear no crown yourself. It asks either a **benevolence** (a gift of 8% of your gold) or a **forced loan** (12%, repaid after 120 days with 5% interest when the crown can pay; it may defer up to 3 times by 30 days, then default).
+- **A guild** of a town where you hold property or works (and whose member you are not) asks a contribution of 3% of your gold for its guildhall, once you hold 4,000+ gold.
+- **A rival House** with feud 40+ demands tribute once you hold 3,000+ gold. It asks 4% of your gold, +0.1% per feud point, and 25% more for every tribute you have already paid it.
+
+Answer from **Dynasty → House → Demands Upon the House** within 10 days:
+
+| Answer | Crown | Guild | Rival |
+|--------|-------|-------|-------|
+| 💰 Pay | +5 standing (loan: +3, and the money comes back) | Guild feud −25, the gold goes to its hall | Feud −20 (and next time they ask more) |
+| 🗣️ Negotiate (chance: 35% + 4% per diplomacy + 3% per charisma above 5, 15–85%) | Pay half, +1 standing; on failure −4 standing | Pay half, feud −10; on failure +5 | Pay half, feud −10; on failure +5 |
+| ✋ Refuse | −12 standing, −5 Prestige | Guild feud +20. Past its sabotage line, its men wreck your works | Feud +15, and the rival hatches a plot at once if it can |
+
+A demand left unanswered counts as refused.
+
+### Fame: Your Name in Each Realm
+
+Renown is a single number. Fame is what that number means in a given realm. Each realm reckons two scores:
+
+- **Good fame**: renown × 0.35 + positive standing × 0.45 + positive karma × 0.08 + your House's honours.
+- **Ill fame**: negative standing × 0.7 + negative karma × 0.35 + underworld heat × 0.5 + 0.15 per feud point of a rival House that rules there.
+
+When ill fame reaches an ill stage and is at least as great as good fame, the ill stage applies. Otherwise the good stage does:
+
+| Stage | Score | Prices | First impression | Also |
+|-------|-------|--------|------------------|------|
+| 🚶 Stranger | good 0+ | — | — | |
+| 🗣️ Known | good 15+ | −3% | +5 | People greet you by name |
+| 🌟 Celebrated | good 40+ | −6% | +10 | A free meal and a free room at the inn (once a week in each town). Crowds gather when you arrive |
+| 👑 Legend | good 80+ | −10% | +18 | As Celebrated, and well-wishers press 5–25 gold on you |
+| 🤨 Distrusted | ill 25+ | +6% | −8 | Bribing the watch costs 25% more |
+| 🚫 Shunned | ill 55+ | +15% | −18 | Bribes cost 60% more. Guards shadow you (+8% chance a black-market deal is caught) |
+
+**Pleas.** When the crowd gathers for a Celebrated hero (15% of the time) or a Legend (35%), a townsperson may push through it and beg a favour: a real task (a locket taken by outlaws, a missing son, a pack at the flocks, a stolen relic, a lost caravan, a bandit camp, the hermit's medicine) put in your journal, with the asker to return to. At most one such plea is open at a time, one every 20 days anywhere and every 45 days in the same town. Tuning: `data/fame.json → requests`.
+
+"First impression" sets the starting disposition of townsfolk you meet for the first time. In a realm ruled by a rival House with feud 15+, its people start a further 0.25 points colder per feud point (up to −20), and they talk of the feud. Townsfolk greet you, and talk about you, according to your stage there. Your stage in the realm where you stand is shown in the character panel (**Your Name Here**). Each realm's stage, and any rival House that rules it, is shown in that kingdom's info panel.
+
 ### Social Interactions
 
 You can build relationships with NPCs through social actions:
@@ -2788,6 +3252,38 @@ Every person you talk to on a settlement map remembers you (the disposition bar 
 - **Titles** — gain a title and people who knew you congratulate you (+5 disposition, once).
 - **Harming people** — attacking someone sours their spouse, children, parents and siblings toward you (killing them far more: up to −63), and close friends too. Grieving relatives hold a grudge and greet you with it, and the family's bonds with each other grow stronger.
 - **Night** — from 9 PM to 5 AM most townsfolk go home (travelers to the tavern) and stay in; guards keep patrolling.
+- **Charm and Persuade are harder with some people.** The difficulty depends on who they are and how they feel: the jovial, kind and generous are easy to flatter, the quiet and cautious harder, the stern and stubborn hardest; nobles and children like praise, guards and priests see through it. Someone who likes you (70+) is easier, someone who dislikes you (under 35) harder, and flattering the same person again is harder still. The choice's tooltip shows the difficulty and why.
+- **Spending goodwill.** A trader who likes you (50+) can be asked **"Surely you can do better on the price?"** — a discount of 5–15% for this visit (more with Commerce and goodwill) for −5 disposition. Anyone else who likes you (65+) can be asked **a favour** once a month, for −8 disposition: a guard tells you where an outlaw lair you had not found is (it goes on your map), a farmer or townsman gives you grain, a priest tends your wounds (+20 health, +1 karma), a noble speaks for you at court (+3 reputation with the realm), others point out an old ruin or cave nobody has emptied (it is charted on your map).
+
+### What Townsfolk Know
+
+When you ask someone about the realm, the town or the news, what they tell you is **true** — read from the world as it is:
+
+- **"What do you know of the realm?"** — the ruler (and their temper, and whom they succeeded if lately), whether the realm is at war and with whom, its allies and feuds, how its army compares with the other realms', how firmly the crown holds the land, its trade policy (the real import duty, bans on exports, embargoes, treaties), its taxes and treasury, its faith and how united it is, and how the harvest looks where you stand. **Who you ask matters:** a noble knows the ruler, the wars, the realm's stability and its finances; a guard the army and the wars; a merchant the tariffs, taxes and harvest; a priest the faith; a traveller the wars and the roads' tariffs; a farmer the harvest. Outside their own field people speak from **hearsay** — they may be off by a step ("a large army" for a middling one) and they say so ("— or so folk say"). Only what they know for certain is added to what you know of the realm.
+- **How they feel decides how much they say:** someone who dislikes you (under 30) answers curtly with one thing; a neutral person tells two; a warm one three; a friend (75+) four — and adds what isn't said in the street: the crown's debts to the bankers, soldiers who haven't been paid.
+- **"Tell me about this place"** — the town's size and realm, its buildings and who keeps them ("Brom keeps the smithy"), what its market is short of and what is going cheap, its guilds, and — from guards, travellers, children and anyone who likes you — the outlaws holed up nearby (a guard's word puts the lair on your map; anyone else's marks where it is rumoured to be) and an old ruin or cave nobody has been to the bottom of (charted on your map).
+- **"What news?"** — when there is no talk of great events, a rumour drawn from the world: a nearby town short of something, riders out of a lair raiding the farms, an old place nobody came back from, levies for a war, a harvest failing in another region, word of people you know.
+
+### Townsfolk Live Their Lives
+
+The people of a town are real and persistent. The first time you walk through a settlement its residents are written into the town's roll (saved with the town), and from then on they live, a season (30 days) at a time, whether you are there or not:
+
+- **They age.** A child you met at 9 is a grown townswoman of 19 when you return ten years later — with a trade (often a parent's: a farmer's son farms, a smith's daughter takes the hammer, nobles' children stay noble) and the adult sprite to match. Infants under 4 stay indoors. Guards, farmers and smiths past 62 retire.
+- **They marry and have children.** Single folk of 17–45 wed someone in town (never close kin), or now and then someone from another town who moves in; a bride takes her husband's name. Couples have children (not in the first months, with a year or more between them, up to five). Babies are sometimes named for a grandparent who has died.
+- **They die.** Mortality rises with age (infants and the old are most at risk), and hardship kills more: a food dearth in the town doubles deaths among the very young and old, plague quadruples them, hard winters take the elderly, and guards fall when their realm is at war. Childbirth carries a risk. Every death has a cause and a date.
+- **They come and go.** Young single folk sometimes leave for another town; a town that has shrunk below its usual size draws newcomers, sometimes whole families. Travellers stay transients and are not on the roll.
+- **They remember you.** What someone thinks of you (disposition, gifts, threats, quests) belongs to the person, so it lasts between visits and across the years. Someone you haven't seen for a couple of months greets you with what has happened since: *"Do you remember me? I was only a child of 13 when you were last here. I'm a farmer now — 24 years old! I wed Bjorn Bramblewood in the spring of 862."* Widowhood, a lost child, a parent's death, a new baby or a retirement all come up.
+- **Ask about it.** **"Tell me about your family"** now covers the living and the dead: a late first husband, children who went off to other towns, a mother who passed in a hard winter. **"What's become of folk here since I was last through?"** gives the town's births, deaths, weddings and departures since your last visit, told by the speaker (*"My mother Clara died in the winter of 859, aged 69 — the winter cold."*), with the people you know first.
+- **Word reaches you.** When someone you have spoken with dies anywhere in the world, you hear of it (*Word from Northhold*). If you've talked with them more than once, or they're fond of you, you also hear of their weddings, children and moves.
+- **Journal → People You've Known** lists everyone you have spoken with, in every town: the living, those who moved away and the departed, with their trade and age (or when and how they died), their spouse and children, how they feel about you, when you last spoke (*"as a child of 9"*), and **their story** — coming of age, marriages, children born and lost, retirement. At the top, the **Latest Word** of them.
+
+**They can become part of your life.** Once someone grown has spoken with you twice and thinks reasonably well of you (disposition 45+), the conversation offers **"I'd like to know you better."** That opens the same friendship-and-courtship scene as anyone met through *Meet People*. They are the same person, so their name, age, temper and family come with them, and what they already thought of you becomes the starting friendship. From then on:
+- **Friends, lovers, companions.** Befriend them, court them, or invite them on the road. A townsperson who joins your travel party leaves town (*"Away — the road with Rowan"*). They don't walk its streets or live its seasons while away, and come home when you dismiss them.
+- **Marriage.** Marry them and they leave home to live with you. Someone already married in town can't be courted (*"Ada is married to Holt Ironwood"*) unless they are widowed.
+- **One life.** Their age follows the town's roll. A death on either side is a death on both: someone who dies at home is gone from your circle, and a companion killed on the road dies on the town's roll too, with the cause recorded. Their kin speak of them (*"Finn is away — wed to Rowan. You'd know better than I how they fare."*).
+- **Meet People** in a town whose people you have walked among now introduces its own townsfolk, the ones you have spoken with first.
+
+Tuning (rates, names, causes of death) lives in `data/townsfolk.json`.
 
 ### Townsfolk Talk & Heralds
 
@@ -2802,6 +3298,23 @@ You hear it when greeted (hostile folk keep their own greetings), when you ask *
 **Heralds.** A coronation, a realm falling or rising again, a war declared, a peace made, a saga's end, a revolt or peasant rebellion, a new land named on the charts, or a siege won or broken is proclaimed where it happened. The news travels 8 hexes a day; every town it reaches knows it (townsfolk repeat it, and it is pinned to the tavern notice board) and when it reaches you, you get a dismissible notice. At most one a day, with two quiet days between (the gravest news — a coronation, a fallen realm — always gets through). News of your own doings is talked about but not cried at you. Proclamations are forgotten after 40 days. Settings → Heralds' Proclamations turns the notices off.
 
 **Your deeds spread.** Sacking a town, feeding a starving town from your treasury (the Empty Granaries petition), pardoning a criminal at court, or winning a duel against a rival adventurer starts a rumour where it happened. It spreads from town to town like any rumour and fades over 40–90 days, but it is talk, not a crime: no bounty, no reputation loss, no hostile guards. Townsfolk who have heard it mention it, and **Listen for Gossip** at a tavern repeats it as *Talk of Your Deeds*.
+
+**Rumours grow in the telling.** Each time a rumour reaches a new town, the teller either passes on the version they heard (65%) or may change it (35%). The change sets how the rumour is told *in that town* and scales its severity there, and with it the bounty, the ban and the guards:
+
+| Telling | Of | Severity there |
+|---|---|---|
+| Grown in the telling | crimes, affairs | ×1.35–1.4 |
+| Monstrous (from the second retelling) | crimes | ×1.6 |
+| Softened / Doubted | crimes, affairs | ×0.5–0.6 |
+| Blamed on a stranger | crimes | ×0.15: you aren't named |
+| Garbled | crimes | ×1 |
+| Become legend | deeds | ×1.4 |
+| Credited to another (from the second retelling) | deeds | The deed is told as your most renowned rival's, and townsfolk there don't credit you with it |
+| Soured | deeds | ×0.8 |
+
+A rumour that only costs you reputation in a realm (the first time it reaches one of its towns at severity 10+) now says so: *Your Name Suffers*, with the loss.
+
+The same murder can bring a bounty in one town and a shrug in the next. At the tavern's **Whispering Corner** you can pay a bard (35g) to **sing down** a crime rumour in that town. Its telling there becomes *Sung down* (×0.3, and you aren't named), and that version spreads onward like any other.
 
 ### Relationship Tiers
 
@@ -2832,6 +3345,27 @@ Key romantic actions:
 Gifts come from a list — Wildflowers (5g), Silver Necklace (50g), Gold Ring (100g), Written Poem (free, helped by intelligence), Fine Blade (80g) and Rare Book (40g). Pricier gifts win more affection, and each personality has favourites worth half again as much (bold and stoic types love a blade; witty ones a poem or book).
 
 **Marriage benefits** (from `data/relationships.json`): +1 stamina, +10 social, +5 reputation with your spouse's kingdom, +3 renown, and kinship: that kingdom's lord thinks better of you (+20 opinion) for as long as the marriage lasts.
+
+**Affairs.** Marriage doesn't stop you courting someone else. You can't propose, and spouse-only acts stay locked, but every successful romantic act carries a 30% chance that someone saw you. An *Affair* rumour then starts in your lover's town. It is talk, not a crime (no bounty, no hostile guards), and the townsfolk who hear it will tease you about it. If it reaches your spouse's town, or your spouse travels with you, your spouse will want a word (see below). A spouse may also sense that something is wrong even without the rumour.
+
+### Matters of the Heart (and Friendship)
+
+The people you know bring things to you. A notice tells you who and where (*"Mira has something to ask you, quietly. Find them in Tallow."*). They are tagged **💌 Wants a word** in Meet People and listed under **💌 Unfinished Business** in your Relationships panel. Settle a matter face to face: open their scene and their answers come first. Each person has at most one open matter, at most 3 are open at once, and each lasts **18 days**. A matter you ignore has its own cost.
+
+| Matter | Who | Your answers | If ignored |
+|---|---|---|---|
+| 💰 **A Loan** (25–120g) | Friends (30+) | Lend: +8, and they repay within 20–40 days with 20% on top (more honest personalities are likelier to pay, and so are loyal ones: ±0.5% per point of loyalty from 50) · Refuse: −4 | −3 |
+| 📉 **The Debt** | A friend who can't repay | Forgive: +12, +2 karma · Demand: half back and −10 on a charisma roll, −20 on a failure · Wait: 30 more days, +2 | Taken as forgiveness |
+| 🤫 **A Confidence** | Close friends (60+) | They tell you whether a court scandal in their realm is **true or a lie** (see [Court Scandals & Whispers](#court-scandals--whispers)), or confide a sorrow: comfort them (+6) or deflect (−2) | Nothing |
+| 🙏 **A Plea** (30–90g) | Friends (30+) | Pay: +12, +3 karma, more loyalty · Refuse: −6 | −8 |
+| 🌹 **A Rival Suitor** | Someone you court (affection 25–79) | Gift (40g): +10 affection · Fight the suitor (strength roll): +15 affection and a *Duel Won* deed, or −5 affection and −15 health · Step aside: the romance ends, +5 | They marry the suitor: the romance is over, and they can no longer be courted |
+| 👂 **What They Heard** | Friends (10+) whose town has heard a crime rumour about you | Deny: a lie, harder the worse the rumour is told there (a failed lie costs −18) · Admit: costs more with kind or gentle people, less with bold or ambitious ones, earns loyalty (+5), and they **trust your word** after: +15% to later denials and lies with them, until they catch you lying · Justify: the ambitious and bold respect it, the kind recoil. A slander from a rival is simply denied (+3), and they speak up for you: the slander is sung down in their town and loses 30% of its credit everywhere | −8 |
+| 💢 **Jealousy** | Your spouse | Lie (worse odds if they heard the rumour) · End it: the romance they named ends (that lover −25); if they only sensed it, all your other romances end · Defy them: −20 affection. A failed lie costs −30. Below 15 affection, **they leave you** | −12 affection |
+| 🗡️ **A Grudge** | Enemies (−30 or worse) | They spread a *Slander* rumour about you from their town. Make peace (30g): +30 · Threaten (strength roll): the slander stops | −10, and it goes cold: they will not be courted for 180 days |
+
+**Loyalty.** Each person's loyalty to you (50 to start) rises when you bail out a kinsman (+10) or admit a hard truth (+5) and falls when they catch you lying (−5). It shifts the odds that they join your travel party (±0.6% per point from 50) and that a debt of theirs is repaid.
+
+Good word travels too. When a deed of yours reaches the town of someone who likes you, they warm to you (+2) and tell everyone they know you.
 
 ### Children & Heirs
 
@@ -2866,6 +3400,7 @@ Stats cap at 14 and skills at 8 during childhood.
 - hold a **House office** (Steward, Marshal, Chancellor, Spymaster, Heir), which uses their skills;
 - make an **alliance match** into a kingdom's nobility: a 200 gold dowry, for +15 reputation with that kingdom and +4 Prestige;
 - make a **royal match** with an unwed prince or princess: 500 gold and 20 Prestige (needs 20 reputation), for +20 reputation and a claim of 15 on that throne;
+- make a **match in town** with one of the townsfolk of the right sex, unwed and within 12 years of their age, from any town whose people you have walked among (people you have spoken with are listed first). There is no dowry. It costs 2 Prestige for marrying beneath the House, or gains 1 if the match is from a noble or merchant family. You gain +4 reputation with the town's realm, and the match's parents and siblings think 15 points better of you. The townsperson leaves home to live with the House (the town remembers: *"Wren Millbrook wed into House Vale in the spring of 861. Imagine that."*). If that child inherits, the townsperson becomes the new ruler's spouse;
 - be sent as a **ward** to a ruler's court for 120 days. A ward cannot hold an office while away. They return with +1 leadership, +1 diplomacy, +10 reputation with that realm, and often one of the host's traits: a devout ruler teaches piety, a cunning one cunning. Each child can be fostered once.
 
 Married and fostered children stay in the line of succession.
@@ -2929,6 +3464,12 @@ The House adds 40 per generation and 1 per point of Prestige.
 | 🩹 Wounds & Sickness | wounds, diseases, recoveries, festered wounds, scars, treatments |
 | 📯 The Heralds | news proclaimed in the world and proclamations you heard, with the last five that reached you (including any the heralds' daily limit kept quiet) |
 | 🌿 Living off the Land | foraging trips and hunts, with your forager's and hunter's craft rank |
+| 🕯️ Whisper Campaigns | tales planted, fanned and quashed, lies believed, your lies debunked, whispers traced to you, rulers blackmailed, proofs sold |
+| 🗡️ Notoriety | killings (witnessed and unseen); bounties on your head and the gold on it now |
+| 🌾 Estates & Land | estates bought and sold, gold paid and received, rents banked, arrears collected, times you pressed for them, improvements, enclosures, dowries, confiscations |
+| 🧶 The Putting-Out Trade | units put out, cloth collected, piece wages, guild fines, units seized |
+| 💰 Money & Trade | gold drawn by bills of exchange, gold got by forged bills and forgeries caught, gold put into crown bonds and coupons earned, shares bought back, forward contracts delivered and failed, trade laws breached, goods smuggled, times caught |
+| 📒 The Realms' Books | (the world's, "now") grain engrossed, sold back, spoiled, edicts against engrossers and grain thrown open; tax farms sold (and those you bought); tax revolts |
 
 Below the sections, the ledger lists your **achievements** by tier, each with the day it was won, and the name of every quest you completed.
 
@@ -2945,6 +3486,22 @@ A reign that began in a save from before the ledger existed is counted from the 
 | 400+ | A Respected House |
 | 900+ | A Great House |
 | 1,800+ | A Legendary Dynasty |
+
+### The Annals: Your Story as a Book
+
+**📖 The Annals** (Journal → The Annals, Dynasty → 📖 The Annals, the death screen's *Read the Annals of your life*, the Jump In panel while time passes, and the welcome of a new life) tell your life and your dynasty as a chronicle you can read back. Nothing new is tracked for it: the book is written, whenever you open it, from what the game already keeps — the House chronicle, each ruler's reign record, your traits, the sagas you took part in, your pilgrimages, the bards' honours (gold and legendary achievements), the money ledger, your fame in each realm, and what the lords remember of you.
+
+**Chapters.** Each ruler of the House has a chapter, titled from their standing and the name the realm gave them — *The Reign of Aldric the Brave, 1st of House Ashford, years 1012–1031* for a crowned ruler, *The Lordship of…* for one with offices or towns, *The Life of…* otherwise. A chapter opens with how they came to the House (founding it, inheriting it — disputed or under a regency — or, for a new life, where they came from), then tells the notable years in order, season by season. Only what matters makes the book: births, marriages and widowhood, wars, sieges and conquests, crowns won and lost, offices, Great Works, discoveries and sagas outweigh a guild's demand or a rival's grumble; a busy year keeps its six weightiest events and notes the rest, and long quiet stretches are passed over in a line. Each chapter closes with its themes: **war** (battles, towns taken, sieges, beasts of legend), **rise** (crowns, offices, Prestige, judgements remembered, quests), **wealth** (the purse when the ruler took it and left it, the peak and the lean years, and — for the living — where the coin comes from and goes), **love & family** (the spouse, the children born), **faith** (prayers, pilgrimages, vows kept and broken, a faith founded), **infamy** (lives taken, crimes, whispers, rivals bested, a dark name), and **death** — the cause, the age and the name they would be remembered by. The living ruler's chapter ends *to the present*.
+
+**Legacy.** The last page measures the House: its rank and Legacy score, its Prestige, its greatest ruler, what it holds now, its fortune from first to peak to today, where its name is celebrated and where it is cursed, the enemies it has made (rival Houses with a deep feud, lords who remember you ill) and its friends, and the children of its blood who live.
+
+**Before.** When you begin a new life as someone else, the old line's book goes with you: it is shown under *Before: House …* tabs, and the new House starts a book of its own. An heir's book simply goes on: every earlier ruler keeps their chapter.
+
+**Sharing.** *📋 Copy as text* puts the whole book (with any *Before* books) on the clipboard; if the browser will not allow it, the text is shown ready to select.
+
+**The court scribe.** With the local language model switched on (Settings → *Enable Local LLM NPCs*), each chapter offers *✒️ Have the court scribe write this chapter*: the model retells the chapter as flowing prose, using only the chapter's own facts. It takes a moment and never holds up the game; if the model is off, slow or unreachable, the annals simply stand as written. You can switch between the scribe's chapter and the plain annals.
+
+The phrasing is chosen by the event and its day, never by chance, so the same game always reads the same. The wealth curve is a mark of the purse each season, kept with the House (older marks are thinned so a long dynasty keeps its whole curve). Phrases and what counts as notable are in `data/annals.json`.
 
 ---
 
@@ -3198,9 +3755,25 @@ Visit taverns in cities and settlements to gather intelligence, hire informants,
 | Hire Informant | 200g + 10g/day | Permanent source in this city (95% accuracy) |
 | Check Notice Board | Free | Kingdom decrees, settlement stats, bounties, the heralds' proclamations, talk of sagas and of [uncharted lands](#uncharted-lands) |
 | Browse Maps | Free | Open cartography trade panel |
-| Sell Your Soul | Free | 5–10g gold; costs escalating karma and renown |
+| Dice and card tables | Your stake | Opens the gambling den's games (Crown & Anchor, Dragon's Flip, High-Low, poker); a stake counts as a wager for vows and the Gambler trait |
+| Sell Your Soul | Free | A named stranger buys it once for real gold; the debt comes due later — see [The Stranger (Soul Pact)](#the-stranger-soul-pact) |
 
-### Intelligence Reliability
+### Feasts
+
+**Host a Feast** opens a planning table (`systems/feasts.js`, `data/feasts.json`):
+
+- **Guests** (up to 6): the rulers of realms whose seat is within 14 hexes (the town's own lord first; never one at war with you), and the town's notable people (nobles, merchants, priests, guards, smiths) from its living roster. Each lord's regard (their opinion of you plus your reputation) is shown.
+- **Menu**: a modest table (8 portions of food, 4 of drink), a fine spread (16 / 8 / 2 sweets) or a grand banquet (30 / 15 / 6 spiced sweets). Each course is drawn **from your own stores first**, the rest bought at the town's market at its current price — the stalls empty, and a town that can't supply it can't host it.
+- **Entertainment**: minstrels (30g), jesters (45g, insults likelier), a bard's epic of your deeds (70g, +3 renown), games of strength (40g, brawls likelier).
+
+Each guest comes by their regard (lords) and judges the evening by the menu, the entertainment, their traits' tastes (the Greedy love a banquet, the Pious a plain table and no jesters, the Brave and the Cruel games of strength…) and their regard: **honoured** (+6 opinion), content, or **slighted** (−6). The town's own lord left off a list with other lords on it is slighted (−3). Lords remember it (the lord memory deeds `feast_honoured`, `feast_slighted`, `feast_uninvited`, `feast_insulted`, `feast_betrothal`) and your reputation in their realm moves with it; townsfolk guests' regard moves by ±12/−6.
+
+**Incidents** (55% of feasts, sometimes two): a guest **insulted** before the hall (−8), a **betrothal** suggested by an honoured lord (promise a grown, unwed child at home — a real alliance match, which needs no standing in his realm since he offered it — or decline), a **drunken brawl** (fight it out on the duel engine: +3 renown for a win, −2 for a loss; or talk him down on charisma), a **toast** (+3 renown), or **court gossip** (you learn of the lord's realm). Renown is the menu's (3 / 6 / 12) +25% per lord who came; karma, the town's happiness and reputation with the realm rise too, and the feast is talked about (a deed rumour). **One feast a week**; a town that feasted with you in the last 30 days makes half as much of the next.
+
+### Books
+
+**Read** at a bookshelf takes up the book you are in the middle of, or an unread one the shelf could hold (`systems/books.js`, `data/books.json`: 14 books — a village shelf has primers, a town's more, a capital's or a temple's chronicles and lost hymnals). Each sitting advances it by one (books take 3–6 sittings; **two sittings a day count**; the Wisdom tenet reads half again as fast). Finishing a book grants its reward **once**: skills (Leadership, Commerce, Combat, Diplomacy, Stealth, Cartography), small stat gains (under a lifetime cap of +1.5 intelligence and +0.5 faith from books), an **extinct faith discovered** (the Ash Hymnal, the Songs of the Bonesingers), or the land around you charted.
+
 
 | Source | Accuracy | How |
 |--------|----------|-----|
@@ -3235,7 +3808,7 @@ The game features **68 quest templates** (plus artifact quests) across 5 categor
 
 Open the **Quest Journal** to see up to **5 offered quests** and press **Accept** to take one on (at most 5 active at once). Accepting refills the board. The board is also refreshed **every week**. A posting stays up for **30 days** (the journal shows "Posted until day N"), then comes down and isn't posted again for another 30 days. Any empty places are refilled from the catalogue. Artifact quests stay posted while you hold the fragment.
 
-**Favours for townsfolk.** A task you accept from someone in conversation becomes a quest, and completing it pays its reward. A "reputation" task also earns **+8 reputation** with the realm you were in when you accepted it, and a "favour" task earns +3. The person who asked remembers it: the next time you speak with them, they thank you and like you more (+15 disposition). Offers are drawn from the whole catalogue, and harder tiers unlock as you prove yourself:
+**Favours for townsfolk.** A task you accept from someone in conversation becomes a quest with a real target (see [Favours for Townsfolk](#favours-for-townsfolk)). A "reputation" task also earns **+8 reputation** with the realm you were in when you accepted it, and a "favour" task earns +3. Offers are drawn from the whole catalogue, and harder tiers unlock as you prove yourself:
 
 | Tier | Unlocks after |
 |------|---------------|
@@ -3243,6 +3816,8 @@ Open the **Quest Journal** to see up to **5 offered quests** and press **Accept*
 | Medium | 2 completed quests or 25 renown |
 | Hard | 5 completed quests or 100 renown |
 | Legendary | 10 completed quests or 300 renown |
+
+**Quests with a named target.** Ten board quests name a real place when you accept them, marked on the map with a gold quest plate and in the journal with its distance and direction: *Tomb of the Old Kings*, *The Deep Seam*, *The Blind Dark* and *The Drowned Halls* name the nearest unexplored tomb, mine, cave or sunken ruin of that kind (clear it to the bottom); *Ruins Explorer* names a ruin to delve; *Bandit Slayer* names the nearest outlaw lair (revealed to you; you must clear it yourself); *Dragon Hunter* sets a drake loose 6–12 hexes away to slay; *A Physician's Herbs* and *Furs for the Winter* name the town the goods must be brought to (they count only once you stand there with them); *World Traveler* names five towns you have never visited. If nothing of the kind is in reach, the quest takes its general form instead (clear any tomb, defeat 10 raider bands, visit 10 settlements…).
 
 Artifact quests appear as soon as you find a fragment of that artifact. Progress counts everything you've done since the start of the game — battles won, ruins explored, treasure dug up, roads built, taverns visited, trade revenue and so on — so a quest may complete the moment you accept it. Heresy Hunter counts heresies you suppress with Denounce Heresy; Alliance Broker counts alliances you broker from the Wars of the Realm panel.
 
@@ -3281,7 +3856,36 @@ These quests are offered **only when their system is within your reach** — a s
 
 ### Favours for Townsfolk
 
-Ask an NPC whether they need help and they may make a request. If you accept, it becomes a real quest in your journal (it counts toward the 5-quest limit). Only what you do **after** accepting counts: explore ruins, win battles, see a caravan through, hire an informant, visit settlements and so on, depending on the request. The reward depends on what they promised: gold, renown, karma, or forged weapons from a blacksmith.
+Ask an NPC whether they need help and they may make a request. If you accept, it becomes a quest in your journal (it counts toward the 5-quest limit) with a **real target**, marked on the world map with a gold quest plate and in the journal (📍 with its distance and direction):
+
+| Request | Target |
+|---------|--------|
+| A merchant's missing caravan | the outlaw lair nearby that took it, else a band of brigands near town — recover the strongbox |
+| A merchant's spice supplier | a merchant in another town — carry the letter of terms, bring back the reply |
+| A guard's bandit camp | the nearest outlaw lair (revealed to you), else an outlaw band near town |
+| A guard's lost report | someone in the same town who picked it up |
+| A farmer's dead livestock | a beast den nearby, else a wolf pack near town |
+| A farmer's missing son | the farmer's **real son** (from the town's roll; he is gone from town while missing) — in an unexplored ruin or cave nearby (or one nobody had found, close by), else held by outlaws |
+| A priest's stolen relic | a ruin, tomb or sunken hall nearby (or a forgotten one), else a band of thieves |
+| A priest's restless dead | a tomb nearby, else the dead walking near town |
+| A blacksmith's rare ore | a mine or cave nearby (star-iron at the bottom), else 6 iron |
+| A blacksmith's stolen sword | a band of cutpurses near town |
+| A villager's grandmother's locket | the bandit camp nearby, else a band of cutpurses |
+| A villager's medicine for the hermit | someone in a small town nearby |
+| A noble's rival's documents | a noble in another town — who won't simply hand them over: buy them (80 gold) or lift them (Stealth against 5; caught, they will hate you) |
+| A noble's challenge | a noble in another town — deliver it, bring back the answer |
+| A traveller's ruins | a ruin, tomb or sunken hall nearby |
+| A traveller's bounty | a named fugitive near town |
+
+- **Bands** spawned for a task are real hostile units on the map; they must be beaten by **you**. If a patrol or anyone else scatters them they regroup near their old haunt (up to three times).
+- **A lair** must be cleared by you; if the realm's wardens burn it first, or it scatters, the task fails. **A delve site** must be entered at least one chamber deep (turn back at the mouth and whatever you sought is lost).
+- **People in other towns** are real townsfolk of that town when you have walked its streets (its roll), else a named stranger the town knows. If the person isn't about, any townsperson there will take a delivery or hand over what was left for you. Talk to them and choose the task's line (in the dialog's **Your Task** group).
+- **Bring it back.** When you find the thing (or the son), you carry it (🎒 in the journal) and must **return to the person who asked** — find them in their town and choose *"I've brought back …"*. They pay the reward there and then, like you more (+15 disposition), and remember it (a son brought home is back in town and remembers it too). A traveller who asked has no home to go back to, so their task completes as soon as the target is done.
+- **The other way out.** Some tasks can end differently, from the journal once you have what was sought: **sell** the locket to a fence (60 gold, −3 karma) or the relic to a collector (180 gold, −6 karma), **keep** the strongbox (160 gold) or the knight's sword, hand the lost report to the captain (40 gold), sell the rival's documents back to their owner (100 gold), or **let the son go** his own way (he moves to another town; you keep the renown, +1 karma). The person who asked hears of it: they like you far less (−30), won't offer you another task, and tell you so when next you meet.
+- **Deadline.** A task left for 90 days fails (the journal counts the days down), as does one that can no longer be done; the person who asked is let down (−12 disposition, and they say so). Failed tasks are listed in the journal.
+- **Older saves:** a general task from before ("explore any ruin") is given a real target from its giver's home on the first day after loading, where one can be found; otherwise it keeps working as before.
+
+The reward depends on what they promised: gold, renown, karma, or forged weapons from a blacksmith.
 
 ### Economic Quests (10)
 
@@ -3305,12 +3909,12 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 | First Blood | Easy | Recruit your first unit | 200g, 5 renown |
 | Battle Hardened | Easy | Win 5 battles | 800g, 15 renown |
 | Mercenary Captain | Medium | Complete 5 contracts | 1,000g, 30 renown |
-| Bandit Slayer | Medium | Defeat 10 raider bands | 1,200g, 20 renown |
+| Bandit Slayer | Medium | Clear the outlaw lair it names (else defeat 10 raider bands) | 1,200g, 20 renown |
 | Warlord | Hard | Reach 200 army strength | 3,000g, 50 renown |
 | Conqueror | Hard | Capture 3 settlements | 5,000g, 60 renown |
 | Siege Master | Hard | 10 contracts + 100 army strength | 3,000g, 40 renown |
 | Iron Legion | **Legendary** | 500 army strength + 20 units | 10,000g, 80 renown |
-| Dragon Hunter | **Legendary** | Defeat a legendary creature | 8,000g, 75 renown |
+| Dragon Hunter | **Legendary** | Slay the drake it sets loose (else any legendary creature) + 150 army strength | 8,000g, 75 renown |
 
 ### Religious Quests (8)
 
@@ -3331,8 +3935,8 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 |-------|-----------|-----------|--------|
 | Wanderer | Easy | Explore 100 tiles | 300g, 10 renown |
 | Tavern Regular | Easy | Visit 10 taverns | 500g, 10 renown |
-| World Traveler | Medium | Visit 10 settlements | 800g, 20 renown |
-| Ruins Explorer | Medium | Explore 5 ruins | 2,000g, 20 renown |
+| World Traveler | Medium | Visit the 5 unvisited towns it names (else 10 settlements) | 800g, 20 renown |
+| Ruins Explorer | Medium | Delve the ruin it names (else explore 5 ruins) | 2,000g, 20 renown |
 | Mountain Climber | Medium | Explore 30 mountain tiles | 1,000g, 15 renown |
 | Cartographer's Dream | Hard | Explore 500 tiles | 3,000g, 40 renown |
 | Treasure Hunter | Hard | Find 10 treasures | 5,000g, 30 renown |
@@ -3434,6 +4038,7 @@ The game tracks **96 achievements** across multiple categories with Bronze, Silv
 | Raised Right | Silver | Raise a child of your House to come of age |
 | Blood Royal | Gold | Marry a child of your House into a royal line |
 | The Line Endures | Silver | Pass the House to an heir |
+| First Steps | Bronze | Finish every step of the guided first month |
 | Patron of the Arts | Bronze | Take a client into your service |
 | A Masterpiece | Silver | Commission a masterpiece |
 | Great Builder | Gold | Complete a Great Work |
@@ -3504,6 +4109,217 @@ Smaller military news is reported too. **Training exercises** add up to 10% to a
 |-------|----------|--------|
 | Religious Schism | Moderate | −0.5 piety/day, +30% heresy risk, −10 stability |
 | Holy Crusade | Severe | +15 morale, +0.5 piety/day, −30% diplomacy |
+
+## Court Scandals & Whispers
+
+The great are talked about. From about day 20, a new tale hatches every 14–28 days, with at most 3 going at once. Most tales are about a **ruler** and some are about a **rival adventurer**. Some are true and some are lies. Nobody knows which, including you, until you find out.
+
+| Tale | About | Likelier true when… |
+|---|---|---|
+| 👶 A Hidden Bastard | rulers | — |
+| 🧪 A Poisoning | rulers | the ruler is cruel or cunning |
+| 💸 The Crown's Debts | rulers | the treasury is nearly empty, or the ruler is greedy |
+| 🕯️ A Secret Heresy | rulers | the ruler is cunning (less if pious) |
+| 📜 A Secret Pact with the enemy | rulers at war | the ruler is cunning or cautious |
+| 🐔 Cowardice | rulers, rivals | the ruler is cautious (less if brave); a rival who has lost more duels than they've won |
+| 💋 An Affair | rulers, rivals | — |
+| 🌀 Madness | rulers | the ruler is 55 or older |
+| 🎲 A Cheat · ⚰️ Grave-Robbing | rivals | a rival with 3+ delves (grave-robbing) |
+
+**Spread and heat.** A tale starts in one town and spreads to nearby towns (up to 7 hexes away). Its **heat** (0–100) is 12 per town of the subject's own realm that tells it, about 5 per foreign town, plus whatever was paid to fan or quash it. Past the halfway point of its 35–60 day life it cools by 0.8 a day. A hot tale about a ruler drags on their realm's stability (up to −12 at full heat, scaled by the kind of tale; −20 at most per realm), shown as *Court scandal* in the realm's stability breakdown.
+
+**How tales end.** A **true** tale still at heat 50+ when its time is up is **proven**: −8 stability for a ruler's realm, −12 renown for a rival. A **lie** that ran hot (30+) or was quashed is **debunked**: the crown is vindicated (+3 stability). Anything else is **forgotten**.
+
+**Each tale has its own fallout.** On top of the stability shock, a ruler's tale proven (or debunked) does what its kind would do: a **heresy** proven costs the realm's faith 15 unity and 6 piety (debunked: +4 piety); a **secret pact** proven sours the realm and the named enemy on each other (−20 relations both ways; a forgery exposed, −5); **the crown's debts** proven send the lenders for their money (−15% of the treasury; debunked, +1 stability); **madness**, a **poisoning** or a **hidden bastard** proven unsettle the royal council over the succession (every advisor's loyalty −12 / −10 / −8, and an advisor under 30 drags on the realm); **cowardice** and an **affair** cost the council's loyalty a little. The notice names the fallout.
+
+**A lie made true.** A lie you started or fanned that runs at heat 50+ for **8 days on end** comes to a reckoning. It is either **believed for good** (proven, with all a proven tale's effects, though it was never so) or **debunked** there and then. The chance it is believed is 30%, +4% per town of the subject's own realm that tells it, −0.5% per point of the ruler's stability above 50 (+ below it), or the same by a rival's renown, between 5% and 80%. The tale's card shows how many days it has run hot. Debunking is the riskier end for you (below).
+
+**Hearing them.** You hear a tale on arriving in a town that tells it. The townsfolk repeat it, and guards, priests and merchants each take it their own way. In a tavern, **🕯️ The Whispering Corner** lists the tales told there, the talk about you as it is told in that town, and how past tales ended. There you can:
+
+| Act | Where | Cost | Effect |
+|---|---|---|---|
+| 🔥 **Fan it** | A town that tells it | 40g | +15 heat and 3 more chances to spread. The crowns at war with the subject's realm like you for it (+3 each). There is a 5% chance the subject's men notice (−8 with that realm) |
+| 🤫 **Quash it** | The subject's realm | 60g | −30 heat. +4 reputation with a ruler; a rival remembers you spoke up for them |
+| 🔍 **Dig for the truth** | A town that tells it | 30g | 35% + 5% per point of your best of Intelligence and Charisma; once a day per tale. A **close friend** in the realm may simply tell you (a *Confidence*) |
+| ✉️ **Blackmail** | The subject's realm, a ruler's tale you know is true | — | 120g + 3 per heat point, −15 with that realm, and the tale is buried. An **honourable** or **brave** ruler may instead (60%) hand your letter to the guard: a *Blackmail* crime rumour and a 150g bounty, and the tale runs hotter |
+| 📜 **Sell the proof** | Any tavern, a ruler's tale you know is true | — | To a crown at war with the subject's realm: 80g + 2 per heat point, +8 with the buyer, −10 with the subject's realm, and the tale is **proven** on the spot |
+| 🕯️ **Start a tale** | Any tavern | 80g | A tale of your choosing about any living ruler or a rival you've met (one tale per subject at a time), starting at 12 heat. It may happen to be true without your knowing it |
+
+**Getting caught.** A tale you started can be traced back to you: each day there is a 2.5% chance, scaled up by its heat and down to 40% of that if the tale is true. If a lie is debunked, there is a further 50% chance it is traced, +20% if you also fanned it, and a 20% chance for a lie you only fanned (you are named as the one who paid to keep it going). Fanning a tale you started makes the daily chance half as large again. Once traced, a *Whisperer Exposed* crime rumour starts in the town where you began it, you lose 15 reputation with the subject's realm (5 if the tale was true), a rival's attitude toward you drops by 35, and a lie is debunked at once. The corner's footer, and Deeds & Records, keep your tally: tales planted, fanned and quashed, lies believed and debunked, whispers traced, rulers blackmailed and proofs sold.
+
+## Lords' Memory & Court Letters
+
+**The lords remember.** Every ruler keeps a memory of what you have done to them and their realm (`world/npcLords.js`, the deed table in `data/lordMemory.json`). Each deed carries a weight and a half-life: a purse of gold is worth +4 and is half-forgotten in 120 days; a broken oath is −25 and lasts two years; a town torn from the realm is −30 for most of three. The memories add up (capped at ±40) into the lord's **opinion** of you — the same opinion the royal audience's mood ring, your odds of being granted trade terms or soldiers, and a claim's support at court read — and into how much a realm **wants war with you** (a lord who remembers wrongs is quicker to send an ultimatum). The same deed repeated within five days adds to the last one, up to three times its weight.
+
+What lords remember: gifts and treasures laid before them, oaths sworn and renounced (going over to another crown counts as half a broken oath with the old one), threats and extorted tribute, raids on their towns (and failed raids), failed assaults and conquests, patrols cut down, wars between you, peace bought or forced on them, tribute paid, your sword in their wars (each campaign win for your liege — and the enemy remembers it too), truces and alliances you brokered for them, a crown restored to a fallen realm (+30) or rebels paid against it, marriage into their nobility, a child wed or fostered at their court, and every answer to their letters below.
+
+**"My father spoke of you."** When a lord dies, the heir inherits half of what the old lord remembered (anything that would be worth less than 2 is forgotten). In audience the heir says so.
+
+In the **royal audience** the lord's card lists the three memories that weigh most ("He remembers the oath you renounced", "Her mother, Queen Maud, spoke of the crown you restored to the realm"), and a lord with a strong memory opens with it. **Journal → Letters → What Lords Remember** lists every ruler's memories of you and what they add up to.
+
+**Court letters.** The great write to you (`systems/courtLetters.js`, `data/courtLetters.json`). At most one new letter comes every 3–7 days, and no more than four wait open at once; each has a deadline, and **silence has a price**. Letters arrive with a notice and wait in **Journal → Letters** (also from Dynasty & Heirs); the Journal entry shows a count of unread letters.
+
+| Letter | From | When | Answers |
+|---|---|---|---|
+| 🏅 An office at court | your liege | you are sworn, they think well of you (opinion + reputation ≥ 5), and the next office up is within reach with its reputation/renown waived | accept (appointed, +5 memory) · decline (−4) |
+| 💍 A match for your child | a realm at peace with you (reputation ≥ 0) | a grown, unwed child at home | accept: the child weds into that realm, **they pay you a dowry** of 100–300 gold (+10 memory) · refuse (−8) |
+| 🍖 A feast | any lord at peace with you who thinks well enough of you | — | attend with a gift (30–70 gold): +2 renown, +4 reputation, you learn of the ruler and their diplomacy, +5 memory · send regrets (−2) |
+| 🏇 A tournament | any lord at peace | — | ride (entry 20–50 gold): three bouts on the duel engine, fought on instinct, for a purse of 150–400 (+3 memory, +7 as champion) · watch · decline |
+| ⚔️ A call to arms | your liege at war | — | **promise to ride**: win a campaign battle against that enemy for your liege (Realm Politics → Campaign) within 30 days — kept: +6 memory; broken: −12 memory and −10 reputation · send gold (10% of your purse, 100–1500) to the war chest (it buys soldiers, and 300+ pushes the war goal) · refuse (−15 memory, −10 reputation) |
+| 🏦 A loan | a lord at peace with you | you could lend 15% of your purse (100–2000) and keep half | lend: repaid on the due day (60–120 days) with 8–20% interest — likelier from an honourable lord with a full treasury, less from an heir; a default brings a letter begging patience: forgive (+10 memory) or demand (maybe half back, the lord resents it) |
+| 🕊️ A truce | a rival House with feud ≥ 30 | — | accept (feud −25) · refuse (+5) |
+| 💀 A tribute demand | a rival House with feud ≥ 50 | — | pay 5% of your purse (feud −20) · refuse (+10) · send back an insult (+3 renown, feud +20) |
+| 💍 A match to end the feud | a rival House with feud ≥ 20 | a grown, unwed child | accept: the child weds into the rival's realm, feud −60 · refuse (+8) |
+| 💌 A plea | your spouse | your realm is at war with the spouse's homeland | speak for peace (affection +12; your liege's regard −5; the two crowns' relations warm) · offer terms (your own war: buy the peace, affection +24) · duty first (affection −15) |
+| 📨 News from abroad | a child married or fostered abroad | at peace with that realm | send a gift (+3 reputation there) · ask what is said at court (you learn its ruler, army, diplomacy and economy) |
+| ⛓️ A child afraid | the same child | war with that realm | bring them home (ransom; that crown takes offence, −8 memory) · trust their spouse's kin (+4 memory — but in 20 days, if that crown thinks ill of you, the child is **held as a hostage**: −8 Prestige, −10 reputation) |
+
+**Blood feuds.** Some wrongs are not half-forgotten: a town torn from the realm, a raid, a broken oath or promise, extorted tribute, a peace forced on them, rebels paid against them, letters tampered with, a scandal about the throne traced back to you, a ruler's kin assassinated (or your assassin caught at court). These are **vendetta** deeds (marked in `data/lordMemory.json`): when the lord dies his heir inherits them at 85% instead of half, and the feud counts its generations ("sworn a generation ago"). A realm whose lord owes you blood (15 or more) is sworn as a **rival House** with its feud kept at least that hot — and it plots, buys agents in your towns and joins leagues against you (see [Coalitions & Threats](#coalitions--threats)).
+
+Letters left unanswered: most cost −3 memory with the sender; an ignored call to arms −20 memory and −15 reputation; an ignored rival letter heats the feud; an ignored spouse's plea costs 20 affection; an ignored child's fear counts as trusting their in-laws, without the credit. **Journal → Letters** also lists the letters you answered, your loans to crowns and the promises you have given. Loans move through the Merchant's Ledger as *Loans to lords* and *Interest from lords' loans*. The inbox, loans and promises are saved with your game; a lord's memories are saved with the kingdom.
+
+## Coalitions & Threats
+
+The realms watch you grow. While you are a wanderer nobody minds you; once you are a power, the courts start counting — and when you tower over them, the ones who fear and envy you most swear a **league** against you. Open **Dynasty → ⚜️ Threats** (also at the top of **Realm Wars**) to see where every enemy stands. (`systems/coalitions.js`, `systems/rivalAgents.js`, tuning in `data/coalitions.json`.)
+
+**Your power, as the courts measure it** (reckoned weekly):
+
+| Source | Points |
+|---|---|
+| Towns held in your own name and colonies | 12 each |
+| Properties | 1.5 each (up to 30) |
+| A crown you rule | 40, +4 per town of the realm |
+| A royal office | 8 |
+| Your land army | 1 per 25 strength (up to 60) |
+| Net worth | 1 per 1,500 gold (up to 50) |
+| House Prestige | 1 per 8 (up to 40) |
+| Renown | 1 per 10 (up to 25) |
+| Towns you conquered in the last year | 12 each (up to 48) |
+
+The realms start to watch at **70**; past **140** for two weekly reckonings in a row, a league may be sworn. Both marks are divided by your difficulty's *hostility* knob (Easy raises them, Hard and Brutal lower them), and `difficultyScale` in the data file scales them for everyone. A starting wanderer stands at about 0–10.
+
+**Each realm's regard** (the Threats list): **fear** grows with your power and how close it sits to the realm's capital (your nearest holding, property or town of your realm; full at 8 hexes, a quarter at 40), **envy** with your power and the lord's ambition; aggressive and militaristic realms envy more, peaceful ones fear more. On top comes the **grudge**: what the lord remembers of you (bad memories add, good ones subtract), a **blood feud** (see [Lords' Memory](#lords-memory--court-letters)), a hated name there, a rival House's feud; goodwill and good standing take it off, and a realm allied to a crown you rule counts for half. Your liege, and the realm you rule, never join. Hostility 40+ means a realm would swear itself to a league.
+
+**A league is sworn.** Envoys ride between the courts first (a warning a week ahead). Then the hostile realms — two to four of them, led by the most hostile and mightiest — swear *The League of …* (named for the leader's capital), with a **casus belli**: a blood feud, the towns you conquered, your upstart crown, or simply your power. Its leader writes with **terms** (Journal → Letters): pay its war chest (400 + 12 per power point + 150 per member), or **bow** (25 Prestige + 5 per member), within 14 days — or throw the terms back. From the moment it is sworn its lords are cold to you (−25 opinion for the leader, −15 for members) and the leader will not grant you an audience.
+
+**At war.** Defied or ignored, every member goes to war:
+- on your **holdings** (properties, colonies, towns in your name) with real war hosts and sieges (see Realm Wars, Holding Sieges) — unless a truce with you still stands;
+- on a **crown you rule**, as a war between the realms, with an **embargo** on your realm's trade;
+- their towns levy **25% on everything you sell there**, paid into their treasuries, and cancel your trade licences (no new ones while the league stands);
+- member rival Houses' feuds flare — more plots, more agents.
+
+At war, members' lords refuse you audiences. Realms that grow hostile enough (55+) **join** a league already at war, one a week.
+
+**Resolve.** A league starts with 50 + 10 per member. Each week at war it wears down by 3; each war host you break costs it 4, each member it loses 12 (20 if you humbled that member on the field), each agent of its members you expose 8 (a turned one 4 a week). Each holding it takes from you adds 3, and **your growth hardens it** (0.2 per point of power above the most it has seen).
+
+**Ending a league:**
+- **Appeased** — you paid or bowed: every member stands down (and makes peace). No new league for 360 days. Paying in gold still costs a little Prestige.
+- **Humbled** — your power fell below 60% of the mark: they have what they wanted. 180 days' respite.
+- **Broken** — fewer than two members left, or its resolve is spent (then its wars end in exhaustion). Prestige for you. 240 days' respite.
+
+**Splitting a member off** (Threats panel, per member): **buy it out** (250 + half its army + 8 per point of hostility, ×1.5 for the leader, less with Diplomacy Mastery) — its lord remembers the gold; **wed a grown, unwed child** into it (an alliance match, no dowry asked); or **cede it a colony or town** of yours (it remembers the gift, +15 standing, and the league loses more heart). Each ends that member's war, lifts its levy, gives you a truce with it and costs the league 10 resolve; if the leader goes, the next most hostile leads.
+
+**Across generations.** A league outlives the head of the House it was sworn against: on your heir's succession it carries on at 60% of its resolve, and members whose quarrel has cooled below 40 hostility drop out. Blood feuds pass on to the lords' heirs at 85%; your heir inherits the dead lord's enemies.
+
+### Rival agents in your towns
+
+Rival Houses with a feud of 25+ (more readily while sworn into a league) **buy townsfolk** in your towns — a real, named person of the town's roster (`settlement.folk`):
+
+| Agent | Where | What they do |
+|---|---|---|
+| 👂 Informant | any of your towns | Every three weeks their master acts on what they sold: a plot (see Rival Houses' schemes) that strikes in 4 days. While an unturned informant works, that rival's plots are **half as likely to come to light**. A league the rival is in grows bolder. |
+| 🔥 Saboteur | by your properties and works | About one week in three: fire and broken tools — a property within 3 hexes stands idle 8 days, or your works in the town lose 20% of their repair. |
+| 🪙 Bribed official | a town you hold | Skims 15% of the town's taxes and holds up the permits (works build 25% slower) as long as they serve. |
+
+**Finding them.** The town talks — men in a rival's colours asking questions about your House turn up in its news. Suspicion of each agent gathers week by week: a little on its own, more with a **spymaster**, **idle spies**, **counter-espionage** posted near the town, you **in town**, and if you have **spoken with that person**; a sabotage leaves a trail. **Ask around** a town you are in (25 gold, once a day) to press it. At full suspicion the agent is named, and you can:
+- **Turn** them (80 + 2 × the rival's feud gold): an official stops skimming, and they feed their master false word — that rival's plots come to light far more easily, and a league it is sworn to loses heart each week;
+- **Expose** them: named a traitor and driven out of town (their kin turn cold), +4 standing in the realm, the rival shamed (feud +5) and its league shaken.
+
+Agents leave when they die, move away, or their master's House falls. The leagues, the realms' regard and the agents are saved with your game; blood feuds are saved with the lords.
+
+## Mail & Courier Houses
+
+You write letters of your own from **Journal → Letters → ✍️ Write** (or a town's **📮 Post House**). Answers come back to the same Letters panel.
+
+**Writing.** Pick a recipient — the lords of the realms, rival Houses, your spouse, a child abroad or held hostage, friends and loves, townsfolk you have spoken with, merchant houses — then a kind of letter:
+
+| Letter | To | What it does |
+|---|---|---|
+| ✉️ Courtesy & news | anyone | A little goodwill (lord memory, affection, disposition, a cooler feud). A child abroad writes back with the court's news. The third letter to the same person within ~45 days is merely tiresome. |
+| 🎁 A gift enclosed | anyone | Gold (25/100/300) or one of your goods. Worth more goodwill the more it is worth; to a lord, gold goes to the treasury. Stolen if the rider is robbed. |
+| 🙏 Ask a favour | lords, friends, townsfolk, houses, a child, a companion away | Friends send a purse (lords from their treasury), a house puts in a good word, a child abroad tells what is said at court. A companion away is asked to come back (see below). Costs a little goodwill; once every 60 days per person. |
+| 🤝 A proposal | lords, rival Houses, a love, houses | A pact of friendship (an **alliance** if you rule a realm), a truce, **marriage** (a love with affection 60+), a partnership. A warm answer comes as a letter to seal or let rest. |
+| 🕊️ An apology | most | Softens a grudge (a lord's bad memories, a feud, a threatened townsperson). Does nothing where there is no grudge. |
+| 🗡️ A threat or demand | lords, rivals, people, houses | Remembered by all; the weak sometimes pay (a lord whose army is weaker than yours, a frightened townsperson, a merchant house). |
+| 💌 A love letter | your spouse or a love | Affection. If you are married and it is not to your spouse, an opened letter is a scandal — or a blackmailer's letter. |
+| ⛓️ Negotiate a release | the court holding your child | A friendly court lets the child go; otherwise they name a price. Pay it and the child comes home. |
+| 🕵️ A warning | a lord at war, a companion away | Valued — unless the enemy's spies read it first, and then that enemy remembers. A companion away takes it as a word of danger about their road or their post. |
+
+**Couriers.** In a town, the courier houses with a station there each quote a price, the days on the road and their reliability; your own courier house carries your mail free; anywhere, your own rider (or a companion) takes it for a fee. Days follow distance, the roads (good roads speed it, open country and winter slow it, a closed pass holds it) and the pace (standard, express, a relay of fresh horses). A house without a station at the far end hands the letter on: slower, less reliable. At most 4 letters on the road and 2 written a day.
+
+**On the road.** A letter may be held up, lost (the less reliable the courier, the likelier), robbed on dangerous roads (war, raider bands, outlaw lairs; guards help) — what it carried is gone — or opened and read: by the recipient's enemies, your rival Houses' spies, or a busybody. A threat read by its target's enemy pleases that enemy; a warning or proposal read by the realm it concerns angers it. **In Transit** shows what is on the road, what replies are coming and how every letter fared.
+
+**Answers.** The recipient reacts by their regard for you — a lord's opinion and your reputation there, a rival's feud, affection, a townsperson's disposition, a house's rivalry — and the kind of letter. The reply rides back on the same terms: a plain answer is filed under **📜 Answered** (with any gold it brings), one that needs a decision comes to the inbox.
+
+**Courier houses.** Every realm starts with a post house in its chief town. Each week every town writes letters (more from great towns and courts, fewer when postage is dear), shared among the houses with a station there by price, pace and reputation. Houses pay riders, relay horses, station rent and guards; riders near war, raiders and outlaw lairs are robbed. NPC houses open stations when rich, close the ones that lose money, cut prices when losing and raise them when they can, and go bankrupt; a town left without a post gets a new house.
+
+**Your own house.** At a town's Post House, found a courier house (400 gold, and a 100 gold licence to the crown). Open stations in towns within reach (150 gold each), hire riders, buy relay horses (needed for the relay pace), hire guards against robbery, set your postage and pace. Each week the takings and the wages settle straight in your purse (the Ledger's courier lines); if you cannot pay for three weeks the house closes. Events: a sealed lord's letter in a rider's bag — deliver it sealed, read it, or sell it to the lord's enemy (found out, and your house's name and that lord's regard are ruined); rival houses undercutting you, laming your horses, hiring away your riders.
+
+**The Royal Post.** Every four weeks a crown may grant its best house (3+ stations in the realm, a good name) the Royal Post: only that house carries the realm's mail, for a weekly fee (6 gold a station there) to the crown. The fee is booked on the **demesne** line of the crown's books (🧾 Treasury), and a grant shows as the realm's **crown policy** in its kingdom panel. With 2 stations in a realm you may petition for it (300 gold, booked with the licences as a sale of privilege; the chance rides on the lord's regard and your house's name).
+
+Ruling a realm, the Royal Post is an **edict** of the Royal Court (📜 Edicts → 📮 The Royal Post, or the Letters panel's Post tab): proclaim it for one house with a station in your realm (100 gold from the royal treasury, an edict slot, the merchants grumble a little), hand it to another house at will (no new edict), or revoke it (any house may carry your mail again). A charter your predecessor granted stands as this edict when you take the throne, until you revoke it. If its house fails or leaves your realm, the edict lapses.
+
+**Riders on the map.** Each letter you send from the Letters panel rides as a rider (🏇, or 🐴 for your own rider) along the roads from the town you wrote it in. It reaches the recipient's town on the day the letter is due; a letter held up waits a hex short of the gates. The road happens to the rider where it is. A raider band or lair beast beside the road may fall on it (its strength against the rider's guards), and an outlaw lair near the road may ambush it (guards help). Either way what you enclosed goes to the robbers, and half the time the letter is lost with it. Riding through the land of a realm at war with the recipient's realm, a letter to a lord, a rival House or a child at court may be read there by that realm's agents. Letters Hold → 📮 In Transit shows where each rider is.
+
+Some of the post houses' own riders ride too: a few near you, between two stations of their house, and up to three of **your own house's** riders anywhere (shown on the map even in the fog; the Post tab lists them). Their bags carry letters, some coin, and now and then a lord's sealed letter. Riders waylaid on the road cost their house its good name.
+
+**Hailing and robbing riders.** Standing on or beside a rider, **Hail** it: whose house it is, from where to where, how far along, what it carries, and your letter if it is one of yours. A rider that is not yours can be robbed (the usual attack). The coin is yours. A lord's sealed letter in the bag comes to your inbox: burn it, read it (the realm's affairs), or sell it to the lord's enemy. If that comes out, the lord does not forget. Robbing the post is a crime: heat with the realm (a witnessed robbery is reported), −8 reputation there, and the house's name suffers. Beaten off by the guards, they still saw your face.
+
+**Companions away.** Companions who are not travelling with you — governing one of your holdings, dismissed, or gone off on their own (not one who betrayed you) — appear under 🧭 **Companions away**, at their post or their home town. Their regard is their approval of you. A courtesy letter, a gift (more to a greedy one) or a warning raises their approval; too many letters are tiresome. **Ask a favour** to recall them: a companion who still approves of you (45+, or 60+ if they deserted you) answers with a letter to seal. Seal it and they rejoin your party; a governor hands over the holding first. One who thinks little of you will not come, and thinks a little less of you for asking.
+
+## Guest Houses, Inns, Hotels & Roadhouses
+
+Every town keeps its houses of hospitality, each with a name, a keeper, a star rating (1–5), a reputation and a number of rooms (`data/hospitality.json`):
+
+| House | Where | Rooms | What it offers |
+|-------|-------|-------|----------------|
+| 🏡 **Guest House** (bed & breakfast) | most villages, towns and cities | 3–6 | Private rooms, **breakfast included**, laundry, a packed lunch |
+| 🏨 **Inn** | every town and city | 6–14 | A common room (cheap bunks) and private rooms; supper, breakfast, a hot bath, laundry, stabling |
+| 🏰 **Grand Hotel** | most cities, every capital | 12–24 | Private rooms and suites; breakfast included; fine dining, the bathhouse, a valet, stabling |
+| 🏚️ **Roadhouse** | open roads between towns | 4–9 | Bunks and cheap rooms, broth, breakfast, stabling — the realm's motels |
+
+Which houses a town has depends on its size and is the same every visit. Roadhouses stand on road hexes at least two hexes from a town, marked on the world map with a small bed.
+
+**Staying.** Choose **🛏️ Find Lodgings** (or **Stop at …** on a roadhouse's hex) from the action menu, or walk into the house on the town's inner map and use its desk, a bed, a table or the tub. Rooms cost gold, not action points:
+
+- **Common room** — about 3 gold. Rough (comfort −8, hygiene −4) but sociable. Some mornings you wake with a lighter purse, more often at a roadhouse and less at a better house.
+- **Private room** — about 11 gold. Comfort +6, hygiene +4, health +2.
+- **Suite** — about 40 gold. Comfort +22, hygiene +14, health +6, fun +10.
+
+Prices scale with the house's stars and its keeper's pricing. A booked room counts as an inn for the night (full rest; ailments mend faster). **💤 Book & sleep** ends the day at once. In the morning a better house adds comfort, breakfast (included at guest houses and hotels, or ordered the night before) restores hunger, and a stabled horse gives you one extra hex of movement. Services such as supper, a bath, laundry, fine dining or a valet act at once. A famous name gets the free room and meal at an NPC house, as at the tavern; outlaws are turned away. A full house refuses common rooms and private rooms on some nights, but a suite can still be had.
+
+**Keepers.** On the inner map each house is a building that bears its name, and a townsperson keeps it. The same person keeps it every visit, as long as they live. Travellers walk to the inns by day and sleep there at night. A roadhouse's hex shows its house, its keeper and a guest or two.
+
+**Opening your own.** Under **Build Property → 🛏️ Hospitality**:
+
+| Property | Cost | Build | Upkeep | Where |
+|----------|------|-------|--------|-------|
+| Guest House | 650 | 6 days | 3/day | any settlement |
+| Inn | 1500 | 10 days | 6/day | any settlement |
+| Grand Hotel | 4200 | 16 days | 14/day | city or capital |
+| Roadhouse | 550 | 6 days | 2/day | a road hex, away from towns |
+
+Each night the town's travellers look for beds. How many there are depends on the town's size, a road, the season (summer is busiest, winter quietest) and war. They choose among **all** the town's houses, yours included, by stars, price and reputation. A hotel only draws the wealthy share of them. A roadhouse's guests come from the road traffic. Your house earns its room takings plus what guests spend, and pays its upkeep, staff wages and supplies for each guest. All of this appears in the Ledger as *Guest houses, inns & hotels* and *Innkeeping: staff & supplies*.
+
+From **Run the House** (the action menu, the building on the inner map, or the property's panel) you can:
+- **Set room prices** from 60% to 200% of the going rate. Dearer rooms draw fewer guests.
+- **Hire staff:** a cook (+0.4★, guests spend more), chambermaids (keep it clean), a porter and watchman (+0.2★, fewer thefts), a groom (guests spend more).
+- **Scrub it yourself.** Guests dirty the rooms, and a dirty house loses stars.
+- **Watch the competition:** each rival house's stars, price and guests tonight.
+
+Levelling the property adds rooms and stars. Reputation drifts toward the stars. Most weeks bring an event: a guest's purse stolen, a common-room brawl, a lord's retinue booking every room, a travelling chronicler's verdict, bedbugs in a dirty house, or a merchant who becomes a regular. You stay free in your own house.
+
+The NPC houses compete too. Each week they raise prices when full and cut them when empty, and their stars drift with their takings.
 
 ## Sagas
 
@@ -3656,6 +4472,22 @@ Some maps lie. A map with deliberate alterations, or a kingdom's wartime propaga
 - Cartographers pay for maps by how trustworthy they are: low-accuracy and doctored maps sell for less.
 - Kingdoms at war that publish propaganda maps gain +2 stability per map in circulation (up to +6).
 
+### Digging Up Treasure
+
+A treasure map marks a cache, and every cache has a story. What it was — a **pirate hoard** (beaches, coasts, marshes), a **bandit stash** (woods and hills), a **noble's cache** (farmland) or an **ancient tomb** (deserts, mountains, the far north) — is fixed for that hex and decides both the loot (rum and old coin, weapons and stolen goods, seals, wine and rings, artifacts, amulets and the odd cursed idol, on top of the map's gold and relic) and what waits at the dig:
+
+- **A trap**: *disarm* it (Intelligence, Cartography; fail and you are hurt and part of the cache ruined), *work around it slowly* (safe, costs 3 AP) or *force it* (Strength; if it springs, half is ruined).
+- **A guardian**: *fight* (Combat, Strength, soldiers at your back), *sneak in after dark* (Stealth; spotted, it comes to a fight), *buy them off* (a quarter of the gold, paid up front) or — at a tomb, whose keeper takes no coin — *make an offering* (karma, faith). Beaten, you are driven off; the cache is still there.
+- **Rivals digging first**: *race them* (Strength, a horse), *offer to split it* (Diplomacy, Charisma — half each), *drive them off* (win and it is all yours; lose and it is all theirs) or *let them have it*.
+
+The goods go into your packs as far as they will hold; what doesn't fit **stays buried** on the hex for you to come back for. The dig takes the day; Dig for Treasure's AP is charged on your first real choice, so walking away from a guardian costs nothing. Tuning: `data/cartography.json` → `treasureDigs`.
+
+### Stealing Maps
+
+**Steal Maps** (towns and cities) asks whose maps: the town's **cartographer** (a fine regional chart; ~50% base), a **ship's captain** in a port (a sea chart, and a 35% chance of his own treasure map; ~40%) or **the lord's archive** (a chart of the whole realm; ~25%, and the watch there is sharp). Odds rise 5–6% per Stealth point and with Luck; part of every failure is being **caught in the act** — jail in the town, heat, a theft rumour, −2 karma and −10 reputation.
+
+The owner **remembers**. A few days after a theft he may find his chart missing (the stealthier you were, the likelier he never does). Then the **captain posts a bounty**, the **archive** brings heat with the crown as well as a bounty, and the **cartographer waits for you**: walk back into his town (or wake there the day he finds out) and he accuses you in the street — *pay restitution* (twice the chart's worth, and it goes back; the matter is closed, bounty and all), *deny it* (Diplomacy, Charisma; fail and you are taken in), *buy his silence* (more than restitution; refused, the guard sees the purse) or *run* (Stealth; away, and there is a bounty on you). Walk off on him and he goes straight to the watch. If you never come back, he posts the bounty himself after a month. An owner you robbed keeps his maps under lock and key for a month. Tuning: `data/cartography.json` → `mapTheft`.
+
 ### Royal Cartography (Kingdom Atlases)
 
 Every realm keeps a royal archive (tuning in `data/cartography.json` → `kingdomAtlas`):
@@ -3689,7 +4521,7 @@ Find all fragments by exploring POIs, then reforge the artifact at a city or lar
 
 Track and capture wanted criminals across the map for gold and renown. Available through the **Notice Board** at settlements or via the **Jailer** title.
 
-- **Notice Board** criminals (difficulty 3–10, roughly 175–700g) get harder as your record grows; **Jailer** fugitives are smaller jobs (20–60g).
+- **Notice Board** criminals (difficulty 3–10, roughly 175–700g) get harder as your record grows; **Jailer** fugitives are smaller jobs (the warrant's pay plus the office's 25–60g), caught and judged the same way and credited to the jailer's duty when turned in (see Titles → Duties of Office).
 - Choose to **turn in** captured targets for the bounty or **recruit** them to your cause.
 - A failed arrest lets the quarry flee a few hexes, and each escape makes it warier (+1 difficulty, up to +3).
 
@@ -3721,7 +4553,9 @@ At cities, you can spend gold to host celebrations:
 | Hold Tournament | 200g (300g at a capital) | City, combat skill ≥2 or army | Renown, gold prizes, combat XP |
 | Host Festival | 260g | City | Seasonal celebration with contests |
 
-**Tournaments.** Compete in three bouts: win all three to take the prize pool (3× the fee), two to take 40% of it. Losing a bout costs health and may leave a wound. The lists can be called once every 10 days.
+**Tournaments.** Compete in a three-bout bracket (opening bout, semi-final, final) against named knights (a hedge knight, a traveling knight, an arena veteran), weakest first. Rival adventurers nearby take some of their places. Each bout is a duel with blunted steel (see Personal Combat: Duels), fought in the duel panel or on instinct. Between bouts you get half of the bout's lost pool back. A loss knocks you out. Win the final to be champion and take the prize pool (3× the fee) plus +5 renown. Losing the final pays 40% of it. Each bout won is +2 renown on top of the entry renown. Bruises cost 4–14 health a bout, depending on how hard you were hit (armour reduces this). A lost bout may leave a wound, more likely the worse the beating. Your combat skill may improve (20% + 10% per win). The lists can be called once every 10 days.
+
+**Combat training** at a town's practice yard is a five-exchange sparring bout against a Militia Sergeant (steady) or, at a capital, the Royal Swordmaster (tricky and far better). Winning gives the best chance of raising combat skill and strength.
 
 Festivals provide morale boosts, diplomatic bonuses (rival kingdoms may attend), and opportunities for renown. Some include minigames like jousting and archery contests.
 
@@ -3776,7 +4610,7 @@ When you arrive in a town where a rival is resting, you meet them and hear a lin
 | Deed | AP | Effect |
 |------|----|--------|
 | 💬 Talk | 0 | A line that matches their mood toward you |
-| ⚔️ Duel | 4 | A fight to first blood. Your power is combat ×2 + strength + luck, scaled by trait, mood and treasure bonuses, against their prowess, level and hired swords. Faith steels both sides: ±0.3 per point of faith above or below 5. A devout rival (faith 7+) holds back 2 against a Pious player, unless they are your nemesis. The winner gains renown and the loser harm (armour reduces yours). Once a day per rival. |
+| ⚔️ Duel | 4 | A fight to first blood, fought exchange by exchange in the duel panel (see Personal Combat: Duels). Your weapon, shield, armour, skill, strength, traits, wounds and mood count, and so do their prowess, cunning, level and temperament. Faith steels both sides: ±0.3 attack per point of faith above or below 5. A devout rival (faith 7+) holds back 2 against a Pious player, unless they are your nemesis. The winner gains renown and the loser harm, scaled by how much of their pool they lost (armour reduces yours). Once a day per rival. |
 | 💀 To the death | 4 | Only with someone who already dislikes you. If you win, they die. If you lose, you take heavy harm. |
 | 🤝 Team up | 1 | Treasure hunters, sellswords, crusaders and merchants delve with you for 7 days: about +10% to every delve check, for 25% of the gold you find. A fair split warms them. |
 | 💰 Hire | 1 | Sellswords, bounty hunters, treasure hunters, merchants and duelists join your army for 10 days, paid up front (60g + 35g per level). If they are lost from your ranks, they either die or leave to recover from their wounds. |
@@ -3790,7 +4624,7 @@ Attitude moves with what you do: fair splits, contracts served out and races the
 A nemesis acts against you:
 
 - **Slander.** They spread 'slander' rumours through the gossip system. These carry no bounty, but they cost you renown and reputation as they spread from town to town.
-- **Ambush.** About every 20 days they may come after you. If you have not moved on when they arrive, they ambush you. Beat them off and they flee wounded, or sometimes die. Lose and they take 10% of your gold. Losing a duel or an ambush may leave you **wounded** (see Wounds), twice as likely in a duel to the death.
+- **Ambush.** About every 20 days they may come after you. If you have not moved on when they arrive, they ambush you. The ambush is a duel fought on instinct: you start 3 breath short, and their hired swords add to their attack. Beat them off and they flee wounded, or sometimes die. Lose and they take 10% of your gold. Losing a duel or an ambush may leave you **wounded** (see Wounds), twice as likely in a duel to the death.
 
 Rivals can die in the depths, on a manhunt, under your banner or by your hand. Newcomers arrive 8–20 days later to replace the dead.
 
@@ -3979,3 +4813,21 @@ Fulfil the quest and the companion becomes **Devoted**. Their approval goes to 1
 
 **Diplomacy Mastery** also makes gifts to lords buy more goodwill and softens a former crown's anger when you pledge to another. **Explorer** rulers scout further afield and survey more sites when founding colonies.
 
+
+## Craft, Brawls, Contracts and Small Debts
+
+**Crafted quality shows and counts.** Goods from your own bench carry their quality tier (🧱 Crude, 🔷 Fine, 🌟 Masterwork; Common is not marked) in the inventory, the HUD pack, the hotbar tooltip and the sell rows of a market or a trader, whose prices include it. In a duel (training, tournaments, rival duels, a rival suitor) a crafted sword's damage and attack, a shield's guard and armour's protection are scaled by their quality: a Masterwork blade cuts half again as deep, a Crude one three-quarters.
+
+**Townsfolk brawl by who they are.** Attack someone on a town map and whether they stand or run comes from their duel profile (attack + defence), their temperament (the bold and stubborn stand, the cautious and quiet run), how dangerous you look and how hurt they already are: a guard stands, a merchant runs, a bold traveller may stand. A fighter's counter-blows are their profile's swing (a guard's spear hits harder than a court sword), softened by your armour.
+
+**A rival suitor is a real fight.** "I'll have a word with them, outside" is fought on the duel engine against the suitor's own kind (a captain of the guard fights like a guard, a travelling poet like a traveller); the odds shown are that duel's, and a beating hurts by how badly it went.
+
+**A deed is worth its telling.** Each town a deed of yours reaches raises your reputation with that town's realm once (up to +5 for a fresh legend, less as it ages; a sack wins no one's love). A friend there warms by the same measure. A deed told as **legend** counts for more, a **soured** telling for little, and one **credited to another** for nothing.
+
+**The roll of deeds.** Deeds & Records now counts the wilds (encounters met and dealt with, risks that paid off or went wrong, places explored, with the last entries of the wilds journal), your crafting (things made, masterworks, spoiled attempts, your crafter's rank) and jobs completed. A Masterwork from your own hands wins the **Masterwork** achievement.
+
+**Mercenary contracts.** Each contract has a loot table: a strongbox on the march may hold goods as well as gold, and a won contract may bring spoils (a pirate cove's spices, gems and liquor; a ruin's relics). What doesn't fit in the packs is sold on the spot. Raiding a pirate cove counts 80% of your war galleys' strength alongside the army. The jobs panel shows what has happened on the march, and the completion notice tells it.
+
+**Tasks and favours.** Handing the rival's documents back to their owner instead earns their thanks (they think better of you, thank you when next you speak, and your name rises a little in their realm) and +1 karma; your employer still hears of it. A townsperson's thanks for a task warm them by the amount in the data. The coin a friend presses on you as a favour is a loan: pay it back from the conversation within 30 days and they think the better of you; let it run past due and they ask for it, a little colder. A guard or traveller who likes you well knows the land further out (outlaw lairs up to 16 hexes) and names two old places instead of one.
+
+**Withdrawing from a field battle** leaves the band that fought you alone for 3 days.

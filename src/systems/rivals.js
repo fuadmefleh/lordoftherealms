@@ -38,6 +38,7 @@ import { Gossip } from './gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { Ailments } from './ailments.js';
 import { Traits } from './traits.js';
+import { Duels } from './duels.js';
 
 const DEFAULT_CONFIG = {
     minRivals: 6,
@@ -1153,18 +1154,45 @@ export const Rivals = {
         return { player: p, rival: r };
     },
 
-    /** A fight between the player and a rival (duel or ambush). */
-    _fight(player, world, rival, { toDeath = false, ambush = false } = {}) {
-        const cfg = Rivals.config().duel;
+    /**
+     * The duel combatants for the player and a rival (systems/duels.js): the
+     * rival carries their faith edge, and in an ambush their hired swords.
+     */
+    duelists(player, rival, { ambush = false } = {}) {
         const faith = Rivals.faithEdge(player, rival);
-        const pRoll = Rivals.playerPower(player) + faith.player + Utils.randInt(1, 8) - (ambush ? 2 : 0);
-        const rRoll = Rivals.rivalPower(rival) + faith.rival + Utils.randInt(1, 8);
-        const playerWon = pRoll >= rRoll;
-        const res = { playerWon, harm: 0, renown: 0, rivalDied: false, goldLost: 0, wound: null };
+        const a = Duels.fromPlayer(player, {
+            mods: PlayerEffects.duelModifiers(player),
+            // Sprung on: you start winded
+            staminaLoss: ambush ? 3 : 0,
+        });
+        a.attack += faith.player;
+        const b = Duels.fromRival(rival, {
+            archetype: Rivals.archetype(rival.archetype),
+            faith: faith.rival,
+            retainers: ambush ? _num(rival.retainers) * Rivals.config().spend.retainerPower * 0.5 : 0,
+        });
+        return { a, b, mode: ambush ? 'ambush' : 'firstBlood' };
+    },
+
+    /**
+     * A fight between the player and a rival (duel or ambush), fought with
+     * the duel engine. `outcome` is a finished Duels result (the interactive
+     * duel panel); without one the bout is auto-resolved (headless, ambushes).
+     */
+    _fight(player, world, rival, { toDeath = false, ambush = false, outcome = null } = {}) {
+        const cfg = Rivals.config().duel;
+        let duel = outcome;
+        if (!duel) {
+            const { a, b, mode } = Rivals.duelists(player, rival, { ambush });
+            duel = Duels.autoResolve(a, b, { mode: toDeath ? 'toDeath' : mode, playerYieldAt: toDeath ? 0 : 0.15 });
+        }
+        const playerWon = !!duel.playerWon;
+        const lostFrac = _num(duel.aLost);
+        const res = { playerWon, harm: 0, renown: 0, rivalDied: false, goldLost: 0, wound: null, yielded: duel.yielded || null, rounds: duel.rounds || 0 };
         const st = Rivals.state(player);
         const day = _day(world);
         if (playerWon) {
-            res.harm = PlayerEffects.scaleDamage(player, Math.round(_roll(cfg.harm) / 2));
+            res.harm = PlayerEffects.scaleDamage(player, Math.round(Duels.harm(lostFrac, cfg.harm) / 2));
             res.renown = Math.max(cfg.minRenown, Math.floor(rival.renown / 10) * cfg.renownPerTen);
             player.renown = _num(player.renown) + res.renown;
             rival.renown = Math.max(0, rival.renown - Math.ceil(res.renown / 2));
@@ -1178,7 +1206,7 @@ export const Rivals = {
                 Rivals.remember(rival, world, ambush ? 'beat off my ambush' : 'beat me in a duel', ambush ? -5 : -8);
             }
         } else {
-            res.harm = PlayerEffects.scaleDamage(player, _roll(toDeath ? cfg.deathHarm : cfg.harm));
+            res.harm = PlayerEffects.scaleDamage(player, Duels.harm(Math.max(0.35, lostFrac), toDeath ? cfg.deathHarm : cfg.harm));
             rival.renown += Math.max(1, Math.floor(_num(player.renown) / 20));
             rival.deeds.duelsWon++;
             st.stats.duelsLost++;
@@ -1189,7 +1217,7 @@ export const Rivals = {
             }
             Rivals.remember(rival, world, ambush ? 'fell to my ambush' : 'lost a duel to me', ambush ? 0 : 4);
             // The loser may carry a wound away (the 'duel' / 'ambush' sources in data/ailments.json)
-            res.wound = Ailments.maybeWound(player, world, ambush ? 'ambush' : 'duel', { chanceMult: toDeath ? 2 : 1 });
+            res.wound = Ailments.maybeWound(player, world, ambush ? 'ambush' : 'duel', { chanceMult: (toDeath ? 2 : 1) * (0.5 + lostFrac) });
         }
         player.health = Math.max(1, _num(player.health) - res.harm);
         if (!res.rivalDied) {
@@ -1207,17 +1235,29 @@ export const Rivals = {
         return att < Rivals.config().attitude.friend || !!arch.duelist;
     },
 
-    /** Challenge a rival here to a duel (first blood, or to the death). */
-    duel(player, world, id, { toDeath = false } = {}) {
+    /** Can the player challenge this rival now? { ok, reason, refused }. */
+    canDuel(player, world, id, toDeath = false) {
         const rival = Rivals.get(player, id);
-        if (!rival || rival.dead) return { success: false, reason: 'They are not here.' };
-        if (rival.lastFightDay === _day(world)) return { success: false, reason: `${rival.name} has had enough fighting for one day.` };
+        if (!rival || rival.dead) return { ok: false, reason: 'They are not here.' };
+        if (rival.lastFightDay === _day(world)) return { ok: false, reason: `${rival.name} has had enough fighting for one day.` };
         if (!Rivals.willDuel(rival, toDeath)) {
-            return { success: false, refused: true, reason: `${rival.name}: "${Rivals.line(rival, 'duelRefuse')}"` };
+            return { ok: false, refused: true, reason: `${rival.name}: "${Rivals.line(rival, 'duelRefuse')}"` };
         }
+        return { ok: true, rival };
+    },
+
+    /**
+     * Challenge a rival here to a duel (first blood, or to the death).
+     * `outcome`: a finished Duels result from the interactive duel panel;
+     * without one the duel is auto-resolved.
+     */
+    duel(player, world, id, { toDeath = false, outcome = null } = {}) {
+        const gate = Rivals.canDuel(player, world, id, toDeath);
+        if (!gate.ok) return { success: false, refused: !!gate.refused, reason: gate.reason };
+        const rival = gate.rival;
         rival.met = true;
         const accept = Rivals.line(rival, 'duelAccept');
-        const res = Rivals._fight(player, world, rival, { toDeath });
+        const res = Rivals._fight(player, world, rival, { toDeath, outcome });
         const after = res.rivalDied ? '' : Rivals.line(rival, res.playerWon ? 'duelLose' : 'duelWin');
         if (res.playerWon) Gossip.spreadDeed(player, world, 'duel_won', { q: player.q, r: player.r, victim: rival.name });
         return { success: true, ...res, accept, after, rival };

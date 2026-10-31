@@ -1,6 +1,7 @@
 // ActionMenu — Estates & Land: the estates about the town where you stand
-// (holder, tenants, crops, rent, loyalty, worth; buy one, or make an offer),
-// your own land (rents, the tenants' mood, improvements, enclosure, selling,
+// (holder, tenants, crops, rent due and paid, loyalty, worth; buy one, or make
+// an offer), your own land (rents, the tenants' mood, pressing them for their
+// arrears, improvements, enclosure, selling,
 // settling one as a dowry) and the land market near you. Logic lives in
 // world/estates.js and systems/landMarket.js; buttons route through
 // data-am-act → ActionMenu.estateAct.
@@ -47,7 +48,8 @@ function estateCard(game, e, live) {
     if (x) html += ` <span style="color:#f5c542; font-size:11px;">· for sale ${x.price}g</span>`;
     html += `<br><span style="${NOTE}">${Math.round(e.share * C.derive.estateShare * 100)}% of ${esc(live.name)}'s farmland · ${e.hh} tenant households · soil ${Math.round((e.soil || 1) * 100)}%${e.drained ? ' (drained)' : ''}${e.marl > 0 ? ' (marled)' : ''}${e.enclosed > 0 ? ' · <b>enclosed: sheep</b>' : ''}</span>`;
     html += `<br>Crops: ${cropsLine(world, e, live)}`;
-    html += `<br>Rent: ${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${Math.round(e.lastRent || 0)}g${e.arrears > 0 ? ` <span style="color:#e67e22;">(${e.arrears}g in arrears)</span>` : ''} · tenants' loyalty <span style="color:${loyColor(e.loyalty)};">${e.loyalty}</span>`;
+    const dueLine = e.lastDue != null ? `due ${Math.round(e.lastDue)}g / paid ${Math.round(e.lastPaid != null ? e.lastPaid : e.lastRent || 0)}g${e.lastBack > 0 ? ` (${e.lastBack}g of it arrears)` : ''} · ${Math.round(e.lastRent || 0)}g to the holder` : `${Math.round(e.lastRent || 0)}g`;
+    html += `<br>Rent: ${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${dueLine}${e.arrears > 0 ? ` <span style="color:#e67e22;">(${e.arrears}g in arrears)</span>` : ''} · tenants' loyalty <span style="color:${loyColor(e.loyalty)};">${e.loyalty}</span>`;
     html += `<br>Worth <b>${value.toLocaleString()}g</b> <span style="${NOTE}">(${rent}g net rent a year at ${(LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null) * 100).toFixed(1)}%)</span>`;
     if (e.works) html += `<br><span style="color:#7cc4e0;">${esc((C.works[e.works.kind] || {}).label || 'Works')} under way until day ${e.works.until}.</span>`;
     if (!mine) {
@@ -61,6 +63,11 @@ function estateCard(game, e, live) {
         for (const [id, lv] of Object.entries(C.rent.levels)) html += act(esc(lv.label), ['rent', e.id, id], e.rent === id ? BTN_GOLD : BTN_PLAIN);
         html += act('In coin', ['mode', e.id, 'coin'], e.mode === 'coin' ? BTN_GOLD : BTN_PLAIN, true, 'A fixed sum on the usual crop: the tenants carry a bad year');
         html += act('Share of the crop', ['mode', e.id, 'kind'], e.mode === 'kind' ? BTN_GOLD : BTN_PLAIN, true, 'Rent follows the harvest and its price; the tenants like it better');
+        if (e.arrears > 0) {
+            const pq = LandMarket.pressQuote(player, world, e.id);
+            html += act(pq.ok ? `Press for arrears (${pq.amount}g)` : 'Press for arrears', ['press', e.id], BTN_RED, pq.ok,
+                pq.ok ? `Send the bailiff: loyalty -${pq.loyalty}${pq.risk > 0 ? `, ${Math.round(pq.risk * 100)}% chance of a rent riot (nothing collected)` : ''}` : pq.reason);
+        }
         html += '<br>';
         for (const k of ['drain', 'marl', 'enclose', 'relet']) {
             const q = LandMarket.worksQuote(player, world, e.id, k);
@@ -160,6 +167,7 @@ Object.assign(ActionMenu, {
             case 'mode': res = LandMarket.setRent(player, world, a, null, b); break;
             case 'works': res = LandMarket.improve(player, world, a, b); break;
             case 'dowry': res = LandMarket.dowry(player, world, a, b); break;
+            case 'press': res = LandMarket.pressArrears(player, world, a); break;
             default: return;
         }
         if (res) {

@@ -1,0 +1,126 @@
+{
+    "_doc": "House ambitions and the demands made on a rich House (systems/house.js, systems/demands.js). An ambition's `requires` names the ambition that must be fulfilled first (its predecessor tier); `req` is a map of House._metrics keys to the minimum value (true for a flag). `reward` is paid when the capstone is reached: prestige, gold, renown, reputation (with every living realm), and an `honour` the House keeps forever — each honour's `fame` adds to the House's good fame in every realm (systems/fame.js).",
+    "ambitions": [
+        {
+            "id": "seat_of_power", "tier": 1, "next": ["crown_of_realms"],
+            "reward": { "prestige": 20, "renown": 15, "reputation": 3, "honour": { "id": "realm_founders", "name": "Founders of a Realm", "fame": 6 } }
+        },
+        {
+            "id": "faith_eternal", "tier": 1, "next": ["holy_see"],
+            "reward": { "prestige": 20, "renown": 10, "honour": { "id": "keepers_of_faith", "name": "Keepers of the Faith", "fame": 5 } }
+        },
+        {
+            "id": "merchant_dynasty", "tier": 1, "next": ["bankers_to_kings"],
+            "reward": { "prestige": 15, "gold": 2500, "renown": 8, "honour": { "id": "merchant_princes", "name": "Merchant Princes", "fame": 5 } }
+        },
+        {
+            "id": "bloodline_of_kings", "tier": 1, "next": ["blood_of_empires"],
+            "reward": { "prestige": 20, "renown": 8, "reputation": 2, "honour": { "id": "royal_blood", "name": "Blood of Kings", "fame": 5 } }
+        },
+        {
+            "id": "the_great_house", "tier": 1, "next": ["house_eternal"],
+            "reward": { "prestige": 25, "renown": 12, "honour": { "id": "great_house", "name": "A Great House", "fame": 6 } }
+        },
+
+        {
+            "id": "crown_of_realms", "tier": 2, "requires": "seat_of_power", "next": ["empire_of_the_house"],
+            "name": "Crown of Realms", "blurb": "A realm was only the beginning. Wear a crown.",
+            "milestones": [
+                { "id": "holdings6", "label": "Hold six settlements", "req": { "settlementsHeld": 6 } },
+                { "id": "host300", "label": "Field an army of strength 300", "req": { "armyStrength": 300 } },
+                { "id": "renown150", "label": "Reach 150 renown", "req": { "renown": 150 } }
+            ],
+            "capstone": { "id": "crowned", "label": "Rule a kingdom", "req": { "isRuler": true } },
+            "reward": { "prestige": 40, "renown": 30, "reputation": 5, "honour": { "id": "crowned_house", "name": "A Crowned House", "fame": 12 } }
+        },
+        {
+            "id": "empire_of_the_house", "tier": 3, "requires": "crown_of_realms",
+            "name": "Empire of the House", "blurb": "Let the map wear your colours.",
+            "milestones": [
+                { "id": "holdings10", "label": "Hold ten settlements", "req": { "settlementsHeld": 10 } },
+                { "id": "colonies2", "label": "Plant two colonies", "req": { "colonies": 2 } },
+                { "id": "host600", "label": "Field an army of strength 600", "req": { "armyStrength": 600 } }
+            ],
+            "capstone": { "id": "imperium", "label": "Fifteen settlements and a crown", "req": { "settlementsHeld": 15, "isRuler": true } },
+            "reward": { "prestige": 60, "renown": 50, "reputation": 8, "honour": { "id": "imperial_house", "name": "An Imperial House", "fame": 18 } }
+        },
+        {
+            "id": "holy_see", "tier": 2, "requires": "faith_eternal",
+            "name": "The Holy See", "blurb": "Make your faith the faith of nations.",
+            "milestones": [
+                { "id": "flock10k", "label": "Gather 10,000 followers", "req": { "followers": 10000 } },
+                { "id": "temples8", "label": "Raise 8 temples", "req": { "temples": 8 } },
+                { "id": "karma60", "label": "Keep your karma at 60 or above", "req": { "karma": 60 } }
+            ],
+            "capstone": { "id": "see", "label": "20,000 followers and 12 temples", "req": { "followers": 20000, "temples": 12 } },
+            "reward": { "prestige": 40, "renown": 25, "reputation": 4, "honour": { "id": "holy_house", "name": "The Holy House", "fame": 12 } }
+        },
+        {
+            "id": "bankers_to_kings", "tier": 2, "requires": "merchant_dynasty", "next": ["masters_of_coin"],
+            "name": "Bankers to Kings", "blurb": "Let crowns come to you, hat in hand.",
+            "milestones": [
+                { "id": "coffers100k", "label": "Amass 100,000 gold", "req": { "gold": 100000 } },
+                { "id": "routes8", "label": "Run 8 trade routes", "req": { "tradeRoutes": 8 } },
+                { "id": "estates12", "label": "Own 12 properties", "req": { "properties": 12 } }
+            ],
+            "capstone": { "id": "bankers", "label": "200,000 gold and 15 properties", "req": { "gold": 200000, "properties": 15 } },
+            "reward": { "prestige": 35, "gold": 10000, "renown": 20, "honour": { "id": "bankers_house", "name": "Bankers to Kings", "fame": 10 } }
+        },
+        {
+            "id": "masters_of_coin", "tier": 3, "requires": "bankers_to_kings",
+            "name": "Masters of Coin", "blurb": "The coin of every realm passes through your hands.",
+            "milestones": [
+                { "id": "coffers400k", "label": "Amass 400,000 gold", "req": { "gold": 400000 } },
+                { "id": "routes12", "label": "Run 12 trade routes", "req": { "tradeRoutes": 12 } },
+                { "id": "estates20", "label": "Own 20 properties", "req": { "properties": 20 } }
+            ],
+            "capstone": { "id": "coin", "label": "A million in gold", "req": { "gold": 1000000 } },
+            "reward": { "prestige": 60, "gold": 25000, "renown": 35, "honour": { "id": "masters_of_coin", "name": "Masters of Coin", "fame": 15 } }
+        },
+        {
+            "id": "blood_of_empires", "tier": 2, "requires": "bloodline_of_kings",
+            "name": "Blood of Empires", "blurb": "Your grandchildren on every throne.",
+            "milestones": [
+                { "id": "heirs6", "label": "Raise 6 children", "req": { "children": 6 } },
+                { "id": "gen3", "label": "Reach a third generation", "req": { "generation": 3 } },
+                { "id": "prestige120", "label": "Reach 120 Prestige", "req": { "prestige": 120 } }
+            ],
+            "capstone": { "id": "empires", "label": "8 children across 4 generations", "req": { "children": 8, "generation": 4 } },
+            "reward": { "prestige": 45, "renown": 20, "reputation": 5, "honour": { "id": "blood_of_empires", "name": "Blood of Empires", "fame": 12 } }
+        },
+        {
+            "id": "house_eternal", "tier": 2, "requires": "the_great_house",
+            "name": "The House Eternal", "blurb": "A name that outlasts kingdoms.",
+            "milestones": [
+                { "id": "prestige250", "label": "Reach 250 Prestige", "req": { "prestige": 250 } },
+                { "id": "honours3", "label": "Win three honours for the House", "req": { "honours": 3 } },
+                { "id": "gen4", "label": "Reach a fourth generation", "req": { "generation": 4 } }
+            ],
+            "capstone": { "id": "eternal_house", "label": "400 Prestige across 5 generations", "req": { "prestige": 400, "generation": 5 } },
+            "reward": { "prestige": 50, "renown": 40, "reputation": 6, "honour": { "id": "house_eternal", "name": "The House Eternal", "fame": 20 } }
+        }
+    ],
+    "demands": {
+        "enabled": true,
+        "_doc": "Pressure on a rich, uncrowned House (systems/demands.js). Checked every `every` days, at most one open demand at a time; each kind has a cooldown. Unanswered demands count as refused when they lapse.",
+        "every": 15,
+        "answerDays": 10,
+        "crown": {
+            "minGold": 5000, "lowReserveDays": 30, "chance": 0.5, "cooldown": 90,
+            "benevolenceShare": 0.08, "loanShare": 0.12, "min": 200, "max": 6000,
+            "loanDays": 120, "loanRate": 0.05, "loanDeferDays": 30, "loanMaxDefers": 3,
+            "payRep": 5, "loanRep": 3, "negotiateRep": 1, "negotiateFailRep": -4, "refuseRep": -12, "refusePrestige": 5
+        },
+        "guild": {
+            "minGold": 4000, "radius": 2, "chance": 0.4, "cooldown": 75, "minFeud": 5,
+            "share": 0.03, "min": 100, "max": 1500,
+            "payFeud": -25, "negotiateFeud": -10, "negotiateFailFeud": 5, "refuseFeud": 20
+        },
+        "rival": {
+            "minGold": 3000, "minFeud": 40, "chance": 0.45, "cooldown": 60,
+            "baseShare": 0.04, "perFeud": 0.001, "growth": 1.25, "min": 150, "max": 8000,
+            "payFeud": -20, "negotiateFeud": -10, "negotiateFailFeud": 5, "refuseFeud": 15
+        },
+        "negotiate": { "base": 0.35, "perSkill": 0.04, "perCharisma": 0.03, "min": 0.15, "max": 0.85, "share": 0.5 }
+    }
+}

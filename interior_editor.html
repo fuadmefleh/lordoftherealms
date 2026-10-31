@@ -93,6 +93,16 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
 .ntb-cell.ntb-selected{background:#0b2a4a !important;border-color:var(--blue);outline:2px solid var(--blue)}
 .ntb-cell.ntb-filled{border-color:var(--green)}
 .ntb-cell canvas{image-rendering:pixelated;width:48px;height:48px;display:block}
+.ntb-grid .ntb-cell{position:relative}
+.ntb-side{position:absolute;background:rgba(139,148,158,.18);border-radius:2px;cursor:pointer;transition:background .1s}
+.ntb-side:hover{background:rgba(230,168,23,.55)}
+.ntb-side.on{background:rgba(230,168,23,.9)}
+.ntb-side.n{top:2px;left:14%;right:14%;height:7px}
+.ntb-side.s{bottom:2px;left:14%;right:14%;height:7px}
+.ntb-side.w{left:2px;top:14%;bottom:14%;width:7px}
+.ntb-side.e{right:2px;top:14%;bottom:14%;width:7px}
+.ntb-edge-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:10px;color:var(--text-dim);margin:2px 0 6px}
+.ntb-edge-row button{font-size:10px;padding:2px 7px}
 .ntb-cell-lbl{font-size:8px;color:var(--text-dim);margin-top:2px;font-weight:600;text-transform:uppercase}
 .ntb-help-body{transition:max-height .2s;overflow:hidden;max-height:600px}
 .ntb-help.collapsed .ntb-help-body{max-height:0}
@@ -152,7 +162,7 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
     <button id="tool-erase"   onclick="setTool('erase')">🗑 Erase</button>
     <button id="tool-fill"    onclick="setTool('fill')">🧺 Fill</button>
     <button id="tool-eyedrop" onclick="setTool('eyedrop')">💉 Pick</button>
-    <button id="tool-impass"  onclick="setTool('impass')" title="Block/Unblock tiles — activates green/red passability overlay. Click or drag to block (red ✕). Click an already-blocked tile to unblock it (green ✓).">⛔ Block</button>
+    <button id="tool-impass"  onclick="setTool('impass')" title="Block/Unblock — shows the green/red passability overlay. Click the middle of a tile to block the whole tile (red ✕). Click near a tile's edge to block just that side: people can stand on the tile but not cross that edge. Drag to do a row.">⛔ Block</button>
     <button id="tool-door"    onclick="setTool('door')">🚪 Door</button>
     <button id="tool-furn"    onclick="setTool('furniture')">🪑 Furniture</button>
     <button id="tool-9tile"   onclick="setTool('9tile')" title="9-Tile Auto-Brush (N)">🖼 9-Tile</button>
@@ -381,6 +391,11 @@ input[type="text"]:focus,input[type="number"]:focus,select:focus{outline:none;bo
             <b style="color:var(--purple)">🏷 Bldg Tags:</b> comma-separated building types (e.g. <code>tavern, inn</code>). Leave blank to match all buildings. The generator picks tagged brushes first, then falls back to untagged ones.
           </div>
         </div>
+        <div class="ntb-edge-row" id="ntb-edge-row">
+          <span title="Blocked sides can be stood next to but not crossed. Click a slot's edge bar to block that side.">🧱 Edges nobody crosses:</span>
+          <button onclick="ntbSetOuterSides(true)" title="Block the outer side of every edge and corner slot, so the floor's border can't be walked across">Block outer edges</button>
+          <button onclick="ntbSetOuterSides(false)" title="Clear all blocked sides">Clear</button>
+        </div>
         <div class="ntb-grid" id="ntb-grid"></div>
         <div style="font-size:9px;color:var(--text-dim);text-transform:uppercase;font-weight:600;margin-top:8px;margin-bottom:2px">Inside Corners <span style="font-weight:400;text-transform:none">(optional)</span></div>
         <div class="ntb-ic-grid" id="ntb-ic-grid"></div>
@@ -429,7 +444,49 @@ let PAL_ZOOM = 2;
 let gridW = 10, gridH = 8;
 let canvasZoom = 2, panX = 20, panY = 20;
 let layers = { floor: {}, furniture: {}, walls: {}, overlay: {} };
-let meta = {};       // "q,r" → { impassable?, door?, furniture?: { type, name, passable } }
+let meta = {};       // "q,r" → { impassable?, door?, furniture?: { type, name, passable }, blockSides? ('nw'…) }
+
+// A meta entry with nothing left in it can be dropped.
+function metaIsEmpty(m) {
+  return !m || (!m.impassable && !m.door && !m.furniture && !m.blockSides && !m.openSides);
+}
+
+// Sides a painted 9-tile floor brush blocks at a cell: the slot's
+// brush.slotSides entry for the slot the cell uses (inside corners and wall
+// brushes block none), less any side facing a door (a door is never walled
+// off) and any the Block tool opened here (meta.openSides). Worked out from
+// the painted cells each time, so erasing or repainting never leaves stale sides.
+function brushSidesAt(q, r, bgm, brushes, metaMap) {
+  bgm = bgm || brushGroupMap; brushes = brushes || nineTileBrushes; metaMap = metaMap || meta;
+  let mask = EditorCore.sidesMask(brushSlotSidesAt(q, r, bgm, brushes));
+  if (!mask) return '';
+  const isDoor = (dq, dr) => !!(metaMap[`${q + dq},${r + dr}`] && metaMap[`${q + dq},${r + dr}`].door);
+  if (isDoor(0, -1)) mask &= ~1;
+  if (isDoor(1, 0)) mask &= ~2;
+  if (isDoor(0, 1)) mask &= ~4;
+  if (isDoor(-1, 0)) mask &= ~8;
+  mask &= ~EditorCore.sidesMask(metaMap[`${q},${r}`] && metaMap[`${q},${r}`].openSides);
+  return EditorCore.sidesString(mask);
+}
+
+// The slot's own sides, before doors and per-tile openings.
+function brushSlotSidesAt(q, r, bgm, brushes) {
+  bgm = bgm || brushGroupMap; brushes = brushes || nineTileBrushes;
+  const entry = bgm[`${q},${r}`];
+  if (!entry) return '';
+  const brush = brushes.find(b => b.id === entry.brushId);
+  if (!brush || !brush.slotSides || brush.brushType === 'wall' || brush.brushType === 'interior_wall') return '';
+  const has = (dq, dr) => { const e = bgm[`${q + dq},${r + dr}`]; return !!(e && e.brushId === entry.brushId); };
+  const hasTop = has(0, -1), hasBottom = has(0, 1), hasLeft = has(-1, 0), hasRight = has(1, 0);
+  if (hasTop && hasBottom && hasLeft && hasRight && brush.insideCorners) {
+    const ic = !has(-1, -1) ? 0 : !has(1, -1) ? 1 : !has(-1, 1) ? 2 : !has(1, 1) ? 3 : -1;
+    if (ic >= 0 && brush.insideCorners[ic]) return '';
+  }
+  const row = (!hasTop && hasBottom) ? 0 : (hasTop && !hasBottom) ? 2 : 1;
+  const col = (!hasLeft && hasRight) ? 0 : (hasLeft && !hasRight) ? 2 : 1;
+  return (brush.slotSides[row] && brush.slotSides[row][col]) || '';
+}
+
 let placedObjects = {};  // "q,r" → { defId, name, tiles:[{localCol,localRow,sheetPath,sx,sy,sw,sh}], bounds }
 let activeLayer = 'floor';
 let activeTool = 'paint';
@@ -468,6 +525,15 @@ const _undoStack = EditorCore.createUndoStack({
   },
 });
 let _impassDragSet = null; // true = painting blocked, false = painting passable, null = not set
+let _impassSide = null;    // 'n'|'e'|'s'|'w' when the stroke edits one side of each tile, else null
+let _hoverFrac = null;     // { fx, fy } cursor position within the hovered tile (0..1)
+
+// Where in its tile a screen point falls (0..1 each way).
+function tileFrac(sx, sy) {
+  const ds = TILE * canvasZoom;
+  const gx = (sx - panX) / ds, gy = (sy - panY) / ds;
+  return { fx: gx - Math.floor(gx), fy: gy - Math.floor(gy) };
+}
 
 // Canvas refs
 let cvs, ctx;
@@ -974,6 +1040,13 @@ async function _loadSavedCustomSheets() {
   } catch (e) { console.warn('Failed to load saved custom sheets:', e); }
 }
 
+// The spritesheet editor's "Send to Editors" adds sheets while this editor is open.
+try {
+  new BroadcastChannel('lotr-custom-sheets').onmessage = ev => {
+    if (ev.data && Array.isArray(ev.data.keys) && ev.data.keys.includes('customSheets_interior')) _loadSavedCustomSheets();
+  };
+} catch (e) { /* BroadcastChannel unsupported — sheets appear on next load */ }
+
 // ─── Custom Objects Palette ───
 
 function _showCustomObjectsPalette() {
@@ -1354,6 +1427,32 @@ function renderCanvas() {
     }
   }
 
+  // Blocked sides: red bars for hand-set sides, amber for the floor brush's edge slots
+  {
+    const keys = new Set(Object.keys(meta).filter(k => meta[k].blockSides));
+    for (const k of Object.keys(brushGroupMap)) keys.add(k);
+    const t = Math.max(3, ds * 0.14);
+    for (const key of keys) {
+      const own = EditorCore.sidesMask(meta[key] && meta[key].blockSides);
+      const [q, r] = key.split(',').map(Number);
+      const fromBrush = EditorCore.sidesMask(brushSidesAt(q, r));
+      if (!own && !fromBrush) continue;
+      const dx = panX + q * ds, dy = panY + r * ds;
+      const bar = (bit, color) => {
+        ctx.fillStyle = color;
+        if (bit === 1) ctx.fillRect(dx, dy, ds, t);
+        if (bit === 2) ctx.fillRect(dx + ds - t, dy, t, ds);
+        if (bit === 4) ctx.fillRect(dx, dy + ds - t, ds, t);
+        if (bit === 8) ctx.fillRect(dx, dy, t, ds);
+      };
+      const strong = activeTool === 'impass';
+      for (const bit of [1, 2, 4, 8]) {
+        if (own & bit) bar(bit, strong ? 'rgba(248,81,73,0.85)' : 'rgba(248,81,73,0.55)');
+        else if (fromBrush & bit) bar(bit, strong ? 'rgba(230,168,23,0.8)' : 'rgba(230,168,23,0.45)');
+      }
+    }
+  }
+
   // Meta overlay: impassable, doors, furniture
   for (const [key, m] of Object.entries(meta)) {
     const [q, r] = key.split(',').map(Number);
@@ -1416,6 +1515,17 @@ function renderCanvas() {
         }
       }
       ctx.globalAlpha = 1;
+    } else if (activeTool === 'impass' && _hoverFrac) {
+      // Show what a click would toggle: one side, or the whole tile
+      const dx = panX + _hoverTile.q * ds, dy = panY + _hoverTile.r * ds;
+      const side = EditorCore.sideAtPoint(_hoverFrac.fx, _hoverFrac.fy, 0.25);
+      const t = Math.max(3, ds * 0.14);
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      if (side === 'n') ctx.fillRect(dx, dy, ds, t);
+      else if (side === 'e') ctx.fillRect(dx + ds - t, dy, t, ds);
+      else if (side === 's') ctx.fillRect(dx, dy + ds - t, ds, t);
+      else if (side === 'w') ctx.fillRect(dx, dy, t, ds);
+      else { ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(dx, dy, ds, ds); }
     } else {
       const dx = panX + _hoverTile.q * ds, dy = panY + _hoverTile.r * ds;
       ctx.strokeStyle = 'rgba(230,168,23,0.6)';
@@ -1550,6 +1660,27 @@ function applyTool(sx, sy) {
     }
 
     case 'impass': {
+      // A stroke that began near a tile edge blocks/unblocks that side on every tile it crosses
+      if (_impassSide) {
+        if (!meta[key]) meta[key] = {};
+        const m = meta[key];
+        const bit = EditorCore.sidesMask(_impassSide);
+        const fromBrush = EditorCore.sidesMask(brushSlotSidesAt(q, r));
+        const set = (field, on) => {
+          const next = EditorCore.toggleSide(m[field], _impassSide, on);
+          if (next) m[field] = next; else delete m[field];
+        };
+        if (_impassDragSet) {
+          // Block: undo an opening of the brush's side, or block it by hand
+          if (fromBrush & bit) set('openSides', false); else set('blockSides', true);
+        } else {
+          // Open: drop a hand-set side; a brush side gets an opening here
+          set('blockSides', false);
+          if (fromBrush & bit) set('openSides', true);
+        }
+        if (metaIsEmpty(m)) delete meta[key];
+        break;
+      }
       // _impassDragSet is determined on first cell of a drag stroke (set in mousedown)
       const setTo = (typeof _impassDragSet === 'boolean') ? _impassDragSet : !(meta[key] && meta[key].impassable);
       if (setTo) {
@@ -1558,7 +1689,7 @@ function applyTool(sx, sy) {
       } else {
         if (meta[key]) {
           delete meta[key].impassable;
-          if (!meta[key].door && !meta[key].furniture) delete meta[key];
+          if (metaIsEmpty(meta[key])) delete meta[key];
         }
       }
       break;
@@ -1567,7 +1698,7 @@ function applyTool(sx, sy) {
     case 'door': {
       // Clear any existing door, then set this tile
       for (const [k, m] of Object.entries(meta)) {
-        if (m.door) { delete m.door; if (!m.impassable && !m.furniture) delete meta[k]; }
+        if (m.door) { delete m.door; if (metaIsEmpty(m)) delete meta[k]; }
       }
       if (!meta[key]) meta[key] = {};
       meta[key].door = true;
@@ -1588,7 +1719,7 @@ function applyTool(sx, sy) {
       // Toggle: if clicking same furniture, remove it
       if (meta[key].furniture && meta[key].furniture.type === furnType) {
         delete meta[key].furniture;
-        if (!meta[key].impassable && !meta[key].door) delete meta[key];
+        if (metaIsEmpty(meta[key])) delete meta[key];
       } else {
         meta[key].furniture = {
           type: furnType,
@@ -1655,11 +1786,18 @@ function initCanvas() {
       pushUndo();
       _painting = true;
       // For impass tool: decide on first click whether this stroke blocks or unblocks
+      _impassSide = null;
       if (activeTool === 'impass') {
         const t0 = screenToTile(sx, sy);
         if (t0.valid) {
           const k0 = `${t0.q},${t0.r}`;
-          _impassDragSet = !(meta[k0] && meta[k0].impassable);
+          const f = tileFrac(sx, sy);
+          _impassSide = EditorCore.sideAtPoint(f.fx, f.fy, 0.25);
+          // Toggle against what the tile shows now (hand-set and brush sides)
+          const shown = EditorCore.sidesMask(meta[k0] && meta[k0].blockSides) | EditorCore.sidesMask(brushSidesAt(t0.q, t0.r));
+          _impassDragSet = _impassSide
+            ? !(shown & EditorCore.sidesMask(_impassSide))
+            : !(meta[k0] && meta[k0].impassable);
         } else {
           _impassDragSet = true;
         }
@@ -1676,6 +1814,7 @@ function initCanvas() {
     if (_panning) { panX = e.clientX - _panStartX; panY = e.clientY - _panStartY; renderCanvas(); return; }
     const t = screenToTile(sx, sy);
     _hoverTile = t.valid ? t : null;
+    _hoverFrac = t.valid ? tileFrac(sx, sy) : null;
     if (_painting) { applyTool(sx, sy); }
     else { renderCanvas(); }
   });
@@ -1893,6 +2032,7 @@ function ntbSetType(type) {
   document.getElementById('ntb-type-interior_wall').classList.toggle('active', type === 'interior_wall');
   const isWall = type === 'wall' || type === 'interior_wall';
   document.getElementById('ntb-corridor-section').style.display = isWall ? '' : 'none';
+  ntbBuildGrid(); // edge bars only show for floor brushes
 }
 
 function openNtbEditor(idx, defaultType) {
@@ -1907,6 +2047,7 @@ function openNtbEditor(idx, defaultType) {
     ntbCorridors = (brush.corridors || ntbEmptyCorridors()).map(t => t ? {...t} : null);
     ntbEndCaps = (brush.endCaps || ntbEmptyEndCaps()).map(t => t ? {...t} : null);
     ntbBrushType = brush.brushType || 'floor';
+    ntbSlotSides = brush.slotSides ? brush.slotSides.map(row => row.slice()) : ntbEmptySlotSides();
     document.getElementById('ntb-del-btn').disabled = false;
     // Populate cost fields
     const c = brush.cost || {};
@@ -1924,6 +2065,7 @@ function openNtbEditor(idx, defaultType) {
     ntbCorridors = ntbEmptyCorridors();
     ntbEndCaps = ntbEmptyEndCaps();
     ntbBrushType = defaultType || 'floor';
+    ntbSlotSides = ntbEmptySlotSides();
     document.getElementById('ntb-del-btn').disabled = true;
     // Default costs
     document.getElementById('ntb-cost-gold').value = 0;
@@ -1954,7 +2096,20 @@ function closeNtbEditor() {
   buildNtbListPanel();
 }
 
+// Blocked sides per 3×3 slot ('' / 'n' / 'nw' …), saved as brush.slotSides.
+let ntbSlotSides = ntbEmptySlotSides();
+function ntbEmptySlotSides() { return [['', '', ''], ['', '', ''], ['', '', '']]; }
+
+// Block (or clear) the outer side of every edge and corner slot.
+function ntbSetOuterSides(on) {
+  ntbSlotSides = [0, 1, 2].map(r => [0, 1, 2].map(c => on ? EditorCore.outerSidesForSlot(r, c) : ''));
+  ntbBuildGrid();
+  toast(on ? 'Outer edges blocked: people can stand on the border tiles but not cross their outer edge' : 'Edges cleared', 'ok');
+}
+
 function ntbBuildGrid() {
+  const edgeRow = document.getElementById('ntb-edge-row');
+  if (edgeRow) edgeRow.style.display = (ntbBrushType === 'wall' || ntbBrushType === 'interior_wall') ? 'none' : '';
   // Main 3×3 grid
   const grid = document.getElementById('ntb-grid');
   grid.innerHTML = '';
@@ -1979,6 +2134,17 @@ function ntbBuildGrid() {
       lbl.className = 'ntb-cell-lbl';
       lbl.textContent = NTB_LABELS[r][c];
       cell.appendChild(lbl);
+      // Edge bars: which sides of this slot nobody crosses (floor brushes)
+      if (ntbBrushType !== 'wall' && ntbBrushType !== 'interior_wall') {
+        for (const side of ['n', 'e', 's', 'w']) {
+          const bar = document.createElement('div');
+          const on = EditorCore.sidesMask(ntbSlotSides[r][c]) & EditorCore.sidesMask(side);
+          bar.className = `ntb-side ${side}` + (on ? ' on' : '');
+          bar.title = `${on ? 'Blocked' : 'Open'}: ${{ n: 'top', e: 'right', s: 'bottom', w: 'left' }[side]} side of ${NTB_LABELS[r][c]}. Click to ${on ? 'open' : 'block'} it.`;
+          bar.onclick = ev => { ev.stopPropagation(); ntbSlotSides[r][c] = EditorCore.toggleSide(ntbSlotSides[r][c], side); ntbBuildGrid(); };
+          cell.appendChild(bar);
+        }
+      }
       grid.appendChild(cell);
     }
   }
@@ -2316,6 +2482,8 @@ function ntbSave() {
     insideCorners: ntbCorners.map(t => t ? {...t} : null),
     corridors: ntbCorridors.map(t => t ? {...t} : null),
     endCaps: ntbEndCaps.map(t => t ? {...t} : null),
+    // Sides of each slot nobody crosses (see brushSidesAt); omitted when none
+    slotSides: ntbSlotSides.some(row => row.some(Boolean)) ? ntbSlotSides.map(row => row.slice()) : undefined,
     cost: {
       gold: parseInt(document.getElementById('ntb-cost-gold').value) || 0,
       resources: Object.fromEntries(
@@ -3435,10 +3603,21 @@ function _exportInterior(interior) {
       return { q: rq, r: rr, sheetPath: c.sheetPath, sx: c.sx, sy: c.sy, sw: c.sw || TILE, sh: c.sh || TILE };
     });
   }
-  out.meta = Object.entries(interior.meta || {}).map(([key, m]) => {
+  // Floor-brush edge sides are worked out from the painted cells and
+  // exported as meta.brushSides (the game unions them with blockSides)
+  const metaOut = {};
+  for (const [key, m] of Object.entries(interior.meta || {})) metaOut[key] = { ...m };
+  const bgm = interior.brushGroupMap || {};
+  const brushes = interior.nineTileBrushes || nineTileBrushes;
+  for (const key of Object.keys(bgm)) {
+    const [q, r] = key.split(',').map(Number);
+    const sides = brushSidesAt(q, r, bgm, brushes, interior.meta || {});
+    if (sides) metaOut[key] = { ...(metaOut[key] || {}), brushSides: sides };
+  }
+  out.meta = Object.entries(metaOut).map(([key, m]) => {
     const [q, r] = key.split(',').map(Number);
     return { q: q - minQ, r: r - minR, ...m };
-  }).filter(m => m.impassable || m.door || m.furniture);
+  }).filter(m => m.impassable || m.door || m.furniture || m.blockSides || m.openSides || m.brushSides);
   // Export placed objects with offset-adjusted anchor positions
   out.placedObjects = Object.entries(interior.placedObjects || {}).map(([key, obj]) => {
     const [aq, ar] = key.split(',').map(Number);
@@ -3690,6 +3869,8 @@ window.addEventListener('message', ev => {
           const key = `${m.q + offQ},${m.r + offR}`;
           const entry = {};
           if (m.impassable) entry.impassable = true;
+          if (m.blockSides) entry.blockSides = m.blockSides;
+          if (m.openSides) entry.openSides = m.openSides;
           if (m.door) entry.door = true;
           if (m.furniture) entry.furniture = { ...m.furniture };
           newMeta[key] = entry;

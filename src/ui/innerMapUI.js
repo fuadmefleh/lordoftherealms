@@ -19,6 +19,12 @@ import { Hotbar } from './hotbar.js';
 import { PlayerInventory } from '../player/inventory.js';
 import { NpcDialog } from './npcDialog.js';
 import { ObjectActions } from './objectActions.js';
+import { DevotionPanel } from './actionMenu/devotion.js';
+import { NpcPortrait } from './npcPortrait.js';
+import { NpcDisposition } from '../systems/npcDisposition.js';
+import { _dispositionLabel } from './npcDialog/helpers.js';
+import { drawGlyph, buildingGlyph } from './icons.js';
+import { uiZoom } from './uiScale.js';
 
 
 Object.assign(InnerMapRenderer, {
@@ -86,30 +92,49 @@ Object.assign(InnerMapRenderer, {
         const summary = InnerMap.getSummary();
         if (!summary) return;
 
+        // Laid out in interface units, scaled with the Interface Size setting
+        // like the panels around it
+        const z = uiZoom();
+        const W = canvas.width / z;
         const barHeight = 48;
+        ctx.save();
+        ctx.scale(z, z);
         ctx.fillStyle = 'rgba(16, 20, 28, 0.92)';
-        ctx.fillRect(0, 0, canvas.width, barHeight);
+        ctx.fillRect(0, 0, W, barHeight);
         ctx.fillStyle = 'rgba(245,197,66,0.15)';
-        ctx.fillRect(0, barHeight - 1, canvas.width, 1);
+        ctx.fillRect(0, barHeight - 1, W, 1);
+
+        /** A glyph then text; returns where the next run goes (its left edge for 'right', its right edge otherwise). */
+        const run = (glyph, text, x, y, font, color, align = 'left') => {
+            ctx.font = font;
+            ctx.fillStyle = color;
+            ctx.textAlign = 'left';
+            const size = parseFloat(/(\d+)px/.exec(font)[1]) * 1.2;
+            const tw = ctx.measureText(text).width;
+            const left = align === 'right' ? x - tw - (glyph ? size + 5 : 0)
+                : align === 'center' ? x - (tw + (glyph ? size + 5 : 0)) / 2 : x;
+            let tx = left;
+            if (glyph) {
+                drawGlyph(ctx, glyph, left + size / 2, y, size, color, 1.9);
+                tx += size + 5;
+            }
+            ctx.fillText(text, tx, y);
+            return align === 'right' ? left : tx + tw;
+        };
 
         const worldTile = InnerMap.currentWorldTile;
         const terrainId = summary.parentTerrain;
         const terrainDef = Terrain.TYPES[terrainId.toUpperCase()] || {};
-
-        ctx.font = '600 13px "Inter", sans-serif';
-        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#f5c542';
 
         const settlement = InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement;
         const insideBuilding = InnerMap._insideBuilding;
         const locationName = insideBuilding
-            ? `${insideBuilding.icon} ${insideBuilding.name}`
+            ? insideBuilding.name
             : settlement ? settlement.name : (terrainDef.name || terrainId);
-        ctx.fillText(`🗺️ ${locationName}`, 16, barHeight / 2 - 8);
+        run(insideBuilding ? buildingGlyph(insideBuilding) : 'map', locationName, 16, barHeight / 2 - 8,
+            "600 14px 'Cinzel', serif", '#f5c542');
 
-        ctx.font = '400 11px "Inter", sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
         let subInfo;
         if (insideBuilding) {
             subInfo = `Interior · ${insideBuilding.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`;
@@ -118,25 +143,25 @@ Object.assign(InnerMapRenderer, {
         } else {
             subInfo = `${terrainDef.name || terrainId} (${worldTile.q}, ${worldTile.r})`;
         }
-
-        const wIcons = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', snow: '❄️' };
+        const weatherGlyphs = { clear: 'sun', cloudy: 'storm', rain: 'droplet', storm: 'storm', snow: 'snowflake' };
         const wt = InnerMap.weather;
         const tmp = InnerMap.temperature;
-        let weatherStr = '';
-        if (wt) weatherStr += ` · ${wIcons[wt.type] || ''} ${wt.type}`;
-        if (tmp) weatherStr += ` ${tmp.celsius}°C`;
-        ctx.fillText(subInfo + weatherStr, 16, barHeight / 2 + 8);
+        const subFont = "400 12px 'Inter', sans-serif";
+        const subColor = 'rgba(255,255,255,0.7)';
+        let x = run(null, subInfo, 16, barHeight / 2 + 9, subFont, subColor);
+        if (wt || tmp) {
+            const weather = `${wt ? wt.type : ''}${tmp ? ` ${tmp.celsius}°C` : ''}`.trim();
+            x = run(null, ' · ', x, barHeight / 2 + 9, subFont, subColor);
+            run(wt ? weatherGlyphs[wt.type] : null, weather, x, barHeight / 2 + 9, subFont, subColor);
+        }
 
         const timeStr = InnerMap.getTimeString();
         const period = InnerMap.getTimePeriod();
-        const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
-        ctx.font = '700 15px "Inter", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(`${periodIcons[period] || '⏰'} ${timeStr}`, canvas.width / 2, barHeight / 2 - 6);
+        const periodGlyph = period === 'evening' || period === 'night' ? 'moon' : 'sun';
+        run(periodGlyph, timeStr, W / 2, barHeight / 2 - 6, "700 15px 'Inter', sans-serif", '#ffffff', 'center');
 
         const barWidth = 120;
-        const barX = canvas.width / 2 - barWidth / 2;
+        const barX = W / 2 - barWidth / 2;
         const barY = barHeight / 2 + 8;
         const progress = InnerMap.timeOfDay / 24;
         ctx.fillStyle = 'rgba(255,255,255,0.1)';
@@ -144,29 +169,25 @@ Object.assign(InnerMapRenderer, {
         ctx.fillStyle = progress > 0.75 ? '#e74c3c' : progress > 0.5 ? '#f39c12' : '#4FC3F7';
         ctx.fillRect(barX, barY, barWidth * progress, 4);
 
-        ctx.textAlign = 'right';
-        ctx.font = '500 11px "Inter", sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-
-        // Show building interior info if inside a building
-        if (InnerMap._insideBuilding) {
-            const bldg = InnerMap._insideBuilding;
-            ctx.fillText(`🚪 Inside: ${bldg.icon} ${bldg.name}`, canvas.width - 16, barHeight / 2 - 6);
-            ctx.fillStyle = 'rgba(255,200,100,0.7)';
-            ctx.font = '400 10px "Inter", sans-serif';
-            ctx.fillText('ESC to exit building · Left-click to interact', canvas.width - 16, barHeight / 2 + 10);
+        const infoFont = "500 12px 'Inter', sans-serif";
+        const hintFont = "400 11px 'Inter', sans-serif";
+        const rx = W - 16;
+        if (insideBuilding) {
+            run(buildingGlyph(insideBuilding), `Inside: ${insideBuilding.name}`, rx, barHeight / 2 - 6, infoFont, 'rgba(255,255,255,0.8)', 'right');
+            run(null, 'ESC to exit building · Left-click to interact', rx, barHeight / 2 + 10, hintFont, 'rgba(255,200,100,0.75)', 'right');
         } else {
             const buildingCount = InnerMap.buildings.length;
             const npcCount = InnerMap.npcs.length;
             if (buildingCount > 0) {
-                ctx.fillText(`🏠 ${buildingCount} buildings  👥 ${npcCount} people`, canvas.width - 16, barHeight / 2 - 6);
+                const left = run('council', `${npcCount} people`, rx, barHeight / 2 - 6, infoFont, 'rgba(255,255,255,0.8)', 'right');
+                run('house', `${buildingCount} buildings`, left - 14, barHeight / 2 - 6, infoFont, 'rgba(255,255,255,0.8)', 'right');
             } else {
-                ctx.fillText(`Explored: ${summary.exploredPercent}%  |  Discoveries: ${summary.discoveredEncounters}/${summary.encounters}`, canvas.width - 16, barHeight / 2 - 6);
+                run(null, `Explored: ${summary.exploredPercent}%  ·  Discoveries: ${summary.discoveredEncounters}/${summary.encounters}`,
+                    rx, barHeight / 2 - 6, infoFont, 'rgba(255,255,255,0.8)', 'right');
             }
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.font = '400 10px "Inter", sans-serif';
-            ctx.fillText('ESC to return · Left-click to interact', canvas.width - 16, barHeight / 2 + 10);
+            run(null, 'ESC to return · Left-click to interact', rx, barHeight / 2 + 10, hintFont, 'rgba(255,255,255,0.55)', 'right');
         }
+        ctx.restore();
     },
 
     // ══════════════════════════════════════════════
@@ -272,9 +293,8 @@ Object.assign(InnerMapRenderer, {
             for (const npc of npcsHere.slice(0, 5)) {
                 const npcDef = InnerMap.NPC_TYPES[npc.type] || {};
                 const npcHealth = (typeof InnerMapCombat !== 'undefined') ? InnerMapCombat.getNPCHealth(npc.id) : null;
-                const hpDesc = npcHealth ? `⚔️ ${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : `${npcDef.name || npc.type}`;
-                menuItems.push({ type: 'action', action: 'talk_npc', label: `Talk to ${npc.name}`, icon: npc.icon, desc: `${npcDef.name || npc.type}${npc.activity ? ` · ${npc.activity.icon} ${npc.activity.label}` : ''}`, npc });
-                menuItems.push({ type: 'action', action: 'attack_npc', label: `Attack ${npc.name}`, icon: '⚔️', desc: hpDesc, npc });
+                const hpDesc = npcHealth ? `${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : '';
+                menuItems.push({ type: 'person', npc, role: npc.roleTitle || npcDef.name || npc.type, hpDesc });
             }
         }
 
@@ -382,13 +402,17 @@ Object.assign(InnerMapRenderer, {
             else { currentCat = { label: '', items: [item] }; categories.push(currentCat); }
         }
 
+        const personItems = [];
         let bodyHTML = `<div style="padding:6px;display:flex;flex-direction:column;gap:3px;">`;
         for (const cat of categories) {
             if (cat.label) {
                 bodyHTML += `<div style="padding:7px 10px;font-size:11px;font-family:var(--font-display,'Inter',sans-serif);color:var(--gold,#f5c542);letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(245,197,66,0.12);background:rgba(245,197,66,0.03);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;margin-bottom:3px;">${cat.label}</div>`;
             }
             for (const item of cat.items) {
-                if (item.type === 'disabled') {
+                if (item.type === 'person') {
+                    bodyHTML += this._personCardHTML(item, personItems.length);
+                    personItems.push(item);
+                } else if (item.type === 'disabled') {
                     bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.3);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">🚫</span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>`;
                 } else {
                     bodyHTML += `<button class="inner-ctx-btn" data-action="${item.action||''}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);padding:6px 8px;border-radius:5px;color:var(--text-primary,#e0e0e0);cursor:pointer;text-align:left;transition:background 0.12s,border-color 0.12s;font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;width:100%;" onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">${item.icon||'📋'}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.desc}</div>` : ''}</div></button>`;
@@ -403,7 +427,25 @@ Object.assign(InnerMapRenderer, {
         document.getElementById('closeInnerContextMenu').addEventListener('click', () => this.closeContextMenu());
 
         const allActionItems = [];
-        for (const cat of categories) { for (const item of cat.items) { if (item.type !== 'disabled') allActionItems.push(item); } }
+        for (const cat of categories) { for (const item of cat.items) { if (item.type !== 'disabled' && item.type !== 'person') allActionItems.push(item); } }
+
+        // People: a card each, with their portrait and a Talk / Attack pair
+        menu.querySelectorAll('.ctx-person').forEach((card) => {
+            const p = personItems[Number(card.dataset.pi)];
+            if (!p) return;
+            const canvas = card.querySelector('canvas');
+            const ok = NpcPortrait.paint(canvas, p.npc, 0);
+            canvas.style.display = ok ? '' : 'none';
+            card.querySelector('.ctx-person-emoji').style.display = ok ? 'none' : '';
+            card.querySelector('.ctx-person-talk').addEventListener('click', () => {
+                this.closeContextMenu();
+                this._handleContextAction(game, { type: 'action', action: 'talk_npc', npc: p.npc }, q, r);
+            });
+            card.querySelector('.ctx-person-attack').addEventListener('click', () => {
+                this.closeContextMenu();
+                this._handleContextAction(game, { type: 'action', action: 'attack_npc', npc: p.npc }, q, r);
+            });
+        });
 
         const buttons = menu.querySelectorAll('.inner-ctx-btn');
         let actionIdx = 0;
@@ -412,13 +454,47 @@ Object.assign(InnerMapRenderer, {
             if (item) { btn.addEventListener('click', () => { this.closeContextMenu(); this._handleContextAction(game, item, q, r); }); }
         });
 
-        const closeHandler = (e) => { if (!menu.contains(e.target)) { this.closeContextMenu(); document.removeEventListener('mousedown', closeHandler); } };
-        setTimeout(() => document.addEventListener('mousedown', closeHandler), 50);
+        // Click-away closes it. The handler is kept so closeContextMenu (any
+        // close: a button, Escape, a new menu) removes it — otherwise a stale
+        // one outlives its menu and closes the next menu on its first click.
+        const closeHandler = (e) => { if (!menu.contains(e.target)) this.closeContextMenu(); };
+        this._ctxCloseHandler = closeHandler;
+        this._ctxCloseTimer = setTimeout(() => {
+            this._ctxCloseTimer = null;
+            if (this._ctxCloseHandler === closeHandler) document.addEventListener('mousedown', closeHandler);
+        }, 50);
+    },
+
+    /** A "People Here" card: portrait, who they are, how they feel about you, Talk / Attack. */
+    _personCardHTML(item, index) {
+        const npc = item.npc;
+        const mem = NpcDisposition.getMemory(npc);
+        const mood = _dispositionLabel(mem.disposition);
+        const role = item.role ? item.role.charAt(0).toUpperCase() + item.role.slice(1) : '';
+        const doing = npc.activity ? `<span class="ctx-person-doing">${npc.activity.icon} ${npc.activity.label}</span>` : '';
+        const met = mem.timesSpoken > 0 ? '' : '<span class="ctx-person-new">New face</span>';
+        return `<div class="ctx-person" data-pi="${index}" style="--mood:${mood.color}">`
+            + '<div class="ctx-person-portrait"><canvas width="72" height="72"></canvas>'
+            + `<span class="ctx-person-emoji">${npc.icon}</span></div>`
+            + '<div class="ctx-person-info">'
+            + `<div class="ctx-person-name">${npc.fullName || npc.name}${met}</div>`
+            + `<div class="ctx-person-role">${role}${npc.age != null ? `, ${npc.age}` : ''}${doing}</div>`
+            + `<div class="ctx-person-mood"><span class="ctx-person-mood-bar"><span style="width:${Math.max(4, mem.disposition)}%"></span></span>${mood.icon} ${mood.text}</div>`
+            + '</div>'
+            + '<div class="ctx-person-actions">'
+            + `<button class="ctx-person-talk" title="Talk to ${npc.name}">💬 Talk</button>`
+            + `<button class="ctx-person-attack" title="Attack ${npc.name}${item.hpDesc ? ` (${item.hpDesc})` : ''}">⚔️</button>`
+            + '</div></div>';
     },
 
     closeContextMenu() {
         const menu = document.getElementById('innerMapContextMenu');
         if (menu) menu.remove();
+        if (this._ctxCloseTimer) { clearTimeout(this._ctxCloseTimer); this._ctxCloseTimer = null; }
+        if (this._ctxCloseHandler) {
+            document.removeEventListener('mousedown', this._ctxCloseHandler);
+            this._ctxCloseHandler = null;
+        }
     },
 
     // ══════════════════════════════════════════════
@@ -538,6 +614,14 @@ Object.assign(InnerMapRenderer, {
                 if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.handleAction(game, worldTile, 'tavern');
                 break;
             }
+            case 'lodging': case 'manage_lodging': {
+                // A guest house, inn, hotel or roadhouse (ui/actionMenu/lodging.js)
+                const bld = item.building || InnerMap._insideBuilding;
+                const id = bld && bld.establishmentId;
+                if (action === 'manage_lodging' && id) ActionMenu.lodgingAct(game, 'tab', id, 'run');
+                else ActionMenu.showLodgings(game, game.world.getTile(game.player.q, game.player.r), id || null);
+                break;
+            }
             case 'rest': {
                 game.ui.showNotification('💤 Rest', 'You rest for a while and recover some energy.', 'info');
                 if (game.player.modifyNeed) {
@@ -554,7 +638,11 @@ Object.assign(InnerMapRenderer, {
                 break;
             }
             case 'pray': case 'meditate': {
-                game.ui.showNotification('🙏 Prayer', 'You spend time in quiet contemplation.', 'info');
+                // The devotion model: faith, place, diminishing returns (systems/devotion.js)
+                const worldTile = game.world.getTile(game.player.q, game.player.r);
+                const kind = action === 'meditate' ? 'meditate' : 'pray';
+                const place = worldTile && worldTile.holySite ? 'holy' : 'temple';
+                DevotionPanel.devote(game, worldTile, kind, { place, endDay: false });
                 if (game.player.modifyNeed) {
                     game.player.modifyNeed('comfort', 12);
                     game.player.modifyNeed('fun', 5);
@@ -563,16 +651,10 @@ Object.assign(InnerMapRenderer, {
                 break;
             }
             case 'donate': {
-                if (game.player.gold >= 10) {
-                    game.player.gold -= 10;
-                    game.ui.showNotification('💰 Donation', 'You donated 10 gold to the church. Your karma improves.', 'success');
-                    game.player.karma = (game.player.karma || 0) + 1;
-                    game.ui.updateStats(game.player, game.world);
-                    if (game.player.modifyNeed) {
-                        game.player.modifyNeed('comfort', 8);
-                        game.player.modifyNeed('social', 5);
-                    }
-                } else { game.ui.showNotification('💰 Donation', 'You don\'t have enough gold to donate.', 'error'); }
+                // Alms by recipient: temple, the poor, a guild, someone in need (systems/devotion.js)
+                const worldTile = game.world.getTile(game.player.q, game.player.r);
+                DevotionPanel.showDonate(game, worldTile, 'temple');
+                if (game.player.modifyNeed) game.player.modifyNeed('social', 3);
                 break;
             }
             case 'recruit': {
@@ -614,8 +696,15 @@ Object.assign(InnerMapRenderer, {
                 break;
             }
             case 'examine': {
+                // Walk up to it, then face the encounter's choices (player/wilds.js)
                 const tile = InnerMap.getTile(q, r);
-                if (tile && tile.encounter) game.ui.showNotification(`${tile.encounter.icon} ${tile.encounter.name}`, tile.encounter.description, 'info');
+                const enc = tile && tile.encounter;
+                if (enc) {
+                    const open = () => { if (tile.encounter === enc) game._showEncounterNotification(enc); };
+                    if (InnerMap.approachAndThen(q, r, open) === 'unreachable') {
+                        game.ui.showNotification(`${enc.icon} ${enc.name}`, 'You cannot find a way to reach it.', 'info');
+                    }
+                }
                 break;
             }
             case 'build_custom': {

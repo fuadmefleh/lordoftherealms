@@ -279,7 +279,7 @@ Object.assign(UI.prototype, {
             const popStr = Utils.formatNumber(k.population);
             const milStr = Utils.formatNumber(k.military);
             const treasuryStr = Utils.formatNumber(k.treasury);
-            const territories = k.territory.length;
+            const territories = (k.territory || []).length;
             const faithName = k.religion ? (Religion.FAITHS[k.religion.faithId]?.name || 'Unknown') : 'None';
             const cultureInf = k.cultureData ? Math.round(k.cultureData.influence) : 0;
 
@@ -390,7 +390,9 @@ Object.assign(UI.prototype, {
         const plotH = h - pad.top - pad.bottom;
 
         // Extract data series
-        const goldData = history.map(d => d.gold);
+        // Finance rows record the closing balance as goldEnd (systems/ledger.js);
+        // reading d.gold gave undefined → NaN and an empty chart
+        const goldData = history.map(d => (d.goldEnd != null ? d.goldEnd : d.gold) || 0);
         const incomeData = history.map(d => d.totalIncome || 0);
         const expenseData = history.map(d => d.totalExpenses || 0);
 
@@ -621,17 +623,17 @@ Object.assign(UI.prototype, {
         const data = kingdoms.map(k => {
             // Count settlements
             let settlementCount = 0;
-            for (const t of k.territory) {
+            for (const t of k.territory || []) {
                 const tile = world.getTile(t.q, t.r);
                 if (tile && tile.settlement) settlementCount++;
             }
 
             return {
                 kingdom: k,
-                population: k.population,
-                military: k.military,
-                treasury: k.treasury,
-                territory: k.territory.length,
+                population: k.population || 0,
+                military: k.military || 0,
+                treasury: k.treasury || 0,
+                territory: (k.territory || []).length,
                 settlements: settlementCount,
                 piety: k.religion ? (k.religion.piety || 0) : 0,
                 culture: k.cultureData ? (k.cultureData.influence || 0) : 0,
@@ -1245,10 +1247,15 @@ Object.assign(UI.prototype, {
 
         // Apply audio settings directly to audioManager
         if (typeof audioManager !== 'undefined') {
-            audioManager.setMasterVolume((parseInt(getVal('gsAudioMaster')) || 50) / 100);
-            audioManager.setMusicVolume((parseInt(getVal('gsAudioMusic')) || 60) / 100);
-            audioManager.setAmbienceVolume((parseInt(getVal('gsAudioAmbience')) || 40) / 100);
-            audioManager.setSfxVolume((parseInt(getVal('gsAudioSfx')) || 70) / 100);
+            // A slider at 0 is a real choice: only fall back when the value is missing
+            const vol = (id, fallback) => {
+                const n = parseInt(getVal(id), 10);
+                return (Number.isFinite(n) ? n : fallback) / 100;
+            };
+            audioManager.setMasterVolume(vol('gsAudioMaster', 50));
+            audioManager.setMusicVolume(vol('gsAudioMusic', 60));
+            audioManager.setAmbienceVolume(vol('gsAudioAmbience', 40));
+            audioManager.setSfxVolume(vol('gsAudioSfx', 70));
             const shouldMute = getChecked('gsAudioMute');
             if (shouldMute !== audioManager.muted) {
                 audioManager.toggleMute();

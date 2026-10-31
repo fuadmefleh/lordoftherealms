@@ -180,7 +180,7 @@ function ledgerTab(game) {
     const { player, world } = game;
     const st = MerchantPrince.state(player);
     const s = st.stats;
-    let html = `<div style="${CARD}">Invested ${g(s.invested)} · earned ${g(s.earned)} (crown's tithe ${g(s.tithe)}, hands' wages ${g(s.wages || 0)}) · repairs ${g(s.repairs)} · rent ${g(s.rent)} · forwards paid ${g(s.forwardIncome)}, penalties ${g(s.penalties)} · stolen ≈${g(s.stolen)}, spoiled ≈${g(s.spoiled)}</div>`;
+    let html = `<div style="${CARD}">Invested ${g(s.invested)} · earned ${g(s.earned)} (crown's tithe ${g(s.tithe)}, hands' wages ${g(s.wages || 0)}) · repairs ${g(s.repairs)} · rent ${g(s.rent)} · forwards paid ${g(s.forwardIncome)} (${s.forwardsDone || 0} delivered, ${s.forwardsFailed || 0} failed), penalties ${g(s.penalties)} · stolen ≈${g(s.stolen)}, spoiled ≈${g(s.spoiled)}</div>`;
     html += '<h5 style="margin:8px 0 4px;">Works</h5>';
     const invs = MerchantPrince.investments(player, world);
     if (!invs.length) html += `<div style="${NOTE}">None yet. Fund a mill, bakehouse or brewhouse from a town's market.</div>`;

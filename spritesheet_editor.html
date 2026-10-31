@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=MedievalSharp&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="editor-ui.css">
 <script src="editor-ui.js"></script>
+<script src="spritesheet-tools.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -105,7 +106,7 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
 ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 
 /* ── Pack modal ── */
-#pack-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 3000; }
+#pack-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 900; }
 #pack-modal.show { display: flex; }
 #pack-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; width: 680px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
 #pack-box-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -116,27 +117,48 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
 #pack-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #pack-footer .pack-info { font-size: 11px; color: var(--text-dim); }
 
-/* ── Nano Banana modal ── */
-#nano-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 3100; }
-#nano-modal.show { display: flex; }
-#nano-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; width: 980px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; }
-#nano-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-#nano-header h2 { font-size: 13px; font-weight: 700; color: var(--gold); }
-#nano-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px; flex: 1; overflow: auto; }
-#nano-grid .panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-height: 160px; }
-#nano-grid h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 8px; }
-#nano-grid textarea, #nano-grid input[type="text"], #nano-grid input[type="password"] {
-  width: 100%; background: #0d1117; border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 8px; font-size: 12px;
+/* ── Tile generator modal ── */
+#gen-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: none; align-items: center; justify-content: center; z-index: 910; }
+#gen-modal.show { display: flex; }
+#gen-box { background: var(--panel); border: 1px solid var(--border2); border-radius: 10px; width: 1080px; max-width: 96vw; max-height: 94vh; display: flex; flex-direction: column; overflow: hidden; }
+#gen-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+#gen-header h2 { font-size: 13px; font-weight: 700; color: var(--gold); }
+#gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 16px; flex: 1; overflow: auto; }
+#gen-grid .panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-width: 0; }
+#gen-grid h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: 8px; }
+#gen-grid textarea, #gen-grid input[type="text"], #gen-grid input[type="password"] {
+  background: #0d1117; border: 1px solid var(--border2); color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 12px; flex: 1; min-width: 0;
 }
-#nano-grid textarea { resize: vertical; min-height: 110px; }
-#nano-grid input:focus, #nano-grid textarea:focus { outline: none; border-color: var(--blue); }
-.nano-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-#nano-status { margin-top: 6px; font-size: 11px; color: var(--text-dim); min-height: 16px; }
-#nano-result-wrap { display: none; margin-top: 8px; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; background: #060a0f; }
-#nano-result-wrap.show { display: block; }
-#nano-result-img { max-width: 100%; image-rendering: pixelated; display: block; margin: 0 auto; }
-#nano-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#nano-footer .note { font-size: 11px; color: var(--text-dim); }
+#gen-grid textarea { width: 100%; resize: vertical; min-height: 220px; margin-top: 8px; font-family: monospace; font-size: 11px; }
+#gen-grid input:focus, #gen-grid textarea:focus { outline: none; border-color: var(--blue); }
+#gen-grid input[type="number"] { width: 52px; }
+#gen-grid input[type="color"] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--border2); background: none; }
+.gen-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.gen-row > label:first-child:not(.gen-check) { width: 78px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+.gen-check { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text); cursor: pointer; }
+.gen-adv { margin-bottom: 6px; font-size: 11px; color: var(--text-dim); }
+.gen-adv summary { cursor: pointer; margin-bottom: 6px; }
+.gen-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+#gen-status { margin-top: 6px; font-size: 11px; color: var(--text-dim); min-height: 16px; }
+#gen-status.err { color: var(--red); }
+#gen-result-wrap { display: none; margin-top: 8px; border: 1px solid var(--border2); border-radius: 6px; padding: 8px; background: #060a0f; }
+#gen-result-wrap.show { display: block; }
+.gen-result-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+#gen-result-info { flex: 1 1 100%; min-width: 0; white-space: normal; }
+.gen-canvas-wrap { max-height: 360px; overflow: auto; text-align: center; }
+#gen-result-canvas { image-rendering: pixelated; background: repeating-conic-gradient(#1a1e24 0% 25%, #12161c 0% 50%) 0 0 / 16px 16px; }
+#gen-history { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+#gen-history img { width: 56px; height: 56px; object-fit: contain; border: 1px solid var(--border2); border-radius: 4px; cursor: pointer; background: #060a0f; image-rendering: pixelated; }
+#gen-history img.active { border-color: var(--gold); }
+#gen-footer { padding: 8px 16px; border-top: 1px solid var(--border); flex-shrink: 0; font-size: 11px; color: var(--text-dim); }
+
+/* ── Tile test / send dialogs ── */
+.tiletest-wrap { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.tiletest-wrap canvas { image-rendering: pixelated; border: 1px solid var(--border2); background: repeating-conic-gradient(#1a1e24 0% 25%, #12161c 0% 50%) 0 0 / 16px 16px; }
+.tiletest-stats { font-size: 12px; line-height: 1.7; min-width: 180px; }
+.tiletest-stats b { color: var(--gold); }
+.send-targets { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; }
+.send-targets label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 
 /* Toast */
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 8px 20px; background: var(--green); color: #000; font-weight: 600; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 1000; }
@@ -154,6 +176,7 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
     <button onclick="document.getElementById('file-input').click()">📂 Open Image</button>
     <input type="file" id="file-input" accept="image/*" style="display:none">
     <button onclick="pasteFromClipboard()" title="Paste image from clipboard (Ctrl+V)">📋 Paste</button>
+    <button onclick="undoSource()" id="btn-undo" disabled title="Undo the last wand or crop on the source image (Ctrl+Z)">↶ Undo</button>
   </div>
 
   <div class="tb-sep"></div>
@@ -205,7 +228,9 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
   <div class="tb-group">
     <button onclick="extractSelection()" class="gold" id="btn-extract" disabled>📦 Extract Selection</button>
     <button onclick="applyCrop()" class="green" id="btn-crop" disabled style="display:none">✂️ Apply Crop</button>
-    <button onclick="openNanoModal()" title="Build LPC prompt and send to Google Nano Banana Pro 2">🍌 Nano Banana</button>
+    <button onclick="sliceAllTiles()" id="btn-slice" disabled title="Extract every non-empty tile of the source as its own extraction">▦ Slice Tiles</button>
+    <button onclick="openGenModal()" class="gold" title="Generate inner-map tiles with Google's image models, then clean them up onto the tile grid">🎨 Generate Tiles</button>
+    <button onclick="sendSourceToEditors()" id="btn-send-src" disabled title="Add the source image to the terrain / interior / sprite editors' palettes">📤 Send to Editors</button>
   </div>
 
   <div class="tb-sep"></div>
@@ -305,6 +330,11 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
       <button onclick="closePackModal()">✕ Close</button>
     </div>
     <div id="pack-controls">
+      <span class="tb-lbl">Layout</span>
+      <select id="pack-layout" onchange="renderPack()" title="Tile grid starts every sprite on a tile boundary, which the tile painters need">
+        <option value="grid" selected>Tile grid</option>
+        <option value="tight">Tight</option>
+      </select>
       <span class="tb-lbl">Atlas width</span>
       <select id="pack-width" onchange="renderPack()">
         <option value="auto">Auto</option>
@@ -341,71 +371,141 @@ input:focus, select:focus { outline: none; border-color: var(--blue); }
       <span class="pack-info" id="pack-info"></span>
       <div class="tb-group">
         <input type="text" id="pack-filename" value="spritesheet" style="width:160px" placeholder="filename">
-        <button onclick="downloadPackedSheet()" class="green">⬇ Download PNG</button>
+        <button onclick="downloadPackedSheet()" class="green">⬇ PNG</button>
+        <button onclick="downloadPackedAtlas()" title="Sprite name → rectangle map">⬇ Atlas JSON</button>
+        <button onclick="sendPackedToEditors()" class="gold">📤 Send to Editors</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Nano Banana Pro 2 modal -->
-<div id="nano-modal">
-  <div id="nano-box">
-    <div id="nano-header">
-      <h2>🍌 Nano Banana Pro 2 — LPC Spritesheet Generator</h2>
-      <button onclick="closeNanoModal()">✕ Close</button>
+<!-- Tile generator modal -->
+<div id="gen-modal">
+  <div id="gen-box">
+    <div id="gen-header">
+      <h2>🎨 Inner Map Tile Generator</h2>
+      <button onclick="closeGenModal()">✕ Close</button>
     </div>
-    <div id="nano-grid">
+    <div id="gen-grid">
       <div class="panel">
-        <h3>Request Augmentation</h3>
-        <textarea id="nano-user-request" placeholder="Describe what to add/change (example: add blacksmith weapon racks, 4 damaged variants, darker soot palette)"></textarea>
-        <div class="tb-group" style="margin-top:8px">
-          <label class="tb-lbl">Output focus</label>
-          <select id="nano-focus">
-            <option value="balanced" selected>Balanced (objects + structures)</option>
-            <option value="objects">Objects-heavy</option>
-            <option value="structures">Structures-heavy</option>
-            <option value="military">Military & camp assets</option>
-            <option value="domestic">Domestic & market assets</option>
+        <h3>1 · What to make</h3>
+        <div class="gen-row">
+          <label for="gen-kind">Sheet kind</label>
+          <select id="gen-kind" onchange="onGenKindChange()"></select>
+        </div>
+        <div class="gen-row">
+          <label for="gen-subject">Subject</label>
+          <input type="text" id="gen-subject" placeholder="e.g. mossy cobblestone">
+        </div>
+        <div class="gen-row">
+          <label for="gen-theme">Setting</label>
+          <select id="gen-theme">
+            <option value="medieval" selected>Medieval (game default)</option>
+            <option value="nordic">Nordic</option>
+            <option value="desert">Desert</option>
+            <option value="roman">Roman</option>
+            <option value="dark">Grim / war-torn</option>
           </select>
         </div>
-        <div class="nano-actions">
-          <button class="gold" onclick="buildNanoPrompt()">🧱 Build Prompt</button>
-          <button onclick="copyNanoPrompt()">📋 Copy Prompt</button>
-          <button onclick="openGoogleAiStudio()">🌐 Open Google AI Studio</button>
+        <div class="gen-row" id="gen-season-row">
+          <label for="gen-season">Season</label>
+          <select id="gen-season">
+            <option value="summer" selected>Summer</option>
+            <option value="spring">Spring</option>
+            <option value="autumn">Autumn</option>
+            <option value="winter">Winter</option>
+          </select>
         </div>
-        <div id="nano-status"></div>
+        <div class="gen-row">
+          <label for="gen-cols">Grid</label>
+          <input type="number" id="gen-cols" min="1" max="32" value="4"> <span class="tb-lbl">×</span>
+          <input type="number" id="gen-rows" min="1" max="32" value="2"> <span class="tb-lbl">tiles of</span>
+          <input type="number" id="gen-tile" min="8" max="128" value="32"> <span class="tb-lbl">px</span>
+        </div>
+        <div class="gen-row">
+          <label for="gen-notes">Extra notes</label>
+          <input type="text" id="gen-notes" placeholder="optional, e.g. puddles in two of the variants">
+        </div>
+        <div class="gen-row">
+          <label class="gen-check"><input type="checkbox" id="gen-use-guide" checked onchange="buildGenPrompt()"> Send a layout guide</label>
+          <span class="tb-lbl" id="gen-guide-info" title="A picture of where every tile goes. The models follow a picture's layout far better than a described grid."></span>
+        </div>
+        <div class="gen-row">
+          <label class="gen-check" title="The guide is the sheet at its real size in game pixels, magnified, so the model draws every pixel on purpose at tile size and nothing is shrunk afterwards. Nano Banana Pro keeps to the pixel grid best."><input type="checkbox" id="gen-pixel" checked onchange="buildGenPrompt()"> Draw at game resolution (pixel grid)</label>
+          <span class="tb-lbl" id="gen-pixel-info"></span>
+        </div>
+        <div class="gen-row">
+          <label class="gen-check"><input type="checkbox" id="gen-use-ref" onchange="buildGenPrompt()"> Send the open image as a style reference</label>
+        </div>
+        <div class="gen-actions">
+          <button class="gold" onclick="buildGenPrompt()">🧱 Build Prompt</button>
+          <button onclick="copyGenPrompt()">📋 Copy</button>
+          <button onclick="downloadGenGuide()" title="Save the layout guide, to attach in AI Studio">⬇ Guide</button>
+          <button onclick="openGoogleAiStudio()" title="Generate by hand in AI Studio, then use Import Result">🌐 AI Studio</button>
+        </div>
+        <textarea id="gen-prompt" placeholder="Build the prompt, then edit it freely before generating…"></textarea>
       </div>
+
       <div class="panel">
-        <h3>Google Connection</h3>
-        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
-          <label class="tb-lbl">Google API key</label>
-          <input id="nano-api-key" type="password" placeholder="AIza...">
+        <h3>2 · Generate</h3>
+        <div class="gen-row">
+          <label for="gen-api-key">API key</label>
+          <input id="gen-api-key" type="password" placeholder="Google AI Studio key (AIza…)" autocomplete="off">
         </div>
-        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
-          <label class="tb-lbl">Model name</label>
-          <input id="nano-model" type="text" value="nano-banana-pro-2" placeholder="nano-banana-pro-2">
+        <div class="gen-row">
+          <label for="gen-model">Model</label>
+          <input id="gen-model" type="text" list="gen-model-list" value="gemini-2.5-flash-image">
+          <datalist id="gen-model-list">
+            <option value="gemini-2.5-flash-image">Nano Banana</option>
+            <option value="gemini-3-pro-image-preview">Nano Banana Pro</option>
+          </datalist>
         </div>
-        <div class="tb-group" style="margin-bottom:6px;align-items:flex-start;flex-direction:column;gap:4px">
-          <label class="tb-lbl">Google API base URL</label>
-          <input id="nano-api-base" type="text" value="https://generativelanguage.googleapis.com/v1beta" placeholder="https://generativelanguage.googleapis.com/v1beta">
+        <details class="gen-adv">
+          <summary>Endpoint</summary>
+          <div class="gen-row"><label for="gen-api-base">API base</label><input id="gen-api-base" type="text" value="https://generativelanguage.googleapis.com/v1beta"></div>
+        </details>
+        <div class="gen-actions">
+          <button class="green" id="gen-go" onclick="generateTiles()">🚀 Generate</button>
+          <button onclick="document.getElementById('gen-import').click()" title="Load an image you generated elsewhere into the clean-up step">📥 Import Result</button>
+          <input type="file" id="gen-import" accept="image/*" style="display:none">
         </div>
-        <div class="nano-actions">
-          <button class="green" onclick="generateNanoWithGoogle()">🚀 Generate via Google</button>
-          <button onclick="downloadNanoResult()" id="nano-download-btn" disabled>⬇ Download Result</button>
+        <div id="gen-status"></div>
+
+        <h3 style="margin-top:12px">3 · Clean up</h3>
+        <div class="gen-row">
+          <label class="gen-check"><input type="checkbox" id="gen-key" checked onchange="processGenResult()"> Key out background</label>
+          <input type="color" id="gen-key-color" value="#ff00ff" onchange="processGenResult()" title="Background colour to remove">
+          <span class="tb-lbl">tol</span><input type="number" id="gen-key-tol" min="0" max="255" value="60" onchange="processGenResult()">
+          <button class="btn-sm" onclick="pickGenKeyFromBorder()" title="Use the most common border colour">Auto</button>
         </div>
-        <div id="nano-result-wrap">
-          <img id="nano-result-img" alt="Generated spritesheet preview">
+        <div class="gen-row">
+          <label class="gen-check" title="Pink drop shadows, off-shade background, pink fringes, drawn grid lines and unpainted guide grey"><input type="checkbox" id="gen-cast" checked onchange="processGenResult()"> Clear pink shadows, fringes &amp; grid lines</label>
         </div>
-      </div>
-      <div class="panel" style="grid-column:1 / span 2">
-        <h3>Generated Prompt</h3>
-        <textarea id="nano-prompt-output" style="min-height:260px" placeholder="Build prompt to view output..."></textarea>
+        <div class="gen-row">
+          <label class="gen-check"><input type="checkbox" id="gen-snap" checked onchange="processGenResult()"> Fit to the tile grid</label>
+          <span class="tb-lbl" id="gen-snap-info"></span>
+        </div>
+        <div class="gen-row">
+          <label class="gen-check"><input type="checkbox" id="gen-quant" onchange="processGenResult()"> Limit palette to</label>
+          <input type="number" id="gen-quant-n" min="2" max="256" value="32" onchange="processGenResult()"> <span class="tb-lbl">colours</span>
+        </div>
+        <div id="gen-result-wrap">
+          <div class="gen-result-bar">
+            <label class="gen-check"><input type="checkbox" id="gen-show-raw" onchange="drawGenPreview()"> Show raw</label>
+            <label class="gen-check"><input type="checkbox" id="gen-show-grid" checked onchange="drawGenPreview()"> Grid</label>
+            <span class="tb-lbl" id="gen-result-info"></span>
+          </div>
+          <div class="gen-canvas-wrap"><canvas id="gen-result-canvas"></canvas></div>
+          <div class="gen-actions">
+            <button class="gold" onclick="openGenResultInEditor()" title="Load the cleaned sheet as the source image to slice and extract">✂️ Open in Editor</button>
+            <button class="green" onclick="sendGenResult()" title="Add it to the terrain / interior / sprite editors' palettes">📤 Send to Editors</button>
+            <button onclick="downloadGenResult()">⬇ PNG</button>
+          </div>
+        </div>
+        <div id="gen-history" title="This session's results — click to reopen"></div>
       </div>
     </div>
-    <div id="nano-footer">
-      <span class="note">Base prompt is Roman LPC focused and auto-augmented with your request, tile context, and extraction summary.</span>
-      <button class="gold" onclick="buildNanoPrompt()">Rebuild Prompt</button>
-    </div>
+    <div id="gen-footer">Image models return opaque pictures that sit off any grid. With the pixel grid on, the guide is the sheet at its real size in game pixels, magnified, so the model draws each pixel at tile size and clean-up reads them back one per block instead of shrinking a big painting. Clean-up removes the background, then puts what was drawn on the grid: props and structures are found one by one and laid out a whole number of tiles each; tile sheets are cut out of the layout guide's grid, dropping any gutters or grid lines the model drew.</div>
   </div>
 </div>
 
@@ -441,43 +541,7 @@ const selBox        = document.getElementById('selection-box');
 const cropBoxEl     = document.getElementById('crop-box');
 const zoomBadge     = document.getElementById('zoom-badge');
 const extractionsEl = document.getElementById('extractions');
-let _nanoResultDataUrl = '';
-
-const NANO_BASE_PROMPT = `# LPC Roman Objects, Crafting Structures & Tools — Sprite Sheet Prompt
-
-> For use with Nano Banana Pro or similar pixel art generation tools.
-
-Create a pixel art sprite sheet in the Liberated Pixel Cup (LPC) art style featuring Roman Imperial-era interior objects, crafting structures, and tools for use in a top-down 2D RPG or adventure game. Draw inspiration from Roman Republic through Imperial period material culture across domestic, military, commercial, and civic contexts including insulae apartments, domus households, thermopolium food stalls, workshops, and military encampments.
-
-## Style Requirements
-- Match LPC conventions with clean pixel art and a classical palette: marble whites, travertine creams, terracotta reds, mosaic blues/greens, iron greys, bronze ambers, deep purple accents, warm oil-lamp golds.
-- Base tile unit is 32×32 pixels.
-- Multi-tile structures are allowed where specified.
-- Transparent background PNG.
-- Subtle top-down lighting from upper-left.
-- Roman ornamentation is simplified, readable 2-3 pixel motifs (laurel, meander, acanthus, capitals).
-
-## Section 1 — Small Objects
-- 32×32 each, 4 variations per object set.
-- Include furniture/storage, tools/implements, decorative/ritual objects.
-- Must include examples like arca strongboxes, amphorae, dolia, armarium, farming tools, medical tools, construction tools, trade objects, bathing objects, military equipment, oil lamps, votive/statuary objects, and mosaic panel tiles.
-- Grid layout target: 13 rows × 4 columns, no gaps.
-
-## Section 2 — Multi-Tile Crafting Structures
-- Every structure has 4 left-to-right states: idle → in progress → near complete → finished.
-- Include: Fullonica (2×2), Pistrinum bakery+mill (3×2), Pottery kiln (2×2), Blacksmith forge (2×2), Thermopolium counter (3×1), Scriptorium station (2×1), Lararium shrine (2×2), Glassblowing station (2×2).
-- Add a 2px vertical gap between structure blocks and optional tiny Latin labels above each block.
-
-## Full Sheet Layout
-- Place Section 1 at top and Section 2 below with a 4px separator.
-- Minimum sheet width: 384px.
-- Keep palette, lighting direction, readability, and progression coherent across all assets.
-
-## Technical Notes
-- Keep clean tile seams and avoid critical details crossing boundaries awkwardly.
-- Use obvious visual progression for crafting states.
-- Military equipment should look heavy/functional with restrained ornament.
-- Output a single transparent PNG spritesheet suitable for LPC workflows.`;
+const sourceUndo = [];       // previous state.img values (wand / crop), newest last
 
 // ===================================================================
 //  IMAGE LOADING
@@ -507,6 +571,7 @@ function loadFile(file) {
   reader.onload = () => {
     const img = new Image();
     img.onload = () => {
+      pushSourceUndo();
       state.img = img;
       state.sel = null;
       state.cropSel = null;
@@ -514,12 +579,10 @@ function loadFile(file) {
       renderGrid();
       updateSelectionUI();
       dropZone.classList.add('has-image');
-      const tw = Math.floor(img.width / state.tileSize);
-      const th = Math.floor(img.height / state.tileSize);
-      document.getElementById('img-info').textContent =
-        `${img.width}×${img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+      updateImgInfo();
       document.getElementById('source-title').textContent =
         `Source: ${file.name}`;
+      onSourceChanged();
       toast(`Loaded ${file.name}`);
     };
     img.src = reader.result;
@@ -622,12 +685,7 @@ function applyTileSize() {
   if (v > 0 && v <= 512) {
     state.tileSize = v;
     renderGrid();
-    if (state.img) {
-      const tw = Math.floor(state.img.width / state.tileSize);
-      const th = Math.floor(state.img.height / state.tileSize);
-      document.getElementById('img-info').textContent =
-        `${state.img.width}×${state.img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
-    }
+    updateImgInfo();
   }
 }
 
@@ -809,6 +867,7 @@ function applyMagicWandAtPoint(px, py) {
     return;
   }
 
+  pushSourceUndo();
   srcCtx.putImageData(imgData, 0, 0);
 
   const updated = new Image();
@@ -1023,6 +1082,7 @@ function applyCrop() {
   // Replace source image with cropped version
   const img = new Image();
   img.onload = () => {
+    pushSourceUndo();
     state.img = img;
     state.sel = null;
     state.cropSel = null;
@@ -1030,10 +1090,7 @@ function applyCrop() {
     drawSource();
     renderGrid();
     updateSelectionUI();
-    const tw = Math.floor(img.width / state.tileSize);
-    const th = Math.floor(img.height / state.tileSize);
-    document.getElementById('img-info').textContent =
-      `${img.width}×${img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+    updateImgInfo();
     toast(`Cropped to ${w}×${h}px`);
   };
   img.src = c.toDataURL();
@@ -1242,6 +1299,7 @@ function renderExtractions() {
             <button onclick="downloadExtraction(${ext.id})" class="green">⬇ Download</button>
             <button onclick="copyExtraction(${ext.id})">📋 Copy</button>
             <button onclick="trimExtraction(${ext.id})" class="gold" title="Remove empty space that saves whole tiles">✂ Trim</button>
+            <button onclick="tileTestExtraction(${ext.id})" title="Repeat it 3×3 and check the edges wrap">🔁 Tile Test</button>
             <button onclick="removeExtractionBackground(${ext.id})" title="Remove background using AI">✨ Remove BG</button>
             <button onclick="removeCheckerBackground(${ext.id})" title="Remove opaque checkerboard background (white/grey squares) — no AI needed">♟ Checker BG</button>
             ${ext.retargetCanvas ? `<button onclick="clearRetarget(${ext.id})" title="Remove retarget canvas, pack will use base canvas">✖ Retarget</button>` : ''}
@@ -1387,7 +1445,16 @@ function downloadAllExtractions() {
 //  KEYBOARD SHORTCUTS
 // ===================================================================
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (document.querySelector('.eui-modal')) return; // EditorUI dialogs handle their own keys
+  if (document.querySelector('#gen-modal.show, #pack-modal.show')) {
+    if (e.key === 'Escape') { closeGenModal(); closePackModal(); }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); undoSource(); }
+    return; // leave Ctrl+C / Ctrl+V to the browser instead of switching modes
+  }
   if (e.key === 's' || e.key === 'S') { e.preventDefault(); setMode('select'); }
   if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setMode('crop'); }
   if (e.key === 'w' || e.key === 'W') { e.preventDefault(); setMode('wand'); }
@@ -1420,188 +1487,717 @@ function toast(msg) {
   el._t = setTimeout(() => el.classList.remove('show'), 2000);
 }
 
-function openNanoModal() {
-  document.getElementById('nano-modal').classList.add('show');
-  restoreNanoSettings();
-  if (!document.getElementById('nano-prompt-output').value.trim()) buildNanoPrompt();
-}
+// ===================================================================
+//  TILE GENERATOR — prompt → Google image model → clean-up onto the grid
+// ===================================================================
+const GEN_SETTINGS_KEY = 'lor.tileGen.settings';
+const GEN_DEFAULT_MODEL = 'gemini-2.5-flash-image';
+const gen = {
+  raw: null,        // ImageData as returned by the model / imported
+  processed: null,  // canvas after key-out / snap / palette
+  spec: null,       // buildTilePrompt's { kind, layout, span, guide, cols, rows, tile, background }
+  guided: false,    // the raw result was made from the layout guide (so its grid sits where the guide's does)
+  grid: null,       // { cols, rows } of the processed sheet (a sprite re-layout can differ from the spec)
+  history: [],      // [{ raw: ImageData, spec, guided, thumb }]
+  activeHistory: -1
+};
 
-function closeNanoModal() {
-  document.getElementById('nano-modal').classList.remove('show');
-}
+function $gen(id) { return document.getElementById('gen-' + id); }
 
-function setNanoStatus(msg) {
-  document.getElementById('nano-status').textContent = msg || '';
-}
-
-function getExtractionSummary() {
-  if (!state.extractions.length) return 'No current extraction context.';
-  const top = state.extractions.slice(0, 6).map(e => {
-    const rw = e.retargetTilesW || e.origTilesW;
-    const rh = e.retargetTilesH || e.origTilesH;
-    return `#${e.id}: ${rw}x${rh} tiles`;
-  });
-  const more = state.extractions.length > 6 ? ` (+${state.extractions.length - 6} more)` : '';
-  return `Current editor extractions: ${top.join(', ')}${more}.`;
-}
-
-function buildNanoPrompt() {
-  const request = document.getElementById('nano-user-request').value.trim();
-  const focus = document.getElementById('nano-focus').value;
-  const tileSize = parseInt(document.getElementById('tile-size').value, 10) || 32;
-  const focusInstruction = {
-    balanced: 'Keep a balanced split between small objects and multi-tile structures.',
-    objects: 'Bias output toward dense small-object coverage and variation sets.',
-    structures: 'Bias output toward larger multi-tile crafting structures and clear state storytelling.',
-    military: 'Prioritize military camp, legionary equipment, and logistics props.',
-    domestic: 'Prioritize domestic interiors, market stalls, and household utility props.'
-  }[focus] || 'Keep balanced composition.';
-
-  const augmentation = [
-    '## Request Augmentation',
-    request ? `- User request: ${request}` : '- User request: Generate a complete baseline Roman interior+crafter set ready for gameplay.',
-    `- Tile preference from editor context: ${tileSize}px base tile; retain LPC readability.`,
-    `- ${focusInstruction}`,
-    `- ${getExtractionSummary()}`,
-    '- Keep output strictly as one coherent transparent PNG spritesheet and avoid non-pixel rendering artifacts.',
-    '- Maintain top-down game readability and clean tile boundaries for direct map placement.'
-  ].join('\n');
-
-  document.getElementById('nano-prompt-output').value = `${NANO_BASE_PROMPT}\n\n-----\n\n${augmentation}`;
-  setNanoStatus('Prompt built. You can copy it or generate directly via Google.');
-  saveNanoSettings();
-}
-
-function copyNanoPrompt() {
-  const prompt = document.getElementById('nano-prompt-output').value.trim();
-  if (!prompt) {
-    toast('Build prompt first');
-    return;
+function initGenModal() {
+  const sel = $gen('kind');
+  if (sel.options.length) return;
+  for (const k of SheetTools.tileKinds()) {
+    const o = document.createElement('option');
+    o.value = k.id;
+    o.textContent = `${k.label} (${k.cols}×${k.rows})`;
+    sel.appendChild(o);
   }
-  navigator.clipboard.writeText(prompt).then(
-    () => {
-      toast('Prompt copied');
-      setNanoStatus('Prompt copied to clipboard.');
-    },
-    () => toast('Copy failed')
-  );
+  restoreGenSettings();
+  onGenKindChange(true);
+  $gen('import').addEventListener('change', e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (f) importGenFile(f);
+  });
+}
+
+function openGenModal() {
+  initGenModal();
+  $gen('tile').value = state.tileSize;
+  $gen('use-ref').disabled = !state.img;
+  if (!state.img) $gen('use-ref').checked = false;
+  document.getElementById('gen-modal').classList.add('show');
+  if (!$gen('prompt').value.trim()) buildGenPrompt();
+}
+
+function closeGenModal() {
+  saveGenSettings();
+  document.getElementById('gen-modal').classList.remove('show');
+}
+
+/** Kind changed: reset the grid to the kind's layout and show/hide the season. */
+function onGenKindChange(keepGrid) {
+  const kind = SheetTools.tileKinds().find(k => k.id === $gen('kind').value);
+  if (!kind) return;
+  if (keepGrid !== true) {
+    $gen('cols').value = kind.cols;
+    $gen('rows').value = kind.rows;
+    $gen('subject').value = '';
+  }
+  $gen('subject').placeholder = 'e.g. ' + kind.subject;
+  document.getElementById('gen-season-row').style.display = kind.seasonal ? '' : 'none';
+  // Fixed slot layouts (9-tile brushes) must keep their 5×3 grid.
+  const fixed = ['ninetile', 'floor', 'wall'].includes(kind.id);
+  $gen('cols').disabled = fixed;
+  $gen('rows').disabled = fixed;
+  $gen('use-guide').disabled = !kind.guide;
+  $gen('pixel').disabled = !kind.guide;
+}
+
+function readGenOptions() {
+  return {
+    kind: $gen('kind').value,
+    subject: $gen('subject').value,
+    theme: $gen('theme').value,
+    season: $gen('season').value,
+    cols: parseInt($gen('cols').value, 10),
+    rows: parseInt($gen('rows').value, 10),
+    tile: parseInt($gen('tile').value, 10) || state.tileSize,
+    notes: $gen('notes').value,
+    withReference: $gen('use-ref').checked && !!state.img,
+    withGuide: $gen('use-guide').checked,
+    pixelGrid: $gen('pixel').checked
+  };
+}
+
+function buildGenPrompt() {
+  const built = SheetTools.buildTilePrompt(readGenOptions());
+  gen.spec = {
+    kind: built.kind, layout: built.layout, span: built.span, guide: built.guide, pixel: built.pixel,
+    cols: built.cols, rows: built.rows, tile: built.tile, background: built.background
+  };
+  $gen('pixel-info').textContent = built.pixel ? `${built.pixel.width}×${built.pixel.height} art px, each a ${built.pixel.magnify}×${built.pixel.magnify} block` : '';
+  $gen('prompt').value = built.prompt;
+  syncKeyControlsToSpec();
+  updateSnapInfo();
+  setGenStatus(`Prompt ready for a ${built.cols}×${built.rows} sheet of ${built.tile}px tiles. Edit it freely, then Generate.`);
+  saveGenSettings();
+}
+
+function syncKeyControlsToSpec() {
+  const bg = gen.spec && gen.spec.background;
+  $gen('key').checked = !!bg;
+  if (bg) $gen('key-color').value = rgbToHex(bg);
+}
+
+function updateSnapInfo() {
+  const sp = gen.spec;
+  if (!sp) { $gen('snap-info').textContent = ''; return; }
+  $gen('snap-info').textContent = sp.layout === 'sprites'
+    ? `→ each sprite on whole ${sp.tile}px tiles, ${sp.cols} wide`
+    : `→ ${sp.cols * sp.tile}×${sp.rows * sp.tile}px (${sp.cols}×${sp.rows} tiles)`;
+}
+
+function setGenStatus(msg, isErr) {
+  const el = $gen('status');
+  el.textContent = msg || '';
+  el.classList.toggle('err', !!isErr);
+}
+
+function copyGenPrompt() {
+  const prompt = $gen('prompt').value.trim();
+  if (!prompt) { toast('Build the prompt first'); return; }
+  navigator.clipboard.writeText(prompt).then(() => toast('Prompt copied'), () => toast('Copy failed'));
 }
 
 function openGoogleAiStudio() {
-  saveNanoSettings();
+  saveGenSettings();
   window.open('https://aistudio.google.com/', '_blank', 'noopener,noreferrer');
-  setNanoStatus('Opened Google AI Studio. Paste prompt there if you prefer manual flow.');
+  setGenStatus('Paste the prompt into AI Studio, save the image, then use Import Result to clean it up here.');
 }
 
-function saveNanoSettings() {
+function saveGenSettings() {
+  const o = readGenOptions();
   const payload = {
-    apiKey: document.getElementById('nano-api-key').value || '',
-    model: document.getElementById('nano-model').value || 'nano-banana-pro-2',
-    apiBase: document.getElementById('nano-api-base').value || 'https://generativelanguage.googleapis.com/v1beta',
-    request: document.getElementById('nano-user-request').value || '',
-    focus: document.getElementById('nano-focus').value || 'balanced'
+    apiKey: $gen('api-key').value || '',
+    model: $gen('model').value || GEN_DEFAULT_MODEL,
+    apiBase: $gen('api-base').value || '',
+    kind: o.kind, subject: o.subject, theme: o.theme, season: o.season,
+    cols: o.cols, rows: o.rows, notes: o.notes,
+    keyTol: $gen('key-tol').value, quantN: $gen('quant-n').value
   };
-  localStorage.setItem('lor.nanoBanana.settings', JSON.stringify(payload));
+  try { localStorage.setItem(GEN_SETTINGS_KEY, JSON.stringify(payload)); } catch (e) { /* storage blocked */ }
 }
 
-function restoreNanoSettings() {
+function restoreGenSettings() {
+  let v = null;
   try {
-    const raw = localStorage.getItem('lor.nanoBanana.settings');
-    if (!raw) return;
-    const v = JSON.parse(raw);
-    if (typeof v.apiKey === 'string') document.getElementById('nano-api-key').value = v.apiKey;
-    if (typeof v.model === 'string') document.getElementById('nano-model').value = v.model;
-    if (typeof v.apiBase === 'string') document.getElementById('nano-api-base').value = v.apiBase;
-    if (typeof v.request === 'string') document.getElementById('nano-user-request').value = v.request;
-    if (typeof v.focus === 'string') document.getElementById('nano-focus').value = v.focus;
-  } catch (err) {
-    console.warn('Failed to restore Nano settings', err);
-  }
+    v = JSON.parse(localStorage.getItem(GEN_SETTINGS_KEY) || 'null');
+    if (!v) {
+      // Carry the API key over from the old Nano Banana dialog.
+      const old = JSON.parse(localStorage.getItem('lor.nanoBanana.settings') || 'null');
+      if (old && old.apiKey) v = { apiKey: old.apiKey };
+    }
+  } catch (e) { v = null; }
+  if (!v) return;
+  const set = (id, val) => { if (val !== undefined && val !== null && val !== '') $gen(id).value = val; };
+  set('api-key', v.apiKey);
+  set('model', v.model);
+  set('api-base', v.apiBase);
+  if (v.kind && SheetTools.tileKinds().some(k => k.id === v.kind)) set('kind', v.kind);
+  set('subject', v.subject); set('theme', v.theme); set('season', v.season);
+  set('cols', v.cols); set('rows', v.rows); set('notes', v.notes);
+  set('key-tol', v.keyTol); set('quant-n', v.quantN);
 }
 
-function parseGoogleError(data, fallback) {
-  if (data && data.error && data.error.message) return data.error.message;
-  return fallback || 'Google request failed';
+/** The open source image as a base64 PNG, at most 1024px on its long side. */
+function sourceAsReferencePart() {
+  if (!state.img) return null;
+  const k = Math.min(1, 1024 / Math.max(srcCanvas.width, srcCanvas.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(srcCanvas.width * k);
+  c.height = Math.round(srcCanvas.height * k);
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(srcCanvas, 0, 0, c.width, c.height);
+  return { inlineData: { mimeType: 'image/png', data: c.toDataURL('image/png').split(',')[1] } };
 }
 
-async function generateNanoWithGoogle() {
-  const prompt = document.getElementById('nano-prompt-output').value.trim();
-  const apiKey = document.getElementById('nano-api-key').value.trim();
-  const model = document.getElementById('nano-model').value.trim() || 'nano-banana-pro-2';
-  const apiBase = (document.getElementById('nano-api-base').value.trim() || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
-
-  if (!prompt) {
-    toast('Build prompt first');
-    return;
-  }
+async function generateTiles() {
+  if (!$gen('prompt').value.trim()) buildGenPrompt();
+  const prompt = $gen('prompt').value.trim();
+  const apiKey = $gen('api-key').value.trim();
+  const model = $gen('model').value.trim() || GEN_DEFAULT_MODEL;
+  const apiBase = ($gen('api-base').value.trim() || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
   if (!apiKey) {
-    toast('Add Google API key first');
+    setGenStatus('Add a Google AI Studio API key first (aistudio.google.com → Get API key).', true);
+    $gen('api-key').focus();
     return;
   }
+  if (!gen.spec) buildGenPrompt();
+  saveGenSettings();
 
-  saveNanoSettings();
-  setNanoStatus(`Calling Google model: ${model}...`);
-
-  const url = `${apiBase}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const parts = [{ text: prompt }];
+  // The guide goes first: the prompt calls it "the first attached image".
+  const guided = !!gen.spec.guide;
+  if (guided) parts.push({ inlineData: { mimeType: 'image/png', data: genGuideCanvas(gen.spec).toDataURL('image/png').split(',')[1] } });
+  if ($gen('use-ref').checked) {
+    const ref = sourceAsReferencePart();
+    if (ref) parts.push(ref);
+  }
   const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ role: 'user', parts }],
     generationConfig: {
-      responseModalities: ['TEXT', 'IMAGE']
+      responseModalities: ['TEXT', 'IMAGE'],
+      imageConfig: { aspectRatio: SheetTools.nearestAspect(gen.spec.cols, gen.spec.rows) }
     }
   };
 
+  const btn = $gen('go');
+  btn.disabled = true;
+  setGenStatus(`Generating with ${model}… (this can take 10–60 s)`);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(`${apiBase}/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(parseGoogleError(data, `HTTP ${res.status}`));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error && data.error.message) || `HTTP ${res.status}`);
 
-    const parts = [];
-    const candidates = (data && data.candidates) || [];
-    for (const c of candidates) {
-      const p = c && c.content && c.content.parts;
-      if (Array.isArray(p)) parts.push(...p);
+    const out = [];
+    for (const c of (data && data.candidates) || []) {
+      if (c && c.content && Array.isArray(c.content.parts)) out.push(...c.content.parts);
     }
-
-    const imagePart = parts.find(p => p && p.inlineData && p.inlineData.mimeType && p.inlineData.mimeType.startsWith('image/') && p.inlineData.data);
-    const textParts = parts.filter(p => p && typeof p.text === 'string' && p.text.trim()).map(p => p.text.trim());
-
-    if (textParts.length) {
-      const existing = document.getElementById('nano-prompt-output').value.trim();
-      document.getElementById('nano-prompt-output').value = `${existing}\n\n-----\n\n# Google Model Notes\n${textParts.join('\n\n')}`;
-    }
-
+    const imagePart = out.find(p => p && p.inlineData && /^image\//.test(p.inlineData.mimeType || '') && p.inlineData.data);
+    const notes = out.filter(p => p && typeof p.text === 'string' && p.text.trim()).map(p => p.text.trim()).join(' ');
     if (!imagePart) {
-      setNanoStatus('Google replied without image data. Prompt notes appended to output.');
-      toast('No image in response');
-      return;
+      const reason = data && data.candidates && data.candidates[0] && data.candidates[0].finishReason;
+      throw new Error('the model returned no image' + (reason ? ` (${reason})` : '') + (notes ? `: ${notes.slice(0, 200)}` : ''));
     }
-
-    const mime = imagePart.inlineData.mimeType || 'image/png';
-    const b64 = imagePart.inlineData.data;
-    _nanoResultDataUrl = `data:${mime};base64,${b64}`;
-    const img = document.getElementById('nano-result-img');
-    img.src = _nanoResultDataUrl;
-    document.getElementById('nano-result-wrap').classList.add('show');
-    document.getElementById('nano-download-btn').disabled = false;
-    setNanoStatus('Image generated successfully. Use Download Result to save PNG.');
-    toast('Nano Banana generation complete');
+    const img = await loadImageFromSrc(`data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`);
+    acceptGenRaw(img, guided);
+    setGenStatus(`Generated ${img.width}×${img.height}px.` + (notes ? ` Model note: ${notes.slice(0, 160)}` : ''));
   } catch (err) {
-    console.error('Google generation failed:', err);
-    setNanoStatus(`Google request failed: ${err.message || err}`);
-    toast('Google generation failed');
+    console.error('Tile generation failed:', err);
+    setGenStatus(`Generation failed: ${err.message || err}`, true);
+  } finally {
+    btn.disabled = false;
   }
 }
 
-function downloadNanoResult() {
-  if (!_nanoResultDataUrl) return;
+function loadImageFromSrc(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('could not decode the image'));
+    img.src = src;
+  });
+}
+
+function importGenFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => loadImageFromSrc(reader.result).then(img => {
+    if (!gen.spec) buildGenPrompt();
+    // Treat it as made from the guide when it has the guide's proportions.
+    const g = gen.spec.guide && specGuide(gen.spec);
+    acceptGenRaw(img, !!g && Math.abs(img.width / img.height - g.width / g.height) < 0.03);
+    setGenStatus(`Imported ${file.name} (${img.width}×${img.height}px). Check the grid matches what you asked for.`);
+  }, err => setGenStatus(err.message, true));
+  reader.readAsDataURL(file);
+}
+
+/** Store a new raw result, add it to the history strip and clean it up. */
+function acceptGenRaw(img, guided) {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  gen.raw = ctx.getImageData(0, 0, c.width, c.height);
+  gen.guided = !!guided;
+  gen.history.push({ raw: gen.raw, spec: { ...gen.spec }, guided: gen.guided, thumb: c.toDataURL('image/png') });
+  gen.activeHistory = gen.history.length - 1;
+  renderGenHistory();
+  processGenResult();
+}
+
+function renderGenHistory() {
+  const wrap = $gen('history');
+  wrap.innerHTML = '';
+  gen.history.forEach((h, i) => {
+    const im = document.createElement('img');
+    im.src = h.thumb;
+    im.className = i === gen.activeHistory ? 'active' : '';
+    im.title = `Result ${i + 1} — ${h.spec.cols}×${h.spec.rows} @ ${h.spec.tile}px`;
+    im.onclick = () => {
+      gen.raw = h.raw;
+      gen.spec = { ...h.spec };
+      gen.guided = h.guided;
+      gen.activeHistory = i;
+      updateSnapInfo();
+      renderGenHistory();
+      processGenResult();
+    };
+    wrap.appendChild(im);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function rgbToHex(c) {
+  return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function pickGenKeyFromBorder() {
+  if (!gen.raw) { toast('Generate or import a result first'); return; }
+  const c = SheetTools.dominantBorderColor(gen.raw.data, gen.raw.width, gen.raw.height);
+  if (!c) { toast('Border is already transparent'); return; }
+  $gen('key-color').value = rgbToHex(c);
+  $gen('key').checked = true;
+  processGenResult();
+}
+
+/** A spec's layout guide: drawn at art resolution and magnified in pixel mode. */
+function specGuide(spec) {
+  return spec.pixel
+    ? SheetTools.layoutGuide(spec.kind, spec.cols, spec.rows, spec.tile, spec.pixel.magnify)
+    : SheetTools.layoutGuide(spec.kind, spec.cols, spec.rows);
+}
+
+/** The layout guide for a spec, as a canvas. */
+function genGuideCanvas(spec) {
+  const g = specGuide(spec);
+  const c = document.createElement('canvas');
+  c.width = g.width; c.height = g.height;
+  c.getContext('2d').putImageData(new ImageData(g.data, g.width, g.height), 0, 0);
+  return c;
+}
+
+function downloadGenGuide() {
+  if (!gen.spec) buildGenPrompt();
+  if (!gen.spec.guide) { toast('This sheet kind has no layout guide (or it is switched off)'); return; }
   const a = document.createElement('a');
-  a.href = _nanoResultDataUrl;
-  a.download = 'nano_banana_spritesheet.png';
+  a.href = genGuideCanvas(gen.spec).toDataURL('image/png');
+  a.download = `guide_${gen.spec.kind}_${gen.spec.cols}x${gen.spec.rows}.png`;
   a.click();
+  toast('Attach it as the first image in AI Studio, then Import Result');
+}
+
+/**
+ * raw → key out background → clear pink cast / grid lines → read back the
+ * art pixels (pixel-grid guide) → fit to grid → limit palette →
+ * gen.processed. Props and structures are found one by one and laid out
+ * again; tile sheets are cut from the guide's grid.
+ */
+function processGenResult() {
+  if (!gen.raw) return;
+  let { width: w, height: h } = gen.raw;
+  const rawW = w, rawH = h;
+  const sp = gen.spec || {};
+  const keyed = new Uint8ClampedArray(gen.raw.data);
+  const steps = [];
+  const sprites = sp.layout === 'sprites';
+  const cast = $gen('cast').checked;
+
+  // Keying always runs, to find the grid; it only reaches the output when
+  // "Key out background" is on (opaque terrain keeps its own pixels).
+  const keyOn = $gen('key').checked;
+  const tol = clamp(parseInt($gen('key-tol').value, 10) || 0, 0, 255);
+  const n = SheetTools.keyOutColor(keyed, keyOn ? hexToRgb($gen('key-color').value) : SheetTools.KEY_COLOR, keyOn ? tol : 60);
+  if (keyOn) steps.push(`keyed ${Math.round(n / (w * h) * 100)}%`);
+  if (cast) {
+    // The models often paint a duller pink than asked (#E0139E…): key the
+    // border's own colour too when it is magenta-ish.
+    const bc = SheetTools.dominantBorderColor(keyed, w, h);
+    if (bc && Math.min(bc.r, bc.b) - bc.g >= 60) SheetTools.keyOutColor(keyed, bc, keyOn ? Math.max(tol, 40) : 40);
+    if (gen.guided) SheetTools.keyOutGuideGrey(keyed);
+    // Grid lines go before the fringe pass, which would nibble them.
+    if (sprites && SheetTools.removeGridLines(keyed, w, h)) steps.push('grid lines cleared');
+    SheetTools.keyOutMagentaCast(keyed, 60, w, h);
+    // Models often keep the guide's grey boxes as a backdrop behind props.
+    if (sprites && gen.guided && SheetTools.keyOutGuideFill(keyed, w, h)) {
+      SheetTools.keyOutMagentaCast(keyed, 60, w, h);
+      steps.push('grey backdrop cleared');
+    }
+  }
+  let src = keyOn ? keyed : new Uint8ClampedArray(gen.raw.data);
+  let mask = keyed;
+
+  // Drawn on the guide's magnified pixel grid: read one value per block,
+  // so the art comes back at game resolution without being shrunk.
+  const pixel = $gen('snap').checked && gen.guided && sp.pixel;
+  if (pixel) {
+    const art = SheetTools.sampleArtPixels(keyed, w, h, sp.pixel.width, sp.pixel.height);
+    src = keyOn ? art.data : SheetTools.sampleArtPixels(src, w, h, sp.pixel.width, sp.pixel.height).data;
+    mask = art.data;
+    w = art.width; h = art.height;
+    steps.push(`read ${w}×${h} art pixels (${art.pitch.x.toFixed(1)}px blocks)`);
+  }
+
+  let data = src, outW = w, outH = h;
+  gen.grid = null;
+  if ($gen('snap').checked && sp.cols) {
+    if (sprites) {
+      const res = SheetTools.relayoutSprites(src, w, h, { tile: sp.tile, cols: sp.cols, span: sp.span, keep: !!pixel });
+      if (res) {
+        data = res.data;
+        outW = res.width; outH = res.height;
+        gen.grid = { cols: res.cols, rows: res.rows };
+        steps.push(`${res.count} sprite${res.count === 1 ? '' : 's'} → ${res.cols}×${res.rows} tiles` + (res.native ? ' at native pixel size' : ''));
+      } else {
+        steps.push('no sprites found — check the key colour');
+      }
+    } else {
+      const g = gen.guided ? specGuide(sp) : null;
+      const res = SheetTools.fitTilesToGrid(src, w, h, {
+        cols: sp.cols, rows: sp.rows, tile: sp.tile,
+        region: g && g.region, content: g && g.content, mask
+      });
+      data = res.data;
+      outW = res.width; outH = res.height;
+      gen.grid = { cols: sp.cols, rows: sp.rows };
+      if (keyOn) SheetTools.healHairlines(data, outW, outH);
+      steps.push(`fitted to ${sp.cols}×${sp.rows}` + (res.gutters ? ` (${res.gutters} gutter${res.gutters === 1 ? '' : 's'} dropped)` : ''));
+    }
+  }
+  if ($gen('quant').checked) {
+    const pal = SheetTools.quantize(data, clamp(parseInt($gen('quant-n').value, 10) || 32, 2, 256));
+    steps.push(`${pal.length} colours`);
+  }
+
+  const c = document.createElement('canvas');
+  c.width = outW; c.height = outH;
+  c.getContext('2d').putImageData(new ImageData(data, outW, outH), 0, 0);
+  gen.processed = c;
+  $gen('result-info').textContent = `${rawW}×${rawH} raw${gen.guided ? ' (guided)' : ''} · ${steps.join(' · ') || 'unprocessed'}`;
+  document.getElementById('gen-result-wrap').classList.add('show');
+  drawGenPreview();
+}
+
+function drawGenPreview() {
+  if (!gen.processed) return;
+  const showRaw = $gen('show-raw').checked;
+  const cv = $gen('result-canvas');
+  const srcW = showRaw ? gen.raw.width : gen.processed.width;
+  const srcH = showRaw ? gen.raw.height : gen.processed.height;
+  // Integer zoom so snapped pixels stay square, fitted to ~460px.
+  const scale = showRaw ? Math.min(1, 460 / srcW) : Math.max(1, Math.floor(460 / srcW));
+  cv.width = Math.round(srcW * scale);
+  cv.height = Math.round(srcH * scale);
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (showRaw) {
+    const tmp = document.createElement('canvas');
+    tmp.width = gen.raw.width; tmp.height = gen.raw.height;
+    tmp.getContext('2d').putImageData(gen.raw, 0, 0);
+    ctx.drawImage(tmp, 0, 0, cv.width, cv.height);
+  } else {
+    ctx.drawImage(gen.processed, 0, 0, cv.width, cv.height);
+  }
+  const grid = !showRaw && gen.grid;
+  if ($gen('show-grid').checked && grid) {
+    const cw = cv.width / grid.cols, ch = cv.height / grid.rows;
+    ctx.strokeStyle = 'rgba(245,197,66,0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= grid.cols; i++) { const x = Math.round(i * cw) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); }
+    for (let j = 0; j <= grid.rows; j++) { const y = Math.round(j * ch) + 0.5; ctx.moveTo(0, y); ctx.lineTo(cv.width, y); }
+    ctx.stroke();
+  }
+}
+
+function genResultName() {
+  const o = readGenOptions();
+  const subj = (o.subject || o.kind).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  return `gen_${o.kind}_${subj || 'tiles'}`;
+}
+
+function openGenResultInEditor() {
+  if (!gen.processed) return;
+  if (gen.spec) {
+    state.tileSize = gen.spec.tile;
+    document.getElementById('tile-size').value = gen.spec.tile;
+  }
+  setSourceFromCanvas(gen.processed, genResultName() + '.png', { pushUndo: !!state.img });
+  closeGenModal();
+  zoomFit();
+}
+
+function downloadGenResult() {
+  if (gen.processed) downloadCanvas(gen.processed, genResultName() + '.png');
+}
+
+function sendGenResult() {
+  if (gen.processed) sendCanvasToEditors(gen.processed, genResultName());
+}
+
+// ===================================================================
+//  SOURCE IMAGE HELPERS — undo, replace from canvas, info line
+// ===================================================================
+function updateImgInfo() {
+  if (!state.img) return;
+  const tw = Math.floor(state.img.width / state.tileSize);
+  const th = Math.floor(state.img.height / state.tileSize);
+  document.getElementById('img-info').textContent =
+    `${state.img.width}×${state.img.height} px  ·  ${tw}×${th} tiles @ ${state.tileSize}px`;
+}
+
+function onSourceChanged() {
+  const has = !!state.img;
+  document.getElementById('btn-slice').disabled = !has;
+  document.getElementById('btn-send-src').disabled = !has;
+  document.getElementById('btn-undo').disabled = sourceUndo.length === 0;
+}
+
+function pushSourceUndo() {
+  if (!state.img) return;
+  sourceUndo.push(state.img);
+  if (sourceUndo.length > 20) sourceUndo.shift();
+  onSourceChanged();
+}
+
+function undoSource() {
+  const prev = sourceUndo.pop();
+  if (!prev) return;
+  state.img = prev;
+  state.sel = null;
+  state.cropSel = null;
+  selBox.style.display = 'none';
+  cropBoxEl.style.display = 'none';
+  drawSource();
+  renderGrid();
+  updateSelectionUI();
+  updateImgInfo();
+  onSourceChanged();
+  toast('Undone');
+}
+
+/** Replace the source image with a canvas (generator result, etc.). */
+function setSourceFromCanvas(canvas, name, opts) {
+  if (opts && opts.pushUndo) pushSourceUndo();
+  loadImageFromSrc(canvas.toDataURL('image/png')).then(img => {
+    state.img = img;
+    state.sel = null;
+    state.cropSel = null;
+    drawSource();
+    renderGrid();
+    updateSelectionUI();
+    dropZone.classList.add('has-image');
+    updateImgInfo();
+    document.getElementById('source-title').textContent = `Source: ${name}`;
+    onSourceChanged();
+  });
+}
+
+// ===================================================================
+//  SLICE — every occupied tile becomes an extraction
+// ===================================================================
+const SLICE_LIMIT = 512;
+
+async function sliceAllTiles() {
+  if (!state.img) return;
+  const t = state.tileSize;
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const data = srcCtx.getImageData(0, 0, w, h).data;
+  const cells = SheetTools.occupiedTiles(data, w, h, t);
+  if (!cells.length) { toast('No non-empty tiles on the grid'); return; }
+  if (cells.length > SLICE_LIMIT) {
+    toast(`${cells.length} tiles — too many; select a region and extract instead (limit ${SLICE_LIMIT})`);
+    return;
+  }
+  if (cells.length > 64 && !await EditorUI.confirm(`Create ${cells.length} single-tile extractions?`, { title: 'Slice Tiles', okText: 'Slice' })) return;
+  for (const { col, row } of cells) {
+    const c = document.createElement('canvas');
+    c.width = t; c.height = t;
+    c.getContext('2d').drawImage(srcCanvas, col * t, row * t, t, t, 0, 0, t, t);
+    const id = state.nextId++;
+    state.extractions.push({
+      id, canvas: c, origTilesW: 1, origTilesH: 1,
+      srcX: col * t, srcY: row * t, srcW: t, srcH: t,
+      name: `tile_${col}_${row}`
+    });
+  }
+  renderExtractions();
+  updateExtractionButtons();
+  toast(`Sliced ${cells.length} tiles`);
+}
+
+// ===================================================================
+//  TILE TEST — repeat a tile 3×3 and report how well its edges wrap
+// ===================================================================
+function tileTestExtraction(id) {
+  const ext = state.extractions.find(e => e.id === id);
+  if (!ext) return;
+  const src = ext.retargetCanvas || ext.canvas;
+  const w = src.width, h = src.height;
+  const seams = SheetTools.seamReport(src.getContext('2d').getImageData(0, 0, w, h).data, w, h);
+  const scale = Math.max(1, Math.floor(360 / (w * 3)));
+  const cv = document.createElement('canvas');
+  cv.width = w * 3; cv.height = h * 3;
+  cv.style.width = (w * 3 * scale) + 'px';
+  cv.style.height = (h * 3 * scale) + 'px';
+  const ctx = cv.getContext('2d');
+  for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) ctx.drawImage(src, x * w, y * h);
+  const grade = v => v <= 12 ? '<span style="color:var(--green)">seamless</span>'
+    : v <= 40 ? '<span style="color:var(--gold)">visible line</span>'
+    : '<span style="color:var(--red)">hard seam</span>';
+  const body = document.createElement('div');
+  body.className = 'tiletest-wrap';
+  body.appendChild(cv);
+  const stats = document.createElement('div');
+  stats.className = 'tiletest-stats';
+  stats.innerHTML = `<b>${escHtml(ext.name)}</b> · ${w}×${h}px<br>
+    Left ↔ right edge: ${seams.horizontal} — ${grade(seams.horizontal)}<br>
+    Top ↔ bottom edge: ${seams.vertical} — ${grade(seams.vertical)}<br>
+    <span style="color:var(--text-dim);font-size:11px">Mean colour step across the wrap (0–255).<br>Fill tiles should be seamless; edge and object tiles needn't be.</span>`;
+  body.appendChild(stats);
+  EditorUI.modal({ title: '🔁 Tile Test', bodyEl: body, actions: [{ label: 'Close', primary: true }] });
+}
+
+// ===================================================================
+//  SEND TO EDITORS — add a sheet to the other editors' palettes
+// ===================================================================
+// The terrain / interior / sprite editors keep imported sheets in the
+// shared mod store (IndexedDB lord_of_realms_mods → meta → customSheets_*),
+// under custom/ paths that the game resolves through src/core/customSheets.js.
+// A BroadcastChannel tells any editor already open to pick the new sheet up.
+const SHEET_TARGETS = [
+  { key: 'customSheets_terrain', label: '🗺️ Terrain Editor (terrain sets & 9-tile brushes)' },
+  { key: 'customSheets_interior', label: '🏠 Interior Editor (floors, walls, furniture)' },
+  { key: 'customSheets_sprite', label: '🧱 Sprite Editor (buildings & objects)' }
+];
+const SHEET_CHANNEL = 'lotr-custom-sheets';
+
+function openModsDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('lord_of_realms_mods', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      for (const s of ['moddata', 'worlds', 'meta']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s);
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+async function appendCustomSheet(key, entry) {
+  const db = await openModsDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('meta', 'readwrite');
+    const store = tx.objectStore('meta');
+    const r = store.get(key);
+    r.onsuccess = () => {
+      const list = Array.isArray(r.result) ? r.result : [];
+      store.put(list.concat([entry]), key);
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  });
+  db.close();
+}
+
+async function sendCanvasToEditors(canvas, defaultName) {
+  const body = document.createElement('div');
+  body.innerHTML = `<div class="eui-modal-row"><label>Sheet name</label>
+      <input type="text" class="eui-modal-field" id="send-name"></div>
+    <div class="send-targets">${SHEET_TARGETS.map((t, i) =>
+      `<label><input type="checkbox" data-key="${t.key}" ${i < 2 ? 'checked' : ''}> ${t.label}</label>`).join('')}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:10px">${canvas.width}×${canvas.height}px · ${Math.floor(canvas.width / state.tileSize)}×${Math.floor(canvas.height / state.tileSize)} tiles @ ${state.tileSize}px. It appears in each editor's palette and works in game.</div>`;
+  body.querySelector('#send-name').value = defaultName;
+
+  const choice = await new Promise(resolve => {
+    const ref = EditorUI.modal({
+      title: '📤 Send to Editors',
+      bodyEl: body,
+      escValue: null,
+      onClose: v => resolve(v || null),
+      actions: [
+        { label: 'Cancel', value: null },
+        { label: 'Send', primary: true, onClick: () => {
+          const name = body.querySelector('#send-name').value.trim();
+          const keys = [...body.querySelectorAll('[data-key]:checked')].map(c => c.dataset.key);
+          if (!name || !keys.length) { toast('Give it a name and pick at least one editor'); return false; }
+          ref.close({ name, keys });
+          return false;
+        } }
+      ]
+    });
+  });
+  if (!choice) return;
+
+  const fileName = choice.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'sheet';
+  const entry = { name: choice.name, assetPath: `custom/${Date.now()}_${fileName}.png`, dataUrl: canvas.toDataURL('image/png') };
+  try {
+    for (const key of choice.keys) await appendCustomSheet(key, entry);
+    try {
+      const ch = new BroadcastChannel(SHEET_CHANNEL);
+      ch.postMessage({ type: 'customSheetsChanged', keys: choice.keys });
+      ch.close();
+    } catch (e) { /* BroadcastChannel unsupported — editors pick it up on next load */ }
+    EditorUI.toast(`Sent "${choice.name}" to ${choice.keys.length} editor(s)`, { type: 'ok' });
+  } catch (err) {
+    console.error('Send to editors failed:', err);
+    EditorUI.toast('Could not save to the mod store: ' + (err.message || err), { type: 'err' });
+  }
+}
+
+function sendSourceToEditors() {
+  if (!state.img) return;
+  const title = document.getElementById('source-title').textContent.replace(/^Source:\s*/, '');
+  sendCanvasToEditors(srcCanvas, title.replace(/\.[^.]+$/, '') || 'sheet');
+}
+
+function sendPackedToEditors() {
+  if (!_packedCanvas) return;
+  sendCanvasToEditors(_packedCanvas, document.getElementById('pack-filename').value.trim() || 'spritesheet');
 }
 
 // ===================================================================
@@ -1616,6 +2212,7 @@ function downloadCroppedSource() {
 //  PACK SHEET — shelf bin-packing
 // ===================================================================
 let _packedCanvas = null;
+let _packedPlacements = []; // [{ canvas, label, x, y }] for the atlas JSON
 
 /**
  * Shelf-first-fit bin packing.
@@ -1656,18 +2253,41 @@ function buildPackedCanvas() {
   const sortKey  = document.getElementById('pack-sort').value;
   const widthVal = document.getElementById('pack-width').value;
 
+  const layout   = document.getElementById('pack-layout').value;
+
   // Collect canvases — prefer retargetCanvas when set
-  let items = state.extractions.map(e => ({
+  const items = state.extractions.map(e => ({
     canvas: e.retargetCanvas || e.canvas,
     label: e.name
   }));
-  let canvases = items.map(i => i.canvas);
 
   // Sort
-  if (sortKey === 'height') canvases.sort((a, b) => b.height - a.height);
-  else if (sortKey === 'area')   canvases.sort((a, b) => (b.width * b.height) - (a.width * a.height));
-  else if (sortKey === 'width')  canvases.sort((a, b) => b.width - a.width);
+  if (sortKey === 'height') items.sort((a, b) => b.canvas.height - a.canvas.height);
+  else if (sortKey === 'area')   items.sort((a, b) => (b.canvas.width * b.canvas.height) - (a.canvas.width * a.canvas.height));
+  else if (sortKey === 'width')  items.sort((a, b) => b.canvas.width - a.canvas.width);
   // 'none' = insertion order
+  const canvases = items.map(i => i.canvas);
+
+  if (layout === 'grid') {
+    // Every sprite starts on a tile boundary so the tile painters can pick it by cell.
+    const t = state.tileSize;
+    const cellArea = canvases.reduce((s, c) => s + Math.ceil(c.width / t) * Math.ceil(c.height / t), 0);
+    const maxCols = widthVal === 'auto'
+      ? Math.max(1, Math.ceil(Math.sqrt(cellArea * 1.15)))
+      : Math.max(1, Math.floor(parseInt(widthVal) / t));
+    const packed = SheetTools.gridPack(canvases.map(c => ({ w: c.width, h: c.height })), t, maxCols);
+    const out = document.createElement('canvas');
+    out.width = packed.cols * t;
+    out.height = packed.rows * t;
+    const ctx = out.getContext('2d');
+    const placements = packed.placements.map((p, i) => {
+      ctx.drawImage(canvases[i], p.x, p.y);
+      return { canvas: canvases[i], label: items[i].label, x: p.x, y: p.y };
+    });
+    _packedCanvas = out;
+    _packedPlacements = placements;
+    return { canvas: out, placements, totalW: out.width, totalH: out.height, count: canvases.length };
+  }
 
   // Determine atlas width
   let atlasW;
@@ -1694,15 +2314,19 @@ function buildPackedCanvas() {
     ctx.drawImage(canvas, x, y);
   }
 
+  // shelfPack keeps input order, so placement i belongs to items[i].
+  placements.forEach((p, i) => { p.label = items[i].label; });
   _packedCanvas = out;
+  _packedPlacements = placements;
   return { canvas: out, placements, totalW, totalH, count: canvases.length };
 }
 
 function renderPack() {
   const result = buildPackedCanvas();
   if (!result) return;
-  const { canvas, totalW, totalH, count } = result;
+  const { canvas, placements, totalW, totalH, count } = result;
   const zoom = parseFloat(document.getElementById('pack-zoom').value);
+  document.getElementById('pack-pad').disabled = document.getElementById('pack-layout').value === 'grid';
   const previewCanvas = document.getElementById('pack-preview-canvas');
   previewCanvas.width  = canvas.width;
   previewCanvas.height = canvas.height;
@@ -1710,7 +2334,7 @@ function renderPack() {
   previewCanvas.style.height = Math.round(totalH * zoom) + 'px';
   previewCanvas.getContext('2d').drawImage(canvas, 0, 0);
   // Efficiency
-  const spriteArea = state.extractions.reduce((s, e) => s + e.canvas.width * e.canvas.height, 0);
+  const spriteArea = placements.reduce((s, p) => s + p.canvas.width * p.canvas.height, 0);
   const atlasArea  = totalW * totalH;
   const eff = atlasArea > 0 ? Math.round((spriteArea / atlasArea) * 100) : 0;
   document.getElementById('pack-info').textContent =
@@ -1733,13 +2357,30 @@ function downloadPackedSheet() {
   downloadCanvas(_packedCanvas, name);
 }
 
+function downloadPackedAtlas() {
+  if (!_packedCanvas) return;
+  const base = document.getElementById('pack-filename').value.trim() || 'spritesheet';
+  const frames = {};
+  for (const p of _packedPlacements) {
+    let key = p.label, n = 2;
+    while (frames[key]) key = `${p.label}_${n++}`;
+    frames[key] = { x: p.x, y: p.y, w: p.canvas.width, h: p.canvas.height };
+  }
+  const atlas = { image: base + '.png', width: _packedCanvas.width, height: _packedCanvas.height, tileSize: state.tileSize, frames };
+  const a = document.createElement('a');
+  a.download = base + '.json';
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(atlas, null, 2)], { type: 'application/json' }));
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 // Close pack modal on backdrop click
 document.getElementById('pack-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('pack-modal')) closePackModal();
 });
 
-document.getElementById('nano-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('nano-modal')) closeNanoModal();
+document.getElementById('gen-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('gen-modal')) closeGenModal();
 });
 
 // ===================================================================

@@ -33,6 +33,7 @@ import { Fashions } from '../world/fashions.js';
 import { Harvests } from '../world/harvests.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Fiscal } from './fiscal.js';
+import { Engrossing } from './engrossing.js';
 
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
@@ -61,8 +62,12 @@ const MONEY_KINDS = { recoinage: 'coin_recoinage', coin_short: 'coin_shortage', 
 // The crowns' books (world.fiscal.history, systems/fiscal.js): tax revolts, tax farms sold, taxes raised, unpaid armies
 const FISCAL_KINDS = { tax_revolt: 'tax_revolt', tax_farm: 'tax_farm', tax_raise: 'taxes_raised', mutiny: 'army_unpaid' };
 // Land records (world.estates.history, systems/landMarket.js, systems/puttingOut.js): an enclosure and its riot, a rent
-// riot, a crown's or a debtor's estate sold, confiscated or ceded in a peace, a linen glut
-const ESTATE_KINDS = { enclosure: 'estate_enclosure', riot: 'estate_riot', sold: 'estate_sold', confiscated: 'estate_confiscated', ceded: 'estate_ceded', linen_glut: 'linen_glut' };
+// riot, a crown's or a debtor's estate sold, confiscated or ceded in a peace, left to the Church or settled as a dowry,
+// a linen glut (a riot over the rent, why 'rent', is cried as estate_rent_riot)
+const ESTATE_KINDS = { enclosure: 'estate_enclosure', riot: 'estate_riot', sold: 'estate_sold', confiscated: 'estate_confiscated', ceded: 'estate_ceded', bequest: 'estate_bequest', dowry: 'estate_dowry', linen_glut: 'linen_glut' };
+const _estateKind = h => (h.kind === 'riot' && h.why === 'rent' ? 'estate_rent_riot' : ESTATE_KINDS[h.kind]);
+// The grain dealers (world.engrossing.history, systems/engrossing.js): a realm's dealers buying up grain, a crown's edict
+const ENGROSS_KINDS = { engross: 'grain_engrossed', edict: 'engrossing_edict' };
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -237,6 +242,7 @@ export const Heralds = {
         for (const x of Heralds._moneyRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._fiscalRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._estateRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._engrossRecords(world)) st.seen[x.key] = x.day;
     },
 
     /** Tax revolts, tax farms, taxes raised, armies unpaid (world.fiscal.history, systems/fiscal.js). */
@@ -250,6 +256,13 @@ export const Heralds = {
         return (t && Array.isArray(t.history) ? t.history : [])
             .filter(h => h && h.key && ESTATE_KINDS[h.kind] && (h.kind !== 'sold' || h.own || h.why === 'crown' || h.why === 'debts'))
             .map(h => ({ key: h.key, day: _num(h.day), h }));
+    },
+
+    /** Grain engrossed against a failing harvest, edicts against the engrossers (world.engrossing.history). */
+    _engrossRecords(world) {
+        const t = world && world.engrossing;
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && ENGROSS_KINDS[h.kind])
+            .map(h => ({ key: `en:${h.kind}:${h.kingdomId}:${_num(h.day)}`, day: _num(h.day), h }));
     },
 
     /** Recoinages, coin shortages and floods of coin (world.money.news, world/moneySupply.js). */
@@ -310,16 +323,22 @@ export const Heralds = {
 
     _capital(world, k) {
         if (k && k.capital && k.capital.q != null) return { q: k.capital.q, r: k.capital.r };
-        const s = k && Array.isArray(k.settlements) ? k.settlements[0] : null;
+        const s = k ? Heralds._townsOf(world, k)[0] : null;
         return s ? { q: s.q, r: s.r } : { q: null, r: null };
     },
 
     _placeByName(world, name) {
         if (!world || !name) return { q: null, r: null };
         for (const k of world.kingdoms || []) {
-            for (const s of k.settlements || []) if (s && s.name === name) return { q: s.q, r: s.r };
+            for (const s of Heralds._townsOf(world, k)) if (s && s.name === name) return { q: s.q, r: s.r };
         }
         return { q: null, r: null };
+    },
+
+    /** A realm's towns: on the map tiles in generated worlds, on kingdom.settlements in hand-made ones. */
+    _townsOf(world, k) {
+        if (world && typeof world.getSettlementViews === 'function') return world.getSettlementViews().filter(s => s.kingdom === k.id);
+        return Array.isArray(k.settlements) ? k.settlements : [];
     },
 
     _proclaim(st, world, kind, tokens, at, opts = {}) {
@@ -592,10 +611,25 @@ export const Heralds = {
             st.seen[x.key] = x.day;
             const h = x.h;
             const k = _kingdom(world, h.kingdomId);
-            Heralds._proclaim(st, world, ESTATE_KINDS[h.kind], {
+            Heralds._proclaim(st, world, _estateKind(h), {
                 place: h.place || 'the town', estate: h.estate || 'an estate', holder: h.holder || 'its lord', buyer: h.buyer || 'a new master',
                 kingdom: h.kingdom || (k ? k.name : 'the realm'), n: _num(h.n) || 'Many', to: h.to || 'the towns', price: _num(h.price) || 'a great sum',
             }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
+        }
+
+        // The grain dealers: engrossing against a failing harvest, a crown's edict against it
+        for (const x of Heralds._engrossRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            let at = Heralds._capital(world, k);
+            if (h.place && typeof world.getSettlementViews === 'function') {
+                const v = world.getSettlementViews().find(s => s && s.name === h.place);
+                if (v) at = { q: v.q, r: v.r };
+            }
+            Heralds._proclaim(st, world, ENGROSS_KINDS[h.kind], {
+                kingdom: h.kingdom || (k ? k.name : 'the realm'), place: h.place || (k ? k.name : 'the realm'), amount: _num(h.units) || 'much',
+            }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
         // The cost of living and the fashions at court

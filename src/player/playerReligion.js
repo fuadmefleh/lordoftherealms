@@ -10,6 +10,20 @@ import { Titles } from '../systems/titles.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
 import { Ailments } from '../systems/ailments.js';
+import { Ledger } from '../systems/ledger.js';
+import { DataLoader } from '../core/dataLoader.js';
+import { TownLabour } from '../world/townLabour.js';
+
+/** Fallback preaching tuning (data/religion.json → preaching overrides). */
+const PREACH_DEFAULTS = {
+    cooldownDays: 1, baseShare: 0.05, saturationPerSermon: 0.35, recoveryPerDay: 0.06, minEffect: 0.1,
+    weakFaith: { pietyRef: 50, maxBonus: 0.5, noChurchBonus: 0.5 },
+    alms: { perFollower: 0.02, perCharisma: 0.05 },
+    hostility: {
+        base: 0.04, perMilitancy: 0.07, perPiety: 0.003, perClergy: 1.5, perSaturation: 0.15, min: 0, max: 0.85,
+        fineBase: 20, finePerPop: 0.01, fineMax: 400, reputationLoss: 3, banAfter: 3, banChancePerStrike: 0.25, banDays: 30, strikeDecayDays: 60,
+    },
+};
 
 export const PlayerReligion = {
     // ──────────── TENETS & INFLUENCE ────────────
@@ -814,39 +828,174 @@ export const PlayerReligion = {
         return expired;
     },
 
+    /** Preaching tuning (data/religion.json → preaching) over the defaults. */
+    preachConfig() {
+        const gd = DataLoader._gamedata;
+        const d = (gd && gd.religion && gd.religion.preaching) || {};
+        return {
+            ...PREACH_DEFAULTS, ...d,
+            weakFaith: { ...PREACH_DEFAULTS.weakFaith, ...(d.weakFaith || {}) },
+            alms: { ...PREACH_DEFAULTS.alms, ...(d.alms || {}) },
+            hostility: { ...PREACH_DEFAULTS.hostility, ...(d.hostility || {}) },
+        };
+    },
+
+    /** How tired a town is of your sermons today (0..1), after its days of rest. */
+    sermonSaturation(player, q, r, day) {
+        const rec = player && player.religion && player.religion.sermons && player.religion.sermons[`${q},${r}`];
+        if (!rec) return 0;
+        const C = PlayerReligion.preachConfig();
+        const rest = Number.isFinite(day) && Number.isFinite(rec.day) ? Math.max(0, day - rec.day) : 0;
+        return Math.max(0, Math.min(1, (rec.sat || 0) - rest * C.recoveryPerDay));
+    },
+
+    /** The state church where a town stands: { kingdom, faith, piety, militancy } or null (no realm, no church, or a realm the player made). */
+    stateChurchAt(settlement, world) {
+        if (!settlement || !settlement.kingdom || !world || typeof world.getKingdom !== 'function') return null;
+        const kingdom = world.getKingdom(settlement.kingdom);
+        if (!kingdom || kingdom.isAlive === false || kingdom.createdByPlayer) return null;
+        const faith = kingdom.religion ? Religion.getKingdomFaith(kingdom) : null;
+        if (!faith) return null;
+        const piety = Number.isFinite(kingdom.religion.piety) ? kingdom.religion.piety : 50;
+        return { kingdom, faith, piety, militancy: (faith.virtues && faith.virtues.militancy) || 1 };
+    },
+
+    /** Is the player banned from preaching in this realm? Returns the day the ban lifts, or 0. */
+    preachBan(player, kingdomId, day) {
+        const bans = player && player.religion && player.religion.preachBans;
+        const until = bans && kingdomId ? bans[kingdomId] : 0;
+        return until && (!Number.isFinite(day) || day < until) ? until : 0;
+    },
+
     /**
-     * Preach at a settlement (gain followers and karma)
+     * What a sermon here would do (no rolls): { effectiveness, saturation,
+     * weakBonus, hostility (chance), church, cooldown, banned }.
      */
-    preach(player, settlement, tile) {
+    sermonOutlook(player, settlement, tile, world = null) {
+        const C = PlayerReligion.preachConfig();
+        const day = world && Number.isFinite(world.day) ? world.day : null;
+        const q = tile && tile.q != null ? tile.q : null;
+        const r = tile && tile.r != null ? tile.r : null;
+        const religion = player.religion;
+        const saturation = q != null && day != null ? PlayerReligion.sermonSaturation(player, q, r, day) : 0;
+        const church = PlayerReligion.stateChurchAt(settlement, world);
+        const W = C.weakFaith;
+        let weakBonus = 0;
+        if (church) weakBonus = Math.max(0, (W.pietyRef - church.piety) / W.pietyRef) * W.maxBonus;
+        else if (world && settlement && settlement.kingdom) weakBonus = W.noChurchBonus;
+        const base = (1 + (player.charisma || 0) * 0.1 + (player.faith || 0) * 0.1) * PlayerReligion.conversionMultiplier(player);
+        const effectiveness = base * Math.max(C.minEffect, 1 - saturation) * (1 + weakBonus);
+        let hostility = 0;
+        if (church) {
+            const H = C.hostility;
+            const pop = Math.max(1, settlement.population || 0);
+            const clergyShare = (TownLabour.counts(settlement).clergy || 0) / pop;
+            const presence = q != null ? Religion.getPresence(religion, q, r) : 0;
+            hostility = (H.base + church.militancy * H.perMilitancy + church.piety * H.perPiety
+                + clergyShare * H.perClergy + saturation * H.perSaturation) * (1 - presence);
+            hostility = Math.max(H.min, Math.min(H.max, hostility));
+        }
+        const cooldown = day != null && Number.isFinite(religion && religion.lastPreachDay) && day - religion.lastPreachDay < C.cooldownDays;
+        const banned = church ? PlayerReligion.preachBan(player, church.kingdom.id, day) : 0;
+        return { effectiveness, saturation, weakBonus, hostility, church, cooldown, banned, day, q, r };
+    },
+
+    /**
+     * Preach at a settlement: win followers, a share of the town, karma and
+     * alms. One sermon a day; each town tires of the preacher (saturation
+     * recovers over the following days); faith spreads best where the state
+     * church is lax. A rival state clergy may answer: fines, lost standing
+     * with the realm and, after repeated offences, a ban on preaching there.
+     * `world` is optional (without it there's no cooldown, church or ban).
+     */
+    preach(player, settlement, tile, world = null) {
         if (!player.religion) {
             return { success: false, reason: 'Must found a religion first' };
         }
+        const C = PlayerReligion.preachConfig();
+        const religion = player.religion;
+        const o = PlayerReligion.sermonOutlook(player, settlement, tile, world);
+        if (o.cooldown) return { success: false, reason: 'Your voice is spent — you have already preached today.' };
+        if (o.banned) return { success: false, reason: `The clergy of ${o.church.kingdom.name} have banned your preaching until day ${o.banned}.` };
 
-        // Charisma affects preaching effectiveness
-        const effectiveness = (1 + player.charisma * 0.1 + player.faith * 0.1) * PlayerReligion.conversionMultiplier(player);
-        const followersGained = Math.floor(settlement.population * 0.05 * effectiveness);
-
-        player.religion.followers += followersGained;
+        const followersGained = Math.floor((settlement.population || 0) * C.baseShare * o.effectiveness);
+        religion.followers = (religion.followers || 0) + followersGained;
         // A sermon wins over a share of the town itself
-        if (tile && tile.q != null) {
-            Religion.addPresence(player.religion, tile.q, tile.r, Religion.PLAYER_INFLUENCE.settlementGain * 5 * effectiveness);
+        if (o.q != null) {
+            Religion.addPresence(religion, o.q, o.r, Religion.PLAYER_INFLUENCE.settlementGain * 5 * o.effectiveness);
+            if (o.day != null) {
+                if (!religion.sermons || typeof religion.sermons !== 'object') religion.sermons = {};
+                religion.sermons[`${o.q},${o.r}`] = { sat: Math.round(Math.min(1, o.saturation + C.saturationPerSermon) * 1000) / 1000, day: o.day };
+            }
         }
-        player.religion.influence = Math.floor(player.religion.followers / 100);
+        if (o.day != null) religion.lastPreachDay = o.day;
+        religion.influence = Math.floor(religion.followers / 100);
 
         // Gain karma
         const karmaGained = Math.floor(followersGained / 50);
         player.karma += karmaGained;
         Traits.recordDeeds(player, { zeal: 2, piety: 1 });
 
-        // Increase faith and charisma
-        player.faith = Math.min(10, player.faith + 0.2);
-        player.charisma = Math.min(10, player.charisma + 0.1);
+        // The faithful put coins in the bowl
+        const alms = Math.floor(followersGained * C.alms.perFollower * (1 + (player.charisma || 0) * C.alms.perCharisma));
+        if (alms > 0) {
+            player.gold = (player.gold || 0) + alms;
+            Ledger.record(player, 'faith', alms);
+        }
+
+        // Faith and charisma grow (less before a tired crowd)
+        const learn = Math.max(C.minEffect, 1 - o.saturation);
+        player.faith = Math.min(10, player.faith + 0.2 * learn);
+        player.charisma = Math.min(10, player.charisma + 0.1 * learn);
+
+        // The state church answers
+        const clergy = o.church && o.hostility > 0 && Utils.random() < o.hostility
+            ? PlayerReligion._clergyReaction(player, settlement, o, C.hostility) : null;
 
         return {
             success: true,
             followersGained,
             karmaGained,
-            totalFollowers: player.religion.followers,
+            alms,
+            saturation: o.saturation,
+            weakBonus: o.weakBonus,
+            clergy,
+            totalFollowers: religion.followers,
+        };
+    },
+
+    /** A rival clergy's answer to a sermon: a fine, lost standing, and in time a ban. */
+    _clergyReaction(player, settlement, o, H) {
+        const religion = player.religion;
+        const kid = o.church.kingdom.id;
+        if (!religion.preachStrikes || typeof religion.preachStrikes !== 'object') religion.preachStrikes = {};
+        const prev = religion.preachStrikes[kid] || { n: 0, day: o.day };
+        // Old offences are forgotten
+        const stale = o.day != null && Number.isFinite(prev.day) && o.day - prev.day > H.strikeDecayDays;
+        const strikes = (stale ? 0 : (prev.n || 0)) + 1;
+        religion.preachStrikes[kid] = { n: strikes, day: o.day };
+        const due = Math.min(H.fineMax, Math.round(H.fineBase + (settlement.population || 0) * H.finePerPop));
+        const fine = Math.max(0, Math.min(Math.floor(player.gold || 0), due));
+        if (fine > 0) {
+            player.gold -= fine;
+            Ledger.record(player, 'fines', -fine);
+        }
+        if (!player.reputation) player.reputation = {};
+        player.reputation[kid] = (player.reputation[kid] || 0) - H.reputationLoss;
+        let bannedUntil = 0;
+        if (strikes >= H.banAfter || Utils.random() < H.banChancePerStrike * (strikes - 1)) {
+            if (!religion.preachBans || typeof religion.preachBans !== 'object') religion.preachBans = {};
+            bannedUntil = (o.day || 0) + H.banDays;
+            religion.preachBans[kid] = bannedUntil;
+            religion.preachStrikes[kid] = { n: 0, day: o.day };
+        }
+        const faithName = o.church.faith.name || 'state church';
+        const realm = o.church.kingdom.name;
+        return {
+            kingdomId: kid, fine, reputationLoss: H.reputationLoss, strikes, bannedUntil,
+            message: bannedUntil
+                ? `The priests of the ${faithName} have you banned from preaching in ${realm} until day ${bannedUntil}${fine ? `, and fined ${fine} gold` : ''}.`
+                : `The priests of the ${faithName} denounce you from the pulpit${fine ? ` and the magistrate fines you ${fine} gold` : ''}. (${realm} −${H.reputationLoss} reputation)`,
         };
     },
 

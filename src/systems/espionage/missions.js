@@ -1,7 +1,7 @@
 // Espionage — missions members (split from the original monolith).
 import { Espionage } from './_ref.js';
 import { Traits } from '../traits.js';
-import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars } from './_imports.js';
+import { DataLoader, Utils, Technology, Hex, Tavern, Characters, House, Schemes, RealmWars, NPCLords } from './_imports.js';
 
 Object.assign(Espionage, {
     // ═══════════════════════════════════════
@@ -287,7 +287,7 @@ Object.assign(Espionage, {
             case 'counter_espionage':
                 result.text = this._resolveCounterEspionage(player, spy, isSuccess, isPartial, outcome);
                 if (isSuccess || isPartial) {
-                    const exposed = Schemes.revealAll(player);
+                    const exposed = Schemes.revealAll(player, world);
                     if (exposed.length) {
                         result.text += ` ${spy.name} exposed ${exposed.length} plot(s) against your House — see the House panel.`;
                         result.exposedSchemes = exposed;
@@ -639,6 +639,8 @@ Object.assign(Espionage, {
         const kingdomName = kingdom ? kingdom.name : 'the target';
 
         if (outcome === 'captured') {
+            // The knife-man talks before he hangs: the throne knows who sent him (a blood feud, world/npcLords.js)
+            if (kingdom && kingdom.lord) NPCLords.rememberDeed(world, kingdom.lord, 'assassin_caught', { note: spy.name });
             return `${spy.name} was captured during an assassination attempt in ${kingdomName}! This is an act of war — the spy faces immediate execution.`;
         }
 
@@ -647,6 +649,8 @@ Object.assign(Espionage, {
                 // Kill the ruler — trigger succession crisis
                 if (kingdom.ruler) {
                     const oldRulerName = kingdom.ruler;
+                    // The court suspects whose knife it was; the heir swears it on his own heirs
+                    if (kingdom.lord) NPCLords.rememberDeed(world, kingdom.lord, 'kin_slain', { note: oldRulerName });
                     // Generate new ruler (succession)
                     if (typeof Characters !== 'undefined') {
                         const newRuler = Characters.generateCharacter({ culture: kingdom.culture, isRuler: true });

@@ -275,6 +275,16 @@ export const BountyHunting = {
             player.renown = (player.renown || 0) + Math.max(3, Math.floor(bounty.difficulty / 2));
             state.capturesTurnedIn += 1;
             Traits.recordDeeds(player, { mercy: 2, honesty: 1 }); // taken alive to face justice
+            // A jailer's warrant (systems/titles.js): the duty is done, and the office's perks
+            const warrant = bounty.jailerWarrant;
+            if (warrant) {
+                if (player.currentTitle === 'jailer') {
+                    if (!player.titleProgress) player.titleProgress = {};
+                    player.titleProgress.capturesMade = (player.titleProgress.capturesMade || 0) + 1;
+                }
+                player.karma = (player.karma || 0) + (warrant.karma || 0);
+                player.renown = (player.renown || 0) + (warrant.renown || 0);
+            }
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);
@@ -301,6 +311,11 @@ export const BountyHunting = {
             player.renown = (player.renown || 0) + 2;
             state.capturesRecruited += 1;
             Traits.recordDeeds(player, { cunning: 2, deceit: 1 }); // the bounty never reaches the magistrate
+            // A jailer who enlists the crown's own fugitive betrays the office: no duty credit
+            if (bounty.jailerWarrant) {
+                player.karma -= bounty.jailerWarrant.recruitKarma || 3;
+                Traits.recordDeeds(player, { deceit: 1 });
+            }
             player.bountiesCompleted = (player.bountiesCompleted || 0) + 1;
             bounty.status = 'completed';
             this._removeBounty(player, bounty.id);

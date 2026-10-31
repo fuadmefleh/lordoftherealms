@@ -4,7 +4,8 @@ import { Trading } from './trading.js';
 import { TownLabour } from '../../world/townLabour.js';
 import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons } from './_imports.js';
+import { Hospitality } from '../../systems/hospitality.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -135,6 +136,25 @@ Object.assign(PlayerEconomy, {
             if (!hasSettlement) {
                 return { canBuild: false, reason: 'Requires a settlement (or adjacent to one for production buildings)' };
             }
+        }
+
+        // Fine trades and big houses need a town's custom, not a hamlet's
+        if (prop.minSettlement || prop.minPopulation) {
+            const served = tile.settlement || Hex.neighbors(tile.q, tile.r)
+                .map(n => world && world.getTile(n.q, n.r)).find(t => t && t.settlement)?.settlement;
+            const size = SettlementSize.meets(prop, served);
+            if (!size.ok) return { canBuild: false, reason: size.reason };
+        }
+
+        // A grand hotel needs a city's custom; a roadhouse an open road (systems/hospitality.js)
+        if (prop.requiredSettlementTypes && !(tile.settlement && prop.requiredSettlementTypes.includes(tile.settlement.type))) {
+            return { canBuild: false, reason: `Requires a ${prop.requiredSettlementTypes.join(' or ')}` };
+        }
+        if (prop.requiresRoad && !tile.hasRoad) {
+            return { canBuild: false, reason: 'Must stand on a road' };
+        }
+        if (prop.forbidSettlement && tile.settlement) {
+            return { canBuild: false, reason: 'Must stand on the open road, away from a town' };
         }
 
         return { canBuild: true, property: prop };
@@ -346,6 +366,18 @@ Object.assign(PlayerEconomy, {
                     property.todayIncome = baseIncome;
                     production['tavern_income'] = (production['tavern_income'] || 0) + baseIncome;
                 }
+                property.daysOwned = (property.daysOwned || 0) + 1;
+                continue;
+            }
+
+            // Guest houses, inns, hotels and roadhouses fill their rooms from the
+            // town's (or the road's) travellers (systems/hospitality.js)
+            if (Hospitality.isKind(property.type)) {
+                const upkeepCost = PlayerEconomy.getPropertyUpkeep(player, property);
+                const mult = TownLabour.staffing(property.hire) * PlayerEffects.propertyIncomeMultiplier(player)
+                    * (1 + Technology.getEffectTotal(player, 'propertyIncomeBonus')) * (1 + player.skills.commerce * 0.03);
+                const day = Hospitality.runProperty(world, player, tile, property, upkeepCost, mult);
+                if (day.takings > 0) production['hospitality_income'] = (production['hospitality_income'] || 0) + day.takings;
                 property.daysOwned = (property.daysOwned || 0) + 1;
                 continue;
             }

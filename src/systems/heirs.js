@@ -7,7 +7,10 @@
 //   • a royal match with an unwed prince or princess of a ruling dynasty
 //     (Prestige and a dowry — Throne.royalMatchCandidates — and the House
 //     gains a claim on that throne),
-//   • fostering as a ward at a ruler's court: the child is away for a season
+//   • a local match with one of the townsfolk (systems/townsfolk.js): no
+//     dowry and a little Prestige lost, but the town and the bride's or
+//     groom's kin warm to the House, and a known face joins the family,
+//     • fostering as a ward at a ruler's court: the child is away for a season
 //     and returns with skills, standing with that realm and, often, one of
 //     the host's traits (the return is processed by Upbringing.processDay).
 // A married or fostered child stays in the line of succession.
@@ -20,11 +23,15 @@ import { House } from './house.js';
 import { Throne } from './throne.js';
 import { Upbringing } from './upbringing.js';
 import { Traits } from './traits.js';
+import { Townsfolk } from './townsfolk.js';
+import { NPCLords } from '../world/npcLords.js';
 
 const DEFAULTS = {
     allianceDowry: 200, allianceReputation: 15, allianceMinReputation: 0, alliancePrestige: 4,
     royalClaim: 15, royalReputation: 20, wardDays: 120, wardReputation: 10,
     wardSkills: { leadership: 1, diplomacy: 1 }, wardLordTraits: {},
+    localPrestige: -2, localPrestigeGentle: 1, localReputation: 4, localKinRegard: 15, localMaxAgeGap: 12,
+    localGentleRoles: ['noble', 'merchant'],
 };
 
 function _num(v) {
@@ -80,8 +87,10 @@ export const Heirs = {
     /**
      * Marry a grown child into a kingdom's nobility for an alliance: pay a
      * dowry; the kingdom's regard for you rises and the House gains Prestige.
+     * opts { dowry, minReputation, deed } override the price and the bar (a
+     * match the other House proposed by letter — systems/courtLetters.js).
      */
-    marryForAlliance(player, world, childId, kid) {
+    marryForAlliance(player, world, childId, kid, opts = {}) {
         const cfg = Heirs.config();
         const got = Heirs._available(player, childId);
         if (got.error) return { success: false, reason: got.error };
@@ -90,9 +99,11 @@ export const Heirs = {
         const k = Heirs._kingdom(world, kid);
         if (!k || !k.isAlive) return { success: false, reason: 'No such kingdom.' };
         const rep = (player.reputation && player.reputation[kid]) || 0;
-        if (rep < cfg.allianceMinReputation) return { success: false, reason: `${k.name}'s nobles will not wed a House they distrust (need ${cfg.allianceMinReputation} reputation).` };
-        if ((player.gold || 0) < cfg.allianceDowry) return { success: false, reason: `The dowry is ${cfg.allianceDowry} gold.` };
-        player.gold -= cfg.allianceDowry;
+        const minRep = Number.isFinite(opts.minReputation) ? opts.minReputation : cfg.allianceMinReputation;
+        const dowry = Number.isFinite(opts.dowry) ? opts.dowry : cfg.allianceDowry;
+        if (rep < minRep) return { success: false, reason: `${k.name}'s nobles will not wed a House they distrust (need ${minRep} reputation).` };
+        if ((player.gold || 0) < dowry) return { success: false, reason: `The dowry is ${dowry} gold.` };
+        player.gold -= dowry;
         if (!player.reputation) player.reputation = {};
         player.reputation[kid] = rep + cfg.allianceReputation;
         const gender = child.gender === 'female' ? 'male' : 'female';
@@ -106,7 +117,8 @@ export const Heirs = {
             House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name}, binding ${player.house.name} to ${k.name}.`, ['marriage', 'heirs']);
         }
         Heirs._recordMatch(player, world, child, up.spouse);
-        return { success: true, child, spouse: up.spouse, reputation: cfg.allianceReputation, cost: cfg.allianceDowry };
+        NPCLords.rememberDeed(world, k.lord, opts.deed || 'child_wed', { note: child.firstName });
+        return { success: true, child, spouse: up.spouse, reputation: cfg.allianceReputation, cost: dowry };
     },
 
     /**
@@ -141,6 +153,8 @@ export const Heirs = {
         };
         up.placement = { kind: 'royal', kingdomId: kid, kingdomName: k.name, day: world.day };
         const claim = Throne.grantClaim(player, world, kid, 'marriage', cfg.royalClaim);
+        const wed = NPCLords.deedDef('child_wed');
+        NPCLords.rememberDeed(world, k.lord, 'child_wed', { note: child.firstName, weight: wed ? wed.weight * 1.5 : undefined });
         House._chronicle(player.house, world, `${child.firstName} weds ${up.spouse.name} of the royal house of ${k.name}.`, ['marriage', 'heirs', 'throne']);
         Heirs._recordMatch(player, world, child, up.spouse);
         return { success: true, child, spouse: up.spouse, claim, cost: tcfg.royalMatchGold, prestige: tcfg.royalMatchPrestige };
@@ -182,6 +196,95 @@ export const Heirs = {
             until: day + _num(cfg.wardDays), trait: Heirs.lordTrait(world, kid), returned: false,
         };
         if (player.house) House._chronicle(player.house, world, `${child.firstName} is sent to foster at the court of ${lordName}.`, ['heirs']);
+        NPCLords.rememberDeed(world, k.lord, 'ward', { note: child.firstName });
         return { success: true, child, placement: up.placement };
+    },
+
+    // ── A match in town ──────────────────────────────────
+
+    /**
+     * Grown, unwed townsfolk of the other sex, within a few years of the
+     * child's age, in every town with a roster — the people the player has
+     * spoken with (and their kin's towns) first.
+     * Returns [{ folk, person, town, name, age, role, known, gentle }].
+     */
+    localMatches(player, world, childId) {
+        const cfg = Heirs.config();
+        const got = Heirs._available(player, childId);
+        if (got.error) return [];
+        const child = got.child;
+        const day = (world && world.day) || 0;
+        const want = child.gender === 'female' ? 'male' : 'female';
+        const C = Townsfolk.config();
+        const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+        const out = [];
+        for (const s of views) {
+            const folk = s && s.folk;
+            if (!folk || !Array.isArray(folk.people)) continue;
+            for (const p of folk.people) {
+                if (!Townsfolk.isHere(p) || p.gender !== want || p.role === 'priest' || p.role === 'child' || p.wedHouse) continue;
+                const age = Townsfolk.age(p, day);
+                if (age < C.comeOfAge || Math.abs(age - (child.age || 16)) > cfg.localMaxAgeGap) continue;
+                const sp = Townsfolk.get(folk, p.spouse);
+                if (sp && sp.died == null) continue;
+                out.push({
+                    folk, person: p, town: s.name, name: Townsfolk.name(p), age, role: Townsfolk.roleTitle(p),
+                    known: (p.mem && p.mem.timesSpoken) || 0, gentle: cfg.localGentleRoles.includes(p.role),
+                });
+            }
+        }
+        out.sort((a, b) => b.known - a.known || Number(b.gentle) - Number(a.gentle) || a.town.localeCompare(b.town) || a.person.id - b.person.id);
+        return out;
+    },
+
+    /**
+     * Wed a grown child to a townsperson. No dowry; the House loses a little
+     * Prestige for marrying beneath it (gains a little if the match is of a
+     * noble or merchant family), the town's realm thinks better of the House,
+     * and the townsperson's kin are warmed. The townsperson leaves home to
+     * live with the House, and becomes the child's spouse should the child
+     * inherit (Relationships._seatHeirSpouse).
+     */
+    marryTownsperson(player, world, childId, folk, personId) {
+        const cfg = Heirs.config();
+        const got = Heirs._available(player, childId);
+        if (got.error) return { success: false, reason: got.error };
+        const { child, up } = got;
+        if (up.spouse) return { success: false, reason: `${child.firstName} is already wed.` };
+        const p = folk ? Townsfolk.get(folk, personId) : null;
+        const match = p && Heirs.localMatches(player, world, childId).find(m => m.person === p);
+        if (!match) return { success: false, reason: 'That match cannot be made.' };
+        const day = (world && world.day) || 0;
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(folk.q, folk.r) : null;
+        const town = tile && tile.settlement;
+        const delta = match.gentle ? cfg.localPrestigeGentle : cfg.localPrestige;
+        if (player.house) {
+            if (delta > 0) House.award(player.house, delta, `${child.firstName} weds ${match.name} of ${match.town}`, day);
+            else if (delta < 0) House.spend(player.house, Math.min(-delta, Math.max(0, player.house.prestige || 0)), `${child.firstName} weds beneath the House`, day);
+        }
+        const kid = town && town.kingdom;
+        if (kid) {
+            if (!player.reputation) player.reputation = {};
+            player.reputation[kid] = ((player.reputation[kid]) || 0) + cfg.localReputation;
+        }
+        // Their kin think the better of the House
+        for (const id of [...p.parents, ...Townsfolk.siblings(folk, p).map(s => s.id)]) {
+            const kin = Townsfolk.get(folk, id);
+            if (!kin || kin.died != null || !kin.mem) continue;
+            kin.mem.disposition = Math.min(100, (Number.isFinite(kin.mem.disposition) ? kin.mem.disposition : 50) + cfg.localKinRegard);
+        }
+        const houseName = (player.house && player.house.name) || `the House of ${player.lastName || player.firstName || 'the player'}`;
+        Townsfolk._log(p, day, 'wedHouse', null, `${child.firstName} of ${houseName}`);
+        for (const id of p.parents) Townsfolk._log(Townsfolk.get(folk, id), day, 'kidLeft', p.id, houseName);
+        Townsfolk._annal(folk, world, day, { k: 'wedHouse', a: p.id, b: null, x: houseName }, []);
+        p.wedHouse = true;
+        p.away = { d: day, to: `wed into ${houseName}`, withPlayer: 'house' };
+        up.spouse = {
+            kind: 'local', folkUid: `${folk.q},${folk.r}#${p.id}`, townName: match.town, role: match.role,
+            name: match.name, day,
+        };
+        up.placement = { kind: 'local', townName: match.town, day };
+        if (player.house) House._chronicle(player.house, world, `${child.firstName} weds ${match.name}, ${match.role} of ${match.town}.`, ['marriage', 'heirs']);
+        return { success: true, child, spouse: up.spouse, prestige: delta, reputation: kid ? cfg.localReputation : 0 };
     },
 };

@@ -3,6 +3,10 @@ import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { CompanionsPanel } from '../companionsPanel.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { Demands } from '../../systems/demands.js';
+import { ConversationScene } from '../conversationScene.js';
+import { NpcPortrait } from '../npcPortrait.js';
+import { openPersonScene, personSprite } from './peopleScene.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -20,267 +24,62 @@ Object.assign(ActionMenu, {
         }
 
         const player = game.player;
-        const npcs = Relationships.getNPCsAtSettlement(tile, game.world);
+        const npcs = Relationships.getNPCsAtSettlement(tile, game.world, game.player);
         const personalities = Relationships._getPersonalities();
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">👥 Meet People</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">People of <strong>${tile.settlement.name}</strong>. Open a character profile to interact, build relationships, and invite companions.</p>`;
-
-        if (npcs.length === 0) {
-            html += '<p style="color: #aaa;">Nobody interesting around right now.</p>';
-        }
-
+        html += `<p class="people-intro">The people of <strong>${tile.settlement.name}</strong>. Pick someone to spend time with them: friendship, romance, or company on the road.</p>`;
+        if (npcs.length === 0) html += '<p style="color: #aaa;">Nobody interesting around right now.</p>';
+        html += '<div class="people-cards">';
         for (const npc of npcs) {
             const rel = Relationships.getRelationship(player, npc.id);
-            const relLabel = Relationships.getRelationLabel(rel.score);
+            const relLabel = Relationships.getRelationLabel(rel.score || 0);
             const personality = personalities[npc.personality] || { label: 'Unknown', icon: '❓' };
-            const stage = rel.romantic ? Relationships.getCourtingStage(rel.affection, npc.isMarried && player.spouse === npc.id) : null;
-            const level = Relationships.getRelationshipLevel(rel.score || 0);
-            const inParty = Relationships.isInTravelParty(player, npc.id);
-
-            const genderIcon = npc.gender === 'male' ? '♂️' : '♀️';
-            const marriedTag = (player.spouse === npc.id) ? ' <span style="color: #ff69b4;">💍 Your Spouse</span>' : '';
-            const partyTag = inParty ? ' <span style="color: #6cf;">🧭 Traveling With You</span>' : '';
-
-            html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid ${rel.score >= 30 ? '#4a4' : rel.score <= -30 ? '#a44' : '#666'};">`;
-            html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
-            html += `<div>`;
-            html += `<strong>${npc.firstName} ${npc.dynasty}</strong> ${genderIcon}${marriedTag}${partyTag}`;
-            html += `<div style="font-size: 11px; color: #aaa;">Age ${npc.age} · ${npc.occupation} · ${personality.icon} ${personality.label}</div>`;
-            html += `<div style="font-size: 11px; color: #888;">${npc.appearance.hair} hair, ${npc.appearance.eyes} eyes, ${npc.appearance.build}</div>`;
-            html += `</div>`;
-            html += `<div style="text-align: right; font-size: 11px;">`;
-            html += `<div>${relLabel.icon} ${relLabel.label} (${rel.score})</div>`;
-            html += `<div style="color: #999;">${level.icon} ${level.label}</div>`;
-            if (stage) {
-                html += `<div style="color: #ff69b4;">${stage.icon} ${stage.label} (${rel.affection})</div>`;
-            }
-            html += `</div>`;
-            html += `</div>`;
-
-            html += `<div style="margin-top: 8px; display: flex; gap: 6px;">`;
-            html += `<button onclick="window._openCharacterFromMeet('${npc.id}')" style="padding: 6px 10px; background: #445; border: none; border-radius: 4px; cursor: pointer; color: #dde; font-size: 11px;">📇 Character Profile</button>`;
-            html += `</div>`;
-
-            html += `</div>`;
+            const isSpouse = player.spouse === npc.id;
+            const stage = rel.romantic ? Relationships.getCourtingStage(rel.affection, isSpouse) : null;
+            const mood = ConversationScene.moodFromStanding(rel.score || 0);
+            const matter = Relationships.getMatter(player, npc.id);
+            const tag = (isSpouse ? '<span class="ctx-person-new" style="color:#ff80ab;border-color:rgba(255,128,171,0.4)">Spouse</span>'
+                : Relationships.isInTravelParty(player, npc.id) ? '<span class="ctx-person-new">Travelling</span>' : '')
+                + (matter ? '<span class="ctx-person-new" style="color:#ffcc80;border-color:rgba(255,204,128,0.45)">💌 Wants a word</span>' : '');
+            html += `<div class="ctx-person" data-npc="${npc.id}" style="--mood:${mood.color}; --rel:${mood.color}" title="Spend time with ${npc.firstName}">`
+                + `<div class="ctx-person-portrait"><canvas width="72" height="72"></canvas><span class="ctx-person-emoji">${npc.gender === 'male' ? '👨' : '👩'}</span></div>`
+                + '<div class="ctx-person-info">'
+                + `<div class="ctx-person-name">${npc.firstName} ${npc.dynasty}${tag}</div>`
+                + `<div class="ctx-person-role">${npc.occupation.charAt(0).toUpperCase()}${npc.occupation.slice(1)}, ${npc.age}<span class="ctx-person-doing">${personality.icon} ${personality.label}</span></div>`
+                + `<div class="ctx-person-mood"><span class="ctx-person-mood-bar"><span style="width:${Math.max(4, mood.value)}%"></span></span>${relLabel.icon} ${relLabel.label}${stage ? ` · <span style="color:#f48fb1">${stage.icon} ${stage.label}</span>` : ''}</div>`
+                + '</div>'
+                + '<div class="ctx-person-actions"><button class="ctx-person-talk">💬 Talk</button></div>'
+                + '</div>';
         }
+        html += '</div></div>';
+        game.ui.showCustomPanel('👥 Meet People', html);
 
-        html += '</div>';
-        game.ui.showCustomPanel('Meet People', html);
-
-        window._openCharacterFromMeet = (npcId) => {
-            ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'meet' });
+        // Portraits and clicks: the whole card opens the conversation
+        const body = document.querySelector('#customPanel .custom-panel-body') || document.getElementById('customPanel');
+        if (!body) return;
+        const cards = [...body.querySelectorAll('.people-cards .ctx-person')];
+        const paint = () => {
+            for (const card of cards) {
+                const npc = npcs.find(n => String(n.id) === card.dataset.npc);
+                const canvas = card.querySelector('canvas');
+                const ok = npc && NpcPortrait.paint(canvas, personSprite(npc), 0);
+                canvas.style.display = ok ? '' : 'none';
+                card.querySelector('.ctx-person-emoji').style.display = ok ? 'none' : '';
+            }
         };
+        paint();
+        NpcPortrait.ensureLoaded().then(paint);
+        for (const card of cards) {
+            card.addEventListener('click', () => ActionMenu.showCharacterDataModal(game, tile, card.dataset.npc, { returnTo: 'meet' }));
+        }
     },
 
+    /** A face-to-face scene with one of the townsfolk (peopleScene.js). */
     showCharacterDataModal(game, tile, npcId, options = {}) {
         if (typeof Relationships === 'undefined') return;
-
-        const player = game.player;
-        const npc = Relationships.getNPC(npcId);
-        if (!npc || !npc.isAlive) {
-            game.ui.showNotification('Unavailable', 'This character is no longer available.', 'warning');
-            return;
-        }
-
-        const rel = Relationships.getRelationship(player, npcId);
-        const relLabel = Relationships.getRelationLabel(rel.score || 0);
-        const level = Relationships.getRelationshipLevel(rel.score || 0);
-        const personalities = Relationships._getPersonalities();
-        const personality = personalities[npc.personality] || { label: 'Unknown', icon: '❓' };
-        const isSpouse = player.spouse === npcId;
-        const stage = rel.romantic ? Relationships.getCourtingStage(rel.affection || 0, isSpouse) : null;
-        const inParty = Relationships.isInTravelParty(player, npcId);
-
-        const socialActions = Relationships.getSocialActionAvailability(player, npcId);
-        const courtActions = Relationships.getCourtActionAvailability(player, npcId, { world: game.world });
-
-        const renderRelationshipActionButton = (action, kind) => {
-            const unlocked = !!action.unlocked;
-            const clickHandler = kind === 'social' ? '_characterSocialAction' : '_characterCourtAction';
-            const goldText = action.cost ? `, ${action.cost}g` : '';
-            const apText = action.apCost != null ? `, ${action.apCost} AP` : '';
-            const baseStyle = kind === 'social'
-                ? 'background: #446; color: #ccc;'
-                : 'background: #644; color: #fcc;';
-
-            if (unlocked) {
-                return `<button onclick="window.${clickHandler}('${npcId}', '${action.id}')" style="padding: 4px 8px; ${baseStyle} border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">${action.icon} ${action.label}${goldText}${apText}</button>`;
-            }
-
-            const reason = (action.lockReason || 'Locked').replace(/"/g, '&quot;');
-            return `<button title="${reason}" disabled style="padding: 4px 8px; background: #333; border: 1px solid #555; border-radius: 3px; color: #777; cursor: not-allowed; font-size: 11px;">🔒 ${action.label}</button>`;
-        };
-
-        let html = '<div style="max-height: 520px; overflow-y: auto;">';
-        html += `<h4 style="margin-top: 0;">📇 ${npc.firstName} ${npc.dynasty}</h4>`;
-        html += `<div style="font-size: 12px; color: #aaa;">Age ${npc.age} · ${npc.occupation} · ${personality.icon} ${personality.label}</div>`;
-        html += `<div style="font-size: 11px; color: #888; margin-bottom: 6px;">${npc.appearance.hair} hair, ${npc.appearance.eyes} eyes, ${npc.appearance.build}</div>`;
-
-        html += `<div style="background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; margin-bottom: 8px;">`;
-        html += `<div style="font-size: 12px; margin-bottom: 4px;">${relLabel.icon} ${relLabel.label} (${rel.score || 0}) · ${level.icon} ${level.label}</div>`;
-        html += ActionMenu._renderRelationshipXPBar(rel.score || 0, false);
-        html += `<div style="margin-top: 6px; font-size: 12px; color: #ff69b4;">Affection: ${rel.affection || 0}${stage ? ` · ${stage.icon} ${stage.label}` : ''}</div>`;
-        html += ActionMenu._renderAffectionBar(rel.affection || 0);
-        html += `</div>`;
-
-        html += `<div style="background: rgba(90,140,200,0.12); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(90,140,200,0.35);">`;
-        html += `<div style="font-size: 12px; margin-bottom: 6px; color: #9cd;">🧭 Travel Party</div>`;
-        if (inParty) {
-            html += `<div style="font-size: 11px; color: #bcd; margin-bottom: 6px;">${npc.firstName} is currently traveling with you.</div>`;
-            html += `<button onclick="window._removePartyMember('${npcId}')" style="padding: 5px 10px; background: #355; border: none; border-radius: 4px; cursor: pointer; color: #cde; font-size: 11px;">👋 Ask to Leave Party</button>`;
-        } else {
-            html += `<div style="font-size: 11px; color: #bcd; margin-bottom: 6px;">Ask this character to join your travel party.</div>`;
-            html += `<button onclick="window._inviteToTravelParty('${npcId}')" style="padding: 5px 10px; background: #357; border: none; border-radius: 4px; cursor: pointer; color: #def; font-size: 11px;">🤝 Invite to Travel</button>`;
-        }
-        html += `</div>`;
-
-        html += `<div style="margin-bottom: 6px; font-size: 12px; color: #ccc;">🗣️ Social Actions</div>`;
-        html += `<div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">`;
-        for (const action of socialActions) {
-            html += renderRelationshipActionButton(action, 'social');
-        }
-        html += `</div>`;
-
-        html += `<div style="margin-bottom: 6px; font-size: 12px; color: #fcc;">💕 Romantic Actions</div>`;
-        html += `<div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">`;
-        for (const action of courtActions) {
-            html += renderRelationshipActionButton(action, 'court');
-        }
-        html += `</div>`;
-
-        const lockedActions = [...socialActions, ...courtActions].filter(action => !action.unlocked);
-        if (lockedActions.length > 0) {
-            const lockHints = lockedActions.slice(0, 4).map(action => `• ${action.label}: ${action.lockReason}`).join('<br>');
-            html += `<div style="margin-top: 6px; font-size: 10px; color: #888;">${lockHints}</div>`;
-        }
-
-        const backLabel = options.returnTo === 'relationships'
-            ? 'Back to Relationships'
-            : options.returnTo === 'travel_party'
-                ? 'Back to Travel Party'
-                : 'Back to Meet People';
-        html += `<button onclick="window._backFromCharacterModal()" style="margin-top: 10px; width: 100%; padding: 8px; background: #444; border: none; border-radius: 4px; cursor: pointer; color: #ccc; font-size: 11px;">← ${backLabel}</button>`;
-        html += '</div>';
-
-        game.ui.showCustomPanel(`Character: ${npc.firstName}`, html);
-
-        window._backFromCharacterModal = () => {
-            if (options.returnTo === 'relationships') {
-                ActionMenu.showRelationshipsMenu(game, tile);
-            } else if (options.returnTo === 'travel_party') {
-                ActionMenu.showTravelPartyMenu(game, tile);
-            } else {
-                ActionMenu.showMeetPeopleMenu(game, tile);
-            }
-        };
-
-        window._inviteToTravelParty = (targetNpcId) => {
-            const result = Relationships.requestJoinTravelParty(player, targetNpcId, game.world);
-            if (!result.success) {
-                game.ui.showNotification('Cannot Invite', result.reason, 'warning');
-                return;
-            }
-
-            if (result.accepted) {
-                game.ui.showNotification('🧭 Joined Party', `${result.npc.firstName} agrees to travel with you.`, 'success');
-            } else {
-                game.ui.showNotification('🙅 Declined', result.reason, 'warning');
-            }
-
-            game.ui.updateStats(player, game.world);
-            ActionMenu.showCharacterDataModal(game, tile, targetNpcId, options);
-        };
-
-        window._removePartyMember = (targetNpcId) => {
-            const result = Relationships.removeFromTravelParty(player, targetNpcId);
-            if (!result.success) {
-                game.ui.showNotification('Cannot Remove', result.reason, 'warning');
-                return;
-            }
-            game.ui.showNotification('👋 Left Party', `${result.npc ? result.npc.firstName : 'Companion'} is no longer traveling with you.`, 'info');
-            game.ui.updateStats(player, game.world);
-            ActionMenu.showCharacterDataModal(game, tile, targetNpcId, options);
-        };
-
-        window._characterSocialAction = (targetNpcId, actionId) => {
-            const socialDefs = Relationships._getSocialActions();
-            const actionDef = socialDefs[actionId] || {};
-            const availability = Relationships.getSocialActionAvailability(player, targetNpcId)
-                .find(item => item.id === actionId);
-            if (availability && !availability.unlocked) {
-                game.ui.showNotification('🔒 Action Locked', availability.lockReason || 'This interaction is not unlocked yet.', 'warning');
-                return;
-            }
-
-            const apCost = actionDef.apCost != null ? actionDef.apCost : 1;
-            if ((player.actionPoints || 0) < apCost) {
-                game.ui.showNotification('⚡ Not Enough AP', `This interaction requires ${apCost} AP but you only have ${player.actionPoints || 0}.`, 'error');
-                return;
-            }
-            player.actionPoints -= apCost;
-
-            const socialResult = Relationships.performSocialAction(player, targetNpcId, actionId);
-            const targetNpc = Relationships.getNPC(targetNpcId);
-            if (targetNpc) targetNpc.lastInteraction = game.world?.day || 0;
-
-            if (socialResult.success) {
-                const sign = socialResult.gain >= 0 ? '+' : '';
-                let msg = `${socialResult.npc.firstName}: ${sign}${socialResult.gain} relationship.`;
-                if (socialResult.skillUp) msg += ' Diplomacy improved!';
-                game.ui.showNotification(socialResult.gain >= 0 ? '😊 Social' : '😤 Conflict', msg, socialResult.gain >= 0 ? 'success' : 'warning');
-            } else if (socialResult.failed) {
-                game.ui.showNotification('😬 Awkward', socialResult.reason, 'warning');
-            } else {
-                game.ui.showNotification('Error', socialResult.reason, 'error');
-            }
-
-            game.ui.updateStats(player, game.world);
-            ActionMenu.showCharacterDataModal(game, tile, targetNpcId, options);
-        };
-
-        window._characterCourtAction = (targetNpcId, actionId) => {
-            const courtDefs = Relationships._getCourtActions();
-            const actionDef = courtDefs[actionId] || {};
-            const availability = Relationships.getCourtActionAvailability(player, targetNpcId, { world: game.world })
-                .find(item => item.id === actionId);
-            if (availability && !availability.unlocked) {
-                game.ui.showNotification('🔒 Action Locked', availability.lockReason || 'This romantic interaction is not unlocked yet.', 'warning');
-                return;
-            }
-
-            const apCost = actionDef.apCost != null ? actionDef.apCost : 1;
-            if ((player.actionPoints || 0) < apCost) {
-                game.ui.showNotification('⚡ Not Enough AP', `This interaction requires ${apCost} AP but you only have ${player.actionPoints || 0}.`, 'error');
-                return;
-            }
-            player.actionPoints -= apCost;
-
-            const courtResult = Relationships.performCourtAction(player, targetNpcId, actionId, { world: game.world });
-            const targetNpc = Relationships.getNPC(targetNpcId);
-            if (targetNpc) targetNpc.lastInteraction = game.world?.day || 0;
-
-            if (courtResult.success) {
-                if (courtResult.married) {
-                    const marryResult = Relationships.marry(player, targetNpcId, game.world);
-                    if (marryResult.success) {
-                        ActionMenu._showMarriageCelebration(game, marryResult.npc);
-                        return;
-                    }
-                }
-                let msg = `${courtResult.npc.firstName}: +${courtResult.gain} affection (${courtResult.stage.icon} ${courtResult.stage.label}).`;
-                if (courtResult.charismaUp) msg += ' Charisma improved!';
-                game.ui.showNotification('💕 Romance', msg, 'success');
-            } else if (courtResult.failed) {
-                game.ui.showNotification('💔 Rejected', courtResult.reason, 'warning');
-            } else {
-                game.ui.showNotification('Error', courtResult.reason, 'error');
-            }
-
-            game.ui.updateStats(player, game.world);
-            ActionMenu.showCharacterDataModal(game, tile, targetNpcId, options);
-        };
+        game.ui.hideCustomPanel();
+        openPersonScene(game, tile, npcId, options);
     },
 
     showTravelPartyMenu(game, tile) {
@@ -578,6 +377,30 @@ Object.assign(ActionMenu, {
         let html = '<div>';
         html += '<h4 style="margin-top: 0;">💕 Your Relationships</h4>';
 
+        // Unfinished business: matters people have brought to you (systems/relationships/matters.js)
+        const matters = Relationships.openMatters(player);
+        if (matters.length) {
+            html += '<div style="background: rgba(255,204,128,0.08); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,204,128,0.3);">';
+            html += '<div style="font-weight: bold; color: #ffcc80; margin-bottom: 4px;">💌 Unfinished Business</div>';
+            for (const m of matters) {
+                const left = Math.max(0, m.matter.expires - (game.world.day || 0));
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; font-size: 12px; padding: 3px 0;">`
+                    + `<span>${m.icon} <strong>${m.npc.firstName} ${m.npc.dynasty}</strong> · ${m.title} <span style="color:#998">in ${m.npc.settlementName || 'town'}, ${left} day${left === 1 ? '' : 's'} left</span></span>`
+                    + `<button onclick="window._openMatter('${m.npc.id}')" style="padding: 3px 8px; background: #5a4a2a; border: none; border-radius: 3px; color: #fde; cursor: pointer; font-size: 10px;">Talk</button></div>`;
+            }
+            html += '</div>';
+        }
+        window._openMatter = (npcId) => {
+            const npc = Relationships.getNPC(npcId);
+            const here = game.world.getTile(player.q, player.r);
+            const near = here && here.settlement && here.settlement.name === npc.settlementName;
+            if (!near && !Relationships.isInTravelParty(player, npcId) && player.spouse !== npcId) {
+                game.ui.showNotification('Not Here', `${npc.firstName} is in ${npc.settlementName}. Settle it face to face.`, 'warning');
+                return;
+            }
+            ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'relationships' });
+        };
+
         // Spouse section
         if (player.spouse) {
             const spouse = Relationships.getNPC(player.spouse);
@@ -829,7 +652,21 @@ Object.assign(ActionMenu, {
             html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
         }
         html += `<button data-am-act="openTileMenu" data-am-args='["showClaimsPanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background:#7a1f1f; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#ffd700;">👑 Claims & Crowns</button>`;
+        {
+            const unread = (player.letters && player.letters.unread) || 0;
+            const open = (player.letters && player.letters.inbox && player.letters.inbox.length) || 0;
+            html += `<button data-am-act="showLetters" style="width:100%; padding:8px; margin-bottom:10px; background:#2f3a4a; border:1px solid rgba(160,190,255,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe0ff;">✉️ Letters${open ? ` (${open} open${unread ? `, ${unread} new` : ''})` : ''}</button>`;
+        }
+        {
+            // Directed opposition: the realms' regard, a league against you, rival agents (systems/coalitions.js)
+            const league = player.coalitions && player.coalitions.active;
+            html += `<button data-am-act="showThreatsPanel" style="width:100%; padding:8px; margin-bottom:10px; background:${league ? '#5a1f1f' : '#2f2a3a'}; border:1px solid rgba(224,128,128,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0c0c0;">⚜️ Threats${league ? ` — ${league.name}` : ''}</button>`;
+        }
         html += `<button data-am-act="showHouseChronicle" style="width:100%; padding:8px; margin-bottom:10px; background:#3d3424; border:1px solid rgba(255,215,0,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:var(--gold);">📜 House Chronicle</button>`;
+        // The Annals: the House's story as a book (ui/actionMenu/annals.js)
+        html += `<button data-am-act="showAnnals" style="width:100%; padding:8px; margin-bottom:10px; background:#2e2a22; border:1px solid rgba(201,178,122,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#e8dcc0; font-family: Georgia, serif;">📖 The Annals</button>`;
+        // The game's victory goal and its progress (ui/actionMenu/scenario.js)
+        html += `<button data-am-act="showAmbitionPanel" style="width:100%; padding:8px; margin-bottom:10px; background:#2e3a24; border:1px solid rgba(160,220,120,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe8b0;">🏆 Ambition of this Life</button>`;
 
         // Children
         if (!player.children || player.children.length === 0) {
@@ -962,6 +799,44 @@ Object.assign(ActionMenu, {
             }
         } else {
             html += `<button onclick="window._houseChooseAmbition()" style="width:100%; padding:8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">Choose an Ambition</button>`;
+        }
+        // Honours won by fulfilled ambitions (each raises the House's fame everywhere — systems/fame.js)
+        if (Array.isArray(house.honours) && house.honours.length) {
+            html += `<div style="font-size:11px; color:#d8c27a; margin-top:6px;">🏅 Honours: ${house.honours.map(h => `${h.name} <span style="color:#888;">(+${h.fame} fame)</span>`).join(' · ')}</div>`;
+        }
+
+        // Demands on the House: benevolences, forced loans, guild and rival tribute (systems/demands.js)
+        const demands = Demands.open(player);
+        const crownLoans = Demands.loans(player);
+        if (demands.length || crownLoans.length) {
+            html += '<h5 style="margin:10px 0 6px;">📜 Demands Upon the House</h5>';
+            const dBtn = (label, handler, enabled) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#6b5320' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+            for (const d of demands) {
+                html += '<div style="background:rgba(160,110,20,0.22); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
+                html += `<div style="display:flex; justify-content:space-between;"><strong>${d.icon} ${d.title}</strong><span style="color:#e0b040;">${Math.max(0, d.dueDay - game.world.day)} day(s)</span></div>`;
+                html += `<div style="color:#bbb; margin:2px 0 6px;">${d.text}</div>`;
+                html += '<div style="display:flex; gap:4px; flex-wrap:wrap;">';
+                html += dBtn(`💰 Pay (${d.amount}g)`, `window._demandAct('pay', ${d.id})`, player.gold >= d.amount);
+                html += dBtn(d.negotiated ? 'Haggled' : `🗣️ Negotiate (${Math.round(Demands.negotiateChance(player) * 100)}%)`, `window._demandAct('negotiate', ${d.id})`, !d.negotiated);
+                html += dBtn('✋ Refuse', `window._demandAct('refuse', ${d.id})`, true);
+                html += '</div></div>';
+            }
+            for (const l of crownLoans) {
+                html += `<div style="font-size:11px; color:#bbb; padding:2px 0;">👑 Lent ${l.amount}g to ${l.from} — due day ${l.dueDay}${l.defers ? ` (deferred ${l.defers}×)` : ''}</div>`;
+            }
+        }
+
+        // Townsfolk named in rival plots — confront them in their town (systems/schemes.js)
+        const suspects = Schemes.suspects(player, game.world);
+        if (suspects.length) {
+            html += '<h5 style="margin:10px 0 6px;">🕵️ Suspects</h5>';
+            for (const s of suspects) {
+                html += `<div style="font-size:12px; padding:3px 0; color:#ccc;">🗡️ <strong>${s.name}</strong>, ${s.role} of ${s.town} — agent of ${s.rivalName}${s.status === 'plotting' ? ' <span style="color:#e08080;">(plot in hand)</span>' : ''}. <span style="color:#888;">Find them in town to accuse, turn or spare.</span></div>`;
+            }
+        }
+        const informants = Object.values(house.informants || {}).filter(i => i && i.untilDay >= game.world.day);
+        for (const i of informants) {
+            html += `<div style="font-size:11px; color:#9cc; padding:2px 0;">👂 ${i.name} of ${i.town} informs for you until day ${i.untilDay}.</div>`;
         }
 
         // Offices / roles
@@ -1118,6 +993,13 @@ Object.assign(ActionMenu, {
             game.ui.updateStats(player, game.world);
             ActionMenu.showHousePanel(game, tile);
         };
+        window._demandAct = (kind, id) => {
+            const res = Demands.answer(player, game.world, id, kind);
+            if (!res.success) game.ui.showNotification('📜 Demand', res.reason || 'Not possible.', 'error');
+            else game.ui.showNotification(kind === 'refuse' ? '✋ Refused' : kind === 'negotiate' && !res.paid ? '🗣️ No Bargain' : '💰 Paid', res.text, kind === 'refuse' ? 'warning' : 'success');
+            game.ui.updateStats(player, game.world);
+            ActionMenu.showHousePanel(game, tile);
+        };
         window._schemeAct = (kind, id) => {
             let res;
             if (kind === 'guard') res = Schemes.guard(player, game.world, id);
@@ -1165,10 +1047,15 @@ Object.assign(ActionMenu, {
         };
         window._houseChooseAmbition = () => {
             let h = '<div><h4 style="margin-top:0;">Choose an Ambition</h4>';
-            for (const a of House.ambitions()) {
+            const open = House.ambitions(house);
+            if (!open.length) h += '<div style="font-size:12px; color:#aaa;">Your House has fulfilled every ambition open to it. Its name is written in the histories.</div>';
+            for (const a of open) {
+                const rw = a.reward || {};
+                const rwText = [rw.prestige ? `${rw.prestige} Prestige` : '', rw.gold ? `${rw.gold} gold` : '', rw.renown ? `${rw.renown} renown` : '', rw.honour ? `honour: ${rw.honour.name}` : ''].filter(Boolean).join(' · ');
                 h += `<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; margin-bottom:6px;">
-                    <div style="color:var(--gold); font-weight:bold;">${a.name}</div>
+                    <div style="color:var(--gold); font-weight:bold;">${a.name}${a.tier > 1 ? ` <span style="font-size:10px; color:#d8c27a;">Tier ${a.tier}</span>` : ''}</div>
                     <div style="font-size:12px; color:#aaa;">${a.blurb}</div>
+                    ${rwText ? `<div style="font-size:11px; color:#c9b77a;">Reward: ${rwText}</div>` : ''}
                     <button onclick="window._houseSetAmbition('${a.id}')" style="width:100%; padding:6px; margin-top:4px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold;">Pursue</button></div>`;
             }
             h += '</div>';
@@ -1291,8 +1178,21 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
 
+        // Or go on another way: someone else in the world, or let the years pass (ui/actionMenu/afterlife.js)
+        const waitFor = eligibleHeirs.length ? '' : (player.children || []).some(c => c.isAlive) ? ' until a child comes of age' : '';
+        html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
+        html += '<h4 style="margin-bottom:6px;">Or Go On Another Way</h4>';
+        html += `<button onclick="window._deathNewLife()" style="width: 100%; padding: 8px; margin-top: 4px; background: #3d4a63; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; cursor: pointer; font-weight: bold; color: #eee;">🎭 A New Life: become someone else in the world</button>`;
+        html += `<button onclick="window._deathLetTimePass()" style="width: 100%; padding: 8px; margin-top: 6px; background: #3d4a63; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; cursor: pointer; font-weight: bold; color: #eee;">⏳ Let Time Pass: watch the world turn${waitFor}, then jump back in</button>`;
         html += '</div>';
-        game.ui.showCustomPanel('Death', html);
+
+        // Read back the life just ended before choosing (ui/actionMenu/annals.js)
+        html += `<button onclick="window._deathAnnals()" style="width: 100%; padding: 8px; margin-top: 10px; background: #2e2a22; border: 1px solid rgba(201,178,122,0.35); border-radius: 4px; cursor: pointer; font-weight: bold; color: #e8dcc0; font-family: Georgia, serif;">📖 Read the Annals of your life</button>`;
+        html += '</div>';
+        game.ui.showCustomPanel('Death', html, { locked: true });
+        window._deathAnnals = () => ActionMenu.showAnnals(game, { locked: true, onBack: () => ActionMenu.showDeathScreen(game, cause), backLabel: '← Back to the deathbed' });
+        window._deathNewLife = () => ActionMenu.showNewLife(game, 0, cause || 'old age');
+        window._deathLetTimePass = () => ActionMenu.beginInterregnum(game, cause || 'old age');
 
         const finishSuccession = (childId, extraOpts) => {
             const chk = document.getElementById('secureSuccessionChk');

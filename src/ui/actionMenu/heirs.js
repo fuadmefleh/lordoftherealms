@@ -65,7 +65,7 @@ Object.assign(ActionMenu, {
         if (p.birthTraits.length) html += `<div style="font-size:11px; margin-top:2px;">Born: ${p.birthTraits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
         html += _profileBlock(p);
         if (p.leanings.length) html += `<div style="font-size:11px; color:#999;">Leaning toward: ${p.leanings.map(l => `${l.icon} ${_esc(l.name)} (${l.pct}%)`).join(', ')}</div>`;
-        if (p.spouse) html += `<div style="font-size:11px; color:#ff9ad5; margin-top:2px;">💍 Wed to ${_esc(p.spouse.name)}${p.spouse.kind === 'royal' ? ' (royal)' : ''}</div>`;
+        if (p.spouse) html += `<div style="font-size:11px; color:#ff9ad5; margin-top:2px;">💍 Wed to ${_esc(p.spouse.name)}${p.spouse.kind === 'royal' ? ' (royal)' : (p.spouse.kind === 'local' ? ` (of ${_esc(p.spouse.townName || 'town')})` : '')}</div>`;
         if (p.placement && p.placement.kind === 'ward') {
             html += `<div style="font-size:11px; color:#9cc8ff; margin-top:2px;">🏰 ${p.away ? `Fostering at the court of ${_esc(p.placement.lordName)} until day ${p.placement.until}` : `Fostered at the court of ${_esc(p.placement.lordName)}`}</div>`;
         }
@@ -148,6 +148,20 @@ Object.assign(ActionMenu, {
                 }
                 html += '</div>';
             }
+            // A match in town: one of the townsfolk (systems/townsfolk.js)
+            if (!p.away && !p.spouse) {
+                const local = Heirs.localMatches(player, world, child.id).slice(0, 6);
+                html += `<div style="${HEAD}">A Match in Town</div>`;
+                if (!local.length) {
+                    html += '<div style="color:#999;">No one of the right age in the towns whose people you know. Walk among the townsfolk to meet more.</div>';
+                } else {
+                    html += `<div style="color:#bbb;">No dowry. ${pl.localPrestige < 0 ? `Costs ⭐${-pl.localPrestige} Prestige (a noble or merchant family adds ⭐${pl.localPrestigeGentle}),` : ''} +${pl.localReputation} standing with the town's realm, and their kin warm to you.</div>`;
+                    for (const m of local) {
+                        html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>${m.person.gender === 'female' ? '👩' : '👨'} <b>${_esc(m.name)}</b> <span style="color:#888;">${_esc(m.role)}, ${m.age} · ${_esc(m.town)}${m.known ? ' · you know them' : ''}${m.gentle ? ' · good family' : ''}</span></span>`;
+                        html += `<button onclick="window._heirsUI.local('${child.id}',${m.folk.q},${m.folk.r},${m.person.id})" style="${BTN_DARK}">💍 Wed</button></div>`;
+                    }
+                }
+            }
         }
 
         if (p.events.length) {
@@ -196,6 +210,13 @@ Object.assign(ActionMenu, {
                 const res = House.assignRole(player, roleId, id);
                 if (!res.success) return fail(res.reason);
                 refresh({ html: `🏰 ${_esc(child.firstName)} is now ${_esc(House.roleDefs()[roleId].label)}.` });
+            },
+            local: (id, q, r, personId) => {
+                const t = world.getTile(q, r);
+                const folk = t && t.settlement && t.settlement.folk;
+                const res = Heirs.marryTownsperson(player, world, id, folk, personId);
+                if (!res.success) return fail(res.reason);
+                refresh({ html: `💍 ${_esc(child.firstName)} weds ${_esc(res.spouse.name)}, ${_esc(res.spouse.role)} of ${_esc(res.spouse.townName)}${res.prestige ? ` (⭐${res.prestige > 0 ? '+' : ''}${res.prestige})` : ''}.` });
             },
             place: (id, kind) => {
                 const sel = document.getElementById('heirKingdomSel');
@@ -286,6 +307,6 @@ Object.assign(ActionMenu, {
         }
         html += '<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>';
         html += '</div>';
-        game.ui.showCustomPanel('🕯️ The Line Ends', html);
+        game.ui.showCustomPanel('🕯️ The Line Ends', html, { locked: true });
     },
 });

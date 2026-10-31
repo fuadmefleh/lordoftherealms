@@ -113,6 +113,7 @@
         },
         "TAVERN": {
             "id": "tavern",
+            "minSettlement": "town",
             "category": "commerce",
             "name": "Tavern",
             "icon": "🍻",
@@ -123,6 +124,62 @@
             "upkeep": 8,
             "requiredSettlement": true,
             "description": "A place for drink, gambling, and gossip. Earns gold daily from patrons. Upkeep: 8g/day"
+        },
+        "GUEST_HOUSE": {
+            "id": "guest_house",
+            "category": "hospitality",
+            "name": "Guest House",
+            "icon": "🏡",
+            "cost": 650,
+            "constructionDays": 6,
+            "produces": "gold",
+            "productionRate": 0,
+            "upkeep": 3,
+            "requiredSettlement": true,
+            "description": "A bed & breakfast: a few rooms and breakfast included. Guests from the town's travellers, shared with its other houses by stars, price and reputation. Hire staff and set prices from its panel. Upkeep: 3g/day"
+        },
+        "INN": {
+            "id": "inn",
+            "minSettlement": "town",
+            "category": "hospitality",
+            "name": "Inn",
+            "icon": "🏨",
+            "cost": 1500,
+            "constructionDays": 10,
+            "produces": "gold",
+            "productionRate": 0,
+            "upkeep": 6,
+            "requiredSettlement": true,
+            "description": "A coaching inn: a common room and private rooms, suppers, baths and stabling. Competes with the town's other houses for its travellers. Upkeep: 6g/day"
+        },
+        "HOTEL": {
+            "id": "hotel",
+            "minSettlement": "town",
+            "minPopulation": 2500,
+            "category": "hospitality",
+            "name": "Grand Hotel",
+            "icon": "🏰",
+            "cost": 4200,
+            "constructionDays": 16,
+            "produces": "gold",
+            "productionRate": 0,
+            "upkeep": 14,
+            "requiredSettlement": true,
+            "description": "Suites, fine dining, a bathhouse and a valet for the wealthy few. Only a city or capital has the custom. Upkeep: 14g/day"
+        },
+        "ROADHOUSE": {
+            "id": "roadhouse",
+            "category": "hospitality",
+            "name": "Roadhouse",
+            "icon": "🏚️",
+            "cost": 550,
+            "constructionDays": 6,
+            "produces": "gold",
+            "productionRate": 0,
+            "upkeep": 2,
+            "requiresRoad": true,
+            "forbidSettlement": true,
+            "description": "A wayside house on an open road between towns: bunks, cheap rooms and a stable yard. Its guests are the road's traffic. Upkeep: 2g/day"
         },
         "GRAIN_MILL": {
             "id": "grain_mill",
@@ -414,6 +471,7 @@
         },
         "JEWELER": {
             "id": "jeweler",
+            "minSettlement": "town",
             "category": "crafts",
             "name": "Jeweler",
             "icon": "💍",
@@ -429,6 +487,7 @@
         },
         "DYE_WORKS": {
             "id": "dye_works",
+            "minSettlement": "town",
             "category": "crafts",
             "name": "Dye Works",
             "icon": "🎨",
@@ -459,6 +518,7 @@
         },
         "GLASSWORKS": {
             "id": "glassworks",
+            "minSettlement": "town",
             "category": "crafts",
             "name": "Glassworks",
             "icon": "🔮",
@@ -474,6 +534,7 @@
         },
         "SCRIPTORIUM": {
             "id": "scriptorium",
+            "minSettlement": "town",
             "category": "crafts",
             "name": "Scriptorium",
             "icon": "📖",
@@ -504,6 +565,7 @@
         },
         "PERFUMERY": {
             "id": "perfumery",
+            "minSettlement": "town",
             "category": "crafts",
             "name": "Perfumery",
             "icon": "🌸",
@@ -669,6 +731,7 @@
         "HEALING_SALVE": { "id": "healing_salve", "name": "Healing Salve", "icon": "🩹", "basePrice": 25 },
         "POTION": { "id": "potion", "name": "Strange Potion", "icon": "🧪", "basePrice": 40 },
         "ELIXIR": { "id": "elixir", "name": "Elixir of Vigor", "icon": "⚗️", "basePrice": 90 },
+        "ANTIDOTE": { "id": "antidote", "name": "Antidote", "icon": "🟢", "basePrice": 35 },
         "TREASURE_MAP": { "id": "treasure_map", "name": "Treasure Map", "icon": "🗺️", "basePrice": 120 },
         "ANCIENT_COIN": { "id": "ancient_coin", "name": "Ancient Coin", "icon": "💰", "basePrice": 35 },
         "RARE_BOOK": { "id": "rare_book", "name": "Rare Book", "icon": "📕", "basePrice": 50 },

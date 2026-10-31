@@ -281,5 +281,87 @@
         { "id": "spouse_gift", "chance": 0.015, "text": "{spouse} gives you a thoughtful gift.", "effect": "affection", "value": 4 },
         { "id": "spouse_ill", "chance": 0.005, "text": "{spouse} has fallen ill. You tend to them with care.", "effect": "affection", "value": 2 },
         { "id": "child_milestone", "chance": 0.01, "requiresChildren": true, "text": "Your child {child} took their first steps today!", "effect": "affection", "value": 3 }
-    ]
+    ],
+
+    "matters": {
+        "_comment": "Matters of the heart and of friendship (systems/relationships/matters.js): the people the player knows bring them things — a loan, a confidence, a plea, a rival suitor, a question about a rumour, a jealous spouse, a grudge. One open matter per person, settled face to face (Meet People / the person's scene) before it expires. Tokens: {npc} {amount} {due} {reason} {suitor} {kin} {rumor} {subject} {other} {place}.",
+        "config": {
+            "_loyalty": "loyaltyHonesty: a debtor's chance to repay rises by (loyalty - 50) x this. trustBonus: once you admit a crime to someone ('heard_crime: admit'), your later deny / lie rolls with them gain this (lost if they catch you lying). coldDays: an ignored grudge closes the door to courting for this long; an ignored rival suitor marries the one you courted. slanderDiscredit: share of a slander's credibility lost when a friend believes your denial.",
+            "loyaltyHonesty": 0.005,
+            "trustBonus": 0.15,
+            "coldDays": 180,
+            "slanderDiscredit": 0.3,
+            "chancePerDay": 0.035,
+            "maxOpen": 3,
+            "expireDays": 18,
+            "heardChance": 0.35,
+            "jealousyChance": 0.06,
+            "rumorJealousyChance": 0.5,
+            "grudgeChance": 0.04,
+            "deedPraise": 2,
+            "loanDays": [20, 40],
+            "loanInterest": 0.2,
+            "affairRumorChance": 0.3,
+            "honesty": { "kind": 0.85, "gentle": 0.85, "stoic": 0.8, "shy": 0.75, "bold": 0.65, "witty": 0.6, "passionate": 0.6, "ambitious": 0.55 },
+            "conscience": { "kind": -18, "gentle": -15, "shy": -10, "passionate": -8, "stoic": -6, "witty": -6, "bold": -3, "ambitious": -2 }
+        },
+        "kinds": {
+            "loan": {
+                "icon": "💰", "title": "A Loan", "minScore": 30, "weight": 3, "amount": [25, 120],
+                "reasons": ["The roof came in over the winter", "My brother's debts came to my door", "The guild fine was more than I had", "A sick cow, then a dead one"],
+                "ask": ["*twists their hands* I hate to ask. I need {amount} gold. {reason}. I'll pay you back, I swear it.", "Can I ask you something, as a friend? {amount} gold. {reason}. You'd have it back with something on top."],
+                "notice": "{npc} has something to ask you, quietly. Find them in {place}.",
+                "expire": "{npc} stopped waiting for your answer about the loan."
+            },
+            "debt": {
+                "icon": "📉", "title": "The Debt", "auto": true,
+                "ask": ["*can't meet your eyes* The {amount} gold. I don't have it. Not yet. I'm sorry.", "About the money... it's gone, and I've nothing to show for it. I'm ashamed."],
+                "notice": "{npc} can't repay the {amount} gold you lent. They're in {place}.",
+                "expire": "You never pressed {npc} over the debt. They take it as forgiveness."
+            },
+            "confidence": {
+                "icon": "🤫", "title": "A Confidence", "minScore": 60, "weight": 2,
+                "ask": ["*glances at the door* Can I trust you with something? About {subject}. That talk going round... it's {truth}. I know someone who'd know.", "You'll keep this between us. The tale about {subject}? It's {truth}. My cousin serves at court."],
+                "sorrow": ["*quietly* My father's dying. I've told no one else. I don't know why I'm telling you.", "I'm thinking of leaving {place}. For good. Nobody here knows yet."],
+                "notice": "{npc} wants to tell you something, in private. They're in {place}.",
+                "expire": "Whatever {npc} meant to tell you, they've kept it to themselves."
+            },
+            "plea": {
+                "icon": "🙏", "title": "A Plea", "minScore": 30, "weight": 2, "amount": [30, 90],
+                "kin": ["My sister", "My son", "My old mother", "My husband", "My wife", "My apprentice"],
+                "trouble": ["is in the reeve's gaol for a debt", "has the fever and the physician wants paying first", "was taken up by the press gang", "owes the moneylender, and he's sent his men"],
+                "ask": ["*eyes red* {kin} {reason}. {amount} gold would save them. I've nowhere else to turn."],
+                "notice": "{npc} is desperate and asking for you in {place}.",
+                "expire": "{npc} needed you, and you didn't come. They won't forget it."
+            },
+            "rival_suitor": {
+                "icon": "🌹", "title": "A Rival Suitor", "minAffection": 25, "maxAffection": 79, "weight": 2,
+                "suitors": ["a wool merchant's son", "a captain of the guard", "a widowed miller", "a travelling poet", "a minor lord's younger son", "the smith's handsome apprentice"],
+                "suitorFoes": { "a wool merchant's son": "merchant", "a captain of the guard": "guard", "a widowed miller": "farmer", "a travelling poet": "traveler", "a minor lord's younger son": "noble", "the smith's handsome apprentice": "blacksmith_npc" },
+                "defaultFoe": "villager",
+                "ask": ["*a little flushed* {suitor} has been calling on me. With flowers. I haven't said no. Should I?", "You should know: {suitor} has asked my father for me. I told him I'd think about it."],
+                "notice": "Someone else is courting {npc}. You'll find them in {place}.",
+                "expire": "{npc} is promised to {suitor}. You waited too long."
+            },
+            "heard_crime": {
+                "icon": "👂", "title": "What They Heard", "auto": true,
+                "ask": ["*arms folded* They're saying things about you in {place}. \"{rumor}\" Is it true?", "I heard something. \"{rumor}\" Tell me it's a lie."],
+                "notice": "Talk about you has reached {npc} in {place}. They want to hear it from you.",
+                "expire": "{npc} heard the rumours and never heard your side of it."
+            },
+            "jealousy": {
+                "icon": "💢", "title": "Jealousy", "auto": true,
+                "ask": ["*cold* Who is {other}? Don't look at me like that. Who is {other}?", "I've heard about you and {other}. The whole town has. Well?"],
+                "askNoName": ["*cold* You've been distant. Is there someone else?"],
+                "notice": "{npc}, your spouse, needs to speak with you. It doesn't sound good.",
+                "expire": "You avoided {npc}'s question. The silence between you grows."
+            },
+            "grudge": {
+                "icon": "🗡️", "title": "A Grudge", "auto": true, "maxScore": -30,
+                "ask": ["*sneers* Come to hear what I've been saying about you? Everyone else has.", "Oh, it's you. I've been telling {place} all about you. Every word true."],
+                "notice": "{npc} has been badmouthing you all over {place}.",
+                "expire": "{npc}'s grudge settles into something cold and permanent."
+            }
+        }
+    }
 }

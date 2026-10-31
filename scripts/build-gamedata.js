@@ -42,7 +42,28 @@ const topLevel = [
     'transport',
     'mints',
     'fiscal',
-    'estates'
+    'estates',
+    'townsfolk',
+    'npcTasks',
+    'npcKnowledge',
+    'duels',
+    'crafting',
+    'mercenaryContracts',
+    'devotion',
+    'books',
+    'feasts',
+    'fame',
+    'house',
+    'lordMemory',
+    'courtLetters',
+    'couriers',
+    'pirates',
+    'hospitality',
+    'firstSteps',
+    'afterlife',
+    'scenarios',
+    'annals',
+    'coalitions'
 ];
 
 const merged = {};

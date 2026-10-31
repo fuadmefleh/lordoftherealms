@@ -6,6 +6,9 @@ import { Discovery } from '../../systems/discovery.js';
 import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { Whispers } from '../../systems/whispers.js';
+import { SoulPact } from '../../systems/soulPact.js';
+import { Fame } from '../../systems/fame.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -54,7 +57,7 @@ Object.assign(Tavern, {
         const settlement = tile.settlement;
         if (!settlement) return options;
 
-        const isCity = settlement.type === 'town' || settlement.type === 'capital';
+        const isCity = ['town', 'city', 'capital'].includes(settlement.type);
 
         // 1. Buy a round of drinks for local gossip
         options.push({
@@ -117,14 +120,16 @@ Object.assign(Tavern, {
         // ── Needs-satisfying actions ──────────────────────────
 
         // Buy a hot meal (hunger) — the local peoples' signature dish comforts more
-        const mealCost = 8;
+        // The celebrated eat on the house (systems/fame.js), once a week a town
+        const freeMeal = Fame.innFree(player, world, tile, 'meal');
+        const mealCost = freeMeal ? 0 : 8;
         const localMeal = Peoples.mealBonus(tile.settlement);
         options.push({
             id: 'buy_meal',
-            label: localMeal.dish ? `Buy a hot meal (${localMeal.dish})` : 'Buy a hot meal',
+            label: freeMeal ? 'Dine on the house — your name is good here' : localMeal.dish ? `Buy a hot meal (${localMeal.dish})` : 'Buy a hot meal',
             icon: '🍖',
             cost: mealCost,
-            description: localMeal.comfort > 0
+            description: freeMeal ? 'The innkeeper will not hear of payment from one so celebrated. Satisfies hunger and comfort.' : localMeal.comfort > 0
                 ? `The house serves the local ${localMeal.dish || localMeal.hybridDish} (${mealCost}g). Satisfies hunger; +${localMeal.comfort} extra comfort.`
                 : `A hearty stew and fresh bread (${mealCost}g). Satisfies hunger and comfort.`,
             available: player.gold >= mealCost,
@@ -142,25 +147,25 @@ Object.assign(Tavern, {
         });
 
         // Rest at the inn (energy)
-        const innCost = 15;
+        const freeRoom = Fame.innFree(player, world, tile, 'room');
+        const innCost = freeRoom ? 0 : 15;
         options.push({
             id: 'rest_at_inn',
-            label: 'Rent a room to rest',
+            label: freeRoom ? 'Take the best room, on the house' : 'Rent a room to rest',
             icon: '🛏️',
             cost: innCost,
-            description: `Rest in a private room (${innCost}g). Restores energy and comfort.`,
+            description: freeRoom ? 'The innkeeper insists: the best room, free, for a guest of your fame. Restores energy and comfort.' : `Rest in a private room (${innCost}g). Restores energy and comfort.`,
             available: player.gold >= innCost,
         });
 
-        // Play dice (fun + social)
-        const diceBet = 10;
+        // Dice and cards with the locals: the gambling den's tables (ui/actionMenu/gambling.js)
         options.push({
             id: 'play_dice',
-            label: 'Play a game of dice',
+            label: 'Join the dice and card tables',
             icon: '🎲',
-            cost: diceBet,
-            description: `Join a dice game with the locals (${diceBet}g bet). Win or lose, it's fun.`,
-            available: player.gold >= diceBet,
+            cost: 0,
+            description: 'Crown & Anchor, Dragon’s Flip, High-Low and poker with the locals. Stakes are yours to set.',
+            available: (player.gold || 0) >= 1,
         });
 
         // 6. Check rumor board (free)
@@ -173,18 +178,26 @@ Object.assign(Tavern, {
             available: true,
         });
 
-        // 7. Sell Your Soul (dark pact for gold — repeatable once per day)
-        const alreadySoldToday = player.lastSoulSoldDay === world.day;
-        options.push({
-            id: 'sell_soul',
-            label: 'Sell Your Soul',
-            icon: '🔥',
-            cost: 0,
-            description: alreadySoldToday
-                ? 'The shadowy figure waves you off. "Come back tomorrow..."'
-                : 'A shadowy figure offers a dark bargain — a pittance of gold for a piece of your soul. Lowers karma and renown.',
-            available: !alreadySoldToday,
-        });
+        // 7. The stranger in the corner: a soul pact with a debt that comes due (systems/soulPact.js)
+        {
+            const pact = SoulPact.state(player);
+            const o = SoulPact.offer(player, world, tile);
+            const desc = {
+                none: `${o.name} watches you from the corner. They would pay ${o.price} gold for your soul — and come back for more.`,
+                redeemed: `${o.name} is back in the corner, smiling as if nothing happened.`,
+                sold: `${pact.buyer} raises a cup to you. Your soul is theirs.`,
+                due: `${pact.buyer} is waiting. The debt is due — answer them.`,
+                cursed: `${pact.buyer} is gone. The curse is not.`,
+            }[pact.state] || '';
+            options.push({
+                id: 'sell_soul',
+                label: pact.state === 'due' ? 'Answer the stranger' : (pact.state === 'none' || pact.state === 'redeemed') ? 'Sell Your Soul' : 'The stranger in the corner',
+                icon: '🔥',
+                cost: 0,
+                description: desc,
+                available: true,
+            });
+        }
 
         // 8. Buy maps from a shady cartographer (if Cartography is loaded)
         if (typeof Cartography !== 'undefined') {
@@ -219,6 +232,21 @@ Object.assign(Tavern, {
                 icon: '👂',
                 cost: 0,
                 description: `People are whispering... ${gossipItems.length} rumor${gossipItems.length > 1 ? 's' : ''} circulating here.`,
+                available: true,
+            });
+        }
+
+        // 10b. The whispering corner: court scandals told here, talk of you, a tale of your own (systems/whispers.js)
+        {
+            const tales = Whispers.talkAt(player, tile.q, tile.r).length;
+            options.push({
+                id: 'court_whispers',
+                label: 'The whispering corner',
+                icon: '🕯️',
+                cost: 0,
+                description: tales > 0
+                    ? `${tales} tale${tales > 1 ? 's' : ''} about the great going round. Fan them, quash them, dig for the truth, or start your own.`
+                    : 'Nothing juicy about the great just now. You could start something.',
                 available: true,
             });
         }
@@ -266,7 +294,8 @@ Object.assign(Tavern, {
             case 'rest_at_inn':
                 return Tavern._restAtInn(player, tile, world);
             case 'play_dice':
-                return Tavern._playDice(player, tile, world);
+                // The tavern's dice are the gambling den's tables
+                return [{ category: Tavern.CATEGORIES.RUMORS_GOSSIP, icon: '🎲', title: 'The Gaming Tables', text: '', openGambling: true }];
             case 'ask_merchants':
                 if (player.modifyNeed) player.modifyNeed('social', 8);
                 return Tavern._askMerchants(player, tile, world);
@@ -283,7 +312,8 @@ Object.assign(Tavern, {
                 if (player.modifyNeed) player.modifyNeed('fun', 5);
                 return Tavern._checkRumorBoard(player, tile, world);
             case 'sell_soul':
-                return Tavern._sellSoul(player, tile, world);
+                // A storyline, not a coin slot: the pact panel (ui/actionMenu/devotion.js)
+                return [{ category: Tavern.CATEGORIES.RUMORS_GOSSIP, icon: '🔥', title: 'The Stranger', text: '', openSoulPact: true }];
             case 'buy_tavern_map':
                 return Tavern._buyTavernMap(player, tile, world);
             case 'ask_religious_lore':
@@ -291,6 +321,9 @@ Object.assign(Tavern, {
                 return Tavern._askReligiousLore(player, tile, world);
             case 'listen_gossip':
                 return Tavern._listenForGossip(player, tile, world);
+            case 'court_whispers':
+                if (player.modifyNeed) player.modifyNeed('social', 5);
+                return [{ category: Tavern.CATEGORIES.RUMORS_GOSSIP, icon: '🕯️', title: 'The Whispering Corner', text: '', openWhispers: true }];
             case 'underworld_contact': {
                 const res = Underworld.meetContact(player, world, tile);
                 return [{
@@ -314,8 +347,10 @@ Object.assign(Tavern, {
      * Buy a hot meal — restores hunger and provides comfort
      */
     _buyMeal(player, tile, world) {
-        const cost = 8;
+        const free = Fame.innFree(player, world, tile, 'meal');
+        const cost = free ? 0 : 8;
         player.gold -= cost;
+        if (free) Fame.claimInn(player, world, tile, 'meal');
         const meal = Peoples.mealBonus(tile.settlement);
         if (player.modifyNeed) {
             player.modifyNeed('hunger', 35);
@@ -326,10 +361,10 @@ Object.assign(Tavern, {
         return [{
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,
             icon: '🍖',
-            title: 'Hot Meal',
-            text: dish
+            title: free ? 'A Meal on the House' : 'Hot Meal',
+            text: (free ? 'The innkeeper waves away your coin: "Not from you." ' : '') + (dish
                 ? `You dine on ${dish}, the local favourite at ${tile.settlement.name}${meal.hybridDish && meal.dish ? `, with a side of ${meal.hybridDish}` : ''}. A taste of home for the folk here — and a comfort to you (+${meal.comfort}).`
-                : `You enjoy a hearty stew with bread and ale at ${tile.settlement.name}. Your belly is full and your spirits lifted.`,
+                : `You enjoy a hearty stew with bread and ale at ${tile.settlement.name}. Your belly is full and your spirits lifted.`),
             reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
             accurate: true,
             day: world.day,
@@ -363,8 +398,10 @@ Object.assign(Tavern, {
      * Rest at the inn — restores energy and comfort, sets rest type override
      */
     _restAtInn(player, tile, world) {
-        const cost = 15;
+        const free = Fame.innFree(player, world, tile, 'room');
+        const cost = free ? 0 : 15;
         player.gold -= cost;
+        if (free) Fame.claimInn(player, world, tile, 'room');
         if (player.modifyNeed) {
             player.modifyNeed('energy', 50);
             player.modifyNeed('comfort', 30);
@@ -376,58 +413,7 @@ Object.assign(Tavern, {
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,
             icon: '🛏️',
             title: 'Well Rested',
-            text: `You rent a private room at the inn in ${tile.settlement.name}. A real bed makes all the difference.`,
-            reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
-            accurate: true,
-            day: world.day,
-            source: tile.settlement.name,
-        }];
-    },
-
-    /**
-     * Play dice — fun and social, with a chance to win or lose gold
-     */
-    _playDice(player, tile, world) {
-        const bet = 10;
-        player.gold -= bet;
-
-        // 45% win, 55% lose (house edge); a seasoned Gambler reads the table better
-        const roll = Utils.random() - Traits.effect(player, 'gamblingLuck');
-        Traits.recordDeed(player, 'gambling');
-        let winnings = 0;
-        let resultText = '';
-
-        if (roll < 0.20) {
-            // Big win
-            winnings = bet * 3;
-            resultText = `Lady Luck smiles on you! You win ${winnings} gold with a spectacular roll!`;
-        } else if (roll < 0.45) {
-            // Small win
-            winnings = bet * 2;
-            resultText = `A good round! You pocket ${winnings} gold.`;
-        } else if (roll < 0.75) {
-            // Lose
-            resultText = `Bad luck — the dice weren't in your favor. You lose your ${bet} gold bet.`;
-        } else {
-            // Big loss (lose extra)
-            const extraLoss = Math.min(player.gold, 5);
-            player.gold -= extraLoss;
-            resultText = `Terrible rolls! You lose your bet and ${extraLoss} extra gold in a double-or-nothing gone wrong.`;
-        }
-
-        if (winnings > 0) player.gold += winnings;
-
-        if (player.modifyNeed) {
-            player.modifyNeed('fun', 20);
-            player.modifyNeed('social', 15);
-            if (winnings > 0) player.modifyNeed('comfort', 5);
-        }
-
-        return [{
-            category: Tavern.CATEGORIES.RUMORS_GOSSIP,
-            icon: '🎲',
-            title: winnings > 0 ? 'Dice — Winner!' : 'Dice — Unlucky',
-            text: resultText,
+            text: free ? `The innkeeper of ${tile.settlement.name} gives you the best room and will not take a coin. Fame has its comforts.` : `You rent a private room at the inn in ${tile.settlement.name}. A real bed makes all the difference.`,
             reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
             accurate: true,
             day: world.day,
@@ -870,10 +856,11 @@ Object.assign(Tavern, {
                 if (item.hasBounty) {
                     text += ` (Bounty: ${item.bountyGold}g)`;
                 }
+                if (item.telling) text += ` (as it's told here: ${item.telling.label.toLowerCase()})`;
                 rumors.push({
                     category: Tavern.CATEGORIES.RUMORS_GOSSIP,
                     icon: item.icon || '🗣️',
-                    title: item.deed ? `${item.freshness}: Talk of Your Deeds` : `${item.freshness}: ${item.hasBounty ? '⚠️ ' : ''}Crime Rumor`,
+                    title: item.deed ? `${item.freshness}: Talk of Your Deeds` : item.talk ? `${item.freshness}: Talk of Your Love Life` : `${item.freshness}: ${item.hasBounty ? '⚠️ ' : ''}Crime Rumor`,
                     text,
                     reliability: Tavern.RELIABILITY.TAVERN_GOSSIP,
                     day: world.day,
@@ -899,59 +886,17 @@ Object.assign(Tavern, {
     },
 
     /**
-     * Sell Your Soul — repeatable dark pact, once per day, small gold, costs karma & renown
+     * Sell Your Soul — the pact (systems/soulPact.js): a named stranger buys
+     * it once for a real sum; the debt comes due later. Returns a rumour-style
+     * entry for callers of the old API.
      */
     _sellSoul(player, tile, world) {
-        // Once per day check
-        if (player.lastSoulSoldDay === world.day) {
-            return [{
-                category: Tavern.CATEGORIES.RUMORS_GOSSIP,
-                icon: '🔥',
-                title: 'Come Back Tomorrow',
-                text: 'The shadowy figure waves you off. "Patience... come back tomorrow. Your soul needs time to regrow what I\'ve taken."',
-                reliability: Tavern.RELIABILITY.INFORMANT,
-                accurate: true,
-                day: world.day,
-                source: tile.settlement.name,
-            }];
-        }
-
-        // Track how many times soul has been sold
-        player.soulSoldCount = (player.soulSoldCount || 0) + 1;
-        player.lastSoulSoldDay = world.day;
-
-        // Gold reward: 5-10 gold
-        const goldReward = Utils.randInt(5, 10);
-
-        // Karma and renown penalties scale slightly with how often you do it
-        const karmaPenalty = 1 + Math.floor(player.soulSoldCount / 5);
-        const renownPenalty = 1 + Math.floor(player.soulSoldCount / 3);
-
-        player.gold += goldReward;
-        player.karma -= karmaPenalty;
-        player.renown = Math.max(0, (player.renown || 0) - renownPenalty);
-        Traits.recordDeed(player, 'greed', 2); // a soul for a handful of coin
-
-        // Flavor text varies with how many times you've sold
-        const count = player.soulSoldCount;
-        let flavorText;
-        if (count === 1) {
-            flavorText = `A shadowy figure in the corner beckoned you over. "Just a sliver of your soul... nothing you\'ll miss." You shook the cold hand.`;
-        } else if (count < 5) {
-            flavorText = `The shadowy figure grins as you approach. "Back again? Of course you are." The exchange is quick. You feel a little emptier.`;
-        } else if (count < 15) {
-            flavorText = `The figure barely looks up. "The usual?" They slide the coins across the table. Your hands tremble slightly.`;
-        } else if (count < 30) {
-            flavorText = `You sit down before the figure even notices. The coins appear. You don\'t remember agreeing. Does it matter anymore?`;
-        } else {
-            flavorText = `The figure looks almost pitiful. "There\'s barely anything left, you know." The coins feel heavier each time. Or maybe you\'re just weaker.`;
-        }
-
+        const r = SoulPact.sell(player, world, tile);
         return [{
             category: Tavern.CATEGORIES.RUMORS_GOSSIP,
             icon: '🔥',
-            title: `Soul Sold (×${count})`,
-            text: `${flavorText} +${goldReward} gold. Karma −${karmaPenalty}. Renown −${renownPenalty}.`,
+            title: r.success ? 'Soul Sold' : 'The Stranger',
+            text: r.success ? `${r.text} +${r.gold} gold.` : r.reason,
             reliability: Tavern.RELIABILITY.INFORMANT,
             accurate: true,
             day: world.day,

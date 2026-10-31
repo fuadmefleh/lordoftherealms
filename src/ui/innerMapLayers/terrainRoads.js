@@ -6,6 +6,8 @@ import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
+import { furnitureGlyph } from '../icons.js';
+import { engraveGlyph } from '../mapInk.js';
 
 Object.assign(InnerMapRenderer, {
     // ── Death animation state ──
@@ -299,13 +301,9 @@ Object.assign(InnerMapRenderer, {
             // Furniture highlight
             ctx.fillStyle = 'rgba(255,255,255,0.1)';
             ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, Math.max(1, (sz - pad * 2) * 0.2));
-            // Furniture icon (if zoom is high enough)
-            if (sz >= 16) {
-                ctx.font = `${Math.floor(sz * 0.45)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(furniture.icon, dx + sz / 2, dy + sz / 2);
-            }
+            // What the piece is, cut into it (if zoom is high enough)
+            const glyph = sz >= 16 && furnitureGlyph(furniture);
+            if (glyph) engraveGlyph(ctx, glyph, dx + sz / 2, dy + sz / 2, sz * 0.62);
             // Furniture border
             ctx.strokeStyle = 'rgba(0,0,0,0.3)';
             ctx.lineWidth = 0.5;
@@ -352,18 +350,9 @@ Object.assign(InnerMapRenderer, {
         // Render furniture meta on top (if present and tile has custom furniture)
         const furniture = tile._furniture;
         if (furniture) {
-            // If furniture has its own icon draw that on top
-            if (sz >= 16 && furniture.icon) {
-                ctx.font = `${Math.floor(sz * 0.45)}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.4)';
-                ctx.fillText(furniture.icon, dx + sz / 2 + 1, dy + sz / 2 + 1);
-                // Icon
-                ctx.fillStyle = '#fff';
-                ctx.fillText(furniture.icon, dx + sz / 2, dy + sz / 2);
-            }
+            // Mark what the piece is (pieces with no glyph are left to their sprite)
+            const glyph = sz >= 16 && furniture.icon && furnitureGlyph(furniture);
+            if (glyph) engraveGlyph(ctx, glyph, dx + sz / 2, dy + sz / 2, sz * 0.55);
 
             // Impassable highlight
             if (!furniture.passable) {

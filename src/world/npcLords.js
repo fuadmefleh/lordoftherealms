@@ -178,6 +178,7 @@ export const NPCLords = {
 
         const lord = kingdom.lord;
         if (!lord.kingdomId) lord.kingdomId = kingdom.id; // older saves
+        lord.memoryDay = world.day || 0; // memories fade against today (memoryOf)
         if (lord.goalsVersion !== NPCLords.GOALS_VERSION) {
             lord.goals = NPCLords.generateGoals(lord.traits);
             lord.goalsVersion = NPCLords.GOALS_VERSION;
@@ -228,6 +229,7 @@ export const NPCLords = {
                 kingdom.lord.martial = newRuler.skills.martial;
                 kingdom.lord.diplomacy = newRuler.skills.diplomacy;
                 kingdom.lord.stewardship = newRuler.skills.stewardship;
+                NPCLords.inheritMemory(oldLord, kingdom.lord, world && world.day);
                 NPCLords.updateModifiers(kingdom);
                 return;
             }
@@ -237,6 +239,7 @@ export const NPCLords = {
         const newLord = NPCLords.generateLord(kingdom);
         kingdom.lord = newLord;
         kingdom.ruler = newLord.name;
+        NPCLords.inheritMemory(oldLord, newLord, world && world.day);
         NPCLords.updateModifiers(kingdom);
 
         world.events.push({
@@ -590,7 +593,7 @@ export const NPCLords = {
     /**
      * Get lord's opinion of player
      */
-    getLordOpinion(lord, player) {
+    getLordOpinion(lord, player, world = null) {
         if (!lord) return 0;
 
         let opinion = 0;
@@ -619,6 +622,217 @@ export const NPCLords = {
         // Rulings at court — lords remember a merciful, harsh, just or pious ruler
         opinion += NPCLords.courtOpinion(lord, player);
 
+        // What the lord remembers of the player's deeds (and what a dead
+        // father told his heir) — lord.memory, decaying with time
+        opinion += NPCLords.memoryOpinion(lord, world && Number.isFinite(world.day) ? world.day : undefined);
+
+        // A lord sworn into a league against the player keeps them at arm's length
+        opinion -= NPCLords.coalitionChill(lord, player);
+
         return Utils.clamp(opinion, -100, 100);
     },
+
+    // ── Memory: what a lord remembers of the player ─────────────
+    //
+    // lord.memory = [{ k, w, d, note?, inh?, from? }] — a deed key from
+    // data/lordMemory.json, its weight when it happened, the day, and for an
+    // inherited memory the dead lord who passed it on. A memory fades by
+    // half every `halfLife` days (computed on read; no daily tick, no RNG).
+    // Saved with the kingdom (SaveLoad.serializeKingdoms keeps k.lord whole).
+
+    MEMORY_DEFAULTS: {
+        cap: 40, inheritShare: 0.5, minInherit: 2, maxEntries: 24, mergeDays: 5,
+        stackCap: 3, forgetBelow: 0.5, hostilityWeight: 1,
+        // Blood feuds (deeds marked vendetta in data/lordMemory.json) pass on almost whole
+        vendettaShare: 0.85, vendettaMinInherit: 1,
+    },
+
+    _memData() {
+        const g = DataLoader._gamedata;
+        return (g && g.lordMemory) || {};
+    },
+
+    memoryConfig() {
+        return { ...NPCLords.MEMORY_DEFAULTS, ...(NPCLords._memData().config || {}) };
+    },
+
+    /** Every deed a lord can remember: { key: { weight, halfLife, label, icon, recall } }. */
+    deedDefs() {
+        return NPCLords._memData().deeds || {};
+    },
+
+    deedDef(key) {
+        return NPCLords.deedDefs()[key] || null;
+    },
+
+    _memDay(lord, day) {
+        if (Number.isFinite(day)) return day;
+        if (lord && Number.isFinite(lord.memoryDay)) return lord.memoryDay;
+        const list = (lord && lord.memory) || [];
+        return list.reduce((m, e) => Math.max(m, e.d || 0), 0);
+    },
+
+    _weightAt(entry, day) {
+        const def = NPCLords.deedDef(entry.k);
+        const half = def && def.halfLife > 0 ? def.halfLife : 180;
+        const age = Math.max(0, day - (entry.d || 0));
+        return (entry.w || 0) * Math.pow(0.5, age / half);
+    },
+
+    /** The lord behind a lord or a kingdom (kingdom.lord). */
+    _lordOf(lordOrKingdom) {
+        if (!lordOrKingdom) return null;
+        if (lordOrKingdom.lord && typeof lordOrKingdom.lord === 'object') return lordOrKingdom.lord;
+        return lordOrKingdom;
+    },
+
+    /**
+     * The lord remembers a deed of the player's toward him or his realm.
+     * deed: a key of data/lordMemory.json deeds. opts { day, weight, note }:
+     * weight overrides the table's (a scaled deed); note says what it was.
+     * A deed of the same kind within mergeDays adds to the last one (up to
+     * stackCap × its weight). Returns the entry, or null for an unknown deed.
+     */
+    rememberDeed(world, lord, deed, opts = {}) {
+        lord = NPCLords._lordOf(lord);
+        const def = NPCLords.deedDef(deed);
+        if (!lord || !def) return null;
+        const cfg = NPCLords.memoryConfig();
+        const day = Number.isFinite(opts.day) ? opts.day : (world && Number.isFinite(world.day) ? world.day : NPCLords._memDay(lord));
+        const weight = Number.isFinite(opts.weight) ? opts.weight : (def.weight || 0);
+        if (!weight) return null;
+        if (!Array.isArray(lord.memory)) lord.memory = [];
+        lord.memoryDay = Math.max(day, lord.memoryDay || 0);
+
+        // Forget what has faded away
+        lord.memory = lord.memory.filter(e => Math.abs(NPCLords._weightAt(e, day)) >= cfg.forgetBelow);
+
+        const note = opts.note ? String(opts.note).slice(0, 80) : undefined;
+        const last = lord.memory.find(e => e.k === deed && !e.inh && (e.note || undefined) === note && day - (e.d || 0) <= cfg.mergeDays);
+        let entry;
+        if (last) {
+            const now = NPCLords._weightAt(last, day) + weight;
+            const cap = Math.abs(def.weight || weight) * cfg.stackCap;
+            last.w = Math.round(Utils.clamp(now, -cap, cap) * 10) / 10;
+            last.d = day;
+            entry = last;
+        } else {
+            entry = { k: deed, w: weight, d: day };
+            if (note) entry.note = note;
+            lord.memory.push(entry);
+        }
+        if (lord.memory.length > cfg.maxEntries) {
+            lord.memory.sort((a, b) => Math.abs(NPCLords._weightAt(b, day)) - Math.abs(NPCLords._weightAt(a, day)));
+            lord.memory.length = cfg.maxEntries;
+        }
+        return entry;
+    },
+
+    /** rememberDeed on the lord of a kingdom, by id. */
+    rememberRealm(world, kingdomId, deed, opts = {}) {
+        if (!world || !kingdomId || typeof world.getKingdom !== 'function') return null;
+        const k = world.getKingdom(kingdomId);
+        if (!k || !k.lord || k.isAlive === false) return null;
+        return NPCLords.rememberDeed(world, k.lord, deed, opts);
+    },
+
+    /**
+     * What the lord remembers, strongest first: [{ key, label, icon, recall,
+     * weight (as it stands now), day, note, inherited, from }].
+     */
+    memoryOf(lord, day) {
+        lord = NPCLords._lordOf(lord);
+        if (!lord || !Array.isArray(lord.memory)) return [];
+        const cfg = NPCLords.memoryConfig();
+        const now = NPCLords._memDay(lord, day);
+        const out = [];
+        for (const e of lord.memory) {
+            const w = NPCLords._weightAt(e, now);
+            if (Math.abs(w) < cfg.forgetBelow) continue;
+            const def = NPCLords.deedDef(e.k) || {};
+            out.push({
+                key: e.k, label: def.label || e.k, icon: def.icon || '•', recall: def.recall || '',
+                weight: Math.round(w * 10) / 10, day: e.d || 0, note: e.note || null,
+                inherited: !!e.inh, from: e.from || null,
+            });
+        }
+        return out.sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
+    },
+
+    /** The opinion the lord's memories add up to (±cap). */
+    memoryOpinion(lord, day) {
+        const list = NPCLords.memoryOf(lord, day);
+        if (!list.length) return 0;
+        const cap = NPCLords.memoryConfig().cap;
+        return Math.round(Utils.clamp(list.reduce((s, m) => s + m.weight, 0), -cap, cap));
+    },
+
+    /**
+     * A dying lord's memories pass to his heir at a share: "my father spoke
+     * of you". Returns the number of memories inherited.
+     */
+    inheritMemory(oldLord, newLord, day) {
+        if (!oldLord || !newLord || !Array.isArray(oldLord.memory) || !oldLord.memory.length) return 0;
+        const cfg = NPCLords.memoryConfig();
+        const now = NPCLords._memDay(oldLord, day);
+        const passed = [];
+        for (const e of oldLord.memory) {
+            // A wrong that calls for blood (a vendetta deed) is sworn to the heir
+            // nearly whole, and the feud counts its generations (e.vd)
+            const def = NPCLords.deedDef(e.k);
+            const now0 = NPCLords._weightAt(e, now);
+            const feud = !!(def && def.vendetta) && now0 < 0;
+            const w = now0 * (feud ? cfg.vendettaShare : cfg.inheritShare);
+            if (Math.abs(w) < (feud ? cfg.vendettaMinInherit : cfg.minInherit)) continue;
+            const entry = { k: e.k, w: Math.round(w * 10) / 10, d: now, inh: true, from: e.inh && e.from ? e.from : oldLord.name };
+            if (e.note) entry.note = e.note;
+            if (feud) entry.vd = (e.vd || 0) + 1;
+            passed.push(entry);
+        }
+        newLord.memory = passed.slice(0, cfg.maxEntries);
+        newLord.memoryDay = now;
+        if (passed.length) newLord.memoryFrom = oldLord.name;
+        return newLord.memory.length;
+    },
+
+    /**
+     * The blood feud a lord holds against the player: the vendetta deeds
+     * among his memories (his own and those sworn to him by his fathers).
+     * Returns { weight (≥ 0, how much blood is owed), generations (0 = his
+     * own wrong; 1+ = inherited), causes: [{ key, label, note, weight,
+     * inherited, generations }] }. Read by systems/coalitions.js (league
+     * membership, rival Houses sworn to a blood feud).
+     */
+    vendettaOf(lord, day) {
+        lord = NPCLords._lordOf(lord);
+        const out = { weight: 0, generations: 0, causes: [] };
+        if (!lord || !Array.isArray(lord.memory) || !lord.memory.length) return out;
+        const cfg = NPCLords.memoryConfig();
+        const now = NPCLords._memDay(lord, day);
+        for (const e of lord.memory) {
+            const def = NPCLords.deedDef(e.k);
+            if (!def || !def.vendetta) continue;
+            const w = NPCLords._weightAt(e, now);
+            if (!(w < 0) || Math.abs(w) < cfg.forgetBelow) continue;
+            out.weight += -w;
+            out.generations = Math.max(out.generations, e.vd || 0);
+            out.causes.push({ key: e.k, label: def.label || e.k, note: e.note || null, weight: Math.round(-w * 10) / 10, inherited: !!e.inh, generations: e.vd || 0 });
+        }
+        out.weight = Math.round(out.weight * 10) / 10;
+        out.causes.sort((a, b) => b.weight - a.weight);
+        return out;
+    },
+
+    /**
+     * How cold a lord whose realm stands in a league against the player is
+     * (systems/coalitions.js keeps the chill on player.coalitions.active).
+     */
+    coalitionChill(lord, player) {
+        const c = player && player.coalitions && player.coalitions.active;
+        const m = c && lord && c.members ? c.members[lord.kingdomId] : null;
+        return m && !m.left ? Math.max(0, m.chill || 0) : 0;
+    },
 };
+
+/** Alias: NpcLords.rememberDeed(world, lord, deed, opts) / NpcLords.memoryOf(lord). */
+export const NpcLords = NPCLords;

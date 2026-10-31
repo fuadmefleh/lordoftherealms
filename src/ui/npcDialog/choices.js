@@ -3,13 +3,17 @@ import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { Quests } from '../../systems/quests.js';
+import { Townsfolk } from '../../systems/townsfolk.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { Gossip } from '../../systems/gossip.js';
+import { NpcKnowledge } from '../../systems/npcKnowledge.js';
+import { House } from '../../systems/house.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
 import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews } from './helpers.js';
-import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
+import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList } from './render.js';
+import { NpcPortrait } from '../npcPortrait.js';
 
 export function _handleChoice(action) {
     const npcType = dialogState._npc.type || 'villager';
@@ -21,13 +25,19 @@ export function _handleChoice(action) {
         ask_location: 'Tell me about this place.',
         ask_kingdom: _getKingdom() ? `What do you know about ${_getKingdom().name}?` : 'What do you know about the kingdom?',
         ask_family: 'Tell me about your family.',
+        ask_folk_news: 'What\'s become of folk here?',
         ask_about_npc: 'What do you think of the people here?',
         trade: 'Show me your wares.',
         ask_quest: 'Do you need any help?',
+        accept_quest: 'I\'ll help you.',
+        decline_quest: 'That\'s not for me.',
         give_gift: 'I have something for you.',
         flatter: 'You seem wise — tell me more.',
         threat: 'Watch your tongue.',
         persuade: 'I need your trust on something important.',
+        bargain: 'Surely you can do better on the price?',
+        ask_favour: 'Could I ask a favour of you?',
+        repay_favour: 'Here\'s what I owe you.',
         farewell: 'Farewell.',
     };
 
@@ -35,17 +45,20 @@ export function _handleChoice(action) {
     dialogState._lines.push({ speaker: 'You', text: playerText, isNpc: false, _action: action });
     dialogState._lineIndex = dialogState._lines.length - 1;
 
-    // Show player line briefly
+    // The player's words join the transcript; the NPC considers an answer
     const box = dialogState._overlay.querySelector('.npc-dialog-box');
     const choicesEl = box.querySelector('.npc-dialog-choices');
     if (choicesEl) choicesEl.innerHTML = '';
-
-    const speakerEl = box.querySelector('.npc-dialog-speaker');
-    const textEl = box.querySelector('.npc-dialog-text');
-    if (speakerEl) { speakerEl.textContent = '🧑 You'; speakerEl.style.color = '#4FC3F7'; }
-    if (textEl) { _skipTypewrite(textEl, ''); textEl.textContent = playerText; }
+    const typing = box.querySelector('.npc-dialog-text');
+    const prev = dialogState._lines[dialogState._lines.length - 2];
+    if (typing && prev && !dialogState._typewriteComplete) _skipTypewrite(typing, prev.text);
+    _syncTranscript(box);
+    const submenu = action === 'ask_about_npc' || action === 'give_gift';
+    if (!submenu) _showThinking(box);
+    if (action === 'farewell' || action === 'trade') dialogState._overlay._closing = true;
 
     setTimeout(() => {
+        if (!dialogState._active || !dialogState._overlay) return;
         let responseText;
         let shouldClose = false;
         let dispositionChange = 0;
@@ -62,12 +75,22 @@ export function _handleChoice(action) {
             }
 
             case 'ask_location': {
-                const pool = LOCATION_INFO[npcType] || LOCATION_INFO.villager;
-                responseText = _pick(pool);
-                // Add settlement-specific info if available
+                // The real town: its buildings and keepers, its market, its guilds,
+                // the outlaws and old places round about (systems/npcKnowledge.js)
                 const settlement = _getSettlement();
-                if (settlement) {
-                    responseText += ` This is ${settlement.name}, a ${settlement.type || 'settlement'} with about ${settlement.population || '??'} souls.`;
+                const game = dialogState._game;
+                if (settlement && game?.world) {
+                    const ans = NpcKnowledge.aboutTown(game.world, game.player, dialogState._npc, settlement, {
+                        disposition: mem.disposition, buildings: InnerMap.buildings || [],
+                        seed: `${dialogState._npc.uid || dialogState._npc.id}|town|${game.world.day}`,
+                    });
+                    responseText = ans.text;
+                    const marked = ans.revealed.lairs.length + ans.revealed.sites.length;
+                    if (marked && game.ui?.showNotification) {
+                        setTimeout(() => game.ui.showNotification('🗺️ Local Knowledge', `${dialogState._npc?.name || 'They'} told you of ${marked === 1 ? 'a place' : `${marked} places`} nearby — now on your map.`, 'info'), 1200);
+                    }
+                } else {
+                    responseText = _pick(LOCATION_INFO[npcType] || LOCATION_INFO.villager);
                 }
                 dispositionChange = 1;
                 break;
@@ -76,32 +99,15 @@ export function _handleChoice(action) {
             case 'ask_kingdom': {
                 const kingdom = _getKingdom();
                 if (kingdom) {
-                    const pool = KINGDOM_INFO[npcType] || KINGDOM_INFO.villager;
-                    let template = _pick(pool);
-                    // Fill in template
-                    template = template
-                        .replace(/\{kingdom\}/g, kingdom.name || 'the realm')
-                        .replace(/\{ruler\}/g, kingdom.ruler?.name || 'the ruler')
-                        .replace(/\{quality\}/g, _pick(['fair', 'decent', 'troubled', 'prosperous', 'uncertain']))
-                        .replace(/\{tariff\}/g, _pick(['high', 'moderate', 'low', 'outrageous']))
-                        .replace(/\{resource\}/g, _pick(['grain', 'iron', 'timber', 'wool', 'fish']))
-                        .replace(/\{strength\}/g, _pick(['formidable', 'modest', 'fearsome', 'growing', 'declining']))
-                        .replace(/\{activity\}/g, _pick(['active', 'lax', 'doubled', 'reduced']))
-                        .replace(/\{stance\}/g, _pick(['friendly', 'neutral', 'suspicious', 'hostile']))
-                        .replace(/\{crop\}/g, _pick(['wheat', 'barley', 'corn', 'grapes']))
-                        .replace(/\{religion\}/g, _pick(['the old gods', 'the divine light', 'the earth spirits', 'many faiths']))
-                        .replace(/\{hospitality\}/g, _pick(['welcoming', 'wary of strangers', 'generous', 'cold']))
-                        .replace(/\{landmark\}/g, _pick(['ancient ruins', 'a grand temple', 'towering mountains', 'vast forests']));
-                    responseText = template;
-                    // Grant kingdom knowledge
-                    if (dialogState._game?.player?.learnAboutKingdom) {
-                        const categories = npcType === 'noble' ? ['basics', 'ruler', 'diplomacy'] :
-                            npcType === 'guard' ? ['basics', 'military'] :
-                            npcType === 'merchant' ? ['basics', 'economy'] :
-                            npcType === 'priest' ? ['basics', 'religion'] :
-                            ['basics'];
-                        dialogState._game.player.learnAboutKingdom(kingdom.id, categories);
-                    }
+                    // What they truly know of the realm, by their station and their mood (systems/npcKnowledge.js)
+                    const game = dialogState._game;
+                    const ans = NpcKnowledge.aboutKingdom(game?.world, game?.player, dialogState._npc, kingdom, {
+                        disposition: mem.disposition, settlement: _getSettlement(),
+                        seed: `${dialogState._npc.uid || dialogState._npc.id}|realm|${game?.world?.day || 0}`,
+                    });
+                    responseText = ans.text;
+                    // Only what they knew for certain adds to what the player knows
+                    if (game?.player?.learnAboutKingdom) game.player.learnAboutKingdom(kingdom.id, ans.learned);
                     dispositionChange = 2;
                 } else {
                     responseText = 'I\'m afraid I don\'t know much about the wider politics.';
@@ -109,8 +115,26 @@ export function _handleChoice(action) {
                 break;
             }
 
+            case 'ask_folk_news': {
+                const news = Townsfolk.townNews(dialogState._npc._folk, dialogState._game?.world, 4, dialogState._npc._person);
+                responseText = news.length
+                    ? _pick(['Let me think...', 'Oh, much has happened.', 'Where to begin?']) + ' ' + news.join(' ')
+                    : 'Nothing much changes here, truth be told.';
+                dispositionChange = 2;
+                if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 4);
+                break;
+            }
+
             case 'ask_family': {
                 const allNpcs = InnerMap.npcs || [];
+                // A townsperson's whole family, the living and the dead (systems/townsfolk.js)
+                const story = Townsfolk.familyLines(dialogState._npc, dialogState._game?.world);
+                if (story) {
+                    responseText = story;
+                    dispositionChange = 3;
+                    if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 5);
+                    break;
+                }
                 const familyParts = [];
 
                 // Spouse
@@ -213,11 +237,18 @@ export function _handleChoice(action) {
                 mem.pendingHook = null;
                 mem.questAccepted = true;
                 responseText = 'Thank you! I knew I could count on someone like you.';
+                // A concrete task: they say where to go (systems/npcTasks.js)
+                const first = result.success && result.quest.objectives[0];
+                if (first && result.quest.v === 2) {
+                    const where = Quests.whereLine(first, game.player, game.world);
+                    responseText += ` ${first.text}${where ? ` — ${where.split(' — ').pop()}` : ''}.`;
+                    if (result.quest.giver && result.quest.giver.uid) responseText += ' Then come back to me.';
+                }
                 dispositionChange = 10;
                 if (result.success && game?.ui?.showNotification) {
                     const q = result.quest;
                     setTimeout(() => {
-                        game.ui.showNotification('📜 Task Accepted', `${q.title}: ${q.objectives[0].text}. Reward: ${Quests.describeRewards(q.rewards)}.`, 'success');
+                        game.ui.showNotification('📜 Task Accepted', `${q.title}: ${q.objectives[0].text}. Reward: ${Quests.describeRewards(q.rewards)}. Marked on your map and in the journal.`, 'success');
                     }, 800);
                 }
                 break;
@@ -236,8 +267,10 @@ export function _handleChoice(action) {
             }
 
             case 'flatter': {
-                const difficulty = 3;
+                // Some warm to praise, some see through it; flattery wears thin with use
+                const difficulty = NpcKnowledge.socialDifficulty(dialogState._npc, mem, 'flatter').difficulty;
                 const success = _skillCheck('diplomacy', difficulty);
+                mem.flattered = true;
                 if (success) {
                     const pool = FLATTER_SUCCESS[npcType] || FLATTER_SUCCESS.villager;
                     const lineIndex = Math.floor(Math.random() * pool.length);
@@ -319,7 +352,7 @@ export function _handleChoice(action) {
             }
 
             case 'persuade': {
-                const difficulty = 5;
+                const difficulty = NpcKnowledge.socialDifficulty(dialogState._npc, mem, 'persuade').difficulty;
                 const success = _skillCheck('diplomacy', difficulty);
                 if (success) {
                     // Deep persuasion — the secret comes with something real
@@ -350,6 +383,39 @@ export function _handleChoice(action) {
                     dispositionChange = -3;
                 }
                 _showSkillCheckResult(success, 'Persuade');
+                break;
+            }
+
+            case 'bargain': {
+                const res = NpcKnowledge.bargain(dialogState._npc, mem, dialogState._game?.player);
+                responseText = `*sighs* For you? Very well — ${Math.round(res.pct * 100)}% off, today only. Don't tell the others.`;
+                _animateDispositionChange(-res.cost);
+                break;
+            }
+
+            case 'ask_favour': {
+                const game = dialogState._game;
+                if (!game?.player || !game.world) { responseText = 'Not today, friend.'; break; }
+                const res = NpcKnowledge.askFavour(game.world, game.player, dialogState._npc, mem, { settlement: _getSettlement() });
+                responseText = res.text;
+                _animateDispositionChange(-NpcKnowledge.config().favour.cost);
+                if (game.ui?.showNotification) {
+                    setTimeout(() => {
+                        game.ui.showNotification('🙏 A Favour', res.summary, 'success');
+                        if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+                    }, 1200);
+                }
+                break;
+            }
+
+            case 'repay_favour': {
+                const game = dialogState._game;
+                const res = game?.player ? NpcKnowledge.repay(game.player, mem, (game.world && game.world.day) || 0) : { success: false, reason: 'Not now.' };
+                responseText = res.success ? res.text : `*shakes head* ${res.reason}`;
+                if (res.success) {
+                    _animateDispositionChange(res.warmth);
+                    if (game.ui?.updateStats) game.ui.updateStats(game.player, game.world);
+                }
                 break;
             }
 
@@ -392,9 +458,9 @@ export function _handleChoice(action) {
         dialogState._lineIndex = dialogState._lines.length - 1;
         _render();
 
-        // Auto-close after farewell or trade redirect
+        // Auto-close after farewell or trade redirect, once the line has been said
         if (shouldClose) {
-            setTimeout(() => {
+            _afterSpoken(900, () => {
                 const game = dialogState._game;
                 const npc = dialogState._npc;
                 NpcDialog.close();
@@ -406,60 +472,144 @@ export function _handleChoice(action) {
                         if (worldTile) ActionMenu.showTradeMenu(game, worldTile);
                     }
                 }
-            }, 1800);
+            });
         }
-    }, 500);
+    }, 550);
+}
+
+/**
+ * A task choice (render.js _taskChoices): hand a task in to its giver, carry
+ * something to the person it names, or get something from them — asked,
+ * bought, or lifted (a stealth check).
+ */
+export function _taskChoice(opt, how) {
+    const game = dialogState._game;
+    const npc = dialogState._npc;
+    if (!game?.player || !npc) return;
+    const quest = opt.quest;
+    const o = opt.obj;
+    const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
+    const item = quest.carrying || o.item || quest.item || 'it';
+    const said = opt.kind === 'return'
+        ? (quest.person ? `I found ${quest.person.name}.` : quest.carrying ? `I've brought back ${quest.carrying}.` : 'It\'s done, as you asked.')
+        : how === 'steal' ? `*reaches for ${item}*` : how === 'bribe' ? 'Name your price — 80 gold?' : opt.kind === 'deliver' || opt.kind === 'proxy' ? `I bring ${item} from ${quest.giver?.name || 'a friend'}.` : `I've come for ${item}.`;
+    dialogState._lines.push({ speaker: 'You', text: said, isNpc: false, _action: 'task' });
+    dialogState._lineIndex = dialogState._lines.length - 1;
+    if (box) {
+        const choicesEl = box.querySelector('.npc-dialog-choices');
+        if (choicesEl) choicesEl.innerHTML = '';
+        _syncTranscript(box);
+        _showThinking(box);
+    }
+
+    setTimeout(() => {
+        if (!dialogState._active) return;
+        let text;
+        let change = 0;
+        if (opt.kind === 'return') {
+            const res = Quests.handInNpcTask(game.player, game.world, quest.id);
+            if (res.success) {
+                text = res.line || 'Thank you. I won\'t forget this.';
+                change = NpcDisposition.adjustDisposition(npc, res.disposition, game.player);
+                NpcFamily.applySocialRipple(npc, change, InnerMap.npcs || []);
+                House.recordPlayerDeed(game.player, game.world, 'quest', { reason: `quest: ${quest.title}` });
+                if (game.ui?.showNotification) {
+                    setTimeout(() => {
+                        game.ui.showNotification('Quest Complete!', `${quest.title} — Rewards: ${Quests.describeRewards(quest.rewards)}`, 'success');
+                        if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+                    }, 900);
+                }
+            } else {
+                text = `Not yet, I think. ${res.reason || ''}`.trim();
+            }
+        } else {
+            let stole = false;
+            if (how === 'steal') stole = _skillCheck('stealth', 5);
+            const res = Quests.talkToTask(game.player, game.world, quest.id, how, stole);
+            if (res.success) {
+                text = res.line || (how === 'steal' ? `*doesn't notice a thing* (You have ${item}.)` : `*hands over ${item}*`);
+                if (opt.kind === 'proxy') text = `${o.person}? I know them — I'll see it reaches them.`;
+                if (opt.kind === 'proxy_fetch') text = `${o.person} left this with me for whoever came asking. *hands over ${item}*`;
+                change = NpcDisposition.adjustDisposition(npc, opt.kind === 'deliver' || opt.kind === 'proxy' ? 5 : how === 'bribe' ? 2 : 0, game.player);
+                if (how === 'steal') _showSkillCheckResult(true, 'Stealth');
+                if (res.carrying) text += ` (Take ${res.carrying} back to ${quest.giver?.name || 'them'}.)`;
+                else if (res.done && game.ui?.showNotification) game.ui.showNotification('Quest Complete!', quest.title, 'success');
+                if (game.ui?.updateStats) game.ui.updateStats(game.player, game.world);
+            } else if (res.caught) {
+                text = '*grabs your wrist* Thief! Get out before I call the watch!';
+                change = NpcDisposition.adjustDisposition(npc, -30, game.player);
+                _mem(npc).wronged = true;
+                _showSkillCheckResult(false, 'Stealth');
+            } else {
+                text = res.line || res.reason || 'I can\'t help you with that.';
+            }
+        }
+        if (change) _animateDispositionChange(change);
+        dialogState._lines.push({ speaker: npc.name, icon: npc.icon, text, isNpc: true, _action: 'task' });
+        dialogState._lineIndex = dialogState._lines.length - 1;
+        _render();
+    }, 550);
+}
+
+/** Run `fn` `pause` ms after the current line has finished typing (if the dialog is still open). */
+function _afterSpoken(pause, fn) {
+    const overlay = dialogState._overlay;
+    const wait = () => {
+        if (!dialogState._active || dialogState._overlay !== overlay) return;
+        if (!dialogState._typewriteComplete) { setTimeout(wait, 100); return; }
+        setTimeout(() => { if (dialogState._active && dialogState._overlay === overlay) fn(); }, pause);
+    };
+    wait();
+}
+
+/** Leave a submenu: the player takes it back and the usual choices return. */
+function _backFromSubmenu(box) {
+    dialogState._lines.push({ speaker: 'You', text: 'Never mind.', isNpc: false, _action: 'never_mind' });
+    for (let i = dialogState._lines.length - 1; i >= 0; i--) {
+        if (dialogState._lines[i].isNpc) { dialogState._lineIndex = i; break; }
+    }
+    _syncTranscript(box);
+    _renderChoices(box);
 }
 
 export function _showGiftSubmenu() {
     const box = dialogState._overlay.querySelector('.npc-dialog-box');
     const choicesEl = box.querySelector('.npc-dialog-choices');
     if (!choicesEl) return;
-    choicesEl.innerHTML = '';
 
-    const mem = _mem(dialogState._npc);
+    const npcType = dialogState._npc.type || 'villager';
+    const playerGold = dialogState._game?.player?.gold || 0;
+    const choices = [];
 
     // Gold gift options
-    const goldAmounts = [5, 25, 100];
-    const playerGold = dialogState._game?.player?.gold || 0;
-
-    for (const amount of goldAmounts) {
-        if (playerGold >= amount) {
-            const btn = document.createElement('button');
-            btn.className = 'npc-dialog-choice npc-dialog-gift';
-            btn.innerHTML = `<span class="npc-dialog-choice-icon">💰</span> Give ${amount} gold`;
-            btn.addEventListener('click', () => _giveGoldGift(amount));
-            choicesEl.appendChild(btn);
-        }
+    const warmth = { 5: 'a little', 25: 'noticeably', 100: 'greatly' };
+    for (const amount of [5, 25, 100]) {
+        if (playerGold < amount) continue;
+        choices.push({
+            icon: '💰', label: `${amount} gold`, group: 'gift', cls: 'npc-dialog-gift',
+            extra: `<span class="npc-dialog-coin-stack" style="--n:${amount >= 100 ? 3 : amount >= 25 ? 2 : 1}"></span>`,
+            tooltip: `Warms them ${warmth[amount]}${npcType === 'beggar' ? ' — and twice as much for one so poor' : ''}. You have ${playerGold} gold.`,
+            onPick: () => _giveGoldGift(amount),
+        });
     }
 
     // Inventory item gifts
     if (dialogState._game?.player?.inventory) {
         const items = Object.entries(dialogState._game.player.inventory).filter(([, qty]) => qty > 0);
-        for (const [itemId, qty] of items.slice(0, 4)) { // Show up to 4 items
-            const btn = document.createElement('button');
-            btn.className = 'npc-dialog-choice npc-dialog-gift';
+        for (const [itemId, qty] of items.slice(0, 6)) {
             const displayName = itemId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            btn.innerHTML = `<span class="npc-dialog-choice-icon">📦</span> Give ${displayName} (×${qty})`;
-            btn.addEventListener('click', () => _giveItemGift(itemId));
-            choicesEl.appendChild(btn);
+            choices.push({
+                icon: '📦', label: displayName, group: 'goods', cls: 'npc-dialog-gift',
+                extra: `<span class="npc-dialog-qty">×${qty}</span>`,
+                tooltip: `Give one ${displayName}. You have ${qty}.`,
+                onPick: () => _giveItemGift(itemId),
+            });
         }
     }
 
-    // Cancel
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'npc-dialog-choice';
-    cancelBtn.innerHTML = `<span class="npc-dialog-choice-icon">↩️</span> Never mind.`;
-    cancelBtn.addEventListener('click', () => {
-        // Re-render normal choices
-        dialogState._lineIndex = dialogState._lines.length - 1;
-        // Go back to last NPC line
-        for (let i = dialogState._lines.length - 1; i >= 0; i--) {
-            if (dialogState._lines[i].isNpc) { dialogState._lineIndex = i; break; }
-        }
-        _renderChoices(box);
-    });
-    choicesEl.appendChild(cancelBtn);
+    const back = () => _backFromSubmenu(box);
+    choices.push({ icon: '↩️', label: 'Never mind.', group: 'leave', onPick: back });
+    _renderChoiceList(choicesEl, choices, { back, hint: `What will you give ${dialogState._npc.name}?` });
 }
 
 export function _giveGoldGift(amount) {
@@ -551,224 +701,264 @@ export function _showAskAboutSubmenu() {
     const box = dialogState._overlay.querySelector('.npc-dialog-box');
     const choicesEl = box.querySelector('.npc-dialog-choices');
     if (!choicesEl) return;
-    choicesEl.innerHTML = '';
 
     const knownNpcs = NpcFamily.getKnownNpcs(dialogState._npc, InnerMap.npcs || []);
+    const choices = [];
 
-    // Show each known NPC as a button
-    for (const entry of knownNpcs.slice(0, 6)) { // Max 6 options
+    for (const entry of knownNpcs.slice(0, 8)) {
         const other = entry.npc;
         const bondLabel = entry.familyBond
             ? NpcFamily.getFamilyBondLabel(dialogState._npc, other)
             : null;
-
         const opinionLabel = NpcFamily.getOpinionLabel(entry.score);
 
-        const btn = document.createElement('button');
-        btn.className = 'npc-dialog-choice npc-dialog-ask-about';
-
         let label = other.fullName || other.name;
-        if (bondLabel) label += ` (${bondLabel})`;
+        if (bondLabel) label += ` <span class="npc-dialog-bond">${bondLabel}</span>`;
 
-        btn.innerHTML = `<span class="npc-dialog-choice-icon">${opinionLabel.icon}</span> `
-            + `<span class="npc-dialog-ask-name">${label}</span>`
-            + `<span class="npc-dialog-ask-opinion" style="color:${opinionLabel.color}">${opinionLabel.label}</span>`;
-
-        btn.title = `${dialogState._npc.name}'s opinion: ${opinionLabel.label} (${entry.score})`;
-
-        btn.addEventListener('click', () => {
-            const gossip = NpcFamily.getGossipAbout(dialogState._npc, other);
-
-            // Family bond gives extra flavor
-            let fullResponse = gossip;
-            if (entry.familyBond) {
-                const familyPrefix = entry.familyBond === 'spouse'
-                    ? `That\'s my ${other.gender === 'female' ? 'wife' : 'husband'}! `
-                    : entry.familyBond === 'child'
-                    ? `That\'s my ${other.gender === 'female' ? 'daughter' : 'son'}. `
-                    : entry.familyBond === 'parent'
-                    ? `That\'s my ${other.gender === 'female' ? 'mother' : 'father'}. `
-                    : entry.familyBond === 'sibling'
-                    ? `That\'s my ${other.gender === 'female' ? 'sister' : 'brother'}. `
-                    : '';
-                fullResponse = familyPrefix + gossip;
-            }
-
-            dialogState._lines.push({
-                speaker: 'You', text: `What can you tell me about ${other.name}?`,
-                isNpc: false, _action: 'ask_about_npc',
-            });
-            dialogState._lines.push({
-                speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: fullResponse,
-                isNpc: true, _action: 'ask_about_npc',
-            });
-            dialogState._lineIndex = dialogState._lines.length - 1;
-
-            // Small disposition boost for showing interest
-            const gain = NpcDisposition.adjustDisposition(dialogState._npc, 2);
-            _animateDispositionChange(gain);
-
-            // Social need boost
-            if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 4);
-
-            // Apply social ripple
-            NpcFamily.applySocialRipple(dialogState._npc, 2, InnerMap.npcs || []);
-
-            _render();
+        choices.push({
+            icon: other.icon || '👤', label, group: 'people', cls: 'npc-dialog-ask-about',
+            extra: `<span class="npc-dialog-ask-opinion" style="color:${opinionLabel.color}">${opinionLabel.icon} ${opinionLabel.label}</span>`,
+            tooltip: `${dialogState._npc.name} thinks of ${other.name}: ${opinionLabel.label} (${entry.score}).`,
+            onPick: () => _askAbout(entry),
         });
-        choicesEl.appendChild(btn);
     }
 
-    // Cancel button
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'npc-dialog-choice';
-    cancelBtn.innerHTML = `<span class="npc-dialog-choice-icon">↩️</span> Never mind.`;
-    cancelBtn.addEventListener('click', () => {
-        for (let i = dialogState._lines.length - 1; i >= 0; i--) {
-            if (dialogState._lines[i].isNpc) { dialogState._lineIndex = i; break; }
-        }
-        _renderChoices(box);
-    });
-    choicesEl.appendChild(cancelBtn);
+    const back = () => _backFromSubmenu(box);
+    choices.push({ icon: '↩️', label: 'Never mind.', group: 'leave', onPick: back });
+    _renderChoiceList(choicesEl, choices, { back, hint: 'Who do you want to hear about?' });
 }
+
+function _askAbout(entry) {
+    const other = entry.npc;
+    const gossip = NpcFamily.getGossipAbout(dialogState._npc, other);
+
+    // Family bond gives extra flavor
+    let fullResponse = gossip;
+    if (entry.familyBond) {
+        const familyPrefix = entry.familyBond === 'spouse'
+            ? `That\'s my ${other.gender === 'female' ? 'wife' : 'husband'}! `
+            : entry.familyBond === 'child'
+            ? `That\'s my ${other.gender === 'female' ? 'daughter' : 'son'}. `
+            : entry.familyBond === 'parent'
+            ? `That\'s my ${other.gender === 'female' ? 'mother' : 'father'}. `
+            : entry.familyBond === 'sibling'
+            ? `That\'s my ${other.gender === 'female' ? 'sister' : 'brother'}. `
+            : '';
+        fullResponse = familyPrefix + gossip;
+    }
+
+    dialogState._lines.push({
+        speaker: 'You', text: `What can you tell me about ${other.name}?`,
+        isNpc: false, _action: 'ask_about_npc',
+    });
+    dialogState._lines.push({
+        speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: fullResponse,
+        isNpc: true, _action: 'ask_about_npc',
+    });
+    dialogState._lineIndex = dialogState._lines.length - 1;
+
+    // Small disposition boost for showing interest
+    const gain = NpcDisposition.adjustDisposition(dialogState._npc, 2);
+    _animateDispositionChange(gain);
+
+    // Social need boost
+    if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 4);
+
+    // Apply social ripple
+    NpcFamily.applySocialRipple(dialogState._npc, 2, InnerMap.npcs || []);
+
+    _render();
+}
+
+// What the seal reads for each skill check
+const SEAL_WORDS = {
+    Stealth: ['Unseen', 'Caught'],
+    Charm: ['Charmed', 'Unmoved'],
+    Intimidate: ['Cowed', 'Defied'],
+    Persuade: ['Convinced', 'Refused'],
+};
 
 export function _showSkillCheckResult(success, skillName) {
     if (!dialogState._overlay) return;
-    const flash = document.createElement('div');
-    flash.className = `npc-dialog-skill-result ${success ? 'npc-dialog-skill-success' : 'npc-dialog-skill-fail'}`;
-    flash.textContent = success ? `✓ ${skillName} Success!` : `✗ ${skillName} Failed`;
     const box = dialogState._overlay.querySelector('.npc-dialog-box');
-    if (box) {
-        box.appendChild(flash);
-        setTimeout(() => flash.remove(), 2000);
-    }
+    if (!box) return;
+    const words = SEAL_WORDS[skillName] || ['Success', 'Failed'];
+    const seal = document.createElement('div');
+    seal.className = `npc-dialog-skill-result ${success ? 'npc-dialog-skill-success' : 'npc-dialog-skill-fail'}`;
+    seal.innerHTML = `<span class="npc-dialog-seal-skill">${skillName}</span>`
+        + `<span class="npc-dialog-seal-word">${success ? words[0] : words[1]}</span>`;
+    box.appendChild(seal);
+    box.classList.remove('npc-dialog-shake', 'npc-dialog-glow');
+    void box.offsetWidth; // restart the animation
+    box.classList.add(success ? 'npc-dialog-glow' : 'npc-dialog-shake');
+    setTimeout(() => seal.remove(), 2200);
+}
+
+// Circumference of the mood ring (r = 54 in a 120 viewBox)
+const RING_C = 2 * Math.PI * 54;
+
+function _paintMood(disposition) {
+    const overlay = dialogState._overlay;
+    if (!overlay) return null;
+    const disp = _dispositionLabel(disposition);
+    overlay.style.setProperty('--mood', disp.color);
+    const ring = overlay.querySelector('.npc-dialog-disposition-fill');
+    if (ring) ring.style.strokeDashoffset = `${RING_C * (1 - Math.max(0, Math.min(100, disposition)) / 100)}`;
+    const label = overlay.querySelector('.npc-dialog-disposition-label');
+    if (label) label.innerHTML = `${disp.icon} ${disp.text}`;
+    const value = overlay.querySelector('.npc-dialog-disposition-value');
+    if (value) value.textContent = `${Math.round(disposition)}`;
+    return disp;
 }
 
 export function _animateDispositionChange(amount) {
-    if (!dialogState._overlay) return;
-    const bar = dialogState._overlay.querySelector('.npc-dialog-disposition-fill');
-    const label = dialogState._overlay.querySelector('.npc-dialog-disposition-label');
-    if (!bar || !label) return;
-
+    if (!dialogState._overlay || !amount) return;
     const mem = _mem(dialogState._npc);
-    const disp = _dispositionLabel(mem.disposition);
+    _paintMood(mem.disposition);
 
-    // Animate bar
-    bar.style.width = `${mem.disposition}%`;
-    bar.style.background = disp.color;
-
-    // Update label
-    label.textContent = `${disp.icon} ${disp.text}`;
-    label.style.color = disp.color;
-
-    // Flash the change amount
+    // Float the change off the portrait and pulse the ring
+    const portrait = dialogState._overlay.querySelector('.npc-dialog-portrait');
+    if (!portrait) return;
     const change = document.createElement('span');
-    change.className = 'npc-dialog-disp-change';
+    change.className = `npc-dialog-disp-change ${amount > 0 ? 'is-up' : 'is-down'}`;
     change.textContent = amount > 0 ? `+${amount}` : `${amount}`;
-    change.style.color = amount > 0 ? '#66BB6A' : '#EF5350';
-    label.parentElement.appendChild(change);
-    setTimeout(() => change.remove(), 1500);
+    portrait.appendChild(change);
+    portrait.classList.remove('pulse-up', 'pulse-down');
+    void portrait.offsetWidth;
+    portrait.classList.add(amount > 0 ? 'pulse-up' : 'pulse-down');
+    setTimeout(() => change.remove(), 1600);
 }
 
 export function _updateDispositionBar() {
     if (!dialogState._overlay || !dialogState._npc) return;
-    const mem = _mem(dialogState._npc);
-    const disp = _dispositionLabel(mem.disposition);
-    const bar = dialogState._overlay.querySelector('.npc-dialog-disposition-fill');
-    const label = dialogState._overlay.querySelector('.npc-dialog-disposition-label');
-    if (bar) {
-        bar.style.width = `${mem.disposition}%`;
-        bar.style.background = disp.color;
-    }
-    if (label) {
-        label.textContent = `${disp.icon} ${disp.text}`;
-        label.style.color = disp.color;
-    }
+    _paintMood(_mem(dialogState._npc).disposition);
+}
+
+function _cap(s) {
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
 
 export function _createOverlay() {
-    const mem = _mem(dialogState._npc);
+    const npc = dialogState._npc;
+    const mem = _mem(npc);
     const disp = _dispositionLabel(mem.disposition);
-    const typeName = (InnerMap.NPC_TYPES[dialogState._npc.type] || {}).name || dialogState._npc.type;
+    const typeName = (InnerMap.NPC_TYPES[npc.type] || {}).name || npc.type;
 
-    // Family info for header
-    const familyTag = NpcFamily.getFamilyTagline(dialogState._npc, InnerMap.npcs || []);
-    const displayName = dialogState._npc.fullName || dialogState._npc.name;
+    // Family info for the side panel
+    const familyTag = NpcFamily.getFamilyTagline(npc, InnerMap.npcs || []);
+    const displayName = npc.fullName || npc.name;
 
     // Relationship level from combined score
     const playerStatus = dialogState._game?.player
-        ? NpcFamily.getPlayerNpcStatus(dialogState._game.player, dialogState._npc)
+        ? NpcFamily.getPlayerNpcStatus(dialogState._game.player, npc)
         : null;
     const relLevel = playerStatus?.level;
 
+    const role = npc.roleTitle ? _cap(npc.roleTitle) : typeName;
+    const subtitle = [
+        role,
+        npc.age != null ? `age ${npc.age}` : '',
+        npc.gender ? (npc.gender === 'female' ? '♀' : '♂') : '',
+    ].filter(Boolean).join(' · ');
+    const settlement = _getSettlement();
+    const where = [settlement?.name, _cap(_getTimeOfDay())].filter(Boolean).join(' · ');
+    const traits = (npc.personalityTraits || []).map(t => `<span class="npc-dialog-trait">${_cap(t)}</span>`).join('');
+    const met = mem.timesSpoken > 1 ? `Spoken ${mem.timesSpoken} times` : 'First meeting';
+
     const overlay = document.createElement('div');
     overlay.id = 'npcDialogOverlay';
+    overlay.style.setProperty('--mood', disp.color);
 
     overlay.innerHTML = `
         <div class="npc-dialog-backdrop"></div>
+        <div class="npc-dialog-letterbox top"></div>
+        <div class="npc-dialog-letterbox bottom"></div>
         <div class="npc-dialog-box">
-            <div class="npc-dialog-header">
+            <aside class="npc-dialog-side">
                 <div class="npc-dialog-portrait">
-                    <span class="npc-dialog-portrait-icon">${dialogState._npc.icon}</span>
-                </div>
-                <div class="npc-dialog-header-info">
-                    <div class="npc-dialog-name">${displayName}</div>
-                    <div class="npc-dialog-title">${typeName}${dialogState._npc.age ? `, Age ${dialogState._npc.age}` : ''}${dialogState._npc.gender ? ` · ${dialogState._npc.gender === 'female' ? '♀' : '♂'}` : ''}</div>
-                    ${familyTag ? `<div class="npc-dialog-family-tag">${familyTag}</div>` : ''}
-                    <div class="npc-dialog-meta">
-                        ${relLevel ? `<span class="npc-dialog-rel-badge" style="color:${relLevel.color}" title="Relationship: ${relLevel.label}">${relLevel.icon} ${relLevel.label}</span>` : ''}
-                        ${mem.timesSpoken > 1 ? `<span class="npc-dialog-visits" title="Times spoken">🗣️ ×${mem.timesSpoken}</span>` : ''}
-                        ${dialogState._npc.personalityTraits?.length > 0 ? `<span class="npc-dialog-traits" title="Personality">${dialogState._npc.personalityTraits.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(', ')}</span>` : ''}
+                    <svg class="npc-dialog-ring" viewBox="0 0 120 120" aria-hidden="true">
+                        <circle class="npc-dialog-ring-track" cx="60" cy="60" r="54"></circle>
+                        <circle class="npc-dialog-disposition-fill" cx="60" cy="60" r="54"
+                            stroke-dasharray="${RING_C}" stroke-dashoffset="${RING_C}"></circle>
+                    </svg>
+                    <div class="npc-dialog-portrait-frame">
+                        <canvas class="npc-dialog-portrait-canvas" width="144" height="144"></canvas>
+                        <span class="npc-dialog-portrait-icon">${npc.icon}</span>
                     </div>
+                    <span class="npc-dialog-portrait-badge" title="${typeName}">${npc.icon}</span>
                 </div>
-                <button class="npc-dialog-close" title="End conversation">✕</button>
-            </div>
-            <div class="npc-dialog-disposition-bar-container">
-                <div class="npc-dialog-disposition-track">
-                    <div class="npc-dialog-disposition-fill" style="width:${mem.disposition}%;background:${disp.color};"></div>
+                <div class="npc-dialog-mood" title="How ${npc.name} feels about you">
+                    <span class="npc-dialog-disposition-label">${disp.icon} ${disp.text}</span>
+                    <span class="npc-dialog-disposition-value">${mem.disposition}</span>
                 </div>
-                <div class="npc-dialog-disposition-label" style="color:${disp.color};">${disp.icon} ${disp.text}</div>
-            </div>
-            <div class="npc-dialog-body">
-                <div class="npc-dialog-speaker"></div>
-                <div class="npc-dialog-text"></div>
-            </div>
-            <div class="npc-dialog-choices"></div>
+                <div class="npc-dialog-facts">
+                    ${relLevel ? `<div class="npc-dialog-rel-badge" style="color:${relLevel.color}" title="Relationship">${relLevel.icon} ${relLevel.label}</div>` : ''}
+                    <div class="npc-dialog-visits">🗣️ ${met}</div>
+                    ${familyTag ? `<div class="npc-dialog-family-tag" title="${familyTag}">${familyTag}</div>` : ''}
+                    ${traits ? `<div class="npc-dialog-traits">${traits}</div>` : ''}
+                </div>
+            </aside>
+            <section class="npc-dialog-main">
+                <header class="npc-dialog-header">
+                    <div class="npc-dialog-header-info">
+                        <div class="npc-dialog-name">${displayName}</div>
+                        <div class="npc-dialog-title">${subtitle}${where ? `<span class="npc-dialog-where">${where}</span>` : ''}</div>
+                    </div>
+                    <button class="npc-dialog-close" title="End conversation (Esc)">✕</button>
+                </header>
+                <div class="npc-dialog-body npc-dialog-transcript"></div>
+                <div class="npc-dialog-choices"></div>
+                <div class="npc-dialog-hint"></div>
+            </section>
         </div>
     `;
 
-    // Close button
+    // Close button and backdrop end the conversation at once
     overlay.querySelector('.npc-dialog-close').addEventListener('click', () => NpcDialog.close());
-
-    // Clicking backdrop closes
     overlay.querySelector('.npc-dialog-backdrop').addEventListener('click', () => NpcDialog.close());
 
-    // Click on dialog body to skip typewriter
-    const body = overlay.querySelector('.npc-dialog-body');
-    if (body) {
-        body.style.cursor = 'pointer';
-        body.addEventListener('click', () => {
-            if (!dialogState._typewriteComplete) {
-                const textEl = overlay.querySelector('.npc-dialog-text');
-                const line = dialogState._lines[dialogState._lineIndex];
-                if (textEl && line) _skipTypewrite(textEl, line.text);
-            }
-        });
-    }
+    const skip = () => {
+        if (dialogState._typewriteComplete) return false;
+        const textEl = overlay.querySelector('.npc-dialog-text');
+        const line = dialogState._lines[dialogState._lineIndex];
+        if (textEl && line) _skipTypewrite(textEl, line.text);
+        return true;
+    };
+    overlay.querySelector('.npc-dialog-transcript').addEventListener('click', skip);
 
-    // ESC key closes, Space/Enter skips typewriter
+    // Keys: 1–9 choose, Esc backs out / says farewell / leaves, Space & Enter hurry the speaker
     overlay._escHandler = (e) => {
-        if (e.key === 'Escape') { e.stopPropagation(); NpcDialog.close(); }
-        if ((e.key === ' ' || e.key === 'Enter') && !dialogState._typewriteComplete) {
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+        if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
-            const textEl = overlay.querySelector('.npc-dialog-text');
-            const line = dialogState._lines[dialogState._lineIndex];
-            if (textEl && line) _skipTypewrite(textEl, line.text);
+            if (overlay._back) overlay._back();
+            else if (overlay._escChoice && !overlay._closing) overlay._escChoice();
+            else NpcDialog.close();
+            return;
+        }
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            skip();
+            return;
+        }
+        const n = parseInt(e.key, 10);
+        if (n >= 1 && n <= 9) {
+            e.preventDefault();
+            e.stopPropagation();
+            const fn = overlay._hotkeys && overlay._hotkeys[n];
+            if (fn) fn();
         }
     };
     window.addEventListener('keydown', overlay._escHandler, true);
 
     document.body.appendChild(overlay);
+
+    // The NPC's own sprite, breathing; the emoji stands in until it loads
+    NpcPortrait.mount(overlay.querySelector('.npc-dialog-portrait-canvas'), npc,
+        overlay.querySelector('.npc-dialog-portrait-icon'));
+    // Sweep the mood ring up to where it stands
+    requestAnimationFrame(() => _paintMood(mem.disposition));
     return overlay;
 }

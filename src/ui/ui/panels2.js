@@ -40,7 +40,7 @@ Object.assign(UI.prototype, {
                     <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; flex-wrap: wrap;">
                         <span>👥 ${Utils.formatNumber(player.religion.followers)} followers</span>
                         <span>📿 ${player.religion.influence} influence</span>
-                        <span>🏛️ ${player.religion.buildings.length} buildings</span>
+                        <span>🏛️ ${(player.religion.buildings || []).length} buildings</span>
                         <span>💰 +${PlayerReligion.getFaithIncome(player)}/day</span>
                     </div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;" title="Influence = followers / 100, with diminishing returns">
@@ -331,7 +331,7 @@ Object.assign(UI.prototype, {
             `;
 
             if (knows('ruler') && lord) {
-                const traitNames = lord.traits.map(t => t.name).join(', ');
+                const traitNames = (lord.traits || []).map(t => t.name).join(', ');
                 html += `
                     <div class="info-row">
                         <span class="info-label">Lord</span>
@@ -471,7 +471,7 @@ Object.assign(UI.prototype, {
         if (!knows('ruler')) {
             html += unknownBox('Lord of the Realm');
         } else if (lord) {
-            const traitNames = lord.traits.map(t => t.name).join(', ');
+            const traitNames = (lord.traits || []).map(t => t.name).join(', ');
             html += `
                 <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                     <div class="info-section-title">Lord of the Realm</div>
@@ -561,7 +561,7 @@ Object.assign(UI.prototype, {
         const otherKingdoms = this.game.world.kingdoms.filter(k => k.id !== kingdom.id && k.isAlive);
         if (otherKingdoms.length > 0) {
             for (const other of otherKingdoms) {
-                const relation = kingdom.relations[other.id] || 0;
+                const relation = (kingdom.relations && kingdom.relations[other.id]) || 0;
                 const atWar = kingdom.wars && kingdom.wars.includes(other.id);
                 let relationText = '';
                 let relationColor = '';
@@ -604,7 +604,7 @@ Object.assign(UI.prototype, {
         html += `
             <div style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                 <div class="info-section-title">About</div>
-                <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">${kingdom.description}</p>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">${kingdom.description || 'Little is written of this realm.'}</p>
             </div>
         `;
 

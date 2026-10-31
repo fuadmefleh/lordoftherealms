@@ -3,14 +3,26 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
+import { Afterlife } from '../../player/afterlife.js';
 import { Traits } from '../../systems/traits.js';
+import { Hospitality } from '../../systems/hospitality.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { Townsfolk } from '../../systems/townsfolk.js';
 import { Sagas } from '../../systems/sagas.js';
+import { Whispers } from '../../systems/whispers.js';
+import { Devotion } from '../../systems/devotion.js';
+import { SoulPact } from '../../systems/soulPact.js';
+import { CourtLetters } from '../../systems/courtLetters.js';
+import { Couriers } from '../../systems/couriers.js';
+import { Mail } from '../../systems/mail.js';
+import { CourierRiders } from '../../systems/courierRiders.js';
+import { Fame } from '../../systems/fame.js';
+import { Demands } from '../../systems/demands.js';
 import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { Discovery } from '../../systems/discovery.js';
@@ -33,7 +45,10 @@ import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 import { Harvests } from '../../world/harvests.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
+import { Coalitions } from '../../systems/coalitions.js';
+import { RivalAgents } from '../../systems/rivalAgents.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
+import { Victory } from '../../systems/victory.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Underwriting } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
@@ -41,9 +56,14 @@ import { Bourse } from '../../systems/bourse.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Engrossing } from '../../systems/engrossing.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 import { showDayBanner } from '../dayBanner.js';
+import { settleScene } from '../actionMenu/choiceScenes.js';
+import { Pirates } from '../../systems/pirates.js';
+import { MapTheft } from '../../systems/mapTheft.js';
+import { checkMapAccusation } from '../actionMenu/treasureScenes.js';
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -61,6 +81,8 @@ export function onPlayerArrived() {
     // If arrived at a settlement
     if (tile.settlement) {
         Quests.trackSettlementVisited(this.player, tile.settlement.name);
+        // A map-owner you robbed is waiting for you here (systems/mapTheft.js)
+        checkMapAccusation(this);
         // Townsfolk talk of what is happening here (systems/chatter.js), now and then
         if (this.ui._townChatter !== false) {
             const key = `${this.player.q},${this.player.r}`;
@@ -97,6 +119,8 @@ export function onPlayerArrived() {
                 gate.search.arrested || gate.search.fine > 0 ? 'error' : 'warning');
             this.ui.updateStats(this.player, this.world);
         }
+        // Your name here (systems/fame.js): crowds and gifts for the celebrated, guards for the shunned
+        for (const n of Fame.onEnterSettlement(this.player, this.world, tile)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
         // Discover basic kingdom knowledge by visiting a settlement
         if (tile.settlement.kingdom) {
             const learned = this.player.learnAboutKingdom(tile.settlement.kingdom, 'basics');
@@ -144,6 +168,11 @@ export function onPlayerArrived() {
 export function endDay() {
     if (!this.world || !this.player) return;
     if (this.isProcessingTurn) return;
+    // Dead and waiting: End Day lets a day of the world pass without the player (player/afterlife.js)
+    if (Afterlife.active(this.player)) {
+        ActionMenu.passInterregnumDays(this, 1);
+        return;
+    }
 
     // Play end-turn SFX
     audioManager.playSFX('turn');
@@ -162,6 +191,8 @@ export function endDay() {
     setTimeout(() => {
         let heldScan = false;
         try {
+            // A choice scene left open (sea, digs, prison, duties) is settled first (ui/actionMenu/choiceScenes.js)
+            settleScene(this);
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
 
@@ -170,6 +201,8 @@ export function endDay() {
                 if (playerResults.jailUpdate.freed) {
                     this.ui.showNotification('🔓 Released!', playerResults.jailUpdate.message, 'success');
                 }
+                // A night in the cell: tools smuggled in, a snitch, a search (player/prison.js)
+                for (const n of playerResults.jailUpdate.notices || []) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
             // Show title update notifications
@@ -184,6 +217,10 @@ export function endDay() {
                     } else if (tu.fugitiveUpdate.warning) {
                         this.ui.showNotification('⚠️ Fugitive Alert', tu.fugitiveUpdate.message, 'warning');
                     }
+                }
+                if (tu.audit) {
+                    if (tu.audit.exposed) this.ui.showNotification('🧾 Audit: Caught Skimming!', `The crown's auditors found ${tu.audit.skimmed} gold missing from your collections. You repaid ${tu.audit.paid} of the ${tu.audit.owed} gold owed; your name is blackened at court.`, 'error');
+                    else this.ui.showNotification('🧾 Audit Passed', `The crown's auditors went through your books and found nothing amiss (${tu.audit.skimmed} gold slipped past them).`, 'warning');
                 }
                 if (tu.evaluation) {
                     if (tu.evaluation.passed) {
@@ -410,6 +447,9 @@ export function endDay() {
                         this.ui.showNotification('💍 Marriage', evt.text, notifType);
                     } else if (evt.type === 'court') {
                         this.ui.showNotification('💕 Romance', evt.text, 'info');
+                    } else if (evt.type === 'matter') {
+                        // Someone you know has something to settle with you (systems/relationships/matters.js)
+                        this.ui.showNotification(`${evt.icon} ${evt.title}`, evt.text, evt.ignored ? 'warning' : 'info');
                     }
                 }
 
@@ -423,10 +463,26 @@ export function endDay() {
                     } else {
                         this.ui.showNotification('🎂 Birthday', `You are now ${agingResult.age} years old.`, 'info');
                     }
+                    for (const npc of (agingResult.deaths || [])) {
+                        const who = `${npc.firstName} ${npc.dynasty || ''}`.trim();
+                        this.ui.showNotification('🕯️ A Death', `${who} of ${npc.settlementName || 'the realm'} has died, aged ${npc.age}.`, 'warning');
+                    }
                 }
 
                 // Raising the heirs — growth, tutors, childhood events, coming of age
                 this._reportUpbringing(Upbringing.processDay(this.player, this.world));
+
+                // The townsfolk live a season: births, deaths, weddings, comings and goings.
+                // Word reaches the player of the people they have met.
+                const folkIcons = { died: '🕯️', wed: '💍', born: '👶', left: '🧳', arrived: '🏘️' };
+                for (const n of Townsfolk.processDay(this.world, this.player).slice(0, 4)) {
+                    if (!n.text) continue;
+                    const town = this.world.getTile && this.world.getTile(n.folk.q, n.folk.r);
+                    const where = town && town.settlement ? town.settlement.name : 'afar';
+                    this.ui.showNotification(`${folkIcons[n.kind] || '📜'} Word from ${where}`, n.text, n.kind === 'died' ? 'warning' : 'info');
+                }
+                // Townsfolk who are friends, lovers, companions or kin by marriage
+                Relationships.syncFolk(this.player, this.world);
 
                 // Prepare relationship data for save
                 Relationships.prepareForSave(this.player);
@@ -444,8 +500,10 @@ export function endDay() {
                             `${aName}: ${msDef ? msDef.label : 'milestone reached'} (+Prestige)`, 'success');
                     }
                     if (houseResult.ambition.capstoneCompleted) {
+                        const got = houseResult.ambition.reward || [];
+                        const next = houseResult.ambition.unlocked || [];
                         this.ui.showNotification('👑 Ambition Fulfilled!',
-                            `${this.player.house.name} has achieved "${aName}"! Choose a new ambition.`, 'success');
+                            `${this.player.house.name} has achieved "${aName}"!${got.length ? ` ${got.join(', ')}.` : ''}${next.length ? ` A greater ambition opens: ${next.join(', ')}.` : ''} Choose a new ambition.`, 'success');
                     }
                 }
                 if (houseResult.rival) {
@@ -470,6 +528,10 @@ export function endDay() {
                         this.ui.showNotification('🛡️ Plot Foiled', r.text, 'success');
                     }
                 }
+
+                // Demands on a rich House — the crown's benevolences and forced loans, guilds, rival tribute (systems/demands.js)
+                const demandDay = Demands.processDay(this.world, this.player);
+                for (const n of demandDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
 
             // Court petitions — dilemmas brought to your holdings; unanswered ones expire
@@ -506,6 +568,31 @@ export function endDay() {
             const sagaDay = Sagas.processDay(this.world, this.player);
             for (const n of sagaDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
+            // Whispers — court scandals hatching, spreading, proven or debunked; your planted tales traced (systems/whispers.js)
+            const whisperDay = Whispers.processDay(this.world, this.player);
+            for (const n of whisperDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Devotion — vows kept or broken, pilgrimages overdue (systems/devotion.js); the soul pact's debt (systems/soulPact.js)
+            for (const n of Devotion.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            for (const n of SoulPact.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Stolen maps found out: bounties, heat, an owner waiting in his town (systems/mapTheft.js)
+            for (const n of MapTheft.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Court letters — lords, liege, rival Houses and family write; loans fall due, promises judged (systems/courtLetters.js)
+            const letterDay = CourtLetters.processDay(this.world, this.player);
+            for (const n of letterDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The post — courier houses' week, Royal Post charters (systems/couriers.js); the player's
+            // letters arrive, are lost, robbed or read, and replies come home (systems/mail.js)
+            for (const n of Couriers.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // ...the riders on the map ride first, so a letter's rider is at its gates on its day (systems/courierRiders.js;
+            // the headless harness skips it: its letters stay abstract)
+            for (const n of CourierRiders.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
+            for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            if (ActionMenu.updateLettersBadge) ActionMenu.updateLettersBadge(this);
+
             // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)
             const lairDay = OutlawLairs.processDay(this.world, this.player);
             for (const n of lairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -513,6 +600,15 @@ export function endDay() {
             // Uncharted lands — sightings at sea, finds close by, rivals' finds, claims (systems/discovery.js)
             const discoveryDay = Discovery.processDay(this.world, this.player);
             for (const n of discoveryDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Sea rovers — named captains grow and are replaced, infamy cools; at sea, hunters or a vengeful captain may come for you (systems/pirates.js)
+            const pirateDay = Pirates.processDay(this.world, this.player);
+            for (const n of pirateDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            if (pirateDay.threat) {
+                const encounter = Pirates.startThreat(this.player, this.world, pirateDay.threat);
+                if (encounter && typeof document !== 'undefined') ActionMenu.showScene(this, 'sea', encounter);
+                else if (encounter) Pirates.autoResolve(this.player, this.world, encounter);
+            }
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);
@@ -537,6 +633,10 @@ export function endDay() {
             // Sieges of your holdings — stores, works, storms, convoys, endings (systems/holdingSieges.js)
             const holdingSiegeDay = HoldingSieges.processDay(this.world, this.player);
             for (const n of holdingSiegeDay.notices) this.ui.showNotification(n.title, n.text, n.type);
+            // Directed opposition — the realms weigh your power; leagues form, march, break (systems/coalitions.js);
+            // rival Houses' bought townsfolk inform, sabotage, skim (systems/rivalAgents.js)
+            for (const n of Coalitions.processDay(this.world, this.player, { armyStrength: PlayerMilitary.getArmyStrength(this.player) }).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            for (const n of RivalAgents.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Claims & Crowns — succession crises, a war for a throne, the realm you rule
             const throne = Throne.processDaily(this.player, this.world, { armyStrength: PlayerMilitary.getArmyStrength(this.player) });
@@ -656,6 +756,14 @@ export function endDay() {
             // The Economic Chronicle: the realms' weekly indices, the fashions at court,
             // the gazette where the player stands, their net worth (systems/economyChronicle.js)
             EconomyChronicle.processDay(this.world, this.player);
+            // The game's victory goal (systems/victory.js): met once, celebrated, and play goes on
+            {
+                const won = Victory.check(this.player, this.world);
+                if (won) {
+                    this.ui.showNotification(`${won.icon} ${won.name}`, won.text, 'success');
+                    if (typeof document !== 'undefined') setTimeout(() => ActionMenu.showVictoryScene(this, won), 600);
+                }
+            }
 
             // Process informants and expire old intel
             let intelResult = { cost: 0 };
@@ -717,6 +825,8 @@ export function endDay() {
                         this.ui.showNotification('⚠️ Bounty Issued!', `A bounty has been placed on you in ${c.settlementName} for ${c.rumorType}.`, 'error');
                     } else if (c.consequence === 'warrant') {
                         this.ui.showNotification('🚨 Kingdom Warrant!', `A kingdom-wide warrant for your arrest has been issued near ${c.settlementName}!`, 'error');
+                    } else if (c.consequence === 'reputation') {
+                        this.ui.showNotification('🗣️ Your Name Suffers', `Talk of your ${String(c.rumorType).replace(/_/g, ' ')} has reached ${c.settlementName}: reputation ${c.repLoss} in that realm.`, 'warning');
                     }
                 }
             }
@@ -763,6 +873,9 @@ export function endDay() {
                         `Continuing journey${dest ? ` to (${dest.q}, ${dest.r})` : ''} — ~${remaining} tiles remaining`, 'info');
                 }
             }
+
+            // The day's visibility pass re-fogs the map; standing cheats put it back
+            if (this._cheats) this.ui.applyCheats(true);
 
             // Show reachable hexes for the new day
             this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
@@ -837,15 +950,16 @@ export function endDay() {
             // Contract updates
             if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
                 const c = playerResults.contractUpdate;
-                // House Prestige for fulfilling a contract.
-                if (typeof House !== 'undefined') {
+                // House Prestige for fulfilling a contract (not for a rout).
+                if (typeof House !== 'undefined' && c.success !== false) {
                     House.recordPlayerDeed(this.player, this.world, 'contract', { reason: `contract: ${c.contract.name}` });
                 }
-                if (c.casualties > 0) {
-                    this.ui.showNotification('Contract Complete', `${c.contract.name} finished. Lost ${c.casualties} units. +${c.payment} gold`, 'default');
-                } else {
-                    this.ui.showNotification('Contract Complete!', `${c.contract.name} finished successfully! +${c.payment} gold`, 'success');
-                }
+                const kind = c.success === false ? 'error' : (c.casualties > 0 ? 'default' : 'success');
+                const title = c.outcome === 'defeat' ? 'Contract Failed' : c.outcome === 'abandoned' ? 'Contract Abandoned' : 'Contract Complete';
+                this.ui.showNotification(`${c.contract.icon || '⚔️'} ${title}`, c.message || `${c.contract.name} finished. +${c.payment} gold`, kind);
+            } else if (playerResults.contractUpdate && playerResults.contractUpdate.event) {
+                const ev = playerResults.contractUpdate.event;
+                this.ui.showNotification(ev.type === 'loot' ? '💰 Plunder' : ev.type === 'ambush' ? '⚔️ Ambush!' : '🏃 Desertion', ev.text, ev.type === 'loot' ? 'success' : 'warning');
             }
 
             // Faith spread
@@ -910,6 +1024,9 @@ export function endDay() {
                 if (fs.defeats) this.ui.showNotification('⚓ Defeat at Sea', `Your liege's fleet was beaten at sea${fs.wounded ? `; ${fs.wounded} of your galleys limp home damaged` : ''}.`, 'warning');
                 if (fs.ended) this.ui.showNotification('⛵ Fleet Service Ends', fs.ended, 'info');
             }
+
+            // Winter trap lines raided or lapsed (player/seasonalWork.js)
+            for (const n of (playerResults.trapLines || [])) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Spring planting contracts come due at the harvest
             for (const pc of (playerResults.plantingContracts || [])) {
@@ -1016,6 +1133,8 @@ export function endDay() {
                     House.recordPlayerDeed(this.player, this.world, 'quest', { reason: `quest: ${quest.title}` });
                 }
             }
+            // Tasks: a thing found, a task failed (systems/quests.js)
+            for (const n of Quests.takeNotices(this.player)) this.ui.showNotification(n.title, n.text, n.type);
 
             // Earned traits: habits fade, tax policy reads as greed or goodwill,
             // the dynasty echo fades (gain/loss notices are shown by updateStats)
@@ -1026,6 +1145,9 @@ export function endDay() {
                 const uw = Underworld.processDay(this.player, this.world);
                 for (const text of uw.notices) this.ui.showNotification('🗝️ Underworld', text, 'info');
             }
+
+            // First Steps — the guided first month: steps the day completed (a night at an inn, the day itself) (systems/firstSteps.js)
+            for (const n of FirstSteps.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Check for new achievements
             const newAchievements = Achievements.checkAchievements(this.player, this.world);
@@ -1066,10 +1188,7 @@ export function endDay() {
             }
             if (caravanProfit > 0) dayFinance.income.caravans = caravanProfit;
 
-            // Contract payment
-            if (playerResults.contractUpdate && playerResults.contractUpdate.completed) {
-                dayFinance.income.contracts = playerResults.contractUpdate.payment || 0;
-            }
+            // (contract fees and plunder are in the ledger: MercContracts records them)
 
             // Tax income
             if (taxCollected > 0) dayFinance.income.taxes = taxCollected;
@@ -1125,6 +1244,8 @@ export function endDay() {
             // The Steward's morning brief: the top three matters (setting: morningBrief)
             showMorningBrief(this);
             updateCounselBadge(this);
+            // Waking in the town of a map-owner you robbed: he finds you at breakfast, not only on arrival (systems/mapTheft.js)
+            if (!this._voyageDay) checkMapAccusation(this);
 
             // At sea: show the voyage log, then sail on or wait for orders (ui/actionMenu/voyage.js)
             if (this._voyageDay) {

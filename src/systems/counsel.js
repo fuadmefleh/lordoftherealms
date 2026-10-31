@@ -778,7 +778,7 @@ R.tournament = (ctx, p) => {
     const player = ctx.player;
     const tile = ctx.tile(player.q, player.r);
     const s = tile && tile.settlement;
-    if (!s || (s.type !== 'town' && s.type !== 'capital')) return [];
+    if (!s || !['town', 'city', 'capital'].includes(s.type)) return [];
     const fee = s.type === 'capital' ? 300 : 200;
     if (_num(player.gold) < Math.max(fee, _num(p.minGold, 300))) return [];
     if (_num(player.skills && player.skills.combat) < 2 && !_arr(player.army).length) return [];
@@ -1046,7 +1046,7 @@ R.estateSale = (ctx) => {
 R.estateUnrest = (ctx) => {
     return LandMarket.restless(ctx.player, ctx.world).slice(0, 2).map(({ e, live }) => ({
         key: `tenants:${e.id}`, q: live.q, r: live.r, estate: e.name, place: live.name,
-        what: e.arrears > 0 ? `owe ${e.arrears}g in arrears: lower the rent, or take it in kind` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
+        what: e.arrears > 0 ? `owe ${e.arrears}g in arrears: lower the rent, take it in kind, or press them for it (at a cost in loyalty)` : `are sullen (loyalty ${e.loyalty}): high rents breed flight and riot`,
     }));
 };
 

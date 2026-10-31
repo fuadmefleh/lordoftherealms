@@ -8,3 +8,4 @@ export { Characters } from '../../world/characters.js';
 export { House } from '../house.js';
 export { Schemes } from '../schemes.js';
 export { RealmWars } from '../realmWars.js';
+export { NPCLords } from '../../world/npcLords.js';

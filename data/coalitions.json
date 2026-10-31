@@ -1,0 +1,87 @@
+{
+    "_doc": "Directed opposition (src/systems/coalitions.js, src/systems/rivalAgents.js). The realms weigh the player's power each week; past formAt (× difficultyScale) the ones who fear and envy them most band into a named league. Tuning notes in GAMEPLAY_MANUAL.md → Coalitions & Threats.",
+    "config": {
+        "enabled": true,
+        "cadence": 7,
+        "offset": 3,
+        "difficultyScale": 1,
+        "power": {
+            "town": 12, "property": 1.5, "propertyCap": 30,
+            "crown": 40, "crownTown": 4, "title": 8,
+            "armyPer": 25, "armyCap": 60,
+            "worthPer": 1500, "worthCap": 50,
+            "prestigePer": 8, "prestigeCap": 40,
+            "renownPer": 10, "renownCap": 25,
+            "conquest": 12, "conquestDays": 360, "conquestCap": 48
+        },
+        "proximity": { "near": 8, "far": 40, "floor": 0.25, "noHoldings": 0.5 },
+        "threat": {
+            "fear": 0.55, "envy": 0.35, "ambitionEnvy": 0.5,
+            "fearShare": 0.6, "envyShare": 0.5,
+            "grudge": 0.8, "goodwill": 0.5, "vendetta": 0.6,
+            "badRep": 0.25, "goodRep": 0.3, "feud": 0.3,
+            "allied": 0.5,
+            "personality": {
+                "aggressive":   { "envy": 1.3, "fear": 0.9, "war": 1.2 },
+                "militaristic": { "envy": 1.2, "fear": 1.0, "war": 1.2 },
+                "balanced":     { "envy": 1.0, "fear": 1.0, "war": 1.0 },
+                "mercantile":   { "envy": 1.1, "fear": 1.0, "war": 0.7 },
+                "peaceful":     { "envy": 0.8, "fear": 1.2, "war": 0.6 }
+            }
+        },
+        "concern": 70,
+        "alarmFeud": 2,
+        "formAt": 140,
+        "brewWeeks": 2,
+        "joinAt": 40,
+        "rejoinMargin": 15,
+        "minMembers": 2,
+        "maxMembers": 4,
+        "ultimatumDays": 14,
+        "resolve": {
+            "start": 50, "perMember": 10, "weekly": -3, "max": 100,
+            "memberLost": -12, "memberHumbled": -20, "hostBroken": -4, "holdingTaken": 3,
+            "powerGrowth": 0.2, "turnedAgent": -4, "exposedAgent": -8
+        },
+        "dissolvePowerShare": 0.6,
+        "cooldown": { "appeased": 360, "broken": 240, "humbled": 180 },
+        "heirShare": 0.6,
+        "chill": { "leader": 25, "member": 15 },
+        "relationsFloor": -40,
+        "embargoLevy": 0.25,
+        "concession": { "goldBase": 400, "goldPerPower": 12, "goldPerMember": 150, "prestigeBase": 25, "prestigePerMember": 5, "goldShame": 10 },
+        "buyoff": { "goldBase": 250, "perMilitary": 0.5, "perThreat": 8, "reputation": 10, "resolve": -10, "marriageDowry": 0 },
+        "cede": { "resolve": -15, "reputation": 15 },
+        "vendetta": { "rivalAt": 15, "maxRivals": 5, "feudPerWeight": 1.5 },
+        "names": ["The League of {place}", "The {place} Compact", "The Concord of {place}", "The Pact of {place}", "The Grand Alliance of {place}"],
+        "casusBelli": {
+            "vendetta": "Blood calls for blood: {cause}.",
+            "conquest": "To win back the towns {house} tore from its neighbours.",
+            "crown": "To cast down the upstart crown of {realm}.",
+            "power": "To check the overmighty {house} before it swallows them all."
+        }
+    },
+    "agents": {
+        "enabled": true,
+        "cadence": 7,
+        "offset": 5,
+        "minFeud": 25,
+        "maxPerRival": 2,
+        "maxTotal": 5,
+        "recruitChance": 0.35,
+        "coalitionBoost": 1.5,
+        "vendettaBoost": 1.25,
+        "kinds": {
+            "informant": { "icon": "👂", "label": "Informant", "roles": ["merchant", "traveler", "villager", "priest"], "leakEvery": 21, "leakResolve": 3, "leadDays": 4, "revealCut": 0.5, "deed": "sold word of {house}'s plans" },
+            "saboteur":  { "icon": "🔥", "label": "Saboteur", "roles": ["blacksmith_npc", "farmer", "villager"], "chance": 0.35, "propertyDays": 8, "worksShare": 0.2, "radius": 3, "trace": 10, "deed": "set fires among the works of {house}" },
+            "official":  { "icon": "💰", "label": "Bribed official", "roles": ["guard", "merchant", "priest"], "skim": 0.15, "buildDrag": 0.25, "deed": "took bribes to hinder {house}'s rule" }
+        },
+        "suspicion": { "base": 4, "spymaster": 6, "perIdleSpy": 3, "counter": 12, "present": 15, "acquainted": 8, "afterAct": 10, "known": 100 },
+        "inquiry": { "gold": 25, "suspicion": 35 },
+        "turnBase": 80,
+        "turnPerFeud": 2,
+        "turnedReport": 120,
+        "exposeFeud": 5,
+        "exposeReputation": 4
+    }
+}

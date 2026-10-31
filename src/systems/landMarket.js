@@ -4,7 +4,9 @@
 // The estates about every town (world/estates.js) are worked by tenants who
 // pay rent once a month, on the town's own day of the month:
 //   coin       a sum fixed on the estate's usual crop: the tenants carry a
-//              bad year (above what they can hand over it falls into arrears)
+//              bad year (above what they can hand over it falls into arrears;
+//              in a good month they pay some of it back out of their spare
+//              crop, and the landlord may press for it — loyalty, a riot)
 //   kind       a share of this month's crop at its price: the landlord does
 //   level      low / customary / high: more rent, less loyalty — high rents
 //              drive households to the nearest town (world/townLabour.js
@@ -60,7 +62,7 @@ export const LandMarket = {
     // ── The player's record ───────────────────────────────
 
     _blank() {
-        return { batches: [], log: [], seq: 1, stats: { bought: 0, sold: 0, spent: 0, received: 0, rents: 0, works: 0, enclosed: 0, dowries: 0, confiscated: 0, putOut: 0, cloth: 0, wages: 0, fines: 0, seized: 0 } };
+        return { batches: [], log: [], seq: 1, stats: { bought: 0, sold: 0, spent: 0, received: 0, rents: 0, works: 0, enclosed: 0, dowries: 0, confiscated: 0, arrears: 0, pressed: 0, putOut: 0, cloth: 0, wages: 0, fines: 0, seized: 0 } };
     },
 
     /** player.land: the putting-out batches, the land log and the counters. */
@@ -227,10 +229,18 @@ export const LandMarket = {
             const strike = e.loyalty < _num(R.strikeBelow, 20) && _roll(world, 'strike', id, day) < _num(R.strikeChance, 0.4);
             if (strike) paid = 0;
             const arrears = strike ? due > 1 : due - owed > Math.max(1, due * 0.05);
-            const net = paid * (1 - _num(R.steward, 0.08));
+            // A good month: the tenants pay some of what they owe out of their spare crop; the bailiff writes off a little
+            let back = 0;
+            if (!arrears && _num(e.arrears) > 0) {
+                back = Math.min(_num(e.arrears), Math.max(0, cap - owed) * _num(R.arrearsShare, 0.5) * LandMarket.collectFactor(e.loyalty));
+            }
+            const net = (paid + back) * (1 - _num(R.steward, 0.08));
             e.lastDue = Math.round(due);
+            e.lastPaid = Math.round(paid + back);
+            e.lastBack = Math.round(back);
             e.lastRent = 0;
-            e.arrears = arrears ? Math.round(_num(e.arrears) + due - (strike ? 0 : owed)) : Math.max(0, Math.round(_num(e.arrears) * 0.5));
+            e.arrears = arrears ? Math.round(_num(e.arrears) + due - (strike ? 0 : owed))
+                : Math.max(0, Math.round((_num(e.arrears) - back) * (1 - _num(R.arrearsForgive, 0.1))));
             // The rent reaches its holder
             if (e.holder === 'player') {
                 if (player) {
@@ -239,9 +249,13 @@ export const LandMarket = {
                     if (take > 0) {
                         econ.gold = _num(econ.gold) - take;
                         player.gold = _num(player.gold) + take;
-                        Ledger.record(player, 'estateRents', take);
+                        // (of it, the arrears paid back, booked apart)
+                        const old = back > 0 ? Math.min(take, Math.round(take * back / (paid + back))) : 0;
+                        if (take - old > 0) Ledger.record(player, 'estateRents', take - old);
+                        if (old > 0) Ledger.record(player, 'estateArrears', old);
                         const ps = LandMarket.playerState(player);
-                        ps.stats.rents += take;
+                        ps.stats.rents += take - old;
+                        ps.stats.arrears += old;
                         e.earned = _num(e.earned) + take;
                         e.lastRent = take;
                     }
@@ -797,6 +811,57 @@ export const LandMarket = {
     },
 
     /** Settle an estate on a realm's nobility as a dowry: standing there and Prestige for the House. */
+    /** What pressing an estate's tenants for their arrears would bring: { ok, amount, risk, reason }. */
+    pressQuote(player, world, id) {
+        const e = Estates.estate(world, id);
+        if (!e || e.holder !== 'player') return { ok: false, reason: 'That estate is not yours.' };
+        if (!(_num(e.arrears) > 0)) return { ok: false, reason: 'The tenants owe you nothing.' };
+        const P = Estates.config().press || {};
+        const day = _day(world);
+        if (_num(e.pressedAt, -999) > day - _num(P.everyDays, 30)) return { ok: false, reason: `You pressed them on day ${e.pressedAt}: give them a month.` };
+        const live = Estates._liveOfKey(world, e.town);
+        if (!live) return { ok: false, reason: 'The town is gone.' };
+        const R = Estates.config().rent;
+        const month = Estates.output(world, e, live).gross * 30 * _num(R.capacity, 0.5);
+        const gold = Math.max(0, _num(live.economy && live.economy.gold));
+        const amount = Math.floor(Math.min(_num(e.arrears) * _num(P.share, 0.6), month, gold));
+        if (!(amount > 0)) return { ok: false, reason: `${live.name} has no coin to pay with.` };
+        const below = _num(P.riotBelow, 35);
+        const after = Math.max(0, _num(e.loyalty, 55) - _num(P.loyalty, 12));
+        const risk = after < below ? _clamp(_num(P.riotChance, 0.5) * (below - after) / Math.max(1, below) + 0.1, 0, _num(P.riotMax, 0.9)) : 0;
+        return { ok: true, amount, risk, loyalty: _num(P.loyalty, 12), live };
+    },
+
+    /** Send the bailiff for the arrears: coin from the town, loyalty lost, perhaps a rent riot (and nothing collected). */
+    pressArrears(player, world, id) {
+        const q = LandMarket.pressQuote(player, world, id);
+        if (!q.ok) return { success: false, reason: q.reason };
+        const e = Estates.estate(world, id);
+        const live = q.live;
+        const day = _day(world);
+        const P = Estates.config().press || {};
+        e.pressedAt = day;
+        e.loyalty = Math.round(_clamp(_num(e.loyalty, 55) - q.loyalty, 0, 100));
+        const ps = LandMarket.playerState(player);
+        ps.stats.pressed++;
+        if (q.risk > 0 && _roll(world, 'press', e.id, day) < q.risk) {
+            live.happiness = _clamp(_num(live.happiness, 50) - _num(Estates.config().rent.riotMood, 5), 0, 100);
+            e.arrears = Math.max(0, Math.round(_num(e.arrears) * (1 - _num(P.riotForgive, 0.25))));
+            Estates.record(world, { key: `es:riot:${e.id}:${day}`, kind: 'riot', why: 'rent', day, place: live.name, q: live.q, r: live.r, kingdomId: live.kingdom != null ? live.kingdom : null, estate: e.name, holder: 'you', own: true });
+            LandMarket._log(player, world, `Your bailiff, sent for the arrears of ${e.name}, was beaten and driven off: a rent riot.`);
+            return { success: true, riot: true, amount: 0, text: `The tenants of ${e.name} would not pay: they beat your bailiff and drove him off. A rent riot near ${live.name}, and not a penny collected.` };
+        }
+        const econ = live.economy;
+        econ.gold = _num(econ.gold) - q.amount;
+        player.gold = _num(player.gold) + q.amount;
+        Ledger.record(player, 'estateArrears', q.amount);
+        e.arrears = Math.max(0, Math.round(_num(e.arrears) - q.amount));
+        e.earned = _num(e.earned) + q.amount;
+        ps.stats.arrears += q.amount;
+        LandMarket._log(player, world, `Pressed the tenants of ${e.name} for ${q.amount}g of their arrears.`);
+        return { success: true, riot: false, amount: q.amount, text: `Your bailiff collects ${q.amount}g of the arrears from the tenants of ${e.name} (${e.arrears}g still owed). They will not soon forget it (loyalty -${q.loyalty}).` };
+    },
+
     dowry(player, world, id, kid) {
         const e = Estates.estate(world, id);
         if (!e || e.holder !== 'player') return { success: false, reason: 'That estate is not yours.' };

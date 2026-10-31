@@ -217,6 +217,15 @@
       "dole": { "reserveDays": 5, "famineReserveDays": 8, "maxPerTown": 60, "grainPrice": 0.6, "moodRelief": 1, "stabilityRelief": 0.25, "growthRelief": 1 },
       "blurb": "Royal granaries open to the hungry. In the lean weeks and in famine the crown ships grain to every town short of stores — paid from the treasury by the cartload — easing hunger, unrest and the famine's toll on the people. In good times it costs little."
     },
+    "royal_post": {
+      "label": "The Royal Post", "icon": "📮", "upkeep": 0, "passCost": 100,
+      "mods": {},
+      "factions": { "merchants": -3 },
+      "vassalOpinion": 0, "likes": ["wealth"], "hates": [],
+      "effects": { "royalPost": 1 },
+      "royalPost": true,
+      "blurb": "One courier house is granted the realm's mail: no other may carry a letter from its towns. Its weekly fee — so much a station — comes to the royal treasury (the demesne line of the crown's books). Name the house when you proclaim it; change the holder or revoke it at will. A grant your predecessor made stands as this edict until you revoke it."
+    },
     "crown_monopolies": {
       "label": "Crown monopolies", "icon": "💎", "upkeep": 0, "passCost": 200, "excludes": ["merchant_charters"],
       "mods": { "treasury": 0.15, "tradeBonus": -0.1 },

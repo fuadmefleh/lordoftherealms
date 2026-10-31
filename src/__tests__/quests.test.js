@@ -76,11 +76,11 @@ describe('Quest progress', () => {
 
     it('event counters drive objectives that had no progress before', () => {
         const player = makePlayer();
-        const quest = activate(player, 'RUINS_EXPLORER');
+        const quest = activate(player, 'TREASURE_HUNTER');
         const target = quest.objectives[0].target;
-        Quests.track(player, 'ruins_explored', target - 1);
+        Quests.track(player, 'treasures_found', target - 1);
         expect(Quests.updateProgress(player, world)).toHaveLength(0);
-        Quests.track(player, 'ruins_explored');
+        Quests.track(player, 'treasures_found');
         const done = Quests.updateProgress(player, world);
         expect(done.map(q => q.id)).toEqual([quest.id]);
         expect(player.gold).toBe(100 + quest.rewards.gold);

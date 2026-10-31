@@ -522,9 +522,9 @@ export const Religion = {
     /**
      * A seized holy site stays contested for `days`: it yields
      * `incomeMult` of its pilgrim income, drains its holder's piety by
-     * `pietyDrain` a day, and pilgrims there get `pilgrimGoldMult` of the gold.
+     * `pietyDrain` a day; pilgrims there walk into tension (Devotion.siteRisk).
      */
-    CONTESTED_SITE: { days: 60, incomeMult: 0.5, pietyDrain: 0.1, pilgrimGoldMult: 0.6 },
+    CONTESTED_SITE: { days: 60, incomeMult: 0.5, pietyDrain: 0.1 },
 
     /** Count down a contested site's unrest; it settles when the timer runs out. */
     tickContestedSite(site) {
@@ -599,42 +599,8 @@ export const Religion = {
         return { success: true, sites: holySites };
     },
 
-    /**
-     * Complete a pilgrimage visit (player standing on a holy site tile).
-     */
-    completePilgrimage(player, tile, world) {
-        if (!tile.holySite) {
-            return { success: false, reason: 'This is not a holy site' };
-        }
-
-        const site = tile.holySite;
-        const faithBonus = site.faithBonus || 5;
-        let goldReward = site.incomeBonus + Utils.randInt(20, 100);
-        // Pilgrims at a contested shrine walk into tension: thinner offerings
-        if (site.contested) goldReward = Math.floor(goldReward * Religion.CONTESTED_SITE.pilgrimGoldMult);
-
-        player.karma += Math.floor(faithBonus / 2);
-        player.gold += goldReward;
-        player.renown += 5;
-        player.faith = Math.min(10, player.faith + 0.5);
-
-        // Heal if sacred spring
-        if (site.bonusType === 'healing') {
-            player.health = Math.min(player.maxHealth, player.health + 30);
-        }
-
-        Quests.track(player, 'holy_sites_visited');
-
-        return {
-            success: true,
-            siteName: site.name,
-            goldReward,
-            karmaGained: Math.floor(faithBonus / 2),
-            renownGained: 5,
-            healed: site.bonusType === 'healing',
-            contested: !!site.contested,
-        };
-    },
+    // Kneeling at a holy site — the offering, blessing, vow and risks — is
+    // systems/devotion.js (Devotion.completePilgrimage): the pilgrim pays.
 
     // ─────────────────────────────────────────────
     // RELIGIOUS BUILDINGS FOR KINGDOMS (NPC)

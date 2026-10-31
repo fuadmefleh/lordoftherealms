@@ -34,6 +34,7 @@ import { Ships } from './ships.js';
 import { Economy } from '../world/economy.js';
 import { Quests } from './quests.js';
 import { TownLabour } from '../world/townLabour.js';
+import { Fame } from './fame.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -588,7 +589,9 @@ export const Underworld = {
             + Underworld.getHeat(player, settlement && settlement.kingdom) * bm.catchPerHeat
             + (Underworld.blockadeAt(world, tile).blockaded ? bm.catchBlockade : 0)
             - _num(player.skills && player.skills.stealth, 1) * bm.stealthRelief
-            - Underworld.traitBonus(player) * 0.5;
+            - Underworld.traitBonus(player) * 0.5
+            // Guards shadow the shunned through the streets (systems/fame.js)
+            + Fame.shadowCatch(player, settlement && settlement.kingdom);
         if (status === 'legal') p *= bm.catchLegalShare;
         return _clamp(p, 0.02, 0.9);
     },
@@ -1013,7 +1016,9 @@ export const Underworld = {
         const kingdom = Underworld._settlementKingdom(world, settlement);
         const discount = Underworld.ensure(player).guild.member
             ? Underworld.ensure(player).guild.rank * Underworld.cfg('guild').bribeDiscountPerRank : 0;
-        const gold = Math.ceil(relief * b.goldPerHeatPerGuard * Underworld.guardStrength(settlement, kingdom) * Math.max(0.4, 1 - discount));
+        // The distrusted and the shunned pay dearer (systems/fame.js)
+        const gold = Math.ceil(relief * b.goldPerHeatPerGuard * Underworld.guardStrength(settlement, kingdom) * Math.max(0.4, 1 - discount)
+            * Fame.bribeMult(player, settlement.kingdom));
         const fail = _clamp(b.failChance * ((kingdom && (kingdom.traits || []).includes('orderly')) ? 1.5 : 1)
             - (_num(player.charisma, 5) - 5) * b.charismaPerPoint, 0.02, 0.5);
         return { gold, relief, fail };

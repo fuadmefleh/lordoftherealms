@@ -9,6 +9,8 @@
 //   worlds    — custom hex worlds created in the world editor
 //   meta      — metadata (last-modified timestamps, names, etc.)
 
+import { CustomSheets } from '../core/customSheets.js';
+
 const DB_NAME = 'lord_of_realms_mods';
 const DB_VERSION = 1;
 let _db = null;
@@ -129,6 +131,12 @@ export const ModStore = {
         return await get('moddata', 'gamedata') || null;
     },
 
+    /** Remove the editor gamedata blob, so the game runs on its base data */
+    async clearModData() {
+        await del('moddata', 'gamedata');
+        await del('meta', 'moddata_timestamp');
+    },
+
     /** Check if there's saved mod data */
     async hasModData() {
         const ts = await get('meta', 'moddata_timestamp');
@@ -165,16 +173,34 @@ export const ModStore = {
         await del('worlds', id);
     },
 
+    // ── Custom Sheets (images the editors imported, keyed by custom/ path) ──
+
+    /** Every editor's imported sheets as one flat [{ name, assetPath, dataUrl }] list */
+    async loadCustomSheets() {
+        const out = [];
+        for (const key of CustomSheets.STORE_KEYS) {
+            const entries = await get('meta', key);
+            if (Array.isArray(entries)) out.push(...entries);
+        }
+        return out;
+    },
+
     // ── Utility ──
 
     /** Export all mod data + worlds as a single JSON blob (for sharing) */
     async exportAll() {
         const moddata = await get('moddata', 'gamedata');
         const worlds = await getAll('worlds');
+        const customSheets = {};
+        for (const key of CustomSheets.STORE_KEYS) {
+            const entries = await get('meta', key);
+            if (Array.isArray(entries) && entries.length) customSheets[key] = entries;
+        }
         return {
             version: 1,
             exportedAt: Date.now(),
             moddata: moddata || null,
+            customSheets,
             worlds: worlds.reduce((acc, e) => { acc[e.key] = e.value; return acc; }, {}),
         };
     },
@@ -188,6 +214,11 @@ export const ModStore = {
         if (blob.worlds) {
             for (const [id, data] of Object.entries(blob.worlds)) {
                 await put('worlds', id, data);
+            }
+        }
+        if (blob.customSheets) {
+            for (const [key, entries] of Object.entries(blob.customSheets)) {
+                if (CustomSheets.STORE_KEYS.includes(key) && Array.isArray(entries)) await put('meta', key, entries);
             }
         }
     },

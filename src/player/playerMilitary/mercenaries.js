@@ -1,6 +1,7 @@
 // PlayerMilitary — mercenaries members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
 import { Utils, Technology, Quests, Kingdom } from './_imports.js';
+import { MercContracts } from '../mercContracts.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -133,6 +134,14 @@ Object.assign(PlayerMilitary, {
         },
     ],
 
+    /** Population below which a town draws only one company at a time. */
+    MERCENARY_TOWN_POPULATION: 2000,
+
+    /** Do famous companies seek work here? Towns and larger only. */
+    hostsMercenaryCompanies(settlement) {
+        return (PlayerMilitary.SETTLEMENT_TIER[settlement && settlement.type] || 0) >= PlayerMilitary.SETTLEMENT_TIER.town;
+    },
+
     _ensureMercenaryState(player) {
         if (!Array.isArray(player.mercenaryCompanies)) player.mercenaryCompanies = [];
         if (!player._mercenaryMarkets) player._mercenaryMarkets = {};
@@ -169,6 +178,8 @@ Object.assign(PlayerMilitary, {
     getMercenaryOffers(player, tile, world) {
         PlayerMilitary._ensureMercenaryState(player);
         if (!tile || !tile.settlement) return [];
+        // Famous companies winter in towns; a village has nothing to keep them
+        if (!PlayerMilitary.hostsMercenaryCompanies(tile.settlement)) return [];
 
         const day = world?.day || 1;
         const key = PlayerMilitary._getMercenaryMarketKey(tile);
@@ -180,7 +191,9 @@ Object.assign(PlayerMilitary, {
         const activeTemplateIds = new Set((player.mercenaryCompanies || []).map(c => c.templateId));
         const pool = PlayerMilitary.MERCENARY_COMPANIES.filter(company => !activeTemplateIds.has(company.id));
         const shuffled = [...pool].sort(() => Utils.random() - 0.5);
-        const offerCount = Math.min(shuffled.length, Math.max(1, 2 + (Utils.random() < 0.35 ? 1 : 0)));
+        // A small town draws one company at a time; a great town or capital two or three
+        const small = (tile.settlement.population || 0) < PlayerMilitary.MERCENARY_TOWN_POPULATION;
+        const offerCount = Math.min(shuffled.length, small ? 1 : 2 + (Utils.random() < 0.35 ? 1 : 0));
 
         const offers = [];
         for (let i = 0; i < offerCount; i++) {
@@ -375,82 +388,25 @@ Object.assign(PlayerMilitary, {
     },
 
     /**
-     * Accept a mercenary contract
+     * Accept a mercenary contract (the rules: player/mercContracts.js).
      */
     acceptContract(player, contractType, settlement) {
-        const contract = PlayerMilitary.CONTRACT_TYPES[contractType.toUpperCase()];
+        const contract = PlayerMilitary.CONTRACT_TYPES[String(contractType).toUpperCase()];
         if (!contract) return { success: false, reason: 'Invalid contract' };
-
-        const strength = PlayerMilitary.getArmyStrength(player);
-        if (strength < contract.minStrength) {
-            return { success: false, reason: `Need army strength of ${contract.minStrength} (have ${strength})` };
-        }
-
-        if (player.activeContract) {
-            return { success: false, reason: 'Already on a contract' };
-        }
-
-        player.activeContract = {
-            type: contract.id,
-            name: contract.name,
-            payment: contract.payment,
-            daysRemaining: contract.duration,
-            risk: contract.risk || 0,
-            settlement: settlement.name,
-        };
-
-        return { success: true, contract: player.activeContract };
+        // A naval contract (a pirate cove) counts the war galleys too
+        const force = MercContracts.forceFor(contract, PlayerMilitary.getArmyStrength(player), PlayerMilitary.getNavalStrength(player));
+        return MercContracts.accept(player, contract, settlement, force);
     },
 
     /**
-     * Update active contract
+     * Advance the active contract a day: events on the march, then the
+     * reckoning by force ratio (MercContracts.tick). `world` lets the
+     * employing realm pay (or renege) from its treasury.
      */
-    updateContract(player) {
-        if (!player.activeContract) return null;
-
-        player.activeContract.daysRemaining--;
-
-        if (player.activeContract.daysRemaining <= 0) {
-            // Contract complete!
-            const contract = player.activeContract;
-
-            // Check for casualties (if risky contract)
-            let casualties = 0;
-            if (contract.risk > 0 && Utils.random() < contract.risk) {
-                casualties = Math.ceil(player.army.length * Utils.randFloat(0.1, 0.3));
-                for (let i = 0; i < casualties && player.army.length > 0; i++) {
-                    player.army.pop();
-                }
-            } else {
-                // Success - gain experience
-                for (const unit of player.army) {
-                    unit.experience += 10;
-                    if (unit.experience >= 100 && unit.level < 5) {
-                        unit.level++;
-                        unit.experience = 0;
-                        unit.strength = Math.floor(unit.strength * 1.2);
-                    }
-                }
-            }
-
-            // Pay player
-            player.gold += contract.payment;
-
-            // Increase combat skill
-            player.skills.combat = Math.min(10, player.skills.combat + 0.5);
-
-            const result = {
-                completed: true,
-                contract,
-                casualties,
-                payment: contract.payment,
-            };
-
-            Quests.trackContractCompleted(player);
-            player.activeContract = null;
-            return result;
-        }
-
-        return { completed: false, daysRemaining: player.activeContract.daysRemaining };
+    updateContract(player, world = null) {
+        const c = player && player.activeContract;
+        const res = MercContracts.tick(player, world, p => MercContracts.forceFor(c, PlayerMilitary.getArmyStrength(p), PlayerMilitary.getNavalStrength(p)));
+        if (res && res.completed && res.success) Quests.trackContractCompleted(player);
+        return res;
     },
 });

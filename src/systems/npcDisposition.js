@@ -21,6 +21,7 @@ import { Cartography } from './cartography.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
+import { Fame } from './fame.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -141,7 +142,7 @@ export const NpcDisposition = {
      *   sell — multiplier on what the NPC pays the player
      *   pct  — net % change to buy prices (for display)
      */
-    getPriceModifiers(npc) {
+    getPriceModifiers(npc, ctx = null) {
         const mem = NpcDisposition.getMemory(npc);
         const reasons = [];
         const d = mem.disposition;
@@ -179,20 +180,51 @@ export const NpcDisposition = {
             shift -= mem.discount;
             reasons.push({ label: 'Owes you a favour', pct: -Math.round(mem.discount * 100) });
         }
+        // A bargain struck in this conversation (systems/npcKnowledge.js)
+        if (mem.bargain && mem.bargain.spoken === mem.timesSpoken && mem.bargain.pct > 0) {
+            shift -= mem.bargain.pct;
+            reasons.push({ label: 'Bargained', pct: -Math.round(mem.bargain.pct * 100) });
+        }
+
+        // The player's local fame (systems/fame.js): the celebrated pay less, the shunned more
+        const famePlayer = (ctx && ctx.player) || null;
+        if (famePlayer) {
+            const fame = Fame.priceShift(famePlayer, ctx.kingdomId != null ? ctx.kingdomId : null);
+            if (fame.shift) {
+                shift += fame.shift;
+                reasons.push({ label: `Your name (${fame.label})`, pct: Math.round(fame.shift * 100) });
+            }
+        }
 
         const buy = clamp(1 + shift, 0.6, 1.5);
         const sell = clamp(1 - shift * 0.75, 0.6, 1.3);
         return { buy, sell, pct: Math.round((buy - 1) * 100), reasons, refuses: false };
     },
 
-    /** Price the player pays for an item with this NPC. */
-    buyPrice(npc, basePrice) {
-        return Math.max(1, Math.round(basePrice * NpcDisposition.getPriceModifiers(npc).buy));
+    /** Price the player pays for an item with this NPC (ctx: { player, kingdomId } for fame). */
+    buyPrice(npc, basePrice, ctx = null) {
+        return Math.max(1, Math.round(basePrice * NpcDisposition.getPriceModifiers(npc, ctx).buy));
     },
 
     /** Price the NPC pays the player per unit. */
-    sellPrice(npc, basePrice) {
-        return Math.max(1, Math.floor(basePrice * NpcDisposition.getPriceModifiers(npc).sell));
+    sellPrice(npc, basePrice, ctx = null) {
+        return Math.max(1, Math.floor(basePrice * NpcDisposition.getPriceModifiers(npc, ctx).sell));
+    },
+
+    /**
+     * First impression: before the player has ever spoken with this person,
+     * their starting disposition is set from the player's local fame and any
+     * rival House's feud in this realm (systems/fame.js). Applied once.
+     * @returns {{ delta:number, reasons:Array }|null}
+     */
+    seedFromStanding(npc, player, kingdomId = null) {
+        if (!npc || !player) return null;
+        const mem = NpcDisposition.getMemory(npc);
+        if (mem.seeded || mem.timesSpoken > 0) return null;
+        mem.seeded = true;
+        const seed = Fame.dispositionSeed(player, kingdomId);
+        if (seed.delta) mem.disposition = clamp(mem.disposition + seed.delta, 0, 100);
+        return seed;
     },
 
     /**

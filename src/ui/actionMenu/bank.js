@@ -9,7 +9,7 @@ import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
 
-const TABS = [['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
+const TABS = [['house', '🏛️ Your House'], ['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
 
 let _tab = 'accounts';
 
@@ -49,6 +49,10 @@ function accountsTab(player, world, here) {
     const day = world.day || 0;
     let html = '<div style="font-size:11px; color:#999;">Deposits earn a slow, safe interest, compounded daily, and the house lends them on. If a house fails, its receivers pay back only part.</div>';
     for (const b of here) {
+        if (b.owner === 'player') {
+            html += `<div style="${CARD}">${bankLine(world, b, day)} · <i>your own house: see 🏛️ Your House</i></div>`;
+            continue;
+        }
         const acct = st.accounts[b.id];
         const bal = Math.floor(acct ? acct.balance : 0);
         html += `<div style="${CARD}">${bankLine(world, b, day)}<div style="font-size:12px; margin-top:4px;">Your deposit: <b>${bal}g</b>${acct ? ` · interest earned ${Math.floor(acct.interest)}g` : ''} · pays <b>${pct(Finance.depositApr(b))}</b> a year</div>`;
@@ -197,9 +201,74 @@ function coinTab(player, world) {
     return html;
 }
 
+function money(v) {
+    return `${Math.round(v).toLocaleString()}g`;
+}
+
+function signed(v) {
+    const r = Math.round(v);
+    return `<span style="color:${r >= 0 ? '#2ecc71' : '#e74c3c'};">${r >= 0 ? '+' : '−'}${Math.abs(r).toLocaleString()}g</span>`;
+}
+
+function charterHtml(player, world) {
+    const terms = Finance.charterTerms(player, world);
+    let html = '<div style="font-size:11px; color:#999;">Charter a banking house of your own. The townsfolk bring you their savings and you pay them interest; you lend the coin on to merchants (and, if you like, to crowns) at a better rate, and keep the difference. Lend too much and a panic can empty the vault. A house that cannot pay its depositors fails, and your stake goes with it.</div>';
+    if (!terms.ok) return html + `<div style="${CARD} color:#c9a;">${esc(terms.reason)}</div>`;
+    html += `<div style="${CARD}"><b>A charter from ${esc(terms.kingdom)}</b> for a house seated in <b>${esc(terms.seat)}</b>: a fee of <b>${money(terms.fee)}</b> to the crown, and capital paid into the vault (at least ${money(terms.minCapital)}).<div style="margin-top:6px;">`;
+    for (const cap of terms.capitalOptions) {
+        const total = cap + terms.fee;
+        html += act(`Charter with ${money(cap)} capital (${money(total)})`, ['foundBank', cap], BTN_GOLD, player.gold >= total, player.gold >= total ? '' : `You need ${money(total)}`);
+    }
+    html += '</div></div>';
+    return html;
+}
+
+function houseTab(player, world) {
+    const book = Finance.ownBook(player, world);
+    if (!book) return charterHtml(player, world);
+    const b = book.bank;
+    const policies = Finance.cfg('playerBank').policies || {};
+    const ratioPct = Math.round(book.ratio * 100);
+    const ratioColor = book.ratio >= 1.2 ? '#2ecc71' : book.ratio >= 0.6 ? '#e0a040' : '#e74c3c';
+    let html = `<div style="${CARD}"><div style="font-size:14px;"><b>${esc(b.name)}</b> · ${esc(b.seat)}, ${esc(kname(world, b.kingdomId))}${book.panic ? ' · <span style="color:#e06060;">a run on the house!</span>' : ''}</div>`;
+    html += `<div style="font-size:12px; margin-top:6px;">Equity (your stake): <b>${money(book.equity)}</b> · paid in ${money(book.paidIn)} · drawn so far ${money(book.drawn)}</div>`;
+    html += `<div style="font-size:12px; margin-top:4px;">Vault <b>${money(book.vault)}</b> against a reserve of ${money(book.need)} (<span style="color:${ratioColor};">${ratioPct}%</span>)${bar(book.vault, Math.max(book.need * 2, 1), ratioColor)}</div>`;
+    html += `<div style="font-size:12px; margin-top:4px;">Townsfolk's deposits <b>${money(book.deposits)}</b> at ${pct(book.depositApr)} a year · trust ${Math.round(book.trust * 100)}% (${esc(b.seat)}, ${Math.round(book.seatPopulation).toLocaleString()} souls)</div>`;
+    html += `<div style="font-size:12px; margin-top:4px;">Lent to merchants <b>${money(book.loanBook)}</b> at ${pct(book.policyDef.apr || 0)}${book.crownLoans ? ` · owed by crowns <b>${money(book.crownLoans)}</b>` : ''}</div></div>`;
+
+    const row = (label, v) => `<tr><td style="padding:1px 12px 1px 0;">${label}</td><td style="text-align:right;">${v}</td></tr>`;
+    html += '<h5 style="margin:10px 0 4px;">📒 The last 30 days</h5><table style="font-size:12px; border-collapse:collapse;">';
+    html += row('Interest from merchants', signed(book.interest30)) + row('Interest paid to depositors', signed(-book.paidOut30))
+        + row('Bad debts', signed(-book.losses30)) + row('Clerks and strongroom', signed(-book.costs30))
+        + row('<b>Profit</b>', `<b>${signed(book.profit30)}</b>`) + row('Since the charter', signed(book.profitAll));
+    html += '</table><div style="font-size:11px; color:#999; margin-top:2px;">What the crowns repay goes straight into the vault.</div>';
+
+    html += '<h5 style="margin:10px 0 4px;">⚖️ Lending policy</h5>';
+    for (const [id, p] of Object.entries(policies)) {
+        const on = book.policy === id;
+        html += `<div style="${CARD}${on ? ' border-color:rgba(245,197,66,0.6);' : ''}"><b>${esc(p.label || id)}</b>${on ? ' · <i>current</i>' : ''} · lends ${Math.round((p.lend || 0) * 100)}% of its coin at ${pct(p.apr || 0)}${p.crowns ? ', crowns too' : ', no crowns'}<div style="font-size:11px; color:#aaa;">${esc(p.text || '')}</div>${on ? '' : act(`Adopt ${esc(p.label || id)}`, ['bankPolicy', id], BTN_PLAIN)}</div>`;
+    }
+
+    html += '<h5 style="margin:10px 0 4px;">🔑 The owner\'s desk</h5>';
+    if (!book.atSeat) {
+        html += `<div style="font-size:11px; color:#c9a;">Coin goes in and out of the strongroom in ${esc(b.seat)}: travel there to put money in, draw it out, or wind the house up. The policy can be changed by letter from anywhere.</div>`;
+        return html;
+    }
+    html += '<div>';
+    for (const amt of [1000, 5000, 20000]) html += act(`Put in ${money(amt)}`, ['bankPutIn', amt], BTN_GOLD, player.gold >= amt);
+    html += '</div><div>';
+    for (const amt of [1000, 5000]) html += act(`Draw ${money(amt)}`, ['bankDraw', amt], BTN_PLAIN, book.drawable >= amt && !book.panic);
+    html += act(`Draw all spare (${money(book.drawable)})`, ['bankDraw', null], BTN_PLAIN, book.drawable > 0 && !book.panic, 'Everything above the reserve the depositors need');
+    html += '</div><div style="margin-top:6px;">';
+    html += act('Wind up the house', ['bankWindUp'], BTN_RED, !book.panic, 'Pay off the depositors, call in the loans at a loss, sell the crowns\' debts, and take what is left');
+    html += '</div>';
+    return html;
+}
+
 Object.assign(ActionMenu, {
     /** The banking house panel (from a town with a house or branch, the Counsel, or anywhere). */
-    showBank(game, tile = null) {
+    showBank(game, tile = null, tab = null) {
+        if (tab) _tab = tab;
         const player = game.player;
         const world = game.world;
         const t = tile || world.getTile(player.q, player.r);
@@ -207,7 +276,7 @@ Object.assign(ActionMenu, {
         const s = Finance.summary(player, world);
         let html = '<div style="font-size:12px;">';
         html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Credit <b>${s.score}</b> (${esc(s.label)}) · deposits ${s.deposits}g · owed ${s.debt}g (${s.dailyDue}g a day) · bonds ${s.bonds}g · gold ${Math.floor(player.gold)}</p>`;
-        if (!here.length) {
+        if (!here.length && _tab !== 'house') {
             const open = Finance.openBanks(player);
             html += `<div style="font-size:11px; color:#c9a;">No banking house serves this place: deposits, loans and bonds are arranged at ${open.length ? open.map(b => `${esc(b.name)} (${esc(b.seat)})`).join(', ') : 'a house in a great city'} or its branches in their realm's cities. You can still repay a loan from here.</div>`;
         }
@@ -216,7 +285,8 @@ Object.assign(ActionMenu, {
             go: (k) => { _tab = k; ActionMenu.showBank(game, t); },
             attrsFor: (k) => `data-am-act="bankAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
         });
-        if (_tab === 'loans') html += loansTab(player, world, here);
+        if (_tab === 'house') html += houseTab(player, world);
+        else if (_tab === 'loans') html += loansTab(player, world, here);
         else if (_tab === 'bonds') html += here.length ? bondsTab(player, world) : '<div style="color:#aaa;">Royal bonds are sold through a banking house.</div>';
         else if (_tab === 'credit') html += creditTab(player, world);
         else if (_tab === 'bills') html += billsTab(player, world, here);
@@ -248,6 +318,11 @@ Object.assign(ActionMenu, {
             case 'presentBill': res = Bills.present(player, world, a); break;
             case 'stopBill': res = Bills.stop(player, world, a); break;
             case 'forgeBill': res = Bills.forge(player, world, a, b); break;
+            case 'foundBank': res = Finance.foundBank(player, world, a); break;
+            case 'bankPolicy': res = Finance.setBankPolicy(player, a); break;
+            case 'bankPutIn': res = Finance.injectCapital(player, world, a); break;
+            case 'bankDraw': res = Finance.drawFromBank(player, world, a); break;
+            case 'bankWindUp': res = Finance.windUpBank(player, world); break;
             default: return;
         }
         if (res) {

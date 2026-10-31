@@ -465,8 +465,8 @@ function generate(tiles, settlement, rng, mapW, mapH) {
 
     // ── 5. Place buildings on lots ────────────────────────────
     // Determine how many buildings of each type to place
-    const layout = (typeof InnerMap !== 'undefined' && InnerMap.SETTLEMENT_BUILDINGS)
-        ? (InnerMap.SETTLEMENT_BUILDINGS[type] || InnerMap.SETTLEMENT_BUILDINGS.village)
+    const layout = (typeof InnerMap !== 'undefined' && InnerMap.settlementLayout)
+        ? InnerMap.settlementLayout(settlement)
         : { required: [], optional: [], maxBuildings: 10 };
 
     const requiredQueue = [...layout.required];

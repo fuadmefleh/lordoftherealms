@@ -138,6 +138,15 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="crown" /></span>
               <span className="civ-dd-text">Dynasties</span>
             </button>
+            <button className="civ-dropdown-item" id="btnPeople">
+              <span className="civ-dd-icon"><Icon name="person" /></span>
+              <span className="civ-dd-text">People You&apos;ve Known</span>
+            </button>
+            <button className="civ-dropdown-item" id="btnLetters">
+              <span className="civ-dd-icon"><Icon name="scroll" /></span>
+              <span className="civ-dd-text">Letters</span>
+              <span id="lettersBadge" style={{display:'none', marginLeft:'6px', minWidth:'15px', padding:'0 4px', borderRadius:'8px', background:'#b7791f', color:'#fff', fontSize:'10px', fontWeight:'bold', lineHeight:'15px', textAlign:'center'}}></span>
+            </button>
             <button className="civ-dropdown-item" id="btnSagas">
               <span className="civ-dd-icon"><Icon name="lyre" /></span>
               <span className="civ-dd-text">Sagas</span>
@@ -149,6 +158,10 @@ export default function TopBar() {
             <button className="civ-dropdown-item" id="btnOutlaws">
               <span className="civ-dd-icon"><Icon name="fire" /></span>
               <span className="civ-dd-text">Outlaw Lairs</span>
+            </button>
+            <button className="civ-dropdown-item" id="btnAnnals">
+              <span className="civ-dd-icon"><Icon name="book" /></span>
+              <span className="civ-dd-text">The Annals</span>
             </button>
             <button className="civ-dropdown-item" id="btnDeeds">
               <span className="civ-dd-icon"><Icon name="medal" /></span>

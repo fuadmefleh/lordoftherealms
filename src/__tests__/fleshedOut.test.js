@@ -12,7 +12,7 @@ import { Relationships } from '../systems/relationships.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { SettlementServices } from '../player/settlementServices.js';
-import { SMELT_RECIPES, CRAFT_RECIPES } from '../ui/objectActions/data.js';
+import { Crafting } from '../player/crafting.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) {
@@ -65,7 +65,7 @@ describe('NPC requests become quests', () => {
 
 describe('smelting has a point', () => {
     it('ingots and bars are tradeable goods worth more than their ore', () => {
-        for (const r of SMELT_RECIPES) {
+        for (const r of Crafting.recipes('smelt')) {
             const [outId] = Object.keys(r.result);
             const good = PlayerEconomy.GOODS[outId.toUpperCase()];
             expect(good, outId).toBeTruthy();
@@ -76,8 +76,8 @@ describe('smelting has a point', () => {
     });
 
     it('ingots feed forge recipes', () => {
-        expect(CRAFT_RECIPES.some(r => r.ingredients.iron_ingot)).toBe(true);
-        expect(CRAFT_RECIPES.some(r => r.ingredients.gold_bar)).toBe(true);
+        expect(Crafting.recipes('craft').some(r => r.ingredients.iron_ingot)).toBe(true);
+        expect(Crafting.recipes('craft').some(r => r.ingredients.gold_bar)).toBe(true);
     });
 });
 

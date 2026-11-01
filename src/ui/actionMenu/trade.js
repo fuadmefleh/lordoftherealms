@@ -8,6 +8,8 @@ import { policyLine } from './tradePolicy.js';
 import { MercContracts } from '../../player/mercContracts.js';
 import { Crafting } from '../../player/crafting.js';
 import { Fame } from '../../systems/fame.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, priceWhy, sellWhy } from '../whyPopover.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 /**
@@ -978,6 +980,14 @@ Object.assign(ActionMenu, {
             }
         }
 
+        // ── "Why?": the factors behind each price (player/causes.js → ui/whyPopover.js) ──
+        const why = (goodId) => {
+            try {
+                return tile.settlement ? Causes.price(game.world, tile.settlement, goodId, game.player, tile) : null;
+            } catch {
+                return null;
+            }
+        };
         // ── The town's stores (world/settlementMarket.js): how full, which way the price moves ──
         const stockBadge = (goodId) => {
             if (!SettlementMarket.tracks(goodId) || !tile.settlement || !tile.settlement.market) return '';
@@ -1106,7 +1116,9 @@ Object.assign(ActionMenu, {
                 <div class="trade-cat-header">${def.icon} ${def.label}</div>`;
             for (const good of items) {
                 const isSoldOut = good.quantity <= 0;
-                const canAfford = playerGold >= good.price;
+                // What one unit really costs this buyer (discounts and the difficulty's prices — Trading.buyCost)
+                const unitCost = Trading.buyCost(game.player, good, 1, tile.settlement) || good.price;
+                const canAfford = playerGold >= unitCost;
                 // The price climbs as the stall empties: offer what the purse covers
                 const maxBuy = Math.max(1, Trading.affordable(game.player, good, tile.settlement));
                 html += `<div class="trade-row ${isSoldOut ? 'sold-out' : ''}">
@@ -1117,7 +1129,7 @@ Object.assign(ActionMenu, {
                         ${trendBadge(good.id)}
                         ${policyBadge(good.id, false)}
                     </div>
-                    <div class="trade-price">${isSoldOut ? '' : good.price + ' 💰'}
+                    <div class="trade-price">${isSoldOut ? '' : unitCost + ' 💰' + whyIcon(priceWhy(why(good.id)), 'Why this price?')}
                         <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
                     </div>
                     <div>${isSoldOut
@@ -1149,7 +1161,7 @@ Object.assign(ActionMenu, {
                         ${stockBadge(item.id)}
                         ${trendBadge(item.id)}
                     </div>
-                    <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰
+                    <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
                         <span class="trade-qty">per unit</span>
                     </div>
                     <div>
@@ -1810,7 +1822,7 @@ Object.assign(ActionMenu, {
         for (const [key, contract] of Object.entries(PlayerMilitary.CONTRACT_TYPES)) {
             const quote = MercContracts.quote(game.player, contract, tile.settlement);
             const canAccept = armyStrength >= contract.minStrength && !quote.refused && !game.player.activeContract;
-            const winPct = Math.round(MercContracts.winChance(armyStrength, quote.opposition) * 100);
+            const winPct = Math.round(MercContracts.winChance(armyStrength, quote.opposition, game.player) * 100);
             html += `
                 <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canAccept ? 'opacity: 0.5;' : ''}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">

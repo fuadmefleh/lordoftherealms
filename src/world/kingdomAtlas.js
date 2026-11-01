@@ -67,9 +67,18 @@ export const KingdomAtlas = {
         if (!Array.isArray(c.mapsOwned)) c.mapsOwned = [];
         if (typeof c.mapsMade !== 'number') c.mapsMade = 0;
         if (!Array.isArray(c.propagandaMaps)) c.propagandaMaps = [];
+        // Older saves kept each propaganda chart whole: hundreds of KB of tiles over a long reign
+        if (c.propagandaMaps.some(m => m && m.tiles)) c.propagandaMaps = c.propagandaMaps.map(KingdomAtlas.slimPropaganda);
         if (typeof c.cartographerHired !== 'boolean') c.cartographerHired = false;
         if (typeof c.distrust !== 'number') c.distrust = 0;
         return c;
+    },
+
+    /** What the archive keeps of a propaganda chart: the note, not the tiles. */
+    slimPropaganda(map) {
+        if (!map || typeof map !== 'object') return map;
+        const { id, name, kingdomId, createdDay, propagandaKingdom } = map;
+        return { id, name, kingdomId, createdDay, propagandaKingdom };
     },
 
     /** Scouting bonus from explorer rulers and the like (fraction, >= 0). */

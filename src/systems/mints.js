@@ -313,6 +313,12 @@ export const Mints = {
         const E = Mints.config().exchange;
         const gold = Math.floor(_num(player.gold));
         if (!(rate > 0) || gold < _num(E.minGold, 50)) return;
+        // A purse assayed within the last `cooldownDays` is already the mixed coin of the road:
+        // a traveller criss-crossing a border is not charged again at every crossing
+        // (the health-check audit found the changers the largest drain on a travelling purse)
+        const day = _day(world);
+        if (Number.isFinite(st.lastExchangeDay) && day - st.lastExchangeDay < _num(E.cooldownDays, 0)) return;
+        st.lastExchangeDay = day;
         const fee = Math.max(1, Math.round(gold * rate));
         player.gold = _num(player.gold) - fee;
         Ledger.record(player, 'exchange', -fee);

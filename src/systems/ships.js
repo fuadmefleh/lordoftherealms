@@ -838,9 +838,21 @@ export const Ships = {
      * jetty has no market.
      */
     hasDock(world, q, r) {
-        if (this.isPortTile(world, q, r)) return true;
+        if (this.isPortTile(world, q, r)) return !this.awaitsQuay(world.getTile(q, r));
         const tile = world.getTile(q, r);
         return Infrastructure.hasDock(tile) && Hex.neighbors(q, r).some(n => this.isWaterTile(world.getTile(n.q, n.r)));
+    },
+
+    /**
+     * A colony founded from a landing party (systems/landings.js) has no
+     * quay yet: ships berth there only by boat until a jetty is built on its
+     * hex or a harbour (systems/holdings.js) is finished.
+     */
+    awaitsQuay(tile) {
+        const s = tile && tile.settlement;
+        if (!s || !s.colony || !s.colony.landfall) return false;
+        if (Infrastructure.hasDock(tile)) return false;
+        return !(s.holding && s.holding.built && s.holding.built.harbour);
     },
 
     /** Walkable land hexes next to (q, r) that the ship's boat can row to. */

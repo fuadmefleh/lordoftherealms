@@ -1,5 +1,7 @@
 // UI — techTreasury methods.
 import { UI } from './core.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, taxWhy } from '../whyPopover.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Finance } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -438,13 +440,18 @@ Object.assign(UI.prototype, {
         const policy = Taxation.TAX_RATES[currentRate.toUpperCase()];
         const taxEstimate = Taxation.collectTaxes(player, world, { dryRun: true });
         const estimatedTax = taxEstimate.collected;
+        // "Why?": the town's tax, factor by factor, and where its mood is heading (player/causes.js)
+        const taxWhyIcon = (st) => {
+            const tile = world.getTile(st.q, st.r);
+            return tile && tile.settlement ? whyIcon(taxWhy(Causes.tax(world, player, tile.settlement)), 'Why this much?') : '';
+        };
         const moodRows = taxEstimate.settlements.map(st => {
             const h = st.happiness;
             const face = h >= 70 ? '😊' : h >= 40 ? '😐' : '😠';
             const g = st.growthRate || 0;
             const growth = `<div style="font-size:10px; color:${g > 0 ? '#81c784' : g < 0 ? '#e57373' : 'var(--text-muted)'}; text-align:right;" title="Yearly growth from the tax policy; projection is 30 days out">📈 ${g > 0 ? '+' : ''}${Math.round(g * 100)}%/yr · pop ${st.population} → ~${st.projectedPopulation} next month · ~${st.projectedCollected}g/wk then</div>`;
             return `<div style="padding:3px 0;"><div style="display:flex; justify-content:space-between; font-size:12px;">
-                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk</span></div>${growth}</div>`;
+                <span>${st.name}${st.peoplesMood ? ` <span style="font-size:10px; color:${st.peoplesMood > 0 ? '#81c784' : '#e57373'};" title="Mood target shift from the peoples living there (their values, traits and harmony)">🏘️ ${st.peoplesMood > 0 ? '+' : ''}${st.peoplesMood}</span>` : ''}</span><span>${face} ${h}/100 · ~${st.collected}g/wk${taxWhyIcon(st)}</span></div>${growth}</div>`;
         }).join('');
         const canSet = Taxation.canSetTaxes(player);
 

@@ -666,7 +666,7 @@
         { "id": "lean_any", "when": { "lean": true }, "weight": 2, "lines": [
             "These are the lean weeks. The granary's near empty and the new crop's a long way off.",
             "Everyone tightens their belt this time of year. Some have no belt left to tighten.",
-            "Bread's dear and getting dearer. Spring can't come soon enough.",
+            "Bread's dear and getting dearer. The harvest can't come soon enough.",
             "The lean season. Children cry at night here, and not from bad dreams."
         ]},
         { "id": "lean_beggar", "when": { "lean": true, "occupation": ["beggar", "child"] }, "weight": 2, "lines": [

@@ -4,7 +4,7 @@
 // of age or as someone new. Logic lives in player/afterlife.js; these panels
 // present it.
 import { ActionMenu } from './_ref.js';
-import { Relationships, InnerMapRenderer } from './_imports.js';
+import { Relationships, InnerMapRenderer, SaveLoad } from './_imports.js';
 import { Afterlife } from '../../player/afterlife.js';
 
 const BAR_ID = 'interregnumBar';
@@ -211,9 +211,21 @@ Object.assign(ActionMenu, {
         const busy = game._afterlifeBusy = { left: Math.max(1, Math.floor(n)), total: Math.max(1, Math.floor(n)), stop: false, events: [], cameOfAge: [] };
         game.isProcessingTurn = true;
         const perFrame = n >= 30 ? 4 : 1;
+        const fromDay = game.world.day;
         const finish = () => {
             game._afterlifeBusy = null;
             game.isProcessingTurn = false;
+            // The autosave the daily turn would have made (ui/game/endDay.js), once if the
+            // wait crossed an autosave day — years of "let it run" are not lost to a crash
+            const every = SaveLoad.AUTO_SAVE_INTERVAL;
+            if (every > 0 && Math.floor(game.world.day / every) > Math.floor(fromDay / every)) {
+                try {
+                    const res = SaveLoad.saveGame(game);
+                    if (res && res.success) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                } catch (err) {
+                    console.error('[Afterlife] autosave failed', err);
+                }
+            }
             if (game.minimap && game.minimap.invalidate) game.minimap.invalidate();
             game.ui.updateStats(game.player, game.world);
             for (const c of busy.cameOfAge) {

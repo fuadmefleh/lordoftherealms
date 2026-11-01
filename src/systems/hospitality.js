@@ -518,13 +518,15 @@ export const Hospitality = {
         const full = this.noVacancy(world, v);
         const booked = !!(player && player.lodging && player.lodging.night === _day(world));
         const bookedHere = booked && player.lodging.id === v.id;
+        // A full house still lets its best room — the suite at a hotel, the private room at an inn
+        const best = v.tiers[v.tiers.length - 1];
         const tiers = v.tiers.map(t => {
             const T = this.tier(t) || {};
             const price = freeRoom ? 0 : this.roomPrice(world, player, v, t);
             let reason = null;
             if (v.underConstruction) reason = 'Still being built';
             else if (booked) reason = 'You already have a bed for tonight';
-            else if (full && t !== 'suite') reason = 'No vacancy tonight';
+            else if (full && t !== best) reason = 'No vacancy tonight';
             else if (gold < price) reason = `Need ${price} gold`;
             return { id: t, name: T.name || t, short: T.short || t, icon: T.icon || '🛏️', price, free: freeRoom || price === 0, ok: !reason, reason };
         });
@@ -597,7 +599,9 @@ export const Hospitality = {
         const boost = 0.85 + 0.06 * _num(v.stars, 2);
         if (player.modifyNeed) for (const [need, amt] of Object.entries(S.needs || {})) player.modifyNeed(need, Math.round(amt * boost));
         if (S.health) player.health = Math.min(_num(player.maxHealth, 100), _num(player.health, 100) + S.health);
-        if (S.charisma) player._valetDay = _day(world);
+        // A valet's grooming: charisma for the rest of the day (PlayerEffects.moodCharisma reads it;
+        // processDay takes it away the next morning)
+        if (S.charisma) player.valet = { day: _day(world), charisma: _num(S.charisma) };
         return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${s.price} gold)` : ''}.`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
     },
 
@@ -831,6 +835,7 @@ export const Hospitality = {
         if (!world || !this.enabled()) return { notices };
         if (player) {
             notices.push(...this._morning(world, player));
+            if (player.valet && !(_num(player.valet.day, -1) >= _day(world))) player.valet = null;
             for (const ref of player.properties || []) {
                 if (!this.isKind(ref.type)) continue;
                 const p = this._playerPropsAt(world, ref.q, ref.r).find(x => x.type === ref.type);

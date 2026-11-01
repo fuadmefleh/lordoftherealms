@@ -51,6 +51,7 @@ import { Discovery } from '../systems/discovery.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Relationships } from '../systems/relationships.js';
 import { Quests } from '../systems/quests.js';
+import { Difficulty } from '../core/difficulty.js';
 
 const DEFAULT_CONFIG = {
     tileChance: 0.7,
@@ -73,7 +74,7 @@ export const WILDS_SKILLS = ['combat', 'stealth', 'diplomacy', 'leadership', 'co
 export const WILDS_CRAFTS = ['forage', 'hunt'];
 export const WILDS_EFFECT_KEYS = ['battlePower', 'damageReduction', 'negotiation'];
 export const WILDS_ROLES = ['artisan', 'diplomat', 'general', 'guard', 'healer', 'herbalist', 'hunter', 'knight', 'merchant', 'noble', 'priest', 'scholar', 'spymaster'];
-export const WILDS_CHOICE_KEYS = ['id', 'label', 'hint', 'cost', 'requires', 'check', 'success', 'failure', 'deeds'];
+export const WILDS_CHOICE_KEYS = ['id', 'label', 'hint', 'cost', 'requires', 'check', 'success', 'failure', 'deeds', 'fight'];
 export const WILDS_COST_KEYS = ['stamina', 'health', 'gold', 'items'];
 export const WILDS_REQUIRE_KEYS = ['items', 'companions', 'traits', 'skills', 'stats', 'gold'];
 export const WILDS_CHECK_KEYS = ['base', 'stat', 'skill', 'craft', 'items', 'companions', 'traits', 'effects'];
@@ -214,6 +215,17 @@ export const Wilds = {
         return 0;
     },
 
+    /**
+     * Is this choice a fight (the difficulty's enemyStrength weighs it)? A
+     * check on the combat skill or battle power, or `fight: true` in the data.
+     */
+    isFight(choice) {
+        if (!choice) return false;
+        if (typeof choice.fight === 'boolean') return choice.fight;
+        const check = choice.check;
+        return !!(check && (check.skill === 'combat' || (check.effects && check.effects.battlePower != null)));
+    },
+
     /** Success chance of a choice (0..1), or null when it is not a test. */
     chance(player, choice) {
         const check = choice && choice.check;
@@ -236,7 +248,10 @@ export const Wilds = {
         for (const [key, weight] of Object.entries(check.effects || {})) {
             p += (_num(PlayerEffects.treasureBonus(player, key)) + _num(Traits.effect(player, key))) * _num(weight);
         }
-        return Math.max(cfg.minChance, Math.min(cfg.maxChance, p));
+        p = Math.max(cfg.minChance, Math.min(cfg.maxChance, p));
+        // A fight is weighed against the difficulty's enemyStrength (exact on Normal)
+        if (Wilds.isFight(choice)) p = Math.max(cfg.minChance, Math.min(cfg.maxChance, Difficulty.againstFoe(player, p)));
+        return p;
     },
 
     /** Can the player take this choice? { ok, reason } (stamina and health never block). */
@@ -364,7 +379,7 @@ export const Wilds = {
         const chance = Wilds.chance(player, choice);
         const passed = chance === null ? true : Utils.random() < chance;
         const outcome = (passed ? choice.success : choice.failure) || {};
-        lines.push(...Wilds._applyOutcome(player, world, ctx, enc, outcome));
+        lines.push(...Wilds._applyOutcome(player, world, ctx, enc, outcome, { fight: Wilds.isFight(choice) }));
 
         const st = Wilds.getState(player);
         if (ctx.slot != null) {
@@ -384,7 +399,7 @@ export const Wilds = {
         return { success: true, passed, chance, text: outcome.text || '', lines, encounter: enc, choice };
     },
 
-    _applyOutcome(player, world, ctx, enc, o) {
+    _applyOutcome(player, world, ctx, enc, o, opts = {}) {
         const lines = [];
         if (o.gold) {
             const g = Math.round(_roll(o.gold));
@@ -421,7 +436,7 @@ export const Wilds = {
         if (o.health) {
             const raw = _roll(o.health);
             if (raw < 0) {
-                const harm = PlayerEffects.scaleDamage(player, -raw);
+                const harm = PlayerEffects.scaleDamage(player, opts.fight ? Difficulty.foeHarm(player, -raw) : -raw);
                 player.health = Math.max(1, _num(player.health) - harm);
                 lines.push(harm > 0 ? `-${harm} health` : 'Divine protection turns the harm aside');
             } else if (raw > 0) {

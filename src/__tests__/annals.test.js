@@ -87,7 +87,7 @@ describe('Annals.compose — a synthetic dynasty', () => {
         expect(a.title).toContain('1st of House Ashford');
         expect(a.title).toContain('years 1000–1019');
         expect(a.text).toContain('Mira Vell');
-        expect(a.text).toContain('conquers Kettlemoor');
+        expect(a.text).toContain('conquered Kettlemoor'); // the chronicle's present put into the past
         expect(a.text).not.toContain('Tamsin');
         expect(a.text).toMatch(/old age/);
         expect(a.text).toMatch(/3 lives/); // the deeds the reign added (infamy)

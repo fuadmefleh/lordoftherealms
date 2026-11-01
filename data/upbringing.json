@@ -342,5 +342,43 @@
         "highlightTags": ["throne", "ambition", "capstone", "war", "court", "companion", "marriage", "upbringing", "rival", "succession", "heirs"],
         "highlightCap": 8,
         "notableRulingCap": 3
+    },
+    "agency": {
+        "_comment": "systems/heirAgency.js — directed family actions (fostering a minor, betrothal, commissions) and the heir's record paid off at succession.",
+        "fosterMinAge": 7, "fosterYears": [1, 2, 3], "fosterMinReputation": -10, "fosterQuality": 1.4,
+        "fosterBondPerMonth": 1, "fosterBondCap": 20, "fosterRivalFeudCut": 10,
+        "hostageRegard": -30, "hostageCheckDays": 15,
+        "hostFocus": { "militaristic": "martial", "aggressive": "martial", "mercantile": "stewardship", "peaceful": "diplomacy", "balanced": "diplomacy" },
+        "betrothalMinAge": 4, "betrothalDowryShare": 0.5, "betrothalReputation": 8, "betrothalBreakReputation": -15,
+        "kinshipMarried": 0.5, "kinshipBetrothed": 0.75,
+        "commandMinAge": 16, "commandCombat": 0.025, "commandLeadership": 0.015, "commandCap": 0.3,
+        "regencyBattleMult": 0.92,
+        "fate": { "woundWin": 0.06, "woundLoss": 0.2, "captureLoss": 0.08, "deathWin": 0.01, "deathLoss": 0.04, "woundDays": 30, "captiveDays": 60, "ransom": 150, "unransomedPrestige": 6 },
+        "battleCombatXp": 0.5, "battleLeadershipXp": 0.25, "skillCap": 10,
+        "envoyDays": 30, "envoyCost": 40, "envoyReputation": 6, "envoyDiplomacyRep": 1.5, "envoyBond": 4,
+        "stewardXpDays": 90,
+        "payoff": {
+            "fosterReputation": 10, "fosterBondWeight": 0.6, "envoyReputation": 3,
+            "battlePrestige": 2, "battlePrestigeCap": 15, "battleRenown": 5, "battleRenownCap": 50, "braveAt": 3,
+            "capturedPrestige": -3, "stewardDays": 180, "stewardPrestige": 3, "stewardCommerce": 1,
+            "marriagePrestige": 3, "fosterPrestige": 4, "envoyPrestige": 1
+        }
+    },
+    "regency": {
+        "_comment": "systems/regency.js — a minor heir's reign under a regent.",
+        "majorityAge": 16, "earlyMajorityYears": 2, "earlyMajorityPrestige": 12,
+        "cadence": 7, "baseLoyalty": { "spouse": 72, "sibling": 58, "council": 55 },
+        "baseAmbition": { "spouse": 25, "sibling": 55, "council": 40 },
+        "ambitionSpread": 30, "drift": 3, "prestigeLoyalty": 0.05, "favourDecayDays": 60,
+        "embezzleBelow": 45, "embezzleRate": 0.03, "embezzleMax": 120,
+        "plotBelow": 25, "plotAmbition": 50, "plotRumourAt": 50, "coupGoldShare": 0.25, "coupPrestige": 10,
+        "giftGold": 100, "giftLoyalty": 8, "honourPrestige": 8, "honourLoyalty": 12, "honourAmbition": -5,
+        "replacePrestige": 15, "replaceExposedPrestige": 5, "exposedRecovery": 0.5,
+        "endingDays": 14,
+        "keepDiplomacy": 1, "keepRenown": 10, "keepLoyalSkill": 50,
+        "purgeRecovery": 0.5, "purgePrestige": -5, "purgePlotterPrestige": 6,
+        "rewardGold": 200, "rewardPrestige": 6, "rewardRoleLoyalty": 10,
+        "councilNames": ["Lord Aubrey Tench", "Lady Isolde Marrow", "Lord Cedric Vane", "Lady Rowena Hale", "Lord Osmund Grey", "Lady Elsbeth Crane"],
+        "forbidden": ["war", "siege"]
     }
 }

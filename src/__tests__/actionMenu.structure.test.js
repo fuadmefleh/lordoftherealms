@@ -38,6 +38,8 @@ const EXPECTED_KEYS = [
     'showRivalsPanel', 'showHallOfHeroes', 'showPhysicianMenu',
     'showChildPanel', 'showHouseChronicle', 'showEpitaph', '_heirProfileHtml', '_reignsHtml',
     'showSagasJournal',
+    // Playing the heir before they inherit, and a child's reign (ui/actionMenu/heirAgency.js): +3
+    '_familyAgencyHtml', '_regencyChoiceHtml', 'showRegencyPanel',
     'showWhispersPanel',
     'showEncounter', 'encounterAct', 'showFieldBattle', 'battleAct', '_settleFieldBattle',
     'showScene', 'sceneAct',
@@ -45,6 +47,8 @@ const EXPECTED_KEYS = [
     // Directed opposition (ui/actionMenu/threats.js): +2
     'showThreatsPanel', 'threatsAct',
     'showRider', 'riderAct',
+    // Landing parties (ui/actionMenu/landings.js): +1
+    'showLandingParty',
     'showLodgings', '_lodgingStayHtml', '_lodgingRunHtml', 'lodgingAct',
     'showTownsfolkJournal',
     'showDiscoveries',
@@ -69,6 +73,8 @@ const EXPECTED_KEYS = [
     'showDeeds',
     // The Annals (ui/actionMenu/annals.js): +2
     'showAnnals', 'annalsAct',
+    // The Season's Reckoning (ui/actionMenu/reckoning.js): +1
+    'showReckoning',
     'showAmbitionPanel', 'setVictoryGoal', 'showVictoryScene',
     'showCounsel', 'counselGo',
     'showPatronage', 'patronageAct',
@@ -141,8 +147,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 336 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(336);
+    it('has 341 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(341);
     });
 
     it('every member except the known data props is a function', () => {

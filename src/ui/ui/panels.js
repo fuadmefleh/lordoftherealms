@@ -7,6 +7,8 @@ import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Fame } from '../../systems/fame.js';
 import { Crafting } from '../../player/crafting.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -351,7 +353,7 @@ Object.assign(UI.prototype, {
                 const st = kingdom.stability;
                 const target = KingdomStability.target(kingdom, this.game.world);
                 const why = target.parts.map(p => `${p.label} ${p.value > 0 ? '+' : ''}${p.value}`).join(', ');
-                bonusHtml += `<div style="font-size:11px;margin-top:4px;" title="Heading toward ${Math.round(target.value)}: ${why}">🏛️ Stability: <span style="color:${KingdomStability.color(st)}">${Math.round(st)}/100 (${KingdomStability.label(st)})</span> · income ×${KingdomStability.incomeMultiplier(kingdom).toFixed(2)}</div>`;
+                bonusHtml += `<div style="font-size:11px;margin-top:4px;" title="Heading toward ${Math.round(target.value)}: ${why}">🏛️ Stability: <span style="color:${KingdomStability.color(st)}">${Math.round(st)}/100 (${KingdomStability.label(st)})</span> · income ×${KingdomStability.incomeMultiplier(kingdom).toFixed(2)}${whyIcon(stabilityWhy(Causes.stability(kingdom, this.game.world)), 'Why?')}</div>`;
             }
             // The royal fleet and any blockade of its ports
             if (kingdom.navy && (kingdom.navy.ports || kingdom.navy.strength)) {

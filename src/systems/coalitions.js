@@ -363,6 +363,9 @@ export const Coalitions = {
             + _num(rival && rival.feud) * _num(T.feud);
         let h = out.fear * _num(T.fearShare) + out.envy * _num(T.envyShare) + out.grudge;
         if (realm && Array.isArray(kingdom.allies) && kingdom.allies.includes(realm.id)) h *= _num(T.allied, 0.5);
+        // Kin by marriage or betrothal (systems/heirs.js, systems/heirAgency.js) are slow to turn on the House
+        const kinship = Heirs.kinshipFactor(player, kingdom.id);
+        if (kinship.kin) { h *= kinship.factor; out.kin = kinship.kin; }
         h *= Coalitions.difficulty(player);
         out.hostility = Math.round(_clamp(h, 0, 100));
         out.fear = Math.round(out.fear);
@@ -374,6 +377,7 @@ export const Coalitions = {
         else if (mem <= -10) out.reasons.push('its lord remembers your wrongs');
         if (rival && _num(rival.feud) >= 30) out.reasons.push(`${rival.name} feuds with your House`);
         if (rep <= -30) out.reasons.push('your name is hated there');
+        if (out.kin) out.reasons.push(out.kin === 'married' ? 'bound to your House by marriage (slow to turn on you)' : 'promised to your House by a betrothal (slow to turn on you)');
         return out;
     },
 
@@ -411,6 +415,11 @@ export const Coalitions = {
         const st = Coalitions.state(player);
         const day = _day(world);
         const c = st.active;
+        // Days the House did not tick (an interregnum: the world turned on without
+        // it) do not run down a forming league's ultimatum — an heir who takes up
+        // the mantle gets the days the letter promised, not a war on their first morning
+        if (c && c.stage === 'forming' && Number.isFinite(st.seenDay) && day - st.seenDay > 1) c.dueDay = _num(c.dueDay) + (day - st.seenDay - 1);
+        st.seenDay = day;
         // A league in its forming days acts on its own deadline, not the week's
         if (c && c.stage === 'forming' && day >= _num(c.dueDay)) Coalitions._activate(player, world, out, 'its terms went unanswered');
         const cad = Math.max(1, _num(C.cadence, 7));
@@ -537,7 +546,8 @@ export const Coalitions = {
             stage: 'forming', formed: day, dueDay: day + _num(C.ultimatumDays, 14),
             target: houseName, generation: _num(player.house && player.house.generation, 1),
             powerAtForm: power.score, lastPower: power.score,
-            resolve: Math.min(_num(R.max, 100), _num(R.start) + pool.length * _num(R.perMember)),
+            // Each member's will to fight (threat.personality.*.war): warlike lords stiffen the league
+            resolve: Math.min(_num(R.max, 100), _r1(_num(R.start) + pool.reduce((sum, { k }) => sum + _num(R.perMember) * Coalitions.warWill(k), 0))),
             members, bought: [], log: [], tally: {},
             terms: Coalitions.concessionQuote(player, world, { power: power.score, members: pool.length }),
         };
@@ -822,7 +832,9 @@ export const Coalitions = {
         const C = Coalitions.config();
         const c = Coalitions.active(player);
         if (!c) return { success: false, reason: 'No league stands against you.' };
-        const q = Coalitions.concessionQuote(player, world);
+        // While the league is forming its letter's terms stand (the price the
+        // letter and its button name); once it marches the price follows its power
+        const q = c.stage === 'forming' && _obj(c.terms) ? { gold: _num(c.terms.gold), prestige: _num(c.terms.prestige) } : Coalitions.concessionQuote(player, world);
         const day = _day(world);
         if (currency === 'prestige') {
             if (!player.house || !House.spend(player.house, q.prestige, `bowed to ${c.name}`, day)) return { success: false, reason: `You need ${q.prestige} Prestige.` };
@@ -912,7 +924,8 @@ export const Coalitions = {
             RealmWars._captureHolding(player, world, k, null, t);
             NPCLords.rememberDeed(world, k.lord, 'holding_ceded', { note: t.name });
             if (!player.reputation) player.reputation = {};
-            player.reputation[k.id] = _num(player.reputation[k.id]) + _num(C.cede.reputation);
+            // (the buy-off's reputation is added for every split below: ceding earns cede.reputation in all)
+            player.reputation[k.id] = _num(player.reputation[k.id]) + _num(C.cede.reputation) - _num(C.buyoff.reputation);
             c.resolve += _num(C.cede.resolve) - _num(C.buyoff.resolve); // ceding land costs the league more than gold
             Coalitions.state(player).stats.ceded++;
             if (player.house) House._chronicle(player.house, world, `${player.house.name} cedes ${t.name} to ${k.name} to break ${c.name}.`, ['coalition', 'holdings']);
@@ -961,9 +974,22 @@ export const Coalitions = {
         const c = Coalitions.active(player);
         if (!c || !Coalitions.isMember(player, kingdomId)) return 0;
         const R = Coalitions.config().resolve;
-        const d = what === 'exposed' ? _num(R.exposedAgent) : what === 'turned' ? _num(R.turnedAgent) : what === 'leak' ? 3 : 0;
+        const d = what === 'exposed' ? _num(R.exposedAgent) : what === 'turned' ? _num(R.turnedAgent) : what === 'leak' ? Coalitions._leakResolve() : 0;
         c.resolve = _r1(_clamp(c.resolve + d, -100, _num(R.max, 100)));
         return d;
+    },
+
+    /** A realm's appetite for war by its lord's personality (data: config.threat.personality.*.war; 1 = average). */
+    warWill(kingdom) {
+        const T = Coalitions.config().threat || {};
+        const pers = _obj((T.personality || {})[KingdomAI.personalityId(kingdom)]) || {};
+        return _num(pers.war, 1);
+    },
+
+    /** Resolve a league gains from each word an informant sells (data: agents.kinds.informant.leakResolve). */
+    _leakResolve() {
+        const k = _obj(((Coalitions.data().agents || {}).kinds || {}).informant);
+        return k && Number.isFinite(k.leakResolve) ? k.leakResolve : 3;
     },
 
     // ──────────── THE VIEW ────────────

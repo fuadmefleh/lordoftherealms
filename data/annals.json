@@ -4,6 +4,220 @@
     "rewrites": [
         ["^A claim on the throne of (.+?)[.]?$", "{name} gained a claim on the throne of $1."]
     ],
+    "pastTense": {
+        "_doc": "The book is written in the past: chronicle lines (house.history; most are written in the present, 'Bran weds Tamsin.') are put into the past tense after `rewrites`. `phrases` first ([regex, replacement], each applied everywhere), then `words` (whole lowercase words). A word that is too often a noun ('lies', 'rules', 'claims', 'returns') goes in `phrases` with its context instead. Text inside quotes is left alone.",
+        "phrases": [
+            [
+                "\\bdo not\\b",
+                "did not"
+            ],
+            [
+                "\\bfor now\\b",
+                "for a time"
+            ],
+            [
+                "\\brules now\\b",
+                "ruled thereafter"
+            ],
+            [
+                "\\bnow belongs to\\b",
+                "passed to"
+            ],
+            [
+                "\\bthe marriage is ended\\b",
+                "the marriage ended"
+            ],
+            [
+                "\\bdemands (a|an|the|his|her|their|its)\\b",
+                "demanded $1"
+            ],
+            [
+                "\\brebels and casts off\\b",
+                "rebelled and cast off"
+            ],
+            [
+                "\\bcasts off\\b",
+                "cast off"
+            ],
+            [
+                "\\ballies with\\b",
+                "allied with"
+            ],
+            [
+                "\\bmakes peace\\b",
+                "made peace"
+            ],
+            [
+                "\\bclaims (the|a|an|his|her|their|its)\\b",
+                "claimed $1"
+            ],
+            [
+                "\\boffers (a|an|the|his|her|their|its)\\b",
+                "offered $1"
+            ],
+            [
+                "\\bfalls (to|in|at|on|ill|from|before|silent)\\b",
+                "fell $1"
+            ],
+            [
+                "\\breturns (from|to|home|with)\\b",
+                "returned $1"
+            ],
+            [
+                "\\bleaves (for|the|his|her|their|its|in|with)\\b",
+                "left $1"
+            ],
+            [
+                "\\bfights (for|against|beside|at|on|the)\\b",
+                "fought $1"
+            ],
+            [
+                "\\bnames (a|an|the|his|her|their|its)\\b",
+                "named $1"
+            ],
+            [
+                "\\b(\\w+) and (\\w+) part\\b",
+                "$1 and $2 parted"
+            ]
+        ],
+        "words": {
+            "is": "was",
+            "are": "were",
+            "has": "had",
+            "does": "did",
+            "can": "could",
+            "weds": "wed",
+            "marries": "married",
+            "dies": "died",
+            "declares": "declared",
+            "ends": "ended",
+            "goes": "went",
+            "comes": "came",
+            "swears": "swore",
+            "keeps": "kept",
+            "conquers": "conquered",
+            "gains": "gained",
+            "presses": "pressed",
+            "arranges": "arranged",
+            "cedes": "ceded",
+            "breaks": "broke",
+            "lays": "laid",
+            "sues": "sued",
+            "pays": "paid",
+            "defaults": "defaulted",
+            "lends": "lent",
+            "gives": "gave",
+            "quiets": "quieted",
+            "cools": "cooled",
+            "ignores": "ignored",
+            "refuses": "refused",
+            "deepens": "deepened",
+            "burns": "burned",
+            "grows": "grew",
+            "succeeds": "succeeded",
+            "stands": "stood",
+            "disbands": "disbanded",
+            "enters": "entered",
+            "advances": "advanced",
+            "calls": "called",
+            "raises": "raised",
+            "unmasks": "unmasked",
+            "rises": "rose",
+            "turns": "turned",
+            "completes": "completed",
+            "lures": "lured",
+            "buys": "bought",
+            "achieves": "achieved",
+            "rides": "rode",
+            "holds": "held",
+            "storms": "stormed",
+            "besieges": "besieged",
+            "belongs": "belonged",
+            "wins": "won",
+            "loses": "lost",
+            "flees": "fled",
+            "takes": "took",
+            "makes": "made",
+            "sends": "sent",
+            "brings": "brought",
+            "proclaims": "proclaimed",
+            "sets": "set",
+            "hatches": "hatched",
+            "betrays": "betrayed",
+            "slays": "slew",
+            "kills": "killed",
+            "seizes": "seized",
+            "captures": "captured",
+            "frees": "freed",
+            "pardons": "pardoned",
+            "hangs": "hanged",
+            "builds": "built",
+            "founds": "founded",
+            "finds": "found",
+            "learns": "learned",
+            "joins": "joined",
+            "becomes": "became",
+            "begins": "began",
+            "speaks": "spoke",
+            "sees": "saw",
+            "knows": "knew",
+            "says": "said",
+            "tells": "told",
+            "thinks": "thought",
+            "sits": "sat",
+            "throws": "threw",
+            "draws": "drew",
+            "runs": "ran",
+            "sells": "sold",
+            "spends": "spent",
+            "owes": "owed",
+            "receives": "received",
+            "accepts": "accepted",
+            "agrees": "agreed",
+            "promises": "promised",
+            "survives": "survived",
+            "recovers": "recovered",
+            "weeps": "wept",
+            "laughs": "laughed",
+            "grumbles": "grumbled",
+            "arrives": "arrived",
+            "departs": "departed",
+            "crowns": "crowned",
+            "bears": "bore",
+            "adopts": "adopted",
+            "fosters": "fostered",
+            "wakes": "woke",
+            "sleeps": "slept",
+            "stays": "stayed",
+            "trudges": "trudged",
+            "walks": "walked",
+            "kneels": "knelt",
+            "shuts": "shut",
+            "rejoice": "rejoiced",
+            "rejoices": "rejoiced",
+            "mutter": "muttered",
+            "mutters": "muttered",
+            "follows": "followed",
+            "fills": "filled",
+            "rolls": "rolled",
+            "drinks": "drank",
+            "remains": "remained",
+            "threatens": "threatened",
+            "chooses": "chose",
+            "forgives": "forgave",
+            "forgets": "forgot",
+            "remembers": "remembered",
+            "seeks": "sought",
+            "sails": "sailed",
+            "marches": "marched",
+            "rallies": "rallied",
+            "surrenders": "surrendered",
+            "yields": "yielded",
+            "topples": "toppled",
+            "reigns": "reigned",
+            "inherits": "inherited"
+        }
+    },
     "minWeight": 4,
     "minEvents": 4,
     "maxEventsPerChapter": 40,
@@ -23,18 +237,18 @@
         { "from": "reign", "field": "years", "min": 30, "epithet": "the Long-Lived" }
     ],
     "tagWeights": {
-        "founding": 9, "succession": 10, "ended": 10,
+        "founding": 9, "succession": 10, "ended": 10, "victory": 10,
         "throne": 9, "capstone": 9, "conquest": 8, "greatWork": 8,
         "birth": 8, "marriage": 8, "widowed": 8, "divorce": 7, "love": 7,
         "ambition": 7, "title": 7, "discovery": 6, "war": 6, "siege": 6,
-        "peace": 6, "betrayal": 6, "devoted": 5, "heirs": 5, "saga": 5,
+        "peace": 6, "betrayal": 6, "devoted": 5, "heirs": 5, "regency": 8, "saga": 5,
         "chronicle": 4, "patronage": 3, "companion": 4, "upbringing": 3,
         "court": 3, "rival": 3, "scheme": 4, "threat": 3, "suspect": 2, "demand": 2,
         "achievement": 5, "trait": 5, "faith": 5, "highlight": 5
     },
     "themes": [
         { "id": "death", "tags": ["succession", "ended"] },
-        { "id": "family", "tags": ["birth", "marriage", "widowed", "divorce", "love", "heirs", "upbringing"] },
+        { "id": "family", "tags": ["birth", "marriage", "widowed", "divorce", "love", "heirs", "upbringing", "regency"] },
         { "id": "war", "tags": ["war", "siege", "conquest", "peace", "saga"] },
         { "id": "infamy", "tags": ["rival", "scheme", "betrayal", "threat", "suspect"] },
         { "id": "wealth", "tags": ["demand"] },

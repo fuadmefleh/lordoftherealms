@@ -154,23 +154,35 @@ export const RivalAgents = {
 
     // ──────────── THE PLAYER'S TOWNS ────────────
 
-    _folkAt(world, q, r) {
+    /**
+     * The town at (q, r) with a roster of at least three, or null. `lazy`: a
+     * town no one has walked through yet (no roster at all) counts too, as
+     * { folk: null } — recruit() seeds its roster (Townsfolk.seed) only when
+     * it is the town picked, so agents reach towns the player never entered.
+     */
+    _folkAt(world, q, r, lazy = false) {
         const tile = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
         const s = tile && tile.settlement;
-        const folk = s && s.folk;
+        if (!s) return null;
+        const folk = s.folk;
+        if (lazy && !_obj(folk)) return { s, folk: null, q, r };
         if (!folk || !Array.isArray(folk.people) || Townsfolk.residents(folk).length < 3) return null;
         return { s, folk, q, r };
     },
 
-    /** The nearest rostered town to (q, r) within `radius` hexes, or null. */
-    _nearestFolk(world, q, r, radius) {
+    /** The nearest rostered (or, lazy, not yet rostered) town to (q, r) within `radius` hexes, or null. */
+    _nearestFolk(world, q, r, radius, lazy = false) {
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
         let best = null;
         for (const s of views) {
-            const folk = s && s.folk;
-            if (!folk || !Array.isArray(folk.people) || Townsfolk.residents(folk).length < 3) continue;
-            const d = Hex.wrappingDistance(q, r, folk.q, folk.r, world.width || 0);
-            if (d <= radius && (!best || d < best.d)) best = { s, folk, q: folk.q, r: folk.r, d };
+            if (!s) continue;
+            const folk = s.folk;
+            const unseeded = lazy && !_obj(folk) && Number.isFinite(s.q);
+            if (!unseeded && (!folk || !Array.isArray(folk.people) || Townsfolk.residents(folk).length < 3)) continue;
+            const tq = unseeded ? s.q : folk.q;
+            const tr = unseeded ? s.r : folk.r;
+            const d = Hex.wrappingDistance(q, r, tq, tr, world.width || 0);
+            if (d <= radius && (!best || d < best.d)) best = { s, folk: unseeded ? null : folk, q: tq, r: tr, d };
         }
         return best;
     },
@@ -179,9 +191,11 @@ export const RivalAgents = {
      * Towns where a rival could buy someone: { key: { s, folk, q, r, kinds: Set,
      * holding } } — the player's holdings (informant, official, saboteur), towns
      * near their properties and works (informant, saboteur), and the seat of a
-     * crown they rule (informant).
+     * crown they rule (informant). Towns not yet rostered are offered too
+     * (folk: null) unless opts.lazy === false.
      */
-    towns(player, world) {
+    towns(player, world, opts = {}) {
+        const lazy = opts.lazy !== false;
         const out = {};
         const R = _num(RivalAgents.kind('saboteur').radius, 3);
         const add = (t, kinds, holding = false) => {
@@ -191,12 +205,12 @@ export const RivalAgents = {
             for (const k of kinds) e.kinds.add(k);
             if (holding) e.holding = true;
         };
-        for (const ref of Taxation.getPlayerSettlements(player, world)) add(RivalAgents._folkAt(world, ref.q, ref.r), ['informant', 'official'], true);
-        for (const ref of player.properties || []) add(RivalAgents._nearestFolk(world, ref.q, ref.r, R), ['informant', 'saboteur']);
+        for (const ref of Taxation.getPlayerSettlements(player, world)) add(RivalAgents._folkAt(world, ref.q, ref.r, lazy), ['informant', 'official'], true);
+        for (const ref of player.properties || []) add(RivalAgents._nearestFolk(world, ref.q, ref.r, R, lazy), ['informant', 'saboteur']);
         const mp = _obj(player.merchantPrince);
-        for (const inv of (mp && Array.isArray(mp.investments) ? mp.investments : [])) add(RivalAgents._folkAt(world, inv.q, inv.r), ['informant', 'saboteur']);
+        for (const inv of (mp && Array.isArray(mp.investments) ? mp.investments : [])) add(RivalAgents._folkAt(world, inv.q, inv.r, lazy), ['informant', 'saboteur']);
         const realm = (world.kingdoms || []).find(k => k && k.isAlive && k.crown && k.crown.playerRuled);
-        if (realm && realm.capital) add(RivalAgents._folkAt(world, realm.capital.q, realm.capital.r), ['informant']);
+        if (realm && realm.capital) add(RivalAgents._folkAt(world, realm.capital.q, realm.capital.r, lazy), ['informant']);
         return out;
     },
 
@@ -304,6 +318,9 @@ export const RivalAgents = {
         let pick = options[options.length - 1];
         for (const o of options) { x -= o.w; if (x < 0) { pick = o; break; } }
         const K = RivalAgents.kind(pick.kind);
+        // A town the player never walked through: its people are reckoned now (no shared RNG)
+        if (!pick.t.folk) pick.t.folk = Townsfolk.seed(pick.t.s, world, { q: pick.t.q, r: pick.t.r });
+        if (!pick.t.folk || Townsfolk.residents(pick.t.folk).length < 3) return null;
         let person = Schemes._castPerson(pick.t.folk, world, K.roles, `${_seed(world)}|agent${st.nextId}|${day}|${rivalId}`);
         if (person && taken.has(`${pick.t.q},${pick.t.r}:${person.id}`)) {
             const pool = Townsfolk.residents(pick.t.folk).filter(p => !taken.has(`${pick.t.q},${pick.t.r}:${p.id}`) && !p.rnpc && !p.wedHouse
@@ -458,8 +475,9 @@ export const RivalAgents = {
     inquire(player, world, q, r) {
         const C = RivalAgents.config();
         const day = _day(world);
-        const t = RivalAgents._folkAt(world, q, r);
-        if (!t) return { success: false, reason: 'There is no one here you know well enough to ask.' };
+        const t = RivalAgents._folkAt(world, q, r, true);
+        if (t && !t.folk) t.folk = Townsfolk.seed(t.s, world, { q, r });
+        if (!t || !t.folk || Townsfolk.residents(t.folk).length < 3) return { success: false, reason: 'There is no one here you know well enough to ask.' };
         if (!Number.isFinite(player.q) || Hex.wrappingDistance(player.q, player.r, q, r, world.width || 0) > 0) return { success: false, reason: 'You must be in the town to ask around.' };
         const st = RivalAgents.state(player);
         if (st.lastInquiry && st.lastInquiry.day === day && st.lastInquiry.key === `${q},${r}`) return { success: false, reason: 'You have already asked around here today.' };

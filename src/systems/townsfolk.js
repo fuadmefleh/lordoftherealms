@@ -62,6 +62,14 @@ const DEFAULTS = {
         villager: 'townsman', farmer: 'farmer', merchant: 'merchant', guard: 'guard', priest: 'priest',
         blacksmith_npc: 'smith', noble: 'noble', beggar: 'beggar', child: 'child',
     },
+    // The residents of a town no one has walked through yet (seed): the inner
+    // map's NPC pools (world/innerMap/state.js) without the passing travellers
+    seedPools: {
+        village: { villager: 4, farmer: 2, child: 2, merchant: 1 },
+        town: { villager: 6, merchant: 3, guard: 2, farmer: 2, priest: 1, blacksmith_npc: 1, child: 3 },
+        city: { villager: 8, merchant: 4, guard: 4, farmer: 2, priest: 2, blacksmith_npc: 1, noble: 2, child: 4, beggar: 1 },
+        capital: { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, beggar: 2 },
+    },
 };
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
@@ -202,6 +210,37 @@ export const Townsfolk = {
             [rest[i], rest[j]] = [rest[j], rest[i]];
         }
         return known.concat(rest).slice(0, cap);
+    },
+
+    /**
+     * A roster for a town the player has never walked through — so the
+     * systems that work through named townspeople (rival Houses' agents,
+     * systems/rivalAgents.js) can reach it headless. Built from the town's
+     * size (config seedPools) on the town's own hash stream; never draws on
+     * the shared RNG. The first visit then dresses the walking NPCs from it,
+     * as on any revisit. Returns the folk (the existing one if there is one).
+     */
+    seed(settlement, world, opts = {}) {
+        const C = Townsfolk.config();
+        if (!C.enabled || !settlement || !world) return null;
+        if (_obj(settlement.folk) && Array.isArray(settlement.folk.people)) return settlement.folk;
+        const day = _num(world.day, 1);
+        const q = _num(opts.q, settlement.q);
+        const r = _num(opts.r, settlement.r);
+        const pools = _obj(C.seedPools) || DEFAULTS.seedPools;
+        const pool = _obj(pools[settlement.type]) || _obj(pools.village) || DEFAULTS.seedPools.village;
+        const rng = _rng(world, { q, r }, day, 'seed');
+        const npcs = [];
+        for (const [type, count] of Object.entries(pool)) {
+            if (type === 'traveler') continue;
+            for (let i = 0; i < _num(count); i++) {
+                const age = type === 'child' ? 5 + Math.floor(rng() * 10) : 18 + Math.floor(rng() * 40);
+                npcs.push({ id: npcs.length, type, age, gender: rng() < 0.5 ? 'male' : 'female', name: null });
+            }
+        }
+        const folk = Townsfolk._create(settlement, world, npcs, { q, r, target: npcs.length }, day);
+        folk.seeded = day;
+        return folk;
     },
 
     _create(settlement, world, npcs, opts, day) {

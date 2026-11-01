@@ -6,6 +6,7 @@ import { Utils } from '../core/utils.js';
 import { Taxation } from './marketDynamics.js';
 import { Titles } from './titles.js';
 import { Traits } from './traits.js';
+import { Regency } from './regency.js';
 
 
 export const Councils = {
@@ -468,6 +469,9 @@ export const Councils = {
     },
 
     declareWar(player, world, targetKingdomId) {
+        // A child ruler cannot take the realm to war (systems/regency.js)
+        const minor = Regency.forbids(player, 'war');
+        if (minor) return { success: false, reason: minor };
         if (!this._hasWarAuthority(player)) {
             return { success: false, reason: 'Only the King or Chancellor can declare war.' };
         }

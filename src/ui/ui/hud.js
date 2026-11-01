@@ -11,6 +11,7 @@ import { updateCounselBadge } from '../actionMenu/counsel.js';
 import { updateFirstStepsCard } from '../firstStepsCard.js';
 import { uiZoom } from '../uiScale.js';
 import { NpcPortrait } from '../npcPortrait.js';
+import { updatePrestigeChip } from '../prestigeChip.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -51,6 +52,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnDeeds')?.addEventListener('click', () => ActionMenu.showDeeds(this.game));
         // The Annals: the life and dynasty told as a book (systems/annals.js)
         document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
+        // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)
+        document.getElementById('btnReckoning')?.addEventListener('click', () => ActionMenu.showReckoning(this.game, 'last'));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');
@@ -1082,6 +1085,7 @@ Object.assign(UI.prototype, {
             : (player.army ? player.army.length : 0);
         this._setHudText('tbShields', shields);
         this._setHudText('bbShields', shields);
+        updatePrestigeChip(player, world);
     },
 
     /** Bottom-left character card: name, alignment, morale, stance, level, portrait. */
@@ -1254,6 +1258,9 @@ Object.assign(UI.prototype, {
         bind('navTabQuests', () => this.showQuestsPanel());
         bind('navTabDiplomacy', () => this._showDiplomacyPanel(game.player, game.world));
         bind('navTabCounsel', () => ActionMenu.showCounsel(game));
+        bind('tbPrestige', () => { if (game.player && game.player.house) ActionMenu.showHousePanel(game, tileAt()); });
+        const chip = document.getElementById('tbPrestige');
+        if (chip) chip.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && game.player && game.player.house) { e.preventDefault(); ActionMenu.showHousePanel(game, tileAt()); } });
 
         // Left rail
         bind('railOverview', () => this.showCharacterPanel());

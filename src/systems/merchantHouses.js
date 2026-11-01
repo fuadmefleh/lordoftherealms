@@ -37,6 +37,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
@@ -293,7 +294,8 @@ export const MerchantHouses = {
         if (holder && holder !== 'player') return null;
         const entry = Trading.getAvailableGoods(s, tile, world).find(g => g.id === goodId);
         if (!entry) return null;
-        return Math.ceil(entry.price * Math.max(0.5, 1 - Trading.buyDiscount(player, s)));
+        // (the difficulty's market prices too, as Trading.buyCost charges the purchase)
+        return Math.ceil(entry.price * Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * Difficulty.mult(player, 'buyPrice'));
     },
 
     /**

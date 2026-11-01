@@ -132,6 +132,16 @@
             },
             "ignored": "{child}'s letter lies unanswered."
         },
+        "family_report": {
+            "_doc": "Sent by systems/heirAgency.js and systems/regency.js: a child's or regent's account of a commission, a fosterage, a battle (weight 0: never drawn by the daily tick). Replying warms the realm named, if any; silence costs nothing.",
+            "icon": "✒️", "weight": 0, "expiry": 20,
+            "subject": "{subject}",
+            "body": "{body}",
+            "choices": {
+                "reply": { "label": "Write back", "tooltip": "A few lines in your own hand.", "result": "You write back to {from}." }
+            },
+            "ignored": "You never wrote back to {from}."
+        },
         "child_hostage": {
             "icon": "⛓️", "weight": 8, "expiry": 10, "ransom": [100, 600], "ransomShare": 0.05, "heldPrestige": 8, "heldReputation": -10, "riskDays": 20,
             "subject": "{child} is afraid",

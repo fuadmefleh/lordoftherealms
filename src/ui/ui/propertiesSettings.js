@@ -796,6 +796,8 @@ Object.assign(UI.prototype, {
         this._confirmEndDay = settings.confirmEndDay || false;
         // The Steward's Counsel morning brief (ui/actionMenu/counsel.js)
         this._morningBrief = settings.morningBrief !== false;
+        // The Season's Reckoning at each change of season (ui/actionMenu/reckoning.js)
+        this._seasonReckoning = settings.seasonReckoning !== false;
         // Heralds' proclamations and overheard town talk (systems/heralds.js, systems/chatter.js)
         this._heralds = settings.heralds !== false;
         this._townChatter = settings.townChatter !== false;
@@ -859,6 +861,13 @@ Object.assign(UI.prototype, {
                     <label title="One notification each new day with the Steward's top three matters">Steward's Morning Brief</label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsMorningBrief" ${s.morningBrief !== false ? 'checked' : ''}>
+                        <span class="gs-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="gs-row">
+                    <label title="At each change of season, a report of what your doings changed (always in Journal → Season's Reckoning)">Season's Reckoning</label>
+                    <label class="gs-toggle">
+                        <input type="checkbox" id="gsSeasonReckoning" ${s.seasonReckoning !== false ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
                 </div>
@@ -1237,6 +1246,7 @@ Object.assign(UI.prototype, {
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
             morningBrief: getChecked('gsMorningBrief'),
+            seasonReckoning: getChecked('gsSeasonReckoning'),
             heralds: getChecked('gsHeralds'),
             townChatter: getChecked('gsTownChatter'),
             llmEnabled: getChecked('gsLlmEnabled'),
@@ -1301,6 +1311,7 @@ Object.assign(UI, {
             showMinimap: true,
             confirmEndDay: false,
             morningBrief: true,
+            seasonReckoning: true,
             heralds: true,
             townChatter: true,
             // Local LLM NPC brain (Spec 2) — off by default.

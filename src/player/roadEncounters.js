@@ -43,6 +43,7 @@ import { Bills } from '../systems/bills.js';
 import { Traits } from '../systems/traits.js';
 import { Quests } from '../systems/quests.js';
 import { Ledger } from '../systems/ledger.js';
+import { Difficulty } from '../core/difficulty.js';
 
 const DEFAULTS = {
     minChance: 0.05,
@@ -143,6 +144,11 @@ export const RoadEncounters = {
         return Math.max(c.minChance, Math.min(c.maxChance, v));
     },
 
+    /** Your chance against them, re-weighed by the difficulty's enemyStrength (exact on Normal), then clamped. */
+    _foeChance(player, v) {
+        return RoadEncounters._clampChance(Difficulty.againstFoe(player, RoadEncounters._clampChance(v)));
+    },
+
     _skill(player, id) {
         return _num(player.skills && player.skills[id], 1);
     },
@@ -166,7 +172,7 @@ export const RoadEncounters = {
         c -= (1 - Ailments.battleMultiplier(player)) * f.woundBattle;
         c -= (_num(attacker.speed, 5) - 5) * f.speed;
         if (Traits.has(player, 'craven')) c += f.craven;
-        return RoadEncounters._clampChance(c);
+        return RoadEncounters._foeChance(player, c);
     },
 
     tollAmount(player, sit) {
@@ -175,6 +181,7 @@ export const RoadEncounters = {
             ? t.armyShare + t.armyRatioShare * Math.min(1.5, sit.enemyStrength / Math.max(1, sit.armyStrength))
             : t.share;
         share = Math.max(0.03, share - RoadEncounters._skill(player, 'diplomacy') * t.diplomacy);
+        share *= Difficulty.mult(player, 'enemyStrength'); // a stronger band asks more (1 on Normal)
         return Math.max(t.min, Math.round(_num(player.gold) * share));
     },
 
@@ -188,7 +195,7 @@ export const RoadEncounters = {
         if (Traits.has(player, 'craven')) c += p.craven;
         if (sit.hasArmy) c += Math.max(p.armyMin, Math.min(p.armyMax, (sit.armyStrength / sit.enemyStrength - 0.5) * p.armyRatio));
         if (sit.warHost) c += p.warHost;
-        return RoadEncounters._clampChance(c);
+        return RoadEncounters._foeChance(player, c);
     },
 
     hideChance(player, attacker, sit) {
@@ -199,12 +206,12 @@ export const RoadEncounters = {
         if (sit.hasArmy) c -= Math.min(h.unitCap, sit.units * h.perUnit);
         if (player.mount) c += h.mount;
         if (sit.kind === 'beast') c += h.scent;
-        return RoadEncounters._clampChance(c);
+        return RoadEncounters._foeChance(player, c);
     },
 
     baitChance(player, attacker, sit) {
         const b = RoadEncounters.config().bait;
-        return RoadEncounters._clampChance((sit.monster ? b.monsterChance : b.chance) + RoadEncounters._skill(player, 'stealth') * b.stealth);
+        return RoadEncounters._foeChance(player, (sit.monster ? b.monsterChance : b.chance) + RoadEncounters._skill(player, 'stealth') * b.stealth);
     },
 
     fireChance(player, attacker, sit) {
@@ -215,7 +222,7 @@ export const RoadEncounters = {
         if (Traits.has(player, 'champion')) c += f.champion;
         if (sit.hasArmy) c += f.army * Math.min(1, sit.armyStrength / sit.enemyStrength);
         if (sit.monster) c += f.monster;
-        return RoadEncounters._clampChance(c);
+        return RoadEncounters._foeChance(player, c);
     },
 
     /** Alone against them: your skill and strength against their numbers. */
@@ -226,7 +233,7 @@ export const RoadEncounters = {
         let c = own / (own + sit.enemyStrength * d.enemyMult + d.enemyBase);
         if (Traits.has(player, 'brave')) c += d.brave;
         if (Traits.has(player, 'champion')) c += d.champion;
-        return RoadEncounters._clampChance(c);
+        return RoadEncounters._foeChance(player, c);
     },
 
     /**
@@ -470,7 +477,7 @@ export const RoadEncounters = {
         _train(player, 'combat', ok ? 0.3 : 0.1);
         if (!ok) {
             const out = RoadEncounters._caught(player, attacker, world, `You stood alone against the ${name} and were beaten down.`);
-            const extra = PlayerEffects.scaleDamage(player, Utils.randInt(3, 10));
+            const extra = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, Utils.randInt(3, 10)));
             player.health = Math.max(1, _num(player.health, 100) - extra);
             out.healthLost = _num(out.healthLost) + extra;
             out.success = false;
@@ -525,7 +532,7 @@ export const RoadEncounters = {
         if (playerArmySize === 0 && (attacker.type === 'beast' || attacker.type === 'monster')) {
             // --- No army vs. a creature: mauled, nothing stolen ---
             // Armour and Divine Protection soften the blow
-            const healthLost = PlayerEffects.scaleDamage(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18));
+            const healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18)));
             player.health = Math.max(1, player.health - healthLost);
             attacker.targetQ = null;
             attacker.targetR = null;
@@ -547,8 +554,8 @@ export const RoadEncounters = {
 
         if (playerArmySize === 0) {
             // --- No army: player is robbed / roughed up ---
-            const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4)));
-            const healthLost = PlayerEffects.scaleDamage(player, Utils.randInt(5, 15));
+            const goldStolen = Math.min(player.gold, Math.floor(player.gold * Utils.randFloat(0.15, 0.4) * Difficulty.mult(player, 'enemyStrength')));
+            const healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, Utils.randInt(5, 15)));
 
             player.gold -= goldStolen;
             player.health = Math.max(1, player.health - healthLost);

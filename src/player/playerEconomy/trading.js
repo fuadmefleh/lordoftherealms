@@ -9,6 +9,7 @@ import { Ships } from '../../systems/ships.js';
 import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
+import { Reckoning } from '../../systems/reckoning.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 import { Crafting } from '../crafting.js';
 import { Difficulty } from '../../core/difficulty.js';
@@ -273,6 +274,8 @@ export const Trading = {
         // Add to player inventory
         PlayerInventory.addItem(player, good.id, quantity);
 
+        // The season's tally of what the player moved here, before the stock moves (systems/reckoning.js)
+        if (settlement) Reckoning.noteTrade(player, settlement, good.id, quantity, 'buy', totalCost);
         // The goods leave the town's store (the price climbs)
         if (settlement) SettlementMarket.take(settlement, good.id, quantity);
 
@@ -335,7 +338,9 @@ export const Trading = {
         Quests.track(player, 'trade_profit', totalEarned);
 
         // The goods join the town's store (the price falls); the guild takes its toll
+        // (the season's tally first, before the stock moves — systems/reckoning.js)
         if (settlement) {
+            Reckoning.noteTrade(player, settlement, goodId, quantity, 'sell', totalEarned);
             SettlementMarket.add(settlement, goodId, quantity);
             Guilds.onSale(player, settlement, goodId, quantity, totalEarned);
         }

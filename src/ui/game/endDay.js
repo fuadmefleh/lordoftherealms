@@ -12,6 +12,8 @@ import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { HeirAgency } from '../../systems/heirAgency.js';
+import { Regency } from '../../systems/regency.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
@@ -57,11 +59,13 @@ import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
+import { Reckoning } from '../../systems/reckoning.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 import { showDayBanner } from '../dayBanner.js';
 import { settleScene } from '../actionMenu/choiceScenes.js';
 import { Pirates } from '../../systems/pirates.js';
+import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
 import { checkMapAccusation } from '../actionMenu/treasureScenes.js';
 
@@ -471,6 +475,10 @@ export function endDay() {
 
                 // Raising the heirs — growth, tutors, childhood events, coming of age
                 this._reportUpbringing(Upbringing.processDay(this.player, this.world));
+                // Children abroad and at work (fosterings, betrothals, embassies, a commander's wounds),
+                // and a child's reign under a regent (systems/heirAgency.js, systems/regency.js)
+                for (const n of HeirAgency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                for (const n of Regency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // The townsfolk live a season: births, deaths, weddings, comings and goings.
                 // Word reaches the player of the people they have met.
@@ -609,6 +617,9 @@ export function endDay() {
                 if (encounter && typeof document !== 'undefined') ActionMenu.showScene(this, 'sea', encounter);
                 else if (encounter) Pirates.autoResolve(this.player, this.world, encounter);
             }
+            // Sea reavers come ashore on your coastal holdings near their havens (systems/landings.js)
+            const landingDay = Landings.processDay(this.world, this.player);
+            for (const n of landingDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Kingdoms at war with the player — ultimatums, war hosts, sieges
             const war = RealmWars.processDaily(this.player, this.world);
@@ -1221,6 +1232,13 @@ export function endDay() {
             // Close the day's books: every flow the systems recorded today joins the
             // row, the totals are set and the last 120 days kept (systems/ledger.js)
             Ledger.closeDay(this.player, this.world, dayFinance);
+            // The Season's Reckoning: at a season's turn, what the player's doings changed
+            // (systems/reckoning.js; shown unless switched off in Settings — always in the Journal)
+            const reckoning = Reckoning.processDay(this.world, this.player);
+            if (reckoning.report && this.ui._seasonReckoning !== false) {
+                if (this._voyageDay) this.ui.showNotification('⏳ The Season’s Reckoning',`${reckoning.report.headline}. Read it in Journal → Season's Reckoning.`, 'info');
+                else setTimeout(() => ActionMenu.showReckoning(this, 'last'), 0);
+            }
 
             // Reset inner map time if the day was ended while on the inner map
             if (this.innerMapMode && typeof InnerMap !== 'undefined') {

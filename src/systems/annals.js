@@ -87,7 +87,7 @@ function _cap(s) {
 
 /** Lower the first letter of a chronicle line that follows an opener ("The war…" → "the war…"). */
 function _lcFirst(text) {
-    return /^(The|A|An|After|Its|His|Her|Their|Generation|Men|It|By|So|Of)\b/.test(text) ? text[0].toLowerCase() + text.slice(1) : text;
+    return /^(The|A|An|After|Its|His|Her|Their|Generation|Men|It|By|So|Of|Come)\b/.test(text) ? text[0].toLowerCase() + text.slice(1) : text;
 }
 
 /**
@@ -105,6 +105,36 @@ function _clean(text) {
     const parts = t.split(/(?<=[.!?])\s+/).filter(x => x && !/\b(you|your|yours|yourself)\b/i.test(x));
     t = parts.join(' ').replace(/^[^\p{L}\p{N}"'“]+/u, '').trim();
     return t;
+}
+
+let _ptSrc;
+let _ptRules = null;
+
+/**
+ * A chronicle line put into the past tense (data/annals.json → pastTense):
+ * the phrases, then the whole lowercase words, outside quoted text only.
+ */
+function _pastTense(text, pt) {
+    if (!text || !_obj(pt)) return text;
+    if (_ptSrc !== pt) {
+        _ptSrc = pt;
+        const words = _obj(pt.words) || {};
+        const keys = Object.keys(words).filter(k => !k.startsWith('_')).sort((a, b) => b.length - a.length);
+        _ptRules = {
+            phrases: _arr(pt.phrases).filter(p => Array.isArray(p) && p.length >= 2).map(([re, to]) => [new RegExp(re, 'g'), String(to)]),
+            words: keys.length ? new RegExp(`\\b(${keys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'g') : null,
+            map: words,
+        };
+    }
+    const R = _ptRules;
+    // Even-indexed parts are outside quotes ("…" or “…”)
+    return String(text).split(/("[^"]*"|“[^”]*”)/).map((part, i) => {
+        if (i % 2) return part;
+        let t = part;
+        for (const [re, to] of R.phrases) t = t.replace(re, (...m) => to.replace(/\$(\d)/g, (_, n) => m[+n] || ''));
+        if (R.words) t = t.replace(R.words, (w) => R.map[w] || w);
+        return t;
+    }).join('');
 }
 
 function _sentence(text) {
@@ -217,6 +247,7 @@ export const Annals = {
                 const m = new RegExp(re).exec(t);
                 if (m) { t = to.replace(/\$(\d)/g, (_, i) => m[+i] || '').replace('{name}', name); break; }
             }
+            t = _pastTense(t, C.pastTense);
             t = _sentence(t);
             if (t) out.push({ day: _num(day), text: t, tags, weight: Annals.weight(tags), theme: Annals.theme(tags) });
         };
@@ -337,6 +368,9 @@ export const Annals = {
             parts.push(_fill(_pick(C.openingDisputed, `disp:${succ.day}`), { ...vars, quelled: /quelled/.test(succ.text) ? C.openingQuelled : '' }));
         }
         if (succ && /regency/.test(succ.text)) parts.push(_fill(C.openingRegency, vars));
+        // The life the heir lived before the throne (systems/heirAgency.js onSuccession)
+        const record = _arr(house.history).find(h => _arr(h.tags).includes('heirRecord') && (h.generation || 1) === reign.generation);
+        if (record && ctx.index > 0) parts.push(record.text);
         // (the living ruler's names won this reign are told in their year instead)
         const earned = reign.live ? (_obj(player.traits && player.traits.earned) || {}) : {};
         const told = (id) => _num(earned[id] && earned[id].since, -1) > _num(reign.startDay);

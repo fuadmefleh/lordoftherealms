@@ -2,6 +2,7 @@
 import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
+import { HeirAgency } from '../../systems/heirAgency.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -69,6 +70,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= PlayerEffects.faithBattleMultiplier(player);
         // Earned traits (Brave, Craven, Sea Wolf, Champion…)
         playerPower *= PlayerEffects.traitBattleMultiplier(player);
+        // A child of the House commanding the company — or a regent's captains (systems/heirAgency.js)
+        playerPower *= HeirAgency.commandMultiplier(player);
         // A wounded or fevered commander (systems/ailments.js)
         playerPower *= PlayerEffects.ailmentBattleMultiplier(player);
         // Fortification techs help when the player is the one attacked
@@ -100,6 +103,8 @@ Object.assign(PlayerMilitary, {
         const victory = playerPower > enemyPower;
         // Travelling companions react to the outcome; with low odds one may fall
         Companions.onBattle(player, victory, { enemyName, roleOf: n => PlayerEffects.companionRole(n) }, context.world);
+        // The commanding child's record and fate (wounded, captured, killed)
+        HeirAgency.onBattle(player, context.world, victory, enemyName);
 
         // Calculate casualties
         let casualtyRate = victory ?

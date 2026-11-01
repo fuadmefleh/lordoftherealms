@@ -34,6 +34,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 14. [Espionage](#14-espionage)
     - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
 15. [Ships & Naval](#15-ships--naval)
+    - [Landing Parties](#landing-parties) — raids from the sea, beach runs past the customs, landfall colonies, sea reavers
 16. [Kingdoms & Diplomacy](#16-kingdoms--diplomacy)
 17. [Titles & Royal Office](#17-titles--royal-office)
     - [Claims & Crowns: the Path to the Throne](#claims--crowns-the-path-to-the-throne)
@@ -69,7 +70,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 
 ### Your First Steps
 
-You begin the game as a 20-year-old wanderer near the center of a procedurally generated world. You carry **10,000 gold** and **20 bread** — enough to survive your first weeks, but not enough to be comfortable for long.
+You begin the game as a 20-year-old wanderer near the center of a procedurally generated world. You carry **250 gold** and **20 bread**: enough for a few weeks of bread, not a sword or a roof. You build up from there. Day labour in a village pays about 15–25 gold a job (two jobs fill a day's action points), and food runs 8–16 gold a day depending on the season. Save, trade and climb. Difficulty scales the purse (Easy 375, Hard 150, Brutal 75).
 
 ### The Guided First Month (First Steps)
 
@@ -97,7 +98,7 @@ The new-game screen's **Origin & Challenge** box sets who you start as, how hard
 
 | Origin | You begin with | Suggested goal |
 |---|---|---|
-| 🧭 **The Wanderer** | The classic start: 10,000 gold, 20 bread, the open road. Guided start on. | Sandbox |
+| 🧭 **The Wanderer** | The classic start: 250 gold, 20 bread, the open road. Work your way up. Guided start on. | Sandbox |
 | 🥀 **The Disinherited** | A home town in the realm your blood runs to. A **Birthright** claim of 18 on its throne (25 is needed to press a claim, so you have to strengthen it: a royal marriage, a royal office, heralds, forgeries). 30 House Prestige, +10 reputation there, +2 charisma, +2 diplomacy, +1 leadership. **400 gold**, and an **elder sibling** at that court who is your House's bitterest rival (feud 55, which feeds the realm's hostility toward you and the rival schemes). | Wear a Crown |
 | ⚒️ **Guild Journeyman** | A guild town near where you would have started. You are a **journeyman** of one of its guilds (guild rates on inputs, no outsider toll, your works protected) with standing 20, 6 of the guild's goods, +3 commerce, +1 intelligence, and 300 gold. You owe **600 gold of indenture** to the guild, paid at 50 gold a week like a guild loan. Three missed payments and the guild throws you out. | Merchant Prince |
 | 👑 **The Exiled Monarch** | A **Birthright** claim of 45 on the realm with the lowest stability (enough to press it), where a usurper now rules and a **disputed succession** has just broken out (pressing your claim during it adds the crisis bonus to every town's lean). Four soldiers and a knight, 1,500 gold (enough to raise your banners), 60 Prestige, +15 reputation there, and the usurper's House as a rival (feud 40). You start in exile, in the nearest town outside the realm. | Wear a Crown |
@@ -114,7 +115,7 @@ Choosing an origin also sets its suggested goal and turns the guided start (Firs
 | Prices you pay | ×0.9 | ×1 | ×1.1 | ×1.2 | every market purchase (and the sell-back cap) |
 | Prices you are paid | ×1.1 | ×1 | ×0.92 | ×0.85 | every market sale |
 | Realms' hostility | ×0.6 | ×1 | ×1.3 | ×1.6 | how much a realm wants war with you (ultimatums and wars) |
-| Foes in battle | ×0.8 | ×1 | ×1.2 | ×1.4 | the enemy's fighting power in your battles (quick and three-phase) |
+| Foes in battle | ×0.8 | ×1 | ×1.2 | ×1.4 | the enemy's fighting power in your battles (quick and three-phase); on the road, every escape and fight chance in a road encounter (flee, parley, hide, bait, fire, a fight alone), the toll a band asks, and what an ambush takes and does to you; in the wilds, the odds and the harm of a fight (a choice that leans on combat or battle power) |
 | Wounds & sickness | ×0.6 | ×1 | ×1.3 | ×1.6 | the care factor: festering wounds, deadly disease stages, sick companions |
 
 The difficulty stays with the game: an heir keeps it, and so does a new life after death.
@@ -135,7 +136,7 @@ An heir carries the goal on. A new life keeps the goal but must win it again; pa
 
 | Stat | Value | Description |
 |------|-------|-------------|
-| Gold | 10,000 | Your currency for everything |
+| Gold | 250 | Your currency for everything |
 | Health | 100/100 | Reach 0 and you die |
 | Stamina | 10/10 | Movement points per day |
 | Action Points | 10/10 | Actions available per day |
@@ -407,7 +408,7 @@ Your character becomes someone through what they do. Every notable deed is count
 
 ### Death & Succession
 
-Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with a child aged 16+, you choose which of them to continue as. The death screen shows each heir's profile: stats, skills, education and traits. The heir inherits 75% of your gold, 50% of your renown, and 30% of your reputation, and starts with the stats, skills and traits their upbringing gave them (see [Children & Heirs](#children--heirs)). With only younger children you may install a regency. Without any heir, the line ends and the **epitaph** screen scores your House's legacy (see [The House Chronicle and Legacy](#the-house-chronicle-and-legacy)).
+Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with a child aged 16+, you choose which of them to continue as. The death screen shows each heir's profile: stats, skills, education and traits. The heir inherits 75% of your gold, 50% of your renown, and 30% of your reputation, and starts with the stats, skills and traits their upbringing gave them (see [Children & Heirs](#children--heirs)), plus what their life before the throne earned — fosterings, commands, embassies, a marriage (see [Playing the Heir Before They Inherit](#playing-the-heir-before-they-inherit)). With only younger children — or a designated heir still under 16 — you may install a **regency** and play the child's court until they come of age (see [A Regency](#a-regency)). Without any heir, the line ends and the **epitaph** screen scores your House's legacy (see [The House Chronicle and Legacy](#the-house-chronicle-and-legacy)).
 
 The late ruler's own traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
 
@@ -625,6 +626,8 @@ The game features 26+ tradeable goods:
 | Rock Oil | 22g | Pitch Works (oil seeps) |
 
 ### Town Markets: Stock, Scarcity and Trade
+
+> **Why is it so dear?** In the Market window, the ⓘ beside any price breaks it into these factors: the stock, the season, events, the coin, guilds and trade policy, the harvest behind them, and your own terms (see *Controls & UI → "Why?"*). The *Season's Reckoning* shows how your own trading moved each town's stalls.
 
 Every settlement keeps one store of goods: about thirty staples from grain, bread and beer to firewood, cloth, tools, iron, horses and luxuries (`data/markets.json`). That store is what you buy from and sell into. Caravans, ports, trading-company factors and tavern talk all read the same store.
 
@@ -2423,7 +2426,7 @@ A criminal path through the realms, alongside the honest one. Everything here is
 
 **Heat** is your notoriety with one kingdom's watch, from 0 to 100, shown per realm in the **Underworld** panel (and on the action itself: *Underworld (heat 34)*).
 
-- **Raised by crimes:** pickpocketing (+3), burglary (+8), protection rackets (+6, then +3 a week), heists (+25), black-market deals (+2, scaled by how illegal the goods are), smuggling — by hand or by route (+2 to +4), piracy (+12 with the realm whose waters it was) and robbing caravans. Being caught raises it far more (+10 to +35).
+- **Raised by crimes:** pickpocketing (+3), burglary (+8), protection rackets (+6, then +3 a week), heists (+25), black-market deals (+2, scaled by how illegal the goods are), smuggling — by hand, by route or in a beach run past the customs house (+2 to +4; see [Landing Parties](#landing-parties)), piracy (+12 with the realm whose waters it was) and robbing caravans. Being caught raises it far more (+10 to +35).
 - **Cools** by 1 a day everywhere. **Lie low** in a realm (from the panel) and it cools by 4 a day there for 3 days — but you take no jobs in that realm meanwhile.
 - **Bribe the watch** (1 AP): pay to knock up to 30 heat off. The price scales with the heat and the town's guard strength; guild rank discounts it (5% per rank). About 1 in 10 sergeants takes the gold and reports you anyway (more in *orderly* realms, fewer if you are charming).
 - Answering to the guards at the guard tower (settling your bounties) also cools heat to 20.
@@ -2583,9 +2586,38 @@ You don't need a port to go ashore. While aboard, **Row Ashore** (4 AP) lets you
 
 Cargo is limited by where you land. A **port** — a settlement on the water — unloads the whole hold into your inventory. Anywhere else (open shore or a beach) the ship's boat ferries only **5 cargo per day**; whatever doesn't fit stays in the hold.
 
+A landing is more than a way ashore: from it you can raid a coastal town, run goods past the customs house, or found a colony (see [Landing Parties](#landing-parties)).
+
 ### Ship's Hold
 
 Use **Ship's Hold** (free) to load goods from your pack into a ship, or unload them, while the ship is docked on your hex or anchored next to you. You can't shift goods between pack and hold while aboard. Each ship's hold is capped by its cargo capacity (plus Cargo Hold upgrades). At a port transfers are unlimited; elsewhere they share the boat's 5-per-day allowance with whatever came ashore when you landed. Anchored and docked ships are shown on the world map (⛵, with ⚓ when anchored).
+
+### Landing Parties
+
+Standing beside the coast with a ship (aboard, or ashore with the ship at anchor next to you), **🛶 Landing Party** (free; each deed pays its own AP) puts the boats to work:
+
+**⚔️ Raid from the sea** (8 AP). Aboard beside a town or village on the water (or ashore beside it with a ship at anchor), land troops and fall on it. Each ship's boats put **8 soldiers** ashore a day (your strongest go first; the rest stay aboard), and a ship's boats carry one party a day. War galleys in your army bombard from the water. A town caught unready by boats out of the sea turns out only about a third of its garrison. Your own holdings and your liege's towns can't be raided.
+- **Plunder:** gold from the town (0.4–1.2 per inhabitant) and the most valuable goods in its market, carried to your hold (a boat-load, 5, per ship).
+- **Burn the stores:** little gold, but 40% of the market's stores and of the granary go up in smoke.
+- Either way the town loses people, and you lose karma (more for burning) and 15–25 reputation with the realm. The lord remembers the raid (see [Lords' Memory & Court Letters](#lords-memory--court-letters)), your House's feud with the realm grows, and you gain sea infamy (see [At Sea](#at-sea)). All of these feed the realm's hostility toward you, and with it ultimatums and war (see [Coalitions & Threats](#coalitions--threats)).
+- **The coast on alarm.** After a raid from the sea (won or lost), that realm watches its shores for 30 days: the next landing meets about 60% of the garrison, and beach runs on its coast are caught more often.
+- A town that was raided has nothing worth taking for 30 days (shared with overland raids).
+
+**🌙 Run goods ashore** (2 AP). Ashore on **open coast** (no port, no jetty) beside a ship at anchor, row a boat-load of cargo past the customs house. Only goods that owe something can be run: goods booked to a realm (bought there; see [Kingdom Trade Policy](#kingdom-trade-policy)) or goods that are contraband on this coast.
+- **Unseen:** the goods come into your packs with no realm's booking: they sell free of import duty, and an embargo no longer bars them. Contraband stays contraband: sell it on the black market or to a fence (see [The Underworld](#the-underworld)). A small amount of heat follows the rumour, and a guild member gains standing.
+- **The coast watch** belongs to the realm whose land it is, or the realm of the nearest town within 6 hexes. Its chance to catch you starts at 8%, plus your heat with the realm, plus the nearest town's guard (more the closer it is), +20% while the coast is on alarm, +12% while the realm is blockaded, minus your stealth and cunning (3–80%). A shore no realm watches is all but safe (3%).
+- **Caught:** the goods are seized, you are fined half their worth (paid into the realm's treasury), you gain smuggling heat, and one time in five you are jailed in the nearest town.
+- A run uses the boat's daily trips (5 cargo a day). Normal unloading through the **Ship's Hold** keeps the goods' bookings and is never risky.
+
+**🏕️ Found a colony here** (6 AP). Ashore on unclaimed coast with a ship at anchor beside you whose hold carries at least **5 founding stores** (food, timber, wood, stone, tools, iron or provisions), you can found a **landfall colony** for **300g** instead of 500g (see [Colonization](#20-colonization)). A boat-load of the stores comes ashore with it (food into its granary, every good into its market), and **12 settlers** come over from the ship.
+- **No quay yet.** A landfall colony is not a harbour: cargo moves to and from ships there only by boat, a boat-load a day, until you build a **Jetty** on the colony's hex (Build Infrastructure, allowed there for this reason) or finish its **Harbour** project. After that, it is a port like any other.
+- **📦 Land stores for a colony.** In any of your colonies with a ship docked or at anchor beside it, land goods from the hold straight into the colony: food goes to its granary, every good to its market, and word of a well-supplied colony draws settlers (+0.5 recruitment reputation per unit). Without a quay, a boat-load a day.
+
+**Islands and cut-off coasts.** Ruins, delves, treasure caches and other places on islands or coasts no road reaches are reached by rowing ashore: once landed you walk the island as usual, explore, delve, dig or enter the inner map, then row back out to the anchored ship.
+
+**🏴‍☠️ Sea reavers.** Pirate captains (see [At Sea](#at-sea)) put landing parties ashore on your **coastal holdings** within 14 hexes of their haven (about 1.5% a day per captain, more from a captain with a grudge against you; at most once every 14 days per holding). The holding's defence (walls, watchtower, garrison, militia, governor — see [Developing Your Holdings](#developing-your-holdings)) is matched against 60% of the captain's strength. Beaten off, the captain is weakened and you gain renown. Otherwise the reavers burn 15% of the market's stores and 20% of the food, carry off 2% of the people, and leave unrest behind.
+
+Tunables live in `src/systems/landings.js` (`DEFAULTS`; a `landings` section in the game data overrides them).
 
 ### Ship Trading
 
@@ -3113,7 +3145,7 @@ Instead of taking a throne, you may make one. Hold **3+ settlements** (your colo
 
 ### Spending Prestige
 
-Prestige is your House's standing — gold can't buy what it does. It is the only prestige counter: older saves' "dynasty prestige" is folded into House Prestige on load, and an heir succeeding you earns the House +5. From the House panel:
+Prestige is your House's standing — gold can't buy what it does. It is the only prestige counter: older saves' "dynasty prestige" is folded into House Prestige on load, and an heir succeeding you earns the House +5. The top bar shows it beside your gold, renown and army (the banner chip): the Prestige and its change over the last 30 days; hover it for the current Ambition and its milestones, click it to open the House panel. From the House panel:
 
 | Action | Cost | Effect |
 |--------|------|--------|
@@ -3407,6 +3439,75 @@ Married and fostered children stay in the line of succession.
 
 **Succession.** The heir takes over with their own stats and skills, and their adult traits become real earned traits. A regency heir keeps the childhood traits they had. Like any earned trait, these can later be eroded by contrary deeds.
 
+#### Playing the Heir Before They Inherit
+
+What you do with your children while you live pays off when one of them succeeds you (`systems/heirAgency.js`, tuned in `data/upbringing.json` → `agency`). Open a child's page (**Dynasty → 📖**). The Dynasty list shows where each child is and what they are doing.
+
+**Fostering a child (ages 7–15).** Send the child to be raised at a ruler's court for 1, 2 or 3 years. You cannot foster at a court you are at war with, or one where your reputation is below −10.
+- The host's court becomes the child's tutor at ×1.4. Its subject follows the realm's temper: martial in warlike realms, stewardship in mercantile ones, diplomacy elsewhere. Any tutor at home is let go.
+- The host ruler's character seeds the child's own. They come home with it as a childhood trait, fixed at 16.
+- A **bond** with that court grows by 1 a month, up to 20.
+- Fostering a child at a **rival House's** court cools that feud by 10.
+- If the court comes to think ill of you (its regard falls to −30 in peacetime), it keeps the child as a **hostage**. A held child does not come home. Ransom them home by letter (Post); a fosterage cut short this way counts for nothing at succession. At open war the danger comes by letter instead: the child writes that they are afraid.
+- A grown child goes as a ward for a season instead (see above).
+
+**Betrothal (ages 4–15).** Promise a child to a realm's nobility. It costs half the alliance dowry (100 gold) and gives +8 reputation, and the lord remembers it. When the child comes of age the match is made, with the rest of the alliance's standing and Prestige. Breaking a betrothal costs 15 reputation and a lasting grudge. If the child is married elsewhere, the betrothal breaks itself.
+
+**Kin are slow to turn on you.** A realm bound to your House by marriage (yours, or a child wed into it) counts only half its hostility toward a league against you. A realm bound by a betrothal counts three-quarters (see [Coalitions & Threats](#coalitions--threats)). The Threats panel shows the reason.
+
+**Commissions for a grown child.** A grown child at home can take one commission with real stakes:
+- **Command the company.** The child leads your army. Battle power rises by 2.5% per point of their combat and 1.5% per point of leadership, up to +30%. Every battle teaches them combat (+0.5) and leadership (+0.25). Every battle also risks them:
+  - in a victory: 6% chance of a wound, 1% of death;
+  - in a defeat: 20% wound, 8% capture, 4% death.
+
+  A wounded child rests 30 days. A captive's captors ask 150 gold, paid from the child's page. Unpaid, they let the child go after 60 days, and the House loses 6 Prestige for not paying for its own. A death is final. Fate is rolled from the world seed, so a reload does not change it.
+- **Envoy.** The child spends 30 days at a realm's court (40 gold). They come home with +6 reputation there (+1.5 more per point of their diplomacy), the lord's memory of the embassy, a bond (+4) and +1 diplomacy. If your realms go to war meanwhile, the court keeps them as a hostage.
+- **Steward.** Appoint the child governor of a holding from that holding's panel. Every 90 days in office teaches +1 commerce, and the days count toward their record.
+
+The child's outcomes come home as letters (✒️ in **Letters**). Writing back warms the court they wrote of.
+
+**What the record carries into a reign.** The child's page previews it under *Should they inherit*. When they succeed:
+
+| Record | Payoff |
+|---|---|
+| Fostered at a court (not recalled) | That lord remembers *"I raised the one who rules your House now"* (14 + 0.6 × bond, fading over ~1,500 days), +10 reputation there, +4 Prestige |
+| Envoy to a court | +3 reputation there, +1 Prestige per realm |
+| Battles commanded | +2 Prestige (up to 15) and +5 renown (up to 50) per battle won; 3+ victories make the new ruler **Brave** |
+| Taken captive | −3 Prestige each time |
+| Governed a holding 180+ days | +1 commerce, +3 Prestige |
+| Wed into a realm | Its lord counts the throne as kin (marriage memory), +3 Prestige |
+
+The new reign's chapter of the **Annals** opens with this life (*"Corin came to the seat with a life already lived: raised at the court of Maud of Arvenland; commanded the House's company in 3 battles…"*).
+
+#### A Regency
+
+When the heir is under 16, you may install a regency (`systems/regency.js`, tuned in `data/upbringing.json` → `regency`). The child keeps their real age, and you play the child's court until they come of age. The House pays the old price too: a regency sheds holdings (the title and a tenth of the gold).
+
+**The regent.** On the death screen, choose who rules in the child's name:
+- the late ruler's **spouse** (the child's parent): loyal (72), seldom ambitious;
+- a **grown sibling** at home: less loyal (58), often ambitious;
+- a lord of the **regency council** (55).
+
+Ambition varies with the person and their traits. Every week the regent's loyalty drifts toward what the House can command: their kind, your Prestige, favours you have shown, less their ambition.
+- A regent below 45 loyalty skims the treasury, up to 120 gold a week. It shows in the Ledger under *The regency*, and your steward reports the shortfall each month.
+- A regent below 25 loyalty with ambition 50+ **plots**. Whispers warn you once the plot is half-grown. When it ripens they stage a **coup**: a quarter of your gold, then your office and a tenth of what is left, and 10 Prestige.
+- If the regent dies, a council lord takes over.
+
+**The child's court** (**Dynasty → 👑 Regency**):
+- **A gift** (100 gold) wins +8 loyalty.
+- **Public honours** (8 Prestige) win +12 loyalty and cool their ambition.
+- **Put the regent aside** for a council lord (15 Prestige). It costs only 5 Prestige once a plot has been exposed, and then half of what they skimmed is recovered. Putting a sibling aside without cause leaves them nursing a claim on the next succession.
+- **Assert your majority** from age 14 (12 Prestige).
+
+**Limits of a child ruler.** No war may be declared and no siege laid while a regent rules. In battle the company fights under the regent's captains (×0.92), unless a sibling of the blood commands it.
+
+**Coming of age.** At 16 (or when you assert it) the regency ends and you decide what becomes of the regent's men:
+- **Keep them.** A loyal regent's men are steady hands: +1 diplomacy, +10 renown. A disloyal regent's men take one last cut.
+- **Purge them.** Recover half of what was skimmed. Gain 6 Prestige if they plotted, otherwise lose 5 for ingratitude. A purged sibling nurses a claim.
+- **Reward them** (200 gold): +6 Prestige, and every House officer's loyalty rises by 10.
+
+Undecided after 14 days, the men stay. The regency's start, its turns and its end are written in the House Chronicle and the Annals.
+
 ### The House Chronicle and Legacy
 
 **Dynasty → 📜 House Chronicle** tells your House's story one ruler at a time. Each reign shows:
@@ -3501,7 +3602,7 @@ A reign that began in a save from before the ledger existed is counted from the 
 
 **The court scribe.** With the local language model switched on (Settings → *Enable Local LLM NPCs*), each chapter offers *✒️ Have the court scribe write this chapter*: the model retells the chapter as flowing prose, using only the chapter's own facts. It takes a moment and never holds up the game; if the model is off, slow or unreachable, the annals simply stand as written. You can switch between the scribe's chapter and the plain annals.
 
-The phrasing is chosen by the event and its day, never by chance, so the same game always reads the same. The wealth curve is a mark of the purse each season, kept with the House (older marks are thinned so a long dynasty keeps its whole curve). Phrases and what counts as notable are in `data/annals.json`.
+The book is told in the past tense: the House chronicle's lines (*"Bran weds Tamsin"*) are put into the past (*"Bran wed Tamsin"*) as they enter it; titles in quotes are left as written. The phrasing is chosen by the event and its day, never by chance, so the same game always reads the same. The wealth curve is a mark of the purse each season, kept with the House (older marks are thinned so a long dynasty keeps its whole curve). Phrases and what counts as notable are in `data/annals.json`.
 
 ---
 
@@ -3586,6 +3687,8 @@ You can found colonies on unclaimed wilderness (costs gold). Recruit settlers fr
 | Coastal Tribes | Coast, Beach | Very Low | Very High |
 | Tundra People | Tundra, Snow | Low | Low |
 
+**Landfall colonies.** A colony can also be founded from a ship's landing party on unclaimed coast: cheaper, with settlers and stores from the hold, but without a quay until you build a jetty (see [Landing Parties](#landing-parties)).
+
 **Uncharted lands.** A colony founded on or within 3 hexes of an island, cove or valley you found claims it. You alone gather its exotic goods, and more of them. Realms that know of the place may contest the claim with their navies (see [Uncharted Lands](#uncharted-lands)).
 
 ### Colonization Policies
@@ -3664,6 +3767,8 @@ A **rebellion** stops all taxes and building there. A garrison that grows strong
 If the rebels still hold the town at the deadline, it becomes a free town and is no longer yours.
 
 **Bandit raids.** Raider bands within 2 hexes of a holding may fall on it (about 6% a day per band, less with walls, a watchtower and a crafty governor, and at most once a week). If the town's defence beats the band, the band is destroyed. Otherwise the raiders burn 30% of its stored food (and 15% of the market's stores, which damages any works there), kill 3% of its people, cost 6 happiness and 8 unrest, and set back construction by 2 days.
+
+**Sea reavers.** A coastal holding near a pirate captain's haven may also be raided from the sea (see [Landing Parties](#landing-parties)). The same defence keeps them out.
 
 A holding you lose — to rebels or a war host — keeps only its walls. Its harbour, markets, workshops and other works stop serving you until you take it back.
 
@@ -4223,7 +4328,7 @@ At war, members' lords refuse you audiences. Realms that grow hostile enough (55
 
 ### Rival agents in your towns
 
-Rival Houses with a feud of 25+ (more readily while sworn into a league) **buy townsfolk** in your towns — a real, named person of the town's roster (`settlement.folk`):
+Rival Houses with a feud of 25+ (more readily while sworn into a league) **buy townsfolk** in your towns — a real, named person of the town's roster (`settlement.folk`). A town you have never walked through has its people reckoned the first time a rival reaches for it (or you ask around there): the same named roster you will meet on your first visit, so agents work in every town you hold, not only the ones you have seen.
 
 | Agent | Where | What they do |
 |---|---|---|
@@ -4296,7 +4401,7 @@ Which houses a town has depends on its size and is the same every visit. Roadhou
 - **Private room** — about 11 gold. Comfort +6, hygiene +4, health +2.
 - **Suite** — about 40 gold. Comfort +22, hygiene +14, health +6, fun +10.
 
-Prices scale with the house's stars and its keeper's pricing. A booked room counts as an inn for the night (full rest; ailments mend faster). **💤 Book & sleep** ends the day at once. In the morning a better house adds comfort, breakfast (included at guest houses and hotels, or ordered the night before) restores hunger, and a stabled horse gives you one extra hex of movement. Services such as supper, a bath, laundry, fine dining or a valet act at once. A famous name gets the free room and meal at an NPC house, as at the tavern; outlaws are turned away. A full house refuses common rooms and private rooms on some nights, but a suite can still be had.
+Prices scale with the house's stars and its keeper's pricing. A booked room counts as an inn for the night (full rest; ailments mend faster). **💤 Book & sleep** ends the day at once. In the morning a better house adds comfort, breakfast (included at guest houses and hotels, or ordered the night before) restores hunger, and a stabled horse gives you one extra hex of movement. Services such as supper, a bath, laundry, fine dining or a valet act at once (a valet's grooming also gives +1 charisma for the rest of the day: better prices at market and a readier tongue in diplomacy). A famous name gets the free room and meal at an NPC house, as at the tavern; outlaws are turned away. A full house turns guests away on some nights, but its best room can still be had: a hotel's suite, the private room at an inn, a roadhouse or a guest house.
 
 **Keepers.** On the inner map each house is a building that bears its name, and a townsperson keeps it. The same person keeps it every visit, as long as they live. Travellers walk to the inns by day and sleep there at night. A roadhouse's hex shows its house, its keeper and a guest or two.
 
@@ -4693,6 +4798,34 @@ Each item has a button that opens the panel to deal with it, such as the siege p
 **Morning brief.** At the start of each new day, one notification lists the top three matters of notice or higher, threats first. On a quiet day there is none. Turn it off with **Settings → Steward's Morning Brief**.
 
 The counsel only reads: it never changes the game and never rolls dice. Its rules, wording, thresholds and priorities live in `data/counsel.json`, so new advice is a data entry.
+
+### "Why?" — the causes behind a number
+
+A small gold **ⓘ** beside a number opens the factors behind it. Click it (or focus it and press Enter); click anywhere else or press Escape to close. Each factor has a plain label and a signed size, and the factors add up to the number shown.
+
+| Where | The ⓘ explains |
+|-------|----------------|
+| **Market → Buy** (beside each price) | The base price and every step the market applies: the town's size, a fair, cold-weather demand, a local resource, the season, world events (a drought, a crash), a monopoly markup, the realm's money (debased coin, the price level), a court fashion, and the stock (scarce or glutted) or a guild's price floor. Each step shows its percentage and its share in gold. Below that, the causes behind the stock: a poor or bumper harvest in the region, dearth, roads cut, a realm's export ban, import duty or embargo, caravans lost on the road here, a trade on strike, a fashion raising demand, and your own buying and selling this season. Last, your own terms: your trading standing (perks, companions, agreements, traits, technology, your liege's friends and foes), guild input rates and the difficulty, ending in what one unit costs you. |
+| **Market → Sell** | What the town's stalls pay you for one unit: the stall's share, your trade bonuses, a guild's toll or mark, the crown's duty on goods bought abroad, the difficulty and the quality of your goods. |
+| **A lord's audience** (beside *Opinion*) | His opinion of you, part by part: your karma (if he is pious), your renown (if ambitious), your wealth (if greedy), kinship by marriage, your rulings at court, **each deed he remembers** (with its fading weight, and whether his father passed it down), and a coalition's chill. Then your traits, your underworld name and your reputation in his realm. |
+| **Finance → Taxes** (beside each town) | The town's weekly tax: its base (a quarter-gold a head) × your rate, then technology, your office, events, its mood, its development and the harvest, each with its share in gold. Also its mood target (your tax policy, its peoples, its taverns and temples, great works) and the market's pull on mood. |
+| **Stability** (kingdom panel, hex info, Treasury → Budget) | Where the realm's stability is heading and why: its rulers and traditions, events, culture, wars, an empty treasury, crown finances, taxes and pay, the cost of living, trade policy, scandal, faith. It also shows the daily drift and the tax multiplier. |
+
+The explanations only read the game; they never change it. They use the engine's own arithmetic: the market reports each step of its price as it computes it. The test suite holds every decomposition to the real numbers across several worlds.
+
+### The Season's Reckoning
+
+When a season turns, your steward reports what your doings changed in the world over the last 30 days:
+
+- **Money by source**: your purse before and after, and the Ledger's lines (income and spending by category).
+- **Markets your trade moved**: the towns where you bought or sold, what changed hands, and how each good's stock and price stand now against before your first trade there.
+- **Lords won and lost**: each lord whose opinion of you moved, by how much, and the deeds he remembers from the season.
+- **Prestige and fame**: Prestige gained and spent (and on what), renown, karma, and your name realm by realm.
+- **Your holdings**: population, mood and unrest, and towns gained or lost.
+- **Wars and leagues**: wars begun and ended (yours and your liege's), and a coalition forming, growing, shrinking or breaking.
+- **The season's three biggest events** that touched you: timed world events in your realms (plague, war, drought), the harvests (famine, poor or rich years, blights) and the great moments of your House's chronicle.
+
+The report opens by itself at the season's turn. At sea it comes as a notice instead. Turn the popup off with **Settings → Season's Reckoning**. Every report stays under **Journal → Season's Reckoning**, with the season so far and the last few seasons. The record (`player.reckoning`) is saved. An older save starts its first season when it is loaded. It never changes the game or rolls dice.
 
 ---
 

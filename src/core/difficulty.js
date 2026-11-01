@@ -12,7 +12,9 @@
 //   buyPrice       — what the player pays at a market (player/playerEconomy/trading.js)
 //   sellPrice      — what the player is paid at a market (trading.js)
 //   hostility      — how badly realms want war with the player (systems/realmWars.js)
-//   enemyStrength  — the foe's might in the player's battles (playerMilitary/combat.js, fieldBattle.js)
+//   enemyStrength  — the foe's might in the player's battles (playerMilitary/combat.js, fieldBattle.js),
+//                    on the road (player/roadEncounters.js: every escape/fight chance, the toll,
+//                    the harm of the old ambush) and in the wilds' fights (player/wilds.js)
 //   illness        — how often wounds fester and sickness kills (systems/ailments.js careFactor)
 // Normal is 1 on every knob, so a Normal game runs exactly as one without
 // difficulty did. No RNG here.
@@ -93,6 +95,24 @@ export const Difficulty = {
         if (!player || !_obj(player.scenario)) return 1;
         const lvl = Difficulty.levels()[player.scenario.difficulty];
         return lvl ? _num(lvl[knob], 1) : 1;
+    },
+
+    /**
+     * A chance of getting the better of a foe, re-weighed by the enemyStrength
+     * knob as odds: p / (p + (1 - p) * m). Exactly p on Normal (m = 1) and at
+     * the certain/impossible ends.
+     */
+    againstFoe(player, p) {
+        const m = Difficulty.mult(player, 'enemyStrength');
+        if (m === 1 || !(p > 0 && p < 1)) return p;
+        return p / (p + (1 - p) * m);
+    },
+
+    /** Harm (or a toll) a foe deals, scaled by the enemyStrength knob; exactly n on Normal. */
+    foeHarm(player, n) {
+        const m = Difficulty.mult(player, 'enemyStrength');
+        if (m === 1 || !Number.isFinite(n)) return n;
+        return Math.round(n * m);
     },
 
     /**

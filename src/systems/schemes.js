@@ -55,6 +55,15 @@ const CONFIG = {
     informantDays: 120,       // an informant watches their rival this long
     informantReveal: 0.15,    // daily reveal chance an informant adds against their rival
     mercyKarma: 3,
+    // An assassin is a rival's last, rare resort, not a yearly event: only a
+    // child old enough to be known as an heir is a target, one such plot at a
+    // time across all rivals (a cooldown from the day it is hatched), and a
+    // death sates the blood feud. Without these limits a successful House lost
+    // every child before they came of age, and no dynasty lasted.
+    assassinMinAge: 6,
+    assassinCooldown: 720,    // days (6 years) between assassination plots
+    assassinKill: 0.3,        // chance an unguarded strike kills
+    feudOnAssassination: -40, // total feud change when a child is killed
 };
 
 /** Who a rival hires for each kind of plot (townsfolk roles, best first), and what they do. */
@@ -101,6 +110,17 @@ function playerColonies(player, world) {
 
 function livingChildren(player) {
     return (player.children || []).filter(c => c && c.isAlive);
+}
+
+/** The children an assassin may be sent after (old enough to be known as heirs). */
+function assassinTargets(player) {
+    return livingChildren(player).filter(c => (c.age || 0) >= CONFIG.assassinMinAge);
+}
+
+/** No assassination plot within the cooldown of the last one hatched. */
+function assassinRested(player, world) {
+    const last = player && player.house && player.house._lastAssassinPlot;
+    return !Number.isFinite(last) || ((world && world.day) || 0) - last >= CONFIG.assassinCooldown;
 }
 
 const propLabel = (ref) => `${String(ref.type).replace(/_/g, ' ')} at (${ref.q}, ${ref.r})`;
@@ -205,9 +225,9 @@ const SCHEME_TYPES = {
         name: 'Assassination',
         icon: '🗡️',
         minFeud: 65,
-        eligible: (player) => livingChildren(player).length > 0,
+        eligible: (player, world) => assassinTargets(player).length > 0 && assassinRested(player, world),
         pickTarget(player) {
-            const kids = livingChildren(player);
+            const kids = assassinTargets(player);
             const heir = kids.find(c => c.id === player.heir);
             const c = heir || Utils.randPick(kids);
             return { childId: c.id, label: `your ${heir ? 'heir' : 'child'} ${c.firstName || 'child'}` };
@@ -217,9 +237,13 @@ const SCHEME_TYPES = {
         resolve(player, world, scheme) {
             const child = (player.children || []).find(c => c.id === scheme.target.childId);
             if (!child || !child.isAlive) return null;
-            if (Utils.random() < 0.5) {
+            if (Utils.random() < CONFIG.assassinKill) {
                 child.isAlive = false;
+                child.deathDay = (world && world.day) || 0;
+                child.deathCause = 'assassination';
                 if (player.heir === child.id) player.heir = null;
+                // Blood sates the grudge (on top of the usual struck-scheme cooling)
+                House.accrueRivalFeud(player, world, scheme.rivalId, CONFIG.feudOnAssassination - CONFIG.feudOnSuccess);
                 return `An assassin's blade finds ${scheme.target.label}. They are dead.`;
             }
             return `An assassin strikes at ${scheme.target.label}, who survives, badly wounded.`;
@@ -281,6 +305,7 @@ export const Schemes = {
         };
         const agent = Schemes._cast(player, world, scheme);
         if (agent) scheme.agent = agent;
+        if (type === 'assassin') house._lastAssassinPlot = day;
         house.schemes.push(scheme);
         return scheme;
     },

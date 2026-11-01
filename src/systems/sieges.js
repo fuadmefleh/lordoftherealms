@@ -56,6 +56,7 @@ import { Ailments } from './ailments.js';
 import { Petitions } from './petitions.js';
 import { RealmWars } from './realmWars.js';
 import { Kingship } from './kingship.js';
+import { Regency } from './regency.js';
 import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
@@ -420,6 +421,9 @@ export const Sieges = {
         const C = Sieges.config();
         const settlement = tile && tile.settlement;
         if (!settlement) return { ok: false, reason: 'There is no settlement here.' };
+        // A child ruler lays no sieges (systems/regency.js)
+        const minor = Regency.forbids(player, 'siege');
+        if (minor) return { ok: false, reason: minor };
         if (Sieges.active(player)) return { ok: false, reason: `You are already besieging ${Sieges.active(player).name}.` };
         if (settlement.colony && settlement.colony.isPlayerColony) return { ok: false, reason: 'This is your own holding.' };
         // A seat of lords in revolt against your own crown may be besieged (systems/kingship.js)

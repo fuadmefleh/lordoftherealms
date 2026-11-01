@@ -44,7 +44,8 @@ import { MercContracts } from './mercContracts.js';
 const FALLBACK = {
     wanderer: {
         name: 'The Wanderer', icon: '🧭', guidedStart: true, suggestedVictory: 'none',
-        blurb: 'No name, no lands, no debts. A full purse and the open road.',
+        blurb: 'No name, no lands, no debts. A few coins and the open road.',
+        gold: 250,
         welcome: 'You are a wanderer in a {mapDesc} world of {kingdoms} kingdoms. Click on the map to move, explore settlements, and forge your destiny.',
     },
 };
@@ -346,6 +347,8 @@ export const Scenarios = {
             pirate_widow: Scenarios._pirateWidow,
             sellsword: Scenarios._sellsword,
         }[origin.id];
+        // The origin's purse (data/scenarios.json `gold`); the shapes below may set their own
+        if (origin.gold != null) player.gold = _num(origin.gold);
         if (shape && world) {
             shape(player, world, origin, vars);
             if (typeof player.updateVisibility === 'function') player.updateVisibility(world, 4);

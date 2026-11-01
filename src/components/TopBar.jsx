@@ -163,6 +163,10 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="book" /></span>
               <span className="civ-dd-text">The Annals</span>
             </button>
+            <button className="civ-dropdown-item" id="btnReckoning">
+              <span className="civ-dd-icon"><Icon name="hourglass" /></span>
+              <span className="civ-dd-text">Season&apos;s Reckoning</span>
+            </button>
             <button className="civ-dropdown-item" id="btnDeeds">
               <span className="civ-dd-icon"><Icon name="medal" /></span>
               <span className="civ-dd-text">Deeds &amp; Records</span>
@@ -224,6 +228,16 @@ export default function TopBar() {
           <div className="tb-res" title="Military Strength">
             <span className="tb-res-icon"><Icon name="shield" /></span>
             <span className="tb-res-val" id="tbShields">0</span>
+          </div>
+          {/* House Prestige — value, monthly trend, Ambition in the tooltip; opens the House
+              panel (ui/prestigeChip.js fills it, hud.js _setupHudNav wires the click) */}
+          <div className="tb-res tb-res-prestige" id="tbPrestige" role="button" tabIndex={0}
+            title="House Prestige" style={{display:'none'}}>
+            <span className="tb-res-icon"><Icon name="banner" /></span>
+            <span className="tb-res-col">
+              <span className="tb-res-val" id="tbPrestigeVal">0</span>
+              <span className="tb-res-sub" id="tbPrestigeTrend">+0/mo</span>
+            </span>
           </div>
         </div>
 

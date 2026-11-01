@@ -468,13 +468,35 @@ describe('medicine', () => {
         expect(Ailments.treat(p, w, city, rec.key).success).toBe(false);
     });
 
-    it("can't be paid for without the gold", () => {
+    it('a pauper is seen to once for charity, at a lesser standard; after that it must be paid for', () => {
         const w = makeWorld();
         const p = makePlayer();
         p.gold = 0;
+        Ailments.inflict(p, w, 'arrow_leg', { days: 16 });
+        const rec = Ailments.list(p)[0];
+        rec.infected = true;
+        const [opt] = Ailments.treatmentOptions(p, w, city);
+        expect(opt).toMatchObject({ can: true, cost: 0, charity: true });
+        expect(opt.quality).toBeCloseTo(Ailments.physicianQuality(p, city, 'wound') * 0.5, 6);
+        const res = Ailments.treat(p, w, city, rec.key);
+        expect(res).toMatchObject({ success: true, cost: 0, charity: true });
+        expect(rec.infected).toBe(false);
+        expect(p.gold).toBe(0);
+        // The infection returns: no second charity for the same wound
+        rec.infected = true;
+        expect(Ailments.treat(p, w, city, rec.key).success).toBe(false);
+    });
+
+    it('no charity for a player who could pay', () => {
+        const w = makeWorld();
+        const p = makePlayer();
+        p.gold = 39;
         Ailments.inflict(p, w, 'chill');
-        const res = Ailments.treat(p, w, city, Ailments.list(p)[0].key);
-        expect(res.success).toBe(false);
+        const [opt] = Ailments.treatmentOptions(p, w, city);
+        // Under the cost but able to pay something: charity only below its belowGold and the cost
+        expect(opt.charity).toBe(opt.cost > 39);
+        p.gold = 1000;
+        expect(Ailments.treatmentOptions(p, w, city)[0].charity).toBe(false);
     });
 
     it('temple rites tend fevers but not wounds', () => {

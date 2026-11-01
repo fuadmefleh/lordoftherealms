@@ -296,6 +296,29 @@ describe('the player and the coin', () => {
         expect(player.gold).toBe(1000 - fee);
     });
 
+    it('a purse assayed lately is not charged again at every crossing (exchange.cooldownDays)', () => {
+        const { w, kb } = twoRealms();
+        kb.finance.purity = 0.8;
+        const E = MoneySupply.config().exchange;
+        const player = { q: 1, r: 1, gold: 1000, inventory: {} };
+        Mints.processDay(w, player); // in Aster
+        player.q = 2;
+        Mints.processDay(w, player); // into Brenn: the changers' fee
+        const after = player.gold;
+        expect(after).toBeLessThan(1000);
+        player.q = 1;
+        Mints.processDay(w, player); // straight back: the coin of the road, no new assay
+        player.q = 2;
+        Mints.processDay(w, player);
+        expect(player.gold).toBe(after);
+        w.day += (E.cooldownDays || 14) + 1;
+        Mints.processDay(w, player); // (the realms' coin reckoned for the new day)
+        kb.finance.purity = 0.8;
+        player.q = 1;
+        Mints.processDay(w, player); // weeks later: assayed again
+        expect(player.gold).toBeLessThan(after);
+    });
+
     it('counterfeiting is a gamble: some batches pass and swell the coin, some are caught and cost stake, fine and heat', () => {
         const ka = realm('a', 'Aster', 10000);
         const w = bare([ka, realm('b', 'Brenn', 10000)]);

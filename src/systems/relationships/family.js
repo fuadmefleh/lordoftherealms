@@ -2,6 +2,8 @@
 import { Relationships } from './_ref.js';
 import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Townsfolk } from './_imports.js';
 import { NPCLords } from '../../world/npcLords.js';
+import { HeirAgency } from '../heirAgency.js';
+import { Regency } from '../regency.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -170,7 +172,7 @@ Object.assign(Relationships, {
         if (!player.spouse) return null;
         const settings = Relationships._getHeirSettings();
 
-        if ((player.children || []).length >= settings.maxChildren) return null;
+        if ((player.children || []).filter(c => !c.isSibling).length >= settings.maxChildren) return null;
 
         const spouse = Relationships.getNPC(player.spouse);
         if (!spouse) return null;
@@ -370,7 +372,9 @@ Object.assign(Relationships, {
     getEligibleHeirs(player) {
         if (!player.children) return [];
         const settings = Relationships._getHeirSettings();
-        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay);
+        // The ruler's own children first (eldest first), then siblings kept from the last succession
+        return player.children.filter(c => c.isAlive && c.age >= settings.minAgeToPlay)
+            .sort((a, b) => (a.isSibling ? 1 : 0) - (b.isSibling ? 1 : 0) || (b.age || 0) - (a.age || 0));
     },
 
     /**
@@ -444,12 +448,13 @@ Object.assign(Relationships, {
         if (!child || !child.isAlive) {
             return { success: false, reason: 'Invalid heir' };
         }
-        // A regency raises an under-age heir to playable age at a stiff cost
-        // (applied by House.processSuccession below).
-        if (opts.regency && child.age < settings.minAgeToPlay) {
-            child.age = settings.minAgeToPlay;
-        }
-        if (child.age < settings.minAgeToPlay) {
+        // An under-age heir reigns under a regent (systems/regency.js) — the
+        // player plays the child's court until majority; the House pays the
+        // regency's stiff cost in House.processSuccession below. The regent is
+        // chosen from the late ruler's household before it is cleared.
+        const minorReign = !!opts.regency && child.age < settings.minAgeToPlay;
+        const regent = minorReign ? Regency.pick(player, world, childId, opts.regent || null) : null;
+        if (!minorReign && child.age < settings.minAgeToPlay) {
             return { success: false, reason: `Heir must be at least ${settings.minAgeToPlay} years old` };
         }
 
@@ -519,8 +524,10 @@ Object.assign(Relationships, {
         player.marriageAllianceKingdom = null;
         player.heir = null;
 
-        // Remove this child from children, keep others as siblings
+        // Remove this child from children, keep others as siblings (marked: they
+        // are not the new ruler's own children, and don't count against having them)
         player.children = player.children.filter(c => c.id !== childId);
+        for (const c of player.children) c.isSibling = true;
 
         // Keep properties, army, religion but clear personal items
         player.inventory = { bread: 10 };
@@ -554,6 +561,12 @@ Object.assign(Relationships, {
         const traitEcho = Traits.onSuccession(player, world, oldName);
         // ...but the heir brings the character their upbringing gave them
         const heirTraits = Upbringing.applyHeirTraits(player, child, world);
+        // ...and the life they lived before the throne: fosterings, commands,
+        // embassies, a marriage — lords' memories, standing, Prestige (systems/heirAgency.js)
+        const heirRecord = HeirAgency.onSuccession(player, world, child);
+        // A child on the throne reigns under a regent (systems/regency.js)
+        player.regency = null;
+        const regency = minorReign ? Regency.begin(player, world, regent) : null;
         if (player.house) {
             for (const r of House.ROLE_IDS) {
                 if (player.house.roles && player.house.roles[r] === childId) player.house.roles[r] = null;
@@ -570,6 +583,8 @@ Object.assign(Relationships, {
             house: houseResult,
             traitEcho,
             heirTraits,
+            heirRecord,
+            regency,
             reign,
         };
     },

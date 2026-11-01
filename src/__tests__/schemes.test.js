@@ -48,8 +48,34 @@ describe('Schemes', () => {
         expect(Schemes.eligibleTypes(player, world, 25)).toEqual(['slander', 'theft']);
         addProperty(world, player, 1, 1, 'farm');
         expect(Schemes.eligibleTypes(player, world, 45)).toEqual(['slander', 'theft', 'sabotage', 'raid_property']);
-        player.children.push({ id: 'c1', firstName: 'Ada', isAlive: true });
+        player.children.push({ id: 'c1', firstName: 'Ada', isAlive: true, age: 10 });
         expect(Schemes.eligibleTypes(player, world, 70)).toContain('assassin');
+    });
+
+    it('an assassin is rare: no infants, one plot per cooldown, and blood sates the feud', () => {
+        const world = makeWorld(1000);
+        const player = makePlayer(world);
+        player.children.push({ id: 'baby', firstName: 'Wren', isAlive: true, age: 2 });
+        expect(Schemes.eligibleTypes(player, world, 100)).not.toContain('assassin');
+        player.children.push({ id: 'heir', firstName: 'Ada', isAlive: true, age: 9 });
+        player.heir = 'heir';
+        const scheme = Schemes.hatch(player, world, player.house.rivals.k1, 'assassin');
+        expect(scheme.target.childId).toBe('heir');
+        // The plot is in flight, and after it no other rival may send one until the cooldown passes
+        player.house.schemes = [];
+        world.day += Schemes.CONFIG.assassinCooldown - 1;
+        expect(Schemes.eligibleTypes(player, world, 100)).not.toContain('assassin');
+        world.day += 1;
+        expect(Schemes.eligibleTypes(player, world, 100)).toContain('assassin');
+        // A kill cools the rival's grudge by feudOnAssassination in all
+        player.house.rivals.k1.feud = 90;
+        const orig = Utils.random;
+        Utils.random = () => 0;
+        let text;
+        try { text = Schemes.TYPES.assassin.resolve(player, world, scheme); } finally { Utils.random = orig; }
+        expect(text).toMatch(/dead/);
+        expect(player.children.find(c => c.id === 'heir')).toMatchObject({ isAlive: false, deathCause: 'assassination' });
+        expect(player.house.rivals.k1.feud).toBeLessThanOrEqual(90 + Schemes.CONFIG.feudOnAssassination - Schemes.CONFIG.feudOnSuccess);
     });
 
     it('a hidden scheme strikes on its due day; sabotage halts the property', () => {

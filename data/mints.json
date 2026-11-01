@@ -53,8 +53,8 @@
     "_recoinage": "A recoinage edict calls in the old coin and strikes it anew at full purity. Holders get back purity + crownShare x (1 - purity) of each piece (the coin in circulation shrinks: prices fall); the crown pays crownShare x (1 - purity) x the coin from its treasury, and the realm's stability moves `stability` (relief at honest coin less the grumbling at the exchange). A crown out of trouble (debt ratio under maxDebtRatio, treasury above treasuryCover x the cost) proclaims one by itself; the player as ruler may at any time. Not again within cooldown days.",
     "recoinage": { "crownShare": 0.5, "stability": 2, "maxDebtRatio": 0.3, "treasuryCover": 4, "cooldown": 120, "minGap": 0.05 },
 
-    "_exchange": "Money changers: carrying gold into a realm whose coin is of another purity costs perPurity x the purity gap of the gold carried (at most max), when the purse holds at least minGold. Recorded as 'exchange' in the ledger. The rate shown between two coins is their silver content (purity) ratio.",
-    "exchange": { "perPurity": 0.25, "max": 0.05, "minGold": 50 },
+    "_exchange": "Money changers: carrying gold into a realm whose coin is of another purity costs perPurity x the purity gap of the gold carried (at most max), when the purse holds at least minGold and was not assayed in the last cooldownDays (a traveller criss-crossing a border pays once, not at every crossing). Recorded as 'exchange' in the ledger. The rate shown between two coins is their silver content (purity) ratio.",
+    "exchange": { "perPurity": 0.25, "max": 0.05, "minGold": 50, "cooldownDays": 14 },
 
     "_concession": "Leasing a mint: the player pays fee = feeShare x the mint's average weekly seigniorage (last seignHistory weeks) x share x the term's weeks up front into the treasury, and takes `share` of the seigniorage each week for termDays. Not to be had while at war with the realm, from a mint that struck nothing, or while another lease runs.",
     "concession": { "termDays": 120, "share": 0.5, "feeShare": 0.9, "minFee": 40 },

@@ -31,6 +31,7 @@ import { Books } from './books.js';
 import { Feasts } from './feasts.js';
 import { Fame } from './fame.js';
 import { CourtLetters } from './courtLetters.js';
+import { Regency } from './regency.js';
 import { Coalitions } from './coalitions.js';
 import { RivalAgents } from './rivalAgents.js';
 import { Mail } from './mail.js';
@@ -61,6 +62,7 @@ import { TradePolicy } from './tradePolicy.js';
 import { Mints } from './mints.js';
 import { LandMarket } from './landMarket.js';
 import { FirstSteps } from './firstSteps.js';
+import { Reckoning } from './reckoning.js';
 import { Estates } from '../world/estates.js';
 import { Engrossing } from './engrossing.js';
 import { MoneySupply } from '../world/moneySupply.js';
@@ -350,6 +352,8 @@ export const SaveLoad = {
         'trapLines',
         // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)
         'seaRoving',
+        // Beach runs, coast alarms after raids from the sea, landfall colonies, reaver landings (systems/landings.js; ensure() backfills)
+        'landings',
         // Map owners you robbed, and whether they found out (systems/mapTheft.js)
         'mapGrudges',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
@@ -535,6 +539,8 @@ export const SaveLoad = {
             fame: Fame.serialize(player),
             // Court letters: the inbox, answered letters, loans to lords, promises to ride, a child at risk (systems/courtLetters.js)
             letters: CourtLetters.serialize(player),
+            // A child's reign under a regent: the regent's loyalty, skimming, plots, the choice at majority (systems/regency.js)
+            regency: Regency.serialize(player),
             // Directed opposition: the realms' regard, a league against the player, past leagues (systems/coalitions.js);
             // the rival Houses' bought townsfolk (systems/rivalAgents.js)
             coalitions: Coalitions.serialize(player),
@@ -582,6 +588,8 @@ export const SaveLoad = {
             land: LandMarket.serializePlayer(player),
             // The guided first month: steps done, skipped or not (systems/firstSteps.js)
             firstSteps: FirstSteps.serialize(player),
+            // The Season's Reckoning: the season's start, its tally, the last reports (systems/reckoning.js)
+            reckoning: Reckoning.serialize(player),
         };
     },
 
@@ -857,6 +865,9 @@ export const SaveLoad = {
         Fame.restore(player, player.fame);
         // Court letters — older saves get a blank inbox (the first letter comes on schedule)
         CourtLetters.loadState(player);
+        // The regency — older saves have none (null); a child's fosterings, commissions and record
+        // ride inside player.children (child.upbringing.agency, backfilled by HeirAgency.ensure)
+        Regency.loadState(player);
         // Leagues and rival agents — older saves get blank records (the realms take their measure next week)
         Coalitions.loadState(player);
         RivalAgents.loadState(player);
@@ -902,6 +913,8 @@ export const SaveLoad = {
         LandMarket.loadState(player);
         // First Steps — older saves get the guidance switched off for good (no tutorial mid-game)
         FirstSteps.loadState(player);
+        // The Season's Reckoning — older saves start their record on load
+        Reckoning.loadState(player, world);
 
         // Travel party fallback for older saves
         if (!Array.isArray(player.travelParty)) {

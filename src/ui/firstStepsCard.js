@@ -19,6 +19,7 @@ import { FirstSteps } from '../systems/firstSteps.js';
 import { Hex } from '../core/hex.js';
 import { ActionMenu } from './actionMenu/_ref.js';
 import { PlayerActions } from '../player/playerActions.js';
+import { Afterlife } from '../player/afterlife.js';
 
 const CARD_ID = 'firstStepsCard';
 const BTN = 'border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;padding:5px 9px;';
@@ -181,7 +182,8 @@ export function updateFirstStepsCard(game) {
     const rail = document.getElementById('hudRightRail');
     let card = document.getElementById(CARD_ID);
     const v = FirstSteps.view(game.player);
-    if (!v.active || !v.step) {
+    // Dead and waiting (interregnum): no guidance for a life that has ended
+    if (!v.active || !v.step || Afterlife.active(game.player)) {
         if (card) card.style.display = 'none';
         return;
     }

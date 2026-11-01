@@ -121,7 +121,7 @@ Object.assign(ActionMenu, {
             html += '</div>';
         }
         const tile = world.getTile ? world.getTile(player.q, player.r) : null;
-        if (tile && tile.settlement && tile.settlement.folk) {
+        if (tile && tile.settlement) {
             const inq = RivalAgents.config().inquiry;
             html += _btn(`🍺 Ask around ${esc(tile.settlement.name)} (${inq.gold}g)`, 'inquire', [player.q, player.r], BTN_DARK, gold >= inq.gold, 'Loosen tongues: anyone here in a rival\'s pay is likelier to be found out.');
         }

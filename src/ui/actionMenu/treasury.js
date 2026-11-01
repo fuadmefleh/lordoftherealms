@@ -10,6 +10,8 @@ import { ActionMenu } from './_ref.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { CrownBooks } from '../../world/crownBooks.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, stabilityWhy } from '../whyPopover.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -83,7 +85,7 @@ function budgetTab(game) {
     let html = `<div style="${NOTE}">The crown's taxes come out of its towns' purses, and its wages and upkeep go back into them: the treasury is what is left. Land tax falls on the peasants' earnings (and swells with the harvest), the hearth tax on every working head (clergy and nobles are exempt), the excise on the artisans' work and the merchants' trade. Unpaid soldiers desert after a week; unpaid clerks help themselves.</div>`;
     html += `<div style="${CARD}"><b>${esc(k.name)}</b> · treasury <b>${g0(b.treasury)}g</b> ${sparkline(b.hist)} · ${b.reserveDays} days of spending in hand<br>`;
     html += `<span style="${NOTE}">Taxes: land ${lvl(b.rates.land)} · hearth ${lvl(b.rates.poll)} · excise ${lvl(b.rates.excise)} · army ${esc((Fiscal.config().army.levels[b.armyPay] || {}).label || b.armyPay)} · court ${esc((Fiscal.config().court.levels[b.courtLevel] || {}).label || b.courtLevel)}</span><br>`;
-    html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${b.stability >= 0 ? '+' : ''}${b.stability} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
+    html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${b.stability >= 0 ? '+' : ''}${b.stability} from taxes and pay${whyIcon(stabilityWhy(Causes.stability(k, world)), 'The realm’s stability: why?')} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
     if (b.arrearsDays > 0) html += ` · <span style="color:#e08080;">soldiers unpaid ${b.arrearsDays} days (${g0(b.arrears.army)}g owed), the army at ${Math.round(b.armyFactor * 100)}%</span>`;
     if (b.deficitWeeks > 0) html += ` · <span style="color:#e8a040;">${b.deficitWeeks} week(s) in deficit</span>`;
     html += '</span></div>';

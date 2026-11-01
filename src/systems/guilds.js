@@ -51,6 +51,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
+import { Difficulty } from '../core/difficulty.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
 import { Throne } from './throne.js';
@@ -746,7 +747,8 @@ export const Guilds = {
             const qty = Math.floor(_clamp(need * _num(K.needDays, 6), _num(K.minQty, 6), _num(K.maxQty, 40)));
             const value = SettlementMarket.lotValue(world, s, at, id, good.basePrice, qty) / qty;
             // ...never more than the player would pay for a unit here, after every discount
-            const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * (1 - Guilds.inputDiscount(player, s, id));
+            // (as Trading.buyCost charges it, the difficulty's market prices included: no buy-and-deliver loop on Easy)
+            const disc = Math.max(0.5, 1 - Trading.buyDiscount(player, s)) * Difficulty.mult(player, 'buyPrice') * (1 - Guilds.inputDiscount(player, s, id));
             const ask = Math.floor(Economy.marketPrice(good, s, at, world) * disc);
             const unit = Math.floor(Math.min(value * _num(K.valueShare, 0.85), ask - 1));
             if (!(unit >= 1)) continue;

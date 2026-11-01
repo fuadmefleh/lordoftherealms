@@ -268,9 +268,13 @@ export const Economy = {
      * — base × size × cold demand × local resources × season × events ×
      * monopoly markup — unrounded. A purchase or sale moves along the
      * scarcity curve from here (SettlementMarket.levelFactor).
+     * `parts` (optional array): each step's factor is pushed onto it as
+     * { id, mult } in the order applied — player/causes.js reads them to
+     * explain the price; the arithmetic is the same with or without it.
      */
-    marketAskBase(good, settlement, tile, world = null) {
+    marketAskBase(good, settlement, tile, world = null, parts = null) {
         let price = good.basePrice;
+        let f;
 
         // Larger settlements have better prices (cheaper to buy)
         const sizeMultiplier = {
@@ -279,41 +283,58 @@ export const Economy = {
             city: 0.9,
             capital: 0.8,
         };
-        price *= sizeMultiplier[settlement.type] || 1.0;
+        f = sizeMultiplier[settlement.type] || 1.0;
+        price *= f;
+        if (parts) parts.push({ id: 'size', mult: f });
         // A fair in town: merchants from afar undercut the stalls (systems/marketFairs.js)
-        price *= SettlementMarket.fairAsk(settlement);
+        f = SettlementMarket.fairAsk(settlement);
+        price *= f;
+        if (parts) parts.push({ id: 'fair', mult: f });
 
         // Temperature based demand for Firewood and Warm Clothes (snow on the
         // ground makes it worse). `world` is null in headless/test contexts,
         // which falls back to the biome.
-        price *= SettlementMarket.coldFactor(world, tile, good.id);
+        f = SettlementMarket.coldFactor(world, tile, good.id);
+        price *= f;
+        if (parts) parts.push({ id: 'cold', mult: f });
 
         // Resource bonuses affect prices
         if (tile && tile.resource) {
-            if (good.id === 'grain' && ['wheat'].includes(tile.resource.id)) price *= 0.7;
-            if ((good.id === 'bread' || good.id === 'flour') && ['wheat'].includes(tile.resource.id)) price *= 0.85;
-            if (good.id === 'weapons' && tile.resource.id === 'iron') price *= 0.8;
-            if (good.id === 'luxuries' && ['gems', 'spices'].includes(tile.resource.id)) price *= 0.85;
-            if (good.id === 'stone' && tile.resource.id === 'stone') price *= 0.7;
-            if (good.id === 'gold_ore' && tile.resource.id === 'gold_ore') price *= 0.7;
+            const res = (m) => { price *= m; if (parts) parts.push({ id: 'resource', mult: m, resource: tile.resource.id }); };
+            if (good.id === 'grain' && ['wheat'].includes(tile.resource.id)) res(0.7);
+            if ((good.id === 'bread' || good.id === 'flour') && ['wheat'].includes(tile.resource.id)) res(0.85);
+            if (good.id === 'weapons' && tile.resource.id === 'iron') res(0.8);
+            if (good.id === 'luxuries' && ['gems', 'spices'].includes(tile.resource.id)) res(0.85);
+            if (good.id === 'stone' && tile.resource.id === 'stone') res(0.7);
+            if (good.id === 'gold_ore' && tile.resource.id === 'gold_ore') res(0.7);
             // Coal-fired smithies turn out cheaper metalwork
-            if (['weapons', 'tools', 'iron_ingot', 'coal'].includes(good.id) && tile.resource.id === 'coal') price *= good.id === 'coal' ? 0.7 : 0.9;
-            if (['oil', 'lamp_oil'].includes(good.id) && tile.resource.id === 'oil') price *= 0.7;
-            if (['meat', 'hide', 'cheese', 'leather_armor'].includes(good.id) && tile.resource.id === 'cattle') price *= 0.75;
+            if (['weapons', 'tools', 'iron_ingot', 'coal'].includes(good.id) && tile.resource.id === 'coal') res(good.id === 'coal' ? 0.7 : 0.9);
+            if (['oil', 'lamp_oil'].includes(good.id) && tile.resource.id === 'oil') res(0.7);
+            if (['meat', 'hide', 'cheese', 'leather_armor'].includes(good.id) && tile.resource.id === 'cattle') res(0.75);
         }
 
         // The agricultural year: food is cheap after the harvest and dear in
         // the lean months, furs dear in winter (world/seasons.js)
-        price *= Seasons.priceMultiplier(good.id, Seasons.today(world));
+        f = Seasons.priceMultiplier(good.id, Seasons.today(world));
+        price *= f;
+        if (parts) parts.push({ id: 'season', mult: f });
 
         // Timed world events near the market (a crash, drought food prices)
-        price *= SettlementMarket.eventFactor(world, tile, good.id);
+        f = SettlementMarket.eventFactor(world, tile, good.id);
+        price *= f;
+        if (parts) parts.push({ id: 'events', mult: f });
 
         // A monopoly that carries a markup (the crown's, systems/kingship.js)
         // makes the good dearer in this market
-        price *= 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
-        price *= Coinage.priceMultiplier(world, settlement); // debased coin (world/coinage.js; 1 when pure)
-        price *= SettlementMarket.fashionFactor(settlement, good.id); // a fashion at court, on goods no market keeps
+        f = 1 + Economy.monopolyMarkup(settlement, good.id, world ? world.day : null);
+        price *= f;
+        if (parts) parts.push({ id: 'monopoly', mult: f });
+        f = Coinage.priceMultiplier(world, settlement); // debased coin (world/coinage.js; 1 when pure)
+        price *= f;
+        if (parts) parts.push({ id: 'coinage', mult: f });
+        f = SettlementMarket.fashionFactor(settlement, good.id); // a fashion at court, on goods no market keeps
+        price *= f;
+        if (parts) parts.push({ id: 'fashion', mult: f });
 
         return price;
     },

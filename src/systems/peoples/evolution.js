@@ -276,6 +276,8 @@ Object.assign(Peoples, {
             year: world.year,
         };
         settlement.hybridTraditions.push(tradition);
+        // A town remembers its newest blended customs; the oldest fade (a long game kept every one)
+        if (settlement.hybridTraditions.length > 8) settlement.hybridTraditions.splice(0, settlement.hybridTraditions.length - 8);
 
         world.events.push({
             category: 'cultural',

@@ -72,9 +72,20 @@ export const Victory = {
         if (!player || !Victory.def(id)) return { success: false, reason: 'No such goal.' };
         const sc = Difficulty.state(player);
         if (sc.victory === id) return { success: true };
+        // A goal already won stays on the record (the Ambition panel lists past victories)
+        if (_obj(sc.victoryAchieved)) {
+            if (!Array.isArray(sc.pastVictories)) sc.pastVictories = [];
+            if (!sc.pastVictories.some(v => v && v.id === sc.victoryAchieved.id && Victory.wonThisLife(sc, v))) sc.pastVictories.push(sc.victoryAchieved);
+        }
         sc.victory = id;
-        sc.victoryAchieved = null;
+        // Switching back to a goal this life already won keeps its record (no second victory scene)
+        sc.victoryAchieved = (Array.isArray(sc.pastVictories) ? sc.pastVictories.find(v => v && v.id === id && Victory.wonThisLife(sc, v)) : null) || null;
         return { success: true };
+    },
+
+    /** Was this recorded victory won in the current life (on or after its start), not a past one? */
+    wonThisLife(sc, v) {
+        return !!(v && _obj(sc) && _num(v.day, -1) >= _num(sc.startDay, 0));
     },
 
     /** Monopolies the player holds now: [{ town, good, by }]. */

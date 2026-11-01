@@ -129,7 +129,8 @@ export const Infrastructure = {
         // Docks (jetties) need open water beside them; settlements on the
         // water are ports already
         if (infra.requiresCoast) {
-            if (tile.settlement) {
+            // ...except a colony founded from a landing party, which has no quay yet (systems/landings.js)
+            if (tile.settlement && !(tile.settlement.colony && tile.settlement.colony.landfall)) {
                 return { can: false, reason: 'Settlements on the water are already ports' };
             }
             if (!Infrastructure.isCoastal(tile, world)) {

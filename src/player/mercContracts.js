@@ -29,6 +29,7 @@
 
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Ledger } from '../systems/ledger.js';
 import { Ships } from '../systems/ships.js';
 import { PlayerInventory } from './inventory.js';
@@ -193,10 +194,11 @@ export const MercContracts = {
     },
 
     /** Chance of victory at the end, by force ratio. */
-    winChance(strength, opposition) {
+    winChance(strength, opposition, player = null) {
         const V = MercContracts.config().victory;
         const ratio = opposition > 0 ? _num(strength) / opposition : 10;
-        return _clamp(V.base + (ratio - 1) * V.perRatio, V.min, V.max);
+        // (tougher or softer foes by the difficulty — core/difficulty.js; exact on Normal)
+        return Difficulty.againstFoe(player, _clamp(V.base + (ratio - 1) * V.perRatio, V.min, V.max));
     },
 
     /**
@@ -336,7 +338,7 @@ export const MercContracts = {
         const strength = strengthNow();
         const ratio = c.opposition > 0 ? strength / c.opposition : 10;
         const risk = Math.max(0.05, _num(c.risk));
-        const won = Utils.random() < MercContracts.winChance(strength, c.opposition);
+        const won = Utils.random() < MercContracts.winChance(strength, c.opposition, player);
         let casualties;
         let outcome;
         if (won) {

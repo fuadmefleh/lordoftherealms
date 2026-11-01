@@ -20,6 +20,7 @@ import './realm.js';
 import './skills.js';
 import './social.js';
 import './houseShips.js';
+import './landings.js';
 import './titlesEspionage.js';
 import './services.js';
 import './realmPolitics.js';
@@ -32,6 +33,7 @@ import './holdings.js';
 import './holdingSieges.js';
 import './rivals.js';
 import './heirs.js';
+import './heirAgency.js';
 import './afterlife.js';
 import './sagas.js';
 import './whispers.js';
@@ -64,6 +66,7 @@ import './economy.js';
 import './publicWorks.js';
 import './treasury.js';
 import './annals.js';
+import './reckoning.js';
 import './scenario.js';
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it

@@ -12,6 +12,8 @@ import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Ships } from '../../systems/ships.js';
 import { Pirates } from '../../systems/pirates.js';
+import { Landings } from '../../systems/landings.js';
+import { CoastalRaids } from '../coastalRaids.js';
 import { Housing } from '../../systems/housing.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Religion } from '../../systems/religion.js';
@@ -195,6 +197,18 @@ export const PlayerActions = {
                 label: 'Row Out to Ship',
                 icon: '🚣',
                 description: 'Row back out to your anchored ship and go aboard'
+            });
+        }
+
+        // Landing parties: raids from the sea, beach runs, a landfall colony, stores for a colony
+        // (systems/landings.js, player/coastalRaids.js)
+        if (player.boardedShip ? CoastalRaids.targets(player, world).length > 0
+            : (Ships.getAnchoredShipsNear(player, player.q, player.r).length > 0 || Landings.supplyQuote(player, world).ok)) {
+            actions.push({
+                type: 'landing_party',
+                label: 'Landing Party',
+                icon: '🛶',
+                description: 'Put boats ashore: raid a coastal town, run goods past the customs, found or supply a colony'
             });
         }
 

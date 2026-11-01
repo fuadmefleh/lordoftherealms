@@ -41,6 +41,7 @@ import { Housing } from '../systems/housing.js';
 import { Culture } from '../systems/culture.js';
 import { Traits } from '../systems/traits.js';
 import { Companions } from '../systems/companions.js';
+import { HeirAgency } from '../systems/heirAgency.js';
 import { Ledger } from '../systems/ledger.js';
 
 const DEFAULTS = {
@@ -138,6 +139,8 @@ export const FieldBattle = {
         pMult *= PlayerEffects.moodCombatMultiplier(player);
         pMult *= PlayerEffects.faithBattleMultiplier(player);
         pMult *= PlayerEffects.traitBattleMultiplier(player);
+        // A child of the House commanding the company — or a regent's captains (systems/heirAgency.js)
+        pMult *= HeirAgency.commandMultiplier(player);
         pMult *= PlayerEffects.ailmentBattleMultiplier(player);
         if (ctx.defending) pMult *= 1 + Technology.getDefenseBonus(player);
         if (ctx.defending) pMult *= 1 + Housing.getTotalBonuses(player).defense / 100;
@@ -467,6 +470,8 @@ export const FieldBattle = {
         const withdrew = battle.outcome === 'withdrew';
         const context = { theatre: battle.theatre, world };
         if (!withdrew) Companions.onBattle(player, victory, { enemyName: battle.enemyName, roleOf: n => PlayerEffects.companionRole(n) }, world);
+        // The commanding child's record and fate (wounded, captured, killed)
+        if (!withdrew) HeirAgency.onBattle(player, world, victory, battle.enemyName);
         if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
 
         const spoils = withdrew ? { loot: 0 } : PlayerMilitary._battleSpoils(player, victory, battle.eStr0, context, battle.enemyName);

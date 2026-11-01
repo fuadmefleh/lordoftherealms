@@ -56,7 +56,7 @@ Object.assign(ActionMenu, {
             html += `<div style="color:#7fd07f; margin-top:6px; font-weight:bold;">🏆 Achieved on day ${sc.victoryAchieved.day} by ${esc(sc.victoryAchieved.by || player.name)}.</div>`;
         }
         for (const v of sc.pastVictories || []) {
-            html += `<div style="color:#8a8; font-size:11px;">🏆 In a past life: ${esc(v.name)} (day ${v.day}, ${esc(v.by || '')})</div>`;
+            html += `<div style="color:#8a8; font-size:11px;">🏆 ${Victory.wonThisLife(sc, v) ? 'Won earlier in this life' : 'In a past life'}: ${esc(v.name)} (day ${v.day}, ${esc(v.by || '')})</div>`;
         }
         html += '</div>';
 

@@ -896,14 +896,22 @@ export const Ailments = {
      * [{ key, name, icon, kind, cost, quality, can, reason }].
      */
     treatmentOptions(player, world, settlement, temple = false) {
+        const charity = (Ailments.cfg().treatment || {}).charity || null;
         return Ailments.list(player).map(rec => {
-            const quality = temple ? Ailments.templeQuality(player) : Ailments.physicianQuality(player, settlement, rec.kind);
-            const cost = Ailments.treatmentCost(player, settlement, rec, temple);
+            let quality = temple ? Ailments.templeQuality(player) : Ailments.physicianQuality(player, settlement, rec.kind);
+            let cost = Ailments.treatmentCost(player, settlement, rec, temple);
+            // A pauper who cannot pay is seen to once for charity, at a lesser
+            // standard: without it, a broke player with a festering wound could only die
+            const pauper = !temple && !!charity && !rec.charity && _num(player.gold) < Math.min(cost, _num(charity.belowGold));
+            if (pauper) {
+                cost = 0;
+                quality *= _num(charity.qualityMult) || 0.5;
+            }
             let reason = null;
             if (temple && rec.kind !== 'disease') reason = 'The priests tend the sick, not the wounded.';
             else if (rec.treated >= quality - 1e-9 && !rec.infected && rec.kind === 'wound') reason = 'Already treated as well as can be here.';
             else if ((player.gold || 0) < cost) reason = `Costs ${cost} gold.`;
-            return { key: rec.key, name: Ailments.displayName(rec), icon: Ailments.displayIcon(rec), kind: rec.kind, cost, quality, can: !reason, reason };
+            return { key: rec.key, name: Ailments.displayName(rec), icon: Ailments.displayIcon(rec), kind: rec.kind, cost, quality, can: !reason, reason, charity: pauper };
         });
     },
 
@@ -945,8 +953,10 @@ export const Ailments = {
             }
         }
         if (temple) player.karma = _num(player.karma) + _num((t.temple || {}).karma);
+        if (opt.charity) rec.charity = true;
         const who = temple ? 'The priests' : (settlement && settlement.type === 'village' ? 'The village herbalist' : 'The physician');
-        return { success: true, cost: opt.cost, quality: opt.quality, message: `${who} sees to your ${name.toLowerCase()}: ${lines.join(', ')}. (${opt.cost}g)` };
+        const paid = opt.charity ? 'for charity, as well as can be done for nothing' : `${opt.cost}g`;
+        return { success: true, cost: opt.cost, quality: opt.quality, charity: !!opt.charity, message: `${who} sees to your ${name.toLowerCase()}: ${lines.join(', ')}. (${paid})` };
     },
 
     /** Cost to have a physician see to a sick companion. */

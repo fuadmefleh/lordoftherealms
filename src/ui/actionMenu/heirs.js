@@ -106,14 +106,15 @@ Object.assign(ActionMenu, {
             } else {
                 html += '<div style="color:#999;">No tutor. A tutor whose subject matches the focus speeds learning greatly.</div>';
             }
-            for (const t of Upbringing.tutors()) {
+            if (p.away) html += '<div style="color:#9cc8ff;">Abroad, the host’s court teaches; tutors wait for the child’s return.</div>';
+            for (const t of (p.away ? [] : Upbringing.tutors())) {
                 const ok = (player.gold || 0) >= (t.hireCost || 0);
                 const subj = t.focus ? (Upbringing.focus(t.focus) || {}).name || t.focus : 'All subjects';
                 html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>${t.icon} ${_esc(t.name)} <span style="color:#888;">${_esc(subj)} · ×${t.quality} · ${t.wage}g/month</span></span>`;
                 html += `<button ${ok ? `onclick="window._heirsUI.hire('${child.id}','${t.id}')"` : 'disabled'} style="${ok ? BTN_GOLD : BTN_OFF}">Hire ${t.hireCost}g</button></div>`;
             }
             const occ = Upbringing.data().companionOccupations || {};
-            for (const npc of Companions.members(player, world)) {
+            for (const npc of (p.away ? [] : Companions.members(player, world))) {
                 const subj = occ[npc.occupation] ? (Upbringing.focus(occ[npc.occupation]) || {}).name : 'All subjects';
                 html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>🧭 ${_esc(npc.firstName)} <span style="color:#888;">companion, ${_esc(npc.occupation || 'traveller')} · ${_esc(subj)}</span></span>`;
                 html += `<button onclick="window._heirsUI.companion('${child.id}','${npc.id}')" style="${BTN_DARK}">Ask to tutor</button></div>`;
@@ -163,6 +164,9 @@ Object.assign(ActionMenu, {
                 }
             }
         }
+
+        // Fostering, betrothal, commissions, the record and its payoff (ui/actionMenu/heirAgency.js)
+        if (p.alive) html += ActionMenu._familyAgencyHtml(game, child);
 
         if (p.events.length) {
             html += `<div style="${HEAD}">Childhood</div>`;

@@ -172,7 +172,9 @@ export const FirstSteps = {
     /** Can the player (re)open the guidance? Not for old saves, heirs or a finished month. */
     canResume(player) {
         const fs = FirstSteps.state(player);
-        return !!(fs && !fs.legacy && !fs.retired && fs.finishedDay == null && (!fs.enabled || fs.skipped));
+        // (an heir never resumes the founder's guidance: check() would retire it at once)
+        const heir = _obj(player.house) && _num(player.house.generation, 1) > _num(fs && fs.generation, 1);
+        return !!(fs && !fs.legacy && !fs.retired && !heir && fs.finishedDay == null && (!fs.enabled || fs.skipped));
     },
 
     isDone(player, id) {

@@ -18,6 +18,8 @@
             "other": { "name": "Other", "icon": "❔" }
         },
         "categories": {
+            "family": { "name": "Family & heirs", "group": "household" },
+            "regency": { "name": "The regency", "group": "state" },
             "stalls": { "name": "Market stalls", "group": "trade" },
             "portTrade": { "name": "Port trade", "group": "trade" },
             "storeRooms": { "name": "Store-room sales", "group": "trade" },
@@ -82,6 +84,8 @@
             "gambling": { "name": "Gambling", "group": "labour" },
             "smuggling": { "name": "Smuggling", "group": "labour" },
             "theft": { "name": "Theft", "group": "labour" },
+            "racket": { "name": "Protection rackets", "group": "labour" },
+            "guild": { "name": "Thieves' Guild: Guildmaster's cut", "group": "labour" },
             "piracy": { "name": "Piracy", "group": "labour" },
             "pirateBounty": { "name": "Pirate bounties", "group": "labour" },
             "ransoms": { "name": "Ransoms taken at sea", "group": "labour" },

@@ -370,7 +370,9 @@ export const PlayerEffects = {
     /** Net charisma modifier from mood (+1 / −1 / 0). */
     moodCharisma(player) {
         const fx = this.moodEffects(player);
-        return (fx.charismaBonus || 0) + (fx.charismaPenalty || 0);
+        // ...and a hotel valet's grooming, for the day it was bought (systems/hospitality.js buyService)
+        const valet = player && player.valet && typeof player.valet.charisma === 'number' ? player.valet.charisma : 0;
+        return (fx.charismaBonus || 0) + (fx.charismaPenalty || 0) + valet;
     },
 
     /** Fractional trade price advantage from mood: ±3% per point of charisma. */

@@ -5,6 +5,8 @@
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { Scenarios } from '../../player/scenarios.js';
+import { House } from '../../systems/house.js';
+import { FirstSteps } from '../../systems/firstSteps.js';
 
 export function resumeGame() {
     const result = SaveLoad.loadGame();
@@ -401,11 +403,19 @@ export function startCustomWorld(editorWorldData) {
             MarketDynamics.initialize();
             if (typeof Technology !== 'undefined') Technology.initPlayer(this.player);
             if (typeof Relationships !== 'undefined') Relationships.initialize(this.player);
+            // The House (dynasty spine), as a generated world's new game sets it up (gameSetup.js):
+            // without it prestige, rival Houses, demands, rival agents and leagues never run,
+            // and a reload would invent a blank House anyway
+            House.initialize(this.player, this.world);
+            House.seedRivals(this.player, this.world);
             if (!this.player.taxRate) this.player.taxRate = 'moderate';
             if (typeof Titles !== 'undefined') Titles.initialize(this.player);
             if (typeof Councils !== 'undefined') Councils.initializePlayer(this.player);
             // A hand-made map starts as the Wanderer on Normal, no goal (player/scenarios.js)
             Scenarios.apply(this.player, this.world, {});
+            // The guided first month, as on a generated world (unless the scenario turns it off)
+            FirstSteps.initialize(this.player, this.world, { enabled: this.player.scenario?.guidedStart !== false });
+            this.ui.updateStats(this.player, this.world);
 
             // Hide title screen, show game
             document.getElementById('settingsScreen')?.classList.add('hidden');

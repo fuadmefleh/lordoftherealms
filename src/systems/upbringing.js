@@ -558,6 +558,8 @@ export const Upbringing = {
                 died = true;
                 notable = true;
                 child.isAlive = false;
+                child.deathDay = (world && world.day) || 0;
+                child.deathCause = 'mishap';
                 texts.push(fill(choice.risk.deathResult || '{child} dies.'));
             }
         }
@@ -593,7 +595,8 @@ export const Upbringing = {
                 const res = Upbringing.comeOfAge(player, world, child);
                 if (res) out.comeOfAge.push(res);
             }
-            if (Upbringing.isAway(child) && day >= _num(up.placement.until)) {
+            // A ward held as a hostage (up.heldBy) does not come home on the day
+            if (Upbringing.isAway(child) && !up.heldBy && day >= _num(up.placement.until)) {
                 out.wardsReturned.push(Upbringing._returnWard(player, world, child));
             }
             if (!Upbringing.inChildhood(child)) continue;
@@ -626,10 +629,17 @@ export const Upbringing = {
         }
         let trait = null;
         const def = p.trait && Traits.TRAITS[p.trait];
-        if (def && !up.adultTraits.includes(p.trait) && !(def.opposite && up.adultTraits.includes(def.opposite))) {
+        if (def && !up.comeOfAge) {
+            // A child fostered young (systems/heirAgency.js) carries the host's
+            // character as a childhood trait, fixed at coming of age
+            Upbringing._addSeeds(child, { [p.trait]: cfg.seedThreshold });
+            trait = p.trait;
+        } else if (def && !up.adultTraits.includes(p.trait) && !(def.opposite && up.adultTraits.includes(def.opposite))) {
             up.adultTraits.push(p.trait);
             trait = p.trait;
         }
+        // The host court was the child's tutor; home again, there is none
+        if (up.tutor && up.tutor.kind === 'host') up.tutor = null;
         if (p.kingdomId) {
             if (!player.reputation) player.reputation = {};
             player.reputation[p.kingdomId] = (player.reputation[p.kingdomId] || 0) + _num(pl.wardReputation);

@@ -1,5 +1,7 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Pirates } from '../../systems/pirates.js';
@@ -1072,7 +1074,7 @@ Object.assign(UI.prototype, {
             </div>
             ${typeof kingdom.stability === 'number' ? `<div class="info-row">
                 <span class="info-label">Stability</span>
-                <span class="info-value" style="color:${KingdomStability.color(kingdom.stability)};">🏛️ ${Math.round(kingdom.stability)}/100 · ${KingdomStability.label(kingdom.stability)}</span>
+                <span class="info-value" style="color:${KingdomStability.color(kingdom.stability)};">🏛️ ${Math.round(kingdom.stability)}/100 · ${KingdomStability.label(kingdom.stability)}${whyIcon(stabilityWhy(Causes.stability(kingdom, this.game.world)), 'Why?')}</span>
             </div>` : ''}
             ${(() => {
                 // The crown's policies: a player-king's edicts, any crown's Royal Post (systems/kingship.js)

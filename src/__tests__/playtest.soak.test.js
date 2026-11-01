@@ -5,9 +5,14 @@
 // stacks, no same-tile buy→sell money loops — and a save → JSON → load round
 // trip mid-run keeps the game state and the run going.
 //
-// A simulated day costs ~40ms on an 80x60 world, so the default run is sized
-// for the normal suite. SOAK=1 plays the long game (5 seeds × 800 days);
-// SOAK_VERBOSE=1 prints each run's stats and gold ledger.
+// Players keep a game for decades, so the run is counted in years (120 days:
+// four seasons of 30). The normal suite plays 2 seeds for SOAK_DEFAULT_YEARS;
+// SOAK=1 plays the long game (5 seeds × a decade); SOAK_YEARS=100 a century
+// (SOAK_DAYS overrides both). A death no longer ends the run: the heir takes
+// over, or a new life begins (harness.carryOn), so a long run crosses
+// generations. The game is saved and reloaded at the midpoint and every 20
+// years. SOAK_VERBOSE=1 prints each run's stats, gold ledger, lives and its
+// growth by year (ms/day, save size) — a slow leak shows there first.
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PlayerInventory } from '../core/inventory.js';
@@ -19,16 +24,21 @@ import { Underworld } from '../systems/underworld.js';
 import { MarketDynamics } from '../systems/marketDynamics.js';
 import { MerchantHouses } from '../systems/merchantHouses.js';
 import { WorldUnit } from '../world/units.js';
-import { loadData, newGame, endDay, roundTrip } from './playtest/harness.js';
+import { loadData, newGame, endDay, roundTrip, carryOn } from './playtest/harness.js';
+import { SaveLoad } from '../systems/saveLoad.js';
 import { botDay } from './playtest/bot.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const LONG = !!ENV.SOAK;
 const SEEDS = ENV.SOAK_SEEDS ? ENV.SOAK_SEEDS.split(',').map(Number) : LONG ? [101, 202, 303, 404, 505] : [101, 202];
-const DAYS = LONG ? 800 : 150;
+const DAYS_PER_YEAR = 120;
+const SOAK_DEFAULT_YEARS = 5;
+const YEARS = Number(ENV.SOAK_YEARS) || (LONG ? 10 : SOAK_DEFAULT_YEARS);
+const DAYS = Number(ENV.SOAK_DAYS) || YEARS * DAYS_PER_YEAR;
 const SAVE_AT = Math.floor(DAYS / 2);
-// (a short run takes ~30s alone; the full suite runs it beside the other heavy files)
-const TIMEOUT = LONG ? 600000 : 150000;
+const SAVE_EVERY = 20 * DAYS_PER_YEAR;
+// A day costs ~60-150ms late in a run (the world fills up); generous for the slow years
+const TIMEOUT = Math.max(150000, DAYS * 400);
 const GOLD_CAP = 1e7;
 
 // The engine logs chattily (pathfinding, generation); keep the run quiet
@@ -241,6 +251,9 @@ function runSoak(seed) {
     const arbitrage = new Set();
     const history = [];
     let died = null;
+    const lives = [];
+    const growth = [];
+    let yearStart = performance.now();
     const startDay = game.world.day;
     for (let i = 0; i < DAYS; i++) {
         const day = game.world.day;
@@ -250,7 +263,8 @@ function runSoak(seed) {
             throw new Error(`seed ${seed} day ${day}: bot action threw: ${e.stack}`);
         }
         problems.push(...checkInvariants(game, 'after actions'));
-        for (const a of probeArbitrage(game)) arbitrage.add(a);
+        // (weekly in runs past a decade: the probe walks every market and a millennium is long)
+        if (DAYS <= 10 * DAYS_PER_YEAR || i % 7 === 0) for (const a of probeArbitrage(game)) arbitrage.add(a);
         let res;
         try {
             res = endDay(game);
@@ -263,8 +277,20 @@ function runSoak(seed) {
             pl.jailState ? 'jail' : pl.indenturedServitude ? 'servitude' : '', `${pl.q},${pl.r}`]);
         if (history.length > 12) history.shift();
         if (problems.length) break;
-        if (res.died) { died = `${res.died} on day ${game.world.day}`; break; }
-        if (i === SAVE_AT) {
+        if (res.died) {
+            // The death screen's choice: the heir, else a new life (harness.carryOn)
+            const was = game.player.name;
+            const next = carryOn(game, res.died);
+            lives.push(`${was}: ${res.died} at ${Math.round(pl.age)} on day ${game.world.day} → ${next.how ? `${next.how} ${game.player.name}` : 'the end'}`);
+            if (!next.how) { died = `${res.died} on day ${game.world.day}`; break; }
+        }
+        if ((i + 1) % DAYS_PER_YEAR === 0) {
+            const now = performance.now();
+            const bytes = JSON.stringify({ world: SaveLoad.serializeWorld(game.world), player: SaveLoad.serializePlayer(game.player) }).length;
+            growth.push({ year: (i + 1) / DAYS_PER_YEAR, msPerDay: Math.round((now - yearStart) / DAYS_PER_YEAR), saveKB: Math.round(bytes / 1024), gold: Math.round(game.player.gold) });
+            yearStart = performance.now();
+        }
+        if (i === SAVE_AT || (i > 0 && i % SAVE_EVERY === 0)) {
             const before = snapshot(game);
             game = roundTrip(game);
             expect(snapshot(game), `seed ${seed}: save/load round trip changed state`).toEqual(before);
@@ -274,20 +300,20 @@ function runSoak(seed) {
             problems.push(...guardianProblems(game, i === SAVE_AT ? 'after load' : 'after reload day'));
         }
     }
-    return { game, stats, problems, arbitrage: [...arbitrage], died, history, days: game.world.day - startDay };
+    return { game, stats, problems, arbitrage: [...arbitrage], died, history, lives, growth, days: game.world.day - startDay };
 }
 
 const totals = {};
 
 describe('headless playtest soak', () => {
     for (const seed of SEEDS) {
-        it(`seed ${seed}: the bot plays ${DAYS} days without breaking an invariant`, () => {
-            const { game, stats, problems, arbitrage, died, history, days } = runSoak(seed);
+        it(`seed ${seed}: the bot plays ${DAYS} days (${+(DAYS / DAYS_PER_YEAR).toFixed(1)} years) without breaking an invariant`, () => {
+            const { game, stats, problems, arbitrage, died, history, lives, growth, days } = runSoak(seed);
             for (const [k, v] of Object.entries(stats)) totals[k] = (totals[k] || 0) + v;
             if (ENV.SOAK_VERBOSE) {
                 const uw = game.player.underworld;
                 const report = {
-                    days, died, gold: Math.round(game.player.gold), stats, ledger: game.ledger,
+                    days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats },
                     company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({

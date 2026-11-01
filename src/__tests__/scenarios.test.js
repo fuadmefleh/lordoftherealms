@@ -38,7 +38,7 @@ function aMarket(world) {
 }
 
 describe('the Wanderer on Normal', () => {
-    it('changes nothing about the player and draws no randomness', () => {
+    it('sets only the light purse and draws no randomness', () => {
         const a = newGame(41);
         const b = newGame(41);
         const report = Scenarios.apply(b.player, b.world, {});
@@ -47,6 +47,10 @@ describe('the Wanderer on Normal', () => {
         const sa = SaveLoad.serializePlayer(a.player);
         const sb = SaveLoad.serializePlayer(b.player);
         delete sb.scenario;
+        // A few coins and the open road (data/scenarios.json), whatever the player was made with
+        expect(sb.gold).toBe(250);
+        delete sa.gold;
+        delete sb.gold;
         expect(sb).toEqual(sa);
         expect(b.player.scenario).toMatchObject({ id: 'wanderer', difficulty: 'normal', victory: 'none', guidedStart: true });
         expect(report.welcome).toContain('You are a wanderer');
@@ -162,9 +166,11 @@ describe('origins', () => {
 describe('difficulty knobs', () => {
     it('scales the starting purse', () => {
         const g = newGame(61);
-        const base = g.player.gold;
         Scenarios.apply(g.player, g.world, { difficulty: 'hard' });
-        expect(g.player.gold).toBe(Math.round(base * 0.6));
+        expect(g.player.gold).toBe(Math.round(250 * 0.6));
+        const b = newGame(61);
+        Scenarios.apply(b.player, b.world, { difficulty: 'brutal' });
+        expect(b.player.gold).toBe(Math.round(250 * 0.3));
         const e = newGame(61);
         Scenarios.apply(e.player, e.world, { origin: 'disinherited', difficulty: 'easy' });
         expect(e.player.gold).toBe(600);

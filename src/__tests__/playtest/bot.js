@@ -22,8 +22,10 @@ import { Treasures } from '../../player/treasures.js';
 import { SeasonalWork } from '../../player/seasonalWork.js';
 import { Foraging } from '../../player/foraging.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { OddJobs } from '../../player/oddJobs.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Ships } from '../../systems/ships.js';
+import { Landings } from '../../systems/landings.js';
 import { Petitions } from '../../systems/petitions.js';
 import { Delves } from '../../systems/delves.js';
 import { Throne } from '../../systems/throne.js';
@@ -58,11 +60,16 @@ import { PuttingOut } from '../../systems/puttingOut.js';
 import { Transport } from '../../world/transport.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
+import { RivalAgents } from '../../systems/rivalAgents.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
 // Bought only when there's no grain or bread for sale
 const FOOD_FALLBACK = ['fish'];
+// Below this purse the bot lives like a poor wanderer: works for wages in
+// town, buys a week's bread at a time and spends on nothing grand
+const POOR_BELOW = 600;
+const JOB_AP = 4;
 
 function count(stats, key, n = 1) {
     stats[key] = (stats[key] || 0) + n;
@@ -108,7 +115,7 @@ function buyFood(game, tile, stats) {
         const g = goods.find(x => x.id === id);
         if (!g || g.quantity <= 0) continue;
         // Each unit costs a little more than the last as the stall empties
-        const qty = Trading.affordable(player, g, tile.settlement, 30);
+        const qty = Trading.affordable(player, g, tile.settlement, player.gold < POOR_BELOW ? 8 : 30);
         if (qty <= 0) continue;
         const res = Trading.buyGoods(player, g, qty, tile.settlement);
         if (res.success) { count(stats, 'foodBought', qty); return; }
@@ -122,6 +129,22 @@ function buyFood(game, tile, stats) {
         if (qty <= 0) continue;
         const res = Trading.buyGoods(player, g, qty, tile.settlement);
         if (res.success) { count(stats, 'foodBought', qty); return; }
+    }
+}
+
+/** A day's labour in town (ui/actionMenu/jobs.js → OddJobs.complete), as many jobs as the AP allows. */
+function dayLabour(game, tile, stats) {
+    const { player, world } = game;
+    const table = DataLoader.earlyJobs && DataLoader.earlyJobs.oddJobs && DataLoader.earlyJobs.oddJobs.settlement_jobs;
+    if (!table) return;
+    const jobs = table[tile.settlement.type] || table.town || [];
+    if (!jobs.length) return;
+    while ((player.actionPoints || 0) >= JOB_AP) {
+        // The best-paid work the bot is fit for: the job whose stat it is strongest in
+        const job = jobs.reduce((a, b) => (OddJobs.statValue(player, b.stat) + b.pay.max / 10 > OddJobs.statValue(player, a.stat) + a.pay.max / 10 ? b : a));
+        player.actionPoints -= JOB_AP;
+        OddJobs.complete(player, world, tile.settlement, job, 40 + Math.floor(Utils.random() * 40));
+        count(stats, 'oddJobs');
     }
 }
 
@@ -399,6 +422,9 @@ function seaActivity(game, tile, stats) {
         .map(n => ({ q: Hex.wrapQ(n.q, world.width), r: n.r }))
         .find(n => n.r >= 0 && n.r < world.height && Ships.isWaterTile(world.getTile(n.q, n.r)));
     if (water) travelTo(game, water.q, water.r);
+    // Now and then row ashore on open coast and run anything that owes duty past the customs house (systems/landings.js)
+    // (decided by a hash of the day, so the bot's own dice are not shifted)
+    if (water && (Utils.hashStr(`beachRun:${world.day}`) >>> 0) % 10 < 3) beachRun(game, ship, stats);
     const act = Utils.random() < 0.1 ? 'commitPiracy' : Utils.randPick(['exploreOcean', 'huntPirates']);
     // Exploring can turn up an uncharted place (systems/discovery.js), as in the ship menu
     const res = act === 'exploreOcean' ? Discovery.exploreOcean(player, ship.id, world) : Ships[act](player, ship.id, world);
@@ -406,6 +432,22 @@ function seaActivity(game, tile, stats) {
     if (res && res.success) count(stats, `sea_${act}`);
     travelTo(game, tile.q, tile.r);
     if (Ships.disembark(player, world).success) count(stats, 'disembarked');
+}
+
+/** Row ashore on open coast beside the ship, run a boat-load of whatever owes duty past the customs, row back out. */
+function beachRun(game, ship, stats) {
+    const { player, world } = game;
+    const shore = Ships.getRowAshoreTargets(world, player.q, player.r).find(t => !t.settlement && !Ships.hasDock(world, t.q, t.r));
+    if (!shore || !Ships.rowAshore(player, world, shore.q, shore.r).success) return;
+    count(stats, 'beachLandings');
+    for (const o of Landings.runOptions(player, world)) {
+        if (!o.ok) continue;
+        const res = Landings.runAshore(player, world, o.shipId, o.goodId);
+        if (res.success) count(stats, res.caught ? 'beachRunsCaught' : 'beachRuns');
+        break;
+    }
+    // The landed goods stay in the packs (they sell duty-free now); the bot rows back out
+    if (!player.jailState) Ships.rowToShip(player, ship.id);
 }
 
 /** Plan and pull a heist once the guild trusts the bot with one. */
@@ -1294,6 +1336,59 @@ function family(game, stats) {
     });
 }
 
+/**
+ * Courtship (ui/actionMenu/peopleScene.js): past the short soak's horizon, an
+ * unwed bot with a settled purse courts someone of an age in town — a little
+ * affection a visit — and proposes once it would be accepted (affection 70,
+ * a 100-gold ring), so runs that span generations have heirs to play.
+ */
+const SUITORS = new WeakMap(); // player → the NPC id being courted (kept off the save)
+function courtship(game, stats) {
+    const { player, world } = game;
+    if (player.spouse || world.day <= 150 || player.age < 18 || player.gold < 400) return;
+    const tile = world.getTile(player.q, player.r);
+    if (!tile || !tile.settlement) return;
+    let suitor = SUITORS.has(player) ? Relationships.getNPC(SUITORS.get(player)) : null;
+    if (!suitor || suitor.isAlive === false || suitor.isMarried) {
+        const fit = Relationships.getNPCsAtSettlement(tile, world, player).filter(n => n.isAlive !== false && !n.isMarried
+            && n.gender && n.gender !== player.gender && n.age >= 18 && Math.abs(n.age - player.age) <= 12);
+        if (!fit.length) return;
+        suitor = Utils.randPick(fit);
+        SUITORS.set(player, suitor.id);
+    }
+    const rel = Relationships.getRelationship(player, suitor.id);
+    rel.affection = Math.min(100, (rel.affection || 0) + 4);
+    if (rel.affection < 70) return;
+    player.gold -= 100;
+    if (Relationships.marry(player, suitor.id, world).success) {
+        count(stats, 'married');
+        SUITORS.delete(player);
+    }
+}
+
+/**
+ * Rival Houses' agents (systems/rivalAgents.js): past the short soak's
+ * horizon, ask around a town where they could have bought someone now and
+ * then, and deal with those found out — turn them when rich, else expose them.
+ * No dice of its own.
+ */
+export function rivalAgents(game, stats) {
+    const { player, world } = game;
+    if (!player.house || world.day <= 150) return;
+    const st = RivalAgents.state(player);
+    for (const a of RivalAgents.known(player).filter(x => !x.turned)) {
+        const cost = RivalAgents.turnCost(player, a);
+        if (player.gold > cost * 4 && RivalAgents.turn(player, world, a.id).success) count(stats, 'agentsTurned');
+        else if (RivalAgents.expose(player, world, a.id).success) count(stats, 'agentsExposed');
+    }
+    if (world.day % 10 !== 0 || player.gold < 400) return;
+    const here = world.getTile(player.q, player.r);
+    if (!here || !here.settlement) return;
+    const key = `${player.q},${player.r}`;
+    const suspect = st.agents.some(a => !a.known && `${a.q},${a.r}` === key) || !!RivalAgents.towns(player, world, { lazy: false })[key];
+    if (suspect && RivalAgents.inquire(player, world, player.q, player.r).success) count(stats, 'agentInquiries');
+}
+
 /** One day of the bot's play (before the harness ends the day). */
 export function botDay(game, stats) {
     const { player, world } = game;
@@ -1433,16 +1528,25 @@ export function botDay(game, stats) {
         }
     }
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
+    booked(game, 'courtship', () => courtship(game, stats));
     if ((player.children || []).length) family(game, stats);
+    booked(game, 'rivalAgents', () => rivalAgents(game, stats));
     // Badly hurt: get to a town, see a physician and rest there (a pauper
     // can't pay one; better to go and live off the land)
-    if (player.health < 50 && player.gold >= 20) {
+    if (player.health < 50) {
         const here = world.getTile(player.q, player.r);
         if (here && here.settlement) {
-            booked(game, 'buyFood', () => buyFood(game, here, stats));
+            if (player.getFoodCount() < 5) booked(game, 'buyFood', () => buyFood(game, here, stats));
             if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
             for (const o of Ailments.treatmentOptions(player, world, here.settlement)) {
-                if (o.can && Ailments.treat(player, world, here.settlement, o.key).success) count(stats, 'treated');
+                const res = o.can ? Ailments.treat(player, world, here.settlement, o.key) : null;
+                if (res && res.success) count(stats, res.charity ? 'treatedForCharity' : 'treated');
+            }
+            // A pauper cannot lie abed: hurt or not, the day's wage buys the bread
+            if (player.gold < POOR_BELOW) {
+                booked(game, 'labour', () => dayLabour(game, here, stats));
+                count(stats, 'workedHurt');
+                return;
             }
             // Nothing to eat for sale here (a hamlet picked bare): move on to the
             // next town rather than starve while resting
@@ -1478,17 +1582,35 @@ export function botDay(game, stats) {
     const sickAt = world.getTile(player.q, player.r);
     if (sickAt && sickAt.settlement) {
         for (const opt of Ailments.treatmentOptions(player, world, sickAt.settlement)) {
-            if ((opt.kind !== 'disease' && opt.kind !== 'wound') || !opt.can || player.gold < Math.max(500, opt.cost * 5)) continue;
+            if ((opt.kind !== 'disease' && opt.kind !== 'wound') || !opt.can) continue;
+            // A dangerous condition is paid for whatever the purse (or taken as charity)
             if (!dangerous(Ailments.list(player).find(a => a.key === opt.key))) continue;
             if (booked(game, 'medicine', () => Ailments.treat(player, world, sickAt.settlement, opt.key)).success) count(stats, 'treated');
         }
-    } else if (player.gold >= 500 && Ailments.list(player).some(dangerous)) {
+    } else if (Ailments.list(player).some(dangerous)) {
         // Out on the road with a festering wound or a dangerous fever: make for a physician
         const town = nearest(world, player, settlementTiles(world), 3)[0];
         if (town) {
             game.dest = { q: town.q, r: town.r };
             travelTo(game, town.q, town.r);
             count(stats, 'soughtPhysician');
+            return;
+        }
+    }
+    // Poor: earn a living before anything grand — a day's labour and the
+    // market in town, as a player starting with a light purse would
+    if (player.gold < POOR_BELOW && !(player.army || []).length) {
+        const here = world.getTile(player.q, player.r);
+        if (here && here.settlement) {
+            booked(game, 'labour', () => dayLabour(game, here, stats));
+            if (player.getFoodCount() < 5) booked(game, 'buyFood', () => buyFood(game, here, stats));
+            settlementBusiness(game, stats);
+            return;
+        }
+        const town = nearest(world, player, settlementTiles(world), 1)[0];
+        if (town) {
+            game.dest = { q: town.q, r: town.r };
+            travelTo(game, town.q, town.r);
             return;
         }
     }

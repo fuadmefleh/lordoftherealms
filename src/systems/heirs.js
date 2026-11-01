@@ -64,6 +64,38 @@ export const Heirs = {
         return { child, up };
     },
 
+    /**
+     * How a realm is bound to the House by blood: 'married' (the ruler's own
+     * match, or a child wed into it), 'betrothed' (a child promised to it,
+     * systems/heirAgency.js) or null. Pure.
+     */
+    kinshipWith(player, kid) {
+        if (!player || !kid) return null;
+        if (player.marriageAllianceKingdom === kid) return 'married';
+        let kin = null;
+        for (const c of player.children || []) {
+            if (!c || c.isAlive === false) continue;
+            const up = c.upbringing;
+            const sp = up && up.spouse;
+            if (sp && (sp.kind === 'alliance' || sp.kind === 'royal') && sp.kingdomId === kid) return 'married';
+            const b = up && up.agency && up.agency.betrothal;
+            if (b && b.kingdomId === kid) kin = 'betrothed';
+        }
+        return kin;
+    },
+
+    /**
+     * The share of a realm's hostility left when it is bound to the House by
+     * marriage or betrothal (systems/coalitions.js): { kin, factor }.
+     */
+    kinshipFactor(player, kid) {
+        const kin = Heirs.kinshipWith(player, kid);
+        if (!kin) return { kin: null, factor: 1 };
+        const a = (typeof DataLoader !== 'undefined' && DataLoader.upbringing && DataLoader.upbringing.agency) || {};
+        const f = kin === 'married' ? a.kinshipMarried : a.kinshipBetrothed;
+        return { kin, factor: Number.isFinite(f) ? f : (kin === 'married' ? 0.5 : 0.75) };
+    },
+
     /** Kingdoms a grown child could marry or be fostered into. */
     kingdoms(player, world) {
         const ruled = Throne.ruledKingdom(player, world);

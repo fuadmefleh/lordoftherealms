@@ -5,8 +5,9 @@
     "wanderer": {
       "name": "The Wanderer",
       "icon": "🧭",
-      "blurb": "No name, no lands, no debts. A full purse and the open road. The classic start: the world is yours to read.",
+      "blurb": "No name, no lands, no debts. A few coins, the clothes on your back and the open road. Work, trade and fight your way up: the world is yours to read.",
       "guidedStart": true,
+      "gold": 250,
       "suggestedVictory": "none",
       "welcome": "You are a wanderer in a {mapDesc} world of {kingdoms} kingdoms. Click on the map to move, explore settlements, and forge your destiny."
     },

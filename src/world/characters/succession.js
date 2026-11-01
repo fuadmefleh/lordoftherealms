@@ -2,7 +2,41 @@
 import { Characters } from './_ref.js';
 import { Utils } from './_imports.js';
 
+/** Dead royal children kept this many days (the court still mourns them), then dropped. */
+const FAMILY_MOURN_DAYS = 360;
+/** Dynasty member ids kept (only used to avoid listing a member twice). */
+const FAMILY_MEMBERS_CAP = 120;
+
 Object.assign(Characters, {
+    /**
+     * Keep a royal family's records from growing for ever over a long game:
+     * every child ever born stayed in data.children, and every birth linked
+     * itself to every living sibling (and cousin), so the lists grew without
+     * end and quadratically. Living children are all kept; the dead are kept
+     * for FAMILY_MOURN_DAYS, never one married to the player (throne.js finds
+     * the royal spouse here). Dropped ids leave the living's sibling lists.
+     */
+    pruneFamily(data, day) {
+        if (!data || !Array.isArray(data.children)) return;
+        const now = Number.isFinite(day) ? day : 0;
+        // A death recorded without a day (other systems' killings) starts its mourning now
+        for (const c of data.children) if (c && !c.isAlive && !Number.isFinite(c.deathDay)) c.deathDay = now;
+        const kept = data.children.filter(c => c && (c.isAlive || c.spouseId === 'player' || now - c.deathDay < FAMILY_MOURN_DAYS));
+        if (kept.length !== data.children.length) {
+            const ids = new Set(kept.map(c => c.id));
+            for (const c of kept) {
+                if (Array.isArray(c.siblingIds)) c.siblingIds = c.siblingIds.filter(id => ids.has(id));
+            }
+            data.children = kept;
+        }
+        const members = data.dynasty && data.dynasty.members;
+        if (Array.isArray(members) && members.length > FAMILY_MEMBERS_CAP) {
+            const rulerId = data.ruler && data.ruler.id;
+            const recent = members.slice(-FAMILY_MEMBERS_CAP);
+            data.dynasty.members = rulerId && !recent.includes(rulerId) ? [rulerId, ...recent.slice(1)] : recent;
+        }
+    },
+
     // ────────────────────────────────────────────────────────────────────
     //  Succession System
     // ────────────────────────────────────────────────────────────────────
@@ -451,6 +485,7 @@ Object.assign(Characters, {
 
         data.dynasty.members.push(child.id);
         data.dynasty.prestige += 5;
+        Characters.pruneFamily(data, world.day);
 
         world.events.push({
             category: 'dynasty',

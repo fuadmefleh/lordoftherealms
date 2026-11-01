@@ -5435,6 +5435,9 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 .hud-bb-res-icon { font-size: 17px; }
 .tb-res[title="Renown"] .tb-res-icon, .hud-bb-res[title="Renown"] .hud-bb-res-icon { color: #ffe9a8; }
 .tb-res[title="Military Strength"] .tb-res-icon, .hud-bb-res[title="Military Strength"] .hud-bb-res-icon { color: #9fbbe0; }
+.tb-res-prestige { cursor: pointer; border-radius: 4px; }
+.tb-res-prestige .tb-res-icon { color: #d9b8ff; }
+.tb-res-prestige:hover .tb-res-val, .tb-res-prestige:focus-visible .tb-res-val { text-decoration: underline; }
 .tb-res-gold .tb-res-icon .ico { filter: drop-shadow(0 0 5px rgba(245, 197, 66, 0.35)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
 
 .tb-icon-btn { font-size: 16px; }

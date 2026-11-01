@@ -10,6 +10,8 @@ import { ConversationScene } from '../conversationScene.js';
 import { NPCLords, PlayerEffects, Treasures, Technology, Titles, Utils, Peoples, Religion } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 import { Coalitions } from '../../systems/coalitions.js';
+import { Causes } from '../../player/causes.js';
+import { whyIcon, opinionWhy } from '../whyPopover.js';
 
 let _current = null; // the audience on stage: { unitId, used, paid, scene, total }
 
@@ -117,14 +119,16 @@ function _recall(kingdom, lord) {
     return m.recall ? `${m.recall} ` : '';
 }
 
-function _factsHtml(player, kingdom, lord, st) {
+function _factsHtml(player, kingdom, lord, st, world = null) {
+    // "Why?": each part of his opinion, the deeds he remembers (player/causes.js)
+    const why = whyIcon(opinionWhy(Causes.lordOpinion(world, lord, player)), 'Why does he think so?');
     const pip = (icon, label, v) => `<span class="npc-scene-stat" title="${label} ${v}/10">${icon}<b>${v}</b><i style="--v:${v * 10}%"></i></span>`;
     const traits = (lord.traits || []).map(t => `<span class="npc-dialog-trait" title="${t.description || ''}">${t.name}</span>`).join('');
     let tag = '';
     if (player.allegiance === kingdom.id) tag = '<div class="npc-dialog-rel-badge" style="color:#4fc3f7">🏳️ Your liege</div>';
     else if (player.allegiance && (kingdom.wars || []).includes(player.allegiance)) tag = '<div class="npc-dialog-rel-badge" style="color:#f44336">⚔️ At war with your realm</div>';
     return `${tag}
-        <div class="npc-dialog-visits" title="The lord's own opinion, plus your reputation in ${kingdom.name}">💭 Opinion ${_sign(st.opinion)} · Rep ${_sign(st.reputation)}</div>
+        <div class="npc-dialog-visits" title="The lord's own opinion, plus your reputation in ${kingdom.name}">💭 Opinion ${_sign(st.opinion)} · Rep ${_sign(st.reputation)}${why}</div>
         <div class="npc-scene-stats">${pip('⚔️', 'Martial', lord.martial)}${pip('🗣️', 'Diplomacy', lord.diplomacy)}${pip('📊', 'Stewardship', lord.stewardship)}</div>
         ${traits ? `<div class="npc-dialog-traits">${traits}</div>` : ''}
         ${_memoryHtml(kingdom, lord)}`;
@@ -159,7 +163,7 @@ export function openLordAudience(game, unitId) {
         sprite: { type: 'noble', id: ConversationScene.seedOf(lord.name) },
         mood: ConversationScene.moodFromStanding(st.total),
         moodTitle: `How ${lord.name} regards you`,
-        facts: _factsHtml(player, kingdom, lord, st),
+        facts: _factsHtml(player, kingdom, lord, st, world),
         greeting: _recall(kingdom, lord) + _greeting(player, kingdom, lord, st.total),
         onClose: () => {
             // Leaving without asking anything costs nothing
@@ -202,7 +206,7 @@ function _refreshMood(game, state) {
     state.total = st.total;
     state.scene.setMood(ConversationScene.moodFromStanding(st.total), delta);
     const facts = state.scene.overlay.querySelector('.npc-dialog-facts');
-    if (facts) facts.innerHTML = _factsHtml(game.player, c.kingdom, c.lord, st);
+    if (facts) facts.innerHTML = _factsHtml(game.player, c.kingdom, c.lord, st, game.world);
 }
 
 /** Pay the audience's AP on its first real act. False if it can't be paid. */

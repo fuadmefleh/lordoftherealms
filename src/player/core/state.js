@@ -202,16 +202,24 @@ export class Player {
             bestTile = { q: start.q, r: start.r };
         }
 
-        // Try to start near an independent village
-        for (let r = 0; !bestTile && r < world.height; r++) {
-            for (let q = 0; q < world.width; q++) {
-                const tile = world.tiles[r][q];
-                if (tile.settlement && tile.settlement.type === 'village' && !tile.kingdom) {
-                    bestTile = { q, r };
-                    break;
+        // Try to start near an independent village — on a landmass worth
+        // walking, not a lone islet a Wanderer cannot leave without a ship
+        if (!bestTile) {
+            let fallback = null;
+            for (let r = 0; !bestTile && r < world.height; r++) {
+                for (let q = 0; q < world.width; q++) {
+                    const tile = world.tiles[r][q];
+                    if (tile.settlement && tile.settlement.type === 'village' && !tile.kingdom) {
+                        const land = Player._landReach(world, q, r, Player.START_MIN_LAND);
+                        if (land >= Player.START_MIN_LAND) {
+                            bestTile = { q, r };
+                            break;
+                        }
+                        if (!fallback || land > fallback.land) fallback = { q, r, land };
+                    }
                 }
             }
-            if (bestTile) break;
+            if (!bestTile && fallback) bestTile = { q: fallback.q, r: fallback.r };
         }
 
         // Fallback: just find any passable land
@@ -245,6 +253,30 @@ export class Player {
 
         // Discover holy sites in initial visible area
         this.discoverNearbyHolySites(world, 4);
+    }
+
+    /** Walkable hexes a starting village needs around it (placeInWorld). */
+    static START_MIN_LAND = 30;
+
+    /** Passable hexes reachable on foot from (q, r), counted up to `cap`. */
+    static _landReach(world, q, r, cap) {
+        const seen = new Set([`${q},${r}`]);
+        const queue = [{ q, r }];
+        let count = 0;
+        while (queue.length && count < cap) {
+            const cur = queue.shift();
+            count++;
+            for (const n of Hex.neighbors(cur.q, cur.r)) {
+                if (n.r < 0 || n.r >= world.height) continue;
+                const nq = Hex.wrapQ(n.q, world.width);
+                const key = `${nq},${n.r}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const t = world.tiles[n.r][nq];
+                if (t && t.terrain && t.terrain.passable) queue.push({ q: nq, r: n.r });
+            }
+        }
+        return count;
     }
 
     /**

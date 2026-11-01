@@ -23,6 +23,7 @@ import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
+import { HeirAgency } from '../systems/heirAgency.js';
 import { Legacy } from '../systems/legacy.js';
 import { Annals } from '../systems/annals.js';
 import { House } from '../systems/house.js';
@@ -199,6 +200,8 @@ export const Afterlife = {
                 const Y = Relationships._getHeirSettings().daysPerYear;
                 if (Y > 0 && world.day % Y === 0) Relationships.ageChildren(estate, world);
                 const up = Upbringing.processDay(estate, world);
+                // Children abroad come home, betrothals are kept, embassies end (systems/heirAgency.js)
+                HeirAgency.processDay(estate, world);
                 out.cameOfAge.push(...(up.comeOfAge || []));
             }
         } finally {

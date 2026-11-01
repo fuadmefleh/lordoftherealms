@@ -11,7 +11,7 @@ The world model: terrain generation, kingdoms, settlements, economy, NPCs, and e
 | `customBuildings.js` | ~310 | Inner-map building registry (sprite definitions, types) |
 | `customInteriors.js` | ~380 | Interior layout definitions (houses, shops, dungeons) |
 | `customObjects.js` | ~410 | Inner-map object registry (trees, rocks, crates, etc.) |
-| `economy.js` | ~840 | `Economy`: settlement production (`calculateDetailedProduction`), the food model and lean season, what a market lists (`marketGoods`) and asks (`marketAskBase` × the store's scarcity = `marketPrice`), resource bonuses, monopolies, kingdom trade routes (`TradeRoutes`; `processTrade` banks the trade income NPC goods flows earned) |
+| `economy.js` | ~840 | `Economy`: settlement production (`calculateDetailedProduction`), the food model and lean season, what a market lists (`marketGoods`) and asks (`marketAskBase` × the store's scarcity = `marketPrice`; `marketAskBase(…, parts)` reports each step's factor for `player/causes.js`), resource bonuses, monopolies, kingdom trade routes (`TradeRoutes`; `processTrade` banks the trade income NPC goods flows earned) |
 | `innerMap/` | ~2000 | Inner-map model: tile generation, object/building placement, pathfinding; `encounters.js` hash-places wilderness encounters (no RNG drawn) and spots them as the player walks; `hospitality.js` binds guest houses/inns/hotels to their `systems/hospitality.js` houses and keepers, and stands roadhouses on open-road maps |
 | `kingdom.js` | ~440 | Kingdom templates, placement, initial relations |
 | `kingdomAI.js` | ~700 | Kingdom decision-making, expansion, diplomacy AI |

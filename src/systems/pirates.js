@@ -51,6 +51,7 @@
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Ships } from './ships.js';
 import { Discovery } from './discovery.js';
 import { Quests } from './quests.js';
@@ -615,7 +616,8 @@ export const Pirates = {
     boardChance(player, world, state) {
         const ship = Pirates._ship(player, state);
         const mult = state.unready ? Pirates.config().board.unready : 1;
-        return _odds(Pirates._shipStr(player, ship) * mult, state.enemy.strength);
+        // (tougher or softer foes by the difficulty — core/difficulty.js; exact on Normal)
+        return Difficulty.againstFoe(player, _odds(Pirates._shipStr(player, ship) * mult, state.enemy.strength));
     },
 
     duelChance(player, world, state) {
@@ -1453,7 +1455,7 @@ export const Pirates = {
 
     _checkChance(player, world, state, o) {
         const ship = Pirates._ship(player, state);
-        if (o.fight) return _odds(Pirates._shipStr(player, ship), _num(state.enemy, 10));
+        if (o.fight) return Difficulty.againstFoe(player, _odds(Pirates._shipStr(player, ship), _num(state.enemy, 10)));
         const c = o.check;
         if (!c) return null;
         let p = _num(c.base, 0.5);

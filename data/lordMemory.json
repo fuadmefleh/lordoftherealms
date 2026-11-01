@@ -80,6 +80,10 @@
         "coalition_bought": { "weight": 6, "halfLife": 240, "icon": "💰", "label": "the gold you paid to leave the league", "recall": "You paid well to keep me out of the league." },
         "holding_ceded": { "weight": 15, "halfLife": 720, "icon": "🏰", "label": "the town you yielded to the realm", "recall": "You gave back what was ours. That was well done." },
         "coalition_defied": { "weight": -8, "halfLife": 360, "icon": "⚔️", "label": "the league's terms you threw back", "recall": "The league offered you terms. You spat on them." },
-        "spouse_kin_spoken": { "weight": 6, "halfLife": 240, "icon": "🕊️", "label": "the word you spoke for peace with the realm", "recall": "I hear you spoke for peace with us." }
+        "spouse_kin_spoken": { "weight": 6, "halfLife": 240, "icon": "🕊️", "label": "the word you spoke for peace with the realm", "recall": "I hear you spoke for peace with us." },
+        "fostered_heir": { "weight": 14, "halfLife": 1500, "icon": "🏰", "label": "the heir you let us raise at our court", "recall": "I raised the one who rules your House now. I have not forgotten." },
+        "envoy_received": { "weight": 5, "halfLife": 360, "icon": "📜", "label": "the envoy of your blood you sent to court", "recall": "Your child came to us as envoy. A courteous embassy." },
+        "betrothal_made": { "weight": 8, "halfLife": 1200, "icon": "💍", "label": "the betrothal you made with our House", "recall": "Our Houses are promised to one another." },
+        "betrothal_broken": { "weight": -14, "halfLife": 900, "icon": "💔", "label": "the betrothal you broke", "recall": "You broke the promise between our Houses." }
     }
 }

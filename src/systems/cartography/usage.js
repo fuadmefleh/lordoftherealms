@@ -652,7 +652,9 @@ Object.assign(Cartography, {
             if (kingdom.wars && kingdom.wars.length > 0 && Utils.random() < Cartography.PROPAGANDA_CHANCE) {
                 const propMap = Cartography.generatePropagandaMap(kingdom, world);
                 if (propMap) {
-                    kingdom.cartography.propagandaMaps.push(propMap);
+                    // The archive keeps a note of the commission (its count rallies the
+                    // realm, world/kingdomState.js); the chart's tiles are never read again
+                    kingdom.cartography.propagandaMaps.push(KingdomAtlas.slimPropaganda(propMap));
                     kingdom.cartography.mapsMade += 1; // propaganda is cartography too
                     if (kingdom.cartography.propagandaMaps.length > 3) {
                         kingdom.cartography.propagandaMaps.shift();

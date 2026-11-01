@@ -3,6 +3,7 @@ import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { CompanionsPanel } from '../companionsPanel.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
@@ -648,6 +649,13 @@ Object.assign(ActionMenu, {
         }
         html += '</div>';
 
+        // A child's reign: the regent, and the choice at majority (systems/regency.js)
+        if (player.regency && (player.regency.active || player.regency.ending)) {
+            const rg = player.regency;
+            const label = rg.ending ? '👑 Coming of Age — decide the regent\'s fate' : `👑 Regency — ${rg.regent.name} (loyalty ${rg.regent.loyalty})`;
+            html += `<button data-am-act="showRegencyPanel" style="width:100%; padding:8px; margin-bottom:10px; background:${rg.ending ? 'var(--gold)' : '#4a3a1f'}; border:1px solid rgba(245,197,66,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:${rg.ending ? '#000' : 'var(--gold)'};">${label}</button>`;
+        }
+
         if (house) {
             html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
         }
@@ -691,6 +699,8 @@ Object.assign(ActionMenu, {
                 html += `<div style="font-size: 11px; color: #aaa;">Age ${child.age} · ${child.culture}</div>`;
                 html += `<div style="font-size: 11px; margin-top: 2px;">Born: ${traitStr}</div>`;
                 html += `<div style="font-size: 11px; margin-top: 2px; color: #c9b27a;">${Upbringing.summary(player, child)}</div>`;
+                const where = HeirAgency.status(player, game.world, child);
+                if (where) html += `<div style="font-size: 11px; margin-top: 2px; color: #9cc8ff;">${where}</div>`;
                 if (child.upbringing && child.upbringing.pending) html += `<div style="font-size: 11px; color: #f5c542;">⚠️ A matter awaits your decision</div>`;
                 html += `</div>`;
                 html += `</div>`;
@@ -1141,7 +1151,7 @@ Object.assign(ActionMenu, {
         if (eligibleHeirs.length > 0) {
             html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
             html += '<h4>Choose Your Heir</h4>';
-            html += '<p style="font-size: 12px; color: #aaa;">Continue your dynasty by taking control of one of your children.</p>';
+            html += `<p style="font-size: 12px; color: #aaa;">Continue your dynasty by taking control of one of your ${eligibleHeirs.some(h => h.isSibling) ? 'children or siblings' : 'children'}.</p>`;
 
             for (const heir of eligibleHeirs) {
                 const genderIcon = heir.gender === 'male' ? '♂️' : '♀️';
@@ -1151,12 +1161,22 @@ Object.assign(ActionMenu, {
                     : 'None';
 
                 html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isDesignated ? 'border: 1px solid var(--gold);' : ''}">`;
-                html += `<strong>${heir.firstName} ${heir.dynasty}</strong> ${genderIcon} · Age ${heir.age}`;
+                html += `<strong>${heir.firstName} ${heir.dynasty}</strong> ${genderIcon} · Age ${heir.age}${heir.isSibling ? ' · <span style="color:#aaa;">sibling</span>' : ''}`;
                 if (isDesignated) html += ` <span style="color: var(--gold);">👑 Designated</span>`;
-                html += `<div style="font-size: 11px; color: #aaa;">Born: ${traitStr}</div>`;
+                if (heir.traits?.length > 0) html += `<div style="font-size: 11px; color: #aaa;">Born: ${traitStr}</div>`;
                 html += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
                 html += `<button onclick="window._succeedAsHeir('${heir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: ${isDesignated ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: ${isDesignated ? '#000' : '#ccc'};">Play as ${heir.firstName}</button>`;
                 html += `</div>`;
+            }
+
+            // A designated heir still under age: a regency for them instead (systems/regency.js)
+            const minorHeir = (player.children || []).find(c => c && c.isAlive && c.id === player.heir && c.age < Relationships._getHeirSettings().minAgeToPlay);
+            if (minorHeir) {
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--gold);">`;
+                html += `<strong>${minorHeir.firstName} ${minorHeir.dynasty}</strong> · Age ${minorHeir.age} <span style="color: var(--gold);">👑 Designated</span>`;
+                html += ActionMenu._regencyChoiceHtml(game, minorHeir);
+                html += `<button onclick="window._succeedViaRegency('${minorHeir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000;">Play ${minorHeir.firstName} under a regency</button>`;
+                html += '</div>';
             }
 
             html += '</div>';
@@ -1165,9 +1185,11 @@ Object.assign(ActionMenu, {
             const assess = (typeof House !== 'undefined') ? House.assessSuccession(player) : { hasMinorHeir: false, regent: null };
             html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
             if (assess.hasMinorHeir && assess.regent) {
-                const r = assess.regent;
+                // The designated heir if they are among the minors, else the eldest
+                const r = assess.minors.find(c => c.id === player.heir) || assess.regent;
                 html += '<h4 style="color: var(--gold);">A Regency?</h4>';
                 html += `<p style="font-size: 12px; color: #aaa;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</p>`;
+                html += ActionMenu._regencyChoiceHtml(game, r);
                 html += `<button onclick="window._succeedViaRegency('${r.id}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000; margin-top: 6px;">Install Regency for ${r.firstName}</button>`;
                 html += `<button onclick="window._endDynasty()" style="width: 100%; padding: 8px; background: #a33; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-top: 6px;">Let the Dynasty End</button>`;
             } else {
@@ -1197,6 +1219,7 @@ Object.assign(ActionMenu, {
         const finishSuccession = (childId, extraOpts) => {
             const chk = document.getElementById('secureSuccessionChk');
             const opts = { secure: !!(chk && chk.checked), cause: cause || 'old age', ...(extraOpts || {}) };
+            const goldBefore = Math.floor(player.gold || 0);
             const result = Relationships.succeedAsHeir(player, childId, game.world, opts);
             if (result.success) {
                 // Clear death animation state
@@ -1211,9 +1234,16 @@ Object.assign(ActionMenu, {
                 successHtml += `<p style="font-size: 14px;">You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.</p>`;
                 successHtml += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
                 successHtml += `<div>Age: ${result.heir.age}</div>`;
-                successHtml += `<div>Inherited ${Math.floor(player.gold)} gold (${Math.round(Relationships._getHeirSettings().inheritanceGoldPercent * 100)}%)</div>`;
+                // What the will passed on, then the purse after the succession's losses and costs
+                const inheritPct = Relationships._getHeirSettings().inheritanceGoldPercent;
+                const inherited = Math.floor(goldBefore * inheritPct);
+                successHtml += `<div>Inherited ${inherited} of ${goldBefore} gold (${Math.round(inheritPct * 100)}%)</div>`;
+                if (Math.floor(player.gold) !== inherited) successHtml += `<div>Purse after the succession: ${Math.floor(player.gold)} gold</div>`;
                 if (player.house) successHtml += `<div>${player.house.name} · Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}</div>`;
                 if (hr.regency) successHtml += `<div style="color:#e0a030;">Ascended under a regency — a weaker start.</div>`;
+                if (result.regency) successHtml += `<div style="color:#e0a030;">👑 ${result.regency.regent.name} rules as regent until you come of age at ${result.regency.majorityAge}. Dynasty → Regency.</div>`;
+                // The life the heir lived before the throne (systems/heirAgency.js)
+                for (const l of ((result.heirRecord && result.heirRecord.lines) || [])) successHtml += `<div style="color:#9fd19f;">${l.icon} ${l.text}</div>`;
                 if (hr.disputed) {
                     successHtml += hr.secured
                         ? `<div style="color:#7fd07f;">A rival pressed a claim — quelled by spending Prestige.</div>`
@@ -1240,7 +1270,10 @@ Object.assign(ActionMenu, {
         };
 
         window._succeedAsHeir = (childId) => finishSuccession(childId, {});
-        window._succeedViaRegency = (childId) => finishSuccession(childId, { regency: true });
+        window._succeedViaRegency = (childId) => {
+            const sel = document.getElementById('regentChoiceSel');
+            finishSuccession(childId, { regency: true, regent: sel ? sel.value : null });
+        };
         window._endDynasty = () => {
             game.ui.hideCustomPanel();
             ActionMenu.showEpitaph(game, cause || 'old age');

@@ -503,6 +503,7 @@ export const CourtLetters = {
             case 'child_hostage': this._risk(world, player, letter, false); break;
             case 'loan_default': this._loanStatus(player, letter.data.loanId, 'written off'); break;
             case 'coalition_ultimatum': break; // the league marches on its own deadline (systems/coalitions.js)
+            case 'family_report': break; // a child's account (systems/heirAgency.js): silence costs nothing
             default:
                 // Replies to the player's mail (systems/mail.js): silence costs only what lapseReply says
                 if (K.mail) Mail.lapseReply(world, player, letter);
@@ -899,6 +900,8 @@ export const CourtLetters = {
                 remember('child_recalled');
                 break;
             }
+            // A child's account (systems/heirAgency.js): a reply warms the court they wrote of
+            case 'family_report:reply': this._rep(player, kid, 1); break;
             case 'child_hostage:trust':
                 remember('trusted_kin');
                 this._risk(world, player, letter, true);

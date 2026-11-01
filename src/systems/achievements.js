@@ -229,8 +229,10 @@ export const Achievements = {
                 if (livingKingdoms.length === 0) return false;
 
                 for (const kingdom of livingKingdoms) {
-                    const rep = player.reputation[kingdom.id] || 0;
-                    if (rep < 0) return false;
+                    // Positive relations, as the description says: a stranger's 0 everywhere is not peacekeeping
+                    // (the health-check audit saw this gold achievement fall to every bot on day 2)
+                    const rep = (player.reputation && player.reputation[kingdom.id]) || 0;
+                    if (rep <= 0) return false;
                 }
                 return true;
             },

@@ -28,6 +28,7 @@ import { Quests } from '../../systems/quests.js';
 import { Achievements } from '../../systems/achievements.js';
 import { Technology } from '../../systems/technology.js';
 import { Relationships } from '../../systems/relationships.js';
+import { Afterlife } from '../../player/afterlife.js';
 import { House } from '../../systems/house.js';
 import { Schemes } from '../../systems/schemes.js';
 import { Demands } from '../../systems/demands.js';
@@ -63,6 +64,8 @@ import { RivalAgents } from '../../systems/rivalAgents.js';
 import { Discovery } from '../../systems/discovery.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { HeirAgency } from '../../systems/heirAgency.js';
+import { Regency } from '../../systems/regency.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
@@ -90,8 +93,10 @@ import { Fiscal } from '../../systems/fiscal.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
 import { Pirates } from '../../systems/pirates.js';
+import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
+import { Reckoning } from '../../systems/reckoning.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -290,6 +295,10 @@ function _endDay(game) {
     }
     Upbringing.processDay(player, world);
     mark(game, 'Upbringing.processDay');
+    HeirAgency.processDay(player, world);
+    mark(game, 'HeirAgency.processDay');
+    Regency.processDay(player, world);
+    mark(game, 'Regency.processDay');
     Relationships.prepareForSave(player);
     mark(game, 'Relationships.prepareForSave');
 
@@ -330,6 +339,9 @@ function _endDay(game) {
     game.pirateDay = Pirates.processDay(world, player);
     if (game.pirateDay.threat) Pirates.autoResolve(player, world, Pirates.startThreat(player, world, game.pirateDay.threat));
     mark(game, 'Pirates.processDay');
+    // Sea reavers landing on coastal holdings (systems/landings.js)
+    game.landingDay = Landings.processDay(world, player);
+    mark(game, 'Landings.processDay');
     RealmWars.processDaily(player, world);
     mark(game, 'RealmWars.processDaily');
     game.holdingSiegeDay = HoldingSieges.processDay(world, player);
@@ -434,6 +446,9 @@ function _endDay(game) {
         princeDay: game.princeDay, guildDay: game.guildDay, holdingsDay: game.holdingsDay,
         taxCollected: (game.taxDay && game.taxDay.collected) || 0, intelCost: (game.intelDay && game.intelDay.cost) || 0,
     }));
+    // The Season's Reckoning, after the books close (endDay.js; systems/reckoning.js)
+    game.reckoningDay = Reckoning.processDay(world, player);
+    mark(game, 'Reckoning.processDay');
     // A voyage that made port today lands the player there (endDay.js hands
     // the day's voyage report to ui/actionMenu/voyage.js, which does this)
     if (game.voyageDay && game.voyageDay.arrived) onArrived(game);
@@ -496,4 +511,30 @@ export function roundTrip(game) {
     Ships.restoreFromSave(p2);
     Titles.initialize(p2);
     return { ...game, world: w2, player: p2, bytes: json.length };
+}
+
+/**
+ * The death screen's choice, made for the bot so a run can span generations
+ * (ui/actionMenu/social.js showDeathScreen): the designated heir — else the
+ * eldest own child of age, else a sibling — takes up the mantle (Relationships.succeedAsHeir); with no
+ * heir, a new life as someone else in the world (Afterlife.becomeStranger),
+ * which replaces game.player. Returns { how: 'heir'|'stranger'|null, name }.
+ */
+export function carryOn(game, cause) {
+    const { world } = game;
+    const old = game.player;
+    const heirs = Relationships.getEligibleHeirs(old);
+    if (heirs.length) {
+        // getEligibleHeirs lists the ruler's own children first, eldest first, then siblings
+        const heir = heirs.find(h => h.id === old.heir) || heirs[0];
+        const res = Relationships.succeedAsHeir(old, heir.id, world, { cause });
+        if (res.success) return { how: 'heir', name: old.name };
+    }
+    Afterlife.begin(old, world, cause);
+    const cand = Afterlife.candidates(world)[0];
+    if (!cand) return { how: null, name: null };
+    const res = Afterlife.becomeStranger(old, world, cand);
+    if (!res.success) return { how: null, name: null };
+    game.player = res.player;
+    return { how: 'stranger', name: res.player.name };
 }

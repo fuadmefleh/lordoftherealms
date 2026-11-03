@@ -134,6 +134,58 @@ function _cellAct(game, st, choice) {
 
 registerScene('prison', { view: _cellView, act: _cellAct });
 
+// ── The march: in chains from a village with no jail to the nearest town with one ──
+registerScene('prison_transport', {
+    view(game) {
+        const { player } = game;
+        const jail = player.jailState;
+        const tr = jail && jail.transport;
+        if (!tr || tr.done) return null;
+        const ev = tr.event;
+        const odds = Prison.transportOdds(player);
+        const stats = [`🛤️ Day ${tr.day} of ${tr.days}`, `🔒 ${jail.daysRemaining} day(s) to serve`, `💰 ${Math.floor(player.gold || 0)}`, `❤️ ${Math.round(player.health || 0)}`];
+        const base = { icon: '⛓️', title: `In Chains on the Road to ${tr.to.name}`, panelTitle: '⛓️ The March', stats, log: tr.log.slice(-5) };
+        const intro = tr.day === 0
+            ? `${tr.from.name} has no jail. The guards chain your wrists and march you to ${tr.to.name} — ${tr.days} day(s) on the road. The days count against your sentence.`
+            : (ev && ev.text) || 'The escort marches on.';
+        const walk = { id: 'walk', icon: '🚶', label: tr.days - tr.day <= 1 ? `On to ${tr.to.name}` : 'Walk on', hint: 'Another day on the road (ends the day).', chance: null, odds: false, isDefault: true };
+        if (ev && ev.choice && !ev.resolved) {
+            if (ev.kind === 'raid') {
+                return { ...base, text: `${intro}${ev.raiders ? ` (${ev.raiders} band${ev.raiders === 1 ? '' : 's'} of raiders about these parts.)` : ''}`, options: [
+                    { id: 'slip', icon: '🏃', label: 'Slip your chains in the fight', hint: 'Stealth and agility. Out — and wanted for it.', chance: odds.slip },
+                    { id: 'fight', icon: '⚔️', label: 'Fight beside the guards', hint: 'Combat. The captain may shorten your sentence for it.', chance: odds.fight },
+                    { id: 'stay', icon: '🙇', label: 'Keep your head down', hint: 'The guards may drive them off… or the raiders may take you, or your purse.', chance: null, odds: false },
+                ] };
+            }
+            const can = (player.gold || 0) >= ev.cost;
+            return { ...base, text: intro, options: [
+                { id: 'pay', icon: '💰', label: 'Pay him', cost: `${ev.cost} gold`, hint: 'Loosed in the night — an escape in the crown\'s eyes.', chance: null, odds: false, can, reason: `He wants ${ev.cost} gold` },
+                { id: 'refuse', icon: '✋', label: 'Keep your coin', chance: null, odds: false },
+            ] };
+        }
+        const text = ev && ev.outcome ? `${intro} ${ev.outcome}` : intro;
+        return { ...base, text, options: [walk] };
+    },
+    act(game, st, choice) {
+        const { player, world } = game;
+        if (!player.jailState || !player.jailState.transport) return { notification: { title: 'Free', body: 'You are no longer in chains.', type: 'info' } };
+        if (choice === 'walk') {
+            return { after(g) { g.ui.hideCustomPanel(); g.endDay(); } };
+        }
+        const r = Prison.transportChoice(player, world, choice);
+        if (!r.success) return { invalid: true, notification: { title: 'Not Possible', body: r.reason, type: 'error' } };
+        game.ui.updateStats(player, world);
+        if (r.escaped) return { notification: { title: '🏃 Away!', body: r.text, type: 'success' } };
+        if (r.captured) return { notification: { title: '⛓️ Taken by Raiders', body: r.text, type: 'error' } };
+        if (r.freed) return { notification: { title: '🛤️ Left on the Road', body: r.text, type: 'warning' } };
+        return { state: { ...st, seen: (st.seen || 0) + 1 } };
+    },
+    abandon() {
+        // Walked away: a choice not made is made the quiet way at the day's end (Prison.transportStep)
+        return null;
+    },
+});
+
 registerScene('servitude', {
     view(game) {
         const { player, world } = game;
@@ -193,6 +245,45 @@ Object.assign(ActionMenu, {
         if (game._scene && game._scene.kind === 'prison') game._scene = null;
         game.ui.showNotification('💰 Bail Posted', r.text, 'success');
         game.ui.updateStats(game.player, game.world);
+    },
+
+    /**
+     * Walk the jail: the cell, cellmates and gaoler on the map (ui/innerMapJail.js);
+     * the panel if the map can't be had. Sentenced where there's no jail, the
+     * march to the nearest town with one comes first.
+     */
+    async enterJailMap(game) {
+        if (!game.player.jailState) return;
+        if (Prison.needsTransport(game.player, game.world)) {
+            ActionMenu.beginMarch(game);
+            return;
+        }
+        const ok = typeof game.enterJailMap === 'function' ? await game.enterJailMap() : false;
+        if (!ok) ActionMenu.attemptJailbreak(game, 'cell');
+    },
+
+    /** In chains for the march: off the street map, the road scene. */
+    beginMarch(game) {
+        if (!Prison.beginTransport(game.player, game.world)) return false;
+        const InnerMap = game.innerMapMode ? true : false;
+        if (InnerMap && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+        ActionMenu.showScene(game, 'prison_transport', {});
+        return true;
+    },
+
+    /** After a day on the road: the day's event, or (arrived) into the jail. */
+    showMarch(game, march) {
+        const player = game.player;
+        if (!player.jailState) {
+            if (player.indenturedServitude) ActionMenu.attemptServitudeEscape(game);
+            return;
+        }
+        if (march && march.arrived) {
+            game.ui.showNotification('⛓️ Arrived', march.text, 'warning');
+            ActionMenu.enterJailMap(game);
+            return;
+        }
+        ActionMenu.showScene(game, 'prison_transport', {});
     },
 
     /** The prison scene: the break-out by default, or the cell ('cell'). */

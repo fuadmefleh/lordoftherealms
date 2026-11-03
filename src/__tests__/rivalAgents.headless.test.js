@@ -90,7 +90,7 @@ describe('Rival agents reach towns with no roster', () => {
         expect(a.known).toBe(true);
         // The inner map's first visit: freshly generated NPCs are replaced by the roster's people
         const fresh = Array.from({ length: 12 }, (_, i) => ({ id: i, type: 'villager', name: 'Zed', age: 30 }));
-        const shown = Townsfolk.attach(tile.settlement, world, fresh, { q: s.q, r: s.r, target: 12 });
+        const shown = Townsfolk.attach(tile.settlement, world, fresh, { q: s.q, r: s.r, target: Townsfolk.residents(tile.settlement.folk).length });
         expect(shown.some(p => p.id === a.pid)).toBe(true);
         expect(shown.every(p => p.first !== 'Zed')).toBe(true);
         // ...and an unrostered town with no agent can still be asked

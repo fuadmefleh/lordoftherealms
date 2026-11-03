@@ -456,6 +456,14 @@ export function _renderChoices(box) {
     // ── Farewell ──
     choices.push({ icon: '👋', label: 'Farewell.', action: 'farewell', tooltip: 'End the conversation politely.' });
 
+    // Someone who dislikes the player may tell them nothing at all (systems/npcKnowledge.js rebuff)
+    const will = NpcKnowledge.willingness(mem);
+    if (will !== 'open') {
+        const warn = will === 'refuses' ? ' ⚠ They dislike you — they\'ll tell you nothing.' : ' ⚠ They\'re wary of you — they may send you off.';
+        const asks = new Set(['ask_rumor', 'ask_location', 'ask_kingdom', 'ask_folk_news', 'ask_family', 'ask_about_npc', 'ask_quest']);
+        for (const c of choices) if (asks.has(c.action)) c.tooltip = (c.tooltip || '') + warn;
+    }
+
     _renderChoiceList(choicesEl, choices);
 }
 

@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 import { Wilds } from '../../player/wilds.js';
+import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 
 export async function enterInnerMap(worldQ, worldR) {
@@ -121,6 +122,11 @@ export async function enterInnerMap(worldQ, worldR) {
             this.ui.showNotification('🗺️ Entering Inner Map',
                 `Exploring the interior of ${terrainName}. Right-click to move, ESC to return.`, 'info');
         }
+        // A prisoner coming into the town that holds them comes into their cell
+        if (this.player.jailState && tile.settlement && !this._enteringJail) {
+            const where = Prison._where(this.player, this.world);
+            if (where && where.q === worldQ && where.r === worldR) setTimeout(() => this.enterJailMap(), 0);
+        }
     } finally {
         this._enteringInnerMap = false;
         this.innerMapMode = !!InnerMap.active;
@@ -132,6 +138,12 @@ export async function enterInnerMap(worldQ, worldR) {
  */
 export function exitInnerMap(opts = {}) {
     if (!InnerMap.active) return;
+    // Locked in the jail: there's no walking back to the world map (death and escapes force it)
+    if (InnerMap.jailLocked && InnerMap.jailLocked() && !opts.force && !opts.quiet) {
+        this.ui.showNotification('🔒 Locked In', 'You are in a cell. Serve your time, post bail, or find a way out.', 'error');
+        return;
+    }
+    if (InnerMap.clearJail) InnerMap.clearJail();
 
     InnerMapRenderer.closeContextMenu();
     InnerMap.exit(this);
@@ -169,10 +181,7 @@ export function exitInnerMap(opts = {}) {
 
     // Restore normal turn display
     this.ui.updateStats(this.player, this.world);
-
-    if (!opts.quiet) {
-        this.ui.showNotification('🗺️ Returned to World Map', 'You returned to the world map.', 'info');
-    }
+    // (No "returned to the world map" toast: the map coming back says so.)
 }
 
 /** Forget the inner map's hover, selected tile and selected object. */
@@ -395,55 +404,48 @@ export function _showInnerMapExitButton() {
     this._hideInnerMapExitButton();
 
     const btnStyle = `
-        background: linear-gradient(135deg, rgba(16, 20, 28, 0.95), rgba(30, 35, 50, 0.95));
-        border: 1px solid rgba(245, 197, 66, 0.4);
-        color: #f5c542; padding: 10px 20px;
-        border-radius: 8px; font-weight: 600; cursor: pointer;
-        font-size: 13px; font-family: var(--font-body);
-        backdrop-filter: blur(8px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-        transition: all 0.2s ease;
+        background: rgba(13, 17, 23, 0.82);
+        border: 1px solid rgba(245, 197, 66, 0.35);
+        color: #f5c542; padding: 6px 12px;
+        border-radius: 7px; font-weight: 600; cursor: pointer;
+        font-size: 12px; font-family: var(--font-body);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+        transition: border-color 0.15s ease;
     `;
-    const hoverIn = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.8)'; el.style.transform = 'scale(1.03)'; };
-    const hoverOut = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.4)'; el.style.transform = 'scale(1)'; };
+    const hoverIn = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.8)'; };
+    const hoverOut = (el) => { el.style.borderColor = 'rgba(245, 197, 66, 0.35)'; };
 
-    // Container for inner map toolbar
+    // Town view: the kingdom-level chrome (left rail, region card) steps aside (styles.css)
+    document.body.classList.add('inner-map-view');
+
+    // A small toolbar top-left, where the kingdom rail sits on the world map
     const toolbar = document.createElement('div');
     toolbar.id = 'innerMapToolbar';
-    // Sit left of #hudRightRail (12px gutter + 306px wide) so it never covers the cards
-    toolbar.style.cssText = `position: fixed; top: 60px; right: 330px; z-index: 1100; display: flex; gap: 8px; align-items: center;`;
+    toolbar.style.cssText = `position: fixed; top: 64px; left: 12px; z-index: 1100; display: flex; flex-direction: column; gap: 6px; align-items: flex-start;`;
 
-    // ── Export to Tiled button ──
-    const exportBtn = document.createElement('button');
-    exportBtn.id = 'innerMapExportBtn';
-    exportBtn.innerHTML = '📥 Export .tmj';
-    exportBtn.title = 'Download map as Tiled Editor JSON (.tmj)';
-    exportBtn.style.cssText = btnStyle + 'padding: 8px 14px; font-size: 12px;';
-    exportBtn.addEventListener('mouseenter', () => hoverIn(exportBtn));
-    exportBtn.addEventListener('mouseleave', () => hoverOut(exportBtn));
-    exportBtn.addEventListener('click', () => this._exportInnerMapTiled());
-    toolbar.appendChild(exportBtn);
+    const addBtn = (id, html, title, onClick) => {
+        const b = document.createElement('button');
+        b.id = id;
+        b.innerHTML = html;
+        if (title) b.title = title;
+        b.style.cssText = btnStyle;
+        b.addEventListener('mouseenter', () => hoverIn(b));
+        b.addEventListener('mouseleave', () => hoverOut(b));
+        b.addEventListener('click', onClick);
+        toolbar.appendChild(b);
+        return b;
+    };
 
-    // ── Import from Tiled button ──
-    const importBtn = document.createElement('button');
-    importBtn.id = 'innerMapImportBtn';
-    importBtn.innerHTML = '📤 Import .tmj';
-    importBtn.title = 'Import a Tiled Editor JSON map (.tmj/.json)';
-    importBtn.style.cssText = btnStyle + 'padding: 8px 14px; font-size: 12px;';
-    importBtn.addEventListener('mouseenter', () => hoverIn(importBtn));
-    importBtn.addEventListener('mouseleave', () => hoverOut(importBtn));
-    importBtn.addEventListener('click', () => this._importInnerMapTiled());
-    toolbar.appendChild(importBtn);
+    // ── Exit to the world map ──
+    addBtn('innerMapExitBtn', '← World map', 'Return to the world map', () => this.exitInnerMap());
 
-    // ── Exit button ──
-    const btn = document.createElement('button');
-    btn.id = 'innerMapExitBtn';
-    btn.innerHTML = '🔙 Return to World Map';
-    btn.style.cssText = btnStyle;
-    btn.addEventListener('mouseenter', () => hoverIn(btn));
-    btn.addEventListener('mouseleave', () => hoverOut(btn));
-    btn.addEventListener('click', () => this.exitInnerMap());
-    toolbar.appendChild(btn);
+    // ── Tiled export/import: a modding tool, shown only with dev tools on ──
+    let devTools = false;
+    try { devTools = localStorage.getItem('lotr_devTools') === '1'; } catch (e) { /* storage blocked */ }
+    if (devTools) {
+        addBtn('innerMapExportBtn', '📥 Export .tmj', 'Download map as Tiled Editor JSON (.tmj)', () => this._exportInnerMapTiled());
+        addBtn('innerMapImportBtn', '📤 Import .tmj', 'Import a Tiled Editor JSON map (.tmj/.json)', () => this._importInnerMapTiled());
+    }
 
     document.body.appendChild(toolbar);
 }
@@ -493,10 +495,66 @@ export function _configureInnerMapCamera(mode) {
  * Hide the inner map exit button
  */
 export function _hideInnerMapExitButton() {
+    document.body.classList.remove('inner-map-view');
     const toolbar = document.getElementById('innerMapToolbar');
     if (toolbar) toolbar.remove();
     const btn = document.getElementById('innerMapExitBtn');
     if (btn) btn.remove();
+}
+
+/**
+ * Step out of the building the player is in — unless it's the jail and
+ * they're locked in it. Returns whether they left.
+ */
+export function _leaveBuilding() {
+    if (InnerMap.jailLocked && InnerMap.jailLocked()) {
+        this.ui.showNotification('🔒 Locked In', 'The cell door is locked. You are going nowhere until your time is served — or you find another way out.', 'error');
+        return false;
+    }
+    const wasJail = InnerMap.inJail && InnerMap.inJail();
+    if (!InnerMap.exitBuilding(this)) return false;
+    this._configureInnerMapCamera('outer');
+    this._updateBuildingExitButton();
+    this.ui.showNotification(wasJail ? '🚪 Free' : '🚪 Exited Building', wasJail ? 'You step out of the jail into the street, blinking at the light.' : 'You step back outside.', 'info');
+    return true;
+}
+
+/**
+ * Into the jail of the town that holds the player: a walkable cell with their
+ * cellmates (world/innerMap/jail.js, ui/innerMapJail.js). Enters the town's
+ * street map first if need be. Returns whether they're in.
+ */
+export async function enterJailMap() {
+    const player = this.player;
+    const jail = player && player.jailState;
+    if (!jail || typeof InnerMap.enterJail !== 'function') return false;
+    if (InnerMap.inJail && InnerMap.inJail()) return true;
+    // Sentenced where there's no jail: marched in chains to the nearest town with one first
+    if (Prison.needsTransport(player, this.world)) return ActionMenu.beginMarch(this);
+    const where = Prison._where(player, this.world);
+    if (!where || !where.settlement) return false;
+    // On another map (or in another building): off it first
+    if (InnerMap.active) {
+        const wt = InnerMap.currentWorldTile || {};
+        if (InnerMap._insideBuilding) InnerMap.exitBuilding(this);
+        if (wt.q !== where.q || wt.r !== where.r) this.exitInnerMap({ force: true });
+    }
+    if (!InnerMap.active) {
+        player.q = where.q;
+        player.r = where.r;
+        this._enteringJail = true;
+        try { await this.enterInnerMap(where.q, where.r); } finally { this._enteringJail = false; }
+    }
+    if (!InnerMap.active) return false;
+    const pr = Prison.state(player, this.world);
+    const cellmates = ((pr && pr.cellmates) || []).map(m => ({ id: m.id, name: m.name, archetype: m.archetype, label: (Prison.archetype(m.archetype) || {}).label || 'Prisoner' }));
+    let seed = Utils.hashStr(`${jail.settlement}|${jail.offense}|${jail.totalDays}|${(this.world && this.world.day) || 0}`) >>> 0;
+    const rng = () => { seed = (seed * 1664525 + 1013904223) & 0x7fffffff; return seed / 0x7fffffff; };
+    if (!InnerMap.enterJail(this, { town: jail.settlement, cellmates, rng })) return false;
+    this._configureInnerMapCamera('interior');
+    this._updateBuildingExitButton();
+    this.ui.showNotification('🔒 The Cells', `The door of the jail of ${jail.settlement} slams behind you. ${jail.daysRemaining} day(s) to serve. Right-click your pallet, the flagstone, the cell door or your cellmates.`, 'warning');
+    return true;
 }
 
 /**
@@ -508,38 +566,41 @@ export function _updateBuildingExitButton() {
 
     const existingBtn = document.getElementById('innerMapExitBuildingBtn');
     const insideBuilding = InnerMap._insideBuilding;
+    // In a locked cell the button says so (and only says so); unlocked, it's the way out
+    const locked = !!(InnerMap.jailLocked && InnerMap.jailLocked());
+    if (existingBtn && insideBuilding) {
+        existingBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}`;
+        return;
+    }
 
     if (insideBuilding && !existingBtn) {
         // Add "Exit Building" button
         const btnStyle = `
-            background: rgba(16, 20, 28, 0.92);
-            border: 1px solid rgba(245, 197, 66, 0.4);
+            background: rgba(13, 17, 23, 0.82);
+            border: 1px solid rgba(245, 197, 66, 0.35);
             color: #f5c542;
-            padding: 10px 18px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-family: var(--font-display, 'Inter', sans-serif);
+            padding: 6px 12px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: var(--font-body);
             cursor: pointer;
             letter-spacing: 0.5px;
             transition: all 0.2s ease;
         `;
         const exitBldgBtn = document.createElement('button');
         exitBldgBtn.id = 'innerMapExitBuildingBtn';
-        exitBldgBtn.innerHTML = `🚪 Exit ${insideBuilding.name}`;
+        exitBldgBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}`;
         exitBldgBtn.style.cssText = btnStyle;
         exitBldgBtn.addEventListener('mouseenter', () => {
             exitBldgBtn.style.borderColor = 'rgba(245, 197, 66, 0.8)';
-            exitBldgBtn.style.transform = 'scale(1.03)';
         });
         exitBldgBtn.addEventListener('mouseleave', () => {
-            exitBldgBtn.style.borderColor = 'rgba(245, 197, 66, 0.4)';
-            exitBldgBtn.style.transform = 'scale(1)';
+            exitBldgBtn.style.borderColor = 'rgba(245, 197, 66, 0.35)';
         });
         exitBldgBtn.addEventListener('click', () => {
             InnerMapRenderer.closeContextMenu();
-            InnerMap.exitBuilding(this);
-            this._configureInnerMapCamera('outer');
-            this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
+            this._leaveBuilding();
         });
         // Insert before the world map exit button
         const worldExitBtn = document.getElementById('innerMapExitBtn');

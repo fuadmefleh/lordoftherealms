@@ -146,6 +146,7 @@ Object.assign(InnerMap, {
         well:         { name: 'Well',          icon: '💧', sprite: 'buildings/well00.png',            actions: ['rest', 'talk_locals'] },
         barn:         { name: 'Barn',          icon: '🏚️', sprite: 'buildings/barn00.png',            actions: ['rest', 'forage'] },
         house:        { name: 'House',         icon: '🏠', sprite: 'buildings/villageSmall00.png',    actions: ['talk_locals', 'ask_directions'] },
+        castle:       { name: 'Castle',        icon: '🏰', sprite: 'buildings/village00.png',         actions: ['talk_official', 'seek_audience'] },
         manor:        { name: 'Manor',         icon: '🏘️', sprite: 'buildings/village00.png',         actions: ['talk_official', 'seek_audience'] },
         stable:       { name: 'Stable',        icon: '🐴', sprite: 'buildings/barnWood00.png',        actions: ['buy_horse', 'stable_horse'] },
         guard_tower:  { name: 'Guard Tower',   icon: '🗼', sprite: 'buildings/barracks00.png',        actions: ['talk_guard', 'report_crime'] },
@@ -219,7 +220,7 @@ Object.assign(InnerMap, {
             maxBuildings: 8
         },
         town: {
-            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'granary', 'guildhall', 'post_house'],
+            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'granary', 'guildhall', 'post_house', 'jail'],
             optional: ['house', 'house', 'house', 'house', 'apothecary', 'bakery', 'bathhouse', 'mill', 'barn', 'stable', 'warehouse', 'guard_tower', 'manor', 'farm', 'farm', 'farm'],
             maxBuildings: 17
         },
@@ -229,9 +230,9 @@ Object.assign(InnerMap, {
             maxBuildings: 24
         },
         capital: {
-            required: ['town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'temple', 'barracks', 'granary', 'warehouse', 'guildhall', 'bank', 'mint', 'post_house', 'jail'],
+            required: ['castle', 'town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'temple', 'barracks', 'granary', 'warehouse', 'guildhall', 'bank', 'mint', 'post_house', 'jail'],
             optional: ['house', 'house', 'house', 'house', 'house', 'house', 'library', 'bathhouse', 'apothecary', 'bakery', 'stable', 'guard_tower', 'guard_tower', 'manor', 'manor', 'mill', 'barn', 'farm', 'farm', 'farm', 'farm'],
-            maxBuildings: 30
+            maxBuildings: 31
         }
     },
 
@@ -318,12 +319,13 @@ Object.assign(InnerMap, {
         beggar:      { name: 'Beggar',       icon: '🧎', speed: 0.2, destinations: ['marketplace', 'church', 'tavern', 'well'] },
     },
 
-    // NPC pool per settlement type
+    // NPC pool per settlement type (the townsfolk roster's usual head count; the
+    // watch is filled out on top of it — world/innerMap/townLife.js)
     NPC_POOLS: {
-        village:  { villager: 4, farmer: 2, child: 2, merchant: 1, traveler: 1 },
-        town:     { villager: 6, merchant: 3, guard: 2, farmer: 2, priest: 1, blacksmith_npc: 1, child: 3, traveler: 2 },
-        city:     { villager: 8, merchant: 4, guard: 4, farmer: 2, priest: 2, blacksmith_npc: 1, noble: 2, child: 4, traveler: 3, beggar: 1 },
-        capital:  { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, traveler: 4, beggar: 2 },
+        village:  { villager: 6, farmer: 3, child: 3, merchant: 1, traveler: 1 },
+        town:     { villager: 10, merchant: 4, guard: 2, farmer: 3, priest: 1, blacksmith_npc: 1, child: 5, traveler: 3 },
+        city:     { villager: 14, merchant: 6, guard: 4, farmer: 3, priest: 2, blacksmith_npc: 2, noble: 3, child: 6, traveler: 4, beggar: 2 },
+        capital:  { villager: 18, merchant: 8, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 5, child: 8, traveler: 5, beggar: 3 },
     },
 
     // All inner maps are a fixed 128×128 tile grid

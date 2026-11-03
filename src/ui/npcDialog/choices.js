@@ -15,9 +15,19 @@ import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlem
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList } from './render.js';
 import { NpcPortrait } from '../npcPortrait.js';
 
+/** The questions a disliked player can be refused, by rebuff topic. */
+const ASK_TOPICS = {
+    ask_rumor: 'news', ask_location: 'town', ask_kingdom: 'realm', ask_folk_news: 'folk',
+    ask_family: 'family', ask_about_npc: 'people', ask_quest: 'work',
+};
+
 export function _handleChoice(action) {
     const npcType = dialogState._npc.type || 'villager';
     const mem = _mem(dialogState._npc);
+    // Someone who dislikes the player tells them nothing — just to shove off (systems/npcKnowledge.js)
+    const topic = ASK_TOPICS[action];
+    const rebuff = topic ? NpcKnowledge.rebuff(dialogState._npc, mem, topic,
+        `${dialogState._npc.uid || dialogState._npc.id}|${dialogState._game?.world?.day || 0}|${mem.rumorsTold}`) : null;
 
     // Build player line text
     const labelMap = {
@@ -53,7 +63,7 @@ export function _handleChoice(action) {
     const prev = dialogState._lines[dialogState._lines.length - 2];
     if (typing && prev && !dialogState._typewriteComplete) _skipTypewrite(typing, prev.text);
     _syncTranscript(box);
-    const submenu = action === 'ask_about_npc' || action === 'give_gift';
+    const submenu = !rebuff && (action === 'ask_about_npc' || action === 'give_gift');
     if (!submenu) _showThinking(box);
     if (action === 'farewell' || action === 'trade') dialogState._overlay._closing = true;
 
@@ -64,7 +74,10 @@ export function _handleChoice(action) {
         let dispositionChange = 0;
         let skillGains = null;
 
-        switch (action) {
+        if (rebuff) {
+            responseText = rebuff;
+            dispositionChange = NpcKnowledge.config().rebuff.pester || 0;
+        } else switch (action) {
             case 'ask_rumor': {
                 responseText = _getNews(dialogState._npc);
                 mem.rumorsTold++;

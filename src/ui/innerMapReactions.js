@@ -20,6 +20,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { StreetCrime } from '../systems/streetCrime.js';
+import { Utils } from '../core/utils.js';
 import { Duels } from '../systems/duels.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
@@ -81,10 +82,16 @@ export const InnerMapReactions = {
                 case 'arrest': this._respond(npc, 'arrest', res && res.incident); break;
                 case 'fight': this._respond(npc, 'fight', res && res.incident); break;
                 case 'flee': this._flee(npc, scene); break;
-                case 'cower': this._hold(npc, 10); break;
-                default: this._hold(npc, 5); break;
+                case 'cower': this._hold(npc, 14); break;
+                default: this._hold(npc, 10); break;
             }
         }
+        // Who has already reacted to this victim's beating (onOngoing adds the newcomers)
+        victim._incidentId = res && res.incident ? res.incident.id : victim._incidentId;
+        victim._crime = crime;
+        if (!victim._reacted) victim._reacted = new Set();
+        for (const w of witnesses) victim._reacted.add(w.npc.id);
+        this._earshot(npcs, scene, victim, witnesses, `${seed}|heard`);
         // A beaten victim cries out
         if (crime === 'assault' && !victim._barked) {
             victim._barked = true;
@@ -105,6 +112,91 @@ export const InnerMapReactions = {
             }
         }
         return { ...(res || {}), witnesses };
+    },
+
+    /**
+     * Out of sight but within earshot (sight.hearRadius): the cries turn heads.
+     * The timid (children, the cautious and kind) hurry off; the rest stop and
+     * look toward the trouble. Not witnesses: they saw nothing to tell.
+     */
+    _earshot(npcs, scene, victim, witnesses, seed) {
+        if (scene.indoors) return;
+        const C = StreetCrime.config();
+        const radius = Number(C.sight && C.sight.hearRadius) || 0;
+        if (radius <= 0) return;
+        const hidden = new Set(C.sight.hiddenStates || []);
+        const seen = new Set(witnesses.map(w => w.npc.id));
+        const fear = new Set((C.reactions && C.reactions.fearTraits) || []);
+        const lines = (C.barks && C.barks.heard) || [];
+        let n = 0;
+        for (const npc of npcs) {
+            if (npc === victim || npc.state === 'unconscious' || seen.has(npc.id) || (victim._reacted && victim._reacted.has(npc.id)) || (victim._heard && victim._heard.has(npc.id)) || hidden.has(npc.state) || npc._dialogFrozen || npc._taskFoe) continue;
+            if (_dist(npc.q, npc.r, scene.q, scene.r) > radius) continue;
+            const timid = npc.type === 'child' || (npc.personalityTraits || []).some(t => fear.has(t));
+            // Heard, not seen: should they come into sight of it, they react as a witness then
+            if (!victim._heard) victim._heard = new Set();
+            victim._heard.add(npc.id);
+            if (timid) this._flee(npc, scene);
+            else {
+                this._hold(npc, 8);
+                npc.facing = InnerMapCharacters.getDirection(scene.q - npc.q, scene.r - npc.r);
+            }
+            // Every other one calls out (a chorus of six is noise)
+            if (lines.length && n++ % 2 === 0) {
+                let h = 0;
+                for (const ch of `${seed}|${npc.id}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+                this.bark(npc, lines[h % lines.length], 3);
+            } else {
+                // …and the rest still visibly start at the noise
+                this.bark(npc, StreetCrime.foundEmote(timid ? 'fear' : 'anger', `${seed}|${npc.id}`), 2.5);
+            }
+        }
+    },
+
+    /**
+     * The fight goes on (a chase down the street, a beating that lasts): anyone
+     * who comes within sight of it now reacts as the first witnesses did, and
+     * is added to the incident as a witness. Called every second or so by
+     * InnerMapCombat while the player keeps at it.
+     */
+    onOngoing(game, victim) {
+        if (!game || !game.player || !victim || !InnerMap.active || !victim._reacted) return;
+        const C = StreetCrime.config();
+        const crime = victim._crime || 'assault';
+        const day = (game.world && game.world.day) || 0;
+        const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding };
+        const npcs = InnerMap.npcs || [];
+        const fresh = StreetCrime.selectWitnesses(npcs, scene, victim).filter(w => !victim._reacted.has(w.npc.id));
+        if (!fresh.length) {
+            // No one new in sight: those within earshot still turn at the noise
+            this._earshot(npcs, scene, victim, [], `${day}|${StreetCrime.npcKey(victim)}|heard|late`);
+            return;
+        }
+        let playerAttack = 0;
+        try { playerAttack = Duels.fromPlayer(game.player, { mods: PlayerEffects.duelModifiers(game.player), fresh: true }).attack; } catch (e) { playerAttack = 0; }
+        const seed = `${day}|${StreetCrime.npcKey(victim)}|${crime}|late`;
+        const incident = victim._incidentId != null ? StreetCrime._incident(game.player, victim._incidentId) : null;
+        const secs = (C.reactions && C.reactions.barkSeconds) || 3.6;
+        for (const w of fresh) {
+            victim._reacted.add(w.npc.id);
+            w.react = StreetCrime.reactionFor(w, crime, { seed, victimName: victim.name, playerAttack });
+            w.mood = w.react.mood;
+            const npc = w.npc;
+            if (npc._dialogFrozen) continue;
+            if (w.react.bark) this.bark(npc, w.react.bark, secs);
+            switch (w.react.act) {
+                case 'arrest': this._respond(npc, 'arrest', incident); break;
+                case 'fight': this._respond(npc, 'fight', incident); break;
+                case 'flee': this._flee(npc, scene); break;
+                case 'cower': this._hold(npc, 14); break;
+                default: this._hold(npc, 10); break;
+            }
+        }
+        StreetCrime.addWitnesses(game.player, incident, fresh, victim, crime, day);
+        const guards = fresh.filter(w => w.react.act === 'arrest');
+        if (guards.length && game.ui && typeof game.ui.showNotification === 'function') {
+            game.ui.showNotification('🛡️ The Watch', `${guards[0].npc.name} has seen you attacking ${victim.name} and is coming!`, 'error');
+        }
     },
 
     /** A line shouted over an NPC's head for `secs` seconds. */
@@ -182,8 +274,11 @@ export const InnerMapReactions = {
     },
 
     reset() {
+        if (this._followers) this._followers.clear();
+        this._lastInside = InnerMap._insideBuilding || null;
         this._responders.clear();
         this._fleeing.clear();
+        this._gathering.clear();
     },
 
     // ══════════════════════════════════════════════
@@ -192,6 +287,7 @@ export const InnerMapReactions = {
 
     update(deltaTime, game) {
         if (!InnerMap.active) { this.reset(); this._visitKey = null; return; }
+        this._game = game;
         const wt = InnerMap.currentWorldTile || {};
         const key = `${wt.q},${wt.r}`;
         // A new visit: another town, or this one again after time away on the world map
@@ -209,7 +305,267 @@ export const InnerMapReactions = {
             this._arrivalChecked = true;
             this._watchOnArrival(game, key);
         }
+        // Into a building and out again: whoever's after the player follows them through the door
+        this._trackDoors();
         if (this._responders.size) this._driveResponders(deltaTime, game);
+        // Bodies in the street: whoever comes upon one reacts (twice a second is plenty)
+        this._bodyScan = (this._bodyScan || 0) - deltaTime;
+        if (this._bodyScan <= 0) {
+            this._bodyScan = 0.5;
+            this._scanBodies(game);
+        }
+    },
+
+    // ══════════════════════════════════════════════
+    // THROUGH THE DOOR — no hiding indoors from the watch
+    // ══════════════════════════════════════════════
+
+    // npc.id → { npc, at, outside: {q, r} }: on their way in after the player
+    _followers: new Map(),
+    _lastInside: null,
+
+    /** Notice the player going in or out of a building. */
+    _trackDoors() {
+        const inside = InnerMap._insideBuilding || null;
+        if (inside !== this._lastInside) {
+            const was = this._lastInside;
+            this._lastInside = inside;
+            if (inside && !was) this._playerWentIn();
+            else if (!inside && was) this._playerCameOut();
+        }
+        if (inside && this._followers.size) this._bringFollowersIn();
+    },
+
+    /**
+     * The player has ducked into a building: everyone chasing them within
+     * reach heads for the door, and comes in after them once they'd have got
+     * there (the further off, the longer). Those too far off lose them.
+     */
+    _playerWentIn() {
+        const outer = InnerMap._outerMapState;
+        if (!outer || !outer.npcs) return;
+        // The prisoner in their cell is no one's to chase
+        if (InnerMap.inJail && InnerMap.inJail()) return;
+        const door = { q: outer.playerInnerQ, r: outer.playerInnerR };
+        const R = (StreetCrime.config().reactions || {});
+        const reach = Number(R.followRadius) || 25;
+        const now = _now();
+        for (const [id] of [...this._responders]) {
+            const npc = outer.npcs.find(n => n.id === id);
+            if (!npc || npc.state === 'gone' || npc.state === 'unconscious') continue;
+            const d = _dist(npc.q, npc.r, door.q, door.r);
+            if (d > reach) { this.release(id); continue; }
+            const secs = Math.min(9, Math.max(1.5, d / Math.max(0.5, (npc.speed || 1) * 2)));
+            this._followers.set(id, { npc, at: now + secs * 1000, outside: door });
+            npc.path = null;
+        }
+    },
+
+    /** Those due come in through the door, and keep after the player inside. */
+    _bringFollowersIn() {
+        const now = _now();
+        const inside = InnerMap._insideBuilding;
+        for (const [id, f] of [...this._followers]) {
+            if (now < f.at) continue;
+            this._followers.delete(id);
+            if (!this._responders.has(id)) continue;
+            const npc = f.npc;
+            // In at the door (the bottom row's doorway), a step inside
+            let dq = Math.floor(InnerMap.width / 2), dr = InnerMap.height - 2;
+            for (let r = InnerMap.height - 1; r >= 0; r--) {
+                const row = InnerMap.tiles[r] || [];
+                const q = row.findIndex(t => t && t._isDoor);
+                if (q >= 0) { dq = q; dr = Math.max(0, r - 1); break; }
+            }
+            npc._followedFrom = f.outside;
+            npc.q = npc.prevQ = npc.targetQ = dq;
+            npc.r = npc.prevR = npc.targetR = dr;
+            npc.path = null;
+            npc.moveProgress = 0;
+            npc.state = 'idle';
+            npc.idleTimer = 1;
+            npc.departing = false;
+            npc._targetBuilding = null;
+            if (!InnerMap.npcs.includes(npc)) InnerMap.npcs.push(npc);
+            const lines = ((StreetCrime.config().barks || {}).followIn) || [];
+            const line = lines.length ? lines[Math.floor(Utils.random() * lines.length) % lines.length] : 'You can\'t hide in there!';
+            this.bark(npc, line, 3);
+            if (inside && this._game && this._game.ui && typeof this._game.ui.showNotification === 'function') {
+                this._game.ui.showNotification(npc.type === 'guard' ? '🛡️ The Watch Follows' : '⚔️ Followed', `${npc.name} comes in through the door after you.`, 'error');
+            }
+        }
+    },
+
+    /** Back out on the street: those who came in after the player come out with them. */
+    _playerCameOut() {
+        this._followers.clear();
+        for (const npc of InnerMap.npcs || []) {
+            if (!npc._followedFrom) continue;
+            const at = npc._followedFrom;
+            npc._followedFrom = null;
+            npc.q = npc.prevQ = npc.targetQ = at.q;
+            npc.r = npc.prevR = npc.targetR = at.r;
+            npc.path = null;
+            npc.moveProgress = 0;
+            npc.state = 'idle';
+            npc.idleTimer = 1;
+        }
+    },
+
+    // ══════════════════════════════════════════════
+    // BODIES — the street comes upon the dead
+    // ══════════════════════════════════════════════
+
+    // npc.id → { q, r, secs }: walking over to a body, to stand by it once there
+    _gathering: new Map(),
+
+    /**
+     * Anyone who comes within sight of a body — lying where it fell, or over
+     * the player's shoulders — reacts once: kin mourn at its side, the watch
+     * looks into it, the timid run, the rest gather round or stare. Caught
+     * standing over it or carrying it, the player is seen for a killer
+     * (StreetCrime.foundReaction).
+     */
+    _scanBodies(game) {
+        this._settleGatherers();
+        this._cueMourners();
+        const bodies = InnerMapCombat.corpsesHere();
+        if (!bodies.length || !game || !game.player) return;
+        const F = StreetCrime.config().found || {};
+        const radius = Number(F.radius) || 6;
+        const overRadius = Number(F.overRadius) || 1;
+        const hidden = new Set(StreetCrime.config().sight.hiddenStates || []);
+        const indoors = !!InnerMap._insideBuilding;
+        const pq = InnerMap.playerInnerQ;
+        const pr = InnerMap.playerInnerR;
+        const carried = InnerMapCombat._carrying;
+        const day = (game.world && game.world.day) || 0;
+        const secs = (StreetCrime.config().reactions || {}).barkSeconds || 3.6;
+        for (const body of bodies) {
+            const isCarried = body === carried;
+            const at = isCarried ? { q: pq, r: pr } : { q: body.q, r: body.r };
+            const set = isCarried ? (body._seenCarried = body._seenCarried || new Set()) : (body._found = body._found || new Set());
+            const sawKilling = body._npc && body._npc._reacted;
+            const playerOver = !isCarried && _dist(pq, pr, body.q, body.r) <= overRadius;
+            const fresh = [];
+            let chorus = 0;
+            for (const npc of InnerMap.npcs || []) {
+                if (!npc || npc === body._npc || set.has(npc.id) || npc.state === 'gone' || npc.state === 'unconscious' || npc._dialogFrozen || npc._taskFoe) continue;
+                if (!indoors && hidden.has(npc.state)) continue;
+                if (sawKilling && sawKilling.has(npc.id)) continue; // they saw it done; they've reacted
+                if (this._responders.has(npc.id) || this._fleeing.has(npc.id)) continue;
+                if (!indoors && _dist(npc.q, npc.r, at.q, at.r) > radius) continue;
+                set.add(npc.id);
+                const r = StreetCrime.foundReaction(npc, body, { carried: isCarried, playerOver, seed: `${day}|${body.name}|${body.at}` });
+                if (r.mood === 'fear' || r.mood === 'anger') npc.mood = r.mood;
+                // Everyone visibly reacts: kin, the watch and the first of the crowd say a line;
+                // the rest of the crowd gasp, recoil, shout — a crowd of full sentences is noise
+                const says = r.bark && (r.role !== 'bystander' || r.implicates || chorus++ % 2 === 0);
+                this.bark(npc, says ? r.bark : StreetCrime.foundEmote(r.mood, `${day}|${body.name}|${npc.id}`), secs);
+                // Mourners go on weeping by the body
+                if (r.act === 'mourn') npc._mournCue = { mood: r.mood, until: _now() + (Number(F.mournSeconds) || 30) * 1000, next: _now() + secs * 1000 + 1500 };
+                this._actOnBody(npc, r, at, F);
+                fresh.push({ npc, r });
+            }
+            if (fresh.length) this._bodyFound(game, body, fresh, isCarried, day);
+        }
+    },
+
+    /** Set one finder moving (or still) as their reaction says. */
+    _actOnBody(npc, r, at, F) {
+        const scene = { q: at.q, r: at.r, indoors: !!InnerMap._insideBuilding };
+        switch (r.act) {
+            case 'flee': this._flee(npc, scene); break;
+            case 'cower': this._hold(npc, 14); break;
+            case 'arrest': this._respond(npc, 'arrest', null); break;
+            case 'stand': this._hold(npc, 10); break;
+            case 'mourn': this._approach(npc, at, Number(F.mournSeconds) || 30); break;
+            case 'investigate':
+            case 'gather': this._approach(npc, at, Number(F.holdSeconds) || 12); break;
+            default:
+                this._hold(npc, Number(F.holdSeconds) || 12);
+                npc.facing = InnerMapCharacters.getDirection(at.q - npc.q, at.r - npc.r);
+        }
+    },
+
+    /** Walk over to stand beside a spot (a body), then stay there a while looking at it. */
+    _approach(npc, at, secs) {
+        if (_dist(npc.q, npc.r, at.q, at.r) <= 1) { this._standBy(npc, at, secs); return; }
+        const path = InnerMap._findPath(npc.q, npc.r, at.q, at.r);
+        if (!path || path.length < 3) { this._standBy(npc, at, secs); return; }
+        npc.path = path.slice(1, -1);
+        npc.pathIndex = 0;
+        npc.moveProgress = 0;
+        npc.prevQ = npc.q;
+        npc.prevR = npc.r;
+        npc.state = 'walking';
+        npc.departing = false;
+        npc._targetBuilding = null;
+        this._gathering.set(npc.id, { q: at.q, r: at.r, secs, until: _now() + 30000 });
+    },
+
+    _standBy(npc, at, secs) {
+        this._hold(npc, secs);
+        npc.facing = InnerMapCharacters.getDirection(at.q - npc.q, at.r - npc.r);
+    },
+
+    /** Kin and friends by a body sob now and again while they stay. */
+    _cueMourners() {
+        const now = _now();
+        for (const npc of InnerMap.npcs || []) {
+            const c = npc && npc._mournCue;
+            if (!c) continue;
+            if (now > c.until || npc.state === 'gone' || this._fleeing.has(npc.id) || this._responders.has(npc.id)) { npc._mournCue = null; continue; }
+            if (now < c.next || (npc._bark && npc._bark.until > now) || npc.state === 'walking') continue;
+            c.next = now + 6000;
+            this.bark(npc, StreetCrime.foundEmote('grief', `${Math.floor(now / 1000)}|${npc.id}`), 2.5);
+        }
+    },
+
+    /** Those who walked over to a body stop beside it and stay. */
+    _settleGatherers() {
+        if (!this._gathering.size) return;
+        const now = _now();
+        for (const [id, g] of [...this._gathering]) {
+            const npc = (InnerMap.npcs || []).find(n => n.id === id);
+            if (!npc || now > g.until || this._responders.has(id) || this._fleeing.has(id)) { this._gathering.delete(id); continue; }
+            if (_dist(npc.q, npc.r, g.q, g.r) <= 1 || !(npc.path && npc.pathIndex < npc.path.length)) {
+                this._gathering.delete(id);
+                this._standBy(npc, g, g.secs);
+            }
+        }
+    },
+
+    /**
+     * After a body is found: word of it, and — when the player was caught with
+     * it — the finders become witnesses to the killing (StreetCrime.addWitnesses).
+     */
+    _bodyFound(game, body, fresh, isCarried, day) {
+        const caught = fresh.filter(f => f.r.implicates);
+        const victim = body._npc || { name: body.name };
+        const incident = victim._incidentId != null ? StreetCrime._incident(game.player, victim._incidentId) : null;
+        if (caught.length) {
+            StreetCrime.addWitnesses(game.player, incident,
+                caught.map(f => ({ npc: f.npc, seen: true, role: f.r.role === 'guard' ? 'guard' : f.r.role, kinWord: f.r.kinWord, mood: f.r.mood === 'grief' ? 'fear' : f.r.mood })),
+                victim, 'murder', day);
+            for (const f of caught) {
+                if (f.r.act === 'arrest' && incident) this._responders.get(f.npc.id).incidentId = incident.id;
+            }
+        }
+        if (!game.ui || typeof game.ui.showNotification !== 'function') return;
+        const first = fresh[0].npc.name || 'Someone';
+        if (caught.length) {
+            const guards = caught.filter(f => f.r.act === 'arrest').length;
+            game.ui.showNotification(isCarried ? '👁️ Seen with a body!' : '👁️ Caught over the body!',
+                `${caught.slice(0, 3).map(f => f.npc.name).join(', ')}${caught.length > 3 ? '…' : ''} saw you ${isCarried ? `carrying ${body.name}'s body` : `standing over ${body.name}'s body`}.${guards ? ' The watch is coming!' : ' They will remember it.'}`,
+                'warning');
+        } else if (!body._announced) {
+            body._announced = true;
+            const mourner = fresh.find(f => f.r.act === 'mourn' && f.r.kinWord);
+            game.ui.showNotification('💀 A Body Found',
+                mourner ? `${mourner.npc.name} has found ${body.name} — their ${mourner.r.kinWord} — dead in the street.` : `${first} has come upon ${body.name}'s body. Folk are gathering.`,
+                'info');
+        }
     },
 
     _watchOnArrival(game, key) {
@@ -238,6 +594,8 @@ export const InnerMapReactions = {
         const pr = InnerMap.playerInnerR;
         for (const [id, r] of [...this._responders]) {
             const npc = (InnerMap.npcs || []).find(n => n.id === id);
+            // (One on their way in through the door after the player is still after them)
+            if (!npc && this._followers.has(id)) continue;
             if (!npc || npc.state === 'gone') { this._responders.delete(id); continue; }
             if (now > r.until) { this.release(id); continue; }
             if (npc._dialogFrozen) continue;
@@ -312,6 +670,7 @@ export const InnerMapReactions = {
             const b = npc._bark;
             if (!b) continue;
             if (now > b.until) { npc._bark = null; continue; }
+            if (b.from && now < b.from) continue; // the second half of a conversation (world/innerMap/townLife.js)
             if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
             let wx = npc.q * T + T / 2;
             let wy = npc.r * T + T / 2;

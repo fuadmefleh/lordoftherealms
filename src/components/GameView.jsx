@@ -154,8 +154,8 @@ export default function GameView() {
           </div>
         </div>
 
-        {/* Region Details */}
-        <div className="hud-frame hud-info-card">
+        {/* Region Details (world map only) */}
+        <div className="hud-frame hud-info-card" id="hudRegionCard">
           <div className="hud-card-header">Region Details</div>
           <div className="hud-region-body">
             <div className="hud-region-title-row">
@@ -179,11 +179,6 @@ export default function GameView() {
           </div>
         </div>
 
-        {/* Recent Events */}
-        <div className="hud-frame hud-info-card">
-          <div className="hud-card-header">Recent Events</div>
-          <div className="hud-events" id="eventsList"></div>
-        </div>
       </div>
 
       {/* ═══ Bottom-left character card ═══ */}
@@ -216,6 +211,7 @@ export default function GameView() {
           <button className="minimap-zoom-btn" id="minimapZoomOut" title="Zoom Out">−</button>
           <button className="minimap-zoom-btn" id="minimapZoomReset" title="Center on You">⊕</button>
           <button className="minimap-zoom-btn" id="minimapZoomIn" title="Zoom In">+</button>
+          <button className="minimap-zoom-btn" id="minimapFilterBtn" title="Show on map">☰</button>
         </div>
       </div>
 
@@ -300,24 +296,6 @@ export default function GameView() {
 
         <div className="hud-bb-divider"></div>
 
-        {/* Resources */}
-        <div className="hud-bb-resources">
-          <div className="hud-bb-res" title="Gold">
-            <span className="hud-bb-res-icon"><Icon name="coins" /></span>
-            <span className="hud-bb-res-val" id="simsGold">0</span>
-            <span className="hud-bb-res-sub" id="incomePerDay">+0/d</span>
-          </div>
-          <div className="hud-bb-res" title="Renown">
-            <span className="hud-bb-res-icon"><Icon name="star" /></span>
-            <span className="hud-bb-res-val" id="simsRenown">0</span>
-          </div>
-          <div className="hud-bb-res" title="Military Strength">
-            <span className="hud-bb-res-icon"><Icon name="shield" /></span>
-            <span className="hud-bb-res-val" id="bbShields">0</span>
-          </div>
-        </div>
-
-        <div className="hud-bb-divider"></div>
 
         {/* Playback + End Turn */}
         <div className="hud-bb-controls">

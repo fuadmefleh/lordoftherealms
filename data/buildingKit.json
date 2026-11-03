@@ -1880,6 +1880,34 @@
       ]
     },
     {
+      "id": "castle_keep",
+      "name": "Castle",
+      "buildingType": "castle",
+      "width": 11,
+      "wallRows": 8,
+      "wall": "stone_grey",
+      "roof": "slate",
+      "roofRows": 3,
+      "door": "gold",
+      "annexes": [
+        { "side": "left", "width": 3, "wallRows": 10, "wall": "stone_grey", "roof": "slate", "roofRows": 3,
+          "windows": [{ "q": 1, "r": -7, "style": "small_dark" }, { "q": 1, "r": -4, "style": "small_lit" }] },
+        { "side": "right", "width": 3, "wallRows": 10, "wall": "stone_grey", "roof": "slate", "roofRows": 3,
+          "windows": [{ "q": 1, "r": -7, "style": "small_dark" }, { "q": 1, "r": -4, "style": "small_lit" }] }
+      ],
+      "windows": [
+        { "q": -4, "r": -3, "style": "arched_lit" },
+        { "q": -2, "r": -3, "style": "arched" },
+        { "q": 2, "r": -3, "style": "arched" },
+        { "q": 4, "r": -3, "style": "arched_lit" },
+        { "q": -4, "r": -6, "style": "small_dark" },
+        { "q": -2, "r": -6, "style": "small_lit" },
+        { "q": 2, "r": -6, "style": "small_lit" },
+        { "q": 4, "r": -6, "style": "small_dark" }
+      ],
+      "signs": [{ "q": 0, "r": -3, "emblem": "crown", "plaque": "stone" }]
+    },
+    {
       "id": "manor_tudor",
       "name": "Manor",
       "buildingType": "manor",

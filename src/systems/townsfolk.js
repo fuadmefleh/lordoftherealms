@@ -65,10 +65,10 @@ const DEFAULTS = {
     // The residents of a town no one has walked through yet (seed): the inner
     // map's NPC pools (world/innerMap/state.js) without the passing travellers
     seedPools: {
-        village: { villager: 4, farmer: 2, child: 2, merchant: 1 },
-        town: { villager: 6, merchant: 3, guard: 2, farmer: 2, priest: 1, blacksmith_npc: 1, child: 3 },
-        city: { villager: 8, merchant: 4, guard: 4, farmer: 2, priest: 2, blacksmith_npc: 1, noble: 2, child: 4, beggar: 1 },
-        capital: { villager: 10, merchant: 6, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 4, child: 5, beggar: 2 },
+        village: { villager: 6, farmer: 3, child: 3, merchant: 1 },
+        town: { villager: 10, merchant: 4, guard: 2, farmer: 3, priest: 1, blacksmith_npc: 1, child: 5 },
+        city: { villager: 14, merchant: 6, guard: 4, farmer: 3, priest: 2, blacksmith_npc: 2, noble: 3, child: 6, beggar: 2 },
+        capital: { villager: 18, merchant: 8, guard: 6, farmer: 3, priest: 3, blacksmith_npc: 2, noble: 5, child: 8, beggar: 3 },
     },
 };
 

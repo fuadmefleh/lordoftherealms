@@ -69,6 +69,9 @@ const DEFAULTS = {
     barks: {},
     lines: {},
     watch: { title: 'The Watch', text: {}, outcomes: {} },
+    // Coming upon a body (InnerMapReactions._scanBodies): who sees it within radius,
+    // how many of the bystanders go to look, and how close counts as standing over it
+    found: { radius: 6, gatherShare: 0.5, overRadius: 1, holdSeconds: 12, mournSeconds: 30, barks: {} },
 };
 
 const CRIMES = ['assault', 'murder'];
@@ -184,7 +187,7 @@ export const StreetCrime = {
         const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius));
         for (const npc of npcs) {
             if (!npc || npc === victim || (victim && npc.id === victim.id)) continue;
-            if (npc.state === 'gone') continue;
+            if (npc.state === 'gone' || npc.state === 'unconscious') continue;
             // Out on the street, someone indoors sees nothing; indoors, the whole room sees
             if (!scene.indoors && hidden.has(npc.state)) continue;
             const distance = Math.max(Math.abs(_num(npc.q) - _num(scene.q)), Math.abs(_num(npc.r) - _num(scene.r)));
@@ -252,6 +255,65 @@ export const StreetCrime = {
         const pool = byCrime[mood] || byCrime.anger || byCrime.fear || [];
         const line = _pick(pool, `${seed}|bark`);
         return line ? _fill(line, vars) : null;
+    },
+
+    /**
+     * Someone comes upon a dead body (or sees the player carrying one).
+     * @param {object} npc who sees it
+     * @param {object} body { name, _npc } (a corpse from InnerMapCombat)
+     * @param {object} [ctx] { carried, playerOver (the player stands over it), seed }
+     * @returns {{ act:'flee'|'cower'|'mourn'|'gather'|'stare'|'investigate'|'arrest', mood:'fear'|'anger'|'grief',
+     *             role:'kin'|'friend'|'guard'|'bystander', kinWord, bark:string|null, implicates:boolean }}
+     *   implicates: they saw the player with the body — they count as witnesses to the killing
+     */
+    foundReaction(npc, body, ctx = {}) {
+        const C = StreetCrime.config();
+        const F = C.found || {};
+        const B = F.barks || {};
+        const R = C.reactions || {};
+        const traits = (npc && npc.personalityTraits) || [];
+        const seed = `${ctx.seed || ''}|${StreetCrime.npcKey(npc)}|found`;
+        const relation = body && body._npc ? StreetCrime.relationTo(npc, body._npc) : null;
+        const isGuard = npc.type === 'guard';
+        const role = relation ? relation.rel : isGuard ? 'guard' : 'bystander';
+        const fearful = npc.type === 'child' || traits.some(t => (R.fearTraits || []).includes(t));
+        const angry = traits.some(t => (R.angerTraits || []).includes(t));
+        const implicates = !!(ctx.carried || ctx.playerOver);
+        let act;
+        let mood;
+        let pool;
+        if (implicates) {
+            // Caught with the body: the watch arrests, kin rage or wail, the rest run
+            mood = role === 'kin' || angry || isGuard ? 'anger' : 'fear';
+            act = isGuard ? 'arrest' : role === 'kin' ? (angry ? 'stand' : 'mourn') : mood === 'anger' ? 'stand' : 'flee';
+            pool = (_obj(B.caught) || {})[isGuard ? 'guard' : role === 'kin' ? 'kin' : mood];
+            if (ctx.carried) pool = (_obj(B.carried) || {})[isGuard ? 'guard' : mood] || pool;
+        } else if (role === 'kin' || role === 'friend') {
+            act = 'mourn';
+            mood = 'grief';
+            pool = B[role];
+        } else if (isGuard) {
+            act = 'investigate';
+            mood = 'anger';
+            pool = B.guard;
+        } else if (fearful) {
+            act = _frac(`${seed}|cower`) < _num(R.cowerShare, 0.35) ? 'cower' : 'flee';
+            mood = 'fear';
+            pool = (_obj(B.bystander) || {}).fear;
+        } else {
+            act = _frac(`${seed}|gather`) < _num(F.gatherShare, 0.5) ? 'gather' : 'stare';
+            mood = angry ? 'anger' : 'fear';
+            pool = (_obj(B.bystander) || {})[mood];
+        }
+        const line = _pick(pool, `${seed}|bark`);
+        const bark = line ? _fill(line, { victim: (body && body.name) || 'someone', kin: relation && relation.word ? `my ${relation.word}` : (body && body.name) || 'them' }) : null;
+        return { act, mood, role, kinWord: relation && relation.word ? relation.word : null, bark, implicates };
+    },
+
+    /** A short visible reaction (a gasp, a sob) for someone who says no full line: found.emotes[mood]. */
+    foundEmote(mood, seed = '') {
+        const E = (StreetCrime.config().found || {}).emotes || {};
+        return _pick(E[mood] || E.fear, `${seed}|emote`) || '!';
     },
 
     /** What a guard shouts as they come for the player. */
@@ -354,6 +416,35 @@ export const StreetCrime = {
         }
 
         return { incident, witnessed, witnessCount: _num(g.witnessCount), rumour: g.rumor || null, heat };
+    },
+
+    /**
+     * People who came on a fight already under way (a chase down the street):
+     * they remember it as the first witnesses do, and join the incident.
+     * @param {object} player
+     * @param {object|null} incident from record()
+     * @param {Array} witnesses from selectWitnesses (with .mood set)
+     * @param {object} victim
+     * @param {'assault'|'murder'} crime
+     * @param {number} day
+     * @returns {number} how many saw it
+     */
+    addWitnesses(player, incident, witnesses, victim, crime, day) {
+        const C = StreetCrime.config();
+        const seen = (witnesses || []).filter(w => w && w.seen);
+        if (incident) {
+            if (seen.length) incident.witnessed = true;
+            for (const w of seen) {
+                if (incident.witnesses.length >= 5) break;
+                if (!incident.witnesses.includes(w.npc.name)) incident.witnesses.push(w.npc.name);
+            }
+        }
+        const base = { k: crime, v: (victim && victim.name) || 'someone', vu: StreetCrime.npcKey(victim || {}), d: _num(day), inc: incident ? incident.id : null, town: incident ? incident.town : 'the town' };
+        for (const w of seen) {
+            const delta = _num((C.disposition[w.role] || {})[crime], 0);
+            StreetCrime.remember(w.npc, { ...base, rel: w.role, kin: w.kinWord, mood: w.mood || 'fear', seen: true }, delta, player);
+        }
+        return seen.length;
     },
 
     /** Fear or anger, by temperament. */

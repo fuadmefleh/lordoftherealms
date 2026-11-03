@@ -324,3 +324,42 @@ describe('StreetCrime: the watch', () => {
         expect(StreetCrime.pendingAt(player, '5,5', 10 + StreetCrime.config().arrest.windowDays + 1)).toBe(null);
     });
 });
+
+describe('Coming upon a body', () => {
+    const victim = { id: 1, name: 'Mara', gender: 'female' };
+    const body = { name: 'Mara', _npc: victim };
+    it('kin mourn at the side of the dead, and name them', () => {
+        const r = StreetCrime.foundReaction({ id: 2, name: 'Tom', type: 'villager', spouseId: 1 }, body, { seed: 's' });
+        expect(r.act).toBe('mourn');
+        expect(r.role).toBe('kin');
+        expect(r.kinWord).toBe('wife');
+        expect(r.implicates).toBe(false);
+        expect(r.bark).toBeTruthy();
+        expect(r.bark).not.toMatch(/\{/);
+    });
+    it('the watch looks into it; a child runs', () => {
+        expect(StreetCrime.foundReaction({ id: 3, type: 'guard' }, body, { seed: 's' }).act).toBe('investigate');
+        expect(['flee', 'cower']).toContain(StreetCrime.foundReaction({ id: 4, type: 'child' }, body, { seed: 's' }).act);
+    });
+    it('a bystander gathers, stares or runs, and always says something', () => {
+        for (let i = 0; i < 10; i++) {
+            const r = StreetCrime.foundReaction({ id: 10 + i, type: 'villager', personalityTraits: [] }, body, { seed: `b${i}` });
+            expect(['gather', 'stare']).toContain(r.act);
+            expect(r.bark).toBeTruthy();
+        }
+    });
+    it('caught carrying or standing over the body, the player is seen for a killer', () => {
+        const g = StreetCrime.foundReaction({ id: 3, type: 'guard' }, body, { carried: true, seed: 's' });
+        expect(g.act).toBe('arrest');
+        expect(g.implicates).toBe(true);
+        const b = StreetCrime.foundReaction({ id: 5, type: 'villager' }, body, { playerOver: true, seed: 's' });
+        expect(b.implicates).toBe(true);
+        expect(['flee', 'stand']).toContain(b.act);
+    });
+});
+
+describe('Visible reactions', () => {
+    it('every mood has a short emote', () => {
+        for (const m of ['fear', 'anger', 'grief']) expect(StreetCrime.foundEmote(m, 'x')).toBeTruthy();
+    });
+});

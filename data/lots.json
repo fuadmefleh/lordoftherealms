@@ -1,0 +1,18 @@
+{
+    "_doc": "Building lots and vacant buildings on the town map (world/lotBook.js, world/townPlanner.js, world/innerMap/lots.js, systems/lots.js). The planner sets lots aside along the streets before the houses fill in: count[type] of them (many in a village, few in a city: a city is built up), each width x depth tiles. Anyone may buy one — the player or an AI House or townsman — and build inside its bounds; the player builds only on a lot they hold (or out in the wilds). pricePerTile[type] × the lot's area is its price. vacant[type]: houses left standing empty in town, for rent (rentPerDay[type] gold a day, paid at each day's end; miss a day and you're put out) or for sale (salePrice[type]). ai: the chance each day, per town, that someone buys a free lot (buyChance), takes a vacant house (rentChance) or leaves one (leaveChance); buildDays from purchase to the building standing; builds: what they put up (building types with designs); buyers: townsfolk names when no House buys.",
+    "count": { "village": 10, "town": 7, "city": 4, "capital": 3 },
+    "width": { "village": [7, 9], "town": [6, 8], "city": [6, 7], "capital": [6, 7] },
+    "depth": { "village": [6, 7], "town": [6, 7], "city": [5, 6], "capital": [5, 6] },
+    "pricePerTile": { "village": 2, "town": 5, "city": 10, "capital": 14 },
+    "vacant": { "village": 0, "town": 1, "city": 3, "capital": 4 },
+    "rentPerDay": { "village": 1, "town": 2, "city": 4, "capital": 6 },
+    "salePrice": { "village": 150, "town": 320, "city": 620, "capital": 900 },
+    "ai": {
+        "buyChance": { "village": 0.006, "town": 0.008, "city": 0.012, "capital": 0.015 },
+        "rentChance": 0.02,
+        "leaveChance": 0.006,
+        "buildDays": 20,
+        "builds": ["house", "house", "house", "bakery", "warehouse", "blacksmith", "stable"],
+        "buyers": ["Master Wendel", "Goodwife Tansy", "Hamund the Cooper", "Dame Isolde", "Master Corwin", "Old Bram", "Widow Maud", "Jory the Mason"]
+    }
+}

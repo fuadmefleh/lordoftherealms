@@ -1,0 +1,27 @@
+{
+    "_doc": "Beaten to 0 health in a street fight is beaten senseless, not dead (systems/knockout.js). npc: how long a knocked-out townsperson lies senseless (seconds, [min, max]; a real minute is an hour) and the share of health they wake with. player: hours lost when the player is knocked out, the health share they wake with, and the share of their purse taken when robbed. finish: the chance whoever downed the player finishes them — base, a violent (aggressive) sort, one who dislikes them (disposition under 25, added), one holding a grudge (the player hurt their kin or friend), one whose kin the player killed; the watch never kills (it arrests the wanted). rob: the chance, by role, they go through the player's purse instead of just leaving. Who started it matters: fetchWatch — the player threw the first blow, so (in a town with a watch) the one who downed them runs for the guards, with this chance, and the player wakes in the cells (unless a grudge finishes them first). npcStarted — they set on the player: finish (by temperament: base/aggressive/grudge) or, where the realm allows it, capture into their own prison camp (capture: the chance; days: [min, max] of labour; freedomCost: gold per day left), else rob or leave. privatePrisons: whether a realm lets private citizens keep prison camps and prisoners to work — allowShare of realms do (picked by a hash of the realm, the same all game), unless a realm's laws.privatePrisons says otherwise. householder: someone at home who hates the player (a grudge, or disposition under hateBelow; aggressive temperament under angryBelow) may set on them when they walk in (chance, once a visit). lines: what they say ({victim} = the one the grudge is for, {camp} = the camp's name).",
+    "npc": { "wakeSeconds": [45, 90], "wakeHpShare": 0.25 },
+    "player": { "hoursOut": [1, 3], "wakeHpShare": 0.15, "robShare": [0.3, 0.7] },
+    "finish": { "base": 0.02, "aggressive": 0.05, "disliked": 0.08, "grudge": 0.35, "murderGrudge": 0.75, "guard": 0, "child": 0 },
+    "rob": { "base": 0.45, "beggar": 0.85, "traveler": 0.6, "aggressive": 0.7, "noble": 0.1, "priest": 0.05, "guard": 0, "child": 0.2 },
+    "fetchWatch": 0.9,
+    "npcStarted": {
+        "finish": { "base": 0.2, "aggressive": 0.4, "grudge": 0.5, "murderGrudge": 0.8 },
+        "capture": 0.6,
+        "days": [8, 20],
+        "freedomCost": 12
+    },
+    "privatePrisons": { "allowShare": 0.4 },
+    "householder": { "chance": 0.6, "hateBelow": 15, "angryBelow": 30 },
+    "lines": {
+        "finish": ["This is for {victim}.", "No one will miss you.", "You should have stayed down.", "For {victim}. Rot."],
+        "arrest": ["That's enough. You're coming with me.", "Drag them to the cells.", "You'll wake up behind bars."],
+        "warn": ["Let that be a lesson. Stay out of trouble.", "Next time it's the cells.", "Sleep it off."],
+        "rob": ["I'll have that purse.", "Call it payment.", "Serves you right.", "Thanks for the coin."],
+        "leave": ["Stay down.", "Had enough?", "*spits* Not worth it.", "Don't get up."],
+        "fetch": ["Guards! GUARDS! In here!", "Stay there — I'm fetching the watch.", "You'll answer to the watch for this."],
+        "capture": ["You'll make a fine pair of hands for {camp}.", "Chain this one. To {camp} with them.", "You work for me now."],
+        "householder": ["You. In MY house?", "I know what you did. You'll not leave here standing.", "Get out — no. You're not getting out."],
+        "npcWake": ["Ugh... my head...", "W-what happened?", "Gods... stay away from me!", "*groans*", "Someone... help..."]
+    }
+}

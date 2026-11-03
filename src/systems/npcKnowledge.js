@@ -65,6 +65,18 @@ const DEFAULTS = {
     favour: { minDisposition: 65, cost: 8, everyDays: 30, bargainMin: 50, bargainCost: 5, bargainMax: 0.15, repayDays: 30, repaidWarmth: 4, lateWarmth: 1, overdueCold: -6 },
     // Who knows the land best (expertise places 3+) knows it further out, and a second old place
     wideKnowledge: { lairRadius: 10, siteRadius: 8, wideLairRadius: 16, wideSiteRadius: 14, wideAt: 3 },
+    // Who won't tell you anything: below refuseBelow they always send you off, below
+    // grudgingBelow they do so grudgingChance% of the time; a grudge always does.
+    rebuff: {
+        refuseBelow: 25, grudgingBelow: 40, grudgingChance: 50, pester: -1,
+        lines: {
+            grudge: ['After what you did to {victim}? Ask me nothing.'],
+            hostile: ['Shove off.'],
+            cold: ['I\'ve nothing to say to you.'],
+            wary: ['*shrugs* Couldn\'t say.'],
+        },
+        topics: {},
+    },
 };
 
 /** What learning a topic adds to the player's knowledge of the realm (player.learnAboutKingdom). */
@@ -104,6 +116,8 @@ export const NpcKnowledge = {
             _cfg.social = { ...DEFAULTS.social, ...(_obj(d.social) || {}) };
             _cfg.favour = { ...DEFAULTS.favour, ...(_obj(d.favour) || {}) };
             _cfg.wideKnowledge = { ...DEFAULTS.wideKnowledge, ...(_obj(d.wideKnowledge) || {}) };
+            const rb = _obj(d.rebuff) || {};
+            _cfg.rebuff = { ...DEFAULTS.rebuff, ...rb, lines: { ...DEFAULTS.rebuff.lines, ...(_obj(rb.lines) || {}) }, topics: { ...(_obj(rb.topics) || {}) } };
         }
         return _cfg;
     },
@@ -315,7 +329,7 @@ export const NpcKnowledge = {
 
         // Buildings and who keeps them
         const B = Array.isArray(opts.buildings) ? opts.buildings : [];
-        const NAMES = { tavern: 'the tavern', blacksmith: 'the smithy', church: 'the church', temple: 'the temple', marketplace: 'the market', barracks: 'the barracks', town_hall: 'the town hall', manor: 'the manor', granary: 'the granary', stable: 'the stables', guard_tower: 'the watchtower' };
+        const NAMES = { tavern: 'the tavern', blacksmith: 'the smithy', church: 'the church', temple: 'the temple', marketplace: 'the market', barracks: 'the barracks', town_hall: 'the town hall', manor: 'the manor', castle: 'the castle', granary: 'the granary', stable: 'the stables', guard_tower: 'the watchtower' };
         const PREF = { guard: ['barracks', 'guard_tower', 'town_hall'], priest: ['temple', 'church'], merchant: ['marketplace', 'warehouse', 'tavern'], blacksmith_npc: ['blacksmith', 'marketplace'], noble: ['manor', 'town_hall'], farmer: ['granary', 'farm', 'stable'] };
         const order = [...(PREF[type] || []), 'tavern', 'marketplace', 'church', 'temple', 'blacksmith', 'barracks', 'town_hall', 'manor'];
         const said = [];
@@ -597,5 +611,40 @@ export const NpcKnowledge = {
         mem.disposition = _clamp(_num(mem.disposition, 50) + warmth, 0, 100);
         delete mem.owed;
         return { success: true, amount: o.amount, warmth, text: o.overdue ? '*takes the coins* Late, but paid. We\'re square.' : '*smiles* Paid back, and early! Good as your word.' };
+    },
+
+    // ──────────── TURNED AWAY ────────────
+
+    /**
+     * How willing they are to tell the player anything: 'refuses' (a grudge, or
+     * they dislike the player too much), 'grudging' (they may send them off), or 'open'.
+     */
+    willingness(mem) {
+        const R = NpcKnowledge.config().rebuff;
+        if (mem && mem.grudge) return 'refuses';
+        const d = _num(mem && mem.disposition, 50);
+        if (d < _num(R.refuseBelow, 25)) return 'refuses';
+        if (d < _num(R.grudgingBelow, 40)) return 'grudging';
+        return 'open';
+    },
+
+    /**
+     * The line someone who dislikes the player says instead of answering a
+     * question about `topic` (news, town, realm, folk, family, people, work),
+     * or null when they'll answer. Seeded: the same question the same day gets the same answer.
+     */
+    rebuff(npc, mem, topic, seed) {
+        const R = NpcKnowledge.config().rebuff;
+        const will = NpcKnowledge.willingness(mem);
+        if (will === 'open') return null;
+        if (will === 'grudging' && _h(`${seed}|rebuff|${topic}`) % 100 >= _num(R.grudgingChance, 50)) return null;
+        const d = _num(mem && mem.disposition, 50);
+        const L = R.lines || {};
+        const mood = mem && mem.grudge ? 'grudge' : d < 10 ? 'hostile' : will === 'refuses' ? 'cold' : 'wary';
+        let pool = (L[mood] || []).slice();
+        if (mood === 'hostile' || mood === 'cold') pool = pool.concat((R.topics && R.topics[topic]) || []);
+        if (!pool.length) pool = DEFAULTS.rebuff.lines[mood] || DEFAULTS.rebuff.lines.cold;
+        const victim = (mem && mem.grudge && mem.grudge.victimName) || 'them';
+        return _pick(pool, _h(`${seed}|line|${topic}|${_num(mem && mem.timesSpoken)}`)).replace(/\{victim\}/g, victim);
     },
 };

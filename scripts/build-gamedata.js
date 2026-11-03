@@ -25,7 +25,7 @@ const topLevel = [
     'gossip', 'streetCrime', 'traits', 'petitions', 'companions', 'delves',
     'underworld', 'throne', 'holdings', 'rivals', 'ailments', 'upbringing',
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
-    'patronage',
+    'patronage', 'digging',
     'outlawLairs',
     'finance',
     'markets',
@@ -46,6 +46,11 @@ const topLevel = [
     'townsfolk',
     'npcTasks',
     'npcKnowledge',
+    'townLife',
+    'knockout',
+    'jail',
+    'seats',
+    'lots',
     'duels',
     'crafting',
     'mercenaryContracts',
@@ -68,7 +73,10 @@ const topLevel = [
     'rivalVoice',
     'realmIntel',
     'containers',
-    'townProps'
+    'townProps',
+    'mapTasks',
+    'performTasks',
+    'wildTasks'
 ];
 
 const merged = {};

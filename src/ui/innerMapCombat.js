@@ -15,7 +15,10 @@
 //     their roster entry (settlement.folk, systems/townsfolk.js) and heals
 //     day by day, and one killed dies on the roster
 //   - The fallen leave their actual purse and some of the wares they carry
-//   - Auto-cancel when target moves out of range
+//   - You keep after whoever you attack: walk away from the fight to stop
+//   - The victim fights back (comes at you, swinging) or runs, and a fighter
+//     beaten low may break and run
+//   - The dead stay where they fell (a body on the street until the next day)
 //   - The street reacts (ui/innerMapReactions.js, systems/streetCrime.js):
 //     witnesses bark, flee, cower or fight, the watch comes running, and the
 //     assault or murder is recorded and remembered
@@ -31,11 +34,17 @@ import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Ailments } from '../systems/ailments.js';
 import { Duels } from '../systems/duels.js';
 import { Townsfolk } from '../systems/townsfolk.js';
+import { Knockout } from '../systems/knockout.js';
+import { StreetCrime } from '../systems/streetCrime.js';
 import { PlayerInventory } from '../player/inventory.js';
 import { Utils } from '../core/utils.js';
 import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
+
+function _nowMs() {
+    return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+}
 
 /**
  * Floating combat numbers by kind: size (× camera zoom), readable floor,
@@ -71,6 +80,15 @@ export const InnerMapCombat = {
     // ── NPC reaction states ───────────────────────────────────
     // Maps npc.id → { mode:'fight'|'flee', attackTimer }
     _npcReactions: new Map(),
+
+    // ── The dead, lying where they fell ───────────────────────
+    // { name, type, preset, q, r, side, at, day, key }
+    _corpses: [],
+    _today: 0,
+    // The body the player is carrying (ui/innerMapDigging.js moves it along)
+    _carrying: null,
+    // How many bodies are kept at once (oldest carried off first)
+    MAX_CORPSES: 40,
 
     // ── Constants ─────────────────────────────────────────────
     FLOAT_DURATION:       1.6,   // seconds a damage number lives
@@ -110,6 +128,7 @@ export const InnerMapCombat = {
         // Cancel whatever was happening before
         if (this._attackState) this.cancelAttack();
         InnerMap._activeInteraction = null;
+        InnerMap._pendingCombat = null;
 
         const dist = Math.max(
             Math.abs(InnerMap.playerInnerQ - npc.q),
@@ -117,9 +136,9 @@ export const InnerMapCombat = {
         );
 
         if (dist > 1) {
-            // Walk toward the NPC, then attack on arrival
-            InnerMap._pendingCombat = { type: 'npc', npc, game };
-            InnerMap.movePlayerTo(npc.q, npc.r);
+            // Go after them (following as they move), and strike on reaching them
+            this._attackState = { targetType: 'npc', npc, game, pending: true, chaseTimer: 0, chasePath: null };
+            this._chase(this._attackState);
             return;
         }
 
@@ -169,6 +188,14 @@ export const InnerMapCombat = {
             this._npcHealth.set(npc.id, { current, max: maxHp });
         }
 
+        // Who threw the first blow (systems/knockout.js weighs it when the player goes down)
+        // (One who set on the player before, and has since let it go, is this time the one struck first)
+        if (!npc._struckPlayerFirst || !this._npcReactions.has(npc.id)) {
+            npc._struckPlayerFirst = false;
+            npc._provokedBy = 'player';
+            this._playerStruckOn = InnerMap.tiles;
+        }
+
         const dmg = this._computePlayerDamage(game.player);
         this._attackState = {
             targetType: 'npc',
@@ -179,6 +206,8 @@ export const InnerMapCombat = {
             npcArmour: Duels.fromNpc(npc).armour,
             game,
             _notified: false,
+            chaseTimer: 0,
+            chasePath: null,
         };
 
         // Face the NPC immediately
@@ -198,6 +227,8 @@ export const InnerMapCombat = {
         try {
             // Trigger NPC reaction (fight back or flee) and apply relationship penalties
             this._initiateNPCReaction(npc, game);
+            // A job's opponent (a brawler on the watch round, an arena bout): fair game, no crime
+            if (npc._taskFoe) return;
             this.applyAttackRelationshipPenalties(game, npc);
 
             // Family & friends turn against the player (once per NPC per assault)
@@ -220,9 +251,38 @@ export const InnerMapCombat = {
         }
     },
 
-    /** Cancel any active attack. */
+    /** Cancel any active attack (and stop chasing). */
     cancelAttack() {
+        const ia = this._attackState;
+        if (ia && ia.chasePath && InnerMap._playerPath === ia.chasePath) InnerMap.cancelPlayerWalk();
         this._attackState = null;
+    },
+
+    /**
+     * Walk after the target. Keeps the walk under way while it still ends
+     * beside them, so the player does not stutter re-planning every step.
+     * @returns {boolean} whether the player is (still) on the way
+     */
+    _chase(ia) {
+        const npc = ia.npc;
+        ia.chaseTimer = 0.3;
+        const path = InnerMap._playerPath;
+        if (InnerMap._playerWalking && path && path === ia.chasePath) {
+            const end = path[path.length - 1];
+            if (end && Math.max(Math.abs(end.q - npc.q), Math.abs(end.r - npc.r)) <= 1) return true;
+        }
+        const res = InnerMap.movePlayerTo(npc.q, npc.r);
+        ia.chasePath = res && res.started ? InnerMap._playerPath : null;
+        return !!ia.chasePath;
+    },
+
+    /** The target is out of reach (gone indoors, off the map, too far): stop. */
+    _lostTarget(ia, game, name) {
+        this.cancelAttack();
+        const g = game || ia.game;
+        if (!ia.pending && g && g.ui && typeof g.ui.showNotification === 'function') {
+            g.ui.showNotification('🏃 Got away', `${name || 'They'} got away.`, 'info');
+        }
     },
 
     // ══════════════════════════════════════════════
@@ -230,6 +290,8 @@ export const InnerMapCombat = {
     // ══════════════════════════════════════════════
 
     update(deltaTime, game) {
+        if (InnerMap._insideBuilding && this._householdChecked !== InnerMap.tiles) this._checkHousehold(game);
+        this._today = this._day(game);
         // ── Advance float numbers (screen-space rise) ──
         for (const fn of this._floatNumbers) {
             fn.age += deltaTime;
@@ -249,6 +311,9 @@ export const InnerMapCombat = {
         // ── NPC reaction ticks (fight-back or flee follow-up) ──
         this._updateNPCReactions(deltaTime, game);
 
+        // ── The knocked-out come round in their own time ──
+        this._updateKnockedOut(game);
+
         // ── The street's reaction: guards and kin coming for the player ──
         InnerMapReactions.update(deltaTime, game);
 
@@ -259,21 +324,54 @@ export const InnerMapCombat = {
         const ia = this._attackState;
         if (!ia) return;
 
-        // Check NPC still exists
+        // Still about? (Gone off the map, or indoors where the player is not)
         const npc = InnerMap.npcs && InnerMap.npcs.find(n => n.id === ia.npc.id);
-        if (!npc) { this.cancelAttack(); return; }
+        if (!npc || npc.state === 'gone' || (npc.state === 'inside_building' && !InnerMap._insideBuilding)) {
+            this._lostTarget(ia, game, ia.npc && ia.npc.name);
+            return;
+        }
 
         // Re-sync npc reference (position may have changed)
         ia.npc = npc;
 
-        // Distance check — must be adjacent
+        // The fight goes on: whoever comes within sight of it now reacts too
+        if (!ia.pending && !npc._taskFoe) {
+            ia.watchTimer = (ia.watchTimer || 0) - deltaTime;
+            if (ia.watchTimer <= 0) {
+                ia.watchTimer = 0.8;
+                InnerMapReactions.onOngoing(game || ia.game, npc);
+            }
+        }
+
+        // The player walked off somewhere else: that ends the fight
+        if (InnerMap._playerWalking && InnerMap._playerPath && InnerMap._playerPath !== ia.chasePath) {
+            this._attackState = null;
+            return;
+        }
+
         const dist = Math.max(
             Math.abs(InnerMap.playerInnerQ - npc.q),
             Math.abs(InnerMap.playerInnerR - npc.r)
         );
         if (dist > 1) {
-            // NPC moved away — cancel silently
-            this.cancelAttack();
+            // After them
+            if (dist > 30) { this._lostTarget(ia, game, npc.name); return; }
+            ia.chaseTimer = (ia.chaseTimer || 0) - deltaTime;
+            if (ia.chaseTimer <= 0 && !this._chase(ia)) {
+                ia.stuck = (ia.stuck || 0) + 1;
+                if (ia.stuck > 8) this._lostTarget(ia, game, npc.name);
+            }
+            return;
+        }
+
+        // Within reach: stop chasing and strike
+        ia.stuck = 0;
+        if (ia.chasePath) {
+            if (InnerMap._playerPath === ia.chasePath) InnerMap.cancelPlayerWalk();
+            ia.chasePath = null;
+        }
+        if (ia.pending) {
+            this._beginNPCAttack(game || ia.game, npc);
             return;
         }
 
@@ -308,18 +406,259 @@ export const InnerMapCombat = {
         );
         this._spawnHitFlash(npc.q * T + T / 2, npc.r * T + T / 2);
 
-        if (health.current <= 0) {
-            this._killNPC(npc, game || ia.game);
+        // A job's opponent gives up before it comes to killing (ui/innerMapTasks.js)
+        if (npc._taskFoe && health.current <= health.max * 0.2) {
             this.cancelAttack();
+            npc._taskFoe.onYield();
+            return;
+        }
+        if (health.current <= 0) {
+            // Beaten senseless, not dead: the player chooses what comes next (systems/knockout.js)
+            this.cancelAttack();
+            this._knockOutNPC(npc, game || ia.game);
+            return;
+        }
+        // While the fight lasts, a fighter keeps coming; one beaten low may break and run
+        const resp = InnerMapReactions._responders.get(npc.id);
+        if (resp) resp.until = Math.max(resp.until, _nowMs() + 20000);
+        this._maybeBreak(npc, game || ia.game);
+    },
+
+    /** A fighter beaten low (and not the aggressive kind) breaks and runs. */
+    _maybeBreak(npc, game) {
+        const reaction = this._npcReactions.get(npc.id);
+        if (!reaction || reaction.mode !== 'fight' || npc._taskFoe || npc._broke) return;
+        const hp = this._npcHealth.get(npc.id);
+        if (!hp) return;
+        // Only once badly hurt (the stance's fleeBelowHp), and never the aggressive
+        const stance = (Duels.config().brawl || {}).stance || {};
+        const breakAt = Number(stance.fleeBelowHp) || 0.35;
+        if (hp.current / hp.max >= breakAt || Duels.fromNpc(npc).temperament === 'aggressive') return;
+        npc._broke = true;
+        InnerMapReactions._responders.delete(npc.id);
+        this._npcReactions.set(npc.id, { mode: 'flee' });
+        InnerMapReactions.bark(npc, 'Enough! Enough!', 2.5);
+        InnerMapReactions._flee(npc, { indoors: !!InnerMap._insideBuilding });
+    },
+
+    // ══════════════════════════════════════════════
+    // KNOCKED OUT — 0 health is senseless, not dead (systems/knockout.js)
+    // ══════════════════════════════════════════════
+
+    /** The NPC collapses where they stand: lying senseless until they come round. */
+    _knockOutNPC(npc, game) {
+        const wake = Knockout.npcWake();
+        npc.state = 'unconscious';
+        npc.path = null;
+        npc.moveProgress = 0;
+        npc._targetBuilding = null;
+        npc._activity = null;
+        npc._bark = null;
+        npc._ko = { at: _nowMs(), until: _nowMs() + wake.seconds * 1000, hpShare: wake.hpShare, side: InnerMap.playerInnerQ > npc.q ? -1 : 1 };
+        InnerMapReactions._responders.delete(npc.id);
+        this._npcReactions.delete(npc.id);
+        const T = InnerMapRenderer.TILE_SIZE;
+        this._spawnFloat(npc.q * T + T / 2, npc.r * T, 0, 'killed', 'Knocked out');
+        if (game && game.ui && typeof game.ui.showNotification === 'function') {
+            game.ui.showNotification(`💫 ${npc.name} goes down`,
+                `${npc.name} collapses, senseless. Click them to finish them off or go through their pockets, or leave them be — they'll come round.`, 'warning');
         }
     },
 
+    /** Kill a knocked-out NPC where they lie: a murder, seen or unseen. */
+    finishOff(npc, game) {
+        if (!npc || npc.state !== 'unconscious') return false;
+        npc.state = 'idle';
+        npc._ko = null;
+        this._killNPC(npc, game);
+        return true;
+    },
+
+    /** Go through a knocked-out NPC's pockets (once). */
+    robKnockedOut(npc, game) {
+        if (!npc || npc.state !== 'unconscious' || npc._koSearched) return null;
+        npc._koSearched = true;
+        const { gold, items } = this._takeSpoils(npc, game);
+        const parts = [];
+        if (gold > 0) parts.push(`${gold} gold`);
+        for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
+        // They'll know who did it when they come round
+        NpcDisposition.adjustDisposition(npc, -15, game && game.player);
+        if (game && game.ui) {
+            if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);
+            game.ui.showNotification(`🖐️ ${npc.name}'s pockets`, parts.length ? `You take ${parts.join(', ')}.` : 'Their pockets are empty.', parts.length ? 'success' : 'info');
+        }
+        return { gold, items };
+    },
+
+    /** The knocked-out come round in their own time: hurt, shaken, and away from the player. */
+    _updateKnockedOut(game) {
+        const now = _nowMs();
+        for (const npc of InnerMap.npcs || []) {
+            if (npc.state !== 'unconscious' || !npc._ko || now < npc._ko.until) continue;
+            const ko = npc._ko;
+            npc._ko = null;
+            npc.state = 'idle';
+            npc.idleTimer = 2;
+            const hp = this._npcHealth.get(npc.id);
+            if (hp) {
+                hp.current = Math.max(1, Math.round(hp.max * ko.hpShare));
+                if (npc._person) Townsfolk.injure(npc._person, this._day(game), hp.current, hp.max);
+            }
+            const line = Knockout.wakeLine();
+            if (line) InnerMapReactions.bark(npc, line, 3.5);
+            // Shaken: away from the one who did it
+            npc._broke = true;
+            InnerMapReactions._flee(npc, { indoors: !!InnerMap._insideBuilding });
+        }
+    },
+
+    /**
+     * The player is beaten to 0: they black out, and whoever downed them
+     * decides — the cells, the knife, their purse, or nothing. Then they come
+     * round, hours later, at a little health (or not at all).
+     */
+    _knockOutPlayer(game, attacker) {
+        if (!game || !game.player || this._playerOut) return;
+        this._playerOut = true;
+        const player = game.player;
+        player.health = 0;
+        // Every fight stops while they lie there
+        if (this._attackState) this.cancelAttack();
+        this._npcReactions.clear();
+        for (const id of [...InnerMapReactions._responders.keys()]) InnerMapReactions.release(id);
+        InnerMap.cancelPlayerWalk();
+        InnerMap._pendingCombat = null;
+        InnerMap._pendingDialog = null;
+
+        const day = this._day(game);
+        const wt = InnerMap.currentWorldTile || {};
+        const settlement = (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || wt.settlement || null;
+        const wanted = StreetCrime.pendingAt(player, `${wt.q},${wt.r}`, day);
+        // Who started it: they set on the player, or the player on them (or on someone, here)
+        const starter = !attacker ? null
+            : attacker._struckPlayerFirst ? 'npc'
+                : (attacker._provokedBy === 'player' || this._playerStruckOn === InnerMap.tiles) ? 'player' : null;
+        const kingdom = settlement ? settlement.kingdom : null;
+        const campName = attacker ? `${attacker.name}'s prison camp` : 'a prison camp';
+        // A job's opponent (an arena bout) only wins the bout
+        const verdict = attacker && attacker._taskFoe
+            ? { act: 'leave', line: 'Stay down.', chance: 0, why: 'A fair bout.' }
+            : Knockout.attackerVerdict(attacker, player, {
+                wanted, starter, hasWatch: !!settlement, campName,
+                campsAllowed: Knockout.privatePrisonsAllowed(game.world, kingdom),
+            });
+        if (verdict.line && attacker) InnerMapReactions.bark(attacker, verdict.line, 3.5);
+        const who = (attacker && attacker.name) || 'Your attacker';
+        const town = (settlement && settlement.name) || 'the street';
+
+        this._blackout(game, 2600, () => {
+            this._playerOut = false;
+            if (verdict.act === 'finish') {
+                if (typeof game._triggerDeath === 'function') game._triggerDeath(`beaten to death by ${who} in ${town}`);
+                return;
+            }
+            const res = Knockout.playerWakes(player, verdict);
+            InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + res.hours);
+            if (attacker) {
+                attacker._broke = true;
+                InnerMapReactions._flee(attacker, { indoors: !!InnerMap._insideBuilding });
+            }
+            const hrs = `${res.hours} hour${res.hours === 1 ? '' : 's'}`;
+            // Taken for their own prison camp (the realm allows it): servitude, off the town map
+            if (verdict.act === 'capture') {
+                const cap = Knockout.capturePlayer(player, verdict, { campName, keeper: who, kingdom });
+                if (typeof game.ui.hideCustomPanel === 'function') game.ui.hideCustomPanel();
+                game.ui.showNotification('⛓️ Taken Prisoner', `${who} set on you, and while you lay senseless had you chained and carted off to ${campName}. ${town}'s law lets a free man keep prisoners. ${cap.days} days of their labour${cap.took ? `, and ${cap.took} gold taken` : ''} — unless you buy your way out or slip your chains.`, 'error');
+                if (typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+                if (typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+                return;
+            }
+            // The player started it: they ran for the watch. A charge if there's none yet (they swear to it)
+            let charge = verdict.act === 'arrest' ? wanted : null;
+            if (verdict.act === 'fetch') {
+                charge = wanted || (StreetCrime.record(player, game.world, {
+                    crime: 'assault', victim: attacker, witnesses: [], q: wt.q, r: wt.r,
+                    scene: { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR },
+                }) || {}).incident || null;
+            }
+            if (charge) {
+                const out = StreetCrime.answerWatch(player, game.world, charge.id, 'submit', settlement);
+                if (typeof game.ui.hideCustomPanel === 'function') game.ui.hideCustomPanel();
+                const how = verdict.act === 'fetch'
+                    ? `You started it, and lost. While you lay senseless ${who} ran for the watch, and they hauled you off.`
+                    : `${who} beat you senseless and dragged you off.`;
+                game.ui.showNotification('⛓️ You Wake in the Cells', `${how} ${out.jailed ? `${out.jailed} days in the cells.` : ''}`, 'error');
+                // Into the jail map (ui/innerMapJail.js); off the street map if it can't be had
+                if (typeof game.enterJailMap === 'function') {
+                    game.enterJailMap().then(ok => { if (!ok && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true }); });
+                } else if (typeof game.exitInnerMap === 'function') game.exitInnerMap();
+            } else {
+                const what = verdict.act === 'rob'
+                    ? (res.stolen > 0 ? `${who} went through your purse: ${res.stolen} gold gone.` : `${who} went through your purse and found nothing.`)
+                    : verdict.act === 'warn' ? `${who} left you with a warning.` : `${who} left you lying there.`;
+                game.ui.showNotification('💫 You Come Round', `You were out for ${hrs}. ${what} You ache all over.`, verdict.act === 'rob' ? 'error' : 'warning');
+            }
+            if (typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+        });
+    },
+
+    /**
+     * Walking into a house where someone hates the player (a grudge, or bad
+     * blood): they may set on them there and then — and so the fight is theirs
+     * (systems/knockout.js: a kill, or their prison camp where the law allows).
+     */
+    _checkHousehold(game) {
+        this._householdChecked = InnerMap.tiles;
+        const b = InnerMap._insideBuilding;
+        if (!b || !game || !game.player || b.isPlayerOwned || b.isPlayerProperty || (InnerMap.inJail && InnerMap.inJail())) return;
+        for (const npc of InnerMap.npcs || []) {
+            const lives = (npc._home && npc._home.q === b.q && npc._home.r === b.r) || (b.ownerId != null && npc.id === b.ownerId);
+            if (!lives || npc.state === 'unconscious' || npc._ko) continue;
+            const v = Knockout.householderAttacks(npc);
+            if (!v.attacks) continue;
+            npc._struckPlayerFirst = true;
+            npc._provokedBy = null;
+            if (!this._npcHealth.has(npc.id)) {
+                const maxHp = Duels.npcBrawlHp(npc) || this.NPC_BASE_HEALTH[npc.type] || 60;
+                this._npcHealth.set(npc.id, { current: maxHp, max: maxHp });
+            }
+            if (v.line) InnerMapReactions.bark(npc, v.line, 3.5);
+            InnerMapReactions._respond(npc, 'fight', null);
+            this._npcReactions.set(npc.id, { mode: 'fight', attackTimer: this.NPC_ATTACK_INTERVAL * 1.5 });
+            if (game.ui) game.ui.showNotification(`⚔️ ${npc.name} Sets on You!`, `"${v.line}" ${v.why} Fight, or get out the door.`, 'error');
+            return;
+        }
+    },
+
+    /** Fade to black for `ms`, block the street map meanwhile, then run `then`. */
+    _blackout(game, ms, then) {
+        if (typeof document === 'undefined' || !document.body) { then(); return; }
+        const el = document.createElement('div');
+        el.className = 'im-blackout';
+        el.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;transition:opacity 900ms ease;z-index:9000;display:flex;align-items:center;justify-content:center;color:#c9b9a6;font:600 20px Cinzel,serif;letter-spacing:0.08em;pointer-events:all;';
+        el.textContent = 'You black out…';
+        document.body.appendChild(el);
+        requestAnimationFrame(() => { el.style.opacity = '0.94'; });
+        setTimeout(() => {
+            try { then(); } finally {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 950);
+            }
+        }, ms);
+    },
+
+    /** Is the player lying senseless? (Input and blows wait.) */
+    playerKnockedOut() { return !!this._playerOut; },
+
     _killNPC(npc, game) {
-        // Remove from inner map NPC list
+        // Remove from inner map NPC list: the body is left where they fell
         if (InnerMap.npcs) {
             const idx = InnerMap.npcs.findIndex(n => n.id === npc.id);
             if (idx >= 0) InnerMap.npcs.splice(idx, 1);
         }
+        this._leaveBody(npc, game);
+        InnerMapReactions._responders.delete(npc.id);
 
         // "Defeated" text
         const T = InnerMapRenderer.TILE_SIZE;
@@ -349,19 +688,45 @@ export const InnerMapCombat = {
             Townsfolk.record(npc._folk, game && game.world, this._day(game), { k: 'died', a: npc._person.id, x: by });
         }
 
-        // Loot: the coin they actually carried, and some of their wares
+        // What they carried stays on the body until someone searches it
         if (game && game.ui) {
-            const { gold, items } = this._takeSpoils(npc, game);
-            const parts = [];
-            if (gold > 0) parts.push(`${gold} gold`);
-            for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
-            if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);
             game.ui.showNotification(
-                `💀 ${npc.name} defeated!`,
-                `${npc.icon || '⚔️'} ${npc.name} has fallen. ${parts.length ? `You take ${parts.join(', ')}.` : 'Their pockets are empty.'}`,
-                'success'
+                `💀 ${npc.name} has fallen`,
+                `${npc.name} lies dead in the street. Click the body to search it, carry it off or bury it.`,
+                'warning'
             );
         }
+    },
+
+    /** Go through a body's pockets: the coin they carried and some of their wares. */
+    searchBody(body, game) {
+        if (!body || body.searched) return null;
+        body.searched = true;
+        const npc = body._npc;
+        const { gold, items } = npc ? this._takeSpoils(npc, game) : { gold: 0, items: [] };
+        const parts = [];
+        if (gold > 0) parts.push(`${gold} gold`);
+        for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
+        if (game && game.ui) {
+            if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);
+            game.ui.showNotification(`🖐️ ${body.name}'s pockets`,
+                parts.length ? `You take ${parts.join(', ')}.` : 'Their pockets are empty.', parts.length ? 'success' : 'info');
+        }
+        return { gold, items };
+    },
+
+    /** Take a body off the street (buried). */
+    removeBody(body) {
+        const i = this._corpses.indexOf(body);
+        if (i >= 0) this._corpses.splice(i, 1);
+        if (this._carrying === body) this._carrying = null;
+    },
+
+    /** Put a body (dug back up) on the street again, already fallen. */
+    restoreBody(body, q, r, day) {
+        const b = { ...body, q, r, day, key: this._mapKey(), at: _nowMs() - 60000 };
+        this._corpses.push(b);
+        return b;
     },
 
     // ══════════════════════════════════════════════
@@ -396,13 +761,21 @@ export const InnerMapCombat = {
         // how dangerous the player looks and how hurt they already are
         const me = game && game.player ? Duels.fromPlayer(game.player, { mods: PlayerEffects.duelModifiers(game.player), fresh: true }) : null;
         const hp = this._npcHealth.get(npc.id);
-        const { stance } = Duels.brawlStance(npc, { playerAttack: me ? me.attack : 0, hpFrac: hp && hp.max ? hp.current / hp.max : 1 });
+        const { stance } = npc._taskFoe ? { stance: 'fight' } : Duels.brawlStance(npc, { playerAttack: me ? me.attack : 0, hpFrac: hp && hp.max ? hp.current / hp.max : 1 });
         if (stance === 'fight') {
             // ── Fighter: attack back ──
             this._npcReactions.set(npc.id, {
                 mode: 'fight',
                 attackTimer: this.NPC_ATTACK_INTERVAL, // delay before first counter-hit
             });
+            // Stop whatever they were doing, turn on the player, and keep coming
+            npc.path = null;
+            npc.moveProgress = 0;
+            npc._targetBuilding = null;
+            if (npc.state === 'walking') npc.state = 'idle';
+            npc.idleTimer = Math.max(npc.idleTimer || 0, 5);
+            npc.facing = InnerMapCharacters.getDirection(InnerMap.playerInnerQ - npc.q, InnerMap.playerInnerR - npc.r);
+            if (!npc._taskFoe) InnerMapReactions._respond(npc, 'fight', null);
             if (game && game.ui) {
                 game.ui.showNotification(
                     `⚔️ ${npc.name} fights back!`,
@@ -411,22 +784,9 @@ export const InnerMapCombat = {
                 );
             }
         } else {
-            // ── Coward: flee toward map edge ──
+            // ── Coward: run for the edge of the map (at a run) ──
             this._npcReactions.set(npc.id, { mode: 'flee' });
-
-            const edge = InnerMap._findNearestEdgeTile(npc.q, npc.r);
-            if (edge) {
-                const path = InnerMap._findPath(npc.q, npc.r, edge.q, edge.r);
-                if (path && path.length > 1) {
-                    npc.departing   = true; // auto-remove on arrival
-                    npc.path        = path.slice(1);
-                    npc.pathIndex   = 0;
-                    npc.moveProgress = 0;
-                    npc.prevQ       = npc.q;
-                    npc.prevR       = npc.r;
-                    npc.state       = 'walking';
-                }
-            }
+            InnerMapReactions._flee(npc, { indoors: !!InnerMap._insideBuilding });
 
             if (game && game.ui) {
                 game.ui.showNotification(
@@ -474,13 +834,18 @@ export const InnerMapCombat = {
             // Deal damage to the player
             const player = game && game.player;
             if (!player) continue;
+            npc._swingAt = _nowMs();
 
             // The blow comes from their duel profile (strength, weapon); armour
             // and Divine Protection soften it
             const dmg      = PlayerEffects.scaleDamage(player, Duels.npcSwing(npc));
 
-            // Floor at 1 so the player can’t be outright killed by the trigger
-            player.health = Math.max(1, player.health - dmg);
+            // Beaten to nothing, the player blacks out — and the attacker decides (systems/knockout.js)
+            player.health = Math.max(0, player.health - dmg);
+            if (player.health <= 0) {
+                this._knockOutPlayer(game, npc);
+                return;
+            }
             // A hard blow can leave a lasting wound (systems/ailments.js)
             const wound = dmg > 0 ? Ailments.maybeWound(player, game.world, 'brawl') : null;
             if (wound && game.ui && typeof game.ui.showNotification === 'function') {
@@ -640,6 +1005,141 @@ export const InnerMapCombat = {
             maxAge: this.HIT_FLASH_DURATION,
             angle: Math.random() * Math.PI * 2,
         });
+    },
+
+    /** Which map a body lies on: the town (or wild tile), and the building if indoors. */
+    _mapKey() {
+        const wt = InnerMap.currentWorldTile || {};
+        const b = InnerMap._insideBuilding;
+        return `${wt.q},${wt.r}|${b ? `${b.q},${b.r}` : 'out'}`;
+    },
+
+    /** Leave a body where the NPC fell. */
+    _leaveBody(npc, game) {
+        this._corpses.push({
+            name: npc.name, type: npc.type, icon: npc.icon,
+            preset: npc.preset || (InnerMapCharacters.isReady() ? InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender) : null),
+            q: npc.q, r: npc.r,
+            // Fall away from the player
+            side: InnerMap.playerInnerQ > npc.q ? -1 : 1,
+            at: _nowMs(), day: this._day(game), key: this._mapKey(),
+            _npc: npc, searched: false,
+        });
+        if (this._corpses.length > this.MAX_CORPSES) this._corpses.splice(this._corpses.findIndex(c => c !== this._carrying), 1);
+    },
+
+    /** Bodies on the map the player is on (one found is carried off by the day after next). */
+    corpsesHere() {
+        const key = this._mapKey();
+        this._corpses = this._corpses.filter(c => c === this._carrying || this._today - c.day <= 1);
+        return this._corpses.filter(c => c.key === key);
+    },
+
+    /**
+     * A body held over the player's shoulders: lying crosswise, centred on
+     * (sx, sy) (the shoulders), no blood and no name.
+     */
+    drawCarriedCorpse(ctx, camera, c, sx, sy) {
+        const T = InnerMapRenderer.TILE_SIZE;
+        const ds = T * camera.zoom;
+        const scale = (c.type === 'child' ? 0.7 : 1) * 0.8;
+        ctx.save();
+        if (c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset)) {
+            const cw = ds * 1.2 * scale, ch = ds * 1.8 * scale;
+            ctx.translate(sx, sy);
+            ctx.rotate(c.side * (Math.PI / 2));
+            ctx.filter = 'grayscale(0.45) brightness(0.75)';
+            InnerMapCharacters.drawCharacter(ctx, c.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+            ctx.filter = 'none';
+        } else {
+            drawGlyph(ctx, 'skull', sx, sy, Math.max(10, ds * 0.35), '#d8cfc4', 2);
+        }
+        ctx.restore();
+    },
+
+    /** A body lying on the ground: falls over, a pool of blood spreads under it. */
+    drawCorpse(ctx, camera, c, sx, sy) {
+        const T = InnerMapRenderer.TILE_SIZE;
+        const ds = T * camera.zoom;
+        const age = _nowMs() - c.at;
+        const fall = Math.min(1, age / 450);
+        const ease = 1 - (1 - fall) * (1 - fall);
+        // The blood stays where they fell: a body carried elsewhere leaves none
+        const pool = c.moved ? 0 : Math.min(1, age / 3000);
+        const scale = c.type === 'child' ? 0.7 : 1;
+        ctx.save();
+        if (pool > 0) {
+            ctx.beginPath();
+            // Spreads out from under the body (lying across its own tile)
+            ctx.ellipse(sx, sy + ds * 0.12, ds * 0.62 * pool * scale, ds * 0.3 * pool * scale, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(120, 10, 10, 0.72)';
+            ctx.fill();
+        }
+        const useSprite = c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset);
+        if (useSprite) {
+            // Falls over to lie across its own tile (centred on it, so a click
+            // anywhere on the body is a click on its tile)
+            const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
+            ctx.translate(sx, sy - ds * 0.35 * (1 - ease));
+            ctx.rotate(c.side * (Math.PI / 2) * ease);
+            ctx.filter = `grayscale(${0.45 * ease}) brightness(${1 - 0.25 * ease})`;
+            InnerMapCharacters.drawCharacter(ctx, c.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+            ctx.filter = 'none';
+        } else {
+            ctx.globalAlpha = 0.85;
+            drawGlyph(ctx, 'skull', sx, sy, Math.max(10, ds * 0.4), '#d8cfc4', 2);
+        }
+        ctx.restore();
+        if (camera.zoom > 0.7 && fall >= 1) {
+            drawMapText(ctx, `\u2020 ${c.name}`, sx, sy + ds * 0.3, {
+                size: 10 * labelZoom(camera.zoom), min: 9, weight: 600, family: 'body', baseline: 'top', color: 'rgba(214, 196, 186, 0.7)',
+            });
+        }
+    },
+
+    /**
+     * Someone beaten senseless: fallen across their own tile like a body, but
+     * no blood and no greying — and little stars turning over them.
+     */
+    drawKnockedOut(ctx, camera, npc, sx, sy) {
+        const T = InnerMapRenderer.TILE_SIZE;
+        const ds = T * camera.zoom;
+        const ko = npc._ko || { at: 0, side: 1 };
+        const fall = Math.min(1, (_nowMs() - ko.at) / 400);
+        const ease = 1 - (1 - fall) * (1 - fall);
+        const scale = npc.type === 'child' ? 0.7 : 1;
+        ctx.save();
+        const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
+        if (useSprite) {
+            const cw = ds * 1.2 * scale * 0.85, ch = ds * 1.8 * scale * 0.85;
+            ctx.translate(sx, sy - ds * 0.35 * (1 - ease));
+            ctx.rotate(ko.side * (Math.PI / 2) * ease);
+            InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+        } else {
+            ctx.globalAlpha = 0.85;
+            drawGlyph(ctx, 'skull', sx, sy, Math.max(10, ds * 0.4), '#d8cfc4', 2);
+        }
+        ctx.restore();
+        if (fall >= 1) {
+            // Stars circling the head (the head lies toward the side they fell)
+            const t = _nowMs() / 1000;
+            const hx = sx + ko.side * ds * 0.45 * scale, hy = sy - ds * 0.15;
+            ctx.save();
+            ctx.fillStyle = '#ffe08a';
+            ctx.font = `${Math.max(9, Math.round(ds * 0.22))}px sans-serif`;
+            ctx.textAlign = 'center';
+            for (let i = 0; i < 3; i++) {
+                const a = t * 2.4 + i * (Math.PI * 2 / 3);
+                ctx.globalAlpha = 0.6 + 0.4 * Math.sin(a);
+                ctx.fillText('✦', hx + Math.cos(a) * ds * 0.22, hy + Math.sin(a) * ds * 0.08 - ds * 0.12);
+            }
+            ctx.restore();
+        }
+        if (camera.zoom > 0.7 && fall >= 1) {
+            drawMapText(ctx, `${npc.name} (senseless)`, sx, sy + ds * 0.3, {
+                size: 10 * labelZoom(camera.zoom), min: 9, weight: 600, family: 'body', baseline: 'top', color: 'rgba(255, 224, 138, 0.8)',
+            });
+        }
     },
 
     getNPCHealth(npcId) {

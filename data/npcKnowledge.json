@@ -50,5 +50,71 @@
         "wideAt": 3,
         "wideLairRadius": 16,
         "wideSiteRadius": 14
+    },
+    "rebuff": {
+        "_doc": "Who will not answer the player. Below refuseBelow disposition (or holding a grudge) they always turn the player away; below grudgingBelow, grudgingChance% of the time. Each rebuffed question costs pester disposition. lines by mood (grudge: {victim}); topics add lines for hostile/cold moods per question: news, town, realm, folk, family, people, work.",
+        "refuseBelow": 25,
+        "grudgingBelow": 40,
+        "grudgingChance": 50,
+        "pester": -1,
+        "lines": {
+            "grudge": [
+                "After what you did to {victim}? Ask me nothing. Ever.",
+                "*spits* You want news? Here's news — {victim} is gone, and it's on you.",
+                "I'll tell you nothing. Not for {victim}'s sake, not for coin. Get out."
+            ],
+            "hostile": [
+                "Shove off.",
+                "Go and bother somebody else.",
+                "*turns their back on you*",
+                "Get out of my sight before I call the watch.",
+                "Ask me again and see what happens.",
+                "I'd sooner talk to a dog.",
+                "Clear off. You're not welcome here."
+            ],
+            "cold": [
+                "I've nothing to say to you.",
+                "Find someone else to pester.",
+                "*folds arms* Not to you, I don't.",
+                "Why would I tell you anything?",
+                "Can't you see I'm busy? Go on, off with you.",
+                "That's none of your business."
+            ],
+            "wary": [
+                "*shrugs* Couldn't say.",
+                "Don't know, don't care. Ask someone else.",
+                "*eyes you* I keep my own counsel with strangers like you.",
+                "Not today.",
+                "Hm. Maybe another time."
+            ]
+        },
+        "topics": {
+            "news": [
+                "News? Not for the likes of you.",
+                "Whatever I've heard, you'll not hear it from me."
+            ],
+            "town": [
+                "Find your own way round. I'm no guide for you.",
+                "You'll learn this place soon enough — or better, leave it."
+            ],
+            "realm": [
+                "Politics is for people I trust. That's not you."
+            ],
+            "folk": [
+                "What happens to folk here is no business of yours."
+            ],
+            "family": [
+                "Leave my family out of it.",
+                "You stay away from my kin, you hear?"
+            ],
+            "people": [
+                "I don't gossip with the likes of you.",
+                "What I think of my neighbours stays between me and them."
+            ],
+            "work": [
+                "Help? From you? I'd rather go without.",
+                "I've nothing for you. Nothing."
+            ]
+        }
     }
 }

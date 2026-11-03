@@ -503,6 +503,8 @@ Object.assign(UI.prototype, {
                     border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; font-family:var(--font-body); white-space:nowrap; transition:color .12s, border-color .12s, background .12s; }
                 #customPanel .panel-nav-tab:hover { color:rgba(255,255,255,0.9); background:rgba(255,255,255,0.04); }
                 #customPanel .panel-nav-tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(245,197,66,0.08); }
+                #customPanel .panel-nav-more { flex-basis:100%; display:flex; flex-wrap:wrap; gap:2px 4px; padding:4px 0 6px; border-top:1px solid rgba(255,255,255,0.06); }
+                #customPanel .panel-nav-more .panel-nav-tab { font-size:12px; padding:5px 9px; border-radius:4px; border-bottom:none; margin-bottom:0; }
             </style>
             <div class="cp-head">
                 <span class="cp-crest" data-crest="${crest.glyph || crest.emoji}">${crestHtml}</span>
@@ -538,9 +540,18 @@ Object.assign(UI.prototype, {
     /** A tab of the panel's tab bar was clicked (data-ui-act="panelNavGo"). */
     panelNavGo(key) {
         const nav = this._panelNav;
+        if (nav && key === '__more') {
+            // The "More" tab opens a second row with the less-used views
+            nav._moreOpen = !nav._moreOpen;
+            const navEl = typeof document !== 'undefined' && document.getElementById('customPanel');
+            const el = navEl && navEl.querySelector('.custom-panel-nav');
+            if (el) el.innerHTML = this._panelNavHtml();
+            return;
+        }
         const item = nav && nav.items.find(i => i.key === key);
         if (!item) return;
         nav.active = key;
+        nav._moreOpen = false;
         this._panelNavSwitched = true;
         // The view's own render keeps the bar (setPanelNav may replace it)
         this._panelNavFresh = true;
@@ -562,7 +573,18 @@ Object.assign(UI.prototype, {
         const nav = this._panelNav;
         if (!nav) return '';
         const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        return nav.items.map(i => `<button class="panel-nav-tab${i.key === nav.active ? ' active' : ''}" data-ui-act="panelNavGo" data-ui-args='${esc(JSON.stringify([i.key]))}'${i.title ? ` title="${esc(i.title)}"` : ''}>${glyphLabel(i.label)}</button>`).join('');
+        const tab = (i, label = i.label, active = i.key === nav.active) => `<button class="panel-nav-tab${active ? ' active' : ''}" data-ui-act="panelNavGo" data-ui-args='${esc(JSON.stringify([i.key]))}'${i.title ? ` title="${esc(i.title)}"` : ''}>${glyphLabel(label)}</button>`;
+        // Items marked { more: true } sit behind a "More" tab, so a window with
+        // many views shows only its main few (the market: Buy, Sell, Ledger)
+        const main = nav.items.filter(i => !i.more);
+        const extra = nav.items.filter(i => i.more);
+        let html = main.map(i => tab(i)).join('');
+        if (extra.length) {
+            const lit = extra.find(i => i.key === nav.active);
+            html += tab({ key: '__more', title: 'More views' }, `${lit ? lit.label : 'More'} ${nav._moreOpen ? '▴' : '▾'}`, !!lit);
+            if (nav._moreOpen) html += `<div class="panel-nav-more">${extra.map(i => tab(i)).join('')}</div>`;
+        }
+        return html;
     },
 
     /**

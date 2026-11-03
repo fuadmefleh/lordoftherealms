@@ -64,6 +64,8 @@ Object.assign(InnerMap, {
         this.buildings = [];
         this.roads = [];
         if (hasSettlement) {
+            // Buildings the AI's holders have finished on their lots (world/innerMap/lots.js)
+            if (this._raiseLotBuildings) this._raiseLotBuildings(worldTile.settlement, game.world ? game.world.day || 0 : 0);
             this._buildBuildingList();
             // Use pre-generated road data from SettlementGenerator if available
             if (this.tiles._settlementLayout && this.tiles._settlementLayout.roadTiles) {
@@ -105,7 +107,13 @@ Object.assign(InnerMap, {
         this._npcMoveTimer = 0;
         if (hasSettlement) {
             this._spawnNPCs(worldTile.settlement, game.world);
+            // Houses standing vacant, to rent or buy (world/innerMap/lots.js) — kept from the residents
+            if (this._markVacancies) this._markVacancies(worldTile.settlement);
             this._assignBuildingOwners(game.player, game.world);
+            if (this._applyLotHolders) this._applyLotHolders(worldTile.settlement);
+            // Homes, work, the watch, and where the hour finds everyone (world/innerMap/townLife.js)
+            let tseed = ((worldTile.q * 92837111 ^ worldTile.r * 689287499) + (game.world ? game.world.day || 0 : 0)) >>> 0;
+            this._settleTownLife(worldTile.settlement, () => { tseed = (tseed * 1664525 + 1013904223) & 0x7fffffff; return tseed / 0x7fffffff; });
         } else {
             // A roadhouse on the open road keeps its keeper and a guest or two
             this._spawnRoadhouseFolk(game.world);
@@ -637,9 +645,16 @@ Object.assign(InnerMap, {
      * @param {Object} game - The game instance
      * @returns {boolean} Success
      */
-    enterBuilding(building, game) {
+    enterBuilding(building, game, opts = {}) {
         if (!building || !this.active) return false;
         if (this._insideBuilding) return false; // Already inside
+        this._entryRefused = null;
+        // A lord's seat: barred when nobody's home, its guards say who goes in (world/innerMap/seats.js)
+        let seatVerdict = null;
+        if (!opts.force && this.isSeat && this.isSeat(building)) {
+            seatVerdict = this.seatEntry(building, game);
+            if (!seatVerdict.ok) { this._entryRefused = seatVerdict; return false; }
+        }
 
         // Save current outer map state
         this._outerMapState = {
@@ -656,10 +671,12 @@ Object.assign(InnerMap, {
 
         // Get or generate interior
         const interiorKey = `${this.currentWorldTile.q},${this.currentWorldTile.r}_${building.type}_${building.q}_${building.r}`;
-        let interior = this._interiorCache[interiorKey];
+        const isJail = !!(building._jail || building.type === 'jail');
+        let interior = isJail ? null : this._interiorCache[interiorKey];
         if (!interior) {
             interior = this._generateInterior(building, interiorKey);
-            this._interiorCache[interiorKey] = interior;
+            // The jail is built fresh for each stay (its cell door opens on release)
+            if (!isJail) this._interiorCache[interiorKey] = interior;
         }
 
         // Apply interior state
@@ -688,6 +705,13 @@ Object.assign(InnerMap, {
         this.playerInnerQ = Math.floor(this.width / 2);
         this.playerInnerR = this.height - 2;
 
+        // The castle: its garrison and household, the lord before the throne (world/innerMap/seats.js)
+        this._seatVisit = seatVerdict ? { building, held: this.playerHoldsSeat(building, game), verdict: seatVerdict } : null;
+        if (String(building.type).replace(/^player_/, '') === 'castle' && this._populateCastle) this._populateCastle(building);
+
+        // Walking into the gaol free: its prisoners behind their bars, the gaoler about (world/innerMap/jail.js)
+        if (isJail && !building._jail && this._visitJail) this._visitJail(building);
+
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();
         this._pendingInteraction = null;
@@ -702,7 +726,10 @@ Object.assign(InnerMap, {
      * @param {Object} game - The game instance
      */
     exitBuilding(game) {
-        if (!this._insideBuilding || !this._outerMapState) return;
+        if (!this._insideBuilding || !this._outerMapState) return false;
+        // A prisoner can't walk out of the jail (world/innerMap/jail.js)
+        if (this.jailLocked && this.jailLocked()) return false;
+        if ((this._insideBuilding._jail || this._insideBuilding.type === 'jail') && this.clearJail) this.clearJail();
 
         const building = this._insideBuilding;
 
@@ -738,12 +765,14 @@ Object.assign(InnerMap, {
 
         this._insideBuilding = null;
         this._outerMapState = null;
+        this._seatVisit = null;
 
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();
         this._pendingInteraction = null;
         this._pendingAction = null;
         this._activeInteraction = null;
+        return true;
     },
 
     /**
@@ -807,6 +836,10 @@ Object.assign(InnerMap, {
      * @returns {{ tiles: Array, width: number, height: number }}
      */
     _generateInterior(building, interiorKey) {
+        // The jail: cells, bars, the gaoler's room (world/innerMap/jail.js) — the same gaol each visit
+        if (building && (building._jail || building.type === 'jail') && this._generateJailInterior) return this._generateJailInterior();
+        // The castle: gatehouse, courtyard and keep (world/innerMap/seats.js)
+        if (building && String(building.type).replace(/^player_/, '') === 'castle' && this._generateCastleInterior) return this._generateCastleInterior(building);
         // ── Try linked custom interior first (by building def ID) ──
         if (building._customDefId && typeof CustomInteriors !== 'undefined') {
             const linked = CustomInteriors.pickForBuildingId(building._customDefId);

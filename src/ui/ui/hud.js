@@ -402,7 +402,12 @@ Object.assign(UI.prototype, {
             if (!jailEl) {
                 jailEl = document.createElement('div');
                 jailEl.id = 'jailDisplay';
-                jailEl.style.cssText = 'color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(231,76,60,0.2); border-radius: 4px; margin-top: 4px;';
+                // Click: walk the cell on the jail map (ui/innerMapJail.js)
+                if (jailEl.setAttribute) {
+                    jailEl.setAttribute('data-am-act', 'enterJailMap');
+                    jailEl.setAttribute('title', 'Walk your cell: your pallet, the loose flagstone, the cell door, your cellmates');
+                }
+                jailEl.style.cssText = 'color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(231,76,60,0.2); border-radius: 4px; margin-top: 4px; cursor: pointer;';
                 const topBar = document.getElementById('topBar');
                 if (topBar) topBar.appendChild(jailEl);
             }
@@ -510,14 +515,6 @@ Object.assign(UI.prototype, {
      * Update the Sims-style bottom HUD — needs bars, resources, day display
      */
     _updateSimsHUD(player, world) {
-        // Resource values
-        const simsGold = document.getElementById('simsGold');
-        const simsRenown = document.getElementById('simsRenown');
-        const simsKarma = document.getElementById('simsKarma');
-        if (simsGold) simsGold.textContent = Utils.formatNumber(player.gold);
-        if (simsRenown) simsRenown.textContent = player.renown;
-        if (simsKarma) simsKarma.textContent = player.karma;
-
         // ── Sims-style 6 Needs Bars (hidden while the needs system is off) ──
         const needsStrip = document.getElementById('hudNeeds');
         if (needsStrip) needsStrip.classList.toggle('hidden', !(player.needsEnabled && player.needs));
@@ -1119,7 +1116,7 @@ Object.assign(UI.prototype, {
         const fin = hist && hist.length ? hist[hist.length - 1] : null;
         const net = fin ? Math.round(fin.netChange || 0) : 0;
         const incomeStr = `${net >= 0 ? '+' : '−'}${Utils.formatNumber(Math.abs(net))}/d`;
-        for (const id of ['tbIncome', 'incomePerDay']) {
+        for (const id of ['tbIncome']) {
             const el = document.getElementById(id);
             if (el) {
                 if (el.textContent !== incomeStr) el.textContent = incomeStr;
@@ -1132,7 +1129,6 @@ Object.assign(UI.prototype, {
             ? PlayerMilitary.getArmyStrength(player)
             : (player.army ? player.army.length : 0);
         this._setHudText('tbShields', shields);
-        this._setHudText('bbShields', shields);
         updatePrestigeChip(player, world);
     },
 
@@ -1272,9 +1268,7 @@ Object.assign(UI.prototype, {
             return rows;
         };
 
-        // The right rail shows the last few; the expanded log keeps a longer history.
-        const list = document.getElementById('eventsList');
-        if (list) list.innerHTML = eventRows(log.slice(-6).reverse());
+        // The expanded Activity Log keeps the history (the right rail no longer repeats it).
         const logBody = document.getElementById('activityLogBody');
         if (logBody) logBody.innerHTML = eventRows(log.slice(-40).reverse());
 

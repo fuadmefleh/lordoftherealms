@@ -15,6 +15,7 @@ import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Regency } from '../../systems/regency.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
+import { Lots } from '../../systems/lots.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
 import { Devotion } from '../../systems/devotion.js';
@@ -214,6 +215,9 @@ export function endDay() {
                 }
                 // A night in the cell: tools smuggled in, a snitch, a search (player/prison.js)
                 for (const n of playerResults.jailUpdate.notices || []) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // A day's march in chains: what happened on the road, or the jail at the end of it
+                const march = playerResults.jailUpdate.march;
+                if (march) setTimeout(() => ActionMenu.showMarch(this, march), 0);
             }
 
             // Show title update notifications
@@ -488,6 +492,9 @@ export function endDay() {
                 for (const n of Regency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // The townsfolk live a season: births, deaths, weddings, comings and goings.
+                // Building lots and houses to let: rent day, and the town's other buyers (systems/lots.js)
+                for (const n of Lots.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
                 // Word reaches the player of the people they have met.
                 const folkIcons = { died: '🕯️', wed: '💍', born: '👶', left: '🧳', arrived: '🏘️' };
                 for (const n of Townsfolk.processDay(this.world, this.player).slice(0, 4)) {

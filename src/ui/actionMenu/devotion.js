@@ -7,6 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { Religion } from './_imports.js';
 import { Devotion } from '../../systems/devotion.js';
 import { SoulPact } from '../../systems/soulPact.js';
+import { PerformTasks } from '../mapTasks/performTasks.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF, CARD, esc } from './uiKit.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--text-secondary);';
@@ -94,6 +95,22 @@ export const DevotionPanel = {
         const res = Devotion.devote(game.player, game.world, { kind, place: place || _placeOf(tile), tile, quality, placeKey });
         DevotionPanel.showResult(game, tile, res, { kind, endDay, title });
         return res;
+    },
+
+    /**
+     * Pray as a rite done in person on the street map (ui/mapTasks/performTasks.js):
+     * light a candle at the church, walk the circuit, kneel at the steps. The
+     * rite's quality 0..1 goes to the devotion model.
+     */
+    rite(game, tile, place, title) {
+        PerformTasks.rite(game, {
+            place,
+            title: title.replace(/^\S+\s/, ''),
+            icon: title.split(' ')[0],
+            stat: game.player.faith || 5,
+            onQuality: (quality) => DevotionPanel.devote(game, tile, 'pray', { place, quality, endDay: false, title }),
+            onAbandon: () => game.ui.showNotification('🙏 Prayer', 'You leave the rite unfinished. The candle gutters out.', 'warning'),
+        });
     },
 
     showResult(game, tile, res, { kind = 'pray', endDay = false, title = null } = {}) {
@@ -270,7 +287,7 @@ export const DevotionPanel = {
         };
         window._devo.prayHere = () => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            DevotionPanel.devote(game, tile, 'pray', { place: 'holy', endDay: false });
+            DevotionPanel.rite(game, tile, 'holy', '⛲ Prayer at the Shrine');
         };
     },
 
@@ -318,7 +335,7 @@ export const DevotionPanel = {
         Object.assign(window._devo, {
             templePray: () => {
                 if (!ActionMenu.commitPendingAP(game)) return;
-                DevotionPanel.devote(game, tile, 'pray', { place: 'temple', endDay: false, title: '⛪ Prayer' });
+                DevotionPanel.rite(game, tile, 'temple', '⛪ Prayer');
             },
             templeAlms: () => DevotionPanel.showDonate(game, tile, 'temple'),
             redeem: () => {

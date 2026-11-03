@@ -453,6 +453,64 @@ Object.assign(InnerMapRenderer, {
     // the terrain detail layer's 9-tile brush (roads are excluded
     // from the grass mask so the brush auto-tiles smooth edges).
     // ══════════════════════════════════════════════
+    /**
+     * Building lots (world/innerMap/lots.js): stakes at the corners, a cord
+     * between them, and a sign at the street — FOR SALE, YOURS, or SOLD.
+     * Lots something stands on show nothing (the building speaks for itself).
+     */
+    _renderLotLayer(ctx, camera) {
+        if (InnerMap._insideBuilding || typeof InnerMap.townLots !== 'function') return;
+        const lots = InnerMap.townLots();
+        if (!lots.length) return;
+        const T = this.TILE_SIZE;
+        const ds = T * camera.zoom;
+        const canvasW = ctx.canvas.width, canvasH = ctx.canvas.height;
+        for (const lot of lots) {
+            const a = camera.worldToScreenFast(lot.q0 * T, lot.r0 * T);
+            const x = Math.floor(a.x), y = Math.floor(a.y);
+            const w = Math.ceil(lot.w * ds), h = Math.ceil(lot.h * ds);
+            if (x > canvasW || y > canvasH || x + w < 0 || y + h < 0) continue;
+            const at = InnerMap.lotAt(lot.q0, lot.r0);
+            if (!at || InnerMap._lotHasBuilding(lot) || (at.rec && at.rec.built && at.rec.built.by === 'player')) continue;
+            const colour = at.forSale ? 'rgba(240, 214, 150, 0.85)' : at.mine ? 'rgba(245, 197, 66, 0.95)' : 'rgba(190, 120, 100, 0.8)';
+            // Trodden ground within the stakes
+            ctx.fillStyle = at.mine ? 'rgba(245, 197, 66, 0.07)' : 'rgba(60, 40, 20, 0.08)';
+            ctx.fillRect(x, y, w, h);
+            // The cord
+            ctx.save();
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = Math.max(1, ds * 0.05);
+            ctx.setLineDash([Math.max(2, ds * 0.25), Math.max(2, ds * 0.18)]);
+            ctx.strokeRect(x + ds * 0.15, y + ds * 0.15, w - ds * 0.3, h - ds * 0.3);
+            ctx.restore();
+            // The stakes
+            const post = Math.max(2, ds * 0.14);
+            ctx.fillStyle = '#6b4a2b';
+            for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+                ctx.fillRect(px - post / 2 + (px === x ? ds * 0.15 : -ds * 0.15), py - post + (py === y ? ds * 0.3 : -ds * 0.1), post, post * 1.6);
+            }
+            // The sign, at the street
+            if (ds >= 10) {
+                const label = at.forSale ? `FOR SALE ${at.price}g` : at.mine ? 'YOURS' : 'SOLD';
+                const fs = Math.max(8, Math.min(14, ds * 0.32));
+                ctx.font = `bold ${fs}px Georgia, serif`;
+                const tw = ctx.measureText(label).width + fs * 0.8;
+                // At the lot's gate: the street side (its front, or its top when it opens north)
+                const sx = x + ds * 0.4, sy = lot.gate === 'north' ? y + ds * 0.3 : y + h - ds * 0.95;
+                ctx.fillStyle = '#5a3e22';
+                ctx.fillRect(sx + tw / 2 - post / 2, sy + fs * 1.3, post, ds * 0.5);
+                ctx.fillStyle = at.forSale ? '#e9d8a6' : at.mine ? '#f5c542' : '#c8a090';
+                ctx.fillRect(sx, sy, tw, fs * 1.4);
+                ctx.strokeStyle = '#3a2814';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(sx, sy, tw, fs * 1.4);
+                ctx.fillStyle = '#2a1a0a';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, sx + fs * 0.4, sy + fs * 0.72);
+            }
+        }
+    },
+
     _renderRoadLayer(ctx, camera) {
         if (!InnerMap.roads || InnerMap.roads.length === 0) return;
 

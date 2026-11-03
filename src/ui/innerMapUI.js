@@ -12,6 +12,7 @@ import { Utils } from '../core/utils.js';
 import { ActionMenu } from './actionMenu.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { InnerMapCombat } from './innerMapCombat.js';
+import { InnerMapDigging } from './innerMapDigging.js';
 import { Relationships } from '../systems/relationships.js';
 import { Containers } from '../systems/containers.js';
 import { CustomBuildings } from '../world/customBuildings.js';
@@ -23,6 +24,8 @@ import { NpcDialog } from './npcDialog.js';
 import { ObjectActions } from './objectActions.js';
 import { DevotionPanel } from './actionMenu/devotion.js';
 import { NpcPortrait } from './npcPortrait.js';
+import { InnerMapJail } from './innerMapJail.js';
+import { InnerMapLots } from './innerMapLots.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
@@ -243,6 +246,8 @@ Object.assign(InnerMapRenderer, {
                     : `👤 ${building.ownerTitle ? building.ownerTitle + ': ' : ''}${building.ownerName}`;
                 menuItems.push({ type: 'disabled', label: ownerLabel });
             }
+            // A house to let or for sale (ui/innerMapLots.js)
+            menuItems.push(...InnerMapLots.buildingItems(game, building));
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
             // A service the town doesn't keep (no guild here, no mint, nothing to treat) is left off
@@ -295,11 +300,24 @@ Object.assign(InnerMapRenderer, {
 
         // Built-in overlay interactions removed (editor-authored objects only)
 
+        // ── Bodies, and the ground dug here (ui/innerMapDigging.js) ──
+        if (!building) this._groundMenu(menuItems, tile, q, r);
+
+        // ── Someone beaten senseless (ui/innerMapCombat.js, systems/knockout.js) ──
+        for (const npc of npcsHere.filter(n => n.state === 'unconscious').slice(0, 2)) {
+            if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+            menuItems.push({ type: 'header', label: `💫 ${npc.name}, senseless` });
+            menuItems.push({ type: 'action', action: 'ko_finish', label: 'Finish Them Off', icon: '🗡️', desc: 'Kill them where they lie. It is murder.', npc });
+            if (!npc._koSearched) menuItems.push({ type: 'action', action: 'ko_rob', label: 'Go Through Their Pockets', icon: '🖐️', desc: 'Take what they carry while they\'re out', npc });
+            menuItems.push({ type: 'action', action: 'ko_leave', label: 'Leave Them Be', icon: '🚶', desc: 'They\'ll come round in a while', npc });
+        }
+        const standing = npcsHere.filter(n => n.state !== 'unconscious');
+
         // ── NPC actions ──
-        if (npcsHere.length > 0) {
+        if (standing.length > 0) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
             menuItems.push({ type: 'header', label: '👥 People Here' });
-            for (const npc of npcsHere.slice(0, 5)) {
+            for (const npc of standing.slice(0, 5)) {
                 const npcDef = InnerMap.NPC_TYPES[npc.type] || {};
                 const npcHealth = (typeof InnerMapCombat !== 'undefined') ? InnerMapCombat.getNPCHealth(npc.id) : null;
                 const hpDesc = npcHealth ? `${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : '';
@@ -358,18 +376,32 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 // Terrain interaction actions
-                if (tile.subTerrain.passable) {
+                if (tile.subTerrain.passable && !tile._dug && tile.subTerrain.id !== 'tilled_soil' && !tile.isRoad) {
                     menuItems.push({ type: 'action', action: 'till_land', label: 'Till Land', icon: '🌾', desc: 'Prepare the soil for farming' });
-                    menuItems.push({ type: 'action', action: 'dig_here', label: 'Dig Here', icon: '⛏️', desc: 'Dig into the ground to find resources' });
+                }
+                if (InnerMapDigging.canDig(tile)) {
+                    menuItems.push({ type: 'action', action: 'dig_hole', label: 'Dig a Hole', icon: '⛏️', desc: 'Dig into the ground here (you might turn something up)' });
                 }
 
                 if (tile.encounter && tile.encounter.discovered) {
                     menuItems.push({ type: 'action', action: 'examine', label: `Examine ${tile.encounter.name}`, icon: tile.encounter.icon, desc: tile.encounter.description });
                 }
 
+                // A building lot: its sale and its building, wherever on it you click (ui/innerMapLots.js)
+                if (!isPlayerHere && tile._lot && !tile.building) {
+                    const lotItems = InnerMapLots.tileItems(game, tile, q, r);
+                    if (lotItems) menuItems.push(...lotItems);
+                }
+
                 if (isPlayerHere && tile.subTerrain.passable && !tile.building) {
                     const worldTile = game.world ? game.world.getTile(game.player.q, game.player.r) : null;
                     const isSettlement = worldTile && worldTile.settlement && worldTile.settlement.type;
+                    // In town, land goes by the lot (ui/innerMapLots.js); out in the wilds, build where you will
+                    const lotItems = isSettlement ? InnerMapLots.tileItems(game, tile, q, r) : null;
+                    if (lotItems) {
+                        menuItems.push(...lotItems);
+                        menuItems.push({ type: 'action', action: 'buy_house', label: 'Buy a House', icon: '🏠', desc: 'Purchase a house in this settlement' });
+                    } else {
                     menuItems.push({ type: 'separator' });
                     menuItems.push({ type: 'header', label: '🏗️ Build' });
                     menuItems.push({ type: 'action', action: 'build_custom', label: 'Design & Build', icon: '🏗️', desc: 'Open the building creator to design your own building' });
@@ -379,6 +411,7 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'build_infrastructure', label: 'Build Infrastructure', icon: '🛤️', desc: 'Roads, bridges, or irrigation' });
                     if (isSettlement) {
                         menuItems.push({ type: 'action', action: 'buy_house', label: 'Buy a House', icon: '🏠', desc: 'Purchase a house in this settlement' });
+                    }
                     }
                 }
             }
@@ -393,6 +426,9 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'action', action: 'rest', label: 'Rest', icon: '💤', desc: 'Take a break and recover' });
             }
         }
+
+        // The jail: only what a prisoner can do (ui/innerMapJail.js)
+        if (InnerMap.inJail && InnerMap.inJail()) menuItems.splice(0, menuItems.length, ...InnerMapJail.menuItems(game, tile, q, r, npcsHere));
 
         if (menuItems.length === 0) return;
 
@@ -547,7 +583,106 @@ Object.assign(InnerMapRenderer, {
         }
     },
 
+    /** The menu entries for bodies on a tile and for a hole or grave dug there. */
+    _groundMenu(menuItems, tile, q, r) {
+        const sep = () => { if (menuItems.length > 0) menuItems.push({ type: 'separator' }); };
+        const carried = InnerMapCombat._carrying;
+        if (carried) {
+            sep();
+            menuItems.push({ type: 'header', label: `🧍 Carrying ${carried.name}` });
+            menuItems.push({ type: 'action', action: 'drop_body', label: 'Put the Body Down', icon: '⬇️', desc: 'Lay them down where you stand' });
+        }
+        const bodies = InnerMapCombat.corpsesHere().filter(c => c !== carried && c.q === q && c.r === r);
+        for (const body of bodies.slice(0, 2)) {
+            sep();
+            menuItems.push({ type: 'header', label: `🕯️ ${body.name}, dead` });
+            if (!body.searched) menuItems.push({ type: 'action', action: 'search_body', label: 'Search the Body', icon: '🖐️', desc: 'Go through their pockets', body });
+            if (!carried) menuItems.push({ type: 'action', action: 'carry_body', label: 'Carry the Body', icon: '🧍', desc: 'Drag them along with you (you walk slower)', body });
+            const hole = InnerMapDigging.holeNear(body.q, body.r);
+            if (hole) {
+                menuItems.push({ type: 'action', action: 'bury_body', label: 'Bury Them in the Hole', icon: '⚰️', desc: 'Lay them in the hole and fill it in', body, holeQ: hole.q, holeR: hole.r });
+            } else {
+                const spot = InnerMapDigging.diggableNear(body.q, body.r);
+                if (spot) menuItems.push({ type: 'action', action: 'dig_grave', label: 'Dig a Grave for Them', icon: '⛏️', desc: 'Dig a hole beside the body, then bury them', body, holeQ: spot.q, holeR: spot.r });
+            }
+        }
+        const dug = tile && tile._dug;
+        if (!dug) return;
+        if (dug.kind === 'hole') {
+            sep();
+            menuItems.push({ type: 'header', label: '🕳️ A Hole' });
+            const inside = InnerMapCombat.corpsesHere().find(c => c !== carried && c.q === q && c.r === r);
+            const beside = InnerMapCombat.corpsesHere().find(c => c !== carried && Math.max(Math.abs(c.q - q), Math.abs(c.r - r)) === 1);
+            if (carried) {
+                menuItems.push({ type: 'action', action: 'bury_body', label: `Lay ${carried.name} in the Hole`, icon: '⚰️', desc: 'Bury them here', body: carried, holeQ: q, holeR: r });
+            } else if (inside || beside) {
+                const b = inside || beside;
+                menuItems.push({ type: 'action', action: 'bury_body', label: `Bury ${b.name} Here`, icon: '⚰️', desc: 'Lay them in the hole and fill it in', body: b, holeQ: q, holeR: r });
+            }
+            menuItems.push({ type: 'action', action: 'fill_hole', label: 'Fill In the Hole', icon: '🟫', desc: inside ? `Fill it in over ${inside.name}` : 'Shovel the earth back in', holeQ: q, holeR: r });
+        } else if (dug.kind === 'grave') {
+            sep();
+            menuItems.push({ type: 'header', label: `⚰️ Grave of ${dug.name || 'someone'}` });
+            menuItems.push({ type: 'action', action: 'pay_respects', label: 'Pay Your Respects', icon: '🕯️', desc: 'Stand a while by the grave', holeQ: q, holeR: r });
+            menuItems.push({ type: 'action', action: 'exhume_grave', label: 'Dig Up the Grave', icon: '⛏️', desc: 'Dig the body back up', holeQ: q, holeR: r });
+        }
+    },
+
+    /** Bodies and ground work: handled here, before the generic walk-to-the-tile. */
+    _handleGroundAction(game, item) {
+        const start = (kind, hq, hr, opts) => {
+            const res = InnerMapDigging.start(game, kind, hq, hr, opts);
+            if (res === 'unreachable') game.ui.showNotification('Blocked', 'You can\'t reach that spot.', 'error');
+        };
+        switch (item.action) {
+            case 'dig_hole': start('dig', item.q, item.r); return true;
+            case 'fill_hole': start('fill', item.holeQ, item.holeR); return true;
+            case 'exhume_grave': start('exhume', item.holeQ, item.holeR); return true;
+            case 'bury_body': start('bury', item.holeQ, item.holeR, { corpse: item.body }); return true;
+            case 'dig_grave': start('dig', item.holeQ, item.holeR, { then: { kind: 'bury', corpse: item.body } }); return true;
+            case 'drop_body': {
+                const body = InnerMapDigging.drop();
+                if (body) game.ui.showNotification('⬇️ Put down', `You lay ${body.name} down.`, 'info');
+                return true;
+            }
+            case 'pay_respects': {
+                const go = () => InnerMapDigging.payRespects(game, item.holeQ, item.holeR);
+                if (InnerMap.approachAndThen(item.holeQ, item.holeR, go) === 'unreachable') go();
+                return true;
+            }
+            case 'ko_leave': return true;
+            case 'ko_finish': case 'ko_rob': {
+                const npc = item.npc;
+                const act = () => {
+                    if (!npc || npc.state !== 'unconscious') return;
+                    if (item.action === 'ko_finish') InnerMapCombat.finishOff(npc, game);
+                    else InnerMapCombat.robKnockedOut(npc, game);
+                };
+                const res = InnerMap.approachAndThen(npc.q, npc.r, act);
+                if (res === 'unreachable') game.ui.showNotification('Blocked', `You can't reach ${npc.name}.`, 'error');
+                return true;
+            }
+            case 'search_body': case 'carry_body': {
+                const body = item.body;
+                const act = () => {
+                    if (!InnerMapCombat._corpses.includes(body)) return;
+                    if (item.action === 'search_body') InnerMapCombat.searchBody(body, game);
+                    else {
+                        InnerMapDigging.carry(body);
+                        game.ui.showNotification('🧍 Carrying', `You heave ${body.name} up. Find a hole to bury them in, or put them down somewhere.`, 'info');
+                    }
+                };
+                const res = InnerMap.approachAndThen(body.q, body.r, act);
+                if (res === 'unreachable') game.ui.showNotification('Blocked', `You can't reach ${body.name}.`, 'error');
+                return true;
+            }
+            default: return false;
+        }
+    },
+
     _handleContextAction(game, item, q, r) {
+        if (InnerMapJail.handle(game, item)) return;
+        if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
         const playerR = InnerMap.playerInnerR;
@@ -558,6 +693,7 @@ Object.assign(InnerMapRenderer, {
             InnerMap.movePlayerTo(q, r);
             return;
         }
+        if (this._handleGroundAction(game, { ...item, q, r })) return;
 
         if (!item._approached && this._needsApproach(item)) {
             this._approachThenAct(game, item, q, r);
@@ -780,7 +916,7 @@ Object.assign(InnerMapRenderer, {
             }
             case 'build_property': {
                 const worldTile = game.world.getTile(game.player.q, game.player.r);
-                if (worldTile && typeof ActionMenu !== 'undefined') { InnerMap._pendingPropertyPosition = { q, r }; ActionMenu.handleAction(game, worldTile, 'build_property'); }
+                if (worldTile && typeof ActionMenu !== 'undefined') { InnerMap._pendingPropertyPosition = { q, r }; InnerMap._pendingLot = null; ActionMenu.handleAction(game, worldTile, 'build_property'); }
                 break;
             }
             case 'build_temple': {
@@ -848,20 +984,16 @@ Object.assign(InnerMapRenderer, {
                             }
                             game.ui.showNotification(`🚪 Entered ${building.name}`, `You step inside ${building.name}. Press ESC or click "Exit" to leave.`, 'info');
                         } else {
-                            game.ui.showNotification('🚪 Locked', `You cannot enter ${building.name} right now.`, 'error');
+                            const no = InnerMap._entryRefused;
+                            const who = no && no.by ? `${no.by.name}, ${no.by.roleTitle || 'Guard'}` : building.name;
+                            game.ui.showNotification(no && no.by ? `💂 ${who}` : '🚪 Locked', no && no.text ? (no.by ? `"${no.text}"` : no.text) : `You cannot enter ${building.name} right now.`, 'warning');
                         }
                     }
                 }
                 break;
             }
             case 'exit_building': {
-                if (typeof InnerMap.exitBuilding === 'function') {
-                    InnerMap.exitBuilding(game);
-                    if (typeof game._configureInnerMapCamera === 'function') {
-                        game._configureInnerMapCamera('outer');
-                    }
-                    game.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
-                }
+                if (typeof game._leaveBuilding === 'function') game._leaveBuilding();
                 break;
             }
             case 'till_land': {
@@ -877,34 +1009,6 @@ Object.assign(InnerMapRenderer, {
                     game.ui.showNotification('🌾 Till Land', 'You till the land, preparing it for planting.', 'success');
                 } else {
                     game.ui.showNotification('❌ Cannot Till', 'This terrain cannot be tilled.', 'error');
-                }
-                break;
-            }
-            case 'dig_here': {
-                if (dist > 1) { InnerMap.cancelPlayerWalk(); InnerMap.movePlayerTo(q, r); }
-                // Random chance of finding something
-                const digRoll = Math.random();
-                if (digRoll < 0.15) {
-                    const goldFound = Math.floor(Math.random() * 20) + 5;
-                    game.player.gold += goldFound;
-                    game.ui.updateStats(game.player, game.world);
-                    game.ui.showNotification('⛏️ Dig Here', `You dug up ${goldFound} gold coins buried in the ground!`, 'success');
-                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 12);
-                } else if (digRoll < 0.30) {
-                    const resources = ['iron ore', 'clay', 'flint', 'ancient pottery shard', 'gemstone'];
-                    const found = resources[Math.floor(Math.random() * resources.length)];
-                    game.ui.showNotification('⛏️ Dig Here', `You found ${found} while digging!`, 'success');
-                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 8);
-                } else if (digRoll < 0.40) {
-                    game.ui.showNotification('⛏️ Dig Here', 'You uncovered an old bone. Probably nothing important.', 'info');
-                    if (game.player.modifyNeed) game.player.modifyNeed('fun', 3);
-                } else {
-                    game.ui.showNotification('⛏️ Dig Here', 'You dug for a while but found nothing of interest.', 'info');
-                }
-                // Digging is physical work
-                if (game.player.modifyNeed) {
-                    game.player.modifyNeed('energy', -5);
-                    game.player.modifyNeed('hygiene', -5);
                 }
                 break;
             }

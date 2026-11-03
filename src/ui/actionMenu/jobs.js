@@ -6,7 +6,11 @@ import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { OddJobs } from '../../player/oddJobs.js';
+import { InnerMapTasks } from '../innerMapTasks.js';
+import { MapTasks } from '../../systems/mapTasks.js';
 import { startTrapping, startIceFishing } from './winterScenes.js';
+import { WildTaskRunner } from '../mapTasks/wildTasks.js';
+import { WildTasks as WildRules } from '../../systems/wildTasks.js';
 
 Object.assign(ActionMenu, {
     // ============================================================
@@ -79,6 +83,11 @@ Object.assign(ActionMenu, {
         window._startLabor = (idx) => {
             if (!ActionMenu.commitPendingAP(game)) return;
             const job = todayJobs[idx];
+            // The work is done in person on the street map (ui/innerMapTasks.js)
+            ActionMenu._startLaborTask(game, tile, job);
+        };
+        window._startLaborMinigame = (idx) => {
+            const job = todayJobs[idx];
             ActionMenu._showMinigamePrompt(game, {
                 title: `🔨 ${job.name}`,
                 icon: job.icon,
@@ -101,6 +110,28 @@ Object.assign(ActionMenu, {
                 }
             });
         };
+    },
+
+    /** Do a day's labour as a task on the street map; its score is the pay. */
+    _startLaborTask(game, tile, job) {
+        const plan = MapTasks.jobPlan(job);
+        InnerMapTasks.ensureStreet(game, () => {
+            const ok = InnerMapTasks.start(game, {
+                title: job.name,
+                icon: job.icon,
+                say: plan.say || job.description,
+                plan,
+                stat: ActionMenu._getPlayerStat(game.player, job.stat),
+                onComplete: (score) => ActionMenu._laborReward(game, tile, job, score),
+                onAbandon: (info) => {
+                    // Walking off the job: paid for what was done, at half rate
+                    const part = info.total ? Math.round(40 * info.done / info.total) : 0;
+                    if (info.done > 0) ActionMenu._laborReward(game, tile, job, part);
+                    else game.ui.showNotification('🔨 Walked off the job', `You gave up on the ${job.name.toLowerCase()} work. No pay.`, 'warning');
+                },
+            });
+            if (!ok) ActionMenu._laborReward(game, tile, job, 40);
+        });
     },
 
     /**
@@ -798,200 +829,31 @@ Object.assign(ActionMenu, {
         const lootTable = forageData.loot_table[category];
         const intStat = player.intelligence || 5;
         const luckStat = player.luck || 5;
+        const quick = () => _forageQuick(game, tile, player, forageData);
+        if (!WildTaskRunner.inWorld(game)) { quick(); return; }
 
-        ActionMenu._showMinigamePrompt(game, {
+        WildTaskRunner.choose(game, {
             title: '🌿 Foraging',
             icon: '🌿',
             description: 'Search the area for useful plants and materials.',
-            baseRewardText: '1 foraged find (its usual bundle)',
-            onSkip: () => {
-                // Base reward: 1 find from the loot table, qty range honoured (player/foraging.js)
-                const res = Foraging.quickForage(player, tile, forageData);
-                const entry = res.entry;
-                const label = `${entry.icon || '🌿'} ${entry.name || entry.item} x${res.qty}`;
-                if (res.added) {
-                    game.ui.showNotification('🌿 Foraging', `Quick search — found ${label}.`, 'success');
-                } else {
-                    game.ui.showNotification('🌿 Foraging', `You found ${label} but had to leave it. ${res.reason}`, 'warning');
-                }
-                if (res.rankUp) game.ui.showNotification('🌿 Foraging', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
-                game.ui.updateStats(player, game.world);
-                game.endDay();
-            },
-            onPlay: () => { ActionMenu._doForageMinigame(game, tile, player, lootTable, intStat, luckStat); }
+            baseText: '1 foraged find (its usual bundle)',
+            onQuick: quick,
+            onGo: () => { ActionMenu._doForageMinigame(game, tile, player, lootTable, intStat, luckStat); }
         });
     },
 
-    _doForageMinigame(game, tile, player, lootTable, intStat, luckStat) {
-        const terrainId = tile.terrain.id;
-        const category = (ActionMenu._getForageData().terrain_mapping || {})[terrainId] || terrainId;
-
-        // ── Foraging Minigame: Search patches ──
-        // The field and every roll come from player/foraging.js (seeded RNG,
-        // luck/int/craft-rank bonuses, qty ranges); this only presents it.
-        const GRID_SIZE = 4;
-        const grid = Foraging.makeGrid(lootTable, player, GRID_SIZE);
-        let searchesLeft = Foraging.searches(player);
-        const craft = Foraging.skill(player);
-        let found = [];
-        let totalValue = 0;
-        let phase = 'searching'; // searching → result
-        let statusMsg = '';
-        let trip = null;
-
-        // Terrain icons for flavor
-        const terrainIcons = {
-            'forest': ['🌲', '🌳', '🌿', '🍄'],
-            'plains': ['🌾', '🌱', '⛰️', '🌻'],
-            'swamp': ['🌊', '🌿', '🍂', '🐸'],
-            'desert': ['🏜️', '🌵', '⛰️', '☀️'],
-            'mountains': ['⛰️', '⛰️', '🌿', '❄️'],
-            'coast': ['🐚', '🌊', '⛰️', '🌿'],
-        };
-        const icons = terrainIcons[category] || ['🌿', '🍂', '⛰️', '🌱'];
-
-        const render = () => {
-            let html = '<div style="max-width: 440px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">🌿 Foraging</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Terrain: ${category} | Intelligence: ${intStat} | Luck: ${luckStat} | ${craft.icon} ${craft.name} (${craft.trips} trips)</p>`;
-
-            if (phase === 'searching') {
-                html += `<div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px;">
-                    <span>🔍 Searches left: <span style="color: var(--gold); font-weight: bold;">${searchesLeft}</span></span>
-                    <span>🧺 Finds: <span style="color: var(--gold);">${found.length}</span> (~${totalValue}g)</span>
-                </div>`;
-
-                // Grid
-                html += '<div style="display: grid; grid-template-columns: repeat(' + GRID_SIZE + ', 1fr); gap: 3px; margin-bottom: 10px;">';
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    for (let x = 0; x < GRID_SIZE; x++) {
-                        const cell = grid[y][x];
-                        if (cell.searched) {
-                            if (cell.entry) {
-                                // Found item
-                                html += `<div style="width: 100%; height: 64px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-                                    background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3); font-size: 22px;">
-                                    ${cell.entry.icon}
-                                    <span style="font-size: 9px; color: #2ecc71;">${cell.entry.name}</span>
-                                </div>`;
-                            } else {
-                                // Empty — show nearby hint
-                                const hintColor = cell.nearbyCount > 0 ? 'rgba(243,156,18,0.7)' : 'rgba(255,255,255,0.2)';
-                                html += `<div style="width: 100%; height: 64px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-                                    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
-                                    <span style="font-size: 16px; color: ${hintColor};">${cell.nearbyCount > 0 ? cell.nearbyCount : '·'}</span>
-                                    <span style="font-size: 8px; color: var(--text-muted);">${cell.nearbyCount > 0 ? 'nearby' : 'empty'}</span>
-                                </div>`;
-                            }
-                        } else {
-                            // Unsearched — clickable
-                            const bgIcon = icons[Math.floor((y * GRID_SIZE + x) % icons.length)];
-                            html += `<button onclick="window._forageSearch(${x},${y})"
-                                style="width: 100%; height: 64px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-                                background: rgba(46,139,87,0.08); border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
-                                font-size: 22px; transition: all 0.15s;"
-                                onmouseenter="this.style.background='rgba(46,139,87,0.18)'; this.style.borderColor='var(--gold)'"
-                                onmouseleave="this.style.background='rgba(46,139,87,0.08)'; this.style.borderColor='rgba(255,255,255,0.08)'">
-                                ${bgIcon}
-                            </button>`;
-                        }
-                    }
-                }
-                html += '</div>';
-
-                if (statusMsg) html += `<div style="margin-bottom: 8px; font-size: 12px;">${statusMsg}</div>`;
-
-                html += `<div style="display: flex; gap: 8px; justify-content: center;">
-                    <button onclick="window._forageFinish()"
-                        style="padding: 8px 20px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;">
-                        Done Foraging
-                    </button>
-                </div>`;
-                html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Search patches for resources! Numbers show nearby items.</div>`;
-
-            } else {
-                // Results
-                html += `<div style="font-size: 48px; margin: 8px 0;">🌿</div>`;
-                if (found.length > 0) {
-                    html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Foraging Haul</div>`;
-                    // Consolidate what went into the packs (and what had to be left)
-                    const consolidate = (list) => {
-                        const totals = {};
-                        for (const f of list) {
-                            const key = f.entry.item;
-                            if (!totals[key]) totals[key] = { ...f.entry, foundQty: 0 };
-                            totals[key].foundQty += f.qty;
-                        }
-                        return Object.values(totals);
-                    };
-                    for (const item of consolidate(trip ? trip.kept : found)) {
-                        html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
-                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                            <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
-                        </div>`;
-                    }
-                    if (trip && trip.lost.length) {
-                        html += `<div style="font-size: 11px; color: #e67e22; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
-                    }
-                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${trip ? trip.value : totalValue} gold at market</div>`;
-                    if (trip && trip.rankUp) html += `<div style="margin-top: 6px; color: #2ecc71;">Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}</div>`;
-                } else {
-                    html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
-                    html += `<div style="color: var(--text-secondary);">You searched but found nothing of value today.</div>`;
-                }
-                html += `<button onclick="window._forageContinue()"
-                    style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
-            }
-
-            html += '</div>';
-            game.ui.showCustomPanel('🌿 Foraging', html);
-            window._forageContinue = () => { game.ui.hideCustomPanel(); game.endDay(); };
-        };
-
-        render();
-
-        window._forageSearch = (x, y) => {
-            if (phase !== 'searching' || searchesLeft <= 0) return;
-            const cell = grid[y][x];
-            if (cell.searched) return;
-
-            cell.searched = true;
-            searchesLeft--;
-
-            if (cell.entry) {
-                const qty = Foraging.rollQty(cell.entry, player);
-                found.push({ entry: cell.entry, qty });
-                const value = qty * (cell.entry.sellPrice || 0);
-                totalValue += value;
-                statusMsg = `<span style="color: #2ecc71;">Found ${cell.entry.icon} ${cell.entry.name} x${qty}! (~${value}g)</span>`;
-            } else {
-                if (cell.nearbyCount > 0) {
-                    statusMsg = `<span style="color: #f39c12;">Nothing here, but ${cell.nearbyCount} item${cell.nearbyCount > 1 ? 's' : ''} nearby...</span>`;
-                } else {
-                    statusMsg = `<span style="color: var(--text-muted);">Nothing in this area.</span>`;
-                }
-            }
-
-            if (searchesLeft <= 0) {
-                // Auto-finish
-                finishForaging();
-                return;
-            }
-            render();
-        };
-
-        const finishForaging = () => {
-            if (phase === 'result') return;
-            phase = 'result';
-            // Finds go into the packs; the trip counts toward the forager's craft
-            trip = Foraging.finishTrip(player, found);
-            render();
+    /**
+     * Forage in person on the inner map (ui/mapTasks/wildTasks.js): walk to
+     * the patches player/foraging.js rolled, search near cover for the rest.
+     * The finds go into the packs through Foraging.finishTrip as before.
+     */
+    _doForageMinigame(game, tile, player, lootTable) {
+        WildTaskRunner.forage(game, { player, table: lootTable }, (found) => {
+            if (found === null) { _forageQuick(game, tile, player, ActionMenu._getForageData()); return; }
+            const trip = Foraging.finishTrip(player, found);
+            _forageResult(game, found, trip);
             game.ui.updateStats(player, game.world);
-        };
-
-        window._forageFinish = () => {
-            finishForaging();
-        };
+        });
     },
 
     /**
@@ -1013,27 +875,16 @@ Object.assign(ActionMenu, {
         const strStat = player.strength || 5;
         const luckStat = player.luck || 5;
         const lootTable = huntData.loot_table[category];
+        const quick = () => _huntQuick(game, player, lootTable);
+        if (!WildTaskRunner.inWorld(game)) { quick(); return; }
 
-        ActionMenu._showMinigamePrompt(game, {
+        WildTaskRunner.choose(game, {
             title: '🏹 Hunting',
             icon: '🏹',
             description: 'Track and hunt wild game in this area.',
-            baseRewardText: '1 quarry (its usual yield)',
-            onSkip: () => {
-                // Base reward: one quarry, qty range honoured (player/foraging.js → Hunting)
-                const res = Hunting.quickHunt(player, lootTable);
-                const entry = res.entry;
-                const label = `${entry.icon || '🥩'} ${entry.name || entry.item} x${res.qty}`;
-                if (res.added) {
-                    game.ui.showNotification('🏹 Hunting', `Quick hunt — took ${label}.`, 'success');
-                } else {
-                    game.ui.showNotification('🏹 Hunting', `You took ${label} but had no room to carry it. ${res.reason}`, 'warning');
-                }
-                if (res.rankUp) game.ui.showNotification('🏹 Hunting', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
-                game.ui.updateStats(player, game.world);
-                game.endDay();
-            },
-            onPlay: () => {
+            baseText: '1 quarry (its usual yield)',
+            onQuick: quick,
+            onGo: () => {
                 // Pick a prey animal from the loot table (luck favours the rare beasts)
                 const prey = Hunting.pickPrey(lootTable, player) || lootTable[0];
                 const preyName = prey.name || 'Animal';
@@ -1043,359 +894,17 @@ Object.assign(ActionMenu, {
         });
     },
 
+    /**
+     * Hunt in person on the inner map (ui/mapTasks/wildTasks.js): follow the
+     * sign, creep up on the beast and loose. The shot's accuracy meets
+     * Hunting.hitThreshold exactly as the old strike did.
+     */
     _doHuntMinigame(game, tile, player, combatSkill, strStat, luckStat, lootTable, prey, preyName, preyIcon) {
         const category = (ActionMenu._getForageData().terrain_mapping || {})[tile.terrain.id] || tile.terrain.id;
-        // ── Hunt minigame: 3 phases — Track → Stalk → Strike ──
-        let phase = 'track';   // track → stalk → strike → result
-        let trackProgress = 0; // 0-100
-        let stalkDistance = 5;  // tiles away, get to 0
-        let alertLevel = 0;    // 0-100, animal flees at 100
-        let strikeWindow = false;
-        let strikeTimer = null;
-        let huntResult = null;  // 'success' | 'fled' | 'injured'
-        let statusMsg = '';
-        let trackClues = [];
-        let trackRound = 0;
-        const maxTrackRounds = 5;
-        let stalkInterval = null;
-        let totalLoot = [];
-        let totalValue = 0;
-
-        const cleanup = () => {
-            if (strikeTimer) clearTimeout(strikeTimer);
-            if (stalkInterval) clearInterval(stalkInterval);
-        };
-
-        // Generate tracking clues
-        const clueTypes = [
-            { icon: '🐾', label: 'Fresh tracks', correct: true },
-            { icon: '💩', label: 'Droppings (recent)', correct: true },
-            { icon: '🌿', label: 'Broken branches', correct: true },
-            { icon: '🍃', label: 'Disturbed foliage', correct: true },
-            { icon: '🦅', label: 'Shed fur/feathers', correct: true },
-            { icon: '❌', label: 'Old tracks (cold)', correct: false },
-            { icon: '🌫️', label: 'Wind-blown trail', correct: false },
-            { icon: '💧', label: 'Rain-washed prints', correct: false },
-            { icon: '⛰️', label: 'Rocky ground (no tracks)', correct: false },
-        ];
-
-        const generateClueChoices = () => {
-            const correct = clueTypes.filter(c => c.correct);
-            const wrong = clueTypes.filter(c => !c.correct);
-            const pick = [
-                correct[Math.floor(Utils.random() * correct.length)],
-                correct[Math.floor(Utils.random() * correct.length)],
-                wrong[Math.floor(Utils.random() * wrong.length)],
-            ];
-            // Shuffle
-            for (let i = pick.length - 1; i > 0; i--) {
-                const j = Math.floor(Utils.random() * (i + 1));
-                [pick[i], pick[j]] = [pick[j], pick[i]];
-            }
-            return pick;
-        };
-
-        const render = () => {
-            let html = '<div style="max-width: 500px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">🏹 Hunting — ${preyIcon} ${preyName}</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Terrain: ${category} | Combat: ${combatSkill} | Strength: ${strStat}</p>`;
-
-            if (phase === 'track') {
-                // ── Tracking phase: pick the right clue ──
-                html += `<div style="margin-bottom: 10px;">
-                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">Phase 1: Track the ${preyName}</div>
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
-                        <span style="color: var(--text-muted);">Tracking Progress</span>
-                        <span style="color: #2ecc71;">${Math.round(trackProgress)}% (Round ${trackRound}/${maxTrackRounds})</span>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="width: ${trackProgress}%; height: 100%; background: #2ecc71; transition: width 0.3s; border-radius: 5px;"></div>
-                    </div>
-                </div>`;
-
-                if (statusMsg) {
-                    html += `<div style="margin-bottom: 10px; font-size: 12px;">${statusMsg}</div>`;
-                }
-
-                if (trackRound < maxTrackRounds && trackProgress < 100) {
-                    html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Which clue leads to the ${preyName}?</div>`;
-                    const choices = generateClueChoices();
-                    trackClues = choices;
-                    for (let i = 0; i < choices.length; i++) {
-                        const c = choices[i];
-                        html += `<button onclick="window._huntTrack(${i})"
-                            style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; margin-bottom: 6px;
-                                   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-                                   border-radius: 8px; cursor: pointer; text-align: left; color: var(--text-primary); transition: all 0.15s;"
-                            onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                            <span style="font-size: 20px;">${c.icon}</span>
-                            <span style="font-size: 13px;">${c.label}</span>
-                        </button>`;
-                    }
-                }
-
-                html += `<button onclick="window._huntAbort()"
-                    style="margin-top: 6px; padding: 6px 18px; background: none; border: 1px solid rgba(255,255,255,0.08);
-                           border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 11px;">Give Up</button>`;
-
-            } else if (phase === 'stalk') {
-                // ── Stalking phase: approach without alerting ──
-                html += `<div style="margin-bottom: 10px;">
-                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Phase 2: Stalk the ${preyName}</div>
-                </div>`;
-
-                // Distance display
-                html += `<div style="position: relative; height: 80px; background: rgba(0,0,0,0.2); border-radius: 10px; overflow: hidden; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.08);">`;
-                // Prey on right
-                const preyX = 75 + stalkDistance * 3;
-                html += `<div style="position: absolute; top: 50%; right: ${Math.min(85, 15 + stalkDistance * 12)}%; transform: translateY(-50%); font-size: 28px; transition: right 0.3s;">${preyIcon}</div>`;
-                // Player on left
-                html += `<div style="position: absolute; top: 50%; left: 10%; transform: translateY(-50%); font-size: 24px;">🏹</div>`;
-                // Distance indicator
-                html += `<div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--text-muted);">${stalkDistance} paces away</div>`;
-                html += `</div>`;
-
-                // Alert level
-                const alertColor = alertLevel < 40 ? '#2ecc71' : alertLevel < 70 ? '#f39c12' : '#e74c3c';
-                const alertLabel = alertLevel < 40 ? '🤫 Unaware' : alertLevel < 70 ? '👂 Alert' : '⚠️ Spooked!';
-                html += `<div style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
-                        <span style="color: var(--text-muted);">Animal Alertness</span>
-                        <span style="color: ${alertColor}; font-weight: 600;">${alertLabel} ${Math.round(alertLevel)}%</span>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="width: ${alertLevel}%; height: 100%; background: ${alertColor}; transition: width 0.25s; border-radius: 5px;"></div>
-                    </div>
-                </div>`;
-
-                if (statusMsg) {
-                    html += `<div style="margin-bottom: 8px; font-size: 12px;">${statusMsg}</div>`;
-                }
-
-                html += `<div style="display: flex; gap: 8px; justify-content: center;">
-                    <button onclick="window._huntCreep()"
-                        style="padding: 10px 20px; background: rgba(46,204,113,0.15); border: 1px solid #2ecc71;
-                               border-radius: 8px; cursor: pointer; color: #2ecc71; font-size: 13px; font-weight: bold; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(46,204,113,0.25)'" onmouseleave="this.style.background='rgba(46,204,113,0.15)'">
-                        🤫 Creep Closer
-                    </button>
-                    <button onclick="window._huntWait()"
-                        style="padding: 10px 20px; background: rgba(52,152,219,0.15); border: 1px solid #3498db;
-                               border-radius: 8px; cursor: pointer; color: #3498db; font-size: 13px; font-weight: bold; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(52,152,219,0.25)'" onmouseleave="this.style.background='rgba(52,152,219,0.15)'">
-                        ⏳ Wait (calm it)
-                    </button>
-                    ${stalkDistance <= 2 ? `<button onclick="window._huntShoot()"
-                        style="padding: 10px 24px; background: rgba(243,156,18,0.2); border: 2px solid #f39c12;
-                               border-radius: 8px; cursor: pointer; color: #f39c12; font-size: 13px; font-weight: bold; transition: all 0.15s;
-                               box-shadow: 0 0 12px rgba(243,156,18,0.2);"
-                        onmouseenter="this.style.background='rgba(243,156,18,0.3)'" onmouseleave="this.style.background='rgba(243,156,18,0.2)'">
-                        🏹 Take the Shot!
-                    </button>` : ''}
-                </div>`;
-                if (stalkDistance > 2) {
-                    html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Get within 2 paces to take a shot.</div>`;
-                }
-
-            } else if (phase === 'strike') {
-                // ── Strike phase: timed accuracy click ──
-                html += `<div style="margin-bottom: 10px;">
-                    <div style="font-size: 13px; color: var(--gold); font-weight: bold; margin-bottom: 8px;">Phase 3: Take the Shot!</div>
-                </div>`;
-
-                html += `<div style="position: relative; height: 60px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.1);">`;
-                // Moving target zone
-                html += `<div id="huntTarget" style="position: absolute; top: 10px; bottom: 10px; width: 50px; background: rgba(46,204,113,0.25); border: 2px solid #2ecc71; border-radius: 6px; transition: left 0.08s;"></div>`;
-                // Center crosshair
-                html += `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; opacity: 0.8;">🎯</div>`;
-                html += `</div>`;
-
-                html += `<button onclick="window._huntFire()"
-                    style="padding: 14px 48px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; border: none; border-radius: 10px; cursor: pointer;
-                           font-family: var(--font-display); font-size: 16px; letter-spacing: 1px; box-shadow: 0 0 20px rgba(231,76,60,0.4);">
-                    🏹 FIRE!
-                </button>`;
-                html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Click when the green zone is centered on the crosshair!</div>`;
-
-            } else if (phase === 'result') {
-                if (huntResult === 'success') {
-                    html += `<div style="font-size: 48px; margin: 12px 0;">${preyIcon}</div>`;
-                    html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Successful Hunt!</div>`;
-                    for (const item of totalLoot) {
-                        html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                            <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
-                        </div>`;
-                    }
-                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${totalValue} gold at market</div>`;
-                    if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">${statusMsg}</div>`;
-                } else if (huntResult === 'fled') {
-                    html += `<div style="font-size: 48px; margin: 12px 0;">💨</div>`;
-                    html += `<div style="font-size: 16px; color: #f39c12; font-weight: bold; margin-bottom: 8px;">The ${preyName} escaped!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
-                } else if (huntResult === 'injured') {
-                    html += `<div style="font-size: 48px; margin: 12px 0;">🤕</div>`;
-                    html += `<div style="font-size: 16px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">Hunting Mishap!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
-                } else {
-                    html += `<div style="font-size: 48px; margin: 12px 0;">🏹</div>`;
-                    html += `<div style="font-size: 16px; color: var(--text-secondary); font-weight: bold; margin-bottom: 8px;">Missed!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
-                }
-                html += `<button onclick="window._huntContinue()"
-                    style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
-            }
-
-            html += '</div>';
-            game.ui.showCustomPanel('🏹 Hunting', html);
-            window._huntContinue = () => { game.ui.hideCustomPanel(); game.endDay(); };
-        };
-
-        render();
-
-        // ── Track: pick the right clue ──
-        window._huntTrack = (idx) => {
-            if (phase !== 'track') return;
-            trackRound++;
-            const chosen = trackClues[idx];
-            if (chosen && chosen.correct) {
-                const gain = 20 + combatSkill * 2 + Utils.random() * 10;
-                trackProgress = Math.min(100, trackProgress + gain);
-                statusMsg = `<span style="color: #2ecc71;">✓ ${chosen.label} — you're on the trail!</span>`;
-            } else {
-                trackProgress = Math.max(0, trackProgress - 5);
-                statusMsg = `<span style="color: #e74c3c;">✗ ${chosen ? chosen.label : 'Nothing'} — wrong direction, lost time.</span>`;
-            }
-
-            if (trackProgress >= 100 || trackRound >= maxTrackRounds) {
-                if (trackProgress >= 60) {
-                    phase = 'stalk';
-                    stalkDistance = trackProgress >= 90 ? 3 : 5;
-                    alertLevel = trackProgress >= 90 ? 5 : 15;
-                    statusMsg = `<span style="color: #2ecc71;">You found the ${preyName}! Approach carefully...</span>`;
-                } else {
-                    phase = 'result';
-                    huntResult = 'fled';
-                    statusMsg = `You couldn't pick up the trail. The ${preyName} is long gone.`;
-                }
-            }
-            render();
-        };
-
-        // ── Stalk: creep closer ──
-        window._huntCreep = () => {
-            if (phase !== 'stalk') return;
-            stalkDistance = Math.max(0, stalkDistance - 1);
-            const noiseChance = 0.35 - combatSkill * 0.02;
-            const alertGain = Utils.random() < noiseChance ? (15 + Utils.random() * 15) : (3 + Utils.random() * 5);
-            alertLevel = Math.min(100, alertLevel + alertGain);
-
-            if (alertGain > 12) {
-                statusMsg = '<span style="color: #f39c12;">⚠️ A twig snapped underfoot!</span>';
-            } else {
-                statusMsg = '<span style="color: #2ecc71;">You inch closer silently...</span>';
-            }
-
-            if (alertLevel >= 100) {
-                cleanup();
-                phase = 'result';
-                huntResult = 'fled';
-                statusMsg = `The ${preyName} spotted you and bolted into the ${category}!`;
-            }
-            render();
-        };
-
-        // ── Stalk: wait to reduce alertness ──
-        window._huntWait = () => {
-            if (phase !== 'stalk') return;
-            const reduction = 10 + combatSkill * 2 + Utils.random() * 8;
-            alertLevel = Math.max(0, alertLevel - reduction);
-            statusMsg = '<span style="color: #3498db;">You hold still and wait... the animal calms down.</span>';
-            render();
-        };
-
-        // ── Stalk → Strike: take the shot ──
-        window._huntShoot = () => {
-            if (phase !== 'stalk' || stalkDistance > 2) return;
-            phase = 'strike';
-            statusMsg = '';
-            render();
-
-            // Animate the target zone moving back and forth
-            let targetPos = 0;
-            let targetDir = 1;
-            const speed = 3 + (combatSkill < 3 ? 2 : 0); // faster for low skill
-            stalkInterval = setInterval(() => {
-                targetPos += targetDir * speed;
-                if (targetPos > 80 || targetPos < 0) targetDir *= -1;
-                const el = document.getElementById('huntTarget');
-                if (el) el.style.left = targetPos + '%';
-            }, 50);
-        };
-
-        // ── Strike: fire the arrow ──
-        window._huntFire = () => {
-            if (phase !== 'strike') return;
-            cleanup();
-            // Check accuracy: target center should be near 50%
-            const el = document.getElementById('huntTarget');
-            let accuracy = 0;
-            if (el) {
-                const pos = parseFloat(el.style.left) || 0;
-                const center = pos + 25; // target is 50px wide
-                accuracy = 100 - Math.abs(center - 50) * 2;
-            } else {
-                accuracy = 40 + Utils.random() * 30;
-            }
-
-            // Experience steadies the aim (player/foraging.js → Hunting)
-            const hitThreshold = Hunting.hitThreshold(player);
-            if (accuracy >= hitThreshold) {
-                // Hit! The kill goes into the packs, in each beast's qty range
-                const trip = Hunting.finishTrip(player, Hunting.strikeLoot(lootTable, player));
-                totalLoot = trip.kept.map(f => ({ ...f.entry, foundQty: f.qty }));
-                totalValue = trip.value;
-
-                let extra = '';
-                if (trip.lost.length) extra += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')} — left behind.`;
-                if (trip.rankUp) extra += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
-                if (player.skills && Utils.random() < 0.25) {
-                    player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
-                    extra += ' Combat skill improved!';
-                }
-
-                huntResult = 'success';
-                statusMsg = extra;
-                phase = 'result';
-            } else if (accuracy < 15 && Utils.random() < 0.2) {
-                // Bad miss + injury
-                const dmg = Math.floor(Utils.random() * 12) + 5;
-                player.health = Math.max(1, player.health - dmg);
-                huntResult = 'injured';
-                statusMsg = `Your arrow ricocheted! -${dmg} HP`;
-                // The startled beast may leave you with a lasting wound (systems/ailments.js)
-                const wound = Ailments.maybeWound(player, game.world, 'hunt');
-                if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
-                Hunting.finishTrip(player, []); // a hard lesson is still experience
-                phase = 'result';
-            } else {
-                huntResult = 'missed';
-                statusMsg = `Your arrow flew wide. The ${preyName} fled.`;
-                Hunting.finishTrip(player, []);
-                phase = 'result';
-            }
-            render();
-            game.ui.updateStats(player, game.world);
-        };
-
-        // ── Abort ──
-        window._huntAbort = () => {
-            cleanup();
-            phase = 'result';
-            huntResult = 'fled';
-            statusMsg = 'You gave up the hunt and headed back.';
-            render();
-        };
+        WildTaskRunner.hunt(game, { player, prey }, (out) => {
+            if (out === null) { _huntQuick(game, player, lootTable); return; }
+            _huntOutcome(game, player, lootTable, out, { preyName: WildTaskRunner.beastName(prey), preyIcon, category });
+        });
     },
 
     /**
@@ -1783,3 +1292,145 @@ Object.assign(ActionMenu, {
         };
     },
 });
+
+// ── Foraging and hunting outcomes (shared by the quick path and the in-person task) ──
+
+/** The quick forage: one find from the loot table (player/foraging.js). Takes the day. */
+function _forageQuick(game, tile, player, forageData) {
+    const res = Foraging.quickForage(player, tile, forageData);
+    if (!res.success) {
+        game.ui.showNotification('Nothing Found', res.reason, 'default');
+        return;
+    }
+    const entry = res.entry;
+    const label = `${entry.icon || '🌿'} ${entry.name || entry.item} x${res.qty}`;
+    if (res.added) {
+        game.ui.showNotification('🌿 Foraging', `Quick search — found ${label}.`, 'success');
+    } else {
+        game.ui.showNotification('🌿 Foraging', `You found ${label} but had to leave it. ${res.reason}`, 'warning');
+    }
+    if (res.rankUp) game.ui.showNotification('🌿 Foraging', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
+    game.ui.hideCustomPanel();
+    game.ui.updateStats(player, game.world);
+    game.endDay();
+}
+
+/** The haul panel after a forage: what went into the packs. Continue ends the day. */
+function _forageResult(game, found, trip) {
+    const c = WildRules.cfg('forage');
+    const consolidate = (list) => {
+        const totals = {};
+        for (const f of list) {
+            const key = f.entry.item;
+            if (!totals[key]) totals[key] = { ...f.entry, foundQty: 0 };
+            totals[key].foundQty += f.qty;
+        }
+        return Object.values(totals);
+    };
+    let html = '<div style="max-width: 440px; text-align: center;">';
+    html += '<div style="font-size: 48px; margin: 8px 0;">🌿</div>';
+    if (found.length > 0) {
+        html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">${c.resultTitle || 'Foraging Haul'}</div>`;
+        for (const item of consolidate(trip.kept)) {
+            html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
+                <div>${item.icon} ${item.name} x${item.foundQty}</div>
+                <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
+            </div>`;
+        }
+        if (trip.lost.length) {
+            html += `<div style="font-size: 11px; color: #e67e22; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
+        }
+        html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${trip.value} gold at market</div>`;
+    } else {
+        html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
+        html += `<div style="color: var(--text-secondary);">${c.empty || 'You searched but found nothing of value today.'}</div>`;
+    }
+    if (trip.rankUp) html += `<div style="margin-top: 6px; color: #2ecc71;">Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}</div>`;
+    html += `<button data-am-act="closePanelAndEndDay"
+        style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+    html += '</div>';
+    game.ui.showCustomPanel('🌿 Foraging', html);
+}
+
+/** The quick hunt: one quarry (player/foraging.js → Hunting). Takes the day. */
+function _huntQuick(game, player, lootTable) {
+    const res = Hunting.quickHunt(player, lootTable);
+    const entry = res.entry;
+    const label = `${entry.icon || '🥩'} ${entry.name || entry.item} x${res.qty}`;
+    if (res.added) {
+        game.ui.showNotification('🏹 Hunting', `Quick hunt — took ${label}.`, 'success');
+    } else {
+        game.ui.showNotification('🏹 Hunting', `You took ${label} but had no room to carry it. ${res.reason}`, 'warning');
+    }
+    if (res.rankUp) game.ui.showNotification('🏹 Hunting', `Your craft grows: ${res.rankUp.icon} ${res.rankUp.name}.`, 'success');
+    game.ui.hideCustomPanel();
+    game.ui.updateStats(player, game.world);
+    game.endDay();
+}
+
+/**
+ * How a hunt ended. out: { result: 'shot', accuracy } | { result: 'fled' |
+ * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before:
+ * a hit banks Hunting.strikeLoot; a wild miss may injure. Continue ends the day.
+ */
+function _huntOutcome(game, player, lootTable, out, p) {
+    let kind = 'fled';
+    let statusMsg = '';
+    let totalLoot = [];
+    let totalValue = 0;
+    if (out.result === 'shot') {
+        const accuracy = out.accuracy;
+        if (accuracy >= Hunting.hitThreshold(player)) {
+            const trip = Hunting.finishTrip(player, Hunting.strikeLoot(lootTable, player));
+            totalLoot = trip.kept.map(f => ({ ...f.entry, foundQty: f.qty }));
+            totalValue = trip.value;
+            if (trip.lost.length) statusMsg += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')} — left behind.`;
+            if (trip.rankUp) statusMsg += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
+            if (player.skills && Utils.random() < 0.25) {
+                player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
+                statusMsg += ' Combat skill improved!';
+            }
+            kind = 'success';
+        } else if (accuracy < 15 && Utils.random() < 0.2) {
+            const dmg = Math.floor(Utils.random() * 12) + 5;
+            player.health = Math.max(1, player.health - dmg);
+            kind = 'injured';
+            statusMsg = `Your arrow ricocheted! -${dmg} HP`;
+            const wound = Ailments.maybeWound(player, game.world, 'hunt');
+            if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
+            Hunting.finishTrip(player, []); // a hard lesson is still experience
+        } else {
+            kind = 'missed';
+            statusMsg = `Your arrow flew wide. The ${p.preyName} fled.`;
+            Hunting.finishTrip(player, []);
+        }
+    } else if (out.result === 'abandoned') {
+        statusMsg = 'You gave up the hunt and headed back.';
+    } else {
+        statusMsg = `The ${p.preyName} got wind of you and bolted into the ${p.category}!`;
+    }
+
+    let html = '<div style="max-width: 500px; text-align: center;">';
+    if (kind === 'success') {
+        html += `<div style="font-size: 48px; margin: 12px 0;">${p.preyIcon}</div>`;
+        html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Successful Hunt!</div>`;
+        for (const item of totalLoot) {
+            html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>${item.icon} ${item.name} x${item.foundQty}</div>
+                <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
+            </div>`;
+        }
+        html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${totalValue} gold at market</div>`;
+        if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">${statusMsg}</div>`;
+    } else {
+        const head = { fled: [`💨`, '#f39c12', `The ${p.preyName} escaped!`], injured: ['🤕', '#e74c3c', 'Hunting Mishap!'], missed: ['🏹', 'var(--text-secondary)', 'Missed!'] }[kind];
+        html += `<div style="font-size: 48px; margin: 12px 0;">${head[0]}</div>`;
+        html += `<div style="font-size: 16px; color: ${head[1]}; font-weight: bold; margin-bottom: 8px;">${head[2]}</div>`;
+        html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
+    }
+    html += `<button data-am-act="closePanelAndEndDay"
+        style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+    html += '</div>';
+    game.ui.showCustomPanel('🏹 Hunting', html);
+    game.ui.updateStats(player, game.world);
+}

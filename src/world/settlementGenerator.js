@@ -24,7 +24,7 @@ function generate(tiles, settlement, rng, mapW, mapH) {
         ? InnerMap.settlementLayout(settlement)
         : null;
     const res = planTown(tiles, settlement, rng, mapW, mapH, layout);
-    return { roadTiles: res.roadTiles, buildings: res.buildings, blocks: [], lots: [] };
+    return { roadTiles: res.roadTiles, buildings: res.buildings, blocks: [], lots: res.lots || [] };
 }
 
 export const SettlementGenerator = {

@@ -2,9 +2,10 @@
     "_comment": "Violence on a town's street map (systems/streetCrime.js, ui/innerMapReactions.js): who sees it, how they react on the spot, what they remember, and what they say afterwards. Placeholders in lines: {victim} the victim's name, {kin} how the speaker names the victim ('my brother Brom', 'Brom'), {player} the player's name, {town} where it happened, {deed} 'killed' / 'beat'.",
 
     "sight": {
-        "_comment": "Chebyshev tiles from the victim. Indoors everyone in the building sees it. Guards within hearRadius who did not see it come running all the same.",
+        "_comment": "Chebyshev tiles from the victim. Indoors everyone in the building sees it. Guards within guardHearRadius who did not see it come running all the same; anyone else within hearRadius turns to look, and the timid hurry away.",
         "radius": 7,
         "guardHearRadius": 16,
+        "hearRadius": 16,
         "hiddenStates": ["inside_building", "leaving_building", "gone"]
     },
 
@@ -66,6 +67,7 @@
     },
 
     "barks": {
+        "followIn": ["You can't hide in there!","Out you come — or I come in!","I saw you go in! Stay where you are!","Nowhere to run now."],
         "bystander": {
             "assault": {
                 "fear": ["Help! Somebody help!", "Leave {victim} alone!", "Guards! Guards!", "Oh gods, no!"],
@@ -103,7 +105,8 @@
         "victim": {
             "assault": { "fear": ["Help! Help me!", "Mercy! Please!", "What did I do?!"], "anger": ["Have at you, then!", "You'll regret that!"] }
         },
-        "watch": ["You there! Stop!", "Hold! In the crown's name!", "That's the one! Stop them!"]
+        "watch": ["You there! Stop!", "Hold! In the crown's name!", "That's the one! Stop them!"],
+        "heard": ["What was that?", "Someone's screaming!", "Is that a fight?", "Gods, what's happening over there?", "Fetch the watch!", "Stay back, it's not our business."]
     },
 
     "lines": {
@@ -252,6 +255,108 @@
             "escaped": "You dodge past {guard} and lose him in the crowd. The watch will be looking for you.",
             "caught": "You break and run, but {guard} is faster. They drag you to the cells: {days} days.",
             "resist": "You square up to {guard}. Resisting the watch will not help your name."
+        }
+    },
+    "found": {
+        "_comment": "Coming upon a body. radius: how far off a body is noticed (indoors: the whole room). gatherShare of the unafraid walk over to look; the rest stop and stare. Standing within overRadius of a body when it is found, or carrying one, makes the finders witnesses to the killing. barks: kin/friend (grief, {kin} = my wife / my son…, {victim} = name), guard, bystander.fear/anger, caught.{guard,kin,fear,anger}, carried.{guard,fear,anger}.",
+        "radius": 6,
+        "gatherShare": 0.5,
+        "overRadius": 1,
+        "holdSeconds": 12,
+        "mournSeconds": 30,
+        "emotes": {
+            "fear": [
+                "*gasps*",
+                "!?",
+                "*recoils*",
+                "*covers their mouth*",
+                "*goes pale*",
+                "*shrinks back*"
+            ],
+            "anger": [
+                "!!",
+                "*clenches fists*",
+                "*shouts for the watch*",
+                "*glares around*"
+            ],
+            "grief": [
+                "*weeps*",
+                "*sobs*",
+                "*kneels by the body*",
+                "*cradles the body*"
+            ]
+        },
+        "barks": {
+            "kin": [
+                "No... no, not {kin}!",
+                "{victim}! Gods, {victim}, wake up!",
+                "*falls to their knees beside {victim}*",
+                "Who did this to {kin}? WHO?",
+                "Not {kin}... please, not {kin}..."
+            ],
+            "friend": [
+                "{victim}? No... not {victim}.",
+                "Gods... that's {victim}.",
+                "*stares at {victim}, white-faced*"
+            ],
+            "guard": [
+                "A body! Nobody leave!",
+                "Who did this? Speak up!",
+                "Murder in my streets... someone saw something.",
+                "Stand back! Stand back from the body!",
+                "Fetch the captain — there's been a killing."
+            ],
+            "bystander": {
+                "fear": [
+                    "A body! There's a body!",
+                    "Gods... is that {victim}?",
+                    "*screams*",
+                    "Someone's dead! Help!",
+                    "Oh no... oh gods, no.",
+                    "Murder! Someone's been murdered!"
+                ],
+                "anger": [
+                    "Who did this to {victim}?",
+                    "Guards! There's a body here!",
+                    "Someone's killed {victim}!",
+                    "There's a murderer among us..."
+                ]
+            },
+            "caught": {
+                "guard": [
+                    "You! Step away from that body!",
+                    "Don't move! What have you done?",
+                    "You there — hands where I can see them!"
+                ],
+                "kin": [
+                    "YOU! What did you do to {kin}?!",
+                    "Get away from {kin}, you butcher!"
+                ],
+                "fear": [
+                    "They're standing over {victim}! Run!",
+                    "*backs away slowly* Gods...",
+                    "Murderer! Murderer!"
+                ],
+                "anger": [
+                    "What have you done to {victim}?!",
+                    "Guards! Over here! They killed {victim}!"
+                ]
+            },
+            "carried": {
+                "guard": [
+                    "Halt! Put that body down!",
+                    "You're carrying a corpse! Stop right there!"
+                ],
+                "fear": [
+                    "They're carrying a dead man!",
+                    "Gods — is that a body over their shoulder?!",
+                    "*shrieks and runs*"
+                ],
+                "anger": [
+                    "Where are you taking {victim}?!",
+                    "Guards! They're hauling off {victim}!"
+                ]
+            }
         }
     }
 }

@@ -368,6 +368,8 @@ Object.assign(InnerMap, {
                 if (isEdge) continue;
                 if (!tile.subTerrain.passable) continue;
                 if (tile.building) continue;
+                // Lots are for whoever buys them (world/innerMap/lots.js)
+                if (tile._lot) continue;
 
                 const dist = Math.abs(q - centerQ) + Math.abs(r - centerR);
                 candidates.push({ q, r, dist });
@@ -537,7 +539,7 @@ Object.assign(InnerMap, {
             priest:         ['church', 'temple'],
             guard:          ['barracks', 'guard_tower'],
             merchant:       ['marketplace'],
-            noble:          ['manor', 'town_hall'],
+            noble:          ['castle', 'manor', 'town_hall'],
             farmer:         ['farm', 'granary'],
         };
 
@@ -550,6 +552,7 @@ Object.assign(InnerMap, {
             guard_tower: 'Guard Captain',
             marketplace: 'Merchant',
             manor:       'Lord',
+            castle:      'Lord',
             town_hall:   'Official',
             farm:        'Farmer',
             granary:     'Keeper',
@@ -612,7 +615,7 @@ Object.assign(InnerMap, {
         if (world) this._assignHospitalityKeepers(world, assignedNpcs);
 
         // Houses: assign remaining villager/farmer NPCs as residents
-        const houseBuildings = this.buildings.filter(b => b.type === 'house' && !assignedBldgs.has(b));
+        const houseBuildings = this.buildings.filter(b => b.type === 'house' && !assignedBldgs.has(b) && !b._vacancy && !b._lotId);
         const residentNpcs = this.npcs.filter(n =>
             !assignedNpcs.has(n.id) && ['villager', 'farmer', 'merchant'].includes(n.type)
         );
@@ -631,8 +634,8 @@ Object.assign(InnerMap, {
             if (wq != null) {
                 const playerHouseHere = (player.houses || []).find(h => h.q === wq && h.r === wr);
                 if (playerHouseHere) {
-                    const myHouse = this.buildings.find(b => b.type === 'house' && !assignedBldgs.has(b))
-                                 || this.buildings.find(b => b.type === 'house');
+                    const myHouse = this.buildings.find(b => b.type === 'house' && !assignedBldgs.has(b) && !b._vacancy && !b._lotId)
+                                 || this.buildings.find(b => b.type === 'house' && !b._vacancy && !b._lotId);
                     if (myHouse && !myHouse.isPlayerOwned) {
                         myHouse.isPlayerOwned = true;
                         myHouse.ownerId       = 'player';

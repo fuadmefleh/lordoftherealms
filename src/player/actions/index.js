@@ -358,6 +358,12 @@ export const PlayerActions = {
             festivalUpdate: null,
         };
 
+        // In chains on the road to a town with a jail: a day's march (player/prison.js)
+        let marchDay = null;
+        if (player.jailState && player.jailState.transport && !player.jailState.transport.done) {
+            marchDay = Prison.transportStep(player, world);
+        }
+
         // Process jail sentence if active
         if (player.jailState) {
             // A night in the cell: smuggled tools, a snitch, a search (player/prison.js; only
@@ -379,6 +385,7 @@ export const PlayerActions = {
             }
             if (prisonDay && prisonDay.notices.length) results.jailUpdate.notices = prisonDay.notices;
         }
+        if (marchDay) results.jailUpdate = { ...(results.jailUpdate || {}), march: marchDay };
 
         // Process indentured servitude if active
         if (player.indenturedServitude) {

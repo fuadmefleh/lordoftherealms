@@ -27,8 +27,12 @@ registerScene('street_watch', {
                 notification: out.notification,
                 after(g) {
                     g.ui.hideCustomPanel();
-                    // To the cells: off the street map
-                    if (InnerMap.active && typeof g.exitInnerMap === 'function') g.exitInnerMap();
+                    // To the cells: into the jail map (ui/innerMapJail.js), or off the street map
+                    if (typeof g.enterJailMap === 'function') {
+                        g.enterJailMap().then(ok => {
+                            if (!ok && InnerMap.active && typeof g.exitInnerMap === 'function') g.exitInnerMap({ force: true });
+                        });
+                    } else if (InnerMap.active && typeof g.exitInnerMap === 'function') g.exitInnerMap();
                     if (typeof g.ui.updateStats === 'function') g.ui.updateStats(g.player, g.world);
                 },
             };

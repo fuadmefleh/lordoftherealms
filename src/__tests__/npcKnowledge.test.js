@@ -157,3 +157,30 @@ describe('Swaying them, and spending their goodwill', () => {
         expect(NpcKnowledge.canAskFavour({ type: 'guard' }, mem, world.day)).toBe(false);
     });
 });
+
+describe('Turned away by those who dislike you', () => {
+    const npc = { id: 3, type: 'villager' };
+    it('a friend or a stranger answers', () => {
+        expect(NpcKnowledge.rebuff(npc, { disposition: 50 }, 'news', 's')).toBeNull();
+        expect(NpcKnowledge.willingness({ disposition: 80 })).toBe('open');
+    });
+    it('someone who dislikes you always sends you off', () => {
+        for (let i = 0; i < 20; i++) {
+            const line = NpcKnowledge.rebuff(npc, { disposition: 15 }, 'news', `s${i}`);
+            expect(typeof line).toBe('string');
+            expect(line.length).toBeGreaterThan(0);
+        }
+    });
+    it('a grudge refuses whatever the mood, and names the dead', () => {
+        const pool = NpcKnowledge.config().rebuff.lines.grudge;
+        const line = NpcKnowledge.rebuff(npc, { disposition: 60, grudge: { victimName: 'Alda', relation: 'sibling' } }, 'family', 's');
+        expect(line).toBeTruthy();
+        if (pool.some(l => l.includes('{victim}'))) expect(line.includes('{victim}')).toBe(false);
+    });
+    it('the wary answer some questions and not others, the same way each time', () => {
+        const res = Array.from({ length: 40 }, (_, i) => NpcKnowledge.rebuff(npc, { disposition: 30 }, 'news', `w${i}`));
+        expect(res.some(r => r === null)).toBe(true);
+        expect(res.some(r => r !== null)).toBe(true);
+        expect(NpcKnowledge.rebuff(npc, { disposition: 30 }, 'news', 'w1')).toBe(res[1]);
+    });
+});

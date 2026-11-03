@@ -6,6 +6,7 @@ import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
+import { InnerMapDigging } from '../innerMapDigging.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
@@ -667,6 +668,31 @@ Object.assign(InnerMapRenderer, {
             }
         }
 
+        // ── Phase 2a: Dug ground (holes, turned earth, graves): flat, under every sprite ──
+        InnerMapDigging.renderGround(ctx, camera, this._frameRange, T);
+
+        // ── Phase 2b: The dead, lying where they fell (under anyone standing on that row) ──
+        for (const body of InnerMapCombat.corpsesHere()) {
+            if (body === InnerMapCombat._carrying) {
+                // Over the player's shoulders (drawn just after the player)
+                const pos = InnerMap.getPlayerWorldPos();
+                // (worldToScreenFast reuses one object: copy the numbers out now)
+                const ps = camera.worldToScreenFast(pos.x, pos.y);
+                const px = ps.x, py = ps.y;
+                items.push({ sortY: pos.y + T / 2 + 0.5, zLayer: 2, draw() {
+                    InnerMapCombat.drawCarriedCorpse(ctx, camera, body, px, py - ds * 0.85);
+                }});
+                continue;
+            }
+            const screen = camera.worldToScreenFast(body.q * T + T / 2, body.r * T + T / 2);
+            const bx = screen.x, by = screen.y;
+            if (bx < -ds * 2 || bx > ctx.canvas.width + ds * 2) continue;
+            if (by < -ds * 2 || by > ctx.canvas.height + ds * 2) continue;
+            items.push({ sortY: body.r * T + T / 2, zLayer: 0, draw() {
+                InnerMapCombat.drawCorpse(ctx, camera, body, bx, by);
+            }});
+        }
+
         // ── Phase 3: Collect NPCs ───────────────────────────────────────────────
         if (InnerMap.npcs && InnerMap.npcs.length > 0) {
             for (const npc of InnerMap.npcs) {
@@ -674,6 +700,17 @@ Object.assign(InnerMapRenderer, {
                 if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
                 if (charReady && !npc.preset) {
                     npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
+                }
+                // Beaten senseless: lying where they fell, under anyone standing on that row
+                if (npc.state === 'unconscious') {
+                    const ks = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
+                    const kx = ks.x, ky = ks.y;
+                    if (kx < -ds * 2 || kx > ctx.canvas.width + ds * 2 || ky < -ds * 2 || ky > ctx.canvas.height + ds * 2) continue;
+                    const kRef = npc;
+                    items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() {
+                        InnerMapCombat.drawKnockedOut(ctx, camera, kRef, kx, ky);
+                    }});
+                    continue;
                 }
                 let worldX, worldY;
                 let anim = 'idle';
@@ -695,6 +732,14 @@ Object.assign(InnerMapRenderer, {
                     worldX = npc.q * T + T / 2;
                     worldY = npc.r * T + T / 2;
                     if (npc.activity) anim = npc.activity.anim || 'idle';
+                    // The watch stands on guard, sword and shield held ready
+                    else if (npc.type === 'guard' && !npc._dialogFrozen) anim = 'ready';
+                    // Swinging at the player (InnerMapCombat._updateNPCReactions)
+                    if (npc._swingAt && performance.now() - npc._swingAt < 500) {
+                        anim = 'halfslash';
+                        direction = InnerMapCharacters.getDirection(InnerMap.playerInnerQ - npc.q, InnerMap.playerInnerR - npc.r);
+                        npc.facing = direction;
+                    }
                 }
 
                 const screen = camera.worldToScreenFast(worldX, worldY);
@@ -743,12 +788,17 @@ Object.assign(InnerMapRenderer, {
             const deathState = this._getDeathAnimState(now);
             let anim = 'idle';
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
+            const digging = InnerMapDigging.playerAnim();
             if (!deathState) {
                 if (pos.walking) {
                     anim = 'walk';
                     direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
                     this._playerFacing = direction;
-                } else if (typeof InnerMapCombat !== 'undefined' && InnerMapCombat._attackState) {
+                } else if (digging) {
+                    anim = digging.anim;
+                    direction = digging.direction;
+                    this._playerFacing = direction;
+                } else if (typeof InnerMapCombat !== 'undefined' && InnerMapCombat._attackState && !InnerMapCombat._attackState.pending) {
                     anim = 'slash';
                     const ia = InnerMapCombat._attackState;
                     if (ia.targetType === 'npc' && ia.npc) {

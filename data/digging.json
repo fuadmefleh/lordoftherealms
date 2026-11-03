@@ -1,0 +1,23 @@
+{
+    "_note": "Digging on the street map (ui/innerMapDigging.js): holes, filling them in, graves. Seconds are real seconds of work at the spot; carrying a set of tools (any item id in 'tools') multiplies them by toolSpeed. 'finds' are rolled once per hole, in order: the first whose chance hits is found.",
+    "seconds": { "dig": 5, "fill": 3, "bury": 4, "exhume": 5 },
+    "toolSpeed": 0.6,
+    "tools": ["tools", "bronze_tools", "improved_tools"],
+    "needs": { "energy": -6, "hygiene": -6 },
+    "carrySpeed": 0.6,
+    "finds": [
+        { "chance": 0.12, "gold": [5, 24], "text": "Your spade turns up {gold} gold coins, buried long ago." },
+        { "chance": 0.12, "text": "You turn up a broken clay pot. Nothing of worth." },
+        { "chance": 0.1, "text": "An old bone, brown with age. Best not to wonder whose." }
+    ],
+    "text": {
+        "dig": "You dig a hole, the spoil heaped beside it.",
+        "fill": "You shovel the earth back in and tread it down.",
+        "bury": "You lay {name} in the hole and heap the earth over them.",
+        "exhume": "You dig {name} back up out of the grave.",
+        "respects": [
+            "You stand a while by {name}'s grave.",
+            "You bow your head over {name}'s grave."
+        ]
+    }
+}

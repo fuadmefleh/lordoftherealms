@@ -308,7 +308,7 @@ Object.assign(InnerMap, {
             if (q < MARGIN || q >= W - MARGIN || r < MARGIN || r >= H - MARGIN) return false;
             if (Math.abs(q - centerQ) + Math.abs(r - centerR) <= START_CLEAR) return false;
             const t = tiles[r][q];
-            if (!t || t.isRoad || t.building || t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t._townCore) return false;
+            if (!t || t.isRoad || t.building || t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t._townCore || t._lot) return false;
             return true;
         };
 
@@ -763,7 +763,8 @@ Object.assign(InnerMap, {
                     if (fr <= 0 || fr >= H - 1 || fq <= 0 || fq >= W - 1)
                         { clear = false; break; }
                     const ft = tiles[fr][fq];
-                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad)
+                    // ...and never across a building lot (world/townPlanner.js)
+                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad || ft._lot)
                         { clear = false; break; }
                     // Prevent placement in front of building doors
                     if (doorExclusion.has(`${fq},${fr}`))

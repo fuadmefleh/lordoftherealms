@@ -426,11 +426,87 @@
         },
         "male_guard": {
             "layers": [
+                "Props/Sword 01 - Arming Sword/_Behind/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+                "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
                 "Body/Body 02 - Masculine, Thin/Peach",
                 "Head/Head 02 - Masculine/Peach",
                 "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
-                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Charcoal",
-                "Hair/Short 01 - Buzzcut/Brown"
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Wine",
+                "Hair/Short 01 - Buzzcut/Brown",
+                "Head Accessories/Helm 03 - Norman/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak",
+                "Props/Shield 01 - Heater Shield/Paint/Red",
+                "Props/Shield 01 - Heater Shield/Trim/Steel",
+                "Props/Sword 01 - Arming Sword/Steel"
+            ]
+        },
+        "male_guard_2": {
+            "layers": [
+                "Props/Sword 01 - Arming Sword/_Behind/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+                "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+                "Body/Body 02 - Masculine, Thin/Tan",
+                "Head/Head 02 - Masculine/Tan",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Wine",
+                "Hair/Short 03 - Curly/Black",
+                "Head Accessories/Helm 05 - Kettle Helm/Iron",
+                "Props/Shield 01 - Heater Shield/Wood/Oak",
+                "Props/Shield 01 - Heater Shield/Paint/Red",
+                "Props/Shield 01 - Heater Shield/Trim/Steel",
+                "Props/Sword 01 - Arming Sword/Steel"
+            ]
+        },
+        "male_guard_3": {
+            "layers": [
+                "Props/Sword 01 - Arming Sword/_Behind/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+                "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+                "Body/Body 02 - Masculine, Thin/Brown",
+                "Head/Head 02 - Masculine/Brown",
+                "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/Navy",
+                "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Wine",
+                "Hair/Short 05 - Natural/Black",
+                "Head Accessories/Helm 04 - Chainmail Hood/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak",
+                "Props/Shield 01 - Heater Shield/Paint/Red",
+                "Props/Shield 01 - Heater Shield/Trim/Steel",
+                "Props/Sword 01 - Arming Sword/Steel"
+            ]
+        },
+        "female_guard": {
+            "layers": [
+                "Props/Sword 01 - Arming Sword/_Behind/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+                "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+                "Body/Body 01 - Feminine, Thin/Peach",
+                "Head/Head 01 - Feminine/Peach",
+                "Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Feminine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Wine",
+                "Hair/Medium 01 - Page/Brown",
+                "Head Accessories/Helm 01 - Bascinet, Open/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak",
+                "Props/Shield 01 - Heater Shield/Paint/Red",
+                "Props/Shield 01 - Heater Shield/Trim/Steel",
+                "Props/Sword 01 - Arming Sword/Steel"
+            ]
+        },
+        "female_guard_2": {
+            "layers": [
+                "Props/Sword 01 - Arming Sword/_Behind/Steel",
+                "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+                "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+                "Body/Body 01 - Feminine, Thin/Bronze",
+                "Head/Head 01 - Feminine/Bronze",
+                "Clothing/Feminine, Thin/Legs/Pants 03 - Pants/Charcoal",
+                "Clothing/Feminine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Wine",
+                "Hair/Medium 02 - Curly/Black",
+                "Head Accessories/Helm 03 - Norman/Iron",
+                "Props/Shield 01 - Heater Shield/Wood/Oak",
+                "Props/Shield 01 - Heater Shield/Paint/Red",
+                "Props/Shield 01 - Heater Shield/Trim/Steel",
+                "Props/Sword 01 - Arming Sword/Steel"
             ]
         },
         "male_merchant": {
@@ -493,7 +569,7 @@
         "_note": "Maps NPC type keys to arrays of valid character preset IDs. NPC picks one by seeded index.",
         "villager":       ["male_light_1", "male_tan_1", "male_dark_1", "female_light_1", "female_bronze_1"],
         "farmer":         ["male_farmer", "female_farmer"],
-        "guard":          ["male_guard"],
+        "guard":          ["male_guard", "male_guard_2", "male_guard_3", "female_guard", "female_guard_2"],
         "merchant":       ["male_merchant", "female_merchant"],
         "priest":         ["male_priest"],
         "blacksmith_npc": ["male_tan_1", "male_dark_1"],

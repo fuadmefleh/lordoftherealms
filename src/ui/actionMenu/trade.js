@@ -20,23 +20,22 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 export function setMarketNav(game, tile, active) {
     if (!game || !game.ui || typeof game.ui.setPanelNav !== 'function' || !tile || !tile.settlement) return;
     const go = (fn) => () => fn();
+    // Buy, Sell and the Ledger up front; the town's other views behind "More"
     const items = [
         { key: 'buy', label: '🛒 Buy', run: go(() => ActionMenu.showTradeMenu(game, tile, 'buy')) },
         { key: 'sell', label: '💰 Sell', run: go(() => ActionMenu.showTradeMenu(game, tile, 'sell')) },
-        { key: 'invest', label: '🏭 Invest', title: 'Fund works in this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'invest')) },
-        { key: 'warehouse', label: '📦 Warehouse', title: 'Rent a store-room here', run: go(() => ActionMenu.showMerchantPrince(game, null, 'warehouse')) },
-        { key: 'contracts', label: '📜 Contracts', title: 'Forward contracts with this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'contracts')) },
-        { key: 'people', label: '👥 People', title: "The town's classes, work, wages and welfare", run: go(() => ActionMenu.showTownPeople(game, null)) },
-        { key: 'hinterland', label: '⛏️ Hinterland', title: 'The mines, quarries and sheep runs around the town; mining leases and prospecting', run: go(() => ActionMenu.showHinterland(game, null)) },
-        { key: 'harvest', label: '🌾 Harvest', title: "The coming harvest here, the crop reports, the town's fields", run: go(() => ActionMenu.showHarvests(game, null)) },
-        { key: 'estates', label: '🏡 Estates', title: 'The estates about the town: tenants, rents, land values; buy, improve, enclose', run: go(() => ActionMenu.showEstates(game, null, 'here')) },
-        { key: 'puttingOut', label: '🧶 Putting-out', title: 'Put out wool and flax to the cottagers to spin and weave', run: go(() => ActionMenu.showPuttingOut(game, null)) },
-    ];
-    if (tile.settlement.guilds) items.push({ key: 'guilds', label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
-    items.push(
-        { key: 'tariffs', label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) },
         { key: 'ledger', label: '📒 Ledger', title: 'Known prices, best spreads, price history and your trading profit', run: go(() => ActionMenu.showMerchantLedger(game, 'book')) },
-    );
+        { key: 'invest', more: true, label: '🏭 Invest', title: 'Fund works in this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'invest')) },
+        { key: 'warehouse', more: true, label: '📦 Warehouse', title: 'Rent a store-room here', run: go(() => ActionMenu.showMerchantPrince(game, null, 'warehouse')) },
+        { key: 'contracts', more: true, label: '📜 Contracts', title: 'Forward contracts with this town', run: go(() => ActionMenu.showMerchantPrince(game, null, 'contracts')) },
+        { key: 'people', more: true, label: '👥 People', title: "The town's classes, work, wages and welfare", run: go(() => ActionMenu.showTownPeople(game, null)) },
+        { key: 'hinterland', more: true, label: '⛏️ Hinterland', title: 'The mines, quarries and sheep runs around the town; mining leases and prospecting', run: go(() => ActionMenu.showHinterland(game, null)) },
+        { key: 'harvest', more: true, label: '🌾 Harvest', title: "The coming harvest here, the crop reports, the town's fields", run: go(() => ActionMenu.showHarvests(game, null)) },
+        { key: 'estates', more: true, label: '🏡 Estates', title: 'The estates about the town: tenants, rents, land values; buy, improve, enclose', run: go(() => ActionMenu.showEstates(game, null, 'here')) },
+        { key: 'puttingOut', more: true, label: '🧶 Putting-out', title: 'Put out wool and flax to the cottagers to spin and weave', run: go(() => ActionMenu.showPuttingOut(game, null)) },
+    ];
+    if (tile.settlement.guilds) items.push({ key: 'guilds', more: true, label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
+    items.push({ key: 'tariffs', more: true, label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) });
     // Views with tabs of their own keep this bar and show theirs as sub-tabs
     // (uiKit.panelTabs): the Merchant Prince's Invest/Warehouse/Contracts are
     // this bar's tabs, the Ledger's and the Tariffs' sit under theirs
@@ -994,18 +993,20 @@ Object.assign(ActionMenu, {
             const info = SettlementMarket.info(tile.settlement, goodId);
             const pct = Math.round((info.scarcity - 1) * 100);
             const arrow = info.trend === 'rising' ? '▲' : info.trend === 'falling' ? '▼' : '';
+            // An ordinary stock says nothing: only plenty, glut, scarcity or dearth get a word
+            if (info.label === 'Steady' && !arrow) return '';
             const days = info.days != null ? ` · ${info.days >= 99 ? '99+' : Math.floor(info.days)}d in store` : '';
-            return `<div class="trade-meta" style="color:${info.color};" title="Stock ${Math.floor(info.stock)}${info.need > 0 ? `, the town uses ${Math.round(info.need * 10) / 10} a day` : ', the town does not use it'}. Buying raises the price, selling lowers it.">${info.label} ${pct >= 0 ? '+' : ''}${pct}%${arrow ? ` ${arrow}` : ''}${days}</div>`;
+            return `<span class="trade-chip" style="color:${info.color};" title="${info.label} ${pct >= 0 ? '+' : ''}${pct}%${days}. Stock ${Math.floor(info.stock)}${info.need > 0 ? `, the town uses ${Math.round(info.need * 10) / 10} a day` : ', the town does not use it'}. Buying raises the price, selling lowers it.">${info.label}${arrow ? ` ${arrow}` : ''}</span>`;
         };
         // ── The crown's trade policy on a good: duty on goods bought abroad, an embargo, an export ban (systems/tradePolicy.js) ──
         const policyBadge = (goodId, selling) => {
             const n = TradePolicy.goodNotice(game.player, game.world, tile.settlement, goodId);
             if (!n) return '';
             const out = [];
-            if (selling && n.embargoed > 0) out.push(`<span style="color:#e74c3c;" title="Goods from a realm this crown embargoes: only a smuggler moves them here (Tariffs tab)">⛔ ${n.embargoed} under embargo</span>`);
-            if (selling && n.foreign - n.embargoed > 0 && n.dutyRate > 0) out.push(`<span style="color:#e67e22;" title="${n.foreign} bought in another realm pay this crown's import duty">⚖️ Duty −${Math.round(n.dutyRate * 100)}%</span>`);
-            if (!selling && n.banned) out.push('<span style="color:#e67e22;" title="The crown bans its export: selling it in another realm is smuggling (heat here), unless you hold its licence">🚫 Export banned</span>');
-            return out.length ? `<div class="trade-meta">${out.join(' · ')}</div>` : '';
+            if (selling && n.embargoed > 0) out.push(`<span class="trade-chip" style="color:#e74c3c;" title="${n.embargoed} from a realm this crown embargoes: only a smuggler moves them here (More ▸ Tariffs)">⛔ Embargo</span>`);
+            if (selling && n.foreign - n.embargoed > 0 && n.dutyRate > 0) out.push(`<span class="trade-chip" style="color:#e67e22;" title="${n.foreign} bought in another realm pay this crown's import duty">Duty −${Math.round(n.dutyRate * 100)}%</span>`);
+            if (!selling && n.banned) out.push('<span class="trade-chip" style="color:#e67e22;" title="The crown bans its export: selling it in another realm is smuggling (heat here), unless you hold its licence">🚫 Export ban</span>');
+            return out.join('');
         };
         // ── The town's guild on a good you sell: its toll on outsiders, or a master's mark (systems/guilds.js) ──
         const guildBadge = (goodId) => {
@@ -1013,8 +1014,8 @@ Object.assign(ActionMenu, {
             if (!gd) return '';
             const f = Guilds.saleFactor(game.player, tile.settlement, goodId);
             const room = Guilds.outsiderRoom(game.player, tile.settlement, goodId);
-            if (f > 1) return `<div class="trade-meta" style="color:#2ecc71;" title="Your goods carry the ${gd.name}'s mark">⚒️ Guild mark +${Math.round((f - 1) * 100)}%</div>`;
-            if (f < 1) return `<div class="trade-meta" style="color:#e67e22;" title="The ${gd.name} tolls goods sold by non-members${room !== Infinity ? `; outsiders may sell ${room} more this week` : ''}">⚒️ Guild toll −${Math.round((1 - f) * 100)}%${room !== Infinity ? ` · ${room} more this week` : ''}</div>`;
+            if (f > 1) return `<span class="trade-chip" style="color:#2ecc71;" title="Your goods carry the ${gd.name}'s mark">Guild mark +${Math.round((f - 1) * 100)}%</span>`;
+            if (f < 1) return `<span class="trade-chip" style="color:#e67e22;" title="The ${gd.name} tolls goods sold by non-members${room !== Infinity ? `; outsiders may sell ${room} more this week` : ''}">Guild toll −${Math.round((1 - f) * 100)}%</span>`;
             return '';
         };
         const mkt = tile.settlement && tile.settlement.market;
@@ -1032,26 +1033,36 @@ Object.assign(ActionMenu, {
 
         // ── Season outlook and price-trend arrows (world/seasons.js) ──
         const outlook = Seasons.outlook(game.world.day);
-        const trendBadge = (goodId) => {
-            const st = Trading.getSeasonalTrend(goodId, game.world);
+        // The season's pull on a price: a tooltip on the price, not a line of its own
+        const trendTitle = (goodId) => {
             if (!Seasons.priceGroup(goodId)) return '';
+            const st = Trading.getSeasonalTrend(goodId, game.world);
             const pct = Math.round(st.modifier * 100);
-            const color = st.trend === 'rising' ? '#e67e22' : st.trend === 'falling' ? '#3498db' : 'rgba(255,255,255,0.45)';
             const word = st.trend === 'rising' ? 'rising' : st.trend === 'falling' ? 'falling' : 'steady';
-            return `<div class="trade-meta" style="color:${color};" title="Seasonal price ${pct >= 0 ? '+' : ''}${pct}% — ${word} over the next ten days">${Seasons.trendArrow(st.trend)} ${pct >= 0 ? '+' : ''}${pct}% season, ${word}</div>`;
+            return ` title="Season ${pct >= 0 ? '+' : ''}${pct}%, ${word} over the next ten days"`;
         };
         const outlookParts = [];
         if (outlook.cheap.length) outlookParts.push(`<span style="color:#3498db;">Cheap: ${outlook.cheap.map(c => `${c.label} ${Seasons.trendArrow(c.trend)}`).join(', ')}</span>`);
         if (outlook.dear.length) outlookParts.push(`<span style="color:#e67e22;">Dear: ${outlook.dear.map(c => `${c.label} ${Seasons.trendArrow(c.trend)}`).join(', ')}</span>`);
         if (outlook.producing.length) outlookParts.push(`<span style="color:#2ecc71;">Plenty: ${outlook.producing.map(p => p.label).join(', ')}</span>`);
         if (outlook.lean) outlookParts.push('<span style="color:#e74c3c;">Lean season</span>');
-        const outlookHtml = `<div class="trade-outlook" style="margin-bottom:10px; padding:8px 10px; border-radius:6px; background:rgba(255,255,255,0.04); border-left:3px solid var(--gold); font-size:12px;">
-            <div style="font-weight:700; color:var(--text-primary);">${outlook.icon} ${outlook.season}, day ${outlook.dayInSeason} of 30</div>
-            <div style="color:var(--text-secondary); margin:2px 0 4px;">${outlook.note}</div>
-            ${outlookParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px;">${outlookParts.join('')}</div>` : ''}
-            ${storesParts.length ? `<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:4px;">🏚️ ${storesParts.join('')}</div>` : ''}
-            ${people ? `<div style="margin-top:4px;">👥 ${people}</div>` : ''}
-        </div>`;
+        const kingdom = tile.settlement && tile.settlement.kingdom != null ? game.world.getKingdom(tile.settlement.kingdom) : null;
+        const fair = SettlementMarket.fair(tile.settlement);
+        // One line up top (the season, and a dearth if there is one); the rest folds away
+        const headline = [`${outlook.icon} ${outlook.season}, day ${outlook.dayInSeason}`];
+        if (dearth) headline.push(`<span style="color:#e74c3c;">short of ${nameOf(dearth.id)}</span>`);
+        if (outlook.lean) headline.push('<span style="color:#e74c3c;">lean season</span>');
+        const outlookHtml = `<details class="trade-outlook">
+            <summary>${headline.join(' · ')}<span class="trade-outlook-more">Town &amp; season</span></summary>
+            <div class="trade-outlook-body">
+                <div>${outlook.note}</div>
+                ${outlookParts.length ? `<div class="trade-outlook-row">${outlookParts.join('')}</div>` : ''}
+                ${storesParts.length ? `<div class="trade-outlook-row">🏚️ ${storesParts.join('')}</div>` : ''}
+                ${people ? `<div>👥 ${people}</div>` : ''}
+                ${kingdom ? `<div>⚖️ ${policyLine(game.world, kingdom)}</div>` : ''}
+            </div>
+        </details>
+        ${fair ? `<div style="margin:0 0 10px; font-size:12px; color:var(--gold);">🎪 The ${fair.name} is on until day ${fair.until}: the stalls ask less and buy dearer.</div>` : ''}`;
 
         // ── Render HTML ──
         let html = `
@@ -1087,20 +1098,23 @@ Object.assign(ActionMenu, {
             .trade-sold-out { font-size:11px; color:rgba(231,76,60,0.7); font-weight:600; white-space:nowrap; }
             .trade-empty { text-align:center; padding:20px; color:var(--text-secondary); font-size:13px; }
             .trade-settlement-badge { font-size:11px; color:rgba(255,255,255,0.35); font-weight:400; }
+            .trade-meta { display:flex; flex-wrap:wrap; gap:8px; }
+            .trade-chip { font-size:11px; white-space:nowrap; cursor:help; }
+            .trade-outlook { margin-bottom:10px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.04); font-size:12px; }
+            .trade-outlook summary { cursor:pointer; color:var(--text-primary); list-style:none; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+            .trade-outlook summary::-webkit-details-marker { display:none; }
+            .trade-outlook-more { margin-left:auto; font-size:11px; color:var(--text-secondary); }
+            .trade-outlook-more::after { content:' ▾'; }
+            .trade-outlook[open] .trade-outlook-more::after { content:' ▴'; }
+            .trade-outlook-body { margin-top:6px; display:flex; flex-direction:column; gap:4px; color:var(--text-secondary); }
+            .trade-outlook-row { display:flex; flex-wrap:wrap; gap:10px; }
         </style>
 
         <div class="trade-header">
-            <div>
-                <span style="font-size:13px;color:var(--text-secondary);">Trading at</span>
-                <span style="font-size:14px;font-weight:700;color:var(--text-primary);margin-left:4px;">${settlementName}</span>
-                <span class="trade-settlement-badge">(${settlementType})</span>
-            </div>
+            <span class="trade-settlement-badge" style="text-transform:capitalize;">${settlementType} market</span>
             <div class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</div>
         </div>
         ${outlookHtml}
-
-        ${tile.settlement && tile.settlement.kingdom != null && game.world.getKingdom(tile.settlement.kingdom) ? `<div style="margin:-6px 0 10px; font-size:11px; color:var(--text-secondary);">⚖️ ${policyLine(game.world, game.world.getKingdom(tile.settlement.kingdom))}</div>` : ''}
-        ${SettlementMarket.fair(tile.settlement) ? `<div style="margin:-6px 0 10px; font-size:12px; color:var(--gold);">🎪 The ${SettlementMarket.fair(tile.settlement).name} is on until day ${SettlementMarket.fair(tile.settlement).until}: the stalls ask less and buy dearer.</div>` : ''}
 
         <!-- BUY SECTION -->
         <div class="trade-section${tab === 'buy' ? ' active' : ''}" data-trade-section="buy">`;
@@ -1125,11 +1139,9 @@ Object.assign(ActionMenu, {
                     <span class="trade-icon">${good.icon}</span>
                     <div>
                         <div class="trade-name">${good.name}</div>
-                        ${stockBadge(good.id)}
-                        ${trendBadge(good.id)}
-                        ${policyBadge(good.id, false)}
+                        <div class="trade-meta">${stockBadge(good.id)}${policyBadge(good.id, false)}</div>
                     </div>
-                    <div class="trade-price">${isSoldOut ? '' : unitCost + ' 💰' + whyIcon(priceWhy(why(good.id)), 'Why this price?')}
+                    <div class="trade-price"${trendTitle(good.id)}>${isSoldOut ? '' : unitCost + ' 💰' + whyIcon(priceWhy(why(good.id)), 'Why this price?')}
                         <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
                     </div>
                     <div>${isSoldOut
@@ -1155,13 +1167,9 @@ Object.assign(ActionMenu, {
                     <span class="trade-icon">${item.icon}</span>
                     <div>
                         <div class="trade-name">${item.name}${item.quality ? ` <span style="color:#8fc3ff; font-size:11px;" title="The quality of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
-                        <div class="trade-meta">You have: ${item.quantity}</div>
-                        ${guildBadge(item.id)}
-                        ${policyBadge(item.id, true)}
-                        ${stockBadge(item.id)}
-                        ${trendBadge(item.id)}
+                        <div class="trade-meta"><span class="trade-chip" style="cursor:default">You have ${item.quantity}</span>${stockBadge(item.id)}${guildBadge(item.id)}${policyBadge(item.id, true)}</div>
                     </div>
-                    <div class="trade-price" style="color:#2ecc71;">${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
+                    <div class="trade-price" style="color:#2ecc71;"${trendTitle(item.id)}>${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
                         <span class="trade-qty">per unit</span>
                     </div>
                     <div>

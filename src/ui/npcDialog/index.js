@@ -18,6 +18,8 @@ export const NpcDialog = {
      * @param {object} npc  — NPC object from InnerMap.npcs
      */
     open(game, npc) {
+        // Someone lying senseless can't talk (ui/innerMapCombat.js knockouts)
+        if (!npc || npc.state === 'unconscious') return;
         if (dialogState._active) this.close();
 
         dialogState._game = game;

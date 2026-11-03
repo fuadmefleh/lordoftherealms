@@ -36,6 +36,8 @@ import { Gossip } from '../systems/gossip.js';
 import { Relationships } from '../systems/relationships.js';
 import { Ledger } from '../systems/ledger.js';
 import { Traits } from '../systems/traits.js';
+import { Hex } from '../core/hex.js';
+import { WorldUnit } from '../world/units.js';
 
 const DEFAULTS = {
     cellmates: { count: [2, 3], firstNames: ['Odo'], epithets: ['the Grey'] },
@@ -56,6 +58,30 @@ const DEFAULTS = {
     breakout: { rush: { base: 0.12, combat: 0.04, strength: 0.01 }, slip: { base: 0.1, stealth: 0.04 }, failDays: [2, 5], reputation: 10, bounty: 60 },
     servitude: { bribeShare: 0.4, bribeBase: 0.5, bribeDiplomacy: 0.04, failDays: [1, 3], workExtraDays: 1 },
 };
+
+// The march from a settlement with no jail to one with (data/jail.json → transport)
+const TRANSPORT_DEFAULTS = {
+    jailTypes: ['town', 'city', 'capital'],
+    hexesPerDay: 4,
+    raid: { base: 0.06, perHostile: 0.2, radius: 3, max: 0.6 },
+    events: { bribe: 0.1, delay: 0.08, kindness: 0.08, cruelty: 0.08 },
+    slip: { base: 0.3, stealth: 0.05, agility: 0.02 },
+    fight: { base: 0.35, combat: 0.06, strength: 0.01, reward: 0.34 },
+    stay: { guardsWin: 0.65, takenShare: 0.6 },
+    bribeCost: [20, 60],
+    kindnessHealth: 6,
+    crueltyHealth: 6,
+    lines: { quiet: ['The escort marches on.'], arrive: ['You are marched into {town} in chains.'], outcomes: {} },
+};
+
+function _fill(text, vars = {}) {
+    return text ? String(text).replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)) : text;
+}
+
+function _pick(arr, vars = {}) {
+    if (!Array.isArray(arr) || !arr.length) return null;
+    return _fill(arr[Math.floor(Utils.random() * arr.length) % arr.length], vars);
+}
 
 const ARCHETYPE_ORDER = ['smuggler', 'informant', 'veteran', 'fence'];
 
@@ -390,6 +416,8 @@ export const Prison = {
         const jail = player.jailState;
         const pr = jail && jail.prison;
         player.jailState = null;
+        // How they got out (the jail map opens the cell door, or sees them over the wall)
+        player.lastJailRelease = { how, day: _day(world), settlement: jail ? jail.settlement : null };
         player.stamina = player.maxStamina;
         player.movementRemaining = player.maxStamina;
         if (!pr) return { text: '', friends: [] };
@@ -551,5 +579,245 @@ export const Prison = {
         s.daysRemaining -= extra;
         player.strength = Math.min(20, _num(player.strength, 5) + 0.1);
         return { success: true, extra, text: `You work like two men${extra ? ' and the overseer takes a day off your bond' : ''}.` };
+    },
+
+    // ── The march to a town with a jail ───────────────
+
+    /** The march's settings (data/jail.json → transport). */
+    transportConfig() {
+        const d = DataLoader._gamedata && DataLoader._gamedata.jail && DataLoader._gamedata.jail.transport;
+        return _merge(TRANSPORT_DEFAULTS, d && typeof d === 'object' ? d : {});
+    },
+
+    /** Does a settlement of this size keep a jail? */
+    hasJail(type) {
+        return (Prison.transportConfig().jailTypes || []).includes(type || 'village');
+    },
+
+    /** The settlement the sentence was passed in (by name), or null. */
+    _sentencedAt(player, world) {
+        const jail = player && player.jailState;
+        if (!jail || !world) return null;
+        const all = typeof world.getSettlementViews === 'function' ? world.getSettlementViews()
+            : typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
+        return all.find(s => s && s.name === jail.settlement) || null;
+    },
+
+    /**
+     * The nearest settlement with a jail to march a prisoner from `from` to:
+     * one of the same crown first, any if none. Null when there is none.
+     */
+    jailTownFor(world, from) {
+        if (!world || !from) return null;
+        const all = (typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [])
+            .filter(s => s && s.q != null && Prison.hasJail(s.type) && s.name !== from.name);
+        if (!all.length) return null;
+        const dist = (s) => (world.width ? Hex.wrappingDistance(from.q, from.r, s.q, s.r, world.width) : Hex.distance(from.q, from.r, s.q, s.r));
+        const same = all.filter(s => from.kingdom != null && s.kingdom === from.kingdom);
+        const pool = same.length ? same : all;
+        const best = pool.slice().sort((a, b) => dist(a) - dist(b))[0];
+        return { name: best.name, q: best.q, r: best.r, type: best.type, kingdom: best.kingdom != null ? best.kingdom : null, distance: dist(best) };
+    },
+
+    /** Sentenced where there is no jail, and not yet marched to one? */
+    needsTransport(player, world) {
+        const jail = player && player.jailState;
+        if (!jail || (jail.transport && jail.transport.done)) return false;
+        if (jail.transport) return true;
+        const at = Prison._sentencedAt(player, world);
+        return !!(at && !Prison.hasJail(at.type) && Prison.jailTownFor(world, at));
+    },
+
+    /**
+     * Put the prisoner in chains for the march: from where they were
+     * sentenced to the nearest town with a jail, a few hexes a day.
+     * Returns jailState.transport (the existing one if under way).
+     */
+    beginTransport(player, world) {
+        const jail = player && player.jailState;
+        if (!jail) return null;
+        if (jail.transport) return jail.transport;
+        const at = Prison._sentencedAt(player, world);
+        const to = at && Prison.jailTownFor(world, at);
+        if (!to) return null;
+        const T = Prison.transportConfig();
+        const days = Math.max(1, Math.ceil(to.distance / Math.max(1, _num(T.hexesPerDay, 4))));
+        const path = Hex.lineDraw(at.q, at.r, to.q, to.r);
+        jail.transport = {
+            from: { name: at.name, q: at.q, r: at.r, kingdom: at.kingdom != null ? at.kingdom : null },
+            to, days, day: 0, path, event: null, log: [], done: false,
+        };
+        return jail.transport;
+    },
+
+    /**
+     * A day on the road (from the day's end): the escort marches on — the
+     * prisoner's place on the map moves with them — and something may happen:
+     * raiders fall on the escort (likelier with raiders about), a guard eyes
+     * the prisoner's purse, a wheel breaks, a kindness, a cruelty. Arrived,
+     * the sentence passes to the jail there. A choice left unmade is settled
+     * the quiet way. On the prison's own seeded stream.
+     * @returns {{ text, kind, arrived?:boolean, choice?:boolean } | null}
+     */
+    transportStep(player, world) {
+        const jail = player && player.jailState;
+        const tr = jail && jail.transport;
+        if (!tr || tr.done) return null;
+        // Yesterday's choice, never made: the quiet way
+        if (tr.event && tr.event.choice && !tr.event.resolved) Prison.transportChoice(player, world, tr.event.kind === 'raid' ? 'stay' : 'refuse');
+        if (!player.jailState || tr.done) return null;
+        const T = Prison.transportConfig();
+        return Utils.withRng(Prison._rng(world, player), () => {
+            const delayed = tr.event && tr.event.kind === 'delay' && !tr.event.spent;
+            if (delayed) tr.event.spent = true;
+            else tr.day += 1;
+            const step = tr.path.length > 1 ? tr.path[Math.min(tr.path.length - 1, Math.round((tr.day / tr.days) * (tr.path.length - 1)))] : tr.to;
+            player.q = step.q;
+            player.r = step.r;
+            if (tr.day >= tr.days) {
+                tr.done = true;
+                jail.settlement = tr.to.name;
+                jail.prison = null;
+                const text = _pick(T.lines.arrive, { town: tr.to.name }) || `You are marched into ${tr.to.name} in chains.`;
+                tr.event = { kind: 'arrive', text, resolved: true };
+                tr.log.push(text);
+                return { ...tr.event, arrived: true };
+            }
+            // Raiders about make an ambush likelier
+            const R = T.raid;
+            const near = (world.units || []).filter(u => u && !u.destroyed && WorldUnit.isHostile(u)
+                && (world.width ? Hex.wrappingDistance(u.q, u.r, step.q, step.r, world.width) : Hex.distance(u.q, u.r, step.q, step.r)) <= _num(R.radius, 3)).length;
+            const raidChance = Math.min(_num(R.max, 0.6), _num(R.base, 0.06) + near * _num(R.perHostile, 0.2));
+            const E = T.events;
+            const roll = Utils.random();
+            let kind = 'quiet';
+            if (roll < raidChance) kind = 'raid';
+            else {
+                let acc = raidChance;
+                for (const k of ['bribe', 'delay', 'kindness', 'cruelty']) {
+                    acc += _num(E[k]);
+                    if (roll < acc) { kind = k; break; }
+                }
+            }
+            const vars = { town: tr.to.name, from: tr.from.name, left: tr.days - tr.day };
+            const ev = { kind, text: _pick(T.lines[kind], vars) || '', choice: kind === 'raid' || kind === 'bribe', resolved: false, raiders: near };
+            if (kind === 'bribe') {
+                const [lo, hi] = T.bribeCost;
+                ev.cost = Math.round(lo + Utils.random() * (hi - lo));
+                ev.text = _fill(ev.text, { cost: ev.cost });
+            }
+            if (kind === 'kindness') player.health = Math.min(_num(player.maxHealth, 100), _num(player.health, 100) + _num(T.kindnessHealth, 6));
+            if (kind === 'cruelty') player.health = Math.max(5, _num(player.health, 100) - _num(T.crueltyHealth, 6));
+            if (!ev.choice) ev.resolved = true;
+            tr.event = ev;
+            tr.log.push(ev.text);
+            if (tr.log.length > 8) tr.log.splice(0, tr.log.length - 8);
+            return ev;
+        });
+    },
+
+    /** The odds of each way out of a raid on the road. */
+    transportOdds(player) {
+        const T = Prison.transportConfig();
+        const s = T.slip, f = T.fight;
+        const agility = _num(player && (player.agility != null ? player.agility : player.dexterity), 5);
+        return {
+            slip: _clamp(_num(s.base) + _skill(player, 'stealth') * _num(s.stealth) + agility * _num(s.agility)),
+            fight: _clamp(_num(f.base) + _skill(player, 'combat') * _num(f.combat) + _num(player && player.strength, 5) * _num(f.strength)),
+        };
+    },
+
+    /**
+     * Answer the day's event on the road. Raid: 'slip' (away in the fight —
+     * an escape, with its heat and bounty), 'fight' (beside the guards: a
+     * shorter sentence for it), 'stay' (the guards drive them off — or they
+     * scatter the escort and take you, or rob you and leave you on the road).
+     * Bribe: 'pay' (loosed in the night — an escape) or 'refuse'.
+     * @returns {{ success, text, escaped?, captured?, freed?, reason? }}
+     */
+    transportChoice(player, world, choice) {
+        const jail = player && player.jailState;
+        const tr = jail && jail.transport;
+        const ev = tr && tr.event;
+        if (!ev || !ev.choice || ev.resolved) return { success: false, reason: 'Nothing to decide.' };
+        const T = Prison.transportConfig();
+        const odds = Prison.transportOdds(player);
+        const L = T.lines.outcomes || {};
+        const done = (text, extra = {}) => {
+            ev.resolved = true;
+            ev.outcome = text;
+            tr.log.push(text);
+            return { success: true, text, ...extra };
+        };
+        if (ev.kind === 'bribe') {
+            if (choice === 'pay') {
+                if (_num(player.gold) < ev.cost) return { success: false, reason: `The guard wants ${ev.cost} gold.` };
+                player.gold -= ev.cost;
+                Ledger.record(player, 'bribes', -ev.cost);
+                const rel = Prison._escapedCustody(player, world, tr);
+                return done(`${_fill(L.bribePaid || 'Your chains are loose by morning.', { cost: ev.cost })}${rel ? ` ${rel}` : ''}`, { escaped: true });
+            }
+            return done(L.bribeRefused || 'You keep your coin. The guard spits.');
+        }
+        // A raid
+        if (choice === 'slip') {
+            if (Utils.random() < odds.slip) {
+                const rel = Prison._escapedCustody(player, world, tr);
+                return done(`${L.slipped || 'In the fight you slip your chains and run.'}${rel ? ` ${rel}` : ''}`, { escaped: true });
+            }
+            const [lo, hi] = Prison.config().breakout.failDays;
+            const added = Utils.randInt(lo, hi);
+            jail.daysRemaining += added;
+            jail.totalDays += added;
+            player.health = Math.max(5, _num(player.health, 100) - 8);
+            return done(_fill(L.slipCaught || 'They catch you running: +{added} days and a beating.', { added }));
+        }
+        if (choice === 'fight') {
+            if (Utils.random() < odds.fight) {
+                const cut = Math.max(1, Math.round(jail.daysRemaining * _num(T.fight.reward, 0.34)));
+                jail.daysRemaining = Math.max(1, jail.daysRemaining - cut);
+                if (!player.skills) player.skills = {};
+                player.skills.combat = Math.min(10, _skill(player, 'combat') + 0.2);
+                return done(_fill(L.fought || 'You fight beside the guards; the captain takes {cut} days off your sentence.', { cut }));
+            }
+            player.health = Math.max(5, _num(player.health, 100) - 12);
+            return done(L.foughtHurt || 'You are cut down in the fight; the guards drive the raiders off without you.');
+        }
+        // Stay down
+        const S = T.stay;
+        if (Utils.random() < _num(S.guardsWin, 0.65)) return done(L.guardsWin || 'The guards drive the raiders off.');
+        if (Utils.random() < _num(S.takenShare, 0.6)) {
+            // Taken by the raiders: from the crown's chains into theirs (indentured servitude)
+            const days = Utils.randInt(5, 12);
+            const took = Math.floor(_num(player.gold) * 0.3);
+            player.gold = _num(player.gold) - took;
+            player.jailState = null;
+            player.lastJailRelease = { how: 'taken', day: _day(world), settlement: tr.to.name };
+            player.indenturedServitude = {
+                captor: 'the raiders', daysRemaining: days, totalDays: days, dailyWage: 0, goldConfiscated: took,
+                canBuyFreedom: true, freedomCost: 150 + days * 10, escapeChance: 0.1 + _skill(player, 'stealth') * 0.03,
+            };
+            return done(_fill(L.taken || 'The escort scatters; the raiders take you for themselves: {days} days in their chains.', { days }), { captured: true });
+        }
+        const took = Math.floor(_num(player.gold) * 0.5);
+        player.gold = _num(player.gold) - took;
+        if (took > 0) Ledger.record(player, 'robbery', -took);
+        player.jailState = null;
+        player.lastJailRelease = { how: 'abandoned', day: _day(world), settlement: tr.from.name };
+        return done(_fill(L.abandoned || 'The escort flees; the raiders take {took} gold and leave you chained on the road. You work the chains loose by dark — free.', { took }), { freed: true });
+    },
+
+    /** Away from the escort: a jailbreak in the crown's eyes (heat, a bounty, reputation). Returns what friends do. */
+    _escapedCustody(player, world, tr) {
+        const kingdom = tr ? (tr.from.kingdom != null ? tr.from.kingdom : tr.to.kingdom) : null;
+        const b = Prison.config().breakout;
+        Underworld.recordCrime(player, world, 'jailbreak', { kingdom });
+        if (kingdom != null && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(b.reputation, 10);
+        if (kingdom != null) {
+            Gossip.initializePlayer(player);
+            player.gossip.bounties.push({ rumorId: null, kingdom, gold: _num(b.bounty, 60) + _num(player.jailState && player.jailState.daysRemaining) * 5, issuedDay: _day(world), description: 'escaped custody' });
+        }
+        const rel = Prison.release(player, world, 'escaped');
+        return rel.text || '';
     },
 };

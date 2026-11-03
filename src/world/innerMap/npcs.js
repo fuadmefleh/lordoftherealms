@@ -79,6 +79,8 @@ Object.assign(InnerMap, {
                     buildingType = customBuildingDef.buildingType;
                 }
             }
+            // A building raised on a lot is what it was built as, never one of the town's roles
+            if (tile.customBuilding && tile.customBuilding.lotId) buildingType = (customBuildingDef && customBuildingDef.buildingType) || 'house';
             // Skip player property tiles — they are handled by _addPropertyBuildings()
             if (tile._buildingTypeHint === 'player_property') continue;
             if (!buildingType && tile._buildingTypeHint) {
@@ -111,6 +113,9 @@ Object.assign(InnerMap, {
             if (customDefId) {
                 bldg._customDefId = customDefId;
             }
+            // A building on a lot (world/innerMap/lots.js)
+            const lotId = this.tiles[bt.r][bt.q].customBuilding && this.tiles[bt.r][bt.q].customBuilding.lotId;
+            if (lotId) bldg._lotId = lotId;
 
             // Update the tile's building info
             this.tiles[bt.r][bt.q].buildingInfo = bldg;
@@ -324,9 +329,10 @@ Object.assign(InnerMap, {
         const typeDef = this.NPC_TYPES[npcType];
         if (!typeDef) return null;
 
-        // Pick random passable tile for initial position
+        // On the town's own streets (world/innerMap/townLife.js) — never out in the fields or at the map's edge
         let q, r, attempts = 0;
-        do {
+        const spot = this.townSpot ? this.townSpot(rng) : null;
+        if (spot) { q = spot.q; r = spot.r; } else do {
             q = Math.floor(rng() * this.width);
             r = Math.floor(rng() * this.height);
             attempts++;
@@ -513,9 +519,14 @@ Object.assign(InnerMap, {
                                     npc.idleTimer = 8 + Utils.random() * 20; // stay inside 8-28 seconds
                                     // Night: home for the night (guards keep their watch)
                                     if (this._isNpcNight() && npc.type !== 'guard') npc.idleTimer = 40 + Utils.random() * 40;
+                                    // As long as the business takes (world/innerMap/townLife.js)
+                                    if (npc._stayFor) { npc.idleTimer = npc._stayFor; npc._stayFor = null; }
                                     npc._targetBuilding = null;
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
+                                } else if (npc._activity) {
+                                    // At the market, the well, a friend's side, a post (world/innerMap/townLife.js)
+                                    this._npcArrivedInTown(npc);
                                 } else {
                                     npc.state = 'idle';
                                     npc.idleTimer = 1 + Utils.random() * 4;
@@ -543,6 +554,9 @@ Object.assign(InnerMap, {
                     if (this._insideBuilding) { this._updateInteriorNpc(npc, deltaTime); break; }
                     npc.idleTimer -= deltaTime;
                     if (npc.idleTimer <= 0) {
+                        // Abed at night: stay in till morning (world/innerMap/townLife.js)
+                        const longer = this._townStayInside(npc);
+                        if (longer > 0) { npc.idleTimer = longer; break; }
                         if (this._insideBuilding) {
                             // Player is viewing this interior — NPC "leaves" the building
                             // Remove from interior npcs array (they'll reappear outside
@@ -656,6 +670,18 @@ Object.assign(InnerMap, {
             }
             // Can't path to edge, just vanish
             npc.state = 'gone';
+            return;
+        }
+
+        // In a town: home, work, market, tavern, a word with a neighbour, the
+        // watch's posts and beat — always within the town (world/innerMap/townLife.js)
+        if (!this._insideBuilding && this.townArea()) {
+            npc._activity = null;
+            const ok = this._townPickActivity(npc);
+            if (!ok && npc.state !== 'walking' && npc.state !== 'inside_building') {
+                npc.state = 'idle';
+                npc.idleTimer = 2 + Utils.random() * 3;
+            }
             return;
         }
 

@@ -1,0 +1,152 @@
+{
+    "_doc": "The jail map (world/innerMap/jail.js, ui/innerMapJail.js): the names of the other prisoners and the gaoler, and what they say. The cellmates themselves are named by player/prison.js (data/underworld.json → prison). transport: the march when sentenced where there is no jail (villages) — to the nearest town of jailTypes (the same crown first), hexesPerDay; each day on the road raiders may fall on the escort (raid: base chance, more per hostile band within radius hexes, capped at max), or a guard offers to loose you for coin (bribe), a wheel breaks (delay: a day lost), a kindness or a cruelty (health). Raid choices: slip (stealth, agility — an escape), fight (combat, strength — the captain takes reward share off the sentence), stay (the guards win guardsWin of the time; else the raiders take you into servitude takenShare of the rest, or rob you and leave you free). lines: {town}, {from}, {left}, {cost}, {days}, {took}, {added}, {cut}. zones: places the player may not go (tile._zone; ui/innerMapZones.js). jail_cells — the cells and the corridor behind the gaol's front room, closed to visitors: the warden (the gaoler) warns the first time, and at the second step in (or graceSeconds lingering after the warning) shouts and attacks.",
+    "prisonerNames": [
+        "Wat",
+        "Hob",
+        "Ned",
+        "Gib",
+        "Tam",
+        "Dun",
+        "Col",
+        "Ivo",
+        "Rafe",
+        "Lew",
+        "Aldo",
+        "Sim",
+        "Peck",
+        "Garth"
+    ],
+    "gaolerNames": [
+        "Grimbald",
+        "Osric",
+        "Hamon",
+        "Brice",
+        "Ulric",
+        "Fulk"
+    ],
+    "prisonerLines": [
+        "Got a crust, friend?",
+        "They'll hang me come spring.",
+        "Shut it, I'm sleeping.",
+        "I didn't do it. None of us did.",
+        "*coughs*",
+        "Rats again last night. Big as cats.",
+        "What're you in for?",
+        "Three winters I've been in here.",
+        "Don't drink the water.",
+        "The gaoler's soft on coin, if you've any."
+    ],
+    "gaolerLines": [
+        "Quiet in there.",
+        "Back from the bars.",
+        "Bread at dusk. If you're lucky.",
+        "Who's singing? Stop it.",
+        "*rattles his keys*",
+        "Another night of you lot."
+    ],
+    "transport": {
+        "jailTypes": [
+            "town",
+            "city",
+            "capital"
+        ],
+        "hexesPerDay": 4,
+        "raid": {
+            "base": 0.06,
+            "perHostile": 0.2,
+            "radius": 3,
+            "max": 0.6
+        },
+        "events": {
+            "bribe": 0.1,
+            "delay": 0.08,
+            "kindness": 0.08,
+            "cruelty": 0.08
+        },
+        "slip": {
+            "base": 0.3,
+            "stealth": 0.05,
+            "agility": 0.02
+        },
+        "fight": {
+            "base": 0.35,
+            "combat": 0.06,
+            "strength": 0.01,
+            "reward": 0.34
+        },
+        "stay": {
+            "guardsWin": 0.65,
+            "takenShare": 0.6
+        },
+        "bribeCost": [
+            20,
+            60
+        ],
+        "kindnessHealth": 6,
+        "crueltyHealth": 6,
+        "lines": {
+            "quiet": [
+                "The escort marches on. Your wrists are raw under the irons.",
+                "A long day on the road. The guards talk of a girl in {town}.",
+                "Rain all day. The chains are cold and the guards are colder.",
+                "You pass a gibbet at a crossroads. The guards laugh.",
+                "Farmers stop work to watch the prisoner go by.",
+                "{left} day(s) more to {town}, says the sergeant."
+            ],
+            "raid": [
+                "Arrows from the treeline! Raiders fall on the escort.",
+                "A band of raiders blocks the road, blades out. The guards close round the cart.",
+                "Shouts in the dusk — riders coming hard. Raiders!"
+            ],
+            "bribe": [
+                "The youngest guard sidles up at the fire. \"{cost} gold, and your chains come loose tonight.\"",
+                "A guard eyes your purse. \"For {cost} gold I sleep sound and you walk.\""
+            ],
+            "delay": [
+                "A cart wheel splits in a rut. A day lost mending it.",
+                "A flooded ford. The escort waits a day for the water to fall."
+            ],
+            "kindness": [
+                "A farmwife presses bread and a cup of milk into your hands.",
+                "An old priest on the road says a prayer for you and shares his water."
+            ],
+            "cruelty": [
+                "A guard takes his temper out on you with the butt of his spear.",
+                "They make you walk behind the horses, in the dust, all day."
+            ],
+            "arrive": [
+                "You are marched through the gates of {town} in chains, to its gaol.",
+                "The walls of {town} at last — and its gaol."
+            ],
+            "outcomes": {
+                "slipped": "In the fight you slip your chains and run for the trees. No one follows — yet.",
+                "slipCaught": "A guard rides you down: +{added} days, and a beating for your trouble.",
+                "fought": "You snatch up a fallen blade and fight beside the guards. When it is over the captain takes {cut} days off your sentence.",
+                "foughtHurt": "You throw yourself into the fight and are cut for it. The guards drive the raiders off without you.",
+                "guardsWin": "You keep your head down. The guards drive the raiders off.",
+                "taken": "The escort breaks and scatters. The raiders take you for themselves — {days} days in their chains.",
+                "abandoned": "The escort breaks and flees. The raiders take {took} gold and leave you chained in the road. By dark you have worked the irons loose — free.",
+                "bribePaid": "You press {cost} gold into his hand. Before dawn your chains are loose and the guard is snoring.",
+                "bribeRefused": "You keep your coin. The guard spits and walks off."
+            }
+        }
+    },
+    "zones": {
+        "jail_cells": {
+            "warden": "gaoler",
+            "graceSeconds": 6,
+            "warn": [
+                "Oi! No one goes back there. Out!",
+                "Where do you think you're going? Back to the front, now.",
+                "Visitors stay out front. Move."
+            ],
+            "warnNote": "Go back to the front room.",
+            "attack": [
+                "I warned you! You want a cell of your own?",
+                "Right — that's it!",
+                "Told you once. Now you learn."
+            ],
+            "attackNote": "You were told to stay out front."
+        }
+    }
+}

@@ -30,6 +30,7 @@
 import { CustomBuildings } from './customBuildings.js';
 import { CustomObjects } from './customObjects.js';
 import { TownProps, FIELD_W, FIELD_H } from './townProps.js';
+import { LotBook } from './lotBook.js';
 
 /** How each size of settlement is laid out. */
 export const PLAN = {
@@ -65,13 +66,13 @@ const STYLE_MIX = {
 /** Landmarks that belong out at the edge of town rather than its heart. */
 const EDGE_TYPES = new Set(['granary', 'mill', 'barn', 'stable', 'farm', 'pasture', 'roadhouse']);
 /** Landmarks that want the square itself. */
-const SQUARE_TYPES = new Set(['town_hall', 'church', 'temple', 'guildhall', 'marketplace', 'bank', 'tavern', 'inn', 'hotel', 'manor', 'mint']);
+const SQUARE_TYPES = new Set(['town_hall', 'church', 'temple', 'guildhall', 'marketplace', 'bank', 'tavern', 'inn', 'hotel', 'manor', 'mint', 'castle']);
 
 /** What lies about beside a building of each type (TownProps tags). */
 const SIDE_TAGS = {
     tavern: 'tavern', inn: 'tavern', roadhouse: 'tavern', guest_house: 'house', hotel: 'grand',
     blacksmith: 'blacksmith', bakery: 'bakery', granary: 'granary', mill: 'granary', warehouse: 'warehouse',
-    stable: 'stable', barn: 'farm', marketplace: 'stall', apothecary: 'garden', manor: 'grand',
+    stable: 'stable', barn: 'farm', marketplace: 'stall', apothecary: 'garden', manor: 'grand', castle: 'grand',
 };
 
 function _shuffle(arr, rng) {
@@ -306,7 +307,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
     const layout = layoutIn || { required: [], optional: [], maxBuildings: P.maxBuildings };
     const required = [...(layout.required || [])];
     const optional = _shuffle([...(layout.optional || [])].filter(t => t !== 'house'), rng);
-    const order = t => (t === 'town_hall' ? 0 : SQUARE_TYPES.has(t) ? 1 : EDGE_TYPES.has(t) ? 3 : 2);
+    const order = t => (t === 'castle' ? -1 : t === 'town_hall' ? 0 : SQUARE_TYPES.has(t) ? 1 : EDGE_TYPES.has(t) ? 3 : 2);
     required.sort((a, b) => order(a) - order(b));
     const landmarkTypes = [...required, ...optional.slice(0, Math.max(0, Math.round(optional.length * 0.6)))];
     const frontLines = lines.filter(l => l.kind !== 'plaza');
@@ -336,6 +337,66 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
                 if (tryOnLine(def, s.line, s.x, 0)) { done = true; break; }
             }
             if (done) break;
+        }
+    }
+
+    // 4a½. Building lots: empty ground set aside along the streets, for sale to anyone (world/lotBook.js).
+    // Many in a village, few in a city. Each fronts its street; tiles carry _lot = its id.
+    const lots = [];
+    {
+        const want = LotBook.lotIds(type).length;
+        const wR = LotBook.byType('width', type) || [6, 8];
+        const dR = LotBook.byType('depth', type) || [5, 6];
+        const clear = (q0, q1, r0, r1) => {
+            for (let r = r0; r <= r1; r++) for (let q = q0; q <= q1; q++) {
+                if (q < 2 || r < 2 || q >= W - 2 || r >= H - 2) return false;
+                const t = tiles[r][q];
+                if (t.isRoad || t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t._reserved || t._lot) return false;
+            }
+            return true;
+        };
+        // A lot fronts a street from either side (its gate on the street); a village's reach its outskirts too
+        const outer = type === 'village' ? 1.15 : 0.98;
+        const cands = [];
+        for (const line of frontLines) {
+            for (let x = line.x0; x <= line.x1; x++) {
+                const d = reach(x, line.top(x));
+                if (d > outer || d < 0.15) continue;
+                cands.push({ line, x, side: -1, score: rng() });
+                cands.push({ line, x, side: 1, score: rng() });
+            }
+        }
+        cands.sort((a, b) => a.score - b.score);
+        for (const c of cands) {
+            if (lots.length >= want) break;
+            const w = _ri(rng, wR), dpt = _ri(rng, dR);
+            const q0 = c.x, q1 = c.x + w - 1;
+            if (q1 > c.line.x1) continue;
+            let r0, r1, gateR;
+            if (c.side < 0) {
+                // North of the street, its front row on the street
+                let front = Infinity;
+                for (let q = q0; q <= q1; q++) front = Math.min(front, c.line.top(q));
+                r1 = front - 1; r0 = r1 - dpt + 1; gateR = r1 + 1;
+            } else {
+                // South of the street, its back to the fields
+                let back = -Infinity;
+                for (let q = q0; q <= q1; q++) back = Math.max(back, c.line.bottom(q));
+                r0 = back + 1; r1 = r0 + dpt - 1; gateR = r0 - 1;
+            }
+            // A tile's breathing room either side, so a lot never butts on a wall
+            if (!clear(q0 - 1, q1 + 1, r0, r1)) continue;
+            // Its gate (the middle of its front) on the street
+            const mid = Math.floor((q0 + q1) / 2);
+            if (!isRoad(mid, gateR)) continue;
+            const id = `lot${lots.length}`;
+            for (let r = r0; r <= r1; r++) for (let q = q0; q <= q1; q++) {
+                const t = tiles[r][q];
+                t._lot = id;
+                t._reserved = true;
+                t._townCleared = true;
+            }
+            lots.push({ id, q0, q1, r0, r1, w, h: dpt, gate: c.side < 0 ? 'south' : 'north' });
         }
     }
 
@@ -524,6 +585,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
         fields++;
     }
     for (const row of tiles) for (const t of row) if (t._reserved) delete t._reserved;
+    tiles._lots = lots;
 
     // ── 7. Tell the scatter where the town is: no wild trees inside it, fewer near it ──
     for (let r = 0; r < H; r++) {
@@ -534,5 +596,5 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
         }
     }
 
-    return { roadTiles, buildings: placed.length, center: { q: cx, r: cy }, plaza: { q: pq0, r: plazaTop, w: pw, h: ph } };
+    return { roadTiles, buildings: placed.length, center: { q: cx, r: cy }, plaza: { q: pq0, r: plazaTop, w: pw, h: ph }, lots };
 }

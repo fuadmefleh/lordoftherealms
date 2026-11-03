@@ -4,6 +4,10 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, PlayerInventory } from './_gameImports.js';
 import { Afterlife } from '../../player/afterlife.js';
+import { InnerMapTasks } from '../innerMapTasks.js';
+import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapJail } from '../innerMapJail.js';
+import { InnerMapZones } from '../innerMapZones.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -94,10 +98,8 @@ export function gameLoop(timestamp, loopId) {
         }
         if (playerStepResult) {
             if (playerStepResult.moved) {
+                // (No tile panel on every step: it only cluttered the street view)
                 const arrivedTile = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
-                if (arrivedTile) {
-                    this.ui.showInnerHexInfo(arrivedTile, InnerMap.playerInnerQ, InnerMap.playerInnerR);
-                }
 
                 if (playerStepResult.encounter) {
                     this._showEncounterNotification(playerStepResult.encounter);
@@ -138,6 +140,14 @@ export function gameLoop(timestamp, loopId) {
                                 this.innerMapCamera.precomputeFrame();
                             }
                             this.ui.showNotification(`🚪 Entered ${autoEnterBuilding.name}`, `You step inside ${autoEnterBuilding.name}. Press ESC or click "Exit" to leave.`, 'info');
+                        } else if (InnerMap._entryRefused) {
+                            // Turned away at a lord's door (world/innerMap/seats.js): back off the step
+                            const no = InnerMap._entryRefused;
+                            InnerMap._entryRefused = null;
+                            const back = InnerMap._findPassableAdjacentTile(autoEnterBuilding.q, autoEnterBuilding.r);
+                            if (back) { InnerMap.playerInnerQ = back.q; InnerMap.playerInnerR = back.r; }
+                            const who = no.by ? `${no.by.name}, ${no.by.roleTitle || 'Guard'}` : autoEnterBuilding.name;
+                            this.ui.showNotification(no.by ? `💂 ${who}` : '🚪 Barred', no.by ? `"${no.text}"` : no.text, 'warning');
                         }
                     }
                 }
@@ -243,7 +253,13 @@ export function gameLoop(timestamp, loopId) {
         // ── Update combat system (NPC attacks, float numbers, hit flashes) ──
         if (typeof InnerMapCombat !== 'undefined') {
             InnerMapCombat.update(simDelta, this);
+            InnerMapJail.update(this);
+            InnerMapZones.update(this);
         }
+        // Jobs done in person on the street map (ui/innerMapTasks.js)
+        InnerMapTasks.update(simDelta, this);
+        // Digging, filling in, burying (ui/innerMapDigging.js)
+        InnerMapDigging.update(simDelta, this);
 
         // Update light system from time of day
         if (typeof LightSystem !== 'undefined') {
@@ -253,6 +269,7 @@ export function gameLoop(timestamp, loopId) {
 
         // Render inner map
         InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
+        InnerMapTasks.render(this.renderer.ctx, this.innerMapCamera, this.canvas);
 
         // Render minimap for inner map
         this.minimap.render();
@@ -517,11 +534,8 @@ export function setupInputHandlers() {
                 // If inside a building, exit the building first
                 if (InnerMap._insideBuilding) {
                     InnerMapRenderer.closeContextMenu();
-                    InnerMap.exitBuilding(this);
-                    // Re-setup the camera for the outer inner map (and drop the
-                    // interior's selection, whose coordinates no longer apply)
-                    this._configureInnerMapCamera('outer');
-                    this.ui.showNotification('🚪 Exited Building', 'You step back outside.', 'info');
+                    // (Re-sets the camera for the outer map; refuses in a locked cell)
+                    this._leaveBuilding();
                     return;
                 }
                 this.exitInnerMap();
@@ -842,15 +856,10 @@ export function handleDoubleClick(screenX, screenY) {
     // Block clicks while inner map is loading
     if (this._enteringInnerMap) return;
 
-    // Double-click in inner map shows detailed tile info
+    // Double-click in inner map selects the tile (no tile-info panel on the street map)
     if (InnerMap.active) {
         const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
-        if (!innerHex) return;
-        InnerMapRenderer._selectedInnerHex = innerHex;
-        const innerTile = InnerMap.getTile(innerHex.q, innerHex.r);
-        if (innerTile) {
-            this.ui.showInnerHexInfo(innerTile, innerHex.q, innerHex.r);
-        }
+        if (innerHex) InnerMapRenderer._selectedInnerHex = innerHex;
         return;
     }
 

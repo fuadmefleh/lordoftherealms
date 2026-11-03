@@ -11,6 +11,45 @@ const INNER_ZOOM_LEVELS = [0, 2, 3, 4, 6];
 const INNER_ZOOM_DEFAULT = 2;
 const INNER_REFRESH_MS = 100;
 const INNER_TERRAIN_REBAKE_MS = 2000;
+const FILTER_KEY = 'lotr_minimapFilters';
+
+/** What the minimap can show or hide, by view. Buildings are grouped by type. */
+const INNER_FILTERS = [
+    { id: 'trade', label: 'Shops & trade' },
+    { id: 'lodging', label: 'Inns & taverns' },
+    { id: 'faith', label: 'Temples' },
+    { id: 'civic', label: 'Hall & watch' },
+    { id: 'work', label: 'Work & crafts' },
+    { id: 'homes', label: 'Homes' },
+    { id: 'people', label: 'People' },
+];
+const WORLD_FILTERS = [
+    { id: 'towns', label: 'Towns' },
+    { id: 'realms', label: 'Kingdom colours' },
+];
+const BUILDING_GROUP = {
+    marketplace: 'trade', trading_post: 'trade', warehouse: 'trade', bank: 'trade', mint: 'trade', bakery: 'trade',
+    apothecary: 'trade', post_house: 'trade',
+    tavern: 'lodging', inn: 'lodging', guest_house: 'lodging', hotel: 'lodging', roadhouse: 'lodging', brewery: 'lodging', bathhouse: 'lodging',
+    church: 'faith', temple: 'faith', chapel: 'faith',
+    town_hall: 'civic', barracks: 'civic', guard_tower: 'civic', jail: 'civic', library: 'civic', guildhall: 'civic', manor: 'civic', castle: 'civic',
+    house: 'homes',
+};
+
+/** Which filter group an inner-map building belongs to. */
+export function minimapBuildingGroup(bldg) {
+    const type = String((bldg && bldg.type) || '').replace(/^player_/, '');
+    return BUILDING_GROUP[type] || 'work';
+}
+
+/** A building's name for the hover label. */
+function _buildingLabel(bldg) {
+    const type = String(bldg.type || '').replace(/^player_/, '').replace(/_/g, ' ');
+    const kind = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Building';
+    // A proper name ("The Gilded Tankard") with its kind; a bare generic one ("House") gives way to the type
+    if (bldg.name && /\s/.test(bldg.name.trim()) && bldg.name.toLowerCase() !== type.toLowerCase()) return `${bldg.name} (${kind})`;
+    return kind;
+}
 
 export class Minimap {
     constructor(game) {
@@ -29,6 +68,100 @@ export class Minimap {
 
         // Click on minimap to navigate
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
+
+        // Hover: what's under the pointer (a building, a person, a town)
+        this._markers = [];
+        this.canvas.addEventListener('mousemove', (e) => this._hover(e));
+        this.canvas.addEventListener('mouseleave', () => this._hideTip());
+
+        // What to show (kept per viewer)
+        this.filters = {};
+        try {
+            const saved = JSON.parse(localStorage.getItem(FILTER_KEY) || '{}');
+            if (saved && typeof saved === 'object') this.filters = saved;
+        } catch (e) { this.filters = {}; }
+        const btn = document.getElementById('minimapFilterBtn');
+        if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); this.toggleFilters(); });
+    }
+
+    /** Is this layer shown? (Everything is, until turned off.) */
+    shows(id) {
+        return this.filters[id] !== false;
+    }
+
+    setFilter(id, on) {
+        this.filters[id] = !!on;
+        try { localStorage.setItem(FILTER_KEY, JSON.stringify(this.filters)); } catch (e) { /* private window */ }
+        this.needsRedraw = true;
+        this._innerLastDraw = 0;
+    }
+
+    /** Open or close the "show on map" list for the current view. */
+    toggleFilters() {
+        const container = document.getElementById('minimapContainer');
+        if (!container) return;
+        let pop = document.getElementById('minimapFilters');
+        if (pop) { pop.remove(); return; }
+        const inner = this.game.innerMapMode && InnerMap.active;
+        const list = inner ? INNER_FILTERS : WORLD_FILTERS;
+        pop = document.createElement('div');
+        pop.id = 'minimapFilters';
+        pop.className = 'minimap-filters';
+        pop.innerHTML = `<div class="minimap-filters-title">Show on map</div>${list.map(f => `
+            <label class="minimap-filter"><input type="checkbox" data-filter="${f.id}" ${this.shows(f.id) ? 'checked' : ''}> ${f.label}</label>`).join('')}`;
+        pop.addEventListener('change', (e) => {
+            const id = e.target && e.target.dataset && e.target.dataset.filter;
+            if (id) this.setFilter(id, e.target.checked);
+        });
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        container.appendChild(pop);
+        const close = () => { pop.remove(); document.removeEventListener('click', close); };
+        setTimeout(() => document.addEventListener('click', close), 0);
+    }
+
+    /** Pointer position in the minimap's drawing units. */
+    _pointer(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            mx: (e.clientX - rect.left) * (this.w / rect.width),
+            my: (e.clientY - rect.top) * (this.h / rect.height),
+        };
+    }
+
+    _hover(e) {
+        const { mx, my } = this._pointer(e);
+        let best = null;
+        for (const m of this._markers) {
+            const d = Math.hypot(m.x - mx, m.y - my);
+            if (d <= m.r && (!best || d < best.d)) best = { m, d };
+        }
+        if (!best) { this._hideTip(); this.canvas.style.cursor = ''; return; }
+        this.canvas.style.cursor = 'help';
+        this._showTip(best.m.label, best.m.x, best.m.y);
+    }
+
+    _showTip(text, x, y) {
+        const container = document.getElementById('minimapContainer');
+        if (!container) return;
+        let tip = document.getElementById('minimapTip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'minimapTip';
+            tip.className = 'minimap-tip';
+            container.appendChild(tip);
+        }
+        if (tip.textContent !== text) tip.textContent = text;
+        // Drawing units to the container's own (zoomed) CSS pixels
+        const sx = this.canvas.clientWidth / this.w;
+        const sy = this.canvas.clientHeight / this.h;
+        tip.style.left = `${this.canvas.offsetLeft + x * sx}px`;
+        tip.style.top = `${this.canvas.offsetTop + y * sy}px`;
+        tip.style.display = 'block';
+    }
+
+    _hideTip() {
+        const tip = document.getElementById('minimapTip');
+        if (tip) tip.style.display = 'none';
     }
 
     /**
@@ -131,7 +264,7 @@ export class Minimap {
                 // If renderer has an active map mode, use its colour scheme
                 if (renderer && renderer.mapMode !== 'normal') {
                     color = renderer.getMapModeColor(tile);
-                } else if (tile.kingdom) {
+                } else if (tile.kingdom && this.shows('realms')) {
                     // Default: override with kingdom color for territory
                     const kingdom = world.getKingdom(tile.kingdom);
                     if (kingdom) {
@@ -150,8 +283,9 @@ export class Minimap {
             }
         }
 
-        // Draw settlements
-        for (let r = 0; r < world.height; r++) {
+        // Draw settlements (and remember them for the hover label)
+        const markers = [];
+        for (let r = 0; r < world.height && this.shows('towns'); r++) {
             for (let q = 0; q < world.width; q++) {
                 const tile = world.tiles[r][q];
                 if (!tile.settlement || !tile.explored) continue;
@@ -159,14 +293,15 @@ export class Minimap {
                 const capital = tile.settlement.type === 'capital';
                 ctx.fillStyle = capital ? '#f5c542' : '#ffffff';
                 const dotSize = capital ? 3 : 1.5;
-                ctx.fillRect(
-                    ox + (q + 0.5) * tileW - dotSize / 2,
-                    oy + (r + 0.5) * tileH - dotSize / 2,
-                    dotSize,
-                    dotSize
-                );
+                const cx = ox + (q + 0.5) * tileW, cy = oy + (r + 0.5) * tileH;
+                ctx.fillRect(cx - dotSize / 2, cy - dotSize / 2, dotSize, dotSize);
+                const st = tile.settlement;
+                const kingdom = st.kingdom != null && world.getKingdom ? world.getKingdom(st.kingdom) : null;
+                const kind = st.type ? st.type.charAt(0).toUpperCase() + st.type.slice(1) : 'Settlement';
+                markers.push({ x: cx, y: cy, r: 5, label: `${st.name || 'Settlement'} · ${kind}${kingdom && kingdom.name ? ` · ${kingdom.name}` : ''}` });
             }
         }
+        this._markers = markers;
 
         // Draw player position
         const player = this.game.player;
@@ -318,13 +453,15 @@ export class Minimap {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // ── Building markers (outer map) ──
+        // ── Building markers (outer map), by the groups the player chose to show ──
+        const markers = [];
         if (!InnerMap._insideBuilding && InnerMap.buildings && InnerMap.buildings.length > 0) {
             const iconSize = Math.max(8, Math.min(16, Math.floor(scale * 3)));
 
             for (const bldg of InnerMap.buildings) {
                 const tile = InnerMap.tiles[bldg.r] && InnerMap.tiles[bldg.r][bldg.q];
                 if (!tile || !tile.explored) continue;
+                if (!this.shows(minimapBuildingGroup(bldg))) continue;
 
                 const bx = toX(bldg.q + 0.5);
                 const by = toY(bldg.r + 0.5);
@@ -339,6 +476,7 @@ export class Minimap {
                 ctx.strokeStyle = 'rgba(232, 192, 112, 0.7)';
                 ctx.stroke();
                 drawGlyph(ctx, buildingGlyph(bldg), bx, by, iconSize * 0.95, '#ecd9a8', 2.2);
+                markers.push({ x: bx, y: by, r: Math.max(5, iconSize * 0.7), label: _buildingLabel(bldg) });
             }
         }
 
@@ -357,13 +495,17 @@ export class Minimap {
 
         // ── NPCs ──
         const dot = Math.max(2, Math.min(4, scale * 0.6));
-        for (const npc of (InnerMap.npcs || [])) {
+        for (const npc of (this.shows('people') ? (InnerMap.npcs || []) : [])) {
             if (!InnerMap._insideBuilding && npc.state === 'inside_building') continue;
             const tile = InnerMap.tiles[npc.r] && InnerMap.tiles[npc.r][npc.q];
             if (!tile || !tile.visible) continue;
             ctx.fillStyle = (npc.hostile || npc.isHostile) ? '#e74c3c' : '#7fc8ff';
-            ctx.fillRect(toX(npc.q + 0.5) - dot / 2, toY(npc.r + 0.5) - dot / 2, dot, dot);
+            const nx = toX(npc.q + 0.5), ny = toY(npc.r + 0.5);
+            ctx.fillRect(nx - dot / 2, ny - dot / 2, dot, dot);
+            const kind = npc.type ? ` (${String(npc.type).replace(/_npc$/, '').replace(/_/g, ' ')})` : '';
+            markers.push({ x: nx, y: ny, r: 4, label: `${npc.name || 'Someone'}${kind}` });
         }
+        this._markers = markers;
 
         // ── Player ──
         const px = toX(InnerMap.playerInnerQ + 0.5);

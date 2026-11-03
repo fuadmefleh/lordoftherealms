@@ -11,11 +11,49 @@
 import { registerScene } from './choiceScenes.js';
 import { SeasonalWork } from '../../player/seasonalWork.js';
 import { PlayerInventory } from '../../player/inventory.js';
+import { ActionMenu } from './_ref.js';
+import { WildTaskRunner } from '../mapTasks/wildTasks.js';
 
 const _desc = (items) => SeasonalWork._describe(items || {}) || 'nothing';
 
 function _tile(game, st) {
     return game.world.getTile(st.q, st.r);
+}
+
+// ── Done in person (ui/mapTasks/wildTasks.js) ──
+// A choice that is walked through on the inner map first: the scene hands
+// over to the task, and when it is done the same choice is acted again
+// (marked _walked) so the rules below settle it exactly as before. Giving
+// up brings the scene back as it was. A game with no inner map (tests)
+// acts at once.
+
+function _walk(game, kind, st, choice, start) {
+    const back = () => {
+        game._scene = { kind, state: st };
+        ActionMenu.showScene(game);
+    };
+    return {
+        after: () => start(
+            (res) => {
+                game._scene = { kind, state: { ...st, _walked: choice, _res: res || null } };
+                ActionMenu.sceneAct(game, choice);
+            },
+            () => {
+                game.ui.showNotification('🚶 Gave Up', 'You leave it for now.', 'default');
+                back();
+            },
+        ),
+    };
+}
+
+function _walkHere(game, st, choice) {
+    return st._walked !== choice && WildTaskRunner.inWorld(game);
+}
+
+/** The scene state without the walk's markers (so they don't carry into the next stage). */
+function _plain(st) {
+    const { _walked, _res, ...rest } = st;
+    return rest;
 }
 
 // ── Trap lines ──
@@ -58,6 +96,14 @@ registerScene('trap_furs', {
     act(game, st, choice) {
         const { player, world } = game;
         const tile = _tile(game, st);
+        const line = SeasonalWork.trapLineAt(player, st.q, st.r);
+        const tend = ['collect', 'reset', 'pull'].includes(choice);
+        const walkable = tend ? !!line : choice === 'run' || (choice === 'set' && SeasonalWork.canSetTrapLine(player, tile, world).ok);
+        if (walkable && _walkHere(game, st, choice)) {
+            return _walk(game, 'trap_furs', st, choice, (done, quit) => WildTaskRunner.trap(game, { mode: choice, spots: line && line.snares }, done, quit));
+        }
+        const walked = st._res;
+        st = _plain(st);
         if (choice === 'run') {
             const res = SeasonalWork.trapFurs(player, tile, world);
             if (!res.success) return { invalid: true, notification: { title: '🦊 Trapping', body: res.reason, type: 'error' } };
@@ -66,6 +112,8 @@ registerScene('trap_furs', {
         if (choice === 'set') {
             const res = SeasonalWork.setTrapLine(player, tile, world);
             if (!res.success) return { invalid: true, notification: { title: '🕸️ Trap Line', body: res.reason, type: 'error' } };
+            // Where the snares went, so the line is walked the same way next time
+            if (walked && walked.spots && res.line) res.line.snares = walked.spots.map(p => ({ q: p.q, r: p.r }));
             return { endDay: true, notification: { title: '🕸️ Trap Line Set', body: res.message, type: 'success' } };
         }
         if (['collect', 'reset', 'pull'].includes(choice)) {
@@ -132,6 +180,12 @@ registerScene('ice_fishing', {
     act(game, st, choice) {
         const { player, world } = game;
         const tile = _tile(game, st);
+        const where = choice === 'shore' ? 'shore' : choice === 'far' && st.stage !== 'far' ? 'far' : choice === 'deeper' && st.stage === 'far' ? 'deeper' : null;
+        if (where && _walkHere(game, st, choice)) {
+            if (where === 'far' && !SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: 'The ice is gone.', type: 'error' } };
+            return _walk(game, 'ice_fishing', st, choice, (done, quit) => WildTaskRunner.iceFish(game, { player, where }, done, quit));
+        }
+        st = _plain(st);
         if (choice === 'shore') {
             const res = SeasonalWork.iceFish(player, tile, world);
             if (!res.success) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: res.reason, type: 'error' } };

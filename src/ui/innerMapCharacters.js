@@ -40,6 +40,8 @@ export const InnerMapCharacters = {
         { key: 'emotes',    file: 'Emotes',               frames: 3, fps: 2  },
         { key: 'halfslash', file: 'Combat 1h - Halfslash', frames: 6, fps: 12 },
         { key: 'swing',     file: 'Legacy - Swing',        frames: 6, fps: 12 },
+        // On guard: sword and shield held ready (a guard at their post)
+        { key: 'ready',     file: 'Combat 1h - Idle',      frames: 2, fps: 1.5 },
     ],
 
     // Map from object-definition animation name → internal drawCharacter anim key
@@ -220,7 +222,30 @@ export const InnerMapCharacters = {
         for (const layerPath of layerPaths) {
             const fullPath = this._basePath + layerPath + '/' + animType + '.png';
             const img = this._imageCache.get(fullPath);
+            const prop = layerPath.startsWith('Props/');
+            // Gear carried (a sword, a shield) has sheets only for combat: on the
+            // walk, hold its ready-stance frame steady in the hand
+            if (!img && prop && animType === this.PROP_CARRY_ANIM) {
+                const ready = this._imageCache.get(this._basePath + layerPath + '/' + this.PROP_READY_FILE + '.png');
+                if (ready) this._drawPropCarried(ctx, ready, width, height);
+                continue;
+            }
             if (!img) continue;
+
+            // Oversized weapon sheets (128px cells round a 64px figure): crop each cell's middle
+            const k = Math.round(img.height / height);
+            if (k > 1 && img.width >= width * k) {
+                const cell = this.FRAME_W * k;
+                const off = (cell - this.FRAME_W) / 2;
+                for (let r = 0; r * this.FRAME_H < height; r++) {
+                    for (let f = 0; f * this.FRAME_W < width; f++) {
+                        ctx.drawImage(img, f * cell + off, r * cell + off, this.FRAME_W, this.FRAME_H,
+                            f * this.FRAME_W, r * this.FRAME_H, this.FRAME_W, this.FRAME_H);
+                    }
+                }
+                anyLoaded = true;
+                continue;
+            }
 
             // Draw the layer — all LPC sheets are pre-aligned for compositing
             ctx.drawImage(img, 0, 0, Math.min(img.width, width), Math.min(img.height, height),
@@ -229,6 +254,26 @@ export const InnerMapCharacters = {
         }
 
         return anyLoaded ? canvas : null;
+    },
+
+    // Gear's ready-stance sheet ('Combat 1h - Idle'), and the animation it is carried through
+    PROP_READY_FILE: 'Combat 1h - Idle',
+    PROP_CARRY_ANIM: 'Walk',
+    // How far (px) the hand rises on each of the 8 walk frames, so the gear moves with the stride
+    WALK_BOB: [0, -1, -1, 0, 0, -1, -1, 0],
+
+    /** A prop's first ready frame per direction, repeated across a walk sheet with the stride's bob. */
+    _drawPropCarried(ctx, ready, width, height) {
+        const k = Math.max(1, Math.round(ready.height / height));
+        const cell = this.FRAME_W * k;
+        const off = (cell - this.FRAME_W) / 2;
+        for (let r = 0; r * this.FRAME_H < height; r++) {
+            for (let f = 0; f * this.FRAME_W < width; f++) {
+                const bob = this.WALK_BOB[f % this.WALK_BOB.length] || 0;
+                ctx.drawImage(ready, off, r * cell + off, this.FRAME_W, this.FRAME_H,
+                    f * this.FRAME_W, r * this.FRAME_H + bob, this.FRAME_W, this.FRAME_H);
+            }
+        }
     },
 
     // ══════════════════════════════════════════════

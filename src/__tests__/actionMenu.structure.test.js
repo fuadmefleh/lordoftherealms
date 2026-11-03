@@ -93,7 +93,7 @@ const EXPECTED_KEYS = [
     '_gamblingFinance', '_generatePOIRewards', '_getBountyData', '_getBuskingData', '_getForageData',
     '_getGamblingData', 'DEFAULT_GAMBLING', '_getGamblingSettings', '_getGamblingGame', '_getHuntData', '_getJobData', '_getPlayerSettlementTiles', '_getPlayerStat',
     '_getRelationshipProgress', '_getTavernLuckBonus', '_handleTellStories', '_laborCharisma',
-    '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth',
+    '_laborCombat', '_laborIntelligence', '_laborReward', '_laborStamina', '_laborStealth', '_startLaborTask',
     '_laborStrength', '_minigameCrownAnchor', '_minigameDragonsFlip',
     'BUILD_CATEGORIES', '_buildOutputText', '_canBuildTechBuilding', '_centerCameraOnPlayer', 'closePanel', 'closePanelAndEndDay', 'closePanelAndRefresh', '_landingCargoText', '_minigameHighLow', '_minigamePoker', '_pendingAP', '_ppDoCaught', '_renderActionButton',
     '_renderActionTile', '_renderAffectionBar', '_renderFishingResults', '_renderRelationshipXPBar',
@@ -102,7 +102,7 @@ const EXPECTED_KEYS = [
     '_showAssignMissionMenu', '_showCapturedBountyDecision', '_showFoundReligionModal',
     '_showMarriageCelebration', '_showMinigamePrompt', '_showMissionTargetSelect', '_showMoveShipMenu',
     '_showRumorResults', '_showSailToMenu', '_showShipBuildConfig', '_showShipManagePanel',
-    '_showShipUpgradePanel', '_showSpyRecruitMenu', 'attemptJailbreak', 'attemptServitudeEscape',
+    '_showShipUpgradePanel', '_showSpyRecruitMenu', 'attemptJailbreak', 'enterJailMap', 'beginMarch', 'showMarch', 'attemptServitudeEscape',
     'attemptStealMap', 'buyFreedom', 'buyMapFromTrade', 'changeColonyPolicy', 'clearTrees', 'close',
     'collectGoods', 'commitPendingAP', 'councilConvene', 'councilDeclareWar', 'councilManageFaction',
     'councilVoteTax', 'councilVoteWar', 'countFishingBoats', 'createMap', 'createMenu',
@@ -149,8 +149,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 351 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(351);
+    it('has 355 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(355);
     });
 
     it('every member except the known data props is a function', () => {

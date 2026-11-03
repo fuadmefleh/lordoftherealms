@@ -5699,3 +5699,72 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
     background: var(--bg-active);
     color: var(--gold);
 }
+
+/* ============================================
+   TOWN VIEW — on the street map the kingdom-level chrome steps aside:
+   the left rail (armies, settlements…) and the world region card mean
+   nothing while you walk a village street. Set by innerMap.js.
+   ============================================ */
+body.inner-map-view #hudLeftRail,
+body.inner-map-view #hudRegionCard,
+body.inner-map-view #hexInfoPanel { display: none; }
+
+/* The turn bar sizes to what it holds (its resources moved to the top bar
+   only); the play controls sit at its right end */
+#simsBottomHUD { min-width: 0; }
+.hud-bb-controls { margin-left: auto; }
+
+/* With a place's action menu open, the tile panel behind it only repeats
+   the menu's own header (name, terrain, an "Open Actions" button) */
+body:has(#actionMenu) #hexInfoPanel { visibility: hidden !important; }
+
+/* A panel window (market, ledger…) over the map: the tile panel behind it
+   only adds a second column of detail */
+body:has(#customPanel) #hexInfoPanel { visibility: hidden !important; }
+
+/* Minimap: hover label and the "show on map" list (ui/minimap.js) */
+.minimap-tip {
+    position: absolute;
+    display: none;
+    transform: translate(-50%, calc(-100% - 8px));
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(10, 13, 22, 0.95);
+    border: 1px solid rgba(245, 197, 66, 0.4);
+    color: var(--gold-light);
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 5;
+}
+.minimap-filters {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 6px);
+    min-width: 170px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--hud-frame-bg);
+    border: 1.5px solid var(--gold-dark);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 6;
+}
+.minimap-filters-title {
+    font-family: var(--font-display);
+    color: var(--gold-light);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+}
+.minimap-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.minimap-filter input { accent-color: var(--gold); }
+/* Let the filter list and hover labels show outside the minimap's frame */
+#minimapContainer { overflow: visible; }

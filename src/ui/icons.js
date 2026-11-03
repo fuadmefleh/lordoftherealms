@@ -616,7 +616,7 @@ export function furnitureGlyph(furniture) {
 const BUILDING_GLYPHS = {
     town_hall: 'temple', marketplace: 'stall', tavern: 'tankard', blacksmith: 'anvil', church: 'church',
     temple: 'temple', barracks: 'shield', granary: 'wheat', warehouse: 'crate', well: 'well', barn: 'house',
-    house: 'house', manor: 'castle', stable: 'horseshoe', guard_tower: 'tower', farm: 'wheat', pasture: 'sheep',
+    house: 'house', manor: 'castle', castle: 'castle', stable: 'horseshoe', guard_tower: 'tower', farm: 'wheat', pasture: 'sheep',
     logging_camp: 'axe', mine: 'pickaxe', workshop: 'hammer', trading_post: 'scales', fishing_wharf: 'anchor',
     brewery: 'barrel', guest_house: 'bed', inn: 'bed', hotel: 'bed', roadhouse: 'bed',
     guildhall: 'hammer', bank: 'coins', post_house: 'seal', apothecary: 'flask', bathhouse: 'droplet', library: 'book',

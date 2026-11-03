@@ -5,6 +5,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { SettlementSize } from '../../core/settlementSize.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, InnerMap, PlayerInventory } from './_imports.js';
 import { Wilds } from '../../player/wilds.js';
+import { InnerMapLots } from '../innerMapLots.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 
 Object.assign(ActionMenu, {
@@ -229,6 +230,8 @@ Object.assign(ActionMenu, {
             if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerEconomy.buildProperty(game.player, propType, tile, game.world);
             if (result.success) {
+                // Built on the player's lot in town: it stands within the lot (ui/innerMapLots.js)
+                if (InnerMap._pendingLot) InnerMapLots.afterBuild(game, tile, result.property);
                 if (result.underConstruction) {
                     game.ui.showNotification('🏗️ Construction Started!', `${result.property.name} is under construction — ${result.constructionDays} days to completion.`, 'info');
                 } else {

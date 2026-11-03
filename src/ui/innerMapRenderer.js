@@ -648,6 +648,8 @@ export const InnerMapRenderer = {
 
         // ── Layer 1: Roads ──
         this._renderRoadLayer(ctx, camera);
+        // Building lots: stakes, cord and a sign (world/innerMap/lots.js)
+        if (this._renderLotLayer) this._renderLotLayer(ctx, camera);
 
         // ── Layer 1.5: Ground overlays (water / ice / waterfall — flat tiles) ──
         this._renderGroundOverlays(ctx, camera);

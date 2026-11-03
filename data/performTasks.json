@@ -1,0 +1,162 @@
+{
+    "_note": "Street performance, devotion rites and meditation done in person on the street map (systems/performing.js, ui/mapTasks/performTasks.js). Busking acts: pick a pitch, perform timed sets (setSeconds, real seconds = game minutes) while folk within 'pull' tiles drift over; anyone standing within 'listen' tiles during a set counts. The crowd a town should give is expectedPerCrowd × the town's crowd multiplier (data/earlyJobs.json busking). Glyphs are ui/icons.js names.",
+    "busking": {
+        "expectedPerCrowd": 8,
+        "minExpected": 3,
+        "pullGrowth": 4,
+        "pullEvery": 2,
+        "acts": {
+            "juggling": {
+                "pitch": ["square", "crossing"], "sets": 4, "setSeconds": 6, "pull": 12, "listen": 5, "parHours": 1.5, "glyph": "star",
+                "setLabel": "Juggle a set", "drops": true,
+                "say": "Find a pitch, then juggle set after set. Each set draws more of the street. Fumble and they drift off."
+            },
+            "singing": {
+                "pitch": ["square", "crossing"], "sets": 3, "setSeconds": 8, "pull": 15, "listen": 6, "parHours": 1.5, "glyph": "lyre",
+                "setLabel": "Sing a song", "choose": "songs",
+                "say": "Find a pitch and sing. Choose songs that suit the hour: hymns for the morning, ballads by day, drinking songs at night."
+            },
+            "storytelling": {
+                "pitch": ["square", "crossing"], "sets": 3, "setSeconds": 9, "pull": 11, "listen": 5, "parHours": 1.5, "glyph": "book",
+                "setLabel": "Tell the next part", "choose": "beats", "keepsCrowd": true,
+                "say": "Find a pitch and tell a tale in parts. Listeners stay to hear the end. Don't give them the same kind of turn twice running."
+            },
+            "fortune_telling": {
+                "mode": "readings", "count": [4, 5], "workSeconds": 1.5, "parHours": 1.5, "glyph": "orb",
+                "say": "Walk up to the passers-by marked for you and read their fortunes. Look for the tell: hands, clothes, bearing. A reading that fits them earns a coin."
+            },
+            "preaching": {
+                "pitch": ["church", "square"], "sets": 3, "setSeconds": 8, "pull": 14, "listen": 6, "parHours": 1.5, "glyph": "scroll",
+                "setLabel": "Preach", "choose": "tones",
+                "say": "Preach from the church steps or the square. Stir them up, but not into a fright: keep the fervour high without tipping it over."
+            }
+        },
+        "pitchLabels": {
+            "square": "Set up your pitch in the square",
+            "crossing": "Set up your pitch at the crossing",
+            "church": "Preach from the church steps"
+        },
+        "dropChance": { "base": 0.45, "perStat": 0.04, "min": 0.05, "max": 0.4, "mult": 0.6 },
+        "songs": [
+            { "id": "hymn", "label": "A morning hymn", "hours": [5, 11] },
+            { "id": "work", "label": "A working song", "hours": [8, 16] },
+            { "id": "ballad", "label": "An old ballad", "hours": [11, 20] },
+            { "id": "drinking", "label": "A drinking song", "hours": [17, 26] },
+            { "id": "lament", "label": "A lament for the dead", "hours": [19, 29] }
+        ],
+        "songFit": { "inHours": 1.25, "outHours": 0.7, "repeat": 0.8 },
+        "beats": [
+            { "mood": "thrill", "label": "The wolves close in on the camp…" },
+            { "mood": "thrill", "label": "The bridge gives way beneath the hero…" },
+            { "mood": "laugh", "label": "The bishop's mule eats the bishop's hat…" },
+            { "mood": "laugh", "label": "The miller mistakes the duke for a sack of flour…" },
+            { "mood": "sorrow", "label": "The old soldier never came home…" },
+            { "mood": "sorrow", "label": "She waited at the harbour for forty years…" },
+            { "mood": "wonder", "label": "A door opens in the hillside where no door was…" },
+            { "mood": "wonder", "label": "The stars spell out a name…" },
+            { "mood": "romance", "label": "Their eyes meet across the burning hall…" }
+        ],
+        "beatFit": { "repeat": 0.5, "fresh": 1.2, "again": 1.0 },
+        "tones": [
+            { "id": "mercy", "label": "Mercy for the poor", "fervor": 6 },
+            { "id": "hope", "label": "The promise of the life to come", "fervor": 14 },
+            { "id": "fire", "label": "Fire and brimstone", "fervor": 26 },
+            { "id": "doom", "label": "The end is near!", "fervor": 38 }
+        ],
+        "fervor": { "start": 30, "decay": 6, "sweet": [50, 85], "cold": 30, "frightened": 90, "multSweet": 1.25, "multCold": 0.6, "multFrightened": 0.5, "multWarm": 1.0 },
+        "readingFit": { "fits": 1, "misses": 0.3 },
+        "tells": {
+            "farmer": "Earth under the nails, a sunburnt neck.",
+            "merchant": "A fat purse and a quick eye on yours.",
+            "guard": "A scar on the knuckles, a hand that rests on a hilt.",
+            "priest": "Ink-stained fingers and a worn string of beads.",
+            "blacksmith_npc": "Burn marks up both forearms.",
+            "villager": "Patched sleeves, a ring on the finger, a glance toward home.",
+            "child": "Grubby, grinning, mostly curious.",
+            "noble": "Rings on every finger and a bored look.",
+            "traveler": "Dust to the knees and a pack that has seen roads.",
+            "beggar": "Thin, hungry, and still hoping."
+        },
+        "fortunes": [
+            { "text": "The rains will be kind to your fields this year.", "fits": ["farmer"] },
+            { "text": "A long road ends with a heavy purse.", "fits": ["merchant", "traveler"] },
+            { "text": "A blade hangs over you, but your arm is the stronger.", "fits": ["guard", "blacksmith_npc"] },
+            { "text": "Heaven has not forgotten you.", "fits": ["priest", "beggar"] },
+            { "text": "Someone at home is thinking of you this very hour.", "fits": ["villager", "traveler"] },
+            { "text": "A great house will fall, and yours will rise.", "fits": ["noble"] },
+            { "text": "You'll be taller than your father, and twice as clever.", "fits": ["child"] },
+            { "text": "Fire will make your fortune.", "fits": ["blacksmith_npc"] },
+            { "text": "A stranger's coin will change your luck.", "fits": ["beggar", "merchant"] },
+            { "text": "Love waits at the next well you drink from.", "fits": ["villager", "farmer"] }
+        ],
+        "readingAsk": "{name} the {type} holds out a palm. ({tell}) What do you see?",
+        "lines": {
+            "pitchSet": "You set out your hat at the {pitch}.",
+            "setDone": "{n} stopped to watch. Coins clink in the hat.",
+            "setEmpty": "Nobody stopped.",
+            "drop": "You fumble a club! A few drift off.",
+            "askSong": "What will you sing? (The bells say it is {hour}.)",
+            "askBeat": "What happens next in the tale?",
+            "askTone": "How will you preach? (The crowd's fervour: {fervor}.)",
+            "beatRepeat": "They've had that already. It falls flat.",
+            "beatFresh": "A fresh turn. They lean in.",
+            "songFits": "Just right for the hour.",
+            "songOff": "Odd choice for the hour; a few drift off.",
+            "fervorCold": "They shuffle their feet. The sermon is cold.",
+            "fervorSweet": "Amens ring out. They are with you.",
+            "fervorFrightened": "Too much! They back away in fright.",
+            "readFits": "\"That's it exactly!\" A coin for your trouble.",
+            "readMisses": "They frown, unconvinced, and toss you a copper."
+        }
+    },
+    "rite": {
+        "candles": 1,
+        "stations": 3,
+        "stationGap": [4, 9],
+        "candleSeconds": 2,
+        "stationSeconds": 1.5,
+        "kneelSeconds": 10,
+        "parHours": 1,
+        "disturbRadius": 2,
+        "perDisturb": 0.08,
+        "churchDoors": ["church", "temple", "cathedral", "chapel", "monastery", "shrine"],
+        "say": {
+            "church": "Light a candle at the church door, walk the circuit of stations around it, then kneel at the steps.",
+            "holy": "Light a candle at the shrine, walk the pilgrims' circuit, then kneel.",
+            "wayside": "There is no church here. Light a candle at the square, walk a circuit of the town, then kneel."
+        },
+        "lines": {
+            "candle": "Light a candle",
+            "station": "Pause and pray at the station ({i} of {n})",
+            "kneel": "Kneel at the steps and pray",
+            "disturbed": "{name} brushes past and breaks your prayer.",
+            "candleLit": "The candle catches. You begin the circuit."
+        }
+    },
+    "meditation": {
+        "sitSeconds": 30,
+        "parHours": 1.5,
+        "disturbRadius": 3,
+        "perDisturb": 0.12,
+        "perBreak": 0.15,
+        "holyFactor": 0.5,
+        "candidates": 3,
+        "say": {
+            "field": "Find a quiet spot away from the bustle and sit still a while. Passers-by will break your focus.",
+            "holy": "Find a quiet spot at this holy place and sit still a while."
+        },
+        "spots": [
+            { "props": ["large_tree_1", "tp_planter_tree", "tp_potted_tree"], "label": "Sit beneath the tree" },
+            { "props": ["tp_flower_box", "tp_flowers_", "tp_fern_box"], "label": "Sit by the flowers" },
+            { "doors": ["church", "temple", "chapel", "monastery", "shrine", "cathedral"], "label": "Sit on the temple steps" },
+            { "props": ["tp_fountain"], "label": "Sit by the fountain" },
+            { "ground": "edge", "label": "Sit in the quiet at the edge of town" }
+        ],
+        "lines": {
+            "sit": "Sit still and breathe",
+            "sitting": "You settle and close your eyes.",
+            "disturbed": "{name} passes close by. Your focus slips.",
+            "broke": "You got up. The stillness is broken."
+        }
+    }
+}

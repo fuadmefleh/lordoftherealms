@@ -11,7 +11,7 @@ import { House } from '../../systems/house.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
-import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews } from './helpers.js';
+import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews, _roadContext } from './helpers.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList } from './render.js';
 import { NpcPortrait } from '../npcPortrait.js';
 
@@ -96,6 +96,17 @@ export function _handleChoice(action) {
                     const ans = NpcKnowledge.aboutTown(game.world, game.player, dialogState._npc, settlement, {
                         disposition: mem.disposition, buildings: InnerMap.buildings || [],
                         seed: `${dialogState._npc.uid || dialogState._npc.id}|town|${game.world.day}`,
+                    });
+                    responseText = ans.text;
+                    const marked = ans.revealed.lairs.length + ans.revealed.sites.length;
+                    if (marked && game.ui?.showNotification) {
+                        setTimeout(() => game.ui.showNotification('🗺️ Local Knowledge', `${dialogState._npc?.name || 'They'} told you of ${marked === 1 ? 'a place' : `${marked} places`} nearby — now on your map.`, 'info'), 1200);
+                    }
+                } else if (game?.world && _roadContext(dialogState._npc)) {
+                    // Out on the open road: the house, the land, where the road goes (systems/npcKnowledge.js)
+                    const ans = NpcKnowledge.aboutRoad(game.world, game.player, dialogState._npc, {
+                        ..._roadContext(dialogState._npc), disposition: mem.disposition,
+                        seed: `${dialogState._npc.uid || dialogState._npc.id}|road|${game.world.day}`,
                     });
                     responseText = ans.text;
                     const marked = ans.revealed.lairs.length + ans.revealed.sites.length;

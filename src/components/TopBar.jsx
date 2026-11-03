@@ -110,6 +110,10 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="council" /></span>
               <span className="civ-dd-text">Council</span>
             </button>
+            <button className="civ-dropdown-item" id="btnLaws">
+              <span className="civ-dd-icon"><Icon name="scales" /></span>
+              <span className="civ-dd-text">Laws</span>
+            </button>
           </div>
         </div>
 

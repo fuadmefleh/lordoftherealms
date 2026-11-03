@@ -298,6 +298,7 @@ export const SaveLoad = {
             temples: k.temples || [], // funded by pious lords (KingdomAI.fundTemple)
             characterData: typeof Characters !== 'undefined' ? Characters.serialize(k) : (k.characterData || null),
             colonization: k.colonization || null,
+            laws: k.laws || null, // the realm's laws as its ruler set them (systems/laws.js)
             cartography: k.cartography || null,
             navy: k.navy || null, // royal fleet and blockades (KingdomNavy)
             // Claims & Crowns (systems/throne.js): the crown's policies and the

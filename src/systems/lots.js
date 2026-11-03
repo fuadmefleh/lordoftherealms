@@ -18,6 +18,7 @@
 // Data: data/lots.json.
 
 import { LotBook } from '../world/lotBook.js';
+import { Laws } from './laws.js';
 
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const _day = world => _num(world && world.day, 0);
@@ -60,6 +61,8 @@ export const Lots = {
      */
     buyLot(player, world, settlement, lot) {
         if (!player || !settlement || !lot) return { success: false, reason: 'There is no lot here.' };
+        const law = Laws.mayHoldLand(world, player, settlement.kingdom);
+        if (!law.ok) return { success: false, reason: law.reason };
         const book = LotBook.of(settlement);
         if (book.lots[lot.id]) return { success: false, reason: `This lot is already ${LotBook.isPlayer(book.lots[lot.id]) ? 'yours' : `sold to ${book.lots[lot.id].holderName}`}.` };
         const price = LotBook.lotPrice(settlement.type, lot.w, lot.h);
@@ -93,6 +96,8 @@ export const Lots = {
         const book = LotBook.of(settlement);
         if (!player || !key) return { success: false, reason: 'No house here.' };
         if (book.vacancies[key]) return { success: false, reason: 'Someone has taken it already.' };
+        const law = Laws.mayHoldLand(world, player, settlement.kingdom);
+        if (!law.ok) return { success: false, reason: law.reason };
         const rent = LotBook.rentPerDay(settlement.type);
         if (_num(player.gold) < rent) return { success: false, reason: `The first day's rent is ${rent}g.` };
         player.gold -= rent;
@@ -106,6 +111,8 @@ export const Lots = {
         if (!player || !key) return { success: false, reason: 'No house here.' };
         const v = book.vacancies[key];
         if (v && v.holder !== 'player') return { success: false, reason: 'Someone has taken it already.' };
+        const law = Laws.mayHoldLand(world, player, settlement.kingdom);
+        if (!law.ok) return { success: false, reason: law.reason };
         if (v && v.status === 'owned') return { success: false, reason: 'It is yours already.' };
         const price = LotBook.salePrice(settlement.type);
         if (_num(player.gold) < price) return { success: false, reason: `The house costs ${price}g.` };

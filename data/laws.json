@@ -1,0 +1,32 @@
+{
+    "_doc": "The laws of each realm (systems/laws.js; the Laws panel ui/actionMenu/laws.js). Each law has options; a realm's law is set on kingdom.laws (saved with the realm). Until a ruler sets one, a realm keeps its old custom: share[option] of realms hold each (a hash of the realm, the same all game). Only the ruler of a realm may change its law: each change costs changeCost.treasury from the crown's treasury and changeCost.stability of the realm's stability (folk dislike upheaval), plus the option's own stability (adopting a hard law costs more), and a law may be changed again only after cooldownDays. Every law is read by the game: privatePrisons by systems/knockout.js (a private citizen may drag the beaten off to their prison camp only where it's allowed); foreignLand by systems/lots.js (where only subjects may hold land, a stranger can't buy a lot or a house, nor rent one); punishment by systems/streetCrime.js (the watch's fines and days in the cells, × fine and × jail).",
+    "changeCost": { "treasury": 150, "stability": 2 },
+    "cooldownDays": 30,
+    "laws": {
+        "privatePrisons": {
+            "name": "Private Prisons", "icon": "⛓️",
+            "desc": "May a private citizen keep a prison camp, and put those they take to work?",
+            "options": {
+                "forbidden": { "label": "Forbidden", "desc": "Only the crown keeps prisoners. Whoever takes a captive must hand them to the watch.", "share": 0.6, "stability": 0 },
+                "allowed": { "label": "Allowed", "desc": "Free folk may keep prison camps and work their prisoners. Those who set on you may drag you off to theirs.", "share": 0.4, "stability": -3 }
+            }
+        },
+        "foreignLand": {
+            "name": "Land for Foreigners", "icon": "📜",
+            "desc": "May those not sworn to the realm buy building lots and houses in its towns?",
+            "options": {
+                "open": { "label": "Open to all", "desc": "Anyone with the coin may buy a lot or a house, or rent one.", "share": 0.65, "stability": 0 },
+                "subjects": { "label": "Subjects only", "desc": "Only those sworn to the realm may buy or rent land and houses in its towns.", "share": 0.35, "stability": 1 }
+            }
+        },
+        "punishment": {
+            "name": "Punishment", "icon": "⚖️",
+            "desc": "How hard the watch comes down on brawlers and worse: the fines and the days in the cells.",
+            "options": {
+                "lenient": { "label": "Lenient", "desc": "Lighter fines, shorter stays in the cells.", "share": 0.25, "stability": -1, "fine": 0.6, "jail": 0.6 },
+                "standard": { "label": "Customary", "desc": "The fines and sentences of long custom.", "share": 0.5, "stability": 0, "fine": 1, "jail": 1 },
+                "harsh": { "label": "Harsh", "desc": "Heavy fines and long sentences. The streets are quieter; the people grumble.", "share": 0.25, "stability": -2, "fine": 1.6, "jail": 1.6 }
+            }
+        }
+    }
+}

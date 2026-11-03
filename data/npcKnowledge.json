@@ -116,5 +116,48 @@
                 "I've nothing for you. Nothing."
             ]
         }
+    },
+    "road": {
+        "_doc": "Out on the open road (no town on the hex) — systems/npcKnowledge.js aboutRoad and roadGreeting. Everything said is read from the world: the roadhouse (its name, keeper, rooms, how well it's kept), whose land it is and what kind, where the road runs (traced along the road to the towns it reaches, with the way and the days), outlaws and old places near, and the season. keeper: the one who keeps the house speaks of it as theirs; traveler: where they've come from and where they're bound (the two towns the road joins); anyone else of what they see. {house} {keeper} {town} {from} {to} {dir} {days} {realm} {land} {ruler} {lair} {leader} {site} {rooms} — filled in. days: how a walk is put, by hexes ([max hexes, words]).",
+        "greet": {
+            "keeper": ["Come in off the road. You'll want a bed, or a bowl, or both.", "Shut the door behind you, the wind gets in. Welcome to {house}.", "Another one off the road. Sit, sit — there's stew on.", "Mind the step. Not many come by this late in the {season}."],
+            "traveler": ["Another soul on the road. Where are you bound?", "Well met. Good to see a face that isn't a tree.", "*nods* Long road, isn't it?", "Sit if you like. I don't bite."],
+            "any": ["Road-weary, are you? Aren't we all.", "*looks you over* You're not from round here. Nobody is, out here."]
+        },
+        "keeper": {
+            "house": ["This is {house}. Mine — or the bank's, some winters.", "{house}, this is. I've kept it {years} years now.", "You're in {house}. {rooms} rooms, a roof that mostly keeps the rain out, and the only fire for miles."],
+            "quality": { "good": ["The beds are clean and the ale's honest. Folk ride out of their way to stop here."], "fair": ["Nothing fancy, but nobody's died in their sleep. Not lately."], "poor": ["I'll not lie to you — it's seen better days. So have I."] },
+            "why": ["Folk walking from {from} to {to} need somewhere to stop. That's all a roadhouse is.", "Halfway between {from} and {to}, give or take. That's what keeps the doors open."]
+        },
+        "traveler": {
+            "journey": ["I've come up from {from}, bound for {to}. {daysTo} yet, if my feet hold.", "On my way to {to}. Left {from} {daysFrom} back.", "I'm walking to {to}. Came by way of {from} — wouldn't recommend it."],
+            "nowhere": ["I'm not sure where I'm bound. Away, mostly."]
+        },
+        "other": {
+            "house": ["{house} — {keeper} keeps it. Decent enough place to break a journey."]
+        },
+        "land": {
+            "realm": ["This is {realm} land. {ruler}'s, for what that's worth out here.", "We're in {realm} — though the crown's men seldom ride this far."],
+            "none": ["No crown holds this stretch. Nobody taxes you out here — and nobody comes when you scream."],
+            "terrain": { "forest": "Forest both sides of the road; you can't see ten paces in.", "hills": "Hill country. Every mile's uphill, both ways.", "mountains": "High country — the passes close when the snow comes.", "plains": "Open country. You see weather coming a day off.", "grassland": "Open grassland, mile on mile of it.", "swamp": "Marsh all round. Stay on the road or the bog has you.", "desert": "Dry country. Carry water, whatever they tell you.", "tundra": "Cold country. The ground's iron half the year.", "jungle": "Jungle pressing in. The road gets narrower every season.", "beach": "Close by the sea — you can smell it." }
+        },
+        "road": {
+            "both": ["The road runs {dirA} to {townA}, {daysA}, and {dirB} to {townB}, {daysB}.", "Go {dirA} and it's {townA}, {daysA}. Go {dirB} and it's {townB}, {daysB}. Nothing much between."],
+            "one": ["Follow the road {dirA} and you'll come to {townA}, {daysA}."],
+            "off": ["There's no proper road here. {townA}'s the nearest place, {daysA} {dirA}."]
+        },
+        "danger": {
+            "raids": ["Watch yourself. Riders out of {lair} work this road{leaderBit}. Travel by daylight.", "Outlaws out of {lair}, {dir} of here{leaderBit}. They've hit carts on this road."],
+            "quiet": ["They say there's an outlaw camp at {lair}, {dir} of here. Quiet lately. That worries me more."],
+            "none": ["The road's quiet enough. Wolves, now and then."]
+        },
+        "site": ["There's {site} {dir}, off the road. People go looking. Not all of them come back past here."],
+        "season": {
+            "Spring": ["Spring rains turn the road to soup. Mind the ruts."],
+            "Summer": ["Summer's the busy time — carts and drovers every day."],
+            "Autumn": ["Autumn now. Folk hurry to get where they're going before the snow."],
+            "Winter": ["Winter. Hardly a soul on the road — you're brave or desperate."]
+        },
+        "days": [[1, "less than a day's walk"], [2, "a day's walk"], [4, "two or three days"], [7, "the best part of a week"], [999, "more than a week away"]]
     }
 }

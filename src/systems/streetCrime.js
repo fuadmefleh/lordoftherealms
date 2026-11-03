@@ -37,6 +37,7 @@ import { NpcFamily } from './npcFamily.js';
 import { Townsfolk } from './townsfolk.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
+import { Laws } from './laws.js';
 
 const DEFAULTS = {
     sight: { radius: 7, guardHearRadius: 16, hiddenStates: ['inside_building', 'leaving_building', 'gone'] },
@@ -656,7 +657,8 @@ export const StreetCrime = {
         if (!incident || incident.k !== 'assault') return null;
         const tile = world && typeof world.getTile === 'function' && incident.key ? world.getTile(...incident.key.split(',').map(Number)) : null;
         const type = (tile && tile.settlement && tile.settlement.type) || 'town';
-        const base = Math.round(_num(A.fine.assault, 40) * _num((A.fineTown || {})[type], 1));
+        // The realm's law on punishment scales the fine (systems/laws.js)
+        const base = Math.round(_num(A.fine.assault, 40) * _num((A.fineTown || {})[type], 1) * Laws.punishment(world, incident.kingdom).fine);
         const owed = incident.kingdom != null ? Gossip.bountyTotalForKingdom(player, incident.kingdom) : 0;
         return Math.max(base, owed);
     },
@@ -704,7 +706,10 @@ export const StreetCrime = {
         const vars = { guard: 'the guard', victim: inc.victim, town: inc.town };
         const jail = (extra) => {
             const out = Underworld._arrest(player, world, settlement || { name: inc.town, kingdom: inc.kingdom }, inc.k === 'murder' ? 'murder' : 'assault');
-            const add = _num((A.days || {})[inc.k]) + _num(extra);
+            const base = _num((A.days || {})[inc.k]) + _num(extra);
+            // The realm's law on punishment: the whole sentence, longer or shorter (systems/laws.js)
+            const mult = Laws.punishment(world, inc.kingdom).jail;
+            const add = Math.max(1 - _num(out.days), Math.round((_num(out.days) + base) * mult) - _num(out.days));
             if (player.jailState) {
                 player.jailState.daysRemaining += add;
                 player.jailState.totalDays += add;

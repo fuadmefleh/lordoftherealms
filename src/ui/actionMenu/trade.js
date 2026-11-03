@@ -35,6 +35,7 @@ export function setMarketNav(game, tile, active) {
         { key: 'puttingOut', more: true, label: '🧶 Putting-out', title: 'Put out wool and flax to the cottagers to spin and weave', run: go(() => ActionMenu.showPuttingOut(game, null)) },
     ];
     if (tile.settlement.guilds) items.push({ key: 'guilds', more: true, label: '⚒️ Guilds', title: 'The town guilds: tolls, membership, contracts', run: go(() => ActionMenu.showGuildhall(game, null)) });
+    items.push({ key: 'laws', more: true, label: '📜 Laws', title: 'The laws of the realm: private prisons, land for foreigners, punishment', run: go(() => ActionMenu.showLaws(game, 'here')) });
     items.push({ key: 'tariffs', more: true, label: '⚖️ Tariffs', title: "The crown's duties, export bans, embargoes and treaties", run: go(() => ActionMenu.showTradePolicy(game, 'here')) });
     // Views with tabs of their own keep this bar and show theirs as sub-tabs
     // (uiKit.panelTabs): the Merchant Prince's Invest/Warehouse/Contracts are

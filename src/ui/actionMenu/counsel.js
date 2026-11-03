@@ -65,6 +65,7 @@ export const COUNSEL_PANELS = {
     mpContracts: { label: 'Contracts', open: (g) => ActionMenu.showMerchantPrince(g, _here(g), 'contracts') },
     guilds: { label: 'Guildhall', open: (g) => ActionMenu.showGuildhall(g, _here(g)) },
     tradePolicy: { label: 'Trade Policy', open: (g) => ActionMenu.showTradePolicy(g) },
+    laws: { label: 'Laws', open: (g) => ActionMenu.showLaws(g) },
     economy: { label: 'Economy', open: (g) => ActionMenu.showEconomy(g) },
     child: { label: 'Heir', open: (g, item) => ActionMenu.showChildPanel(g, item.action.arg) },
     tournament: { label: 'Tournament', settlement: true, open: (g) => ActionMenu.showTournamentMenu(g, _here(g)) },

@@ -51,6 +51,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnOutlaws')?.addEventListener('click', () => ActionMenu.showOutlawLairs(this.game));
         // Deeds & Records: every system's counters, House and reign (systems/deeds.js)
         document.getElementById('btnDeeds')?.addEventListener('click', () => ActionMenu.showDeeds(this.game));
+        // The laws of the realms — and, for a ruler, their own to proclaim (ui/actionMenu/laws.js)
+        document.getElementById('btnLaws')?.addEventListener('click', () => ActionMenu.showLaws(this.game));
         // The Annals: the life and dynasty told as a book (systems/annals.js)
         document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
         // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)

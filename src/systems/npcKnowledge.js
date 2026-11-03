@@ -96,6 +96,7 @@ function _pct(x) { return `${Math.round(x * 100)}%`; }
 function _list(xs) { return xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`; }
 function _good(id) { return String(id || 'goods').replace(/_/g, ' '); }
 function _cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+function _fill(t, vars) { return String(t || '').replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m)); }
 function _kingdom(world, id) {
     if (!world || id == null) return null;
     const k = (world.kingdoms || []).find(x => x && x.id === id);
@@ -396,6 +397,199 @@ export const NpcKnowledge = {
         let text = parts.slice(0, Math.max(1, keep + (parts.length > keep && disp >= 60 ? 1 : 0))).join(' ');
         if (disp < 30) text = _pick(NpcKnowledge.config().guarded, _h(seed)) + text;
         return { text, revealed };
+    },
+
+    // ──────────── THE OPEN ROAD ────────────
+
+    /** The road-side lines (data/npcKnowledge.json → road). */
+    roadConfig() {
+        const R = _obj(NpcKnowledge.config().road) || {};
+        return R;
+    },
+
+    /** How a walk of `d` hexes is put ("a day's walk", "two or three days"). */
+    roadDays(d) {
+        const steps = Array.isArray(NpcKnowledge.roadConfig().days) ? NpcKnowledge.roadConfig().days : [[1, 'less than a day\'s walk'], [2, 'a day\'s walk'], [4, 'two or three days'], [7, 'the best part of a week'], [999, "more than a week away"]];
+        for (const [max, words] of steps) if (d <= max) return words;
+        return 'a long road';
+    },
+
+    /**
+     * Where the road from (q, r) goes: traced along the road tiles to the
+     * towns it reaches (nearest first, one per way out). Off the road, the
+     * nearest town as the crow flies.
+     * @returns {{ onRoad: boolean, ends: [{ name, d, dir, q, r }] }}
+     */
+    roadEnds(world, q, r, maxSteps = 40) {
+        const out = { onRoad: false, ends: [] };
+        if (!world || typeof world.getTile !== 'function') return out;
+        const here = world.getTile(q, r);
+        out.onRoad = !!(here && here.hasRoad);
+        const seen = new Set([`${q},${r}`]);
+        let frontier = [{ q, r, d: 0, first: null }];
+        const found = [];
+        while (frontier.length && out.onRoad) {
+            const next = [];
+            for (const n of frontier) {
+                if (n.d >= maxSteps) continue;
+                for (const nb of Hex.neighbors(n.q, n.r)) {
+                    const nq = world.width ? ((nb.q % world.width) + world.width) % world.width : nb.q;
+                    const key = `${nq},${nb.r}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    const t = world.getTile(nq, nb.r);
+                    if (!t) continue;
+                    const first = n.first || key;
+                    if (t.settlement) {
+                        if (!found.some(f => f.first === first || f.name === t.settlement.name)) found.push({ name: t.settlement.name, d: n.d + 1, q: nq, r: nb.r, first });
+                        continue;
+                    }
+                    if (t.hasRoad) next.push({ q: nq, r: nb.r, d: n.d + 1, first });
+                }
+            }
+            frontier = next;
+            if (found.length >= 2) break;
+        }
+        if (!found.length) {
+            // Off the road (or a road to nowhere): the nearest town as the crow flies
+            const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() || [] : [];
+            let best = null;
+            for (const s of views) {
+                const d = _dist(world, q, r, s.q, s.r);
+                if (!best || d < best.d) best = { name: s.name, d, q: s.q, r: s.r };
+            }
+            if (best) found.push(best);
+            out.onRoad = false;
+        }
+        out.ends = found.slice(0, 2).map(f => ({ name: f.name, d: f.d, q: f.q, r: f.r, dir: NpcTasks.direction(world, q, r, f.q, f.r) }));
+        return out;
+    },
+
+    /** Who an NPC is on the road: the keeper of the house they're in, a traveller, or someone else. */
+    _roadRole(npc, opts) {
+        if (opts.isKeeper) return 'keeper';
+        return npc && npc.type === 'traveler' ? 'traveler' : 'other';
+    },
+
+    /** A greeting fit for the open road (or null in town). */
+    roadGreeting(world, npc, opts = {}) {
+        const G = _obj(NpcKnowledge.roadConfig().greet);
+        if (!G) return null;
+        const role = NpcKnowledge._roadRole(npc, opts);
+        const pool = [...(G[role] || []), ...(G.any || [])];
+        if (!pool.length) return null;
+        const line = _pick(pool, _h(opts.seed || `${npc && (npc.uid || npc.id)}|roadgreet`));
+        return _fill(line, { house: (opts.house && opts.house.name) || 'the house', season: String((world && world.season) || 'year').toLowerCase() });
+    },
+
+    /**
+     * An NPC's account of the open road where they stand: the roadhouse (its
+     * keeper speaks of it as theirs), whose land it is and what kind, where
+     * the road runs (to the towns it truly reaches), outlaws and old places
+     * near, and the season. A traveller says where they've come from and
+     * where they're bound. All read from the world.
+     * @param {object} opts { q, r, house (systems/hospitality.js house), isKeeper, disposition, seed }
+     * @returns {{ text, revealed: { lairs: number[], sites: [{q,r}] } }}
+     */
+    aboutRoad(world, player, npc, opts = {}) {
+        const R = NpcKnowledge.roadConfig();
+        const type = (npc && npc.type) || 'villager';
+        const ex = NpcKnowledge.expertise(type);
+        const disp = _num(opts.disposition, 50);
+        const seed = opts.seed || `${npc && (npc.uid || npc.id)}|road`;
+        const revealed = { lairs: [], sites: [] };
+        const q = opts.q != null ? opts.q : player && player.q;
+        const r = opts.r != null ? opts.r : player && player.r;
+        if (!world || q == null) return { text: 'Just a stretch of road. Nothing to tell.', revealed };
+        const role = NpcKnowledge._roadRole(npc, opts);
+        const pick = (arr, salt) => _pick(arr, _h(`${seed}|${salt}`));
+        const house = opts.house || null;
+        const ends = NpcKnowledge.roadEnds(world, q, r);
+        const [A, B] = ends.ends;
+        const vars = {
+            house: house ? house.name : 'this place', keeper: house ? house.keeper : 'someone', rooms: house ? house.rooms : 'a few',
+            years: 3 + (_h(`${seed}|years`) % 24),
+            from: A ? A.name : 'the last town', to: B ? B.name : (A ? A.name : 'the next town'),
+            townA: A && A.name, townB: B && B.name, dirA: A && A.dir, dirB: B && B.dir,
+            daysA: A && NpcKnowledge.roadDays(A.d), daysB: B && NpcKnowledge.roadDays(B.d),
+        };
+        const parts = [];
+
+        // Who's speaking, and of the house
+        if (role === 'keeper' && house) {
+            const K = _obj(R.keeper) || {};
+            parts.push(_fill(pick(K.house, 'house'), vars));
+            const Q = _obj(K.quality) || {};
+            const stars = _num(house.stars, 2.5);
+            const band = stars >= 3.5 ? 'good' : stars >= 2.5 ? 'fair' : 'poor';
+            if (Q[band]) parts.push(pick(Q[band], 'quality'));
+        } else if (role === 'traveler' && A) {
+            const T = _obj(R.traveler) || {};
+            // Which way they walk: a hash of who they are
+            const flip = _h(`${seed}|way`) % 2 === 1 && B;
+            const from = flip ? B : A, to = flip ? A : (B || null);
+            if (to && T.journey) {
+                parts.push(_fill(pick(T.journey, 'journey'), { ...vars, from: from.name, to: to.name, daysTo: _cap(NpcKnowledge.roadDays(to.d)), daysFrom: NpcKnowledge.roadDays(from.d) }));
+            } else if (T.nowhere) parts.push(pick(T.nowhere, 'nowhere'));
+            if (house && R.other && R.other.house) parts.push(_fill(pick(R.other.house, 'h'), vars));
+        } else if (house && R.other && R.other.house) {
+            parts.push(_fill(pick(R.other.house, 'h'), vars));
+        }
+
+        // Whose land, and what kind
+        const L = _obj(R.land) || {};
+        const tile = world.getTile ? world.getTile(q, r) : null;
+        const k = tile ? _kingdom(world, tile.kingdom) : null;
+        const landLine = k ? _fill(pick(L.realm, 'realm'), { realm: k.name, ruler: k.ruler || 'the crown' }) : pick(L.none, 'none');
+        const tid = String((tile && tile.terrain && tile.terrain.id) || '').toLowerCase();
+        const terr = _obj(L.terrain) || {};
+        const tKey = Object.keys(terr).find(x => tid.includes(x));
+        parts.push(landLine + (tKey ? ` ${terr[tKey]}` : ''));
+
+        // The road and where it goes: the ways out, and how far
+        const RD = _obj(R.road) || {};
+        const toldJourney = role === 'traveler' && B;
+        if (A && !toldJourney) {
+            const pool = !ends.onRoad ? RD.off : B ? RD.both : RD.one;
+            if (pool) parts.push(_fill(pick(pool, 'road'), vars));
+        }
+
+        // Danger on the road
+        const D = _obj(R.danger) || {};
+        let lairBest = null;
+        for (const l of OutlawLairs.active(player)) {
+            const d = _dist(world, q, r, l.q, l.r);
+            if (d <= 10 && (!lairBest || d < lairBest.d)) lairBest = { l, d };
+        }
+        if (lairBest) {
+            const l = lairBest.l;
+            const dir = NpcTasks.direction(world, q, r, l.q, l.r) || 'out';
+            const leaderBit = l.leader && l.leader.name && !l.leader.slain ? ` — ${l.leader.name} leads them` : '';
+            parts.push(_fill(pick(l.raids > 0 ? D.raids : D.quiet, 'lair'), { lair: l.name, dir, leaderBit }));
+            if (_num(ex.places, 1) >= 2 || role !== 'other') { l.rumoured = true; revealed.lairs.push(l.id); }
+        } else if (D.none) parts.push(pick(D.none, 'safe'));
+
+        // An old place off the road
+        const site = NpcTasks.delveSites(world, q, r, 8)[0];
+        if (site && R.site && (_num(ex.places, 1) >= 2 || disp >= 60 || role === 'keeper')) {
+            const dir = NpcTasks.direction(world, q, r, site.q, site.r) || 'off';
+            parts.push(_fill(pick(R.site, 'site'), { site: site.name.replace(/^The /, 'the '), dir: `${NpcTasks.distanceWords(site.d).replace('just outside town', 'close by')} to the ${dir}` }));
+            const t = world.getTile ? world.getTile(site.q, site.r) : null;
+            if (t && !t.explored) t.explored = true;
+            revealed.sites.push({ q: site.q, r: site.r });
+        }
+
+        // The season on the road
+        const S = _obj(R.season) || {};
+        if (S[world.season]) parts.push(pick(S[world.season], 'season'));
+
+        // How much they'll say: the speaker's own part first, then as their mood allows
+        const keep = NpcKnowledge.shareCount(disp) + 1;
+        let text = parts.filter(Boolean).slice(0, Math.max(2, keep)).join(' ');
+        if (disp < 30) text = _pick(NpcKnowledge.config().guarded, _h(seed)) + text;
+        // A name mid-sentence: "This is the Crooked Lantern", not "The"
+        text = text.replace(/([a-z,] )The (?=[A-Z])/g, '$1the ');
+        return { text: text.replace(/\s+/g, ' ').trim(), revealed };
     },
 
     // ──────────── RUMOURS ────────────

@@ -11,6 +11,7 @@ import { Traits } from '../../systems/traits.js';
 import { Chatter } from '../../systems/chatter.js';
 import { NpcKnowledge } from '../../systems/npcKnowledge.js';
 import { Fame } from '../../systems/fame.js';
+import { Hospitality } from '../../systems/hospitality.js';
 
 export function _mem(npc) {
     return NpcDisposition.getMemory(npc);
@@ -49,8 +50,28 @@ export function _getSettlement() {
 
 export function _getKingdom() {
     const settlement = _getSettlement();
-    if (!settlement || !settlement.kingdom || !dialogState._game.world) return null;
-    return dialogState._game.world.kingdoms?.find(k => k.id === settlement.kingdom) || null;
+    const g = dialogState._game;
+    if (!g || !g.world || !g.player) return null;
+    // In town, the town's crown; out on the road, whoever holds the land
+    const tile = settlement ? null : g.world.getTile(g.player.q, g.player.r);
+    const kid = settlement ? settlement.kingdom : tile && tile.kingdom;
+    if (kid == null) return null;
+    return g.world.kingdoms?.find(k => k.id === kid) || null;
+}
+
+/**
+ * Out on the open road (no town here): the roadhouse on this map, if any,
+ * and whether this NPC keeps it — for systems/npcKnowledge.js aboutRoad.
+ * Null in town.
+ */
+export function _roadContext(npc) {
+    if (_getSettlement()) return null;
+    const g = dialogState._game;
+    if (!g || !g.world || !g.player) return null;
+    const outer = InnerMap._outerMapState ? InnerMap._outerMapState.buildings : InnerMap.buildings;
+    const b = (outer || []).find(x => x && x.establishmentId && (x.type === 'roadhouse' || x.type === 'inn'));
+    const house = b ? Hospitality.get(g.world, g.player, b.establishmentId) : null;
+    return { q: g.player.q, r: g.player.r, house, isKeeper: !!(b && npc && b.ownerId === npc.id) };
 }
 
 export function _skillCheck(skillName, difficulty) {
@@ -139,6 +160,13 @@ export function _getGreeting(npc) {
     const familyReaction = NpcFamily.getFamilyReactionLine(npc, InnerMap.npcs || []);
     if (familyReaction && Math.random() < 0.6) {
         return familyReaction;
+    }
+
+    // Out on the road: a greeting for the road, not for a town street (systems/npcKnowledge.js)
+    const road = _roadContext(npc);
+    if (road && mem.disposition >= 20 && dialogState._game?.world) {
+        const line = NpcKnowledge.roadGreeting(dialogState._game.world, npc, { ...road, seed: `${_npcKey(npc)}|roadgreet|${mem.timesSpoken}` });
+        if (line) return line;
     }
 
     // Pick pool based on disposition and memory

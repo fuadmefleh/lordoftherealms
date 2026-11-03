@@ -51,6 +51,7 @@ const topLevel = [
     'jail',
     'seats',
     'lots',
+    'laws',
     'duels',
     'crafting',
     'mercenaryContracts',

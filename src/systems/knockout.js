@@ -31,6 +31,7 @@ import { Utils } from '../core/utils.js';
 import { NpcDisposition } from './npcDisposition.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
+import { Laws } from './laws.js';
 
 const DEFAULTS = {
     npc: { wakeSeconds: [45, 90], wakeHpShare: 0.25 },
@@ -41,7 +42,6 @@ const DEFAULTS = {
     rob: { base: 0.45, beggar: 0.85, traveler: 0.6, aggressive: 0.7, noble: 0.1, priest: 0.05, guard: 0, child: 0.2 },
     fetchWatch: 0.9,
     npcStarted: { finish: { base: 0.2, aggressive: 0.4, grudge: 0.5, murderGrudge: 0.8 }, capture: 0.6, days: [8, 20], freedomCost: 12 },
-    privatePrisons: { allowShare: 0.4 },
     householder: { chance: 0.6, hateBelow: 15, angryBelow: 30 },
     lines: {
         fetch: ['Guards! GUARDS! In here!'],
@@ -84,7 +84,6 @@ export const Knockout = {
                 lines: { ...DEFAULTS.lines, ...(_obj(d.lines) || {}) },
                 fetchWatch: _num(d.fetchWatch, DEFAULTS.fetchWatch),
                 npcStarted: { ...DEFAULTS.npcStarted, ...(_obj(d.npcStarted) || {}), finish: { ...DEFAULTS.npcStarted.finish, ...((_obj(d.npcStarted) || {}).finish || {}) } },
-                privatePrisons: { ...DEFAULTS.privatePrisons, ...(_obj(d.privatePrisons) || {}) },
                 householder: { ...DEFAULTS.householder, ...(_obj(d.householder) || {}) },
             };
         }
@@ -166,17 +165,10 @@ export const Knockout = {
 
     /**
      * Does the realm let private citizens keep prison camps and prisoners?
-     * The realm's own law (kingdom.laws.privatePrisons) if it has one, else a
-     * hash of the realm decides (allowShare of realms), the same all game.
+     * The realm's law (systems/laws.js: set by its ruler, else its old custom).
      */
     privatePrisonsAllowed(world, kingdomId) {
-        if (kingdomId == null) return false;
-        const k = world && typeof world.getKingdom === 'function' ? world.getKingdom(kingdomId) : null;
-        if (k && k.laws && typeof k.laws.privatePrisons === 'boolean') return k.laws.privatePrisons;
-        const key = `${kingdomId}|${(k && k.name) || ''}`;
-        let h = 2166136261;
-        for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
-        return ((h >>> 0) % 1000) / 1000 < _num(Knockout.config().privatePrisons.allowShare, 0.4);
+        return Laws.privatePrisons(world, kingdomId);
     },
 
     /**

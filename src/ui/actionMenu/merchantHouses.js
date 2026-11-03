@@ -4,6 +4,7 @@
 import { ActionMenu } from './_ref.js';
 import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 4px;';
 const INPUT = 'width: 56px; background:#222; color:#eee; border:1px solid #555; border-radius:3px; padding:2px 4px; font-size:11px;';
@@ -294,9 +295,11 @@ function _companyRivalsHtml(player, world) {
         const active = r.status === 'active';
         html += `<div style="${CARD}${active ? '' : ' opacity:0.55;'}">`;
         html += `<div style="display:flex; justify-content:space-between;"><div>${r.icon} <b>${_esc(r.name)}</b> <span style="color:#999;">(${_esc(r.temperament)})</span></div>`;
-        html += `<div>${active ? `💰 ${_g(r.capital)} · ⭐ ${Math.round(r.reputation)}` : `<span style="color:#e08080;">${r.status}</span>`}</div></div>`;
+        // A rival house's books are for its shareholders; the rest know its name and its posts
+        const holder = (r.shares && r.shares.player) > 0;
+        html += `<div>${active ? `💰 ${holder ? _g(r.capital) : _esc(RealmIntel.band('capital', r.capital))} · ⭐ ${Math.round(r.reputation)}` : `<span style="color:#e08080;">${r.status}</span>`}</div></div>`;
         if (!active) { html += '</div>'; continue; }
-        html += `<div style="font-size:11px; color:#bbb;">Trades ${_esc(r.specialty.join(', '))} · posts: ${_esc(r.posts.map(p => p.name).join(', '))} · last week ${r.lastProfit >= 0 ? '+' : ''}${_g(r.lastProfit)}</div>`;
+        html += `<div style="font-size:11px; color:#bbb;">Trades ${_esc(r.specialty.join(', '))} · posts: ${_esc(r.posts.map(p => p.name).join(', '))}${holder ? ` · last week ${r.lastProfit >= 0 ? '+' : ''}${_g(r.lastProfit)}` : ''}</div>`;
         html += `<div style="font-size:11px;">Rivalry <span style="color:${r.rivalry >= 50 ? '#e08080' : '#ccc'};">${Math.round(r.rivalry)}</span> · share ${Math.round(MerchantHouses.sharePrice(r))}g · you hold <b>${r.shares.player}</b>/100</div>`;
         html += `<button onclick="window._company.buyShares('${r.id}', 5)" style="${BTN_DARK}">Buy 5 shares</button>`;
         html += `<button onclick="window._company.buyShares('${r.id}', 20)" style="${BTN_DARK}">Buy 20</button>`;

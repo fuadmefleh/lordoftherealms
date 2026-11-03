@@ -7,6 +7,7 @@ import { drawMapMarker, drawMarkerPlate } from '../mapInk.js';
 import { Quests } from '../../systems/quests.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 /** Each unit type's glyph on its map token (ui/icons.js); unknown types keep their emoji. */
 const UNIT_GLYPHS = {
@@ -14,7 +15,7 @@ const UNIT_GLYPHS = {
     settler: 'tent', ship: 'ship', trade_ship: 'ship', war_fleet: 'ship', pirate: 'skull',
     fishing_boat: 'boat', lord_party: 'crown', mercenary_band: 'swords', war_host: 'swords',
     lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
-    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe',
+    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown',
 };
 
 /** Token metal by allegiance: rim/glyph colour and the enamel behind it. */
@@ -25,13 +26,15 @@ const TOKEN_METALS = {
     watch: { rim: '#8fb8ea', hi: '#1d2c48', lo: '#080e1a' },
     settler: { rim: '#a9da70', hi: '#203317', lo: '#081106' },
     common: { rim: '#e6dcc4', hi: '#2a2e3a', lo: '#0c0e14' },
+    rival: { rim: '#d89a4a', hi: '#4a1f1f', lo: '#180808' },
 };
 
 function unitMetal(unit) {
-    if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) return TOKEN_METALS.hostile;
+    if (WorldUnit.isHostile(unit)) return TOKEN_METALS.hostile;
     switch (unit.type) {
         case 'caravan': case 'trade_caravan': case 'ship': case 'trade_ship': case 'courier_rider': return TOKEN_METALS.merchant;
         case 'lord_party': return TOKEN_METALS.royal;
+        case 'rival_retinue': return TOKEN_METALS.rival;
         case 'patrol': case 'road_patrol': case 'war_fleet': return TOKEN_METALS.watch;
         case 'settler': return TOKEN_METALS.settler;
         default: return TOKEN_METALS.common;
@@ -39,6 +42,25 @@ function unitMetal(unit) {
 }
 
 Object.assign(Renderer.prototype, {
+    /**
+     * A realm's army or chests as the player knows them, for the map modes
+     * (systems/realmIntel.js): the figure for an insider, the rumour's floor
+     * for one who knows of the realm, null (unshaded) otherwise. Worked out
+     * once a day per realm: the overlays ask for every hex.
+     */
+    _seenRealm(k, kind) {
+        const day = (this.world && this.world.day) || 0;
+        if (!this._intelCache || this._intelCache.day !== day || this._intelCache.player !== this.player) this._intelCache = { day, player: this.player, v: {} };
+        const key = `${kind}:${k.id}`;
+        if (key in this._intelCache.v) return this._intelCache.v[key];
+        const p = this.player;
+        const knows = !p || typeof p.knowsAbout !== 'function' || p.knowsAbout(k.id, kind === 'military' ? 'military' : 'economy');
+        const v = !p ? (kind === 'military' ? k.military : k.treasury)
+            : RealmIntel.seen(p, this.world, k, kind === 'military' ? 'military' : 'books', kind === 'military' ? 'military' : 'treasury', kind === 'military' ? k.military : k.treasury, knows).value;
+        this._intelCache.v[key] = v;
+        return v;
+    },
+
     /**
      * Render the player character
      */
@@ -749,7 +771,7 @@ Object.assign(Renderer.prototype, {
                 const font = `500 ${fsize}px 'Inter', sans-serif`;
 
                 let color = '#ffffff';
-                if (WorldUnit.HOSTILE_TYPES.includes(unit.type)) color = '#ff6666';
+                if (WorldUnit.isHostile(unit)) color = '#ff6666';
                 if (unit.type === 'patrol' || unit.type === 'road_patrol') color = '#66ccff';
                 // NPC merchants (systems/merchantCaravans.js): gold, brighter when you guard them
                 if (unit.type === 'trade_caravan' || unit.type === 'trade_ship') color = unit.escort && unit.escort.by === 'player' ? '#ffe680' : '#e8c070';
@@ -837,8 +859,9 @@ Object.assign(Renderer.prototype, {
                     alpha = 0.30;
                 } else if (tile.kingdom) {
                     const k = this.world.getKingdom(tile.kingdom);
-                    if (k) {
-                        const wealthPerHex = k.treasury / Math.max(1, k.territory.length);
+                    const seen = k ? this._seenRealm(k, 'treasury') : null;
+                    if (k && seen != null) {
+                        const wealthPerHex = seen / Math.max(1, k.territory.length);
                         const t = Math.min(1, wealthPerHex / 30);
                         const r = Math.round(200 * (1 - t));
                         const g = Math.round(180 * t);
@@ -855,9 +878,10 @@ Object.assign(Renderer.prototype, {
             case 'military': {
                 if (tile.kingdom) {
                     const k = this.world.getKingdom(tile.kingdom);
-                    if (k) {
-                        // Normalise military 0-5000 → intensity
-                        const ratio = Math.min(1, k.military / 5000);
+                    const seen = k ? this._seenRealm(k, 'military') : null;
+                    if (k && seen != null) {
+                        // Normalise military 0-5000 → intensity (the army as far as you know it)
+                        const ratio = Math.min(1, seen / 5000);
                         const r = Math.round(255 * ratio);
                         const g = Math.round(60 * (1 - ratio));
                         color = `rgb(${r},${g},30)`;
@@ -1035,8 +1059,9 @@ Object.assign(Renderer.prototype, {
             case 'military': {
                 if (tile.kingdom) {
                     const k = this.world.getKingdom(tile.kingdom);
-                    if (k) {
-                        const ratio = Math.min(1, k.military / 5000);
+                    const seen = k ? this._seenRealm(k, 'military') : null;
+                    if (k && seen != null) {
+                        const ratio = Math.min(1, seen / 5000);
                         return `rgb(${Math.round(255*ratio)},${Math.round(60*(1-ratio))},30)`;
                     }
                 }

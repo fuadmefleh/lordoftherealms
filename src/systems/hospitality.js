@@ -355,7 +355,7 @@ export const Hospitality = {
         if (house._prop) return house;
         const K = this.kind(house.kind) || {};
         return {
-            id: house.id, kind: house.kind, kindName: K.name, icon: K.icon, q: house.q, r: house.r,
+            id: house.id, kind: house.kind, kindName: K.name || 'Lodgings', icon: K.icon || '🛏️', q: house.q, r: house.r,
             name: house.name, keeper: house.keeper, keeperTitle: K.keeperTitle || 'Keeper', owner: 'npc',
             stars: house.stars, rep: house.rep, priceMult: house.priceMult, rooms: house.rooms,
             guests: house.guests, tiers: (K.tiers || []).slice(), services: (K.services || []).slice(),
@@ -367,7 +367,7 @@ export const Hospitality = {
         const K = this.kind(property.type) || {};
         const h = this.hosp(property, player);
         return {
-            id: `p:${q},${r}:${property.type}`, kind: property.type, kindName: K.name, icon: K.icon, q, r,
+            id: `p:${q},${r}:${property.type}`, kind: property.type, kindName: K.name || 'Lodgings', icon: K.icon || '🛏️', q, r,
             name: property.name, keeper: player && player.name ? player.name : 'you', keeperTitle: 'Owner', owner: 'player',
             stars: this.playerStars(property), rep: Math.round(h.rep), priceMult: h.priceMult, rooms: this.playerRooms(property),
             guests: h.guests, tiers: (K.tiers || []).slice(), services: (K.services || []).slice(),
@@ -596,6 +596,8 @@ export const Hospitality = {
             player.lodging.services.push(serviceId);
             return { ok: true, text: `${S.name} — arranged for the morning.`, cost: s.price };
         }
+        // Washed clothes first, so the service's hygiene isn't capped by the dirty ones
+        if (S.clothes && player.washClothes) player.washClothes(_num(S.clothes));
         const boost = 0.85 + 0.06 * _num(v.stars, 2);
         if (player.modifyNeed) for (const [need, amt] of Object.entries(S.needs || {})) player.modifyNeed(need, Math.round(amt * boost));
         if (S.health) player.health = Math.min(_num(player.maxHealth, 100), _num(player.health, 100) + S.health);

@@ -1096,7 +1096,13 @@ export const Finance = {
             // The house's own lending to merchants earns its yield (the
             // player's house keeps real books: deposits, loan book, costs)
             if (bank.owner === 'player') Finance._ownedBankDay(world, player, st, bank, out);
-            else if (bank.capital > 0) bank.capital = _round2(bank.capital * (1 + _num(B.yield, 0.07) / yd));
+            else if (bank.capital > 0) {
+                // Its yield is ploughed back until the house is capitalCapMult × its
+                // founding capital; past that its partners take the yield out (a
+                // bank compounding 7% a year for centuries ran to astronomical sums)
+                const cap = _num(bank.baseCapital, bank.capital) * _num(B.capitalCapMult, 6);
+                if (bank.capital < cap) bank.capital = _round2(Math.min(cap, bank.capital * (1 + _num(B.yield, 0.07) / yd)));
+            }
             if (bank.status !== 'open') continue;
             if (bank.panic && _num(bank.panic.until) < day) Finance._endPanic(world, player, st, bank, out);
         }

@@ -214,6 +214,8 @@ export const InnerMapRenderer = {
                         if (!k.startsWith('_')) this._SPRITE_PATH_TO_LPC[k] = v;
                     }
                 }
+                // Interior floors, walls and furniture sprites
+                if (data.interiorArt) this._interiorArt = data.interiorArt;
                 // Action definitions
                 if (data.actionDefs) {
                     this._actionDefs = {};
@@ -465,6 +467,9 @@ export const InnerMapRenderer = {
     _ROCK_SPRITES: [],
 
     /** Building type key → LPC structure sheet key */
+    /** Sprites for procedural interiors: floors, walls, door and furniture by type (null until loaded) */
+    _interiorArt: null,
+
     _BUILDING_TO_LPC: {},
 
     /** Hex sprite path substrings → LPC sheet key */

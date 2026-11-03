@@ -7,6 +7,7 @@ import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { Difficulty } from '../../core/difficulty.js';
@@ -777,6 +778,14 @@ Object.assign(PlayerMilitary, {
                     karmaChange = (player.karma || 0) - before;
                     break;
                 }
+                case 'rival_retinue': {
+                    // A rival House's head on the road (systems/rivalHouses.js): their purse, their blood, the feud
+                    const before = player.karma || 0;
+                    const text = RivalHouses.onAttacked(player, world, worldUnit, true);
+                    karmaChange = (player.karma || 0) - before;
+                    if (text && world.events) world.events.push({ text, type: 'military' });
+                    break;
+                }
                 case 'patrol':
                 case 'road_patrol':
                     karmaChange = -2;
@@ -824,6 +833,7 @@ Object.assign(PlayerMilitary, {
             // Beaten off by a merchant's guards: they saw your face
             if (MerchantCaravans.isTrader(worldUnit)) MerchantCaravans.onRobberyFailed(player, world, worldUnit);
             if (CourierRiders.isRider(worldUnit)) CourierRiders.onRobberyFailed(player, world, worldUnit);
+            if (RivalHouses.isRetinue(worldUnit)) RivalHouses.onAttacked(player, world, worldUnit, false);
             // Log defeat event
             if (world.events) {
                 world.events.push({

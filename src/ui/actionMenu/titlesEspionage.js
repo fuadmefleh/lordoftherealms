@@ -1,6 +1,7 @@
 // ActionMenu — titlesEspionage methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { startTaxRound } from './dutyScenes.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -985,7 +986,14 @@ Object.assign(ActionMenu, {
                 <span style="font-size:22px; width:28px; height:28px; border-radius:50%; background:${target.color || '#555'}; display:flex; align-items:center; justify-content:center;">👑</span>
                 <div style="flex:1;">
                     <div style="font-weight:bold; font-size:13px;">${target.name}</div>
-                    <div style="font-size:11px; color:var(--text-secondary);">⚔️ Military: ${target.military} • 💰 Treasury: ${target.treasury} • 🗺️ Territory: ${target.territory}</div>
+                    <div style="font-size:11px; color:var(--text-secondary);">${(() => {
+                        // What the spy goes to learn is not known before it goes (systems/realmIntel.js)
+                        const p = game.player;
+                        const knows = (cat) => typeof p.knowsAbout !== 'function' || p.knowsAbout(target.id, cat);
+                        const mil = RealmIntel.seen(p, game.world, target.id, 'military', 'military', target.military, knows('military'));
+                        const tre = RealmIntel.seen(p, game.world, target.id, 'books', 'treasury', target.treasury, knows('economy'));
+                        return `⚔️ Military: ${mil.text} • 💰 Treasury: ${tre.text}`;
+                    })()} • 🗺️ Territory: ${target.territory}</div>
                 </div>
             </button>`;
         }

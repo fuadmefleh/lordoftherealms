@@ -42,6 +42,32 @@ import { Discovery } from '../systems/discovery.js';
 
 export const DataLoader = {
     _cache: {},
+
+    /**
+     * The shipped list with editor-saved entries laid over it by id: an edited
+     * entry replaces its shipped namesake, a new one is added. Copies of the
+     * buildings composed from the building kit (tagged 'composed') are skipped:
+     * data/buildingKit.json is their source, and a stale saved copy would hide
+     * every later change to them.
+     */
+    mergeById(base, stored) {
+        const byId = new Map();
+        const order = [];
+        for (const item of base) {
+            const id = item && item.id;
+            if (id == null) { order.push(item); continue; }
+            if (!byId.has(id)) order.push(id);
+            byId.set(id, item);
+        }
+        for (const item of stored) {
+            const id = item && item.id;
+            if (id == null) continue;
+            if (Array.isArray(item.tags) && item.tags.includes('composed')) continue;
+            if (!byId.has(id)) order.push(id);
+            byId.set(id, item);
+        }
+        return order.map(k => (typeof k === 'string' || typeof k === 'number' ? byId.get(k) : k));
+    },
     _gamedata: null,  // The full merged data object once loaded
 
     /** Reset all cached data so the next load() re-fetches gamedata.json + ModStore. */
@@ -174,6 +200,13 @@ export const DataLoader = {
                 if (key === 'buildings' && Array.isArray(stored[key])) {
                     console.log(`[DataLoader] Building IDs from ModStore: [${stored[key].map(b => b.id || '(no id)').join(', ')}]`);
                     console.log(`[DataLoader] Building types from ModStore: [${stored[key].map(b => b.buildingType || '(none)').join(', ')}]`);
+                }
+                // Buildings and objects saved in an editor join the shipped ones (same id = the
+                // edited version wins) rather than replacing the whole list: one building
+                // saved in the editor must not leave every town built of that one house.
+                if ((key === 'buildings' || key === 'objects') && Array.isArray(stored[key]) && Array.isArray(this._gamedata[key])) {
+                    this._gamedata[key] = DataLoader.mergeById(this._gamedata[key], stored[key]);
+                    continue;
                 }
                 this._gamedata[key] = stored[key];
             }
@@ -395,6 +428,7 @@ export const DataLoader = {
         const cartoData = data['cartography.json'];
         Cartography.QUALITY = cartoData.quality;
         Cartography.MAP_TYPES = cartoData.mapTypes;
+        if (cartoData.charting) Object.assign(Cartography.CHARTING, cartoData.charting);
         if (cartoData.kingdomAtlas) Object.assign(KingdomAtlas.CONFIG, cartoData.kingdomAtlas);
 
         // ── Infrastructure ──

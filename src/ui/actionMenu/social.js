@@ -5,6 +5,7 @@ import { CompanionsPanel } from '../companionsPanel.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
@@ -875,8 +876,10 @@ Object.assign(ActionMenu, {
                 const feud = r.feud || 0;
                 const label = feud >= 60 ? 'Hostile' : feud >= 30 ? 'Wary' : 'Cool';
                 const color = feud >= 60 ? '#e08080' : feud >= 30 ? '#e0b040' : '#88aabb';
-                html += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;"><span>${r.name}</span><span style="color:${color};">${label} (${feud})</span></div>`;
+                const head = r.head ? ` <span style="color:#888;">· ${RivalHouses.headName(r)}, ${r.head.age} · ${RivalHouses.doing(game.world, r)}</span>` : '';
+                html += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;"><span>${r.name}${head}</span><span style="color:${color};">${label} (${feud})</span></div>`;
             }
+            if (rivalKeys.some(k => house.rivals[k].head)) html += '<button data-am-act="showRivalHouses" style="padding:4px 8px; background:#555; border:none; border-radius:3px; cursor:pointer; color:#ddd; font-size:11px; margin-top:4px;">🏰 Rival Houses — their lords, purses and doings</button>';
         }
 
         // Wars and ultimatums from kingdoms

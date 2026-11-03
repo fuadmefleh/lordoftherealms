@@ -159,6 +159,7 @@ export const GLYPHS = {
         'M10 9h4.5M10 12.5h4.5',
     ],
     hourglass: HOURGLASS,
+    calendar: ['~M4 6h16v15H4z', 'M4 6h16v15H4z', 'M4 10.5h16', 'M8 3.5v4.5M16 3.5v4.5', 'M7.5 14h2M11 14h2M14.5 14h2M7.5 17.5h2M11 17.5h2'],
     crown: ['~' + CROWN, CROWN, 'M5 21h14', circle(12, 14.5, 1.2)],
     lyre: [
         'M9 16C5 14 4 8.5 6.6 4',
@@ -593,6 +594,7 @@ const MAP_GLYPHS = {
     '💤': 'moon', '🕌': 'temple', '⚒': 'anvil', '🗼': 'tower', '🍻': 'tankard', '🍺': 'tankard', '🗺': 'map', '🚪': 'house',
     '💂': 'helm', '🤴': 'crown', '👸': 'crown', '👦': 'person', '👧': 'person', '🧒': 'person', '🧑': 'person', '👨': 'person',
     '👩': 'person', '🧎': 'person', '🧳': 'satchel', '🧙': 'orb', '🛡': 'shield', '⚔': 'swords',
+    '✒': 'quill', '🏺': 'urn', '🛁': 'droplet',
 };
 
 /** An inner map's furniture by its type: what the piece is, whatever emoji its data carries. */
@@ -600,7 +602,8 @@ const FURNITURE_GLYPHS = {
     table: 'table', pew: 'chair', chair: 'chair', bar: 'tankard', barrel: 'barrel', fireplace: 'fire', forge: 'fire',
     bed: 'bed', bookshelf: 'book', anvil: 'anvil', altar: 'chalice', statue: 'statue', stall: 'stall', scales: 'scales',
     crate: 'crate', chest: 'chest', throne: 'crown', well: 'well', bucket: 'bucket', candle: 'candle', banner: 'pennant',
-    stairs: 'stairs',
+    stairs: 'stairs', desk: 'quill', shelf: 'urn', cauldron: 'flask', tub: 'droplet', oven: 'bread', millstone: 'wheat',
+    cell: 'lock', press: 'coins', lectern: 'book', sack: 'sack', rug: 'palette',
 };
 
 /** The glyph a piece of inner-map furniture is drawn with (racks keep their own: swords or shield). */
@@ -616,6 +619,8 @@ const BUILDING_GLYPHS = {
     house: 'house', manor: 'castle', stable: 'horseshoe', guard_tower: 'tower', farm: 'wheat', pasture: 'sheep',
     logging_camp: 'axe', mine: 'pickaxe', workshop: 'hammer', trading_post: 'scales', fishing_wharf: 'anchor',
     brewery: 'barrel', guest_house: 'bed', inn: 'bed', hotel: 'bed', roadhouse: 'bed',
+    guildhall: 'hammer', bank: 'coins', post_house: 'seal', apothecary: 'flask', bathhouse: 'droplet', library: 'book',
+    bakery: 'bread', mill: 'wheat', jail: 'lock', mint: 'coins', chapel: 'church',
 };
 
 /** The glyph an inner-map building is marked with. */

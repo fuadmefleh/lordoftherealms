@@ -1,0 +1,179 @@
+// ============================================================
+// TOWN PROPS — the things a town is dressed with
+// ============================================================
+// Wells, market stalls, lamp posts, barrels, crates, hay, woodpiles, flower
+// beds, fences and fields, built from LPC sheet cells (data/townProps.json)
+// into editor-object defs (the shape CustomObjects already draws, clicks and
+// blocks movement with). CustomObjects.loadAll registers TownProps.defs();
+// the settlement planner places them with TownProps.place().
+//
+// Fields come in every size the planner asks for (FIELD_W × FIELD_H) so a
+// field is one object: a 9-slice of plowed soil, or a fill of wheat, with
+// crops on top. Fences are single-tile pieces laid round a rectangle.
+//
+// Pure: no randomness of its own (callers pass their rng), no import-time
+// effects.
+
+import { DataLoader } from '../core/dataLoader.js';
+
+const T = 32;
+export const FIELD_W = [3, 4, 5, 6, 7, 8, 9, 10];
+export const FIELD_H = [2, 3, 4, 5, 6];
+
+function _data() {
+    return (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || null;
+}
+
+function _def(id, name, tiles, solidRows, opts = {}) {
+    let minC = 0, maxC = 0, minR = 0;
+    for (const t of tiles) {
+        minC = Math.min(minC, t.localCol); maxC = Math.max(maxC, t.localCol);
+        minR = Math.min(minR, t.localRow);
+    }
+    const meta = [];
+    const seen = new Set();
+    for (const t of tiles) {
+        const k = `${t.localCol},${t.localRow}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const solid = opts.allSolid || t.localRow > -solidRows;
+        meta.push({ localCol: t.localCol, localRow: t.localRow, impassable: !!solid && solidRows > 0, interactionPoint: t.localCol === 0 && t.localRow === 0 });
+    }
+    return {
+        id, name,
+        objectType: 'decoration',
+        terrainBindings: [],
+        spawnWeight: 0,
+        townProp: true,
+        tags: opts.tags || [],
+        bounds: { minCol: minC, minRow: minR, maxCol: maxC, maxRow: 0 },
+        hasBlockedTiles: solidRows > 0,
+        hasInteraction: true,
+        tiles,
+        meta,
+    };
+}
+
+/** A rect [col, row, w, h] of a sheet as object tiles, anchored bottom-left. */
+function _rectTiles(sheet, [c0, r0, w, h]) {
+    const tiles = [];
+    for (let dr = 0; dr < h; dr++) {
+        for (let dc = 0; dc < w; dc++) {
+            tiles.push({ localCol: dc, localRow: dr - (h - 1), sheetPath: sheet, sx: (c0 + dc) * T, sy: (r0 + dr) * T, sw: T, sh: T });
+        }
+    }
+    return tiles;
+}
+
+function _slot(i, n) {
+    if (n === 1) return 1;
+    return i === 0 ? 0 : i === n - 1 ? 2 : 1;
+}
+
+/** One field object, w × h, of a kind ('wheat', 'veg', 'plowed', 'greens'). */
+function _fieldDef(d, kind, w, h) {
+    const f = d.fields[kind];
+    const tiles = [];
+    for (let r = 0; r < h; r++) {
+        for (let c = 0; c < w; c++) {
+            const lr = r - (h - 1);
+            if (f.soil) {
+                const sheet = d.sheets[f.soil.sheet];
+                tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: (f.soil.x + _slot(c, w)) * T, sy: (f.soil.y + _slot(r, h)) * T, sw: T, sh: T });
+            }
+            if (f.fill) {
+                const sheet = d.sheets[f.fill.sheet];
+                const [fc, fr] = f.fill.cells[(c * 7 + r * 3) % f.fill.cells.length];
+                tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: fc * T, sy: fr * T, sw: T, sh: T });
+            }
+            if (f.crops && c > 0 && c < w - 1 && r > 0 && r < h - 1) {
+                const sheet = d.sheets[f.crops.sheet];
+                const [cc, cr] = f.crops.cells[(Math.floor(r) * 3 + Math.floor(c / 2)) % f.crops.cells.length];
+                tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: cc * T, sy: cr * T, sw: T, sh: T });
+            }
+        }
+    }
+    return _def(TownProps.fieldId(kind, w, h), f.name, tiles, h, { allSolid: true, tags: ['field', kind] });
+}
+
+export const TownProps = {
+    /** Every prop, fence piece and field def, for CustomObjects to register. */
+    defs() {
+        const d = _data();
+        if (!d) return [];
+        const out = [];
+        for (const p of d.props || []) {
+            const sheet = d.sheets[p.sheet];
+            if (!sheet) continue;
+            out.push(_def(p.id, p.name, _rectTiles(sheet, p.rect), p.solid == null ? 1 : p.solid, { tags: p.tags }));
+        }
+        const fence = d.fence;
+        if (fence) {
+            const one = (id, key, [c, r]) => _def(id, fence.name, [{ localCol: 0, localRow: 0, sheetPath: d.sheets[key], sx: c * T, sy: r * T, sw: T, sh: T }], 1, { tags: ['fence'] });
+            out.push(one('tp_fence_h_l', fence.h.sheet, fence.h.left));
+            out.push(one('tp_fence_h_m', fence.h.sheet, fence.h.mid));
+            out.push(one('tp_fence_h_r', fence.h.sheet, fence.h.right));
+            out.push(one('tp_fence_v_t', fence.v.sheet, fence.v.top));
+            out.push(one('tp_fence_v_m', fence.v.sheet, fence.v.mid));
+            out.push(one('tp_fence_v_b', fence.v.sheet, fence.v.bottom));
+            const gate = _def('tp_fence_gate', 'Gate', [{ localCol: 0, localRow: 0, sheetPath: d.sheets[fence.gate.sheet], sx: fence.gate.cell[0] * T, sy: fence.gate.cell[1] * T, sw: T, sh: T }], 0, { tags: ['fence'] });
+            out.push(gate);
+        }
+        for (const kind of Object.keys(d.fields || {})) {
+            for (const w of FIELD_W) for (const h of FIELD_H) out.push(_fieldDef(d, kind, w, h));
+        }
+        return out;
+    },
+
+    /** Prop ids carrying a tag (data/townProps.json). */
+    idsWithTag(tag) {
+        const d = _data();
+        return d ? (d.props || []).filter(p => (p.tags || []).includes(tag)).map(p => p.id) : [];
+    },
+
+    fieldId(kind, w, h) {
+        return `tp_field_${kind}_${w}x${h}`;
+    },
+
+    fieldKinds() {
+        const d = _data();
+        return d ? Object.keys(d.fields || {}) : [];
+    },
+
+    /**
+     * Can `def` stand with its anchor (bottom-left) at (q, r)? Every cell it
+     * covers must be on the map, off the roads (unless opts.onRoad) and free
+     * of buildings, objects and cells the planner reserved.
+     */
+    fits(tiles, def, q, r, opts = {}) {
+        if (!def) return false;
+        const H = tiles.length, W = tiles[0].length;
+        // Every cell it draws on as well as every cell it blocks (a tree's crown has no meta)
+        for (const m of [...(def.meta || []), ...(def.tiles || [])]) {
+            const fq = q + m.localCol, fr = r + m.localRow;
+            if (fq < 1 || fr < 1 || fq >= W - 1 || fr >= H - 1) return false;
+            const t = tiles[fr][fq];
+            if (t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t.building) return false;
+            if (t._reserved && !opts.ignoreReserved) return false;
+            if (t.isRoad && !opts.onRoad) return false;
+            if (t.subTerrain && t.subTerrain.id && /water/.test(t.subTerrain.id)) return false;
+        }
+        return true;
+    },
+
+    /** Put `def` down with its anchor at (q, r). Returns false (and changes nothing) when it doesn't fit. */
+    place(tiles, def, q, r, opts = {}) {
+        if (!TownProps.fits(tiles, def, q, r, opts)) return false;
+        tiles[r][q].customObject = { defId: def.id, sheetPath: null, currentHealthPct: 100, planted: true };
+        if (def.resource) tiles[r][q].customObject.resource = def.resource;
+        const cells = new Map();
+        for (const t of def.tiles || []) cells.set(`${t.localCol},${t.localRow}`, { localCol: t.localCol, localRow: t.localRow });
+        for (const m of def.meta || []) cells.set(`${m.localCol},${m.localRow}`, m);
+        for (const m of cells.values()) {
+            const t = tiles[r + m.localRow][q + m.localCol];
+            if (m.localCol !== 0 || m.localRow !== 0) t.customObjectPart = { anchorQ: q, anchorR: r };
+            if (m.impassable) t.subTerrain.passable = false;
+        }
+        return true;
+    },
+};

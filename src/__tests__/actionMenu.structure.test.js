@@ -46,7 +46,7 @@ const EXPECTED_KEYS = [
     'showLetters', 'lettersAct', 'updateLettersBadge',
     // Directed opposition (ui/actionMenu/threats.js): +2
     'showThreatsPanel', 'threatsAct',
-    'showRider', 'riderAct',
+    'showRider', 'riderAct', 'showRivalHead', 'showRivalHouses', 'rivalHouseAct',
     // Landing parties (ui/actionMenu/landings.js): +1
     'showLandingParty',
     'showLodgings', '_lodgingStayHtml', '_lodgingRunHtml', 'lodgingAct',
@@ -75,6 +75,8 @@ const EXPECTED_KEYS = [
     'showAnnals', 'annalsAct',
     // The Season's Reckoning (ui/actionMenu/reckoning.js): +1
     'showReckoning',
+    // The Calendar (ui/actionMenu/calendar.js): +1
+    'showCalendar', '_chartingSection', 'doChartTile', 'discardChartDraft', 'doWashClothes', 'autoChartArea', 'stopAutoChartArea',
     'showAmbitionPanel', 'setVictoryGoal', 'showVictoryScene',
     'showCounsel', 'counselGo',
     'showPatronage', 'patronageAct',
@@ -147,8 +149,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 341 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(341);
+    it('has 351 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(351);
     });
 
     it('every member except the known data props is a function', () => {

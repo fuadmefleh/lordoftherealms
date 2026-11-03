@@ -37,7 +37,7 @@ const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _key = (q, r) => `${q},${r}`;
 const _r3 = (v) => Math.round(v * 1000) / 1000;
-export const HOLDER_KINDS = ['crown', 'noble', 'church', 'town', 'house', 'player'];
+export const HOLDER_KINDS = ['crown', 'noble', 'church', 'town', 'house', 'player', 'rival'];
 
 const DEFAULTS = {
     enabled: true,

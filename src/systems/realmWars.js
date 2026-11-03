@@ -47,6 +47,11 @@ const CONFIG = {
     peaceScoreDiscount: 10,    // gold off the peace price per point of war score
     reparationsBase: 100,
     reparationsPerMilitary: 0.2,
+    peaceReputation: -10,      // standing with a realm once a war with it ends (at least)
+    // Old wrongs fade: a realm's grudge against the player eases a point at a
+    // time, so a war or a slander from a generation ago is not held forever.
+    graceCadence: 30,          // days between easings
+    graceStep: 1,              // reputation regained each time, up to 0
 };
 
 const dist = (world, a, b) => Hex.wrappingDistance(a.q, a.r, b.q, b.r, world.width);
@@ -202,7 +207,7 @@ export const RealmWars = {
         }
         delete s.wars[kingdomId];
         s.truces[kingdomId] = world.day + CONFIG.truceDays;
-        if (player.reputation) player.reputation[kingdomId] = Math.max(player.reputation[kingdomId] || 0, -30);
+        if (player.reputation) player.reputation[kingdomId] = Math.max(player.reputation[kingdomId] || 0, CONFIG.peaceReputation);
         House.accrueRivalFeud(player, world, kingdomId, -30);
         if (how === 'bought') NPCLords.rememberRealm(world, kingdomId, 'peace_bought');
         else if (how === 'victory') NPCLords.rememberRealm(world, kingdomId, 'humbled');
@@ -420,6 +425,18 @@ export const RealmWars = {
         }
     },
 
+    /** Every realm not at war with or threatening the player forgets a little of its grudge. */
+    easeGrudges(player, world) {
+        const rep = player.reputation;
+        if (!rep) return;
+        const s = RealmWars._state(player);
+        for (const k of world.kingdoms || []) {
+            if (!k || !k.isAlive || s.wars[k.id] || s.ultimatums[k.id]) continue;
+            const v = rep[k.id];
+            if (Number.isFinite(v) && v < 0) rep[k.id] = Math.min(0, v + CONFIG.graceStep);
+        }
+    },
+
     /**
      * Advance wars and ultimatums one day. Call after world.advanceDay (units
      * have moved) from the end-of-day sequence.
@@ -443,6 +460,8 @@ export const RealmWars = {
             if (!kingdom || !kingdom.isAlive || kingdom.id === player.allegiance) { delete s.ultimatums[u.kingdomId]; continue; }
             if (day >= u.dueDay) out.declared.push(RealmWars.declareWar(player, world, kingdom, 'ultimatum ignored'));
         }
+
+        if (day > 0 && day % CONFIG.graceCadence === 0) RealmWars.easeGrudges(player, world);
 
         if (day > 0 && day % CONFIG.checkCadence === 0 && RealmWars.holdings(player, world).length) {
             for (const k of world.kingdoms) {

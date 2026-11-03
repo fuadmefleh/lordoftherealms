@@ -60,6 +60,14 @@ Object.assign(InnerMap, {
         throne:    { icon: '👑', label: 'holding court', anim: 'sitting', duration: [10, 18] },
         well:      { icon: '💧', label: 'drawing water', anim: 'idle',  duration: [3, 6] },
         bucket:    { icon: '💧', label: 'washing',     anim: 'idle',    duration: [3, 6] },
+        desk:      { icon: '✒️', label: 'writing',     anim: 'sitting', duration: [8, 14] },
+        lectern:   { icon: '📖', label: 'reading',     anim: 'idle',    duration: [6, 10] },
+        shelf:     { icon: '🏺', label: 'browsing',    anim: 'idle',    duration: [3, 6] },
+        tub:       { icon: '🛁', label: 'bathing',     anim: 'sitting', duration: [8, 14] },
+        oven:      { icon: '🍞', label: 'baking',      anim: 'idle',    duration: [6, 10] },
+        cauldron:  { icon: '⚗️', label: 'stirring',    anim: 'idle',    duration: [5, 9] },
+        press:     { icon: '💰', label: 'striking coin', anim: 'slash', duration: [5, 9] },
+        millstone: { icon: '🌾', label: 'grinding',    anim: 'idle',    duration: [6, 10] },
     },
 
     /** Furniture each kind of NPC gravitates to; anything else is a fallback. */

@@ -9,7 +9,8 @@
 import { ActionMenu } from './_ref.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Throne } from '../../systems/throne.js';
-import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs, intelBadge } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
@@ -26,8 +27,12 @@ function act(label, args, style = BTN_GOLD, enabled = true, title = '') {
     return `<button data-am-act="tradePolicyAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
 }
 
-/** One line on a realm's policy (for the trade window and the panels). */
-export function policyLine(world, kingdom) {
+/**
+ * One line on a realm's policy (for the trade window and the panels): what
+ * is posted at its borders. A treasury in crisis shows only with
+ * opts.books (the books are open to the player: systems/realmIntel.js).
+ */
+export function policyLine(world, kingdom, opts = {}) {
     if (!kingdom) return '';
     const s = TradePolicy.summary(world, kingdom);
     const parts = [`${s.stance.icon} ${esc(s.stance.label)}`, `imports ${pct(s.avgImport)} on average`];
@@ -36,7 +41,7 @@ export function policyLine(world, kingdom) {
     if (s.embargo.length) parts.push(`<span style="color:#e74c3c;">embargo on ${s.embargo.map(e => esc(e.name)).join(', ')}</span>`);
     if (s.treaties.length) parts.push(`<span style="color:#2ecc71;">treaty with ${s.treaties.map(e => esc(e.name)).join(', ')}</span>`);
     if (s.retal.length) parts.push(`<span style="color:#e8a040;">trade war with ${s.retal.map(e => esc(e.name)).join(', ')}</span>`);
-    if (s.crisis) parts.push('<span style="color:#e8a040;">treasury in crisis</span>');
+    if (s.crisis && opts.books) parts.push('<span style="color:#e8a040;">treasury in crisis</span>');
     return parts.join(' · ');
 }
 
@@ -92,8 +97,11 @@ function realmsTab(game, pick = null) {
     let html = '';
     for (const k of alive) {
         const s = TradePolicy.summary(world, k);
-        const rev = s.revenue ? Math.round(s.revenue.last) : 0;
-        html += `<div style="${CARD}"><b>${esc(k.name)}</b> <small style="color:#999;">${rev ? `customs ${rev}g last week` : ''}${s.granary && s.granary.grain >= 1 ? ` · granary ${Math.round(s.granary.grain)} grain` : ''}</small><div style="${NOTE}">${policyLine(world, k)}</div>`;
+        // The customs' take and the royal granary are the crown's books (systems/realmIntel.js)
+        const why = RealmIntel.whyLabel(player, world, k, 'books');
+        const rev = why && s.revenue ? Math.round(s.revenue.last) : 0;
+        const grain = why && s.granary && s.granary.grain >= 1 ? ` · granary ${Math.round(s.granary.grain)} grain` : '';
+        html += `<div style="${CARD}"><b>${esc(k.name)}</b> ${intelBadge(why)} <small style="color:#999;">${rev ? `customs ${rev}g last week` : ''}${grain}</small><div style="${NOTE}">${policyLine(world, k, { books: !!why })}</div>`;
         if (pick && pick !== k.id) {
             const q = TradePolicy.brokerQuote(player, world, pick, k.id);
             html += q.ok ? act(`🤝 Broker a treaty with ${esc((world.getKingdom(pick) || {}).name)} (${q.cost}g)`, ['broker', pick, k.id]) : `<div style="${NOTE}">${esc(q.reason)}</div>`;
@@ -116,7 +124,7 @@ function crownTab(game) {
     if (!k) return `<div style="${NOTE}">You wear no crown. Those who do set the duties, bans and embargoes you trade under.</div>`;
     const s = TradePolicy.summary(world, k);
     const levels = TradePolicy.config().ruler.levels;
-    let html = `<div style="${CARD}"><b>👑 The trade of ${esc(k.name)}</b><div style="${NOTE}">${policyLine(world, k)}</div>`;
+    let html = `<div style="${CARD}"><b>👑 The trade of ${esc(k.name)}</b><div style="${NOTE}">${policyLine(world, k, { books: true })}</div>`;
     html += `<div style="${NOTE}">Customs: ${Math.round(s.revenue ? s.revenue.last : 0)}g last week, ${Math.round(s.revenue ? s.revenue.total : 0)}g in all. Cut duties and the Guild Coalition cheers; raise them on goods your guilds make (⚒️) and they cheer louder — but your neighbours answer duty with duty.</div>`;
     html += tariffTable(s, (c) => {
         const step = (side, dir) => {

@@ -25,6 +25,8 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Ships } from '../../systems/ships.js';
+import { RealmWars } from '../../systems/realmWars.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
 import { Landings } from '../../systems/landings.js';
 import { Petitions } from '../../systems/petitions.js';
 import { Delves } from '../../systems/delves.js';
@@ -34,6 +36,9 @@ import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
+import { Heirs } from '../../systems/heirs.js';
+import { Townsfolk } from '../../systems/townsfolk.js';
+import { Hospitality } from '../../systems/hospitality.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
@@ -69,6 +74,40 @@ const FOOD_FALLBACK = ['fish'];
 // Below this purse the bot lives like a poor wanderer: works for wages in
 // town, buys a week's bread at a time and spends on nothing grand
 const POOR_BELOW = 600;
+
+/**
+ * Each life plays with its own temperament, so a long run has rich lives and
+ * poor ones rather than one purse held at the same mark for centuries:
+ *   poorBelow  works for wages and keeps to the market until this much is saved
+ *   ventureAt  grand ventures (voyages, expeditions, colonies, caravans) only above this
+ *   spends     lives well in town when there's money: inns' suppers, baths, the valet
+ *   courtAt    the purse it wants before courting
+ * Picked by a hash of the name (no RNG draw), so a life keeps its temperament
+ * through a save and the bot's dice stay as they were.
+ */
+export const PERSONAS = {
+    drifter: { poorBelow: 120, ventureAt: 0, spends: false, courtAt: 150 },
+    labourer: { poorBelow: POOR_BELOW, ventureAt: 0, spends: false, courtAt: 400 },
+    saver: { poorBelow: 2500, ventureAt: 8000, spends: false, courtAt: 1000 },
+    merchant: { poorBelow: 1200, ventureAt: 1200, spends: false, courtAt: 800 },
+    spendthrift: { poorBelow: 250, ventureAt: 0, spends: true, courtAt: 200 },
+};
+const PERSONA_IDS = Object.keys(PERSONAS);
+
+/** This life's temperament: { id, ...PERSONAS[id] }. */
+export function personaOf(game) {
+    const name = String((game.player && game.player.name) || '');
+    if (!game._persona || game._persona.name !== name) {
+        let h = 2166136261;
+        for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+        const id = PERSONA_IDS[(h >>> 0) % PERSONA_IDS.length];
+        game._persona = { name, id, ...PERSONAS[id] };
+    }
+    return game._persona;
+}
+/** The temperament in play: past the short soak's horizon (whose runs stay as they were), the life's own. */
+const temper = (game) => (game.world.day > 150 ? personaOf(game) : { id: 'labourer', ...PERSONAS.labourer });
+const poorBelow = (game) => temper(game).poorBelow;
 const JOB_AP = 4;
 
 function count(stats, key, n = 1) {
@@ -115,14 +154,19 @@ function buyFood(game, tile, stats) {
         const g = goods.find(x => x.id === id);
         if (!g || g.quantity <= 0) continue;
         // Each unit costs a little more than the last as the stall empties
-        const qty = Trading.affordable(player, g, tile.settlement, player.gold < POOR_BELOW ? 8 : 30);
+        const qty = Trading.affordable(player, g, tile.settlement, player.gold < poorBelow(game) ? 8 : 30);
         if (qty <= 0) continue;
         const res = Trading.buyGoods(player, g, qty, tile.settlement);
         if (res.success) { count(stats, 'foodBought', qty); return; }
     }
-    // No grain or bread to be had (a dearth, a guild's bread monopoly): anything edible
+    // No grain or bread to be had (a dearth, a guild's bread monopoly): anything
+    // edible, fish first, then the cheapest of what the stalls have (a new life
+    // once starved in a town of cheese and meat with gold in the purse)
     if (player.getFoodCount() > 2) return;
-    for (const id of FOOD_FALLBACK) {
+    const edible = player.constructor.FOOD_TYPES || [];
+    const others = goods.filter(g => edible.includes(g.id) && !FOOD.includes(g.id) && !FOOD_FALLBACK.includes(g.id))
+        .sort((a, b) => (a.price || 0) - (b.price || 0)).map(g => g.id);
+    for (const id of [...FOOD_FALLBACK, ...others]) {
         const g = goods.find(x => x.id === id);
         if (!g || g.quantity <= 0) continue;
         const qty = Trading.affordable(player, g, tile.settlement, 20);
@@ -541,6 +585,9 @@ function discoveries(game, stats) {
     const { player, world } = game;
     for (const site of Discovery.sites(player)) {
         if (site.naming && Discovery.nameSite(player, world, site.id, site.nameOptions[1] || null).success) count(stats, 'discoveriesNamed');
+        // Leave a realm's claimed land alone unless it already thinks well of you: poaching costs reputation
+        const claimedBy = site.claim && site.claim.by !== 'player' ? site.claim.by : null;
+        if (claimedBy && ((player.reputation || {})[claimedBy] || 0) < 20) { count(stats, 'claimedSitesSpared'); continue; }
         if (!Discovery.gatherReason(player, world, site) && Discovery.gather(player, world, site.id).success) count(stats, 'exoticGathered');
         if (!Discovery.archiveOffer(player, world, site).reason && Utils.random() < 0.3
             && Discovery.sellToArchive(player, world, site.id).success) count(stats, 'chartsSold');
@@ -1325,7 +1372,10 @@ function family(game, stats) {
     (player.children || []).forEach((child, i) => {
         if (child.isAlive === false) return;
         const up = Upbringing.ensure(child);
-        if (up.comeOfAge) return;
+        if (up.comeOfAge) {
+            if (!child.isSibling) marryOff(game, child, up, stats);
+            return;
+        }
         if (!up.focus && focuses.length && Upbringing.setFocus(player, child.id, focuses[i % focuses.length], world).success) count(stats, 'focusesSet');
         if (!up.tutor && player.gold > 2500 && Upbringing.hireCourtTutor(player, world, child.id, 'hedge_tutor').success) count(stats, 'tutorsHired');
         const ev = Upbringing.pendingEvent(player, child);
@@ -1337,6 +1387,50 @@ function family(game, stats) {
 }
 
 /**
+ * A grown child of the ruler's own is married off (systems/heirs.js) once in
+ * a while: a match in town costs nothing, an alliance its dowry. A married
+ * heir brings their spouse and their children to the seat
+ * (Relationships._heirsOwnChildren), so the line goes on.
+ */
+function marryOff(game, child, up, stats) {
+    const { player, world } = game;
+    if (up.spouse || world.day % 30 !== 0 || child.age < 18) return;
+    count(stats, 'childWedTried');
+    // Know the folk of the towns nearby, as a player passing through them would
+    for (const t of nearest(world, player, settlementTiles(world), 6)) {
+        const s = (world.getTile(t.q, t.r) || {}).settlement;
+        if (s && !s.folk) s.folk = Townsfolk.seed(s, world, { q: t.q, r: t.r });
+    }
+    // The match closest in age (the list leads with the folk the House knows)
+    const match = Heirs.localMatches(player, world, child.id).sort((a, b) => Math.abs(a.age - child.age) - Math.abs(b.age - child.age))[0];
+    if (match && Heirs.marryTownsperson(player, world, child.id, match.folk, match.person.id).success) {
+        count(stats, 'childrenWed');
+        return;
+    }
+    if (player.gold < Heirs.config().allianceDowry * 3) return;
+    // The living realm that thinks best of the House (a fallen one can't wed anyone)
+    const realms = (world.kingdoms || []).filter(k => k && k.isAlive && ((player.reputation || {})[k.id] || 0) >= Heirs.config().allianceMinReputation);
+    realms.sort((a, b) => ((player.reputation || {})[b.id] || 0) - ((player.reputation || {})[a.id] || 0));
+    const res = realms.length ? Heirs.marryForAlliance(player, world, child.id, realms[0].id) : null;
+    if (res && res.success) count(stats, 'childrenWed');
+    else count(stats, realms.length ? 'childWedRefused' : 'childWedNoRealm');
+}
+
+/** A spendthrift's day in town: supper, a bath, the laundry or the valet at the best house there. */
+function livingWell(game, tile, stats) {
+    const { player, world } = game;
+    if (player.gold < 60) return;
+    const houses = Hospitality.listAt(world, player, player.q, player.r).filter(v => v.owner === 'npc');
+    const best = houses.sort((a, b) => (b.stars || 0) - (a.stars || 0))[0];
+    if (!best) return;
+    for (const sid of ['fine_dining', 'valet', 'bathhouse', 'supper', 'bath', 'laundry']) {
+        if (player.gold < 60) break;
+        const res = Hospitality.buyService(world, player, best.id, sid);
+        if (res && res.ok) count(stats, 'livedWell');
+    }
+}
+
+/**
  * Courtship (ui/actionMenu/peopleScene.js): past the short soak's horizon, an
  * unwed bot with a settled purse courts someone of an age in town — a little
  * affection a visit — and proposes once it would be accepted (affection 70,
@@ -1345,7 +1439,7 @@ function family(game, stats) {
 const SUITORS = new WeakMap(); // player → the NPC id being courted (kept off the save)
 function courtship(game, stats) {
     const { player, world } = game;
-    if (player.spouse || world.day <= 150 || player.age < 18 || player.gold < 400) return;
+    if (player.spouse || world.day <= 150 || player.age < 18 || player.gold < temper(game).courtAt) return;
     const tile = world.getTile(player.q, player.r);
     if (!tile || !tile.settlement) return;
     let suitor = SUITORS.has(player) ? Relationships.getNPC(SUITORS.get(player)) : null;
@@ -1389,6 +1483,38 @@ export function rivalAgents(game, stats) {
     if (suspect && RivalAgents.inquire(player, world, player.q, player.r).success) count(stats, 'agentInquiries');
 }
 
+/**
+ * A rival House's lord within a hex (systems/rivalHouses.js): match a grown
+ * child into their House when the feud allows and the purse can stand the
+ * dowry; else buy the feud down with a gift when rich and it runs hot; else
+ * parley. A grudge-bearing temper insults them now and then instead.
+ */
+export function rivalHouses(game, stats) {
+    const { player, world } = game;
+    for (const u of RivalHouses.meetable(player, world)) {
+        const rival = RivalHouses.rivalOfUnit(player, u);
+        if (!rival || !rival.head || rival.metDay === world.day) continue;
+        count(stats, 'rivalLordsMet');
+        const M = RivalHouses.config().meet.match;
+        const theirs = RivalHouses.matchableChildren(rival);
+        const mine = (player.children || []).filter(c => c && c.isAlive !== false && !c.isSibling && c.upbringing && c.upbringing.comeOfAge && !c.upbringing.spouse);
+        if (theirs.length && mine.length && (rival.feud || 0) <= M.maxFeud && player.gold > M.dowry * 3) {
+            const c = mine[0];
+            const t = theirs.find(x => x.gender !== c.gender);
+            if (t && RivalHouses.proposeMatch(player, world, rival.kingdomId, c.id, t.idx).success) { count(stats, 'rivalMatches'); continue; }
+        }
+        const feud = rival.feud || 0;
+        if (feud >= 40 && player.gold > RivalHouses.giftCost(rival) * 5) {
+            if (RivalHouses.gift(player, world, rival.kingdomId).success) count(stats, 'rivalGifts');
+        } else if (feud >= 15 && Utils.random() < 0.15 && personaOf(game) === 'drifter') {
+            if (RivalHouses.insult(player, world, rival.kingdomId).success) count(stats, 'rivalInsults');
+        } else if (feud >= 15) {
+            const r = RivalHouses.parley(player, world, rival.kingdomId);
+            if (r.success) count(stats, r.ok ? 'rivalParleysWon' : 'rivalParleysLost');
+        }
+    }
+}
+
 /** One day of the bot's play (before the harness ends the day). */
 export function botDay(game, stats) {
     const { player, world } = game;
@@ -1417,6 +1543,14 @@ export function botDay(game, stats) {
         }
         count(stats, 'servitudeDays');
         return;
+    }
+    // A realm's ultimatum: pay the tribute when it leaves a purse to live on,
+    // as a cautious player would, rather than let it come to war
+    for (const u of Object.values((player.realmWars && player.realmWars.ultimatums) || {})) {
+        if (!u) continue;
+        if (player.gold >= u.tribute * 2) {
+            if (RealmWars.payTribute(player, world, u.kingdomId).success) count(stats, 'tributesPaid');
+        } else count(stats, 'ultimatumDaysUnpaid');
     }
     // The quest board: once settled in (past the short soak's horizon, whose
     // runs stay as they were), take the first offer each week while there's room
@@ -1531,6 +1665,7 @@ export function botDay(game, stats) {
     booked(game, 'courtship', () => courtship(game, stats));
     if ((player.children || []).length) family(game, stats);
     booked(game, 'rivalAgents', () => rivalAgents(game, stats));
+    booked(game, 'rivalHouses', () => rivalHouses(game, stats));
     // Badly hurt: get to a town, see a physician and rest there (a pauper
     // can't pay one; better to go and live off the land)
     if (player.health < 50) {
@@ -1543,7 +1678,7 @@ export function botDay(game, stats) {
                 if (res && res.success) count(stats, res.charity ? 'treatedForCharity' : 'treated');
             }
             // A pauper cannot lie abed: hurt or not, the day's wage buys the bread
-            if (player.gold < POOR_BELOW) {
+            if (player.gold < poorBelow(game)) {
                 booked(game, 'labour', () => dayLabour(game, here, stats));
                 count(stats, 'workedHurt');
                 return;
@@ -1599,7 +1734,7 @@ export function botDay(game, stats) {
     }
     // Poor: earn a living before anything grand — a day's labour and the
     // market in town, as a player starting with a light purse would
-    if (player.gold < POOR_BELOW && !(player.army || []).length) {
+    if (player.gold < poorBelow(game) && !(player.army || []).length) {
         const here = world.getTile(player.q, player.r);
         if (here && here.settlement) {
             booked(game, 'labour', () => dayLabour(game, here, stats));
@@ -1626,13 +1761,17 @@ export function botDay(game, stats) {
 
     booked(game, 'discoveries', () => discoveries(game, stats));
     const tile = world.getTile(player.q, player.r);
-    if (tile && tile.settlement && booked(game, 'expedition', () => expedition(game, tile, stats))) return;
-    if (tile && tile.settlement && booked(game, 'sail', () => sail(game, tile, stats))) {
+    // A spendthrift lives well in town while the purse allows
+    if (tile && tile.settlement && temper(game).spends) booked(game, 'livingWell', () => livingWell(game, tile, stats));
+    // Grand ventures, for a temperament that risks them with what's saved
+    const venturing = player.gold >= temper(game).ventureAt;
+    if (venturing && tile && tile.settlement && booked(game, 'expedition', () => expedition(game, tile, stats))) return;
+    if (venturing && tile && tile.settlement && booked(game, 'sail', () => sail(game, tile, stats))) {
         settlementBusiness(game, stats);
         return;
     }
-    if (booked(game, 'colony', () => foundColony(game, stats))) return;
-    if (booked(game, 'caravans', () => caravans(game, stats))) return;
+    if (venturing && booked(game, 'colony', () => foundColony(game, stats))) return;
+    if (venturing && booked(game, 'caravans', () => caravans(game, stats))) return;
 
     // A delve site is held to until reached; other destinations drift
     if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve)) {

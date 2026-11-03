@@ -193,6 +193,13 @@ A year is **120 days**: Spring, Summer, Autumn and Winter, 30 days each. The sea
 
 The top bar shows the season (🌱 ☀️ 🍂 ❄️) and **Lean** during the lean weeks. Hover it to see the **season outlook**: what's producing, what's cheap or dear, and which way prices are heading. The settlement trade panel opens with the same outlook.
 
+**The calendar.** The bottom bar shows today's date ("Day 21 of Summer, Year 853") with the day of the year and the **days played** beneath it ("Day 51 of 120 · 51 days played"). Click the date, or open **Journal → Calendar**, for the full calendar:
+
+- **Today** — the date, the day of the year and of the season, the days played (also as years and days), and your age.
+- **The year** — four rows of 30 days. Today is outlined and past days are dimmed. Fairs and the lean weeks are tinted. A gold dot marks the year's set days, a red dot your own deadlines. Hover a day to see what falls on it.
+- **Coming up** — the next 60 days in order. The year's own days: the four fairs (Spring Fair day 22, Midsummer Fair day 48, Harvest Fair day 78, Frost Fair day 100), the lean weeks, the harvest coming in (day 60), the famine reckoning (day 100), each season's turn (a Season's Reckoning), and the year's last day, when you and your family age. Your own matters, shown in red: letters awaiting an answer, promises, petitions, ultimatums, quest deadlines, rival plots you have uncovered, and your birthday.
+- **Further off** — your deadlines beyond 60 days, such as a child coming of age or a regency's end.
+
 **Harvest cycle.** Farms and food producers follow a seasonal curve. Each curve averages exactly 1 over the year, so in a normal year **yearly totals don't change**. Only the timing does. How big each year's harvest is depends on its weather, wars and blights (see [Harvests: Good Years and Bad](#harvests-good-years-and-bad)).
 
 | Producer | Spring | Summer | Autumn | Winter |
@@ -471,7 +478,13 @@ Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). When you
 
 ### Pathfinding
 
-Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route. If you run out of stamina mid-journey, movement continues automatically the next day.
+Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route.
+
+**Planning a trip.** Hover over an explored hex and the label by the cursor says how far it is and when you would arrive: "4 hexes, today", "9 hexes, arrive tomorrow", "23 hexes, 4 days". A faint dotted line shows the route, with a crescent moon wherever the day's strength or action points run out and you would camp for the night. The estimate uses what you have left today and a full day's strength and 10 AP each morning after.
+
+**Long journeys.** When your stamina or action points run out partway, you make camp: the day ends by itself and you set off again at first light, until you arrive. This also happens if you give the order with nothing left today. While you are camped, the rest of the route stays drawn on the map. Press **Escape** to cancel the journey.
+
+**Ending the day.** Press **Enter** (or the End Turn button) to end the day. Enter works on the open map only, not while a panel, menu or dialog is open. Once your action points are spent, the End Turn button glows.
 
 ### Weather
 
@@ -2497,6 +2510,16 @@ Goods you steal are **hot** for 10 days. The legal market and the black market w
 
 ---
 
+### Chests, crates and barrels: looking inside, taking and stealing
+
+Every chest, crate, barrel, shelf, bookshelf, sack, weapon rack, desk, stall, cauldron and oven holds something. **Inspect** one inside a building, or choose **Look Inside** on an editor-placed crate or barrel in the street, to see what it holds. Contents fit the place: ale and mead in a tavern's barrels, coin and gems in a bank's chest, arrows on a barracks rack. A container keeps the same contents until it restocks every 14 days, and what you remove stays gone until then (`data/containers.json`, `systems/containers.js`).
+
+- **Your own** chests (a house or property you own) open as storage, where you put things in and take them out.
+- **Unclaimed** containers (the wilds, ruins, camps, lairs) let you **Take** freely.
+- **Anyone else's**, in their house, shop or the town street, you can only **Steal**. Each button shows your chance of being caught, and hovering it lists why. Each other person within 6 tiles adds risk, each guard more, and the owner being present more again. So does the value of what you lift, and doing it out in the street. Night (22:00–05:00) and your Stealth lower the risk.
+  - **Got away:** the goods are yours but *hot* (shunned by the open market, wanted by the fence), heat rises in the realm, and your Stealth improves.
+  - **Caught:** you keep nothing, pay a fine of twice the goods' worth (at least 10g), lose 4 standing in the realm, and the theft spreads as gossip. From your third theft the watch jails you (2, 4, 7, then 10 days).
+
 ## 15. Ships & Naval
 
 ### Ship Types
@@ -2775,6 +2798,25 @@ A realm expands into its preferred terrain first and fights 8% better on it.
 
 **Traits** (data/kingdoms.json → `traitEffects`) add to the realm's bonuses: Militaristic +10% army, +5% battle · Orderly +6 stability, +10% intrigue · Peaceful +25% diplomacy, +3 stability, −5% army · Nature-loving +10% growth, +10% faith · Aggressive +8% battle, −15% diplomacy · Mobile +20% expansion, +15% endurance · Religious +30% faith, +6% loyalty (and sends Missionary colonies) · Scholarly +25% research, +10% culture · Mercantile +20% trade, +5% treasury · Naval +10% trade, +5% defense · Defensive +15% defense, −10% war upkeep · Industrious +25% construction, +5% treasury · Secretive +25% intrigue, −5% diplomacy · Alchemical +5% growth, +10% research · Arcane +20% research, +4% battle · Seafaring +10% expansion, +8% trade · Resilient +30% endurance, +4 stability. Mobile realms field more cavalry; naval, seafaring and nature-loving ones more archers; orderly, defensive, religious and militaristic ones more pikemen.
 
+### What You Can Know of a Realm
+
+A realm's private affairs are the crown's own business. The exact figures are for those with a place in that realm, or eyes inside it:
+
+| You are... | You see |
+|---|---|
+| Its ruler | Everything |
+| Sworn to it, as chancellor, tax collector, treasurer or spymaster | Its books: treasury, budget and debts, customs and granaries, the mint's take and its coin flows |
+| Sworn to it, as chancellor, marshal or spymaster | Its army and fleet |
+| Sworn to it, in any office, or with a child married to one of its royals | Its court: the councillors' ability and loyalty |
+| Holding its mint on lease | Its mint's books |
+| Running a spy placed in one of its towns, or on a mission against it | Everything, while the spy is there |
+
+Everyone else hears **rumours**, and only of realms they have learned something about (trading in their towns, tavern talk, an audience, letters and so on). Treasuries are "an empty chest", "lean coffers", "comfortable coffers", "a rich treasury" or "overflowing coffers". Armies are "a token guard", "a modest host", "a strong army" or "a great host". Fleets are "no fleet to speak of", "a few ships", "a fair fleet" or "a great fleet". A realm you know nothing of shows **unknown**. Figures you see because of your position carry a 🔓 mark, which says how you know.
+
+This applies everywhere such figures appear: the kingdom side panel, the Dynasties panel, the Crown's Treasury (the Budget and Realms tabs; posted taxes, tax farmers and unpaid soldiers are public), the Mint (what each mint struck and took; where the coin of the realm you stand in came from, and what lies in its crown's chests), the Economic Chronicle (treasury and debt), Trade Policy (customs takings, granaries, a treasury in crisis), the bank (a crown's debt, unless you hold its bonds), the Realm Wars and Threats panels, the spy mission targets, the Kingdom Comparison and Economic Trends screens, and the wealth and military map modes. Rankings and map shadings count a rumoured figure at the lowest amount its rumour covers.
+
+Some private figures belong to others. A banking house's reserves are shown to its depositors and its owner; everyone else sees only whether it is open, in a run, or failed. A rival trading company's capital is shown as a rumour, and its weekly profit only to its shareholders. A guild's hall treasury is shown only to its members.
+
 ### Royal Fleets
 
 Every kingdom with **ports** (settlements next to water) keeps a royal fleet:
@@ -2814,6 +2856,8 @@ Kingdoms don't only fight each other. A kingdom's **hostility** toward you is yo
 
 Every 10 days, if you own at least one property or colony, a kingdom with hostility of 80 or more may issue an **ultimatum**: pay tribute (300 + half its military) within 10 days, or it declares war. Paying earns you +20 reputation and a 60-day truce.
 
+**Old grudges fade.** Every 30 days, each realm you are not at war with (and that has no ultimatum out against you) forgets 1 point of a negative reputation, up to neutral. Good standing doesn't fade. A war or a slander from a generation ago is mostly forgiven.
+
 **At war**, the enemy sends **war hosts** (🚩 on the map) every 12 days, at most two at a time. Each host's strength is 20 plus 4% of the kingdom's military, between 25 and 180. Hosts march on whichever of your holdings lies closest to one of the enemy's settlements:
 
 - A **property** at level 2 or higher is sacked: it loses a level and its stored goods, and stops producing for 20 days. A level-1 property is burned to the ground.
@@ -2828,7 +2872,7 @@ A war host attacks you when you're next to it, and you can attack it yourself. B
 - **Exhaustion.** After 150 days with no host in the field, the war ends by itself.
 - **The enemy falls.** If its kingdom is destroyed, the war ends.
 
-A 120-day truce follows any peace.
+A 120-day truce follows any peace, and your reputation with that realm rises to at least −10. A declared war drops it to −60 or lower.
 
 ### Holdings Under Siege
 
@@ -3165,11 +3209,11 @@ Three powerful Houses are your rivals from the start. If one of their kingdoms f
 
 Feud cools by 1 every 30 days.
 
-Every 20 days, the angriest rival without a plot already running may hatch a **scheme**. The chance is its feud ÷ 120, and no more than two schemes run at once. A scheme strikes 8–15 days after it is hatched:
+Every 20 days, the angriest rival without a plot already running may hatch a **scheme**. The chance is its feud ÷ 120, and no more than two schemes run at once. Each plot costs the rival **150 gold** from its own purse (see [The Rival Lords](#the-rival-lords)); a rival who can't pay doesn't plot. A scheme strikes 8–15 days after it is hatched:
 
 | Scheme | Feud | Target | Effect if it lands | Guard (cost, odds) |
 |--------|------|--------|--------------------|--------------------|
-| 🗣️ Slander | 10 | Your name | −8 reputation with every kingdom, −5 renown | Cannot be guarded |
+| 🗣️ Slander | 10 | Your name | −8 reputation with the rival's own realm and the realm friendliest to it, −5 renown | Cannot be guarded |
 | 💰 Treasury Theft | 20 | Your gold (200+) | Lose 8–15% of your gold (max 2,000) | Vault guards, 40g, 80% |
 | 🔥 Sabotage | 20 | A property | No production for 12 days | Watchmen, 30g, 75% |
 | ⚔️ Raid | 40 | Your best property | Stored goods taken, −1 level, no production for 20 days | Garrison, 80g, 70% |
@@ -3185,6 +3229,139 @@ Once a plot is uncovered, open **Dynasty → House → Plots Against You** to re
 - **Buy them off.** Pay 150 gold + 10 per feud point, or 10 Prestige + 1 per 10 feud. The plot is cancelled and the feud drops by 15.
 
 When a scheme lands, the rival's feud drops by 10 (their grudge is partly satisfied). When you foil one, it rises by 5.
+
+#### The Rival Lords
+
+Each rival House has a **head**: a lord or lady of that dynasty, with an age, two traits, diplomacy, stewardship and intrigue (2–9), a spouse, children, a **seat** (the realm's largest town after its capital) and a **purse** (800–3,000 gold to begin with). Their **retinue** rides the map (🏰, a crown on a dark red token). Open the list from **Dynasty → House → Rival Houses**, which shows each head, their family, how rich they are (strained, getting by, comfortable, rich, very rich), what they are doing, where they are, and their last few doings.
+
+**Their money.** Each week a House collects 30 gold plus 8 per point of stewardship from its estates and pays 25 for its retinue, plus 1% of its purse (a great House lives grandly, so no House's fortune grows without end). It spends on trade, on gifts at court (60 a visit), on plots (150 each), on land, and on guards. It also banks the rents of any estates it has bought, and a court pension if it is a crown's favourite.
+
+**What they do.** When an errand ends, the head weighs the next one by what it is worth to them now, then draws one at random in proportion to those scores. An errand with nothing to do scores 0.
+
+| Errand | Score |
+|---|---|
+| Trade | 3 × the best bargain in reach's expected gain ÷ 100 (at most 2.5×) |
+| Invest | 2 × the best affordable estate's yearly yield ÷ 3% (at most 3×) |
+| Court | 2 × (1 + their best standing at any court ÷ 25, at most 3×), +1 if the feud is 40+ and some realm likes you |
+| Shadow | 2 × (1 + (feud − 60) ÷ 20), only at feud 60+ with 150 gold and no plot of theirs in 90 days |
+| Waylay | 2 × (1 + (feud − 80) ÷ 10), only when they can waylay you (see **Waylaid** below) |
+| Home | 1, +20 when the purse is under 200 or after 150 days on the road |
+
+Each trait adds to an errand that is possible, and the errand the head's **ambition** needs counts 1.6×:
+
+| Trait | Errands | Ambitions it favours |
+|---|---|---|
+| 💰 Grasping | trade +4 | wealth |
+| 🎭 Courtly | court +4 | favour |
+| 🗡️ Scheming | shadow +4, waylay +1 | revenge |
+| 🏡 Homebound | home +3, invest +2 | land |
+| 🦚 Proud | waylay +3; harder to talk round (−10% parley), takes an insult worse (+15 feud) | favour, revenge |
+
+- **Trade** (needs 300 gold): the head looks over the six towns nearest the retinue and the ten nearest each of them, within 18 hexes, for a good selling for at least 25% more in the other town. It rides to the cheap town and buys up to 60 (never more than half the town's stock, nor more than half its purse), then rides to the dear one and sells. **These are the same markets you trade in**: the stock it buys raises the price there, and the load it sells lowers it. If you are within 8 hexes you hear of it.
+- **Invest**: the head buys an estate from the **land market**, the same listings you buy from (see [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system)). It looks within 24 hexes for an estate yielding at least 3% a year that it can pay for, with the crown's duty, while keeping 400 gold and spending at most 70% of its purse. It holds at most 6. It rides there and buys if the estate is still for sale, so **a rival can buy an estate out from under you**. Its rents reach its purse each week. A House whose purse falls below 150 lists its cheapest estate at 95% of its value.
+- **Court**: the head rides to a capital and stays 4–9 days, gaining 3 favour there, plus 1 per 20 renown, up to 60. It goes to its own realm's capital, or to the court where it stands best if it wants a crown's favour, or, if the feud is 40 or more, half the time to the capital of the realm that likes you best. Favour fades by 1 a month. **At 25 favour, the rival standing best at a court is that crown's favourite** (one to a court; see *The Houses Among Themselves*): the crown pays them 0.6 gold per point of favour each week from its treasury. With a feud of 40 or more the head **speaks against you** on each visit: −2 reputation with that realm, −1 more per 10 favour they hold there. Whispers can cool a realm's good opinion of you, but never push it below 0.
+- **Shadow** (feud 60+): the head rides to the town nearest you and stays 3–6 days. On arrival it pays for a plot against you, if it can. A head plots in person at most once every 90 days.
+- **Home**: the head rests at its seat for 6–14 days.
+
+**Their ambitions.** Every head pursues one ambition, shown with its progress on the Rival Houses list:
+
+| Ambition | Fulfilled when |
+|---|---|
+| 💰 Fill the Coffers | purse plus land value reaches its target (now + 80%, at most 15,000 more; at least 4,000) |
+| 🌾 Gather Land | the House holds 2 more estates (at most 6) |
+| 👑 Win a Crown's Ear | they are some crown's favourite (25 favour) |
+| 🗡️ Humble Your House | they pay for 2 more plots against you (only chosen at feud 50+) |
+
+A fulfilled ambition gives the House **+10 renown** and a new ambition. Renown wins more favour at court and makes the retinue stronger. An ambition still unmet after 720 days is given up. A new head sets their own ambition and keeps half the old head's court favour.
+
+A notice tells you when a rival lord's retinue is in the same town as you.
+
+**Their lives.** On the year's last day the head ages. An unmarried head (18–59) marries with a 35% chance a year. A mother of 45 or younger has a child with a 30% chance (up to five). Grown children marry into other Houses (25% a year). From 55, the head's chance of dying rises by 3% a year, and no head lives past 88. When the head dies, the eldest grown child takes the House (or, with none grown, a cousin), and **the feud passes on at 70%**.
+
+**Meeting them.** Within a hex of a retinue, choose **Meet**. You get an audience with the head, staged like a royal audience: their portrait, a mood ring for how they regard you, and a conversation. Talking is free. The meeting costs 1 AP, paid on your first real act.
+
+**Who they are.** Each head has a look (build, hair for their age, a mark such as a scar or a hawk on the wrist), a passion (falconry, dice, verse, building…) and an **honour** from 1 to 9 (scheming heads lower, proud ones higher). Their first trait sets their **manner**, which is how they talk:
+
+| Trait | Manner |
+|---|---|
+| 🦚 Proud | haughty |
+| 🎭 Courtly | silken |
+| 🗡️ Scheming | soft-spoken |
+| 💰 Grasping | brisk |
+| 🏡 Homebound | plain |
+
+**What they remember.** A head remembers what you do to them: gifts, parleys, insults, attacks, ambushes beaten off, matches, favours, loans, threats, duels and refused offers. Each memory weighs for or against you and fades by half every 240 days. A new head inherits their parent's memories at 70%.
+
+Their **regard** is 20 − feud + what they remember (−100 to 100). It sets the mood ring and how they speak to you:
+
+| Regard | Stance |
+|---|---|
+| 30 or more | warm |
+| −10 to 29 | civil |
+| −50 to −11 | cold |
+| below −50 | hostile |
+
+A hostile head won't tell you their ambition, ask after your children, or say why they hate you.
+
+**Their mood** comes from what has just happened to them, and opens the conversation: a death in the family (mourning), your attack (furious), an insult (smarting), being ousted at court (sour), lean times, a good sale, new land, a triumph, a child born or wed (merry). It shifts the parley odds from −15% to +10%.
+
+**Talk.** Ask what brings them to these roads (their errand and their ambition), their news (their own doings, in their own words), their family, what they make of each other rival House, what they think of you and why, or how they pass the time (asking after their passion pleases them a little). Each topic once a day.
+
+**Mend the feud.**
+- **🤝 Parley**: 30% + 4% per point of Charisma − 0.4% per point of feud (−10% if they are proud), plus their memory of you (±1% per 2.5 points), plus 1% per point of their diplomacy above 5, plus their mood; between 5% and 90%. Success: feud −8. Failure: feud +3. Once a day.
+- **🎁 Gift**: 50 gold + 5 per point of feud, into their purse. Feud −15, but only −7 for a second gift within a month: they start to wonder what you want.
+- **🌹 Flattery**: 30% + 3% per point of Charisma + 2% per point of diplomacy skill + regard ÷ 3 (+10% if proud, −10% if courtly or scheming). Success: feud −3; failure is remembered. Once a day.
+- **❔ What would it take to end this?** (feud 45+): they name a blood price.
+
+**Harder words.**
+- **🛡️ Threaten** (needs an army): your army's strength against 1.5× their retinue's. Cowed, they keep their blades and plots away for 60 days (a truce), but feud +5. Defiant, feud +10. Once a day.
+- **🧾 Press a refused debt**: they pay if your strength cows them or their honour shames them (+4% per point of honour); otherwise feud +5.
+- **⚔️ A duel** (feud 30+, once every 120 days): to first blood, in the duel panel, against their martial skill (2–9, weaker past 55). Win: feud −20, +5 renown. Lose: feud −12. Either way you lose some health.
+- **😤 Insult**: +3 renown, feud +10 (+15 if they are proud). Once a day. A second insult within 120 days draws a weary reply.
+
+**💍 A match between the Houses**: when you have a grown, unwed child and they have one of the other sex, and the feud is 70 or less. A 300-gold dowry weds your child into their House. The marriage counts as an alliance with their realm (it softens that realm's hostility toward you; see [Coalitions & Threats](#coalitions--threats)), the feud drops by 40, and your House gains 10 Prestige.
+
+**Their offers.** Heads make offers of their own, from what they want and how they stand toward you. They raise the two most pressing; a refused offer isn't raised again for 30 days, and they remember the refusal.
+
+| Offer | When | Terms |
+|---|---|---|
+| ⚔️ **Duel** | a proud head or one of martial 7+, feud 55+, and an insult in the last 60 days (or feud 80+) | as a duel above; refusing it costs feud +3 |
+| 🗡️ **Act against a House** | they hate another rival House (regard −30 or less) and the feud is 70 or less | insult that House's lord or fall on its retinue within 90 days: feud −30 with them |
+| 💍 **A match** | the feud is 70 or less and both Houses have a grown child | as a match above, with no dowry |
+| 🩸 **Blood price** | feud 45+ and no truce | (60 + 5 × feud) gold, ×1.3 if proud: feud −30 and a 120-day **truce** (no waylaying, no plots) |
+| 👑 **Speak for them at court** | they want a crown's favour and you have 10+ reputation there | −5 reputation with that realm; +10 favour for them; feud −15 |
+| 🌾 **Buy your estate** | they want land (or are homebound) and can pay | your cheapest estate at 115% of its value; feud −10 |
+| 💰 **A loan** | feud under 60, a strained purse (or a wealth ambition) and no loan open | 300 + 40 × stewardship gold, repaid at +20% in 60 days; feud −10 |
+
+**Their word.** What happens next depends on their honour:
+- **Loans:** a House with honour 4+ (or a feud under 30) repays a loan on the day. If it can't pay yet, it asks once for 30 days more. Otherwise it refuses, and you can press it when you meet.
+- **Truces:** a House with honour 3 or less and a feud of 60+ may break a truce (1% a day).
+
+The audience names a head who has kept or broken their word to you.
+
+**Attacking a retinue.** You can also fall on a rival's retinue like any band on the road. If you win, you take 20% of their purse, the feud rises by 30, you lose 10 reputation with their realm and 3 karma, and there is a 10% chance the head dies in the fight (the heir takes over, and the feud rises a further 30). The retinue gathers again at its seat, and the House **hires 2 guards** (60 gold each, up to 8): each adds 8 to the retinue's strength (20 + 2 per point of intrigue + 1 per 5 renown to begin with) and costs 6 gold a week. Once 240 days pass with no attack (or hiring), one guard a week is let go. If you lose, the feud rises by 10.
+
+**Waylaid.** A rival whose feud with you is **80 or more** may ride out to **waylay** you: when you are within 30 hexes, they have not tried in 150 days, and their retinue is at least 1.2× the strength of your army. A House that hates you that much but is too weak **hires swords**, one guard a week (60 gold, keeping 400 in the purse), as long as enough guards could match your army; you are warned when they arm. Proud heads (+3) and scheming ones (+1) are the likeliest to ride out, and the hotter the feud, the likelier the hunt.
+
+You are warned when the hunt begins. The retinue turns hostile (a red token) and chases you for up to 20 days. When it reaches you, you get the usual road encounter: flee, pay a toll, parley, hide or fight. Coin they take goes into their purse.
+
+- **Robbed, or your army beaten:** their vengeance is tasted and the feud falls by 15.
+- **Paid off, talked down or given the slip:** the hunt ends.
+- **Beaten off:** you take 20% of their purse. Because they struck first, you lose no reputation or karma. They lose half their guards, and the feud rises by 10. There is a 10% chance the head falls in the fight.
+- **No sight of you in 20 days:** they ride home.
+
+Holy sanctuaries protect you, as from any band.
+
+#### The Houses Among Themselves
+
+The rival Houses have opinions of one another, from −100 to 100, the same both ways. Each starts between −20 and 20.
+
+- **Each week** their regard changes. Houses whose realms are at war lose 1, and those whose realms are allied gain 0.5. Two Houses that **both** hold a feud of 60+ against you gain 0.5: a shared enemy makes friends.
+- **One favourite to a court.** Only the House standing best at a court (with 25+ favour) is its favourite and draws the pension. A House ousted as favourite loses 15 regard for the one that ousted it.
+- **Each year** regard fades 3 toward indifference. Two Houses at 20 or more wed a grown child of each with a 30% chance (+40 regard).
+- **Allies (50+):** feud you earn with one adds half as much with the other. **Enemies (−50 or less):** a wrong you do one eases the other's feud by a quarter as much.
+
+The Rival Houses list shows each House's allies and the Houses it is at odds with, and marks a head who is hunting you in red.
 
 #### The Faces Behind a Plot
 
@@ -4553,13 +4730,26 @@ Lairs, their chiefs, parties, hoards and your bargains are saved with your game.
 | Detailed | 80% | 4 | 60g |
 | Masterwork | 95% | 7 | 120g |
 
-### Map Types
+### Charting your own maps
+
+You make a map by walking the land. On any passable tile you stand on, **📏 Chart This Tile** (1 AP) sketches it into your charted sheets: its terrain, any settlement, its realm and any resource. Each tile charted adds +0.02 cartography skill. A tile already in your sheets can't be charted again.
+
+Once enough tiles are charted, open **Cartography** and draw them up into a map (2 AP plus ink and vellum). Drawing uses up the sheets.
+
+| Map you draw | Needs | Ink | Shows |
+|--------------|-------|-----|-------|
+| Regional | 12 charted tiles | 10g | Terrain & settlements |
+| Survey | 20 charted tiles | 25g | Also marks resources; a Royal Cartographer is paid a commission |
+| Kingdom | 15 of your realm's tiles, or a fifth of its territory if more | 40g | Your realm's charted tiles |
+
+The map covers exactly the tiles you charted. Its quality comes from your cartography skill, and its value from the quality, the type and the number of tiles (20 tiles is the base; fewer are worth less, more are worth more). You can throw away your sheets from the Cartography panel.
+
+**🧭 Auto-chart the area.** Rather than charting tile by tile, give the order from the Cartography panel to chart everything within 2, 3 or 4 tiles of where you stand. You walk to the nearest uncharted tile, chart it, and go on (1 AP a step, 1 AP a tile), making camp when the day's strength runs out and carrying on in the morning. You're told when you've charted enough for a map, and when the area is done. The survey stops by itself if you are badly hurt, starving with no food, exhausted, or miserable enough that your mood would start to cost you health (weeks alone in the wilds will do it). Escape, or ordering a move anywhere else, calls it off. The order is kept in your save. Tuning lives in `data/cartography.json` → `charting`.
+
+### Other maps
 
 | Map | Radius | Cost | Description |
 |-----|--------|------|-------------|
-| Regional | 15 tiles | 30g | Terrain & settlements |
-| Survey | 10 tiles | 80g | Resources & detailed terrain |
-| Kingdom | Full territory | 120g | All territory of one kingdom |
 | Ancient | 15 tiles | Free (found) | Fragment revealing forgotten ruins |
 | Treasure | 3 tiles | Free (found) | Marks buried valuables |
 | Continent | Everything | 5,000g | Entire continent — extremely rare |
@@ -4952,6 +5142,8 @@ Fulfil the quest and the companion becomes **Devoted**. Their approval goes to 1
 **Crafted quality shows and counts.** Goods from your own bench carry their quality tier (🧱 Crude, 🔷 Fine, 🌟 Masterwork; Common is not marked) in the inventory, the HUD pack, the hotbar tooltip and the sell rows of a market or a trader, whose prices include it. In a duel (training, tournaments, rival duels, a rival suitor) a crafted sword's damage and attack, a shield's guard and armour's protection are scaled by their quality: a Masterwork blade cuts half again as deep, a Crude one three-quarters.
 
 **Townsfolk brawl by who they are.** Attack someone on a town map and whether they stand or run comes from their duel profile (attack + defence), their temperament (the bold and stubborn stand, the cautious and quiet run), how dangerous you look and how hurt they already are: a guard stands, a merchant runs, a bold traveller may stand. A fighter's counter-blows are their profile's swing (a guard's spear hits harder than a court sword), softened by your armour.
+
+**The street sees what you do.** Beat or kill someone on a town map and everyone within about seven tiles on the street (or everyone in the room, indoors) sees it. They cry out over their heads, then run for the edge of town, freeze where they stand, or stand and shout; the victim's family may come at you; guards who saw it, or heard the cries from further off, come running. A guard who reaches you stops you: give yourself up (the cells; the matter is closed with the watch and the realm's bounties dropped), pay the fine (a beating only, never less than the bounty you owe there), run for it (stealth helps; caught, and you serve longer), or resist. An assault and a murder are distinct crimes: each is a rumour told by its real witnesses (a beaten victim bears witness too), heat with the crown, cruelty and dread on your name, and karma. A killing no one saw makes no rumour, but the body is found: some heat, and the karma all the same. Witnesses remember. Speak to one afterwards and they name what you did and to whom, in fear or in anger; one who saw a killing will not talk or trade with you until you make amends with gifts. Family who were not on the street that day hear of it from the town and hold the grudge on the roll, so the widow remembers you years later. Those who saw nothing hear of it as the rumour spreads, more of the town each day, and mention it more vaguely; so do towns the rumour reaches. The watch in that town remembers an unanswered crime for a month: come back within it and the nearest guard comes for you. (Tuned and worded in `data/streetCrime.json`.)
 
 **A rival suitor is a real fight.** "I'll have a word with them, outside" is fought on the duel engine against the suitor's own kind (a captain of the guard fights like a guard, a travelling poet like a traveller); the odds shown are that duel's, and a beating hurts by how badly it went.
 

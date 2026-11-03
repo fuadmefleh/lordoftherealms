@@ -87,6 +87,12 @@ export const FURNITURE_ACTIONS = {
     statue:    ['pray'],
     well:      ['draw_water', 'wash'],
     bucket:    ['wash'],
+    desk:      ['sit', 'read'],
+    shelf:     ['shop'],
+    cauldron:  ['cook'],
+    tub:       ['wash'],
+    oven:      ['cook'],
+    lectern:   ['read'],
 };
 
 export const BUILDING_FURNITURE_ACTIONS = {
@@ -126,6 +132,18 @@ export const BUILDING_FURNITURE_ACTIONS = {
     warehouse:   { crate: ['store'], chest: ['store'] },
     blacksmith:  { anvil: ['craft', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },
     temple:      { altar: ['pray', 'give_alms', 'blessing', 'physician'], statue: ['pray', 'blessing'], chest: ['give_alms'] },
+    // The town's trades and offices: their counters open the town's panels
+    guildhall:   { table: ['guild_business', 'find_work'], desk: ['guild_business'], throne: ['guild_business'], chest: ['guild_business'], rack: ['guild_business'] },
+    bank:        { bar: ['banking'], desk: ['banking'], chest: ['banking'], scales: ['banking'], bookshelf: ['banking'] },
+    post_house:  { bar: ['post_letters'], desk: ['post_letters'], shelf: ['post_letters'], sack: ['post_letters'] },
+    apothecary:  { bar: ['physician', 'shop'], shelf: ['shop'], cauldron: ['physician'], bed: ['physician'] },
+    bathhouse:   { tub: ['public_bath'], bar: ['public_bath'], bucket: ['wash'], pew: ['sit'], fireplace: ['warm'] },
+    library:     { bookshelf: ['read'], lectern: ['read'], desk: ['study_maps', 'read'] },
+    bakery:      { oven: ['shop'], bar: ['shop'], shelf: ['shop'], table: ['shop', 'eat'] },
+    mill:        { millstone: ['find_work'], sack: ['shop'], scales: ['shop'] },
+    jail:        { table: ['settle_record', 'notices'], desk: ['settle_record', 'notices'], cell: ['settle_record'] },
+    mint:        { press: ['mint_business'], chest: ['mint_business'], scales: ['mint_business'], desk: ['mint_business'], forge: ['mint_business'] },
+    chapel:      { altar: ['pray', 'give_alms', 'blessing'], statue: ['pray'] },
 };
 
 /**

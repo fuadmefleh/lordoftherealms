@@ -13,10 +13,12 @@ import { ActionMenu } from './actionMenu.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { Relationships } from '../systems/relationships.js';
+import { Containers } from '../systems/containers.js';
 import { CustomBuildings } from '../world/customBuildings.js';
 import { BuildingCreator } from './buildingCreator.js';
 import { Hotbar } from './hotbar.js';
 import { PlayerInventory } from '../player/inventory.js';
+import { PlayerActions } from '../player/playerActions.js';
 import { NpcDialog } from './npcDialog.js';
 import { ObjectActions } from './objectActions.js';
 import { DevotionPanel } from './actionMenu/devotion.js';
@@ -25,6 +27,10 @@ import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
 import { uiZoom } from './uiScale.js';
+
+/** Building actions that open a town panel, offered only where the town keeps that business. */
+const TOWN_SERVICES = new Set(['guildhall', 'bank', 'found_bank', 'underwriter', 'bourse', 'post_house', 'seek_physician',
+    'cartography', 'odd_jobs', 'mint', 'treasury', 'public_works', 'estates']);
 
 
 Object.assign(InnerMapRenderer, {
@@ -239,7 +245,10 @@ Object.assign(InnerMapRenderer, {
             }
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
+            // A service the town doesn't keep (no guild here, no mint, nothing to treat) is left off
+            const offered = this._townServices(game);
             for (const action of actions) {
+                if (TOWN_SERVICES.has(action) && offered && !offered.has(action)) continue;
                 if (action === 'closed') {
                     menuItems.push({ type: 'disabled', label: '🚫 Closed', desc: 'This place is closed for the night' });
                     continue;
@@ -321,10 +330,13 @@ Object.assign(InnerMapRenderer, {
 
                 // Furniture interaction
                 if (tile._furniture) {
+                    // Inspecting a container opens it (its own entry, not a second 'Look Inside')
+                    const isBox = Containers.isContainer(tile._furniture.type);
                     for (const ai of ObjectActions.buildFurnitureMenuItems(game, tile._furniture, InnerMap._insideBuilding, q, r)) {
+                        if (isBox && ai._objectActionKey === 'look_inside') continue;
                         menuItems.push(ai);
                     }
-                    menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: '🔍', desc: `Examine the ${tile._furniture.name}`, _furniture: tile._furniture });
+                    menuItems.push({ type: 'action', action: 'interact_furniture', label: `Inspect ${tile._furniture.name}`, icon: '🔍', desc: isBox ? 'See what it holds, and take (or steal) it' : `Examine the ${tile._furniture.name}`, _furniture: tile._furniture, objAnchorQ: q, objAnchorR: r });
                 }
 
                 if (!isPlayerHere && tile.subTerrain.passable) {
@@ -690,9 +702,59 @@ Object.assign(InnerMapRenderer, {
                 open[action]();
                 break;
             }
+            case 'bathe': {
+                // The bathhouse: a few coppers for a hot bath (hygiene, comfort, an hour)
+                const cost = 2;
+                if ((game.player.gold || 0) < cost) {
+                    game.ui.showNotification('🛁 Bathhouse', `A bath is ${cost} gold, and you haven't got it.`, 'error');
+                    break;
+                }
+                game.player.gold -= cost;
+                if (game.player.modifyNeed) {
+                    game.player.modifyNeed('hygiene', 60);
+                    game.player.modifyNeed('comfort', 15);
+                }
+                InnerMap._timeAccumulator = InnerMap.TIME_SCALE;
+                game.ui.showNotification('🛁 Bathhouse', `You soak in a hot bath for an hour (${cost} gold). Mind your clothes are clean, or the smell comes back.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                break;
+            }
+            case 'wash_clothes': {
+                // The bathhouse laundry: a copper to have your clothes scrubbed in hot water
+                const cost = 1;
+                if ((game.player.gold || 0) < cost) {
+                    game.ui.showNotification('🧺 Laundry', 'The laundress wants a gold piece first.', 'error');
+                    break;
+                }
+                const gained = game.player.washClothes ? game.player.washClothes(100) : 0;
+                if (!(gained > 0)) {
+                    game.ui.showNotification('🧺 Laundry', 'Your clothes are already clean.', 'info');
+                    break;
+                }
+                game.player.gold -= cost;
+                const cs = game.player.clothesState();
+                game.ui.showNotification('🧺 Laundry', `Your clothes come back scrubbed and dry: ${cs.label.toLowerCase()} (${cs.freshness}%) for ${cost} gold.`, 'success');
+                game.ui.updateStats(game.player, game.world);
+                break;
+            }
             case 'store_goods': case 'collect_goods': {
                 const worldTile = game.world.getTile(game.player.q, game.player.r);
                 if (worldTile && typeof ActionMenu !== 'undefined') ActionMenu.handleAction(game, worldTile, 'collect_goods');
+                break;
+            }
+            case 'guildhall': case 'bank': case 'found_bank': case 'underwriter': case 'bourse': case 'post_house':
+            case 'seek_physician': case 'cartography': case 'odd_jobs': case 'mint':
+            case 'treasury': case 'public_works': case 'estates': {
+                // The town's own panel for the business this building keeps (ui/actionMenu)
+                const worldTile = game.world.getTile(game.player.q, game.player.r);
+                if (!worldTile || !worldTile.settlement) break;
+                const offered = this._townServices(game);
+                if (offered && !offered.has(action)) {
+                    game.ui.showNotification('ℹ️ Closed', 'There is no one here to see to that.', 'info');
+                    break;
+                }
+                if (ActionMenu.refuseIfOutlawed(game, worldTile)) break;
+                ActionMenu.handleAction(game, worldTile, action);
                 break;
             }
             case 'examine': {
@@ -944,6 +1006,10 @@ Object.assign(InnerMapRenderer, {
             case 'interact_furniture': {
                 const furn = item._furniture;
                 if (!furn) break;
+                if (Containers.isContainer(furn.type)) {
+                    ObjectActions.execute(game, 'look_inside', { name: furn.name, icon: furn.icon, furnitureType: furn.type }, item.objAnchorQ != null ? item.objAnchorQ : q, item.objAnchorR != null ? item.objAnchorR : r);
+                    break;
+                }
                 const furnitureMessages = {
                     table: 'A sturdy table. You could sit here and rest.',
                     throne: 'An ornate chair fit for nobility. You dare not sit in it.',
@@ -1000,6 +1066,13 @@ Object.assign(InnerMapRenderer, {
                 }
                 break;
         }
+    },
+
+    /** The town actions on offer where the player stands (PlayerActions), or null outside a settlement. */
+    _townServices(game) {
+        const tile = game.world.getTile(game.player.q, game.player.r);
+        if (!tile || !tile.settlement) return null;
+        return new Set((PlayerActions.getAvailableActions(game.player, tile, game.world) || []).map(a => a.type));
     },
 
     _getActionDef(action) {

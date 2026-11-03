@@ -56,7 +56,8 @@ function guildCard(game, tile, gd) {
     const rank = m ? m.rank : -1;
     let html = `<div style="${CARD}">`;
     html += `<div><b>${esc(def.icon)} ${esc(gd.name)}</b>${gd.chartered ? ' · 📜 royal charter' : ''} · master ${esc(gd.master.name)}${gd.master.player ? ' (you)' : ''}</div>`;
-    html += `<div style="${NOTE}">${gd.members} members · hall ${g(gd.treasury)} · prosperity ${pct(gd.prosperity)} · crown standing ${Math.round(gd.crown)}${gd.feud > 0 ? ` · <span style="color:#e74c3c;">feud with you ${Math.round(gd.feud)}</span>` : ''}</div>`;
+    // The hall's chest is the members' business
+    html += `<div style="${NOTE}">${gd.members} members${rank >= 0 ? ` · hall ${g(gd.treasury)}` : ''} · prosperity ${pct(gd.prosperity)} · crown standing ${Math.round(gd.crown)}${gd.feud > 0 ? ` · <span style="color:#e74c3c;">feud with you ${Math.round(gd.feud)}</span>` : ''}</div>`;
     if (gd.strike) html += `<div style="color:#e67e22; font-size:12px;">✊ On strike over ${esc(gd.strike.reason)} until day ${gd.strike.until}: its trades stand idle.</div>`;
     else if (gd.squeeze >= 0.6) html += `<div style="${NOTE}">Grumbling (squeeze ${gd.squeeze.toFixed(2)}): ${esc((Guilds.squeeze(world, player, s, gd).top) || 'hard times')}.</div>`;
     html += `<div style="font-size:11px; margin:4px 0;">${powersLine(player, s, gd, def)}</div>`;

@@ -34,6 +34,21 @@ Object.assign(InnerMap, {
         const required = [...layout.required];
         const optional = [...layout.optional];
 
+        // A building drawn as a church (or smithy, or bank…) is that building, so its
+        // role is taken before plain houses are handed the rest
+        if (typeof CustomBuildings !== 'undefined' && typeof CustomBuildings.getBuilding === 'function') {
+            for (const bt of buildingTiles) {
+                const cb = this.tiles[bt.r][bt.q].customBuilding;
+                const def = cb && CustomBuildings.getBuilding(cb.defId);
+                const t = def && def.buildingType;
+                if (!t || t === 'house') continue;
+                const ri = required.indexOf(t);
+                if (ri !== -1) { required.splice(ri, 1); continue; }
+                const oi = optional.indexOf(t);
+                if (oi !== -1) optional.splice(oi, 1);
+            }
+        }
+
         // Center tile gets the first required building (town_hall / marketplace / tavern)
         const centerQ = Math.floor(this.width / 2);
         const centerR = Math.floor(this.height / 2);
@@ -60,10 +75,8 @@ Object.assign(InnerMap, {
                 // (tavern, blacksmith, marketplace, etc.) can take precedence.
                 if (customBuildingDef && customBuildingDef.buildingType &&
                     customBuildingDef.buildingType !== 'house') {
+                    // An authored inn (or smithy...) fills its own slot in the layout (claimed above)
                     buildingType = customBuildingDef.buildingType;
-                    // An authored inn (or smithy...) fills its own slot in the layout
-                    const reqIdx = required.indexOf(buildingType);
-                    if (reqIdx !== -1) required.splice(reqIdx, 1);
                 }
             }
             // Skip player property tiles — they are handled by _addPropertyBuildings()

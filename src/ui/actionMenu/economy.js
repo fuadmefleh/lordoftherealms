@@ -10,7 +10,11 @@ import { ActionMenu } from './_ref.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
+
+/** The crown's own figures (treasury, debt) are for those whose books are open (systems/realmIntel.js). */
+const BOOKS_SERIES = new Set(['treasury', 'debt']);
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
@@ -65,8 +69,14 @@ function realmsTab(game) {
     }
     let html = `<div style="${NOTE}">From the gazettes you have read${g.at ? `, the last at ${esc(g.at)} on day ${g.read}` : ''}. Indices: 100 = goods at their base price (season, scarcity, debased coin and the coin about all count; 'coin' is the realm's price level from its coin in circulation, 100 = the world's norm). Your own realm's gazette is this week's; other realms' news is a week older. Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Food</th><th style="${TH}">Cost of living</th><th style="${TH}">Change</th><th style="${TH}">Trade</th><th style="${TH}">Short / dearth</th><th style="${TH}">Idle</th><th style="${TH}">Treasury</th><th style="${TH}">Debt · coin</th><th style="${TH}">As of</th></tr>`;
-    const row = (name, x, link) => {
+    const { player, world } = game;
+    const row = (name, x, link, kid = null) => {
         const n = x.now, t = x.then;
+        // A gazette prints prices and trade; a crown's chests and debts are its own business
+        const open = kid != null && RealmIntel.can(player, world, kid, 'books');
+        const knows = kid != null && (typeof player.knowsAbout !== 'function' || player.knowsAbout(kid, 'economy'));
+        const treasury = n.treasury == null ? '—' : open ? `${Math.round(n.treasury).toLocaleString()}g` : knows ? `<span style="${NOTE}">${esc(RealmIntel.band('treasury', n.treasury))}</span>` : '🔒';
+        const debt = n.debt == null || !open ? '—' : `${Math.round(n.debt * 100)}%`;
         const ch = t && t.goods > 0 ? n.goods / t.goods - 1 : null;
         const fch = t && t.food > 0 ? n.food / t.food - 1 : null;
         return `<tr><td style="${TD}">${link}</td>`
@@ -76,11 +86,11 @@ function realmsTab(game) {
             + `<td style="${TD}">${Math.round(n.trade).toLocaleString()}</td>`
             + `<td style="${TD}">${n.short} / ${n.dearth} <span style="${NOTE}">of ${n.towns}</span></td>`
             + `<td style="${TD}">${Math.round(n.idle * 100)}%</td>`
-            + `<td style="${TD}">${n.treasury == null ? '—' : `${Math.round(n.treasury).toLocaleString()}g`}</td>`
-            + `<td style="${TD}">${n.debt == null ? '—' : `${Math.round(n.debt * 100)}%`}${n.purity != null && n.purity < 1 ? ` · <span style="color:#e67e22;">${Math.round(n.purity * 100)}% silver</span>` : ''}${n.level != null && Math.abs(n.level - 1) >= 0.02 ? ` · <span style="color:${n.level > 1 ? '#e8a040' : '#7cc4e0'};" title="Price level from the coin about (100 = the world's norm)">coin ${Math.round(n.level * 100)}</span>` : ''}</td>`
+            + `<td style="${TD}">${treasury}</td>`
+            + `<td style="${TD}">${debt}${n.purity != null && n.purity < 1 ? ` · <span style="color:#e67e22;">${Math.round(n.purity * 100)}% silver</span>` : ''}${n.level != null && Math.abs(n.level - 1) >= 0.02 ? ` · <span style="color:${n.level > 1 ? '#e8a040' : '#7cc4e0'};" title="Price level from the coin about (100 = the world's norm)">coin ${Math.round(n.level * 100)}</span>` : ''}</td>`
             + `<td style="${TD}">day ${x.asOf}</td></tr>`;
     };
-    for (const r of g.realms) html += row(r.name, r, act(`${esc(r.name)}${r.alive ? '' : ' †'}`, ['realm', r.id], view.realm === r.id ? BTN_GOLD : BTN_PLAIN));
+    for (const r of g.realms) html += row(r.name, r, act(`${esc(r.name)}${r.alive ? '' : ' †'}`, ['realm', r.id], view.realm === r.id ? BTN_GOLD : BTN_PLAIN), r.id);
     if (g.world && g.world.now) html += row('The world', g.world, '<b>🌍 The world</b>');
     return html + '</table>';
 }
@@ -97,7 +107,11 @@ function chartsTab(game) {
     const sel = list.find(x => x.id === view.realm);
     const fmt = SERIES_FMT[view.series] || ((v) => String(Math.round(v)));
     html += `<div style="padding:6px 0;"><b>${esc(sel.name)}</b> — ${esc((SERIES.find(s => s[0] === view.series) || [])[1] || view.series)}<br>`;
-    html += sparkline(sel.history.filter(r => r[view.series] != null).map(r => ({ x: r.day, y: r[view.series] })), { fmt }) + '</div>';
+    if (BOOKS_SERIES.has(view.series) && !(sel.id !== '*' && RealmIntel.can(game.player, game.world, sel.id, 'books'))) {
+        html += closedBooks(`${sel.name === 'The world' ? 'The crowns\'' : `${sel.name}'s`} ${view.series === 'debt' ? 'debts' : 'treasury'}`) + '</div>';
+    } else {
+        html += sparkline(sel.history.filter(r => r[view.series] != null).map(r => ({ x: r.day, y: r[view.series] })), { fmt }) + '</div>';
+    }
     // Every known realm's food index side by side
     html += '<h5 style="margin:10px 0 4px;">Food in every realm you have news of</h5>';
     for (const x of list) {

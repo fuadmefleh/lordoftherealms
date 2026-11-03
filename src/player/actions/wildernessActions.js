@@ -19,6 +19,7 @@ import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
 
 export function addWildernessActions(actions, player, tile, world) {
     // Meditate / Pray (anywhere on passable terrain)
@@ -383,14 +384,38 @@ export function addWildernessActions(actions, player, tile, world) {
         });
     }
 
+    // Wash your clothes by hand at a river, the shore or a town's well (player/core/needs.js)
+    if (player.q === tile.q && player.r === tile.r && player.needsEnabled && player.washWaterHere && player.clothesState) {
+        const where = player.washWaterHere(world);
+        const cs = player.clothesState();
+        if (where && cs.freshness < 80) {
+            actions.push({
+                type: 'wash_clothes',
+                label: 'Wash Clothes',
+                icon: '🧺',
+                description: `Scrub your clothes at ${where}. They are ${cs.label.toLowerCase()} (${cs.freshness}%)${cs.capped ? `: you can't get cleaner than ${cs.cap}% hygiene in them` : ''}.`
+            });
+        }
+    }
+
     // Cartography Actions
     if (typeof Cartography !== 'undefined') {
         if (tile.terrain.passable) {
+            // Charting is done on foot, one tile at a time (systems/cartography/charting.js)
+            if (player.q === tile.q && player.r === tile.r && !Cartography.isCharted(player, tile.q, tile.r)) {
+                const charted = Cartography.draftCount(player);
+                actions.push({
+                    type: 'chart_tile',
+                    label: 'Chart This Tile',
+                    icon: '📏',
+                    description: `Survey and sketch this tile for a map${charted ? ` (${charted} charted so far)` : ''}`
+                });
+            }
             actions.push({
                 type: 'cartography',
                 label: 'Cartography',
                 icon: '🗺️',
-                description: 'Create maps, manage your collection, or trade maps'
+                description: 'Draw a map from the tiles you have charted, or manage your collection'
             });
         }
 
@@ -483,6 +508,19 @@ export function addWildernessActions(actions, player, tile, world) {
                 ? `Carrying your letter to ${rider.toWhom || rider.toName}`
                 : `${rider.houseName} riding for ${rider.toName}${rider.own ? ' (your house)' : ': hail them, or rob the mailbag'}`,
             unitId: rider.id,
+        });
+    }
+
+    // A rival House's head and retinue within a hex (systems/rivalHouses.js)
+    for (const u of RivalHouses.meetable(player, world)) {
+        const rival = RivalHouses.rivalOfUnit(player, u);
+        if (!rival) continue;
+        actions.push({
+            type: 'meet_rival_house',
+            label: `Meet ${RivalHouses.headName(rival)}`,
+            icon: '🏰',
+            description: `The head of ${rival.name}, your rival (feud ${Math.round(rival.feud || 0)}): ${RivalHouses.doing(world, rival)}`,
+            unitId: u.id,
         });
     }
 

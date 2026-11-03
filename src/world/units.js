@@ -105,6 +105,11 @@ export class WorldUnit {
     /** Units that attack the player when adjacent. */
     static HOSTILE_TYPES = ['raider', 'pirate', 'beast', 'monster', 'war_host'];
 
+    /** Does this unit fall on the player when adjacent? (a hostile type, or a unit out to waylay them: `hostile`) */
+    static isHostile(unit) {
+        return !!unit && (WorldUnit.HOSTILE_TYPES.includes(unit.type) || unit.hostile === true);
+    }
+
     /** Land units that travel between settlements, like caravans. */
     static TRAVELER_TYPES = ['mercenary_band', 'pilgrim_group', 'smuggler', 'refugee', 'diplomatic_envoy'];
 

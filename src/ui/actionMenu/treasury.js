@@ -9,7 +9,8 @@
 import { ActionMenu } from './_ref.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { CrownBooks } from '../../world/crownBooks.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 
@@ -77,13 +78,28 @@ function linesTable(b) {
     return html + '</table>';
 }
 
+/** What the street knows of a realm's purse: the posted taxes, the rumour of its chests, the troubles anyone can see. */
+function publicBudget(game, k, b) {
+    const { player } = game;
+    const knows = typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, 'economy');
+    let html = `<div style="${CARD}"><b>${esc(k.name)}</b>${knows ? ` · the talk is of <b>${esc(RealmIntel.band('treasury', b.treasury))}</b>` : ''}<br>`;
+    html += `<span style="${NOTE}">Posted taxes: land ${lvl(b.rates.land)} · hearth ${lvl(b.rates.poll)} · excise ${lvl(b.rates.excise)}</span>`;
+    const seen = [b.arrearsDays > 0 ? 'soldiers grumbling of unpaid wages' : '', b.farms.length ? `tax farmers collecting in ${b.farms.map(f => esc(f.town)).join(', ')}` : ''].filter(Boolean);
+    if (seen.length) html += `<br><span style="${NOTE}">In the streets: ${seen.join(' · ')}.</span>`;
+    html += '</div>';
+    return html + closedBooks();
+}
+
 function budgetTab(game) {
-    const { world } = game;
+    const { world, player } = game;
     const { k } = realmFor(game);
     if (!k) return `<div style="${NOTE}">Stand in a town of a realm to read its books, or rule one.</div>`;
     const b = Fiscal.budget(world, k);
     let html = `<div style="${NOTE}">The crown's taxes come out of its towns' purses, and its wages and upkeep go back into them: the treasury is what is left. Land tax falls on the peasants' earnings (and swells with the harvest), the hearth tax on every working head (clergy and nobles are exempt), the excise on the artisans' work and the merchants' trade. Unpaid soldiers desert after a week; unpaid clerks help themselves.</div>`;
-    html += `<div style="${CARD}"><b>${esc(k.name)}</b> · treasury <b>${g0(b.treasury)}g</b> ${sparkline(b.hist)} · ${b.reserveDays} days of spending in hand<br>`;
+    // The books themselves are for the ruler, the realm's officers and your spies (systems/realmIntel.js)
+    const why = RealmIntel.whyLabel(player, world, k, 'books');
+    if (!why) return html + publicBudget(game, k, b);
+    html += `<div style="${CARD}"><b>${esc(k.name)}</b> ${intelBadge(why)} · treasury <b>${g0(b.treasury)}g</b> ${sparkline(b.hist)} · ${b.reserveDays} days of spending in hand<br>`;
     html += `<span style="${NOTE}">Taxes: land ${lvl(b.rates.land)} · hearth ${lvl(b.rates.poll)} · excise ${lvl(b.rates.excise)} · army ${esc((Fiscal.config().army.levels[b.armyPay] || {}).label || b.armyPay)} · court ${esc((Fiscal.config().court.levels[b.courtLevel] || {}).label || b.courtLevel)}</span><br>`;
     html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${b.stability >= 0 ? '+' : ''}${b.stability} from taxes and pay${whyIcon(stabilityWhy(Causes.stability(k, world)), 'The realm’s stability: why?')} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
     if (b.arrearsDays > 0) html += ` · <span style="color:#e08080;">soldiers unpaid ${b.arrearsDays} days (${g0(b.arrears.army)}g owed), the army at ${Math.round(b.armyFactor * 100)}%</span>`;
@@ -100,13 +116,22 @@ function budgetTab(game) {
 }
 
 function realmsTab(game) {
-    const rows = Fiscal.realmTable(game.world);
-    let html = `<div style="${NOTE}">Every realm's chests, last week's taxes and spending, its tax level and its treasury over the last year.</div>`;
+    const { player, world } = game;
+    const rows = Fiscal.realmTable(world);
+    let html = `<div style="${NOTE}">Every realm's posted taxes, and its chests as far as you can know them: the figures for a realm whose books are open to you (🔓), the talk of the street for the rest.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Treasury</th><th style="${TH}">Year</th><th style="${TH}">Week: in · out</th><th style="${TH}">Taxes</th><th style="${TH}">Troubles</th></tr>`;
     for (const r of rows) {
-        const trouble = [r.arrearsDays > 0 ? `army unpaid ${r.arrearsDays}d` : '', r.corruption >= 0.1 ? `corrupt ${Math.round(r.corruption * 100)}%` : '', r.farms ? `${r.farms} farmed` : ''].filter(Boolean).join(' · ');
-        html += `<tr><td style="${TD}">${esc(r.name)}</td><td style="${TD}">${g0(r.treasury)}g</td><td style="${TD}">${sparkline(r.hist, 1, 90, 20)}</td>`
-            + `<td style="${TD}"><span style="color:#8fd18f;">${g0(r.rev)}</span> · <span style="color:#e08080;">${g0(r.exp)}</span></td><td style="${TD}">${lvl(r.level)}</td><td style="${TD} ${NOTE}">${esc(trouble) || '—'}</td></tr>`;
+        const why = RealmIntel.whyLabel(player, world, r.id, 'books');
+        const knows = typeof player.knowsAbout !== 'function' || player.knowsAbout(r.id, 'economy');
+        if (why) {
+            const trouble = [r.arrearsDays > 0 ? `army unpaid ${r.arrearsDays}d` : '', r.corruption >= 0.1 ? `corrupt ${Math.round(r.corruption * 100)}%` : '', r.farms ? `${r.farms} farmed` : ''].filter(Boolean).join(' · ');
+            html += `<tr><td style="${TD}">${esc(r.name)} ${intelBadge(why)}</td><td style="${TD}">${g0(r.treasury)}g</td><td style="${TD}">${sparkline(r.hist, 1, 90, 20)}</td>`
+                + `<td style="${TD}"><span style="color:#8fd18f;">${g0(r.rev)}</span> · <span style="color:#e08080;">${g0(r.exp)}</span></td><td style="${TD}">${lvl(r.level)}</td><td style="${TD} ${NOTE}">${esc(trouble) || '—'}</td></tr>`;
+        } else {
+            const trouble = [r.arrearsDays > 0 ? 'army grumbling unpaid' : '', r.farms ? `${r.farms} farmed` : ''].filter(Boolean).join(' · ');
+            html += `<tr><td style="${TD}">${esc(r.name)}</td><td style="${TD} ${NOTE}">${knows ? esc(RealmIntel.band('treasury', r.treasury)) : '🔒 unknown'}</td><td style="${TD} ${NOTE}">—</td>`
+                + `<td style="${TD} ${NOTE}">—</td><td style="${TD}">${lvl(r.level)}</td><td style="${TD} ${NOTE}">${esc(trouble) || '—'}</td></tr>`;
+        }
     }
     return html + '</table>';
 }

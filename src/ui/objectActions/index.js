@@ -26,6 +26,8 @@ import {
     _settlementTile,
 } from './logic.js';
 import { OBJECT_ACTIONS } from './actions.js';
+import { showContentsModal } from './contents.js';
+import { Containers } from '../../systems/containers.js';
 
 export const ObjectActions = {
 
@@ -63,19 +65,25 @@ export const ObjectActions = {
      */
     getFurnitureActionKeys(furnitureType, building) {
         if (!furnitureType) return [];
+        // Anything with an inside can be looked into — and its contents taken
+        // or stolen (systems/containers.js) — wherever it stands.
+        // (Your own chests already open as storage.)
+        const owned = !building || building.isPlayerOwned || building.isPlayerProperty;
+        const ownStore = keys => owned && building && keys.includes('store');
+        const withLook = keys => (Containers.isContainer(furnitureType) && !keys.includes('look_inside') && !ownStore(keys)
+            ? [...keys, 'look_inside'] : keys);
         const bType = building ? String(building.type || '').replace(/^player_/, '') : null;
         const override = bType && BUILDING_FURNITURE_ACTIONS[bType] && BUILDING_FURNITURE_ACTIONS[bType][furnitureType];
-        if (override) return override;
-        const owned = !building || building.isPlayerOwned || building.isPlayerProperty;
-        if (PRIVATE_FURNITURE.has(furnitureType) && !owned) return [];
-        return FURNITURE_ACTIONS[furnitureType] || [];
+        if (override) return withLook(override);
+        if (PRIVATE_FURNITURE.has(furnitureType) && !owned) return withLook([]);
+        return withLook(FURNITURE_ACTIONS[furnitureType] || []);
     },
 
     /** Context menu items for a piece of furniture at (q, r). */
     buildFurnitureMenuItems(game, furniture, building, q, r) {
         const actions = this.getFurnitureActionKeys(furniture.type, building);
         if (!actions.length) return [];
-        return this.buildMenuItems(game, { name: furniture.name, actions, furnitureType: furniture.type }, q, r);
+        return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type }, q, r);
     },
 
     /**
@@ -164,6 +172,7 @@ export const ObjectActions = {
                 case 'tan':   _showRecipeModal(game, objDef, 'Tanning & Weaving', '🟫', 'tan'); return;
                 case 'fish':  _showFishModal(game, objDef); return;
                 case 'store': _showStoreModal(game, objDef, anchorQ, anchorR); return;
+                case 'contents': showContentsModal(game, objDef, anchorQ, anchorR); return;
                 case 'heal':  _showHealModal(game, objDef); return;
             }
         }

@@ -178,6 +178,48 @@ export const PlayerMovementMethods = {
     },
 
     /**
+     * How a trip to (q, r) would go, as stepAlongPath would walk it: the route,
+     * its steps, and the days it takes — today's strength and action points
+     * first, then a full day's each morning (camping where the day runs out).
+     * → { path, steps, days, stops: [{q, r}] } (days 0 = arrive today), or
+     * null when there is no way there (or the player can't travel).
+     */
+    travelEstimate(world, targetQ, targetR) {
+        if (!world || this.jailState || this.indenturedServitude) return null;
+        if (targetQ === this.q && targetR === this.r) return null;
+        if (!this._canEnterHex(targetQ, targetR, world)) return null;
+        const path = Hex.findPath(
+            this.q, this.r, targetQ, targetR, world.width, world.height,
+            (q, r) => this._canEnterHex(q, r, world),
+            (q, r) => this._hexPathCost(world.getTile(q, r))
+        );
+        if (!path || path.length < 2) return null;
+        const fullMove = Math.max(1, this._dayMovement || this.stamina || this.movementRemaining || 1);
+        const fullAP = Math.max(1, this.maxActionPoints || 10);
+        let move = this.movementRemaining || 0;
+        let ap = this.actionPoints || 0;
+        let fresh = this._dayMovement > 0 && move >= this._dayMovement;
+        let days = 0;
+        const stops = [];
+        for (let i = 1; i < path.length; i++) {
+            const tile = world.getTile(path[i].q, path[i].r);
+            const cost = tile ? this._hexMoveCost(tile) : 1;
+            if ((move < cost && !fresh) || ap < 1) {
+                days++;
+                stops.push(path[i - 1]);
+                move = fullMove;
+                ap = fullAP;
+                fresh = true;
+                if (days > 365) break;
+            }
+            move = Math.max(0, move - cost);
+            ap--;
+            fresh = false;
+        }
+        return { path, steps: path.length - 1, days, stops };
+    },
+
+    /**
      * Cancel any queued multi-day travel
      */
     cancelTravel() {

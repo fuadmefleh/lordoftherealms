@@ -194,6 +194,28 @@ describe('no money loops', () => {
     });
 });
 
+describe('a chartered company over the long game', () => {
+    it('ploughs profit back only up to its capital cap, so its dividends stop compounding', () => {
+        const game = fresh();
+        const l = listing(game, 'venture');
+        const cap = l.baseCapital * Bourse.config().ventureCapitalCap;
+        // A golden age: the best rate the venture's data allows, every week
+        const st = Bourse.state(game.player);
+        const orig = Utils.random;
+        Utils.random = () => 0.999; // top of the noise, no lost fleets
+        try {
+            for (let w = 0; w < 52 * 10; w++) Bourse._ventureWeek(game.world, game.player, st, l, { notices: [] });
+        } finally { Utils.random = orig; }
+        expect(l.capital).toBeLessThanOrEqual(cap + 1e-6);
+        // At the cap it pays out the whole of its profit
+        const before = l.capital;
+        Utils.random = () => 0.999;
+        try { Bourse._ventureWeek(game.world, game.player, st, l, { notices: [] }); } finally { Utils.random = orig; }
+        expect(l.capital).toBeCloseTo(before, 6);
+        expect(l.lastDiv).toBeGreaterThan(0);
+    });
+});
+
 describe('floating your company', () => {
     function withCompany(game, capital = 8000) {
         const p = game.player;

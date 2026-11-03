@@ -11,6 +11,7 @@ import * as gameLoopMethods from './gameLoop.js';
 import * as innerMapMethods from './innerMap.js';
 import * as endDayMethods from './endDay.js';
 import * as combatMethods from './combat.js';
+import * as autoChartMethods from './autoChart.js';
 
 Object.assign(
     Game.prototype,
@@ -19,7 +20,8 @@ Object.assign(
     gameLoopMethods,
     innerMapMethods,
     endDayMethods,
-    combatMethods
+    combatMethods,
+    autoChartMethods
 );
 
 export { Game };

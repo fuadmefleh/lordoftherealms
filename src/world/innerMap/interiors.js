@@ -169,19 +169,24 @@ Object.assign(InnerMap, {
      */
     INTERIOR_LAYOUTS: {
         town_hall: {
-            width: 12, height: 10, floor: 'wood_floor', wallColor: '#5a4a3a',
+            width: 12, height: 10, floor: 'herringbone_floor', wall: 'stone', wallColor: '#5a4a3a',
             furniture: [
                 { type: 'table', icon: '🪑', name: 'Council Table', q: 5, r: 4, passable: false },
+                { type: 'table', icon: '🪑', name: 'Council Table', q: 6, r: 4, passable: false },
                 { type: 'throne', icon: '👑', name: 'Lord\'s Chair', q: 6, r: 2, passable: false },
                 { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 1, r: 1, passable: false },
                 { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 2, r: 1, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Clerk\'s Desk', q: 9, r: 4, passable: false },
                 { type: 'chest', icon: '📦', name: 'Storage Chest', q: 10, r: 1, passable: false },
                 { type: 'candle', icon: '🕯️', name: 'Candelabra', q: 5, r: 2, passable: true },
+                { type: 'banner', icon: '🚩', name: 'Royal Banner', q: 4, r: 1, passable: true },
                 { type: 'banner', icon: '🚩', name: 'Royal Banner', q: 8, r: 1, passable: true },
+                { type: 'rug', icon: '🟥', name: 'Red Carpet', q: 6, r: 6, passable: true },
+                { type: 'rug', icon: '🟥', name: 'Red Carpet', q: 6, r: 7, passable: true },
             ]
         },
         marketplace: {
-            width: 14, height: 10, floor: 'stone_floor', wallColor: '#6a5a4a',
+            width: 14, height: 10, floor: 'stone_floor', wall: 'timber', wallColor: '#6a5a4a',
             furniture: [
                 { type: 'stall', icon: '🏪', name: 'Merchant Stall', q: 3, r: 3, passable: false },
                 { type: 'stall', icon: '🏪', name: 'Food Stall', q: 7, r: 3, passable: false },
@@ -189,13 +194,15 @@ Object.assign(InnerMap, {
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 1, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 2, r: 1, passable: false },
                 { type: 'crate', icon: '📦', name: 'Crate', q: 12, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 1, r: 6, passable: false },
+                { type: 'shelf', icon: '🏺', name: 'Pottery Shelf', q: 12, r: 6, passable: false },
                 { type: 'scales', icon: '⚖️', name: 'Scales', q: 5, r: 5, passable: true },
             ]
         },
         // Houses of hospitality (systems/hospitality.js): beds to take, a desk or
         // bar for the keeper, tables to dine at, a tub to bathe in
         guest_house: {
-            width: 10, height: 8, floor: 'wood_floor', wallColor: '#6a5040',
+            width: 10, height: 8, floor: 'wood_floor', wall: 'plaster', wallColor: '#6a5040',
             furniture: [
                 { type: 'bar', icon: '🛎️', name: 'Front Desk', q: 2, r: 2, passable: false },
                 { type: 'table', icon: '🪑', name: 'Breakfast Table', q: 5, r: 4, passable: false },
@@ -207,7 +214,7 @@ Object.assign(InnerMap, {
             ]
         },
         inn: {
-            width: 13, height: 10, floor: 'wood_floor', wallColor: '#5a4030',
+            width: 13, height: 10, floor: 'wood_floor', wall: 'timber', wallColor: '#5a4030',
             furniture: [
                 { type: 'bar', icon: '🛎️', name: 'Innkeeper\'s Counter', q: 2, r: 2, passable: false },
                 { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 3, r: 2, passable: false },
@@ -224,7 +231,7 @@ Object.assign(InnerMap, {
             ]
         },
         hotel: {
-            width: 15, height: 12, floor: 'stone_floor', wallColor: '#6a6070',
+            width: 15, height: 12, floor: 'marble_floor', wall: 'plaster', wallColor: '#6a6070',
             furniture: [
                 { type: 'bar', icon: '🛎️', name: 'Reception Desk', q: 7, r: 9, passable: false },
                 { type: 'table', icon: '🍷', name: 'Dining Table', q: 3, r: 3, passable: false },
@@ -237,11 +244,12 @@ Object.assign(InnerMap, {
                 { type: 'bucket', icon: '♨️', name: 'Bathhouse Pool', q: 2, r: 8, passable: false },
                 { type: 'banner', icon: '🚩', name: 'House Banner', q: 9, r: 1, passable: true },
                 { type: 'candle', icon: '🕯️', name: 'Chandelier', q: 7, r: 5, passable: true },
+                { type: 'rug', icon: '🟥', name: 'Carpet', q: 7, r: 7, passable: true },
                 { type: 'stairs', icon: '🧗', name: 'Marble Stairs', q: 13, r: 10, passable: true },
             ]
         },
         roadhouse: {
-            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#4a3a2a',
+            width: 10, height: 8, floor: 'dirt_floor', wall: 'planks', wallColor: '#4a3a2a',
             furniture: [
                 { type: 'bar', icon: '🛎️', name: 'Keeper\'s Counter', q: 2, r: 2, passable: false },
                 { type: 'table', icon: '🪑', name: 'Trestle Table', q: 4, r: 4, passable: false },
@@ -253,7 +261,7 @@ Object.assign(InnerMap, {
             ]
         },
         tavern: {
-            width: 12, height: 10, floor: 'wood_floor', wallColor: '#4a3a2a',
+            width: 12, height: 10, floor: 'wood_floor', wall: 'timber', wallColor: '#4a3a2a',
             furniture: [
                 { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 2, r: 2, passable: false },
                 { type: 'bar', icon: '🍺', name: 'Bar Counter', q: 3, r: 2, passable: false },
@@ -261,30 +269,33 @@ Object.assign(InnerMap, {
                 { type: 'table', icon: '🪑', name: 'Table', q: 2, r: 5, passable: false },
                 { type: 'table', icon: '🪑', name: 'Table', q: 6, r: 5, passable: false },
                 { type: 'table', icon: '🪑', name: 'Table', q: 9, r: 5, passable: false },
-                { type: 'table', icon: '🪑', name: 'Table', q: 6, r: 7, passable: false },
+                { type: 'table', icon: '🪑', name: 'Table', q: 3, r: 7, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Ale Barrel', q: 1, r: 1, passable: false },
-                { type: 'barrel', icon: '🛢️', name: 'Wine Barrel', q: 1, r: 2, passable: false },
-                { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 10, r: 1, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Wine Barrel', q: 2, r: 1, passable: false },
+                { type: 'shelf', icon: '🍶', name: 'Bottle Shelf', q: 4, r: 1, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 9, r: 1, passable: false },
                 { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 10, r: 8, passable: true },
             ]
         },
         blacksmith: {
-            width: 10, height: 8, floor: 'stone_floor', wallColor: '#3a3a3a',
+            width: 10, height: 8, floor: 'dirt_floor', wall: 'fieldstone', wallColor: '#3a3a3a',
             furniture: [
                 { type: 'anvil', icon: '🔨', name: 'Anvil', q: 4, r: 3, passable: false },
                 { type: 'forge', icon: '🔥', name: 'Forge', q: 2, r: 1, passable: false },
                 { type: 'forge', icon: '🔥', name: 'Forge', q: 3, r: 1, passable: false },
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 7, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Armor Rack', q: 8, r: 1, passable: false },
-                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 1, r: 5, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Quench Barrel', q: 1, r: 3, passable: false },
+                { type: 'sack', icon: '⚫', name: 'Coal Sacks', q: 1, r: 5, passable: false },
                 { type: 'chest', icon: '📦', name: 'Supply Chest', q: 8, r: 6, passable: false },
             ]
         },
         church: {
-            width: 10, height: 12, floor: 'stone_floor', wallColor: '#7a7a8a',
+            width: 10, height: 12, floor: 'stone_floor', wall: 'stone', wallColor: '#7a7a8a',
             furniture: [
                 { type: 'altar', icon: '⛪', name: 'Altar', q: 4, r: 2, passable: false },
                 { type: 'altar', icon: '⛪', name: 'Altar', q: 5, r: 2, passable: false },
+                { type: 'lectern', icon: '📖', name: 'Lectern', q: 7, r: 3, passable: false },
                 { type: 'pew', icon: '🪑', name: 'Pew', q: 3, r: 5, passable: false },
                 { type: 'pew', icon: '🪑', name: 'Pew', q: 6, r: 5, passable: false },
                 { type: 'pew', icon: '🪑', name: 'Pew', q: 3, r: 7, passable: false },
@@ -292,10 +303,11 @@ Object.assign(InnerMap, {
                 { type: 'candle', icon: '🕯️', name: 'Candle Stand', q: 2, r: 2, passable: true },
                 { type: 'candle', icon: '🕯️', name: 'Candle Stand', q: 7, r: 2, passable: true },
                 { type: 'bookshelf', icon: '📖', name: 'Holy Texts', q: 1, r: 1, passable: false },
+                { type: 'rug', icon: '🟥', name: 'Aisle Runner', q: 5, r: 9, passable: true },
             ]
         },
         temple: {
-            width: 12, height: 12, floor: 'stone_floor', wallColor: '#8a7a6a',
+            width: 12, height: 12, floor: 'marble_floor', wall: 'stone', wallColor: '#8a7a6a',
             furniture: [
                 { type: 'altar', icon: '🕌', name: 'Sacred Altar', q: 5, r: 2, passable: false },
                 { type: 'altar', icon: '🕌', name: 'Sacred Altar', q: 6, r: 2, passable: false },
@@ -306,11 +318,12 @@ Object.assign(InnerMap, {
                 { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 4, r: 8, passable: false },
                 { type: 'pew', icon: '🪑', name: 'Prayer Mat', q: 7, r: 8, passable: false },
                 { type: 'candle', icon: '🕯️', name: 'Incense Burner', q: 5, r: 4, passable: true },
+                { type: 'candle', icon: '🕯️', name: 'Incense Burner', q: 6, r: 4, passable: true },
                 { type: 'chest', icon: '📦', name: 'Offering Box', q: 10, r: 1, passable: false },
             ]
         },
         barracks: {
-            width: 12, height: 10, floor: 'stone_floor', wallColor: '#4a4a4a',
+            width: 12, height: 10, floor: 'stone_floor', wall: 'dark_stone', wallColor: '#4a4a4a',
             furniture: [
                 { type: 'bed', icon: '🛏️', name: 'Bunk', q: 1, r: 1, passable: false },
                 { type: 'bed', icon: '🛏️', name: 'Bunk', q: 3, r: 1, passable: false },
@@ -321,21 +334,24 @@ Object.assign(InnerMap, {
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 9, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 10, r: 1, passable: false },
                 { type: 'table', icon: '🪑', name: 'Mess Table', q: 8, r: 5, passable: false },
+                { type: 'table', icon: '🪑', name: 'Mess Table', q: 9, r: 5, passable: false },
+                { type: 'banner', icon: '🚩', name: 'Company Colours', q: 7, r: 1, passable: true },
                 { type: 'chest', icon: '📦', name: 'Equipment Chest', q: 10, r: 8, passable: false },
             ]
         },
         house: {
-            width: 8, height: 7, floor: 'wood_floor', wallColor: '#6a5a4a',
+            width: 8, height: 7, floor: 'wood_floor', wall: 'plaster', wallColor: '#6a5a4a',
             furniture: [
                 { type: 'bed', icon: '🛏️', name: 'Bed', q: 1, r: 1, passable: false },
                 { type: 'table', icon: '🪑', name: 'Table', q: 4, r: 2, passable: false },
                 { type: 'fireplace', icon: '🔥', name: 'Hearth', q: 6, r: 1, passable: false },
                 { type: 'chest', icon: '📦', name: 'Storage Chest', q: 1, r: 5, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 6, r: 5, passable: false },
+                { type: 'rug', icon: '🟫', name: 'Rag Rug', q: 3, r: 4, passable: true },
             ]
         },
         manor: {
-            width: 14, height: 12, floor: 'wood_floor', wallColor: '#5a4a3a',
+            width: 14, height: 12, floor: 'herringbone_floor', wall: 'plaster', wallColor: '#5a4a3a',
             furniture: [
                 { type: 'throne', icon: '👑', name: 'Lord\'s Chair', q: 6, r: 2, passable: false },
                 { type: 'table', icon: '🪑', name: 'Dining Table', q: 5, r: 5, passable: false },
@@ -344,39 +360,44 @@ Object.assign(InnerMap, {
                 { type: 'bed', icon: '🛏️', name: 'Master Bed', q: 11, r: 2, passable: false },
                 { type: 'bookshelf', icon: '📚', name: 'Library', q: 1, r: 1, passable: false },
                 { type: 'bookshelf', icon: '📚', name: 'Library', q: 2, r: 1, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Writing Desk', q: 2, r: 3, passable: false },
                 { type: 'fireplace', icon: '🔥', name: 'Grand Fireplace', q: 12, r: 1, passable: false },
                 { type: 'chest', icon: '📦', name: 'Treasury Chest', q: 12, r: 10, passable: false },
                 { type: 'banner', icon: '🚩', name: 'Family Banner', q: 6, r: 1, passable: true },
+                { type: 'rug', icon: '🟥', name: 'Carpet', q: 6, r: 7, passable: true },
                 { type: 'stairs', icon: '🧗', name: 'Staircase', q: 1, r: 10, passable: true },
             ]
         },
         granary: {
-            width: 8, height: 8, floor: 'wood_floor', wallColor: '#6a5a4a',
+            width: 8, height: 8, floor: 'wood_floor', wall: 'planks', wallColor: '#6a5a4a',
             furniture: [
                 { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 1, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 2, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Grain Barrel', q: 3, r: 1, passable: false },
-                { type: 'crate', icon: '📦', name: 'Grain Sack', q: 5, r: 1, passable: false },
-                { type: 'crate', icon: '📦', name: 'Grain Sack', q: 6, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 5, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 6, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 6, r: 2, passable: false },
                 { type: 'scales', icon: '⚖️', name: 'Scales', q: 3, r: 4, passable: true },
             ]
         },
         warehouse: {
-            width: 12, height: 10, floor: 'stone_floor', wallColor: '#5a5a5a',
+            width: 12, height: 10, floor: 'stone_floor', wall: 'planks', wallColor: '#5a5a5a',
             furniture: [
                 { type: 'crate', icon: '📦', name: 'Crate', q: 1, r: 1, passable: false },
                 { type: 'crate', icon: '📦', name: 'Crate', q: 2, r: 1, passable: false },
                 { type: 'crate', icon: '📦', name: 'Crate', q: 3, r: 1, passable: false },
                 { type: 'crate', icon: '📦', name: 'Crate', q: 1, r: 2, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Sacks of Wool', q: 1, r: 4, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 8, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 9, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Barrel', q: 10, r: 1, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Tally Desk', q: 8, r: 5, passable: false },
                 { type: 'chest', icon: '📦', name: 'Locked Chest', q: 10, r: 8, passable: false },
                 { type: 'scales', icon: '⚖️', name: 'Scales', q: 5, r: 5, passable: true },
             ]
         },
         stable: {
-            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#5a4a3a',
+            width: 10, height: 8, floor: 'dirt_floor', wall: 'planks', wallColor: '#5a4a3a',
             furniture: [
                 { type: 'stall', icon: '🐴', name: 'Horse Stall', q: 1, r: 1, passable: false },
                 { type: 'stall', icon: '🐴', name: 'Horse Stall', q: 3, r: 1, passable: false },
@@ -384,17 +405,18 @@ Object.assign(InnerMap, {
                 { type: 'barrel', icon: '🛢️', name: 'Water Trough', q: 7, r: 1, passable: false },
                 { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 8, r: 1, passable: false },
                 { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 8, r: 2, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Oat Sacks', q: 1, r: 5, passable: false },
             ]
         },
         well: {
-            width: 6, height: 6, floor: 'stone_floor', wallColor: '#7a7a7a',
+            width: 6, height: 6, floor: 'stone_floor', wall: 'stone', wallColor: '#7a7a7a',
             furniture: [
                 { type: 'well', icon: '💧', name: 'Well', q: 2, r: 2, passable: false },
                 { type: 'bucket', icon: '🧺', name: 'Bucket', q: 3, r: 3, passable: true },
             ]
         },
         barn: {
-            width: 10, height: 8, floor: 'dirt_floor', wallColor: '#6a4a3a',
+            width: 10, height: 8, floor: 'dirt_floor', wall: 'planks', wallColor: '#6a4a3a',
             furniture: [
                 { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 1, r: 1, passable: false },
                 { type: 'crate', icon: '🌾', name: 'Hay Bale', q: 2, r: 1, passable: false },
@@ -404,7 +426,7 @@ Object.assign(InnerMap, {
             ]
         },
         guard_tower: {
-            width: 6, height: 8, floor: 'stone_floor', wallColor: '#5a5a5a',
+            width: 6, height: 8, floor: 'stone_floor', wall: 'dark_stone', wallColor: '#5a5a5a',
             furniture: [
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 1, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 4, r: 1, passable: false },
@@ -413,12 +435,172 @@ Object.assign(InnerMap, {
             ]
         },
         farm: {
-            width: 8, height: 6, floor: 'dirt_floor', wallColor: '#6a5a4a',
+            width: 8, height: 6, floor: 'dirt_floor', wall: 'plaster', wallColor: '#6a5a4a',
             furniture: [
                 { type: 'table', icon: '🪑', name: 'Work Table', q: 3, r: 2, passable: false },
                 { type: 'bed', icon: '🛏️', name: 'Straw Bed', q: 1, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 6, r: 1, passable: false },
-                { type: 'crate', icon: '🌾', name: 'Seed Crate', q: 6, r: 4, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Seed Sacks', q: 6, r: 4, passable: false },
+            ]
+        },
+        // ── The town's trades and offices (BUILDING_TYPES in state.js) ──
+        guildhall: {
+            width: 12, height: 10, floor: 'herringbone_floor', wall: 'timber', wallColor: '#5a4030',
+            furniture: [
+                { type: 'table', icon: '🪑', name: 'Guild Table', q: 4, r: 4, passable: false },
+                { type: 'table', icon: '🪑', name: 'Guild Table', q: 5, r: 4, passable: false },
+                { type: 'table', icon: '🪑', name: 'Guild Table', q: 6, r: 4, passable: false },
+                { type: 'throne', icon: '👑', name: 'Master\'s Chair', q: 5, r: 2, passable: false },
+                { type: 'banner', icon: '🚩', name: 'Guild Banner', q: 3, r: 1, passable: true },
+                { type: 'banner', icon: '🚩', name: 'Guild Banner', q: 7, r: 1, passable: true },
+                { type: 'desk', icon: '✒️', name: 'Registrar\'s Desk', q: 9, r: 2, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Guild Rolls', q: 10, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Guild Chest', q: 1, r: 1, passable: false },
+                { type: 'rack', icon: '🔨', name: 'Masterpieces', q: 1, r: 4, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Hearth', q: 10, r: 6, passable: false },
+            ]
+        },
+        bank: {
+            width: 10, height: 8, floor: 'marble_floor', wall: 'stone', wallColor: '#6a6a70',
+            furniture: [
+                { type: 'bar', icon: '🏦', name: 'Teller\'s Counter', q: 3, r: 3, passable: false },
+                { type: 'bar', icon: '🏦', name: 'Teller\'s Counter', q: 4, r: 3, passable: false },
+                { type: 'bar', icon: '🏦', name: 'Teller\'s Counter', q: 6, r: 3, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Money Scales', q: 4, r: 2, passable: false },
+                { type: 'chest', icon: '💰', name: 'Strongbox', q: 1, r: 1, passable: false },
+                { type: 'chest', icon: '💰', name: 'Strongbox', q: 2, r: 1, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Ledger Desk', q: 7, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Ledgers', q: 8, r: 1, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candle', q: 5, r: 2, passable: true },
+            ]
+        },
+        post_house: {
+            width: 10, height: 8, floor: 'wood_floor', wall: 'brick', wallColor: '#5a4a3a',
+            furniture: [
+                { type: 'bar', icon: '📮', name: 'Post Counter', q: 3, r: 3, passable: false },
+                { type: 'bar', icon: '📮', name: 'Post Counter', q: 4, r: 3, passable: false },
+                { type: 'shelf', icon: '✉️', name: 'Letter Racks', q: 1, r: 1, passable: false },
+                { type: 'shelf', icon: '✉️', name: 'Letter Racks', q: 2, r: 1, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Sorting Desk', q: 6, r: 1, passable: false },
+                { type: 'sack', icon: '👜', name: 'Mailbags', q: 8, r: 1, passable: false },
+                { type: 'sack', icon: '👜', name: 'Mailbags', q: 8, r: 2, passable: false },
+                { type: 'rack', icon: '🐎', name: 'Saddle Rack', q: 8, r: 5, passable: false },
+                { type: 'bucket', icon: '💧', name: 'Water for the Riders', q: 1, r: 5, passable: true },
+            ]
+        },
+        apothecary: {
+            width: 9, height: 8, floor: 'tile_floor', wall: 'plaster', wallColor: '#5a5a40',
+            furniture: [
+                { type: 'bar', icon: '⚗️', name: 'Apothecary\'s Counter', q: 3, r: 3, passable: false },
+                { type: 'bar', icon: '⚗️', name: 'Apothecary\'s Counter', q: 5, r: 3, passable: false },
+                { type: 'shelf', icon: '🏺', name: 'Shelves of Jars', q: 1, r: 1, passable: false },
+                { type: 'shelf', icon: '🏺', name: 'Shelves of Jars', q: 2, r: 1, passable: false },
+                { type: 'shelf', icon: '🌿', name: 'Drying Herbs', q: 3, r: 1, passable: false },
+                { type: 'cauldron', icon: '⚗️', name: 'Still', q: 6, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📖', name: 'Herbals', q: 7, r: 1, passable: false },
+                { type: 'bed', icon: '🛏️', name: 'Sickbed', q: 7, r: 5, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candle', q: 4, r: 2, passable: true },
+            ]
+        },
+        bathhouse: {
+            width: 12, height: 9, floor: 'tile_floor', wall: 'stone', wallColor: '#6a7078',
+            furniture: [
+                { type: 'tub', icon: '🛁', name: 'Hot Bath', q: 2, r: 2, passable: false },
+                { type: 'tub', icon: '🛁', name: 'Hot Bath', q: 4, r: 2, passable: false },
+                { type: 'tub', icon: '🛁', name: 'Cold Plunge', q: 8, r: 2, passable: false },
+                { type: 'tub', icon: '🛁', name: 'Hot Bath', q: 2, r: 5, passable: false },
+                { type: 'bucket', icon: '🧺', name: 'Laundry Tub', q: 9, r: 5, passable: false },
+                { type: 'fireplace', icon: '🔥', name: 'Stove for the Water', q: 10, r: 1, passable: false },
+                { type: 'bar', icon: '🛎️', name: 'Attendant\'s Desk', q: 4, r: 6, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Bench', q: 8, r: 6, passable: false },
+                { type: 'shelf', icon: '🧴', name: 'Towels & Oils', q: 1, r: 7, passable: false },
+            ]
+        },
+        library: {
+            width: 12, height: 10, floor: 'herringbone_floor', wall: 'brick', wallColor: '#5a4a3a',
+            furniture: [
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 1, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 2, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 3, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 8, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 9, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 10, r: 1, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 1, r: 4, passable: false },
+                { type: 'bookshelf', icon: '📚', name: 'Bookshelf', q: 10, r: 4, passable: false },
+                { type: 'desk', icon: '🗺️', name: 'Map Table', q: 5, r: 3, passable: false },
+                { type: 'desk', icon: '🗺️', name: 'Map Table', q: 7, r: 3, passable: false },
+                { type: 'lectern', icon: '📖', name: 'Reading Lectern', q: 4, r: 6, passable: false },
+                { type: 'lectern', icon: '📖', name: 'Reading Lectern', q: 8, r: 6, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candelabra', q: 6, r: 5, passable: true },
+            ]
+        },
+        bakery: {
+            width: 9, height: 7, floor: 'tile_floor', wall: 'brick', wallColor: '#6a4a3a',
+            furniture: [
+                { type: 'oven', icon: '🔥', name: 'Bread Oven', q: 1, r: 1, passable: false },
+                { type: 'oven', icon: '🔥', name: 'Bread Oven', q: 2, r: 1, passable: false },
+                { type: 'table', icon: '🥖', name: 'Kneading Table', q: 3, r: 3, passable: false },
+                { type: 'bar', icon: '🍞', name: 'Bread Counter', q: 6, r: 3, passable: false },
+                { type: 'shelf', icon: '🍞', name: 'Bread Shelf', q: 6, r: 1, passable: false },
+                { type: 'shelf', icon: '🍞', name: 'Bread Shelf', q: 7, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Flour Sacks', q: 1, r: 4, passable: false },
+                { type: 'barrel', icon: '🛢️', name: 'Water Barrel', q: 7, r: 5, passable: false },
+            ]
+        },
+        mill: {
+            width: 9, height: 8, floor: 'wood_floor', wall: 'planks', wallColor: '#6a5a4a',
+            furniture: [
+                { type: 'millstone', icon: '⚙️', name: 'Millstones', q: 4, r: 2, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Flour Sacks', q: 1, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Flour Sacks', q: 2, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 7, r: 1, passable: false },
+                { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 7, r: 2, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Miller\'s Scales', q: 2, r: 4, passable: true },
+                { type: 'crate', icon: '📦', name: 'Bins', q: 7, r: 5, passable: false },
+                { type: 'stairs', icon: '🧗', name: 'Ladder to the Stones', q: 1, r: 6, passable: true },
+            ]
+        },
+        jail: {
+            width: 11, height: 9, floor: 'stone_floor', wall: 'dark_stone', wallColor: '#3a3a40',
+            furniture: [
+                { type: 'cell', icon: '⛓️', name: 'Cell', q: 1, r: 1, passable: false },
+                { type: 'cell', icon: '⛓️', name: 'Cell', q: 3, r: 1, passable: false },
+                { type: 'cell', icon: '⛓️', name: 'Cell', q: 5, r: 1, passable: false },
+                { type: 'cell', icon: '⛓️', name: 'Cell', q: 7, r: 1, passable: false },
+                { type: 'table', icon: '🪑', name: 'Gaoler\'s Table', q: 3, r: 5, passable: false },
+                { type: 'desk', icon: '📜', name: 'Charge Book', q: 7, r: 5, passable: false },
+                { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 9, r: 1, passable: false },
+                { type: 'chest', icon: '📦', name: 'Confiscated Goods', q: 9, r: 6, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Lantern', q: 5, r: 4, passable: true },
+            ]
+        },
+        mint: {
+            width: 11, height: 9, floor: 'stone_floor', wall: 'brick', wallColor: '#5a4a40',
+            furniture: [
+                { type: 'forge', icon: '🔥', name: 'Melting Furnace', q: 1, r: 1, passable: false },
+                { type: 'forge', icon: '🔥', name: 'Melting Furnace', q: 2, r: 1, passable: false },
+                { type: 'press', icon: '💰', name: 'Coining Press', q: 4, r: 2, passable: false },
+                { type: 'press', icon: '💰', name: 'Coining Press', q: 6, r: 2, passable: false },
+                { type: 'anvil', icon: '🔨', name: 'Die Anvil', q: 3, r: 4, passable: false },
+                { type: 'scales', icon: '⚖️', name: 'Assay Scales', q: 8, r: 4, passable: false },
+                { type: 'chest', icon: '💰', name: 'Coin Chest', q: 9, r: 1, passable: false },
+                { type: 'chest', icon: '💰', name: 'Coin Chest', q: 9, r: 2, passable: false },
+                { type: 'desk', icon: '✒️', name: 'Mintmaster\'s Desk', q: 8, r: 6, passable: false },
+                { type: 'rack', icon: '⚔️', name: 'Guard\'s Rack', q: 1, r: 6, passable: false },
+            ]
+        },
+        chapel: {
+            width: 8, height: 9, floor: 'stone_floor', wall: 'stone', wallColor: '#7a7a7a',
+            furniture: [
+                { type: 'altar', icon: '⛪', name: 'Altar', q: 3, r: 1, passable: false },
+                { type: 'altar', icon: '⛪', name: 'Altar', q: 4, r: 1, passable: false },
+                { type: 'candle', icon: '🕯️', name: 'Candles', q: 2, r: 1, passable: true },
+                { type: 'candle', icon: '🕯️', name: 'Candles', q: 5, r: 1, passable: true },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 2, r: 4, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 5, r: 4, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 2, r: 6, passable: false },
+                { type: 'pew', icon: '🪑', name: 'Pew', q: 5, r: 6, passable: false },
+                { type: 'statue', icon: '🗿', name: 'Saint\'s Statue', q: 6, r: 2, passable: false },
             ]
         },
     },
@@ -430,6 +612,9 @@ Object.assign(InnerMap, {
         wood_floor:  { color: '#8B7355', altColor: '#7A6548', name: 'Wooden Floor' },
         stone_floor: { color: '#8a8a8a', altColor: '#7a7a7a', name: 'Stone Floor' },
         dirt_floor:  { color: '#9a8a6a', altColor: '#8a7a5a', name: 'Dirt Floor' },
+        tile_floor:  { color: '#a89a86', altColor: '#988a76', name: 'Tiled Floor' },
+        marble_floor: { color: '#c8c4bc', altColor: '#b8b4ac', name: 'Marble Floor' },
+        herringbone_floor: { color: '#8e6a48', altColor: '#7e5a3a', name: 'Parquet Floor' },
     },
 
     /**
@@ -442,6 +627,8 @@ Object.assign(InnerMap, {
         forge: '#e74c3c', stall: '#6a5a3a', altar: '#aaaacc', pew: '#6a4a2a',
         statue: '#999999', crate: '#7a5a2a', scales: '#aaaaaa', well: '#6a8aaa',
         bucket: '#6a5a4a', stairs: '#8a7a6a',
+        desk: '#6a4a2a', shelf: '#5a3a1a', cauldron: '#3a3a3a', tub: '#b87333', oven: '#8a4a3a',
+        millstone: '#8a8a8a', cell: '#4a4a52', press: '#5a5a5a', lectern: '#6a4a2a', sack: '#a08a5a', rug: '#8a2a2a',
     },
 
     /**
@@ -719,6 +906,7 @@ Object.assign(InnerMap, {
                     building: null,
                     _isInterior: true,
                     _interiorBuildingType: building.type,
+                    _wallMaterial: layout.wall || null,
                     _furniture: null,
                     effectiveTemp: 20,
                     moisture: 0.3,

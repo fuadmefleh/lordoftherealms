@@ -2,6 +2,7 @@
 // ACTION MENU — assembled from ./actionMenu/*.js
 // ============================================
 import { ActionMenu } from './_ref.js';
+import { trackShows } from '../panelRefresh.js';
 import './core.js';
 import './trade.js';
 import './build.js';
@@ -10,6 +11,7 @@ import './combat.js';
 import './battle.js';
 import './choiceScenes.js';
 import './treasureScenes.js';
+import './streetWatch.js';
 import './prisonScenes.js';
 import './seaScenes.js';
 import './dutyScenes.js';
@@ -41,6 +43,7 @@ import './letters.js';
 import './threats.js';
 import './lodging.js';
 import './courierRiders.js';
+import './rivalHouses.js';
 import './townsfolk.js';
 import './discovery.js';
 import './outlawLairs.js';
@@ -67,7 +70,11 @@ import './publicWorks.js';
 import './treasury.js';
 import './annals.js';
 import './reckoning.js';
+import './calendar.js';
 import './scenario.js';
+
+// Every panel's show* method is remembered, so the open panel redraws after the day (ui/panelRefresh.js)
+trackShows(ActionMenu);
 
 // Expose ActionMenu globally so inline onclick handlers in dynamic HTML can access it
 window.ActionMenu = ActionMenu;

@@ -1,5 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
@@ -785,6 +786,10 @@ Object.assign(UI.prototype, {
         const body = document.getElementById('kingdomBody');
         const player = this.game.player;
         const knows = (cat) => player.knowsAbout(kingdom.id, cat);
+        // The figures are for those inside the realm's affairs; the rest hear the street's word (systems/realmIntel.js)
+        const intel = (kind) => RealmIntel.whyLabel(player, this.game.world, kingdom, kind);
+        const badge = (why) => (why ? ` <span style="font-size:10px; color:#9fd89f;" title="You know this through ${why}">🔓</span>` : '');
+        const rumour = (text) => `<span style="opacity:0.75;" title="Rumour: the figures are for the realm's officers, its ruler and your spies">${text} <span style="font-size:10px;">(rumour)</span></span>`;
 
         title.innerHTML = `<span class="kingdom-dot" style="color:${kingdom.color}; background:${kingdom.color}"></span> ${kingdom.name}`;
 
@@ -958,8 +963,12 @@ Object.assign(UI.prototype, {
                                 <span class="info-label">${role.icon} ${role.name}</span>
                                 <span class="info-value">${Characters.getFullName(advisor)}</span>
                             </div>
+                        `;
+                        // How able a councillor is, and how loyal, is known inside the court
+                        const courtWhy = intel('court');
+                        if (courtWhy) lordHtml += `
                             <div class="info-row" style="padding-left:20px;">
-                                <span class="info-label" style="font-size:11px">Skill ${advisor.skills[role.primarySkill]}/20</span>
+                                <span class="info-label" style="font-size:11px">Skill ${advisor.skills[role.primarySkill]}/20${badge(courtWhy)}</span>
                                 <span class="info-value" style="color:${loyaltyColor}; font-size:11px">Loyalty: ${advisor.loyalty}%</span>
                             </div>
                         `;
@@ -1081,20 +1090,26 @@ Object.assign(UI.prototype, {
                 const pol = Kingship.crownPolicies(this.game.player, this.game.world, kingdom.id);
                 return pol.length ? `<div class="info-row"><span class="info-label">Crown policy</span><span class="info-value" style="font-size: 11px;">${pol.map(p => `${p.icon} ${p.label}${p.id === 'royal_post' ? ` (${p.text})` : ''}`).join(' · ')}</span></div>` : '';
             })()}
-            ${knows('military') ? `<div class="info-row">
-                <span class="info-label">Military</span>
+            ${intel('military') ? `<div class="info-row">
+                <span class="info-label">Military${badge(intel('military'))}</span>
                 <span class="info-value" title="Standing army / what the realm can support">⚔️ ${Utils.formatNumber(kingdom.military || 0)}${typeof kingdom.militaryCap === 'number' ? ` <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.militaryCap)}</span>` : ''}</span>
+            </div>` : knows('military') ? `<div class="info-row">
+                <span class="info-label">Military</span>
+                <span class="info-value">⚔️ ${rumour(RealmIntel.band('military', kingdom.military))}</span>
             </div>` : `<div class="info-row">
                 <span class="info-label">Military</span>
                 <span class="info-value" style="color:#666;">Unknown</span>
             </div>`}
             ${knows('military') && kingdom.navy ? `<div class="info-row">
                 <span class="info-label">Fleet</span>
-                <span class="info-value" title="Royal fleet strength / what its ports and treasury can keep afloat">⚓ ${Utils.formatNumber(kingdom.navy.strength || 0)} <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.navy.cap || 0)} · ${kingdom.navy.ports || 0} port${kingdom.navy.ports === 1 ? '' : 's'}</span>${KingdomNavy.isBlockaded(kingdom) ? ` <span style="color:#e67e22;">· blockaded by ${KingdomNavy.blockaders(kingdom).map(id => (this.game.world.getKingdom(id) || {}).name || id).join(', ')}</span>` : ''}</span>
+                <span class="info-value" title="Royal fleet strength / what its ports and treasury can keep afloat">⚓ ${intel('military') ? `${Utils.formatNumber(kingdom.navy.strength || 0)} <span style="opacity:0.6;">/ ${Utils.formatNumber(kingdom.navy.cap || 0)}` : `${rumour(RealmIntel.band('fleet', kingdom.navy.strength))} <span style="opacity:0.6;">`} · ${kingdom.navy.ports || 0} port${kingdom.navy.ports === 1 ? '' : 's'}</span>${KingdomNavy.isBlockaded(kingdom) ? ` <span style="color:#e67e22;">· blockaded by ${KingdomNavy.blockaders(kingdom).map(id => (this.game.world.getKingdom(id) || {}).name || id).join(', ')}</span>` : ''}</span>
             </div>` : ''}
-            ${knows('economy') ? `<div class="info-row">
+            ${intel('books') ? `<div class="info-row">
+                <span class="info-label">Treasury${badge(intel('books'))}</span>
+                <span class="info-value">💰 ${Utils.formatNumber(Math.round(kingdom.treasury || 0))}</span>
+            </div>` : knows('economy') ? `<div class="info-row">
                 <span class="info-label">Treasury</span>
-                <span class="info-value">💰 ${Utils.formatNumber(kingdom.treasury)}</span>
+                <span class="info-value">💰 ${rumour(RealmIntel.band('treasury', kingdom.treasury))}</span>
             </div>` : `<div class="info-row">
                 <span class="info-label">Treasury</span>
                 <span class="info-value" style="color:#666;">Unknown</span>

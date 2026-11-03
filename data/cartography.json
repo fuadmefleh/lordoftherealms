@@ -71,6 +71,16 @@
       "cost": 5000
     }
   },
+  "charting": {
+    "_comment": "Maps are charted on foot (src/systems/cartography/charting.js): each Chart This Tile action records the tile underfoot into a draft; with minTiles charted the draft can be drawn into a map. A kingdom map needs your realm's tiles: minTiles.kingdom or kingdomShare of its territory, whichever is more. inkCost is gold for drawing; value scales with tiles / valuePerTiles.",
+    "minTiles": { "regional": 12, "survey": 20, "kingdom": 15 },
+    "kingdomShare": 0.2,
+    "inkCost": { "regional": 10, "survey": 25, "kingdom": 40 },
+    "valueMult": { "regional": 1, "survey": 1.5, "kingdom": 2 },
+    "valuePerTiles": 20,
+    "skillPerTile": 0.02,
+    "maxDraft": 600
+  },
   "kingdomAtlas": {
     "_comment": "Court cartographers of NPC realms (src/world/kingdomAtlas.js): hiring, map-drawing pace, chart accuracy, war bonus from charts, spotting doctored maps",
     "hireTreasury": 5000,

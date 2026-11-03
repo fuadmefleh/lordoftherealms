@@ -10,6 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { Coalitions } from '../../systems/coalitions.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--gold);';
 const PART_LABELS = {
@@ -78,7 +79,7 @@ Object.assign(ActionMenu, {
                 const price = Coalitions.buyOffPrice(player, world, m.kingdomId);
                 const war = [m.war === 'holdings' ? 'war on your holdings' : null, m.realmWar ? 'war on your realm' : null].filter(Boolean).join(', ') || (c.stage === 'active' ? 'levies only' : 'waiting');
                 html += '<div style="border-top:1px solid rgba(255,255,255,0.08);margin-top:6px;padding-top:6px;">';
-                html += `<div>${m.leader ? '👑 ' : ''}<b>${esc(m.name)}</b> <span style="color:#aaa;">— ${war}${k ? ` · army ${Math.round(k.military || 0)}` : ''}${a ? ` · hostility ${a.hostility}` : ''}</span></div>`;
+                html += `<div>${m.leader ? '👑 ' : ''}<b>${esc(m.name)}</b> <span style="color:#aaa;">— ${war}${k ? ` · army ${(() => { const s = RealmIntel.seen(player, world, k, 'military', 'military', k.military || 0, typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, 'military')); return s.exact ? s.text : esc(s.text); })()}` : ''}${a ? ` · hostility ${a.hostility}` : ''}</span></div>`;
                 html += _btn(`💰 Buy out (${price}g)`, 'split', [m.kingdomId, 'gold', ''], BTN_GOLD, gold >= price, 'They leave the league and make peace with you.');
                 for (const child of kids.slice(0, 2)) html += _btn(`💍 Wed ${esc(child.firstName)} into ${esc(m.name)}`, 'split', [m.kingdomId, 'marriage', child.id], BTN_DARK, true, 'A match seals their leaving.');
                 for (const h of cedable.slice(0, 2)) html += _btn(`🏰 Cede ${esc(h.name)}`, 'split', [m.kingdomId, 'cede', `${h.q},${h.r}`], BTN_RED, true, 'A town of yours to them; they leave the league and remember the gift.');

@@ -1,6 +1,7 @@
 // ActionMenu — colony methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { DevotionPanel } from './devotion.js';
+import { esc } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -854,26 +855,7 @@ Object.assign(ActionMenu, {
                 </div>
 
                 <hr style="border-color:#555;">
-                <p><b>Create a Map:</b></p>
-
-                <button data-am-act="createMap" data-am-args='["regional"]' 
-                        style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
-                    🗺️ <b>Regional Map</b> — Chart the surrounding area (radius 8)<br>
-                    <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.regional.cost}g | Quality: ${qualityData.label}</small>
-                </button>
-
-                <button data-am-act="createMap" data-am-args='["survey"]' 
-                        style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
-                    📐 <b>Survey Map</b> — Detailed survey showing resources (radius 5)<br>
-                    <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.survey.cost}g | Shows resources</small>
-                </button>
-
-                ${player.allegiance ? `
-                <button data-am-act="createMap" data-am-args='["kingdom"]' 
-                        style="width:100%; padding:8px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
-                    👑 <b>Kingdom Map</b> — Map your kingdom's territory<br>
-                    <small style="color:#aaa;">Cost: ${Cartography.MAP_TYPES.kingdom.cost}g | Shows borders</small>
-                </button>` : ''}
+                ${ActionMenu._chartingSection(game)}
 
                 ${mapCount > 0 ? `
                 <hr style="border-color:#555;">
@@ -896,61 +878,128 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('🗺️ Cartography', html);
     },
 
-    /**
-     * Create a map
-     */
-    createMap(game, type) {
-        const player = game.player;
-        const world = game.world;
-        const cost = Cartography.MAP_TYPES[type]?.cost || 30;
+    /** The draft and the maps it can be drawn into (systems/cartography/charting.js). */
+    _chartingSection(game) {
+        const { player, world } = game;
+        const count = Cartography.draftCount(player);
+        const here = Cartography.isCharted(player, player.q, player.r);
+        let html = `<p><b>Charting:</b> ${count} tile${count === 1 ? '' : 's'} charted toward your next map.</p>
+                <p style="font-size:12px; color:#aaa; margin:2px 0 6px;">Walk the land and use <b>📏 Chart This Tile</b> on each tile (1 AP). Once enough tiles are charted, draw them up into a map here.${here ? ' This tile is already charted.' : ''}</p>`;
+        for (const o of Cartography.drawOptions(player, world)) {
+            const can = o.ready && player.gold >= o.cost;
+            const why = !o.ready ? o.reason : player.gold < o.cost ? `Ink and vellum cost ${o.cost}g.` : `Ink and vellum: ${o.cost}g`;
+            html += `
+                <button data-am-act="createMap" data-am-args='["${o.type}"]' ${can ? '' : 'disabled'}
+                        style="width:100%; padding:8px; margin:3px 0; background:${can ? '#555' : '#333'}; color:${can ? '#fff' : '#888'}; border:none; border-radius:4px; cursor:${can ? 'pointer' : 'default'}; text-align:left;">
+                    ${o.icon} <b>Draw ${esc(o.name)}</b> — ${Math.min(o.have, o.need)} / ${o.need} tiles charted${o.type === 'survey' ? ', resources marked' : ''}<br>
+                    <small style="color:#aaa;">${esc(why)}</small>
+                </button>`;
+        }
+        // A standing order: walk the area and chart it all (ui/game/autoChart.js)
+        const order = Cartography.autoChartView(player, world);
+        if (order) {
+            html += `
+                <button data-am-act="stopAutoChartArea"
+                        style="width:100%; padding:8px; margin:3px 0; background:#5a3a3a; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
+                    🧭 <b>Stop auto-charting</b> — ${order.charted} charted, ${order.left} left within ${order.radius} tiles
+                </button>`;
+        } else {
+            html += '<p style="margin:8px 0 2px;"><b>🧭 Auto-chart the area</b> <small style="color:#aaa;">walks and charts every tile nearby, resting each night (1 AP a step, 1 AP a tile; Escape stops)</small></p><div style="display:flex; gap:4px;">';
+            for (const radius of Cartography.CHARTING.autoRadii || [2, 3, 4]) {
+                const left = Cartography._autoTargets(player, world, player.q, player.r, radius).length;
+                html += `<button data-am-act="autoChartArea" data-am-args='[${radius}]' ${left ? '' : 'disabled'}
+                        style="flex:1; padding:6px; background:${left ? '#3a4a5a' : '#333'}; color:${left ? '#fff' : '#888'}; border:none; border-radius:4px; cursor:${left ? 'pointer' : 'default'}; font-size:12px;">
+                    ${radius} tiles around<br><small style="color:#aaa;">${left} to chart</small>
+                </button>`;
+            }
+            html += '</div>';
+        }
+        if (count > 0) {
+            html += `
+                <button data-am-act="discardChartDraft"
+                        style="width:100%; padding:6px; margin:3px 0; background:#3a2a2a; color:#ccc; border:none; border-radius:4px; cursor:pointer; font-size:12px;">
+                    🗑️ Throw away the charted sheets
+                </button>`;
+        }
+        return html;
+    },
 
-        if (player.gold < cost) {
-            game.ui.showNotification('Not Enough Gold', `You need ${cost} gold to create this map.`, 'error');
+    /** Chart the tile underfoot (the 📏 action; its 1 AP is already spent). */
+    doChartTile(game) {
+        const { player, world } = game;
+        const res = Cartography.chartTile(player, world);
+        if (!res.success) {
+            game.ui.showNotification('Cannot Chart', res.reason, 'error');
+            return;
+        }
+        const ready = Cartography.drawOptions(player, world).filter(o => o.ready).map(o => o.name);
+        const seen = [res.settlement, res.resource ? `${res.resource} noted` : null].filter(Boolean).join(', ');
+        game.ui.showNotification('📏 Tile Charted',
+            `You sketch the ${res.terrain}${seen ? ` (${seen})` : ''}. ${res.count} tile${res.count === 1 ? '' : 's'} charted.`
+            + (ready.length ? ` Enough to draw: ${ready.join(', ')} (Cartography).` : ''), 'success');
+        game.ui.updateStats(player, world);
+    },
+
+    /** Scrub the clothes by hand (the 🧺 action; its AP is already spent). */
+    doWashClothes(game) {
+        const { player, world } = game;
+        const res = player.washClothesByHand(world);
+        if (!res.success) {
+            game.ui.showNotification('Cannot Wash', res.reason, 'error');
+            return;
+        }
+        const cs = player.clothesState();
+        game.ui.showNotification('🧺 Clothes Washed', `You scrub your clothes at ${res.where} and wring them out. They are ${cs.label.toLowerCase()} again (${cs.freshness}%), if a little damp. A bath will get you properly clean now.`, 'success');
+        game.ui.updateStats(player, world);
+    },
+
+    /** Give the order to chart the area (the walking is the game loop's, ui/game/autoChart.js). */
+    autoChartArea(game, radius) {
+        // Opening Cartography left its AP pending; the survey pays its own way, a step and a tile at a time
+        ActionMenu._pendingAP = null;
+        if (typeof game.startAutoChart === 'function') game.startAutoChart(Number(radius));
+    },
+
+    /** Call the survey off. */
+    stopAutoChartArea(game) {
+        if (typeof game.stopAutoChart === 'function') game.stopAutoChart();
+        ActionMenu.showCartographyMenu(game, game.world.getTile(game.player.q, game.player.r));
+    },
+
+    /** Throw the draft away. */
+    discardChartDraft(game) {
+        Cartography.discardDraft(game.player);
+        game.ui.showNotification('Sheets Discarded', 'You throw away your charted sheets.', 'info');
+        ActionMenu.showCartographyMenu(game, game.world.getTile(game.player.q, game.player.r));
+    },
+
+    /** Draw the charted tiles up into a map. */
+    createMap(game, type) {
+        const { player, world } = game;
+        const opt = Cartography.drawOptions(player, world).find(o => o.type === type);
+        if (!opt) return;
+        if (!opt.ready) {
+            game.ui.showNotification('Not Enough Charted', opt.reason, 'error');
+            return;
+        }
+        if (player.gold < opt.cost) {
+            game.ui.showNotification('Not Enough Gold', `You need ${opt.cost} gold for ink and vellum.`, 'error');
             return;
         }
         if (!ActionMenu.commitPendingAP(game)) return;
-
-        player.gold -= cost;
-        if (!player.maps) player.maps = [];
-
-        let map;
-        switch (type) {
-            case 'regional':
-                map = Cartography.createRegionalMap(player, world);
-                break;
-            case 'survey':
-                map = Cartography.createSurveyMap(player, world);
-                break;
-            case 'kingdom':
-                if (!player.allegiance) {
-                    game.ui.showNotification('No Kingdom', 'You must be pledged to a kingdom to map it.', 'error');
-                    player.gold += cost;
-                    return;
-                }
-                map = Cartography.createKingdomMap(player, world, player.allegiance);
-                break;
-            default:
-                player.gold += cost;
-                return;
-        }
-
-        if (!map) {
-            player.gold += cost;
-            game.ui.showNotification('Failed', 'Could not create map.', 'error');
+        const res = Cartography.drawMap(player, world, type);
+        if (!res.success) {
+            game.ui.showNotification('Failed', res.reason, 'error');
             return;
         }
-
-        player.maps.push(map);
-        player.skills.cartography = Math.min(10, (player.skills.cartography || 0) + Cartography.SKILL_GAIN_CREATE);
-
-        // Also reveal those tiles for the player
-        const result = Cartography.applyMap(player, map, world);
+        player.gold -= opt.cost;
+        const map = res.map;
         // A Royal Cartographer is paid a commission for every survey
         const commission = type === 'survey' ? Titles.recordSurvey(player) : 0;
 
-        game.ui.showNotification('Map Created!', 
-            `${map.name} (${Cartography.QUALITY[map.quality].label} quality). Charted ${result.tilesRevealed} tiles.${commission ? ` The crown pays ${commission}g for the survey.` : ''}`, 'success');
-        game.ui.updateStats(game.player, game.world);
+        game.ui.showNotification('Map Drawn!',
+            `${map.name} (${Cartography.QUALITY[map.quality].label} quality), ${map.tiles.length} tiles charted, worth ${map.value}g.${commission ? ` The crown pays ${commission}g for the survey.` : ''}`, 'success');
+        game.ui.updateStats(player, world);
         ActionMenu.showCartographyMenu(game, world.getTile(player.q, player.r));
     },
 

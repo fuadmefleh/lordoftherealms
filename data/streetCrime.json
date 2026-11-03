@@ -1,0 +1,257 @@
+{
+    "_comment": "Violence on a town's street map (systems/streetCrime.js, ui/innerMapReactions.js): who sees it, how they react on the spot, what they remember, and what they say afterwards. Placeholders in lines: {victim} the victim's name, {kin} how the speaker names the victim ('my brother Brom', 'Brom'), {player} the player's name, {town} where it happened, {deed} 'killed' / 'beat'.",
+
+    "sight": {
+        "_comment": "Chebyshev tiles from the victim. Indoors everyone in the building sees it. Guards within hearRadius who did not see it come running all the same.",
+        "radius": 7,
+        "guardHearRadius": 16,
+        "hiddenStates": ["inside_building", "leaving_building", "gone"]
+    },
+
+    "disposition": {
+        "_comment": "Change to a witness's opinion of the player (0-100, 50 neutral). Kin and friends are also hit by NpcDisposition.onNpcHarmed; these are on top.",
+        "bystander": { "assault": -15, "murder": -35 },
+        "guard": { "assault": -20, "murder": -40 },
+        "kin": { "assault": -10, "murder": -15 },
+        "friend": { "assault": -8, "murder": -12 },
+        "victim": { "assault": -10 },
+        "rosterKin": { "assault": -20, "murder": -55 },
+        "hearsay": { "assault": -4, "murder": -10 }
+    },
+
+    "refuse": {
+        "_comment": "A witness below talkBelow will not chat (amends or leave only). Traders who saw it refuse to deal below tradeBelow.",
+        "talkBelow": 20,
+        "tradeBelow": { "assault": 25, "murder": 45 }
+    },
+
+    "memory": { "max": 6, "freshDays": 12 },
+
+    "hearsay": {
+        "_comment": "Townsfolk who did not see it hear of it through the town's talk: at the scene share = base + perDay * days since (capped at 1); in towns the rumour has reached, elsewhereShare. mentionAgain: chance they bring it up again once already told.",
+        "base": 0.3,
+        "perDay": 0.2,
+        "elsewhereShare": 0.45,
+        "mentionAgain": 0.3,
+        "maxAgeDays": 120
+    },
+
+    "reactions": {
+        "angerTraits": ["bold", "stern", "stubborn"],
+        "fearTraits": ["cautious", "quiet", "kind", "curious"],
+        "kinFightTraits": ["bold", "stern", "stubborn"],
+        "cowerShare": 0.35,
+        "chaseSeconds": 30,
+        "runSpeed": 2.4,
+        "barkSeconds": 3.6
+    },
+
+    "heat": {
+        "_comment": "Share of the crime's underworld heat when no one saw it (a body is still found).",
+        "unseenShare": { "assault": 0, "murder": 0.3 }
+    },
+
+    "karmaUnseen": { "assault": -3, "murder": -10 },
+
+    "arrest": {
+        "_comment": "The watch: days in the cell on top of the heat-based sentence, a fine for a beating (scaled by town size, never less than the bounty owed here), the odds of running for it, and how long the guards remember an unanswered crime in their town.",
+        "windowDays": 30,
+        "days": { "assault": 2, "murder": 10 },
+        "fine": { "assault": 40 },
+        "fineTown": { "village": 0.75, "town": 1, "city": 1.4, "capital": 1.8 },
+        "escape": { "base": 0.25, "stealth": 0.04, "agility": 0.02, "max": 0.75 },
+        "escapeFailDays": 3,
+        "fleeHeat": 6,
+        "resistHeat": 12
+    },
+
+    "barks": {
+        "bystander": {
+            "assault": {
+                "fear": ["Help! Somebody help!", "Leave {victim} alone!", "Guards! Guards!", "Oh gods, no!"],
+                "anger": ["Stop that! Let {victim} be!", "You brute! Guards!", "Get off {victim}!", "Someone fetch the watch!"]
+            },
+            "murder": {
+                "fear": ["Murder! MURDER!", "They've killed {victim}!", "Run! Run!", "Gods have mercy..."],
+                "anger": ["Murderer! Seize them!", "Guards! A killing in the street!", "You'll hang for that!", "{victim}! No!"]
+            }
+        },
+        "kin": {
+            "assault": {
+                "anger": ["Get away from {kin}!", "You'll pay for that!", "Touch {kin} again and I'll kill you!"],
+                "fear": ["{kin}! Please, stop!", "Leave {kin} be, I beg you!"]
+            },
+            "murder": {
+                "anger": ["{kin}! You killed {kin}!", "I'll have your blood for this!", "Murderer! MURDERER!"],
+                "fear": ["No... no, not {kin}!", "{kin}! Somebody help!"]
+            }
+        },
+        "friend": {
+            "assault": {
+                "anger": ["Hands off {victim}!", "{victim}'s my friend, you swine!"],
+                "fear": ["{victim}! Run!", "Leave {victim} alone!"]
+            },
+            "murder": {
+                "anger": ["{victim}! You butcher!", "You'll answer for {victim}!"],
+                "fear": ["{victim}... no!", "They've killed {victim}!"]
+            }
+        },
+        "guard": {
+            "assault": { "anger": ["Halt! In the name of the crown!", "You there! Stop!", "Break it up!"] },
+            "murder": { "anger": ["Murderer! Halt!", "Seize the killer!", "Drop your weapon!"] }
+        },
+        "victim": {
+            "assault": { "fear": ["Help! Help me!", "Mercy! Please!", "What did I do?!"], "anger": ["Have at you, then!", "You'll regret that!"] }
+        },
+        "watch": ["You there! Stop!", "Hold! In the crown's name!", "That's the one! Stop them!"]
+    },
+
+    "lines": {
+        "witness": {
+            "assault": {
+                "fear": [
+                    "*backs away* I saw what you did to {victim}. Please... I don't want any trouble.",
+                    "*won't meet your eyes* You're the one who set upon {victim}. Just... leave me be."
+                ],
+                "anger": [
+                    "I saw you beat {victim} in the street like a dog. What sort of creature are you?",
+                    "You've a nerve, talking to me after what you did to {victim}."
+                ],
+                "old": [
+                    "I've not forgotten what you did to {victim}.",
+                    "You're the one who beat {victim}. People here remember."
+                ]
+            },
+            "murder": {
+                "fear": [
+                    "*trembling* I saw you kill {victim}. Please, I won't say anything, just don't hurt me.",
+                    "*goes pale* Stay back! I saw what you did to {victim}!"
+                ],
+                "anger": [
+                    "Murderer. I watched {victim} die at your hands, and you dare speak to me?",
+                    "{victim}'s blood isn't even dry and here you are, bold as brass. Get away from me."
+                ],
+                "old": [
+                    "I still see {victim} lying there when I close my eyes. You did that.",
+                    "You're the one who killed {victim}. I'll never forget your face."
+                ]
+            }
+        },
+        "victim": {
+            "assault": {
+                "fear": [
+                    "*flinches* Not again, please! I'm still black and blue from the last time.",
+                    "*shields their face* Stay away from me! Haven't you hurt me enough?"
+                ],
+                "anger": [
+                    "You've got some gall. My ribs still ache from your beating.",
+                    "Come to finish the job? I'll not go down so easy this time."
+                ],
+                "old": [
+                    "I remember you. You beat me in the street, and for nothing.",
+                    "The bruises have faded. What you did hasn't."
+                ]
+            }
+        },
+        "kin": {
+            "assault": {
+                "fear": [
+                    "*steps between you and the door* You hurt {kin}. Please, just go.",
+                    "{kin} still can't sleep for what you did. Leave us alone."
+                ],
+                "anger": [
+                    "You beat {kin} half to death. Give me one reason not to return the favour.",
+                    "Lay a finger on {kin} again and it'll be the last thing you do."
+                ],
+                "old": [
+                    "I haven't forgotten what you did to {kin}.",
+                    "Our family remembers you. You beat {kin}."
+                ]
+            },
+            "murder": {
+                "fear": [
+                    "*sobbing* You killed {kin}. Why? Why would you do that?",
+                    "*voice breaking* {kin} is dead because of you. Go away. Please, just go away."
+                ],
+                "anger": [
+                    "*glares with red eyes* You killed {kin}. I'll see you hang, if it's the last thing I do.",
+                    "You murdered {kin} in the street. Get out of my sight before I do something."
+                ],
+                "old": [
+                    "{kin}'s grave is still fresh in my heart. You put it there.",
+                    "There's not a day I don't curse your name for {kin}."
+                ]
+            }
+        },
+        "friend": {
+            "assault": {
+                "fear": ["{victim} is my friend. I saw what you did. Please, just leave."],
+                "anger": ["{victim} is my friend, and you beat them in the street. I'll not forget it."],
+                "old": ["You're the one who hurt {victim}. Don't expect a kind word from me."]
+            },
+            "murder": {
+                "fear": ["*hushed* {victim} was my friend. And you... you just killed them."],
+                "anger": ["{victim} was my friend. You murdered them, and I'll make sure everyone knows it."],
+                "old": ["I lost a friend in {victim} because of you. Don't think I've forgotten."]
+            }
+        },
+        "guard": {
+            "assault": {
+                "anger": [
+                    "You're the one who beat {victim} in the street. You'll answer for that.",
+                    "Assaulting the townsfolk in plain sight? You're coming with me."
+                ],
+                "old": ["I've had my eye on you since you beat {victim}. Step carefully."]
+            },
+            "murder": {
+                "anger": [
+                    "{victim}'s killer, walking up to the watch? In the crown's name, you're under arrest.",
+                    "I saw you cut down {victim}. Hands where I can see them."
+                ],
+                "old": ["We've not forgotten {victim}. Neither has the crown."]
+            }
+        },
+        "hearsay": {
+            "assault": {
+                "here": [
+                    "Did you hear? Someone set upon {victim} in the street. A stranger, they say... about your build, now I look at you.",
+                    "*eyes you warily* Folk say {victim} took a beating from some outsider. You wouldn't know anything about that?"
+                ],
+                "elsewhere": [
+                    "I heard tell of a brawler in {town} who beat some poor soul senseless. Was that you?",
+                    "There's talk of trouble in {town}. Someone matching your look, so they say."
+                ]
+            },
+            "murder": {
+                "here": [
+                    "*lowers voice* They say {victim} was killed in the street, and the killer still walks about. You... you look like the one they describe.",
+                    "*edges away* Word is {victim} was murdered. Folk are saying it was a stranger. Someone like you."
+                ],
+                "elsewhere": [
+                    "There's a story out of {town}: a stranger killed {victim} in the street. They say the killer looked a lot like you.",
+                    "*studies your face* You've been to {town}? There was a killing there. I hope it wasn't you they meant."
+                ]
+            }
+        },
+        "refuseTrade": {
+            "assault": "{name} won't trade with someone who beats people in the street.",
+            "murder": "{name} saw you kill {victim} and will have nothing to do with you."
+        },
+        "refuseTalk": "They want nothing to do with you."
+    },
+
+    "watch": {
+        "title": "The Watch",
+        "text": {
+            "assault": "{guard} plants himself in your path, hand on his sword. \"You beat {victim} in the street, in front of half the town. You can pay the fine, or you can see the inside of a cell.\"",
+            "murder": "{guard} blocks your way, blade half drawn. \"{victim} lies dead and the whole street saw who did it. You're coming with me.\""
+        },
+        "outcomes": {
+            "submit": "You give yourself up. The watch takes you to the cells: {days} days.",
+            "fine": "You count {fine} gold into the guard's hand. He writes it in his book and lets you go, with a warning.",
+            "escaped": "You dodge past {guard} and lose him in the crowd. The watch will be looking for you.",
+            "caught": "You break and run, but {guard} is faster. They drag you to the cells: {days} days.",
+            "resist": "You square up to {guard}. Resisting the watch will not help your name."
+        }
+    }
+}

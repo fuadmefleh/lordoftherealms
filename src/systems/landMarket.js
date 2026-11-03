@@ -189,7 +189,7 @@ export const LandMarket = {
             (tb.towns[rec.slot] || (tb.towns[rec.slot] = [])).push(rec);
         }
         for (const h of Object.values(st.holders)) {
-            if (h.kind === 'player' || h.kind === 'crown') continue;
+            if (h.kind === 'player' || h.kind === 'crown' || h.kind === 'rival') continue;
             if (!Number.isFinite(h.slot)) h.slot = _slot(`holder:${h.id}`, nT);
             (tb.holders[h.slot] || (tb.holders[h.slot] = [])).push(h);
         }
@@ -465,7 +465,7 @@ export const LandMarket = {
             if (h.kind === 'noble' && String(h.kid) !== String(kid)) continue;
             if (h.kind === 'town' && h.id !== townId) continue;
             if (h.kind === 'church' && (String(h.kid) !== String(kid) || _roll(world, 'church', e.id, day) >= _num(Estates.config().npc.churchBuys, 0.3))) continue;
-            if (h.kind === 'player' || h.kind === 'crown') continue;
+            if (h.kind === 'player' || h.kind === 'crown' || h.kind === 'rival') continue;
             if (!best || h.purse > best.purse || (h.purse === best.purse && h.id < best.id)) best = h;
         }
         return best;

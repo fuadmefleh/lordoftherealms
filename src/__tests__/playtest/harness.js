@@ -97,6 +97,7 @@ import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -141,7 +142,7 @@ function checkHostileEncounters(game) {
     const hostiles = world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer &&
-        WorldUnit.HOSTILE_TYPES.includes(u.type) &&
+        WorldUnit.isHostile(u) &&
         Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width) <= 1);
     if (hostiles.length === 0) return null;
     const attacker = hostiles.reduce((a, b) => b.strength > a.strength ? b : a, hostiles[0]);
@@ -304,6 +305,8 @@ function _endDay(game) {
 
     House.processDaily(player, world);
     mark(game, 'House.processDaily');
+    RivalHouses.processDay(player, world);
+    mark(game, 'RivalHouses.processDay');
     Schemes.processDaily(player, world);
     mark(game, 'Schemes.processDaily');
     Demands.processDay(world, player);

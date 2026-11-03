@@ -885,6 +885,55 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * The route a right-click would take: a faint dotted line, and a crescent
+     * moon where each day's strength runs out and you would camp.
+     */
+    renderRoutePreview(ctx, est) {
+        const path = est && est.path;
+        if (!path || path.length < 2) return;
+        const z = this.camera.zoom;
+        const s = this.hexSize * z;
+        const at = (h) => {
+            const pos = this.getHexPixelPos(h.q, h.r);
+            const c = this.camera.worldToScreen(pos.x, pos.y);
+            return { x: c.x, y: c.y + 0.13 * s };
+        };
+        const pts = path.map(at);
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.strokeStyle = 'rgba(12, 10, 6, 0.4)';
+        ctx.lineWidth = 4 * z;
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 233, 168, 0.75)';
+        ctx.lineWidth = 1.8 * z;
+        ctx.setLineDash([3 * z, 5 * z]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // A crescent at each night's camp
+        for (const stop of est.stops || []) {
+            const p = at(stop);
+            const r = 0.16 * s;
+            const cy = p.y - 0.3 * s;
+            ctx.beginPath();
+            ctx.arc(p.x, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(16, 20, 32, 0.85)';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x, cy, r * 0.7, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffe9a8';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(p.x + r * 0.35, cy - r * 0.15, r * 0.6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(16, 20, 32, 1)';
+            ctx.fill();
+        }
+        ctx.restore();
+    },
+
+    /**
      * Render reachable hex highlights
      */
     renderReachableHexes(ctx) {

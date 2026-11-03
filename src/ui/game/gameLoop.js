@@ -345,6 +345,17 @@ export function gameLoop(timestamp, loopId) {
                 const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
                 this.camera.follow(pos.x, pos.y);
             }
+        } else if (!this.player.isMoving && this.player.queuedPath && !this.isProcessingTurn) {
+            // Too spent for the next hex (or out of action points as you set out): the step queued
+            // the way for tomorrow, so make camp and go on in the morning, as running out mid-step does
+            if (this.player.autoChart) {
+                this.ui.showNotification('🧭 Resting for the Night', 'You make camp and will go on charting in the morning. Press Escape to stop.', 'info');
+            } else {
+                const remaining = this.player.queuedPath.length - this.player.queuedPathIndex;
+                this.ui.showNotification('🌙 Resting for the Night',
+                    `You make camp and set off at first light: ~${remaining} tiles to go. Press Escape to cancel.`, 'info');
+            }
+            this.endDay();
         }
     }
 
@@ -516,6 +527,7 @@ export function setupInputHandlers() {
                 this.exitInnerMap();
                 return;
             }
+            if (this.player && this.player.autoChart) this.stopAutoChart();
             if (this.player && (this.player.queuedPath || this.player.isMoving)) {
                 this.player.cancelTravel();
                 this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
@@ -562,6 +574,33 @@ export function updateHoveredHex() {
     this.renderer.hoveredHex = hasMouse ? this.renderer.getHexAtScreen(this.mouseX, this.mouseY) : null;
     this.renderer.mouseX = this.mouseX;
     this.renderer.mouseY = this.mouseY;
+    this._updateHoverRoute();
+}
+
+/**
+ * The trip to the hovered hex: its route (drawn with the nights' camps) and
+ * how long it takes, for the label by the cursor. Worked out again only when
+ * the hex, your place, the day or your strength changes.
+ */
+export function _updateHoverRoute() {
+    const r = this.renderer;
+    const h = r.hoveredHex;
+    const p = this.player;
+    if (!h || !p || p.isMoving || this.isProcessingTurn) {
+        r.hoverRoute = null;
+        r.hoverRouteLabel = '';
+        this._hoverRouteKey = null;
+        return;
+    }
+    const key = `${h.q},${h.r}|${p.q},${p.r}|${this.world.day}|${p.actionPoints}|${p.movementRemaining}|${p.boardedShip || ''}`;
+    if (key === this._hoverRouteKey) return;
+    this._hoverRouteKey = key;
+    const tile = this.world.getTile(h.q, h.r);
+    const est = tile && tile.explored && typeof p.travelEstimate === 'function' ? p.travelEstimate(this.world, h.q, h.r) : null;
+    r.hoverRoute = est;
+    r.hoverRouteLabel = !est ? ''
+        : est.days === 0 ? `${est.steps} hex${est.steps === 1 ? '' : 'es'}, today`
+            : `${est.steps} hexes, ${est.days === 1 ? 'arrive tomorrow' : `${est.days + 1} days`}`;
 }
 
 /**
@@ -756,6 +795,8 @@ export function handleClick(screenX, screenY, button = 'left') {
                 return;
             }
 
+            // An order to go elsewhere ends a survey in hand (ui/game/autoChart.js)
+            this.stopAutoChart('You leave off charting to go elsewhere.');
             const success = this.player.moveTo(hex.q, hex.r, this.world);
             if (success) {
                 // Setting out brings the camera back to the player

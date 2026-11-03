@@ -167,3 +167,26 @@ describe('RealmWars', () => {
         expect(RealmWars.atWarWith(player, 'k1')).toBe(false);
     });
 });
+
+describe('grudges fade', () => {
+    it('a realm at peace forgets a point of grudge a month, never past neutral; a war ends at -10', () => {
+        const world = makeWorld(30);
+        const player = makePlayer(world);
+        player.reputation.k1 = -2;
+        RealmWars.processDaily(player, world);
+        expect(player.reputation.k1).toBe(-1);
+        world.day = 60; RealmWars.processDaily(player, world);
+        world.day = 90; RealmWars.processDaily(player, world);
+        expect(player.reputation.k1).toBe(0);
+        player.reputation.k1 = 25;
+        world.day = 120; RealmWars.processDaily(player, world);
+        expect(player.reputation.k1).toBe(25);
+
+        RealmWars.declareWar(player, world, world.kingdoms[0], 'test');
+        expect(player.reputation.k1).toBe(-60);
+        world.day = 150; RealmWars.processDaily(player, world);
+        expect(player.reputation.k1).toBe(-60); // no forgiving while the war is on
+        RealmWars.endWar(player, world, 'k1', 'bought');
+        expect(player.reputation.k1).toBe(-10);
+    });
+});

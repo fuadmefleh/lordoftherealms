@@ -12,6 +12,7 @@
             "capitalPerHead": 4,
             "capitalJitter": [0.8, 1.25],
             "yield": 0.07,
+            "capitalCapMult": 6,
             "targetReserve": 0.8,
             "maxLoanShare": 0.25,
             "maxCrownShare": 0.45,

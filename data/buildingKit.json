@@ -1,0 +1,3193 @@
+{
+  "_note": "Tiles the town's buildings are built from, and a recipe per building. scripts/compose-buildings.js lays each recipe out into data/buildings.json. Walls/roofs: x,y = the 3x3 block's top-left tile in the sheet. Rows are counted up from the door row (0).",
+  "kit": {
+    "walls": {
+      "brick_beige": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 0,
+        "y": 0
+      },
+      "brick_grey": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 3,
+        "y": 0
+      },
+      "brick_slate": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 0,
+        "y": 3
+      },
+      "brick_red": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 3,
+        "y": 3
+      },
+      "brick_dark": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 0,
+        "y": 6
+      },
+      "brick_brown": {
+        "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+        "x": 3,
+        "y": 6
+      },
+      "timber": {
+        "sheet": "assets/buildingKit/wall_timber.png",
+        "x": 0,
+        "y": 0,
+        "stack": true
+      },
+      "plaster": {
+        "sheet": "assets/buildingKit/wall_plaster.png",
+        "x": 0,
+        "y": 0
+      },
+      "fieldstone": {
+        "sheet": "assets/buildingKit/wall_fieldstone.png",
+        "x": 0,
+        "y": 0
+      },
+      "planks": {
+        "sheet": "assets/buildingKit/wall_planks.png",
+        "x": 0,
+        "y": 0
+      },
+      "stone_beige": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 0,
+        "y": 0
+      },
+      "stone_grey": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 3,
+        "y": 0
+      },
+      "stone_slate": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 0,
+        "y": 3
+      },
+      "stone_ochre": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 3,
+        "y": 3
+      },
+      "stone_dark": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 0,
+        "y": 6
+      },
+      "stone_gold": {
+        "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+        "x": 3,
+        "y": 6
+      }
+    },
+    "roofs": {
+      "shingle_grey": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 1,
+        "y": 0
+      },
+      "shingle_purple": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 1,
+        "y": 4
+      },
+      "shingle_dark": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 1,
+        "y": 8
+      },
+      "thatch": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_thatch.png",
+        "x": 0,
+        "y": 0
+      },
+      "clay": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_clay.png",
+        "x": 0,
+        "y": 0
+      },
+      "slate": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_slate.png",
+        "x": 0,
+        "y": 0
+      },
+      "adobe_stucco": {
+        "kind": "parapet",
+        "sheet": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png",
+        "x": 0,
+        "rowsY": [
+          32,
+          96
+        ]
+      },
+      "adobe_brick": {
+        "kind": "parapet",
+        "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+        "x": 0,
+        "rowsY": [
+          32,
+          96
+        ]
+      }
+    },
+    "doorFrames": {
+      "white": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 0,
+        "y": 0
+      },
+      "beige": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 0,
+        "y": 2
+      },
+      "dark": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 0,
+        "y": 4
+      },
+      "grey": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 3,
+        "y": 0
+      },
+      "slate": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 3,
+        "y": 2
+      },
+      "gold": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 6,
+        "y": 0
+      },
+      "oak": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 9,
+        "y": 0
+      },
+      "walnut": {
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png",
+        "x": 9,
+        "y": 2
+      }
+    },
+    "doors": {
+      "oak": {
+        "frame": "white",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            224,
+            32
+          ],
+          [
+            224,
+            64
+          ]
+        ]
+      },
+      "walnut": {
+        "frame": "walnut",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            224,
+            288
+          ],
+          [
+            224,
+            320
+          ]
+        ]
+      },
+      "dark": {
+        "frame": "dark",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            224,
+            928
+          ],
+          [
+            224,
+            960
+          ]
+        ]
+      },
+      "red": {
+        "frame": "white",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            672,
+            32
+          ],
+          [
+            672,
+            64
+          ]
+        ]
+      },
+      "blue": {
+        "frame": "grey",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            672,
+            160
+          ],
+          [
+            672,
+            192
+          ]
+        ]
+      },
+      "green": {
+        "frame": "oak",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            672,
+            288
+          ],
+          [
+            672,
+            320
+          ]
+        ]
+      },
+      "gold": {
+        "frame": "gold",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            672,
+            416
+          ],
+          [
+            672,
+            448
+          ]
+        ]
+      },
+      "navy": {
+        "frame": "slate",
+        "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png",
+        "cells": [
+          [
+            672,
+            928
+          ],
+          [
+            672,
+            960
+          ]
+        ]
+      }
+    },
+    "windows": {
+      "arched": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            32,
+            0
+          ],
+          [
+            32,
+            64
+          ]
+        ]
+      },
+      "arched_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            64,
+            0
+          ],
+          [
+            64,
+            64
+          ]
+        ]
+      },
+      "tall": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            32,
+            0
+          ],
+          [
+            32,
+            32
+          ],
+          [
+            32,
+            64
+          ]
+        ]
+      },
+      "tall_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            64,
+            0
+          ],
+          [
+            64,
+            32
+          ],
+          [
+            64,
+            64
+          ]
+        ]
+      },
+      "small": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            32,
+            96
+          ]
+        ]
+      },
+      "small_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            64,
+            96
+          ]
+        ]
+      },
+      "small_dark": {
+        "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
+        "cells": [
+          [
+            0,
+            96
+          ]
+        ]
+      }
+    },
+    "awnings": {
+      "white": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 64,
+        "sy": 16
+      },
+      "yellow": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 160,
+        "sy": 16
+      },
+      "orange": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 256,
+        "sy": 16
+      },
+      "slate": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 64,
+        "sy": 112
+      },
+      "blue": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 160,
+        "sy": 112
+      },
+      "green": {
+        "sheet": "assets/lpc/Structure/Windows/Window Awnings A.png",
+        "sx": 256,
+        "sy": 112
+      }
+    },
+    "chimneys": {
+      "beige": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 32,
+        "sy": 0
+      },
+      "grey": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 128,
+        "sy": 0
+      },
+      "slate": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 32,
+        "sy": 64
+      },
+      "red": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 128,
+        "sy": 64
+      },
+      "dark": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 32,
+        "sy": 128
+      },
+      "brown": {
+        "sheet": "assets/lpc/Structure/Roofing/Brick Chimney A.png",
+        "sx": 128,
+        "sy": 128
+      }
+    },
+    "signs": {
+      "oak": {
+        "sheet": "assets/lpc/Structure/Signs/Sign Backgrounds A.png",
+        "sx": 0,
+        "sy": 32
+      },
+      "stone": {
+        "sheet": "assets/lpc/Structure/Signs/Sign Backgrounds A.png",
+        "sx": 0,
+        "sy": 0
+      },
+      "dark": {
+        "sheet": "assets/lpc/Structure/Signs/Sign Backgrounds A.png",
+        "sx": 32,
+        "sy": 32
+      }
+    },
+    "emblems": {
+      "tankard": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 0,
+        "sy": 0
+      },
+      "bed": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 32,
+        "sy": 0
+      },
+      "anvil": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 64,
+        "sy": 0
+      },
+      "scales": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 96,
+        "sy": 0
+      },
+      "bell": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 128,
+        "sy": 0
+      },
+      "sun": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 0,
+        "sy": 32
+      },
+      "crown": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 32,
+        "sy": 32
+      },
+      "swords": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 64,
+        "sy": 32
+      },
+      "wheat": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 96,
+        "sy": 32
+      },
+      "crate": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 128,
+        "sy": 32
+      },
+      "horseshoe": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 0,
+        "sy": 64
+      },
+      "guild": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 32,
+        "sy": 64
+      },
+      "coins": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 64,
+        "sy": 64
+      },
+      "post_horn": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 96,
+        "sy": 64
+      },
+      "mortar": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 128,
+        "sy": 64
+      },
+      "bath": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 0,
+        "sy": 96
+      },
+      "book": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 32,
+        "sy": 96
+      },
+      "bread": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 64,
+        "sy": 96
+      },
+      "shackles": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 96,
+        "sy": 96
+      },
+      "flour": {
+        "sheet": "assets/buildingKit/emblems.png",
+        "sx": 128,
+        "sy": 96
+      }
+    },
+    "parts": {
+      "flower_box": {
+        "sheet": "assets/lpc/Objects/Furniture/Planter.png",
+        "cells": [
+          [
+            0,
+            0,
+            128,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "recipes": [
+    {
+      "id": "house_cottage",
+      "name": "House",
+      "buildingType": "house",
+      "width": 3,
+      "wallRows": 3,
+      "wall": "plaster",
+      "roof": "thatch",
+      "door": "oak",
+      "roofRows": 2,
+      "chimneys": [
+        {
+          "q": 1,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "house_redbrick",
+      "name": "House",
+      "buildingType": "house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "brick_red",
+      "roof": "clay",
+      "door": "walnut",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "red"
+        }
+      ]
+    },
+    {
+      "id": "house_fieldstone",
+      "name": "House",
+      "buildingType": "house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "fieldstone",
+      "roof": "slate",
+      "door": "dark",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small"
+        }
+      ]
+    },
+    {
+      "id": "house_tudor",
+      "name": "House",
+      "buildingType": "house",
+      "width": 5,
+      "wallRows": 6,
+      "wall": "timber",
+      "roof": "clay",
+      "door": "green",
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -2,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "style": "small"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": 2,
+          "style": "brown"
+        }
+      ]
+    },
+    {
+      "id": "house_planks",
+      "name": "House",
+      "buildingType": "house",
+      "width": 3,
+      "wallRows": 3,
+      "wall": "planks",
+      "roof": "thatch",
+      "door": "oak",
+      "roofRows": 2
+    },
+    {
+      "id": "house_townhouse",
+      "name": "House",
+      "buildingType": "house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "brick_beige",
+      "roof": "shingle_grey",
+      "door": "blue",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "white"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -1,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "house_ochre",
+      "name": "House",
+      "buildingType": "house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "stone_ochre",
+      "roof": "clay",
+      "door": "walnut",
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small"
+        }
+      ]
+    },
+    {
+      "id": "tavern_tudor",
+      "name": "Tavern",
+      "buildingType": "tavern",
+      "width": 7,
+      "wallRows": 6,
+      "wall": "timber",
+      "roof": "clay",
+      "door": "oak",
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -2,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "tankard",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": 2,
+          "style": "brown"
+        }
+      ]
+    },
+    {
+      "id": "inn_tudor",
+      "name": "Inn",
+      "buildingType": "inn",
+      "width": 7,
+      "wallRows": 6,
+      "wall": "timber",
+      "roof": "slate",
+      "door": "walnut",
+      "windows": [
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -3,
+          "r": -4,
+          "style": "small_lit"
+        },
+        {
+          "q": -1,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 1,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "bed",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "dark"
+        }
+      ]
+    },
+    {
+      "id": "guest_house_plaster",
+      "name": "Guest House",
+      "buildingType": "guest_house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "plaster",
+      "roof": "clay",
+      "door": "green",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "yellow"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 2,
+          "r": -2,
+          "emblem": "bed",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "red"
+        }
+      ]
+    },
+    {
+      "id": "hotel_stone",
+      "name": "Grand Hotel",
+      "buildingType": "hotel",
+      "width": 9,
+      "wallRows": 5,
+      "wall": "stone_beige",
+      "roof": "slate",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -4,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": -3,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": 4,
+          "r": -3,
+          "style": "tall_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "bed",
+          "plaque": "stone"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -3,
+          "style": "beige"
+        },
+        {
+          "q": 3,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "roadhouse_planks",
+      "name": "Roadhouse",
+      "buildingType": "roadhouse",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "planks",
+      "roof": "thatch",
+      "door": "walnut",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 2,
+          "r": -2,
+          "emblem": "bed",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "brown"
+        }
+      ]
+    },
+    {
+      "id": "marketplace_hall",
+      "name": "Marketplace",
+      "buildingType": "marketplace",
+      "width": 7,
+      "wallRows": 3,
+      "wall": "brick_beige",
+      "roof": "clay",
+      "door": "oak",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small",
+          "awning": "orange"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small",
+          "awning": "green"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small",
+          "awning": "yellow"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small",
+          "awning": "white"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "scales",
+          "plaque": "oak"
+        }
+      ]
+    },
+    {
+      "id": "blacksmith_forge",
+      "name": "Blacksmith",
+      "buildingType": "blacksmith",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "fieldstone",
+      "roof": "shingle_dark",
+      "door": "dark",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_dark"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 2,
+          "r": -2,
+          "emblem": "anvil",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "dark"
+        },
+        {
+          "q": 2,
+          "style": "dark"
+        }
+      ]
+    },
+    {
+      "id": "granary_thatch",
+      "name": "Granary",
+      "buildingType": "granary",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "planks",
+      "roof": "thatch",
+      "door": "walnut",
+      "roofRows": 3,
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "wheat",
+          "plaque": "oak"
+        }
+      ]
+    },
+    {
+      "id": "warehouse_planks",
+      "name": "Warehouse",
+      "buildingType": "warehouse",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "planks",
+      "roof": "shingle_grey",
+      "door": "walnut",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "small_dark"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "crate",
+          "plaque": "oak"
+        }
+      ]
+    },
+    {
+      "id": "stable_long",
+      "name": "Stable",
+      "buildingType": "stable",
+      "width": 7,
+      "wallRows": 3,
+      "wall": "planks",
+      "roof": "thatch",
+      "door": "oak",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small_dark"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_dark"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_dark"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small_dark"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "horseshoe",
+          "plaque": "oak"
+        }
+      ]
+    },
+    {
+      "id": "barn_planks",
+      "name": "Barn",
+      "buildingType": "barn",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "planks",
+      "roof": "shingle_purple",
+      "door": "walnut",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "small_dark"
+        }
+      ]
+    },
+    {
+      "id": "farmhouse_thatch",
+      "name": "Farm",
+      "buildingType": "farm",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "plaster",
+      "roof": "thatch",
+      "door": "oak",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small"
+        }
+      ],
+      "signs": [
+        {
+          "q": 2,
+          "r": -2,
+          "emblem": "wheat",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -1,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "guildhall_tudor",
+      "name": "Guildhall",
+      "buildingType": "guildhall",
+      "width": 7,
+      "wallRows": 6,
+      "wall": "timber",
+      "roof": "slate",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -3,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": -2,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "style": "small"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "guild",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": 3,
+          "style": "dark"
+        }
+      ]
+    },
+    {
+      "id": "bank_stone",
+      "name": "Counting House",
+      "buildingType": "bank",
+      "width": 5,
+      "wallRows": 5,
+      "wall": "stone_beige",
+      "roof": "slate",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "coins",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "post_house_brick",
+      "name": "Post House",
+      "buildingType": "post_house",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "brick_red",
+      "roof": "slate",
+      "door": "blue",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small",
+          "awning": "blue"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 2,
+          "r": -2,
+          "emblem": "post_horn",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "red"
+        }
+      ]
+    },
+    {
+      "id": "apothecary_plaster",
+      "name": "Apothecary",
+      "buildingType": "apothecary",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "plaster",
+      "roof": "clay",
+      "door": "green",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "green"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "green"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "mortar",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": 2,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "bathhouse_stone",
+      "name": "Bathhouse",
+      "buildingType": "bathhouse",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "stone_ochre",
+      "roof": "clay",
+      "door": "blue",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "arched"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "bath",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "library_brick",
+      "name": "Library",
+      "buildingType": "library",
+      "width": 7,
+      "wallRows": 5,
+      "wall": "brick_slate",
+      "roof": "slate",
+      "door": "navy",
+      "windows": [
+        {
+          "q": -3,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "style": "tall_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "book",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "bakery_brick",
+      "name": "Bakery",
+      "buildingType": "bakery",
+      "width": 5,
+      "wallRows": 3,
+      "wall": "brick_beige",
+      "roof": "clay",
+      "door": "oak",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "yellow"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit",
+          "awning": "yellow"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "bread",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": 2,
+          "style": "beige"
+        }
+      ]
+    },
+    {
+      "id": "mill_planks",
+      "name": "Mill",
+      "buildingType": "mill",
+      "width": 5,
+      "wallRows": 4,
+      "wall": "planks",
+      "roof": "thatch",
+      "door": "walnut",
+      "roofRows": 3,
+      "windows": [
+        {
+          "q": -2,
+          "r": -2,
+          "style": "small"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "style": "small"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "flour",
+          "plaque": "oak"
+        }
+      ]
+    },
+    {
+      "id": "jail_stone",
+      "name": "Gaol",
+      "buildingType": "jail",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "stone_dark",
+      "roof": "shingle_dark",
+      "door": "dark",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "small_dark"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "shackles",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "mint_brick",
+      "name": "Mint",
+      "buildingType": "mint",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "brick_grey",
+      "roof": "slate",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "style": "arched"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "arched"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "coins",
+          "plaque": "stone"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -3,
+          "style": "grey"
+        }
+      ]
+    },
+    {
+      "id": "church_stone",
+      "name": "Church",
+      "buildingType": "church",
+      "width": 5,
+      "wallRows": 5,
+      "wall": "stone_grey",
+      "roof": "slate",
+      "door": "walnut",
+      "windows": [
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "bell",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "chapel_stone",
+      "name": "Chapel",
+      "buildingType": "chapel",
+      "width": 3,
+      "wallRows": 4,
+      "wall": "stone_beige",
+      "roof": "slate",
+      "door": "oak",
+      "roofRows": 2,
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "bell",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "temple_stone",
+      "name": "Temple",
+      "buildingType": "temple",
+      "width": 7,
+      "wallRows": 5,
+      "wall": "stone_beige",
+      "roof": "clay",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -3,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall_lit"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "style": "tall"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "sun",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "town_hall_brick",
+      "name": "Town Hall",
+      "buildingType": "town_hall",
+      "width": 7,
+      "wallRows": 5,
+      "wall": "brick_grey",
+      "roof": "slate",
+      "door": "gold",
+      "windows": [
+        {
+          "q": -3,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": -2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "style": "tall"
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "style": "tall"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -3,
+          "emblem": "crown",
+          "plaque": "stone"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -2,
+          "style": "grey"
+        },
+        {
+          "q": 2,
+          "style": "grey"
+        }
+      ]
+    },
+    {
+      "id": "barracks_stone",
+      "name": "Barracks",
+      "buildingType": "barracks",
+      "width": 7,
+      "wallRows": 4,
+      "wall": "stone_dark",
+      "roof": "shingle_dark",
+      "door": "navy",
+      "windows": [
+        {
+          "q": -3,
+          "r": -2,
+          "style": "small_dark"
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -2,
+          "style": "small_lit"
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "style": "small_dark"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "swords",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "guard_tower_stone",
+      "name": "Guard Tower",
+      "buildingType": "guard_tower",
+      "width": 3,
+      "wallRows": 6,
+      "wall": "stone_grey",
+      "roof": "slate",
+      "door": "dark",
+      "roofRows": 2,
+      "windows": [
+        {
+          "q": 0,
+          "r": -4,
+          "style": "small_dark"
+        },
+        {
+          "q": 0,
+          "r": -3,
+          "style": "small_lit"
+        }
+      ],
+      "signs": [
+        {
+          "q": -1,
+          "r": -2,
+          "emblem": "swords",
+          "plaque": "stone"
+        }
+      ]
+    },
+    {
+      "id": "manor_tudor",
+      "name": "Manor",
+      "buildingType": "manor",
+      "width": 9,
+      "wallRows": 6,
+      "wall": "timber",
+      "roof": "clay",
+      "door": "green",
+      "windows": [
+        {
+          "q": -4,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": 4,
+          "r": -1,
+          "style": "small_lit"
+        },
+        {
+          "q": -3,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": -1,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 1,
+          "r": -4,
+          "style": "small"
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "style": "small"
+        }
+      ],
+      "signs": [
+        {
+          "q": 0,
+          "r": -2,
+          "emblem": "crown",
+          "plaque": "oak"
+        }
+      ],
+      "chimneys": [
+        {
+          "q": -3,
+          "style": "red"
+        },
+        {
+          "q": 3,
+          "style": "red"
+        }
+      ]
+    }
+  ],
+  "families": [
+    {
+      "id": "cottage",
+      "name": "Cottage",
+      "buildingType": "house",
+      "style": "cottage",
+      "count": 26,
+      "widths": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "walls": [
+        "plaster",
+        "fieldstone",
+        "planks",
+        "stone_beige",
+        "brick_beige",
+        "stone_ochre",
+        "brick_red",
+        "stone_grey",
+        "timber"
+      ],
+      "stackRows": [
+        3
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "thatch",
+        "thatch",
+        "thatch",
+        "slate",
+        "shingle_dark",
+        "clay"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "chimneys": [
+        "beige",
+        "grey",
+        "brown",
+        "red"
+      ],
+      "chimneyChance": 0.65,
+      "porchChance": 0.3,
+      "flowerBoxChance": 0.35,
+      "windowSkip": 0.1,
+      "annex": {
+        "chance": 0.45,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks",
+          "fieldstone",
+          "plaster",
+          "stone_beige"
+        ],
+        "both": 0.25
+      },
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "porches": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_lit",
+        "small_dark"
+      ]
+    },
+    {
+      "id": "croft",
+      "name": "Croft",
+      "buildingType": "house",
+      "style": "croft",
+      "count": 12,
+      "widths": [
+        3,
+        4
+      ],
+      "walls": [
+        "fieldstone",
+        "planks",
+        "stone_ochre",
+        "stone_dark"
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "thatch",
+        "slate",
+        "shingle_dark",
+        "shingle_purple"
+      ],
+      "roofRows": [
+        2
+      ],
+      "chimneys": [
+        "grey",
+        "dark",
+        "brown"
+      ],
+      "chimneyChance": 0.5,
+      "porchChance": 0.1,
+      "windowSkip": 0.3,
+      "windowMix": [
+        "small",
+        "small_dark"
+      ],
+      "doors": [
+        "dark",
+        "walnut",
+        "oak"
+      ],
+      "annex": {
+        "chance": 0.6,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks"
+        ],
+        "sameRoof": false,
+        "roofs": [
+          "shingle_dark",
+          "thatch"
+        ]
+      }
+    },
+    {
+      "id": "timbered",
+      "name": "Cottage",
+      "buildingType": "house",
+      "style": "timbered",
+      "count": 12,
+      "widths": [
+        4,
+        5,
+        6
+      ],
+      "walls": [
+        "timber"
+      ],
+      "stackRows": [
+        3
+      ],
+      "roofs": [
+        "thatch",
+        "clay",
+        "shingle_grey",
+        "slate",
+        "shingle_purple"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "chimneys": [
+        "red",
+        "brown",
+        "beige"
+      ],
+      "chimneyChance": 0.7,
+      "porchChance": 0.35,
+      "flowerBoxChance": 0.4,
+      "annex": {
+        "chance": 0.35,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "plaster",
+          "brick_red",
+          "stone_beige"
+        ],
+        "both": 0.2
+      },
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "porches": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_lit",
+        "small_dark"
+      ]
+    },
+    {
+      "id": "longhouse",
+      "name": "Longhouse",
+      "buildingType": "house",
+      "style": "longhouse",
+      "count": 8,
+      "widths": [
+        7,
+        8,
+        9
+      ],
+      "walls": [
+        "fieldstone",
+        "planks",
+        "stone_beige",
+        "plaster"
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "thatch",
+        "thatch",
+        "shingle_dark",
+        "slate"
+      ],
+      "roofRows": [
+        3
+      ],
+      "chimneys": [
+        "grey",
+        "brown"
+      ],
+      "chimneyChance": 0.8,
+      "porchChance": 0.2,
+      "windowSkip": 0.2,
+      "flowerBoxChance": 0.2,
+      "annex": {
+        "chance": 0.3,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks"
+        ]
+      },
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "porches": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_lit",
+        "small_dark"
+      ]
+    },
+    {
+      "id": "whitewash",
+      "name": "House",
+      "buildingType": "house",
+      "style": "whitewash",
+      "count": 12,
+      "widths": [
+        4,
+        5
+      ],
+      "walls": [
+        "plaster",
+        "brick_beige",
+        "brick_red",
+        "brick_brown",
+        "stone_beige"
+      ],
+      "wallRows": [
+        4
+      ],
+      "roofs": [
+        "slate",
+        "clay",
+        "shingle_grey",
+        "shingle_purple",
+        "thatch"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "chimneys": [
+        "red",
+        "beige",
+        "grey"
+      ],
+      "chimneyChance": 0.75,
+      "porchChance": 0.35,
+      "flowerBoxChance": 0.45,
+      "annex": {
+        "chance": 0.3,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks",
+          "plaster",
+          "fieldstone"
+        ]
+      },
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "porches": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_lit",
+        "small_dark"
+      ]
+    },
+    {
+      "id": "villagehouse",
+      "name": "House",
+      "buildingType": "house",
+      "style": "villagehouse",
+      "count": 10,
+      "widths": [
+        4,
+        5,
+        6
+      ],
+      "walls": [
+        "plaster",
+        "fieldstone",
+        "stone_grey",
+        "timber",
+        "brick_red"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        5
+      ],
+      "roofs": [
+        "thatch",
+        "slate",
+        "clay",
+        "shingle_dark"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "chimneys": [
+        "grey",
+        "red",
+        "brown"
+      ],
+      "chimneyChance": 0.85,
+      "porchChance": 0.25,
+      "flowerBoxChance": 0.3,
+      "upperWindowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "annex": {
+        "chance": 0.4,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks",
+          "fieldstone",
+          "plaster"
+        ]
+      },
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "porches": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "windowMix": [
+        "small",
+        "small",
+        "small_lit",
+        "small_dark"
+      ]
+    },
+    {
+      "id": "hovel",
+      "name": "Hovel",
+      "buildingType": "house",
+      "style": "hovel",
+      "count": 5,
+      "widths": [
+        3
+      ],
+      "walls": [
+        "planks",
+        "fieldstone"
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "thatch"
+      ],
+      "doors": [
+        "dark",
+        "walnut",
+        "oak"
+      ],
+      "roofRows": [
+        2
+      ],
+      "windowStyles": [
+        "small_dark"
+      ]
+    },
+    {
+      "id": "rowhouse",
+      "name": "House",
+      "buildingType": "house",
+      "style": "row",
+      "count": 18,
+      "widths": [
+        4,
+        5
+      ],
+      "walls": [
+        "brick_red",
+        "brick_beige",
+        "brick_brown",
+        "plaster",
+        "stone_beige",
+        "brick_grey",
+        "stone_grey"
+      ],
+      "wallRows": [
+        3,
+        4
+      ],
+      "roofs": [
+        "clay",
+        "slate",
+        "shingle_grey",
+        "shingle_dark",
+        "shingle_purple"
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "windowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "chimneys": [
+        "red",
+        "grey",
+        "dark",
+        "beige"
+      ],
+      "chimneyChance": 0.75
+    },
+    {
+      "id": "townhouse",
+      "name": "Townhouse",
+      "buildingType": "house",
+      "style": "townhouse",
+      "count": 16,
+      "widths": [
+        4,
+        5,
+        6
+      ],
+      "walls": [
+        "timber",
+        "timber",
+        "brick_red",
+        "brick_grey",
+        "stone_grey",
+        "brick_brown"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        5,
+        6
+      ],
+      "roofs": [
+        "clay",
+        "slate",
+        "shingle_grey",
+        "shingle_purple",
+        "shingle_dark"
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "windowStyles": [
+        "small_lit",
+        "small"
+      ],
+      "upperWindowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "chimneys": [
+        "red",
+        "brown",
+        "grey",
+        "dark"
+      ],
+      "chimneyChance": 0.8,
+      "annex": {
+        "chance": 0.25,
+        "widths": [
+          2,
+          3
+        ],
+        "wallRows": [
+          3,
+          4
+        ],
+        "sameWall": false,
+        "walls": [
+          "plaster",
+          "brick_red",
+          "stone_beige"
+        ]
+      }
+    },
+    {
+      "id": "shop",
+      "name": "Shop",
+      "buildingType": "house",
+      "style": "shop",
+      "count": 18,
+      "widths": [
+        5,
+        6,
+        7
+      ],
+      "walls": [
+        "plaster",
+        "brick_beige",
+        "brick_red",
+        "timber",
+        "stone_beige",
+        "brick_brown"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        3,
+        4
+      ],
+      "roofs": [
+        "clay",
+        "slate",
+        "shingle_grey",
+        "thatch",
+        "shingle_dark"
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "windowStyles": [
+        "small_lit"
+      ],
+      "awnings": [
+        "white",
+        "yellow",
+        "orange",
+        "slate",
+        "blue",
+        "green"
+      ],
+      "signs": [
+        {
+          "emblem": "bread",
+          "name": "Baker's Shop"
+        },
+        {
+          "emblem": "crate",
+          "name": "Cooper's Shop"
+        },
+        {
+          "emblem": "sun",
+          "name": "Chandler's Shop"
+        },
+        {
+          "emblem": "book",
+          "name": "Bookbinder's Shop"
+        },
+        {
+          "emblem": "mortar",
+          "name": "Herbalist's Shop"
+        },
+        {
+          "emblem": "coins",
+          "name": "Moneylender's House"
+        },
+        {
+          "emblem": "horseshoe",
+          "name": "Farrier's Shop"
+        },
+        {
+          "emblem": "wheat",
+          "name": "Grocer's Shop"
+        },
+        {
+          "emblem": "guild",
+          "name": "Weaver's Shop"
+        },
+        {
+          "emblem": "anvil",
+          "name": "Tinker's Shop"
+        },
+        {
+          "emblem": "scales",
+          "name": "Merchant's House"
+        },
+        {
+          "emblem": "flour",
+          "name": "Miller's Shop"
+        },
+        {
+          "emblem": "tankard",
+          "name": "Alehouse"
+        },
+        {
+          "emblem": "swords",
+          "name": "Armourer's Shop"
+        }
+      ],
+      "chimneys": [
+        "red",
+        "grey",
+        "beige"
+      ],
+      "chimneyChance": 0.5
+    },
+    {
+      "id": "grand",
+      "name": "Grand House",
+      "buildingType": "house",
+      "style": "grand",
+      "count": 8,
+      "widths": [
+        7,
+        9
+      ],
+      "walls": [
+        "stone_grey",
+        "brick_grey",
+        "stone_beige",
+        "timber",
+        "brick_red",
+        "stone_gold"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        5,
+        6
+      ],
+      "roofs": [
+        "slate",
+        "shingle_dark",
+        "clay",
+        "shingle_grey"
+      ],
+      "doors": [
+        "walnut",
+        "gold",
+        "navy",
+        "green",
+        "red"
+      ],
+      "roofRows": [
+        3
+      ],
+      "windowStyles": [
+        "small_lit",
+        "arched_lit"
+      ],
+      "upperWindowStyles": [
+        "small",
+        "arched"
+      ],
+      "chimneys": [
+        "red",
+        "grey",
+        "dark"
+      ],
+      "chimneyChance": 0.9,
+      "annex": {
+        "chance": 0.45,
+        "widths": [
+          3
+        ],
+        "wallRows": [
+          4
+        ],
+        "sameWall": false,
+        "walls": [
+          "stone_grey",
+          "brick_grey",
+          "plaster"
+        ]
+      }
+    },
+    {
+      "id": "farmhouse",
+      "name": "Farmhouse",
+      "buildingType": "house",
+      "style": "farmstead",
+      "count": 10,
+      "widths": [
+        5,
+        6,
+        7
+      ],
+      "walls": [
+        "fieldstone",
+        "planks",
+        "plaster",
+        "stone_grey",
+        "stone_ochre"
+      ],
+      "wallRows": [
+        3,
+        4
+      ],
+      "roofs": [
+        "thatch",
+        "thatch",
+        "slate",
+        "shingle_dark"
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "dark",
+        "red",
+        "blue",
+        "green",
+        "navy"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "windowStyles": [
+        "small",
+        "small_lit"
+      ],
+      "chimneys": [
+        "beige",
+        "grey",
+        "brown"
+      ],
+      "chimneyChance": 0.8,
+      "annex": {
+        "chance": 0.6,
+        "widths": [
+          2,
+          3,
+          4
+        ],
+        "wallRows": [
+          3
+        ],
+        "sameWall": false,
+        "walls": [
+          "planks",
+          "fieldstone"
+        ]
+      }
+    },
+    {
+      "id": "barn",
+      "name": "Barn",
+      "buildingType": "barn",
+      "style": "farmstead",
+      "count": 6,
+      "widths": [
+        6,
+        7,
+        8
+      ],
+      "walls": [
+        "planks",
+        "planks",
+        "fieldstone"
+      ],
+      "wallRows": [
+        4,
+        5
+      ],
+      "roofs": [
+        "shingle_purple",
+        "thatch",
+        "shingle_dark",
+        "slate"
+      ],
+      "doors": [
+        "walnut",
+        "dark",
+        "red"
+      ],
+      "roofRows": [
+        3
+      ],
+      "windowStyles": [
+        "small_dark"
+      ]
+    },
+    {
+      "id": "storehouse",
+      "name": "Warehouse",
+      "buildingType": "warehouse",
+      "count": 4,
+      "widths": [
+        6,
+        7,
+        8
+      ],
+      "walls": [
+        "planks",
+        "brick_brown",
+        "stone_grey"
+      ],
+      "wallRows": [
+        4
+      ],
+      "roofs": [
+        "shingle_dark",
+        "slate",
+        "shingle_grey"
+      ],
+      "doors": [
+        "walnut",
+        "dark"
+      ],
+      "roofRows": [
+        2,
+        3
+      ],
+      "windowStyles": [
+        "small_dark"
+      ],
+      "signs": [
+        {
+          "emblem": "crate"
+        }
+      ]
+    },
+    {
+      "id": "alehouse",
+      "name": "Tavern",
+      "buildingType": "tavern",
+      "count": 4,
+      "widths": [
+        6,
+        7
+      ],
+      "walls": [
+        "timber",
+        "fieldstone",
+        "brick_red",
+        "plaster"
+      ],
+      "stackRows": [
+        6
+      ],
+      "wallRows": [
+        4
+      ],
+      "roofs": [
+        "thatch",
+        "clay",
+        "slate"
+      ],
+      "doors": [
+        "oak",
+        "walnut",
+        "green"
+      ],
+      "roofRows": [
+        3
+      ],
+      "windowStyles": [
+        "small_lit"
+      ],
+      "signs": [
+        {
+          "emblem": "tankard"
+        }
+      ],
+      "chimneys": [
+        "red",
+        "brown"
+      ],
+      "chimneyChance": 1
+    },
+    {
+      "id": "smithy",
+      "name": "Smithy",
+      "buildingType": "blacksmith",
+      "count": 3,
+      "widths": [
+        5,
+        6
+      ],
+      "walls": [
+        "fieldstone",
+        "stone_dark",
+        "brick_dark",
+        "stone_grey"
+      ],
+      "wallRows": [
+        3,
+        4
+      ],
+      "roofs": [
+        "slate",
+        "shingle_dark"
+      ],
+      "doors": [
+        "dark",
+        "walnut"
+      ],
+      "roofRows": [
+        2
+      ],
+      "windowStyles": [
+        "small_lit"
+      ],
+      "signs": [
+        {
+          "emblem": "anvil"
+        }
+      ],
+      "chimneys": [
+        "dark",
+        "grey"
+      ],
+      "chimneyChance": 1
+    },
+    {
+      "id": "bakehouse",
+      "name": "Bakery",
+      "buildingType": "bakery",
+      "count": 2,
+      "widths": [
+        5,
+        6
+      ],
+      "walls": [
+        "brick_red",
+        "plaster",
+        "brick_beige"
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "clay",
+        "thatch"
+      ],
+      "doors": [
+        "oak",
+        "green"
+      ],
+      "roofRows": [
+        2
+      ],
+      "windowStyles": [
+        "small_lit"
+      ],
+      "awnings": [
+        "yellow",
+        "orange",
+        "white"
+      ],
+      "signs": [
+        {
+          "emblem": "bread"
+        }
+      ],
+      "chimneys": [
+        "red"
+      ],
+      "chimneyChance": 1
+    },
+    {
+      "id": "stables",
+      "name": "Stable",
+      "buildingType": "stable",
+      "count": 2,
+      "widths": [
+        7,
+        8
+      ],
+      "walls": [
+        "planks",
+        "fieldstone"
+      ],
+      "wallRows": [
+        3
+      ],
+      "roofs": [
+        "thatch",
+        "shingle_purple"
+      ],
+      "doors": [
+        "walnut"
+      ],
+      "roofRows": [
+        2
+      ],
+      "windowStyles": [
+        "small_dark"
+      ],
+      "signs": [
+        {
+          "emblem": "horseshoe"
+        }
+      ]
+    },
+    {
+      "id": "grainstore",
+      "name": "Granary",
+      "buildingType": "granary",
+      "count": 2,
+      "widths": [
+        5,
+        6
+      ],
+      "walls": [
+        "planks",
+        "fieldstone",
+        "stone_ochre"
+      ],
+      "wallRows": [
+        4
+      ],
+      "roofs": [
+        "thatch",
+        "shingle_purple"
+      ],
+      "doors": [
+        "walnut",
+        "dark"
+      ],
+      "roofRows": [
+        3
+      ],
+      "windowStyles": [
+        "small_dark"
+      ],
+      "signs": [
+        {
+          "emblem": "wheat"
+        }
+      ]
+    },
+    {
+      "id": "kirk",
+      "name": "Chapel",
+      "buildingType": "chapel",
+      "count": 2,
+      "widths": [
+        5
+      ],
+      "walls": [
+        "stone_beige",
+        "fieldstone",
+        "stone_grey"
+      ],
+      "wallRows": [
+        4,
+        5
+      ],
+      "roofs": [
+        "slate",
+        "shingle_dark"
+      ],
+      "doors": [
+        "walnut",
+        "oak"
+      ],
+      "roofRows": [
+        3
+      ],
+      "windowStyles": [
+        "tall_lit",
+        "arched_lit"
+      ],
+      "signs": [
+        {
+          "emblem": "bell",
+          "plaque": "stone"
+        }
+      ]
+    }
+  ]
+}

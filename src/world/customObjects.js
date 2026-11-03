@@ -59,6 +59,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CustomSheets } from '../core/customSheets.js';
+import { TownProps } from './townProps.js';
 
 // id → full definition (includes sheetName, sheetPath, tileW/H merged in)
 const _defs       = new Map();
@@ -190,6 +191,8 @@ export const CustomObjects = {
             if (Array.isArray(arr)) {
                 for (const obj of arr) registerObj(obj);
             }
+            // Town props — wells, stalls, fences, fields (world/townProps.js)
+            for (const obj of TownProps.defs()) registerObj(obj);
 
             // ── Apply buildingTag overrides from interior editor ──────
             // taggedObjects is an array of { id, buildingTags } patches

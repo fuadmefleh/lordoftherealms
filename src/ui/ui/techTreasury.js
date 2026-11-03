@@ -396,6 +396,7 @@ Object.assign(UI.prototype, {
         // Bank tab: the Banks, Credit & Coin summary (systems/finance.js); the
         // banking house panel itself is ActionMenu.showBank
         const fin = Finance.state(player);
+        const own = Finance.ownBank(player);
         const finSum = Finance.summary(player, world);
         let bankHtml = `
             <div id="tabBank" class="tab-content" style="display:none;">
@@ -426,7 +427,9 @@ Object.assign(UI.prototype, {
         for (const bank of fin.banks) {
             const k = world.getKingdom(bank.kingdomId);
             const acct = fin.accounts[bank.id];
-            const state = bank.status !== 'open' ? 'failed' : Finance.inPanic(bank, world.day || 0) ? 'a run on the house' : `reserves ${Math.round(Finance.reserveRatio(bank) * 100)}%`;
+            // A house's reserves are its own books: for its depositors and its owner
+            const insider = !!acct || (own && own.id === bank.id);
+            const state = bank.status !== 'open' ? 'failed' : Finance.inPanic(bank, world.day || 0) ? 'a run on the house' : insider ? `reserves ${Math.round(Finance.reserveRatio(bank) * 100)}%` : 'open for business';
             bankHtml += `<div style="background:rgba(255,255,255,0.03); padding:8px 12px; border-radius:4px; margin-bottom:6px; font-size:12px;">
                 <b style="color:${k ? k.color : 'inherit'};">${bank.name}</b> · ${bank.seat}${k ? `, ${k.name}` : ''} · ${state}${acct ? ` · your deposit ${Math.floor(acct.balance)}g` : ''}
             </div>`;

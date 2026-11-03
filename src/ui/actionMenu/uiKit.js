@@ -21,6 +21,16 @@ export const BTN_DARK = BTN + 'background: #444; color: #eee;';
 export const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
 export const BTN_OFF = BTN + 'background: #333; color: #777; cursor: not-allowed;';
 export const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
+/** "🔓 as treasurer" — why the player may read a realm's own numbers (systems/realmIntel.js). */
+export function intelBadge(why) {
+    return why ? `<span style="font-size:10px; color:#9fd89f;" title="You read this because of ${esc(why)}">🔓 ${esc(why)}</span>` : '';
+}
+
+/** The note shown where a realm's books are closed to the player. */
+export function closedBooks(what = 'the crown\'s books') {
+    return `<div style="font-size:11px; color:var(--text-secondary); margin:4px 0;">🔒 ${esc(what)} are not for a commoner's eyes: the throne, an office at that court (chancellor, tax collector, treasurer, spymaster) or a spy placed in the realm would open them. What you have is the talk of the street.</div>`;
+}
+
 export const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 
 /**

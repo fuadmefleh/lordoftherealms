@@ -83,6 +83,7 @@ export const NpcDialog = {
         dialogState._active = false;
         dialogState._game = null;
         dialogState._npc = null;
+        dialogState._street = null;
         dialogState._lines = [];
         dialogState._lineIndex = 0;
         dialogState._typewriteComplete = false;

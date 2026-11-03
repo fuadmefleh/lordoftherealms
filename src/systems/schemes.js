@@ -42,6 +42,8 @@ const CONFIG = {
     feudOnSuccess: -10,       // a landed scheme partly sates the grudge
     feudOnFoiled: 5,          // a foiled one inflames it
     feudOnBribe: -15,
+    slanderReputation: 8,
+    plotCost: 150,            // gold a rival House with a purse pays to hatch a plot     // standing lost with each court a slander reaches
     spyFoilBase: 0.35,
     spyFoilPerLevel: 0.1,
     // Faces in town: the townsperson a rival works through (see Schemes._cast)
@@ -123,6 +125,17 @@ function assassinRested(player, world) {
     return !Number.isFinite(last) || ((world && world.day) || 0) - last >= CONFIG.assassinCooldown;
 }
 
+/** The courts a slander reaches: the rival's own realm and the living realm it is friendliest with. */
+function slanderCourts(world, rivalId) {
+    const kingdoms = ((world && world.kingdoms) || []).filter(k => k && k.isAlive !== false);
+    const own = kingdoms.find(k => k.id === rivalId);
+    if (!own) return [];
+    const rel = own.relations || {};
+    const friend = kingdoms.filter(k => k !== own && Number.isFinite(rel[k.id]))
+        .sort((a, b) => rel[b.id] - rel[a.id] || (a.id < b.id ? -1 : 1))[0];
+    return friend ? [own, friend] : [own];
+}
+
 const propLabel = (ref) => `${String(ref.type).replace(/_/g, ' ')} at (${ref.q}, ${ref.r})`;
 
 // ── The catalogue ───────────────────────────────────────────────
@@ -135,12 +148,17 @@ const SCHEME_TYPES = {
         pickTarget: () => ({ label: 'your good name' }),
         describe: () => 'spread poisonous rumours about your House',
         guard: null, // you cannot post guards around a rumour
-        resolve(player) {
-            const rep = player.reputation || {};
-            for (const k of Object.keys(rep)) rep[k] -= 8;
+        // The rival's own court believes it, and so does the court friendliest
+        // to the rival; the rest of the world shrugs. (Once every court took the
+        // hit, a rival's yearly slander left a House at odds with every realm.)
+        resolve(player, world, scheme) {
+            const rep = player.reputation || (player.reputation = {});
+            const courts = slanderCourts(world, scheme && scheme.rivalId);
+            for (const k of courts) rep[k.id] = (rep[k.id] || 0) - CONFIG.slanderReputation;
             const renownLoss = Math.min(player.renown || 0, 5);
             player.renown = (player.renown || 0) - renownLoss;
-            return `Slander spreads through every court: −8 reputation with all kingdoms${renownLoss ? `, −${renownLoss} renown` : ''}.`;
+            const where = courts.length ? courts.map(k => k.name).join(' and ') : 'the courts';
+            return `Slander spreads through ${where}: −${CONFIG.slanderReputation} reputation${courts.length > 1 ? ' with each' : ''}${renownLoss ? `, −${renownLoss} renown` : ''}.`;
         },
     },
     theft: {
@@ -759,17 +777,26 @@ export const Schemes = {
         if (house.schemes.length >= CONFIG.maxActive) return null;
         const busy = new Set(house.schemes.map(s => s.rivalId));
         const rival = Object.values(house.rivals || {})
-            .filter(r => !busy.has(r.kingdomId))
+            // A House under a truce with yours (systems/rivalAudience.js: a blood price, a threat) plots nothing
+            .filter(r => !busy.has(r.kingdomId) && !((r.truceUntil || 0) > ((world && world.day) || 0)))
             .sort((a, b) => (b.feud || 0) - (a.feud || 0))[0];
         if (!rival) return null;
         const options = Schemes.eligibleTypes(player, world, rival.feud || 0);
         if (!options.length) return null;
+        // A rival House with a head in the flesh pays for its plots (systems/rivalHouses.js)
+        const purse = Number.isFinite(rival.gold);
+        if (purse && rival.gold < CONFIG.plotCost) return null;
         const roll = Utils.random();
         if (roll >= (rival.feud || 0) / CONFIG.plotChanceDivisor) return null;
         const pick = Utils.random();
         const choice = House._brain.chooseScheme({ rival, options, roll: pick, house, world });
         const type = options.includes(choice) ? choice : options[options.length - 1];
-        return Schemes.hatch(player, world, rival, type);
+        const scheme = Schemes.hatch(player, world, rival, type);
+        if (scheme && purse) {
+            rival.gold -= CONFIG.plotCost;
+            if (rival.stats) rival.stats.plotsPaid = (rival.stats.plotsPaid || 0) + 1;
+        }
+        return scheme;
     },
 
     /**

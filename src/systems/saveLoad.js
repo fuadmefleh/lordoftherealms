@@ -416,6 +416,7 @@ export const SaveLoad = {
             indenturedServitude: player.indenturedServitude || null,
             jailState: player.jailState || null,
             criminalRecord: player.criminalRecord || { pickpocket: 0, smuggling: 0 },
+            containerLoot: player.containerLoot || {},
             sanctuary: player.sanctuary || null,
             fallenUnits: player.fallenUnits || [],
             mount: player.mount || null,
@@ -450,6 +451,8 @@ export const SaveLoad = {
             financeToday: player.financeToday || null,
             colonies: player.colonies || [],
             maps: player.maps || [],
+            autoChart: player.autoChart || null, // a standing order to chart an area (cartography/charting.js)
+            chartDraft: player.chartDraft || null, // tiles charted toward the next map (cartography/charting.js)
             artifacts: player.artifacts || { fragments: {}, forged: [], discovered: [] },
             discoveredLore: Array.from(player.discoveredLore || []),
             peoplesHeritage: player.peoplesHeritage || {},
@@ -489,6 +492,7 @@ export const SaveLoad = {
             boardedShip: player.boardedShip || null,
 
             // Needs (Sims-style)
+            clothesFreshness: typeof player.clothesFreshness === 'number' ? player.clothesFreshness : 100,
             needs: player.needs || { hunger: 100, energy: 100, social: 100, fun: 100, hygiene: 100, comfort: 100 },
             _lastNeedDecayHour: player._lastNeedDecayHour || 8,
             _needHoursToday: player._needHoursToday || 0,
@@ -519,6 +523,8 @@ export const SaveLoad = {
             delves: Delves.serialize(player),
             // Wilderness encounters dealt with, per hex, and their journal (player/wilds.js)
             wilds: player.wilds ? JSON.parse(JSON.stringify(player.wilds)) : null,
+            // Violence on the street map the watch still remembers (systems/streetCrime.js)
+            streetCrime: player.streetCrime ? JSON.parse(JSON.stringify(player.streetCrime)) : null,
             // Wounds and sickness, sick companions and crews (systems/ailments.js)
             ailments: Ailments.serialize(player),
             // Claims, crises, a civil war, a crown (systems/throne.js)

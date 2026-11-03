@@ -192,6 +192,16 @@ Object.assign(InnerMapRenderer, {
                 const tile = row[q];
                 if (!tile || !tile.explored || tile._isInterior) continue;
 
+                // Paved streets (world/townPlanner.js): cobbles or slabs laid on the road
+                const pave = tile.paving;
+                if (pave && pave.sheetPath) {
+                    const pImg = this._getSheetByPath(pave.sheetPath);
+                    if (pImg) {
+                        const pdx = Math.floor(originX + (q - qMin) * ds);
+                        ctx.drawImage(pImg, pave.sx, pave.sy, 32, 32, pdx, dyFloor, sz, sz);
+                    }
+                }
+
                 const ov = tile.terrainDetail || tile.grassOverlay || null;
                 if (!ov) continue;
 
@@ -232,6 +242,9 @@ Object.assign(InnerMapRenderer, {
             this._renderCustomInteriorTile(ctx, tile, dx, dy, sz);
             return;
         }
+
+        // ── Drawn floors, walls and furniture (interiorArt in innerMapRenderer.json) ──
+        if (this._renderInteriorArt(ctx, tile, dx, dy, sz)) return;
 
         const isWall = tile.baseTerrain === 'wall';
         const isDoor = tile._isDoor;
@@ -309,6 +322,71 @@ Object.assign(InnerMapRenderer, {
             ctx.lineWidth = 0.5;
             ctx.strokeRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2);
         }
+    },
+
+    /**
+     * Draw a procedural interior tile from sprites: the floor's material (a few
+     * variants, picked by position), the wall's material (its face along the back
+     * wall, shaded where the side walls run), the door, and the furniture's sprite.
+     * Returns false while the sheets are still loading, or when no art is
+     * configured, so the flat-colour drawing stands in.
+     */
+    _renderInteriorArt(ctx, tile, dx, dy, sz) {
+        const art = this._interiorArt;
+        if (!art) return false;
+        const pick = (c) => {
+            const img = c && this._getSheetByPath(c.sheet);
+            return img ? { img, c } : null;
+        };
+        const hash = ((tile.q * 73856093) ^ (tile.r * 19349663)) >>> 0;
+        const isWall = tile.baseTerrain === 'wall';
+
+        let base;
+        if (isWall) {
+            const mat = art.walls[tile._wallMaterial] || art.walls[art.defaultWall];
+            base = pick(mat);
+        } else {
+            const vars = art.floors[tile.baseTerrain] || art.floors[art.defaultFloor];
+            base = vars && vars.length ? pick(vars[hash % vars.length]) : null;
+        }
+        if (!base) return false;
+        const furniture = tile._furniture;
+        const furnArt = furniture && (art.furniture[furniture.type] || null);
+        const furnImg = furnArt ? pick(furnArt) : null;
+        if (furnArt && !furnImg) return false; // wait for the sheet rather than flash a box
+
+        ctx.drawImage(base.img, base.c.sx, base.c.sy, 32, 32, dx, dy, sz, sz);
+        if (isWall) {
+            // The back wall shows its face; the side and front walls are seen from above
+            if (tile.r !== 0) {
+                ctx.fillStyle = 'rgba(20, 14, 10, 0.55)';
+                ctx.fillRect(dx, dy, sz, sz);
+            } else {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+                ctx.fillRect(dx, dy + sz * 0.85, sz, sz * 0.15);
+            }
+            return true;
+        }
+        if (tile._isDoor) {
+            const door = pick(art.door);
+            if (door) ctx.drawImage(door.img, door.c.sx, door.c.sy, 32, 32, dx, dy, sz, sz);
+            return true;
+        }
+        if (furnImg) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+            ctx.beginPath();
+            ctx.ellipse(dx + sz / 2, dy + sz * 0.9, sz * 0.38, sz * 0.09, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.drawImage(furnImg.img, furnImg.c.sx, furnImg.c.sy, 32, 32, dx, dy, sz, sz);
+        } else if (furniture) {
+            // A piece with no sprite yet: its glyph cut into a dark plate
+            const pad = sz * 0.14;
+            ctx.fillStyle = InnerMap.FURNITURE_COLORS[furniture.type] || '#6a5a4a';
+            ctx.fillRect(dx + pad, dy + pad, sz - pad * 2, sz - pad * 2);
+            const glyph = sz >= 16 && furnitureGlyph(furniture);
+            if (glyph) engraveGlyph(ctx, glyph, dx + sz / 2, dy + sz / 2, sz * 0.62);
+        }
+        return true;
     },
 
     /**

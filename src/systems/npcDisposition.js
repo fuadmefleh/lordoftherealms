@@ -22,6 +22,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Traits } from './traits.js';
 import { Underworld } from './underworld.js';
 import { Fame } from './fame.js';
+import { StreetCrime } from './streetCrime.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -153,6 +154,9 @@ export const NpcDisposition = {
                 refuseReason: `${npc.name || 'They'} won't deal with someone who threatened them.`,
             };
         }
+        // Saw the player beat or kill someone in the street (systems/streetCrime.js)
+        const street = StreetCrime.tradeRefusal(npc);
+        if (street.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: street.reason };
 
         let shift = 0;
         const dispShift = Math.round(((50 - d) / 250) * 100) / 100; // ±0.20

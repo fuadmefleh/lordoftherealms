@@ -2,6 +2,7 @@
 import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -277,8 +278,12 @@ Object.assign(UI.prototype, {
         let kingdomRows = '';
         for (const k of kingdoms) {
             const popStr = Utils.formatNumber(k.population);
-            const milStr = Utils.formatNumber(k.military);
-            const treasuryStr = Utils.formatNumber(k.treasury);
+            // A realm's army and chests: figures for insiders, the street's word for the rest (systems/realmIntel.js)
+            const know = (cat) => typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, cat);
+            const mil = RealmIntel.seen(player, world, k, 'military', 'military', k.military, know('military'));
+            const tre = RealmIntel.seen(player, world, k, 'books', 'treasury', k.treasury, know('economy'));
+            const milStr = mil.exact ? mil.text : `<span style="opacity:0.7;font-size:11px;">${mil.text}</span>`;
+            const treasuryStr = tre.exact ? tre.text : `<span style="opacity:0.7;font-size:11px;">${tre.text}</span>`;
             const territories = (k.territory || []).length;
             const faithName = k.religion ? (Religion.FAITHS[k.religion.faithId]?.name || 'Unknown') : 'None';
             const cultureInf = k.cultureData ? Math.round(k.cultureData.influence) : 0;
@@ -600,7 +605,9 @@ Object.assign(UI.prototype, {
      */
     showKingdomComparison() {
         const world = this.game.world;
+        const player = this.game.player;
         const kingdoms = world.kingdoms.filter(k => k.isAlive);
+        const know = (k, cat) => !player || typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, cat);
 
         if (kingdoms.length === 0) {
             this.showCustomPanel('⚖️ Kingdom Comparison', '<p style="color:var(--text-secondary);">No living kingdoms to compare.</p>');
@@ -610,8 +617,8 @@ Object.assign(UI.prototype, {
         // Gather data for comparison
         const metrics = [
             { key: 'population', label: 'Population', icon: '👥', format: v => Utils.formatNumber(v) },
-            { key: 'military', label: 'Military Strength', icon: '⚔️', format: v => Utils.formatNumber(v) },
-            { key: 'treasury', label: 'Treasury', icon: '💰', format: v => Utils.formatNumber(v) },
+            { key: 'military', label: 'Military Strength', icon: '⚔️', format: v => Utils.formatNumber(v), secret: true },
+            { key: 'treasury', label: 'Treasury', icon: '💰', format: v => Utils.formatNumber(v), secret: true },
             { key: 'territory', label: 'Territory Size', icon: '🏴', format: v => v },
             { key: 'settlements', label: 'Settlements', icon: '🏘️', format: v => v },
             { key: 'piety', label: 'Piety', icon: '🙏', format: v => Math.round(v) },
@@ -628,11 +635,15 @@ Object.assign(UI.prototype, {
                 if (tile && tile.settlement) settlementCount++;
             }
 
+            // The army and the chests as far as you can know them (systems/realmIntel.js): rumours count at their band's floor
+            const mil = RealmIntel.seen(player, world, k, 'military', 'military', k.military || 0, know(k, 'military'));
+            const tre = RealmIntel.seen(player, world, k, 'books', 'treasury', k.treasury || 0, know(k, 'economy'));
             return {
                 kingdom: k,
                 population: k.population || 0,
-                military: k.military || 0,
-                treasury: k.treasury || 0,
+                military: mil.value || 0,
+                treasury: tre.value || 0,
+                seen: { military: mil, treasury: tre },
                 territory: (k.territory || []).length,
                 settlements: settlementCount,
                 piety: k.religion ? (k.religion.piety || 0) : 0,
@@ -662,7 +673,7 @@ Object.assign(UI.prototype, {
                     <div style="flex:1;height:18px;background:rgba(255,255,255,0.05);border-radius:9px;overflow:hidden;position:relative;">
                         <div style="height:100%;width:${pct}%;background:${k.color};border-radius:9px;transition:width 0.3s;"></div>
                     </div>
-                    <span style="width:60px;font-size:11px;color:var(--text-primary);text-align:right;">${metric.format(val)}</span>
+                    <span style="width:${metric.secret ? 110 : 60}px;font-size:11px;color:var(--text-primary);text-align:right;">${metric.secret && !d.seen[metric.key].exact ? `<span style="opacity:0.7;" title="Rumour: the figures are for the realm's officers, its ruler and your spies">${d.seen[metric.key].text}</span>` : metric.format(val)}</span>
                 </div>`;
             }
 
@@ -704,7 +715,8 @@ Object.assign(UI.prototype, {
 
         // Power ranking
         html += `<div style="margin-top:16px;">
-            <div class="info-section-title" style="font-size:12px;">🏆 Power Ranking</div>`;
+            <div class="info-section-title" style="font-size:12px;">🏆 Power Ranking</div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:4px;">As far as you know: armies and treasuries you only hear of count at the rumour's lowest.</div>`;
 
         const ranked = [...data].sort((a, b) => {
             const scoreA = a.population * 0.3 + a.military * 2 + a.treasury * 0.5 + a.territory * 10;

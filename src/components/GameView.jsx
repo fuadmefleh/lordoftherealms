@@ -267,10 +267,12 @@ export default function GameView() {
       <div id="simsBottomHUD" className="hud-frame hud-bottom-bar">
         {/* Date + mood */}
         <div className="hud-bb-datecol">
-          <div className="hud-bb-dateline">
+          {/* Date — opens the Calendar (ui/actionMenu/calendar.js; bound in ui/ui/hud.js) */}
+          <button type="button" className="hud-bb-dateline hud-bb-datebtn" id="hudBottomDateBtn" title="Open the Calendar">
             <span className="hud-bb-sun"><Icon name="sun" /></span>
             <span className="hud-bb-date" id="hudBottomDate">Day 1 of Spring, Year 853</span>
-          </div>
+          </button>
+          <div className="hud-bb-daycount" id="hudBottomDayCount">Day 1 of 120 · 1 day played</div>
           <div className="hud-mood">
             <span className="hud-mood-icon" id="simsMoodIcon">😄</span>
             <span className="hud-mood-label" id="simsMoodLabel">ECSTATIC</span>
@@ -325,7 +327,7 @@ export default function GameView() {
             <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)"><Icon name="fast" /></button>
             <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)"><Icon name="ultra" /></button>
           </div>
-          <button className="hud-end-turn" id="simsEndDay">
+          <button className="hud-end-turn" id="simsEndDay" title="End the day (Enter)">
             <span className="hud-end-turn-icon"><Icon name="hourglass" /></span>
             <span>End Turn</span>
           </button>

@@ -805,6 +805,18 @@ export const House = {
                     ['rival', 'feud']);
             }
         }
+        // The rival Houses' ties to one another (systems/rivalHouses.js): a wrong
+        // done to one angers its allies, and pleases its enemies a little
+        const T = (DataLoader._gamedata && DataLoader._gamedata.rivalHouses && DataLoader._gamedata.rivalHouses.ties) || {};
+        const gained = rival.feud - before;
+        if (gained > 0) {
+            for (const other of Object.values(house.rivals)) {
+                const tie = (other && other.ties && other.ties[kingdomId]) || 0;
+                if (!other || other === rival) continue;
+                if (tie >= (T.allyAt ?? 50)) other.feud = Utils.clamp((other.feud || 0) + gained * (T.spill ?? 0.5), 0, 100);
+                else if (tie <= (T.enemyAt ?? -50)) other.feud = Utils.clamp((other.feud || 0) - gained * (T.spill ?? 0.5) / 2, 0, 100);
+            }
+        }
         return rival.feud;
     },
 

@@ -899,6 +899,8 @@ export const Townsfolk = {
                 break;
             }
             case 'exiled': t = self ? `I was driven out ${when}.` : `${A} was named a traitor and driven out of town ${when}${entry.x ? ` — ${entry.x}` : ''}.`; break;
+            // Violence in the street (systems/streetCrime.js): x = who did it, if anyone saw
+            case 'beaten': t = self ? `I was beaten in the street ${when}${entry.x ? ` by ${entry.x}` : ''}.` : `${A} was beaten in the street ${when}${entry.x ? ` — by ${entry.x}, they say` : ', and no one saw who did it'}.`; break;
             default: return null;
         }
         return t.charAt(0).toUpperCase() + t.slice(1);
@@ -915,7 +917,7 @@ export const Townsfolk = {
         const own = e => speaker && (e.a === speaker.id || (e.b === speaker.id && e.k !== 'died'));
         let entries = folk.annals.filter(e => e.d > since && !own(e));
         if (!entries.length) return [];
-        const weight = { plot: 6, exiled: 5, died: 5, plotFoiled: 4, born: 4, wed: 3, rivalMen: 2, left: 2, arrived: 1, grown: 1 };
+        const weight = { plot: 6, exiled: 5, died: 5, beaten: 4, plotFoiled: 4, born: 4, wed: 3, rivalMen: 2, left: 2, arrived: 1, grown: 1 };
         const knows = e => [e.a, e.b].some(id => { const p = Townsfolk.get(folk, id); return p && p.mem && p.mem.timesSpoken > 0; });
         entries = entries.slice().sort((x, y) => (knows(y) - knows(x)) || (weight[y.k] - weight[x.k]) || (y.d - x.d));
         return entries.slice(0, limit).sort((x, y) => x.d - y.d).map(e => Townsfolk.annalText(folk, e, world, speaker)).filter(Boolean);

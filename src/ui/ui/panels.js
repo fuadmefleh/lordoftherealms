@@ -2,6 +2,8 @@
 import { UI } from './core.js';
 import { applyUiScale } from '../uiScale.js';
 import { icon, titleCrest, glyphLabel } from '../icons.js';
+import { PanelRefresh } from '../panelRefresh.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
@@ -312,9 +314,11 @@ Object.assign(UI.prototype, {
                     if (!adv) return '';
                     const role = Characters.ADVISOR_ROLES[roleId] || { icon: '👤', name: roleId };
                     const loyColor = adv.loyalty > 60 ? '#27ae60' : adv.loyalty > 30 ? '#f39c12' : '#c0392b';
+                    // A councillor's loyalty is known inside the court (systems/realmIntel.js)
+                    const inCourt = RealmIntel.can(this.game.player, this.game.world, kingdom, 'court');
                     return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">
                         <span>${role.icon} ${role.name}: ${Characters.getFullName(adv)}</span>
-                        <span style="color:${loyColor}">${adv.loyalty}%</span>
+                        ${inCourt ? `<span style="color:${loyColor}">${adv.loyalty}%</span>` : ''}
                     </div>`;
                 }).join('');
                 advisorSummary = advisorLines;
@@ -359,7 +363,8 @@ Object.assign(UI.prototype, {
             if (kingdom.navy && (kingdom.navy.ports || kingdom.navy.strength)) {
                 const n = kingdom.navy;
                 const by = KingdomNavy.blockaders(kingdom).map(id => (this.game.world.getKingdom(id) || {}).name || id);
-                bonusHtml += `<div style="font-size:11px;margin-top:2px;" title="Fleet strength / what its ports and treasury keep afloat">⚓ Fleet: ${n.strength}/${n.cap} · ${n.ports} port${n.ports === 1 ? '' : 's'}${by.length ? ` · <span style="color:#e67e22;">blockaded by ${by.join(', ')} (income ×${KingdomNavy.incomeFactor(kingdom).toFixed(2)})</span>` : ''}</div>`;
+                const fleet = RealmIntel.can(this.game.player, this.game.world, kingdom, 'military') ? `${n.strength}/${n.cap}` : this.game.player.knowsAbout(kingdom.id, 'military') ? `${RealmIntel.band('fleet', n.strength)} (rumour)` : 'unknown';
+                bonusHtml += `<div style="font-size:11px;margin-top:2px;" title="Fleet strength / what its ports and treasury keep afloat">⚓ Fleet: ${fleet} · ${n.ports} port${n.ports === 1 ? '' : 's'}${by.length ? ` · <span style="color:#e67e22;">blockaded by ${by.join(', ')} (income ×${KingdomNavy.incomeFactor(kingdom).toFixed(2)})</span>` : ''}</div>`;
             }
 
             html += `
@@ -400,6 +405,7 @@ Object.assign(UI.prototype, {
      */
     showPanel(panelId) {
         document.getElementById(panelId).classList.remove('hidden');
+        PanelRefresh.note(this, panelId);
     },
 
     /**
@@ -407,6 +413,7 @@ Object.assign(UI.prototype, {
      */
     hidePanel(panelId) {
         document.getElementById(panelId).classList.add('hidden');
+        PanelRefresh.clear(this, panelId);
     },
 
     /**
@@ -416,6 +423,8 @@ Object.assign(UI.prototype, {
      */
     showCustomPanel(title, htmlContent, opts = {}) {
         const locked = !!opts.locked;
+        // Remember which view painted the panel, to redraw it after the day (ui/panelRefresh.js)
+        PanelRefresh.note(this);
         // A tab bar (setPanelNav) holds while the player moves between its views:
         // it survives re-renders made from inside the panel (or its dialogs), and
         // drops when a panel is opened from elsewhere (the map, the action menu, the HUD)
@@ -565,6 +574,7 @@ Object.assign(UI.prototype, {
         if (panel && panel.querySelector('#gsUiScale')) applyUiScale(UI.loadSettings().uiScale);
         if (panel) panel.remove();
         this._panelNav = null;
+        PanelRefresh.clear(this);
     },
 
     /**

@@ -1,0 +1,16 @@
+{
+    "_doc": "Who may read a realm's private books (src/systems/realmIntel.js). roles: the offices (player.currentTitle / kingdomTitle, in the realm you are sworn to) that read each kind; '*' = any office. bands: the street's word for a number, highest first; a null minimum is the floor. Rulers and spies placed in the realm read everything.",
+    "roles": {
+        "books": ["chancellor", "tax_collector", "treasurer", "spymaster", "king"],
+        "military": ["chancellor", "marshal", "spymaster", "king"],
+        "court": "*",
+        "mint": ["chancellor", "tax_collector", "treasurer", "spymaster", "king"]
+    },
+    "bands": {
+        "treasury": [[25000, "overflowing coffers"], [8000, "a rich treasury"], [2000, "comfortable coffers"], [500, "lean coffers"], [null, "an empty chest"]],
+        "military": [[600, "a great host"], [200, "a strong army"], [60, "a modest host"], [null, "a token guard"]],
+        "fleet": [[200, "a great fleet"], [60, "a fair fleet"], [1, "a few ships"], [null, "no fleet to speak of"]],
+        "capital": [[20000, "a great fortune"], [5000, "deep pockets"], [1000, "a fair purse"], [null, "thin reserves"]]
+    },
+    "labels": { "ruler": "you rule it", "office": "your office at its court", "kin": "your kin at its court", "spy": "your spies inside it", "lease": "you hold its mint", "own": "your own" }
+}

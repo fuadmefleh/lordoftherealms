@@ -4,6 +4,14 @@
 import { ActionMenu } from './_ref.js';
 import { RealmPolitics, REALM_POLITICS, KingdomNavy } from './_imports.js';
 import { BTN_GOLD, BTN_DIM, BTN_DARK, CARD } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
+
+/** A realm's army or fleet as the player may know it (systems/realmIntel.js). */
+function _force(player, world, k, band, value) {
+    const knows = typeof player.knowsAbout !== 'function' || player.knowsAbout(k.id, 'military');
+    const s = RealmIntel.seen(player, world, k, 'military', band, value || 0, knows);
+    return s.exact ? s.text : s.text === 'unknown' ? 'unknown' : `${s.text} (rumour)`;
+}
 
 
 function _bar(gains, goal, color) {
@@ -71,14 +79,14 @@ Object.assign(ActionMenu, {
             const chance = Math.round(RealmPolitics.brokerChance(player, w) * 100);
             html += `<div style="${CARD}">`;
             html += `<div style="font-weight:bold;">⚔️ ${w.a.name} vs ${w.b.name} <span style="color:var(--text-secondary);font-weight:normal;">· day ${w.days}</span></div>`;
-            html += `<div style="margin-top:4px;">${w.a.name} — war goal ${w.aGains}/${w.aGoal} · army ${w.a.military || 0}</div>${_bar(w.aGains, w.aGoal, w.a.color || '#c96')}`;
-            html += `<div>${w.b.name} — war goal ${w.bGains}/${w.bGoal} · army ${w.b.military || 0}</div>${_bar(w.bGains, w.bGoal, w.b.color || '#69c')}`;
+            html += `<div style="margin-top:4px;">${w.a.name} — war goal ${w.aGains}/${w.aGoal} · army ${_force(player, world, w.a, 'military', w.a.military)}</div>${_bar(w.aGains, w.aGoal, w.a.color || '#c96')}`;
+            html += `<div>${w.b.name} — war goal ${w.bGains}/${w.bGoal} · army ${_force(player, world, w.b, 'military', w.b.military)}</div>${_bar(w.bGains, w.bGoal, w.b.color || '#69c')}`;
             // The war at sea
             const navyLine = (k, foe) => {
                 const n = k.navy;
                 if (!n || !(n.ports || n.strength)) return `${k.name}: no fleet`;
                 const held = n.blockades && n.blockades[foe.id] != null;
-                return `${k.name}: fleet ${n.strength}${held ? ' <span style="color:#e67e22;">(ports blockaded)</span>' : ''}`;
+                return `${k.name}: fleet ${_force(player, world, k, 'fleet', n.strength)}${held ? ' <span style="color:#e67e22;">(ports blockaded)</span>' : ''}`;
             };
             html += `<div style="color:var(--text-secondary);font-size:11px;">⚓ ${navyLine(w.a, w.b)} · ${navyLine(w.b, w.a)}</div>`;
             if (involvesHere) {

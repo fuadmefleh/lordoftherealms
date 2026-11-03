@@ -1,0 +1,237 @@
+{
+    "_doc": "How the rival Houses' heads look and talk (systems/rivalHouses.js persona, systems/rivalAudience.js lines). A head's MANNER comes from their first trait: proud → haughty, courtly → silken, scheming → soft, grasping → brisk, homebody → plain. STANCE comes from their regard for you (−feud + what they remember): warm ≥ 30, civil ≥ −10, cold ≥ −50, else hostile. Each list is picked by hash of the day and the head, so the same meeting reads the same. Placeholders: {you} your name, {yourHouse} your House, {first} their first name, {myHouse} their House, {seat} their seat, {passion} their passion, {other} another House, {place} a town, {good} a good, {gold} an amount, {realm} a realm, {child} a child's name, {days} days. *Asterisks* are stage directions.",
+
+    "persona": {
+        "builds": ["lean", "broad-shouldered", "stout", "tall, stooping", "wiry", "heavy-set", "slight", "hawk-faced"],
+        "hairYoung": ["dark-haired", "fair-haired", "red-haired", "close-cropped", "with a young man's first beard", "black-browed"],
+        "hairMid": ["greying at the temples", "dark-bearded", "balding", "with a forked beard", "salt-and-pepper", "sandy-haired"],
+        "hairOld": ["white-haired", "grey-bearded", "bald as an egg", "with a long white moustache", "silver-maned"],
+        "features": ["a scar through one eyebrow", "rings on every finger", "a hawk hooded on the wrist", "a cough they try to hide", "a jeweled dagger they toy with", "ink-stained fingers", "a missing finger", "a slow, measuring stare", "a too-ready smile", "a rosary of amber beads", "a limp from an old fall", "a voice like gravel", "eyes that never settle", "a falcon-feather in the cap"],
+        "passions": [
+            { "id": "falconry", "name": "falconry", "line": "My falcon took a heron on the wing last week. You should have seen it stoop." },
+            { "id": "hunting", "name": "the hunt", "line": "There is a boar in the woods above {seat} that has killed two of my hounds. I mean to have him." },
+            { "id": "verse", "name": "verse", "line": "I have been writing verses. Badly, my wife says. She is right." },
+            { "id": "dice", "name": "dice", "line": "I lost forty gold at dice last night to a tanner. A tanner!" },
+            { "id": "horses", "name": "horses", "line": "I have a grey mare out of the southern studs. Fastest thing on four legs between here and the sea." },
+            { "id": "faith", "name": "the faith", "line": "I have endowed a chapel at {seat}. A man should think of his soul." },
+            { "id": "chess", "name": "chess", "line": "Do you play chess? No? A pity. You would understand me better." },
+            { "id": "building", "name": "building", "line": "I am raising a new hall at {seat}. Oak beams, a gallery for the musicians." },
+            { "id": "the_sea", "name": "the sea", "line": "I would sooner be on a deck than in a saddle. The sea is honest." },
+            { "id": "books", "name": "old books", "line": "I bought a chronicle of the old kings from a monk. Half of it is lies, the best half." }
+        ]
+    },
+
+    "memoryLabels": {"gift": "your gift of gold", "parleyOk": "words that cooled the feud", "parleyFail": "a parley gone sour", "insult": "your insult before the crowd", "attacked": "your attack on their retinue", "repelled": "your failed attack on their retinue", "ambushBeaten": "the ambush you beat off", "robbedYou": "robbing you on the road", "match": "the match between your children", "flattered": "kind words", "flatterFail": "hollow flattery", "threatened": "your threats", "declined": "an offer you refused", "helped": "the favour you did them", "spokeForThem": "how you spoke for them at court", "loanGiven": "the loan you made them", "loanDemanded": "how you pressed them for a debt", "bloodPrice": "the blood price you paid", "duelYouWon": "the duel you won", "duelYouLost": "the duel they won", "truceBroken": "the truce they broke", "estateSold": "the estate you sold them"},
+
+    "greeting": {
+        "haughty": {
+            "warm": ["*inclines their head, just so* {you}. You may approach.", "Ah, {you}. One of the few worth my time on these roads."],
+            "civil": ["*looks you over from the saddle* {yourHouse}. You wished to speak with {myHouse}?", "Well. {you}. I suppose the road is common to all."],
+            "cold": ["*does not dismount* You have a moment. Use it well.", "{yourHouse}. *the name sounds like something spat out* Speak."],
+            "hostile": ["*a gloved hand rests on the sword* You dare stand in my road?", "I would not cross the street to piss on {yourHouse} if it burned. What do you want?"]
+        },
+        "silken": {
+            "warm": ["*a warm smile, both hands open* {you}! The roads are kind today.", "My dear {you}. I was only just speaking of you, and well."],
+            "civil": ["*a courtier's bow* {you}. What a pleasant surprise. Mostly pleasant.", "{yourHouse}, on the open road. How the world turns."],
+            "cold": ["*the smile stays, the eyes do not* {you}. How… unexpected.", "Ah. {yourHouse}. One hears so much about you at court. Very little of it kind."],
+            "hostile": ["*the smile is a blade* {you}. I had hoped the roads would be safer this season.", "How brave of you, to come so close. Or how foolish. Say your piece."]
+        },
+        "soft": {
+            "warm": ["*speaks low, almost fondly* {you}. We should talk more, you and I.", "Friend {you}. Sit a moment. Tell me what you know."],
+            "civil": ["*watches you with half-closed eyes* {you}. I wondered when our roads would cross.", "*quietly* {yourHouse}. I know a great deal about you. Tell me something I don't."],
+            "cold": ["*says nothing for a long moment, then* …{you}.", "*a soft voice, a hard face* You have walked a long way to stand within reach of my men."],
+            "hostile": ["*barely above a whisper* I have been thinking about you, {you}. Every night.", "*smiles without warmth* Strange. My men said you would avoid this road."]
+        },
+        "brisk": {
+            "warm": ["{you}! Good. Business is good, the roads are dry. What do you need?", "Ha, {you}. Walk with me, I am pricing wool."],
+            "civil": ["{yourHouse}. I have a cart of {good} going bad in this heat. Be quick.", "*glances at your purse before your face* {you}. Talk."],
+            "cold": ["Every hour I stand here costs me money. What is it?", "{yourHouse}. You cost me a good deal at market. Say what you want."],
+            "hostile": ["You have no idea what your meddling has cost me. None. Get out of my road.", "*counting coins, not looking up* If you came to beg, the answer is no. If you came to threaten, the answer is also no."]
+        },
+        "plain": {
+            "warm": ["{you}, well met! Come share the fire, there is stew.", "*a broad grin* I hoped I would see you. How are your people?"],
+            "civil": ["{you}. Fair road to you. What brings you?", "*nods* {yourHouse}. I am bound home to {seat}, and glad of it."],
+            "cold": ["*folds their arms* {you}. I have nothing to say that you'll want to hear.", "Say it plain, {you}. I've no patience for courtly talk."],
+            "hostile": ["You've got some nerve. Say what you came to say and be gone.", "*spits* {yourHouse}. My father would have had you whipped from this road."]
+        }
+    },
+
+    "moodOpeners": {
+        "bereaved": ["*wears mourning black* My {parent} is a month in the ground. Forgive me if I am short.", "*the black armband is new* We buried my {parent} at {seat}. The House is mine now. All of it."],
+        "attacked": ["*a fresh bandage on the arm* You have the gall to show your face, after what you did on the road?", "*the retinue bristles at the sight of you* My men still bear the marks of your ambush."],
+        "insulted": ["*jaw tight* I have not forgotten your words. Nor has anyone who heard them."],
+        "shamed": ["*does not meet your eye* You need not gloat. I know how it went."],
+        "ousted": ["*sourly* You'll have heard, no doubt. {other} has the crown's ear now. A passing fancy."],
+        "poor": ["*the retinue looks thinner, the cloaks patched* These are lean days for {myHouse}. Lean days."],
+        "loss": ["*grumbling* I bought dear and sold cheap. Every fool in the market made money but me."],
+        "gloat": ["*a thin smile* You look a little lighter in the purse than when last we met."],
+        "triumph": ["*in high spirits* You find me on a good day, {you}. A very good day."],
+        "favour": ["*smoothing a new cloak* The crown has been generous. I find I like court."],
+        "wedding": ["*flushed with wine* My {child} is wed! There was dancing for three nights."],
+        "birth": ["*beaming* I have a new child, {you}. Named {child}. Loud as a bugle."],
+        "land": ["*pleased* I have bought land. Good land. Tenants who pay."],
+        "profit": ["*in a good humour* The {good} sold well. A fine week."],
+        "hunting": ["*the retinue rides armed, and close* You are a hard {you} to find."]
+    },
+
+    "recall": {
+        "gift": "Your gold reached my coffers. I have not decided what it bought you.",
+        "parleyOk": "Last time we spoke, you were almost reasonable.",
+        "parleyFail": "Last time you spoke to me, you wasted my afternoon.",
+        "insult": "I remember what you called me before the crowd.",
+        "attacked": "I remember the road where your men fell on mine.",
+        "repelled": "You tried your steel on my retinue once. You remember how that went.",
+        "ambushBeaten": "*colouring* We need not speak of the road.",
+        "robbedYou": "I hope the purse you lost to my men was not too dear to you.",
+        "match": "Our children are wed. That counts for something, even between us.",
+        "flattered": "You have a silver tongue. I have not decided whether I trust it.",
+        "threatened": "The last time we met, you threatened me. I do not forget threats.",
+        "helped": "You did me a service. I keep accounts of those, too.",
+        "spokeForThem": "You spoke for me at court. I have not forgotten.",
+        "loanGiven": "You lent me gold when I needed it. That was decently done.",
+        "loanDemanded": "You pressed me for coin in front of my own men.",
+        "bloodPrice": "The blood price you paid was fair. I have kept my side.",
+        "duelYouWon": "You bested me with the blade. I still feel it in this arm.",
+        "duelYouLost": "I drew first blood, the last time we crossed swords.",
+        "declined": "You refused my offer. I wonder that you came back.",
+        "estateSold": "You sold me good land at a fair price. Few can say that of you.",
+        "truceBroken": "*shifts in the saddle* There was a truce. Things happened."
+    },
+
+    "parley": {
+        "ok": {
+            "haughty": ["*a long pause* …Very well. I will think less ill of you.", "You speak better than I expected. Let it be calmer between us."],
+            "silken": ["*laughs softly* You are charming when you want something. Very well.", "Peace? How refreshing. Let us try it, for a season."],
+            "soft": ["*nods slowly* Perhaps. Perhaps we have both been fools.", "I will remember you said that. In the good way."],
+            "brisk": ["Fine. A feud is bad for trade anyway.", "Fair words. I will take them, they cost me nothing."],
+            "plain": ["*sighs* Aye. Maybe it's gone on long enough.", "That's plain spoken. I can respect that."]
+        },
+        "fail": {
+            "haughty": ["*turns away* You presume too much.", "Words. From you. How touching."],
+            "silken": ["*the smile thins* How very sincere. I am almost moved.", "Darling {you}, you will have to try harder than that."],
+            "soft": ["*silence, then* No.", "You think I don't see what you are doing?"],
+            "brisk": ["Talk is cheap. I don't deal in cheap.", "No. Next."],
+            "plain": ["Pretty words. I've heard them before.", "*shakes their head* No. Not after everything."]
+        }
+    },
+
+    "gift": {
+        "first": {
+            "haughty": ["*a servant takes it; they do not look at it* Acceptable.", "Gold. How direct of you."],
+            "silken": ["Oh, you shouldn't have. *tucks it away at once*", "How generous. I will speak warmly of you, for a week or two."],
+            "soft": ["*weighs the purse in one hand* And what does this buy, I wonder?", "I'll take it. I won't forget who gave it."],
+            "brisk": ["*counts it, there and then* All there. Good.", "That'll cover the tolls to {place}. My thanks."],
+            "plain": ["That's decent of you. Truly.", "*surprised* I didn't expect that. Thank you."]
+        },
+        "again": {
+            "haughty": ["Again? You think {myHouse} can be bought by the month?"],
+            "silken": ["Another? My dear, people will talk."],
+            "soft": ["*narrows the eyes* Twice. Now I really wonder what you want."],
+            "brisk": ["I'll take it. But don't think it's buying what you think."],
+            "plain": ["*uneasy* You needn't keep doing this."]
+        }
+    },
+
+    "insult": {
+        "haughty": ["*goes white, then red* You will answer for that. By the gods, you will answer for it.", "*a deathly calm* Say that again. I want my men to remember it exactly."],
+        "silken": ["*laughs, too loudly* How droll. Everyone heard that, did they? Good.", "Oh, that will be all over court by Sunday. Thank you."],
+        "soft": ["*smiles, slowly* I will remember that. I will remember it for a very long time.", "*writes something on a wax tablet*"],
+        "brisk": ["Insults cost nothing, and they're worth what they cost.", "You'll pay for that. Not today, but you'll pay."],
+        "plain": ["*fist clenched* Say that again and we'll settle it here.", "That's low. Even for you."]
+    },
+    "insultAgain": ["Again? You have no other song?", "*wearily* You said that before. It was not clever then, either."],
+
+    "flatter": {
+        "ok": ["*preens a little despite themselves* Well. You are not wholly without eyes.", "*a reluctant smile* Flattery. And yet I find I don't mind it."],
+        "fail": ["*cold* Flattery? From you? Spare me.", "Do you take me for a child, to be sweetened with honey?"]
+    },
+
+    "threaten": {
+        "cowed": ["*glances at your host and back* …There's no need for that. Let us both keep to our own roads for a while.", "*pales* Very well. I hear you."],
+        "defiant": ["*laughs* Threats? I have more swords than you have friends.", "Come and try it, then. I'll be at {seat}."]
+    },
+
+    "farewell": {
+        "warm": ["Go well, {you}. My door at {seat} is open.", "Fair roads. Send word if you need anything."],
+        "civil": ["Fair roads.", "*a curt nod* Until the next time."],
+        "cold": ["*turns the horse without a word*", "We are done here."],
+        "hostile": ["Watch your back on the roads, {you}.", "*to their men, loud enough to hear* Remember that face."]
+    },
+
+    "topics": {
+        "business": {
+            "trade": "I'm carrying {good} to {place}. Prices there are a scandal, which is to say: good for me.",
+            "buying": "I'm bound for {place} to buy {good}. Don't you dare get there first.",
+            "court": "I'm for court at {place}. One must be seen, or one is forgotten.",
+            "shadow": "*evasively* I have business in {place}. Private business.",
+            "home": "Home to {seat}. My bed, my dogs, my own roof.",
+            "invest": "There's land for sale near {place}. Good land. Mine, soon.",
+            "waylay": "*a hard look* Looking for someone.",
+            "none": "Deciding where to go next. The roads are long."
+        },
+        "ambition": {
+            "wealth": "I mean to see {myHouse} rich again, as rich as my grandfather's day. Richer.",
+            "land": "Land is the only wealth that stays. I want more of it.",
+            "favour": "A House without a crown's ear is a House no one remembers. I will be heard at court.",
+            "revenge": "*looks straight at you* I have one ambition left, {you}. You know what it is."
+        },
+        "noNews": "Nothing worth telling. The roads, the weather, the price of bread.",
+        "familyNone": "I have no wife, no children. Only the House.",
+        "heirLine": "{child} will have it all after me. Pray the gods give them better sense than I had.",
+        "askYours": "And your {child}? I hear they are coming along.",
+        "you": {
+            "warm": "I think you are better than your House's name, {you}. I didn't always.",
+            "civil": "I think you are a rival. Nothing personal. Mostly.",
+            "cold": "I think you have done {myHouse} more harm than you know.",
+            "hostile": "I think about you more than I think about my own children. That should tell you."
+        },
+        "reasons": "Shall I tell you why? {reasons}.",
+        "reasonsGood": "I have not forgotten {reasons}.",
+        "butGood": "Though I grant you {reasons}.",
+        "butBad": "But I have not forgotten {reasons}, either.",
+        "otherHouse": {
+            "ally": "{other}? Family, now, near enough. Speak ill of them and you speak ill of me.",
+            "friend": "{other} are decent people. We understand one another.",
+            "neutral": "{other}? I don't think about them much.",
+            "cold": "{other} have been getting above themselves.",
+            "enemy": "{other} are snakes. I'd sooner deal with you than with them, and that's saying something."
+        }
+    },
+
+    "offers": {
+        "bloodPrice": {
+            "pitch": "*looks at you a long while* There is a way to end the worst of this. {gold} gold, a blood price, paid now. And I call off my men for {days} days.",
+            "accept": "*takes the purse* It is done. For {days} days, {myHouse} keeps its blades sheathed. You have my word.",
+            "decline": "Then we go on as we are."
+        },
+        "loan": {
+            "pitch": "*lowers the voice* I am short of coin this season. Lend me {gold} gold, and I'll repay {owed} in {days} days.",
+            "accept": "*clasps your forearm* I'll not forget this. {days} days.",
+            "decline": "*stiffly* Of course. Forget I asked."
+        },
+        "speak": {
+            "pitch": "The court of {realm} listens to you. Speak for me there. It will cost you a little of their good opinion, and earn you a great deal of mine.",
+            "accept": "*genuinely moved* That's a real kindness. I won't forget it.",
+            "decline": "I see. Your own name first. As it should be, I suppose."
+        },
+        "buyEstate": {
+            "pitch": "You hold {estate}, near {place}. I'll give you {gold} gold for it. More than it's worth.",
+            "accept": "*shakes your hand* Good land. A good bargain for both of us.",
+            "decline": "Your loss. The offer won't come again soon."
+        },
+        "match": {
+            "pitch": "My {theirChild} is of an age, and so is your {yourChild}. Let them wed. I'll waive the dowry. Blood binds better than words.",
+            "accept": "*embraces you, to everyone's surprise* Then we are kin, or near it!",
+            "decline": "*hurt, then hiding it* As you like."
+        },
+        "against": {
+            "pitch": "{other} wrong us both. Shame their lord to their face, or fall on their retinue. Do that, and our quarrel is all but done.",
+            "accept": "*a slow smile* Good. I'll hear of it, wherever I am.",
+            "decline": "Then you're no use to me in that."
+        },
+        "duel": {
+            "pitch": "*draws the sword halfway* Enough words. Let us settle this with steel, first blood. Here, now, before both our people.",
+            "decline": "*sheathes the blade with contempt* I thought as much."
+        }
+    }
+}

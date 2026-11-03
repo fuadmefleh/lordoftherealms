@@ -15,8 +15,17 @@ Object.assign(Cartography, {
         const accuracy = map.accuracy || 0.5;
         let tilesRevealed = 0;
 
+        // Charted maps (drawn from a draft, charting.js): exactly the tiles charted
+        if (map.charted && Array.isArray(map.tiles)) {
+            for (const t of map.tiles) {
+                const tile = world.getTile(t.q, t.r);
+                if (!tile || tile.explored) continue;
+                tile.explored = true;
+                tilesRevealed++;
+            }
+        }
         // Kingdom maps: reveal all kingdom territory tiles
-        if (map.type === 'kingdom' && map.tiles && map.tiles.length > 0) {
+        else if (map.type === 'kingdom' && map.tiles && map.tiles.length > 0) {
             for (const t of map.tiles) {
                 const tile = world.getTile(t.q, t.r);
                 if (!tile) continue;

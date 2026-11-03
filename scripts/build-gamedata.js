@@ -22,7 +22,7 @@ const topLevel = [
     'kingdomAI', 'kingdoms', 'market', 'military', 'npcLords', 'objects',
     'peoples', 'playerEconomy', 'quests', 'relationships', 'religion',
     'ships', 'tavern', 'technology', 'terrain', 'titles', 'units', 'worldEvents',
-    'gossip', 'traits', 'petitions', 'companions', 'delves',
+    'gossip', 'streetCrime', 'traits', 'petitions', 'companions', 'delves',
     'underworld', 'throne', 'holdings', 'rivals', 'ailments', 'upbringing',
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
     'patronage',
@@ -63,7 +63,12 @@ const topLevel = [
     'afterlife',
     'scenarios',
     'annals',
-    'coalitions'
+    'coalitions',
+    'rivalHouses',
+    'rivalVoice',
+    'realmIntel',
+    'containers',
+    'townProps'
 ];
 
 const merged = {};

@@ -175,6 +175,7 @@ export const Afterlife = {
         player.travelParty = [];
         player.path = null;
         player.queuedPath = null;
+        player.autoChart = null;
         player.travelDestination = null;
         player.isMoving = false;
         player.boardedShip = null;

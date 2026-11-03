@@ -17,6 +17,7 @@ import { Housing } from '../systems/housing.js';
 import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
+import { DataLoader } from '../core/dataLoader.js';
 import { Companions } from '../systems/companions.js';
 import { Underworld } from '../systems/underworld.js';
 import { Ailments } from '../systems/ailments.js';
@@ -372,7 +373,11 @@ export const PlayerEffects = {
         const fx = this.moodEffects(player);
         // ...and a hotel valet's grooming, for the day it was bought (systems/hospitality.js buyService)
         const valet = player && player.valet && typeof player.valet.charisma === 'number' ? player.valet.charisma : 0;
-        return (fx.charismaBonus || 0) + (fx.charismaPenalty || 0) + valet;
+        // ...and smelly clothes, which people notice however recently you bathed (player/core/needs.js)
+        const C = DataLoader._gamedata && DataLoader._gamedata.hospitality && DataLoader._gamedata.hospitality.clothes;
+        const smell = player && player.needsEnabled && player.clothesState && player.clothesState().smelly
+            ? (C && typeof C.smellyCharisma === 'number' ? C.smellyCharisma : -1) : 0;
+        return (fx.charismaBonus || 0) + (fx.charismaPenalty || 0) + valet + smell;
     },
 
     /** Fractional trade price advantage from mood: ±3% per point of charisma. */

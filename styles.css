@@ -4586,6 +4586,10 @@ body {
 .hud-bb-divider { width: 1px; align-self: stretch; background: rgba(245, 197, 66, 0.15); }
 .hud-bb-datecol { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
 .hud-bb-dateline { display: flex; align-items: center; gap: 6px; }
+/* The date opens the Calendar (ui/actionMenu/calendar.js) */
+.hud-bb-datebtn { background: none; border: none; padding: 0; margin: 0; cursor: pointer; text-align: left; color: inherit; font: inherit; border-radius: 4px; }
+.hud-bb-datebtn:hover .hud-bb-date, .hud-bb-datebtn:focus-visible .hud-bb-date { color: var(--gold); text-decoration: underline dotted; text-underline-offset: 3px; }
+.hud-bb-daycount { font-size: 10px; color: var(--text-secondary); letter-spacing: 0.3px; margin-top: -3px; white-space: nowrap; }
 .hud-bb-sun { font-size: 14px; }
 .hud-bb-date { font-family: var(--font-display); font-size: 12px; font-weight: 600; color: var(--text-primary); letter-spacing: 0.5px; }
 .hud-mood { display: flex; align-items: center; gap: 6px; }
@@ -4653,6 +4657,13 @@ body {
 .hud-end-turn:hover { border-color: var(--hud-teal); box-shadow: 0 0 20px rgba(107, 214, 207, 0.35); transform: translateY(-1px); }
 .hud-end-turn:active { transform: translateY(0); }
 .hud-end-turn-icon { font-size: 13px; }
+/* Out of action points: the button breathes, nothing left but to rest (ui/ui/hud.js _markDaySpent) */
+.hud-end-turn--spent { animation: hudEndTurnSpent 1.6s ease-in-out infinite; border-color: var(--gold); }
+@keyframes hudEndTurnSpent {
+    0%, 100% { box-shadow: 0 0 0 rgba(245, 197, 66, 0); }
+    50% { box-shadow: 0 0 18px rgba(245, 197, 66, 0.65); }
+}
+@media (prefers-reduced-motion: reduce) { .hud-end-turn--spent { animation: none; box-shadow: 0 0 12px rgba(245, 197, 66, 0.55); } }
 
 /* Activity log — a strip along the bar's foot (toggle + the newest entries
    inline); the full log expands upward above the bar */

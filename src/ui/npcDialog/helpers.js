@@ -98,6 +98,10 @@ export function _getGreeting(npc) {
     const type = npc.type || 'villager';
     const mem = _mem(npc);
 
+    // Someone who saw you beat or kill someone in the street, or heard of it
+    // (systems/streetCrime.js; worked out in _buildConversation)
+    if (dialogState._street && dialogState._street.text) return dialogState._street.text;
+
     // Someone who saw you harm their kin or friend remembers it
     const grudge = NpcDisposition.grudgeLine(npc);
     if (grudge && mem.disposition < 40) return grudge;

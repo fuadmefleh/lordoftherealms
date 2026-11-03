@@ -1,7 +1,7 @@
 // UI — hud methods.
 import { UI } from './core.js';
 import { Seasons } from '../../world/seasons.js';
-import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures } from './_imports.js';
+import { Utils, ActionMenu, Religion, Economy, Terrain, PlayerEconomy, PlayerMilitary, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, InnerMapCharacters, WEATHER_TYPES, Treasures, InnerMap } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -12,6 +12,7 @@ import { updateFirstStepsCard } from '../firstStepsCard.js';
 import { uiZoom } from '../uiScale.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { updatePrestigeChip } from '../prestigeChip.js';
+import { Calendar } from '../../systems/calendar.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -54,6 +55,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
         // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)
         document.getElementById('btnReckoning')?.addEventListener('click', () => ActionMenu.showReckoning(this.game, 'last'));
+        document.getElementById('btnCalendar')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
+        document.getElementById('hudBottomDateBtn')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');
@@ -214,10 +217,15 @@ Object.assign(UI.prototype, {
             simsEndDay.addEventListener('click', () => btnEndTurn.click());
         }
 
-        // Keyboard shortcuts: Space = toggle pause, 1/2/3 = speeds
+        // Keyboard shortcuts: Space = toggle pause, 1/2/3 = speeds, Enter = end the day
         window.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
             if (e.target.isContentEditable) return;
+            if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.repeat && this._canEndDayByKey()) {
+                e.preventDefault();
+                if (btnEndTurn) btnEndTurn.click();
+                return;
+            }
             if (e.code === 'Space' && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
                 setSpeed(this.game.timeSpeed === 0 ? 1 : 0);
@@ -304,7 +312,31 @@ Object.assign(UI.prototype, {
     /**
      * Update top bar stats display and bottom HUD needs bars
      */
+    /**
+     * Enter ends the day only on the open map: not with a panel, dialog or
+     * menu open (Enter may be theirs), not in a town's inner map, not mid-turn.
+     */
+    _canEndDayByKey() {
+        const g = this.game;
+        if (!g || !g.player || g.isProcessingTurn || g.player.isMoving) return false;
+        if (typeof document === 'undefined') return false;
+        if (document.getElementById('customPanel')) return false;
+        if (document.getElementById('actionMenu') || document.querySelector('.modal-panel:not(.hidden), [role="dialog"]')) return false;
+        if (InnerMap && InnerMap.active) return false;
+        return true;
+    },
+
+    /** The End Turn button glows once the day's action points are spent: nothing left but to rest. */
+    _markDaySpent(player) {
+        const btn = document.getElementById('simsEndDay');
+        if (!btn) return;
+        const spent = !!player && (player.actionPoints || 0) < 1 && !player.isMoving;
+        btn.classList.toggle('hud-end-turn--spent', spent);
+        btn.title = spent ? 'Out of action points: end the day (Enter)' : 'End the day (Enter)';
+    },
+
     updateStats(player, world) {
+        this._markDaySpent(player);
         // Character traits gained or lost since the last refresh
         for (const n of Traits.drainNotices(player)) {
             this.showNotification(n.title, n.text, n.kind === 'gained' ? 'success' : 'warning');
@@ -464,6 +496,14 @@ Object.assign(UI.prototype, {
             const s = `Day ${dayInSeason} of ${world.season}, Year ${world.year}`;
             if (bottomDate.textContent !== s) bottomDate.textContent = s;
         }
+        // Day of the year and days played (systems/calendar.js; the Calendar panel has the rest)
+        const dayCount = document.getElementById('hudBottomDayCount');
+        if (dayCount) {
+            const cal = Calendar.date(world);
+            const played = Calendar.daysPlayed(world);
+            const s = `Day ${cal.dayOfYear} of ${cal.daysInYear} · ${played.toLocaleString()} day${played === 1 ? '' : 's'} played`;
+            if (dayCount.textContent !== s) dayCount.textContent = s;
+        }
     },
 
     /**
@@ -495,7 +535,15 @@ Object.assign(UI.prototype, {
                 this._setNeedBar(barId, null, pct, '');
                 const bar = document.getElementById(barId);
                 const cell = bar && bar.closest ? bar.closest('.hud-need') : null;
-                if (cell) cell.title = `${need.charAt(0).toUpperCase()}${need.slice(1)}: ${pct}%`;
+                let tip = `${need.charAt(0).toUpperCase()}${need.slice(1)}: ${pct}%`;
+                // Clothes cap hygiene: say so on the bar (player/core/needs.js)
+                if (need === 'hygiene' && player.clothesState) {
+                    const cs = player.clothesState();
+                    tip += `
+Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
+                    if (cs.capped) tip += ` — you can't get cleaner than ${cs.cap}% until they're washed`;
+                }
+                if (cell) cell.title = tip;
             }
         }
 

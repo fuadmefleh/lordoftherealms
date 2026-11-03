@@ -23,6 +23,8 @@ import { CourtLetters } from '../../systems/courtLetters.js';
 import { Couriers } from '../../systems/couriers.js';
 import { Mail } from '../../systems/mail.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
+import { RivalHouses } from '../../systems/rivalHouses.js';
+import { PanelRefresh } from '../panelRefresh.js';
 import { Fame } from '../../systems/fame.js';
 import { Demands } from '../../systems/demands.js';
 import { Sieges } from '../../systems/sieges.js';
@@ -164,6 +166,9 @@ export function onPlayerArrived() {
             'info'
         );
     }
+
+    // A standing order to chart the area walks on from here (ui/game/autoChart.js)
+    if (this.player.autoChart) this._autoChartStep();
 }
 
 /**
@@ -190,6 +195,8 @@ export function endDay() {
 
     this.isProcessingTurn = true;
     document.body.style.cursor = 'wait';
+    // The panel open as the day ends redraws with the new day's values (ui/panelRefresh.js)
+    const panelBefore = PanelRefresh.snapshot(this.ui);
 
     // Use setTimeout to allow UI to update (show loading state) before heavy processing
     setTimeout(() => {
@@ -518,6 +525,9 @@ export function endDay() {
                     this.ui.showNotification('⚔️ Rival House',
                         `${houseResult.rival.name} covets your holdings, biding its time.`, 'warning');
                 }
+
+                // Rival Houses in the flesh — their heads ride, trade, sit at court, age and die (systems/rivalHouses.js)
+                for (const n of RivalHouses.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Rival schemes — plots revealed, plots striking
                 const plots = Schemes.processDaily(this.player, this.world);
@@ -1278,6 +1288,9 @@ export function endDay() {
             if (heldScan) this.world.releaseSettlementScan();
             this.isProcessingTurn = false;
             document.body.style.cursor = 'default';
+            PanelRefresh.refreshAfterDay(this.ui, panelBefore);
+            // A standing order to chart the area goes on in the morning (ui/game/autoChart.js)
+            if (this.player && this.player.autoChart && !this.player.isMoving) setTimeout(() => this._autoChartStep(), 0);
         }
     }, 50);
 }

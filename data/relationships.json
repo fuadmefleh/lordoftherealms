@@ -257,6 +257,7 @@
         "inheritanceReputationPercent": 0.3,
         "startingAge": 16,
         "childbirthChancePerYear": 0.25,
+    "heirOwnChildChance": 0.35,
         "maxChildren": 6,
         "motherMinAge": 18,
         "motherMaxAge": 42,

@@ -134,7 +134,7 @@ Object.assign(InnerMap, {
     // NAMED BUILDING TYPES — buildings the player can visit
     // ══════════════════════════════════════════════
     BUILDING_TYPES: {
-        town_hall:    { name: 'Town Hall',     icon: '🏛️', sprite: 'buildings/walledCity.png',       actions: ['talk_official', 'view_notices', 'pay_taxes'] },
+        town_hall:    { name: 'Town Hall',     icon: '🏛️', sprite: 'buildings/walledCity.png',       actions: ['talk_official', 'view_notices', 'pay_taxes', 'treasury', 'public_works', 'estates'] },
         marketplace:  { name: 'Marketplace',   icon: '🏪', sprite: 'buildings/marketplace00.png',    actions: ['trade', 'browse_goods', 'talk_merchant'] },
         tavern:       { name: 'Tavern',        icon: '🍺', sprite: 'buildings/inn.png',              actions: ['tavern', 'rest', 'buy_drink', 'talk_locals', 'recruit'] },
         blacksmith:   { name: 'Blacksmith',    icon: '⚒️', sprite: 'buildings/smithy.png',           actions: ['buy_weapons', 'buy_tools', 'repair'] },
@@ -156,6 +156,19 @@ Object.assign(InnerMap, {
         inn:          { name: 'Inn',           icon: '🏨', sprite: 'buildings/inn.png',              actions: ['lodging', 'talk_locals'] },
         hotel:        { name: 'Grand Hotel',   icon: '🏰', sprite: 'buildings/village00.png',         actions: ['lodging'] },
         roadhouse:    { name: 'Roadhouse',     icon: '🏚️', sprite: 'buildings/inn.png',              actions: ['lodging', 'talk_locals'] },
+        // Houses of the town's trades and offices: each opens the town's own panel for
+        // its business (ui/actionMenu), offered only where that business is found here
+        guildhall:    { name: 'Guildhall',     icon: '⚒️', sprite: 'buildings/marketplace00.png',    actions: ['guildhall', 'odd_jobs', 'talk_locals'] },
+        bank:         { name: 'Counting House', icon: '🏦', sprite: 'buildings/marketplace00.png',   actions: ['bank', 'found_bank', 'underwriter', 'bourse'] },
+        post_house:   { name: 'Post House',    icon: '📮', sprite: 'buildings/barnWood00.png',        actions: ['post_house', 'talk_locals'] },
+        apothecary:   { name: 'Apothecary',    icon: '⚗️', sprite: 'buildings/alchemistsLab00.png',   actions: ['seek_physician', 'buy_food', 'talk_locals'] },
+        bathhouse:    { name: 'Bathhouse',     icon: '🛁', sprite: 'buildings/cookhouse00.png',       actions: ['bathe', 'wash_clothes', 'talk_locals'] },
+        library:      { name: 'Library',       icon: '📚', sprite: 'buildings/scriptorium00.png',     actions: ['cartography', 'talk_locals'] },
+        bakery:       { name: 'Bakery',        icon: '🍞', sprite: 'buildings/cookhouse00.png',       actions: ['buy_food', 'odd_jobs', 'talk_locals'] },
+        mill:         { name: 'Mill',          icon: '🌾', sprite: 'buildings/barn00.png',            actions: ['buy_food', 'odd_jobs'] },
+        jail:         { name: 'Gaol',          icon: '⛓️', sprite: 'buildings/barracks00.png',        actions: ['report_crime', 'view_notices', 'talk_guard'] },
+        mint:         { name: 'Mint',          icon: '💰', sprite: 'buildings/barracks00.png',        actions: ['mint', 'treasury'] },
+        chapel:       { name: 'Chapel',        icon: '⛪', sprite: 'buildings/church00.png',          actions: ['pray', 'donate', 'talk_priest'] },
     },
 
     // ══════════════════════════════════════════════
@@ -202,23 +215,23 @@ Object.assign(InnerMap, {
     SETTLEMENT_BUILDINGS: {
         village: {
             required: ['tavern', 'well'],
-            optional: ['house', 'house', 'house', 'barn', 'granary', 'stable', 'farm', 'farm'],
-            maxBuildings: 7
+            optional: ['house', 'house', 'house', 'chapel', 'mill', 'barn', 'granary', 'stable', 'farm', 'farm'],
+            maxBuildings: 8
         },
         town: {
-            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'granary'],
-            optional: ['house', 'house', 'house', 'house', 'barn', 'stable', 'warehouse', 'guard_tower', 'manor', 'farm', 'farm', 'farm'],
-            maxBuildings: 14
+            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'granary', 'guildhall', 'post_house'],
+            optional: ['house', 'house', 'house', 'house', 'apothecary', 'bakery', 'bathhouse', 'mill', 'barn', 'stable', 'warehouse', 'guard_tower', 'manor', 'farm', 'farm', 'farm'],
+            maxBuildings: 17
         },
         city: {
-            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'barracks', 'granary', 'warehouse'],
-            optional: ['house', 'house', 'house', 'house', 'house', 'temple', 'stable', 'guard_tower', 'manor', 'barn', 'farm', 'farm', 'farm'],
-            maxBuildings: 18
+            required: ['marketplace', 'tavern', 'blacksmith', 'church', 'barracks', 'granary', 'warehouse', 'guildhall', 'post_house', 'apothecary', 'jail'],
+            optional: ['house', 'house', 'house', 'house', 'house', 'bank', 'library', 'bathhouse', 'bakery', 'temple', 'stable', 'guard_tower', 'manor', 'mill', 'barn', 'farm', 'farm', 'farm'],
+            maxBuildings: 24
         },
         capital: {
-            required: ['town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'temple', 'barracks', 'granary', 'warehouse'],
-            optional: ['house', 'house', 'house', 'house', 'house', 'house', 'stable', 'guard_tower', 'guard_tower', 'manor', 'manor', 'barn', 'farm', 'farm', 'farm', 'farm'],
-            maxBuildings: 22
+            required: ['town_hall', 'marketplace', 'tavern', 'blacksmith', 'church', 'temple', 'barracks', 'granary', 'warehouse', 'guildhall', 'bank', 'mint', 'post_house', 'jail'],
+            optional: ['house', 'house', 'house', 'house', 'house', 'house', 'library', 'bathhouse', 'apothecary', 'bakery', 'stable', 'guard_tower', 'guard_tower', 'manor', 'manor', 'mill', 'barn', 'farm', 'farm', 'farm', 'farm'],
+            maxBuildings: 30
         }
     },
 

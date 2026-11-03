@@ -29,6 +29,7 @@ import {
 import { Devotion } from '../../systems/devotion.js';
 import { Books } from '../../systems/books.js';
 import { DevotionPanel } from '../actionMenu/devotion.js';
+import { PlayerActions } from '../../player/playerActions.js';
 
 /** Building types whose altar is a temple's (place 'temple' for devotion; a temple's shelf holds rare books). */
 const TEMPLE_BUILDINGS = ['temple', 'church', 'cathedral', 'monastery', 'shrine', 'chapel'];
@@ -53,6 +54,13 @@ function _furnitureDevotion(game, kind) {
     if (res.intelligence) bits.push(`intelligence +${res.intelligence}`);
     const lead = kind === 'meditate' ? 'You meditate in silence.' : 'You offer a prayer.';
     return `${lead} ${bits.join(', ')}. ${res.notes[0] || ''}`.trim();
+}
+
+/** Whether the town the player stands in offers a world action (no guild, no mint, no counter to serve you). */
+function _townOffers(game, type) {
+    const tile = _settlementTile(game);
+    if (!tile) return false;
+    return (PlayerActions.getAvailableActions(game.player, tile, game.world) || []).some(a => a.type === type);
 }
 
 export const OBJECT_ACTIONS = {
@@ -264,6 +272,13 @@ export const OBJECT_ACTIONS = {
         timeSkip: 0,
     },
     // ──────────── STORAGE ────────────
+    look_inside: {
+        label: 'Look Inside',
+        icon: '🔍',
+        desc: 'See what it holds, and take (or steal) it',
+        category: 'storage',
+        modal: 'contents',
+    },
     store: {
         label: 'Store Items',
         icon: '📦',
@@ -462,6 +477,64 @@ export const OBJECT_ACTIONS = {
         desc: 'Give gold to the faithful and the poor',
         category: 'service',
         service: 'donate',
+        condition: (game) => !!_settlementTile(game),
+        conditionFail: 'Only available in a settlement.',
+    },
+    // ──────────── THE TOWN'S TRADES AND OFFICES ────────────
+    public_bath: {
+        label: 'Hot Bath (2g)',
+        icon: '🛁',
+        desc: "An hour in the bathhouse's hot water",
+        category: 'hygiene',
+        effects: { hygiene: 60, comfort: 15, energy: 5 },
+        cost: 2,
+        message: 'You soak in the hot water until your fingers wrinkle.',
+        timeSkip: 1,
+        condition: (game) => (game.player.gold || 0) >= 2,
+        conditionFail: 'A bath is 2 gold.',
+    },
+    guild_business: {
+        label: 'Guild Business',
+        icon: '⚒️',
+        desc: 'Join, rise, contracts, loans and elections',
+        category: 'service',
+        service: 'guildhall',
+        condition: (game) => _townOffers(game, 'guildhall'),
+        conditionFail: 'No guild keeps its books here.',
+    },
+    banking: {
+        label: 'Banking',
+        icon: '🏦',
+        desc: 'Deposits, loans, bonds and bills',
+        category: 'service',
+        service: 'bank',
+        condition: (game) => _townOffers(game, 'bank'),
+        conditionFail: 'No banking house keeps a desk in this town.',
+    },
+    post_letters: {
+        label: 'Letters & Post',
+        icon: '📮',
+        desc: 'Send a letter; the courier houses',
+        category: 'service',
+        service: 'post_house',
+        condition: (game) => _townOffers(game, 'post_house'),
+        conditionFail: 'No courier keeps a station here.',
+    },
+    mint_business: {
+        label: 'The Mint',
+        icon: '💰',
+        desc: 'Sell bullion; the coin of every realm',
+        category: 'service',
+        service: 'mint',
+        condition: (game) => _townOffers(game, 'mint'),
+        conditionFail: 'The mint is not striking for strangers.',
+    },
+    study_maps: {
+        label: 'Maps & Charts',
+        icon: '🗺️',
+        desc: 'Study, buy and draw maps',
+        category: 'service',
+        service: 'cartography',
         condition: (game) => !!_settlementTile(game),
         conditionFail: 'Only available in a settlement.',
     },

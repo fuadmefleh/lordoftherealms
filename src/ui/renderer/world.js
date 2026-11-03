@@ -84,6 +84,13 @@ Object.assign(Renderer.prototype, {
         // Render path preview
         if (this.player && this.player.path) {
             this.renderPath(ctx, this.player.path);
+        } else if (this.player && this.player.queuedPath) {
+            // Camped for the night: the rest of the way, taken up in the morning
+            this.renderPath(ctx, [{ q: this.player.q, r: this.player.r }, ...this.player.queuedPath.slice(this.player.queuedPathIndex || 0)]);
+        }
+        // Where a right-click would take you, with the nights' camps (ui/game/gameLoop.js _updateHoverRoute)
+        if (this.hoverRoute && this.player && !this.player.isMoving) {
+            this.renderRoutePreview(ctx, this.hoverRoute);
         }
 
         // Render reachable hexes
@@ -142,7 +149,7 @@ Object.assign(Renderer.prototype, {
 
         // Hovered tile coordinates next to the cursor
         if (this.hoveredHex) {
-            drawHoverCoords(ctx, this.canvas, this.mouseX, this.mouseY, this.hoveredHex.q, this.hoveredHex.r);
+            drawHoverCoords(ctx, this.canvas, this.mouseX, this.mouseY, this.hoveredHex.q, this.hoveredHex.r, this.hoverRouteLabel || '');
         }
 
         } finally {

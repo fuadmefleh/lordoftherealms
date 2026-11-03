@@ -1,6 +1,17 @@
 {
     "_doc": "Hospitality (systems/hospitality.js): guest houses (bed & breakfast), inns, grand hotels and roadside roadhouses (the motels of the realm). NPC houses are a hash of each town (no RNG) and roadhouses a hash of the roads; the player builds their own as properties (data/playerEconomy.json GUEST_HOUSE, INN, HOTEL, ROADHOUSE). Guests split among a town's houses by stars, price and reputation. Rooms set the night's rest (rest type 'inn'), the morning's comfort, cleanliness and health; services are paid on the spot.",
-    "config": {
+    "clothes": {
+    "_comment": "Clothes freshness (player.clothesFreshness 0-100, src/player/core/needs.js). Clothes lose dailyWear a day plus soilShare per point of hygiene lost; below freshAt they cap hygiene (capFloor at 0, rising with the square), so a bath alone cannot make you clean. Below smellyBelow they smell: people notice. Washed by a service with \"clothes\" (laundry, valet) or by hand (washByHand) at a river, the shore or a town well.",
+    "dailyWear": 20,
+    "soilShare": 0.4,
+    "freshAt": 50,
+    "capFloor": 15,
+    "smellyBelow": 30,
+    "washByHand": 80,
+    "washByHandAP": 3,
+    "smellyCharisma": -1
+  },
+  "config": {
         "enabled": true,
         "weekDays": 7,
         "firstDay": 2,
@@ -51,9 +62,9 @@
             "packed_lunch": { "name": "A packed lunch for the road", "icon": "🥪", "price": 3, "item": "bread", "qty": 2 },
             "bath": { "name": "A hot bath", "icon": "🛁", "price": 6, "needs": { "hygiene": 60, "comfort": 8 } },
             "bathhouse": { "name": "The bathhouse and steam room", "icon": "♨️", "price": 14, "needs": { "hygiene": 80, "comfort": 20, "fun": 10 }, "health": 4 },
-            "laundry": { "name": "Have your clothes washed", "icon": "🧺", "price": 4, "needs": { "hygiene": 25, "comfort": 6 } },
+            "laundry": { "name": "Have your clothes washed", "icon": "🧺", "price": 4, "clothes": 100, "needs": { "hygiene": 25, "comfort": 6 } },
             "fine_dining": { "name": "Dine in the grand hall", "icon": "🍷", "price": 22, "needs": { "hunger": 55, "fun": 20, "social": 25, "comfort": 12 } },
-            "valet": { "name": "A valet: brushed, shaved and pressed", "icon": "🎩", "price": 10, "needs": { "hygiene": 30, "comfort": 10 }, "charisma": 1 },
+            "valet": { "name": "A valet: brushed, shaved and pressed", "icon": "🎩", "price": 10, "clothes": 70, "needs": { "hygiene": 30, "comfort": 10 }, "charisma": 1 },
             "stabling": { "name": "Stable and feed your horse", "icon": "🐴", "price": 4, "morning": true, "needsMount": true, "movement": 1 }
         },
         "starsComfort": 4,

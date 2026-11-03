@@ -10,6 +10,7 @@ import { NpcTasks } from '../../systems/npcTasks.js';
 import { NpcKnowledge } from '../../systems/npcKnowledge.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Fame } from '../../systems/fame.js';
+import { StreetCrime } from '../../systems/streetCrime.js';
 import { _suspectChoices } from './suspect.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
@@ -26,6 +27,13 @@ export function _buildConversation(npc) {
     // A newly titled player is congratulated (and liked a little more)
     const titleNews = NpcDisposition.notePlayerTitle(npc, _getPlayerTitle());
     mem.timesSpoken++;
+
+    // What they saw of the player's violence in the street, or have heard of it
+    const gw = g0 && g0.world;
+    dialogState._street = g0 && g0.player
+        ? StreetCrime.dialogFor(npc, g0.player, gw, { key: `${g0.player.q},${g0.player.r}`, day: (gw && gw.day) || 0 })
+        : null;
+    const street = dialogState._street;
 
     let greeting = _getGreeting(npc);
     // A task done for this NPC (systems/quests.js) is remembered warmly
@@ -51,13 +59,13 @@ export function _buildConversation(npc) {
     // A favour's coin long overdue (systems/npcKnowledge.js → mem.owed)
     const dun = NpcKnowledge.dunning(mem, (dialogState._game && dialogState._game.world && dialogState._game.world.day) || 0);
     if (dun) greeting = `${dun} ` + greeting;
-    if (titleNews.changed && !mem.grudge && !mem.threatened) {
+    if (titleNews.changed && !mem.grudge && !mem.threatened && !street) {
         greeting = `I hear you're ${titleNews.title} now — congratulations! ` + greeting;
     }
     // Townsfolk remember the player across the years (systems/townsfolk.js)
     const world = dialogState._game && dialogState._game.world;
     if (world && !mem.threatened) {
-        const reunion = Townsfolk.reunionLine(npc, world);
+        const reunion = street && street.kind === 'witness' ? null : Townsfolk.reunionLine(npc, world);
         if (reunion) greeting = reunion + ' ' + greeting;
         Townsfolk.noteSeen(npc, world.day || 1);
     }
@@ -234,13 +242,32 @@ export function _renderChoices(box) {
     const mem = _mem(dialogState._npc);
     const choices = [];
 
+    // The watch: a guard who knows of your violence in the street moves to arrest you
+    const street = dialogState._street;
+    const game0 = dialogState._game;
+    if (street && street.arrest && game0 && game0.player && !game0.player.jailState) {
+        const day0 = (game0.world && game0.world.day) || 0;
+        const inc = StreetCrime.pendingAt(game0.player, `${game0.player.q},${game0.player.r}`, day0);
+        if (inc) {
+            const open = () => {
+                const guard = dialogState._npc;
+                NpcDialog.close();
+                ActionMenu.showScene(game0, 'street_watch', { incidentId: inc.id, guardId: guard.id, guardName: guard.name || 'The guard' });
+            };
+            choices.push({ group: 'task', icon: '⛓️', label: inc.k === 'murder' ? 'I\'ll come quietly.' : 'What do you want of me?', cls: 'npc-dialog-choice-urgent', tooltip: 'Answer to the watch: give yourself up, pay, run, or fight.', onPick: open });
+            choices.push({ icon: '👋', label: 'Farewell.', action: 'farewell', tooltip: 'Walk away. The guard will not let it rest.' });
+            _renderChoiceList(choicesEl, choices, { hint: 'The watch has you.' });
+            return;
+        }
+    }
+
     // A terrified or hateful NPC won't talk — only amends (a gift) or leaving
-    if ((mem.threatened || mem.grudge) && mem.disposition < 15) {
+    if (((mem.threatened || mem.grudge) && mem.disposition < 15) || StreetCrime.refusesTalk(dialogState._npc)) {
         if (dialogState._game?.player?.gold > 0 || _hasGiftableInventory()) {
             choices.push({ icon: '🎁', label: 'Let me make amends.', action: 'give_gift', tooltip: 'Gifts are the only way back into their good graces.' });
         }
         choices.push({ icon: '👋', label: 'Farewell.', action: 'farewell' });
-        _renderChoiceList(choicesEl, choices, { hint: 'They want nothing to do with you.' });
+        _renderChoiceList(choicesEl, choices, { hint: (StreetCrime.config().lines || {}).refuseTalk || 'They want nothing to do with you.' });
         return;
     }
 

@@ -13,4 +13,6 @@ export const dialogState = {
     _overlay: null,
     _typewriteTimer: null,
     _typewriteComplete: false,
+    // What this NPC saw or heard of the player's violence (systems/streetCrime.js dialogFor)
+    _street: null,
 };

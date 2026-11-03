@@ -11,11 +11,12 @@
  * @param {number} mouseY - cursor Y in canvas pixels
  * @param {number} q
  * @param {number} r
+ * @param {string} [extra] - more to say after the coordinates (the world map's travel time)
  */
-export function drawHoverCoords(ctx, canvas, mouseX, mouseY, q, r) {
+export function drawHoverCoords(ctx, canvas, mouseX, mouseY, q, r, extra = '') {
     if (!Number.isFinite(mouseX) || !Number.isFinite(mouseY)) return;
 
-    const text = `${q}, ${r}`;
+    const text = extra ? `${q}, ${r} · ${extra}` : `${q}, ${r}`;
     ctx.save();
     ctx.font = '600 12px "Inter", sans-serif';
     ctx.textAlign = 'left';

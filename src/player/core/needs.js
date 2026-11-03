@@ -3,6 +3,9 @@
 // Mixed into the Player class via player/core/index.js.
 // All methods use `this` to reference the player instance.
 // ============================================
+import { DataLoader } from '../../core/dataLoader.js';
+import { Hex } from '../../core/hex.js';
+import { Terrain } from '../../world/terrain.js';
 
 /** Waking hours in one day — the inner-map day and the world-map day share it. */
 export const WAKING_HOURS = 16;
@@ -32,6 +35,32 @@ export const MEAL_HUNGER = {
     fruit: 15, honey: 15, game_meat: 15, crabs: 12, berries: 10, mushrooms: 10, truffles: 12,
     cactus_fruit: 10, seaweed: 8,
 };
+
+/**
+ * Clothes: how fresh they are (player.clothesFreshness, 0..100). They wear
+ * every day and soil with every bit of hygiene lost, and dirty clothes cap
+ * hygiene: a bath can't make you smell clean in a shirt you've worn for a
+ * fortnight. Washed by the laundry at an inn, B&B or hotel, a valet, or by
+ * hand at a river, the shore or a town's well. data/hospitality.json → clothes.
+ */
+export const CLOTHES_DEFAULTS = {
+    dailyWear: 20,       // freshness lost a day just wearing them (smelly in about three days)
+    soilShare: 0.4,      // freshness lost per point of hygiene lost
+    freshAt: 60,         // at or above this, hygiene is uncapped
+    capFloor: 25,        // hygiene cap with filthy clothes (freshness 0)
+    levels: [            // labels, highest first
+        { min: 75, label: 'Fresh', icon: '👕' },
+        { min: 50, label: 'Worn', icon: '👕' },
+        { min: 30, label: 'Grubby', icon: '🧦' },
+        { min: 0, label: 'Smelly', icon: '🤢' },
+    ],
+};
+
+function _clothesConfig() {
+    const h = DataLoader._gamedata && DataLoader._gamedata.hospitality;
+    const c = h && h.clothes;
+    return c && typeof c === 'object' ? { ...CLOTHES_DEFAULTS, ...c } : CLOTHES_DEFAULTS;
+}
 
 export const PlayerNeedsMethods = {
     /**
@@ -86,6 +115,9 @@ export const PlayerNeedsMethods = {
         for (const [need, rate] of Object.entries(rates)) {
             this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + rate));
         }
+        // An hour's wear on the clothes, and the cap they put on hygiene
+        this.soilClothes(_clothesConfig().dailyWear / WAKING_HOURS - Math.min(0, rates.hygiene) * _clothesConfig().soilShare);
+        this.needs.hygiene = Math.min(this.needs.hygiene, this.hygieneCap());
     },
 
     /**
@@ -102,6 +134,8 @@ export const PlayerNeedsMethods = {
         for (const [need, amount] of Object.entries(WORLD_DAY_DECAY)) {
             this.modifyNeed(need, -amount * fraction);
         }
+        this.soilClothes(_clothesConfig().dailyWear * fraction);
+        this.modifyNeed('hygiene', 0); // re-apply the clothes' cap
         return fraction;
     },
 
@@ -132,6 +166,73 @@ export const PlayerNeedsMethods = {
     modifyNeed(need, amount) {
         if (!this.needs || this.needs[need] == null) return;
         this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + amount));
+        if (need === 'hygiene') {
+            // Getting dirty dirties the clothes; dirty clothes cap how clean you can be
+            if (amount < 0) this.soilClothes(-amount * _clothesConfig().soilShare);
+            this.needs.hygiene = Math.min(this.needs.hygiene, this.hygieneCap());
+        }
+    },
+
+    /** How fresh the clothes are, 0..100 (old saves: fresh). */
+    getClothesFreshness() {
+        const f = this.clothesFreshness;
+        return typeof f === 'number' && Number.isFinite(f) ? Math.max(0, Math.min(100, f)) : 100;
+    },
+
+    /** Wear and dirt on the clothes. */
+    soilClothes(amount) {
+        if (!this.needsEnabled || !(amount > 0)) return;
+        this.clothesFreshness = Math.max(0, this.getClothesFreshness() - amount);
+    },
+
+    /**
+     * Wash the clothes up to `freshness` (never makes them dirtier).
+     * Returns the freshness gained.
+     */
+    washClothes(freshness = 100) {
+        const before = this.getClothesFreshness();
+        this.clothesFreshness = Math.max(before, Math.min(100, freshness));
+        return this.clothesFreshness - before;
+    },
+
+    /** The highest hygiene the clothes allow: 100 when fresh enough, down to capFloor when filthy. */
+    hygieneCap() {
+        const C = _clothesConfig();
+        const f = this.getClothesFreshness();
+        if (f >= C.freshAt) return 100;
+        return Math.round(C.capFloor + (100 - C.capFloor) * (f / C.freshAt) ** 2);
+    },
+
+    /** Where clothes can be washed by hand here: 'the river', 'the shore', 'the town well', or null. */
+    washWaterHere(world) {
+        const tile = world && world.getTile(this.q, this.r);
+        if (!tile || !tile.terrain || !tile.terrain.passable) return null;
+        if (tile.hasRiver) return 'the river';
+        for (const n of Hex.neighbors(this.q, this.r)) {
+            const nb = world.getTile(n.q, n.r);
+            if (nb && nb.terrain && Terrain.isWaterId(nb.terrain.id)) return 'the shore';
+        }
+        if (tile.settlement) return 'the town well';
+        return null;
+    },
+
+    /** Scrub the clothes by hand at water (the Wash Clothes action). Returns { success, where, gained } or { success: false, reason }. */
+    washClothesByHand(world) {
+        const where = this.washWaterHere(world);
+        if (!where) return { success: false, reason: 'There is no water here to wash in.' };
+        const C = _clothesConfig();
+        const gained = this.washClothes(typeof C.washByHand === 'number' ? C.washByHand : 80);
+        if (!(gained > 0)) return { success: false, reason: 'Your clothes are as clean as scrubbing will get them.' };
+        this.modifyNeed('comfort', -4); // damp clothes
+        return { success: true, where, gained: Math.round(gained) };
+    },
+
+    /** { freshness, label, icon, cap, smelly } for the HUD and panels. */
+    clothesState() {
+        const C = _clothesConfig();
+        const freshness = Math.round(this.getClothesFreshness());
+        const lv = (C.levels || CLOTHES_DEFAULTS.levels).find(l => freshness >= l.min) || CLOTHES_DEFAULTS.levels[3];
+        return { freshness, label: lv.label, icon: lv.icon, cap: this.hygieneCap(), capped: freshness < C.freshAt, smelly: freshness < C.smellyBelow };
     },
 
     /**

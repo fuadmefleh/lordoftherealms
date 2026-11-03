@@ -18,7 +18,8 @@
     "electron": "electron .",
     "dist": "vite build && electron-builder --win",
     "dist:all": "vite build && electron-builder --win --linux --mac",
-    "build:data": "node scripts/build-gamedata.js"
+    "build:data": "node scripts/build-gamedata.js",
+    "compose:buildings": "node scripts/compose-buildings.js"
   },
   "keywords": [
     "strategy",

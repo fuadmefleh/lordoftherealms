@@ -127,7 +127,8 @@ export const Gossip = {
         }
 
         // Detect witnesses within radius
-        const witnessRadius = data.witnessRadius || 5;
+        // (a caller that has already chosen who saw it passes scene.radius)
+        const witnessRadius = (opts.scene && typeof opts.scene.radius === 'number') ? opts.scene.radius : (data.witnessRadius || 5);
         const witnesses = this._detectWitnesses(victim, witnessRadius, opts.scene);
 
         // Track kill stats
@@ -153,7 +154,7 @@ export const Gossip = {
             id: player.gossip.nextRumorId++,
             type: rumorTypeId,
             perpetrator: player.name,
-            victim: { name: victim.name, type: victim.type, icon: victim.icon || '❓' },
+            victim: { name: victim.name, type: victim.type, icon: victim.icon || '❓', ...(victim.uid != null ? { uid: victim.uid } : {}) },
             locationQ: q,
             locationR: r,
             locationName,
@@ -492,15 +493,17 @@ export const Gossip = {
      * Find NPCs within radius of the crime scene.
      * @param {Object} victim - { name, type }
      * @param {number} radius - tiles (Chebyshev distance)
-     * @param {Object} [scene] - { npcs, q, r }: bystanders and the crime's
-     *   inner-map position, passed in by the caller. No scene → no witnesses.
+     * @param {Object} [scene] - { npcs, q, r, victimTestifies? }: bystanders and
+     *   the crime's inner-map position, passed in by the caller. No scene → no
+     *   witnesses. A beaten victim who lived can bear witness themselves
+     *   (victimTestifies).
      */
     _detectWitnesses(victim, radius, scene) {
         if (!scene || !Array.isArray(scene.npcs)) return [];
         const witnesses = [];
         for (const npc of scene.npcs) {
-            // Skip the victim
-            if (npc.name === victim.name && npc.type === victim.type) continue;
+            // Skip the victim (unless they live to tell it)
+            if (npc.name === victim.name && npc.type === victim.type && !scene.victimTestifies) continue;
             const dist = Math.max(Math.abs(npc.q - scene.q), Math.abs(npc.r - scene.r));
             if (dist <= radius) {
                 witnesses.push({ name: npc.name, type: npc.type, id: npc.id, distance: dist });

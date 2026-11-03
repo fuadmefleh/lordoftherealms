@@ -202,7 +202,7 @@ Object.assign(InnerMap, {
         }
     },
 
-    _paintGrassSecondLayer(tiles, worldQ, worldR) {
+    _paintGrassSecondLayer(tiles, worldQ, worldR, townOnly = false) {
         const brush = this._getGrassNineTileBrush();
         const H = this.height;
         const W = this.width;
@@ -226,6 +226,8 @@ Object.assign(InnerMap, {
                 if (!paintable[r][q]) continue;
                 const tile = tiles[r][q];
                 if (tile && tile.isRoad) continue;
+                // On stony or dry land only the town's yards and fields are green
+                if (townOnly && !(tile._townCore || tile._townFade != null)) continue;
                 mask[r][q] = true;
             }
         }
@@ -306,7 +308,7 @@ Object.assign(InnerMap, {
             if (q < MARGIN || q >= W - MARGIN || r < MARGIN || r >= H - MARGIN) return false;
             if (Math.abs(q - centerQ) + Math.abs(r - centerR) <= START_CLEAR) return false;
             const t = tiles[r][q];
-            if (!t || t.isRoad || t.building || t.customBuilding || t.customObject || t.customObjectPart) return false;
+            if (!t || t.isRoad || t.building || t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t._townCore) return false;
             return true;
         };
 
@@ -571,8 +573,12 @@ Object.assign(InnerMap, {
         // Road tiles (isRoad) are excluded from the mask so the brush auto-tiles
         // smooth edges around dirt paths.
         // Only apply on grass-based terrains — skip sand/stone/dry_dirt etc.
-        if (this._getBaseTerrain(terrainId, null) === 'grass') {
+        const groundBase = this._getBaseTerrain(terrainId, null);
+        if (groundBase === 'grass') {
             this._paintGrassSecondLayer(tiles, worldQ, worldR);
+        } else if (worldTile.settlement && ['stone', 'dirt', 'dry_dirt', 'dark_stone'].includes(groundBase)) {
+            // A town in the hills (or on the steppe) still keeps its gardens and greens
+            this._paintGrassSecondLayer(tiles, worldQ, worldR, true);
         }
 
         // --- Procedural water features (ponds) ---
@@ -717,6 +723,9 @@ Object.assign(InnerMap, {
                 const tile = tiles[r][q];
                 // Only consider passable, unoccupied terrain tiles
                 if (!tile.subTerrain.passable) continue;
+                // No wild trees inside a town; fewer the nearer you come to one (world/townPlanner.js)
+                if (tile._townCore || tile._townCleared) continue;
+                if (tile._townFade != null && rng() > Math.pow(tile._townFade, 1.6)) continue;
                 if (tile.building) continue;
                 if (tile.customObject || tile.customObjectPart) continue;
 
@@ -754,7 +763,7 @@ Object.assign(InnerMap, {
                     if (fr <= 0 || fr >= H - 1 || fq <= 0 || fq >= W - 1)
                         { clear = false; break; }
                     const ft = tiles[fr][fq];
-                    if (ft.building || ft.customObject || ft.customObjectPart)
+                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad)
                         { clear = false; break; }
                     // Prevent placement in front of building doors
                     if (doorExclusion.has(`${fq},${fr}`))

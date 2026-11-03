@@ -163,6 +163,10 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="book" /></span>
               <span className="civ-dd-text">The Annals</span>
             </button>
+            <button className="civ-dropdown-item" id="btnCalendar">
+              <span className="civ-dd-icon"><Icon name="calendar" /></span>
+              <span className="civ-dd-text">Calendar</span>
+            </button>
             <button className="civ-dropdown-item" id="btnReckoning">
               <span className="civ-dd-icon"><Icon name="hourglass" /></span>
               <span className="civ-dd-text">Season&apos;s Reckoning</span>

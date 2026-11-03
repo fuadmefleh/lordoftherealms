@@ -294,7 +294,7 @@ export function _checkHostileEncounters() {
         !u.destroyed &&
         !u.sparesPlayer && // a lair's riders under a bargain (systems/outlawLairs.js)
         !RoadEncounters.isSparing(u, day) && // paid off, talked down, driven off
-        WorldUnit.HOSTILE_TYPES.includes(u.type) &&
+        WorldUnit.isHostile(u) &&
         Hex.wrappingDistance(u.q, u.r, this.player.q, this.player.r, this.world.width) <= 1
     );
 

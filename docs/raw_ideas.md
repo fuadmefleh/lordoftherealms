@@ -1,0 +1,1 @@
+When on a ship, you should be able to row to shore to a land tile that has no dock/port, this limits the amount of cargo that can be taken to a place until there is a dock/port built there.

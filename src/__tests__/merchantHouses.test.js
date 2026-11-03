@@ -355,6 +355,30 @@ describe('merchant houses: rivals, shares and ventures', () => {
     });
 });
 
+describe('merchant houses: the long game', () => {
+    it('a rival house stops compounding at its capital cap, so its dividends stay bounded over centuries', () => {
+        const g = setup(4243);
+        const cfg = MerchantHouses.config().rivals;
+        MerchantHouses.ensureRivals(g.player, g.world);
+        const rivals = MerchantHouses.state(g.player).rivals.filter(r => r.status === 'active');
+        expect(rivals.length).toBeGreaterThan(0);
+        let maxDiv = 0;
+        // 300 years of weeks with every rival lucky: the top of the return range, every week
+        const orig = Utils.randFloat;
+        Utils.randFloat = (lo, hi) => hi;
+        try {
+            for (let w = 0; w < 52 * 300; w++) {
+                g.world.day += 7;
+                MerchantHouses.quietWeek(g.player, g.world);
+                for (const r of rivals) maxDiv = Math.max(maxDiv, r.lastDividend || 0);
+            }
+        } finally { Utils.randFloat = orig; }
+        for (const r of rivals) expect(r.capital).toBeLessThanOrEqual(cfg.capitalCap + 1);
+        // A week's dividend is at most the cap's best week, not a fortune
+        expect(maxDiv).toBeLessThanOrEqual(cfg.capitalCap * (cfg.weeklyReturn[1] + 0.01));
+    });
+});
+
 describe('merchant houses: save and load', () => {
     it('keep the company, its posts, contracts and rivals, and the towns\' monopolies', () => {
         const g = founded();

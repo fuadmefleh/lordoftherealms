@@ -249,6 +249,15 @@ export function _checkNeedWarnings() {
         }
     }
 
+    // Clothes gone smelly: a bath won't fix it (player/core/needs.js)
+    const cs = this.player.clothesState ? this.player.clothesState() : null;
+    if (cs && cs.smelly && !warnings.clothes_smelly) {
+        warnings.clothes_smelly = true;
+        this.ui.showNotification('🤢 Your Clothes Smell',
+            `However often you bathe, you can't get cleaner than ${cs.cap}% hygiene in them, and people notice (−1 charisma). Have them laundered at an inn, or scrub them yourself at a river, the shore or a town well.`,
+            'info');
+    }
+
     // Update mood display on portrait
     const mood = this.player.getMood();
     const portraitIcon = document.getElementById('simsPortrait');

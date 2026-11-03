@@ -198,7 +198,8 @@ Object.assign(Relationships, {
         return Relationships.generateChild(player, spouse, world);
     },
 
-    generateChild(player, spouse, world) {
+    /** opts.quiet: no "is born" line in the House Chronicle (children counted in after the fact). */
+    generateChild(player, spouse, world, opts = {}) {
         const culture = spouse.culture || 'Imperial';
         const gender = Utils.random() < 0.5 ? 'male' : 'female';
 
@@ -273,7 +274,7 @@ Object.assign(Relationships, {
 
         if (!player.children) player.children = [];
         player.children.push(child);
-        if (player.house) {
+        if (player.house && !opts.quiet) {
             House._chronicle(player.house, world, `${child.firstName} is born to ${player.name}.`, ['heirs', 'birth']);
         }
 
@@ -441,6 +442,46 @@ Object.assign(Relationships, {
         return npc;
     },
 
+    /**
+     * The children a married heir already has when they take up the mantle:
+     * one chance a year (heirSettings.heirOwnChildChance) for each year of
+     * the marriage in which both were of an age to have them, up to
+     * maxChildren. They join as the new ruler's own children, of the age
+     * they would be now. Without them a line could only go on through the
+     * ruler's late children, and an heir who inherits at fifty has none.
+     */
+    _heirsOwnChildren(player, child, spouse, world) {
+        const sp = child && child.upbringing && child.upbringing.spouse;
+        if (!sp || !world) return [];
+        // A spouse since dead or gone (a townsperson who died before the heir
+        // inherited) still had the children: born of the marriage, not of today
+        const parent = spouse || { culture: player.culture || child.culture, age: player.age };
+        const settings = Relationships._getHeirSettings();
+        const Y = settings.daysPerYear || 120;
+        const chance = typeof settings.heirOwnChildChance === 'number' ? settings.heirOwnChildChance : 0.35;
+        const yearsWed = Math.floor(Math.max(0, (world.day || 0) - (sp.day || 0)) / Y);
+        const born = [];
+        for (let ago = yearsWed; ago >= 1; ago--) {
+            if ((player.children || []).filter(c => !c.isSibling).length >= settings.maxChildren) break;
+            const heirAge = player.age - ago;
+            const spouseAge = (parent.age || player.age) - ago;
+            const mother = player.gender === 'female' ? heirAge : spouseAge;
+            const father = player.gender === 'male' ? heirAge : spouseAge;
+            if (mother < settings.motherMinAge || mother > settings.motherMaxAge) continue;
+            if (father < settings.fatherMinAge || father > (settings.fatherMaxAge ?? Infinity)) continue;
+            if (Utils.random() > chance) continue;
+            const kid = Relationships.generateChild(player, parent, world, { quiet: true });
+            kid.age = ago;
+            kid.birthDay = (world.day || 0) - ago * Y;
+            if (kid.age >= settings.minAgeToPlay && kid.upbringing) kid.upbringing.comeOfAge = true;
+            born.push(kid);
+        }
+        if (born.length && player.house) {
+            House._chronicle(player.house, world, `${player.firstName} comes to the seat with ${born.length === 1 ? 'a child' : `${born.length} children`} of their own: ${born.map(k => k.firstName).join(', ')}.`, ['heirs', 'birth']);
+        }
+        return born;
+    },
+
     succeedAsHeir(player, childId, world, opts = {}) {
         const settings = Relationships._getHeirSettings();
         const child = (player.children || []).find(c => c.id === childId);
@@ -523,6 +564,8 @@ Object.assign(Relationships, {
         player.marriageDay = null;
         player.marriageAllianceKingdom = null;
         player.heir = null;
+        // The late ruler's errands end with them (a survey in hand, cartography/charting.js)
+        player.autoChart = null;
 
         // Remove this child from children, keep others as siblings (marked: they
         // are not the new ruler's own children, and don't count against having them)
@@ -544,7 +587,9 @@ Object.assign(Relationships, {
         player.relationships = {};
 
         // An heir already wed (systems/heirs.js matches) brings their spouse to the throne
-        Relationships._seatHeirSpouse(player, child, world);
+        const heirSpouse = Relationships._seatHeirSpouse(player, child, world);
+        // ...and the children born to them in the years they were wed
+        const ownChildren = Relationships._heirsOwnChildren(player, child, heirSpouse, world);
 
         // House-level succession stakes: advance the generation, possibly a
         // disputed succession (securable with Prestige, else holdings fragment).
@@ -586,6 +631,7 @@ Object.assign(Relationships, {
             heirRecord,
             regency,
             reign,
+            ownChildren,
         };
     },
 

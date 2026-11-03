@@ -35,9 +35,11 @@ describe('furniture actions', () => {
 
     it("private furniture is usable only in the player's own buildings", () => {
         expect(ObjectActions.getFurnitureActionKeys('bed', { type: 'house' })).toEqual([]);
-        expect(ObjectActions.getFurnitureActionKeys('chest', { type: 'manor' })).toEqual([]);
+        // Someone else's chest can't be used — only looked into (and its contents stolen)
+        expect(ObjectActions.getFurnitureActionKeys('chest', { type: 'manor' })).toEqual(['look_inside']);
         expect(ObjectActions.getFurnitureActionKeys('bed', { type: 'house', isPlayerOwned: true })).toContain('sleep');
         expect(ObjectActions.getFurnitureActionKeys('chest', { type: 'farm', isPlayerProperty: true })).toContain('store');
+        expect(ObjectActions.getFurnitureActionKeys('chest', { type: 'farm', isPlayerProperty: true })).not.toContain('look_inside');
     });
 
     it('infers furniture type from editor object names', () => {
@@ -56,8 +58,9 @@ describe('furniture actions', () => {
             ui: {},
         };
         const items = ObjectActions.buildFurnitureMenuItems(game, { type: 'stall', name: 'Stall' }, { type: 'marketplace' }, 1, 1);
-        expect(items).toHaveLength(1);
         expect(items[0].type).toBe('disabled');
+        // A stall's goods can still be looked over (and lifted) without a market around
+        expect(items.map(i => i._objectActionKey).filter(Boolean)).toEqual(['look_inside']);
 
         game.world.getTile = () => ({ settlement: { name: 'Ashford' } });
         const open = ObjectActions.buildFurnitureMenuItems(game, { type: 'stall', name: 'Stall' }, { type: 'marketplace' }, 1, 1);

@@ -1,0 +1,56 @@
+{
+    "_doc": "Rival Houses in the flesh (src/systems/rivalHouses.js): each rival House's head, purse, family and retinue on the map. Each errand (trade, court, shadow the player, invest in land, home) is scored by what it is worth now: weights × the best bargain's gain / think.tradeNorm (capped), the best estate's yield / invest.minYield, standing at court / standing.favourite; trait weights add; the ambition's errand is multiplied by think.ambition. Money is gold; days are game days.",
+    "enabled": true,
+    "icon": "🏰",
+    "speed": 3,
+    "startGold": [800, 3000],
+    "startAge": [26, 50],
+    "estate": { "weekly": 30, "perStewardship": 8 },
+    "upkeep": { "weekly": 25, "share": 0.01 },
+    "plotCost": 150,
+    "weights": { "trade": 3, "court": 2, "shadow": 2, "home": 1, "invest": 2, "waylay": 2 },
+    "think": { "tradeNorm": 100, "tradeCap": 2.5, "investCap": 3, "courtCap": 3, "ambition": 1.6 },
+    "trade": { "sources": 6, "destinations": 10, "range": 18, "minMargin": 0.25, "maxQty": 60, "minQty": 8, "spend": 0.5, "minGold": 300 },
+    "court": { "stay": [4, 9], "favour": 3, "whisper": 2, "whisperFeud": 40, "gift": 60 },
+    "home": { "stay": [6, 14], "restAfter": 150, "poorBelow": 200 },
+    "shadow": { "feud": 60, "stay": [3, 6], "plotEvery": 90 },
+    "_invest": "Land: a rival buys listed estates (systems/landMarket.js) within range it can pay for keeping reserve gold, spending at most maxShare of the purse, yielding at least minYield a year; rents reach the purse weekly. Below sellBelow gold it lists its cheapest estate at sellAt of value.",
+    "invest": { "range": 24, "reserve": 400, "maxShare": 0.7, "minYield": 0.03, "maxEstates": 6, "sellBelow": 150, "sellAt": 0.95 },
+    "_standing": "Court favour per realm: fades by decay every decayDays; at favourite or more the crown pays standing × pension gold a week from its treasury, and the rival's whispers there cut whisper + standing/whisperPer reputation. Renown adds renown/renownPer favour per visit.",
+    "standing": { "decayDays": 30, "decay": 1, "max": 60, "pension": 0.6, "favourite": 25, "whisperPer": 10, "renownPer": 20 },
+    "_guard": "After the player falls on a retinue it hires up to step guards at cost each (max in all), each adding per strength and wage gold a week. A House at waylay.feud or more that is too weak to waylay you hires one a week (keeping invest.reserve + 3 × cost) when enough guards could match waylay.edge × your army. Once forgetDays pass without an attack or a hiring, one is let go each week.",
+    "guard": { "cost": 60, "wage": 6, "step": 2, "max": 8, "per": 8, "forgetDays": 240 },
+    "_waylay": "A rival at feud >= feud, with no hunt in `every` days, within `range` hexes, and whose retinue is at least edge × your army's strength may ride out to waylay you: its retinue turns hostile (WorldUnit.isHostile) and the road-encounter choices apply. It hunts for `days` days. Robbed you (or beat your army): feud robFeud. Beaten off: feud +beatenFeud and it keeps beatenGuards of its guards; you take attack.lootShare of its purse with no reputation or karma lost.",
+    "waylay": { "feud": 80, "edge": 1.2, "every": 150, "days": 20, "range": 30, "robFeud": -15, "beatenFeud": 10, "beatenGuards": 0.5 },
+    "_ties": "The rival Houses' regard for each other (-100..100, both ways), starting in `start`. Ousting another as a court's favourite: oust. Each week, Houses whose realms are at war change by `war`, allied realms by `allied`, and two Houses both at feud >= commonFoeFeud with you by `commonFoe` (a shared enemy). Each year it fades `drift` toward 0, and two Houses at matchMin or more wed grown children with chance matchChance (+match). At allyAt or more they are allies: feud you earn with one adds spill × as much with the other; at enemyAt or less, it eases the other's feud by spill/2 × as much.",
+    "ties": { "start": [-20, 20], "allyAt": 50, "enemyAt": -50, "spill": 0.5, "oust": -15, "matchMin": 20, "matchChance": 0.3, "match": 40, "drift": 3, "war": -1, "allied": 0.5, "commonFoe": 0.5, "commonFoeFeud": 60 },
+    "_ambitions": "Each head pursues one ambition (weighted by traits' ambitions; revenge only at feud >= revenge.feud). Fulfilled → +renown and a new one; abandoned after giveUpDays. wealth: purse + land value reaches max(min, now + min(now × (grow − 1), maxMore)); land: holds `more` estates more; favour: a court's favourite; revenge: pays for `plots` more plots.",
+    "ambitions": {
+        "renown": 10, "giveUpDays": 720,
+        "wealth": { "name": "Fill the Coffers", "icon": "💰", "errand": "trade", "grow": 1.8, "min": 4000 },
+        "land": { "name": "Gather Land", "icon": "🌾", "errand": "invest", "more": 2 },
+        "favour": { "name": "Win a Crown's Ear", "icon": "👑", "errand": "court" },
+        "revenge": { "name": "Humble Your House", "icon": "🗡️", "errand": "shadow", "plots": 2, "feud": 50 }
+    },
+    "life": {
+        "deathFrom": 55, "deathPerYear": 0.03, "maxAge": 88, "marryFrom": 18, "marryChance": 0.35,
+        "childChance": 0.3, "maxChildren": 5, "fertileUntil": 45, "comeOfAge": 16, "childWedChance": 0.25, "inherit": 0.7
+    },
+    "meet": {
+        "range": 1,
+        "parley": { "base": 0.3, "perCharisma": 0.04, "perFeud": -0.004, "proud": -0.1, "feud": -8, "failFeud": 3 },
+        "gift": { "base": 50, "perFeud": 5, "feud": -15 },
+        "insult": { "feud": 10, "proudFeud": 15, "renown": 3 },
+        "match": { "maxFeud": 70, "dowry": 300, "feud": -40, "prestige": 10 }
+    },
+    "noticeRange": 8,
+    "attack": { "lootShare": 0.2, "feud": 30, "failFeud": 10, "reputation": 10, "karma": 3, "slayChance": 0.1, "slainFeud": 30 },
+    "traits": {
+        "grasping": { "name": "Grasping", "icon": "💰", "weights": { "trade": 4 }, "ambitions": { "wealth": 3 } },
+        "courtly": { "name": "Courtly", "icon": "🎭", "weights": { "court": 4 }, "ambitions": { "favour": 3 } },
+        "scheming": { "name": "Scheming", "icon": "🗡️", "weights": { "shadow": 4, "waylay": 1 }, "ambitions": { "revenge": 3 } },
+        "proud": { "name": "Proud", "icon": "🦚", "weights": { "waylay": 3 }, "ambitions": { "favour": 1, "revenge": 1 } },
+        "homebody": { "name": "Homebound", "icon": "🏡", "weights": { "home": 3, "invest": 2 }, "ambitions": { "land": 3 } }
+    },
+    "wealth": [[20000, "very rich"], [6000, "rich"], [2000, "comfortable"], [500, "getting by"], [0, "strained"]]
+}

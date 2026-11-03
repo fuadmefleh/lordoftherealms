@@ -8,6 +8,7 @@ import { Finance } from '../../systems/finance.js';
 import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 const TABS = [['house', '🏛️ Your House'], ['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
 
@@ -37,10 +38,16 @@ function kname(world, id) {
     return k ? k.name : 'a realm';
 }
 
-function bankLine(world, b, day) {
+/**
+ * A house's line: a failure or a run is in every street; its reserves are its
+ * own books, shown to its depositors and its owner (player given).
+ */
+function bankLine(world, b, day, player = null) {
+    const own = player && Finance.ownBank(player);
+    const insider = !player || (own && own.id === b.id) || !!Finance.state(player).accounts[b.id];
     const status = b.status !== 'open' ? '<span style="color:#e06060;">failed</span>'
         : Finance.inPanic(b, day) ? '<span style="color:#e0a040;">a run on the house</span>'
-            : `reserves ${Math.round(Finance.reserveRatio(b) * 100)}%`;
+            : insider ? `reserves ${Math.round(Finance.reserveRatio(b) * 100)}%` : 'open for business';
     return `<b>${esc(b.name)}</b> · ${esc(b.seat)}, ${esc(kname(world, b.kingdomId))} · ${status}`;
 }
 
@@ -50,12 +57,12 @@ function accountsTab(player, world, here) {
     let html = '<div style="font-size:11px; color:#999;">Deposits earn a slow, safe interest, compounded daily, and the house lends them on. If a house fails, its receivers pay back only part.</div>';
     for (const b of here) {
         if (b.owner === 'player') {
-            html += `<div style="${CARD}">${bankLine(world, b, day)} · <i>your own house: see 🏛️ Your House</i></div>`;
+            html += `<div style="${CARD}">${bankLine(world, b, day, player)} · <i>your own house: see 🏛️ Your House</i></div>`;
             continue;
         }
         const acct = st.accounts[b.id];
         const bal = Math.floor(acct ? acct.balance : 0);
-        html += `<div style="${CARD}">${bankLine(world, b, day)}<div style="font-size:12px; margin-top:4px;">Your deposit: <b>${bal}g</b>${acct ? ` · interest earned ${Math.floor(acct.interest)}g` : ''} · pays <b>${pct(Finance.depositApr(b))}</b> a year</div>`;
+        html += `<div style="${CARD}">${bankLine(world, b, day, player)}<div style="font-size:12px; margin-top:4px;">Your deposit: <b>${bal}g</b>${acct ? ` · interest earned ${Math.floor(acct.interest)}g` : ''} · pays <b>${pct(Finance.depositApr(b))}</b> a year</div>`;
         html += '<div>';
         for (const amt of [100, 500, 1000, 5000]) html += act(`Deposit ${amt}g`, ['deposit', b.id, amt], BTN_GOLD, player.gold >= amt);
         html += '</div><div>';
@@ -68,7 +75,7 @@ function accountsTab(player, world, here) {
         html += '<h5 style="margin:10px 0 4px;">Deposits elsewhere</h5>';
         for (const [id, a] of elsewhere) {
             const b = Finance.bank(player, id);
-            if (b) html += `<div style="font-size:12px;">${bankLine(world, b, day)} · <b>${Math.floor(a.balance)}g</b></div>`;
+            if (b) html += `<div style="font-size:12px;">${bankLine(world, b, day, player)} · <b>${Math.floor(a.balance)}g</b></div>`;
         }
     }
     return html;
@@ -94,7 +101,7 @@ function loansTab(player, world, here) {
     const D = Finance.cfg('default');
     html += `<div style="font-size:11px; color:#999; margin-top:6px;">Miss a day and a late fee is added. ${D.bailiffsAt || 7} days overdue: bailiffs take goods. ${D.seizeAt || 14}: deposits, properties, ships and company funds are seized. ${D.declareAt || 30}: you are declared a defaulter (reputation, Prestige, a bounty or the debtors' prison for large debts).</div>`;
     for (const b of here) {
-        html += `<div style="${CARD}">${bankLine(world, b, world.day || 0)}`;
+        html += `<div style="${CARD}">${bankLine(world, b, world.day || 0, player)}`;
         for (const o of Finance.loanOffers(player, world, b.id)) {
             html += `<div style="font-size:12px; margin-top:5px;"><b>${esc(o.name)}</b>: ${o.amount}g for ${o.duration} days at ${pct(o.rate)} → ${o.totalOwed}g (${o.dailyPayment}g a day) `;
             html += act('Borrow', ['borrow', b.id, o.id], BTN_GOLD, o.available, o.reason || '');
@@ -186,7 +193,10 @@ function coinTab(player, world) {
     let html = '<div style="font-size:11px; color:#999;">Each realm strikes its own coin. A crown in trouble may clip it: gold for the mint now, dearer prices in every market of the realm after.</div>';
     for (const k of (world.kingdoms || []).filter(x => x && x.isAlive !== false)) {
         const r = Finance.realmReport(world, k);
-        html += `<div style="font-size:12px; margin-top:4px;"><b style="color:${k.color || 'inherit'};">${esc(k.name)}</b>: coin ${Math.round(r.purity * 100)}% silver${r.priceMult > 1 ? ` (prices +${Math.round((r.priceMult - 1) * 100)}%)` : ''} · trust ${r.trust} · crown debt ${r.debt}g${r.levy ? ' · <span style="color:#e0a040;">war levy</span>' : ''}${r.defaults ? ` · ${r.defaults} default(s)` : ''}</div>`;
+        // What a crown owes is in its books, and known to those who lent it (your bonds)
+        const lent = Finance.state(player).bonds.some(b => b.kingdomId === k.id);
+        const debt = RealmIntel.can(player, world, k, 'books') || lent ? ` · crown debt ${r.debt}g` : '';
+        html += `<div style="font-size:12px; margin-top:4px;"><b style="color:${k.color || 'inherit'};">${esc(k.name)}</b>: coin ${Math.round(r.purity * 100)}% silver${r.priceMult > 1 ? ` (prices +${Math.round((r.priceMult - 1) * 100)}%)` : ''} · trust ${r.trust}${debt}${r.levy ? ' · <span style="color:#e0a040;">war levy</span>' : ''}${r.defaults ? ` · ${r.defaults} default(s)` : ''}</div>`;
     }
     const ruled = Finance.ruledKingdom(player, world);
     if (ruled) {

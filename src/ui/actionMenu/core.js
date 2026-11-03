@@ -123,7 +123,7 @@ Object.assign(ActionMenu, {
             meet_people: 'social', view_relationships: 'social', manage_dynasty: 'social',
             recruit: 'military', attack_unit: 'military', attack_settlement: 'military', siege_camp: 'military',
             train_combat: 'military', reforge_artifact: 'military', capture_criminal: 'military',
-            request_meeting: 'social',
+            request_meeting: 'social', meet_rival_house: 'social',
             build_property: 'building', build_temple: 'building',
             build_cultural: 'building', upgrade_cultural: 'building', build_infrastructure: 'building',
             demolish_infrastructure: 'building',
@@ -432,12 +432,12 @@ Object.assign(ActionMenu, {
         pledge_allegiance: 1, renounce_allegiance: 1,
         realm_wars: 0, fund_restoration: 2,
         form_kingdom: 6, claims_crowns: 0, royal_court: 0,
-        bounty_board: 1, talk_locals: 1, request_meeting: 1,
+        bounty_board: 1, talk_locals: 1, request_meeting: 1, meet_rival_house: 1,
         buy_house: 1, meet_people: 0,
 
         // Moderate actions (2 AP)
         pickpocket: 2, gambling: 0, smuggle: 0, // gambling/smuggle cost 2 AP per use inside their menus
-        recruit: 2, cartography: 2, map_trade: 2, steal_map: 2,
+        recruit: 2, cartography: 2, chart_tile: 1, wash_clothes: 3, map_trade: 2, steal_map: 2,
         craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
         // Half-day work (3 AP)
@@ -522,7 +522,7 @@ Object.assign(ActionMenu, {
         'found_colony', 'send_pioneers', 'negotiate_indigenous', 'recruit_settlers',
         'cartography', 'map_trade',
         'attack_unit', 'attack_settlement',
-        'request_meeting', 'buy_house', 'seek_title', 'visit_shipyard',
+        'request_meeting', 'meet_rival_house', 'buy_house', 'seek_title', 'visit_shipyard',
         'delve',
         // Choice scenes charge their AP on the first real choice (ui/actionMenu/treasureScenes.js)
         'steal_map', 'dig_treasure',
@@ -760,6 +760,9 @@ Object.assign(ActionMenu, {
             case 'meet_courier':
                 ActionMenu.showRider(game, unitId);
                 break;
+            case 'meet_rival_house':
+                ActionMenu.showRivalHead(game, unitId);
+                break;
             case 'outlaw_lair': {
                 const lair = OutlawLairs.lairNear(game.player, game.world, tile.q, tile.r, 1);
                 ActionMenu.showOutlawLairs(game, lair ? lair.id : null);
@@ -831,6 +834,12 @@ Object.assign(ActionMenu, {
                 break;
             case 'cartography':
                 ActionMenu.showCartographyMenu(game, tile);
+                break;
+            case 'wash_clothes':
+                ActionMenu.doWashClothes(game);
+                break;
+            case 'chart_tile':
+                ActionMenu.doChartTile(game);
                 break;
             case 'map_trade':
                 ActionMenu.showMapTradeMenu(game, tile);

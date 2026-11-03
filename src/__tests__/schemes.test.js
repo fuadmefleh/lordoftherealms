@@ -139,6 +139,19 @@ describe('Schemes', () => {
         expect(Schemes.active(player)).toHaveLength(0);
     });
 
+    it("slander reaches a rival's own court and its closest friend, not every realm", () => {
+        const world = makeWorld(10);
+        world.kingdoms[0].relations = { k2: -20, k3: 40 };
+        const player = makePlayer(world);
+        player.reputation = { k1: 0, k2: 0, k3: 0 };
+        player.house.rivals.k1.feud = 40;
+        const scheme = Schemes.hatch(player, world, player.house.rivals.k1, 'slander');
+        const r = Schemes._resolve(player, world, scheme);
+        expect(r.outcome).toBe('struck');
+        expect(player.reputation).toEqual({ k1: -8, k2: 0, k3: -8 });
+        expect(r.text).toMatch(/Varr and Lune/);
+    });
+
     it('sending a spy needs an idle spy and is one attempt per plot', () => {
         const world = makeWorld(10);
         const player = makePlayer(world);

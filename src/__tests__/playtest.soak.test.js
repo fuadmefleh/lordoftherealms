@@ -26,7 +26,8 @@ import { MerchantHouses } from '../systems/merchantHouses.js';
 import { WorldUnit } from '../world/units.js';
 import { loadData, newGame, endDay, roundTrip, carryOn } from './playtest/harness.js';
 import { SaveLoad } from '../systems/saveLoad.js';
-import { botDay } from './playtest/bot.js';
+import { RivalHouses } from '../systems/rivalHouses.js';
+import { botDay, personaOf } from './playtest/bot.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const LONG = !!ENV.SOAK;
@@ -53,6 +54,15 @@ afterAll(() => {
     if (logSpy) logSpy.mockRestore();
     if (warnSpy) warnSpy.mockRestore();
 });
+
+/** Standing with the living realms: "friendly/neutral/hostile, at war" (≥10 / −30…10 / below). */
+function standingOf(game) {
+    const rep = game.player.reputation || {};
+    const wars = Object.keys((game.player.realmWars && game.player.realmWars.wars) || {}).length;
+    const vals = (game.world.kingdoms || []).filter(k => k && k.isAlive).map(k => rep[k.id] || 0);
+    const n = (f) => vals.filter(f).length;
+    return `${n(v => v >= 10)}/${n(v => v > -30 && v < 10)}/${n(v => v <= -30)} min ${Math.round(Math.min(0, ...vals))}${wars ? ` war ${wars}` : ''}`;
+}
 
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
 
@@ -252,6 +262,7 @@ function runSoak(seed) {
     const history = [];
     let died = null;
     const lives = [];
+    let lifePeak = 0;
     const growth = [];
     let yearStart = performance.now();
     const startDay = game.world.day;
@@ -273,21 +284,29 @@ function runSoak(seed) {
         }
         problems.push(...checkInvariants(game, 'after endDay'));
         const pl = game.player;
+        lifePeak = Math.max(lifePeak, pl.gold || 0);
         history.push([game.world.day, Math.round(pl.gold), Math.round(pl.health), pl.getFoodCount(), pl.starvationDays || 0,
             pl.jailState ? 'jail' : pl.indenturedServitude ? 'servitude' : '', `${pl.q},${pl.r}`]);
         if (history.length > 12) history.shift();
         if (problems.length) break;
         if (res.died) {
             // The death screen's choice: the heir, else a new life (harness.carryOn)
+            // (read before carryOn: an heir takes over the same player object)
             const was = game.player.name;
+            const diedAge = Math.round(pl.age);
+            const temper = game.world.day > 150 ? personaOf(game).id : 'labourer';
+            const purse = `peak ${Math.round(lifePeak)}g, left ${Math.round(pl.gold || 0)}g`;
+            const family = (pl.children || []).filter(c => c && c.isAlive !== false && !c.isSibling).map(c => `${c.firstName} ${Math.round(c.age)}${c.upbringing && c.upbringing.spouse ? `~${c.upbringing.spouse.kind}@${Math.round(c.age - (game.world.day - c.upbringing.spouse.day) / 120)}` : ''}`).join(' ');
             const next = carryOn(game, res.died);
-            lives.push(`${was}: ${res.died} at ${Math.round(pl.age)} on day ${game.world.day} → ${next.how ? `${next.how} ${game.player.name}` : 'the end'}`);
+            const kids = (game.player.children || []).filter(c => c && !c.isSibling && c.isAlive !== false).length;
+            lives.push(`${was} [${temper}, ${purse}; kids: ${family || 'none'}${pl.spouse ? '; wed' : ''}]: ${res.died} at ${diedAge} on day ${game.world.day} → ${next.how ? `${next.how} ${game.player.name}, ${Math.round(game.player.age)}${kids ? ` with ${kids} child${kids === 1 ? '' : 'ren'}` : ''}` : 'the end'}`);
+            lifePeak = game.player.gold || 0;
             if (!next.how) { died = `${res.died} on day ${game.world.day}`; break; }
         }
         if ((i + 1) % DAYS_PER_YEAR === 0) {
             const now = performance.now();
             const bytes = JSON.stringify({ world: SaveLoad.serializeWorld(game.world), player: SaveLoad.serializePlayer(game.player) }).length;
-            growth.push({ year: (i + 1) / DAYS_PER_YEAR, msPerDay: Math.round((now - yearStart) / DAYS_PER_YEAR), saveKB: Math.round(bytes / 1024), gold: Math.round(game.player.gold) });
+            growth.push({ year: (i + 1) / DAYS_PER_YEAR, msPerDay: Math.round((now - yearStart) / DAYS_PER_YEAR), saveKB: Math.round(bytes / 1024), gold: Math.round(game.player.gold), age: game.player.age, life: game.player.maxLifespan, standing: standingOf(game) });
             yearStart = performance.now();
         }
         if (i === SAVE_AT || (i > 0 && i % SAVE_EVERY === 0)) {
@@ -313,8 +332,9 @@ describe('headless playtest soak', () => {
             if (ENV.SOAK_VERBOSE) {
                 const uw = game.player.underworld;
                 const report = {
-                    days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g`), stats, ledger: game.ledger,
+                    days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
+                    rivalHouses: RivalHouses.rivals(game.player).filter(r => r.head).map(r => `${RivalHouses.headName(r)} ${r.head.age} (${r.name}, head #${(r.stats && r.stats.heads) || 1}): ${Math.round(r.gold)}g, feud ${Math.round(r.feud || 0)}, ${r.head.children.length} kids, trades ${r.stats.trades} (${Math.round(r.stats.tradeProfit)}g), court ${r.stats.courtVisits}, plots paid ${r.stats.plotsPaid}`),
                     uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats },
                     company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({
                         capital: Math.round(capital), reputation, posts: posts.map(p => `${p.name}: ${JSON.stringify(p.stock)} ${JSON.stringify(p.lastWeek)}`),

@@ -94,6 +94,7 @@
         "historyWeeks": 26, "newsCap": 40,
         "houseShares": 100, "bankShares": 1000, "ventureShares": 1000,
         "bankPayout": 0.5, "venturePayout": 0.6,
+        "ventureCapitalCap": 4,
         "bankLowReserve": 0.8, "panicDiscount": 0.55, "crisisExposure": 0.5,
         "fashionBonus": 0.12, "reserveWeight": 0.25,
         "float": { "maxOutside": 49, "discount": 0.1, "fee": 0.03, "minValue": 1500, "payout": 0.5 },

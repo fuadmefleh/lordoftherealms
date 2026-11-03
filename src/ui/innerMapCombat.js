@@ -16,6 +16,9 @@
 //     day by day, and one killed dies on the roster
 //   - The fallen leave their actual purse and some of the wares they carry
 //   - Auto-cancel when target moves out of range
+//   - The street reacts (ui/innerMapReactions.js, systems/streetCrime.js):
+//     witnesses bark, flee, cower or fight, the watch comes running, and the
+//     assault or murder is recorded and remembered
 // ============================================
 
 import { InnerMap } from '../world/innerMap.js';
@@ -23,7 +26,6 @@ import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Relationships } from '../systems/relationships.js';
 import { CustomObjects } from '../world/customObjects.js';
-import { Gossip } from '../systems/gossip.js';
 import { PlayerEffects } from '../player/playerEffects.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Ailments } from '../systems/ailments.js';
@@ -32,6 +34,7 @@ import { Townsfolk } from '../systems/townsfolk.js';
 import { PlayerInventory } from '../player/inventory.js';
 import { Utils } from '../core/utils.js';
 import { drawGlyph } from './icons.js';
+import { InnerMapReactions } from './innerMapReactions.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
 
 /**
@@ -183,26 +186,37 @@ export const InnerMapCombat = {
         const dr = npc.r - InnerMap.playerInnerR;
         InnerMapRenderer._playerFacing = InnerMapCharacters.getDirection(dq, dr);
 
-        if (game && game.ui) {
-            game.ui.showNotification(
-                `⚔️ Attacking ${npc.name}`,
-                `You start attacking ${npc.name}!`,
-                'warning'
-            );
+        // The first blow sets off several things at once (the victim's reaction,
+        // the reputation hit, kin turning on you, witnesses, the watch). Gather
+        // their notices and show them as one, rather than a stack of five.
+        const ui = game && game.ui;
+        const notes = [];
+        const original = ui && ui.showNotification;
+        if (ui && typeof original === 'function') {
+            ui.showNotification = (title, body, kind) => { notes.push({ title, body, kind }); };
         }
+        try {
+            // Trigger NPC reaction (fight back or flee) and apply relationship penalties
+            this._initiateNPCReaction(npc, game);
+            this.applyAttackRelationshipPenalties(game, npc);
 
-        // Trigger NPC reaction (fight back or flee) and apply relationship penalties
-        this._initiateNPCReaction(npc, game);
-        this.applyAttackRelationshipPenalties(game, npc);
-
-        // Family & friends turn against the player (once per NPC per assault)
-        if (!npc._assaultRippled) {
-            npc._assaultRippled = true;
-            const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'assault');
-            if (ripple.affected.length > 0 && game && game.ui) {
-                game.ui.showNotification('😠 Word Gets Around',
-                    `${ripple.affected.length} of ${npc.name}'s kin and friends think less of you.`, 'warning');
+            // Family & friends turn against the player (once per NPC per assault)
+            if (!npc._assaultRippled) {
+                npc._assaultRippled = true;
+                const ripple = NpcDisposition.onNpcHarmed(npc, InnerMap.npcs || [], 'assault');
+                if (ripple.affected.length > 0) {
+                    notes.push({ title: '😠', body: `${ripple.affected.length} of ${npc.name}'s kin and friends think less of you.`, kind: 'warning' });
+                }
+                // The street sees it: witnesses react, the assault is recorded and remembered
+                InnerMapReactions.onViolence(game, npc, 'assault');
             }
+        } finally {
+            if (ui && typeof original === 'function') ui.showNotification = original;
+        }
+        if (ui && typeof original === 'function') {
+            const kind = notes.some(n => n.kind === 'error') ? 'error' : 'warning';
+            const lines = notes.map(n => String(n.body || n.title || '').trim()).filter(Boolean);
+            ui.showNotification(`⚔️ You attack ${npc.name}`, lines.join(' '), kind);
         }
     },
 
@@ -234,6 +248,9 @@ export const InnerMapCombat = {
 
         // ── NPC reaction ticks (fight-back or flee follow-up) ──
         this._updateNPCReactions(deltaTime, game);
+
+        // ── The street's reaction: guards and kin coming for the player ──
+        InnerMapReactions.update(deltaTime, game);
 
         // ── Object combat: float numbers are spawned by onObjectHit ──
     },
@@ -320,29 +337,16 @@ export const InnerMapCombat = {
                 `${npc.name}'s ${kin > 0 ? `family (${kin})` : 'friends'} will never forgive you.`, 'warning');
         }
 
-        // ── Gossip: report the kill ──
-        if (game && game.player && game.world) {
-            const worldTile = InnerMap.currentWorldTile || {};
-            const result = Gossip.reportCrime(game.player, game.world, {
-                crimeType: 'murder',
-                victim: { name: npc.name, type: npc.type, icon: npc.icon },
-                q: worldTile.q,
-                r: worldTile.r,
-                // Bystanders on the inner map around the player see the crime
-                scene: { npcs: InnerMap.npcs || [], q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR },
-            });
-            if (result.witnessed && game.ui) {
-                game.ui.showNotification(
-                    '👁️ Witnessed!',
-                    `${result.witnessCount} witness${result.witnessCount > 1 ? 'es' : ''} saw you kill ${npc.name}! Rumors will spread.`,
-                    'warning'
-                );
-            }
-        }
+        // ── The street sees it (or doesn't): witnesses react, the murder is
+        //    recorded (rumour with the real witnesses, heat, karma) and remembered ──
+        const seen = game && game.player && game.world ? InnerMapReactions.onViolence(game, npc, 'murder') : null;
 
         // A townsperson dies on the town's roster: they will not be about next visit
         if (npc._person && npc._folk) {
-            Townsfolk.slay(npc._folk, npc._person, this._day(game), `at the hands of ${(game && game.player && game.player.name) || 'a stranger'}`);
+            const by = seen && seen.witnessed ? `at the hands of ${(game && game.player && game.player.name) || 'a stranger'}` : 'killed in the street by someone no one saw';
+            Townsfolk.slay(npc._folk, npc._person, this._day(game), by);
+            // ...and the town's annals keep it, so the folk tell of it (townNews)
+            Townsfolk.record(npc._folk, game && game.world, this._day(game), { k: 'died', a: npc._person.id, x: by });
         }
 
         // Loot: the coin they actually carried, and some of their wares
@@ -557,9 +561,10 @@ export const InnerMapCombat = {
 
         // ── Notify the player ──
         if (game.ui) {
-            const label = typeof Relationships.getRelationLabel === 'function'
+            const rl = typeof Relationships.getRelationLabel === 'function'
                 ? Relationships.getRelationLabel(victimRel ? victimRel.score : -35)
-                : '';
+                : null;
+            const label = rl && typeof rl === 'object' ? rl.label : (rl || '');
             const witMsg = witnessCount > 0
                 ? ` ${witnessCount} witness${witnessCount > 1 ? 'es' : ''} also react negatively.`
                 : '';
@@ -803,5 +808,8 @@ export const InnerMapCombat = {
 
             ctx.restore();
         }
+
+        // ── Witnesses' barks over their heads ──
+        InnerMapReactions.render(ctx, camera);
     },
 };

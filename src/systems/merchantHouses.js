@@ -71,7 +71,7 @@ const DEFAULT_CONFIG = {
     convoy: { hexesPerDay: 5, shipHexesPerDay: 9, feePerUnitPerDay: 0.08, minFee: 5, riskPerDay: 0.012, shipRiskPerDay: 0.006, lossShare: [0.4, 1] },
     rivals: {
         count: [3, 5], minActive: 3, weeklyReturn: [-0.035, 0.05], contestedDrag: 0.006,
-        dividendShare: 0.5, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,
+        dividendShare: 0.5, capitalCap: 60000, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,
         expandChance: 0.2, maxPosts: 6, lobbyChance: 0.07, slanderChance: 0.12, slanderRivalry: 50,
         undercutVolume: 0.75, newcomerChance: 0.25,
         priceWar: { minSpend: 200, damage: [0.9, 1.5], reputationCost: 3, rivalry: 25 },
@@ -1566,7 +1566,7 @@ export const MerchantHouses = {
             r.lastWeek = day;
             r.lastDividend = 0;
             if (delta > 0) {
-                const div = delta * cfg.dividendShare;
+                const div = MerchantHouses._rivalPayout(r, delta, cfg);
                 r.lastDividend = Math.round(div * 100) / 100;
                 r.capital -= div;
                 const mine = Math.floor(div * r.shares.player / 100);
@@ -1636,10 +1636,25 @@ export const MerchantHouses = {
             r.capital = Math.max(0, r.capital + delta);
             r.lastProfit = Math.round(delta);
             r.lastWeek = day;
-            r.lastDividend = delta > 0 ? Math.round(delta * cfg.dividendShare * 100) / 100 : 0;
+            r.lastDividend = delta > 0 ? Math.round(MerchantHouses._rivalPayout(r, delta, cfg) * 100) / 100 : 0;
             r.capital -= r.lastDividend;
             if (r.capital < cfg.ruinCapital) MerchantHouses._ruin(player, world, r, null);
         }
+    },
+
+    /**
+     * What a rival house pays out of a week's profit (`delta`, already in
+     * r.capital): dividendShare of it, and all of it once the house stands at
+     * capitalCap. Every temperament's return leans positive, so a house that
+     * always ploughed half back compounded without end: over centuries its
+     * capital, and the dividends on its shares, ran to millions.
+     */
+    _rivalPayout(r, delta, cfg) {
+        if (!(delta > 0)) return 0;
+        const div = delta * _num(cfg.dividendShare, 0.5);
+        const cap = _num(cfg.capitalCap, 60000);
+        // Above the cap nothing is ploughed back (but never more than the week's profit)
+        return Math.min(delta, Math.max(div, _num(r.capital) - cap));
     },
 
     _rivalLobby(player, world, r, out) {

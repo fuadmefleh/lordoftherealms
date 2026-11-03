@@ -12,7 +12,8 @@ import { MoneySupply } from '../../world/moneySupply.js';
 import { Finance } from '../../systems/finance.js';
 import { Underworld } from '../../systems/underworld.js';
 import { PlayerInventory } from '../../core/inventory.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks } from './uiKit.js';
+import { RealmIntel } from '../../systems/realmIntel.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -51,7 +52,9 @@ function coinTab(game) {
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Silver</th><th style="${TH}">Price level</th><th style="${TH}">All prices</th><th style="${TH}">Coin about</th><th style="${TH}">4 weeks</th><th style="${TH}">Hoarded</th>${here ? `<th style="${TH}">Rate · changers</th>` : ''}<th style="${TH}">Mint last week</th></tr>`;
     for (const r of rows) {
         const me = here && r.id === here.id;
-        html += `<tr${me ? ' style="background:rgba(245,197,66,0.08);"' : ''}><td style="${TD}">${esc(r.name)}</td>`
+        // What the mint struck and the crown took is in the mint's books (systems/realmIntel.js)
+        const why = RealmIntel.whyLabel(player, world, r.id, 'mint');
+        html += `<tr${me ? ' style="background:rgba(245,197,66,0.08);"' : ''}><td style="${TD}">${esc(r.name)}${why ? ` ${intelBadge(why)}` : ''}</td>`
             + `<td style="${TD} color:${r.purity < 1 ? '#e67e22' : 'inherit'};">${Math.round(r.purity * 100)}%</td>`
             + `<td style="${TD}">${Math.round(r.level * 100)}</td>`
             + `<td style="${TD} color:${updown(r.mult - 1)};">${pct(r.mult - 1)}</td>`
@@ -59,14 +62,16 @@ function coinTab(game) {
             + `<td style="${TD} color:${updown(r.trend)};">${r.trend == null ? '—' : pct(r.trend)}</td>`
             + `<td style="${TD}">${r.vel < 0.995 ? `${Math.round((1 - r.vel) * 100)}%` : '—'}</td>`
             + (here ? `<td style="${TD}">${me ? '—' : `${r.rate.toFixed(2)}${r.fee > 0 ? ` · <span style="color:#e67e22;">${(r.fee * 100).toFixed(1)}%</span>` : ''}`}</td>` : '')
-            + `<td style="${TD}">${Math.round(r.struck)}g struck · ${Math.round(r.seign)}g to the crown</td></tr>`;
+            + (why ? `<td style="${TD}">${Math.round(r.struck)}g struck · ${Math.round(r.seign)}g to the crown</td></tr>` : `<td style="${TD} ${NOTE}">🔒</td></tr>`);
     }
     html += '</table>';
     const mine = here ? rows.find(r => r.id === here.id) : null;
-    if (mine && mine.last) {
+    const mineWhy = mine ? RealmIntel.whyLabel(player, world, mine.id, 'mint') : '';
+    if (mine && mine.last && !mineWhy) html += closedBooks(`Where ${here.name}'s coin came from and went, and what lies in its crown's chests,`);
+    if (mine && mine.last && mineWhy) {
         const parts = Object.entries(mine.last).filter(([, v]) => Math.abs(v) >= 1).map(([k, v]) => `${FLOW_LABEL[k] || k} <span style="color:${v > 0 ? '#8fd18f' : '#e08080'};">${v > 0 ? '+' : ''}${Math.round(v)}g</span>`);
         const broad = MoneySupply.broadMoney(world, here, Finance.openBanks(player).filter(b => b.kingdomId === here.id).reduce((s, b) => s + Math.max(0, b.capital || 0), 0));
-        html += `<div style="${CARD}"><b>${esc(here.name)}</b>: last week's coin ${parts.length ? parts.join(' · ') : 'stood still'}.<br><span style="${NOTE}">Coin about ${Math.round(broad.coin).toLocaleString()}g · in the crown's chests ${Math.round(broad.treasury).toLocaleString()}g · in the banks' vaults ${Math.round(broad.banks).toLocaleString()}g (the chests and vaults move no prices until they are spent).</span></div>`;
+        html += `<div style="${CARD}"><b>${esc(here.name)}</b> ${intelBadge(mineWhy)}: last week's coin ${parts.length ? parts.join(' · ') : 'stood still'}.<br><span style="${NOTE}">Coin about ${Math.round(broad.coin).toLocaleString()}g · in the crown's chests ${Math.round(broad.treasury).toLocaleString()}g · in the banks' vaults ${Math.round(broad.banks).toLocaleString()}g (the chests and vaults move no prices until they are spent).</span></div>`;
     }
     const st = player.mints;
     if (st && st.stats && st.stats.exchangeFees > 0) html += `<div style="${NOTE}">The money changers have had ${Math.round(st.stats.exchangeFees)}g of you.</div>`;

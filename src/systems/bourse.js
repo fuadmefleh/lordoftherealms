@@ -102,7 +102,7 @@ const DEFAULTS = {
     sentimentVol: 0.018, sentimentRevert: 0.06, moodRevert: 0.04,
     spread: 0.03, commission: 0.01, minCommission: 2, impact: 0.5, impactDecay: 0.85,
     historyWeeks: 26, newsCap: 40, houseShares: 100, bankShares: 1000, ventureShares: 1000,
-    bankPayout: 0.5, venturePayout: 0.6, bankLowReserve: 0.8, panicDiscount: 0.55, crisisExposure: 0.5, fashionBonus: 0.12, reserveWeight: 0.25,
+    bankPayout: 0.5, venturePayout: 0.6, ventureCapitalCap: 4, bankLowReserve: 0.8, panicDiscount: 0.55, crisisExposure: 0.5, fashionBonus: 0.12, reserveWeight: 0.25,
     float: { maxOutside: 49, discount: 0.1, fee: 0.03, minValue: 1500, payout: 0.5 },
     ventures: [],
     panics: { bank_failed: 0.85, crown_default: 0.88, war: 0.93, bank_run: 0.95 },
@@ -504,7 +504,7 @@ export const Bourse = {
             const sites = (player.discovery && player.discovery.sites) || [];
             const known = sites.filter(s => s && s.discovered && Array.isArray(s.knownBy) && s.knownBy.includes(l.kingdomId)).length;
             const colonies = sites.filter(s => s && s.claim && (s.claim.kingdomId === l.kingdomId || s.claim.kingdom === l.kingdomId)).length;
-            rate += Math.min(_num(def.maxSites, 8), known) * _num(def.perSite) + colonies * _num(def.perColony);
+            rate += Math.min(_num(def.maxSites, 8), known) * _num(def.perSite) + Math.min(_num(def.maxSites, 8), colonies) * _num(def.perColony);
             if (k && Array.isArray(k.wars) && k.wars.length) rate += _num(def.war);
             const pirates = (world.units || []).filter(u => u && !u.destroyed && u.type === 'pirate').length;
             rate += Math.min(5, pirates) * _num(def.pirate);
@@ -536,7 +536,12 @@ export const Bourse = {
         if (!k || k.isAlive === false) rate -= 0.02;
         const profit = _num(l.capital) * rate;
         Bourse._roeStep(l, rate);
-        const div = profit > 0 ? profit * _num(C.venturePayout, 0.6) : 0;
+        // It ploughs back part of its profit only until it is ventureCapitalCap × its
+        // founding capital; a grown company pays out all it earns. (Retained profit
+        // compounded without end: over a few centuries the dividends ran to millions.)
+        const capMax = _num(l.baseCapital, _num(l.capital)) * _num(C.ventureCapitalCap, 4);
+        const retain = profit > 0 ? _clamp(profit * (1 - _num(C.venturePayout, 0.6)), 0, Math.max(0, capMax - _num(l.capital))) : 0;
+        const div = profit > 0 ? profit - retain : 0;
         l.capital = Math.max(0, _num(l.capital) + profit - div);
         l.lastDiv = _r4(div / l.shares);
         l.book = l.capital / l.shares;

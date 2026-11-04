@@ -35,7 +35,7 @@ export function showWildsEncounter(game, opts = {}) {
     const player = game && game.player;
     const world = game && game.world;
     const ctx = opts.ctx;
-    const info = player && ctx ? Wilds.describe(player, ctx.id) : null;
+    const info = player && ctx ? Wilds.describe(player, ctx.id, ctx) : null;
     if (!info) return null;
     const canLeave = opts.canLeave !== false;
     document.getElementById('wildsEncounterOverlay')?.remove();
@@ -75,7 +75,7 @@ export function showWildsEncounter(game, opts = {}) {
     };
 
     const renderChoices = () => {
-        const fresh = Wilds.describe(player, ctx.id) || info;
+        const fresh = Wilds.describe(player, ctx.id, ctx) || info;
         let h = header();
         h += `<div style="font-size:13px; line-height:1.55; margin-bottom:10px;">${_esc(fresh.text)}</div>`;
         const hp = Math.round(player.health || 0);
@@ -109,9 +109,15 @@ export function showWildsEncounter(game, opts = {}) {
         const lines = [...(res.lines || []), ...(extra || [])];
         if (lines.length) h += `<div style="font-size:11.5px; color:#cfc6a8; margin-top:6px; line-height:1.6;">${lines.map(_esc).join('<br>')}</div>`;
         h += '</div>';
+        // A repeatable choice not yet used up: try again (its own roll), or leave it for later
+        if (res.resolved === false && res.usesLeft > 0) {
+            h += `<button data-wc-again="1" style="${BTN_GO} text-align:center;">${_esc(res.choice.label)} again (${res.usesLeft} left)</button>`;
+        }
         h += `<button data-wc-done="1" style="${BTN_GO} text-align:center;">${_esc(opts.doneLabel || 'Continue')}</button>`;
         box.innerHTML = h;
         box.querySelector('[data-wc-done]').addEventListener('click', close);
+        const again = box.querySelector('[data-wc-again]');
+        if (again) again.addEventListener('click', () => { result = null; renderChoices(); });
     };
 
     const choose = (choiceId) => {

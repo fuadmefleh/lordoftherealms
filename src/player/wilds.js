@@ -74,7 +74,7 @@ export const WILDS_SKILLS = ['combat', 'stealth', 'diplomacy', 'leadership', 'co
 export const WILDS_CRAFTS = ['forage', 'hunt'];
 export const WILDS_EFFECT_KEYS = ['battlePower', 'damageReduction', 'negotiation'];
 export const WILDS_ROLES = ['artisan', 'diplomat', 'general', 'guard', 'healer', 'herbalist', 'hunter', 'knight', 'merchant', 'noble', 'priest', 'scholar', 'spymaster'];
-export const WILDS_CHOICE_KEYS = ['id', 'label', 'hint', 'cost', 'requires', 'check', 'success', 'failure', 'deeds', 'fight'];
+export const WILDS_CHOICE_KEYS = ['id', 'label', 'hint', 'cost', 'requires', 'check', 'success', 'failure', 'deeds', 'fight', 'repeatable'];
 export const WILDS_COST_KEYS = ['stamina', 'health', 'gold', 'items'];
 export const WILDS_REQUIRE_KEYS = ['items', 'companions', 'traits', 'skills', 'stats', 'gold'];
 export const WILDS_CHECK_KEYS = ['base', 'stat', 'skill', 'craft', 'items', 'companions', 'traits', 'effects'];
@@ -308,19 +308,22 @@ export const Wilds = {
     },
 
     /** The encounter as the UI shows it: { id, name, icon, text, choices: [...] }. */
-    describe(player, id) {
+    describe(player, id, ctx = null) {
         const enc = Wilds.def(id);
         if (!enc) return null;
+        const st = player && player.wilds;
+        const used = ctx && ctx.slot != null && st && st.uses ? st.uses[`${_key(ctx.wq, ctx.wr)}#${ctx.slot}`] || {} : {};
         const choices = (enc.choices || []).map(c => {
             const chance = Wilds.chance(player, c);
             const cost = c.cost || {};
             const parts = [];
-            if (cost.stamina) parts.push(`${cost.stamina} stamina`);
+            if (cost.stamina) parts.push(ctx && ctx.inPerson ? `${cost.stamina} hour${cost.stamina === 1 ? '' : 's'}` : `${cost.stamina} stamina`);
             if (cost.health) parts.push(`${cost.health} health`);
             if (cost.gold) parts.push(`${cost.gold} gold`);
             for (const [item, qty] of Object.entries(cost.items || {})) parts.push(`${qty} ${_name(item)}`);
+            const left = c.repeatable > 1 ? Math.max(0, c.repeatable - _num(used[c.id])) : null;
             return {
-                id: c.id, label: c.label, hint: c.hint || '',
+                id: c.id, label: left != null ? `${c.label} (${left} left)` : c.label, hint: c.hint || '', left,
                 chance, odds: Wilds.oddsLabel(chance),
                 can: Wilds.canChoose(player, c),
                 costText: parts.join(', '),
@@ -352,7 +355,12 @@ export const Wilds = {
 
         const lines = [];
         const cost = choice.cost || {};
-        if (cost.stamina > 0) {
+        // Met in person on the town map (ctx.inPerson), the effort is paid in the day's
+        // hours, not the world map's action points: a stamina point an hour
+        let hours = 0;
+        if (cost.stamina > 0 && ctx.inPerson) {
+            hours += cost.stamina;
+        } else if (cost.stamina > 0) {
             const have = Math.max(0, _num(player.movementRemaining));
             const paid = Math.min(have, cost.stamina);
             player.movementRemaining = have - paid;
@@ -379,10 +387,25 @@ export const Wilds = {
         const chance = Wilds.chance(player, choice);
         const passed = chance === null ? true : Utils.random() < chance;
         const outcome = (passed ? choice.success : choice.failure) || {};
+        ctx.hours = 0;
         lines.push(...Wilds._applyOutcome(player, world, ctx, enc, outcome, { fight: Wilds.isFight(choice) }));
+        hours += _num(ctx.hours);
+        ctx.hours = 0;
+        if (hours > 0) lines.push(`⏳ ${hours} hour${hours === 1 ? '' : 's'} of the day`);
 
         const st = Wilds.getState(player);
-        if (ctx.slot != null) {
+        // A repeatable choice (choice.repeatable: how many times, each its own roll —
+        // a day's panning more) leaves the encounter open until it is used up
+        let usesLeft = 0;
+        if (ctx.slot != null && choice.repeatable > 1) {
+            const uk = `${_key(ctx.wq, ctx.wr)}#${ctx.slot}`;
+            if (!st.uses || typeof st.uses !== 'object') st.uses = {};
+            const used = st.uses[uk] || (st.uses[uk] = {});
+            used[choice.id] = _num(used[choice.id]) + 1;
+            usesLeft = Math.max(0, choice.repeatable - used[choice.id]);
+        }
+        const resolvedNow = usesLeft <= 0;
+        if (ctx.slot != null && resolvedNow) {
             const k = _key(ctx.wq, ctx.wr);
             if (!Array.isArray(st.resolved[k])) st.resolved[k] = [];
             if (!st.resolved[k].includes(ctx.slot)) st.resolved[k].push(ctx.slot);
@@ -396,7 +419,7 @@ export const Wilds = {
         Quests.track(player, 'wilds_encounters');
 
         if (_num(player.health) < 1) player.health = 1;
-        return { success: true, passed, chance, text: outcome.text || '', lines, encounter: enc, choice };
+        return { success: true, passed, chance, text: outcome.text || '', lines, encounter: enc, choice, resolved: resolvedNow, usesLeft, hours };
     },
 
     _applyOutcome(player, world, ctx, enc, o, opts = {}) {
@@ -445,7 +468,10 @@ export const Wilds = {
                 if (player.health > before) lines.push(`+${player.health - before} health`);
             }
         }
-        if (o.stamina) {
+        if (o.stamina && ctx && ctx.inPerson && _roll(o.stamina) < 0) {
+            // (in person, a worse outcome costs time, not action points: ctx.hours, the caller's clock)
+            ctx.hours = _num(ctx.hours) - _roll(o.stamina);
+        } else if (o.stamina) {
             const n = _roll(o.stamina);
             const before = Math.max(0, _num(player.movementRemaining));
             const cap = Math.max(_num(player.stamina) || 10, before);

@@ -378,3 +378,39 @@ describe('saving', () => {
         expect(Wilds.getState(back).stats.resolved).toBe(1);
     });
 });
+
+describe('panning with the prospector', () => {
+    it('ten days\' panning at most, each its own roll; the encounter stays till they are spent', () => {
+        const p = makePlayer({ gold: 1000 });
+        const ctx = { id: 'prospector', wq: 4, wr: 4, slot: 0, inPerson: true };
+        const desc = Wilds.describe(p, 'prospector', ctx);
+        expect(desc.choices.find(c => c.id === 'buy').label).toMatch(/\(10 left\)/);
+        let wins = 0, losses = 0;
+        for (let i = 1; i <= 10; i++) {
+            const res = Wilds.resolve(p, null, { ...ctx }, 'buy');
+            expect(res.success).toBe(true);
+            expect(res.usesLeft).toBe(10 - i);
+            expect(res.resolved).toBe(i === 10);
+            if (res.passed) wins++; else losses++;
+        }
+        // independent odds: over ten tries some pan out and some don't (seeded)
+        expect(wins + losses).toBe(10);
+        expect(Wilds.isResolved(p, 4, 4, 0)).toBe(true);
+        expect(Wilds.resolve(p, null, { ...ctx }, 'buy').success).toBe(false);
+    });
+
+    it('in person on the town map it costs the day\'s hours, not action points', () => {
+        const p = makePlayer({ gold: 100 });
+        p.movementRemaining = 5;
+        const res = Wilds.resolve(p, null, { id: 'prospector', wq: 6, wr: 6, slot: 0, inPerson: true }, 'buy');
+        expect(p.movementRemaining).toBe(5);
+        expect(res.hours).toBeGreaterThanOrEqual(2);
+        const desc = Wilds.describe(p, 'prospector', { wq: 6, wr: 6, slot: 0, inPerson: true });
+        expect(desc.choices.find(c => c.id === 'buy').costText).toMatch(/hours/);
+        // from the world map (not in person) it still takes action points
+        const q = makePlayer({ gold: 100 });
+        q.movementRemaining = 5;
+        Wilds.resolve(q, null, { id: 'prospector', wq: 8, wr: 8, slot: 0 }, 'buy');
+        expect(q.movementRemaining).toBe(3);
+    });
+});

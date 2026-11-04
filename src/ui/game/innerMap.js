@@ -230,8 +230,16 @@ export function _showEncounterNotification(encounter) {
             id: encounter.id || encounter.key,
             wq: encounter.wq, wr: encounter.wr, slot: encounter.slot,
             terrain: worldTile && worldTile.terrain ? worldTile.terrain.id : null,
+            // You're here yourself: the effort costs the day's hours, not action points (player/wilds.js)
+            inPerson: true,
         },
-        onResolved: () => {
+        onResolved: (res) => {
+            if (res && res.hours > 0) {
+                InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + res.hours);
+                if (this.ui && this.ui.updateStats) this.ui.updateStats(this.player, this.world);
+            }
+            // (a repeatable choice not used up — a day's panning more — leaves it there)
+            if (res && res.resolved === false) return;
             const t = InnerMap.getTile(encounter.iq, encounter.ir);
             if (t && t.encounter === encounter) t.encounter = null;
             InnerMap._cachedSummary = null;

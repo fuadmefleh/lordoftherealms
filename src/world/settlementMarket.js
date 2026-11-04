@@ -34,6 +34,30 @@ import { Transport } from './transport.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * A trade (or works) short of input j of recipe `rc` by `short` units: the
+ * earlier trade that makes that input (rc.upIx — the mill, for the bakery's
+ * flour) runs on with its spare runs this turn (capLeft) to make it up, as far
+ * as its own inputs allow (above the town's daily need). → the runs it made.
+ */
+function _pullUpstream(C, st, needOf, k, rc, j, short, capLeft, trRuns, keepOf = null) {
+    const up = rc.upIx ? rc.upIx[j] : -1;
+    if (up < 0 || !(short > 0.01) || !(capLeft[up] > 0.01)) return 0;
+    const u = C.recipesI[up];
+    let ur = Math.min(capLeft[up], short / rc.upPer[j]);
+    // (above the town's daily need — or, grinding for a works, above what the works must leave the town)
+    for (let x = 0; x < u.inIdx.length; x++) {
+        const floor = keepOf ? keepOf(u.inIdx[x]) : needOf[u.inIdx[x]] * k;
+        ur = Math.min(ur, Math.max(0, st[u.inIdx[x]] - floor) / u.inPer[x]);
+    }
+    if (!(ur > 0.01)) return 0;
+    for (let x = 0; x < u.inIdx.length; x++) st[u.inIdx[x]] = Math.max(0, st[u.inIdx[x]] - ur * u.inPer[x]);
+    for (let x = 0; x < u.outIdx.length; x++) st[u.outIdx[x]] += ur * u.outPer[x];
+    capLeft[up] -= ur;
+    if (trRuns) trRuns[up] += ur;
+    return ur;
+}
 const _round2 = (v) => Math.round(v * 100) / 100;
 
 const COLD_BIOMES = ['tundra', 'snowy_wasteland', 'ice_sheet', 'taiga', 'boreal_forest', 'snow', 'ice'];
@@ -89,6 +113,19 @@ function buildConfig(src) {
             inIdx: Int32Array.from(r.inI.map(x => x[0])), inPer: Float64Array.from(r.inI.map(x => x[1])),
             outIdx: Int32Array.from(r.outI.map(x => x[0])), outPer: Float64Array.from(r.outI.map(x => x[1])),
         }));
+    // A trade's inputs that an earlier trade makes (the bakery's flour, the mill's):
+    // for each input, that upstream trade's index and how much a run of it yields, or -1
+    for (const rc of recipesI) {
+        rc.upIx = new Int32Array(rc.inIdx.length).fill(-1);
+        rc.upPer = new Float64Array(rc.inIdx.length);
+        for (let j = 0; j < rc.inIdx.length; j++) {
+            for (const up of recipesI) {
+                if (up.ix >= rc.ix) break;
+                const k = Array.prototype.indexOf.call(up.outIdx, rc.inIdx[j]);
+                if (k >= 0) { rc.upIx[j] = up.ix; rc.upPer[j] = up.outPer[k]; break; }
+            }
+        }
+    }
     // Scratch buffers for the daily tick (reused: allocating typed arrays is slow)
     const buf = {
         st: new Float64Array(n), prod: new Float64Array(n), needs: new Float64Array(n), unmet: new Float64Array(n),
@@ -513,11 +550,26 @@ export const SettlementMarket = {
             // (inputs delivered to the works' own store — a concession's contract,
             // systems/concessions.js — are used before the town's spare stock)
             const feed = w.feed && typeof w.feed === 'object' ? w.feed : null;
+            // What the works must leave the town of an input: its keep share — but all of a
+            // made good (the flour the mill grinds), which the works get only by the mill grinding
+            // spare grain for them (_pullUpstream below)
+            const worksKeep = (j) => Math.max(needOf[ii[j]] * k, target[ii[j]] * (rc.upIx && rc.upIx[j] >= 0 ? 1 : W.keep));
             for (let s = 0; s < steps && left > 0.005; s++) {
                 let chunk = left / (steps - s);
                 for (let j = 0; j < oi.length; j++) chunk = Math.min(chunk, Math.max(0, target[oi[j]] * W.fill - st[oi[j]]) / op[j]);
+                // (the town's upstream trade makes up a short input with its spare hands:
+                // the mill grinds for your bakehouse too — C.buf.trLeft, this turn's)
+                if (C.buf && C.buf.trLeft && C.buf.trLeftFor === settlement) {
+                    for (let j = 0; j < ii.length; j++) {
+                        const keep = worksKeep(j);
+                        const fd = feed ? _num(feed[C.goodIds[ii[j]]]) : 0;
+                        const short = chunk * ip[j] - (st[ii[j]] - keep + fd); // (below the keep counts too)
+                        _pullUpstream(C, st, needOf, k, rc, j, short, C.buf.trLeft, trRuns,
+                            (gi) => Math.max(needOf[gi] * k, target[gi] * W.keep));
+                    }
+                }
                 for (let j = 0; j < ii.length; j++) {
-                    const keep = Math.max(needOf[ii[j]] * k, target[ii[j]] * W.keep);
+                    const keep = worksKeep(j);
                     const fd = feed ? _num(feed[C.goodIds[ii[j]]]) : 0;
                     chunk = Math.min(chunk, (Math.max(0, st[ii[j]] - keep) + fd) / ip[j]);
                 }
@@ -998,11 +1050,16 @@ export const SettlementMarket = {
         let runsAll = 0, capAll = 0;
         const trRuns = m.works ? B.trRuns : null, trCap = m.works ? B.trCap : null;
         if (trRuns) { trRuns.fill(0); trCap.fill(0); }
+        // (each trade's runs it has left this turn, for a later trade it supplies)
+        const capLeft = B.trLeft || (B.trLeft = new Float64Array(C.recipesI.length));
+        capLeft.fill(0);
+        B.trLeftFor = settlement;
         for (const rc of C.recipesI) {
             if (rank < rc.rank || (idle && idle[rc.id])) continue;
             let runs = rc.cap * pop / 1000 * toolF * k * lf.craft;
             if (!(runs > 0)) continue;
             capAll += runs;
+            capLeft[rc.ix] = runs;
             if (trCap) trCap[rc.ix] = runs;
             const oi = rc.outIdx, op = rc.outPer, ii = rc.inIdx, ip = rc.inPer;
             // A trade with `fill` works ahead of need while its inputs are in glut (brewers
@@ -1014,9 +1071,17 @@ export const SettlementMarket = {
                 fill = 1 + (rc.fill - 1) * glut;
             }
             for (let j = 0; j < oi.length; j++) runs = Math.min(runs, Math.max(0, target[oi[j]] * fill - st[oi[j]] + needOf[oi[j]] * k) / op[j]);
+            // Short of an input an earlier trade makes (the baker's flour): that trade works
+            // on with its spare hands to make it up (the mill grinds for the bakery)
+            for (let j = 0; j < ii.length; j++) {
+                // (the mill keeps the flour at its target while the bakers draw on it, so flour stays at its price)
+                const short = runs * ip[j] - (st[ii[j]] - Math.max(needOf[ii[j]] * k, target[ii[j]]));
+                runsAll += _pullUpstream(C, st, needOf, k, rc, j, short, capLeft, trRuns);
+            }
             for (let j = 0; j < ii.length; j++) runs = Math.min(runs, Math.max(0, st[ii[j]] - needOf[ii[j]] * k) / ip[j]);
             if (!(runs > 0.01)) continue;
             runsAll += runs;
+            capLeft[rc.ix] -= runs;
             if (trRuns) trRuns[rc.ix] = runs;
             for (let j = 0; j < ii.length; j++) st[ii[j]] = Math.max(0, st[ii[j]] - runs * ip[j]);
             for (let j = 0; j < oi.length; j++) st[oi[j]] += runs * op[j];

@@ -73,7 +73,7 @@ describe('hiring the tradesmen', () => {
         const { world, player, s } = atTown('town');
         const offer = Commissions.offer(world, s, 'trade:bakery');
         const runs = offer.perDay * 3;
-        player.inventory.grain = runs;
+        player.inventory.flour = runs;
         player.gold = 10000;
         const res = Commissions.commission(player, world, 'trade:bakery', runs, 'fee');
         expect(res.success).toBe(true);
@@ -93,12 +93,12 @@ describe('hiring the tradesmen', () => {
         expect(player.inventory.bread).toBeGreaterThanOrEqual(Math.floor(runs * 1.25));
     });
 
-    it('craftsmen take recipes too (the cook bakes bread from grain), and nothing without the goods or the gold', () => {
+    it('craftsmen take recipes too (the cook bakes bread from flour), and nothing without the goods or the gold', () => {
         const { world, player } = atTown('town');
         player.inventory = {};
         player.gold = 0;
         expect(Commissions.commission(player, world, 'craft:bread_bake', 1, 'fee').success).toBe(false);
-        player.inventory.grain = 4;
+        player.inventory.flour = 2;
         expect(Commissions.commission(player, world, 'craft:bread_bake', 2, 'fee').success).toBe(false);
         expect(Commissions.commission(player, world, 'craft:bread_bake', 2, 'cut').success).toBe(true);
         Commissions.collect(player, world);

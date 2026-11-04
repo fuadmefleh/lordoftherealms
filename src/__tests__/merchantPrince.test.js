@@ -82,11 +82,12 @@ describe('industry: works in a town market', () => {
         expect(w.cap).toBe(MerchantPrince.kind('bakery').runsPerLevel);
         marketDay(world, capital);
         marketDay(world, control);
-        // The works baked real bread out of real grain, on top of the town's own bakers
+        // The works baked real bread out of real grain (milled), on top of the town's own bakers
         expect(w.runs).toBeGreaterThan(0);
         expect(w.va).toBeGreaterThan(0);
         expect(capital.market.stock.bread).toBeGreaterThan(control.market.stock.bread);
-        expect(capital.market.stock.grain).toBeLessThan(control.market.stock.grain);
+        // (out of real grain: the mill grinds it to flour for the works — grain and flour together are fewer)
+        expect(capital.market.stock.grain + capital.market.stock.flour).toBeLessThan(control.market.stock.grain + control.market.stock.flour);
         // Market day pays the investor's share less the crown's tithe and the hands' wages
         const gold = player.gold;
         MerchantPrince.processDay(player, world);
@@ -130,9 +131,10 @@ describe('industry: works in a town market', () => {
     it('takes a share of the town\'s own trade, by the works\' size against the trade\'s', () => {
         const { world, player, capital, town } = fixture();
         const W = SettlementMarket.config().works;
-        // Grain at the works' keep (no room to bake on top), bread short: only the trade bakes
+        // Flour and grain at the works' keep (no room to bake on top), bread short: only the trade bakes
         const setStock = (s) => {
             s.market.stock.grain = SettlementMarket.target(s, 'grain') * W.keep;
+            s.market.stock.flour = SettlementMarket.target(s, 'flour') * W.keep;
             s.market.stock.bread = SettlementMarket.target(s, 'bread') * 0.5;
         };
         const fund = (s, q, r) => {

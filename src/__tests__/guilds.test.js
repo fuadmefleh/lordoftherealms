@@ -62,7 +62,7 @@ function fixture(opts = {}) {
     for (const s of [capital, town, village]) SettlementMarket.ensure(s);
     const player = {
         name: 'Tester', q: 5, r: 5, gold: 50000, maxInventory: 99,
-        inventory: { bread: 200, grain: 200, salt: 20, tools: 10, wood: 50, stone: 50, iron: 20 },
+        inventory: { bread: 200, grain: 200, flour: 200, salt: 20, tools: 10, wood: 50, stone: 50, iron: 20 },
         skills: { commerce: 3 }, reputation: { k1: 10 },
     };
     return { world, player, capital, town, village, kingdoms, tile: world.getTile(5, 5) };
@@ -165,10 +165,10 @@ describe('market powers in the trade path', () => {
     it('masters\' goods carry the mark; journeymen buy the guild\'s inputs at guild rates', () => {
         const { world, player, capital, tile } = fixture();
         Guilds.ensureTown(world, capital, 50);
-        const grain = Trading.getAvailableGoods(capital, tile, world).find(x => x.id === 'grain');
-        const outsiderCost = Trading.buyCost(player, grain, 20, capital);
+        const flour = Trading.getAvailableGoods(capital, tile, world).find(x => x.id === 'flour');
+        const outsiderCost = Trading.buyCost(player, flour, 20, capital);
         const m = makeMember(player, world, tile, 'bakers', 1);
-        expect(Trading.buyCost(player, grain, 20, capital)).toBeLessThan(outsiderCost);
+        expect(Trading.buyCost(player, flour, 20, capital)).toBeLessThan(outsiderCost);
         expect(Guilds.saleFactor(player, capital, 'bread')).toBe(1);
         m.rank = 2;
         expect(Guilds.saleFactor(player, capital, 'bread')).toBeCloseTo(1.08);
@@ -200,17 +200,17 @@ describe('the membership ladder', () => {
         // Master: 30 days, standing 50, commerce 2, the masterpiece in the packs
         world.day += 30;
         m.standing = 60;
-        player.inventory.grain = 5;
+        player.inventory.flour = 5;
         q = Guilds.advanceQuote(player, world, tile, 'bakers');
         expect(q.ok).toBe(false);
         expect(q.reason).toMatch(/masterpiece/);
-        player.inventory.grain = 100;
-        const stock = SettlementMarket.stock(capital, 'grain');
+        player.inventory.flour = 100;
+        const stock = SettlementMarket.stock(capital, 'flour');
         const res = Guilds.advance(player, world, tile, 'bakers');
         expect(res.success).toBe(true);
         expect(m.rank).toBe(2);
-        expect(player.inventory.grain).toBe(70);
-        expect(SettlementMarket.stock(capital, 'grain')).toBeCloseTo(stock + 30, 1);
+        expect(player.inventory.flour).toBe(70);
+        expect(SettlementMarket.stock(capital, 'flour')).toBeCloseTo(stock + 30, 1);
         expect(player.guilds.stats.masterpieces).toBe(1);
         // Guildmaster is elected, not bought
         expect(Guilds.advanceQuote(player, world, tile, 'bakers').reason).toMatch(/elected/);
@@ -491,19 +491,19 @@ describe('no money loop', () => {
         const { world, player, capital, tile } = fixture();
         Guilds.ensureTown(world, capital, 50);
         makeMember(player, world, tile, 'bakers', 1);
-        capital.market.stock.grain = SettlementMarket.target(capital, 'grain') * 0.5;
+        capital.market.stock.flour = SettlementMarket.target(capital, 'flour') * 0.5;
         const offers = Guilds.contractOffers(player, world, capital, 'bakers');
         expect(offers.length).toBe(1);
         const o = offers[0];
-        const entry = Trading.getAvailableGoods(capital, tile, world).find(x => x.id === 'grain');
+        const entry = Trading.getAvailableGoods(capital, tile, world).find(x => x.id === 'flour');
         expect(o.total).toBeLessThan(Trading.buyCost(player, entry, o.qty, capital));
         // Taking it sets the money aside; delivering pays it and stocks the town
-        expect(Guilds.takeContract(player, world, tile, 'bakers', 'grain').success).toBe(true);
-        const stock = SettlementMarket.stock(capital, 'grain');
+        expect(Guilds.takeContract(player, world, tile, 'bakers', 'flour').success).toBe(true);
+        const stock = SettlementMarket.stock(capital, 'flour');
         const res = Guilds.deliverContract(player, world, player.guilds.contracts[0].id);
         expect(res.success).toBe(true);
         expect(res.earned).toBe(o.total);
-        expect(SettlementMarket.stock(capital, 'grain')).toBeCloseTo(stock + o.qty, 1);
+        expect(SettlementMarket.stock(capital, 'flour')).toBeCloseTo(stock + o.qty, 1);
         expect(player.guilds.contracts.length).toBe(0);
     });
 });

@@ -121,10 +121,10 @@
     "extraResources": { "salt": { "salt": 3 } },
     "craftScale": 0.04,
     "propertySpill": { "radius": 3, "share": 0.25 },
-    "_recipes": "Local industry, run when the output is below its target and the inputs are in store: per 1000 people a day at most `cap` runs, each turning `in` into `out` (units). minType: smallest settlement with the trade. fill: the trade works ahead of need while its inputs are in glut, up to fill x the output's target when the inputs stand at twice theirs (brewers brew the harvest's cheap grain: the after-harvest beer that lifts the mood).",
+    "_recipes": "Local industry (grain → flour at the mill → bread at the bakery: a trade short of an input an earlier trade makes has that trade grind for it with its spare runs), run when the output is below its target and the inputs are in store: per 1000 people a day at most `cap` runs, each turning `in` into `out` (units). minType: smallest settlement with the trade. fill: the trade works ahead of need while its inputs are in glut, up to fill x the output's target when the inputs stand at twice theirs (brewers brew the harvest's cheap grain: the after-harvest beer that lifts the mood).",
     "recipes": [
-        { "id": "mill",       "in": { "grain": 1 },              "out": { "flour": 1 },    "cap": 1.0 },
-        { "id": "bakery",     "in": { "grain": 1 },              "out": { "bread": 1.25 }, "cap": 4.5 },
+        { "id": "mill",       "in": { "grain": 1 },              "out": { "flour": 1 },    "cap": 5.5 },
+        { "id": "bakery",     "in": { "flour": 1 },              "out": { "bread": 1.25 }, "cap": 4.5 },
         { "id": "brewery",    "in": { "grain": 1 },              "out": { "beer": 1.5 },   "cap": 1.2, "fill": 1.25 },
         { "id": "charcoal",   "in": { "wood": 1 },               "out": { "firewood": 1 }, "cap": 0.6 },
         { "id": "distillery", "in": { "grain": 2 },              "out": { "liquor": 1 },   "cap": 0.3, "minType": "town" },

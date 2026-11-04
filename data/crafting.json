@@ -47,7 +47,8 @@
         { "id": "fruit_salad", "station": "cook", "label": "Fruit Salad", "icon": "🥗", "ingredients": { "fruit": 2 }, "result": { "cooked_meal": 1 }, "desc": "A refreshing fruit salad", "difficulty": 1, "attr": "intelligence" },
         { "id": "mushroom_stew", "station": "cook", "label": "Mushroom Stew", "icon": "🍲", "ingredients": { "mushrooms": 2, "herbs": 1 }, "result": { "cooked_meal": 2 }, "desc": "A rich mushroom stew", "difficulty": 2, "attr": "intelligence" },
         { "id": "herbal_tea", "station": "cook", "label": "Herbal Tea", "icon": "🍵", "ingredients": { "herbs": 1 }, "result": { "tea": 2 }, "desc": "Soothing herbal tea", "difficulty": 1, "attr": "intelligence" },
-        { "id": "bread_bake", "station": "cook", "label": "Bake Bread", "icon": "🍞", "ingredients": { "grain": 2 }, "result": { "bread": 2 }, "desc": "Fresh-baked bread", "difficulty": 2, "attr": "intelligence" },
+        { "id": "flour_grind", "station": "cook", "label": "Grind Flour", "icon": "🌾", "ingredients": { "grain": 2 }, "result": { "flour": 1 }, "desc": "Grind grain to flour with a hand quern (a mill does it faster)", "difficulty": 1, "attr": "strength" },
+        { "id": "bread_bake", "station": "cook", "label": "Bake Bread", "icon": "🍞", "ingredients": { "flour": 1 }, "result": { "bread": 2 }, "desc": "Fresh-baked bread from flour", "difficulty": 2, "attr": "intelligence" },
         { "id": "spiced_wine", "station": "cook", "label": "Spiced Wine", "icon": "🍷", "ingredients": { "wine": 1, "exotic_spices": 1 }, "result": { "wine": 2 }, "desc": "Rich spiced wine", "difficulty": 2, "attr": "intelligence" },
         { "id": "honey_cake", "station": "cook", "label": "Honey Cake", "icon": "🍰", "ingredients": { "grain": 1, "honey": 1 }, "result": { "cooked_meal": 2 }, "desc": "Sweet honey cakes", "difficulty": 2, "attr": "intelligence" },
 

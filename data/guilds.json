@@ -45,7 +45,7 @@
     "_guilds": "Craft guilds by the recipes of data/markets.json they work (recipes), the goods they guard in town (goods: tolled, capped, floored, premium) and buy at guild rates (inputs). minRuns: the town's own trade capacity they need. masterpiece: goods a journeyman brings (from the packs) to be made master; they go to the town's market. A guild without recipes forms by population (minPop) — the merchants'.",
     "guilds": {
         "millers":   { "name": "Millers' Guild", "icon": "⚙️", "recipes": ["mill"], "goods": ["flour"], "inputs": ["grain"], "minRuns": 2, "masterpiece": { "grain": 40, "tools": 2 } },
-        "bakers":    { "name": "Bakers' Guild", "icon": "🍞", "recipes": ["bakery"], "goods": ["bread"], "inputs": ["grain"], "minRuns": 6, "masterpiece": { "grain": 30, "salt": 6 } },
+        "bakers":    { "name": "Bakers' Guild", "icon": "🍞", "recipes": ["bakery"], "goods": ["bread"], "inputs": ["flour"], "minRuns": 6, "masterpiece": { "flour": 30, "salt": 6 } },
         "brewers":   { "name": "Brewers' Guild", "icon": "🍺", "recipes": ["brewery", "distillery"], "goods": ["beer", "liquor"], "inputs": ["grain"], "minRuns": 2, "masterpiece": { "grain": 40, "wood": 10 } },
         "colliers":  { "name": "Colliers' Guild", "icon": "🔥", "recipes": ["charcoal"], "goods": ["firewood"], "inputs": ["wood"], "minRuns": 1.5, "masterpiece": { "wood": 40 } },
         "weavers":   { "name": "Weavers' Guild", "icon": "🧶", "recipes": ["weaver", "linen_weaver"], "goods": ["textiles", "linen"], "inputs": ["wool", "flax"], "minRuns": 1, "masterpiece": { "wool": 25, "tools": 2 } },

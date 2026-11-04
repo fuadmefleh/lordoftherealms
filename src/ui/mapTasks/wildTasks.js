@@ -484,7 +484,8 @@ export const WildTaskRunner = {
             setup(ctx) {
                 const w = _wild(ctx);
                 const me = _me();
-                let water = Rules.near(w.shore, me, _num(c.radius, 26), 0);
+                // (Fish Here on the town map: the bank by the water picked)
+                let water = Array.isArray(o.spots) && o.spots.length ? o.spots.slice() : Rules.near(w.shore, me, _num(c.radius, 26), 0);
                 if (!water.length) water = Rules.near(w.ice, me, _num(c.radius, 26), 0);
                 if (!water.length && o.waterDir) water = _edgeToward(ctx, o.waterDir);
                 if (!water.length) water = Rules.near(w.shore.concat(w.ice), me, 999, 6);

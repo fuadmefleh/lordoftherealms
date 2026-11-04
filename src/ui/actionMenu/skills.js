@@ -411,7 +411,7 @@ Object.assign(ActionMenu, {
     /**
      * Fish at a water-adjacent tile — yields food items
      */
-    doFish(game, tile) {
+    doFish(game, tile, opts = {}) {
         const player = game.player;
         const luckStat = player.luck || 5;
         const intStat = player.intelligence || 5;
@@ -479,6 +479,17 @@ Object.assign(ActionMenu, {
 
         // Casts for the day; Deep-Sea Nets add more
         const maxCasts = 3 + Math.floor(Math.random() * 2) + netBonus;
+
+        // From the town map: "Fish Here" on the water you see — straight to the cast,
+        // from the bank by that water, with the catch of its depth (ui/innerMapUI.js)
+        if (opts.spots && opts.depth && WildTaskRunner.inWorld(game)) {
+            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots }, (catches) => {
+                if (catches === null) { game.ui.showNotification('🎣 Fishing', 'You can\'t get a line in the water from here.', 'warning'); return; }
+                game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player)}</div>`);
+                game.ui.updateStats(player, game.world);
+            });
+            return;
+        }
 
         let html = '<div style="max-width: 500px; text-align: center;">';
         html += '<h4 style="margin: 0 0 4px;">🎣 Fishing</h4>';

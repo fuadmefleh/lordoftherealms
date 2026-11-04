@@ -281,7 +281,7 @@ export const InnerMapDeck = {
         const ship = this.ship(game);
         const L = InnerMap._deck;
         if (!ship || !L) return;
-        const keep = new Set(['wait_here', 'rest', 'pickup_ground_item', 'search_body', 'carry_body', 'drop_body', 'ko_finish', 'ko_rob', 'ko_leave']);
+        const keep = new Set(['wait_here', 'rest', 'pickup_ground_item', 'fish_here', 'search_body', 'carry_body', 'drop_body', 'ko_finish', 'ko_rob', 'ko_leave']);
         const out = [];
         let header = null;
         for (const it of menuItems) {

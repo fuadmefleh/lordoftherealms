@@ -388,6 +388,10 @@ Object.assign(InnerMapRenderer, {
                     else if (InnerMap._swimAllowed) menuItems.push({ type: 'action', action: 'move_here', label: 'Swim Here', icon: '🏊', desc: 'Into the water: slow, tiring — and cold in winter' });
                     else menuItems.push({ type: 'disabled', label: `🏊 Swim — ${InnerMap._swimRefusal || 'not now'}` });
                 }
+                // Water: cast a line into it, from the bank (or pier, bridge or deck) beside it
+                if ((tile._wet || tile._sea) && !/frozen|ice/.test(tile.subTerrain.id || '')) {
+                    menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
+                }
 
                 // Terrain interaction actions
                 if (tile.subTerrain.passable && !tile._dug && tile.subTerrain.id !== 'tilled_soil' && !tile.isRoad) {
@@ -1028,6 +1032,31 @@ Object.assign(InnerMapRenderer, {
             }
             case 'exit_building': {
                 if (typeof game._leaveBuilding === 'function') game._leaveBuilding();
+                break;
+            }
+            case 'fish_here': {
+                // From the bank by this water (ui/actionMenu/skills.js doFish → the casting task)
+                const water = InnerMap.getTile(q, r);
+                if (!water) break;
+                if (InnerMap.isPlayerSwimming && InnerMap.isPlayerSwimming()) {
+                    game.ui.showNotification('🎣 Fishing', 'You can\'t fish while you\'re swimming. Get to the bank first.', 'warning');
+                    break;
+                }
+                let bank = null, best = Infinity;
+                for (let dr = -3; dr <= 3; dr++) {
+                    for (let dq = -3; dq <= 3; dq++) {
+                        const x = q + dq, y = r + dr;
+                        const t = InnerMap.getTile(x, y);
+                        if (!t || !t.subTerrain.passable || t.building || t.customObjectPart) continue;
+                        const d = Math.max(Math.abs(dq), Math.abs(dr)) * 10 + Math.abs(x - playerQ) + Math.abs(y - playerR) / 100;
+                        if (d < best) { best = d; bank = { q: x, r: y }; }
+                    }
+                }
+                if (!bank) { game.ui.showNotification('🎣 Fishing', 'There is no bank close enough to cast from. Try nearer the shore.', 'warning'); break; }
+                const kind = water._waterKind || (water._sea ? 'sea' : 'pond');
+                const depth = kind === 'sea' ? (water._deep ? 'deep' : 'mid') : kind === 'lake' ? (water._deep ? 'mid' : 'shallow') : 'shallow';
+                const wt = game.world.getTile(game.player.q, game.player.r);
+                if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth });
                 break;
             }
             case 'till_land': {

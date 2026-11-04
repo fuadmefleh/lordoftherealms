@@ -351,7 +351,8 @@
                     "p": 0.5, "stat": "luck", "per": 0.06,
                     "pass": { "text": "A breeze answers before the tune is done. The hands grin.", "morale": 3 },
                     "fail": { "text": "No wind comes, and the old hands mutter that you have angered the sea.", "delay": 1, "morale": -4 }
-                } }
+                } },
+                { "id": "fish", "label": "Set the idle hands fishing over the side", "deckOnly": true, "text": "Lines over every rail. The day is lost, but the mess is full.", "delay": 1, "provisions": 4, "morale": 1 }
             ]
         },
         {
@@ -427,6 +428,11 @@
                     "pass": { "text": "You haul him aboard half-drowned. The crew will not forget it.", "morale": 6, "deed": { "mercy": 1 } },
                     "fail": { "text": "You search until dark, but the sea has him.", "crew": -1, "morale": -4 }
                 } },
+                { "id": "dive", "label": "Go over the side after him yourself", "deckOnly": true, "chance": {
+                    "p": 0.55, "stat": "strength", "per": 0.06,
+                    "pass": { "text": "You hit the water, get an arm round him, and the hands haul you both up on a line. They will follow you anywhere now.", "morale": 12, "renown": 2, "deed": { "valor": 1, "mercy": 1 } },
+                    "fail": { "text": "The cold takes your breath. They drag you back aboard alone, coughing seawater; the sea has him.", "crew": -1, "morale": -2, "deed": { "valor": 1 } }
+                } },
                 { "id": "sail_on", "label": "Hold your course", "text": "You will not risk the ship for one man. The crew watches him fall astern.", "crew": -1, "morale": -10, "karma": -2, "deed": { "cruelty": 1 } }
             ]
         },
@@ -496,6 +502,11 @@
                     "pass": { "text": "Leadsman calling every minute, you come out the far side unscathed.", "deed": { "seafaring": 1 } },
                     "fail": { "text": "A grinding shudder: you have scraped a reef.", "hull": 10, "morale": -3 }
                 } },
+                { "id": "lead_line", "label": "Take the lead-line at the bow yourself", "deckOnly": true, "chance": {
+                    "p": 0.85, "stat": "luck", "per": 0.03,
+                    "pass": { "text": "You call the soundings yourself, fathom by fathom, and bring her out into clear air. The hands look at you differently.", "morale": 3, "deed": { "seafaring": 1 } },
+                    "fail": { "text": "You call 'no bottom' a breath too late: she touches, shudders, and slides off.", "hull": 6, "morale": -2 }
+                } },
                 { "id": "heave_to", "label": "Heave to until it lifts", "text": "You lie to for a day, bells ringing in the murk.", "delay": 1 }
             ]
         },
@@ -512,6 +523,11 @@
                     "pass": { "text": "The lash restores order, for now.", "morale": 5, "deed": { "dread": 1, "cruelty": 1 } },
                     "fail": { "text": "The crew turns sullen. Two hands slip away in the jolly boat that night.", "morale": -10, "crew": -2, "deed": { "cruelty": 1 } }
                 } },
+                { "id": "hear_out", "label": "Go forward and hear them out yourself (charisma)", "deckOnly": true, "chance": {
+                    "p": 0.45, "stat": "charisma", "per": 0.07,
+                    "pass": { "text": "You sit with them on the forecastle and hear every complaint. The worst of it blows over.", "morale": 9 },
+                    "fail": { "text": "They hear you out in silence, and go back to muttering when you go aft.", "morale": -2 }
+                } },
                 { "id": "ignore", "label": "Let them grumble", "text": "It festers.", "morale": -5 }
             ]
         },
@@ -526,6 +542,19 @@
                     "fail": { "text": "A love letter, sadly lettered. The crew reads it aloud at supper, much moved.", "morale": 3, "renown": 1 }
                 } },
                 { "id": "leave", "label": "Leave it to the sea", "text": "Some messages are not for you." }
+            ]
+        },
+        {
+            "id": "whales", "icon": "🐋", "title": "Whales Off the Bow", "weight": 6,
+            "text": "A pod of whales rolls alongside, blowing, close enough to smell their breath.",
+            "default": "watch",
+            "choices": [
+                { "id": "watch", "label": "Let the hands watch them go by", "text": "The whole crew lines the rail. Nobody says much, and everybody is smiling.", "morale": 4 },
+                { "id": "harpoon", "label": "Lower a boat and go after one", "requires": { "crew": 6 }, "delay": 1, "chance": {
+                    "p": 0.45, "stat": "strength", "per": 0.04,
+                    "pass": { "text": "A long, bloody day, but you tow a whale alongside and try her out: meat and oil for the voyage.", "provisions": 10, "morale": 3, "deed": { "seafaring": 1 } },
+                    "fail": { "text": "The whale sounds, then comes up under the boat. You get the men back, and not much else.", "hull": 4, "morale": -4 }
+                } }
             ]
         }
     ],

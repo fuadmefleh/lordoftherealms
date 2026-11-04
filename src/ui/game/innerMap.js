@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { Wilds } from '../../player/wilds.js';
 import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
+import { InnerMapDeck } from '../innerMapDeck.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -105,9 +106,14 @@ export async function enterInnerMap(worldQ, worldR) {
         Hotbar.init(this);
         Hotbar.show();
 
+        // At sea aboard your ship: the crew on deck, the helm, the sea's events (ui/innerMapDeck.js)
+        const onDeckNow = InnerMapDeck.onEnter(this);
+
         // Notification
         const terrainName = tile.terrain.name || tile.terrain.id;
-        if (tile.settlement) {
+        if (onDeckNow) {
+            // (the deck says so itself)
+        } else if (tile.settlement) {
             this.ui.showNotification('🏘️ Entering Settlement',
                 `Welcome to ${tile.settlement.name}! Time: ${InnerMap.getTimeString()}. Right-click buildings to interact.`, 'info');
 
@@ -146,6 +152,8 @@ export function exitInnerMap(opts = {}) {
         return;
     }
     if (InnerMap.clearJail) InnerMap.clearJail();
+    // Off the deck: a fight left unfinished goes as the dice say (ui/innerMapDeck.js)
+    InnerMapDeck.onExit(this);
 
     InnerMapRenderer.closeContextMenu();
     InnerMap.exit(this);

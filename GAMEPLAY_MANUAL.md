@@ -2596,8 +2596,23 @@ On each day of a voyage there is a 30% chance of an event. Each offers choices; 
 | 🌁 Fog Bank | Feel your way (may scrape a reef) · Heave to (a day) |
 | 😠 Grumbling Below Decks (low morale) | A bonus per hand · Extra rations · Flog the ringleader (Dread, or worse) · Let them grumble |
 | 🍾 A Message in a Bottle | Read it (a cache, or a love letter) · Leave it |
+| 🐋 Whales Off the Bow | Let the hands watch (morale) · Lower a boat after one (6 hands, a day; meat and oil for the voyage, or a stove boat) |
 
 The event table lives in `data/ships.json` → `voyageEvents` (effects: morale, crew, gold, renown, karma, hull, repair, delay, cargo, provisions, heat, trait deeds, piracy, sickness, chance rolls and fights); voyage tunables in `settings.voyage`.
+
+### Aboard Ship: the Deck
+
+At sea aboard your own ship, **⛵ Go on Deck** puts you on the deck on the inner map, the open sea all round. The ship's hands are there by name (up to 12 on deck, the rest below): a **helmsman** at the wheel, a **first mate** on the quarterdeck, a **lookout** at the bow, a bosun, a cook, a carpenter, then topmen and deckhands. Each works at a station (hauling on the sheets, swabbing, mending spars, stirring the pot) and talks among themselves about the wind, the food and you. At night two in three of the off-watch hands sleep on deck.
+
+- **The helm** (at the stern, or right-click anywhere on deck): the voyage (where you are bound, the days to go), the event the sea has sent, **⛵ Sail through the day** (ends the day: the ship sails on), **⚓ Heave to**, or **🧭 Make for port** when no course is set. On deck the voyage does not sail on by itself; the day passes on the deck's own clock, as anywhere on the inner map, and its end is the same day's end the world map has.
+- **The mate** reports on the crew, the stores, the hull and the voyage, and takes your orders. Any hand will tell you what they think.
+- **Orders**, once a day each: **📣 Address the crew** (charisma; +6 morale, or −2 if it falls flat), **🍺 Splice the mainbrace** (a double ration, 1 provision per 8 hands, +5 morale), **💪 Lend a hand** (2 hours and some energy, +2 morale).
+- **The hold** (below the hatch amidships): the manifest and your own ration. Goods still go ashore only by the dock or the ship's boat.
+- **The sea shows on deck.** A storm darkens the deck with rain and whitecaps and sends the topmen aloft and everyone else to the pumps. An event shows on the water: a man in the wake, a sail on the horizon, a derelict, coils in the swell, whales, a shoal, a castaway's raft, a bottle, fog, blue fire at the mastheads. The lookout cries it out and the hands crowd the rail. The day before landfall the lookout cries **Land ho!** (+2 morale, once a voyage).
+- **The captain's own choices.** On deck some events offer more: go over the side after the man overboard yourself (strength), set the idle hands fishing when becalmed, take the lead-line at the bow in fog (luck), go forward and hear the grumblers out (charisma).
+- **Boarders.** Pirates who close while you are on deck (a sail that turns out to be pirates, a convoy's attackers) are fought **hand to hand**: their ship comes alongside and 2–7 boarders come over the rail. Your crew fights them; you fight too (right-click a boarder → Attack). A boarder beaten low goes back over the side. Beat them all and the event's victory follows (their purse, renown, Valor); go down, lose your crew or **🏳️ strike your colours** and its defeat does. Leave the deck mid-fight and the fight is settled by the dice as it would have been from the world map.
+
+Tunables: `data/deckLife.json` (roles and stations, work, situations, chatter, orders, boarding).
 
 ### Naval Travel
 

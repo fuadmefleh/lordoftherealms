@@ -1,0 +1,96 @@
+{
+    "_doc": "Life aboard ship on the inner map (systems/deckLife.js, world/innerMap/deckLife.js, ui/innerMapDeck.js). The ship's crew stand on deck as people with a role and a station; where they go and what they do follows the situation at sea (fair, night, storm, an event, boarders). maxOnDeck caps the hands drawn (the rest are below). Orders are once a day each (ship.deckDay). Boarding: a pirate fight from a voyage event, met on deck, is fought hand to hand; its outcome is the event's own win/lose block (Ships.finishBoarding).",
+    "maxOnDeck": 12,
+    "roles": [
+        { "id": "helmsman", "title": "helmsman", "min": 1, "station": "helm", "type": "villager", "watch": true },
+        { "id": "mate", "title": "first mate", "min": 2, "station": "quarterdeck", "type": "merchant", "watch": true, "officer": true },
+        { "id": "lookout", "title": "lookout", "min": 3, "station": "bow", "type": "villager", "watch": true },
+        { "id": "bosun", "title": "bosun", "min": 5, "station": "deck", "type": "blacksmith_npc", "officer": true },
+        { "id": "cook", "title": "ship's cook", "min": 7, "station": "hatch", "type": "villager" },
+        { "id": "carpenter", "title": "carpenter", "min": 9, "station": "rail", "type": "blacksmith_npc" }
+    ],
+    "fillRoles": [
+        { "id": "topman", "title": "topman", "station": "mast", "type": "villager" },
+        { "id": "deckhand", "title": "deckhand", "station": "deck", "type": "villager" },
+        { "id": "deckhand", "title": "deckhand", "station": "deck", "type": "villager" }
+    ],
+    "names": ["Tam", "Bram", "Ned", "Corwin", "Silas", "Jory", "Hob", "Wat", "Dunstan", "Ewan", "Piet", "Rafe", "Ansel", "Gil", "Morrow", "Kit", "Osric", "Fenn", "Lark", "Rowan", "Sander", "Tobin", "Wyn", "Abel", "Davey", "Edric", "Garth", "Haskel", "Ivo", "Jonah", "Lew", "Mattias", "Nye", "Obadiah", "Quill", "Ruel", "Saul", "Teague", "Ulric", "Vane", "Mags", "Bess", "Wenna", "Hild", "Tova"],
+    "nicknames": ["One-Eye", "Salty", "Long", "Red", "Old", "Quiet", "Lucky", "Tarry", "Young", "Black"],
+    "work": {
+        "helm": { "label": "At the wheel", "icon": "🧭", "anim": "idle", "secs": [12, 20] },
+        "quarterdeck": { "label": "Keeping the watch", "icon": "📜", "anim": "idle", "secs": [6, 12] },
+        "bow": { "label": "On lookout", "icon": "🔭", "anim": "idle", "secs": [10, 18] },
+        "mast": { "label": "Hauling on the sheets", "icon": "⛵", "anim": "swing", "secs": [5, 10] },
+        "deck": { "label": "Swabbing the deck", "icon": "🧽", "anim": "swing", "secs": [4, 9] },
+        "rail": { "label": "Mending a spar", "icon": "🔨", "anim": "swing", "secs": [6, 11] },
+        "hatch": { "label": "Stirring the pot", "icon": "🍲", "anim": "idle", "secs": [6, 12] },
+        "rest": { "label": "Off watch", "icon": "💤", "anim": "sitting", "secs": [14, 26] },
+        "pump": { "label": "Working the pumps", "icon": "💦", "anim": "swing", "secs": [3, 6] },
+        "fishing": { "label": "Fishing over the side", "icon": "🎣", "anim": "idle", "secs": [10, 18] },
+        "pray": { "label": "Praying", "icon": "🙏", "anim": "sitting", "secs": [8, 14] },
+        "wounded": { "label": "Nursing a wound", "icon": "🩹", "anim": "sitting", "secs": [20, 30] },
+        "fight": { "label": "Fighting", "icon": "⚔️", "anim": "halfslash", "secs": [1, 2] }
+    },
+    "situations": {
+        "fair": { "pace": 1 },
+        "night": { "pace": 0.7, "offWatch": "rest" },
+        "storm": {
+            "pace": 1.8,
+            "stations": { "topman": "mast", "deckhand": "pump", "cook": "pump", "carpenter": "pump", "lookout": "mast", "bosun": "mast", "mate": "helm" }
+        },
+        "calm": {
+            "pace": 0.6,
+            "stations": { "deckhand": "rest", "topman": "rest", "cook": "fishing", "carpenter": "fishing", "lookout": "bow" }
+        },
+        "event": { "pace": 1.3, "stations": { "deckhand": "rail", "topman": "rail", "cook": "rail" } },
+        "pray": { "pace": 0.8, "stations": { "deckhand": "pray", "topman": "pray", "cook": "pray", "carpenter": "pray", "bosun": "pray" } },
+        "boarding": { "pace": 1.6 }
+    },
+    "events": {
+        "becalmed": { "scene": "calm", "situation": "calm", "callout": "Not a breath of wind, Captain." },
+        "sighted_sail": { "scene": "sail", "callout": "Sail ho! Off the starboard bow!" },
+        "derelict_wreck": { "scene": "derelict", "callout": "A wreck! Drifting, dead ahead!" },
+        "serpent_rumour": { "scene": "coils", "callout": "There! Did you see it? Coils, in the swell!" },
+        "man_overboard": { "scene": "overboard", "callout": "Man overboard! MAN OVERBOARD!" },
+        "st_elmos_fire": { "scene": "elmo", "situation": "pray", "callout": "Look aloft — the masts are burning blue!" },
+        "merchant_convoy": { "scene": "convoy", "callout": "Sails, a whole convoy of 'em — they're signalling us." },
+        "castaway": { "scene": "castaway", "callout": "Smoke! Somebody on a raft out there!" },
+        "smugglers": { "scene": "sail", "callout": "A lugger, no lights — she's running dark." },
+        "fish_shoal": { "scene": "shoal", "situation": "calm", "callout": "Fish! The water's boiling with them!" },
+        "fog_bank": { "scene": "fog", "callout": "Fog bank ahead — can't see the bowsprit!" },
+        "grumbling": { "scene": "grumble", "callout": "" },
+        "message_bottle": { "scene": "bottle", "callout": "Bottle in the water, Captain! Corked and waxed!" },
+        "whales": { "scene": "whales", "callout": "Thar she blows! Whales, off the bow!" }
+    },
+    "chatter": {
+        "high": ["Fair wind and a full belly. Can't ask more.", "Best berth I've had, this one.", "Sing out, lads!", "She handles like a dream today.", "The Captain's luck is our luck."],
+        "mid": ["Another day, another league.", "Mind the wet patch, Captain.", "Wind's backing a point.", "My knees know there's weather coming.", "Haul away, haul away..."],
+        "low": ["...and what's the pay for, if not this?", "Sooner we make port the better.", "Some captains would see their crew right.", "Don't look at me like that.", "I've signed off better ships than this."],
+        "hungry": ["My belly thinks my throat's been cut.", "Hard tack and weevils, and not even that.", "How long since we ate proper?"],
+        "storm": ["Hold fast! HOLD FAST!", "Reef the topsails!", "Man the pumps!", "She's taking it green over the bow!", "Lash yourself to something!"],
+        "calm": ["Flat as a millpond.", "Whistle for it, I say.", "Not a cat's paw on the water.", "We'll bake out here."],
+        "night": ["Quiet watch.", "Stars are bright tonight.", "Six bells, and all's well."],
+        "land": ["Land! I can smell it.", "Port tomorrow, lads!", "There's a tavern with my name on it."],
+        "event": ["What do we do, Captain?", "Orders, Captain?", "Never seen the like."],
+        "boarding": ["Repel boarders!", "Cut the grapnels!", "For the ship!", "Have at 'em!"],
+        "pray": ["Saints preserve us...", "Is it a sign?"]
+    },
+    "orders": {
+        "rally": { "label": "Address the crew", "icon": "📣", "desc": "Stand at the rail and speak to them (charisma)", "p": 0.5, "stat": "charisma", "per": 0.07, "morale": 6, "fail": -2, "cap": 90 },
+        "grog": { "label": "Splice the mainbrace", "icon": "🍺", "desc": "An extra tot and a double ration all round", "perHands": 8, "morale": 5 },
+        "lend": { "label": "Lend a hand", "icon": "💪", "desc": "Haul and swab with the hands for a spell", "energy": 12, "morale": 2, "hours": 2 }
+    },
+    "boarding": {
+        "perStrength": 5,
+        "min": 2,
+        "max": 7,
+        "hp": 70,
+        "crewHp": 40,
+        "crewHit": [4, 10],
+        "boarderHit": [3, 9],
+        "blowSecs": 1.1,
+        "names": ["Cutthroat", "Boarder", "Corsair", "Buccaneer", "Sea Dog", "Rover"],
+        "lines": ["Grapnels! They're coming over the side!", "Their blood or ours, lads!", "Give 'em steel!"]
+    },
+    "landSighted": { "morale": 2, "callout": "LAND HO!" }
+}

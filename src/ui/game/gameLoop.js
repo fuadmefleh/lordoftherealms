@@ -8,6 +8,7 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
+import { InnerMapDeck } from '../innerMapDeck.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -260,6 +261,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapTasks.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
+        // Aboard ship: the crew, the sea's events, boarders (ui/innerMapDeck.js)
+        InnerMapDeck.update(simDelta, this);
 
         // Update light system from time of day
         if (typeof LightSystem !== 'undefined') {
@@ -270,6 +273,7 @@ export function gameLoop(timestamp, loopId) {
         // Render inner map
         InnerMapRenderer.render(this.renderer.ctx, this.canvas, this.innerMapCamera, deltaTime);
         InnerMapTasks.render(this.renderer.ctx, this.innerMapCamera, this.canvas);
+        InnerMapDeck.renderHud(this.renderer.ctx, this.innerMapCamera, this.canvas);
 
         // Render minimap for inner map
         this.minimap.render();

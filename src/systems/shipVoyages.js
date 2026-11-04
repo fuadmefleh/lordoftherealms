@@ -16,6 +16,10 @@
 //   Events — a data-driven table (data/ships.json → voyageEvents) of at-sea
 //     events with choices. One may come up each day; it waits on
 //     resolveVoyageEvent, or its default choice is taken on the next day.
+//     On deck (the inner map aboard, ui/innerMapDeck.js) the captain has
+//     choices of their own (`deckOnly`), and pirates who close are fought
+//     hand to hand: the fight waits as voyage.boarding until finishBoarding
+//     (the deck fight's result, or the dice if it is left unfinished).
 //
 // All state lives on the ship (ship.voyage, ship.lastVoyage, ship.hungryDays,
 // ship.rationCarry), so it saves with player.ships; Ships.restoreFromSave
@@ -355,7 +359,7 @@ export const VoyageMethods = {
             destQ, destR, destName, fromName: from, fromQ: ship.q, fromR: ship.r,
             route: route.map(h => [h.q, h.r]),
             step: 0, day: 0, estDays: days, startDay: world.day || 0,
-            delay: 0, pending: null, log: [],
+            delay: 0, pending: null, boarding: null, log: [],
         };
         delete ship.lastVoyage;
         player.boardedShip = ship.id;
@@ -375,6 +379,7 @@ export const VoyageMethods = {
     heaveTo(player, world = null) {
         const ship = this.getVoyageShip(player);
         if (!ship) return { success: false, message: 'You are not on a voyage.' };
+        if (ship.voyage.boarding) this.finishBoarding(player, world, null);
         if (ship.voyage.pending) this.resolveVoyageEvent(player, world, null);
         this._endVoyage(ship, world, `Hove to and took the helm, ${ship.voyage.destName} still over the horizon.`);
         return { success: true, ship, message: `${ship.name} heaves to. You have the helm — sail on yourself, or row ashore.` };
@@ -418,6 +423,8 @@ export const VoyageMethods = {
         _voyageStat(player, 'daysAtSea');
         const out = { shipId: ship.id, name: ship.name, destName: v.destName, day: v.day, estDays: v.estDays, moved: 0, arrived: false, autoResolved: null, event: null, lost: false };
 
+        // A fight on deck left unfinished (the deck left, the day ended): it goes as the dice say
+        if (v.boarding) out.autoBoarding = this.finishBoarding(player, world, null);
         if (v.pending) out.autoResolved = this.resolveVoyageEvent(player, world, null);
         if (!ship.voyage) return out;
 
@@ -581,17 +588,29 @@ export const VoyageMethods = {
         return pool[pool.length - 1];
     },
 
-    /** The waiting event and its choices: { id, icon, title, text, choices: [{ id, label, available, why }] } or null. */
-    describeVoyageEvent(player) {
+    /**
+     * Is this choice open here? A `deckOnly` choice (going over the side
+     * yourself, hearing the hands out) needs the captain on deck — the
+     * inner map aboard (ui/innerMapDeck.js passes { onDeck: true }).
+     */
+    _voyageChoiceOpen(choice, opts) {
+        return !!choice && (!choice.deckOnly || !!(opts && opts.onDeck));
+    },
+
+    /**
+     * The waiting event and its choices: { id, icon, title, text, choices: [{ id, label, available, why, deckOnly }] } or null.
+     * `opts.onDeck` adds the choices only the captain on deck can take.
+     */
+    describeVoyageEvent(player, opts = {}) {
         const ship = this.getVoyageShip(player);
         const pending = ship && ship.voyage.pending;
         const def = pending ? this.getVoyageEvent(pending.id) : null;
         if (!def) return null;
         return {
             id: def.id, icon: def.icon || '❗', title: def.title, text: def.text, default: def.default,
-            choices: (def.choices || []).map(c => {
+            choices: (def.choices || []).filter(c => this._voyageChoiceOpen(c, opts)).map(c => {
                 const why = this._voyageReqReason(player, ship, c.requires);
-                return { id: c.id, label: c.label, available: !why, why };
+                return { id: c.id, label: c.label, available: !why, why, deckOnly: !!c.deckOnly };
             }),
         };
     },
@@ -599,9 +618,13 @@ export const VoyageMethods = {
     /**
      * Answer the waiting event. `choiceId` null (or one no longer open)
      * takes the event's default — what the crew does when the captain
-     * gives no order.
+     * gives no order (never a deck-only choice).
+     * `opts.onDeck`: the captain is on deck — deck-only choices are open,
+     * and a pirate fight is not rolled but fought hand to hand on the deck:
+     * it waits as voyage.boarding (the result's `boarding`) until
+     * finishBoarding settles it.
      */
-    resolveVoyageEvent(player, world, choiceId) {
+    resolveVoyageEvent(player, world, choiceId, opts = {}) {
         const ship = this.getVoyageShip(player);
         const pending = ship && ship.voyage.pending;
         const def = pending ? this.getVoyageEvent(pending.id) : null;
@@ -610,29 +633,61 @@ export const VoyageMethods = {
             return { success: false, message: 'Nothing is happening at sea.' };
         }
         const choices = def.choices || [];
-        let choice = choiceId ? choices.find(c => c.id === choiceId) : null;
+        let choice = choiceId ? choices.find(c => c.id === choiceId && this._voyageChoiceOpen(c, opts)) : null;
         if (choice && this._voyageReqReason(player, ship, choice.requires)) {
             return { success: false, message: this._voyageReqReason(player, ship, choice.requires) };
         }
         const auto = !choice;
         if (!choice) {
-            choice = choices.find(c => c.id === def.default && !this._voyageReqReason(player, ship, c.requires))
-                || choices.find(c => !this._voyageReqReason(player, ship, c.requires));
+            choice = choices.find(c => c.id === def.default && !c.deckOnly && !this._voyageReqReason(player, ship, c.requires))
+                || choices.find(c => !c.deckOnly && !this._voyageReqReason(player, ship, c.requires));
         }
         ship.voyage.pending = null;
         if (!choice) return { success: true, icon: def.icon, title: def.title, text: '', auto };
         const lines = [];
-        this._applyVoyageOutcome(player, world, ship, choice, lines, 0);
+        const ctx = { onDeck: !!opts.onDeck, eventId: def.id, icon: def.icon, title: def.title, day: world ? world.day || 0 : 0 };
+        this._applyVoyageOutcome(player, world, ship, choice, lines, 0, ctx);
         const text = (auto ? 'With no orders given, the crew decides: ' : '') + lines.join(' ');
         this._voyageLog(ship, def.icon || '❗', `${choice.label}. ${lines.join(' ')}`, world);
-        return { success: true, icon: def.icon, title: def.title, choice: choice.id, text, auto };
+        const boarding = ship.voyage && ship.voyage.boarding && ctx.boarded ? ship.voyage.boarding : null;
+        return { success: true, icon: def.icon, title: def.title, choice: choice.id, text, auto, boarding };
+    },
+
+    /** The hand-to-hand fight waiting on deck (voyage.boarding), or null. */
+    getBoarding(player) {
+        const v = this.getVoyage(player);
+        return v && v.boarding ? v.boarding : null;
+    },
+
+    /**
+     * Settle the fight on deck: `won` true or false from the fight the
+     * player fought (ui/innerMapDeck.js), or null to roll it as the event
+     * would have (the deck left, the day ended, the voyage hove to). The
+     * event's own win/lose block applies either way.
+     */
+    finishBoarding(player, world, won = null) {
+        const ship = this.getVoyageShip(player);
+        const b = ship && ship.voyage.boarding;
+        if (!b) return { success: false, message: 'No one is boarding you.' };
+        ship.voyage.boarding = null;
+        const auto = won === null || won === undefined;
+        if (auto) {
+            const own = this._getShipCombatStrength(ship, player);
+            won = own * Utils.randFloat(0.8, 1.2) > _num(b.enemy, 15) * Utils.randFloat(0.8, 1.2);
+        }
+        const lines = [];
+        this._settleVoyageFight(player, world, ship, b.fight || {}, !!won, lines, 1);
+        const text = lines.join(' ');
+        this._voyageLog(ship, won ? '⚔️' : '🏴‍☠️', `${won ? 'Boarders beaten off' : 'Boarded and beaten'}. ${text}`, world);
+        return { success: true, won: !!won, auto, icon: b.icon || '🏴‍☠️', title: b.title || 'Boarders', text };
     },
 
     /**
      * Apply one outcome block of a voyage event: its effects, then a chance
-     * roll or a fight that leads to further blocks.
+     * roll or a fight that leads to further blocks. `ctx` (from
+     * resolveVoyageEvent) says whether the captain is on deck.
      */
-    _applyVoyageOutcome(player, world, ship, fx, lines, depth) {
+    _applyVoyageOutcome(player, world, ship, fx, lines, depth, ctx = null) {
         if (!fx || depth > 4) return;
         if (fx.text) lines.push(fx.text);
         const v = ship.voyage;
@@ -724,27 +779,42 @@ export const VoyageMethods = {
             let p = _num(fx.chance.p, 0.5);
             if (fx.chance.stat) p += (_num(player[fx.chance.stat], 5) - 5) * _num(fx.chance.per, 0.05);
             const pass = Utils.random() < Math.max(0.05, Math.min(0.95, p));
-            this._applyVoyageOutcome(player, world, ship, pass ? fx.chance.pass : fx.chance.fail, lines, depth + 1);
+            this._applyVoyageOutcome(player, world, ship, pass ? fx.chance.pass : fx.chance.fail, lines, depth + 1, ctx);
         }
         if (fx.fight) {
             const f = fx.fight;
             const enemy = _roll(f.strength || [10, 20]);
+            // The captain on deck: pirates who close are fought hand to hand there
+            if (ctx && ctx.onDeck && f.pirates && ship.voyage && !ship.voyage.boarding) {
+                ship.voyage.boarding = {
+                    fight: JSON.parse(JSON.stringify(f)), enemy, eventId: ctx.eventId || null,
+                    icon: ctx.icon || '🏴‍☠️', title: ctx.title || 'Boarders', day: ctx.day || 0,
+                };
+                ctx.boarded = true;
+                lines.push('Grapnels fly: they are coming over the side!');
+                return;
+            }
             const own = this._getShipCombatStrength(ship, player);
             const won = own * Utils.randFloat(0.8, 1.2) > enemy * Utils.randFloat(0.8, 1.2);
-            const toll = this._crewAfterBattle(ship, won);
-            if (won) {
-                Quests.track(player, 'battles_won');
-                if (f.pirates) { Quests.track(player, 'raiders_defeated'); Quests.track(player, 'pirates_defeated'); }
-                if (f.monster) Quests.track(player, 'special_creatures_defeated');
-                Traits.recordDeed(player, 'seafaring', 1);
-            }
-            this._applyVoyageOutcome(player, world, ship, won ? f.win : f.lose, lines, depth + 1);
-            if (!won) {
-                const wound = Ailments.maybeWound(player, world, 'sea_battle');
-                if (wound) lines.push(`${wound.icon} You took ${wound.name.toLowerCase()} in the fighting.`);
-            }
-            if (toll.text) lines.push(toll.text.trim());
+            this._settleVoyageFight(player, world, ship, f, won, lines, depth);
         }
+    },
+
+    /** A sea fight's aftermath: the crew's toll, deeds, its win/lose block, a wound if lost. */
+    _settleVoyageFight(player, world, ship, f, won, lines, depth) {
+        const toll = this._crewAfterBattle(ship, won);
+        if (won) {
+            Quests.track(player, 'battles_won');
+            if (f.pirates) { Quests.track(player, 'raiders_defeated'); Quests.track(player, 'pirates_defeated'); }
+            if (f.monster) Quests.track(player, 'special_creatures_defeated');
+            Traits.recordDeed(player, 'seafaring', 1);
+        }
+        this._applyVoyageOutcome(player, world, ship, won ? f.win : f.lose, lines, depth + 1);
+        if (!won) {
+            const wound = Ailments.maybeWound(player, world, 'sea_battle');
+            if (wound) lines.push(`${wound.icon} You took ${wound.name.toLowerCase()} in the fighting.`);
+        }
+        if (toll.text) lines.push(toll.text.trim());
     },
 
     /* ── Save / load ─────────────────────────────────────────── */
@@ -766,5 +836,6 @@ export const VoyageMethods = {
         if (!Number.isFinite(v.fromQ)) { v.fromQ = ship.q; v.fromR = ship.r; }
         if (!Array.isArray(v.log)) v.log = [];
         if (v.pending === undefined) v.pending = null;
+        if (v.boarding === undefined) v.boarding = null;
     },
 };

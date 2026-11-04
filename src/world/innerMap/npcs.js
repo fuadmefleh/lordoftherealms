@@ -687,6 +687,12 @@ Object.assign(InnerMap, {
             return;
         }
 
+        // Aboard ship: the crew at their stations, boarders at their foes (world/innerMap/deckLife.js)
+        if ((npc.deckRole || npc._boarder) && this._deckDestination) {
+            this._deckDestination(npc);
+            return;
+        }
+
         // A clan's people keep about their campfire (world/innerMap/camp.js)
         if (npc.campHub && this._campDestination) {
             const spot = this._campDestination(npc);

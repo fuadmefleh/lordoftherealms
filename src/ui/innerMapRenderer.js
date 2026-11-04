@@ -708,6 +708,11 @@ export const InnerMapRenderer = {
             ctx.restore();
         }
 
+        // ── Layer 8b: the sea's own scene aboard ship — storm, events on the water (ui/innerMapDeck.js) ──
+        if (typeof this.onSeaLayer === 'function' && !InnerMap._insideBuilding) {
+            try { this.onSeaLayer(ctx, camera, canvas, deltaTime); } catch (err) { console.warn('[InnerMapRenderer] sea layer:', err); }
+        }
+
         // ── Layer 9: Dynamic lighting & ambient overlays ──
         // The light system replaces the old flat ambient overlay with proper
         // 2D radial lights (player torch, building lights, road torches, etc.)

@@ -311,8 +311,9 @@ describe('provisions', () => {
 });
 
 describe('events at sea', () => {
+    // (deckOnly: a choice only the captain on deck can take — ui/innerMapDeck.js)
     const KNOWN = new Set(['id', 'label', 'text', 'requires', 'morale', 'crew', 'gold', 'goldPerCrew', 'renown', 'karma', 'hull',
-        'repair', 'delay', 'cargo', 'loseCargo', 'provisions', 'heat', 'deed', 'piracy', 'sickness', 'chance', 'fight']);
+        'repair', 'delay', 'cargo', 'loseCargo', 'provisions', 'heat', 'deed', 'piracy', 'sickness', 'chance', 'fight', 'deckOnly']);
 
     function checkBlock(fx, where) {
         for (const k of Object.keys(fx)) expect(KNOWN.has(k), `${where}: unknown effect "${k}"`).toBe(true);

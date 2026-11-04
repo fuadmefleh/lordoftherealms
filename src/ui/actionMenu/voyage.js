@@ -9,6 +9,16 @@
 
 import { ActionMenu } from './_ref.js';
 import { Ships } from '../../systems/ships.js';
+import { InnerMapDeck } from '../innerMapDeck.js';
+
+/**
+ * Sail on by itself after a quiet day — not while the captain is on deck,
+ * where the day runs on the deck's clock (ui/innerMapDeck.js).
+ */
+function autoSail(game) {
+    if (InnerMapDeck.onDeck(game)) return;
+    game._voyageTimer = setTimeout(() => { if (!InnerMapDeck.onDeck(game)) sailOn(game); }, AUTO_SAIL_MS);
+}
 
 /** How long a quiet day's log stays up before the ship sails on. */
 const AUTO_SAIL_MS = 900;
@@ -76,8 +86,10 @@ export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 
     }
     game.ui.showNotification('⛵ Under Way', result.message, 'success');
     game.ui.updateStats(player, world);
+    // On deck: she gets under way and the day goes on (sail through it from the helm)
+    if (InnerMapDeck.onDeck(game)) { game.ui.hideCustomPanel(); return; }
     showVoyagePanel(game, null);
-    game._voyageTimer = setTimeout(() => sailOn(game), AUTO_SAIL_MS);
+    autoSail(game);
 }
 
 /**
@@ -86,6 +98,8 @@ export function beginVoyage(game, shipId, destQ, destR, destName, victualDays = 
  */
 export function onVoyageDay(game, day) {
     if (!day) return;
+    // On deck: the morning comes on deck instead (landfall leaves the deck, then shows here)
+    if (InnerMapDeck.onVoyageDay(game, day)) return;
     if (game.renderer && game.camera && ActionMenu._centerCameraOnPlayer) ActionMenu._centerCameraOnPlayer(game);
     if (day.arrived) {
         if (typeof game.onPlayerArrived === 'function') game.onPlayerArrived();
@@ -98,9 +112,7 @@ export function onVoyageDay(game, day) {
         return;
     }
     showVoyagePanel(game, day);
-    if (!day.notable && !day.event) {
-        game._voyageTimer = setTimeout(() => sailOn(game), AUTO_SAIL_MS);
-    }
+    if (!day.notable && !day.event) autoSail(game);
 }
 
 function showArrivalPanel(game, day) {

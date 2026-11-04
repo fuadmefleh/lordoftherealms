@@ -26,6 +26,7 @@ import { DevotionPanel } from './actionMenu/devotion.js';
 import { NpcPortrait } from './npcPortrait.js';
 import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
+import { InnerMapDeck } from './innerMapDeck.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
@@ -429,6 +430,8 @@ Object.assign(InnerMapRenderer, {
 
         // The jail: only what a prisoner can do (ui/innerMapJail.js)
         if (InnerMap.inJail && InnerMap.inJail()) menuItems.splice(0, menuItems.length, ...InnerMapJail.menuItems(game, tile, q, r, npcsHere));
+        // On deck: the helm, the hold, orders to the crew — not "Strike Galleon" (ui/innerMapDeck.js)
+        else if (InnerMapDeck.active(game)) InnerMapDeck.menuItems(game, menuItems, tile, q, r, npcsHere);
 
         if (menuItems.length === 0) return;
 
@@ -682,6 +685,7 @@ Object.assign(InnerMapRenderer, {
 
     _handleContextAction(game, item, q, r) {
         if (InnerMapJail.handle(game, item)) return;
+        if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;

@@ -7,6 +7,7 @@ import { ConversationScene } from '../conversationScene.js';
 import { Relationships } from './_imports.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
 import { npcVoice } from '../npcVoice.js';
+import { NpcChat } from '../../systems/npcChat.js';
 
 const GROUPS = { matter: 'On their mind', talk: 'Friendship', romance: 'Romance', party: 'The road', hostile: 'Hostility' };
 
@@ -143,6 +144,18 @@ function _choices(game) {
     // What you can do now takes the number keys; of what's locked, each group
     // shows only the next step, as something to work toward
     const list = [];
+    // With the AI brain on: say whatever you like (systems/npcChat.js)
+    if (NpcChat.available()) {
+        const can = NpcChat.canTalk(player, game.world, npc);
+        const ap = NpcChat.config().apCost;
+        list.push({
+            icon: '💬', label: 'Talk freely…', group: 'talk',
+            extra: ap ? `<span class="npc-dialog-price">${ap} AP</span>` : '',
+            tooltip: `Say whatever you like to ${npc.firstName}, in your own words. How it goes is up to them.`,
+            disabled: !can.ok, disabledReason: can.reason,
+            onPick: () => _freeTalk(game, npc.id),
+        });
+    }
     for (const g of ['talk', 'romance', 'hostile']) {
         const inGroup = acts.filter(c => c.group === g);
         list.push(...inGroup.filter(c => !c.disabled), ...inGroup.filter(c => c.disabled).slice(0, 1));
@@ -203,6 +216,7 @@ function _refresh(game, prevScore) {
 }
 
 function _act(game, npcId, actionId, court) {
+    if (actionId === 'chat' && NpcChat.available()) { _freeTalk(game, npcId); return; }
     const st = _cur;
     const scene = st.scene;
     const player = game.player;
@@ -258,6 +272,64 @@ function _act(game, npcId, actionId, court) {
         }
         _refresh(game, before);
     }, 650);
+}
+
+/**
+ * Free talk (systems/npcChat.js): the player types, the NPC answers in their
+ * own words and may warm to them, sour, feel more, remember, agree to travel
+ * or walk off. Costs the chat's AP once; Done talking goes back to the choices.
+ */
+function _freeTalk(game, npcId) {
+    const st = _cur;
+    const scene = st.scene;
+    const player = game.player;
+    const npc = Relationships.getNPC(npcId);
+    if (!npc) return;
+    const can = NpcChat.canTalk(player, game.world, npc);
+    if (!can.ok) { scene.note(can.reason, 'bad'); return; }
+    const ap = NpcChat.config().apCost || 0;
+    if ((player.actionPoints || 0) < ap) {
+        scene.note(`⚡ You need ${ap} AP to sit and talk — you have ${player.actionPoints || 0}.`, 'bad');
+        return;
+    }
+    player.actionPoints -= ap;
+    game.ui.updateStats(player, game.world);
+    const session = NpcChat.startSession(player, game.world, npc);
+    const before = Relationships.getRelationship(player, npcId).score || 0;
+    const back = () => {
+        if (!scene.isOpen) return;
+        _refresh(game, before);
+    };
+    const prompt = () => scene.input({
+        placeholder: `Say something to ${npc.firstName}…`,
+        onSend: async (text) => {
+            scene.player(text);
+            scene.thinking();
+            const res = await NpcChat.say(player, game.world, npc, session, text);
+            if (!scene.isOpen) return;
+            if (!res.ok) { scene.note(res.reason, 'bad'); return; }
+            // (their own words already: not voiced again)
+            scene.npc(res.say, false);
+            for (const n of res.notes) scene.note(n.text, n.tone);
+            const rel = Relationships.getRelationship(player, npcId);
+            scene.setMood(_mood(rel), 0);
+            if (res.travel && res.travel.success && res.travel.accepted) scene.seal('Companion', 'Joined', true);
+            if (res.ended) {
+                scene.clearChoices();
+                scene.afterSpoken(600, back);
+                return;
+            }
+            if (!NpcChat.canTalk(player, game.world, npc).ok) {
+                scene.note(`${npc.firstName} has talked enough for today.`, 'info');
+                scene.clearChoices();
+                scene.afterSpoken(600, back);
+            }
+        },
+        onDone: () => { scene.clearChoices(); back(); },
+    });
+    scene.clearChoices();
+    scene.note(`💬 You sit down with ${npc.firstName} to talk.`, 'info');
+    prompt();
 }
 
 /** Answer what they brought to you: their reply, and what it cost or won. */

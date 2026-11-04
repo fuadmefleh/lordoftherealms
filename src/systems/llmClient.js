@@ -51,6 +51,8 @@ function chatBody(messages, opts, stream) {
     const temperature = opts.temperature != null ? opts.temperature : config.temperature;
     const maxTokens = opts.maxTokens || config.maxTokens;
     const body = { model: opts.model || config.model, messages, stream };
+    // A reply that must be one JSON object (OpenAI and llama-server both honour this)
+    if (opts.json) body.response_format = { type: 'json_object' };
     if (isOpenAI()) {
         body.max_completion_tokens = maxTokens;
         const effort = opts.reasoningEffort || config.reasoningEffort;

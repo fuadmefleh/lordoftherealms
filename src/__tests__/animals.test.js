@@ -643,10 +643,16 @@ describe('the bestiary', () => {
         const items = InnerMapAnimals.menuItems(g, wolf.q, wolf.r);
         expect(items.find(i => i.action === 'animal_butcher')).toBeTruthy();
         expect(items.find(i => i.action === 'hunt_animal' && i.animal === wolf)).toBeFalsy();
-        // butchered: the pelt in the packs
+        // it lies there: no clock takes it away while you are on the map
+        tick(1000);
+        expect(InnerMap.animals).toContain(wolf);
+        expect(world.wildlife.carcasses['5,7'].map(c => c.animal)).toEqual(['5,7:wolves0:wolf0']);
+        // butchered (fresh, the same day): the pelt in the packs, and it is off the books
+        g.world = world;
         const trip = InnerMapAnimals._butcherNow(g, wolf);
         expect(trip.kept.length).toBeGreaterThan(0);
         expect(g.player.inventory.pelts).toBeGreaterThan(0);
+        expect(world.wildlife.carcasses['5,7']).toBeUndefined();
         expect(InnerMapAnimals._butcherNow(g, wolf)).toBe(null); // once
         tick(cfg().behaviour.butcheredSeconds + 1);
         expect(InnerMap.animals).not.toContain(wolf);
@@ -692,11 +698,6 @@ describe('the bestiary', () => {
         doe.hunted = true;
         InnerMap.releaseAnimal(doe, me, { provoked: 'near' });
         expect(doe.state).toBe('flee');
-        // a hunt's kill falls and lies (its loot already banked)
-        const [stag] = beastsAt([{ species: 'stag', q: 68, r: 64 }], me);
-        InnerMap.killAnimal({ day: 1 }, stag, { butchered: true });
-        expect(stag.state).toBe('dead');
-        expect(stag.butchered).toBe(true);
     });
 
     it('mauled to nothing, the player blacks out and comes round, the beasts gone off', () => {
@@ -720,6 +721,233 @@ describe('the bestiary', () => {
         expect(tick(2, { walking: true })).toEqual([]);
         InnerMap._insideBuilding = null;
         for (const t of ['ocean', 'deep_ocean', 'sea', 'coast']) expect(speciesIn(t, {}, 20).size, t).toBe(0);
+    });
+});
+
+// ── Carcasses: they lie where they fell, are carried, and butchered by hand ──
+
+describe('carcasses', () => {
+    let ActionMenu, InnerMapDigging;
+    beforeAll(async () => {
+        ({ ActionMenu } = await import('../ui/actionMenu.js'));
+        ({ InnerMapDigging } = await import('../ui/innerMapDigging.js'));
+    });
+    afterEach(() => {
+        if (InnerMapAnimals._carry) InnerMapAnimals.drop(null, { quiet: true });
+        InnerMapDigging.cancel();
+    });
+
+    /** A game on an open map with one beast of `species` at `at`, the player at `me`. */
+    function scene(species, at = { q: 65, r: 64 }, me = { q: 64, r: 64 }, extra = {}) {
+        const g = stubGame(extra);
+        g.world.day = 20;
+        openMap(openTiles(), me);
+        InnerMap.timeOfDay = 9;
+        InnerMap._timeAccumulator = 0;
+        InnerMap._playerSpeed = 4;
+        InnerMap.animals = [InnerMap._makeAnimal({ id: `5,7:h0:${species}0`, species, q: at.q, r: at.r }, cfg())];
+        InnerMap._animalRng = null;
+        InnerMapAnimals._fight = null;
+        InnerMapAnimals.update(0.01, g); // (a new map: the visit's state is reset)
+        return { g, a: InnerMap.animals[0] };
+    }
+    const kill = (g, a) => InnerMap.hurtAnimal(g.world, a, 9999, { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR });
+
+    it('a hunt\'s kill falls and lies unbutchered: nothing in the packs until you butcher it', async () => {
+        const { g, a } = scene('doe', { q: 66, r: 64 });
+        g.player.skills.combat = 10;
+        g.player.strength = 30; // every shot lands
+        g.world.getTile = () => ({ terrain: { id: 'woodland' } });
+        ActionMenu.huntAnimal(g, a);
+        for (let i = 0; i < 20 && !InnerMapTasks.active; i++) await new Promise(res => setTimeout(res, 0));
+        const ctx = InnerMapTasks.active;
+        expect(ctx && ctx.animal).toBe(a);
+        InnerMap.playerInnerQ = a.q - 2; InnerMap.playerInnerR = a.r;
+        InnerMapTasks.update(0.1, g);
+        ctx.tpl.buttons(ctx).find(b => b.label === WildTasks.cfg('hunt').shoot).act();
+        for (let i = 0; i < 20 && a.state !== 'dead'; i++) await new Promise(res => setTimeout(res, 0));
+        expect(a.state).toBe('dead');
+        expect(a.butchered).toBe(false);
+        expect(Object.values(g.player.inventory).reduce((s, n) => s + n, 0)).toBe(0);
+        expect(g.notes.some(n => /Clean Kill/.test(n.t))).toBe(true);
+        // culled from the herd, and kept on the books where it lies
+        expect(g.world.wildlife.culled['5,7'].map(c => c.id)).toEqual([a.id]);
+        expect(g.world.wildlife.carcasses['5,7']).toEqual([expect.objectContaining({ animal: a.id, species: 'doe', q: a.q, r: a.r, day: 20 })]);
+    });
+
+    it('every kill leaves one: a fight, and a village beast slaughtered', () => {
+        const { g, a } = scene('fox');
+        a.hp = 1;
+        InnerMapAnimals.startFight(g, a);
+        for (let t = 0; t < 2 && a.state !== 'dead'; t += 0.05) InnerMapAnimals.update(0.05, g);
+        expect(a.state).toBe('dead');
+        expect(a.butchered).toBe(false);
+        expect(g.world.wildlife.carcasses['5,7'].length).toBe(1);
+        const s = scene('sheep');
+        s.a.livestock = true;
+        s.a.owner = { name: 'Ashby', kingdom: null };
+        kill(s.g, s.a);
+        expect(s.a.butchered).toBe(false);
+        expect(s.g.world.wildlife.carcasses['5,7'][0]).toEqual(expect.objectContaining({ species: 'sheep', livestock: true, owner: { name: 'Ashby', kingdom: null } }));
+    });
+
+    it('persists: it lies there all visit, and is there again (dead, where you left it) on the next', () => {
+        const { g, a } = scene('stag', { q: 70, r: 66 });
+        kill(g, a);
+        for (let t = 0; t < 3000; t += 1) InnerMap.updateAnimals(1);
+        expect(InnerMap.animals).toContain(a);
+        // leave and come back another day: the hex's beasts are planned again, the carcass with them
+        g.world.day += 2;
+        openMap(openTiles(), { q: 64, r: 64 });
+        InnerMap._spawnAnimals(g, { terrain: { id: 'woodland' } }, 5, 7);
+        const back = InnerMap.animals.filter(x => x.state === 'dead');
+        expect(back.length).toBe(1);
+        expect(back[0]).toEqual(expect.objectContaining({ species: 'stag', q: 70, r: 66, butchered: false, carcassId: a.carcassId }));
+        // and its living self is not grazing there too
+        expect(InnerMap.animals.filter(x => x.id === a.id && x.state !== 'dead')).toEqual([]);
+        // it travels with the save
+        const saved = JSON.parse(JSON.stringify(SaveLoad.serializeWorld({ ...stubWorld(), wildlife: g.world.wildlife })));
+        expect(saved.wildlife.carcasses['5,7'][0].species).toBe('stag');
+        // the scavengers have it in the end
+        g.world.day += cfg().carcass.lifetimeDays;
+        InnerMap._spawnAnimals(g, { terrain: { id: 'woodland' } }, 5, 7);
+        expect(InnerMap.animals.some(x => x.state === 'dead')).toBe(false);
+        expect(g.world.wildlife.carcasses['5,7']).toBeUndefined();
+    });
+
+    it('rots by the day: fresh at first, then less worth taking, never below the floor', () => {
+        const C = cfg().carcass;
+        const { g, a } = scene('elk');
+        kill(g, a);
+        expect(InnerMap.carcassYield(g.world, a)).toBe(1);
+        g.world.day += C.freshDays;
+        expect(InnerMap.carcassYield(g.world, a)).toBe(1);
+        g.world.day += 2;
+        expect(InnerMap.carcassYield(g.world, a)).toBeCloseTo(1 - 2 * C.rotPerDay);
+        g.world.day += 30;
+        expect(InnerMap.carcassYield(g.world, a)).toBe(C.minYield);
+        // the menu says so
+        const head = InnerMapAnimals.menuItems(g, a.q, a.r).find(i => i.type === 'header');
+        expect(head.label).toMatch(/rotting/);
+        // and the butchering yields less: an elk gives 2-4 venison fresh
+        let fresh = 0, rotten = 0;
+        for (let i = 0; i < 20; i++) {
+            const f = scene('elk', { q: 65, r: 64 }, { q: 64, r: 64 }, { inventory: {} });
+            kill(f.g, f.a);
+            const old = i % 2 === 1;
+            if (old) f.g.world.day += 30;
+            InnerMapAnimals._butcherNow(f.g, f.a);
+            const meat = f.g.player.inventory.game_meat || 0;
+            if (old) rotten += meat; else fresh += meat;
+        }
+        expect(rotten).toBeLessThan(fresh * 0.6);
+    });
+
+    it('carried: it goes where you go, you walk slower, and it lies where you put it down', () => {
+        const { g, a } = scene('doe');
+        kill(g, a);
+        const items = InnerMapAnimals.menuItems(g, a.q, a.r);
+        const carry = items.find(i => i.action === 'animal_carry');
+        expect(carry && carry.animal).toBe(a);
+        expect(InnerMapAnimals.handle(g, carry)).toBe(true);
+        expect(InnerMapAnimals._carry && InnerMapAnimals._carry.a).toBe(a);
+        expect(a.carried).toBe(true);
+        const chk = InnerMap.canCarryAnimal(a, g.player.strength);
+        expect(chk.speed).toBeLessThan(1);
+        expect(InnerMap._playerSpeed).toBeCloseTo(4 * chk.speed);
+        // walk on: it comes with you, and the books keep up
+        InnerMap.playerInnerQ = 80; InnerMap.playerInnerR = 72;
+        InnerMapAnimals.update(0.05, g);
+        expect([a.q, a.r]).toEqual([80, 72]);
+        expect(g.world.wildlife.carcasses['5,7'][0]).toEqual(expect.objectContaining({ q: 80, r: 72 }));
+        // the menu anywhere offers to put it down (and no second carry)
+        const m = InnerMapAnimals.menuItems(g, 10, 10);
+        expect(m.find(i => i.action === 'animal_drop')).toBeTruthy();
+        expect(m.find(i => i.action === 'animal_carry')).toBeFalsy();
+        InnerMapAnimals.handle(g, m.find(i => i.action === 'animal_drop'));
+        expect(InnerMapAnimals._carry).toBe(null);
+        expect(a.carried).toBe(false);
+        expect(InnerMap._playerSpeed).toBe(4);
+        InnerMap.playerInnerQ = 60;
+        InnerMapAnimals.update(0.05, g);
+        expect([a.q, a.r]).toEqual([80, 72]);
+        // a rabbit hardly slows you and rides on your shoulders; a stag is dragged
+        expect(InnerMap.canCarryAnimal({ species: 'rabbit', state: 'dead' }).how).toBe('shoulder');
+        expect(InnerMap.canCarryAnimal({ species: 'rabbit', state: 'dead' }).speed).toBeGreaterThan(0.95);
+        expect(InnerMap.canCarryAnimal({ species: 'stag', state: 'dead' }).how).toBe('drag');
+    });
+
+    it('carried off the map, it is left at the edge where you crossed, and lies there next time', () => {
+        const { g, a } = scene('doe');
+        kill(g, a);
+        InnerMapAnimals.pickUp(g, a);
+        InnerMap.playerInnerQ = 127; InnerMap.playerInnerR = 40;
+        InnerMapAnimals.update(0.05, g);
+        // over the edge: another map
+        openMap(openTiles(), { q: 0, r: 40 });
+        InnerMap.currentWorldTile = { q: 6, r: 7 };
+        InnerMapAnimals.update(0.05, g);
+        expect(InnerMapAnimals._carry).toBe(null);
+        expect(InnerMap._playerSpeed).toBe(4);
+        expect(g.notes.some(n => /Left behind/.test(n.t))).toBe(true);
+        expect(g.world.wildlife.carcasses['5,7'][0]).toEqual(expect.objectContaining({ q: 127, r: 40 }));
+    });
+
+    it('too heavy to carry: an elephant (and a bear, for most), said so in a greyed-out entry', () => {
+        const { g, a } = scene('elephant');
+        kill(g, a);
+        const items = InnerMapAnimals.menuItems(g, a.q, a.r);
+        expect(items.find(i => i.action === 'animal_carry')).toBeFalsy();
+        const no = items.find(i => i.type === 'disabled' && /Carry the elephant/.test(i.label));
+        expect(no && no.label).toMatch(/too heavy \(4000 kg\)/);
+        expect(items.find(i => i.action === 'animal_butcher')).toBeTruthy();
+        InnerMapAnimals.handle(g, { action: 'animal_carry', animal: a });
+        expect(InnerMapAnimals._carry).toBe(null);
+        expect(InnerMap.canCarryAnimal({ species: 'bear', state: 'dead' }, 5).ok).toBe(false);
+        expect(InnerMap.canCarryAnimal({ species: 'bear', state: 'dead' }, 10).ok).toBe(true);
+        expect(InnerMap.canCarryAnimal({ species: 'highland_cow', state: 'dead' }, 10).ok).toBe(false);
+        // and a body in your arms: your hands are full
+        const d = scene('doe');
+        kill(d.g, d.a);
+        InnerMapCombat._carrying = { name: 'X' };
+        try {
+            expect(InnerMapAnimals.canCarry(d.g, d.a)).toEqual(expect.objectContaining({ ok: false, reason: 'hands full' }));
+        } finally { InnerMapCombat._carrying = null; }
+    });
+
+    it('butchered by hand: work at the spot and time on the clock, then the loot, and it is gone', () => {
+        const { g, a } = scene('doe');
+        kill(g, a);
+        const time = InnerMap.butcherTime(a);
+        expect(time.minutes).toBeGreaterThan(0);
+        // carried, "Butcher" puts it down first
+        InnerMapAnimals.pickUp(g, a);
+        const item = InnerMapAnimals.menuItems(g, 30, 30).find(i => i.action === 'animal_butcher');
+        expect(item && item.animal).toBe(a);
+        expect(InnerMapAnimals.butcher(g, a)).toBe('now');
+        expect(InnerMapAnimals._carry).toBe(null);
+        expect(InnerMapDigging.isWorking()).toBe(true);
+        // not done at once
+        InnerMapDigging.update(0.1, g);
+        expect(a.butchered).toBe(false);
+        expect(g.player.inventory.game_meat || 0).toBe(0);
+        for (let t = 0; t < time.seconds + 1; t += 0.1) InnerMapDigging.update(0.1, g);
+        expect(a.butchered).toBe(true);
+        expect(g.player.inventory.game_meat).toBeGreaterThan(0);
+        expect(g.notes.some(n => /Butchered/.test(n.t))).toBe(true);
+        // the clock moved on by the work
+        expect(InnerMap.timeOfDay * 60 + InnerMap._timeAccumulator / (InnerMap.TIME_SCALE || 60) * 60).toBeCloseTo(9 * 60 + time.minutes, 0);
+        // off the books, and soon off the map
+        expect(g.world.wildlife.carcasses['5,7']).toBeUndefined();
+        for (let t = 0; t < cfg().behaviour.butcheredSeconds + 1; t += 0.5) InnerMap.updateAnimals(0.5);
+        expect(InnerMap.animals).not.toContain(a);
+        // walking off stops the work
+        const s = scene('doe');
+        kill(s.g, s.a);
+        InnerMapAnimals.butcher(s.g, s.a);
+        InnerMap.playerInnerQ += 3;
+        for (let t = 0; t < 12; t += 0.1) InnerMapDigging.update(0.1, s.g);
+        expect(s.a.butchered).toBe(false);
     });
 });
 

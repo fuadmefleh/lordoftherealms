@@ -581,6 +581,11 @@ Object.assign(InnerMap, {
         // --- A roadhouse on an open road (systems/hospitality.js; hash-placed: draws nothing from rng) ---
         this._placeRoadhouse(tiles, worldTile, worldQ, worldR, game && game.world);
 
+        // --- Crags in mountainous and rocky country, on ground nothing else has
+        // taken; before the scatter, which grows round them (world/innerMap/cliffs.js;
+        // hash-placed: draws nothing from rng) ---
+        if (this._layCliffs) this._layCliffs(tiles, worldTile, worldQ, worldR);
+
         // --- Scatter custom editor-authored objects on terrain ---
         if (typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded() && CustomObjects.hasAnyBindings()) {
             this._scatterCustomObjects(tiles, rng, game ? (game.world ? (game.world.day || 0) : 0) : 0);
@@ -588,6 +593,7 @@ Object.assign(InnerMap, {
 
         // --- Wilderness encounters (hash-placed: draws nothing from rng) ---
         this._placeWildEncounters(tiles, worldTile, worldQ, worldR, game);
+
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);
@@ -707,6 +713,10 @@ Object.assign(InnerMap, {
             return true;
         }
 
+        const parentId = tiles[0] && tiles[0][0] && tiles[0][0].parentTerrain;
+        const densities = (this.CONFIG && this.CONFIG.treeDensity) || {};
+        const treeDensity = Number.isFinite(densities[parentId]) ? densities[parentId] : 1;
+
         for (let r = 1; r < H - 1; r++) {
             for (let q = 1; q < W - 1; q++) {
                 const tile = tiles[r][q];
@@ -745,6 +755,8 @@ Object.assign(InnerMap, {
 
                 // Trees only spawn on grass (tiles that have a grass detail overlay)
                 if (def.objectType === 'tree' && !tile.terrainDetail) continue;
+                // ...and thinner on the heights and in the marsh (data/innerMap.json treeDensity)
+                if (def.objectType === 'tree' && treeDensity < 1 && rng() > treeDensity) continue;
 
                 // Verify every footprint tile is in-bounds and free
                 let clear = true;
@@ -754,8 +766,8 @@ Object.assign(InnerMap, {
                     if (fr <= 0 || fr >= H - 1 || fq <= 0 || fq >= W - 1)
                         { clear = false; break; }
                     const ft = tiles[fr][fq];
-                    // ...and never across a building lot (world/townPlanner.js) or out over the water
-                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad || ft._lot || ft._wet)
+                    // ...and never across a building lot (world/townPlanner.js), out over the water or up a crag (cliffs.js)
+                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad || ft._lot || ft._wet || ft._cragTop !== undefined)
                         { clear = false; break; }
                     // Prevent placement in front of building doors
                     if (doorExclusion.has(`${fq},${fr}`))

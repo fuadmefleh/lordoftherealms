@@ -410,8 +410,8 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 // Impassable tint (skip tiles occupied by buildings, objects, or interior furniture)
-                // (not on water: a sea or a pond is plainly no place to walk, and a red mesh over it is noise)
-                if (!tile.subTerrain.passable && tile.baseTerrain !== 'water' && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile.customObject && !tile.customObjectPart && !tile._isInterior) {
+                // (not on water or a crag (world/innerMap/cliffs.js): plainly no place to walk, and a red mesh over it is noise)
+                if (!tile.subTerrain.passable && tile.baseTerrain !== 'water' && tile._cragTop === undefined && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile.customObject && !tile.customObjectPart && !tile._isInterior) {
                     impassRects.push(dx, dy, sz);
                 }
 

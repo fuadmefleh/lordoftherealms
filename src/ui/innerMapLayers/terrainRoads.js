@@ -172,6 +172,7 @@ Object.assign(InnerMapRenderer, {
         const ds = T * camera.zoom;
         const terrainKey = this._seasonKey('terrain');
         const terrainSheet = this._sheets.get(terrainKey);
+        const cliffSheet = this._sheets.get(this._seasonKey('cliff')) || null;
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const canvasW = ctx.canvas.width;
         const canvasH = ctx.canvas.height;
@@ -204,7 +205,8 @@ Object.assign(InnerMapRenderer, {
 
                 const ov = tile.terrainDetail || tile.grassOverlay || null;
                 const decor = tile.decor;
-                if (!ov && !decor) continue;
+                const crag = tile._crag;
+                if (!ov && !decor && !crag) continue;
 
                 const dx = Math.floor(originX + (q - qMin) * ds);
                 const dy = dyFloor;
@@ -230,6 +232,11 @@ Object.assign(InnerMapRenderer, {
                         const pick = fills[hash % fills.length];
                         ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
                     }
+                }
+
+                // A crag's rim or rock face (world/innerMap/cliffs.js), from the season's cliff sheet
+                if (crag && cliffSheet) {
+                    ctx.drawImage(cliffSheet, crag.c * 32, crag.r * 32, 32, 32, dx, dy, sz, sz);
                 }
 
                 // Shore dressing (world/innerMap/water.js): reeds, lily pads, stones —

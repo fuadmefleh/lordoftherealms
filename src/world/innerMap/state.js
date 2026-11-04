@@ -349,11 +349,11 @@ Object.assign(InnerMap, {
         tropical_rainforest:  'grass',
         desert:               'sand',
         savanna:              'dry_dirt',
-        mountain:             'stone',
-        snow_peak:            'stone',
+        mountain:             'grass',   // alpine grass; the rock stands up as crags (cliffs.js)
+        snow_peak:            'grass',
         hills:                'grass',   // grassed over by the second grass layer (terrain.js), not left as bare cobbly dirt
         highlands:            'grass',
-        swamp:                'dark_stone',
+        swamp:                'grass',   // wet meadow between the pools
         tundra:               'dirt',
         snow:                 'grass',   // seasonal sheet swap handles visuals
         ice:                  'water',

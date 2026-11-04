@@ -23,5 +23,6 @@ import './water.js';
 import './swimming.js';
 import './animals.js';
 import './farmPlots.js';
+import './cliffs.js';
 
 export { InnerMap };

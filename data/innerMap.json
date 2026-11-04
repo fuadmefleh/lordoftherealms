@@ -41,6 +41,17 @@
             }
         }
     },
+    "treeDensity": {
+        "_note": "Share of the usual wild trees a terrain's inner map grows (world/innerMap/terrain.js scatter; 1 = as on grassland).",
+        "mountain": 0.2, "snow_peak": 0.1, "highlands": 0.4, "hills": 0.5, "swamp": 0.15
+    },
+    "cliffs": {
+        "_note": "Raised crags in rocky country (world/innerMap/cliffs.js): how many on a hex, and their width, the depth of their top and the height of the rock face below in tiles, the chance a big one carries a second step up (tier), and the share with an angled front (5+ wide) rather than a square one. A settlement hex gets 40% of them.",
+        "mountain":  { "count": [22, 32], "width": [4, 14], "height": [3, 8], "face": [2, 4], "tier": 0.6, "angled": 0.55 },
+        "snow_peak": { "count": [22, 32], "width": [4, 14], "height": [3, 8], "face": [3, 4], "tier": 0.7, "angled": 0.45 },
+        "highlands": { "count": [8, 14],  "width": [3, 10], "height": [2, 5], "face": [2, 3], "tier": 0.2, "angled": 0.65 },
+        "hills":     { "count": [2, 5],   "width": [4, 8],  "height": [2, 4], "face": [2, 2], "angled": 0.75 }
+    },
     "subTerrains": {
         "grassland": {
             "primary": [
@@ -131,8 +142,7 @@
         },
         "mountain": {
             "primary": [
-                { "id": "rocks", "name": "Bare Rock", "icon": "⛰️", "color": "#808080", "weight": 50 },
-                { "id": "cliff", "name": "Cliff Face", "icon": "🧗", "color": "#5a5a5a", "weight": 15, "passable": false },
+                { "id": "rocks", "name": "Bare Rock", "icon": "⛰️", "color": "#808080", "weight": 65 },
                 { "id": "grass", "name": "Alpine Meadow", "icon": "🌿", "color": "#7a9a5a", "weight": 20 },
                 { "id": "snow", "name": "Snow Cap", "icon": "❄️", "color": "#e8e8e8", "weight": 15 }
             ],
@@ -149,13 +159,13 @@
         },
         "swamp": {
             "primary": [
-                { "id": "bog", "name": "Soggy Bog", "icon": "🌿", "color": "#4a6a3a", "weight": 40 },
+                { "id": "bog", "name": "Soggy Bog", "icon": "🌿", "color": "#4a6a3a", "weight": 49 },
                 { "id": "mud", "name": "Murky Mud", "icon": "🐸", "color": "#3a5a2a", "weight": 35 },
-                { "id": "trees", "name": "Dead Trees", "icon": "🌲", "color": "#5a5a3a", "weight": 15 },
+                { "id": "trees", "name": "Dead Trees", "icon": "🌲", "color": "#5a5a3a", "weight": 6 },
                 { "id": "grass", "name": "Dry Mound", "icon": "🌿", "color": "#6a7a4a", "weight": 10 }
             ],
             "encounters": ["giant_frog", "leech_swarm", "witch_hut", "sunken_chest", "will_o_wisp"],
-            "waterFeatures": { "chance": 0.95, "count": [3, 6], "radius": [4, 12], "lobes": [2, 4] }
+            "waterFeatures": { "chance": 1, "count": [9, 14], "radius": [3, 9], "lobes": [2, 4] }
         },
         "tundra": {
             "primary": [

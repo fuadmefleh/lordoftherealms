@@ -46,24 +46,40 @@ export const DawnBirth = {
      * name if they have no other, and gains their family. → { clan, kin } or null
      * (not a dawn world, or no clan to be born into).
      */
-    apply(player, world) {
+    apply(player, world, opts = {}) {
         if (!Dawn.isActive(world) || !player) return null;
-        const clan = DawnBirth._startClan(world, player);
-        if (!clan) return null;
+        // Born to a wandering clan (the one given, else the nearest), or into a
+        // dawn village a clan founded (a new life: opts.village = { q, r })
+        const vTile = opts.village ? world.getTile(opts.village.q, opts.village.r) : null;
+        const village = vTile && vTile.settlement ? vTile.settlement : null;
+        const clan = village ? null : (opts.clan || DawnBirth._startClan(world, player));
+        if (!clan && !village) return null;
         const B = DawnBirth.data();
-        clan.kinOfPlayer = true;
-        player.dawnClan = clan.id;
-        player.q = clan.q;
-        player.r = clan.r;
+        const clanName = clan ? clan.clanName : DawnBirth.villageClanName(village);
+        // Only one clan walks with the player: a life before's kin go their own way
+        for (const u of world.units || []) if (u.type === 'clan' && u !== clan) u.kinOfPlayer = false;
+        if (clan) {
+            clan.kinOfPlayer = true;
+            player.dawnClan = clan.id;
+            player.dawnHome = null;
+            player.q = clan.q;
+            player.r = clan.r;
+        } else {
+            player.dawnClan = null;
+            player.dawnHome = { q: vTile.q, r: vTile.r, name: village.name };
+            player.q = vTile.q;
+            player.r = vTile.r;
+        }
         if (!player.lastName) {
-            player.lastName = `of the ${clan.clanName}`;
+            player.lastName = `of the ${clanName}`;
             player.name = `${player.firstName} ${player.lastName}`.trim();
-            if (player.dynasty) player.dynasty.name = clan.clanName;
+            if (player.dynasty) player.dynasty.name = clanName;
         }
 
-        const culture = clan.culture || 'Woodland';
+        const culture = (clan ? clan.culture : village.culture) || 'Woodland';
         const names = (Characters && Characters.FIRST_NAMES && (Characters.FIRST_NAMES[culture] || Characters.FIRST_NAMES.Imperial)) || null;
-        const home = { name: clan.name, kingdom: null, q: clan.q, r: clan.r };
+        const home = clan ? { name: clan.name, kingdom: null, q: clan.q, r: clan.r }
+            : { name: village.name, kingdom: village.kingdom != null ? village.kingdom : null, q: vTile.q, r: vTile.r };
         const age = _num(player.age, 20);
         const PA = B.parentAge || {};
         const regard = B.regard || {};
@@ -73,13 +89,14 @@ export const DawnBirth = {
             const npc = Relationships.generateNPC(home, world);
             npc.gender = gender;
             if (names && names[gender] && names[gender].length) npc.firstName = Utils.randPick(names[gender]);
-            npc.dynasty = clan.clanName;
+            npc.dynasty = clanName;
             npc.culture = culture;
             npc.age = Math.max(1, Math.round(years));
             npc.kin = role;
-            npc.clanId = clan.id;
+            npc.clanId = clan ? clan.id : null;
             npc.occupation = Utils.randPick(jobs);
-            npc.settlementName = clan.name;
+            npc.settlementName = home.name;
+            if (!clan) { npc.settlementQ = home.q; npc.settlementR = home.r; }
             const rel = Relationships.getRelationship(player, npc.id);
             rel.score = _num(role === 'father' || role === 'mother' ? regard.parent : regard.sibling, 60);
             rel.family = role;
@@ -95,8 +112,15 @@ export const DawnBirth = {
             make(gender === 'male' ? 'brother' : 'sister', gender, Math.max(2, age + Utils.randInt(-spread, spread)));
         }
         player.dawnKin = kin.map(k => k.id);
+        delete player.kinOwed;
         if (typeof Relationships.prepareForSave === 'function') Relationships.prepareForSave(player);
-        return { clan, kin };
+        return { clan, village, kin };
+    },
+
+    /** The clan a dawn village was founded by ("Wolf" for "Wolf Clan") */
+    villageClanName(settlement) {
+        const by = String((settlement && settlement.foundedBy) || '').replace(/\s+Clan$/i, '').trim();
+        return by || (settlement && settlement.name) || 'Hearth';
     },
 
     /** "your father Bran, your mother Ide and your sister Wen" */

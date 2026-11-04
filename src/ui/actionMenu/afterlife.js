@@ -71,6 +71,8 @@ Object.assign(ActionMenu, {
         let html = '<div style="text-align:center;font-size:12px;">';
         html += `<h3 style="color:var(--gold);margin-top:0;">${_esc(p.name)}</h3>`;
         html += `<p style="font-size:14px;">You are ${_esc(p.name)}, ${_esc(cand.title.toLowerCase())} of ${_esc(cand.town)}${cand.kingdom ? ` in ${_esc(cand.kingdom)}` : ''}, aged ${p.age}, with ${p.gold} gold to your name.</p>`;
+        // Born at the dawn: a family of the clan (player/dawnBirth.js)
+        if (res.kin) html += `<p style="font-size:13px;color:#c9b27a;">You were born to the clan, and your kin are with you: ${_esc(res.kin)}. Their pot is yours when your packs are empty — pay it back.</p>`;
         const e = res.epitaph;
         if (e) {
             html += '<div style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;margin:10px 0;text-align:left;">';

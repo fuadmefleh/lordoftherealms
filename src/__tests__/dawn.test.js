@@ -218,6 +218,68 @@ describe('born into a clan at the dawn', () => {
         for (const id of player.dawnKin) expect(Relationships.getNPC(id).settlementName).toBe(home.name);
         expect(DawnBirth.canSettleHere(player, world)).toBe(false);
     });
+
+    it('a new life at the dawn is born into a clan too: its name, a family, the kin\'s pot', async () => {
+        const { newGame } = await import('./playtest/harness.js');
+        const { DawnBirth } = await import('../player/dawnBirth.js');
+        const { Afterlife } = await import('../player/afterlife.js');
+        const { Relationships } = await import('../systems/relationships.js');
+        const game = newGame(808, { startYear: 1, terrainGen: 3, kingdomCount: 3 });
+        const { player: old, world } = game;
+        const oldClan = Dawn.kinClan(world, old);
+        const oldKin = old.dawnKin.slice();
+        // Every new life on offer is a child of a clan (or of a village a clan founded)
+        const cands = Afterlife.candidates(world);
+        expect(cands.length).toBeGreaterThan(0);
+        for (const c of cands) {
+            expect(c.dawn).toBeTruthy();
+            expect(c.last).toMatch(/^of the /);
+        }
+        // Take one from another clan than the old life's, if there is one
+        const cand = cands.find(c => c.dawn.clanId != null && c.dawn.clanId !== oldClan.id) || cands.find(c => c.dawn.clanId != null);
+        expect(cand).toBeTruthy();
+        Afterlife.begin(old, world, 'test');
+        const res = Afterlife.becomeStranger(old, world, cand);
+        expect(res.success).toBe(true);
+        const p = res.player;
+        const clan = Dawn.kinClan(world, p);
+        expect(clan && clan.id).toBe(cand.dawn.clanId);
+        expect(clan.kinOfPlayer).toBe(true);
+        if (clan !== oldClan) expect(oldClan.kinOfPlayer).toBe(false);
+        expect([p.q, p.r]).toEqual([clan.q, clan.r]);
+        expect(p.lastName).toBe(`of the ${clan.clanName}`);
+        expect(p.house.name).toContain(clan.clanName);
+        const kin = p.dawnKin.map(id => Relationships.getNPC(id));
+        expect(kin.map(k => k.kin)).toEqual(expect.arrayContaining(['father', 'mother']));
+        for (const k of kin) {
+            expect(oldKin).not.toContain(k.id);
+            expect(k.dynasty).toBe(clan.clanName);
+            expect(p.relationships[k.id].score).toBeGreaterThan(40);
+        }
+        expect(res.kin).toContain('your father');
+        // ...and they feed their child at the camp
+        p.inventory = {};
+        expect(DawnBirth.kinHearth(p, world)).toBe('clan');
+    });
+
+    it('a new life in a dawn village a clan founded: kin at home there', async () => {
+        const { DawnBirth } = await import('../player/dawnBirth.js');
+        const { Player } = await import('../player/player.js');
+        const { Relationships } = await import('../systems/relationships.js');
+        const world = dawnWorld();
+        const clan = clans(world)[0];
+        const tile = world.getTile(clan.q, clan.r);
+        Dawn.foundVillage(world, clan, tile);
+        const p = new Player({ firstName: 'Wen', gender: 'female', age: 20 });
+        Relationships.initialize(p);
+        const res = DawnBirth.apply(p, world, { village: { q: tile.q, r: tile.r } });
+        expect(res && res.village).toBe(tile.settlement);
+        expect(p.dawnClan).toBeNull();
+        expect(p.dawnHome).toEqual({ q: tile.q, r: tile.r, name: tile.settlement.name });
+        expect(p.lastName).toBe(`of the ${clan.clanName}`);
+        for (const id of p.dawnKin) expect(Relationships.getNPC(id).settlementName).toBe(tile.settlement.name);
+        expect(DawnBirth.kinHearth(p, world)).toBe('home');
+    });
 });
 
 describe('First Steps at the dawn', () => {

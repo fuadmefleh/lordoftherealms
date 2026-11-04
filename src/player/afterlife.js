@@ -73,6 +73,9 @@ import { Bills } from '../systems/bills.js';
 import { Bourse } from '../systems/bourse.js';
 import { Mints } from '../systems/mints.js';
 import { Player } from './player.js';
+import { DawnBirth } from './dawnBirth.js';
+import { Dawn } from '../world/dawn.js';
+import { Characters } from '../world/characters.js';
 
 const DEFAULTS = {
     candidates: 4,
@@ -267,6 +270,11 @@ export const Afterlife = {
             return s / 4294967296;
         };
         const pick = arr => (arr && arr.length ? arr[Math.floor(rng() * arr.length)] : null);
+        // At the Dawn of Man nobody comes from nowhere: a new life is born into a clan
+        if (Dawn.isActive(world)) {
+            const born = Afterlife._dawnCandidates(world, C, rng, pick);
+            if (born.length) return born;
+        }
         const towns = world.getSettlementViews()
             .map(v => ({ v, live: world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement }))
             .filter(t => t.live && _num(t.live.population) > 0);
@@ -323,6 +331,53 @@ export const Afterlife = {
                 station: person.role,
                 title: st.title || Townsfolk.title(person.role, person.gender),
                 gold: Math.round(_num(g[0], 100) + rng() * (_num(g[1], 200) - _num(g[0], 100))),
+            });
+        }
+        return out;
+    },
+
+    /**
+     * New lives at the dawn: children of the wandering clans, or of the
+     * villages clans have founded (dawnBorn), each with the clan's name and a
+     * family to come (DawnBirth.apply in becomeStranger). → candidates, as
+     * `candidates` returns, with `dawn: { clanId }` or `dawn: { q, r }`.
+     */
+    _dawnCandidates(world, C, rng, pick) {
+        const homes = [];
+        for (const u of world.units || []) {
+            if (u.type === 'clan' && !u.destroyed) homes.push({ clan: u, q: u.q, r: u.r, name: u.name, clanName: u.clanName, culture: u.culture });
+        }
+        for (const v of world.getSettlementViews ? world.getSettlementViews() : []) {
+            const live = world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement;
+            if (!live || !live.dawnBorn || _num(live.population) <= 0) continue;
+            homes.push({ village: live, q: v.q, r: v.r, name: live.name, clanName: DawnBirth.villageClanName(live), culture: live.culture,
+                kingdom: live.kingdom != null && typeof world.getKingdom === 'function' && world.getKingdom(live.kingdom) ? world.getKingdom(live.kingdom).name : null });
+        }
+        if (!homes.length) return [];
+        for (let i = homes.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [homes[i], homes[j]] = [homes[j], homes[i]];
+        }
+        const B = DawnBirth.data();
+        const jobs = B.occupations && B.occupations.length ? B.occupations : ['Hunter'];
+        const st = C.stations.villager || {};
+        const g = Array.isArray(st.gold) ? st.gold : [10, 40];
+        const out = [];
+        for (let i = 0; out.length < C.candidates && i < C.candidates * 4; i++) {
+            const h = homes[i < homes.length ? i : Math.floor(rng() * homes.length)];
+            const gender = rng() < 0.5 ? 'male' : 'female';
+            const names = (Characters.FIRST_NAMES && (Characters.FIRST_NAMES[h.culture || 'Woodland'] || Characters.FIRST_NAMES.Imperial)) || {};
+            const first = pick(names[gender]) || pick(Townsfolk.config().names[gender]) || 'Wren';
+            if (out.some(c => c.first === first && c.q === h.q && c.r === h.r)) continue;
+            out.push({
+                key: `${h.q},${h.r}#dawn${out.length}`,
+                first, last: `of the ${h.clanName}`, gender,
+                age: C.minAge + Math.floor(rng() * (C.maxAge - C.minAge + 1)),
+                role: 'villager', station: 'villager', folkId: null,
+                title: pick(jobs) || 'Hunter',
+                q: h.q, r: h.r, town: h.name, townType: h.clan ? 'clan' : 'village', kingdom: h.kingdom || null,
+                gold: Math.round(_num(g[0], 10) + rng() * (_num(g[1], 40) - _num(g[0], 10))),
+                dawn: h.clan ? { clanId: h.clan.id } : { q: h.q, r: h.r },
             });
         }
         return out;
@@ -463,7 +518,9 @@ export const Afterlife = {
             if (p) Townsfolk.exile(live.folk, p, _num(world.day), 'the road');
         }
 
-        const player = new Player({ firstName: cand.first, lastName: cand.last, gender: cand.gender, age: cand.age });
+        // Born at the dawn: no surname yet — DawnBirth.apply gives the clan's (and the House its name)
+        const dawnBorn = !!(cand.dawn && Dawn.isActive(world));
+        const player = new Player({ firstName: cand.first, lastName: dawnBorn ? '' : cand.last, gender: cand.gender, age: cand.age });
         player.q = cand.q; player.r = cand.r;
         player.prevQ = cand.q; player.prevR = cand.r;
         for (const kingdom of world.kingdoms || []) player.reputation[kingdom.id] = 0;
@@ -493,12 +550,28 @@ export const Afterlife = {
         Achievements.initialize(player);
         Technology.initPlayer(player);
         Relationships.initialize(player);
+        // A child of a clan (or of a village a clan founded): a father, a mother,
+        // brothers and sisters — before the House, which takes the clan's name
+        // (the same order as a dawn start, ui/game/gameSetup.js)
+        let birth = null;
+        if (dawnBorn) {
+            const clan = cand.dawn.clanId != null
+                ? (world.units || []).find(u => u.type === 'clan' && !u.destroyed && u.id === cand.dawn.clanId) : null;
+            birth = DawnBirth.apply(player, world, clan ? { clan } : { village: { q: cand.dawn.q != null ? cand.dawn.q : cand.q, r: cand.dawn.r != null ? cand.dawn.r : cand.r } });
+            if (birth) {
+                player.prevQ = player.q;
+                player.prevR = player.r;
+            } else {
+                player.lastName = cand.last;
+                player.name = `${player.firstName} ${player.lastName}`.trim();
+            }
+        }
         House.initialize(player, world);
         House.seedRivals(player, world);
         player.taxRate = 'moderate';
         Titles.initialize(player);
         Councils.initializePlayer(player);
         player.updateVisibility(world, 4);
-        return { success: true, player, epitaph, escheat };
+        return { success: true, player, epitaph, escheat, kin: birth ? DawnBirth.kinLine(player) : null };
     },
 };

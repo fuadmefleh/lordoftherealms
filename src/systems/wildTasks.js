@@ -81,7 +81,8 @@ export const WildTasks = {
                 if (!free(t) || t.isRoad) continue;
                 const id = t.subTerrain.id;
                 if (ICE_IDS.has(id)) out.ice.push({ q, r });
-                if (N4.some(([dq, dr]) => isWater(tile(q + dq, r + dr)))) out.shore.push({ q, r });
+                // the bank: dry ground beside the water or its shallows (never the shallows themselves)
+                if (!t._wet && N4.some(([dq, dr]) => { const n = tile(q + dq, r + dr); return isWater(n) || !!(n && n._wet); })) out.shore.push({ q, r });
                 else if (!ICE_IDS.has(id)) out.open.push({ q, r });
             }
         }

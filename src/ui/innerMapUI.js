@@ -746,7 +746,8 @@ Object.assign(InnerMapRenderer, {
             return;
         }
 
-        if (dist > 1 && !item._approached) {
+        // (fishing goes to the bank, never out to the water it casts into)
+        if (dist > 1 && !item._approached && action !== 'fish_here') {
             InnerMap.cancelPlayerWalk();
             InnerMap.movePlayerTo(q, r);
         }
@@ -1050,14 +1051,23 @@ Object.assign(InnerMapRenderer, {
                     game.ui.showNotification('🎣 Fishing', 'You can\'t fish while you\'re swimming. Get to the bank first.', 'warning');
                     break;
                 }
-                let bank = null, best = Infinity;
-                for (let dr = -3; dr <= 3; dr++) {
-                    for (let dq = -3; dq <= 3; dq++) {
-                        const x = q + dq, y = r + dr;
-                        const t = InnerMap.getTile(x, y);
-                        if (!t || !t.subTerrain.passable || t.building || t.customObjectPart) continue;
-                        const d = Math.max(Math.abs(dq), Math.abs(dr)) * 10 + Math.abs(x - playerQ) + Math.abs(y - playerR) / 100;
-                        if (d < best) { best = d; bank = { q: x, r: y }; }
+                // Dry ground to stand on: not the shallows, a ford or the water itself
+                const dryBank = (t) => !!(t && t.subTerrain.passable && !t._wet && !t._sea && !t.building && !t.customObjectPart);
+                const REACH = 3; // how far a line is cast
+                let bank = null;
+                const here = InnerMap.getTile(playerQ, playerR);
+                if (dryBank(here) && Math.max(Math.abs(q - playerQ), Math.abs(r - playerR)) <= REACH) {
+                    bank = { q: playerQ, r: playerR }; // cast from where you stand
+                } else {
+                    // the nearest dry bank within a cast of the water, the closer to you the better
+                    let best = Infinity;
+                    for (let dr = -REACH; dr <= REACH; dr++) {
+                        for (let dq = -REACH; dq <= REACH; dq++) {
+                            const x = q + dq, y = r + dr;
+                            if (!dryBank(InnerMap.getTile(x, y))) continue;
+                            const d = Math.max(Math.abs(dq), Math.abs(dr)) * 10 + Math.abs(x - playerQ) + Math.abs(y - playerR);
+                            if (d < best) { best = d; bank = { q: x, r: y }; }
+                        }
                     }
                 }
                 if (!bank) { game.ui.showNotification('🎣 Fishing', 'There is no bank close enough to cast from. Try nearer the shore.', 'warning'); break; }

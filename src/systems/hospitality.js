@@ -200,6 +200,13 @@ export const Hospitality = {
         return `${_pick(K.first || ['Marla'], _u(`${seedStr}|kf`))} ${_pick(K.last || ['Brewer'], _u(`${seedStr}|kl`))}`;
     },
 
+    /** 'female' or 'male' for a keeper's name (data/hospitality.json names.keepers.female). */
+    keeperGender(name) {
+        const K = (this.data().names || {}).keepers || {};
+        const first = String(name || '').split(' ')[0];
+        return (K.female || []).includes(first) ? 'female' : 'male';
+    },
+
     /** A house name for a kind: {adj} {noun} {noun2} {keeper} filled from data/hospitality.json names. */
     makeName(kind, seedStr, keeper) {
         const N = (this.data().names || {})[kind] || {};
@@ -225,6 +232,7 @@ export const Hospitality = {
             name: this.makeName(kind, s, keeper),
             keeper,
             keeperUid: null,
+            kv: 1,
             stars: Math.round((s0 + (s1 - s0) * _u(`${s}|stars`)) * 10) / 10,
             rep: Math.round(40 + 30 * _u(`${s}|rep`)),
             priceMult: Math.round((0.9 + 0.25 * _u(`${s}|price`)) * 100) / 100,
@@ -252,7 +260,10 @@ export const Hospitality = {
             if (!st.houses[id]) {
                 st.houses[id] = this._newHouse(world, kind, q, r, i, tile.settlement.name);
                 ids.push(id);
-            } else if (!ids.includes(id)) ids.push(id);
+            } else {
+                this._mendKeeperName(world, st.houses[id]);
+                if (!ids.includes(id)) ids.push(id);
+            }
         });
         return ids.map(id => st.houses[id]).filter(Boolean);
     },
@@ -400,13 +411,34 @@ export const Hospitality = {
         return h ? this.view(world, h) : null;
     },
 
-    /** Tie an NPC house's keeper to a living townsperson (the inner map's keeper NPC). */
+    /**
+     * Tie an NPC house's keeper to a living townsperson (the inner map's keeper
+     * NPC). The first townsperson bound takes the keeper's name (the inner map
+     * renames them to it), so the keeper is named as before; a later one — the
+     * first keeper dead or gone — keeps the house under their own name.
+     */
     bindKeeper(world, id, uid, name) {
         const h = this.state(world).houses[id];
         if (!h || !uid) return;
         if (h.keeperUid === uid) return;
+        const successor = !!h.keeperUid;
         h.keeperUid = uid;
-        if (name) h.keeper = name;
+        if (name && (successor || !h.keeper)) h.keeper = name;
+    },
+
+    /**
+     * A house from an older save whose keeper was renamed to a townsperson's
+     * when first bound: its name, still made from the first keeper's name,
+     * takes the keeper's it has now — once, so a later keeper never renames it.
+     */
+    _mendKeeperName(world, h) {
+        if (!h || h.kv) return;
+        h.kv = 1;
+        if (!h.keeperUid || !h.keeper) return;
+        const s = `${_seed(world)}|${h.id}`;
+        const first = this._keeperName(s);
+        if (h.keeper === first || h.name !== this.makeName(h.kind, s, first)) return;
+        h.name = this.makeName(h.kind, s, h.keeper);
     },
 
     // ──────────── GUESTS ────────────

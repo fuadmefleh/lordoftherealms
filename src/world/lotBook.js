@@ -7,9 +7,13 @@
 // with the world tile):
 //
 //   settlement.lotBook = {
-//       lots:      { lot3: { holder, holderName, price, day, built: { type, name, by, readyDay } } },
-//       vacancies: { '41,57': { status: 'rented'|'owned', holder, holderName, rent, day } },
+//       lots:      { lot3: { holder, holderName, price, day, built: { type, name, by, readyDay, kind?, cost?, let?, tenant? } } },
+//       vacancies: { '41,57': { status: 'rented'|'owned', holder, holderName, rent, day, paidDay?, let?, tenant? } },
 //   }
+//
+// A house of the player's to let (a bought vacancy, or built.kind 'house' on
+// their lot) carries let (offered to tenants) and tenant { name, since, rent,
+// paidDay, owed, missed }.
 //
 // holder: 'player', 'rival:<kingdomId>' (an AI House), or 'npc:<name>'.
 // Pure data and arithmetic; the dealings are systems/lots.js.
@@ -25,6 +29,9 @@ const DEFAULTS = {
     vacant: { village: 0, town: 1, city: 3, capital: 4 },
     rentPerDay: { village: 1, town: 2, city: 4, capital: 6 },
     salePrice: { village: 150, town: 320, city: 620, capital: 900 },
+    houseBuild: { cost: { village: 110, town: 230, city: 420, capital: 600 }, days: { village: 8, town: 10, city: 12, capital: 14 } },
+    letting: { tenantChance: 0.12, rentMult: 1, missChance: 0.03, behindMult: 6, leaveAfterMissed: 10, warnEvery: 5, summaryDays: 30 },
+    sellBack: 0.75,
     ai: { buyChance: { village: 0.006, town: 0.008, city: 0.012, capital: 0.015 }, rentChance: 0.02, leaveChance: 0.006, buildDays: 20, builds: ['house'], buyers: ['a townsman'] },
 };
 
@@ -34,7 +41,12 @@ export const LotBook = {
     config() {
         const d = DataLoader._gamedata && DataLoader._gamedata.lots;
         if (!d || typeof d !== 'object') return DEFAULTS;
-        return { ...DEFAULTS, ...d, ai: { ...DEFAULTS.ai, ...(d.ai || {}) } };
+        return {
+            ...DEFAULTS, ...d,
+            ai: { ...DEFAULTS.ai, ...(d.ai || {}) },
+            houseBuild: { ...DEFAULTS.houseBuild, ...(d.houseBuild || {}) },
+            letting: { ...DEFAULTS.letting, ...(d.letting || {}) },
+        };
     },
 
     /** A per-type setting (falls back to the village's). */
@@ -68,6 +80,10 @@ export const LotBook = {
     lotPrice(type, w, h) {
         return Math.round(_num(this.byType('pricePerTile', type), 2) * Math.max(1, w) * Math.max(1, h));
     },
+
+    /** What a house the player raises on a lot costs, and how many days it takes. */
+    houseCost(type) { return Math.max(1, Math.round(_num((this.config().houseBuild.cost || {})[type] ?? (this.config().houseBuild.cost || {}).village, 200))); },
+    houseDays(type) { return Math.max(0, Math.round(_num((this.config().houseBuild.days || {})[type] ?? (this.config().houseBuild.days || {}).village, 10))); },
 
     rentPerDay(type) { return Math.max(1, Math.round(_num(this.byType('rentPerDay', type), 2))); },
     salePrice(type) { return Math.max(1, Math.round(_num(this.byType('salePrice', type), 300))); },

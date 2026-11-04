@@ -375,6 +375,8 @@ export const SaveLoad = {
         'scenario',
         // Lots, rented and bought houses in town (systems/lots.js: rent day reads it)
         'lotHoldings',
+        // The month's rents taken and paid, for the rent-day summary (systems/lots.js)
+        'lotRentBook',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
     ],

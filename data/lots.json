@@ -7,6 +7,14 @@
     "vacant": { "village": 0, "town": 1, "city": 3, "capital": 4 },
     "rentPerDay": { "village": 1, "town": 2, "city": 4, "capital": 6 },
     "salePrice": { "village": 150, "town": 320, "city": 620, "capital": 900 },
+    "_houseBuild": "A house the player raises on their own lot to let (systems/lots.js buildHouseOnLot): cost[type] gold, standing after days[type].",
+    "houseBuild": {
+        "cost": { "village": 110, "town": 230, "city": 420, "capital": 600 },
+        "days": { "village": 8, "town": 10, "city": 12, "capital": 14 }
+    },
+    "_letting": "The player's own houses (bought, or raised on a lot) let to townsfolk: each day a house on offer finds a tenant at tenantChance; a tenant pays rentPerDay[type] x rentMult each day, misses it at missChance (behindMult x that once already behind), paying back up to one day's arrears with each day paid; after leaveAfterMissed days unpaid they slip away. A warning when a tenant first misses and every warnEvery days behind; a summary of rents taken and paid every summaryDays. sellBack: what a lot (and a house on it) or a town house fetches when sold, of what it cost.",
+    "letting": { "tenantChance": 0.12, "rentMult": 1, "missChance": 0.03, "behindMult": 6, "leaveAfterMissed": 10, "warnEvery": 5, "summaryDays": 30 },
+    "sellBack": 0.75,
     "ai": {
         "buyChance": { "village": 0.006, "town": 0.008, "city": 0.012, "capital": 0.015 },
         "rentChance": 0.02,

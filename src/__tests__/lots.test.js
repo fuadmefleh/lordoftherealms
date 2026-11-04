@@ -171,3 +171,162 @@ describe('Vacant houses', () => {
         expect(game.player.lotHoldings.some(h => h.kind === 'house')).toBe(true);
     });
 });
+
+describe('Your lots and houses: building to let, tenants, rents, selling', () => {
+    /** A town with a lot of the player's (no town map needed). */
+    function owned(type = 'town') {
+        const ctx = setup(type);
+        ctx.game.player.financeToday = { income: {}, expenses: {} };
+        const res = Lots.buyLot(ctx.game.player, ctx.world, ctx.settlement, { id: 'lot0', w: 6, h: 6 });
+        expect(res.success).toBe(true);
+        return ctx;
+    }
+    const runDays = (world, player, n) => {
+        const notices = [];
+        for (let i = 0; i < n; i++) { world.day++; notices.push(...Lots.processDay(world, player).notices); }
+        return notices;
+    };
+    /** Run with the tenants' chance of missing the rent set to `p`. */
+    const withMiss = (p, fn) => {
+        const L = DataLoader._gamedata.lots.letting;
+        const was = L.missChance;
+        L.missChance = p;
+        try { return fn(); } finally { L.missChance = was; }
+    };
+
+    it('raises a house to let on your lot, finds a tenant once it stands, and the rent comes in under its own ledger line', () => {
+        const { game, world, settlement } = owned('town');
+        const p = game.player;
+        const g0 = p.gold;
+        const res = Lots.buildHouseOnLot(p, world, settlement, 'lot0');
+        expect(res.success).toBe(true);
+        expect(p.gold).toBe(g0 - LotBook.houseCost('town'));
+        expect(Lots.canBuildOnLot(settlement, 'lot0').ok).toBe(false);
+        let view = Lots.holdingsView(world, p)[0];
+        expect(view.state).toBe('building');
+        expect(view.daysLeft).toBe(LotBook.houseDays('town'));
+        expect(view.canSell).toBe(true);
+        // While it is going up no one moves in
+        runDays(world, p, LotBook.houseDays('town') - 1);
+        expect(LotBook.lot(settlement, 'lot0').built.tenant).toBeNull();
+        // Standing: a tenant is found, and pays
+        const notices = withMiss(0, () => runDays(world, p, 90));
+        view = Lots.holdingsView(world, p)[0];
+        expect(view.state).toBe('built');
+        expect(notices.some(n => n.title === 'A Tenant')).toBe(true);
+        const t = LotBook.lot(settlement, 'lot0').built.tenant;
+        expect(view.tenant).toBe(t.name);
+        expect(view.rent).toBe(Lots.rentFor(settlement));
+        expect(view.paidDay).toBe(world.day);
+        expect(view.canEvict).toBe(true);
+        expect(p.financeToday.income.townRentIncome).toBeGreaterThan(0);
+        // The monthly word of rents
+        expect(notices.some(n => n.title === 'Rents of the Month' && /Rents collected: \d+g from 1 house\./.test(n.text))).toBe(true);
+    });
+
+    it('warns when a tenant can\'t pay, and they slip away after long enough behind', () => {
+        const { game, world, settlement } = owned('city');
+        const p = game.player;
+        Lots.buildHouseOnLot(p, world, settlement, 'lot0');
+        const rec = LotBook.lot(settlement, 'lot0').built;
+        rec.readyDay = world.day;
+        rec.tenant = { name: 'Widow Maud', since: world.day, rent: 4, paidDay: null, owed: 0, missed: 0 };
+        const notices = withMiss(1, () => runDays(world, p, 10));
+        expect(notices.find(n => n.title === 'Rent Unpaid').text).toMatch(/Widow Maud couldn't pay/);
+        expect(notices.some(n => n.title === 'Rent in Arrears')).toBe(true);
+        expect(notices.some(n => n.title === 'A Tenant Gone' && /owing you 40g/.test(n.text))).toBe(true);
+        expect(rec.tenant).toBeNull();
+        expect(p.financeToday.income.townRentIncome || 0).toBe(0);
+    });
+
+    it('a tenant behind pays back arrears with the day\'s rent; putting them out forfeits the rest', () => {
+        const { game, world, settlement } = owned('town');
+        const p = game.player;
+        Lots.buildHouseOnLot(p, world, settlement, 'lot0');
+        const rec = LotBook.lot(settlement, 'lot0').built;
+        rec.readyDay = world.day;
+        rec.tenant = { name: 'Old Bram', since: world.day - 5, rent: 2, paidDay: null, owed: 6, missed: 0 };
+        const g = p.gold;
+        withMiss(0, () => runDays(world, p, 1));
+        expect(p.gold).toBe(g + 4);
+        expect(rec.tenant.owed).toBe(4);
+        expect(p.financeToday.income.townRentIncome).toBe(4);
+        const res = Lots.evictTenant(p, world, 5, 6, 'lot0');
+        expect(res.success).toBe(true);
+        expect(res.text).toMatch(/4g of rent still unpaid/);
+        expect(rec.tenant).toBeNull();
+        expect(rec.let).toBe(true);
+        expect(Lots.stopLetting(p, world, 5, 6, 'lot0').success).toBe(true);
+        expect(Lots.holdingsView(world, p)[0].canLet).toBe(true);
+        expect(Lots.letHouse(p, world, 5, 6, 'lot0').success).toBe(true);
+    });
+
+    it('a bought house can be let and sold; a lot sold bare goes back on the market', () => {
+        const { game, world, settlement } = owned('city');
+        const p = game.player;
+        expect(Lots.buyHouse(p, world, settlement, '20,20', 'The Corner House').success).toBe(true);
+        const house = Lots.holdingsView(world, p).find(r => r.kind === 'house');
+        expect(house.state).toBe('owned');
+        expect(house.canLet).toBe(true);
+        expect(Lots.letHouse(p, world, 5, 6, '20,20').success).toBe(true);
+        expect(LotBook.vacancy(settlement, '20,20').let).toBe(true);
+        // Sell the house: a townsperson has it
+        const g = p.gold;
+        const sold = Lots.sellHouse(p, world, 5, 6, '20,20');
+        expect(sold.success).toBe(true);
+        expect(p.gold).toBe(g + Math.round(LotBook.salePrice('city') * 0.75));
+        expect(LotBook.vacancy(settlement, '20,20').holder).toMatch(/^npc:/);
+        // Sell the bare lot
+        const lotSale = Lots.sellLot(p, world, 5, 6, 'lot0');
+        expect(lotSale.success).toBe(true);
+        expect(LotBook.lot(settlement, 'lot0')).toBeNull();
+        expect(Lots.holdingsView(world, p)).toEqual([]);
+        expect(p.financeToday.income.townLand).toBe(-LotBook.lotPrice('city', 6, 6) - LotBook.salePrice('city') + sold.value + lotSale.value);
+    });
+
+    it('a lot with a property of yours on it is not sold from the panel; a rented house shows its rent and the day last paid', () => {
+        const { game, world, settlement, worldTile } = owned('town');
+        const p = game.player;
+        const prop = { type: 'workshop', name: 'Workshop', underConstruction: true, constructionDaysLeft: 4 };
+        worldTile.playerProperties = [prop];
+        Lots.buildOnLot(p, world, settlement, 'lot0', prop);
+        let row = Lots.holdingsView(world, p)[0];
+        expect(row.state).toBe('building');
+        expect(row.daysLeft).toBe(4);
+        expect(row.canSell).toBe(false);
+        expect(Lots.sellLot(p, world, 5, 6, 'lot0').success).toBe(false);
+        prop.underConstruction = false;
+        expect(Lots.holdingsView(world, p)[0].state).toBe('built');
+        expect(Lots.rentHouse(p, world, settlement, '30,30', 'The Lane House').success).toBe(true);
+        runDays(world, p, 2);
+        row = Lots.holdingsView(world, p).find(r => r.kind === 'rent');
+        expect(row.state).toBe('rented');
+        expect(row.rent).toBe(LotBook.rentPerDay('town'));
+        expect(row.paidDay).toBe(world.day);
+        expect(row.canLeave).toBe(true);
+        expect(p.financeToday.expenses.townRent).toBe(3 * LotBook.rentPerDay('town'));
+    });
+
+    it('the Lots & Town Houses panel lists each holding and its buttons work', async () => {
+        const { ActionMenu } = await import('../ui/actionMenu.js');
+        const { game, world, settlement } = owned('town');
+        const p = game.player;
+        p.q = 5; p.r = 6;
+        Lots.buyHouse(p, world, settlement, '20,20', 'The Corner House');
+        let html = '';
+        game.ui = { showCustomPanel: (t, h) => { html = h; }, updateStats() {} };
+        ActionMenu.showTownLots(game);
+        expect(html).toContain('Lot #0');
+        expect(html).toContain('The Corner House');
+        expect(html).toContain('Lotby-town');
+        expect(html).toContain('Build a House to Let');
+        ActionMenu.townLotsAct(game, 'build', 5, 6, 'lot0');
+        expect(html).toMatch(/Masons set to work/);
+        expect(html).toMatch(/Building — \d+ days left/);
+        ActionMenu.townLotsAct(game, 'let', 5, 6, '20,20');
+        expect(LotBook.vacancy(settlement, '20,20').let).toBe(true);
+        ActionMenu.townLotsAct(game, 'sell', 5, 6, '20,20');
+        expect(html).toMatch(/is sold to/);
+        expect(html).not.toContain('The Corner House</');
+    });
+});

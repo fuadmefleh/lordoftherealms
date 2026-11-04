@@ -9,9 +9,17 @@
 //   buyLot / buildOnLot      a lot, and the player's property standing on it
 //   rentHouse / buyHouse     a vacant house: by the day, or outright
 //   leaveHouse               give up a rented house
+//   buildHouseOnLot          raise a house to let on your own lot
+//   letHouse / stopLetting / evictTenant
+//                            your own houses (bought, or raised on a lot) let
+//                            to townsfolk, who pay you rent by the day
+//   sellLot / sellHouse      sell a lot (with any house on it) or a town house
+//   holdingsView             every lot and house of the player's, for the panel
 //   processDay               rent day for the player's houses (miss it and
-//                            you're put out); the AI buys free lots and
-//                            raises buildings on them, takes and leaves houses
+//                            you're put out), your tenants' rent (and their
+//                            arrears), a monthly word of rents taken and paid;
+//                            the AI buys free lots and raises buildings on
+//                            them, takes and leaves houses
 //
 // The AI's dice are its own (a hash of the day and the town), so no other
 // system's rolls move. Player holdings are listed on player.lotHoldings.
@@ -51,6 +59,34 @@ function _settlementAt(world, q, r) {
     return (t && t.settlement) || null;
 }
 
+/** The holding's id within its town: a lot's id, or a house's key. */
+const _ref = h => (h.kind === 'lot' ? h.id : h.key);
+
+function _findHolding(player, q, r, ref) {
+    return _holdings(player || {}).find(h => h.q === q && h.r === r && _ref(h) === ref) || null;
+}
+
+/** A townsperson to take a house: one of the town's people (systems/townsfolk.js roll), else a name from the data. */
+function _tenantName(s, rnd, A) {
+    const folk = s && s.folk;
+    const people = folk && Array.isArray(folk.people) ? folk.people.filter(p => p && p.died == null && !p.away && p.role !== 'child' && p.first) : [];
+    if (people.length) {
+        const p = people[Math.floor(rnd() * people.length)];
+        return `${p.first} ${p.last || ''}`.trim();
+    }
+    const names = Array.isArray(A.buyers) && A.buyers.length ? A.buyers : ['a townsman'];
+    return names[Math.floor(rnd() * names.length)];
+}
+
+/** The month's rents (player.lotRentBook): taken from tenants and paid as one. */
+function _rentBook(player, day) {
+    let b = player.lotRentBook;
+    if (!b || typeof b !== 'object') b = player.lotRentBook = { since: day, collected: 0, from: [], paid: 0, paidFor: [], missed: 0 };
+    if (!Array.isArray(b.from)) b.from = [];
+    if (!Array.isArray(b.paidFor)) b.paidFor = [];
+    return b;
+}
+
 export const Lots = {
     config() { return LotBook.config(); },
 
@@ -80,6 +116,7 @@ export const Lots = {
         const rec = LotBook.lot(settlement, lotId);
         if (!LotBook.isPlayer(rec)) return false;
         rec.built = { type: property && property.type, name: property && property.name, by: 'player', readyDay: _day(world) };
+        if (property) property.lotId = lotId;
         return true;
     },
 
@@ -90,6 +127,21 @@ export const Lots = {
         if (!LotBook.isPlayer(rec)) return { ok: false, reason: `This lot belongs to ${rec.holderName}.` };
         if (rec.built) return { ok: false, reason: `Your ${rec.built.name || 'building'} already stands here.` };
         return { ok: true };
+    },
+
+    /** Raise a house to let on the player's own lot: gold now, standing after the builders' days. */
+    buildHouseOnLot(player, world, settlement, lotId) {
+        if (!player || !settlement) return { success: false, reason: 'There is no lot here.' };
+        const ok = this.canBuildOnLot(settlement, lotId);
+        if (!ok.ok) return { success: false, reason: ok.reason };
+        const cost = LotBook.houseCost(settlement.type);
+        if (_num(player.gold) < cost) return { success: false, reason: `Masons and timber for a house come to ${cost}g; you have ${Math.floor(_num(player.gold))}g.` };
+        player.gold -= cost;
+        Ledger.record(player, 'townLand', -cost);
+        const days = LotBook.houseDays(settlement.type);
+        const rec = LotBook.lot(settlement, lotId);
+        rec.built = { type: 'house', kind: 'house', name: 'House', by: 'player', readyDay: _day(world) + days, cost, let: true, tenant: null };
+        return { success: true, cost, days, text: `Masons set to work on a house on your lot in ${settlement.name} (${cost}g). It stands in ${days} days, and goes to let as soon as it does.` };
     },
 
     // ──────────── VACANT HOUSES ────────────
@@ -137,6 +189,207 @@ export const Lots = {
         return { success: true, text: 'You hand back the key. The house stands empty again.' };
     },
 
+    // ──────────── YOUR HOUSES TO LET ────────────
+
+    /**
+     * The record that carries a holding's letting (a bought house's vacancy,
+     * or the house on a lot), with whether it stands yet; null when the
+     * holding is no house of the player's own.
+     */
+    _letRecord(world, h) {
+        const s = h && _settlementAt(world, h.q, h.r);
+        if (!s) return null;
+        if (h.kind === 'house') {
+            const v = LotBook.vacancy(s, h.key);
+            if (!v || v.holder !== 'player' || v.status !== 'owned') return null;
+            return { s, rec: v, ready: true };
+        }
+        if (h.kind === 'lot') {
+            const rec = LotBook.lot(s, h.id);
+            const b = rec && LotBook.isPlayer(rec) ? rec.built : null;
+            if (!b || b.kind !== 'house') return null;
+            return { s, rec: b, ready: b.readyDay == null || _day(world) >= b.readyDay };
+        }
+        return null;
+    },
+
+    /** Offer one of your houses to let (a tenant is found within days). */
+    letHouse(player, world, q, r, ref) {
+        const lr = this._letRecord(world, _findHolding(player, q, r, ref));
+        if (!lr) return { success: false, reason: 'You have no house there to let.' };
+        if (lr.rec.tenant) return { success: false, reason: `${lr.rec.tenant.name} lives there already.` };
+        lr.rec.let = true;
+        return { success: true, text: `The house in ${lr.s.name} is to let at ${this.rentFor(lr.s)}g a day. Word goes round the town.` };
+    },
+
+    /** Take a house off the letting (only with no tenant in it). */
+    stopLetting(player, world, q, r, ref) {
+        const lr = this._letRecord(world, _findHolding(player, q, r, ref));
+        if (!lr) return { success: false, reason: 'You have no house there.' };
+        if (lr.rec.tenant) return { success: false, reason: `${lr.rec.tenant.name} lives there: put them out first.` };
+        lr.rec.let = false;
+        return { success: true, text: `The house in ${lr.s.name} is no longer to let.` };
+    },
+
+    /** Put the tenant out (their arrears are lost); the house stays to let. */
+    evictTenant(player, world, q, r, ref) {
+        const lr = this._letRecord(world, _findHolding(player, q, r, ref));
+        const t = lr && lr.rec.tenant;
+        if (!t) return { success: false, reason: 'No one rents that house from you.' };
+        lr.rec.tenant = null;
+        const owed = _num(t.owed);
+        return { success: true, text: `${t.name} is put out of your house in ${lr.s.name}${owed ? `, ${owed}g of rent still unpaid` : ''}. It is to let again.` };
+    },
+
+    /** A tenant's daily rent in a town. */
+    rentFor(settlement) {
+        const L = this.config().letting || {};
+        return Math.max(1, Math.round(LotBook.rentPerDay(settlement && settlement.type) * _num(L.rentMult, 1)));
+    },
+
+    // ──────────── SELLING ────────────
+
+    _sellBack() { return Math.max(0, Math.min(1, _num(this.config().sellBack, 0.75))); },
+
+    /** What a lot (with any house you raised on it) or a bought house fetches. */
+    saleValue(world, h) {
+        const s = h && _settlementAt(world, h.q, h.r);
+        if (!s) return 0;
+        if (h.kind === 'lot') {
+            const rec = LotBook.lot(s, h.id);
+            if (!LotBook.isPlayer(rec)) return 0;
+            const house = rec.built && rec.built.kind === 'house' ? _num(rec.built.cost) : 0;
+            return Math.round((_num(rec.price, h.price) + house) * this._sellBack());
+        }
+        if (h.kind === 'house') return Math.round(_num(h.price, LotBook.salePrice(s.type)) * this._sellBack());
+        return 0;
+    },
+
+    /**
+     * Sell a lot. Bare, it goes back on the market; with your house on it, a
+     * townsperson buys the two (and keeps any tenant). Not while a property of
+     * yours (a workshop, a shop...) stands on it.
+     */
+    sellLot(player, world, q, r, lotId) {
+        const h = _findHolding(player, q, r, lotId);
+        const s = h && _settlementAt(world, q, r);
+        const rec = s && LotBook.lot(s, lotId);
+        if (!h || h.kind !== 'lot' || !LotBook.isPlayer(rec)) return { success: false, reason: 'That lot is not yours.' };
+        if (rec.built && rec.built.kind !== 'house') return { success: false, reason: `Your ${rec.built.name || 'building'} stands on it: it goes with the property.` };
+        const value = this.saleValue(world, h);
+        const day = _day(world);
+        if (rec.built) {
+            const who = _tenantName(null, _rng(`${day}|sell|${s.name}|${lotId}`), this.config().ai || {});
+            s.lotBook.lots[lotId] = { holder: `npc:${who}`, holderName: who, price: value, day, built: { type: 'house', by: `npc:${who}`, readyDay: rec.built.readyDay } };
+        } else {
+            delete s.lotBook.lots[lotId];
+        }
+        player.gold = _num(player.gold) + value;
+        Ledger.record(player, 'townLand', value);
+        player.lotHoldings = _holdings(player).filter(x => x !== h);
+        return { success: true, value, text: `You sell your lot${rec.built ? ' and its house' : ''} in ${s.name} for ${value}g.` };
+    },
+
+    /** Sell a house you bought: a townsperson takes it (and any tenant with it). */
+    sellHouse(player, world, q, r, key) {
+        const h = _findHolding(player, q, r, key);
+        const s = h && _settlementAt(world, q, r);
+        const v = s && LotBook.vacancy(s, key);
+        if (!h || h.kind !== 'house' || !v || v.holder !== 'player' || v.status !== 'owned') return { success: false, reason: 'That house is not yours.' };
+        const value = this.saleValue(world, h);
+        const day = _day(world);
+        const who = _tenantName(null, _rng(`${day}|sellh|${s.name}|${key}`), this.config().ai || {});
+        s.lotBook.vacancies[key] = { status: 'owned', holder: `npc:${who}`, holderName: who, price: value, day };
+        player.gold = _num(player.gold) + value;
+        Ledger.record(player, 'townLand', value);
+        player.lotHoldings = _holdings(player).filter(x => x !== h);
+        return { success: true, value, text: `${h.name || 'Your house'} in ${h.town} is sold to ${who} for ${value}g.` };
+    },
+
+    // ──────────── THE PANEL ────────────
+
+    /**
+     * Every lot and house of the player's, as the panel shows them:
+     * [{ kind, q, r, ref, town, name, state ('empty'|'building'|'built'|'rented'|'owned'),
+     *    what, daysLeft, rent, paidDay, tenant, owed, missed, letting, ready, value, houseCost,
+     *    canBuildHouse, canLet, canStopLetting, canEvict, canSell, canLeave }]
+     */
+    holdingsView(world, player) {
+        const out = [];
+        const day = _day(world);
+        for (const h of _holdings(player || {})) {
+            const s = _settlementAt(world, h.q, h.r);
+            if (!s) continue;
+            const row = {
+                kind: h.kind, q: h.q, r: h.r, ref: _ref(h), town: s.name || h.town, name: h.name || null, state: 'empty', what: null, daysLeft: 0,
+                rent: null, paidDay: null, tenant: null, owed: 0, missed: 0, letting: false, ready: true, value: 0, houseCost: 0,
+                canBuildHouse: false, canLet: false, canStopLetting: false, canEvict: false, canSell: false, canLeave: false,
+            };
+            if (h.kind === 'lot') {
+                const rec = LotBook.lot(s, h.id);
+                if (!LotBook.isPlayer(rec)) continue;
+                row.name = `Lot ${String(h.id).replace(/^lot/, '#')}`;
+                const b = rec.built;
+                if (!b) {
+                    row.canBuildHouse = true;
+                    row.houseCost = LotBook.houseCost(s.type);
+                    row.canSell = true;
+                } else if (b.kind === 'house') {
+                    row.what = 'a house to let';
+                    row.ready = b.readyDay == null || day >= b.readyDay;
+                    row.state = row.ready ? 'built' : 'building';
+                    row.daysLeft = row.ready ? 0 : b.readyDay - day;
+                    row.canSell = true;
+                } else {
+                    const prop = this._lotProperty(world, h, h.id);
+                    row.what = b.name || String(b.type || 'building').replace(/_/g, ' ');
+                    const building = prop ? !!prop.underConstruction : false;
+                    row.state = building ? 'building' : 'built';
+                    row.daysLeft = building ? _num(prop.constructionDaysLeft) : 0;
+                }
+            } else if (h.kind === 'rent') {
+                const v = LotBook.vacancy(s, h.key);
+                if (!v || v.holder !== 'player') continue;
+                row.state = 'rented';
+                row.rent = _num(v.rent, LotBook.rentPerDay(s.type));
+                row.paidDay = v.paidDay != null ? v.paidDay : v.day;
+                row.canLeave = true;
+            } else if (h.kind === 'house') {
+                const v = LotBook.vacancy(s, h.key);
+                if (!v || v.holder !== 'player') continue;
+                row.state = 'owned';
+                row.canSell = true;
+            }
+            const lr = this._letRecord(world, h);
+            if (lr) {
+                const t = lr.rec.tenant;
+                row.letting = !!lr.rec.let;
+                if (t) {
+                    row.tenant = t.name;
+                    row.rent = _num(t.rent, this.rentFor(s));
+                    row.paidDay = t.paidDay != null ? t.paidDay : null;
+                    row.owed = _num(t.owed);
+                    row.missed = _num(t.missed);
+                    row.canEvict = true;
+                } else {
+                    row.rent = this.rentFor(s);
+                    row.canLet = lr.ready && !lr.rec.let;
+                    row.canStopLetting = !!lr.rec.let;
+                }
+            }
+            if (row.canSell) row.value = this.saleValue(world, h);
+            out.push(row);
+        }
+        return out;
+    },
+
+    /** The player's property standing on a lot (for its construction days), if any. */
+    _lotProperty(world, h, lotId) {
+        const t = world && typeof world.getTile === 'function' ? world.getTile(h.q, h.r) : null;
+        const props = (t && t.playerProperties) || [];
+        return props.find(p => p && p.lotId === lotId) || null;
+    },
+
     // ──────────── THE DAY ────────────
 
     /**
@@ -152,9 +405,14 @@ export const Lots = {
     },
 
     _rentDay(world, player, day, notices) {
+        const book = _rentBook(player, day);
         const keep = [];
         for (const h of player.lotHoldings) {
-            if (h.kind !== 'rent') { keep.push(h); continue; }
+            if (h.kind !== 'rent') {
+                keep.push(h);
+                this._tenantDay(world, player, h, day, book, notices);
+                continue;
+            }
             const s = _settlementAt(world, h.q, h.r);
             const v = s && LotBook.vacancy(s, h.key);
             if (!v || v.holder !== 'player') continue;
@@ -164,6 +422,9 @@ export const Lots = {
                 player.gold -= rent;
                 Ledger.record(player, 'townRent', -rent);
                 v.paidDay = day;
+                book.paid += rent;
+                const k = `${h.q},${h.r}|${h.key}`;
+                if (!book.paidFor.includes(k)) book.paidFor.push(k);
                 keep.push(h);
             } else {
                 delete s.lotBook.vacancies[h.key];
@@ -171,6 +432,65 @@ export const Lots = {
             }
         }
         player.lotHoldings = keep;
+        this._monthOfRents(player, day, book, notices);
+    },
+
+    /** One of your houses to let, for a day: a tenant found, rent paid or missed, a tenant who slips away. */
+    _tenantDay(world, player, h, day, book, notices) {
+        const lr = this._letRecord(world, h);
+        if (!lr || !lr.ready) return;
+        const { s, rec } = lr;
+        const L = this.config().letting || {};
+        const rnd = _rng(`${day}|let|${s.name}|${s.q},${s.r}|${_ref(h)}`);
+        const where = `your house in ${s.name}`;
+        if (!rec.tenant) {
+            if (!rec.let || rnd() >= _num(L.tenantChance, 0.12)) return;
+            const name = _tenantName(s, rnd, this.config().ai || {});
+            rec.tenant = { name, since: day, rent: this.rentFor(s), paidDay: null, owed: 0, missed: 0 };
+            notices.push({ icon: '🔑', title: 'A Tenant', text: `${name} takes ${where} at ${rec.tenant.rent}g a day.`, type: 'info' });
+            return;
+        }
+        const t = rec.tenant;
+        if (t.since === day) return;
+        const rent = _num(t.rent, this.rentFor(s));
+        const miss = _num(L.missChance, 0.03) * (_num(t.missed) > 0 ? _num(L.behindMult, 6) : 1);
+        if (rnd() < Math.min(1, miss)) {
+            t.missed = _num(t.missed) + 1;
+            t.owed = _num(t.owed) + rent;
+            book.missed = _num(book.missed) + 1;
+            if (t.missed >= _num(L.leaveAfterMissed, 10)) {
+                rec.tenant = null;
+                notices.push({ icon: '🏚️', title: 'A Tenant Gone', text: `${t.name} has slipped away from ${where} by night, owing you ${t.owed}g. The house is to let again.`, type: 'warning' });
+            } else if (t.missed === 1) {
+                notices.push({ icon: '⚠️', title: 'Rent Unpaid', text: `${t.name} couldn't pay the ${rent}g rent on ${where} today.`, type: 'warning' });
+            } else if (t.missed % Math.max(1, _num(L.warnEvery, 5)) === 0) {
+                notices.push({ icon: '⚠️', title: 'Rent in Arrears', text: `${t.name} is ${t.missed} days behind on ${where} and owes you ${t.owed}g. Put them out, or wait on them.`, type: 'warning' });
+            }
+            return;
+        }
+        const back = Math.min(_num(t.owed), rent);
+        const amount = rent + back;
+        t.owed = _num(t.owed) - back;
+        t.missed = 0;
+        t.paidDay = day;
+        player.gold = _num(player.gold) + amount;
+        Ledger.record(player, 'townRentIncome', amount);
+        book.collected += amount;
+        const k = `${h.q},${h.r}|${_ref(h)}`;
+        if (!book.from.includes(k)) book.from.push(k);
+    },
+
+    /** Every summaryDays: the rents taken and paid since the last word. */
+    _monthOfRents(player, day, book, notices) {
+        const L = this.config().letting || {};
+        if (day - _num(book.since, day) < Math.max(1, _num(L.summaryDays, 30))) return;
+        const parts = [];
+        const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+        if (book.collected > 0) parts.push(`Rents collected: ${Math.round(book.collected)}g from ${n(book.from.length, 'house', 'houses')}.`);
+        if (book.paid > 0) parts.push(`Rent paid: ${Math.round(book.paid)}g for ${n(book.paidFor.length, 'house', 'houses')}.`);
+        if (book.missed > 0) parts.push(`${n(book.missed, 'day', 'days')} of rent went unpaid.`);
+        if (parts.length) notices.unshift({ icon: '📜', title: 'Rents of the Month', text: parts.join(' '), type: 'info' });
+        player.lotRentBook = { since: day, collected: 0, from: [], paid: 0, paidFor: [], missed: 0 };
     },
 
     _aiDay(world, player, day, notices) {

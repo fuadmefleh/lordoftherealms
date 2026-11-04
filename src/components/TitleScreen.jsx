@@ -2,12 +2,14 @@ import React, { useState, useCallback } from 'react';
 import { useGame } from '../context/GameContext';
 import { ModStore } from '../systems/modStore';
 import Icon from './Icon';
+import AiSettingsDialog from './AiSettingsDialog';
 
 export default function TitleScreen() {
   const { setPhase, setGameState } = useGame();
   const [showWorldPicker, setShowWorldPicker] = useState(false);
   const [worlds, setWorlds] = useState([]);
   const [loadingWorlds, setLoadingWorlds] = useState(false);
+  const [showAiSettings, setShowAiSettings] = useState(false);
 
   const handlePlayCustom = useCallback(async () => {
     try {
@@ -94,9 +96,18 @@ export default function TitleScreen() {
           >
             <Icon name="castle" /> Play Custom World
           </button>
+          <button
+            className="title-btn secondary"
+            id="btnAiSettings"
+            onClick={() => setShowAiSettings(true)}
+          >
+            <Icon name="gear" /> AI Settings
+          </button>
         </div>
         <div id="titleVersion">v0.3.0 — React + Vite</div>
       </div>
+
+      {showAiSettings && <AiSettingsDialog onClose={() => setShowAiSettings(false)} />}
 
       {/* Custom World Picker Modal */}
       {showWorldPicker && (

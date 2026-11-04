@@ -195,3 +195,33 @@ describe('NpcBrain — Phase B', () => {
         expect(noSwitch[1].content).not.toContain('/no_think');
     });
 });
+
+describe('NpcBrain — voicing a reply (context.says)', () => {
+    afterEach(() => { vi.restoreAllMocks(); NpcBrain.enable(false); });
+
+    it('asks the model to say the given facts in character, keeping them', () => {
+        const p = NpcBrain._buildLinePrompt({ firstName: 'Ada' }, {
+            topic: 'reply:ask_location', asked: 'Tell me about this place.', says: 'The smithy is by the north gate; Tom keeps it.', role: 'a medieval smith in Eaglerock',
+        });
+        expect(p[0].content).toContain('a medieval smith in Eaglerock');
+        expect(p[0].content).toMatch(/Keep every name, place, number and fact/);
+        expect(p[1].content).toContain('Tell me about this place.');
+        expect(p[1].content).toContain('The smithy is by the north gate; Tom keeps it.');
+    });
+
+    it('keys a reply by what it carries, and lets it run longer than a greeting', async () => {
+        const a = NpcBrain._lineKey({ id: 'n1' }, { topic: 'reply:ask_rumor', says: 'one thing' });
+        const b = NpcBrain._lineKey({ id: 'n1' }, { topic: 'reply:ask_rumor', says: 'another thing' });
+        expect(a).not.toBe(b);
+        const long = 'word '.repeat(80).trim();
+        expect(NpcBrain._sanitizeLine(long).length).toBe(240);
+        expect(NpcBrain._sanitizeLine(long, 600).length).toBeGreaterThan(240);
+
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        const chat = vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: 'Aye, the smithy sits by the north gate, and Tom keeps it.' });
+        const line = await NpcBrain.generateNpcLine({ id: 'n2', firstName: 'Ada' }, { topic: 'reply:x', says: 'The smithy is by the north gate; Tom keeps it.', fallback: 'x' });
+        expect(line).toBe('Aye, the smithy sits by the north gate, and Tom keeps it.');
+        expect(chat.mock.calls[0][1].maxTokens).toBeGreaterThan(80);
+    });
+});

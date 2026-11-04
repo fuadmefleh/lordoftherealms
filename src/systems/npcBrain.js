@@ -330,20 +330,23 @@ export const NpcBrain = {
         if (cached && cached.kind === 'line') return cached.value;
         if (!(await LlmClient.isAvailable())) return fallback;
         const prompt = NpcBrain._buildLinePrompt(npc, context);
+        // A reply carrying facts (context.says) runs longer than a greeting
+        const maxTokens = context.says ? 200 : 80;
+        const maxLen = context.says ? Math.max(240, Math.min(900, Math.round(String(context.says).length * 1.6))) : 240;
         let res;
         if (typeof context.onPartial === 'function' && typeof LlmClient.chatStream === 'function') {
             let last = '';
-            res = await LlmClient.chatStream(prompt, { maxTokens: 80 }, (soFar) => {
-                const shown = NpcBrain._partialLine(soFar);
+            res = await LlmClient.chatStream(prompt, { maxTokens }, (soFar) => {
+                const shown = NpcBrain._partialLine(soFar, maxLen);
                 if (!shown || shown === last) return;
                 last = shown;
                 try { context.onPartial(shown); } catch { /* the UI's problem, not the line's */ }
             });
         } else {
-            res = await LlmClient.chat(prompt, { maxTokens: 80 });
+            res = await LlmClient.chat(prompt, { maxTokens });
         }
         if (!res.ok) return fallback;
-        const line = NpcBrain._sanitizeLine(res.text);
+        const line = NpcBrain._sanitizeLine(res.text, maxLen);
         if (!line) return fallback;
         cacheSet(key, { kind: 'line', value: line });
         return line;
@@ -421,6 +424,15 @@ export const NpcBrain = {
         const memories = NpcBrain._memoryText(context.memories);
         const memory = memories ? `\nWhat you remember of the player: ${memories}.\nYou may let a memory show if it fits; never invent others.` : '';
         const who = context.role || 'a medieval townsperson';
+        // A reply: the player asked something, and the game has decided what this
+        // person tells them (context.says). The model only says it in their voice.
+        if (context.says) {
+            const asked = context.asked ? `The player says to you: "${context.asked}"\n` : '';
+            return [
+                { role: 'system', content: `You voice ${who}. Answer in character, one to three sentences of spoken dialogue, no quotes, no narration. Keep every name, place, number and fact you are given; add no new facts, places or promises.` },
+                { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player.\n${asked}What you tell them, in your own words: ${context.says}${world}${memory}`) },
+            ];
+        }
         return [
             { role: 'system', content: `You voice ${who}. Reply with ONE short line of in-character dialogue, no quotes, no narration.` },
             { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.${world}${memory}`) },
@@ -428,11 +440,11 @@ export const NpcBrain = {
     },
 
     /** A growing streamed line as it may be shown: reasoning hidden, quotes and later lines dropped. */
-    _partialLine(text) {
+    _partialLine(text, maxLen = 240) {
         if (typeof text !== 'string') return '';
         const s = NpcBrain._stripReasoning(text);
         if (typeof s !== 'string' || /^<[^>]*$/.test(s)) return ''; // a tag still arriving ("<thi…")
-        return s.replace(/^["'“”]+/, '').split('\n')[0].trim().slice(0, 240);
+        return s.replace(/^["'“”]+/, '').split('\n')[0].trim().slice(0, maxLen);
     },
 
     // ── Validation & sanitizing ─────────────────────────────────
@@ -456,12 +468,12 @@ export const NpcBrain = {
         return { act: obj.act, type };
     },
 
-    _sanitizeLine(text) {
+    _sanitizeLine(text, maxLen = 240) {
         const cleaned = NpcBrain._stripReasoning(text);
         if (typeof cleaned !== 'string') return null;
         let s = cleaned.trim().replace(/^["'“”]+|["'“”]+$/g, '').split('\n')[0].trim();
         if (!s) return null;
-        if (s.length > 240) s = s.slice(0, 240);
+        if (s.length > maxLen) s = maxLen > 240 ? s.slice(0, maxLen).replace(/\s+\S*$/, '') + '…' : s.slice(0, maxLen);
         return s;
     },
 
@@ -482,7 +494,9 @@ export const NpcBrain = {
         // ...and so are the memories: a new deed remembered, a new line
         const memories = NpcBrain._memoryText(ctx.memories);
         const m = memories ? `:m${NpcBrain._hash(memories)}` : '';
-        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}${m}`;
+        // ...and a reply by what it carries
+        const says = ctx.says ? `:s${NpcBrain._hash(String(ctx.says))}` : '';
+        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}${m}${says}`;
     },
     _hash(str) {
         let h = 2166136261;

@@ -12,7 +12,8 @@ import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
 import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews, _roadContext } from './helpers.js';
-import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList } from './render.js';
+import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList, _voiceLine } from './render.js';
+import { NpcBrain } from '../../systems/npcBrain.js';
 import { NpcPortrait } from '../npcPortrait.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
@@ -476,11 +477,27 @@ export function _handleChoice(action) {
             }
         }
 
-        // Add NPC response
+        // Add NPC response — in their own voice when the AI brain is on (systems/npcBrain.js):
+        // the game decides what they tell you, the model only says it; the thinking
+        // dots stay up until its first words come (or a few seconds pass)
         const npcLine = { speaker: dialogState._npc.name, icon: dialogState._npc.icon, text: responseText, isNpc: true, _action: action };
-        dialogState._lines.push(npcLine);
-        dialogState._lineIndex = dialogState._lines.length - 1;
-        _render();
+        let shown = false;
+        const show = () => {
+            if (shown || !dialogState._active || !dialogState._overlay) return;
+            shown = true;
+            dialogState._lines.push(npcLine);
+            dialogState._lineIndex = dialogState._lines.length - 1;
+            _render();
+        };
+        if (responseText && NpcBrain.isEnabled()) {
+            const wait = setTimeout(show, 3000);
+            _voiceLine(npcLine, dialogState._npc, {
+                topic: `reply:${action}`, asked: playerText, says: responseText,
+                pending: () => !shown, onFirst: () => { clearTimeout(wait); show(); },
+            });
+        } else {
+            show();
+        }
 
         // Auto-close after farewell or trade redirect, once the line has been said
         if (shouldClose) {
@@ -496,7 +513,7 @@ export function _handleChoice(action) {
                         if (worldTile) ActionMenu.showTradeMenu(game, worldTile);
                     }
                 }
-            });
+            }, () => shown);
         }
     }, 550);
 }
@@ -576,11 +593,12 @@ export function _taskChoice(opt, how) {
 }
 
 /** Run `fn` `pause` ms after the current line has finished typing (if the dialog is still open). */
-function _afterSpoken(pause, fn) {
+function _afterSpoken(pause, fn, ready = null) {
     const overlay = dialogState._overlay;
     const wait = () => {
         if (!dialogState._active || dialogState._overlay !== overlay) return;
-        if (!dialogState._typewriteComplete) { setTimeout(wait, 100); return; }
+        // (a voiced line not yet on the transcript: wait for it too)
+        if (!dialogState._typewriteComplete || (ready && !ready())) { setTimeout(wait, 100); return; }
         setTimeout(() => { if (dialogState._active && dialogState._overlay === overlay) fn(); }, pause);
     };
     wait();

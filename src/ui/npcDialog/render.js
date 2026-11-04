@@ -127,58 +127,83 @@ export function _buildConversation(npc) {
     if (aside) dialogState._lines[0].aside = aside;
     dialogState._lineIndex = 0;
 
-    // LLM voice (Spec 2): for major NPCs, when the brain is enabled, request a
-    // bespoke greeting and swap it in when it arrives. The template shows
-    // immediately and stays if the model is off, slow, or offline.
-    if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled() && NpcBrain.isMajor(npc)) {
-        const disposition = _dispositionLabel(mem.disposition || 0);
-        const first = dialogState._lines[0];
-        // Still showing this conversation's greeting? (the player may have moved on or closed it)
-        const onGreeting = () => dialogState._overlay && dialogState._lineIndex === 0 && dialogState._lines[0] === first;
-        const textEl = () => {
-            const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
-            return box && box.querySelector('.npc-dialog-text');
-        };
-        let streamed = false;
-        NpcBrain.generateNpcLine(npc, {
-            topic: 'a fitting greeting', disposition, fallback: greeting, worldContext: _worldContext(npc),
-            memories: _memoryLines(npc),
-            // Streamed words replace the template as they come (the typewriter stops for them)
-            onPartial: (soFar) => {
-                if (!onGreeting()) return;
-                const el = textEl();
-                if (!el) return;
-                if (!streamed) {
-                    streamed = true;
-                    if (dialogState._typewriteTimer) clearTimeout(dialogState._typewriteTimer);
-                    dialogState._typewriteTimer = null;
-                    dialogState._typewriteComplete = false; // the choices wait for the line to finish
-                    _setSpeaking(true);
-                }
-                el.textContent = soFar.replace(/\*/g, '');
-                _scrollLog();
-            },
-        })
-            .then((line) => {
-                if (!onGreeting()) return;
-                const el = textEl();
-                if (!line || line === greeting) {
-                    // The stream broke down to the template: show it whole again
-                    if (streamed && el) _skipTypewrite(el, greeting);
-                    return;
-                }
-                first.text = line;
-                if (!el) return;
-                if (streamed) {
-                    _skipTypewrite(el, line);
-                } else {
-                    el.textContent = '';
-                    dialogState._typewriteComplete = false;
-                    _typewrite(el, line, 0);
-                }
-            })
-            .catch(() => { /* keep the template greeting */ });
+    // LLM voice (Spec 2): when the brain is enabled, a bespoke greeting is asked
+    // for and swapped in as it streams. The template shows at once and stays if
+    // the model is off, slow, or offline.
+    if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled()) {
+        _voiceLine(dialogState._lines[0], npc, { topic: 'a fitting greeting' });
     }
+}
+
+/** Who the NPC is, for the model: their trade and where they are. */
+function _roleFor(npc) {
+    const what = (npc && (npc.roleTitle || npc.occupation || npc.type)) || 'townsperson';
+    const st = _getSettlement();
+    return `a medieval ${String(what).replace(/_/g, ' ')}${st && st.name ? ` in ${st.name}` : ''}`;
+}
+
+/**
+ * Have the model (systems/npcBrain.js) say a line already on the transcript in
+ * the NPC's own voice: streamed words replace the written one as they come;
+ * the written line stays if the model is off, slow or offline.
+ * opts: { topic, asked (what the player said), says (the facts to tell),
+ * onFirst() (the line is not yet shown: show it now), pending() (true while
+ * it is not yet shown) }.
+ */
+export function _voiceLine(line, npc, opts = {}) {
+    const mem = _mem(npc);
+    const isCurrent = () => dialogState._overlay && dialogState._lines[dialogState._lineIndex] === line;
+    const textEl = () => {
+        const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
+        return box && box.querySelector('.npc-dialog-text');
+    };
+    const written = line.text;
+    let streamed = false;
+    return NpcBrain.generateNpcLine(npc, {
+        topic: opts.topic, asked: opts.asked, says: opts.says, role: _roleFor(npc),
+        disposition: _dispositionLabel(mem.disposition || 0), fallback: written,
+        worldContext: _worldContext(npc), memories: _memoryLines(npc),
+        onPartial: (soFar) => {
+            if (opts.pending && opts.pending()) { line.text = soFar.replace(/\*/g, ''); if (opts.onFirst) opts.onFirst(); }
+            if (!isCurrent()) return;
+            const el = textEl();
+            if (!el) return;
+            if (!streamed) {
+                streamed = true;
+                if (dialogState._typewriteTimer) clearTimeout(dialogState._typewriteTimer);
+                dialogState._typewriteTimer = null;
+                dialogState._typewriteComplete = false; // the choices wait for the line to finish
+                _setSpeaking(true);
+            }
+            el.textContent = soFar.replace(/\*/g, '');
+            _scrollLog();
+        },
+    })
+        .then((said) => {
+            const text = said && said !== written ? said : written;
+            if (opts.pending && opts.pending()) { line.text = text; if (opts.onFirst) opts.onFirst(); return; }
+            if (!isCurrent()) { line.text = text; return; }
+            const el = textEl();
+            if (text === written) {
+                // The stream broke down to the written line: show it whole again
+                line.text = written;
+                if (streamed && el) _skipTypewrite(el, written);
+                return;
+            }
+            line.text = text;
+            if (!el) return;
+            if (streamed) {
+                _skipTypewrite(el, text);
+            } else {
+                el.textContent = '';
+                dialogState._typewriteComplete = false;
+                _typewrite(el, text, 0);
+            }
+        })
+        .catch(() => {
+            line.text = written;
+            if (opts.pending && opts.pending() && opts.onFirst) opts.onFirst();
+        });
 }
 
 export function _render() {

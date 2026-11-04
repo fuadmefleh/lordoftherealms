@@ -24,6 +24,7 @@ import { WorldEvents } from '../world/worldEvents.js';
 import { Harvests } from '../world/harvests.js';
 import { PlayerInventory } from './inventory.js';
 import { Ailments } from '../systems/ailments.js';
+import { WildTasks } from '../systems/wildTasks.js';
 
 const range = (pair, fallback) => (Array.isArray(pair) && pair.length === 2 ? pair : fallback);
 
@@ -119,20 +120,33 @@ export const SeasonalWork = {
      * A day running a trap line in the snow: pelts (winter coats are thick),
      * sometimes meat, now and then a prize fur. Skilled fighters and lucky
      * trappers do better.
+     *
+     * Run in person (ui/mapTasks/wildTasks.js): `opts.caught` is what was
+     * found in the snares you set and checked, and that is the day's catch —
+     * snares on the game runs under cover take more than ones on open ground,
+     * and a snare never checked takes nothing. `opts.prize` when one of them
+     * held a prize fur.
      */
-    trapFurs(player, tile, world) {
+    trapFurs(player, tile, world, opts = {}) {
         if (!SeasonalWork.canTrapFurs(tile, world)) {
             return { success: false, reason: 'Trapping needs cold winter ground in the wilds.' };
         }
-        const cfg = SeasonalWork._winter().trapping || {};
-        const [lo, hi] = range(cfg.pelts, [1, 3]);
-        const skill = Math.min(2, Math.floor(((player.skills && player.skills.combat) || 0) / 4));
-        const items = { pelts: Utils.randInt(lo, hi) + skill };
-        if (Utils.random() < (cfg.meatChance ?? 0.4)) items.meat = Utils.randInt(1, 3);
+        let items;
         let rare = false;
-        if (Utils.random() < (cfg.rareChance ?? 0.08) * (1 + ((player.luck || 5) - 5) * 0.05)) {
-            items.pelts += 3; // a silver fox or a wolverine
-            rare = true;
+        if (opts.caught && typeof opts.caught === 'object') {
+            items = {};
+            for (const [id, q] of Object.entries(opts.caught)) if (q > 0) items[id] = Math.floor(q);
+            rare = !!opts.prize;
+        } else {
+            const cfg = SeasonalWork._winter().trapping || {};
+            const [lo, hi] = range(cfg.pelts, [1, 3]);
+            const skill = Math.min(2, Math.floor(((player.skills && player.skills.combat) || 0) / 4));
+            items = { pelts: Utils.randInt(lo, hi) + skill };
+            if (Utils.random() < (cfg.meatChance ?? 0.4)) items.meat = Utils.randInt(1, 3);
+            if (Utils.random() < (cfg.rareChance ?? 0.08) * (1 + ((player.luck || 5) - 5) * 0.05)) {
+                items.pelts += 3; // a silver fox or a wolverine
+                rare = true;
+            }
         }
         player.huntingTrips = (player.huntingTrips || 0) + 1;
         const { kept, lost } = SeasonalWork._bag(player, items);
@@ -190,8 +204,10 @@ export const SeasonalWork = {
     /**
      * Lay a trap line on this tile: snares and deadfalls left to fill over
      * the coming days (SeasonalWork.processTrapLines). Takes the day.
+     * `opts.snares` [{ q, r, quality }]: where the snares were set on the
+     * inner map; their quality shapes what the line takes each day.
      */
-    setTrapLine(player, tile, world) {
+    setTrapLine(player, tile, world, opts = {}) {
         const check = SeasonalWork.canSetTrapLine(player, tile, world);
         if (!check.ok) return { success: false, reason: check.reason };
         const cfg = SeasonalWork._trapCfg();
@@ -201,6 +217,9 @@ export const SeasonalWork = {
             expiresDay: day + cfg.maxDays,
             catch: {}, damaged: false, raids: 0,
         };
+        if (Array.isArray(opts.snares) && opts.snares.length) {
+            line.snares = opts.snares.map(p => (typeof p.quality === 'number' ? { q: p.q, r: p.r, quality: p.quality } : { q: p.q, r: p.r }));
+        }
         SeasonalWork.trapLines(player).push(line);
         player.huntingTrips = (player.huntingTrips || 0) + 1;
         return { success: true, line, message: `You lay a trap line through the snow. Come back in a few days to see what it holds (it lapses after ${cfg.maxDays} days or when winter ends).` };
@@ -248,9 +267,11 @@ export const SeasonalWork = {
                 if (line.damaged) return true;
                 const c = line.catch || (line.catch = {});
                 const held = SeasonalWork._lineCount(line);
+                // Snares set on the game runs under cover take more (1 for a line never walked)
+                const k = WildTasks.lineFactor(line.snares);
                 if (held < cfg.maxCatch) {
-                    if (Utils.random() < cfg.peltChance) c.pelts = (c.pelts || 0) + Utils.randInt(cfg.pelts[0], cfg.pelts[1]);
-                    if (Utils.random() < cfg.meatChance) c.meat = (c.meat || 0) + 1;
+                    if (Utils.random() < cfg.peltChance * k) c.pelts = (c.pelts || 0) + Utils.randInt(cfg.pelts[0], cfg.pelts[1]);
+                    if (Utils.random() < cfg.meatChance * k) c.meat = (c.meat || 0) + 1;
                     if (Utils.random() < cfg.rareChance) {
                         c.pelts = (c.pelts || 0) + 3;
                         line.prize = true;
@@ -287,19 +308,56 @@ export const SeasonalWork = {
      * Visit a line: 'collect' (empty it, leave it set), 'reset' (empty it,
      * mend and re-bait — runs another maxDays), 'pull' (empty it and take it
      * up). What does not fit in the packs stays in the snares.
+     *
+     * Walked in person (ui/mapTasks/wildTasks.js): `opts.checked` lists the
+     * snares you reached (indices into the line's snares, or `opts.snares`
+     * for a line laid without walking it). Only their share of the catch
+     * (WildTasks.spreadCatch) is taken; the rest stays in the snares. A line
+     * is mended and re-baited only when every snare was reached; taking it
+     * up leaves the snares you never reached, and what they held, in the snow.
      */
-    tendTrapLine(player, tile, world, how = 'collect') {
+    tendTrapLine(player, tile, world, how = 'collect', opts = {}) {
         const line = tile ? SeasonalWork.trapLineAt(player, tile.q, tile.r) : null;
         if (!line) return { success: false, reason: 'You have no trap line here.' };
         const cfg = SeasonalWork._trapCfg();
-        const { kept, lost } = SeasonalWork._bag(player, line.catch || {});
-        line.catch = lost;
+        let take = line.catch || {};
+        const left = {};
+        let reached = null, of = null;
+        if (Array.isArray(opts.checked)) {
+            if (!Array.isArray(line.snares) && Array.isArray(opts.snares) && opts.snares.length) {
+                line.snares = opts.snares.map(p => ({ q: p.q, r: p.r }));
+            }
+            const snares = Array.isArray(line.snares) && line.snares.length ? line.snares : [{}];
+            const shares = WildTasks.spreadCatch(line.catch || {}, snares);
+            const hit = new Set(opts.checked.filter(i => Number.isInteger(i) && i >= 0 && i < snares.length));
+            take = {};
+            shares.forEach((items, i) => {
+                const into = hit.has(i) ? take : left;
+                for (const [id, q] of Object.entries(items)) into[id] = (into[id] || 0) + q;
+            });
+            reached = hit.size;
+            of = snares.length;
+        }
+        const partial = reached !== null && reached < of;
+        const { kept, lost } = SeasonalWork._bag(player, take);
+        line.catch = { ...left };
+        for (const [id, q] of Object.entries(lost)) line.catch[id] = (line.catch[id] || 0) + q;
         const day = Seasons.today(world);
         let message = Object.keys(kept).length ? `You empty the snares: ${SeasonalWork._describe(kept)}.` : 'The snares hold nothing yet.';
         if (line.prize && kept.pelts) message += ' A prize fur among them!';
-        line.prize = false;
+        if (!partial || kept.pelts) line.prize = false;
         if (Object.keys(lost).length) message += ` No room for ${SeasonalWork._describe(lost)} — it stays in the snares.`;
-        if (how === 'reset') {
+        if (partial) {
+            message += ` You reached ${reached} of ${of} snares${Object.keys(left).length ? ` — the rest still hold ${SeasonalWork._describe(left)}` : ''}.`;
+        }
+        if (how === 'reset' && partial) {
+            message += ' You did not walk the whole line, so it is not mended or re-baited.';
+            if (line.damaged) message += ' The snares are still wrecked.';
+        } else if (how === 'pull' && partial) {
+            player.trapLines = SeasonalWork.trapLines(player).filter(l => l !== line);
+            if (!player.trapLines.length) delete player.trapLines;
+            message += ' You take up the snares you reached; the rest are left in the snow.';
+        } else if (how === 'reset') {
             line.damaged = false;
             line.expiresDay = (Number.isFinite(day) ? day : line.setDay) + cfg.maxDays;
             message += ' You mend and re-bait the line.';
@@ -310,7 +368,7 @@ export const SeasonalWork = {
         } else if (line.damaged) {
             message += ' The snares are still wrecked: reset them or they catch nothing.';
         }
-        return { success: true, items: kept, lost, message };
+        return { success: true, items: kept, lost, message, reached, of };
     },
 
     // ── Ice fishing out on the ice ────────────────────────

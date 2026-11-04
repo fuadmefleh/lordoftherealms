@@ -312,6 +312,13 @@ export function endDay() {
                 return; // Stop processing — death animation + screen handles continuation
             }
 
+            // The kin's pot at the dawn (player/dawnBirth.js): fed, turned away, or repaid
+            const kinMeal = this.player._kinMeal;
+            if (kinMeal && kinMeal.text && !kinMeal.earned) {
+                this.ui.showNotification(kinMeal.refused ? '🍲 Nothing in the Pot' : kinMeal.qty ? '🍲 To the Pot' : '🍲 Your Kin Share',
+                    kinMeal.text, kinMeal.refused ? 'warning' : 'info');
+            }
+
             // Show starvation warnings
             if (this.player.starvationDays > 0) {
                 const days = this.player.starvationDays;

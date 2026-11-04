@@ -439,6 +439,8 @@ export const SaveLoad = {
             dawnKin: player.dawnKin || null,
             dawnHome: player.dawnHome || null,
             dawnCampVisited: !!player.dawnCampVisited,
+            kinOwed: player.kinOwed || 0, // meals from the kin's pot not yet paid back
+            kinWorkSeen: typeof player.kinWorkSeen === 'number' ? player.kinWorkSeen : null,
             // The tongues you speak, your interpreter (systems/languages.js)
             languages: player.languages || null,
             nativeLanguage: player.nativeLanguage || null,

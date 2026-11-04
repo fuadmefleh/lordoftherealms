@@ -15,8 +15,11 @@
 //               the faster; standing still calms it), loose when close
 //   fish        walk to the water's edge, cast, wait by the line, strike in
 //               time when it bites; a few casts and the fish move along
-//   trap        set snares on the marked game runs, then walk round and
-//               check them (or lay / tend a trap line)
+//   trap        paw prints mark the game runs: set snares where you like
+//               (on a run, under cover, takes most), then walk round and
+//               check them — the catch is what the checked snares hold; a
+//               trap line keeps its snares' spots, and tending it empties
+//               only the snares you reach
 //   iceFish     cut a hole in the ice (near the bank or out on thin ice)
 //               and land the fish that bite
 //   smuggle     carry the goods to the fence's door past the watch on its
@@ -41,6 +44,8 @@ const fmt = (s, v) => Rules.fmt(s, v);
 const _between = (rng, pair, d = 1) => (Array.isArray(pair) ? pair[0] + rng() * (pair[1] - pair[0]) : _num(pair, d));
 const _int = (rng, pair, d = 1) => (Array.isArray(pair) ? pair[0] + Math.floor(rng() * (pair[1] - pair[0] + 1)) : _num(pair, d));
 let _seq = 0;
+/** "2 pelts, 1 meat" */
+const _what = (items) => Object.entries(items || {}).filter(([, q]) => q > 0).map(([id, q]) => `${q} ${id.replace(/_/g, ' ')}`).join(', ');
 
 /** The wild places of the current map (computed once per task). */
 function _wild(ctx) {
@@ -493,58 +498,147 @@ export const WildTaskRunner = {
     // ── Winter: trapping ──
 
     /**
-     * o: { mode: 'run' | 'set' | 'collect' | 'reset' | 'pull', spots? [{q,r}] }.
-     * onDone({ spots }) when the walk is done; onAbandon() on giving up.
+     * o: { mode: 'run' | 'set' | 'collect' | 'reset' | 'pull', line?, player? }.
+     *   run       paw prints mark the game runs: set snares where you choose
+     *             (on a run, under cover is best), then walk round and check
+     *             them; each snare checked is rolled for its spot
+     *   set       set the snares of a trap line the same way (their spots and
+     *             quality go on the line and shape what it takes each day)
+     *   collect / reset / pull   walk the line: only the snares you reach
+     *             are emptied (their share of what the line holds)
+     * onDone({ spots, caught, prize, checked }) when the walk is done;
+     * onAbandon() on giving up.
      */
     trap(game, o, onDone, onAbandon) {
         const c = Rules.cfg('trap');
         const mode = o.mode || 'run';
-        let spots = null;
+        const player = o.player || (game && game.player) || {};
+        const luck = _num(player.luck, 5);
+        const skill = Math.min(2, Math.floor(_num(player.skills && player.skills.combat) / 4));
+        const tend = ['collect', 'reset', 'pull'].includes(mode);
+        const snares = [];
+        const caught = {};
+        const checked = [];
+        let prize = false;
+        let shares = [];
         const custom = {
             setup(ctx) {
                 const w = _wild(ctx);
                 const me = _me();
-                const keep = (o.spots || []).filter(p => ctx.spots.passable(p.q, p.r));
-                if (keep.length && keep.length === (o.spots || []).length) {
-                    spots = keep;
-                } else {
-                    const pool = Rules.near([].concat(w.plants, w.trees, w.rocks, w.open.filter((p, i) => i % 4 === 0)), me, _num(c.radius, 20), 20)
-                        .filter(p => Rules.dist(p, me) >= 3);
-                    spots = MapTasks.pickSpread(pool, _int(ctx.rng, mode === 'run' ? c.runs : c.lineRuns, 4), ctx.rng, 6).map(p => ({ q: p.q, r: p.r }));
+                ctx.cover = [].concat(w.plants, w.trees, w.rocks);
+                if (tend) {
+                    const line = o.line || {};
+                    const laid = line.snares || [];
+                    const keep = laid.filter(p => ctx.spots.passable(p.q, p.r));
+                    if (keep.length && keep.length === laid.length) {
+                        keep.forEach(p => snares.push({ q: p.q, r: p.r, quality: p.quality }));
+                    } else {
+                        const pool = Rules.near([].concat(ctx.cover, w.open.filter((p, i) => i % 4 === 0)), me, _num(c.radius, 20), 20)
+                            .filter(p => Rules.dist(p, me) >= 3);
+                        MapTasks.pickSpread(pool, laid.length || _int(ctx.rng, c.lineRuns, 4), ctx.rng, 6)
+                            .forEach((p, i) => snares.push({ q: p.q, r: p.r, quality: laid[i] ? laid[i].quality : undefined }));
+                    }
+                    if (!snares.length) snares.push({ q: me.q, r: me.r });
+                    // What each snare holds of the line's catch (the same sharing tendTrapLine uses)
+                    shares = Rules.spreadCatch(line.catch || {}, snares);
+                    ctx.total = snares.length;
+                    ctx.phase = 'tend';
+                    this._lay(ctx);
+                    return;
                 }
-                if (!spots.length) spots = [me];
-                const tend = ['collect', 'reset', 'pull'].includes(mode);
-                ctx.total = spots.length * (mode === 'run' ? 2 : 1);
-                ctx.phase = tend ? 'tend' : 'set';
+                // The game runs: trails of sign between patches of cover
+                const runs = [];
+                const anchors = Rules.near(ctx.cover.length >= 4 ? ctx.cover : ctx.cover.concat(w.open), me, _num(c.radius, 20), 12)
+                    .filter(p => Rules.dist(p, me) >= 3);
+                const pass = (q, r) => ctx.spots.passable(q, r);
+                const nLines = _int(ctx.rng, c.runLines, 2);
+                for (let i = 0; i < nLines && anchors.length >= 2; i++) {
+                    const ends = MapTasks.pickSpread(anchors, 2, ctx.rng, 6);
+                    if (ends.length < 2) break;
+                    for (const p of Rules.trail(ends[0], ends[1], _int(ctx.rng, c.runSigns, 5), ctx.rng, pass)) {
+                        if (!runs.some(x => x.q === p.q && x.r === p.r)) runs.push(p);
+                    }
+                }
+                if (!runs.length) runs.push(...MapTasks.pickSpread(anchors.length ? anchors : [me], 4, ctx.rng, 3));
+                ctx.runs = runs;
+                // Sign to walk to (arrows lead there); once seen it stays on the ground
+                runs.forEach(p => ctx.mark(p, { glyph: c.glyph || 'paw', label: c.runSign, work: 0.3, run: true,
+                    onDone: () => ctx.mark(p, { glyph: c.glyph || 'paw', label: c.runSign, passive: true, run: true }) }));
+                ctx.want = Math.max(1, _int(ctx.rng, mode === 'run' ? c.runs : c.lineRuns, 4));
+                ctx.total = ctx.want * (mode === 'run' ? 2 : 1);
+                ctx.phase = 'set';
+            },
+            /** Set a snare where you stand. */
+            _set(ctx) {
+                if (ctx.phase !== 'set' || ctx.setting || snares.length >= ctx.want) return;
+                const at = _me();
+                if (snares.some(s => Rules.dist(s, at) <= _num(c.snareGap, 1))) { ctx.note(c.tooClose); return; }
+                ctx.setting = ctx.mark(at, { glyph: c.snareGlyph || 'target', label: c.setting, work: _num(c.setSeconds, 2.2), onDone: () => {
+                    ctx.setting = null;
+                    const quality = Rules.snareQuality(at, ctx.runs, ctx.cover, c);
+                    const s = { q: at.q, r: at.r, quality };
+                    s.mark = ctx.mark(at, { glyph: c.snareGlyph || 'target', label: c.set, passive: true });
+                    snares.push(s);
+                    ctx.done++;
+                    ctx.note((c.setNote || {})[Rules.snareGrade(quality)] || '');
+                    if (snares.length >= ctx.want) this._setDone(ctx);
+                } });
+            },
+            _setDone(ctx) {
+                if (ctx.phase !== 'set' || !snares.length) return;
+                if (mode !== 'run') { ctx.finish(); return; }
+                ctx.phase = 'check';
+                ctx.total = snares.length * 2;
+                ctx.note(c.allSet);
+                ctx.marks = ctx.marks.filter(m => !snares.some(s => s.mark === m) && !(m.run && !m.passive));
                 this._lay(ctx);
             },
             _lay(ctx) {
-                const tend = ctx.phase === 'tend';
-                const check = ctx.phase === 'check';
-                const label = tend ? (c.tend || {})[mode] || c.check : check ? c.check : c.set;
-                const secs = tend ? (mode === 'reset' ? c.resetSeconds : c.checkSeconds) : check ? c.checkSeconds : c.setSeconds;
-                let left = spots.length;
-                for (const p of spots) {
-                    ctx.mark(p, { glyph: c.snareGlyph || 'target', label, work: _num(secs, 1.5), onDone: () => {
+                const label = ctx.phase === 'tend' ? (c.tend || {})[mode] || c.check : c.check;
+                const secs = ctx.phase === 'tend' ? (mode === 'reset' ? c.resetSeconds : c.checkSeconds) : c.checkSeconds;
+                snares.forEach((s, i) => {
+                    ctx.mark(s, { glyph: c.snareGlyph || 'target', label, work: _num(secs, 1), onDone: () => {
                         ctx.done++;
-                        left--;
-                        if (left > 0) return;
-                        if (ctx.phase === 'set' && mode === 'run') {
-                            ctx.phase = 'check';
-                            ctx.note(c.allSet);
-                            this._lay(ctx);
-                        } else {
-                            ctx.finish();
-                        }
+                        checked.push(i);
+                        const got = ctx.phase === 'tend' ? (shares[i] || {}) : this._roll(ctx, s);
+                        let say = Object.keys(got).length ? fmt(c.caught, { what: _what(got) }) : c.empty;
+                        if (ctx.phase !== 'tend' && got.pelts >= 4) say += ` ${c.prize}`;
+                        ctx.note(say);
+                        if (checked.length >= snares.length) ctx.finish();
                     } });
+                });
+            },
+            _roll(ctx, s) {
+                const r = Rules.snareCatch(s.quality, ctx.rng, { luck, skill }, c);
+                for (const [id, q] of Object.entries(r.items)) caught[id] = (caught[id] || 0) + q;
+                if (r.prize) prize = true;
+                return r.items;
+            },
+            tick(dt, ctx) {
+                // Walked off mid-setting: it never happened
+                if (ctx.setting && Rules.dist(ctx.setting, _me()) > 1) {
+                    ctx.marks = ctx.marks.filter(m => m !== ctx.setting);
+                    ctx.setting = null;
                 }
+            },
+            buttons(ctx) {
+                if (ctx.phase === 'set') {
+                    const b = [];
+                    if (snares.length < ctx.want) b.push({ label: c.setHere, hot: true, act: () => this._set(ctx) });
+                    if (snares.length) b.push({ label: c.doneSetting, act: () => this._setDone(ctx) });
+                    return b;
+                }
+                return checked.length ? [{ label: c.doneChecking, act: () => ctx.finish() }] : [];
             },
             status(ctx) { return fmt(c.status, { done: ctx.done, total: ctx.total }); },
         };
         const say = mode === 'run' ? c.runSay : mode === 'set' ? c.setSay : c.tendSay;
+        const spots = () => snares.map(s => ({ q: s.q, r: s.r, quality: s.quality }));
         return this.run(game, {
             title: c.title, icon: c.icon, say, plan: { parHours: c.parHours }, custom,
-            onComplete: () => onDone({ spots }),
+            // What you set, where, and what you found in the snares you checked decide the day
+            // (ui/actionMenu/winterScenes.js → SeasonalWork.trapFurs / setTrapLine / tendTrapLine)
+            onComplete: () => onDone({ spots: spots(), caught: { ...caught }, prize, checked: checked.slice() }),
             onAbandon: () => onAbandon && onAbandon(),
         }, () => onDone(null));
     },

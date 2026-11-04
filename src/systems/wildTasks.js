@@ -221,6 +221,98 @@ export const WildTasks = {
         return _clamp(0.55 + _num(strength, 5) * 0.05 - _num(fight, 2) * 0.06, 0.2, 0.97);
     },
 
+    // ── Trapping ──
+    // A snare is only as good as where it is set: on a game run, under cover,
+    // it takes something most days; out on open ground little passes by.
+
+    /** Nearest distance from `at` to any of `list` (Infinity when empty). */
+    _nearest(at, list) {
+        let d = Infinity;
+        for (const p of list || []) d = Math.min(d, WildTasks.dist(p, at));
+        return d;
+    },
+
+    /**
+     * How good a snare spot is, 0..1: how near a game run (`runs`, the sign
+     * points) and how near cover (`cover`, tiles beside trees / brush / rocks).
+     */
+    snareQuality(at, runs, cover, c = WildTasks.cfg('trap')) {
+        const k = c.quality || {};
+        const dRun = WildTasks._nearest(at, runs);
+        const dCover = WildTasks._nearest(at, cover);
+        let v = _num(k.base, 0.1);
+        if (dRun <= 0) v += _num(k.onRun, 0.5);
+        else if (dRun <= 1) v += _num(k.byRun, 0.4);
+        else if (dRun <= 2) v += _num(k.nearRun, 0.2);
+        if (dCover <= 1) v += _num(k.cover, 0.3);
+        else if (dCover <= 2) v += _num(k.nearCover, 0.15);
+        return Math.round(_clamp(v, 0, 1) * 100) / 100;
+    },
+
+    /** Word for a snare spot's quality ('good' | 'fair' | 'poor'). */
+    snareGrade(quality) {
+        return quality >= 0.65 ? 'good' : quality >= 0.35 ? 'fair' : 'poor';
+    },
+
+    /**
+     * What one snare holds when checked at the end of a day's trapping.
+     * o: { luck, skill (0..2) }. Returns { items, prize }.
+     */
+    snareCatch(quality, rng, o = {}, c = WildTasks.cfg('trap')) {
+        const k = c.catch || {};
+        const skill = _num(o.skill);
+        const chance = _clamp(_num(k.base, 0.2) + _num(quality, 0.5) * _num(k.perQuality, 0.6)
+            + (_num(o.luck, 5) - 5) * _num(k.perLuck, 0.02) + skill * _num(k.perSkill, 0.05), 0, 0.95);
+        const items = {};
+        let prize = false;
+        if (rng() < chance) {
+            items.pelts = 1 + (rng() < _num(k.extraPelt, 0.25) + skill * 0.1 ? 1 : 0);
+            if (rng() < _num(k.rareChance, 0.03)) { items.pelts += 3; prize = true; }
+        }
+        if (rng() < _num(k.meatChance, 0.15) * (0.5 + _num(quality, 0.5))) items.meat = 1;
+        return { items, prize };
+    },
+
+    /** Snare weight for sharing out a line's catch (an unrated snare is middling). */
+    _snareWeight(s) {
+        return Math.max(0.05, _num(s && s.quality, 0.5));
+    },
+
+    /**
+     * How a line's snares shape what it catches each day: the mean quality
+     * of its snares (1 for a line laid without walking it).
+     */
+    lineFactor(snares, c = WildTasks.cfg('trap')) {
+        const rated = (snares || []).filter(s => s && typeof s.quality === 'number');
+        if (!rated.length) return 1;
+        const avg = rated.reduce((a, s) => a + s.quality, 0) / rated.length;
+        const k = c.line || {};
+        return _clamp(_num(k.base, 0.4) + avg * _num(k.perQuality, 1.2), _num(k.min, 0.3), _num(k.max, 1.5));
+    },
+
+    /**
+     * Which snare holds what: a line's catch shared among its snares by their
+     * weight (largest remainder, so the shares add up exactly). Deterministic.
+     * @returns {object[]} one item map per snare
+     */
+    spreadCatch(items, snares) {
+        const n = (snares || []).length;
+        const out = Array.from({ length: n }, () => ({}));
+        if (!n) return out;
+        const w = snares.map(s => WildTasks._snareWeight(s));
+        const sum = w.reduce((a, b) => a + b, 0);
+        for (const [id, qty] of Object.entries(items || {})) {
+            if (!(qty > 0)) continue;
+            const exact = w.map(x => (qty * x) / sum);
+            const base = exact.map(Math.floor);
+            let left = qty - base.reduce((a, b) => a + b, 0);
+            const order = exact.map((x, i) => [x - base[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+            for (let j = 0; left > 0; j = (j + 1) % n, left--) base[order[j][1]]++;
+            base.forEach((v, i) => { if (v > 0) out[i][id] = v; });
+        }
+        return out;
+    },
+
     // ── Watchers: smuggling and pickpocketing ──
 
     /** How far the watch sees a smuggler: stealth narrows it. */

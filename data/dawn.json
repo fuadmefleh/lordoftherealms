@@ -186,7 +186,16 @@
             "Healer",
             "Storyteller"
         ],
+        "hearth": {
+            "_doc": "Kin share their pot (DawnBirth.kinMeal): with no food in your packs, at your clan's camp or in your home village, your family feeds you — up to maxOwed meals you haven't paid back. Come home with more food than keepFood and they take it into the pot, a unit for each meal owed.",
+            "maxOwed": 12,
+            "keepFood": 6
+        },
         "lines": {
+            "fed": "You eat from your family's pot: {kin} share what they have.",
+            "fedOwed": "Your kin feed you again, but with a look: {owed} meals now that you have not paid back. Bring food to the pot.",
+            "refused": "Your kin have fed you {owed} times and you have brought nothing back. Tonight there is nothing for you in the pot: hunt, forage or bring food home.",
+            "repaid": "You add {qty} food to your family's pot.",
             "settled": "Your clan makes camp for good. {name} is your people's home now — {kin} with you.",
             "settledAway": "While you were away, your clan made camp for good: {name}. Your family lives there now.",
             "settleAction": "Make camp for good",

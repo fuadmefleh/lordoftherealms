@@ -218,7 +218,7 @@ function snapshot(game) {
         prestige: p.house && p.house.prestige, party: (p.travelParty || []).slice(),
         guild: JSON.stringify(Underworld.ensure(p).guild),
         petitions: ((p.petitions && p.petitions.pending) || []).length,
-        kingdoms: game.world.kingdoms.map(k => [k.id, k.isAlive, Math.round(k.treasury), k.religion && Math.round(k.religion.piety),
+        kingdoms: game.world.kingdoms.map(k => [k.id, k.isAlive, Math.round(k.treasury), k.religion ? Math.round(k.religion.piety) : null,
             k.cultureData && Math.round(k.cultureData.influence)]),
         holySites: game.world.tiles.flat().filter(t => t.holySite).map(t => `${t.q},${t.r}:${t.holySite.controller}`).join(' '),
         buildings: game.world.tiles.flat().filter(t => t.religiousBuilding || t.culturalBuilding)
@@ -308,6 +308,8 @@ function runSoak(seed) {
             const next = carryOn(game, res.died);
             const kids = (game.player.children || []).filter(c => c && !c.isSibling && c.isAlive !== false).length;
             lives.push(`${was} [${temper}, ${purse}; kids: ${family || 'none'}${pl.spouse ? '; wed' : ''}]: ${res.died} at ${diedAge} on day ${game.world.day} → ${next.how ? `${next.how} ${game.player.name}, ${Math.round(game.player.age)}${kids ? ` with ${kids} child${kids === 1 ? '' : 'ren'}` : ''}` : 'the end'}`);
+            // (a starvation death keeps its last days, to see how it came to that)
+            if (ENV.SOAK_VERBOSE && res.died === 'starvation') lives.push(`  last days: ${history.map(h => h.join(' ')).join(' | ')}`);
             lifePeak = game.player.gold || 0;
             if (!next.how) { died = `${res.died} on day ${game.world.day}`; break; }
         }

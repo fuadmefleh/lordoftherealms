@@ -630,7 +630,11 @@ export const WildTaskRunner = {
                 }
                 return checked.length ? [{ label: c.doneChecking, act: () => ctx.finish() }] : [];
             },
-            status(ctx) { return fmt(c.status, { done: ctx.done, total: ctx.total }); },
+            // Set: snares set of those wanted. Check / tend: snares reached of those laid.
+            status(ctx) {
+                if (ctx.phase === 'set') return fmt(c.status, { done: snares.length, total: ctx.want });
+                return fmt(c.statusCheck || c.status, { done: checked.length, total: snares.length });
+            },
         };
         const say = mode === 'run' ? c.runSay : mode === 'set' ? c.setSay : c.tendSay;
         const spots = () => snares.map(s => ({ q: s.q, r: s.r, quality: s.quality }));

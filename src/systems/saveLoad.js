@@ -382,6 +382,8 @@ export const SaveLoad = {
         'swimPractice',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
+        // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)
+        'homeFurnishings', 'furnitureStore', 'furnitureSeq',
     ],
 
     _pickDefined(obj, keys) {

@@ -713,6 +713,8 @@ Object.assign(InnerMap, {
         this.height = interior.height;
         this.buildings = []; // No sub-buildings inside
         this.roads = [];
+        // A home of the player's they've furnished: lay their furniture out (world/innerMap/furnishing.js)
+        if (this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
 
         // Populate interior with NPCs that are currently inside this building
         const interiorNpcs = [];

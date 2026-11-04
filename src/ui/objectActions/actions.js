@@ -313,6 +313,16 @@ export const OBJECT_ACTIONS = {
     },
     // A guest house's, inn's, hotel's or roadhouse's furniture opens its rooms
     // and services (ui/actionMenu/lodging.js — the house is the one you're in)
+    // The town's joiner: furniture for the player's homes (ui/actionMenu/furnishing.js)
+    furniture_maker: {
+        label: 'Furniture Maker',
+        icon: '🪑',
+        desc: 'Beds, chests, tables and hearths for your homes',
+        category: 'service',
+        panel: 'showFurnitureShop',
+        condition: (game) => !!_settlementTile(game),
+        conditionFail: 'Only available in a settlement.',
+    },
     take_room: {
         label: 'Take a Room',
         icon: '🛏️',

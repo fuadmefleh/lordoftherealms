@@ -28,6 +28,7 @@ import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
 import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
+import { InnerMapFurnish } from './innerMapFurnish.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
@@ -371,6 +372,9 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
                 }
 
+                // A home of your own: furnish it, move or put away a piece (ui/innerMapFurnish.js)
+                menuItems.push(...InnerMapFurnish.menuItems(game, tile, q, r));
+
                 // Always show exit option when inside a building
                 if (InnerMap._insideBuilding) {
                     menuItems.push({ type: 'separator' });
@@ -704,6 +708,7 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
+        if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
         if (item.action === 'hunt_animal') {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;

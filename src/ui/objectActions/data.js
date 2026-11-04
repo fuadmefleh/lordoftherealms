@@ -127,7 +127,7 @@ export const BUILDING_FURNITURE_ACTIONS = {
         rack:  ['hire_troops', 'drill'],
         table: ['sit', 'notices'],
     },
-    marketplace: { crate: ['shop'] },
+    marketplace: { crate: ['shop'], stall: ['shop', 'furniture_maker'] },
     granary:     { crate: ['shop'] },
     warehouse:   { crate: ['store'], chest: ['store'] },
     blacksmith:  { anvil: ['craft', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },

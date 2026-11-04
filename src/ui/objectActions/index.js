@@ -83,7 +83,8 @@ export const ObjectActions = {
     buildFurnitureMenuItems(game, furniture, building, q, r) {
         const actions = this.getFurnitureActionKeys(furniture.type, building);
         if (!actions.length) return [];
-        return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type }, q, r);
+        // (restBonus: a bed of the player's own makes for better sleep — world/innerMap/furnishing.js)
+        return this.buildMenuItems(game, { name: furniture.name, icon: furniture.icon, actions, furnitureType: furniture.type, restBonus: furniture.restBonus }, q, r);
     },
 
     /**

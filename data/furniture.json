@@ -1,0 +1,42 @@
+{
+    "_note": "Furniture for the player's homes (systems/furnishing.js, world/innerMap/furnishing.js). Each piece draws with an interior furniture type (its art in innerMapRenderer.json → interiorArt.furniture, its glyph in ui/icons.js) and does what that type does (ui/objectActions/data.js FURNITURE_ACTIONS: a bed sleeps, a chest stores, a hearth cooks). footprint [w, h] in tiles; a piece longer one way turns (R) to lie the other. minSettlement: the smallest place whose furniture maker makes it. comfort: added to the comfort need each hour spent in a home it stands in (all pieces together capped at comfortCap). restBonus: a bed's sleep restores this much more (0.2 = +20%).",
+    "sellBack": 0.5,
+    "originalSellBack": 0.3,
+    "comfortCap": 1.2,
+    "maxPiecesPerHome": 40,
+    "storageTypes": ["chest", "crate", "barrel", "sack", "bookshelf", "shelf", "desk", "cauldron", "oven"],
+    "settlementOrder": ["village", "town", "city", "capital"],
+    "items": [
+        { "id": "straw_pallet", "name": "Straw Pallet", "type": "bed", "icon": "🛏️", "price": 8, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.05, "restBonus": 0, "desc": "Ticking stuffed with straw. Better than the floor." },
+        { "id": "plank_bed", "name": "Plank Bed", "type": "bed", "icon": "🛏️", "price": 30, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.15, "restBonus": 0.1, "desc": "A sturdy frame, a wool blanket. You sleep a little better." },
+        { "id": "featherbed", "name": "Featherbed", "type": "bed", "icon": "🛏️", "price": 90, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.3, "restBonus": 0.25, "desc": "Goose down on a carved frame. Sleep restores a quarter more." },
+        { "id": "canopy_bed", "name": "Canopy Bed", "type": "bed", "icon": "🛏️", "price": 240, "footprint": [2, 1], "minSettlement": "city", "comfort": 0.5, "restBonus": 0.4, "desc": "Curtained, broad and deep. The bed of a lord." },
+
+        { "id": "storage_chest", "name": "Storage Chest", "type": "chest", "icon": "📦", "price": 18, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.02, "desc": "Store your goods at home: put in and take out as you please." },
+        { "id": "iron_strongbox", "name": "Iron-bound Strongbox", "type": "chest", "icon": "📦", "price": 60, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.02, "desc": "Oak bound in iron, with a stout lock. Storage." },
+        { "id": "crate", "name": "Crate", "type": "crate", "icon": "📦", "price": 5, "footprint": [1, 1], "minSettlement": "village", "comfort": 0, "desc": "Rough boards nailed together. Storage." },
+        { "id": "water_barrel", "name": "Water Barrel", "type": "barrel", "icon": "🛢️", "price": 10, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.02, "desc": "Fresh water to drink, and room for stores." },
+        { "id": "bookshelf", "name": "Bookshelf", "type": "bookshelf", "icon": "📚", "price": 45, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.1, "desc": "Read in an idle hour; keep things on its shelves." },
+
+        { "id": "plain_table", "name": "Plain Table", "type": "table", "icon": "🪑", "price": 14, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.08, "desc": "Sit, eat, play a game of dice." },
+        { "id": "long_table", "name": "Long Table", "type": "table", "icon": "🪑", "price": 40, "footprint": [2, 1], "minSettlement": "town", "comfort": 0.15, "desc": "Room for the whole household at supper." },
+        { "id": "bench", "name": "Bench", "type": "pew", "icon": "🪑", "price": 9, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.05, "desc": "Somewhere to sit and think." },
+        { "id": "writing_desk", "name": "Writing Desk", "type": "desk", "icon": "✒️", "price": 55, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.1, "desc": "Sit and read; its drawers hold things." },
+        { "id": "high_seat", "name": "High Seat", "type": "throne", "icon": "👑", "price": 300, "footprint": [1, 1], "minSettlement": "city", "comfort": 0.25, "desc": "A carved chair of state for the head of the house." },
+
+        { "id": "hearth", "name": "Hearth", "type": "fireplace", "icon": "🔥", "price": 35, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.3, "desc": "Warm yourself, cook a meal. A house is a home with a fire in it." },
+        { "id": "cookstove", "name": "Cookstove", "type": "oven", "icon": "🍞", "price": 70, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.1, "desc": "A brick oven to bake and cook in." },
+        { "id": "cauldron", "name": "Cauldron", "type": "cauldron", "icon": "⚗️", "price": 25, "footprint": [1, 1], "minSettlement": "village", "comfort": 0, "desc": "An iron pot for stews and brews." },
+        { "id": "wash_tub", "name": "Wash Tub", "type": "tub", "icon": "🛁", "price": 30, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.1, "desc": "Wash at home." },
+        { "id": "wash_basin", "name": "Wash Basin", "type": "bucket", "icon": "🧺", "price": 6, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.03, "desc": "A basin and jug to wash in.", "passable": true },
+        { "id": "workbench", "name": "Workbench & Anvil", "type": "anvil", "icon": "🔨", "price": 80, "footprint": [1, 1], "minSettlement": "town", "comfort": 0, "desc": "Craft at home." },
+        { "id": "lectern", "name": "Lectern", "type": "lectern", "icon": "📖", "price": 35, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.05, "desc": "Somewhere to read standing." },
+        { "id": "household_shrine", "name": "Household Shrine", "type": "altar", "icon": "🙏", "price": 65, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.15, "desc": "Pray at home." },
+
+        { "id": "rag_rug", "name": "Rag Rug", "type": "rug", "icon": "🟫", "price": 6, "footprint": [1, 1], "minSettlement": "village", "comfort": 0.08, "passable": true, "desc": "Warm underfoot." },
+        { "id": "woven_carpet", "name": "Woven Carpet", "type": "rug", "icon": "🟥", "price": 50, "footprint": [2, 1], "minSettlement": "city", "comfort": 0.2, "passable": true, "desc": "Bright wool from the south." },
+        { "id": "candelabra", "name": "Candelabra", "type": "candle", "icon": "🕯️", "price": 20, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.08, "passable": true, "desc": "Light in the dark evenings." },
+        { "id": "house_banner", "name": "House Banner", "type": "banner", "icon": "🚩", "price": 25, "footprint": [1, 1], "minSettlement": "town", "comfort": 0.05, "passable": true, "desc": "Your colours on the wall." },
+        { "id": "statue", "name": "Statue", "type": "statue", "icon": "🗿", "price": 150, "footprint": [1, 1], "minSettlement": "city", "comfort": 0.15, "desc": "Marble on a plinth: a saint, an ancestor, a god." }
+    ]
+}

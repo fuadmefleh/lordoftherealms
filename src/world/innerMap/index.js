@@ -13,6 +13,7 @@ import './jail.js';
 import './seats.js';
 import './lots.js';
 import './furnitureUse.js';
+import './furnishing.js';
 import './encounters.js';
 import './hospitality.js';
 import './camp.js';

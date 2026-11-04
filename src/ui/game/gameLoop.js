@@ -11,6 +11,7 @@ import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
+import { InnerMapFurnish } from '../innerMapFurnish.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -60,6 +61,11 @@ export function gameLoop(timestamp, loopId) {
             if (InnerMap._insideBuilding && this.player.houses) {
                 context.inOwnHouse = this.player.houses.some(h =>
                     h.q === this.player.q && h.r === this.player.r);
+            }
+            // Any building of the player's, and how well they've furnished it (world/innerMap/furnishing.js)
+            if (InnerMap._insideBuilding && InnerMap.isOwnHome && InnerMap.isOwnHome()) {
+                context.inOwnHouse = true;
+                context.homeComfort = InnerMap.homeComfort();
             }
             // Decay once per hour that passed
             const hoursPassed = InnerMap.timeOfDay - prevHour;
@@ -680,6 +686,8 @@ export function handleClick(screenX, screenY, button = 'left') {
     if (InnerMap.active) {
         const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
         if (!innerHex) return;
+        // Furnishing a home: clicks pick up and set down furniture (ui/innerMapFurnish.js)
+        if (InnerMapFurnish.active && InnerMapFurnish.click(this, innerHex.q, innerHex.r, button)) return;
 
         if (button === 'left') {
             // ── Hotbar placement on left-click ──

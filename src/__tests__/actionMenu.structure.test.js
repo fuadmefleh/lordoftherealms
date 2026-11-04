@@ -50,6 +50,10 @@ const EXPECTED_KEYS = [
     // Landing parties (ui/actionMenu/landings.js): +1
     'showLandingParty',
     'showLodgings', '_lodgingStayHtml', '_lodgingRunHtml', 'lodgingAct',
+    // Lots & town houses (ui/actionMenu/townLots.js), hunting a deer on the town map: +3
+    'showTownLots', 'townLotsAct', 'huntAnimal',
+    // The furniture maker (ui/actionMenu/furnishing.js): +2
+    'showFurnitureShop', 'furnitureAct',
     'showTownsfolkJournal',
     'showDiscoveries',
     'showOutlawLairs',
@@ -151,8 +155,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 362 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(362);
+    it('has 367 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(367);
     });
 
     it('every member except the known data props is a function', () => {

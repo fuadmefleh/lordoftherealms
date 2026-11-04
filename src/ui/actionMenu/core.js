@@ -343,6 +343,22 @@ Object.assign(ActionMenu, {
         } else {
             apBadge = `<span style="font-size: 9px; color: #27ae60; opacity: 0.7; margin-left: auto; flex-shrink: 0;">free</span>`;
         }
+        // Not now: shown greyed, with why (action.reason), and can't be pressed
+        if (action.disabled) {
+            const why = action.reason || action.description || '';
+            return `
+            <button class="action-menu-btn action-menu-btn-off" disabled data-action="${action.type}" title="${_escHtml(why)}"
+                style="display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.015);
+                    border: 1px dashed rgba(255,255,255,0.08); padding: 6px 8px; border-radius: 5px; color: #888;
+                    cursor: not-allowed; text-align: left; font-family: var(--font-body); min-width: 0; opacity: 0.75;">
+                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; filter: grayscale(1);">${action.icon}</span>
+                <span style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${action.label}</span>
+                    ${why ? `<span style="font-size: 10px; color: #c98a6a; white-space: normal; line-height: 1.25;">🔒 ${_escHtml(why)}</span>` : ''}
+                </span>
+            </button>
+        `;
+        }
         return `
             <button class="action-menu-btn" data-action="${action.type}"${action.unitId ? ` data-unit-id="${action.unitId}"` : ''}
                 data-desc="${(action.description || '').replace(/"/g, '&quot;')}"

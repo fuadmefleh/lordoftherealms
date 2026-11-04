@@ -347,12 +347,17 @@ export function addWildernessActions(actions, player, tile, world) {
 
     // Colonization Actions
     if (typeof Colonization !== 'undefined') {
-        if (Colonization.canPlayerFoundColony(player, tile, world, player.q, player.r).can) {
+        // Out in the wilds (not in a settlement, on ground you can walk): offered,
+        // greyed with the reason when you can't found one here yet
+        if (!tile.settlement && tile.terrain && tile.terrain.passable) {
+            const can = Colonization.canPlayerFoundColony(player, tile, world, player.q, player.r);
             actions.push({
                 type: 'found_colony',
                 label: 'Found Colony',
                 icon: '🏴',
-                description: `Establish a frontier colony here (${Colonization.COLONY_COST} gold)`
+                description: `Establish a frontier colony here (${Colonization.COLONY_COST} gold)`,
+                disabled: !can.can,
+                reason: can.can ? null : `${can.reason}${/Too close/.test(can.reason || '') ? ` (at least ${Colonization.MIN_SETTLEMENT_DISTANCE} hexes from any town)` : ''}`,
             });
         }
 

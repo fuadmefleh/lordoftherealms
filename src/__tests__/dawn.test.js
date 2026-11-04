@@ -10,6 +10,7 @@ import { World } from '../world/world.js';
 import { Dawn } from '../world/dawn.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { Hex } from '../core/hex.js';
+import { OutlawLairs } from '../systems/outlawLairs.js';
 
 const W = 80, H = 60;
 const GEN = { seed: 3131, kingdomCount: 4, startYear: 1, terrainGen: 3 };
@@ -89,6 +90,54 @@ describe('a world begun at the dawn', () => {
             expect(k.territory.length).toBeGreaterThan(0);
         }
     }, 120000);
+
+    it('a village grows by its season\'s rate each season (checked every 30 days), tapering as it fills', () => {
+        const world = dawnWorld();
+        for (let d = 0; d < 120 * 2; d++) world.advanceDay(null, {});
+        const live = world.getAllSettlements().map(s => world.getTile(s.q, s.r).settlement).find(s => s.dawnBorn && s.type === 'village');
+        expect(live).toBeTruthy();
+        const rate = Dawn.data().village.growthPerSeason;
+        live.population = 200;
+        Dawn._grow(world);
+        // the full season's rate × (0.5…1.5) × the taper — not a third of it
+        const taper = 1 - 200 / 1500;
+        expect(live.population).toBeGreaterThanOrEqual(Math.floor(200 * (1 + rate * taper * 0.5)));
+        expect(live.population).toBeLessThanOrEqual(Math.ceil(200 * (1 + rate * taper * 1.5)));
+        live.population = 1500; // as much as a village can feed
+        Dawn._grow(world);
+        expect(live.population).toBe(1500);
+    });
+
+    it('a town standing alone for years becomes a realm of its own', () => {
+        const world = dawnWorld();
+        for (let d = 0; d < 120 * 2; d++) world.advanceDay(null, {});
+        const K = Dawn.data().chiefdom;
+        const radius = K.radius;
+        const s = world.getAllSettlements().map(v => world.getTile(v.q, v.r)).find(t => t.settlement.dawnBorn && !t.kingdom);
+        try {
+            K.radius = 0; // no village near enough to gather
+            s.settlement.type = 'town';
+            s.settlement.founded = world.year - (K.minTownAgeYears + 1);
+            const before = world.dawn.realmsBorn;
+            Dawn._gatherRealms(world);
+            expect(world.dawn.realmsBorn).toBe(before); // too young to stand alone
+            s.settlement.founded = world.year - K.loneTownAgeYears;
+            Dawn._gatherRealms(world);
+            expect(world.dawn.realmsBorn).toBe(before + 1);
+            expect(s.settlement.type).toBe('capital');
+            expect(s.settlement.kingdom).toBeTruthy();
+        } finally {
+            K.radius = radius;
+        }
+    });
+
+    it('no outlaw lair gathers round the free clan villages before the first realm', () => {
+        const world = dawnWorld();
+        for (let d = 0; d < 120 * 2; d++) world.advanceDay(null, {});
+        expect(world.getAllSettlements().length).toBeGreaterThan(0);
+        expect(world.kingdoms.filter(k => k.isAlive).length).toBe(0);
+        expect(OutlawLairs.candidates(world, { lairs: [] })).toEqual([]);
+    });
 
     it('is reproducible under a fixed seed', () => {
         const run = () => {

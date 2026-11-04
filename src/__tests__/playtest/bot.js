@@ -66,6 +66,8 @@ import { Transport } from '../../world/transport.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Mints } from '../../systems/mints.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
+import { Languages } from '../../systems/languages.js';
+import { Commissions } from '../../systems/commissions.js';
 import { travelTo } from './harness.js';
 
 const FOOD = ['grain', 'bread'];
@@ -198,6 +200,8 @@ function sellGoods(game, tile, stats) {
     const crowded = PlayerInventory.getUsedSlots(player) > PlayerInventory.getCapacity(player) * 0.75;
     for (const [id, qty] of Object.entries({ ...player.inventory })) {
         if (FOOD.includes(id) || !(qty > 0) || id === 'gold') continue;
+        // Bullion bought for a mint is carried there (chooseDestination), not sold in passing
+        if (BULLION.includes(id) && !crowded && player.gold >= 300) continue;
         if (FOOD_FALLBACK.includes(id) && player.getFoodCount() <= 10) continue;
         if (Treasures.info(id) && Utils.random() < 0.5) continue;
         // Goods bought to trade are held until a market pays what they cost
@@ -1125,6 +1129,65 @@ function settlementBusiness(game, stats) {
     booked(game, 'harvests', () => harvests(game, tile, stats));
     booked(game, 'land', () => land(game, tile, stats));
     booked(game, 'publicWorks', () => publicWorks(game, tile, stats));
+    booked(game, 'tongues', () => tongues(game, tile, stats));
+    booked(game, 'bathe', () => bathe(game, stats));
+    booked(game, 'hiredWork', () => hiredWork(game, tile, stats));
+}
+
+/**
+ * A town of another tongue (systems/languages.js): a lesson with its tutor
+ * while the purse allows, an interpreter hired while the bot is lost for
+ * words there, and let go once it can manage alone (or can't pay).
+ */
+function tongues(game, tile, stats) {
+    const { player, world } = game;
+    const lang = Languages.settlementLanguage(world, tile.settlement);
+    if (!lang || !player.languages) return;
+    const own = Languages.fluency(player, lang);
+    const c = Languages.comprehension(player, lang);
+    if (own >= 50) {
+        // Fluent enough here: the interpreter (if this is the tongue they were for) goes
+        if (player.translator && Languages.translatorIn(player, lang) > 0 && Utils.random() < 0.2
+            && Languages.dismissTranslator(player).success) count(stats, 'interpretersDismissed');
+        return;
+    }
+    count(stats, 'foreignTownDays');
+    if (player.translator && player.gold < 150 && Languages.dismissTranslator(player).success) count(stats, 'interpretersDismissed');
+    if (player.gold >= 300 && Languages.lesson(player, world, lang).success) count(stats, 'langLessons');
+    if (!player.translator && c.value < 25 && player.gold >= 800 && Languages.hireTranslator(player, world).success) count(stats, 'interpretersHired');
+}
+
+/** Grimy: wash at the river, the well or the bathhouse (player/core/needs.js), when the coin is to spare. */
+function bathe(game, stats) {
+    const { player, world } = game;
+    if (!player.needs || player.needs.hygiene >= 30 || !player.bathePlace) return;
+    const place = player.bathePlace(world);
+    if (!place || player.gold < place.cost + 50) return;
+    if (player.bathe(world).success) count(stats, place.kind === 'wild' ? 'bathedWild' : 'bathedInTown');
+}
+
+/**
+ * Hired work in a town's mill, bakery or smithy (systems/commissions.js):
+ * collect what is ready, and now and then hand over goods the bot isn't
+ * eating to be worked up, paying the fee.
+ */
+function hiredWork(game, tile, stats) {
+    const { player, world } = game;
+    for (const j of Commissions.pending(player)) {
+        if (j.q === tile.q && j.r === tile.r && Commissions.isReady(j, world)) {
+            if (Commissions.collect(player, world).success) count(stats, 'commissionsCollected');
+            break;
+        }
+    }
+    if (player.gold < 300 || Utils.random() > 0.2 || Commissions.pending(player).length >= 2) return;
+    const edible = player.constructor.FOOD_TYPES || [];
+    for (const o of Commissions.offers(world, tile.settlement)) {
+        // (not the bread it eats, nor the bullion it carries to a mint)
+        if (Object.keys(o.in).some(g => edible.includes(g) || FOOD.includes(g) || BULLION.includes(g))) continue;
+        const runs = Math.min(Commissions.maxRuns(player, o), 10);
+        if (runs < 1) continue;
+        if (Commissions.commission(player, world, o.id, runs, Utils.random() < 0.5 ? 'fee' : 'cut').success) { count(stats, 'commissioned'); return; }
+    }
 }
 
 // ── Out in the world ─────────────────────────────────────────
@@ -1268,12 +1331,27 @@ function chooseDestination(game) {
         }
         if (best) return { q: best.q, r: best.r, delve: true };
     }
+    // Carrying bullion: on to the nearest realm's capital, where its mint buys it (systems/mints.js)
+    if (BULLION.some(id => (player.inventory[id] || 0) > 0)) {
+        const mint = nearest(world, player, settlementTiles(world), 60).find(t => Mints.mintAt(world, world.getTile(t.q, t.r)));
+        if (mint) return { q: mint.q, r: mint.r };
+    }
     // Colonies hold court; drop by now and then
     if (roll < 0.3 && (player.colonies || []).length) return { q: player.colonies[0].q, r: player.colonies[0].r };
     // A ship laid up in another port: go back to it now and then, to sail
     if (roll >= 0.3 && roll < 0.4) {
         const laid = (player.ships || []).find(sh => sh.status === 'docked' && (sh.q !== player.q || sh.r !== player.r));
         if (laid) return { q: laid.q, r: laid.r };
+    }
+    // Abroad now and then, once settled in: a town of another tongue within a
+    // fortnight's walk (systems/languages.js — immersion, lessons, interpreters)
+    if (world.day > 150 && roll >= 0.4 && roll < 0.5 && player.nativeLanguage) {
+        const abroad = nearest(world, player, settlementTiles(world), 40).filter(t => t.d <= 30 && (() => {
+            const s = world.getTile(t.q, t.r).settlement;
+            const l = s && Languages.settlementLanguage(world, s);
+            return l && l !== player.nativeLanguage && Languages.fluency(player, l) < 100;
+        })());
+        if (abroad.length) return Utils.randPick(abroad.slice(0, 6));
     }
     const near = nearest(world, player, settlementTiles(world), 6);
     return near.length ? Utils.randPick(near) : null;
@@ -1506,7 +1584,7 @@ export function rivalHouses(game, stats) {
         const feud = rival.feud || 0;
         if (feud >= 40 && player.gold > RivalHouses.giftCost(rival) * 5) {
             if (RivalHouses.gift(player, world, rival.kingdomId).success) count(stats, 'rivalGifts');
-        } else if (feud >= 15 && Utils.random() < 0.15 && personaOf(game) === 'drifter') {
+        } else if (feud >= 15 && Utils.random() < 0.15 && personaOf(game).id === 'drifter') {
             if (RivalHouses.insult(player, world, rival.kingdomId).success) count(stats, 'rivalInsults');
         } else if (feud >= 15) {
             const r = RivalHouses.parley(player, world, rival.kingdomId);

@@ -64,6 +64,7 @@
         "radius": 6,
         "minVillages": 2,
         "minTownAgeYears": 4,
+        "loneTownAgeYears": 9,
         "names": [
             "Chiefdom of",
             "Tribal Lands of",

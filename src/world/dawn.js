@@ -396,11 +396,17 @@ export const Dawn = {
 
     /** The young world's villages fill fast: a frontier bonus on top of their food-fed growth */
     _grow(world) {
-        const rate = _num((Dawn.data().village || {}).growthPerSeason, 0.06) / 3; // checked monthly
+        // (checked every 30 days — a season: a year is four seasons of 30 days)
+        const rate = _num((Dawn.data().village || {}).growthPerSeason, 0.06);
         for (const s of world.getAllSettlements()) {
             const live = Dawn._tile(world, s.q, s.r).settlement;
             if (!live || !live.dawnBorn) continue;
-            live.population = Math.round(live.population * (1 + rate * (0.5 + Utils.random())));
+            // ...tapering as the place nears what its kind of settlement can feed
+            // (Economy.FOOD.capacity), so the frontier bonus can't compound forever
+            const cap = _num((Economy.FOOD && Economy.FOOD.capacity || {})[live.type], 1500);
+            const taper = Math.max(0, 1 - live.population / cap);
+            if (taper <= 0) continue;
+            live.population = Math.round(live.population * (1 + rate * taper * (0.5 + Utils.random())));
         }
     },
 
@@ -457,14 +463,19 @@ export const Dawn = {
             const tile = Dawn._tile(world, s.q, s.r);
             const town = tile.settlement;
             if (!town || town.type !== 'town' || town.kingdom || tile.kingdom) continue;
-            if ((world.year || 0) - _num(town.founded, world.year) < _num(K.minTownAgeYears, 6)) continue;
+            const age = (world.year || 0) - _num(town.founded, world.year);
+            if (age < _num(K.minTownAgeYears, 6)) continue;
             const members = settlements.filter(o => {
                 if (o.q === s.q && o.r === s.r) return false;
                 const ot = Dawn._tile(world, o.q, o.r);
                 return ot && ot.settlement && !ot.settlement.kingdom && !ot.kingdom && ot.regionId === tile.regionId
                     && Hex.wrappingOffsetDistance(s.q, s.r, o.q, o.r, world.width) <= radius;
             });
-            if (members.length < _num(K.minVillages, 2)) continue;
+            // A town standing alone long enough becomes a realm of its own (a
+            // city-state): towns spaced apart never gather two free villages, and
+            // without this a young world can stall at one realm for good
+            const need = age >= _num(K.loneTownAgeYears, Infinity) ? 0 : _num(K.minVillages, 2);
+            if (members.length < need) continue;
             Dawn.foundRealm(world, { q: s.q, r: s.r }, members.map(m => ({ q: m.q, r: m.r })));
         }
     },

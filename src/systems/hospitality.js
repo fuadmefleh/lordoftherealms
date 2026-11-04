@@ -452,9 +452,14 @@ export const Hospitality = {
         const demand = this.demand(world, q, r);
         const appeal = houses.map(v => this._appeal(v.kind, v.stars, v.priceMult, v.rep));
         const total = appeal.reduce((a, b) => a + b, 0) || 1;
+        const D = this.config().demand;
         houses.forEach((v, i) => {
             const K = this.kind(v.kind) || {};
-            let g = demand * appeal[i] / total;
+            // Dear rooms turn travellers away altogether (they sleep rough, push on,
+            // lodge with kin), not just to the house next door: without this every
+            // town's houses sat full and their prices climbed to the cap for good
+            const deter = Math.min(1, Math.pow(1 / Math.max(0.3, _num(v.priceMult, 1)), _num(D.priceDemand, 0)));
+            let g = demand * appeal[i] / total * deter;
             if (K.wealthyShare) g = Math.min(g, demand * K.wealthyShare);
             out[v.id] = Math.min(v.rooms, Math.round(g));
         });

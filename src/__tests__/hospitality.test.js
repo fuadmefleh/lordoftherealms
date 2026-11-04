@@ -309,6 +309,24 @@ describe('the NPC houses\' week and the save', () => {
         Hospitality.restore(undefined, back);
         expect(back.hospitality.houses).toEqual({});
     });
+    it('dear rooms turn travellers away altogether, so a busy town\'s prices settle below the cap', () => {
+        const { world, player } = game;
+        const t = townOf('capital') || townOf('city') || townOf('town');
+        const houses = Hospitality.listAt(world, player, t.q, t.r);
+        const st = Hospitality.state(world).houses;
+        const total = () => Object.values(Hospitality.occupancy(world, player, t.q, t.r)).reduce((a, b) => a + b, 0);
+        for (const v of houses) st[v.id].priceMult = 1;
+        const atPar = total();
+        for (const v of houses) st[v.id].priceMult = 1.8;
+        const dear = total();
+        expect(atPar).toBeGreaterThan(0);
+        expect(dear).toBeLessThan(atPar);
+        // ...and half a year of weeks doesn't leave every house full at the top price
+        for (const v of houses) st[v.id].priceMult = 1;
+        for (let w = 0; w < 18; w++) { world.day += 7; Hospitality._npcWeek(world, player); }
+        const after = Hospitality.listAt(world, player, t.q, t.r);
+        expect(after.every(v => v.priceMult >= 1.8 && v.guests >= v.rooms)).toBe(false);
+    });
 });
 
 describe('on the inner map and in the panels', () => {

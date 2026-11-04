@@ -109,13 +109,13 @@ Object.assign(ActionMenu, {
             rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', commissions: 'trade',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', commissions: 'commerce',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', sea_rovers: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce',
-            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'economy', preach: 'social', denounce_heresy: 'social',
+            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -151,7 +151,8 @@ Object.assign(ActionMenu, {
         };
 
         for (const action of actions) {
-            const cat = mapping[action.type] || 'general';
+            // (a type mapped to a category that doesn't exist files under General, not a crash)
+            const cat = categories[mapping[action.type]] ? mapping[action.type] : 'general';
             categories[cat].actions.push(action);
         }
 

@@ -108,6 +108,11 @@ function checkInvariants(game, phase) {
     for (const u of player.army || []) {
         if (!finite(u.strength)) problems.push(`${where}: army unit ${u.type} strength = ${u.strength}`);
     }
+    // Tongues (systems/languages.js): every fluency a number in 0..100, and an interpreter on a wage
+    for (const [lang, v] of Object.entries(player.languages || {})) {
+        if (!finite(v) || v < 0 || v > 100) problems.push(`${where}: language ${lang} fluency = ${v}`);
+    }
+    if (player.translator && !(player.translator.wage >= 0)) problems.push(`${where}: interpreter wage = ${player.translator.wage}`);
     if (player.health > (player.maxHealth || 100)) problems.push(`${where}: health ${player.health} over max ${player.maxHealth}`);
     // The world's books, every tenth day (a full scan)
     if (world.day % 10 === 0) {
@@ -345,6 +350,12 @@ describe('headless playtest soak', () => {
                         rivals: MerchantHouses.rivals(game.player).map(r => `${r.name} ${r.status} ${Math.round(r.capital)}`),
                     }))(MerchantHouses.company(game.player)),
                     arbitrage: arbitrage.slice(0, 20),
+                    languages: game.player.languages, native: game.player.nativeLanguage, interpreter: !!game.player.translator,
+                    world: (({ kingdoms, dawn }) => ({
+                        realms: kingdoms.filter(k => k.isAlive).length,
+                        settlements: game.world.getAllSettlements().length,
+                        dawn: dawn && { villages: dawn.villagesFounded, towns: dawn.townsRisen, realms: dawn.realmsBorn, done: dawn.realmsDone, over: dawn.over },
+                    }))(game.world),
                 };
                 process.stdout.write(`seed ${seed} ${JSON.stringify(report, null, 1)}\n`);
             }
@@ -362,6 +373,14 @@ describe('headless playtest soak', () => {
     }
 
     it('the bot reached the systems it is meant to exercise', () => {
+        // A world begun at the Dawn of Man has no towns, guilds or courts for its
+        // first years: the long-game list is for worlds that start with realms
+        if (SOAK_GEN.startYear && SOAK_GEN.startYear < 200) {
+            for (const key of ['foodBought', 'travelDays', 'oddJobs']) {
+                expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
+            }
+            return;
+        }
         for (const key of ['foodBought', 'recruited', 'sales', 'coloniesFounded', 'guildJoined', 'delvesStarted',
             'petitionsRuled', 'companionsHired', 'shipsBought', 'crewHired', 'voyages', 'daysAtSea', 'propertiesBuilt',
             'companyFounded', 'postsOpened', 'ordersSet', 'worksFunded',
@@ -375,7 +394,9 @@ describe('headless playtest soak', () => {
                 // ...and buys an estate and puts work out to the cottagers (systems/landMarket.js, systems/puttingOut.js)
                 'estatesBought', 'workPutOut',
                 // ...and funds a public work and sells bullion to a mint (systems/publicWorks.js, systems/mints.js)
-                'publicWorksFunded', 'bullionSold'] : [])]) {
+                'publicWorksFunded', 'bullionSold',
+                // ...and travels abroad, takes lessons in the tongue, bathes and hires the town's tradesmen
+                'foreignTownDays', 'langLessons', 'commissioned'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

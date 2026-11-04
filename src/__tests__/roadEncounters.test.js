@@ -203,6 +203,21 @@ describe('road encounter outcomes', () => {
         };
         expect(run(resolveHostileEncounter)).toEqual(run((p, a, w) => RoadEncounters.ambush(p, a, w)));
     });
+
+    it('a band that robbed you, or a beast that mauled you, leaves you be for a while', () => {
+        // (a band camped by an unprotected village used to rob the player every
+        // morning until they starved with no food left to buy)
+        Utils.setSeed(77);
+        const world = makeWorld();
+        const player = makePlayer();
+        const raider = makeUnit('raider', 12, world);
+        expect(RoadEncounters.ambush(player, raider, world).kind).toBe('robbed');
+        expect(RoadEncounters.isSparing(raider, world.day + 1)).toBe(true);
+        expect(RoadEncounters.isSparing(raider, world.day + RoadEncounters.config().toll.respiteDays)).toBe(false);
+        const wolf = makeUnit('beast', 8, world);
+        RoadEncounters.ambush(player, wolf, world);
+        expect(RoadEncounters.isSparing(wolf, world.day + 1)).toBe(true);
+    });
 });
 
 describe('phased field battle', () => {

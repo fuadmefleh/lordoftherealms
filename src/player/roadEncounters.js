@@ -534,8 +534,8 @@ export const RoadEncounters = {
             // Armour and Divine Protection soften the blow
             const healthLost = PlayerEffects.scaleDamage(player, Difficulty.foeHarm(player, attacker.type === 'monster' ? Utils.randInt(25, 45) : Utils.randInt(8, 18)));
             player.health = Math.max(1, player.health - healthLost);
-            attacker.targetQ = null;
-            attacker.targetR = null;
+            // Sated, it goes its way for a day or two (not back at the throat every dawn)
+            RoadEncounters._spare(attacker, world, 2);
             // Tooth and claw can leave a wound that lasts (systems/ailments.js)
             const wound = healthLost > 0 ? Ailments.maybeWound(player, world, attacker.type) : null;
             return {
@@ -583,6 +583,10 @@ export const RoadEncounters = {
 
             // Bills of exchange go with the purse (systems/bills.js: stop them at the paying house)
             const billsTaken = Bills.onRobbed(player, world);
+
+            // They have what they came for, and leave the player be for a while, as a
+            // toll paid would: a band camped by a village otherwise robbed them every day
+            RoadEncounters._spare(attacker, world, _num(RoadEncounters.config().toll.respiteDays, 7));
 
             // Transfer stolen goods to attacker
             attacker.inventory['gold'] = (attacker.inventory['gold'] || 0) + goldStolen;

@@ -50,6 +50,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
 import { LordInfluence } from '../world/kingdomState.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Dawn } from '../world/dawn.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
@@ -322,9 +323,15 @@ export const OutlawLairs = {
         for (const l of standing) if (l.kingdomId != null) perKingdom[l.kingdomId] = (perKingdom[l.kingdomId] || 0) + 1;
         const seen = new Set();
         const out = [];
+        // At the Dawn of Man (world/dawn.js) there are no deserters, smugglers or
+        // tax-dodgers yet, and no realm to send an expedition: outlaws gather only
+        // about the first realms, not round every free clan village (they raided
+        // the young villages down to a handful of people)
+        const dawn = Dawn.isActive(world);
         for (const s of _settlements(world)) {
             if (!s || !Number.isFinite(s.q)) continue;
             const sk = _kingdom(world, s.kingdom);
+            if (dawn && !sk) continue;
             const stile = world.getTile(s.q, s.r);
             const region = stile ? stile.regionId : undefined;
             if ((perKingdom[s.kingdom] || 0) >= _num(cfg.maxPerKingdom, 2)) continue;

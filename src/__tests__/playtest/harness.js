@@ -96,12 +96,18 @@ import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Engrossing } from '../../systems/engrossing.js';
 import { resolveHostileEncounter } from '../../ui/game/combat.logic.js';
+import { RoadEncounters } from '../../player/roadEncounters.js';
 import { Pirates } from '../../systems/pirates.js';
 import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { Lots } from '../../systems/lots.js';
+import { Townsfolk } from '../../systems/townsfolk.js';
+import { Commissions } from '../../systems/commissions.js';
+import { Victory } from '../../systems/victory.js';
+import { Fame } from '../../systems/fame.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -149,6 +155,7 @@ function checkHostileEncounters(game) {
     const hostiles = world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer &&
+        !RoadEncounters.isSparing(u, world.day) && // paid off, talked down, driven off (as combat.js)
         WorldUnit.isHostile(u) &&
         Hex.wrappingDistance(u.q, u.r, player.q, player.r, world.width) <= 1);
     if (hostiles.length === 0) return null;
@@ -296,13 +303,6 @@ function _endDay(game) {
     mark(game, 'Relationships.processDailyEvents');
     const aging = Relationships.processAging(player, world);
     mark(game, 'Relationships.processAging');
-    // Building lots and houses to let: rent day, the town's other buyers (systems/lots.js);
-    // the townsfolk live their day (systems/townsfolk.js) — as ui/game/endDay.js does
-    Lots.processDay(world, player);
-    mark(game, 'Lots.processDay');
-    Townsfolk.processDay(world, player);
-    mark(game, 'Townsfolk.processDay');
-    Relationships.syncFolk(player, world);
     if (aging && aging.died) {
         out.died = 'old age';
         return out;
@@ -313,6 +313,12 @@ function _endDay(game) {
     mark(game, 'HeirAgency.processDay');
     Regency.processDay(player, world);
     mark(game, 'Regency.processDay');
+    // Building lots and houses to let; the townsfolk live a season (endDay.js order)
+    game.lotsDay = Lots.processDay(world, player);
+    mark(game, 'Lots.processDay');
+    Townsfolk.processDay(world, player);
+    mark(game, 'Townsfolk.processDay');
+    Relationships.syncFolk(player, world);
     Relationships.prepareForSave(player);
     mark(game, 'Relationships.prepareForSave');
 
@@ -347,8 +353,11 @@ function _endDay(game) {
     mark(game, 'Mail.processDay');
     Hospitality.processDay(world, player);
     mark(game, 'Hospitality.processDay');
-    DawnBirth.sync(player, world);
-    Languages.processDay(player, world);
+    game.commissionsDay = Commissions.processDay(player, world);
+    mark(game, 'Commissions.processDay');
+    game.languagesDay = Languages.processDay(player, world);
+    mark(game, 'Languages.processDay');
+    game.dawnSettled = DawnBirth.sync(player, world) || null;
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);
@@ -416,6 +425,8 @@ function _endDay(game) {
     mark(game, 'PriceKnowledge.processDay');
     game.chronicleDay = EconomyChronicle.processDay(world, player);
     mark(game, 'EconomyChronicle.processDay');
+    game.victoryDay = Victory.check(player, world) || null;
+    mark(game, 'Victory.check');
 
     Tavern.expireOldIntel(player, world.day);
     mark(game, 'Tavern.expireOldIntel');
@@ -485,6 +496,7 @@ export function onArrived(game) {
         if (!player.kingdomsVisited.includes(kId)) player.kingdomsVisited.push(kId);
     }
     Underworld.onEnterSettlement(player, world, tile);
+    Fame.onEnterSettlement(player, world, tile);
     if (kId) player.learnAboutKingdom(kId, 'basics');
     Rivals.onPlayerArrived(player, world, tile);
 }

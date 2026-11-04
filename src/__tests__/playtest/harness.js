@@ -103,7 +103,6 @@ import { MapTheft } from '../../systems/mapTheft.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
-import { Lots } from '../../systems/lots.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Victory } from '../../systems/victory.js';

@@ -100,24 +100,26 @@ registerScene('trap_furs', {
         const tend = ['collect', 'reset', 'pull'].includes(choice);
         const walkable = tend ? !!line : choice === 'run' || (choice === 'set' && SeasonalWork.canSetTrapLine(player, tile, world).ok);
         if (walkable && _walkHere(game, st, choice)) {
-            return _walk(game, 'trap_furs', st, choice, (done, quit) => WildTaskRunner.trap(game, { mode: choice, spots: line && line.snares }, done, quit));
+            return _walk(game, 'trap_furs', st, choice, (done, quit) => WildTaskRunner.trap(game, { mode: choice, line, player }, done, quit));
         }
         const walked = st._res;
         st = _plain(st);
         if (choice === 'run') {
-            const res = SeasonalWork.trapFurs(player, tile, world);
+            // Run in person: the catch is what you found in the snares you set and checked
+            const res = SeasonalWork.trapFurs(player, tile, world, walked && walked.caught ? { caught: walked.caught, prize: walked.prize } : {});
             if (!res.success) return { invalid: true, notification: { title: '🦊 Trapping', body: res.reason, type: 'error' } };
             return { endDay: true, notification: { title: '🦊 Trap Line', body: res.message, type: Object.keys(res.lost || {}).length ? 'warning' : 'success' } };
         }
         if (choice === 'set') {
-            const res = SeasonalWork.setTrapLine(player, tile, world);
+            // Where the snares went (and how good each spot is): the line is walked
+            // the same way next time, and fills by how well it was set
+            const res = SeasonalWork.setTrapLine(player, tile, world, walked && walked.spots ? { snares: walked.spots } : {});
             if (!res.success) return { invalid: true, notification: { title: '🕸️ Trap Line', body: res.reason, type: 'error' } };
-            // Where the snares went, so the line is walked the same way next time
-            if (walked && walked.spots && res.line) res.line.snares = walked.spots.map(p => ({ q: p.q, r: p.r }));
             return { endDay: true, notification: { title: '🕸️ Trap Line Set', body: res.message, type: 'success' } };
         }
         if (['collect', 'reset', 'pull'].includes(choice)) {
-            const res = SeasonalWork.tendTrapLine(player, tile, world, choice);
+            // Walked in person: only the snares you reached are emptied
+            const res = SeasonalWork.tendTrapLine(player, tile, world, choice, walked && Array.isArray(walked.checked) ? { checked: walked.checked, snares: walked.spots } : {});
             if (!res.success) return { invalid: true, notification: { title: '🕸️ Trap Line', body: res.reason, type: 'error' } };
             return { notification: { title: '🕸️ Trap Line', body: res.message, type: Object.keys(res.lost || {}).length ? 'warning' : 'success' } };
         }

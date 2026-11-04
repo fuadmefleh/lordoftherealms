@@ -1,0 +1,1538 @@
+{
+  "_doc": "Animal sprite sheets generated with ChatGPT (OpenAI image generation) on 2026-11-04. Every sheet: 1254x1254, 4 rows x 4 columns of equal 313.5px cells (row order up, left, down, right), 4 frames per row. Where a *_clean.png exists, use it (the original had a solid/fake background). Wired into data/animals.json through the game sheets scripts/build-animal-sheets.py makes (<id>/<id>_<action>_sheet.png); the boar sheets and fox walk came in later from the same series.",
+  "animals": {
+    "arctic_fox": {
+      "walk": {
+        "file": "arctic_fox/arctic_fox_walk.png",
+        "use": "arctic_fox/arctic_fox_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "arctic_fox/arctic_fox_attack.png",
+        "use": "arctic_fox/arctic_fox_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "arctic_fox/arctic_fox_death.png",
+        "use": "arctic_fox/arctic_fox_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": "Drawn larger and greyer than arctic_fox_walk/attack - scale mismatch."
+      }
+    },
+    "bear": {
+      "walk": {
+        "file": "bear/bear_walk.png",
+        "use": "bear/bear_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "bear/bear_attack.png",
+        "use": "bear/bear_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Swipe/lunge; row 1 rears up."
+      },
+      "death": {
+        "file": "bear/bear_death.png",
+        "use": "bear/bear_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "doe": {
+      "attack": {
+        "file": "doe/doe_attack.png",
+        "use": "doe/doe_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 3,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Rear-and-kick (redo). The first try, a predator-like lunge, is kept as doe_attack_lunge.png. Rearing frames are tall so rows nearly touch."
+      },
+      "death": {
+        "file": "doe/doe_death.png",
+        "use": "doe/doe_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": "Doe sheet also usable for fawn (scaled), as the game already does."
+      },
+      "attack_alt": {
+        "file": "doe/doe_attack_lunge.png",
+        "notes": "First doe attack attempt (lunge); superseded by doe_attack.png."
+      },
+      "walk_existing": "Existing walk sheet: Pixel Deer Walking Sprite Sheet.png / deer_doe.png"
+    },
+    "elephant": {
+      "walk": {
+        "file": "elephant/elephant_walk.png",
+        "use": "elephant/elephant_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            3
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "elephant/elephant_attack.png",
+        "use": "elephant/elephant_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Weak attack: mostly a stomp/charge with a dust puff; tusk lunge not very pronounced."
+      },
+      "death": {
+        "file": "elephant/elephant_death.png",
+        "use": "elephant/elephant_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "elk": {
+      "walk": {
+        "file": "elk/elk_walk.png",
+        "use": "elk/elk_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "elk/elk_attack.png",
+        "use": "elk/elk_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "elk/elk_death.png",
+        "use": "elk/elk_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": "An earlier in-progress 1024px draft was discarded; this is the final."
+      }
+    },
+    "fox": {
+      "attack": {
+        "file": "fox/fox_attack.png",
+        "use": "fox/fox_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "fox/fox_death.png",
+        "use": "fox/fox_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "highland_cow": {
+      "walk": {
+        "file": "highland_cow/highland_cow_walk.png",
+        "use": "highland_cow/highland_cow_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "highland_cow/highland_cow_attack.png",
+        "use": "highland_cow/highland_cow_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Horn charge."
+      },
+      "death": {
+        "file": "highland_cow/highland_cow_death.png",
+        "use": "highland_cow/highland_cow_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "lion": {
+      "walk": {
+        "file": "lion/lion_walk.png",
+        "use": "lion/lion_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "lion/lion_attack.png",
+        "use": "lion/lion_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid black background (RGB); use lion_attack_clean.png. Took a retry after a generator error.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "lion/lion_death.png",
+        "use": "lion/lion_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "mountain_goat": {
+      "walk": {
+        "file": "mountain_goat/mountain_goat_walk.png",
+        "use": "mountain_goat/mountain_goat_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "mountain_goat/mountain_goat_attack.png",
+        "use": "mountain_goat/mountain_goat_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "mountain_goat/mountain_goat_death.png",
+        "use": "mountain_goat/mountain_goat_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "panther": {
+      "walk": {
+        "file": "panther/panther_walk.png",
+        "use": "panther/panther_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            2,
+            4,
+            2
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Faint semi-transparent haze in original; use panther_walk_clean.png.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "panther/panther_attack.png",
+        "use": "panther/panther_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            3,
+            4,
+            2
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "panther/panther_death.png",
+        "use": "panther/panther_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            3,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "polar_bear": {
+      "walk": {
+        "file": "polar_bear/polar_bear_walk.png",
+        "use": "polar_bear/polar_bear_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "polar_bear/polar_bear_attack.png",
+        "use": "polar_bear/polar_bear_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            2
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Swipe/lunge; sprites wide in rows 4."
+      },
+      "death": {
+        "file": "polar_bear/polar_bear_death.png",
+        "use": "polar_bear/polar_bear_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "rabbit": {
+      "walk": {
+        "file": "rabbit/rabbit_walk.png",
+        "use": "rabbit/rabbit_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "rabbit/rabbit_attack.png",
+        "use": "rabbit/rabbit_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "rabbit/rabbit_death.png",
+        "use": "rabbit/rabbit_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Row 4 (right) mostly shows the rabbit already lying down, facing ambiguous; faint soft halo in original - use rabbit_death_clean.png.",
+        "cleanTransparent": true
+      }
+    },
+    "reindeer": {
+      "walk": {
+        "file": "reindeer/reindeer_walk.png",
+        "use": "reindeer/reindeer_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "reindeer/reindeer_attack.png",
+        "use": "reindeer/reindeer_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            3,
+            4,
+            2
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Antlers spill near cell edges; slice by the regular 4x4 grid, not by gaps."
+      },
+      "death": {
+        "file": "reindeer/reindeer_death.png",
+        "use": "reindeer/reindeer_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "sheep": {
+      "walk": {
+        "file": "sheep/sheep_walk.png",
+        "use": "sheep/sheep_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": ""
+      },
+      "attack": {
+        "file": "sheep/sheep_attack.png",
+        "use": "sheep/sheep_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Headbutt."
+      },
+      "death": {
+        "file": "sheep/sheep_death.png",
+        "use": "sheep/sheep_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": "First prompt (dying) was refused by ChatGPT content policy; reworded as collapsing/lying down."
+      }
+    },
+    "snow_rabbit": {
+      "walk": {
+        "file": "snow_rabbit/snow_rabbit_walk.png",
+        "use": "snow_rabbit/snow_rabbit_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original background is a semi-transparent haze; use snow_rabbit_walk_clean.png (alpha<110 zeroed).",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "snow_rabbit/snow_rabbit_attack.png",
+        "use": "snow_rabbit/snow_rabbit_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": ""
+      },
+      "death": {
+        "file": "snow_rabbit/snow_rabbit_death.png",
+        "use": "snow_rabbit/snow_rabbit_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    },
+    "stag": {
+      "attack": {
+        "file": "stag/stag_attack.png",
+        "use": "stag/stag_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Style follows this ChatGPT series (more painterly), not the original Retro Stag sheet; antler charge/leap."
+      },
+      "death": {
+        "file": "stag/stag_death.png",
+        "use": "stag/stag_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            3
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid white background (RGB); use stag_death_clean.png.",
+        "cleanTransparent": true
+      },
+      "walk_existing": "Existing walk sheet: Retro Stag Walking Sprite Sheet.png / deer_stag.png"
+    },
+    "wolf": {
+      "walk": {
+        "file": "wolf/wolf_walk.png",
+        "use": "wolf/wolf_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a baked light checkerboard (RGB, no alpha); use wolf_walk_clean.png (keyed by flood fill from the borders).",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "wolf/wolf_attack.png",
+        "use": "wolf/wolf_attack.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": true,
+        "notes": "Lunge-and-bite; row 3 (down) shows tail raised behind head."
+      },
+      "death": {
+        "file": "wolf/wolf_death.png",
+        "use": "wolf/wolf_death.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5,
+          "detectedRowBands": 4,
+          "detectedSpritesPerRow": [
+            4,
+            4,
+            4,
+            4
+          ]
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": true,
+        "notes": ""
+      }
+    }
+  }
+}

@@ -1406,15 +1406,18 @@ function _huntQuick(game, player, lootTable) {
  * a hit banks Hunting.strikeLoot; a wild miss may injure. Continue ends the day.
  */
 /**
- * After a hunt of an animal on the map: a kill is gone from its herd (and
- * the map); one that lived goes back to its own life — running, if it was put up.
+ * After a hunt of an animal on the map: a kill falls where it stood (its
+ * loot already banked, the carcass soon gone) and is gone from its herd; one
+ * that lived goes back to its own life — running, if it was put up, or
+ * turning on the hunter if it is the kind (a missed bear, a wolf pack).
  */
 function _huntAnimalAfter(game, out, kind) {
     const a = out && out.animal;
     if (!a) return;
-    if (kind === 'success') { InnerMap.cullAnimal(game.world, a); return; }
+    if (kind === 'success') { InnerMap.killAnimal(game.world, a, { butchered: true }); return; }
     const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
-    InnerMap.releaseAnimal(a, out.result === 'abandoned' ? null : me);
+    const provoked = out.result === 'shot' ? 'shot' : out.result === 'fled' ? 'near' : null;
+    InnerMap.releaseAnimal(a, out.result === 'abandoned' ? null : me, { provoked });
 }
 
 function _huntOutcome(game, player, lootTable, out, p) {

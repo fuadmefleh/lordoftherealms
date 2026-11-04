@@ -329,7 +329,7 @@ Object.assign(InnerMapRenderer, {
             }
         }
 
-        // ── A deer here: hunt it (ui/innerMapAnimals.js) ──
+        // ── An animal here: hunt it, fight it, butcher its carcass (ui/innerMapAnimals.js) ──
         if (!building) {
             const animalItems = InnerMapAnimals.menuItems(game, q, r);
             if (animalItems.length && menuItems.length === 0) animalItems.shift();
@@ -713,6 +713,7 @@ Object.assign(InnerMapRenderer, {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;
         }
+        if (/^animal_/.test(item.action || '') && InnerMapAnimals.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
         const playerR = InnerMap.playerInnerR;

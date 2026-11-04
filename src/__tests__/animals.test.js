@@ -8,7 +8,7 @@ import fs from 'fs';
 import { DataLoader } from '../core/dataLoader.js';
 import { WildTasks } from '../systems/wildTasks.js';
 
-let InnerMap, InnerMapTasks, WildTaskRunner, SaveLoad;
+let InnerMap, InnerMapTasks, WildTaskRunner, SaveLoad, InnerMapAnimals, InnerMapCombat;
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) await DataLoader.initializeAll();
@@ -16,6 +16,8 @@ beforeAll(async () => {
     ({ InnerMapTasks } = await import('../ui/innerMapTasks.js'));
     ({ WildTaskRunner } = await import('../ui/mapTasks/wildTasks.js'));
     ({ SaveLoad } = await import('../systems/saveLoad.js'));
+    ({ InnerMapAnimals } = await import('../ui/innerMapAnimals.js'));
+    ({ InnerMapCombat } = await import('../ui/innerMapCombat.js'));
     for (const k of ['_mountHud', '_unmountHud', '_renderHud']) vi.spyOn(InnerMapTasks, k).mockImplementation(() => {});
 });
 
@@ -37,7 +39,7 @@ function openTiles(W = 128, H = 128, mark = null) {
 }
 
 const saved = {};
-const KEYS = ['active', 'tiles', 'width', 'height', 'playerInnerQ', 'playerInnerR', '_playerWalking', '_insideBuilding', 'buildings', 'animals', 'npcs', 'currentWorldTile', '_animalRng', '_animalBuiltDist'];
+const KEYS = ['active', 'tiles', 'width', 'height', 'playerInnerQ', 'playerInnerR', '_playerWalking', '_insideBuilding', 'buildings', 'animals', 'npcs', 'currentWorldTile', '_animalRng', '_animalBuiltDist', 'timeOfDay'];
 function openMap(tiles, at = { q: 64, r: 64 }) {
     for (const k of KEYS) saved[k] = InnerMap[k];
     Object.assign(InnerMap, {
@@ -112,9 +114,9 @@ describe('herds by terrain', () => {
         expect(winterFawns).toBe(0);
     });
 
-    it('none at sea, in the desert, on a mountain, in a city or a capital', () => {
+    it('none at sea, in the desert, on a snow peak, in a city or a capital', () => {
         for (let i = 0; i < 30; i++) {
-            for (const t of ['ocean', 'deep_ocean', 'sea', 'lake', 'desert', 'mountain', 'snow_peak', 'beach']) {
+            for (const t of ['ocean', 'deep_ocean', 'sea', 'lake', 'desert', 'snow_peak', 'beach']) {
                 expect(InnerMap.planHerds(openTiles(), t, i, 2, 'x')).toEqual([]);
             }
             for (const st of ['city', 'capital']) {
@@ -136,9 +138,9 @@ describe('herds by terrain', () => {
         const margin = cfg().placement.builtMargin;
         for (let i = 0; i < 60; i++) {
             wild += InnerMap.planHerds(openTiles(), 'woodland', i, 9, 'y').length ? 1 : 0;
-            near += InnerMap.planHerds(openTiles(), 'woodland', i, 9, 'y', { nearTown: true }).length ? 1 : 0;
+            near += InnerMap.planHerds(openTiles(), 'woodland', i, 9, 'y', { nearTown: true }).filter(a => !a.livestock).length ? 1 : 0;
             const tiles = town();
-            const plan = InnerMap.planHerds(tiles, 'woodland', i, 9, 'y', { settlementType: 'village' });
+            const plan = InnerMap.planHerds(tiles, 'woodland', i, 9, 'y', { settlementType: 'village' }).filter(a => !a.livestock);
             if (plan.length) village++;
             for (const a of plan) {
                 // outside the built block by the margin
@@ -262,7 +264,7 @@ describe('how they live', () => {
         const box = openTiles(128, 128, (t, q, r) => {
             if ((q === 9 && r >= 9 && r <= 11) || (r === 9 && q >= 9 && q <= 11) || (r === 11 && q >= 9 && q <= 11)) t.subTerrain = { id: 'x', passable: false };
         });
-        const [cor] = herdAt([{ species: 'doe', q: 10, r: 10 }], { q: 12, r: 10 }, box);
+        const [cor] = herdAt([{ species: 'fawn', q: 10, r: 10 }], { q: 12, r: 10 }, box);
         run(1, { walking: true });
         expect(cor.q).toBe(10);
         expect(cor.r).toBe(10);
@@ -368,10 +370,16 @@ describe('the hunt', () => {
         ctx2.tpl._sight(ctx2);
         expect(ctx2.animal && ctx2.animal.species).toBe('stag');
         expect(ctx2.animal.temporary).toBe(true);
-        // a fox stays a paw token
+        // a fox is drawn as a fox now; an eagle stays a paw token
         InnerMapTasks.abandon(true);
         InnerMap.animals = [];
         await WildTaskRunner.hunt(g, { player: g.player, prey: { name: 'Fur Pelts' } }, () => {});
+        const ctxF = InnerMapTasks.active;
+        ctxF.tpl._sight(ctxF);
+        expect(ctxF.animal && ctxF.animal.species).toBe('fox');
+        InnerMapTasks.abandon(true);
+        InnerMap.animals = [];
+        await WildTaskRunner.hunt(g, { player: g.player, prey: { name: 'Eagle Feathers' } }, () => {});
         const ctx3 = InnerMapTasks.active;
         ctx3.tpl._sight(ctx3);
         expect(ctx3.animal).toBe(null);
@@ -381,6 +389,337 @@ describe('the hunt', () => {
         const world = { wildlife: { culled: { '5,7': [{ id: '5,7:0:doe0', day: 3 }] } } };
         const back = JSON.parse(JSON.stringify(SaveLoad.serializeWorld({ ...stubWorld(), ...world })));
         expect(back.wildlife).toEqual(world.wildlife);
+    });
+});
+
+// ── The wider bestiary: every species, predators, livestock, carcasses ──
+
+const SPECIES = ['stag', 'doe', 'fawn', 'elk', 'reindeer', 'mountain_goat', 'rabbit', 'snow_rabbit', 'sheep', 'highland_cow',
+    'boar', 'fox', 'arctic_fox', 'wolf', 'bear', 'polar_bear', 'lion', 'panther', 'elephant'];
+
+/** Species seen across many hexes of a terrain (o: planHerds options). */
+function speciesIn(terrain, o = {}, n = 60) {
+    const seen = new Set();
+    for (let i = 0; i < n; i++) for (const a of InnerMap.planHerds(openTiles(), terrain, i, 11, 'beasts', { season: 'Summer', ...o })) seen.add(a.species);
+    return seen;
+}
+
+/** A game stub for the UI layer: a player with health, a world, a quiet UI. */
+function stubGame(extra = {}) {
+    const notes = [];
+    const player = { name: 'T', health: 100, maxHealth: 100, gold: 100, strength: 6, luck: 5, skills: { combat: 3, stealth: 1 }, inventory: {}, reputation: {}, q: 0, r: 0, ...extra };
+    const world = { day: 10, generationParams: { seed: 's' }, getTile: () => null };
+    return { player, world, notes, ui: { showNotification: (t, b, k) => notes.push({ t, b, k }), updateStats() {}, hideCustomPanel() {}, showCustomPanel() {} } };
+}
+
+describe('the bestiary', () => {
+    /** Beasts on an open map, the player at `me`. */
+    function beastsAt(members, me = { q: 64, r: 64 }, tiles = openTiles()) {
+        openMap(tiles, me);
+        InnerMap.timeOfDay = 12;
+        InnerMap.animals = members.map((m, i) => InnerMap._makeAnimal({ id: `b:${i}`, herd: m.herd || `h${i}`, homeQ: m.q, homeR: m.r, ...m }, cfg()));
+        InnerMap._animalRng = null;
+        InnerMapAnimals._fight = null;
+        return InnerMap.animals;
+    }
+    const tick = (secs, o = {}) => {
+        const evs = [];
+        for (let t = 0; t < secs; t += 0.05) evs.push(...InnerMap.updateAnimals(0.05, o));
+        return evs;
+    };
+
+    it('every species has walk, attack and death sheets on disk, sharing one cell and anchor, and loot that resolves', () => {
+        const c = cfg();
+        const tables = DataLoader.get('earlyJobs').hunting.loot_table;
+        const tempers = new Set(['skittish', 'defensive', 'territorial', 'hunter']);
+        for (const id of SPECIES) {
+            const sp = c.species[id];
+            expect(sp, id).toBeTruthy();
+            expect(tempers.has(sp.temper), id).toBe(true);
+            for (const act of ['walk', 'attack', 'death']) {
+                const path = sp.sheets[act];
+                expect(fs.existsSync(path), path).toBe(true);
+                const buf = fs.readFileSync(path);
+                expect(buf.readUInt32BE(16)).toBe(4 * sp.frameW);
+                expect(buf.readUInt32BE(20)).toBe(4 * sp.frameH);
+            }
+            expect(sp.sheet).toBe(sp.sheets.walk);
+            expect(sp.hp).toBeGreaterThan(0);
+            expect(sp.bite[1]).toBeGreaterThanOrEqual(sp.bite[0]);
+            expect(sp.fleeSpeed).toBeGreaterThan(sp.walkSpeed);
+            const loot = WildTasks.animalLoot(sp, tables);
+            expect(loot.length, id).toBe(sp.loot.length);
+            for (const e of loot) {
+                expect(e.item, `${id} ${e.name}`).toBeTruthy();
+                expect(e.sellPrice).toBeGreaterThan(0);
+            }
+        }
+        // sizes run from the rabbit to the elephant
+        const len = (id) => c.species[id].drawTiles * (c.species[id].scale || 1);
+        expect(len('rabbit')).toBeLessThan(len('fox'));
+        expect(len('fox')).toBeLessThan(len('wolf'));
+        expect(len('wolf')).toBeLessThan(len('bear'));
+        expect(len('bear')).toBeLessThan(len('elephant'));
+        // the elephant gives ivory, the sheep its fleece, the bear its pelt
+        expect(WildTasks.animalLoot(c.species.elephant, tables).map(e => e.item)).toContain('ivory');
+        expect(WildTasks.animalLoot(c.species.sheep, tables).map(e => e.item)).toContain('wool');
+        expect(WildTasks.animalLoot(c.species.bear, tables).map(e => e.item)).toContain('bear_pelt');
+    });
+
+    it('live where they belong: snow beasts in the cold, lions and elephants where it is hot, panthers in the jungle, goats on the heights', () => {
+        const tundra = speciesIn('tundra');
+        for (const sp of ['reindeer', 'arctic_fox', 'snow_rabbit']) expect(tundra.has(sp), sp).toBe(true);
+        for (const sp of ['lion', 'elephant', 'panther', 'sheep']) expect(tundra.has(sp), sp).toBe(false);
+        const savanna = speciesIn('savanna');
+        expect(savanna.has('lion')).toBe(true);
+        expect(savanna.has('elephant')).toBe(true);
+        expect(savanna.has('polar_bear')).toBe(false);
+        expect(speciesIn('tropical_rainforest').has('panther')).toBe(true);
+        expect(speciesIn('mountain').has('mountain_goat')).toBe(true);
+        expect(speciesIn('hills').has('mountain_goat')).toBe(true);
+        expect(speciesIn('ice').has('polar_bear')).toBe(true);
+        expect(speciesIn('boreal_forest').has('wolf')).toBe(true);
+        expect(speciesIn('woodland', {}, 120).has('bear')).toBe(true);
+        // grassland: lions only where it is hot
+        expect(speciesIn('grassland', { temperature: 0.4 }, 120).has('lion')).toBe(false);
+        expect(speciesIn('grassland', { temperature: 0.8 }, 120).has('lion')).toBe(true);
+        // the beasts of an encounter come with it: a wolf encounter brings its pack
+        const plan = InnerMap.planHerds(openTiles(), 'desert', 3, 3, 'x', { encounters: [{ id: 'wolf', slot: 1, q: 40, r: 40 }] });
+        expect(plan.length).toBeGreaterThanOrEqual(2);
+        for (const a of plan) {
+            expect(a.species).toBe('wolf');
+            expect(a.herd).toBe('3,3:enc1');
+            expect(Math.max(Math.abs(a.q - 40), Math.abs(a.r - 40))).toBeLessThanOrEqual(cfg().herds.wolves.spread);
+        }
+    });
+
+    it('livestock: a village\'s flocks graze its pastures (none in the wild), owned — and killing one is theft', () => {
+        expect(speciesIn('grassland').has('sheep')).toBe(false);
+        const town = () => openTiles(128, 128, (t, q, r) => {
+            if (q >= 44 && q <= 84 && r >= 44 && r <= 84) {
+                if ((q + r) % 6 === 0) t.isRoad = true;
+                else if (q % 9 === 0 && r % 9 === 0) { t.building = { type: 'house' }; t.subTerrain.passable = false; }
+                else t._lot = true;
+            }
+        });
+        let flocks = 0;
+        const [lo, hi] = cfg().livestock.nearBuilt;
+        for (let i = 0; i < 30; i++) {
+            const plan = InnerMap.planHerds(town(), 'grassland', i, 2, 'v', { settlementType: 'village' });
+            const sheep = plan.filter(a => a.livestock);
+            if (sheep.length) flocks++;
+            for (const a of sheep) {
+                const d = Math.max(0, 44 - a.homeQ, a.homeQ - 84, 44 - a.homeR, a.homeR - 84);
+                expect(d).toBeGreaterThanOrEqual(lo);
+                expect(d).toBeLessThanOrEqual(hi + 1);
+            }
+            // no wolves, bears, lions or elephants in a village's hex
+            expect(plan.some(a => ['wolf', 'bear', 'lion', 'elephant'].includes(a.species))).toBe(false);
+        }
+        expect(flocks).toBeGreaterThan(5);
+        // on the map: owned by the village
+        openMap(town());
+        let flock = null;
+        for (let i = 0; i < 30 && !flock; i++) {
+            const world = { day: 1, season: 'Summer', generationParams: { seed: 'v' }, getTile: () => null };
+            InnerMap._spawnAnimals({ world }, { terrain: { id: 'grassland' }, settlement: { type: 'village', name: 'Oakby', kingdom: 2 } }, i, 2);
+            flock = InnerMap.animals.find(a => a.livestock);
+        }
+        expect(flock.owner).toEqual({ name: 'Oakby', kingdom: 2 });
+        // killed unseen: no fine; seen by a villager: a fine and lost standing
+        const g = stubGame();
+        InnerMap.npcs = [];
+        expect(InnerMapAnimals.livestockTheft(g, flock).seen).toBe(false);
+        expect(g.player.gold).toBe(100);
+        InnerMap.npcs = [{ id: 'n', q: flock.q + 3, r: flock.r, state: 'idle' }];
+        const seen = InnerMapAnimals.livestockTheft(g, flock);
+        expect(seen.seen).toBe(true);
+        expect(seen.fine).toBeGreaterThan(0);
+        expect(g.player.gold).toBe(100 - seen.fine);
+        expect(g.player.reputation[2]).toBeLessThan(0);
+        // the menu calls it what it is, and offers no hunt
+        const items = InnerMapAnimals.menuItems(g, flock.q, flock.r).filter(i => i.animal === flock);
+        expect(items.some(i => i.action === 'hunt_animal')).toBe(false);
+        expect(items.find(i => i.action === 'animal_fight').label).toMatch(/^Slaughter/);
+    });
+
+    it('a wolf pack that means it stalks, charges and bites — the bite comes off the player\'s health', () => {
+        const me = { q: 64, r: 64 };
+        const pack = beastsAt([{ species: 'wolf', q: 70, r: 64, herd: 'p' }, { species: 'wolf', q: 71, r: 66, herd: 'p' }, { species: 'wolf', q: 72, r: 62, herd: 'p' }], me);
+        for (const w of pack) w.aggro = true; // the pack has decided
+        const evs = tick(0.1, { walking: true });
+        expect(evs.some(e => e.type === 'stalk')).toBe(true);
+        expect(pack.every(w => ['stalk', 'charge', 'attack'].includes(w.state))).toBe(true);
+        const later = tick(8, { walking: false });
+        expect(later.some(e => e.type === 'charge')).toBe(true);
+        const bites = later.filter(e => e.type === 'bite');
+        expect(bites.length).toBeGreaterThan(0);
+        for (const b of bites) {
+            expect(b.dmg).toBeGreaterThanOrEqual(cfg().species.wolf.bite[0]);
+            expect(b.dmg).toBeLessThanOrEqual(cfg().species.wolf.bite[1]);
+        }
+        // never more on you at once than the cap, and never on your tile
+        expect(InnerMap._attackers()).toBeLessThanOrEqual(cfg().behaviour.maxAttackers);
+        for (const w of pack) expect(w.q === me.q && w.r === me.r).toBe(false);
+        // through the UI layer the bite lands on the player
+        const g = stubGame();
+        const before = g.player.health;
+        for (let t = 0; t < 4 && g.player.health === before; t += 0.05) InnerMapAnimals.update(0.05, g);
+        expect(g.player.health).toBeLessThan(before);
+        // bitten standing about, the player turns on it
+        expect(InnerMapAnimals._fight && InnerMapAnimals._fight.a.species).toBe('wolf');
+    });
+
+    it('a pack that does not mean it only watches; and none attacks one who is down', () => {
+        const wolves = beastsAt([{ species: 'wolf', q: 70, r: 64, herd: 'p' }, { species: 'wolf', q: 71, r: 66, herd: 'p' }]);
+        for (const w of wolves) w.aggro = false;
+        const evs = tick(3, { walking: true });
+        expect(evs.some(e => e.type === 'bite' || e.type === 'stalk')).toBe(false);
+        const [w] = beastsAt([{ species: 'wolf', q: 65, r: 64 }]);
+        w.aggro = true;
+        w.state = 'attack';
+        expect(tick(3, { noTarget: true }).some(e => e.type === 'bite')).toBe(false);
+        expect(['stalk', 'charge', 'attack'].includes(w.state)).toBe(false);
+    });
+
+    it('a bear warns you off, charges if you stay, and backs off after its bout', () => {
+        const [bear] = beastsAt([{ species: 'bear', q: 69, r: 64 }]);
+        let evs = tick(0.1, { walking: true });
+        expect(evs.some(e => e.type === 'threat')).toBe(true);
+        expect(bear.state).toBe('threat');
+        evs = tick(cfg().behaviour.threatSeconds + 1, { walking: false });
+        expect(evs.some(e => e.type === 'charge')).toBe(true);
+        evs = tick(12, { walking: false });
+        const bites = evs.filter(e => e.type === 'bite').length;
+        expect(bites).toBeGreaterThan(0);
+        expect(bites).toBeLessThanOrEqual(cfg().species.bear.maxBites);
+        expect(evs.some(e => e.type === 'backsOff')).toBe(true);
+        expect(bear.cool).toBeGreaterThan(0);
+        // the deer are no danger: a doe only runs
+        const [doe] = beastsAt([{ species: 'doe', q: 67, r: 64 }]);
+        expect(tick(3, { walking: true }).some(e => e.type === 'bite' || e.type === 'threat')).toBe(false);
+        expect(doe.state === 'flee' || doe.state === 'alert').toBe(true);
+    });
+
+    it('struck, a fighter turns on you and one beaten low runs; an elephant charges when hurt', () => {
+        const me = { q: 64, r: 64 };
+        const world = { day: 3 };
+        const [bear] = beastsAt([{ species: 'bear', q: 66, r: 64 }], me);
+        expect(InnerMap.hurtAnimal(world, bear, 10, me).killed).toBe(false);
+        expect(bear.state).toBe('charge');
+        InnerMap.hurtAnimal(world, bear, bear.hp - 5, me);
+        expect(bear.state).toBe('flee');
+        const [ele] = beastsAt([{ species: 'elephant', q: 66, r: 64 }], me);
+        tick(0.2, { walking: true });
+        expect(ele.state).toBe('alert'); // it watches you, mostly peaceful
+        InnerMap.hurtAnimal(world, ele, 20, me);
+        expect(ele.state).toBe('charge');
+        // a rabbit only ever runs
+        const [rab] = beastsAt([{ species: 'rabbit', q: 66, r: 64 }], me);
+        InnerMap.hurtAnimal(world, rab, 2, me);
+        expect(rab.state).toBe('flee');
+        // a wolf struck brings its pack down on you
+        const pack = beastsAt([{ species: 'wolf', q: 66, r: 64, herd: 'p' }, { species: 'wolf', q: 69, r: 66, herd: 'p' }], me);
+        InnerMap.hurtAnimal(world, pack[0], 5, me);
+        expect(pack.every(w => w.state === 'charge')).toBe(true);
+    });
+
+    it('killed: the death plays and a carcass lies to butcher; butchered it soon goes; the kill is culled from its hex', () => {
+        const me = { q: 64, r: 64 };
+        const world = { day: 5 };
+        const [wolf] = beastsAt([{ species: 'wolf', q: 65, r: 64, id: '5,7:wolves0:wolf0' }], me);
+        const res = InnerMap.hurtAnimal(world, wolf, 999, me);
+        expect(res.killed).toBe(true);
+        expect(wolf.state).toBe('dead');
+        expect(world.wildlife.culled['5,7'].map(c => c.id)).toEqual(['5,7:wolves0:wolf0']);
+        // the death sheet, played once and held on its last frame
+        const sp = cfg().species.wolf;
+        expect(InnerMapAnimals.frame(wolf, sp).sheet).toBe(sp.sheets.death);
+        tick(5);
+        expect(InnerMap.animals).toContain(wolf);
+        expect(InnerMapAnimals.frame(wolf, sp).col).toBe(3);
+        // the menu offers to butcher it, and not to hunt it
+        const g = stubGame();
+        const items = InnerMapAnimals.menuItems(g, wolf.q, wolf.r);
+        expect(items.find(i => i.action === 'animal_butcher')).toBeTruthy();
+        expect(items.find(i => i.action === 'hunt_animal' && i.animal === wolf)).toBeFalsy();
+        // butchered: the pelt in the packs
+        const trip = InnerMapAnimals._butcherNow(g, wolf);
+        expect(trip.kept.length).toBeGreaterThan(0);
+        expect(g.player.inventory.pelts).toBeGreaterThan(0);
+        expect(InnerMapAnimals._butcherNow(g, wolf)).toBe(null); // once
+        tick(cfg().behaviour.butcheredSeconds + 1);
+        expect(InnerMap.animals).not.toContain(wolf);
+        // the next visit's plan leaves it out
+        const plan = InnerMap.planHerds(openTiles(), 'boreal_forest', 5, 7, 's', { culled: InnerMap.culledAnimals(world, 5, 7) });
+        expect(plan.map(a => a.id)).not.toContain('5,7:wolves0:wolf0');
+    });
+
+    it('fought hand to hand: the player closes and swings until it falls', () => {
+        const g = stubGame();
+        const [fox] = beastsAt([{ species: 'fox', q: 65, r: 64 }]);
+        fox.hp = 1;
+        InnerMapAnimals.startFight(g, fox);
+        for (let t = 0; t < 2 && fox.state !== 'dead'; t += 0.05) InnerMapAnimals.update(0.05, g);
+        expect(fox.state).toBe('dead');
+        expect(InnerMapAnimals._fight).toBe(null);
+        expect(g.notes.some(n => /Killed/.test(n.t))).toBe(true);
+    });
+
+    it('hunting maps onto the species, and a missed bear turns on the hunter', () => {
+        const c = cfg();
+        for (const [beast, id] of Object.entries(c.huntBeasts)) expect(c.species[id], beast).toBeTruthy();
+        // the hunt's beasts with a sprite are drawn as themselves
+        const names = Object.values(WildTasks.cfg('hunt').beasts);
+        for (const n of Object.keys(c.huntBeasts)) expect(names, n).toContain(n);
+        // "Hunt the X" for every huntable beast; "Fight" for all
+        const g = stubGame();
+        for (const id of SPECIES) {
+            const [a] = beastsAt([{ species: id, q: 70, r: 70 }]);
+            const items = InnerMapAnimals.menuItems(g, 70, 70);
+            const hunt = items.find(i => i.action === 'hunt_animal');
+            if (c.species[id].huntable === false) expect(hunt, id).toBeFalsy();
+            else expect(hunt && hunt.animal, id).toBe(a);
+            expect(items.find(i => i.action === 'animal_fight'), id).toBeTruthy();
+        }
+        // a miss: the bear comes for you; the doe runs
+        const me = { q: 64, r: 64 };
+        const [bear] = beastsAt([{ species: 'bear', q: 68, r: 64 }], me);
+        bear.hunted = true;
+        InnerMap.releaseAnimal(bear, me, { provoked: 'shot' });
+        expect(bear.state).toBe('charge');
+        const [doe] = beastsAt([{ species: 'doe', q: 68, r: 64 }], me);
+        doe.hunted = true;
+        InnerMap.releaseAnimal(doe, me, { provoked: 'near' });
+        expect(doe.state).toBe('flee');
+        // a hunt's kill falls and lies (its loot already banked)
+        const [stag] = beastsAt([{ species: 'stag', q: 68, r: 64 }], me);
+        InnerMap.killAnimal({ day: 1 }, stag, { butchered: true });
+        expect(stag.state).toBe('dead');
+        expect(stag.butchered).toBe(true);
+    });
+
+    it('mauled to nothing, the player blacks out and comes round, the beasts gone off', () => {
+        const g = stubGame({ health: 4 });
+        const spy = vi.spyOn(InnerMapCombat, '_blackout').mockImplementation((game, ms, then) => then());
+        const [bear] = beastsAt([{ species: 'bear', q: 65, r: 64 }]);
+        bear.state = 'attack';
+        InnerMapAnimals._bite(g, bear, cfg().species.bear, 30);
+        expect(g.player.health).toBeGreaterThan(0);
+        expect(InnerMapCombat._playerOut).toBe(false);
+        expect(['stalk', 'charge', 'attack'].includes(bear.state)).toBe(false);
+        expect(bear.cool).toBeGreaterThan(0);
+        expect(g.notes.some(n => /Come Round/.test(n.t))).toBe(true);
+        spy.mockRestore();
+    });
+
+    it('none inside a building, and none at sea', () => {
+        const [w] = beastsAt([{ species: 'wolf', q: 65, r: 64 }]);
+        w.aggro = true;
+        InnerMap._insideBuilding = { name: 'Inn' };
+        expect(tick(2, { walking: true })).toEqual([]);
+        InnerMap._insideBuilding = null;
+        for (const t of ['ocean', 'deep_ocean', 'sea', 'coast']) expect(speciesIn(t, {}, 20).size, t).toBe(0);
     });
 });
 

@@ -13,3 +13,83 @@ Retro Stag Walking Sprite Sheet
   LICENSE: unknown — confirm before any public release
   DETAILS: 1254x1254 sheet, 4 rows (up, left, down, right) x 4 walk frames.
   NOTES: deer_stag.png is made from it by scripts/build-animal-sheets.py.
+
+
+Generated animal sheets (subfolders: arctic_fox bear doe elephant elk fox highland_cow lion mountain_goat panther polar_bear rabbit reindeer sheep snow_rabbit stag wolf )
+-------------------
+  ARTIST(S): generated with ChatGPT (OpenAI image generation) at the user's request, 2026-11-04,
+             in the user's own ChatGPT conversation (style continued from the user's earlier
+             fox/boar sheets in that chat).
+  LICENSE: OpenAI terms assign output rights to the user; confirm before any public release.
+  DETAILS: 1254x1254 sheets, 4 rows (up, left, down, right) x 4 frames; walk / attack / death per animal.
+           *_clean.png = same sheet with a fake/solid background keyed out locally (originals kept).
+           See manifest.json for per-file grid, transparency and notes.
+  FILES:
+    arctic_fox/arctic_fox_attack.png
+    arctic_fox/arctic_fox_death.png
+    arctic_fox/arctic_fox_walk.png
+    bear/bear_attack.png
+    bear/bear_death.png
+    bear/bear_walk.png
+    doe/doe_attack.png
+    doe/doe_attack_lunge.png
+    doe/doe_death.png
+    elephant/elephant_attack.png
+    elephant/elephant_death.png
+    elephant/elephant_walk.png
+    elk/elk_attack.png
+    elk/elk_death.png
+    elk/elk_walk.png
+    fox/fox_attack.png
+    fox/fox_death.png
+    highland_cow/highland_cow_attack.png
+    highland_cow/highland_cow_death.png
+    highland_cow/highland_cow_walk.png
+    lion/lion_attack.png
+    lion/lion_attack_clean.png
+    lion/lion_death.png
+    lion/lion_walk.png
+    mountain_goat/mountain_goat_attack.png
+    mountain_goat/mountain_goat_death.png
+    mountain_goat/mountain_goat_walk.png
+    panther/panther_attack.png
+    panther/panther_death.png
+    panther/panther_walk.png
+    panther/panther_walk_clean.png
+    polar_bear/polar_bear_attack.png
+    polar_bear/polar_bear_death.png
+    polar_bear/polar_bear_walk.png
+    rabbit/rabbit_attack.png
+    rabbit/rabbit_death.png
+    rabbit/rabbit_death_clean.png
+    rabbit/rabbit_walk.png
+    reindeer/reindeer_attack.png
+    reindeer/reindeer_death.png
+    reindeer/reindeer_walk.png
+    sheep/sheep_attack.png
+    sheep/sheep_death.png
+    sheep/sheep_walk.png
+    snow_rabbit/snow_rabbit_attack.png
+    snow_rabbit/snow_rabbit_death.png
+    snow_rabbit/snow_rabbit_walk.png
+    snow_rabbit/snow_rabbit_walk_clean.png
+    stag/stag_attack.png
+    stag/stag_death.png
+    stag/stag_death_clean.png
+    wolf/wolf_attack.png
+    wolf/wolf_death.png
+    wolf/wolf_walk.png
+    wolf/wolf_walk_clean.png
+  NOTE: the two original deer walking sheets above (Pixel Deer / Retro Stag) are still of
+        unconfirmed origin; nothing here changes that.
+
+- boar/boar_walk.png, boar/boar_attack.png, boar/boar_death.png, fox/fox_walk.png
+  ARTIST(S): generated with ChatGPT (OpenAI image generation) at the user's request, 2026-11-04
+             (same series; copied in from the user's Downloads: "16-Frame Pixel Boar Walk Cycle",
+             "Pixel Boar Attack Animation Sheet", "Wild Boar Death Animation Sprite Sheet",
+             "Pixel Fox Walking Cycle Sprite Sheet").
+
+- <animal>/<animal>_walk_sheet.png, _attack_sheet.png, _death_sheet.png
+  Derived game sheets (128px cells, feet on one baseline, specks removed) made from the
+  sheets above by scripts/build-animal-sheets.py. stag/doe walk sheets are made from the
+  two original deer walking sheets (Pixel Deer / Retro Stag) scaled to the new series.

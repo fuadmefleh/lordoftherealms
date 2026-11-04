@@ -27,6 +27,7 @@ import { NpcPortrait } from './npcPortrait.js';
 import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
 import { InnerMapDeck } from './innerMapDeck.js';
+import { InnerMapAnimals } from './innerMapAnimals.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
@@ -324,6 +325,13 @@ Object.assign(InnerMapRenderer, {
                 const hpDesc = npcHealth ? `${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : '';
                 menuItems.push({ type: 'person', npc, role: npc.roleTitle || npcDef.name || npc.type, hpDesc });
             }
+        }
+
+        // ── A deer here: hunt it (ui/innerMapAnimals.js) ──
+        if (!building) {
+            const animalItems = InnerMapAnimals.menuItems(game, q, r);
+            if (animalItems.length && menuItems.length === 0) animalItems.shift();
+            menuItems.push(...animalItems);
         }
 
         // ── Ground item pick-up ──
@@ -687,6 +695,10 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
+        if (item.action === 'hunt_animal') {
+            if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
+            return;
+        }
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;
         const playerR = InnerMap.playerInnerR;

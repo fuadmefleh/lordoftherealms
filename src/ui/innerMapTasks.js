@@ -683,7 +683,7 @@ export const InnerMapTasks = {
         }
         for (const mv of ctx.movers) {
             if (mv.hidden || mv.following) continue;
-            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: !!mv.tracked });
+            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: !!mv.tracked, animal: !!mv.animal });
         }
         // Followers are drawn on screen only (no edge arrow: they're behind you)
         for (const mv of ctx.movers) {
@@ -697,6 +697,8 @@ export const InnerMapTasks = {
             const on = s.x > -ds && s.y > -ds && s.x < W + ds && s.y < H + ds;
             if (on) {
                 if (it.mover) {
+                    // A living animal draws itself among the sprites (ui/innerMapAnimals.js)
+                    if (it.animal) continue;
                     // A creature: a small token on the ground with a soft shadow
                     ctx2d.save();
                     ctx2d.globalAlpha = 0.35; ctx2d.fillStyle = '#000';

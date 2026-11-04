@@ -214,6 +214,8 @@ export const SaveLoad = {
             fiscal: Fiscal.serialize(world),
             // The estates about the towns, their holders, the land market and the cottagers' work (world/estates.js)
             estates: Estates.serialize(world),
+            // Deer killed per hex, until their herds grow back (world/innerMap/animals.js)
+            wildlife: world.wildlife ? JSON.parse(JSON.stringify(world.wildlife)) : null,
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -748,6 +750,8 @@ export const SaveLoad = {
         Fiscal.restore(saveData.fiscal, world);
         // The estates (older saves: none — every town's estates are derived on the next day)
         Estates.restore(saveData.estates, world);
+        // The deer killed (older saves: none — every herd whole)
+        world.wildlife = saveData.wildlife && typeof saveData.wildlife === 'object' ? saveData.wildlife : {};
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

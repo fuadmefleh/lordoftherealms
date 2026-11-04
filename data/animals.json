@@ -1,0 +1,117 @@
+{
+    "_doc": "Living animals of the inner map (world/innerMap/animals.js places and moves them; ui/innerMapAnimals.js draws them and hooks them into hunting). Sheets: 4x4 grids, a row per direction (rows: up, left, down, right), four walk frames a row; anchor is the feet in the cell. Built from the hand-out sheets by scripts/build-animal-sheets.py. Speeds are tiles a second; distances are tiles.",
+    "species": {
+        "stag": {
+            "name": "Stag",
+            "icon": "🦌",
+            "kind": "deer",
+            "sheet": "assets/lpc/Animals/deer_stag.png",
+            "frameW": 112,
+            "frameH": 112,
+            "cols": 4,
+            "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+            "anchor": [56, 104],
+            "drawTiles": 2.1,
+            "scale": 1,
+            "walkSpeed": 1.1,
+            "fleeSpeed": 5.6,
+            "walkFps": 6,
+            "fleeFps": 13,
+            "wary": 1.1,
+            "beast": "stag",
+            "loot": [{ "name": "Venison", "chance": 1 }, { "name": "Antlers", "chance": 0.85 }, { "name": "Hides", "chance": 0.6 }]
+        },
+        "doe": {
+            "name": "Doe",
+            "icon": "🦌",
+            "kind": "deer",
+            "sheet": "assets/lpc/Animals/deer_doe.png",
+            "frameW": 112,
+            "frameH": 112,
+            "cols": 4,
+            "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+            "anchor": [56, 104],
+            "drawTiles": 2.1,
+            "scale": 1,
+            "walkSpeed": 1.2,
+            "fleeSpeed": 5.8,
+            "walkFps": 6,
+            "fleeFps": 13,
+            "wary": 1.2,
+            "beast": "deer",
+            "loot": [{ "name": "Venison", "chance": 1 }, { "name": "Hides", "chance": 0.55 }]
+        },
+        "fawn": {
+            "name": "Fawn",
+            "icon": "🦌",
+            "kind": "deer",
+            "sheet": "assets/lpc/Animals/deer_doe.png",
+            "frameW": 112,
+            "frameH": 112,
+            "cols": 4,
+            "rows": { "up": 0, "left": 1, "down": 2, "right": 3 },
+            "anchor": [56, 104],
+            "drawTiles": 2.1,
+            "scale": 0.62,
+            "walkSpeed": 1.4,
+            "fleeSpeed": 5.2,
+            "walkFps": 8,
+            "fleeFps": 15,
+            "wary": 1.0,
+            "beast": "deer",
+            "loot": [{ "name": "Venison", "chance": 1, "qty": { "min": 1, "max": 1 } }]
+        }
+    },
+    "herds": {
+        "deer": {
+            "stag": { "chance": 0.7, "count": [1, 1] },
+            "doe": { "chance": 1, "count": [2, 4] },
+            "fawn": { "chance": 0.6, "count": [1, 2], "seasons": ["Spring", "Summer"] },
+            "spread": 3
+        }
+    },
+    "terrain": {
+        "woodland":             { "herd": "deer", "chance": 0.9,  "herds": [1, 2] },
+        "seasonal_forest":      { "herd": "deer", "chance": 0.9,  "herds": [1, 2] },
+        "boreal_forest":        { "herd": "deer", "chance": 0.75, "herds": [1, 2] },
+        "temperate_rainforest": { "herd": "deer", "chance": 0.7,  "herds": [1, 2] },
+        "tropical_rainforest":  { "herd": "deer", "chance": 0.3,  "herds": [1, 1] },
+        "grassland":            { "herd": "deer", "chance": 0.55, "herds": [1, 2] },
+        "plains":               { "herd": "deer", "chance": 0.5,  "herds": [1, 1] },
+        "hills":                { "herd": "deer", "chance": 0.55, "herds": [1, 1] },
+        "highlands":            { "herd": "deer", "chance": 0.45, "herds": [1, 1] },
+        "savanna":              { "herd": "deer", "chance": 0.25, "herds": [1, 1] },
+        "tundra":               { "herd": "deer", "chance": 0.25, "herds": [1, 1] },
+        "island":               { "herd": "deer", "chance": 0.25, "herds": [1, 1] },
+        "swamp":                { "herd": "deer", "chance": 0.2,  "herds": [1, 1] }
+    },
+    "settlementFactor": { "village": 0.45, "town": 0.2, "city": 0, "capital": 0 },
+    "nearTownFactor": 0.6,
+    "placement": {
+        "margin": 10,
+        "minFromCentre": 16,
+        "minApart": 22,
+        "builtMargin": 16,
+        "peopleMargin": 12
+    },
+    "behaviour": {
+        "homeRange": 9,
+        "grazeSeconds": [3, 10],
+        "wanderSteps": [2, 6],
+        "noticeRadius": 7,
+        "noticeStill": 0.55,
+        "noticeMin": 3,
+        "noticePerStealth": 0.3,
+        "herdAlarm": 8,
+        "calmDistance": 15,
+        "fleeSecondsMax": 7,
+        "alertSeconds": [3, 6],
+        "fleeStepsMin": 4
+    },
+    "huntBeasts": { "deer": "doe", "stag": "stag" },
+    "respawnDays": 45,
+    "hunt": {
+        "label": "Hunt",
+        "icon": "🏹",
+        "desc": "Creep up on the {name} and loose an arrow. Walking near it alarms it; standing still calms it."    }
+}

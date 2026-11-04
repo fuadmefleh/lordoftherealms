@@ -1,0 +1,15 @@
+Pixel Deer Walking Sprite Sheet (doe; also drawn small as the fawn)
+-------------------
+  ARTIST(S): unknown — not recorded with the file
+  LICENSE: unknown — confirm before any public release
+  DETAILS: 1254x1254 sheet, 4 rows (up, left, down, right) x 4 walk frames.
+  NOTES: deer_doe.png is made from it by scripts/build-animal-sheets.py
+         (trimmed, feet aligned, scaled to 112px cells, alpha speckle removed).
+
+
+Retro Stag Walking Sprite Sheet
+-------------------
+  ARTIST(S): unknown — not recorded with the file
+  LICENSE: unknown — confirm before any public release
+  DETAILS: 1254x1254 sheet, 4 rows (up, left, down, right) x 4 walk frames.
+  NOTES: deer_stag.png is made from it by scripts/build-animal-sheets.py.

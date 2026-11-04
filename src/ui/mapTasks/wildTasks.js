@@ -312,28 +312,51 @@ export const WildTaskRunner = {
     },
 
     /**
-     * o: { player, prey }. onDone(outcome): { result: 'shot', accuracy, dist }
-     * | { result: 'fled' } | { result: 'abandoned' }. onDone(null): couldn't start.
+     * o: { player, prey, animal? }. onDone(outcome): { result: 'shot', accuracy, dist }
+     * | { result: 'fled' } | { result: 'abandoned' }, each with `animal` — the
+     * living beast hunted (InnerMap.animals) when there was one: a deer the
+     * player picked out (o.animal: no trail, straight to the stalk), the
+     * nearest of the beast's kind grazing on the map (the trail leads to it),
+     * or one put on the map for the hunt (its walk sheet in place of a paw
+     * token: data/animals.json huntBeasts). onDone(null): couldn't start.
      */
     hunt(game, o, onDone) {
         const c = Rules.cfg('hunt');
         const player = o.player;
-        const name = this.beastName(o.prey);
+        const name = o.animal ? this.animalName(o.animal) : this.beastName(o.prey);
         const stealth = (player.skills && player.skills.stealth) || 1;
         const rank = Hunting.skill(player).level;
         const reads = Array.isArray(c.read) && c.read.length ? c.read : ['Fresh tracks.'];
+        const species = o.animal ? o.animal.species : ((InnerMap.animalConfig ? InnerMap.animalConfig().huntBeasts : null) || {})[name] || null;
+        let target = o.animal || null;
+        let beast = null; // the animal on the map the stalk is of (target, or one put there for the hunt)
         let outcome = null;
         const custom = {
             setup(ctx) {
-                const w = _wild(ctx);
                 const me = _me();
+                ctx.radius = Rules.alertRadius(stealth, rank, c);
+                ctx.st = { alert: 0, pace: 0 };
+                ctx.bolts = 0;
+                // A deer picked out where it grazes: straight to the stalk
+                if (target) {
+                    target.hunted = true;
+                    ctx.home = { q: target.q, r: target.r };
+                    ctx.trail = [ctx.home];
+                    ctx.total = 1;
+                    ctx.ti = 0;
+                    this._sight(ctx);
+                    return;
+                }
+                // One of its kind grazing on this map: the sign leads to it (it holds its ground while you track)
+                target = species && InnerMap.nearestAnimal ? InnerMap.nearestAnimal(species, me, 48) : null;
+                if (target) target.hunted = true;
+                const w = _wild(ctx);
                 const pool = [].concat(w.open, w.plants, w.trees);
                 const [lo, hi] = c.trackTo || [18, 26];
                 const ring = pool.filter(p => { const d = Rules.dist(p, me); return d >= lo && d <= hi; });
-                const home = ring.length ? ring[Math.floor(ctx.rng() * ring.length)]
+                const home = target ? { q: target.q, r: target.r } : ring.length ? ring[Math.floor(ctx.rng() * ring.length)]
                     : Rules.near(pool, me, hi, 1).sort((a, b) => Rules.dist(b, me) - Rules.dist(a, me))[0] || me;
                 ctx.home = { q: home.q, r: home.r };
-                ctx.radius = Rules.alertRadius(stealth, rank, c);
                 // The sign runs out where the beast comes in sight, outside its alert ring
                 const signs = Rules.trail(me, ctx.home, _int(ctx.rng, c.trackMarks, 6), ctx.rng, (q, r) => ctx.spots.passable(q, r));
                 const before = signs.filter(p => Rules.dist(p, ctx.home) > ctx.radius + _num(c.sightMargin, 3));
@@ -341,8 +364,6 @@ export const WildTaskRunner = {
                 ctx.total = Math.max(1, ctx.trail.length - 1);
                 ctx.ti = 0;
                 ctx.phase = 'track';
-                ctx.st = { alert: 0, pace: 0 };
-                ctx.bolts = 0;
                 this._nextSign(ctx);
             },
             _nextSign(ctx) {
@@ -360,13 +381,22 @@ export const WildTaskRunner = {
             },
             _sight(ctx) {
                 ctx.phase = 'stalk';
-                ctx.beast = ctx.addMover({ q: ctx.home.q, r: ctx.home.r, glyph: c.glyph || 'paw', kind: 'prey' });
+                // The beast itself, drawn from its walk sheet where it has one
+                ctx.animal = target || (species && InnerMap.addTaskAnimal ? InnerMap.addTaskAnimal(species, ctx.home.q, ctx.home.r) : null);
+                beast = ctx.animal;
+                if (target) ctx.home = { q: target.q, r: target.r };
+                ctx.beast = ctx.addMover({ q: ctx.home.q, r: ctx.home.r, glyph: c.glyph || 'paw', kind: 'prey', animal: ctx.animal });
                 ctx.track(ctx.beast, fmt(c.stalk, { name }));
                 ctx.note(fmt(c.sighted, { name }));
             },
             tick(dt, ctx) {
                 const b = ctx.beast;
                 if (!b) return;
+                this._move(dt, ctx);
+                if (ctx.animal && b.animal) InnerMap.moveHuntedAnimal(ctx.animal, b.q, b.r, b.fq, b.fr, dt, ctx.phase === 'bolting');
+            },
+            _move(dt, ctx) {
+                const b = ctx.beast;
                 const me = _me();
                 if (ctx.phase === 'bolting') {
                     ctx.boltT -= dt;
@@ -384,9 +414,11 @@ export const WildTaskRunner = {
                 if (ctx.st.bolt) {
                     ctx.bolts++;
                     if (ctx.bolts > _num(c.bolts, 1)) {
-                        outcome = { result: 'fled' };
+                        outcome = { result: 'fled', animal: ctx.animal };
                         ctx.note(fmt(c.gone, { name }));
                         b.hidden = true;
+                        if (ctx.animal && ctx.animal.temporary) InnerMap.removeAnimal(ctx.animal);
+                        b.animal = null;
                         ctx.finish();
                         return;
                     }
@@ -399,7 +431,7 @@ export const WildTaskRunner = {
             },
             _shoot(ctx) {
                 const d = Rules.dist(ctx.beast, _me());
-                outcome = { result: 'shot', accuracy: Rules.shotAccuracy(d, ctx.st.alert, ctx.rng()), dist: d };
+                outcome = { result: 'shot', accuracy: Rules.shotAccuracy(d, ctx.st.alert, ctx.rng()), dist: d, animal: ctx.animal };
                 ctx.done = ctx.total;
                 ctx.finish();
             },
@@ -424,9 +456,15 @@ export const WildTaskRunner = {
         };
         return this.run(game, {
             title: `${c.title} — ${name}`, icon: c.icon, say: fmt(c.say, { name }), plan: { parHours: c.parHours }, custom,
-            onComplete: () => onDone(outcome || { result: 'fled' }),
-            onAbandon: () => onDone({ result: 'abandoned' }),
-        }, () => onDone(null));
+            onComplete: () => onDone(outcome || { result: 'fled', animal: beast || target }),
+            onAbandon: () => onDone({ result: 'abandoned', animal: beast || target }),
+        }, () => { if (target && InnerMap.releaseAnimal) InnerMap.releaseAnimal(target); onDone(null); });
+    },
+
+    /** A living animal's name for the hunt ('stag', 'doe'). */
+    animalName(animal) {
+        const sp = InnerMap.animalSpecies ? InnerMap.animalSpecies(animal.species) : null;
+        return String((sp && sp.name) || animal.species || 'quarry').toLowerCase();
     },
 
     // ── Fishing ──

@@ -344,3 +344,49 @@ describe('phased field battle', () => {
         expect(run()).toEqual(run());
     });
 });
+
+describe('the road leaves you be after an encounter', () => {
+    it('any encounter starts a grace of a couple of days: no band waylays or chases you', () => {
+        const world = makeWorld();
+        const player = makePlayer();
+        const raider = makeUnit('raider', 12, world);
+        RoadEncounters.resolve(player, raider, world, 'toll');
+        const grace = RoadEncounters.config().graceDays;
+        expect(grace).toBeGreaterThanOrEqual(1);
+        expect(RoadEncounters.inGrace(player, world.day)).toBe(true);
+        expect(RoadEncounters.inGrace(player, world.day + grace - 1)).toBe(true);
+        expect(RoadEncounters.inGrace(player, world.day + grace)).toBe(false);
+        // A second band in sight doesn't set off after them meanwhile
+        const other = makeUnit('raider', 12, world);
+        other.q = 3; other.r = 0;
+        other.updateRaider(world, player);
+        expect(other._pursuingPlayer).toBeFalsy();
+    });
+
+    it('slipping away or hiding keeps that band off you for days, not one', () => {
+        expect(RoadEncounters.config().flee.respiteDays).toBeGreaterThan(1);
+        expect(RoadEncounters.config().hide.respiteDays).toBeGreaterThan(1);
+        Utils.setSeed(5);
+        const world = makeWorld();
+        for (let i = 0; i < 30; i++) {
+            const player = makePlayer();
+            const raider = makeUnit('raider', 12, world);
+            const out = RoadEncounters.resolve(player, raider, world, 'flee');
+            if (out.kind !== 'escaped') continue;
+            expect(RoadEncounters.isSparing(raider, world.day + 2)).toBe(true);
+            return;
+        }
+        throw new Error('never escaped');
+    });
+
+    it('a lone traveller is chased less eagerly than before, and a pauper less still', () => {
+        const world = makeWorld();
+        const unit = makeUnit('raider', 12, world);
+        const rich = makePlayer({ gold: 500 });
+        const poor = makePlayer({ gold: 5, inventory: { bread: 1 } });
+        const escorted = makePlayer({ army: army(10) });
+        expect(WorldUnit.pursuitChance(rich, unit)).toBeLessThan(0.7);
+        expect(WorldUnit.pursuitChance(poor, unit)).toBeLessThan(WorldUnit.pursuitChance(rich, unit));
+        expect(WorldUnit.pursuitChance(escorted, unit)).toBeLessThan(WorldUnit.pursuitChance(rich, unit));
+    });
+});

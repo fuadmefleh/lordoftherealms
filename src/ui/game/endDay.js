@@ -913,8 +913,9 @@ export function endDay() {
                 }
             }
 
-            // Resume queued multi-day travel if any
-            if (this.player.queuedPath) {
+            // Resume queued multi-day travel if any (not while a band stands in the
+            // way: the journey goes on once that is settled, ActionMenu._resumeHeldJourney)
+            if (this.player.queuedPath && !this._pendingEncounter) {
                 const resumed = this.player.resumeQueuedPath();
                 if (resumed) {
                     const dest = this.player.travelDestination;

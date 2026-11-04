@@ -293,6 +293,8 @@ export function _checkHostileEncounters() {
     if (WorldUnit.isSafeHaven(this.world, this.player.q, this.player.r)) return;
 
     const day = this.world.day;
+    // Just waylaid: no band falls on them again for a day or two (player/roadEncounters.js)
+    if (RoadEncounters.inGrace(this.player, day)) return;
     const hostiles = this.world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer && // a lair's riders under a bargain (systems/outlawLairs.js)
@@ -311,7 +313,15 @@ export function _checkHostileEncounters() {
     audioManager.setScene('combat');
 
     if (this.ui && typeof this.ui.showCustomPanel === 'function' && typeof document !== 'undefined') {
-        // The player decides (the odds are shown); see ActionMenu.encounterAct
+        // The player decides (the odds are shown); see ActionMenu.encounterAct.
+        // A journey under way is held, not lost: it goes on once they are clear
+        // of the band (ActionMenu.encounterContinue)
+        if (this.player.isMoving && this.player.path) {
+            this.player.queuedPath = this.player.path;
+            this.player.queuedPathIndex = this.player.pathIndex;
+            this.player.path = null;
+        }
+        if (this.player.queuedPath) this._encounterHeld = true;
         this.player.isMoving = false;
         this._pendingEncounter = { unitId: attacker.id, day };
         ActionMenu.showEncounter(this, attacker.id);
@@ -325,6 +335,24 @@ export function _checkHostileEncounters() {
     setTimeout(() => {
         audioManager.updateSceneFromGameState(this);
     }, 3000);
+}
+
+/**
+ * The encounter is over (and any battle from it): a journey it held goes on,
+ * unless the player was taken, killed or is still in the fight.
+ */
+export function _resumeHeldJourney() {
+    const p = this.player;
+    if (!p || this._pendingEncounter || (this._fieldBattle && !this._fieldBattle.done)) return;
+    this._encounterHeld = false;
+    if (p._isDead || p.indenturedServitude || (p.health != null && p.health <= 0)) {
+        if (typeof p.cancelTravel === 'function') p.cancelTravel();
+        return;
+    }
+    if (p.queuedPath && !this.isProcessingTurn && typeof p.resumeQueuedPath === 'function' && p.resumeQueuedPath()) {
+        const left = p.path ? p.path.length - p.pathIndex : 0;
+        this.ui.showNotification('🧭 On Your Way', `You take up the road again${left ? `: ~${left} tiles to go` : ''}.`, 'info');
+    }
 }
 
 /**

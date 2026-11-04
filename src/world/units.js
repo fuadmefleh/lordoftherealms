@@ -3,6 +3,7 @@
 // ============================================
 
 import { Utils } from '../core/utils.js';
+import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Kingdom } from './kingdom.js';
 import { Colonization } from './colonization.js';
@@ -116,6 +117,37 @@ export class WorldUnit {
      * only while a living crown holds it — an independent village, or one
      * whose realm has fallen, is as open as the road.
      */
+    /** The road encounters' settings (data/military.json encounters). */
+    static _encounterCfg() {
+        return (DataLoader.military && DataLoader.military.encounters) || {};
+    }
+
+    /** Within the grace after the player's last encounter (player._waylaidDay, set by player/roadEncounters.js)? */
+    static playerInGrace(player, day) {
+        if (!player || player._waylaidDay == null) return false;
+        const grace = Number(WorldUnit._encounterCfg().graceDays);
+        return (Number(day) || 0) - player._waylaidDay < (Number.isFinite(grace) ? grace : 2);
+    }
+
+    /**
+     * The chance a day that a band in sight of the player sets off after them
+     * (encounters.pursuit): eager for a lone traveller with a full purse, much
+     * less for a pauper or against a strong escort.
+     */
+    static pursuitChance(player, unit) {
+        const p = WorldUnit._encounterCfg().pursuit || {};
+        const n = (v, d) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
+        const army = player && player.army ? player.army.length : 0;
+        const str = n(unit && unit.strength, 0);
+        let chance = army === 0 ? n(p.alone, 0.45)
+            : str > army * 3 ? n(p.outmatched, 0.4)
+                : str < army * 2 ? n(p.evenly, 0.12) : n(p.otherwise, 0.3);
+        const goods = Object.entries((player && player.inventory) || {})
+            .reduce((sum, [k, v]) => sum + (k === 'quest' ? 0 : Math.max(0, n(v, 0))), 0);
+        if (n(player && player.gold, 0) < n(p.poorGold, 40) && goods < n(p.poorGoods, 6)) chance *= n(p.poorMult, 0.5);
+        return chance;
+    }
+
     static isSafeHaven(world, q, r) {
         const tile = world && world.getTile ? world.getTile(q, r) : null;
         const s = tile && tile.settlement;
@@ -382,15 +414,11 @@ export class WorldUnit {
                     canReach = playerTile && playerTile.regionId === regionId;
                 }
 
+                // Just waylaid: the road leaves them be a day or two (data/military.json encounters.graceDays)
+                if (canReach && WorldUnit.playerInGrace(player, world.day)) canReach = false;
                 if (canReach) {
-                    // Chance to decide to pursue (based on strength vs visible player army)
-                    const playerArmySize = player.army ? player.army.length : 0;
-                    let pursuitChance = 0.35; // Base 35% chance per day
-
-                    // More likely to attack weak/undefended players
-                    if (playerArmySize === 0) pursuitChance = 0.7;
-                    else if (this.strength > playerArmySize * 3) pursuitChance = 0.55;
-                    else if (this.strength < playerArmySize * 2) pursuitChance = 0.15;
+                    // Chance to decide to pursue (by strength against the player's army, and what they carry)
+                    let pursuitChance = WorldUnit.pursuitChance(player, this);
 
                     // Already adjacent? Always engage
                     if (playerDist <= 1) pursuitChance = 1.0;

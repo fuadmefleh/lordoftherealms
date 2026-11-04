@@ -44,14 +44,17 @@ import { Traits } from '../systems/traits.js';
 import { Quests } from '../systems/quests.js';
 import { Ledger } from '../systems/ledger.js';
 import { Difficulty } from '../core/difficulty.js';
+import { WorldUnit } from '../world/units.js';
 
 const DEFAULTS = {
     minChance: 0.05,
     maxChance: 0.95,
-    flee: { base: 0.4, stealth: 0.03, mount: 0.2, cavalry: 0.1, perUnit: 0.02, unitCap: 0.25, cover: 0.05, openGround: -0.05, woundMovement: 0.08, woundBattle: 0.3, speed: 0.03, craven: 0.05 },
+    graceDays: 2,
+    pursuit: { alone: 0.45, outmatched: 0.4, evenly: 0.12, otherwise: 0.3, poorGold: 40, poorGoods: 6, poorMult: 0.5 },
+    flee: { base: 0.4, stealth: 0.03, mount: 0.2, cavalry: 0.1, perUnit: 0.02, unitCap: 0.25, cover: 0.05, openGround: -0.05, woundMovement: 0.08, woundBattle: 0.3, speed: 0.03, craven: 0.05, respiteDays: 3 },
     toll: { share: 0.25, armyShare: 0.08, armyRatioShare: 0.12, diplomacy: 0.01, min: 5, respiteDays: 7 },
     parley: { base: 0.12, diplomacy: 0.035, charisma: 0.01, renownPer: 400, renownCap: 0.15, dread: 0.15, brave: 0.05, champion: 0.08, craven: -0.1, armyRatio: 0.3, armyMin: -0.15, armyMax: 0.35, warHost: -0.15, respiteDays: 7 },
-    hide: { base: 0.15, stealth: 0.05, forest: 0.25, hills: 0.15, marsh: 0.1, open: -0.1, perUnit: 0.04, unitCap: 0.4, mount: -0.03, scent: -0.1 },
+    hide: { base: 0.15, stealth: 0.05, forest: 0.25, hills: 0.15, marsh: 0.1, open: -0.1, perUnit: 0.04, unitCap: 0.4, mount: -0.03, scent: -0.1, respiteDays: 3 },
     bait: { chance: 0.75, monsterChance: 0.35, stealth: 0.01, food: 3, monsterFood: 8, respiteDays: 5 },
     fire: { base: 0.3, combat: 0.03, fuel: 0.25, brave: 0.08, champion: 0.05, army: 0.25, monster: -0.25, respiteDays: 5 },
     duel: { combat: 5, strength: 1.5, base: 10, enemyMult: 3, enemyBase: 10, brave: 0.05, champion: 0.1, killBelow: 8, weaken: 0.7 },
@@ -287,6 +290,16 @@ export const RoadEncounters = {
         return out;
     },
 
+    /** An encounter has just befallen the player: the grace after it starts now. */
+    noteWaylaid(player, world) {
+        if (player) player._waylaidDay = _num(world && world.day);
+    },
+
+    /** Is the player within the grace after their last encounter (no band falls on them)? (world/units.js) */
+    inGrace(player, day) {
+        return WorldUnit.playerInGrace(player, day);
+    },
+
     /** The default choice of a headless or abandoned encounter. */
     autoChoice() {
         return 'fight';
@@ -355,6 +368,8 @@ export const RoadEncounters = {
      */
     resolve(player, attacker, world, choice, opts = {}) {
         const c = RoadEncounters.config();
+        // Whatever comes of it, the road leaves you be a day or two after (graceDays)
+        RoadEncounters.noteWaylaid(player, world);
         const sit = RoadEncounters.situation(player, attacker, world);
         const name = attacker.name || 'foe';
         const icon = attacker.icon || (sit.kind === 'beast' ? '🐺' : '⚔️');
@@ -368,7 +383,7 @@ export const RoadEncounters = {
                 if (ok) {
                     // Running from a weaker foe at the head of an army is noticed
                     if (sit.hasArmy && sit.armyStrength > sit.enemyStrength) Traits.recordDeed(player, 'cowardice', 1);
-                    RoadEncounters._spare(attacker, world, 1);
+                    RoadEncounters._spare(attacker, world, _num(c.flee.respiteDays, 3));
                     return done('escaped', true, '🏃 Escaped', `You slipped away from the ${name}${player.mount ? ` on ${player.mount.name}` : ''}.`, 'success');
                 }
                 if (sit.hasArmy) return { ...RoadEncounters._battle(player, attacker, world, { ...opts, ambushed: true }, `The ${name} ran you down. `), choice, success: false };
@@ -454,7 +469,7 @@ export const RoadEncounters = {
                 const ok = roll(RoadEncounters.hideChance(player, attacker, sit));
                 _train(player, 'stealth', ok ? 0.2 : 0.05);
                 if (ok) {
-                    RoadEncounters._spare(attacker, world, 1);
+                    RoadEncounters._spare(attacker, world, _num(c.hide.respiteDays, 3));
                     return done('hidden', true, '🌲 Unseen', `You lay low and the ${name} passed you by.`, 'success');
                 }
                 if (sit.hasArmy) return { ...RoadEncounters._battle(player, attacker, world, { ...opts, ambushed: true }, `The ${name} found your hiding place. `), choice, success: false };

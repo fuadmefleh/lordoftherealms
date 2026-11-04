@@ -52,6 +52,8 @@ Object.assign(ActionMenu, {
     closePanelAndRefresh(game) {
         game.ui.hideCustomPanel();
         game.ui.updateStats(game.player, game.world);
+        // Clear of a band on the road: the journey it interrupted goes on (ui/game/combat.js)
+        if (game._encounterHeld && typeof game._resumeHeldJourney === 'function') game._resumeHeldJourney();
     },
 
     /** Close the custom panel and end the day. */

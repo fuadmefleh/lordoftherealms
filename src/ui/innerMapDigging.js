@@ -130,7 +130,10 @@ export const InnerMapDigging = {
     start(game, kind, q, r, opts = {}) {
         this.cancel();
         if (InnerMapCombat._attackState) InnerMapCombat.cancelAttack();
-        const job = { kind, q, r, t: null, total: this._seconds(game, kind), corpse: opts.corpse || null, then: opts.then || null, game };
+        // (other ground work — tilling, sowing, harvesting (ui/innerMapFarming.js) — brings its own
+        // time, label, needs and what to do when done: opts.seconds, opts.verb, opts.needs, opts.onDone)
+        const total = Number(opts.seconds) > 0 ? Number(opts.seconds) : this._seconds(game, kind);
+        const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null };
         const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
         if (_cheb(pq, pr, q, r) === 1) {
             this._begin(job);
@@ -208,6 +211,13 @@ export const InnerMapDigging = {
         if (!tile) return;
         const day = (game && game.world && game.world.day) || 0;
         const player = game && game.player;
+        if (typeof job.onDone === 'function') {
+            if (player && typeof player.modifyNeed === 'function') {
+                for (const [need, v] of Object.entries(job.needs || {})) player.modifyNeed(need, v);
+            }
+            job.onDone(game, tile);
+            return;
+        }
         if (player && typeof player.modifyNeed === 'function') {
             for (const [need, v] of Object.entries(C.needs || {})) player.modifyNeed(need, v);
         }
@@ -453,6 +463,6 @@ export const InnerMapDigging = {
     /** What the work is called, for the HUD line. */
     label() {
         const j = this._job;
-        return j && j.t != null ? VERB[j.kind] || 'Working' : null;
+        return j && j.t != null ? j.verb || VERB[j.kind] || 'Working' : null;
     },
 };

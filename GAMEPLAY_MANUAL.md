@@ -1522,6 +1522,29 @@ Upgrade cost = base cost × 0.5 × (current level + 1). Each level adds +10% pro
 | 4 | 875g | +30% |
 | 5 | 1050g | +40% |
 
+### Your Own Fields: Tilling, Sowing & Harvest
+
+On any hex's local map you can farm a patch of your own (`data/crops.json`):
+
+1. **Till Land** on open ground (right-click → Till Land). Not on streets, buildings, other people's fields or lots, or town ground by the street — in town, farm your own lot or out past the houses. Up to 60 patches per hex.
+2. **Buy seed** at a market (the Seed section): Seed Wheat, Cabbage, Turnip and Linseed in every village; Carrot, Hemp, Herb seed and Strawberry runners in towns and cities. Foraging sometimes turns up herb seed, strawberry runners, wild linseed or grass seed.
+3. **Plant** on tilled soil: pick a seed you carry that is sown this season (out-of-season seed is shown greyed out), or **Sow the Row** to plant the joined tilled patches while the seed lasts. Each patch takes a seed and a quarter hour.
+4. **Water**: a day of rain on the hex waters everything; otherwise **Water** (or **Water the Field**) carries water from a stream, pond, the sea, a well or fountain within reach. A wet day is a full day's growth, a dry one half — and too many dry days in a row wilt the crop (wheat and hemp bear 6, most crops 4, strawberries 3).
+5. **Harvest** when ripe (or **Harvest the Field**). Leave it more than 6 days and it rots in the ground. The ground stays tilled for the next sowing.
+
+| Crop | Sown in | Days to ripen | Yields | Notes |
+|------|---------|---------------|--------|-------|
+| Wheat | Spring, Summer | 16 | 4–7 grain | Little water |
+| Cabbage | Spring–Autumn | 12 | 2–4 vegetables | Hardy |
+| Turnips | Spring, Autumn | 8 | 2–3 vegetables | Hardy |
+| Carrots | Spring, Summer | 10 | 2–4 vegetables | |
+| Flax | Spring | 14 | 2–4 flax | |
+| Hemp | Spring, Summer | 14 | 3–5 hemp | Little water |
+| Herbs | Spring, Summer | 9 | 2–4 herbs | |
+| Strawberries | Spring, Summer | 12 | 3–6 berries | Thirsty |
+
+Winter frost kills every crop that isn't hardy; hardy ones grow at half pace through it. The yield is a roll in the crop's range, cut by neglect (the share of wet days, never below half) and raised by your **Farming** skill (+8% a point), which each harvest trains. Crops grow day by day whether you are there or not; the fields are kept with your save and laid back on the map when you return.
+
 ---
 
 ## 6. Crafting

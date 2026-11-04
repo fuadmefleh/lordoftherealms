@@ -384,6 +384,8 @@ export const SaveLoad = {
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)
         'homeFurnishings', 'furnitureStore', 'furnitureSeq',
+        // Tilled ground and crops on the hexes' inner maps (systems/crops.js; re-laid by world/innerMap/farmPlots.js)
+        'farmPlots',
     ],
 
     _pickDefined(obj, keys) {

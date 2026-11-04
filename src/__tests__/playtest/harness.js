@@ -60,6 +60,7 @@ import { SoulPact } from '../../systems/soulPact.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Couriers } from '../../systems/couriers.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { Crops } from '../../systems/crops.js';
 import { Mail } from '../../systems/mail.js';
 import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
@@ -351,6 +352,8 @@ function _endDay(game) {
     mark(game, 'Mail.processDay');
     Hospitality.processDay(world, player);
     mark(game, 'Hospitality.processDay');
+    Crops.processDay(world, player);
+    mark(game, 'Crops.processDay');
     game.commissionsDay = Commissions.processDay(player, world);
     mark(game, 'Commissions.processDay');
     game.languagesDay = Languages.processDay(player, world);

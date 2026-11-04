@@ -62,16 +62,51 @@ export const Hex = {
     },
 
     /**
-     * Distance between two hexes (axial)
+     * Steps between two hexes on the world grid (even-row offset
+     * coordinates, see neighbors()): converted to cube coordinates first.
+     * Runs in nearly every per-day loop, so no cube objects.
+     *
+     * The old version read the offset coordinates as axial, which is wrong
+     * by up to half the rows on a diagonal. Regenerating a world saved
+     * before the fix (generationParams.terrainGen < 3) runs under
+     * Hex.withLegacyMetric so the same seed lays the same map.
      */
     distance(q1, r1, q2, r2) {
-        // Cube distance (x = q, y = -q - r, z = r), without the cube objects:
-        // this runs in nearly every per-day loop
+        if (Hex._legacy > 0) return Hex.axialDistance(q1, r1, q2, r2);
+        const dx = (q1 - ((r1 + (r1 & 1)) >> 1)) - (q2 - ((r2 + (r2 & 1)) >> 1));
+        const dz = r1 - r2;
+        const a = dx < 0 ? -dx : dx;
+        const b = dz < 0 ? -dz : dz;
+        const c = dx + dz < 0 ? -(dx + dz) : dx + dz;
+        return a > b ? (a > c ? a : c) : (b > c ? b : c);
+    },
+
+    /** The old metric: (q, r) read as axial. Only for regenerating old worlds. */
+    axialDistance(q1, r1, q2, r2) {
         return Math.max(
             Math.abs(q1 - q2),
             Math.abs((-q1 - r1) - (-q2 - r2)),
             Math.abs(r1 - r2)
         );
+    },
+
+    /** >0 while an old world is regenerated (withLegacyMetric) */
+    _legacy: 0,
+
+    /** Run fn with the old axial metric (distance, hexesInRange, lineDraw) */
+    withLegacyMetric(fn) {
+        Hex._legacy++;
+        try { return fn(); } finally { Hex._legacy--; }
+    },
+
+    /** offset (q, r) → cube x (z is r) */
+    _cubeX(q, r) {
+        return q - ((r + (r & 1)) >> 1);
+    },
+
+    /** cube (x, z) → offset q */
+    _offsetQ(x, z) {
+        return x + ((z + (z & 1)) >> 1);
     },
 
     /**
@@ -86,6 +121,40 @@ export const Hex = {
         const wrapRight = Hex.distance(q1, r1, q2 + mapWidth, r2);
 
         return Math.min(direct, wrapLeft, wrapRight);
+    },
+
+    /**
+     * True step distance on the world grid. The map stores even-row offset
+     * coordinates (see neighbors()), which `distance` reads as axial — off by
+     * up to half the row span on diagonals. Road and river routing use this.
+     */
+    offsetDistance(q1, r1, q2, r2) {
+        const dx = Hex._cubeX(q1, r1) - Hex._cubeX(q2, r2);
+        const dz = r1 - r2;
+        return Math.max(Math.abs(dx), Math.abs(dz), Math.abs(dx + dz));
+    },
+
+    /** offsetDistance on a map that wraps east–west */
+    wrappingOffsetDistance(q1, r1, q2, r2, mapWidth) {
+        return Math.min(
+            Hex.offsetDistance(q1, r1, q2, r2),
+            Hex.offsetDistance(q1, r1, q2 - mapWidth, r2),
+            Hex.offsetDistance(q1, r1, q2 + mapWidth, r2),
+        );
+    },
+
+    /**
+     * Which neighbor direction (0..5, the neighbors() order) leads from
+     * (q1, r1) to the adjacent hex (q2, r2) on a wrapping map; -1 if not adjacent.
+     */
+    directionTo(q1, r1, q2, r2, mapWidth) {
+        const ns = Hex.neighbors(q1, r1);
+        const tq = mapWidth ? Hex.wrapQ(q2, mapWidth) : q2;
+        for (let i = 0; i < 6; i++) {
+            const nq = mapWidth ? Hex.wrapQ(ns[i].q, mapWidth) : ns[i].q;
+            if (nq === tq && ns[i].r === r2) return i;
+        }
+        return -1;
     },
 
     /**
@@ -169,6 +238,17 @@ export const Hex = {
      */
     hexesInRange(centerQ, centerR, range) {
         const results = [];
+        if (Hex._legacy === 0) {
+            // Every hex within `range` steps: walk the cube ring rows
+            const cx = Hex._cubeX(centerQ, centerR);
+            for (let dz = -range; dz <= range; dz++) {
+                const z = centerR + dz;
+                for (let dx = Math.max(-range, -dz - range); dx <= Math.min(range, -dz + range); dx++) {
+                    results.push({ q: Hex._offsetQ(cx + dx, z), r: z });
+                }
+            }
+            return results;
+        }
         for (let dq = -range; dq <= range; dq++) {
             for (let dr = Math.max(-range, -dq - range); dr <= Math.min(range, -dq + range); dr++) {
                 results.push({ q: centerQ + dq, r: centerR + dr });
@@ -183,6 +263,17 @@ export const Hex = {
     lineDraw(q1, r1, q2, r2) {
         const N = Hex.distance(q1, r1, q2, r2);
         if (N === 0) return [{ q: q1, r: r1 }];
+        if (Hex._legacy === 0) {
+            // Interpolate in cube space, round, and back to offset coordinates
+            const x1 = Hex._cubeX(q1, r1), x2 = Hex._cubeX(q2, r2);
+            const out = [];
+            for (let i = 0; i <= N; i++) {
+                const t = i / N;
+                const c = Hex.axialRound(Utils.lerp(x1 + 1e-6, x2 + 1e-6, t), Utils.lerp(r1 + 1e-6, r2 + 1e-6, t));
+                out.push({ q: Hex._offsetQ(c.q, c.r), r: c.r });
+            }
+            return out;
+        }
 
         const results = [];
         for (let i = 0; i <= N; i++) {

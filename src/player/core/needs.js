@@ -56,6 +56,25 @@ export const CLOTHES_DEFAULTS = {
     ],
 };
 
+/**
+ * Bathing (the Bathe action): free in a river, a lake or the sea — cold out
+ * of summer — or a few coppers at a village's well or a town's bathhouse.
+ * Bathing scrubs the clothes too when they're dirty enough to cap hygiene,
+ * so a bath always gets you clean. data/hospitality.json → bathing.
+ */
+export const BATHING_DEFAULTS = {
+    wild: { hygiene: 55, cost: 0, clothes: 80 },
+    well: { hygiene: 55, cost: 1, clothes: 80, comfort: 0 },
+    bathhouse: { hygiene: 75, cost: 4, clothes: 90, comfort: 8 },
+    cold: { Spring: -4, Summer: 0, Autumn: -6, Winter: -14 },
+};
+
+function _bathingConfig() {
+    const h = DataLoader._gamedata && DataLoader._gamedata.hospitality;
+    const c = h && h.bathing;
+    return c && typeof c === 'object' ? { ...BATHING_DEFAULTS, ...c } : BATHING_DEFAULTS;
+}
+
 function _clothesConfig() {
     const h = DataLoader._gamedata && DataLoader._gamedata.hospitality;
     const c = h && h.clothes;
@@ -225,6 +244,63 @@ export const PlayerNeedsMethods = {
         if (!(gained > 0)) return { success: false, reason: 'Your clothes are as clean as scrubbing will get them.' };
         this.modifyNeed('comfort', -4); // damp clothes
         return { success: true, where, gained: Math.round(gained) };
+    },
+
+    /**
+     * Where the player can bathe here: { kind: 'wild'|'well'|'bathhouse',
+     * where, label, cost } or null. A town has a bathhouse, a village its
+     * well; out of town, a river, a lake or the shore.
+     */
+    bathePlace(world) {
+        const where = this.washWaterHere(world);
+        if (!where) return null;
+        const B = _bathingConfig();
+        const tile = world.getTile(this.q, this.r);
+        const s = tile && tile.settlement;
+        if (s && where === 'the town well') {
+            const kind = s.type === 'village' ? 'well' : 'bathhouse';
+            return {
+                kind, where: kind === 'well' ? `the well in ${s.name}` : `the bathhouse in ${s.name}`,
+                label: kind === 'well' ? 'Wash at the Well' : 'Visit the Bathhouse',
+                cost: Math.max(0, Math.round((B[kind] || {}).cost || 0)),
+            };
+        }
+        const lake = where === 'the shore' && world && Hex.neighbors(this.q, this.r).some(n => {
+            const nb = world.getTile(n.q, n.r);
+            return nb && nb.terrain && nb.terrain.id === 'lake';
+        });
+        const water = where === 'the river' ? 'the river' : lake ? 'the lake' : 'the sea';
+        return { kind: 'wild', where: water, label: `Bathe in ${water}`, cost: 0 };
+    },
+
+    /**
+     * Bathe (the Bathe action): pay if it's a well or bathhouse, scrub the
+     * clothes when they'd cap you, then wash. Cold water out of summer is
+     * a shock. → { success, where, kind, cost, gained, clothes, cold } or
+     * { success: false, reason }.
+     */
+    bathe(world) {
+        const place = this.bathePlace(world);
+        if (!place) return { success: false, reason: 'There is no water here to bathe in.' };
+        if (!this.needs) return { success: false, reason: 'You feel clean enough.' };
+        if ((this.gold || 0) < place.cost) return { success: false, reason: `It costs ${place.cost} gold.` };
+        const B = _bathingConfig();
+        const spec = B[place.kind] || BATHING_DEFAULTS[place.kind];
+        if (place.cost > 0) this.gold -= place.cost;
+        // Dirty clothes would cap the bath: they get scrubbed first
+        let clothes = 0;
+        if (this.getClothesFreshness() < (_clothesConfig().freshAt || 60)) clothes = this.washClothes(spec.clothes || 80);
+        const before = this.needs.hygiene;
+        this.modifyNeed('hygiene', spec.hygiene || 50);
+        let cold = 0;
+        if (place.kind === 'wild') {
+            const season = (world && world.season) || 'Summer';
+            cold = Math.round(((B.cold || {})[season]) || 0);
+        } else {
+            cold = Math.round(spec.comfort || 0);
+        }
+        if (cold) this.modifyNeed('comfort', cold);
+        return { success: true, where: place.where, kind: place.kind, cost: place.cost, gained: Math.round(this.needs.hygiene - before), clothes: Math.round(clothes), cold };
     },
 
     /** { freshness, label, icon, cap, smelly } for the HUD and panels. */

@@ -100,6 +100,43 @@ describe('WorldTools — sculpting', () => {
 describe('WorldTools — generator', () => {
     const opts = { width: 60, height: 40, seed: 1234, style: 'continents', land: 0.4 };
 
+    it('a basin rivers braid into becomes a lake; a lone channel stays a river', () => {
+        const W = 20, H = 20;
+        const tiles = new Array(W * H).fill('grassland');
+        const rivers = {};
+        // a 5x5 block of river hexes: a web
+        for (let r = 5; r < 10; r++) for (let q = 5; q < 10; q++) rivers[`${q},${r}`] = true;
+        // a lone channel elsewhere
+        for (let r = 12; r < 18; r++) rivers[`15,${r}`] = true;
+        const out = WT.poolBasins(tiles, rivers, W, H);
+        expect(out.tiles[7 * W + 7]).toBe('lake');
+        expect(out.rivers['7,7']).toBeUndefined();
+        for (let r = 12; r < 18; r++) expect(out.rivers[`15,${r}`]).toBe(true);
+        expect(out.tiles[14 * W + 15]).toBe('grassland');
+        // inputs untouched
+        expect(tiles[7 * W + 7]).toBe('grassland');
+        expect(rivers['7,7']).toBe(true);
+    });
+
+    it('generated rivers are channels, not webs: no clump of braided river hexes', () => {
+        for (const seed of [990600, 1234, 77]) {
+            const W = 120, H = 80;
+            const { rivers } = WT.generate({ ...opts, width: W, height: H, seed, rivers: 60 });
+            const at = (q, r) => rivers[`${q},${r}`];
+            const dense = Object.keys(rivers).filter(k => {
+                const [q, r] = k.split(',').map(Number);
+                return WT.neighbors(q, r, W, H, true).filter(n => at(n.q, n.r)).length >= 3;
+            });
+            const set = new Set(dense);
+            // any dense hex left stands alone or in a pair (a confluence), never a clump of 3+
+            for (const k of dense) {
+                const [q, r] = k.split(',').map(Number);
+                const near = WT.neighbors(q, r, W, H, true).filter(n => set.has(`${n.q},${n.r}`)).length;
+                expect(near, `seed ${seed} at ${k}`).toBeLessThan(2);
+            }
+        }
+    });
+
     it('is deterministic for a seed and varies with it', () => {
         const a = WT.generate(opts), b = WT.generate(opts), c = WT.generate({ ...opts, seed: 99 });
         expect(a.tiles).toEqual(b.tiles);

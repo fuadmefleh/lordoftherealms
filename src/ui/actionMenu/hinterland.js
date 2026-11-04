@@ -45,6 +45,10 @@ function siteCard(game, site, here) {
     const home = world.getTile(...site.h.split(',').map(Number));
     let html = `<div style="${CARD}"><div><b>${esc(d.icon)} ${esc(d.name)}</b> · ${d.goods.map(gname).join(', ')} · ${holderText(world, site)}${home && home.settlement ? ` · near ${esc(home.settlement.name)}` : ''}</div>`;
     if (site.st === 'exhausted') return `${html}<div style="${NOTE}">Worked out and closed. A new vein may yet be struck in these hills.</div></div>`;
+    if (site.st === 'building') {
+        const left = Number.isFinite(site.ready) ? Math.max(0, site.ready - (world.day || 0)) : null;
+        return `${html}<div style="${NOTE}">🏗️ Being built by the townsfolk${left != null ? ` — opens in ${left} day${left === 1 ? '' : 's'} (day ${site.ready})` : ''}. Nothing comes from it yet.</div></div>`;
+    }
     html += `<div style="${NOTE}">${d.out > 0 ? `${d.out.toFixed(2)} a day lately` : 'idle lately'}${d.deposit ? ` · reserve ${reserveBar(d.reserve)} ${pct(d.reserve)} · yield ${pct(d.yield)}` : ' · renewable'}${Number.isFinite(site.idle) && site.idle > world.day ? ` · <span style="color:#e74c3c;">stalled after an accident until day ${site.idle}</span>` : ''}</div>`;
     if (d.leasable && site.st === 'open' && !Concessions.onSite(world, site)) {
         const q = Concessions.leaseQuote(player, world, site.id);

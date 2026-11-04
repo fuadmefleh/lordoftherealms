@@ -4,6 +4,9 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { Afterlife } from '../../player/afterlife.js';
+import { DawnBirth } from '../../player/dawnBirth.js';
+import { Languages } from '../../systems/languages.js';
+import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Delves } from '../../systems/delves.js';
@@ -616,6 +619,15 @@ export function endDay() {
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Hired work finished in a town's mill, bakery, smithy… (systems/commissions.js)
+            for (const n of Commissions.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Tongues: living among speakers teaches; the interpreter is paid (systems/languages.js)
+            for (const n of Languages.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The Dawn of Man: the player's clan made camp for good — the family moves in (player/dawnBirth.js)
+            {
+                const settled = DawnBirth.sync(this.player, this.world);
+                if (settled) this.ui.showNotification('🔥 Home', settled, 'success');
+            }
             if (ActionMenu.updateLettersBadge) ActionMenu.updateLettersBadge(this);
 
             // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)

@@ -58,6 +58,8 @@ import './labour.js';
 import './guilds.js';
 import './merchantLedger.js';
 import './hinterland.js';
+import './languages.js';
+import './commissions.js';
 import './tradePolicy.js';
 import './laws.js';
 import './harvests.js';

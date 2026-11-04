@@ -6,6 +6,7 @@
 // ActionMenu.showLordMeetingMenu and the meeting* methods (combat.js) delegate
 // here; one audience costs the meeting's AP once, on its first real act.
 import { ActionMenu } from './_ref.js';
+import { Languages } from '../../systems/languages.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NPCLords, PlayerEffects, Treasures, Technology, Titles, Utils, Peoples, Religion } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
@@ -147,6 +148,12 @@ export function openLordAudience(game, unitId) {
     const refused = Coalitions.audienceRefused(player, world, kingdom.id);
     if (refused) {
         game.ui.showNotification('⚜️ No Audience', refused, 'warning');
+        return;
+    }
+    // A court that shares no tongue with you can't hear your case (systems/languages.js)
+    const tongue = Languages.canAudience(player, world, kingdom);
+    if (!tongue.ok) {
+        game.ui.showNotification('🗣️ No Common Tongue', tongue.reason, 'warning');
         return;
     }
     const st = _standing(player, kingdom, lord, world);

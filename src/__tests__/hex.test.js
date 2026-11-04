@@ -37,11 +37,9 @@ describe('Hex', () => {
         expect(Hex.distance(5, 5, 5, 5)).toBe(0);
     });
 
-    it('distance: correct for adjacent hexes', () => {
-        for (const dir of Hex.DIRECTIONS) {
-            const nq = 5 + dir.q, nr = 5 + dir.r;
-            const d = Hex.distance(5, 5, nq, nr);
-            expect(d).toBe(1);
+    it("distance: correct for adjacent hexes (on the grid's own neighbours, even and odd rows)", () => {
+        for (const [q, r] of [[5, 5], [5, 6]]) {
+            for (const n of Hex.neighbors(q, r)) expect(Hex.distance(q, r, n.q, n.r)).toBe(1);
         }
     });
 

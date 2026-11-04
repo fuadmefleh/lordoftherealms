@@ -254,8 +254,11 @@ function guardianProblems(game, phase) {
     return out;
 }
 
+// SOAK_GEN='{"startYear":1}' plays other worlds (here: one begun at the Dawn of Man)
+const SOAK_GEN = ENV.SOAK_GEN ? JSON.parse(ENV.SOAK_GEN) : {};
+
 function runSoak(seed) {
-    let game = newGame(seed);
+    let game = newGame(seed, SOAK_GEN);
     const stats = {};
     const problems = [];
     const arbitrage = new Set();

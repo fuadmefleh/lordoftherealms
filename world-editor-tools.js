@@ -865,10 +865,81 @@
             made++;
         }
 
+        // Where many rivers crowd into one flat basin they braid into a web:
+        // that ground is a lake (the rivers then end on its shore)
+        var pooled = poolBasins(tiles, rivers, W, H);
+        tiles = pooled.tiles;
+        rivers = pooled.rivers;
+
         // Sand last, so river mouths can feed it
         if (opts.beaches) tiles = placeBeaches(tiles, W, H, { seed: seed, rivers: rivers, wrap: true });
 
         return { tiles: tiles, rivers: rivers, elevation: elev };
+    }
+
+    /**
+     * Turn the river webs of flat basins into lakes. A river hex with three
+     * or more river neighbours is braided water, not a channel; a clump of
+     * at least `minLake` such hexes (with the river hexes ringing it that
+     * touch two or more of them) becomes lake, and its hexes drop off the
+     * river list. Rivers running into it end at the shore. Returns
+     * { tiles, rivers } (new objects; the inputs are left as they were).
+     */
+    function poolBasins(tiles, rivers, W, H, minLake) {
+        minLake = minLake || 3;
+        var out = tiles.slice(), riv = {}, key, k;
+        for (key in rivers) riv[key] = true;
+        var at = function (q, r) { return riv[q + ',' + r]; };
+        var dense = {};
+        for (key in riv) {
+            var p = key.split(','), q = +p[0], r = +p[1], c = 0;
+            var ns = neighbors(q, r, W, H, true);
+            for (var i = 0; i < ns.length; i++) if (at(ns[i].q, ns[i].r)) c++;
+            if (c >= 3) dense[key] = true;
+        }
+        var done = {}, changed = false;
+        for (key in dense) {
+            if (done[key]) continue;
+            // the clump of dense hexes this one belongs to
+            var clump = [], stack = [key];
+            done[key] = true;
+            while (stack.length) {
+                var cur = stack.pop();
+                clump.push(cur);
+                var cp = cur.split(',');
+                var cn = neighbors(+cp[0], +cp[1], W, H, true);
+                for (var j = 0; j < cn.length; j++) {
+                    var nk = cn[j].q + ',' + cn[j].r;
+                    if (dense[nk] && !done[nk]) { done[nk] = true; stack.push(nk); }
+                }
+            }
+            if (clump.length < minLake) continue;
+            var inLake = {};
+            for (var a = 0; a < clump.length; a++) inLake[clump[a]] = true;
+            // river hexes hemmed in by the lake on two sides go under too
+            for (var b = 0; b < clump.length; b++) {
+                var bp = clump[b].split(',');
+                var bn = neighbors(+bp[0], +bp[1], W, H, true);
+                for (var m = 0; m < bn.length; m++) {
+                    var mk = bn[m].q + ',' + bn[m].r;
+                    if (!riv[mk] || inLake[mk]) continue;
+                    var mn = neighbors(bn[m].q, bn[m].r, W, H, true), touching = 0;
+                    for (var x = 0; x < mn.length; x++) if (inLake[mn[x].q + ',' + mn[x].r]) touching++;
+                    if (touching >= 2) inLake[mk] = true;
+                }
+            }
+            for (var lk in inLake) {
+                var lp = lk.split(',');
+                k = (+lp[1]) * W + (+lp[0]);
+                // (high rock holds no lake: the braids there just go)
+                if (out[k] !== 'snow_peak' && out[k] !== 'mountain') out[k] = 'lake';
+                delete riv[lk];
+                changed = true;
+            }
+        }
+        // A lake's new shore can leave braids of its own: settle again
+        if (changed && (arguments[5] || 0) < 4) return poolBasins(out, riv, W, H, minLake, (arguments[5] || 0) + 1);
+        return { tiles: out, rivers: riv };
     }
 
     // Follow the land downhill from `start` until it meets water or another
@@ -1007,7 +1078,7 @@
         wrapQ: wrapQ, neighbors: neighbors, distance: distance, line: line, disc: disc, rect: rect,
         floodRegion: floodRegion, symmetry: symmetry, connectionMask: connectionMask,
         smooth: smooth, shapeCoast: shapeCoast, distanceToLand: distanceToLand,
-        mulberry32: mulberry32, fbm: fbm, generate: generate, traceRiver: traceRiver,
+        mulberry32: mulberry32, fbm: fbm, generate: generate, traceRiver: traceRiver, poolBasins: poolBasins,
         validate: validate, encode: encode, decode: decode, rle: rle, unrle: unrle,
     };
     g.WorldTools = api;

@@ -953,6 +953,23 @@ Object.assign(ActionMenu, {
         game.ui.updateStats(player, world);
     },
 
+    /** Bathe in the water here, or at the well or bathhouse (player/core/needs.js bathe). */
+    doBathe(game) {
+        const { player, world } = game;
+        const res = player.bathe(world);
+        if (!res.success) {
+            game.ui.showNotification('Cannot Bathe', res.reason, 'error');
+            return;
+        }
+        const bits = [];
+        if (res.clothes > 0) bits.push('scrub your clothes');
+        const cold = res.kind === 'wild' && res.cold < 0 ? (res.cold <= -10 ? ' The water is bitterly cold.' : ' The water is cold.') : '';
+        const paid = res.cost > 0 ? ` (${res.cost} gold)` : '';
+        const title = res.kind === 'bathhouse' ? '🛁 A Hot Bath' : '🧼 Washed';
+        game.ui.showNotification(title, `You ${bits.length ? bits.join(', ') + ' and ' : ''}wash at ${res.where}${paid}: hygiene +${res.gained}.${cold}`, 'success');
+        game.ui.updateStats(player, world);
+    },
+
     /** Give the order to chart the area (the walking is the game loop's, ui/game/autoChart.js). */
     autoChartArea(game, radius) {
         // Opening Cartography left its AP pending; the survey pays its own way, a step and a tile at a time

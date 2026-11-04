@@ -58,6 +58,7 @@
  */
 
 import { DataLoader } from '../core/dataLoader.js';
+import { ShipHulls } from './shipHulls.js';
 import { CustomSheets } from '../core/customSheets.js';
 import { TownProps } from './townProps.js';
 
@@ -193,6 +194,8 @@ export const CustomObjects = {
             }
             // Town props — wells, stalls, fences, fields (world/townProps.js)
             for (const obj of TownProps.defs()) registerObj(obj);
+            // The LPC ships, as the artist composed them (world/shipHulls.js)
+            for (const obj of ShipHulls.defs()) registerObj(obj);
 
             // ── Apply buildingTag overrides from interior editor ──────
             // taggedObjects is an array of { id, buildingTags } patches

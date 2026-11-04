@@ -13,6 +13,20 @@
     "_resync": "Days between passes that give newly founded towns their sites and re-home sites whose town is gone.",
     "resyncDays": 60,
 
+    "_build": "How long a town founded in play takes to open each of its sites, one after another (days; world/hinterland.js buildDays): the kind's own labour, x size for a village's few or a city's many hands, x crown when a realm's masons back it, x dawn while the world is still young (world/dawn.js; realms keep no technology, so the age of the world stands in for what its builders know). A vein a town strikes takes `strike` of that. Worlds at generation and old saves keep their sites ready.",
+    "build": {
+        "days": {
+            "default": 150,
+            "iron_mine": 300, "copper_mine": 280, "silver_mine": 330, "gold_mine": 300, "gem_mine": 330, "coal_pit": 220,
+            "quarry": 200, "salt_pan": 140, "timber_camp": 90, "fishery": 70, "sheep_run": 80, "horse_stud": 160, "cattle_ranch": 120
+        },
+        "size": { "village": 1.3, "town": 1, "city": 0.85, "capital": 0.75 },
+        "crown": 0.85,
+        "dawn": 2.2,
+        "strike": 0.6,
+        "min": 20
+    },
+
     "_kinds": "name, icon; good: { goodId: units a day } at full yield and full hands; resource: the map resource that makes the site; terrain: land that makes it without a resource (sheep runs); priority: which sites a town works first; hands: labourers a concession hires at the town's land wage (a crown site's hands are the town's own peasants); deposit: finite reserve [min, max] units of the first good; leasable: the crown leases it as a concession.",
     "kinds": {
         "iron_mine":    { "name": "Iron mine",     "icon": "⛏️", "good": { "iron": 1.5 },              "resource": "iron",     "priority": 10, "hands": 14, "deposit": true, "reserve": [700, 2000], "leasable": true },

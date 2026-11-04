@@ -1,0 +1,223 @@
+{
+    "_doc": "Cultures and their languages (world/cultures.js, systems/languages.js). Every settlement keeps the culture it was founded with (settlement.culture), and so the tongue its people speak, whoever rules it later. Languages of one family are half-understood by each other's speakers (familyShare). Fluency runs 0-100: see `levels`. `build` is what a culture's towns are made of (wall and roof materials of the composed buildings, data/buildingKit.json, and a bias on house styles), used for worlds made since terrainGen 3.",
+
+    "familyShare": 0.4,
+    "levels": [
+        { "id": "none", "name": "No words", "min": 0 },
+        { "id": "broken", "name": "Broken", "min": 20 },
+        { "id": "conversational", "name": "Conversational", "min": 50 },
+        { "id": "fluent", "name": "Fluent", "min": 80 }
+    ],
+
+    "families": {
+        "vellic": { "name": "Vellic" },
+        "elderwood": { "name": "Elderwood" },
+        "northern": { "name": "Northern" },
+        "steppe": { "name": "Steppe" },
+        "tidal": { "name": "Tidal" }
+    },
+
+    "languages": {
+        "vellish": {
+            "name": "Vellish", "family": "vellic",
+            "syllables": ["ve", "lla", "tor", "ius", "an", "cor", "di", "sa", "quel", "mar", "ren", "tum", "ae", "lis", "pro", "ven"],
+            "greeting": "Salvé", "thanks": "Gratán"
+        },
+        "liturgic": {
+            "name": "Liturgic", "family": "vellic",
+            "syllables": ["sa", "nc", "tis", "do", "mi", "lu", "cem", "or", "ae", "ter", "num", "ve", "ri", "tas", "fi", "de"],
+            "greeting": "Pax tecum", "thanks": "Deo gra"
+        },
+        "luminar": {
+            "name": "Luminar", "family": "vellic",
+            "syllables": ["lu", "mi", "nar", "eth", "ys", "qua", "zel", "ori", "an", "thae", "sil", "ver", "ix", "or"],
+            "greeting": "Ithae", "thanks": "Lumen sil"
+        },
+        "sylvan": {
+            "name": "Sylvan", "family": "elderwood",
+            "syllables": ["syl", "va", "en", "lor", "ith", "wen", "dar", "el", "ia", "fen", "rae", "lin", "oth", "mir"],
+            "greeting": "Ellanor", "thanks": "Hennath"
+        },
+        "fenspeech": {
+            "name": "Fenspeech", "family": "elderwood",
+            "syllables": ["fen", "grub", "ul", "mok", "sha", "lug", "wem", "orr", "bog", "ith", "mur", "sla", "den", "wa"],
+            "greeting": "Ullo-mok", "thanks": "Shawem"
+        },
+        "norrish": {
+            "name": "Norrish", "family": "northern",
+            "syllables": ["hal", "dor", "skj", "ald", "vik", "rum", "ung", "fjal", "bro", "ste", "inn", "har", "gar", "ek"],
+            "greeting": "Heill", "thanks": "Takk-ek"
+        },
+        "durric": {
+            "name": "Durric", "family": "northern",
+            "syllables": ["dur", "rak", "khaz", "um", "bor", "grim", "dun", "kar", "ag", "oth", "zak", "brum", "hel", "dar"],
+            "greeting": "Khazad-hal", "thanks": "Dur-baruk"
+        },
+        "khaan": {
+            "name": "Khaan", "family": "steppe",
+            "syllables": ["kha", "an", "tem", "ur", "bat", "ol", "ger", "chi", "mun", "kh", "sar", "tai", "jin", "ga"],
+            "greeting": "Sain-bai", "thanks": "Bayar-la"
+        },
+        "ashkari": {
+            "name": "Ashkari", "family": "steppe",
+            "syllables": ["ash", "ka", "ri", "sal", "am", "zah", "ir", "mah", "dun", "qa", "sim", "far", "al", "hab"],
+            "greeting": "Salaam-ash", "thanks": "Shukr-al"
+        },
+        "tidecant": {
+            "name": "Tidecant", "family": "tidal",
+            "syllables": ["tid", "ah", "oy", "mar", "kel", "sea", "ra", "bo", "lun", "et", "hoa", "ve", "skee", "wen"],
+            "greeting": "Ahoyah", "thanks": "Kelmar"
+        }
+    },
+
+    "cultures": {
+        "Imperial": {
+            "language": "vellish",
+            "build": {
+                "walls": { "brick_red": 3, "brick_beige": 2, "stone_grey": 2, "plaster": 2, "brick_brown": 2, "stone_beige": 1, "timber": 1 },
+                "roofs": { "clay": 3, "slate": 2, "shingle_grey": 1 },
+                "styles": { "townhouse": 1.4, "row": 1.3, "grand": 1.2, "shop": 1.2, "hovel": 0.6, "longhouse": 0.5 }
+            }
+        },
+        "Religious": {
+            "language": "liturgic",
+            "build": {
+                "walls": { "stone_beige": 3, "stone_gold": 2, "plaster": 2, "stone_grey": 2, "brick_beige": 1 },
+                "roofs": { "slate": 3, "clay": 2, "shingle_grey": 1 },
+                "styles": { "whitewash": 1.4, "grand": 1.2, "longhouse": 0.6 }
+            }
+        },
+        "Arcane": {
+            "language": "luminar",
+            "build": {
+                "walls": { "stone_grey": 3, "brick_grey": 3, "stone_dark": 2, "plaster": 1 },
+                "roofs": { "shingle_purple": 3, "slate": 2, "shingle_dark": 1 },
+                "styles": { "townhouse": 1.3, "grand": 1.3, "cottage": 0.8 }
+            }
+        },
+        "Woodland": {
+            "language": "sylvan",
+            "build": {
+                "walls": { "timber": 4, "planks": 3, "plaster": 1, "fieldstone": 1 },
+                "roofs": { "thatch": 4, "shingle_dark": 1 },
+                "styles": { "cottage": 1.5, "timbered": 1.5, "croft": 1.2, "row": 0.6, "townhouse": 0.7 }
+            }
+        },
+        "Swamp": {
+            "language": "fenspeech",
+            "build": {
+                "walls": { "planks": 4, "timber": 2, "fieldstone": 1 },
+                "roofs": { "thatch": 4, "shingle_dark": 1 },
+                "styles": { "hovel": 1.8, "croft": 1.5, "longhouse": 1.2, "grand": 0.4, "townhouse": 0.5 }
+            }
+        },
+        "Nordic": {
+            "language": "norrish",
+            "build": {
+                "walls": { "planks": 3, "timber": 3, "fieldstone": 2, "stone_dark": 1 },
+                "roofs": { "thatch": 2, "shingle_dark": 3, "slate": 1 },
+                "styles": { "longhouse": 2.0, "croft": 1.3, "timbered": 1.2, "row": 0.6 }
+            }
+        },
+        "Mountain": {
+            "language": "durric",
+            "build": {
+                "walls": { "fieldstone": 3, "stone_dark": 3, "stone_grey": 3, "brick_dark": 1 },
+                "roofs": { "slate": 4, "shingle_dark": 2 },
+                "styles": { "longhouse": 1.3, "croft": 1.3, "timbered": 0.6 }
+            }
+        },
+        "Nomadic": {
+            "language": "khaan",
+            "build": {
+                "walls": { "stone_ochre": 3, "plaster": 2, "planks": 1, "fieldstone": 1 },
+                "roofs": { "clay": 3, "thatch": 2 },
+                "styles": { "croft": 1.3, "farmstead": 1.3, "hovel": 1.2, "townhouse": 0.6, "grand": 0.6 }
+            }
+        },
+        "Desert": {
+            "language": "ashkari",
+            "build": {
+                "walls": { "stone_ochre": 4, "plaster": 3, "stone_beige": 2, "brick_beige": 1 },
+                "roofs": { "clay": 5, "slate": 1 },
+                "styles": { "whitewash": 1.6, "row": 1.1, "timbered": 0.4, "longhouse": 0.5 }
+            }
+        },
+        "Maritime": {
+            "language": "tidecant",
+            "build": {
+                "walls": { "plaster": 4, "brick_beige": 2, "stone_beige": 2, "planks": 1 },
+                "roofs": { "slate": 3, "shingle_grey": 2, "clay": 1 },
+                "styles": { "whitewash": 1.5, "row": 1.2, "shop": 1.2, "longhouse": 0.6 }
+            }
+        }
+    },
+
+    "names": {
+        "Mountain": {
+            "male": ["Thrain", "Borin", "Durgan", "Kili", "Gromm", "Hadrik", "Brokk", "Dwalin", "Ragni", "Torvar", "Ulfgar", "Bodmar", "Harbek", "Orsik", "Rurik"],
+            "female": ["Hilda", "Brunna", "Dagna", "Gunnloda", "Kathra", "Mardred", "Riswynn", "Torbera", "Vistra", "Eldeth", "Amber", "Bardryn", "Helja", "Ilde", "Sannl"]
+        },
+        "Nordic": {
+            "male": ["Bjorn", "Eirik", "Halvar", "Ivar", "Leif", "Ragnar", "Sigurd", "Thorgil", "Ulf", "Vidar", "Gunnar", "Haldor", "Knut", "Orm", "Sten"],
+            "female": ["Astrid", "Freydis", "Gudrun", "Helga", "Ingrid", "Sigrid", "Solveig", "Thora", "Ylva", "Ragna", "Alfhild", "Brynja", "Dagny", "Runa", "Tove"]
+        },
+        "Desert": {
+            "male": ["Amir", "Darius", "Farid", "Hakim", "Jalal", "Kasim", "Malik", "Nasir", "Omar", "Rashid", "Samir", "Tariq", "Zahir", "Idris", "Yusuf"],
+            "female": ["Amira", "Dalia", "Farah", "Jamila", "Layla", "Mariam", "Nadia", "Rania", "Samira", "Yasmin", "Zara", "Soraya", "Leena", "Hana", "Nur"]
+        },
+        "Arcane": {
+            "male": ["Aldarion", "Caelum", "Elric", "Ithran", "Lucan", "Merrow", "Orin", "Sylvar", "Thalor", "Vaelis", "Zephyr", "Alaric", "Eamon", "Corvin", "Ysmir"],
+            "female": ["Aurelia", "Celestine", "Elara", "Isolde", "Lyra", "Morwen", "Nimue", "Seraphine", "Thessaly", "Vespera", "Ysolde", "Ilsa", "Calista", "Maelis", "Oriane"]
+        },
+        "Swamp": {
+            "male": ["Bogran", "Croak", "Fenwick", "Grubb", "Hollis", "Marsh", "Mudd", "Reedan", "Slade", "Tadwell", "Wort", "Brack", "Sedge", "Moss", "Gilly"],
+            "female": ["Bryony", "Fen", "Heath", "Ivy", "Mire", "Nettle", "Rowan", "Sorrel", "Tansy", "Willow", "Yarrow", "Briar", "Lark", "Teal", "Wren"]
+        }
+    },
+
+    "_learning": "How the player and the rival Houses learn (systems/languages.js). Immersion: a day spent where a language is spoken (in its settlement, or its realm's land) gains `immersion` fluency, scaled by `pace` for the band you are in (it gets slower as you get better), less with a translator doing the talking. Talking to people gains `talk` (a few times a day). A tutor's lesson in a town costs `tutor.cost` and gives `tutor.gain` in the town's tongue or another its scholars teach. Old saves: the player speaks the tongue where they stand and is `legacyFluency` in those of realms they are known to.",
+    "learning": {
+        "immersion": 0.7,
+        "pace": [[0, 1.0], [20, 0.8], [50, 0.5], [80, 0.25]],
+        "translatorDamp": 0.5,
+        "talk": 0.6,
+        "talkPerDay": 3,
+        "tutor": { "cost": 18, "gain": 5, "perDay": 1 },
+        "legacyFluency": 60,
+        "legacyReputation": 10
+    },
+    "_translator": "An interpreter hired in a town: speaks its tongue, yours, and one or two more of the realms about. A hiring fee, a daily wage (they leave when unpaid), and a comprehension of `fluency` in what they speak.",
+    "translator": { "hire": 25, "wage": 4, "fluency": 70, "extraTongues": [1, 2] },
+    "_effects": "What not understanding costs (by your level in the tongue spoken where you are). trade: added to the trade bonus (buy and sell). audience: the fluency (or a translator) a lord's audience needs. dialog: which conversation choices need which level.",
+    "effects": {
+        "trade": { "none": -0.12, "broken": -0.05, "conversational": 0, "fluent": 0.02 },
+        "audience": 50,
+        "dialog": {
+            "none": ["farewell", "trade", "give_gift", "threat"],
+            "broken": ["farewell", "trade", "give_gift", "threat", "ask_location", "ask_quest", "accept_quest", "decline_quest", "repay_favour", "ask_rumor"]
+        }
+    },
+    "_realms": "Courts: a realm's court speaks its own tongue and learns the tongues of the realms it deals with (`courtLearn` a contact). Diplomacy between courts with no common tongue goes harder (`diplomacy` by the best level either court has in the other's tongue); same family helps.",
+    "realms": {
+        "courtLearn": 1.5,
+        "diplomacy": { "none": -3, "broken": -1, "conversational": 0, "fluent": 1, "same": 2 }
+    },
+    "_rivals": "Rival Houses on business in a town of another tongue: they hire a translator for `fee` when the purse allows (else trade at `badDeal` and win half the favour at court), and learn `learn` fluency a visit.",
+    "rivals": { "fee": 12, "badDeal": 0.12, "learn": 3 },
+
+    "_dynasties": "House names for the cultures the character code has none for (world/characters: Imperial, Woodland, Nomadic, Religious and Maritime keep theirs).",
+    "dynasties": {
+        "Mountain": ["Ironhand", "Stonebeard", "Deepdelver", "Hammerfall", "Granitecrest", "Forgeborn", "Coppervein", "Anvilheart"],
+        "Nordic": ["Ravensson", "Frostborn", "Wolfsbane", "Stormhald", "Ironside", "Bjornsted", "Ulfhednar", "Skjoldung"],
+        "Desert": ["al-Rashid", "ibn Zahir", "al-Qasim", "Sandwalker", "al-Farsi", "ibn Malik", "Sunspear", "al-Nadir"],
+        "Arcane": ["Starweaver", "Moonglass", "Vael", "Aetherion", "Lumenhall", "Silverquill", "Nightveil", "Ithrandor"],
+        "Swamp": ["Bogwater", "Mirelock", "Fenwick", "Reedholt", "Marshmoor", "Sedgefield", "Blackwater", "Toadstone"]
+    },
+
+    "lines": {
+        "noWords": "*You share no words with {name}. They speak {language}.*",
+        "someWords": "*You catch a word here and there of their {language}.*",
+        "viaTranslator": "*{translator} puts it into your tongue.*"
+    }
+}

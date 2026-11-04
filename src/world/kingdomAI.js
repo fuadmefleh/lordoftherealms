@@ -19,6 +19,7 @@ import { EconomyIndex } from './economyIndex.js';
 import { Harvests } from './harvests.js';
 import { MoneySupply } from './moneySupply.js';
 import { CrownBooks } from './crownBooks.js';
+import { Cultures } from './cultures.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
@@ -421,6 +422,9 @@ export const KingdomAI = {
         if (diplomacy) change += Math.floor(diplomacy * 10);
         // Cultural pull: a far more influential realm is admired
         change += KingdomCulture.admiration(kingdom, target);
+        // A common tongue: envoys who can't make themselves understood get
+        // less done, and each contact teaches the courts a little (world/cultures.js)
+        change += Cultures.realmDiplomacy(kingdom, target);
         // Religious compatibility: same faith → +5, different militant faiths → penalty
         if (typeof Religion !== 'undefined') {
             change += Math.floor(Religion.faithCompatibility(kingdom, target) * 0.3);

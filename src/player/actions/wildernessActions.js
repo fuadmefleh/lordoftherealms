@@ -20,8 +20,20 @@ import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { DawnBirth } from '../dawnBirth.js';
 
 export function addWildernessActions(actions, player, tile, world) {
+    // The tongues you speak and the one spoken here; lessons and interpreters in town (systems/languages.js)
+    if (tile.settlement || tile.kingdom) {
+        actions.push({ type: 'languages', label: 'Languages', icon: '🗣️', description: 'The tongue spoken here and yours: lessons with a tutor, an interpreter for hire' });
+    }
+
+    // The Dawn of Man: lead your clan to ground worth keeping, and stay (player/dawnBirth.js)
+    if (DawnBirth.canSettleHere(player, world)) {
+        const L = DawnBirth.data().lines || {};
+        actions.push({ type: 'dawn_settle', label: L.settleAction || 'Make camp for good', icon: '🔥', description: L.settleDesc || 'Your clan settles here for good and founds a village.' });
+    }
+
     // Meditate / Pray (anywhere on passable terrain)
     if (tile.terrain.passable) {
         actions.push({
@@ -374,6 +386,11 @@ export function addWildernessActions(actions, player, tile, world) {
         }
     }
 
+    // At sea aboard your own ship: go up on deck (world/innerMap/harbour.js)
+    if (!tile.terrain.passable && player.boardedShip && player.q === tile.q && player.r === tile.r) {
+        actions.push({ type: 'explore_inner_map', label: 'Go on Deck', icon: '⛵', description: 'Walk the deck of your ship, the open sea all round' });
+    }
+
     // Enter Inner Map (player's current tile, passable land)
     if (tile.terrain.passable && player.q === tile.q && player.r === tile.r) {
         actions.push({
@@ -382,6 +399,21 @@ export function addWildernessActions(actions, player, tile, world) {
             icon: '🗺️',
             description: 'Enter the detailed inner map of this tile to explore on foot'
         });
+    }
+
+    // Bathe: free in a river, a lake or the sea; a copper or few at a village well or a town bathhouse (player/core/needs.js)
+    if (player.q === tile.q && player.r === tile.r && player.needsEnabled && player.bathePlace && player.needs) {
+        const place = player.bathePlace(world);
+        if (place && player.needs.hygiene < 95) {
+            const cs = player.clothesState ? player.clothesState() : null;
+            actions.push({
+                type: 'bathe',
+                label: place.label,
+                icon: place.kind === 'bathhouse' ? '🛁' : '🧼',
+                cost: place.cost || undefined,
+                description: `${place.kind === 'wild' ? `A wash in ${place.where} — free, and cold out of summer` : `${place.cost} gold at ${place.where}`}. Hygiene ${Math.round(player.needs.hygiene)}%${cs && cs.capped ? `; your ${cs.label.toLowerCase()} clothes get scrubbed too, so you can get properly clean` : ''}.`,
+            });
+        }
     }
 
     // Wash your clothes by hand at a river, the shore or a town's well (player/core/needs.js)
@@ -474,7 +506,9 @@ export function addWildernessActions(actions, player, tile, world) {
 
     // Attack world units on same tile
     if (world.units && world.units.length > 0) {
-        const unitsOnTile = world.units.filter(u => u.q === player.q && u.r === player.r && !u.destroyed);
+        // (never one's own clan at the Dawn of Man: they are family)
+        const unitsOnTile = world.units.filter(u => u.q === player.q && u.r === player.r && !u.destroyed
+            && !(u.kinOfPlayer && u.id === player.dawnClan));
         for (const unit of unitsOnTile) {
             actions.push({
                 type: 'attack_unit',

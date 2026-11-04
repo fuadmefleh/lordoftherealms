@@ -240,7 +240,7 @@ Object.assign(ActionMenu, {
         const settlement = tile.settlement;
         if (!settlement) return;
 
-        const usedShips = Ships.getUsedShipsForSale(tile);
+        const usedShips = Ships.getUsedShipsForSale(tile, game.world);
         const buildable = Ships._getShipTypes();
         const playerShipsHere = Ships.getShipsAt(player, tile.q, tile.r);
 
@@ -312,7 +312,9 @@ Object.assign(ActionMenu, {
         html += '<div id="shipTabBuild" style="display:none;">';
         for (const st of buildable) {
             const buildCost = Ships._getSettlementBuildCost(st.baseCost, settlement);
-            const canAfford = player.gold >= buildCost;
+            // The shipwrights must know the craft (world/shipcraft.js), or you must
+            const craft = Ships.canBuild(player, game.world, settlement, st);
+            const canAfford = player.gold >= buildCost && craft.ok;
             html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
             html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">`;
             html += `<div style="font-weight:bold;">${st.icon} ${st.name}</div>`;
@@ -330,7 +332,9 @@ Object.assign(ActionMenu, {
                 html += statPill('🔧 Mods', st.customizations.length);
             }
             html += '</div>';
-            if (canAfford) {
+            if (!craft.ok) {
+                html += `<div style="font-size:11px;color:#e8a040;">🔒 The shipwrights here don't know how: needs ${craft.names}. Research it yourself (Technology), or find a realm whose shipwrights do.</div>`;
+            } else if (canAfford) {
                 html += `<button onclick="window._showBuildOptions('${st.id}', ${buildCost})" style="width:100%;${btnPrimary}">Commission Build</button>`;
             } else {
                 html += `<div style="font-size:11px;color:#e74c3c;">Need ${buildCost}g</div>`;

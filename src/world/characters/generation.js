@@ -1,5 +1,6 @@
 // Characters — generation members (split from the original monolith).
 import { Characters } from './_ref.js';
+import { Cultures } from '../cultures.js';
 import { Utils } from './_imports.js';
 
 Object.assign(Characters, {
@@ -130,13 +131,16 @@ Object.assign(Characters, {
         const dynasty = options.dynasty || null;
         const isRuler = options.isRuler || false;
 
-        const namePool = Characters.FIRST_NAMES[culture] || Characters.FIRST_NAMES.Imperial;
+        // Every culture its own names: the character pools, else the culture data's (world/cultures.js)
+        const own = Cultures.firstNames(culture, 'male', null) && Cultures.firstNames(culture, 'female', null)
+            ? { male: Cultures.firstNames(culture, 'male', null), female: Cultures.firstNames(culture, 'female', null) } : null;
+        const namePool = Characters.FIRST_NAMES[culture] || own || Characters.FIRST_NAMES.Imperial;
         const firstName = options.name || Utils.randPick(namePool[gender] || namePool.male);
 
         const character = {
             id: Characters._generateId(),
             firstName,
-            dynasty: dynasty || Utils.randPick(Characters.DYNASTY_NAMES[culture] || Characters.DYNASTY_NAMES.Imperial),
+            dynasty: dynasty || Utils.randPick(Characters.DYNASTY_NAMES[culture] || Cultures.dynastyNames(culture) || Characters.DYNASTY_NAMES.Imperial),
             gender,
             age,
             culture,

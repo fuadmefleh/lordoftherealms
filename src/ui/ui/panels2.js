@@ -1,5 +1,7 @@
 // UI — panels2 methods.
 import { UI } from './core.js';
+import { Cultures } from '../../world/cultures.js';
+import { Languages } from '../../systems/languages.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, KingdomBonuses, KingdomAtlas } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -298,6 +300,15 @@ Object.assign(UI.prototype, {
                         <span class="info-label">Population</span>
                         <span class="info-value">${Utils.formatNumber(settlement.population)}</span>
                     </div>
+                    ${(() => {
+                        // Its culture and tongue (world/cultures.js, systems/languages.js)
+                        const culture = Cultures.cultureOf(this.game.world, settlement);
+                        const lang = Languages.settlementLanguage(this.game.world, settlement);
+                        if (!culture || !lang) return '';
+                        const c = Languages.comprehension(this.game.player, lang);
+                        return `<div class="info-row"><span class="info-label">Culture</span><span class="info-value">${culture}</span></div>
+                    <div class="info-row"><span class="info-label">Language</span><span class="info-value">${Cultures.languageName(lang)} <span style="color:var(--text-secondary);">(you: ${c.level.name.toLowerCase()})</span></span></div>`;
+                    })()}
                     <div class="info-row">
                         <span class="info-label">Founded</span>
                         <span class="info-value">${settlement.founded ? `Year ${settlement.founded} (${this.game.world.year - settlement.founded} years ago)` : 'Ancient times'}</span>
@@ -310,7 +321,14 @@ Object.assign(UI.prototype, {
         `;
 
         const player = this.game.player;
-        const knows = (cat) => kingdom ? player.knowsAbout(kingdom.id, cat) : false;
+        // A place you call home, stand in or have been to, you know at first
+        // hand (an independent village has no realm whose secrets to learn)
+        const visited = !!(player.quests && player.quests.settlementsVisited && typeof player.quests.settlementsVisited.has === 'function'
+            && player.quests.settlementsVisited.has(settlement.name));
+        const firstHand = visited || (player.q === q && player.r === r)
+            || !!(player.dawnHome && player.dawnHome.q === q && player.dawnHome.r === r)
+            || !!(settlement.colony && settlement.colony.isPlayerColony);
+        const knows = (cat) => (cat === 'economy' && firstHand) || (kingdom ? player.knowsAbout(kingdom.id, cat) : false);
 
         // Kingdom and Lord Information
         if (kingdom) {

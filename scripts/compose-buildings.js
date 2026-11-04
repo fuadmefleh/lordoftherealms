@@ -172,6 +172,9 @@ function compose(recipe, kit) {
         name: recipe.name,
         buildingType: recipe.buildingType,
         style: recipe.style || null,
+        // What it is built of: towns pick by their culture's materials (world/cultures.js)
+        wall: recipe.wall || null,
+        roof: recipe.roof || null,
         tags: ['composed', ...(recipe.tags || [])],
         tileW: T, tileH: T,
         width: maxQ - minQ + 1, height: 1 - minR,

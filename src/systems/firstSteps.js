@@ -116,6 +116,13 @@ const READERS = {
     inn: (p, w) => p._lastRestType === 'inn' || !!(_obj(p.lodging) && p.lodging.night === _day(w)),
     ambition: (p) => !_obj(p.house) || !!p.house.ambition,
     secondTown: (p, w, fs) => _visits(p) >= Math.max(2, fs.base.visits + 1),
+    // The Dawn of Man (world/dawn.js, player/dawnBirth.js)
+    // Walked into your clan's camp (world/innerMap/camp.js marks it)
+    clanCamp: (p) => !!p.dawnCampVisited,
+    // Your clan has made camp for good: a home village
+    madeCamp: (p) => !!_obj(p.dawnHome),
+    // Been into a village (your own counts) and one more besides
+    secondVillage: (p, w, fs) => _visits(p) >= Math.max(2, fs.base.visits + 2),
 };
 
 export const FirstSteps = {
@@ -130,14 +137,19 @@ export const FirstSteps = {
             _cfg = {
                 ...DEFAULTS, ...o,
                 steps: _arr(o.steps).filter(s => _obj(s) && s.id && READERS[s.check]),
+                // A world begun at the Dawn of Man has no towns, inns or markets yet
+                dawnSteps: _arr(o.dawnSteps).filter(s => _obj(s) && s.id && READERS[s.check]),
                 final: { ...DEFAULTS.final, ...(_obj(o.final) || {}) },
             };
         }
         return _cfg;
     },
 
-    steps() {
-        return FirstSteps.config().steps;
+    /** The steps a player is guided through: the dawn's own for a start before any town. */
+    steps(player = null) {
+        const C = FirstSteps.config();
+        const fs = FirstSteps.state(player);
+        return fs && fs.set === 'dawn' && C.dawnSteps.length ? C.dawnSteps : C.steps;
     },
 
     /** Begin the guided month for a new character (enabled: false keeps the record but guides nothing). */
@@ -150,6 +162,8 @@ export const FirstSteps = {
             legacy: false,
             retired: false,
             startDay: _day(world),
+            // (a start at the Dawn of Man gets the dawn's steps: no town to work in yet)
+            set: world && world.dawn && !world.dawn.over ? 'dawn' : 'realms',
             generation: _num(player.house && player.house.generation, 1),
             base: _baseline(player),
             done: {},
@@ -186,13 +200,13 @@ export const FirstSteps = {
     current(player) {
         const fs = FirstSteps.state(player);
         if (!fs) return null;
-        return FirstSteps.steps().find(s => fs.done[s.id] == null) || null;
+        return FirstSteps.steps(player).find(s => fs.done[s.id] == null) || null;
     },
 
     /** What the tracker card shows. */
     view(player) {
         const fs = FirstSteps.state(player);
-        const steps = FirstSteps.steps();
+        const steps = FirstSteps.steps(player);
         const doneCount = fs ? steps.filter(s => fs.done[s.id] != null).length : 0;
         const step = FirstSteps.current(player);
         return {
@@ -245,7 +259,7 @@ export const FirstSteps = {
             fs.retired = true;
             return notices;
         }
-        const steps = FirstSteps.steps();
+        const steps = FirstSteps.steps(player);
         for (const s of steps) {
             if (fs.done[s.id] != null) continue;
             let ok = false;

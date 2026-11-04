@@ -1,6 +1,6 @@
 // InnerMap — npcs members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Townsfolk } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Townsfolk, Cultures, Characters } from './_imports.js';
 
 Object.assign(InnerMap, {
     // ══════════════════════════════════════════════
@@ -324,6 +324,18 @@ Object.assign(InnerMap, {
         if (world) this._settleTownsfolk(settlement, world, pool, rng);
     },
 
+    /** First names of the culture of the map's settlement (both genders), or null */
+    _localNames() {
+        const s = this._currentWorldTileRef && this._currentWorldTileRef.settlement;
+        const culture = s && s.culture;
+        if (!culture) return null;
+        const pools = Characters && Characters.FIRST_NAMES;
+        const m = Cultures.firstNames(culture, 'male', pools) || [];
+        const f = Cultures.firstNames(culture, 'female', pools) || [];
+        const all = m.concat(f);
+        return all.length ? all : null;
+    },
+
     /** One walking NPC of a type at a random passable spot (null if none found). */
     _makeNpc(npcType, id, rng) {
         const typeDef = this.NPC_TYPES[npcType];
@@ -341,7 +353,9 @@ Object.assign(InnerMap, {
 
         if (attempts >= 50) return null;
 
-        const name = this.NPC_FIRST_NAMES[Math.floor(rng() * this.NPC_FIRST_NAMES.length)];
+        // A name of the place's own culture (world/cultures.js); the old common pool otherwise
+        const pool = this._localNames ? this._localNames() : null;
+        const name = pool && pool.length ? pool[Math.floor(rng() * pool.length)] : this.NPC_FIRST_NAMES[Math.floor(rng() * this.NPC_FIRST_NAMES.length)];
 
         // Character presets live in the UI layer (InnerMapCharacters), which
         // world code can't import — the renderer falls back by NPC type.
@@ -670,6 +684,24 @@ Object.assign(InnerMap, {
             }
             // Can't path to edge, just vanish
             npc.state = 'gone';
+            return;
+        }
+
+        // A clan's people keep about their campfire (world/innerMap/camp.js)
+        if (npc.campHub && this._campDestination) {
+            const spot = this._campDestination(npc);
+            const path = spot ? this._findPath(npc.q, npc.r, spot.q, spot.r) : null;
+            if (path && path.length > 1) {
+                npc.path = path.slice(1);
+                npc.pathIndex = 0;
+                npc.moveProgress = 0;
+                npc.prevQ = npc.q;
+                npc.prevR = npc.r;
+                npc.state = 'walking';
+                return;
+            }
+            npc.state = 'idle';
+            npc.idleTimer = 3 + Utils.random() * 5;
             return;
         }
 

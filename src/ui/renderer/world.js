@@ -455,13 +455,12 @@ Object.assign(Renderer.prototype, {
                 let riverSprite = null;
                 let roadSprite = null;
                 
-                if (bridgeSprite) {
-                    // Bridge replaces both river and road
-                    roadSprite = bridgeSprite;
-                } else {
-                    // No bridge, render river and road separately
-                    const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
-                    riverSprite = riverImgName ? this.tileSprites.get(riverImgName) : null;
+                // The river is always drawn; a bridge (road and bridge
+                // only) goes over it in place of the plain road
+                const riverImgName = this.getRiverImage(tile, q, r, world.width, world.height);
+                riverSprite = riverImgName ? this.tileSprites.get(riverImgName) : null;
+                roadSprite = bridgeSprite;
+                if (!roadSprite) {
                     const roadImgName = this.getRoadImage(tile, q, r, world.width, world.height);
                     roadSprite = roadImgName ? this.tileSprites.get(roadImgName) : null;
                 }
@@ -567,14 +566,15 @@ Object.assign(Renderer.prototype, {
             ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
 
-        if (roadSprite) {
-            ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
+        // River first, then the road (or bridge) over it, so a road
+        // crossing water reads as crossing it. Same frame as the base sprite
+        // so the overlays line up whatever their transparency.
+        if (overlaySprite) {
+            ctx.drawImage(overlaySprite, drawX, drawY, targetWidth, targetHeight);
         }
 
-        if (overlaySprite) {
-            // Use SAME frame as the base sprite to ensure perfect alignment
-            // regardless of overlay transparency/crop
-            ctx.drawImage(overlaySprite, drawX, drawY, targetWidth, targetHeight);
+        if (roadSprite) {
+            ctx.drawImage(roadSprite, drawX, drawY, targetWidth, targetHeight);
         }
 
         // Clip to hex shape for overlays

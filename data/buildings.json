@@ -282,6 +282,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "plaster",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -628,6 +630,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "brick_red",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -1142,6 +1146,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -1637,6 +1643,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -2478,6 +2486,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -2805,6 +2815,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "brick_beige",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -3328,6 +3340,8 @@
     "name": "House",
     "buildingType": "house",
     "style": null,
+    "wall": "stone_ochre",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -3898,6 +3912,8 @@
     "name": "Tavern",
     "buildingType": "tavern",
     "style": null,
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -5045,6 +5061,8 @@
     "name": "Inn",
     "buildingType": "inn",
     "style": null,
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -6201,6 +6219,8 @@
     "name": "Guest House",
     "buildingType": "guest_house",
     "style": null,
+    "wall": "plaster",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -6742,6 +6762,8 @@
     "name": "Grand Hotel",
     "buildingType": "hotel",
     "style": null,
+    "wall": "stone_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -8141,6 +8163,8 @@
     "name": "Roadhouse",
     "buildingType": "roadhouse",
     "style": null,
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -8673,6 +8697,8 @@
     "name": "Marketplace",
     "buildingType": "marketplace",
     "style": null,
+    "wall": "brick_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -9391,6 +9417,8 @@
     "name": "Blacksmith",
     "buildingType": "blacksmith",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -9941,6 +9969,8 @@
     "name": "Granary",
     "buildingType": "granary",
     "style": null,
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -10512,6 +10542,8 @@
     "name": "Warehouse",
     "buildingType": "warehouse",
     "style": null,
+    "wall": "planks",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -11386,6 +11418,8 @@
     "name": "Stable",
     "buildingType": "stable",
     "style": null,
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -12068,6 +12102,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": null,
+    "wall": "planks",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -12923,6 +12959,8 @@
     "name": "Farm",
     "buildingType": "farm",
     "style": null,
+    "wall": "plaster",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -13455,6 +13493,8 @@
     "name": "Guildhall",
     "buildingType": "guildhall",
     "style": null,
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -14620,6 +14660,8 @@
     "name": "Counting House",
     "buildingType": "bank",
     "style": null,
+    "wall": "stone_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -15395,6 +15437,8 @@
     "name": "Post House",
     "buildingType": "post_house",
     "style": null,
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -15936,6 +15980,8 @@
     "name": "Apothecary",
     "buildingType": "apothecary",
     "style": null,
+    "wall": "plaster",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -16486,6 +16532,8 @@
     "name": "Bathhouse",
     "buildingType": "bathhouse",
     "style": null,
+    "wall": "stone_ochre",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -17414,6 +17462,8 @@
     "name": "Library",
     "buildingType": "library",
     "style": null,
+    "wall": "brick_slate",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -18483,6 +18533,8 @@
     "name": "Bakery",
     "buildingType": "bakery",
     "style": null,
+    "wall": "brick_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -19033,6 +19085,8 @@
     "name": "Mill",
     "buildingType": "mill",
     "style": null,
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -19697,6 +19751,8 @@
     "name": "Gaol",
     "buildingType": "jail",
     "style": null,
+    "wall": "stone_dark",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -20589,6 +20645,8 @@
     "name": "Mint",
     "buildingType": "mint",
     "style": null,
+    "wall": "brick_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -21535,6 +21593,8 @@
     "name": "Church",
     "buildingType": "church",
     "style": null,
+    "wall": "stone_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -22310,6 +22370,8 @@
     "name": "Chapel",
     "buildingType": "chapel",
     "style": null,
+    "wall": "stone_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -22701,6 +22763,8 @@
     "name": "Temple",
     "buildingType": "temple",
     "style": null,
+    "wall": "stone_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -23770,6 +23834,8 @@
     "name": "Town Hall",
     "buildingType": "town_hall",
     "style": null,
+    "wall": "brick_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -24875,6 +24941,8 @@
     "name": "Barracks",
     "buildingType": "barracks",
     "style": null,
+    "wall": "stone_dark",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -25767,6 +25835,8 @@
     "name": "Guard Tower",
     "buildingType": "guard_tower",
     "style": null,
+    "wall": "stone_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -26266,6 +26336,8 @@
     "name": "Castle",
     "buildingType": "castle",
     "style": null,
+    "wall": "stone_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -29516,6 +29588,8 @@
     "name": "Manor",
     "buildingType": "manor",
     "style": null,
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -30978,6 +31052,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "planks",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -31399,6 +31475,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -31889,6 +31967,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "fieldstone",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -32727,6 +32807,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -33367,6 +33449,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_grey",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -33866,6 +33950,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -34595,6 +34681,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "brick_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -35418,6 +35506,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_ochre",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -36175,6 +36265,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "plaster",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -36646,6 +36738,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_ochre",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -37136,6 +37230,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "brick_beige",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -37824,6 +37920,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -38680,6 +38778,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "brick_red",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -39587,6 +39687,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_grey",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -40257,6 +40359,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "brick_red",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -41052,6 +41156,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -41566,6 +41672,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -42281,6 +42389,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "fieldstone",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -43254,6 +43364,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_grey",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -43744,6 +43856,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "timber",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -44408,6 +44522,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "stone_ochre",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -44988,6 +45104,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -45469,6 +45587,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "plaster",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -46039,6 +46159,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "plaster",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -46600,6 +46722,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "timber",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -47315,6 +47439,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "cottage",
+    "wall": "timber",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -47706,6 +47832,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_dark",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -48267,6 +48395,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_dark",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -48613,6 +48743,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_ochre",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -49202,6 +49334,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -49847,6 +49981,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_ochre",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -50408,6 +50544,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "fieldstone",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -50735,6 +50873,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -51296,6 +51436,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_ochre",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -51857,6 +51999,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "stone_ochre",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -52418,6 +52562,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -52979,6 +53125,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -53306,6 +53454,8 @@
     "name": "Croft",
     "buildingType": "house",
     "style": "croft",
+    "wall": "planks",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -53652,6 +53802,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -54367,6 +54519,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -55100,6 +55254,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -55833,6 +55989,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -56431,6 +56589,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -57020,6 +57180,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -57654,6 +57816,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -58135,6 +58299,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -58705,6 +58871,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -59402,6 +59570,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -60168,6 +60338,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -60673,6 +60845,8 @@
     "name": "Cottage",
     "buildingType": "house",
     "style": "timbered",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -61163,6 +61337,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "stone_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -62121,6 +62297,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "stone_beige",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -63097,6 +63275,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -63955,6 +64135,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "stone_beige",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -64982,6 +65164,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "plaster",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -65832,6 +66016,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -66889,6 +67075,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -68015,6 +68203,8 @@
     "name": "Longhouse",
     "buildingType": "house",
     "style": "longhouse",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -68964,6 +69154,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -69688,6 +69880,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_brown",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -70436,6 +70630,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_brown",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -71259,6 +71455,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "plaster",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -71848,6 +72046,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_brown",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -72512,6 +72712,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_beige",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -73011,6 +73213,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -73795,6 +73999,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "plaster",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -74384,6 +74590,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_beige",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -75048,6 +75256,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "plaster",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -75529,6 +75739,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_brown",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -76202,6 +76414,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "whitewash",
+    "wall": "brick_brown",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -76860,6 +77074,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -77665,6 +77881,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "plaster",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -78242,6 +78460,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "stone_grey",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -79206,6 +79426,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -79783,6 +80005,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "brick_red",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -80663,6 +80887,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "plaster",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -81558,6 +81784,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "stone_grey",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -82390,6 +82618,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "brick_red",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -83195,6 +83425,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "brick_red",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -84090,6 +84322,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "villagehouse",
+    "wall": "timber",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -85228,6 +85462,8 @@
     "name": "Hovel",
     "buildingType": "house",
     "style": "hovel",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -85555,6 +85791,8 @@
     "name": "Hovel",
     "buildingType": "house",
     "style": "hovel",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -85882,6 +86120,8 @@
     "name": "Hovel",
     "buildingType": "house",
     "style": "hovel",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -86209,6 +86449,8 @@
     "name": "Hovel",
     "buildingType": "house",
     "style": "hovel",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -86536,6 +86778,8 @@
     "name": "Hovel",
     "buildingType": "house",
     "style": "hovel",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -86863,6 +87107,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -87353,6 +87599,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "plaster",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -87942,6 +88190,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_red",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -88432,6 +88682,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -88903,6 +89155,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -89492,6 +89746,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_brown",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -89922,6 +90178,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_grey",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -90472,6 +90730,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -91117,6 +91377,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -91607,6 +91869,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -92097,6 +92361,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -92647,6 +92913,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -93058,6 +93326,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_brown",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -93647,6 +93917,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_grey",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -94236,6 +94508,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "brick_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -94666,6 +94940,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "plaster",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -95137,6 +95413,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "stone_grey",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -95707,6 +95985,8 @@
     "name": "House",
     "buildingType": "house",
     "style": "row",
+    "wall": "plaster",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -96118,6 +96398,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -97013,6 +97295,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -98013,6 +98297,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "stone_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -98938,6 +99224,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "brick_red",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -99743,6 +100031,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -100584,6 +100874,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -101460,6 +101752,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "brick_grey",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -102226,6 +102520,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -102992,6 +103288,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -103661,6 +103959,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "brick_brown",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -104427,6 +104727,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -105322,6 +105624,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -106376,6 +106680,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -107376,6 +107682,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "timber",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -108004,6 +108312,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "brick_brown",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -108845,6 +109155,8 @@
     "name": "Townhouse",
     "buildingType": "house",
     "style": "townhouse",
+    "wall": "stone_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -109473,6 +109785,8 @@
     "name": "Alehouse",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -110395,6 +110709,8 @@
     "name": "Cooper's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "stone_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -111110,6 +111426,8 @@
     "name": "Armourer's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "brick_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -111717,6 +112035,8 @@
     "name": "Baker's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "brick_brown",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -112540,6 +112860,8 @@
     "name": "Moneylender's House",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -113723,6 +114045,8 @@
     "name": "Bookbinder's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -114582,6 +114906,8 @@
     "name": "Cooper's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "stone_beige",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -115423,6 +115749,8 @@
     "name": "Farrier's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -116483,6 +116811,8 @@
     "name": "Armourer's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "stone_beige",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -117126,6 +117456,8 @@
     "name": "Moneylender's House",
     "buildingType": "house",
     "style": "shop",
+    "wall": "brick_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -118072,6 +118404,8 @@
     "name": "Miller's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "brick_brown",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -119000,6 +119334,8 @@
     "name": "Baker's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -120165,6 +120501,8 @@
     "name": "Chandler's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "stone_beige",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -120988,6 +121326,8 @@
     "name": "Tinker's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -122048,6 +122388,8 @@
     "name": "Bookbinder's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "plaster",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -122730,6 +123072,8 @@
     "name": "Armourer's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "plaster",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -123448,6 +123792,8 @@
     "name": "Chandler's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "brick_beige",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -124358,6 +124704,8 @@
     "name": "Weaver's Shop",
     "buildingType": "house",
     "style": "shop",
+    "wall": "timber",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -125541,6 +125889,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "brick_red",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -126697,6 +127047,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "stone_grey",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -127844,6 +128196,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "brick_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -129324,6 +129678,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "stone_gold",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -130885,6 +131241,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "brick_red",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -132680,6 +133038,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "stone_gold",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -134196,6 +134556,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "stone_gold",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -135247,6 +135609,8 @@
     "name": "Grand House",
     "buildingType": "house",
     "style": "grand",
+    "wall": "stone_gold",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -136988,6 +137352,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -137910,6 +138276,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -139102,6 +139470,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -139985,6 +140355,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -140555,6 +140927,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -141312,6 +141686,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -142305,6 +142681,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "stone_ochre",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -142894,6 +143272,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "stone_ochre",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -143582,6 +143962,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "plaster",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -144579,6 +144961,8 @@
     "name": "Farmhouse",
     "buildingType": "house",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -145248,6 +145632,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -146112,6 +146498,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "fieldstone",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -147255,6 +147643,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -148014,6 +148404,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "fieldstone",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -149019,6 +149411,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -150024,6 +150418,8 @@
     "name": "Barn",
     "buildingType": "barn",
     "style": "farmstead",
+    "wall": "planks",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -151002,6 +151398,8 @@
     "name": "Warehouse",
     "buildingType": "warehouse",
     "style": null,
+    "wall": "stone_grey",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -151780,6 +152178,8 @@
     "name": "Warehouse",
     "buildingType": "warehouse",
     "style": null,
+    "wall": "planks",
+    "roof": "shingle_grey",
     "tags": [
       "composed"
     ],
@@ -152786,6 +153186,8 @@
     "name": "Warehouse",
     "buildingType": "warehouse",
     "style": null,
+    "wall": "planks",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -153678,6 +154080,8 @@
     "name": "Warehouse",
     "buildingType": "warehouse",
     "style": null,
+    "wall": "stone_grey",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -154564,6 +154968,8 @@
     "name": "Tavern",
     "buildingType": "tavern",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -155465,6 +155871,8 @@
     "name": "Tavern",
     "buildingType": "tavern",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -156261,6 +156669,8 @@
     "name": "Tavern",
     "buildingType": "tavern",
     "style": null,
+    "wall": "brick_red",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -157057,6 +157467,8 @@
     "name": "Tavern",
     "buildingType": "tavern",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -157958,6 +158370,8 @@
     "name": "Smithy",
     "buildingType": "blacksmith",
     "style": null,
+    "wall": "stone_dark",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -158664,6 +159078,8 @@
     "name": "Smithy",
     "buildingType": "blacksmith",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "shingle_dark",
     "tags": [
       "composed"
     ],
@@ -159271,6 +159687,8 @@
     "name": "Smithy",
     "buildingType": "blacksmith",
     "style": null,
+    "wall": "brick_dark",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -159977,6 +160395,8 @@
     "name": "Bakery",
     "buildingType": "bakery",
     "style": null,
+    "wall": "brick_beige",
+    "roof": "clay",
     "tags": [
       "composed"
     ],
@@ -160527,6 +160947,8 @@
     "name": "Bakery",
     "buildingType": "bakery",
     "style": null,
+    "wall": "brick_red",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -161170,6 +161592,8 @@
     "name": "Stable",
     "buildingType": "stable",
     "style": null,
+    "wall": "planks",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -161834,6 +162258,8 @@
     "name": "Stable",
     "buildingType": "stable",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -162591,6 +163017,8 @@
     "name": "Granary",
     "buildingType": "granary",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "thatch",
     "tags": [
       "composed"
     ],
@@ -163369,6 +163797,8 @@
     "name": "Granary",
     "buildingType": "granary",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "shingle_purple",
     "tags": [
       "composed"
     ],
@@ -164033,6 +164463,8 @@
     "name": "Chapel",
     "buildingType": "chapel",
     "style": null,
+    "wall": "fieldstone",
+    "roof": "slate",
     "tags": [
       "composed"
     ],
@@ -164835,6 +165267,8 @@
     "name": "Chapel",
     "buildingType": "chapel",
     "style": null,
+    "wall": "stone_beige",
+    "roof": "slate",
     "tags": [
       "composed"
     ],

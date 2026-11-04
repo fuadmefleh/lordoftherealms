@@ -1,6 +1,7 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { uiZoom } from '../uiScale.js';
+import { DawnBirth } from '../../player/dawnBirth.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
 const _escHtml = (v) => String(v == null ? '' : v)
@@ -108,7 +109,7 @@ Object.assign(ActionMenu, {
             rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', commissions: 'trade',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', sea_rovers: 'general', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
@@ -437,7 +438,7 @@ Object.assign(ActionMenu, {
 
         // Moderate actions (2 AP)
         pickpocket: 2, gambling: 0, smuggle: 0, // gambling/smuggle cost 2 AP per use inside their menus
-        recruit: 2, cartography: 2, chart_tile: 1, wash_clothes: 3, map_trade: 2, steal_map: 2,
+        recruit: 2, cartography: 2, chart_tile: 1, wash_clothes: 3, bathe: 2, map_trade: 2, steal_map: 2,
         craft_campfire: 2, negotiate_indigenous: 2, preach: 2, denounce_heresy: 2,
 
         // Half-day work (3 AP)
@@ -838,6 +839,9 @@ Object.assign(ActionMenu, {
             case 'wash_clothes':
                 ActionMenu.doWashClothes(game);
                 break;
+            case 'bathe':
+                ActionMenu.doBathe(game);
+                break;
             case 'chart_tile':
                 ActionMenu.doChartTile(game);
                 break;
@@ -961,6 +965,23 @@ Object.assign(ActionMenu, {
             case 'meditate':
                 ActionMenu.doMeditate(game, tile);
                 break;
+            case 'languages':
+                ActionMenu.showLanguages(game);
+                break;
+            case 'commissions':
+                ActionMenu.showCommissions(game);
+                break;
+            case 'dawn_settle': {
+                // The Dawn of Man: the clan makes camp for good (player/dawnBirth.js)
+                const res = DawnBirth.settleHere(game.player, game.world);
+                game.ui.showNotification(res.success ? '🔥 A village is founded' : '🔥 Not here', res.success ? res.text : res.reason, res.success ? 'success' : 'error');
+                if (res.success) {
+                    if (typeof game.world.invalidateSettlements === 'function') game.world.invalidateSettlements();
+                    if (game.minimap && game.minimap.invalidate) game.minimap.invalidate();
+                }
+                game.ui.updateStats(game.player, game.world);
+                break;
+            }
             case 'fish':
                 ActionMenu.doFish(game, tile);
                 break;

@@ -2,6 +2,9 @@
 import { Renderer } from './core.js';
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
 
+// Open water a painted river (no flow direction) runs out into
+const RIVER_WATER_IDS = new Set(['ocean', 'deep_ocean', 'lake', 'sea', 'coast']);
+
 Object.assign(Renderer.prototype, {
     /**
      * Load all terrain assets
@@ -446,53 +449,76 @@ Object.assign(Renderer.prototype, {
     },
 
     /**
+     * The neighbour directions (Hex.neighbors indices) a hex's river runs to.
+     * A generated river hex knows its downstream (riverDir), so it joins only
+     * that and the river hexes flowing into it; painted rivers (no riverDir)
+     * fall back to joining river neighbours whose elevation differs.
+     */
+    riverDirections(tile, q, r, width, height) {
+        const dirs = [];
+        if (!tile.hasRiver) return dirs;
+        const neighbors = Hex.neighbors(q, r);
+        const flows = Number.isInteger(tile.riverDir) && tile.riverDir >= 0;
+        for (let i = 0; i < 6; i++) {
+            const n = neighbors[i];
+            if (n.r < 0 || n.r >= height) continue;
+            const neighbor = this.world.tiles[n.r][Hex.wrapQ(n.q, width)];
+            if (!neighbor) continue;
+            let connected;
+            if (flows || Number.isInteger(neighbor.riverDir)) {
+                connected = (flows && tile.riverDir === i)
+                    || (neighbor.hasRiver && neighbor.riverDir === (i + 3) % 6);
+            } else {
+                const isWater = RIVER_WATER_IDS.has(neighbor.terrain.id);
+                connected = (neighbor.hasRiver && Math.abs(neighbor.elevation - tile.elevation) > 0.0001)
+                    || (isWater && tile.elevation > neighbor.elevation);
+            }
+            if (connected) dirs.push(i);
+        }
+        return dirs;
+    },
+
+    /**
+     * The neighbour directions a hex's road runs to: the links laid when the
+     * road was built (roadLinks), else any road or settlement beside it.
+     */
+    roadDirections(tile, q, r, width, height) {
+        const dirs = [];
+        if (!tile.hasRoad) return dirs;
+        if (Number.isInteger(tile.roadLinks)) {
+            for (let i = 0; i < 6; i++) if (tile.roadLinks & (1 << i)) dirs.push(i);
+            return dirs;
+        }
+        const neighbors = Hex.neighbors(q, r);
+        for (let i = 0; i < 6; i++) {
+            const n = neighbors[i];
+            if (n.r < 0 || n.r >= height) continue;
+            const neighbor = this.world.tiles[n.r][Hex.wrapQ(n.q, width)];
+            if (neighbor && (neighbor.hasRoad || neighbor.settlement)) dirs.push(i);
+        }
+        return dirs;
+    },
+
+    /** Sprite mask key for a set of directions (direction i → bit (i+3)%6) */
+    hexMaskKey(dirs) {
+        let mask = 0;
+        for (const i of dirs) mask |= (1 << ((i + 3) % 6));
+        return mask.toString(2).padStart(6, '0');
+    },
+
+    pickVariant(variants, tile) {
+        if (!variants || variants.length === 0) return null;
+        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
+        return variants[Math.abs(hash)];
+    },
+
+    /**
      * Get the river overlay image for a tile
      */
     getRiverImage(tile, q, r, width, height) {
         if (!tile.hasRiver) return null;
-
-        const neighbors = Hex.neighbors(q, r);
-        let mask = 0;
-
-        for (let i = 0; i < 6; i++) {
-            const n = neighbors[i];
-            const nwq = Hex.wrapQ(n.q, width);
-
-            if (n.r < 0 || n.r >= height) continue;
-
-            const neighbor = this.world.tiles[n.r][nwq];
-            if (!neighbor) continue;
-
-            // Connection logic
-            const isWater = ['ocean', 'deep_ocean', 'lake', 'sea', 'coast'].includes(neighbor.terrain.id) || neighbor.elevation < 0.42;
-
-            let connected = false;
-
-            if ((neighbor.hasRiver) && Math.abs(neighbor.elevation - tile.elevation) > 0.0001) {
-                connected = true;
-            } else if (isWater && tile.elevation > neighbor.elevation) {
-                connected = true;
-            }
-
-            if (connected) {
-                // Map direction index to bit position:
-                // West (3) -> Bit 0
-                // NW (2)   -> Bit 5
-                // NE (1)   -> Bit 4
-                // East (0) -> Bit 3
-                // SE (5)   -> Bit 2
-                // SW (4)   -> Bit 1
-                mask |= (1 << ((i + 3) % 6));
-            }
-        }
-
-        const key = mask.toString(2).padStart(6, '0');
-        const variants = this.riverVariants ? this.riverVariants.get(key) : null;
-
-        if (!variants || variants.length === 0) return null;
-
-        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
-        return variants[Math.abs(hash)];
+        const dirs = this.riverDirections(tile, q, r, width, height);
+        return this.pickVariant(this.riverVariants && this.riverVariants.get(this.hexMaskKey(dirs)), tile);
     },
 
     /**
@@ -500,80 +526,23 @@ Object.assign(Renderer.prototype, {
      */
     getRoadImage(tile, q, r, width, height) {
         if (!tile.hasRoad) return null;
-
-        const neighbors = Hex.neighbors(q, r);
-        let mask = 0;
-
-        for (let i = 0; i < 6; i++) {
-            const n = neighbors[i];
-            const nwq = Hex.wrapQ(n.q, width);
-
-            if (n.r < 0 || n.r >= height) continue;
-
-            const neighbor = this.world.tiles[n.r][nwq];
-            if (!neighbor) continue;
-
-            if (neighbor.hasRoad || neighbor.settlement) {
-                // Same bitmask mapping as rivers:
-                // Direction index -> bit position
-                mask |= (1 << ((i + 3) % 6));
-            }
-        }
-
-        if (mask === 0) return null;
-
-        const key = mask.toString(2).padStart(6, '0');
-        const variants = this.roadVariants ? this.roadVariants.get(key) : null;
-
-        if (!variants || variants.length === 0) return null;
-
-        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
-        return variants[Math.abs(hash)];
+        const dirs = this.roadDirections(tile, q, r, width, height);
+        if (dirs.length === 0) return null;
+        return this.pickVariant(this.roadVariants && this.roadVariants.get(this.hexMaskKey(dirs)), tile);
     },
 
     /**
-     * Get the bridge overlay image for a tile (when road and river overlap)
+     * Get the bridge overlay image for a tile where a road crosses a river.
+     * The bridge sprites are keyed by the ROAD's run (a straight road over
+     * the water) and carry only the road and bridge, so the river is still
+     * drawn beneath. Null when the road there isn't straight (it bends or
+     * forks on the crossing) — the plain road is drawn over the river then.
      */
     getBridgeImage(tile, q, r, width, height) {
         if (!tile.hasRoad || !tile.hasRiver) return null;
-
-        const neighbors = Hex.neighbors(q, r);
-        let riverMask = 0;
-
-        // Determine river direction by checking connected river neighbors
-        for (let i = 0; i < 6; i++) {
-            const n = neighbors[i];
-            const nwq = Hex.wrapQ(n.q, width);
-
-            if (n.r < 0 || n.r >= height) continue;
-
-            const neighbor = this.world.tiles[n.r][nwq];
-            if (!neighbor) continue;
-
-            // Check if neighbor has river connection
-            const isWater = ['ocean', 'deep_ocean', 'lake', 'sea', 'coast'].includes(neighbor.terrain.id) || neighbor.elevation < 0.42;
-            let connected = false;
-
-            if ((neighbor.hasRiver) && Math.abs(neighbor.elevation - tile.elevation) > 0.0001) {
-                connected = true;
-            } else if (isWater && tile.elevation > neighbor.elevation) {
-                connected = true;
-            }
-
-            if (connected) {
-                // Map direction to bitmask
-                riverMask |= (1 << ((i + 3) % 6));
-            }
-        }
-
-        if (riverMask === 0) return null;
-
-        const key = riverMask.toString(2).padStart(6, '0');
-        const variants = this.bridgeVariants ? this.bridgeVariants.get(key) : null;
-
-        if (!variants || variants.length === 0) return null;
-
-        const hash = (tile.q * 73856093 ^ tile.r * 19349663) % variants.length;
-        return variants[Math.abs(hash)];
+        const dirs = this.roadDirections(tile, q, r, width, height);
+        if (dirs.length !== 2) return null;
+        return this.pickVariant(this.bridgeVariants && this.bridgeVariants.get(this.hexMaskKey(dirs)), tile);
     },
 });
+

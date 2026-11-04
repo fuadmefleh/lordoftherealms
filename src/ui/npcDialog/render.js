@@ -11,6 +11,8 @@ import { NpcKnowledge } from '../../systems/npcKnowledge.js';
 import { Relationships } from '../../systems/relationships.js';
 import { Fame } from '../../systems/fame.js';
 import { StreetCrime } from '../../systems/streetCrime.js';
+import { Languages } from '../../systems/languages.js';
+import { Cultures } from '../../world/cultures.js';
 import { _suspectChoices } from './suspect.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
@@ -18,6 +20,38 @@ import { renderChoiceGrid, formatSpokenLine } from '../conversationScene.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
 import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext } from './helpers.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice } from './choices.js';
+
+/**
+ * The tongue the NPC speaks and what the player makes of it (systems/
+ * languages.js): { lang, name, value, level, via, share } — null when there
+ * is no gap (a shared tongue, the wilds, your own kin, a save from before
+ * languages).
+ */
+function _tongueOf(npc) {
+    const g = dialogState._game;
+    const p = g && g.player;
+    if (!p || !p.languages || !g.world || !InnerMap.currentWorldTile) return null;
+    // Your own clan and kin speak your mother tongue
+    if (npc && (npc.isKin || npc.campHub)) return null;
+    const { q, r } = InnerMap.currentWorldTile;
+    const lang = Cultures.languageAt(g.world, q, r);
+    if (!lang) return null;
+    const c = Languages.comprehension(p, lang);
+    if (c.value >= 80) return null;
+    const share = Math.max(0, Math.min(1, (c.value - 10) / 70));
+    return { lang, name: Cultures.languageName(lang), ...c, share, translator: c.via === 'translator' && p.translator ? p.translator.name : null };
+}
+
+/** A line as the player hears it: the words they don't know in the foreign tongue */
+function _heard(line) {
+    const t = dialogState._tongue;
+    if (!t || !line || !line.isNpc || t.via === 'translator') return line ? line.text : '';
+    if (line._heardFor !== line.text) {
+        line._heard = Cultures.hear(line.text, t.lang, t.share);
+        line._heardFor = line.text;
+    }
+    return line._heard;
+}
 
 export function _buildConversation(npc) {
     // First impressions: the player's name here, and a rival House's feud (systems/fame.js)
@@ -69,12 +103,28 @@ export function _buildConversation(npc) {
         if (reunion) greeting = reunion + ' ' + greeting;
         Townsfolk.noteSeen(npc, world.day || 1);
     }
+    // The tongue between you (systems/languages.js): the gap, what's lost in it, and a word learned
+    const tongue = _tongueOf(npc);
+    dialogState._tongue = tongue;
+    const LL = (Cultures.data().lines) || {};
+    let aside = '';
+    if (tongue) {
+        if (tongue.via === 'translator') aside = (LL.viaTranslator || '*{translator} puts it into your tongue.*').replace('{translator}', tongue.translator || 'Your interpreter');
+        else if (tongue.level.id === 'none') aside = (LL.noWords || '*You share no words with {name}. They speak {language}.*').replace('{name}', npc.name || 'them').replace('{language}', tongue.name);
+        else aside = (LL.someWords || '*You catch a word here and there of their {language}.*').replace('{language}', tongue.name);
+    }
+    if (tongue && player) {
+        const learned = Languages.noteTalk(player, world, tongue.lang);
+        if (learned && dialogState._game.ui && dialogState._game.ui.showNotification) dialogState._game.ui.showNotification(`${learned.icon} ${learned.title}`, learned.text, learned.type);
+    }
     dialogState._lines = [{
         speaker: npc.name,
         icon: npc.icon,
         text: greeting,
         isNpc: true,
     }];
+    // (the aside is the narrator's, in plain words, not the NPC's)
+    if (aside) dialogState._lines[0].aside = aside;
     dialogState._lineIndex = 0;
 
     // LLM voice (Spec 2): for major NPCs, when the brain is enabled, request a
@@ -147,15 +197,24 @@ export function _syncTranscript(box) {
         entry.appendChild(textEl);
         log.appendChild(entry);
 
+        // (a language you lack: a narrator's aside, then the words as you hear them)
+        if (line.aside) {
+            const asideEl = document.createElement('div');
+            asideEl.className = 'npc-dialog-line-aside';
+            asideEl.style.cssText = 'opacity:0.75;font-size:0.9em;margin-bottom:2px;';
+            asideEl.innerHTML = _formatLine(line.aside);
+            entry.insertBefore(asideEl, textEl);
+        }
+        const shown = _heard(line);
         const typeIt = line.isNpc && i === lines.length - 1;
         if (typeIt) {
             // Only the line being spoken carries .npc-dialog-text (the LLM voice swaps into it)
             log.querySelectorAll('.npc-dialog-text').forEach(el => el.classList.remove('npc-dialog-text'));
             textEl.classList.add('npc-dialog-text');
             dialogState._typewriteComplete = false;
-            _typewrite(textEl, line.text, 0);
+            _typewrite(textEl, shown, 0);
         } else {
-            textEl.innerHTML = _formatLine(line.text);
+            textEl.innerHTML = _formatLine(shown);
         }
     }
     overlay._shown = lines.length;
@@ -462,6 +521,18 @@ export function _renderChoices(box) {
         const warn = will === 'refuses' ? ' ⚠ They dislike you — they\'ll tell you nothing.' : ' ⚠ They\'re wary of you — they may send you off.';
         const asks = new Set(['ask_rumor', 'ask_location', 'ask_kingdom', 'ask_folk_news', 'ask_family', 'ask_about_npc', 'ask_quest']);
         for (const c of choices) if (asks.has(c.action)) c.tooltip = (c.tooltip || '') + warn;
+    }
+
+    // Without the words, only what can be done by gesture (systems/languages.js)
+    const tongue = dialogState._tongue;
+    const allowed = tongue && tongue.via !== 'translator' ? Languages.dialogChoices(tongue.level.id) : null;
+    if (allowed) {
+        const keep = choices.filter(c => !c.action || allowed.includes(c.action));
+        const hint = tongue.level.id === 'none'
+            ? `You share no tongue with them (${tongue.name}): you can only point and gesture. Learn it, or hire an interpreter in town.`
+            : `Your ${tongue.name} is broken: simple questions only.`;
+        _renderChoiceList(choicesEl, keep, { hint });
+        return;
     }
 
     _renderChoiceList(choicesEl, choices);

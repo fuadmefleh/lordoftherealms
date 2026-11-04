@@ -102,6 +102,43 @@ describe('Hinterland — sites from the terrain', () => {
         homeTile.settlement = saved;
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
     });
+
+    it('a town founded in play builds its sites one after another; they yield nothing until open', () => {
+        const { world } = game();
+        // Strip a town of its sites and mark it new, as if just founded
+        const st = Hinterland.state(world);
+        const town = world.getSettlementViews().find(s => Hinterland.sitesOf(world, s.q, s.r).length >= 2);
+        const key = `${town.q},${town.r}`;
+        st.sites = st.sites.filter(s => s.h !== key);
+        delete st.towns[key];
+        Hinterland.touch(st);
+        const day = 500;
+        st.syncAt = day - 1000;
+        Hinterland.sync(world, day);
+        const fresh = Hinterland.sitesOf(world, town.q, town.r);
+        expect(fresh.length).toBeGreaterThanOrEqual(2);
+        for (const s of fresh) {
+            expect(s.st).toBe('building');
+            expect(Hinterland.yieldOf(s)).toBe(0);
+            expect(Hinterland.output(world, s, town, 4, day).goods).toEqual({});
+        }
+        // One after another: each opens later than the one before, each takes its kind's time
+        const ready = fresh.map(s => s.ready);
+        for (let i = 1; i < ready.length; i++) expect(ready[i]).toBeGreaterThan(ready[i - 1]);
+        expect(ready[0] - day).toBe(Hinterland.buildDays(world, fresh[0].kind, town));
+        // A mine is longer work than a sheep fold; a young world builds slower still
+        expect(Hinterland.buildDays(world, 'iron_mine', town)).toBeGreaterThan(Hinterland.buildDays(world, 'sheep_run', town));
+        const mature = Hinterland.buildDays(world, 'iron_mine', town);
+        world.dawn = { over: false };
+        expect(Hinterland.buildDays(world, 'iron_mine', town)).toBeGreaterThan(mature * 2);
+        world.dawn = null;
+        // The first opens on its day, the last not before
+        Hinterland.sync(world, ready[0]);
+        expect(fresh[0].st).toBe('open');
+        expect(fresh[fresh.length - 1].st).toBe('building');
+        Hinterland.sync(world, ready[ready.length - 1]);
+        expect(fresh.every(s => s.st === 'open')).toBe(true);
+    });
 });
 
 describe('Hinterland — goods to market', () => {
@@ -208,6 +245,14 @@ describe('Hinterland — deposits run down and are found', () => {
         expect(Hinterland.sites(world).length).toBe(n + 1);
         expect(Hinterland.kind(hit.site.kind).deposit).toBe(true);
         expect(hit.site.found).toBe(60);
+        // The player's own search has done the work: open at once
+        expect(hit.site.st).toBe('open');
+        // A town's own strike is sunk and shored first
+        const own = Hinterland.strike(world, hilly, 'test:town', 70, { newOnly: true });
+        if (own) {
+            expect(own.site.st).toBe('building');
+            expect(own.site.ready).toBeGreaterThan(70);
+        }
     });
 
     it('the player can fund a search: a strike gives them the finder\'s right to lease it', () => {

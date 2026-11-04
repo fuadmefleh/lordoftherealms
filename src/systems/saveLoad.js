@@ -3,6 +3,7 @@
 // ============================================
 
 import { Characters } from '../world/characters.js';
+import { Dawn } from '../world/dawn.js';
 import { House } from './house.js';
 import { Titles } from './titles.js';
 import { Espionage } from './espionage.js';
@@ -177,6 +178,9 @@ export const SaveLoad = {
             // keepers, stars, prices and guests (systems/hospitality.js; the player's own
             // houses travel with their properties: property.hosp)
             hospitality: Hospitality.serialize(world),
+            // A world begun at the Dawn of Man: its progress and the paths its
+            // villages have trodden since (world/dawn.js; null for other worlds)
+            dawn: Dawn.serialize(world),
             // Settlement markets travel with their tiles (settlement.market);
             // the old regional table is kept empty for older readers
             markets: {},
@@ -418,6 +422,18 @@ export const SaveLoad = {
             jailState: player.jailState || null,
             criminalRecord: player.criminalRecord || { pickpocket: 0, smuggling: 0 },
             containerLoot: player.containerLoot || {},
+            // The Dawn of Man: the clan you were born to, your kin, your home village (player/dawnBirth.js)
+            dawnClan: player.dawnClan || null,
+            dawnKin: player.dawnKin || null,
+            dawnHome: player.dawnHome || null,
+            dawnCampVisited: !!player.dawnCampVisited,
+            // The tongues you speak, your interpreter (systems/languages.js)
+            languages: player.languages || null,
+            nativeLanguage: player.nativeLanguage || null,
+            translator: player.translator || null,
+            langTalk: player.langTalk || null,
+            // Work left with a town's tradesmen (systems/commissions.js)
+            commissions: player.commissions || [],
             sanctuary: player.sanctuary || null,
             fallenUnits: player.fallenUnits || [],
             mount: player.mount || null,
@@ -696,6 +712,7 @@ export const SaveLoad = {
         // The courier houses (older saves: none — the first are founded on the next days)
         Couriers.restore(saveData.post, world);
         Hospitality.restore(saveData.hospitality, world);
+        Dawn.restore(saveData.dawn, world);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)

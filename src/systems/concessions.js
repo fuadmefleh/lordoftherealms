@@ -205,6 +205,7 @@ export const Concessions = {
         const auction = Concessions.auctions(world).find(a => a.site === site.id) || null;
         const out = { ok: false, reason: '', site, kind: k, est, auction };
         if (!k || !k.leasable) return { ...out, reason: `The crown does not lease ${k ? k.name.toLowerCase() + 's' : 'it'}.` };
+        if (site.st === 'building') return { ...out, reason: `The workings are still being dug — they open on day ${site.ready}.` };
         if (site.st !== 'open') return { ...out, reason: 'The workings are exhausted.' };
         const held = Concessions.onSite(world, site);
         if (held) return { ...out, reason: held.holder === 'player' ? 'You hold this lease.' : `${held.holderName} holds the lease until day ${held.end}.` };
@@ -694,15 +695,16 @@ export const Concessions = {
                 c.royalties = Math.round(_num(c.royalties) + paid);
                 if (realm) realm.treasury = _num(realm.treasury) + paid;
                 out.royalties += paid;
-                c.net = Math.round(_num(c.net) + net);
+                // (net from the rounded parts, so the books always add up)
+                c.net = c.revenue - c.wages - c.royalties;
                 L.revenue = Math.round(_num(L.revenue) + revenue);
                 L.wages = Math.round(_num(L.wages) + wages);
                 L.royalties = Math.round(_num(L.royalties) + paid);
-                L.net = Math.round(_num(L.net) + net);
+                L.net = L.revenue - L.wages - L.royalties;
             }
         } else {
             c.royalties = Math.round(_num(c.royalties) + royalty);
-            c.net = Math.round(_num(c.net) + net);
+            c.net = c.revenue - c.wages - c.royalties;
             if (realm) realm.treasury = _num(realm.treasury) + royalty;
             // A rival house's profit is its capital (systems/merchantHouses.js)
             const rival = player ? MerchantHouses.getRival(player, c.holder) : null;

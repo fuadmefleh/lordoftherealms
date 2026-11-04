@@ -31,6 +31,7 @@ import { CustomBuildings } from './customBuildings.js';
 import { CustomObjects } from './customObjects.js';
 import { TownProps, FIELD_W, FIELD_H } from './townProps.js';
 import { LotBook } from './lotBook.js';
+import { Cultures } from './cultures.js';
 
 /** How each size of settlement is laid out. */
 export const PLAN = {
@@ -102,7 +103,9 @@ function _wave(rng, amp, len) {
     return x => a1 * Math.sin(x / l1 + p1) + a2 * Math.sin(x / l2 + p2);
 }
 
-export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
+export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts = {}) {
+    // The culture's materials and house styles (world/cultures.js), when the world builds by culture
+    const palette = (planOpts && planOpts.palette) || null;
     const type = PLAN[settlement.type] ? settlement.type : 'village';
     const P = PLAN[type];
     const cx = Math.floor(W / 2) + Math.round((rng() - 0.5) * 4);
@@ -403,14 +406,22 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null) {
     // 4b. Houses fill the frontages
     const styleFor = (x, y) => {
         const d = reach(x, y);
-        for (const [lim, mix] of STYLE_MIX[type]) if (d <= lim) return _pickWeighted(rng, mix);
+        for (const [lim, mix] of STYLE_MIX[type]) {
+            if (d > lim) continue;
+            if (!palette || !palette.styles) return _pickWeighted(rng, mix);
+            const biased = {};
+            for (const [k, w] of Object.entries(mix)) biased[k] = w * (palette.styles[k] == null ? 1 : palette.styles[k]);
+            return _pickWeighted(rng, biased);
+        }
         return 'cottage';
     };
     // The style wanted first, then anything low enough to fit under the lane behind
     const lowHouses = houses.filter(d => d.bounds.maxRow - d.bounds.minRow <= 7 && d.style !== 'farmstead');
     const houseFor = (style) => {
         const list = byStyle[style] && byStyle[style].length ? byStyle[style] : (byStyle.row || houses);
-        return [..._shuffle([...list], rng).slice(0, 8), ..._shuffle([...lowHouses], rng).slice(0, 6)];
+        // (the culture's own materials first: a stable sort keeps the shuffle's order among equals)
+        const byFit = (arr) => (palette ? arr.map((d, i) => [d, i]).sort((a, b) => Cultures.fit(palette, b[0]) - Cultures.fit(palette, a[0]) || a[1] - b[1]).map(x => x[0]) : arr);
+        return [...byFit(_shuffle([...list], rng)).slice(0, 8), ...byFit(_shuffle([...lowHouses], rng)).slice(0, 6)];
     };
     for (const line of [plazaLine, ..._shuffle([...frontLines], rng)]) {
         let x = line.x0;

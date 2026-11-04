@@ -110,6 +110,23 @@ export class WorldUnit {
         return !!unit && (WorldUnit.HOSTILE_TYPES.includes(unit.type) || unit.hostile === true);
     }
 
+    /**
+     * Is (q, r) a haven no hostile band will fall on someone in? A town,
+     * city or capital always is (walls, a watch, too many eyes); a village
+     * only while a living crown holds it — an independent village, or one
+     * whose realm has fallen, is as open as the road.
+     */
+    static isSafeHaven(world, q, r) {
+        const tile = world && world.getTile ? world.getTile(q, r) : null;
+        const s = tile && tile.settlement;
+        if (!s) return false;
+        if (s.type !== 'village') return true;
+        const kid = s.kingdom || null;
+        if (!kid) return false;
+        const kingdom = world.getKingdom ? world.getKingdom(kid) : null;
+        return !!(kingdom && kingdom.isAlive !== false);
+    }
+
     /** Land units that travel between settlements, like caravans. */
     static TRAVELER_TYPES = ['mercenary_band', 'pilgrim_group', 'smuggler', 'refugee', 'diplomatic_envoy'];
 
@@ -164,6 +181,10 @@ export class WorldUnit {
                 break;
             case 'fishing_boat':
                 this.updateFishingBoat(world);
+                break;
+            case 'clan':
+                // A wandering clan of the Dawn of Man: world/dawn.js moves
+                // it and settles it (Dawn.processDay)
                 break;
             case 'lord_party':
                 this.updateLordParty(world);
@@ -333,7 +354,9 @@ export class WorldUnit {
         // A lair's riders keep a bargain struck with the player (systems/outlawLairs.js)
         // and one the player paid off, talked down or drove away leaves them be a while (player/roadEncounters.js)
         const sparing = this.sparedUntilDay != null && (world.day || 0) < this.sparedUntilDay;
-        if (player && !player.indenturedServitude && !inSanctuary && !this.sparesPlayer && !sparing) {
+        // Nor one inside a town, or a village under a crown's protection
+        const inHaven = !!player && WorldUnit.isSafeHaven(world, player.q, player.r);
+        if (player && !player.indenturedServitude && !inSanctuary && !inHaven && !this.sparesPlayer && !sparing) {
             const playerDist = Hex.wrappingDistance(this.q, this.r, player.q, player.r, world.width);
             // A lair's raiding party bound for a town only waylays travellers on its path (pursuitRange)
             const detectionRange = Number.isFinite(this.pursuitRange) ? this.pursuitRange : (isShip ? 6 : 5);

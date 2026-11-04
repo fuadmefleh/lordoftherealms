@@ -1,0 +1,151 @@
+/**
+ * The shore and harbours on the inner map (world/innerMap/harbour.js) with the
+ * LPC ships (world/shipHulls.js): water along the side facing the sea, a pier
+ * and the town's ships in a settlement, the player's docked ships at the pier,
+ * open sea and a walkable deck aboard; ships only of the kinds the town's
+ * shipwrights know.
+ */
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import fs from 'fs';
+
+let InnerMap, DataLoader, Utils, ShipHulls, CustomObjects;
+
+beforeAll(async () => {
+    globalThis.HTMLImageElement = globalThis.HTMLImageElement || class {};
+    globalThis.Image = class extends globalThis.HTMLImageElement {
+        set src(v) { this._src = v; setTimeout(() => this.onload && this.onload(), 0); }
+        get src() { return this._src; }
+    };
+    const { loadData } = await import('./playtest/harness.js');
+    await loadData();
+    ({ InnerMap } = await import('../world/innerMap.js'));
+    ({ DataLoader } = await import('../core/dataLoader.js'));
+    ({ Utils } = await import('../core/utils.js'));
+    ({ ShipHulls } = await import('../world/shipHulls.js'));
+    const { CustomBuildings } = await import('../world/customBuildings.js');
+    ({ CustomObjects } = await import('../world/customObjects.js'));
+    CustomBuildings.reset(); await CustomBuildings.loadAll();
+    CustomObjects.reset(); await CustomObjects.loadAll();
+}, 120000);
+
+beforeEach(() => {
+    InnerMap.initialize(DataLoader._gamedata.innerMap || JSON.parse(fs.readFileSync('data/innerMap.json', 'utf8')));
+    InnerMap._cache = {};
+    Utils.setSeed(7);
+});
+
+/** A hex at (5, 6) with the sea to the east (its E, NE and SE neighbours) */
+function coastGame({ settlement = null, dawn = false, ships = [], boarded = null, here = 'grassland' } = {}) {
+    const tiles = new Map();
+    const land = { id: 'grassland', passable: true };
+    const sea = { id: 'ocean', passable: false };
+    const at = (q, r) => {
+        const k = `${q},${r}`;
+        if (!tiles.has(k)) tiles.set(k, { q, r, terrain: q >= 6 ? sea : land, elevation: 0.5, temperature: 0.5, moisture: 0.5 });
+        return tiles.get(k);
+    };
+    const center = at(5, 6);
+    center.terrain = here === 'ocean' ? sea : land;
+    center.settlement = settlement;
+    if (settlement) { settlement.q = 5; settlement.r = 6; }
+    const world = {
+        day: 1, season: 'Summer', baseYear: 853, generationParams: { seed: 31, terrainGen: 3 }, activeEvents: [], kingdoms: [],
+        dawn: dawn ? { over: false } : null,
+        getTile: (q, r) => at(q, r),
+        getSettlementViews: () => (settlement ? [settlement] : []),
+        getKingdom: () => null,
+    };
+    const player = { ships, boardedShip: boarded };
+    return { world, player };
+}
+
+const objects = (pred) => {
+    const out = [];
+    InnerMap.tiles.forEach((row, r) => row.forEach((t, q) => { if (t.customObject && pred(t.customObject)) out.push({ q, r, o: t.customObject }); }));
+    return out;
+};
+
+describe('the LPC ships', () => {
+    it('four hulls, each a full ship, registered as objects', () => {
+        expect(ShipHulls.ids()).toEqual(['hull_skiff', 'hull_sloop', 'hull_brig', 'hull_galleon']);
+        for (const id of ShipHulls.ids()) {
+            const def = CustomObjects.getDef(id);
+            expect(def, id).toBeTruthy();
+            expect(def.tiles.length).toBeGreaterThan(100);
+            expect(ShipHulls.footprint(def).length).toBeGreaterThan(10);
+            // every tile is a 32px piece (the 64px cannon ports are cut up)
+            for (const t of def.tiles) { expect(t.sw).toBe(32); expect(t.sh).toBe(32); }
+            expect(def.sortRow).toBeLessThan(0);
+        }
+        expect(ShipHulls.hullFor('galleon')).toBe('hull_galleon');
+    });
+});
+
+describe('the shore and the harbour', () => {
+    it('a town on the sea: water on the east side, a pier into it, the town\'s ships moored', () => {
+        const g = coastGame({ settlement: { name: 'Portby', type: 'town', population: 2000, kingdom: null } });
+        InnerMap.enter(g, 5, 6);
+        const W = InnerMap.width;
+        // (the sea lies east, north-east and south-east: the western third stays dry)
+        let east = 0, west = 0;
+        InnerMap.tiles.forEach(row => row.forEach((t, q) => { if (t._sea) { if (q > W / 2) east++; else if (q < W * 0.3) west++; } }));
+        expect(east).toBeGreaterThan(500);
+        // the sea is drawn as water, not left under the grass layer
+        expect(InnerMap.tiles.flat().filter(t => t._sea && t.subTerrain.id === 'sea_water').every(t => !t.terrainDetail || t.terrainDetail.layer === 'water')).toBe(true);
+        expect(west).toBe(0);
+        const pier = [];
+        InnerMap.tiles.forEach((row, r) => row.forEach((t, q) => { if (t._pier) pier.push({ q, r, t }); }));
+        expect(pier.length).toBeGreaterThan(20);
+        expect(pier.every(p => p.t.subTerrain.passable && p.t.paving)).toBe(true);
+        const ships = objects(o => o.harbour);
+        expect(ships.length).toBe(2);
+        // every hull cell of every ship lies on water
+        for (const s of ships) {
+            const def = CustomObjects.getDef(s.o.defId);
+            for (const m of ShipHulls.footprint(def)) expect(InnerMap.tiles[s.r + m.localRow][s.q + m.localCol]._sea).toBe(true);
+        }
+    });
+
+    it('a coast with no town: water, but no pier or ships', () => {
+        const g = coastGame();
+        InnerMap.enter(g, 5, 6);
+        expect(InnerMap.tiles.some(row => row.some(t => t._sea))).toBe(true);
+        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(false);
+        expect(objects(o => o.harbour).length).toBe(0);
+    });
+
+    it('at the dawn the shipwrights know nothing: a pier but no ships', () => {
+        const g = coastGame({ settlement: { name: 'Fishby', type: 'town', population: 900, kingdom: null }, dawn: true });
+        InnerMap.enter(g, 5, 6);
+        expect(InnerMap.tiles.some(row => row.some(t => t._pier))).toBe(true);
+        expect(objects(o => o.harbour).length).toBe(0);
+    });
+
+    it('your ships docked here lie at the pier — once, however often you come', () => {
+        const ships = [{ id: 'ship_1', typeId: 'galleon', name: 'Sea Wolf', q: 5, r: 6, status: 'docked' }];
+        const g = coastGame({ settlement: { name: 'Portby', type: 'town', population: 2000, kingdom: null }, ships });
+        InnerMap.enter(g, 5, 6);
+        InnerMap.enter(g, 5, 6);
+        const mine = objects(o => o.playerShip === 'ship_1');
+        expect(mine.length).toBe(1);
+        expect(mine[0].o.defId).toBe('hull_galleon');
+        expect(mine[0].o.label).toBe('Sea Wolf');
+        // sailed away: gone from the pier
+        ships[0].q = 9;
+        InnerMap.enter(g, 5, 6);
+        expect(objects(o => o.playerShip === 'ship_1').length).toBe(0);
+    });
+
+    it('at sea aboard your ship: open water, your ship in the middle, you on its deck', () => {
+        const ships = [{ id: 'ship_1', typeId: 'sloop', name: 'Gull', q: 5, r: 6, status: 'sailing' }];
+        const g = coastGame({ ships, boarded: 'ship_1', here: 'ocean' });
+        InnerMap.enter(g, 5, 6);
+        const mine = objects(o => o.aboard);
+        expect(mine.length).toBe(1);
+        expect(mine[0].o.defId).toBe('hull_sloop');
+        const me = InnerMap.tiles[InnerMap.playerInnerR][InnerMap.playerInnerQ];
+        expect(me._deck).toBe(true);
+        expect(me.subTerrain.passable).toBe(true);
+        expect(InnerMap.tiles[2][2]._sea).toBe(true);
+    });
+});

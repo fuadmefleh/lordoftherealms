@@ -33,6 +33,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Terrain } from './terrain.js';
 import { CrownBooks } from './crownBooks.js';
+import { Shipcraft } from './shipcraft.js';
 
 /** Tuning; overridden from data/military.json → kingdomNavy. */
 const CONFIG = {
@@ -149,8 +150,13 @@ export const KingdomNavy = {
     /** Fleet the realm's harbours can keep afloat (ignoring the treasury). */
     portCap(kingdom, ports) {
         if (!ports.length) return 0;
+        // A realm's fleet is what its shipwrights can build (world/shipcraft.js):
+        // none before Shipbuilding, a half fleet of traders' hulls before Naval Warfare
+        const craft = Shipcraft.realmKnows(kingdom);
+        if (!craft.includes('shipbuilding')) return 0;
+        const warcraft = craft.includes('naval_warfare') ? 1 : 0.5;
         const cap = kingdom.capital && ports.some(p => p.q === kingdom.capital.q && p.r === kingdom.capital.r);
-        return Math.floor((ports.length * CONFIG.perPort + (cap ? CONFIG.capitalPort : 0)) * KingdomNavy.traitMultiplier(kingdom));
+        return Math.floor((ports.length * CONFIG.perPort + (cap ? CONFIG.capitalPort : 0)) * KingdomNavy.traitMultiplier(kingdom) * warcraft);
     },
 
     /**

@@ -23,8 +23,13 @@ npm run build:data   # node scripts/build-gamedata.js → data/gamedata.json
 npm run electron     # run the built app in Electron
 ```
 
-Before finishing any change to `src/`, run **`npm run lint && npm test`** — both
-must pass. Lint failure on domain globals (below) blocks the change by design.
+Before finishing any change to `src/`, run **lint** and **only the test files that
+cover what you changed** (`npx vitest run src/__tests__/<relevant>.test.js …`) —
+both must pass. Lint failure on domain globals (below) blocks the change by design.
+
+**Do not run the full suite** (`npm test` / `npx vitest run` with no files, ~10
+minutes) unless the user asks for it — not routinely, not in the background, not
+"one last time to be safe". Before a commit, ask first.
 
 ## Architecture
 

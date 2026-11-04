@@ -1,5 +1,14 @@
 {
     "unitTypes": {
+        "clan": {
+            "icon": "🔥",
+            "name": "Wandering Clan",
+            "speed": 2,
+            "population": { "min": 25, "max": 70 },
+            "strength": { "min": 3, "max": 8 },
+            "inventoryTheme": null,
+            "domain": "land"
+        },
         "caravan": {
             "icon": "🐫",
             "name": "Trade Caravan",

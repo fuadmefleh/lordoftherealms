@@ -44,6 +44,7 @@ const DEFAULTS = {
     prospect: { every: 60, chance: 0.1, wane: 0.4, veinMin: 0.3, veinMax: 0.7, extraSites: 2, terrain: {}, strikeMigrants: 12, exhaustMigrants: 1.5, cost: 160, days: 8, playerChance: 0.6, finderDays: 20 },
     concessions: {},
     markers: { minZoom: 0.5, low: 0.5, critical: 0.2 },
+    build: { days: { default: 150 }, size: { village: 1.3, town: 1, city: 0.85, capital: 0.75 }, crown: 0.85, dawn: 2.2, strike: 0.6, min: 20 },
     counsel: { yieldBelow: 0.7, reserveBelow: 0.3, auctionRadius: 10 },
 };
 
@@ -78,6 +79,7 @@ function _build(src) {
         maxSites: { ...DEFAULTS.maxSites, ...(d.maxSites || {}) },
         yield: { ...DEFAULTS.yield, ...(d.yield || {}) },
         prospect: { ...DEFAULTS.prospect, ...(d.prospect || {}) },
+        build: { ...DEFAULTS.build, ...(d.build || {}), days: { ...DEFAULTS.build.days, ...((d.build && d.build.days) || {}) }, size: { ...DEFAULTS.build.size, ...((d.build && d.build.size) || {}) } },
         concessions: { ...DEFAULTS.concessions, ...(d.concessions || {}) },
         markers: { ...DEFAULTS.markers, ...(d.markers || {}) },
         counsel: { ...DEFAULTS.counsel, ...(d.counsel || {}) },
@@ -269,12 +271,38 @@ export const Hinterland = {
     },
 
     /**
+     * Days it takes a town to open a site of this kind: the kind's own
+     * labour (a mine shaft is longer work than a sheep fold), slower for a
+     * village's few hands and faster for a city's many, faster with a crown's
+     * masons and engineers behind it, and much slower in a young world still
+     * at its dawn (world/dawn.js) — realms keep no technology of their own,
+     * so the age of the world stands for what its builders know.
+     */
+    buildDays(world, kindId, home) {
+        const B = Hinterland.config().build;
+        let days = _num(B.days[kindId], _num(B.days.default, 150));
+        days *= _num(B.size[home && home.type], 1);
+        const t = home && world && typeof world.getTile === 'function' ? world.getTile(home.q, home.r) : null;
+        const s = t && t.settlement;
+        if (s && s.kingdom) days *= _num(B.crown, 0.85);
+        if (world && world.dawn && !world.dawn.over) days *= _num(B.dawn, 2.2);
+        return Math.max(_num(B.min, 20), Math.round(days));
+    },
+
+    /** Put a new site to building: it opens on `ready` (sync does it) */
+    _toBuild(site, day, days) {
+        site.st = 'building';
+        site.ready = day + Math.max(1, Math.round(days));
+        return site;
+    },
+
+    /**
      * The towns' sites from the map: each settlement takes its best hexes by
      * the kind's priority (then nearness, then a hash), up to maxSites for its
      * size and maxPerKind of a kind. `only` limits it to those town keys (new
      * towns). Deterministic; draws no RNG.
      */
-    derive(world, only = null) {
+    derive(world, only = null, day = null) {
         const st = Hinterland.state(world);
         if (!world || typeof world.getTile !== 'function') return st;
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
@@ -303,12 +331,21 @@ export const Hinterland = {
             const max = _num(C.maxSites[s.type], 2);
             const per = {};
             let n = 0;
+            // A town founded in play (day given) builds its sites one after
+            // another; at world generation (and for old saves) they stand ready
+            let queue = day;
             for (const c of arr) {
                 if (n >= max) break;
                 if (_num(per[c.kind]) >= _num(C.maxPerKind, 2)) continue;
                 per[c.kind] = _num(per[c.kind]) + 1;
                 const market = Hinterland._marketFor(world, views, s, c.q, c.r);
-                st.sites.push(Hinterland._site(world, c.kind, c.q, c.r, s, market));
+                const site = Hinterland._site(world, c.kind, c.q, c.r, s, market, day);
+                if (day != null) {
+                    const days = Hinterland.buildDays(world, c.kind, s);
+                    Hinterland._toBuild(site, queue, days);
+                    queue = site.ready;
+                }
+                st.sites.push(site);
                 n++;
             }
         }
@@ -325,13 +362,23 @@ export const Hinterland = {
     sync(world, day) {
         const st = Hinterland.state(world);
         if (!st.derived) { Hinterland.derive(world); st.syncAt = day; return st; }
+        // Sites whose building is done open for work
+        let opened = false;
+        for (const site of st.sites) {
+            if (site.st === 'building' && Number.isFinite(site.ready) && site.ready <= day) {
+                site.st = 'open';
+                site.opened = day;
+                opened = true;
+            }
+        }
+        if (opened) Hinterland.touch(st);
         const every = Math.max(1, _num(Hinterland.config().resyncDays, 60));
         if (Number.isFinite(st.syncAt) && day - st.syncAt < every && day >= st.syncAt) return st;
         st.syncAt = day;
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : world.getAllSettlements();
         const fresh = new Set();
         for (const s of views) if (!st.towns[_key(s.q, s.r)]) fresh.add(_key(s.q, s.r));
-        if (fresh.size) Hinterland.derive(world, fresh);
+        if (fresh.size) Hinterland.derive(world, fresh, day);
         let moved = false;
         const own = Hinterland._owners(world, views);
         for (const site of st.sites) {
@@ -391,7 +438,7 @@ export const Hinterland = {
 
     /** A deposit's yield (1 while at least `knee` of its reserve is left, then down to `min`); 0 when worked out. */
     yieldOf(site) {
-        if (!site || site.st === 'exhausted') return 0;
+        if (!site || site.st === 'exhausted' || site.st === 'building') return 0;
         if (!(site.res0 > 0)) return 1;
         const Y = Hinterland.config().yield;
         const f = Hinterland.reserveFrac(site);
@@ -541,6 +588,11 @@ export const Hinterland = {
         const market = Hinterland._marketFor(world, views, town, hx.q, hx.r);
         const site = Hinterland._site(world, kindId, hx.q, hx.r, town, market, day);
         if (opts.by) site.by = opts.by;
+        // A town's strike is sunk and shored before it yields (the player's
+        // own prospecting has already paid for that work)
+        if (opts.by !== 'player') {
+            Hinterland._toBuild(site, day, Hinterland.buildDays(world, kindId, town) * _num(C.build.strike, 0.6));
+        }
         st.sites.push(site);
         Hinterland.touch(st);
         return { kind: 'strike', site };

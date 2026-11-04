@@ -1,7 +1,9 @@
 {
+    "_shipcraft": "What shipwrights must know to build (ship type `requires`: technology ids, data/technology.json). A shipyard builds what its realm's shipwrights know, plus anything the player has researched (they can teach them). Realms of an ordinary start know the era's whole craft; a realm born at the Dawn of Man (world/dawn.js) starts knowing nothing and learns `order` one technique at a time: the first `firstAfterYears` after its founding, then one every `learnEveryYears` (world/shipcraft.js). Independent towns of a dawn world know only what the player brings.",
+    "shipcraft": { "order": ["shipbuilding", "deep_sea_fishing", "navigation", "lighthouse", "naval_warfare"], "firstAfterYears": 4, "learnEveryYears": 6 },
     "shipTypes": [
         {
-            "id": "rowboat",
+            "id": "rowboat", "requires": [],
             "name": "Rowboat",
             "icon": "🚣",
             "description": "A simple wooden rowboat. Slow and vulnerable, but affordable for beginners.",
@@ -17,7 +19,7 @@
             "availableIn": ["village", "town", "city", "capital"]
         },
         {
-            "id": "fishing_vessel",
+            "id": "fishing_vessel", "requires": ["shipbuilding"],
             "name": "Fishing Vessel",
             "icon": "🛶",
             "description": "A sturdy coastal fishing boat. Can handle shallow waters and bring in a catch.",
@@ -33,7 +35,7 @@
             "availableIn": ["village", "town", "city", "capital"]
         },
         {
-            "id": "sloop",
+            "id": "sloop", "requires": ["shipbuilding"],
             "name": "Sloop",
             "icon": "⛵",
             "description": "A fast single-masted vessel. Excellent for coastal trading and light combat.",
@@ -49,7 +51,7 @@
             "availableIn": ["town", "city", "capital"]
         },
         {
-            "id": "cog",
+            "id": "cog", "requires": ["shipbuilding"],
             "name": "Trading Cog",
             "icon": "🚢",
             "description": "A broad-beamed merchant ship built for carrying large cargoes across open seas.",
@@ -65,7 +67,7 @@
             "availableIn": ["town", "city", "capital"]
         },
         {
-            "id": "caravel",
+            "id": "caravel", "requires": ["shipbuilding", "navigation"],
             "name": "Caravel",
             "icon": "🚢",
             "description": "A nimble exploration vessel with lateen sails. Perfect for discovering new lands.",
@@ -81,7 +83,7 @@
             "availableIn": ["capital"]
         },
         {
-            "id": "war_galley",
+            "id": "war_galley", "requires": ["shipbuilding", "naval_warfare"],
             "name": "War Galley",
             "icon": "⚔️",
             "description": "An oar-driven warship built for ram-and-board tactics. Dominates coastal waters.",
@@ -97,7 +99,7 @@
             "availableIn": ["capital"]
         },
         {
-            "id": "galleon",
+            "id": "galleon", "requires": ["shipbuilding", "navigation", "naval_warfare"],
             "name": "Galleon",
             "icon": "🏴‍☠️",
             "description": "A massive multi-decked vessel. The queen of the seas — formidable in both trade and war.",

@@ -16,6 +16,7 @@ const UNIT_GLYPHS = {
     fishing_boat: 'boat', lord_party: 'crown', mercenary_band: 'swords', war_host: 'swords',
     lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
     beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown',
+    clan: 'fire', // a wandering clan's campfire of the Dawn of Man (world/dawn.js)
 };
 
 /** Token metal by allegiance: rim/glyph colour and the enamel behind it. */
@@ -36,7 +37,7 @@ function unitMetal(unit) {
         case 'lord_party': return TOKEN_METALS.royal;
         case 'rival_retinue': return TOKEN_METALS.rival;
         case 'patrol': case 'road_patrol': case 'war_fleet': return TOKEN_METALS.watch;
-        case 'settler': return TOKEN_METALS.settler;
+        case 'settler': case 'clan': return TOKEN_METALS.settler;
         default: return TOKEN_METALS.common;
     }
 }

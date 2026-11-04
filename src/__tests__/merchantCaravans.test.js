@@ -289,7 +289,7 @@ describe('the player and the caravan', () => {
         const u = MerchantCaravans.traders(g.world)[0];
         const player = { q: 3, r: 5, gold: 0, renown: 0, reputation: {} };
         MerchantCaravans.hireEscort(player, g.world, u.id);
-        const band = { type: 'raider', name: 'Red Hand', q: 6, r: 4, strength: 1e7, inventory: {}, destroyed: false };
+        const band = { type: 'raider', name: 'Red Hand', q: 5, r: 4, strength: 1e7, inventory: {}, destroyed: false };
         g.world.units.push(band);
         const notices = [];
         for (let i = 0; i < 6 && !u.destroyed; i++) {
@@ -416,7 +416,8 @@ describe('in the whole game', () => {
     it('survives a save round trip and carries on exactly as before', () => {
         quiet();
         let a = newGame(5150);
-        for (let i = 0; i < 25; i++) endDay(a);
+        // (run until a trader is on the road, so there is one to carry over)
+        for (let i = 0; i < 25 || (i < 120 && MerchantCaravans.traders(a.world).length === 0); i++) endDay(a);
         const b = roundTrip(a);
         const snap = (w) => JSON.stringify({ t: MerchantCaravans.traders(w).map(u => ({ ...u })), s: w.merchantTrade });
         expect(MerchantCaravans.traders(a.world).length).toBeGreaterThan(0);

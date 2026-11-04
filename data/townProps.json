@@ -17,9 +17,15 @@
         "soil":     "assets/lpc/ThatchedHouses/tilesets/plowed_soil.png",
         "crops":    "assets/lpc/crops.png",
         "buckets":  "assets/lpc/Objects/Small Items/Buckets.png",
-        "baskets":  "assets/lpc/Objects/Small Items/Baskets A.png"
+        "baskets":  "assets/lpc/Objects/Small Items/Baskets A.png",
+        "clan_tents": "assets/lpc/Objects/Camp/Clan Tents.png",
+        "campfire": "assets/lpc/Objects/Small Items/Fire, Camp.png"
     },
     "props": [
+        { "id": "tp_tent_hide",     "name": "Hide Tent",        "sheet": "clan_tents", "rect": [0, 0, 3, 3], "solid": 2, "tags": ["tent"] },
+        { "id": "tp_tent_fell",     "name": "Fell Tent",        "sheet": "clan_tents", "rect": [3, 0, 3, 3], "solid": 2, "tags": ["tent"] },
+        { "id": "tp_campfire",      "name": "Campfire",         "sheet": "campfire", "rect": [0, 1, 1, 1], "solid": 1, "tags": ["hearth"] },
+        { "id": "tp_campfire_out",  "name": "Cold Campfire",    "sheet": "campfire", "rect": [0, 0, 1, 1], "solid": 0, "tags": ["hearthOut"] },
         { "id": "tp_fountain",      "name": "Fountain Well",    "sheet": "fountain", "rect": [0, 0, 2, 3], "solid": 2, "tags": ["square"] },
         { "id": "tp_lamp_a",        "name": "Lamp Post",        "sheet": "lamp",     "rect": [0, 0, 1, 3], "solid": 1, "tags": ["lamp"] },
         { "id": "tp_lamp_b",        "name": "Lamp Post",        "sheet": "lamp",     "rect": [1, 0, 1, 3], "solid": 1, "tags": ["lamp"] },
@@ -40,8 +46,8 @@
         { "id": "tp_crate_small",   "name": "Crate",            "sheet": "crate",    "rect": [2, 1, 1, 1], "solid": 1, "tags": ["warehouse", "shop"] },
         { "id": "tp_sawhorse",      "name": "Sawhorse",         "sheet": "sawhorse", "rect": [0, 0, 1, 2], "solid": 1, "tags": ["workshop"] },
         { "id": "tp_lumber",        "name": "Lumber Pile",      "sheet": "lumber",   "rect": [0, 2, 2, 1], "solid": 1, "tags": ["workshop", "farm"] },
-        { "id": "tp_logs",          "name": "Log Pile",         "sheet": "lumber",   "rect": [2, 2, 2, 1], "solid": 1, "tags": ["workshop", "farm"] },
-        { "id": "tp_firewood",      "name": "Firewood Stack",   "sheet": "farm",     "rect": [0, 0, 1, 2], "solid": 1, "tags": ["house", "blacksmith", "bakery", "tavern"] },
+        { "id": "tp_logs",          "name": "Log Pile",         "sheet": "lumber",   "rect": [2, 2, 2, 1], "solid": 1, "tags": ["workshop", "farm", "camp"] },
+        { "id": "tp_firewood",      "name": "Firewood Stack",   "sheet": "farm",     "rect": [0, 0, 1, 2], "solid": 1, "tags": ["house", "blacksmith", "bakery", "tavern", "camp"] },
         { "id": "tp_firewood_big",  "name": "Woodpile",         "sheet": "farm",     "rect": [3, 0, 2, 2], "solid": 1, "tags": ["blacksmith", "bakery", "farm", "house"] },
         { "id": "tp_anvil",         "name": "Anvil",            "sheet": "farm",     "rect": [6, 0, 1, 2], "solid": 1, "tags": ["blacksmith"] },
         { "id": "tp_sacks",         "name": "Grain Sacks",      "sheet": "farm",     "rect": [3, 2, 2, 2], "solid": 1, "tags": ["granary", "mill", "bakery", "farm", "stall"] },

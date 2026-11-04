@@ -1,5 +1,6 @@
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Shipcraft } from '../world/shipcraft.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
@@ -512,14 +513,47 @@ export const Ships = {
         return Math.floor(this.getSquadronStrength(player) * this.getNavalRules().escortShare);
     },
 
+    /* ── What the shipwrights know ───────────────────────────── */
+
+    /** The technologies a ship type needs its builders to know (data/ships.json `requires`) */
+    requires(st) {
+        return st && Array.isArray(st.requires) ? st.requires : [];
+    },
+
+    /**
+     * Can this ship be built at this settlement? Its shipwrights' craft
+     * (world/shipcraft.js) plus the player's own research.
+     * → { ok, missing: [techId], names: 'Shipbuilding, Navigation' }
+     */
+    canBuild(player, world, settlement, st) {
+        const known = new Set(Shipcraft.townKnows(world, settlement));
+        if (player) {
+            try {
+                for (const t of this.requires(st)) if (Technology.hasResearched(player, t)) known.add(t);
+            } catch (e) { /* a player with no technology record */ }
+        }
+        const missing = this.requires(st).filter(t => !known.has(t));
+        return { ok: missing.length === 0, missing, names: missing.map(t => this.techName(t)).join(', ') };
+    },
+
+    /** A technology's display name */
+    techName(id) {
+        const T = DataLoader._gamedata && DataLoader._gamedata.technology && DataLoader._gamedata.technology.TECHS;
+        const t = T && (T[String(id).toUpperCase()] || Object.values(T).find(x => x && x.id === id));
+        return (t && t.name) || String(id).replace(/_/g, ' ');
+    },
+
     /* ── Used ships for sale ─────────────────────────────────── */
 
-    getUsedShipsForSale(tile) {
+    getUsedShipsForSale(tile, world = null) {
         if (!tile || !tile.settlement) return [];
         if (tile._usedShips) return tile._usedShips;
 
         const settings = this._getSettings();
-        const types = this._getShipTypes().filter(st => st.availableIn.includes(tile.settlement.type));
+        // Only hulls of the kind its shipwrights know are for sale (world/shipcraft.js)
+        const craft = new Set(Shipcraft.townKnows(world, tile.settlement));
+        const types = this._getShipTypes().filter(st => st.availableIn.includes(tile.settlement.type)
+            && this.requires(st).every(t => craft.has(t)));
         const names = (typeof DataLoader !== 'undefined' && DataLoader.ships && DataLoader.ships.usedShipNames) || ['Old Ship'];
         const descs = (typeof DataLoader !== 'undefined' && DataLoader.ships && DataLoader.ships.usedShipDescriptions) || ['A used ship'];
         const maxUsed = settings.maxUsedShipsPerSettlement || 3;
@@ -553,7 +587,7 @@ export const Ships = {
 
     buyUsedShip(player, world, q, r, usedIndex) {
         const tile = world ? world.getTile(q, r) : null;
-        const usedShips = tile ? this.getUsedShipsForSale(tile) : [];
+        const usedShips = tile ? this.getUsedShipsForSale(tile, world) : [];
         if (usedIndex < 0 || usedIndex >= usedShips.length) {
             return { success: false, message: 'Ship no longer available.' };
         }
@@ -608,6 +642,9 @@ export const Ships = {
         if (!tile || !tile.settlement) return { success: false, message: 'Must be at a settlement.' };
         const fleetFull = this.fleetLimitReason(player);
         if (fleetFull) return { success: false, message: fleetFull };
+        // The shipwrights must know how (world/shipcraft.js), or you must
+        const craft = this.canBuild(player, world, tile.settlement, st);
+        if (!craft.ok) return { success: false, message: `The shipwrights of ${tile.settlement.name} don't know how to build a ${st.name.toLowerCase()}: it needs ${craft.names}.` };
 
         const baseCost = this._getSettlementBuildCost(st.baseCost, tile.settlement);
         let totalCost = baseCost;

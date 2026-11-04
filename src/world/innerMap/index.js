@@ -15,5 +15,7 @@ import './lots.js';
 import './furnitureUse.js';
 import './encounters.js';
 import './hospitality.js';
+import './camp.js';
+import './harbour.js';
 
 export { InnerMap };

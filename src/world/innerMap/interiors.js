@@ -97,6 +97,9 @@ Object.assign(InnerMap, {
             this._refreshGrassLayer(this.tiles);
         }
 
+        // ── The player's own ships docked here lie at the pier (world/innerMap/harbour.js) ──
+        if (this._mooringPlayerShips && !(worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id))) this._mooringPlayerShips(game);
+
         // ── Add player property buildings (works for settlement and wilderness tiles) ──
         this._addPropertyBuildings();
         // ── Guest houses, inns, hotels and roadhouses: their names and houses (systems/hospitality.js) ──
@@ -107,6 +110,25 @@ Object.assign(InnerMap, {
         this._npcMoveTimer = 0;
         if (hasSettlement) {
             this._spawnNPCs(worldTile.settlement, game.world);
+            // In a dawn village its folk keep about the fires (world/innerMap/camp.js)
+            const villageHub = this._isDawnVillage && this._isDawnVillage(worldTile.settlement) ? this._villageHub(this.tiles) : null;
+            if (villageHub) {
+                let k = 0;
+                for (const n of this.npcs) {
+                    n.campHub = { q: villageHub.q, r: villageHub.r };
+                    // start them among the tents (a ring of spots round the fire)
+                    for (let i = 0; i < 12; i++, k++) {
+                        const a = k * 2.399, d = 2 + (k % 9);
+                        const q = Math.round(villageHub.q + Math.cos(a) * d * 1.2), r = Math.round(villageHub.r + Math.sin(a) * d * 0.9);
+                        const t = this.tiles[r] && this.tiles[r][q];
+                        if (t && t.subTerrain && t.subTerrain.passable && !t.customObject && !t.customObjectPart) {
+                            n.q = n.targetQ = n.prevQ = q; n.r = n.targetR = n.prevR = r;
+                            break;
+                        }
+                    }
+                }
+                if (this._revealAround) this._revealAround(this.tiles, villageHub.q, villageHub.r, 18);
+            }
             // Houses standing vacant, to rent or buy (world/innerMap/lots.js) — kept from the residents
             if (this._markVacancies) this._markVacancies(worldTile.settlement);
             this._assignBuildingOwners(game.player, game.world);
@@ -117,6 +139,8 @@ Object.assign(InnerMap, {
         } else {
             // A roadhouse on the open road keeps its keeper and a guest or two
             this._spawnRoadhouseFolk(game.world);
+            // A clan of the Dawn of Man makes camp here: tents, a fire, its people (world/innerMap/camp.js)
+            if (this._pitchCamps) this._pitchCamps(game);
         }
 
         // For settlements, reveal all tiles (you're visiting a known location)

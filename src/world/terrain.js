@@ -96,6 +96,10 @@ export const Terrain = {
     ],
 
     generateMap(width, height, params = {}) {
+        // (worlds made before the hex-distance fix keep the old metric: world/world/generation.js)
+        if (!((Number(params.terrainGen) || 1) >= 3) && Hex._legacy === 0) {
+            return Hex.withLegacyMetric(() => Terrain.generateMap(width, height, params));
+        }
         const tiles = [];
 
         // Seeded RNG support
@@ -126,6 +130,10 @@ export const Terrain = {
         const snowPeakLevel = params.snowPeakLevel || 0.88;
         const riverCount = params.riverCount !== undefined ? params.riverCount : 40;
         const continentCount = params.continentCount || 3;
+        // Generator revision: worlds made since 2 sprinkle their peaks on
+        // land and run rivers off the world's own levels. Saved worlds
+        // without it regenerate exactly as they were made.
+        const terrainGen = params.terrainGen || 1;
 
         // New parameters
         const continentSize = params.continentSize || 'medium';
@@ -358,8 +366,14 @@ export const Terrain = {
         // Sprinkle super-peaks (Post-processing) — scaled by mountain density
         const numPeaks = Math.round(Utils.randInt(8, 14) * mountainDensity);
         for (let i = 0; i < numPeaks; i++) {
-            const pq = Math.floor(rng() * width);
-            const pr = Math.floor(rng() * height);
+            let pq = Math.floor(rng() * width);
+            let pr = Math.floor(rng() * height);
+            // Most of the map is sea: a peak dropped there raises nothing,
+            // and with no mountains no river has a source
+            for (let tries = 0; terrainGen >= 2 && tiles[pr][pq].elevation <= 0.45 && tries < 40; tries++) {
+                pq = Math.floor(rng() * width);
+                pr = Math.floor(rng() * height);
+            }
             const root = tiles[pr][pq];
 
             // Only boost peaks on existing hills/land to keep them realistic
@@ -384,7 +398,7 @@ export const Terrain = {
 
         // Generate Rivers — scale count by map size relative to default 120x80
         const scaledRiverCount = Math.round(riverCount * Math.sqrt((width * height) / (120 * 80)));
-        Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq);
+        Terrain.generateRivers(tiles, width, height, scaledRiverCount, lakeFreq, { v2: terrainGen >= 2, waterThreshold, mountainLevel, highlandsLevel });
 
         // Classify Water Bodies (Lake vs Sea vs Ocean)
         Terrain.classifyWaterBodies(tiles, width, height);
@@ -453,15 +467,29 @@ export const Terrain = {
             }
         }
 
+        // No river left drawn on a hex that became water
+        Terrain.cleanRivers(tiles);
+
         // Identify connected regions for reachable pathfinding
         Terrain.identifyRegions(tiles, width, height);
 
         return tiles;
     },
 
-    generateRivers(tiles, width, height, riverCount = 40, lakeFreq = 'normal') {
-        // Only start from mountains (matching classifyTerrain threshold)
-        const minRiverHeight = 0.72;
+    /**
+     * Run rivers from the high ground down to the sea. `levels.v2` (worlds
+     * made since terrainGen 2) reads the world's own water and mountain
+     * levels and falls back to the highlands when there are few mountains;
+     * without it the old fixed levels and lake quirks are kept, so a saved
+     * world (regenerated from its seed on load) comes back as it was.
+     */
+    generateRivers(tiles, width, height, riverCount = 40, lakeFreq = 'normal', levels = {}) {
+        const v2 = !!levels.v2;
+        const waterLevel = v2 ? (levels.waterThreshold || 0.42) : 0.42;
+        // Only start from mountains (just above classifyTerrain's threshold)
+        const minRiverHeight = v2 ? (levels.mountainLevel || 0.70) + 0.02 : 0.72;
+        const lakeLevel = waterLevel - 0.04;
+        const isWater = (t) => t.elevation < waterLevel;
 
         // Lake expansion based on lakeFreq
         const lakeExpandMap = { none: 0, few: 0, normal: 0, many: 2, abundant: 4 };
@@ -476,6 +504,11 @@ export const Terrain = {
                 if (t.elevation > minRiverHeight) viableTiles.push(t);
             }
         }
+        // Few mountains: the highlands feed rivers too
+        if (v2 && viableTiles.length < riverCount * 2) {
+            const highland = levels.highlandsLevel || 0.60;
+            viableTiles = tiles.flat().filter(t => t.elevation > highland);
+        }
 
         Utils.shuffle(viableTiles);
 
@@ -489,103 +522,108 @@ export const Terrain = {
             if (startTile.hasRiver) continue;
 
             let current = startTile;
-            let path = [current];
-            let length = 0;
-            let reachedWater = false;
+            const path = [current];
+            const onPath = new Set([current]);
+            // How the river ends: 'water' (sea or lake), 'merge' (joins a
+            // river), 'lake' (pools in a basin it makes), or null (gave out)
+            let ending = null;
+            let mouth = null;
 
-            // Safety break
-            if (startTile.elevation < 0.4) continue;
-
-            while (length < 100) {
-                const neighbors = Hex.neighbors(current.q, current.r);
-                let candidates = [];
-
-                for (const n of neighbors) {
-                    const wq = Hex.wrapQ(n.q, width);
+            while (path.length <= 100) {
+                const candidates = [];
+                for (const n of Hex.neighbors(current.q, current.r)) {
                     if (n.r < 0 || n.r >= height) continue;
-                    const nt = tiles[n.r][wq];
-
-                    if (path.includes(nt)) continue; // No loops
-
-                    // Strictly downhill candidates
-                    if (nt.elevation < current.elevation) {
-                        candidates.push(nt);
-                    }
+                    const nt = tiles[n.r][Hex.wrapQ(n.q, width)];
+                    if (onPath.has(nt)) continue; // No loops
+                    // Strictly downhill
+                    if (nt.elevation < current.elevation) candidates.push(nt);
                 }
 
                 if (candidates.length === 0) {
-                    // Local minimum (Stuck on land) -> Form a Lake!
-                    if (allowLakes) {
-                        current.elevation = 0.38; // Lake level (just below water threshold)
-                        // Expand lake based on lakeFreq
-                        if (lakeExpand > 0) {
-                            const lakeNeighbors = Hex.neighbors(current.q, current.r);
-                            let expanded = 0;
-                            for (const ln of lakeNeighbors) {
-                                if (expanded >= lakeExpand) break;
-                                const lwq = Hex.wrapQ(ln.q, width);
-                                if (ln.r < 0 || ln.r >= height) continue;
-                                const lt = tiles[ln.r][lwq];
-                                if (lt.elevation >= 0.42 && lt.elevation < 0.6) {
-                                    lt.elevation = 0.38;
-                                    expanded++;
-                                }
-                            }
-                        }
-                    }
-                    reachedWater = true;
+                    // Local minimum on land: pools into a lake, or gives out
+                    if (allowLakes) ending = 'lake';
                     break;
                 }
 
-                // Sort candidates to find the "Best" flow
-                // Priority:
-                // 1. Existing Water (Ocean/Coast) - Best outcome
-                // 2. Existing River - Merge
-                // 3. Steepest descent (lowest elevation) - Standard flow
+                // Best flow: open water, then an existing river (merge),
+                // then the steepest descent
                 candidates.sort((a, b) => {
-                    const aIsWater = a.elevation < 0.42;
-                    const bIsWater = b.elevation < 0.42;
-
-                    // Prioritize Water
-                    if (aIsWater && !bIsWater) return -1;
-                    if (!aIsWater && bIsWater) return 1;
-
-                    // Prioritize Existing Rivers (Merge)
-                    if (a.hasRiver && !b.hasRiver) return -1;
-                    if (!a.hasRiver && b.hasRiver) return 1;
-
-                    // Prioritize Steepest Descent
+                    const aw = isWater(a), bw = isWater(b);
+                    if (aw !== bw) return aw ? -1 : 1;
+                    if (a.hasRiver !== b.hasRiver) return a.hasRiver ? -1 : 1;
                     return a.elevation - b.elevation;
                 });
+                const next = candidates[0];
 
-                const nextTile = candidates[0];
+                if (isWater(next)) { ending = 'water'; mouth = next; break; }
+                if (next.hasRiver) { ending = 'merge'; mouth = next; break; }
 
-                // If we hit water, we're done
-                if (nextTile.elevation < 0.42) {
-                    path.push(nextTile);
-                    reachedWater = true;
-                    break;
-                }
-
-                // If we hit a river, we merge and done
-                if (nextTile.hasRiver) {
-                    path.push(nextTile);
-                    reachedWater = true;
-                    break;
-                }
-
-                path.push(nextTile);
-                current = nextTile;
-                length++;
+                path.push(next);
+                onPath.add(next);
+                current = next;
             }
 
-            // Allow rivers that reached water OR are reasonably long inland rivers (that formed lakes)
-            if (path.length > 2 && reachedWater) {
-                created++;
-                for (let i = 0; i < path.length; i++) {
-                    const t = path[i];
-                    t.hasRiver = true;
-                    if (i === 0) t.riverSource = true;
+            // The land the river runs over: a lake's basin (the last tile) is
+            // water once flooded, so the river stops on the tile before it
+            if (!v2) {
+                // Old worlds: the basin flooded even for a river too short
+                // to keep, and a river that gave out on land still counted
+                if (ending === 'lake' && path.length < 3) { path[path.length - 1].elevation = lakeLevel; Terrain._expandLake(tiles, width, height, path[path.length - 1], lakeExpand, waterLevel, lakeLevel, null); continue; }
+                if (!ending && !allowLakes && path.length >= 3) ending = 'gaveOut';
+            }
+            if (ending === 'lake') {
+                if (path.length < 3) continue;
+                mouth = path.pop();
+            }
+            if (!ending || path.length < 2) continue;
+
+            if (ending === 'lake') {
+                mouth.elevation = lakeLevel;
+                Terrain._expandLake(tiles, width, height, mouth, lakeExpand, waterLevel, lakeLevel, v2 ? onPath : null);
+            }
+
+            created++;
+            // Each river hex remembers which way it flows (riverDir, the
+            // Hex.neighbors index of the next hex downstream): the renderer
+            // joins a hex only to its own downstream and its upstreams, so
+            // rivers running side by side don't fuse into one wide stream
+            for (let i = 0; i < path.length; i++) {
+                const t = path[i];
+                const down = i + 1 < path.length ? path[i + 1] : mouth;
+                t.hasRiver = true;
+                // A river that gave out (old worlds only) has no downstream
+                t.riverDir = down ? Hex.directionTo(t.q, t.r, down.q, down.r, width) : -1;
+                if (i === 0) t.riverSource = true;
+            }
+        }
+    },
+
+    /** Flood up to `count` low land hexes beside a new lake (not the river's own) */
+    _expandLake(tiles, width, height, lake, count, waterLevel, lakeLevel, keep) {
+        let expanded = 0;
+        for (const ln of Hex.neighbors(lake.q, lake.r)) {
+            if (expanded >= count) break;
+            if (ln.r < 0 || ln.r >= height) continue;
+            const lt = tiles[ln.r][Hex.wrapQ(ln.q, width)];
+            if (keep && (lt.hasRiver || keep.has(lt))) continue;
+            if (lt.elevation >= waterLevel && lt.elevation < 0.6) {
+                lt.elevation = lakeLevel;
+                expanded++;
+            }
+        }
+    },
+
+    /**
+     * Drop river marks from hexes that ended up as water after the terrain
+     * pass (sunk islets, flooded basins), so no river is drawn on the sea.
+     */
+    cleanRivers(tiles) {
+        for (const row of tiles) {
+            for (const t of row) {
+                if (t.hasRiver && t.terrain && Terrain.WATER_IDS.includes(t.terrain.id)) {
+                    t.hasRiver = false;
+                    t.riverSource = false;
+                    delete t.riverDir;
                 }
             }
         }

@@ -13,6 +13,7 @@ import { Relationships } from '../systems/relationships.js';
 import { Technology } from '../systems/technology.js';
 import { LegendaryArtifacts } from '../systems/legendaryArtifacts.js';
 import { Peoples } from '../systems/peoples.js';
+import { Languages } from '../systems/languages.js';
 import { Housing } from '../systems/housing.js';
 import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
@@ -240,6 +241,8 @@ export const PlayerEffects = {
         bonus += this.faithTradeBonus(player, settlement);
         // Earned traits: Merchant Prince, Greedy, Generous…
         bonus += Traits.effect(player, 'tradeBonus');
+        // Haggling in a tongue you lack costs you; a native speaker gets a fair deal (systems/languages.js)
+        bonus += Languages.tradeModifier(player, settlement);
         return bonus;
     },
 

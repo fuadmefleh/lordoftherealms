@@ -525,7 +525,8 @@ Object.assign(InnerMapRenderer, {
                         if (def.sheetPath && (!singleImg || !singleImg.complete)) { continue; }
                         // Sort by origin row (bottom of anchor tile) so objects
                         // whose origin is lower draw entirely in front.
-                        const sortY = (r + 1) * T;
+                        // (a ship sorts by its deck: someone on deck or on the pier before it is drawn in front)
+                        const sortY = (r + 1 + (def.sortRow || 0)) * T;
                         const sortH = def.bounds
                             ? (def.bounds.maxRow - def.bounds.minRow + 1) : 1;
                         const sortX = q;

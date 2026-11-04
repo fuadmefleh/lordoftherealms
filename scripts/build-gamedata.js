@@ -77,7 +77,11 @@ const topLevel = [
     'townProps',
     'mapTasks',
     'performTasks',
-    'wildTasks'
+    'wildTasks',
+    'dawn',
+    'cultures',
+    'shipHulls',
+    'commissions'
 ];
 
 const merged = {};

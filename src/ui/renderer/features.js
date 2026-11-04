@@ -316,7 +316,7 @@ Object.assign(Renderer.prototype, {
             const k = Hinterland.kind(site.kind);
             if (!k || !k.sprites.length) continue;
             const s = visible(site.q, site.r);
-            if (s) items.push({ q: site.q, r: site.r, s, variants: k.sprites, dim: site.st === 'exhausted' });
+            if (s) items.push({ q: site.q, r: site.r, s, variants: k.sprites, dim: site.st === 'exhausted' || site.st === 'building' });
         }
         if (Estates.enabled()) {
             const M = Estates.config().map;

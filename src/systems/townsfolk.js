@@ -22,6 +22,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
+import { Cultures } from '../world/cultures.js';
+import { Characters } from '../world/characters.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -243,6 +245,21 @@ export const Townsfolk = {
         return folk;
     },
 
+    /** First names for a town's people: its culture's (world/cultures.js), else the common pool */
+    _firstNames(folk, gender) {
+        const C = Townsfolk.config();
+        const own = folk && folk.culture ? Cultures.firstNames(folk.culture, gender, Characters.FIRST_NAMES) : null;
+        return own && own.length ? own : (C.names[gender] || []);
+    },
+
+    /** Family names for a town's people: its culture's houses, else the common pool */
+    _lastNames(folk) {
+        const C = Townsfolk.config();
+        const culture = folk && folk.culture;
+        const own = culture ? ((Characters.DYNASTY_NAMES && Characters.DYNASTY_NAMES[culture]) || Cultures.dynastyNames(culture)) : null;
+        return own && own.length ? own : C.lastNames;
+    },
+
     _create(settlement, world, npcs, opts, day) {
         const C = Townsfolk.config();
         const Y = C.daysPerYear;
@@ -251,17 +268,20 @@ export const Townsfolk = {
             target: opts.target || 0, tick: day - (day % C.tickDays), visit: null, prevVisit: null,
             people: [], annals: [],
         };
+        // Its people's names are of its culture (world/cultures.js)
+        if (settlement.culture) folk.culture = settlement.culture;
         const rng = _rng(world, folk, day, 'create');
         const byNpc = new Map();
         for (const npc of npcs) {
             if (npc.type === 'traveler') continue;
             const age = _num(npc.age, 30);
             const gender = npc.gender || (rng() < 0.5 ? 'male' : 'female');
-            const names = C.names[gender] || [];
+            const names = Townsfolk._firstNames(folk, gender);
             const p = {
                 id: folk.n++,
-                first: names.length && !names.includes(npc.name) ? _pick(names, rng) : npc.name,
-                last: npc.lastName || _pick(C.lastNames, rng),
+                // (a name already of the culture's or the common pool is kept)
+                first: names.length && !names.includes(npc.name) && !(C.names[gender] || []).includes(npc.name) ? _pick(names, rng) : npc.name,
+                last: npc.lastName || _pick(Townsfolk._lastNames(folk), rng),
                 gender,
                 born: day - age * Y - Math.floor(rng() * Y),
                 died: null, cause: null,
@@ -565,8 +585,9 @@ export const Townsfolk = {
             if (e) { first = e.first; namedFor = e.id; }
         }
         if (!first) {
-            const names = (C.names[gender] || []).filter(n => !taken.has(n));
-            first = _pick(names.length ? names : C.names[gender], rng) || 'Ash';
+            const pool = Townsfolk._firstNames(folk, gender);
+            const names = pool.filter(n => !taken.has(n));
+            first = _pick(names.length ? names : pool, rng) || 'Ash';
         }
         const child = {
             id: folk.n++, first, last: father.last, gender, born: day, died: null, cause: null,
@@ -589,8 +610,8 @@ export const Townsfolk = {
         const gender = o.gender || (rng() < 0.5 ? 'male' : 'female');
         const p = {
             id: folk.n++,
-            first: _pick(C.names[gender], rng) || 'Ash',
-            last: o.last || _pick(C.lastNames, rng) || 'Stone',
+            first: _pick(Townsfolk._firstNames(folk, gender), rng) || 'Ash',
+            last: o.last || _pick(Townsfolk._lastNames(folk), rng) || 'Stone',
             gender,
             born: day - _num(o.age, 25) * C.daysPerYear - Math.floor(rng() * C.daysPerYear),
             died: null, cause: null,

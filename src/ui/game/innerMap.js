@@ -30,8 +30,10 @@ export async function enterInnerMap(worldQ, worldR) {
             tile.explored = true;
         }
 
-        // Only allow on passable land tiles
-        if (!tile.terrain.passable) {
+        // Only allow on passable land tiles — or at sea, aboard your own ship (its deck: world/innerMap/harbour.js)
+        const onDeck = !tile.terrain.passable && !!this.player.boardedShip
+            && (this.player.ships || []).some(s => s && s.id === this.player.boardedShip);
+        if (!tile.terrain.passable && !onDeck) {
             this.ui.showNotification('Impassable', 'You cannot explore the interior of this terrain.', 'error');
             return;
         }
@@ -239,31 +241,41 @@ export function _checkNeedWarnings() {
         comfort: { icon: '🪑', label: 'Uncomfortable' },
     };
 
+    // What to do about it (the actions that raise each need)
+    const hints = {
+        hunger: 'Eat a Meal from your pack, or buy food at a market or inn.',
+        energy: 'Rest / Camp, or take a bed at an inn.',
+        social: 'Talk to Locals or Meet People in a town.',
+        fun: 'Try a Dice Game, a Street Performance, or go exploring.',
+        hygiene: 'Bathe: in a river, a lake or the sea, or at a village well or a town bathhouse (Open Actions).',
+        comfort: 'Rest indoors: an inn, or a house of your own.',
+    };
+
     for (const [need, info] of Object.entries(needNames)) {
         const val = this.player.needs[need];
         if (val <= 15 && !warnings[`${need}_critical`]) {
             warnings[`${need}_critical`] = true;
             this.ui.showNotification(
                 `${info.icon} ${info.label}!`,
-                `Your ${need} is critically low! Find a way to satisfy this need soon.`,
+                `Your ${need} is critically low! ${hints[need] || 'Find a way to satisfy this need soon.'}`,
                 'error'
             );
         } else if (val <= 30 && val > 15 && !warnings[`${need}_low`]) {
             warnings[`${need}_low`] = true;
             this.ui.showNotification(
                 `${info.icon} ${info.label}`,
-                `Your ${need} is getting low. Consider addressing it.`,
+                `Your ${need} is getting low. ${hints[need] || 'Consider addressing it.'}`,
                 'info'
             );
         }
     }
 
-    // Clothes gone smelly: a bath won't fix it (player/core/needs.js)
+    // Clothes gone smelly: they cap how clean you can get (player/core/needs.js)
     const cs = this.player.clothesState ? this.player.clothesState() : null;
     if (cs && cs.smelly && !warnings.clothes_smelly) {
         warnings.clothes_smelly = true;
         this.ui.showNotification('🤢 Your Clothes Smell',
-            `However often you bathe, you can't get cleaner than ${cs.cap}% hygiene in them, and people notice (−1 charisma). Have them laundered at an inn, or scrub them yourself at a river, the shore or a town well.`,
+            `In them you can't get cleaner than ${cs.cap}% hygiene, and people notice (−1 charisma). Bathe — the clothes get scrubbed with you — or Wash Clothes at a river, the shore or a town well, or have them laundered at an inn.`,
             'info');
     }
 

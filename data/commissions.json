@@ -1,0 +1,27 @@
+{
+    "_doc": "Hired work (systems/commissions.js): bring your own goods to a town's tradesmen — the miller grinds your grain, the baker bakes your bread, the smith forges your tools — and pay for their time with gold (a fee) or with part of the product (a cut). The town trades are data/markets.json `recipes` (where the place is big enough for the trade); the craftsmen's work is data/crafting.json `recipes` by station, done by whoever in town keeps that station (`stations`: the smallest place that has one, and how hard a recipe they'll take on). A job takes as many days as the trade's hands need (`perDay` runs a day for a craft; a town trade works `tradeShare` of its daily capacity for you, at least `minPerDay` — a mill grinds a cartload in a day), and is collected at the same town.",
+
+    "fee": { "share": 0.2, "min": 1 },
+    "cut": { "share": 0.25 },
+    "tradeShare": 1,
+    "minPerDay": 20,
+    "maxRuns": 200,
+    "stations": {
+        "cook": { "minType": "village", "maxDifficulty": 3, "perDay": 8, "who": "the cook at the inn" },
+        "craft": { "minType": "village", "maxDifficulty": 2, "perDay": 4, "who": "the joiner's shop", "town": { "maxDifficulty": 4, "who": "the craftsmen's workshops" } },
+        "smelt": { "minType": "town", "maxDifficulty": 3, "perDay": 6, "who": "the smelter" },
+        "brew": { "minType": "town", "maxDifficulty": 3, "perDay": 3, "who": "the apothecary" },
+        "tan": { "minType": "village", "maxDifficulty": 3, "perDay": 6, "who": "the tanner and the weavers" }
+    },
+    "tradeNames": {
+        "mill": "the mill", "bakery": "the baker", "brewery": "the brewer", "charcoal": "the charcoal burners",
+        "distillery": "the distillery", "weaver": "the weavers", "linen_weaver": "the linen weavers", "tailor": "the tailor",
+        "dairy": "the dairy", "smithy": "the smithy", "forge": "the forge", "armoury": "the armourer",
+        "founder": "the bronze founder", "chandler": "the chandler", "tannery": "the tannery", "jeweller": "the jeweller"
+    },
+    "tradeVerbs": {
+        "mill": "Grind", "bakery": "Bake", "brewery": "Brew", "charcoal": "Burn", "distillery": "Distil", "weaver": "Weave",
+        "linen_weaver": "Weave", "tailor": "Sew", "dairy": "Make", "smithy": "Forge", "forge": "Forge", "armoury": "Forge",
+        "founder": "Cast", "chandler": "Render", "tannery": "Tan", "jeweller": "Cut and set"
+    }
+}

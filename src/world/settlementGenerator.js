@@ -19,11 +19,11 @@ import { planTown, PLAN } from './townPlanner.js';
  * @param {number}    mapH
  * @returns {{ roadTiles: Array<{q,r}>, buildings: number }}
  */
-function generate(tiles, settlement, rng, mapW, mapH) {
+function generate(tiles, settlement, rng, mapW, mapH, opts = {}) {
     const layout = (typeof InnerMap !== 'undefined' && InnerMap.settlementLayout)
         ? InnerMap.settlementLayout(settlement)
         : null;
-    const res = planTown(tiles, settlement, rng, mapW, mapH, layout);
+    const res = planTown(tiles, settlement, rng, mapW, mapH, layout, opts);
     return { roadTiles: res.roadTiles, buildings: res.buildings, blocks: [], lots: res.lots || [] };
 }
 

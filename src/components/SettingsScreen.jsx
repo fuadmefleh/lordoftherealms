@@ -3,6 +3,7 @@ import { useGame } from '../context/GameContext';
 import CharacterForge from './CharacterForge';
 import { buildForGender, defaultAppearance } from '../ui/playerAppearance';
 import scenariosData from '../../data/scenarios.json';
+import dawnData from '../../data/dawn.json';
 
 // Origin & Challenge choices (data/scenarios.json; applied by player/scenarios.js)
 const _entries = (o) => Object.entries(o || {}).filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object');
@@ -11,6 +12,8 @@ const DIFFICULTIES = _entries(scenariosData.difficulty);
 const VICTORIES = _entries(scenariosData.victory).map(([id, v]) => [id, {
   ...v, blurb: String(v.blurb || '').replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? Number(v[k]).toLocaleString('en-US') : m)),
 }]);
+// Start years before this begin at the Dawn of Man (world/dawn.js)
+const DAWN_YEAR = dawnData.dawnYear || 200;
 const _find = (list, id) => (list.find(([k]) => k === id) || [])[1] || null;
 
 const MAP_PRESETS = {
@@ -97,6 +100,7 @@ export default function SettingsScreen() {
     resourceDensity: 'normal',
     strategicRes: 'normal',
     kingdomCount: 6,
+    startYear: 853,
     independentSettlements: 'normal',
     ruinsFreq: 'normal',
     terrainOctaves: 6,
@@ -358,6 +362,22 @@ export default function SettingsScreen() {
           <div className="settings-group">
             <h3>Kingdoms & World</h3>
             <RangeInput {...bind} id="kingdomCount" label="Kingdoms:" field="kingdomCount" min={2} max={20} />
+            <div className="input-row">
+              <label htmlFor="startYear">Start Year:</label>
+              <input
+                type="number"
+                id="startYear"
+                min={1}
+                max={2000}
+                value={settings.startYear}
+                onChange={e => handleChange('startYear', Math.max(1, Math.min(2000, parseInt(e.target.value, 10) || 1)))}
+              />
+            </div>
+            <div className="settings-hint" style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 8px' }}>
+              {settings.startYear < DAWN_YEAR
+                ? `🔥 The Dawn of Man: no towns, roads or crowns yet — wandering clans settle the land, villages rise, and chiefdoms grow into up to ${settings.kingdomCount} realms over the decades. You are born into one of the wandering clans, with your family about you.`
+                : `The realms are long founded; the calendar begins in year ${settings.startYear}. Any year before ${DAWN_YEAR} starts at the Dawn of Man.`}
+            </div>
             <SelectInput {...bind} id="independentSettlements" label="Independent Towns:" field="independentSettlements"
               options={[['none','None'],['few','Few'],['normal','Normal'],['many','Many']]} />
             <SelectInput {...bind} id="ruinsFreq" label="Ruins & POI:" field="ruinsFreq"

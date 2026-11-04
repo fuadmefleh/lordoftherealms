@@ -5,6 +5,9 @@
 import { icon } from '../icons.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Scenarios } from '../../player/scenarios.js';
+import { Dawn } from '../../world/dawn.js';
+import { DawnBirth } from '../../player/dawnBirth.js';
+import { Languages } from '../../systems/languages.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
@@ -369,6 +372,9 @@ export async function _doStartNewGame(settingsOverride) {
     const mountainLevel = parseFloat(s.mountainLevel) || 0.70;
     const snowPeakLevel = parseFloat(s.snowPeakLevel) || 0.88;
     const kingdomCount = parseInt(s.kingdomCount) || 6;
+    // The calendar's first year; before the dawn year there are no towns or realms yet (world/dawn.js)
+    const startYear = Math.max(1, parseInt(s.startYear) || 853);
+    const dawnStart = Dawn.isDawnStart({ startYear });
     const independentSettlements = s.independentSettlements || 'normal';
     const ruinsFreq = s.ruinsFreq || 'normal';
     // Game options (available to subsystems like InnerMap)
@@ -391,6 +397,9 @@ export async function _doStartNewGame(settingsOverride) {
     this.world = new World(width, height);
     this.world.generate({
         seed: mapSeed,
+        // Current terrain generator: 2 = peaks on land, rivers that reach the
+        // sea; 3 = generated with the true hex distance (core/hex.js)
+        terrainGen: 3,
         continentCount,
         terrainFreq,
         riverCount,
@@ -418,6 +427,7 @@ export async function _doStartNewGame(settingsOverride) {
         mountainLevel,
         snowPeakLevel,
         kingdomCount,
+        startYear,
         independentSettlements,
         ruinsFreq
     });
@@ -471,6 +481,17 @@ export async function _doStartNewGame(settingsOverride) {
         Relationships.initialize(this.player);
     }
 
+    // At the Dawn of Man the player is born into a wandering clan, with a
+    // family about them (player/dawnBirth.js)
+    if (dawnStart) {
+        DawnBirth.apply(this.player, this.world);
+        const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);
+        this.camera.centerOn(pos.x, pos.y);
+    }
+
+    // The mother tongue: the clan's at the dawn, else the one spoken where you begin (systems/languages.js)
+    Languages.initialize(this.player, this.world);
+
     // Initialize the House (dynasty spine) — after relationships so family exists
     if (typeof House !== 'undefined') {
         House.initialize(this.player, this.world);
@@ -493,7 +514,8 @@ export async function _doStartNewGame(settingsOverride) {
     // Origin, difficulty and victory goal (player/scenarios.js): shapes the
     // player and sets player.scenario before the onboarding below reads it
     const scenarioStart = Scenarios.apply(this.player, this.world, {
-        origin: s.origin, difficulty: s.difficulty, victory: s.victory,
+        // At the dawn there are no courts or towns to be born into: a wanderer
+        origin: dawnStart ? 'wanderer' : s.origin, difficulty: s.difficulty, victory: s.victory,
         // (the New Game sheet sets the guided start from the origin; the player may override it)
         guidedStart: typeof s.guidedStart === 'boolean' ? s.guidedStart : undefined,
     });
@@ -524,7 +546,7 @@ export async function _doStartNewGame(settingsOverride) {
     const mapDesc = totalTiles > 40000 ? 'vast' : totalTiles > 15000 ? 'large' : 'ready';
     setTimeout(() => {
         // (the origin's welcome — the Wanderer's is the classic one)
-        this.ui.showNotification(`${scenarioStart.icon || ''} Welcome, ${this.player.name}`.trim(), scenarioStart.welcome || `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
+        this.ui.showNotification(`${scenarioStart.icon || ''} Welcome, ${this.player.name}`.trim(), (dawnStart && DawnBirth.welcome(this.player, this.world)) || scenarioStart.welcome || `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
     }, 1200);
 
     // Start game loop

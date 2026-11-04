@@ -1,5 +1,7 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
+import { Cultures } from '../../world/cultures.js';
+import { Languages } from '../../systems/languages.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
@@ -207,6 +209,17 @@ Object.assign(UI.prototype, {
                     <span class="info-label">Population</span>
                     <span class="info-value">${Utils.formatNumber(tile.settlement.population)}</span>
                 </div>
+                ${(() => {
+                    // Its culture and tongue, and how well you speak it (world/cultures.js, systems/languages.js)
+                    const culture = Cultures.cultureOf(this.game.world, tile.settlement);
+                    const tongue = Languages.describeHere(this.game.player, this.game.world, q, r);
+                    if (!culture || !tongue) return '';
+                    const col = { none: '#e57373', broken: '#e8a040', conversational: '#c5e1a5', fluent: '#81c784' }[tongue.level.id] || 'inherit';
+                    return `<div class="info-row" title="Click to see your tongues, lessons and interpreters">
+                    <span class="info-label">Culture</span>
+                    <span class="info-value">${culture} · <span style="cursor:pointer; text-decoration:underline; text-underline-offset:3px; color:${col};" data-am-act="showLanguages">${tongue.name} (you: ${tongue.level.name.toLowerCase()}${tongue.via === 'translator' ? ', via interpreter' : ''})</span></span>
+                </div>`;
+                })()}
                 ${typeof tile.settlement.growthRate === 'number' ? `
                 <div class="info-row" title="Yearly growth set by your tax policy; projection is 30 days out">
                     <span class="info-label">Growth</span>
@@ -376,24 +389,44 @@ Object.assign(UI.prototype, {
         const estate = !site && Estates.enabled() ? Estates.fieldAt(world, q, r) : null;
         if (siteInfo || estate) {
             const rows = [];
+            // A value that opens something: the town's details, or its Hinterland panel
+            const LINK = 'cursor:pointer; text-decoration:underline; text-underline-offset:3px;';
+            const posOf = (key) => {
+                const [tq, tr] = String(key || '').split(',').map(Number);
+                return Number.isFinite(tq) && Number.isFinite(tr) ? [tq, tr] : null;
+            };
+            const townLink = (key, name) => {
+                const p = posOf(key);
+                return p ? { html: name, attrs: `data-ui-act="showSettlementDetails" data-ui-args="[${p[0]}, ${p[1]}]" title="Open ${name}"`, link: true } : name;
+            };
+            const hinterLink = (key, text) => {
+                const p = posOf(key);
+                return p ? { html: text, attrs: `data-am-act="showHinterland" data-am-args="[null, ${p[0]}, ${p[1]}]" title="Open the Hinterland: this town's mines, fields and leases"`, link: true } : text;
+            };
             if (siteInfo) {
                 const home = townOf(site.h);
-                const state = site.st === 'exhausted' ? 'Worked out' : site.st === 'open' ? `Working · yield ${Math.round(siteInfo.yield * 100)}%` : site.st;
+                const left = Number.isFinite(site.ready) ? Math.max(0, site.ready - (world.day || 0)) : null;
+                const state = site.st === 'exhausted' ? 'Worked out'
+                    : site.st === 'open' ? `Working · yield ${Math.round(siteInfo.yield * 100)}%`
+                        : site.st === 'building' ? `Being built${left != null ? ` · opens in ${left} day${left === 1 ? '' : 's'}` : ''}` : site.st;
                 rows.push(['Site', `${siteInfo.icon} ${siteInfo.name}`]);
-                if (home) rows.push(['Worked by', home]);
-                rows.push(['State', state]);
-                if (siteInfo.deposit && site.st !== 'exhausted') rows.push(['Reserve', `${Math.round(siteInfo.reserve * 100)}% left`]);
+                if (home) rows.push(['Worked by', townLink(site.h, home)]);
+                rows.push(['State', home ? hinterLink(site.h, state) : state]);
+                if (siteInfo.deposit && site.st !== 'exhausted') rows.push(['Reserve', home ? hinterLink(site.h, `${Math.round(siteInfo.reserve * 100)}% left`) : `${Math.round(siteInfo.reserve * 100)}% left`]);
             } else {
                 const M = Estates.config().map;
                 const town = townOf(estate.town);
                 rows.push(['Estate', `🌾 ${estate.name}`]);
                 rows.push(['Held by', estate.holder === 'player' ? 'You' : Estates.holderName(world, estate.holder)]);
-                if (town) rows.push(['Farmland of', town]);
+                if (town) rows.push(['Farmland of', townLink(estate.town, town)]);
                 if ((estate.enclosed || 0) >= M.enclosedAt) rows.push(['Fields', 'Enclosed for sheep']);
             }
+            const cell = (v) => (v && typeof v === 'object')
+                ? `<span class="info-value" style="${LINK}" ${v.attrs}>${v.html}</span>`
+                : `<span class="info-value">${v}</span>`;
             html += `
                 <div class="info-section-title">Countryside</div>
-                ${rows.map(([l, v]) => `<div class="info-row"><span class="info-label">${l}</span><span class="info-value">${v}</span></div>`).join('')}
+                ${rows.map(([l, v]) => `<div class="info-row"><span class="info-label">${l}</span>${cell(v)}</div>`).join('')}
             `;
         }
 

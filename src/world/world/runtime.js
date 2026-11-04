@@ -1,6 +1,6 @@
 // World — runtime methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Shipcraft } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -159,6 +159,17 @@ Object.assign(World.prototype, {
         // Market stocks are real inventories now, restocked by what each town
         // produces and trades (world/settlementMarket.js, ticked daily by
         // MarketDynamics.updatePrices)
+
+        // A new year: the dawn's realms learn their shipcraft (world/shipcraft.js)
+        if ((this.day - 1) % 120 === 0) {
+            for (const l of Shipcraft.yearly(this)) {
+                const name = String(l.tech).replace(/_/g, ' ');
+                this.events.push({ text: `⚓ The shipwrights of ${l.kingdom.name} have learned ${name}.`, type: 'growth' });
+            }
+        }
+
+        // The Dawn of Man: clans settle, villages rise, chiefdoms form (world/dawn.js)
+        Dawn.processDay(this, player);
 
         // Process units (player injected so raiders can target them without a global)
         this.processUnits(player);

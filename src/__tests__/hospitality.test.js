@@ -185,7 +185,9 @@ describe('staying the night', () => {
             world.day = d;
             player.gold = 500;
             player.lodging = null;
-            expect(Hospitality.book(world, player, rh.id, 'common').ok).toBe(true);
+            const booked = Hospitality.book(world, player, rh.id, 'common');
+            // (a busy road fills the house some nights: no bed, no robbery)
+            if (!booked.ok) { expect(booked.text).toMatch(/vacancy/i); continue; }
             world.day = d + 1;
             const before = player.gold;
             Hospitality.processDay(world, player);

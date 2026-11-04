@@ -9,6 +9,8 @@
 // Keep the call ORDER in endDay() in step with ui/game/endDay.js — the point
 // of the harness is to exercise the same sequence the player gets.
 
+import { DawnBirth } from '../../player/dawnBirth.js';
+import { Languages } from '../../systems/languages.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Utils } from '../../core/utils.js';
 import { Hex } from '../../core/hex.js';
@@ -111,10 +113,10 @@ export async function loadData() {
 }
 
 /** A fresh game, set up in gameSetup.js's order. */
-export function newGame(seed) {
+export function newGame(seed, gen = {}) {
     Utils.setSeed(seed);
     const world = new World(WORLD_W, WORLD_H);
-    world.generate({ ...GEN });
+    world.generate({ ...GEN, ...gen });
     const player = new Player({ firstName: 'Bot', lastName: 'Harness', gender: 'male', age: 20 });
     player.placeInWorld(world);
 
@@ -124,6 +126,8 @@ export function newGame(seed) {
     MarketDynamics.initialize();
     Technology.initPlayer(player);
     Relationships.initialize(player);
+    DawnBirth.apply(player, world);
+    Languages.initialize(player, world);
     House.initialize(player, world);
     House.seedRivals(player, world);
     if (!player.taxRate) player.taxRate = 'moderate';
@@ -139,6 +143,7 @@ function checkHostileEncounters(game) {
     const { world, player } = game;
     if (player.indenturedServitude) return null;
     if (PlayerReligion.isInSanctuary(player, player.q, player.r, world.width)) return null;
+    if (WorldUnit.isSafeHaven(world, player.q, player.r)) return null;
     const hostiles = world.units.filter(u =>
         !u.destroyed &&
         !u.sparesPlayer &&
@@ -334,6 +339,8 @@ function _endDay(game) {
     mark(game, 'Mail.processDay');
     Hospitality.processDay(world, player);
     mark(game, 'Hospitality.processDay');
+    DawnBirth.sync(player, world);
+    Languages.processDay(player, world);
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);

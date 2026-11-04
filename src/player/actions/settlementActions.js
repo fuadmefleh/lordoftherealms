@@ -5,6 +5,7 @@
 // ============================================
 
 import { Hex } from '../../core/hex.js';
+import { Commissions } from '../../systems/commissions.js';
 import { Colonization } from '../../world/colonization.js';
 import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Espionage } from '../../systems/espionage.js';
@@ -118,6 +119,18 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             label: isVillage ? 'See the Herbalist' : 'See a Physician',
             icon: '⚕️',
             description: 'Have your wounds and sickness treated (better in cities, and with medicine techs)'
+        });
+    }
+
+    // Hire the town's tradesmen to work your goods: the mill, the baker, the smithy… (systems/commissions.js)
+    {
+        const waiting = Commissions.pending(player).filter(j => j.q === tile.q && j.r === tile.r);
+        const ready = waiting.filter(j => Commissions.isReady(j, world)).length;
+        actions.push({
+            type: 'commissions',
+            label: ready ? `Hire the Tradesmen (${ready} ready)` : 'Hire the Tradesmen',
+            icon: '🏭',
+            description: 'The mill grinds your grain, the baker bakes your bread, the smithy forges your iron… for gold, or a share of what they make',
         });
     }
 

@@ -1,0 +1,195 @@
+{
+    "_doc": "The Dawn of Man (world/dawn.js): a world begun before any town. Wandering clans settle good ground, villages grow into towns and bud new clans, towns gather villages into chiefdoms that become the realms. Years are 120 days.",
+    "dawnYear": 200,
+    "clans": {
+        "perLandHexes": 90,
+        "min": 6,
+        "max": 40,
+        "wanderDays": {
+            "min": 25,
+            "max": 110
+        },
+        "scanRadius": 4,
+        "stepsPerDay": 1,
+        "minSpacing": 4,
+        "minSiteScore": 4,
+        "giveUpDays": 400,
+        "followRange": 6
+    },
+    "siteScore": {
+        "terrain": {
+            "grassland": 3,
+            "plains": 3,
+            "seasonal_forest": 2,
+            "woodland": 2,
+            "temperate_rainforest": 1.5,
+            "savanna": 2,
+            "beach": 1.5,
+            "hills": 1.5,
+            "boreal_forest": 1,
+            "tropical_rainforest": 1,
+            "highlands": 1,
+            "swamp": 0.5,
+            "desert": 0.3,
+            "tundra": 0.5,
+            "island": 1.5
+        },
+        "river": 3,
+        "riverNear": 1.5,
+        "lakeNear": 2,
+        "coastNear": 1.5,
+        "resource": 1
+    },
+    "village": {
+        "population": {
+            "min": 60,
+            "max": 150
+        },
+        "growthPerSeason": 0.08,
+        "pathRange": 9
+    },
+    "budding": {
+        "everyDays": 30,
+        "minPopulation": 320,
+        "chance": 0.2,
+        "clanSize": 40,
+        "settlementsPerLandHexes": 40
+    },
+    "town": {
+        "population": 450,
+        "minAgeYears": 3
+    },
+    "chiefdom": {
+        "everyDays": 60,
+        "radius": 6,
+        "minVillages": 2,
+        "minTownAgeYears": 4,
+        "names": [
+            "Chiefdom of",
+            "Tribal Lands of",
+            "Clanholds of",
+            "Kinlands of",
+            "High Seat of"
+        ],
+        "traits": [
+            [
+                "peaceful",
+                "nature-loving"
+            ],
+            [
+                "aggressive",
+                "mobile"
+            ],
+            [
+                "religious",
+                "scholarly"
+            ],
+            [
+                "mercantile",
+                "resilient"
+            ],
+            [
+                "defensive",
+                "industrious"
+            ],
+            [
+                "militaristic",
+                "orderly"
+            ]
+        ],
+        "colors": [
+            "#a0522d",
+            "#6b8e23",
+            "#8b4513",
+            "#556b2f",
+            "#b8860b",
+            "#704214",
+            "#5f7f7a",
+            "#8a3324",
+            "#4f6d3a",
+            "#9c7a3c"
+        ]
+    },
+    "clanNames": [
+        "Ash",
+        "Bear",
+        "Crow",
+        "Elk",
+        "Fox",
+        "Hawk",
+        "Ibex",
+        "Lynx",
+        "Otter",
+        "Owl",
+        "Raven",
+        "Salmon",
+        "Stag",
+        "Wolf",
+        "Boar",
+        "Heron",
+        "Badger",
+        "Aurochs",
+        "Swan",
+        "Adder"
+    ],
+    "cultures": {
+        "default": "Woodland",
+        "byTerrain": {
+            "desert": "Nomadic",
+            "savanna": "Nomadic",
+            "tundra": "Nordic",
+            "boreal_forest": "Nordic",
+            "beach": "Maritime",
+            "island": "Maritime",
+            "hills": "Mountain",
+            "highlands": "Mountain",
+            "swamp": "Swamp",
+            "plains": "Imperial",
+            "grassland": "Imperial"
+        }
+    },
+    "lines": {
+        "settle": "The {clan} clan made camp {where} and stayed: {name} is founded.",
+        "bud": "Families of {name} set out as the {clan} clan, looking for land of their own.",
+        "town": "{name} has grown from a village into a town.",
+        "chiefdom": "{ruler} of {name} gathers the villages about it: the {realm} is born.",
+        "path": "A trodden path now joins {a} and {b}.",
+        "whereRiver": "by the river",
+        "whereLake": "by a lake",
+        "whereCoast": "on the shore",
+        "whereLand": "on open ground"
+    },
+    "welcome": "The world is young. No town stands, no crown is worn. You were born to the {clan} clan, wandering the wild with your kin — {kin}. Lead them to good ground and make camp for good, and watch the first villages rise.",
+    "birth": {
+        "_doc": "Who the player is born among at the dawn (player/dawnBirth.js): a father, a mother and siblings, all of the clan; they walk with the player while the clan does and settle in its village.",
+        "siblings": {
+            "min": 1,
+            "max": 3
+        },
+        "parentAge": {
+            "min": 18,
+            "max": 30
+        },
+        "siblingAgeSpread": 9,
+        "regard": {
+            "parent": 70,
+            "sibling": 55
+        },
+        "occupations": [
+            "Hunter",
+            "Gatherer",
+            "Fire-keeper",
+            "Toolmaker",
+            "Herder",
+            "Fisher",
+            "Healer",
+            "Storyteller"
+        ],
+        "lines": {
+            "settled": "Your clan makes camp for good. {name} is your people's home now — {kin} with you.",
+            "settledAway": "While you were away, your clan made camp for good: {name}. Your family lives there now.",
+            "settleAction": "Make camp for good",
+            "settleDesc": "Your clan settles here for good and founds a village: your home. Choose well — fresh water, fertile land and the shore make a village grow."
+        }
+    }
+}

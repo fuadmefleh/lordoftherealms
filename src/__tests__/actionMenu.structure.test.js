@@ -61,6 +61,7 @@ const EXPECTED_KEYS = [
     'showEconomy', 'economyAct',
     'showTownPeople',
     'showHinterland', 'hinterlandAct',
+    'showLanguages', 'languagesAct', 'doBathe', 'showCommissions', 'commissionAct',
     'showHarvests', 'harvestAct',
     'showPublicWorks', 'publicWorksAct',
     'showTradePolicy', 'tradePolicyAct',
@@ -150,8 +151,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 357 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(357);
+    it('has 362 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(362);
     });
 
     it('every member except the known data props is a function', () => {

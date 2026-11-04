@@ -1,6 +1,6 @@
 // InnerMap — terrain members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures } from './_imports.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // Cardinal steps a water blob can grow along, as [dq, dr].
@@ -385,6 +385,22 @@ Object.assign(InnerMap, {
      */
     getOrGenerate(worldTile, worldQ, worldR, game) {
         const key = `${worldQ},${worldR}_${this.width}x${this.height}`;
+        // A settlement founded (or gone) since the map was drawn: lay it out
+        // afresh — a village where the clan made camp is no longer wild ground
+        // (its name and size and style: a tent village that grows into a town is laid out anew)
+        const st = worldTile.settlement;
+        const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}` : null;
+        // (the open sea is drawn afresh each time: your ship may be another one)
+        if (worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id)) delete this._cache[key];
+        const cached = this._cache[key];
+        if (cached) {
+            // (a map back from a save has lost the marker: then a settlement
+            // with no streets on its map is the sign it was drawn wild)
+            const was = cached._settledAs;
+            const stale = was !== undefined ? was !== settledAs
+                : !!settledAs && !cached.some(row => row && row.some(t => t && t.isRoad));
+            if (stale) delete this._cache[key];
+        }
         if (this._cache[key]) {
             // Update dynamic weather data on cached tiles
             this._refreshWeatherData(this._cache[key], worldQ, worldR, game);
@@ -392,6 +408,7 @@ Object.assign(InnerMap, {
         }
 
         const tiles = this.generate(worldTile, worldQ, worldR, game);
+        tiles._settledAs = settledAs;
         this._cache[key] = tiles;
         return tiles;
     },
@@ -556,10 +573,18 @@ Object.assign(InnerMap, {
         // Must run BEFORE the grass layer so road tiles are excluded from
         // the grass mask and the 9-tile brush creates proper edges.
         if (worldTile.settlement) {
+            // A village of the Dawn of Man: tents round its fires, not streets (world/innerMap/camp.js)
+            if (this._isDawnVillage && this._isDawnVillage(worldTile.settlement)) {
+                tiles._settlementLayout = this._layVillageCamp(tiles, worldTile.settlement, worldQ, worldR);
+            } else if (typeof SettlementGenerator !== 'undefined') {
             // Use the procedural settlement generator (road network + parcels + lots)
-            if (typeof SettlementGenerator !== 'undefined') {
+                // A world made since terrainGen 3 builds each town of its
+                // culture's materials (world/cultures.js); older saves' towns keep their look
+                const gp = (game && game.world && game.world.generationParams) || {};
+                const palette = (Number(gp.terrainGen) || 1) >= 3 && Cultures.cultureOf(game.world, worldTile.settlement)
+                    ? Cultures.palette(worldTile.settlement.culture) : null;
                 const genResult = SettlementGenerator.generate(
-                    tiles, worldTile.settlement, rng, this.width, this.height
+                    tiles, worldTile.settlement, rng, this.width, this.height, { palette }
                 );
                 // Store layout data for road generation at enter() time
                 tiles._settlementLayout = genResult;
@@ -585,6 +610,17 @@ Object.assign(InnerMap, {
         // After the grass layer so pond visuals stamp over it, and before
         // player properties / object scatter so those avoid the blocked water.
         this._paintWaterFeatures(tiles, terrainId, rng);
+
+        // --- The sea or a lake along the sides that face it; a harbour with its
+        // pier and ships in a settlement (world/innerMap/harbour.js; hash-placed) ---
+        const atSea = !!(worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id));
+        if (this._layHarbour && !atSea) {
+            this._layHarbour(tiles, worldTile, worldQ, worldR, game && game.world);
+        }
+        // --- At sea aboard your own ship: open water, your ship, you on deck ---
+        if (this._layOpenSea && atSea) {
+            this._layOpenSea(game, tiles, worldTile);
+        }
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);

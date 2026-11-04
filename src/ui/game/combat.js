@@ -288,6 +288,9 @@ export function _checkHostileEncounters() {
     if (this.player.indenturedServitude) return; // Already captive
     // Holy Sanctuary: no blood may be shed on consecrated ground
     if (PlayerReligion.isInSanctuary(this.player, this.player.q, this.player.r, this.world.width)) return;
+    // Nor inside a town or a crown's village: bands strike on the open road
+    // and in villages no realm protects (WorldUnit.isSafeHaven)
+    if (WorldUnit.isSafeHaven(this.world, this.player.q, this.player.r)) return;
 
     const day = this.world.day;
     const hostiles = this.world.units.filter(u =>

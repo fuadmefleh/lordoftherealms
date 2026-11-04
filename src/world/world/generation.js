@@ -1,6 +1,6 @@
 // World — generation methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -13,14 +13,27 @@ Object.assign(World.prototype, {
     generate(terrainParams = {}) {
         const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
         this.generationParams = { ...terrainParams, seed };
+        // The calendar starts in the chosen year (before the dawn year: no
+        // towns or realms yet — world/dawn.js)
+        this.baseYear = Dawn.startYear(terrainParams);
+        this.year = this.baseYear;
+        this.dawn = null;
         const outerRng = Utils.getRng();
         // A new world numbers its characters, maps, spies, ... from 1
         Utils.setIdCounter(0);
         Utils.setSeed(typeof seed === 'string' ? Math.abs(Utils.hashStr(seed)) : seed);
-        try {
+        // Worlds made before the hex-distance fix (terrainGen < 3, every save
+        // older than it) regenerate with the old metric so their map is the same
+        const build = () => {
             if (this.generationParams.customWorld) this._buildCustomWorld(this.generationParams.customWorld);
             else this._generateWorld(this.generationParams);
             this.getAllSettlements(); // stamps each settlement with its q/r
+            // Each settlement keeps the culture (and tongue) it was founded with (world/cultures.js)
+            Cultures.stampSettlements(this);
+        };
+        try {
+            if ((Number(this.generationParams.terrainGen) || 1) >= 3) build();
+            else Hex.withLegacyMetric(build);
         } finally {
             Utils.setRng(outerRng);
         }
@@ -31,6 +44,11 @@ Object.assign(World.prototype, {
         // Generate terrain
         this.tiles = Terrain.generateMap(this.width, this.height, terrainParams);
         console.log('Terrain generated');
+
+        if (Dawn.isDawnStart(terrainParams)) {
+            this._generateDawnWorld(terrainParams);
+            return;
+        }
 
         console.log('Creating kingdoms...');
         // Create kingdoms — respect kingdomCount parameter
@@ -169,6 +187,25 @@ Object.assign(World.prototype, {
     },
 
     /**
+     * The world at the Dawn of Man: the land as generated, no realm, town,
+     * road or ruin — wandering clans instead (world/dawn.js), and only the
+     * natural wonders (caves, oases) among the points of interest.
+     */
+    _generateDawnWorld(terrainParams) {
+        console.log('The dawn of man: no realms yet...');
+        this.kingdoms = [];
+        this.placePointsOfInterest(terrainParams.ruinsFreq || 'normal', { natural: true });
+        this.history = [{ year: this.baseYear, text: 'The first people walk a young world. No town stands, no crown is worn.' }];
+        if (typeof Religion !== 'undefined') Religion.initialize(this);
+        if (typeof Culture !== 'undefined') Culture.initialize(this);
+        if (typeof Peoples !== 'undefined') Peoples.initialize(this);
+        if (typeof Colonization !== 'undefined') Colonization.initialize(this);
+        if (typeof Cartography !== 'undefined') Cartography.initialize(this);
+        const clans = Dawn.seed(this, terrainParams);
+        console.log(`World generated at the dawn: ${this.width}x${this.height}, ${clans} wandering clans`);
+    },
+
+    /**
      * Load a world from editor data (custom world). The editor data rides in
      * `generationParams.customWorld`, so resuming a saved game rebuilds the
      * same map (World.generate) instead of rolling a random one.
@@ -292,10 +329,19 @@ Object.assign(World.prototype, {
             }
         }
 
-        // Painted roads
+        // Painted roads, each linked to the painted road hexes beside it
+        const painted = [];
         for (const key of Object.keys(editorData.roadOverlays || {})) {
             const h = at(key);
-            if (h && h.tile.terrain.passable) h.tile.hasRoad = true;
+            if (h && h.tile.terrain.passable) { h.tile.hasRoad = true; painted.push(h.tile); }
+        }
+        for (const tile of painted) {
+            tile.roadLinks = tile.roadLinks || 0;
+            Hex.neighbors(tile.q, tile.r).forEach((n, dir) => {
+                if (n.r < 0 || n.r >= this.height) return;
+                const nt = this.tiles[n.r][Hex.wrapQ(n.q, this.width)];
+                if (nt.hasRoad || nt.settlement) tile.roadLinks |= 1 << dir;
+            });
         }
 
         // Realms: the map maker's, seated where they were put; with none,
@@ -509,14 +555,16 @@ Object.assign(World.prototype, {
     /**
      * Place points of interest (ruins, shrines, etc.)
      */
-    placePointsOfInterest(freq = 'normal') {
-        const poiTypes = [
+    placePointsOfInterest(freq = 'normal', opts = {}) {
+        const allTypes = [
             { type: 'ruins', icon: '🏚️', name: 'Ancient Ruins' },
             { type: 'shrine', icon: '⛩️', name: 'Roadside Shrine' },
             { type: 'cave', icon: '🕳️', name: 'Mysterious Cave' },
             { type: 'oasis', icon: '🌴', name: 'Desert Oasis' },
             { type: 'monument', icon: '🗿', name: 'Stone Monument' },
         ];
+        // Before anyone built anything, only what nature made
+        const poiTypes = opts.natural ? allTypes.filter(p => p.type === 'cave' || p.type === 'oasis') : allTypes;
 
         const freqMap = { none: 0, few: 0.4, normal: 1.0, many: 2.0 };
         const mult = freqMap[freq] !== undefined ? freqMap[freq] : 1.0;
@@ -574,12 +622,18 @@ Object.assign(World.prototype, {
     },
 
     /**
-     * Generate roads connecting settlements within the same region.
-     * Uses A* pathfinding over passable land, preferring low-cost terrain.
+     * Generate roads connecting settlements within the same region: a
+     * minimum spanning tree of the towns (by true grid distance), each edge
+     * routed by A* over passable land, shortest edges first so later roads
+     * share the trunk earlier ones laid. Every road hex records which
+     * neighbours its road actually runs to (roadLinks, a bit per
+     * Hex.neighbors direction), so the renderer draws the road as laid
+     * instead of joining every road hex that happens to touch another.
      */
     generateRoads() {
         const settlements = this.getAllSettlements();
         if (settlements.length < 2) return;
+        const width = this.width;
 
         // Group settlements by regionId
         const regionGroups = new Map();
@@ -594,56 +648,37 @@ Object.assign(World.prototype, {
 
         let totalRoadTiles = 0;
 
-        for (const [regionId, regionSettlements] of regionGroups) {
-            if (regionSettlements.length < 2) continue;
+        for (const regionSettlements of regionGroups.values()) {
+            const n = regionSettlements.length;
+            if (n < 2) continue;
 
-            // Build a minimum spanning tree of settlements by distance
-            // to get a connected road network without redundant paths
-            const connected = new Set();
+            // Prim's minimum spanning tree over the settlements
+            const dist = (a, b) => Hex.wrappingOffsetDistance(a.q, a.r, b.q, b.r, width);
+            const inTree = new Array(n).fill(false);
+            const best = new Array(n).fill(Infinity);
+            const via = new Array(n).fill(-1);
             const edges = [];
-
-            // Start with first settlement
-            connected.add(0);
-
-            while (connected.size < regionSettlements.length) {
-                let bestEdge = null;
-                let bestDist = Infinity;
-
-                for (const ci of connected) {
-                    for (let j = 0; j < regionSettlements.length; j++) {
-                        if (connected.has(j)) continue;
-                        const d = Hex.wrappingDistance(
-                            regionSettlements[ci].q, regionSettlements[ci].r,
-                            regionSettlements[j].q, regionSettlements[j].r,
-                            this.width
-                        );
-                        if (d < bestDist) {
-                            bestDist = d;
-                            bestEdge = { from: ci, to: j };
-                        }
-                    }
+            best[0] = 0;
+            for (let k = 0; k < n; k++) {
+                let u = -1;
+                for (let i = 0; i < n; i++) {
+                    if (!inTree[i] && (u < 0 || best[i] < best[u])) u = i;
                 }
-
-                if (!bestEdge) break;
-                connected.add(bestEdge.to);
-                edges.push(bestEdge);
+                inTree[u] = true;
+                if (via[u] >= 0) edges.push({ from: via[u], to: u, d: best[u] });
+                for (let i = 0; i < n; i++) {
+                    if (inTree[i]) continue;
+                    const d = dist(regionSettlements[u], regionSettlements[i]);
+                    if (d < best[i]) { best[i] = d; via[i] = u; }
+                }
             }
+            edges.sort((a, b) => a.d - b.d);
 
-            // Pathfind each edge and mark tiles with hasRoad
             for (const edge of edges) {
                 const s1 = regionSettlements[edge.from];
                 const s2 = regionSettlements[edge.to];
-
                 const path = this.findRoadPath(s1.q, s1.r, s2.q, s2.r);
-                if (path) {
-                    for (const step of path) {
-                        const tile = this.getTile(step.q, step.r);
-                        if (tile && tile.terrain.passable) {
-                            tile.hasRoad = true;
-                            totalRoadTiles++;
-                        }
-                    }
-                }
+                if (path) totalRoadTiles += this.layRoad(path);
             }
         }
 
@@ -651,82 +686,88 @@ Object.assign(World.prototype, {
     },
 
     /**
-     * A* pathfinding for road generation — prefers low moveCost terrain
+     * Mark a path of adjacent hexes as road and link each step to the next.
+     * Returns how many hexes became road for the first time.
+     */
+    layRoad(path) {
+        let added = 0;
+        let prev = null;
+        for (const step of path) {
+            const tile = this.getTile(step.q, step.r);
+            if (!tile || !tile.terrain.passable) { prev = null; continue; }
+            if (!tile.hasRoad) added++;
+            tile.hasRoad = true;
+            if (!tile.roadLinks) tile.roadLinks = 0;
+            if (prev) {
+                const dir = Hex.directionTo(prev.q, prev.r, tile.q, tile.r, this.width);
+                if (dir >= 0) {
+                    prev.roadLinks |= 1 << dir;
+                    tile.roadLinks |= 1 << ((dir + 3) % 6);
+                }
+            }
+            prev = tile;
+        }
+        return added;
+    },
+
+    /**
+     * A* for road building over passable land: pays the terrain's move cost,
+     * reuses existing road cheaply (so roads meet and share a trunk instead
+     * of running side by side), and shuns river hexes (each is a crossing to
+     * bridge or ford, so a road shouldn't run down a river's length). The
+     * heuristic is the true grid distance times the cheapest step, so the
+     * route found is the cheapest one.
      */
     findRoadPath(startQ, startR, endQ, endR) {
         const width = this.width;
         const height = this.height;
-        const endWQ = Hex.wrapQ(endQ, width);
+        const sq = Hex.wrapQ(startQ, width);
+        const eq = Hex.wrapQ(endQ, width);
+        const ROAD_REUSE = 0.35;
+        const RIVER_PENALTY = 2.5;
 
-        const startKey = `${startQ},${startR}`;
-        const endKey = `${endWQ},${endR}`;
-
-        const openSet = [{ key: startKey, f: 0 }];
-        const closedSet = new Set();
+        const idx = (q, r) => r * width + q;
+        const startIdx = idx(sq, startR);
+        const endIdx = idx(eq, endR);
+        const gScore = new Map([[startIdx, 0]]);
         const cameFrom = new Map();
-        const gScore = new Map();
-        gScore.set(startKey, 0);
+        const closed = new Set();
+        const open = new MinHeap((a, b) => a.f < b.f || (a.f === b.f && a.g > b.g));
+        open.push({ i: startIdx, q: sq, r: startR, g: 0, f: 0 });
 
+        const maxIterations = width * height * 2;
         let iterations = 0;
-        const maxIterations = 3000;
-
-        while (openSet.length > 0 && iterations < maxIterations) {
-            iterations++;
-
-            // Find node with lowest fScore
-            let bestIdx = 0;
-            for (let i = 1; i < openSet.length; i++) {
-                if (openSet[i].f < openSet[bestIdx].f) bestIdx = i;
-            }
-            const current = openSet.splice(bestIdx, 1)[0];
-            const currentKey = current.key;
-
-            if (currentKey === endKey) {
-                // Reconstruct path
+        while (open.size() > 0 && iterations++ < maxIterations) {
+            const cur = open.pop();
+            if (closed.has(cur.i)) continue; // stale entry
+            if (cur.i === endIdx) {
                 const path = [];
-                let node = currentKey;
-                while (node) {
-                    const [q, r] = node.split(',').map(Number);
-                    path.unshift({ q, r });
-                    node = cameFrom.get(node);
+                for (let node = cur.i; node !== undefined; node = cameFrom.get(node)) {
+                    path.push({ q: node % width, r: Math.floor(node / width) });
                 }
-                return path;
+                return path.reverse();
             }
+            closed.add(cur.i);
 
-            closedSet.add(currentKey);
-            const [cq, cr] = currentKey.split(',').map(Number);
+            for (const nb of Hex.neighbors(cur.q, cur.r)) {
+                if (nb.r < 0 || nb.r >= height) continue;
+                const nq = Hex.wrapQ(nb.q, width);
+                const ni = idx(nq, nb.r);
+                if (closed.has(ni)) continue;
+                const t = this.tiles[nb.r][nq];
+                if (!t || !t.terrain.passable) continue;
 
-            const neighbors = Hex.neighbors(cq, cr);
-            for (const n of neighbors) {
-                const nq = Hex.wrapQ(n.q, width);
-                const nr = n.r;
-                if (nr < 0 || nr >= height) continue;
+                let step = t.terrain.moveCost || 1;
+                if (!Number.isFinite(step)) continue;
+                if (t.hasRoad) step *= ROAD_REUSE;
+                else if (t.hasRiver && !t.settlement) step += RIVER_PENALTY;
 
-                const nKey = `${nq},${nr}`;
-                if (closedSet.has(nKey)) continue;
-
-                const nTile = this.getTile(nq, nr);
-                if (!nTile || !nTile.terrain.passable) continue;
-
-                // Cost: use terrain moveCost so roads prefer easy terrain
-                const moveCost = nTile.terrain.moveCost || 1;
-                // Bonus: prefer tiles that already have a road
-                const roadBonus = nTile.hasRoad ? 0.1 : 0;
-                const tentG = (gScore.get(currentKey) || 0) + moveCost - roadBonus;
-
-                if (tentG < (gScore.get(nKey) || Infinity)) {
-                    cameFrom.set(nKey, currentKey);
-                    gScore.set(nKey, tentG);
-                    const h = Hex.wrappingDistance(nq, nr, endWQ, endR, width);
-                    const nF = tentG + h;
-
-                    // Check if already in openSet
-                    const existing = openSet.findIndex(o => o.key === nKey);
-                    if (existing >= 0) {
-                        openSet[existing].f = nF;
-                    } else {
-                        openSet.push({ key: nKey, f: nF });
-                    }
+                const g = cur.g + step;
+                if (g < (gScore.has(ni) ? gScore.get(ni) : Infinity)) {
+                    gScore.set(ni, g);
+                    cameFrom.set(ni, cur.i);
+                    const h = Hex.wrappingOffsetDistance(nq, nb.r, eq, endR, width) * ROAD_REUSE;
+                    open.push({ i: ni, q: nq, r: nb.r, g, f: g + h });
                 }
             }
         }

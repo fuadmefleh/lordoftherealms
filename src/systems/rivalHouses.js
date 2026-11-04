@@ -57,6 +57,7 @@
 // player); the retinues ride in world.units. Content in
 // data/rivalHouses.json. No import-time effects.
 
+import { Languages } from './languages.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
@@ -864,7 +865,9 @@ export const RivalHouses = {
             const qty = price > 0 ? Math.min(plan.qty, Math.floor(have / 2), Math.floor(rival.gold * C.trade.spend / price)) : 0;
             if (qty < C.trade.minQty) { rival.plan = null; return; }
             SettlementMarket.take(s, plan.good, qty);
-            const cost = Math.round(price * qty);
+            // A town of another tongue: an interpreter's fee, or a worse deal (systems/languages.js)
+            const tongue = Languages.rivalVisit(world, rival, s, this._culture(world, rival));
+            const cost = Math.round(price * qty / Math.max(0.5, tongue.dealFactor));
             rival.gold -= cost;
             plan.qty = qty;
             plan.cost = cost;
@@ -880,7 +883,8 @@ export const RivalHouses = {
             const s = this._settlementAt(world, plan.to.q, plan.to.r);
             const base = _goodDef(plan.good).basePrice;
             const price = s ? SettlementMarket.value(world, s, world.getTile(s.q, s.r), plan.good, base, SettlementMarket.stock(s, plan.good) + plan.qty / 2) : 0;
-            const got = Math.round(price * plan.qty);
+            const tongue = s ? Languages.rivalVisit(world, rival, s, this._culture(world, rival)) : { dealFactor: 1 };
+            const got = Math.round(price * plan.qty * tongue.dealFactor);
             if (s) SettlementMarket.add(s, plan.good, plan.qty);
             rival.gold += got;
             unit.inventory = {};
@@ -899,7 +903,10 @@ export const RivalHouses = {
                 plan.until = day + Utils.randInt(a, b);
                 rival.gold -= Math.min(rival.gold, C.court.gift);
                 const S = C.standing;
-                const gain = C.court.favour + Math.floor(_num(rival.renown) / Math.max(1, _num(S.renownPer, 20)));
+                // A court of another tongue hears them less well without an interpreter (systems/languages.js)
+                const courtTown = this._settlementAt(world, plan.to.q, plan.to.r);
+                const tongue = courtTown ? Languages.rivalVisit(world, rival, courtTown, this._culture(world, rival)) : { favourFactor: 1 };
+                const gain = Math.round((C.court.favour + Math.floor(_num(rival.renown) / Math.max(1, _num(S.renownPer, 20)))) * tongue.favourFactor);
                 const before = _num(rival.standing[plan.kingdomId]);
                 const now = Math.min(_num(S.max, 60), before + gain);
                 rival.standing[plan.kingdomId] = now;

@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import fs from 'fs';
 
-let InnerMap, DataLoader, Utils, ShipHulls, CustomObjects;
+let InnerMap, DataLoader, Utils, ShipHulls, CustomObjects, TownProps;
 
 beforeAll(async () => {
     globalThis.HTMLImageElement = globalThis.HTMLImageElement || class {};
@@ -22,6 +22,7 @@ beforeAll(async () => {
     ({ DataLoader } = await import('../core/dataLoader.js'));
     ({ Utils } = await import('../core/utils.js'));
     ({ ShipHulls } = await import('../world/shipHulls.js'));
+    ({ TownProps } = await import('../world/townProps.js'));
     const { CustomBuildings } = await import('../world/customBuildings.js');
     ({ CustomObjects } = await import('../world/customObjects.js'));
     CustomBuildings.reset(); await CustomBuildings.loadAll();
@@ -198,5 +199,34 @@ describe('a ship struck down', () => {
         expect(p.ships).toEqual([]);
         expect(p.boardedShip).toBeNull();
         expect(Ships.wreckShip(p, 'ship_1').success).toBe(false);
+    });
+});
+
+describe('nothing of the town lies out on the water', () => {
+    it('fields, fences and props the sea reaches go whole: no part on the water, no part without its anchor', () => {
+        for (const seed of [7, 19, 33]) {
+            Utils.setSeed(seed);
+            InnerMap._cache = {};
+            const g = coastGame({ settlement: { name: 'Portby', type: 'town', population: 3000, kingdom: null } });
+            g.world.generationParams.seed = 31 + seed;
+            InnerMap.enter(g, 5, 6);
+            const T = InnerMap.tiles;
+            T.forEach((row, r) => row.forEach((t, q) => {
+                if (t.customObjectPart) {
+                    const a = T[t.customObjectPart.anchorR] && T[t.customObjectPart.anchorR][t.customObjectPart.anchorQ];
+                    expect(a && a.customObject, `orphan part at ${q},${r} (seed ${seed})`).toBeTruthy();
+                    if (!/^hull_/.test(a.customObject.defId)) expect(!!t._wet, `object part on the water at ${q},${r}`).toBe(false);
+                }
+                if (t.customObject && !/^hull_/.test(t.customObject.defId)) {
+                    expect(!!t._wet, `object on the water at ${q},${r}`).toBe(false);
+                    // all of it: every cell it draws over
+                    const def = CustomObjects.getDef(t.customObject.defId) || TownProps.defs().find(d => d.id === t.customObject.defId);
+                    for (const m of (def && (def.meta && def.meta.length ? def.meta : def.tiles)) || []) {
+                        const c = T[r + m.localRow] && T[r + m.localRow][q + m.localCol];
+                        if (c) expect(!!c._wet, `${t.customObject.defId} at ${q},${r} reaches the water at ${q + m.localCol},${r + m.localRow}`).toBe(false);
+                    }
+                }
+            }));
+        }
     });
 });

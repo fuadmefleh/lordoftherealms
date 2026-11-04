@@ -196,6 +196,8 @@ Object.assign(InnerMap, {
                 t.terrainDetail = null; // (no grass or shore drawn over the planks)
                 t.subTerrain = { ...PIER };
                 t._pier = true;
+                // (an object the pier runs through goes whole, not cut in two)
+                if ((t.customObject || t.customObjectPart) && this._clearWholeObject) this._clearWholeObject(tiles, x, y);
                 t.customObject = null;
                 t.customObjectPart = null;
                 cells.push({ q: x, r: y });

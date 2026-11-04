@@ -237,9 +237,34 @@ Object.assign(InnerMap, {
             if (!t || t._pier || t._deck) continue;
             if (!t._wet) t._waterKind = kind;
             t._wet = true;
+            // An object the water reaches goes whole: a field or a fence half on
+            // the shore would still draw itself, all of it, out over the water
+            if (t.customObject || t.customObjectPart) this._clearWholeObject(tiles, q, r);
             t.customObject = null;
             t.customObjectPart = null;
             if (!t._bridge && !t._ford) { t.isRoad = false; t.paving = null; }
+        }
+    },
+
+    /**
+     * Take away the whole custom object (its anchor and every footprint part)
+     * that has a part at (q, r). Objects anchor bottom-left and rise up and to
+     * the right, so the parts lie in a box above and right of the anchor.
+     */
+    _clearWholeObject(tiles, q, r) {
+        const t = tiles[r] && tiles[r][q];
+        if (!t) return;
+        const aq = t.customObjectPart ? t.customObjectPart.anchorQ : q;
+        const ar = t.customObjectPart ? t.customObjectPart.anchorR : r;
+        const anchor = tiles[ar] && tiles[ar][aq];
+        if (anchor && anchor.customObject) anchor.customObject = null;
+        const H = tiles.length, W = H ? tiles[0].length : 0;
+        const REACH = 24;
+        for (let y = Math.max(0, ar - REACH); y <= Math.min(H - 1, ar + 1); y++) {
+            for (let x = Math.max(0, aq - 1); x <= Math.min(W - 1, aq + REACH); x++) {
+                const p = tiles[y][x].customObjectPart;
+                if (p && p.anchorQ === aq && p.anchorR === ar) tiles[y][x].customObjectPart = null;
+            }
         }
     },
 

@@ -20,6 +20,16 @@ export const FOOD_ITEMS = {
     tea:         { label: 'Tea',           icon: '🍵', hunger: 5, energy: 12, comfort: 10 },
     salt:        { label: 'Salt',          icon: '🧂', hunger: 3 },
     exotic_spices: { label: 'Exotic Spices', icon: '🌶️', hunger: 5, fun: 5 },
+    // (made goods: their grade scales what they give — core/grades.js, Crafting.consume)
+    meat_pie:    { label: 'Meat Pie',      icon: '🥧', hunger: 35, energy: 10, comfort: 6 },
+    honey_cake:  { label: 'Honey Cake',    icon: '🍰', hunger: 18, energy: 12, fun: 8 },
+    sausage:     { label: 'Sausage',       icon: '🌭', hunger: 26, energy: 8 },
+    jam:         { label: 'Fruit Preserve', icon: '🫙', hunger: 12, energy: 10, fun: 6 },
+    pickles:     { label: 'Pickles',       icon: '🥒', hunger: 14, energy: 4 },
+    vegetables:  { label: 'Vegetables',    icon: '🥬', hunger: 14, energy: 4 },
+    beer:        { label: 'Ale',           icon: '🍺', hunger: 6, fun: 10, social: 8, energy: -5 },
+    mead:        { label: 'Mead',          icon: '🍶', hunger: 6, fun: 14, social: 10, energy: -5 },
+    cider:       { label: 'Cider',         icon: '🍏', hunger: 5, fun: 10, social: 8, energy: -4 },
 };
 
 // Recipes live in data/crafting.json (player/crafting.js: Crafting.recipes(station)).
@@ -29,6 +39,8 @@ export const HEAL_ITEMS = {
     healing_salve: { label: 'Healing Salve', icon: '🩹', heal: 30, cost: 1 },
     potion:        { label: 'Healing Potion', icon: '❤️', heal: 50, cost: 1 },
     elixir:        { label: 'Elixir',         icon: '⚡', heal: 40, cost: 1, energy: 30 },
+    poultice:      { label: 'Poultice',       icon: '🩹', heal: 18, cost: 1 },
+    tonic:         { label: 'Herbal Tonic',   icon: '🍶', heal: 25, cost: 1, energy: 20 },
 };
 
 export const MODAL_STYLE = `

@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Crafting } from '../player/crafting.js';
+import { Grades } from '../core/grades.js';
 import { OddJobs } from '../player/oddJobs.js';
 import { MercContracts } from '../player/mercContracts.js';
 import { PlayerReligion } from '../player/playerReligion.js';
@@ -82,7 +83,8 @@ describe('crafting odds, failure and quality', () => {
                 successes++;
                 expect(p.inventory.weapons).toBe(2);
                 expect(p.inventory.iron_ingot).toBeUndefined();
-                expect(p.craftQuality.weapons.n).toBe(2);
+                // (every unit made has a grade: the record never outnumbers the stack — core/grades.js)
+                expect(Object.values(Grades.counts(p, 'weapons')).reduce((a, b) => a + b, 0)).toBe(2);
             }
         }
         expect(failures).toBeGreaterThan(0);
@@ -114,20 +116,22 @@ describe('crafting odds, failure and quality', () => {
         expect(p.inventory).toEqual({ hide: 4, salt: 2, wood: 1 });
     });
 
-    it('quality prices sales and scales effects; units drawn down pro rata', () => {
+    // (2026-11 grades: five grades and graded stacks — this test used to encode the
+    // old four tiers' pooled average: Masterwork sold at ×1.8 and units drew down pro rata)
+    it('the grade prices sales and scales effects; a sale naming no grade sells Common first', () => {
         const p = crafter({ inventory: { leather_armor: 1 } });
         const common = PlayerEffects.personalDamageMultiplier(p);
-        p.inventory.leather_armor = 0;
-        p.inventory.leather_armor = 1;
-        Crafting.noteQuality(p, 'leather_armor', 1, 3);
-        expect(Crafting.saleMult(p, 'leather_armor')).toBeCloseTo(1.8);
+        Crafting.noteQuality(p, 'leather_armor', 1, 'masterwork');
+        expect(Crafting.saleMult(p, 'leather_armor')).toBeCloseTo(3);
         expect(Crafting.qualityLabel(p, 'leather_armor')).toBe('Masterwork');
         expect(PlayerEffects.personalDamageMultiplier(p)).toBeLessThan(common);
-        // Half the stack ordinary: the average falls between
+        // One more, ordinary: the average falls between; a plain sale takes the Common one
         p.inventory.leather_armor = 2;
-        expect(Crafting.averageTier(p, 'leather_armor')).toBeCloseTo(2);
-        expect(Crafting.takeForSale(p, 'leather_armor', 1)).toBeGreaterThan(1);
-        expect(p.craftQuality.leather_armor.n).toBeCloseTo(0.5);
+        expect(Crafting.averageTier(p, 'leather_armor')).toBeCloseTo(2.5);
+        expect(Crafting.takeForSale(p, 'leather_armor', 1)).toBe(1);
+        p.inventory.leather_armor = 1;
+        expect(Grades.counts(p, 'leather_armor').masterwork).toBe(1);
+        expect(Crafting.takeForSale(p, 'leather_armor', 1, 'masterwork')).toBe(3);
     });
 
     it('an antidote purges the flux outright', () => {

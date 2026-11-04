@@ -69,6 +69,10 @@ Object.assign(ActionMenu, {
                 const rank = Crafting.rank(player);
                 const next = rank.next ? ` · ${Math.max(0, Math.ceil(rank.next.at - rank.xp))} xp to ${_esc(rank.next.name)}` : ' · mastered';
                 html += `<div style="${ROW}"><span>🔨 Crafter</span><span style="color:#ccc;">${rank.icon} ${_esc(rank.name)}${next}</span></div>`;
+                // Each craft skill the player has worked at (data/craftGrades.json skills, 0..10)
+                for (const sk of Crafting.skillList(player)) {
+                    html += `<div style="${ROW}"><span>${sk.icon} ${_esc(sk.name)}</span><span style="color:#ccc;">${sk.level.toFixed(1)} · ${_esc(sk.title)}</span></div>`;
+                }
             }
             if (sec.id === 'land') {
                 html += _craftLine('🌿 Forager', Foraging.skill(player));

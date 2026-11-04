@@ -35,13 +35,15 @@
     "weapons": {
         "fists":            { "name": "bare fists", "icon": "✊", "dmg": 0, "attack": -1, "rank": 0 },
         "tools":            { "name": "a smith's hammer", "icon": "🔨", "dmg": 1.5, "attack": 0, "rank": 1 },
+        "spear":            { "name": "a spear", "icon": "🔱", "dmg": 2.5, "attack": 0.8, "rank": 1.5 },
         "weapons":          { "name": "a steel sword", "icon": "⚔️", "dmg": 3, "attack": 1, "rank": 2 },
+        "steel_sword":      { "name": "a steel longsword", "icon": "🗡️", "dmg": 3.8, "attack": 1.2, "rank": 2.5 },
         "enchanted_weapon": { "name": "an enchanted blade", "icon": "✨", "dmg": 5, "attack": 1.5, "rank": 3 }
     },
     "shields": {
         "shield": { "name": "shield", "icon": "🛡️", "guard": 1.5, "riposte": 0.4 }
     },
-    "armour": { "leather_armor": 0.2, "dragonscale_armor": 0.35, "amulet": 0.1 },
+    "armour": { "leather_armor": 0.2, "chainmail": 0.28, "plate_armor": 0.36, "helmet": 0.08, "dragonscale_armor": 0.35, "amulet": 0.1 },
     "maxArmour": 0.7,
     "npcs": {
         "guard":          { "attack": 4,   "defense": 3.5, "power": 8,   "hp": 34, "stamina": 12, "armour": 0.2,  "weapon": "a guardsman's spear" },

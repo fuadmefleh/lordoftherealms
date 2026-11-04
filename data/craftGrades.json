@@ -1,0 +1,75 @@
+{
+    "_doc": "Quality grades of made goods and the craft skills that set them (core/grades.js, player/crafting.js, world/marketGrades.js). A held stack keeps plain qty in player.inventory; the units above or below Common are counted in player.craftGrades[good] = { poor, fine, excellent, masterwork } (Common is whatever is left). price: what a unit of the grade fetches and costs against a Common one. effect: how much more it does (nourishment, healing, protection, a weapon's cut, how long clothes stay fresh, how much tools help at the bench). below: the quality score under which a roll lands on this grade (the last has none).",
+
+    "grades": [
+        { "id": "poor", "name": "Poor", "icon": "🟤", "color": "#b08968", "price": 0.6, "effect": 0.8, "below": 0.6 },
+        { "id": "common", "name": "Common", "icon": "⚪", "color": "#d6d2c8", "price": 1.0, "effect": 1.0, "below": 1.7 },
+        { "id": "fine", "name": "Fine", "icon": "🔵", "color": "#5dade2", "price": 1.4, "effect": 1.2, "below": 2.6 },
+        { "id": "excellent", "name": "Excellent", "icon": "🟣", "color": "#c39bd3", "price": 2.0, "effect": 1.4, "below": 3.4 },
+        { "id": "masterwork", "name": "Masterwork", "icon": "🌟", "color": "#f5c542", "price": 3.0, "effect": 1.65, "below": null }
+    ],
+
+    "_skills": "Craft skills: each recipe in data/crafting.json names its `skill` (or takes its station's). Levels 0-10 live on player.skills like the other skills and rise with crafting xp (OddJobs.gainXp, x xpScale). titles: the name of a level band (the highest `min` not above the level).",
+    "skills": {
+        "smithing": { "name": "Smithing", "icon": "⚒️", "desc": "Smelting, forging tools, blades and armour" },
+        "carpentry": { "name": "Carpentry", "icon": "🪚", "desc": "Planks, joinery, barrels, bows, shields and arrows" },
+        "tailoring": { "name": "Tailoring", "icon": "🧵", "desc": "Spinning, weaving and sewing clothes and cloaks" },
+        "leatherwork": { "name": "Leatherwork", "icon": "🟫", "desc": "Tanning, leather armour, boots, saddles and bookbinding" },
+        "cooking": { "name": "Cooking", "icon": "🍳", "desc": "Meals, baking and preserves" },
+        "brewing": { "name": "Brewing", "icon": "🍺", "desc": "Ale, mead, cider and wine" },
+        "alchemy": { "name": "Alchemy & Herbalism", "icon": "🧪", "desc": "Potions, salves, soap, candles and ink" },
+        "jewellery": { "name": "Jewellery", "icon": "💍", "desc": "Rings, amulets and fine metalwork" },
+        "pottery": { "name": "Pottery & Glass", "icon": "🏺", "desc": "Pots, crockery, glass and glassware" }
+    },
+    "stationSkills": { "cook": "cooking", "craft": "carpentry", "smelt": "smithing", "brew": "alchemy", "tan": "leatherwork" },
+    "titles": [
+        { "min": 0, "name": "Novice" },
+        { "min": 2, "name": "Apprentice" },
+        { "min": 4, "name": "Journeyman" },
+        { "min": 6, "name": "Artisan" },
+        { "min": 8, "name": "Master" },
+        { "min": 10, "name": "Grandmaster" }
+    ],
+    "xpScale": 0.6,
+    "_legacy": "Old saves kept one crafting rank (player.crafting.xp): the first time a craft skill is read it starts at legacyPerRank x that rank.",
+    "legacyPerRank": 1.5,
+
+    "_roll": "A craft's quality score = base + level x perLevel + workshop (0, 1 or 1.2 in one you own) x workshop + tools x tools x the tools' power x their grade's effect + (attribute - 5) x perAttr - (difficulty - 1) x perDifficulty + the inputs' average grade above Common x perInputGrade + the forge minigame ((score - 50) / 50 x forge), plus a triangular noise of +-noise from the seeded RNG. The grade is the first whose `below` the score is under.",
+    "roll": {
+        "base": 1.0, "perLevel": 0.22, "workshop": 0.35, "tools": 0.2, "perAttr": 0.05,
+        "perDifficulty": 0.25, "perInputGrade": 0.25, "forge": 0.7, "noise": 0.9
+    },
+    "_tools": "What counts as tools at the bench, and how much each helps (the best you carry is used; it wears by its grade: a Fine set lasts longer).",
+    "tools": { "tools": 1.0, "steel_tools": 1.5 },
+
+    "_wear": "Goods worn on the body: the best grade held of a kind sets how much it does. clothing: freshness lost a day is divided by the grade's effect (player/core/needs.js).",
+    "clothing": ["fine_garments", "fur_coat", "wool_cloak", "clothes"],
+
+    "_gradeable": "Goods that come in grades: every product of a data/crafting.json recipe (unless the recipe says quality: false) plus these, which the towns' own trades make.",
+    "extraGradeable": ["beer", "liquor", "wine", "cheese", "bread", "flour", "textiles", "linen", "leather", "tools", "weapons", "clothes", "luxuries", "lamp_oil", "bronze", "planks", "joinery", "boots", "wool_cloak", "steel", "chainmail", "soap", "candles", "pottery", "glassware", "rope", "mead", "cider", "sausage", "parchment", "ink", "book", "silver_jewellery"],
+
+    "_market": "The towns' craftsmanship (world/marketGrades.js): a level 0-10 = typeLevel + a fixed local knack (+-knack, by the town's name) + guild (a town guild that guards the good) + perWorksLevel x the level of the player's works making it. Its market stock comes in grades: poor = poorBase - poorPerLevel x level, fine = fineBase + finePerLevel x level, excellent = excellentPerLevel x (level - excellentFrom), masterwork = masterworkPerLevel x (level - masterworkFrom), shares of the stock (each at least 0); the stalls are restocked in grades every `restockDays`.",
+    "market": {
+        "typeLevel": { "village": 2, "town": 3.5, "city": 4.5, "capital": 5.5 },
+        "knack": 1.5,
+        "guild": 1.0,
+        "perWorksLevel": 0.6,
+        "poorBase": 0.26, "poorPerLevel": 0.03, "poorMin": 0.02,
+        "fineBase": 0.05, "finePerLevel": 0.03,
+        "excellentPerLevel": 0.008, "excellentFrom": 2,
+        "masterworkPerLevel": 0.004, "masterworkFrom": 5,
+        "restockDays": 7,
+        "_labels": "The word for a town's craftsmanship (the highest `min` not above its level)",
+        "labels": [
+            { "min": 0, "name": "Rough", "color": "#b08968" },
+            { "min": 2.5, "name": "Plain", "color": "#d6d2c8" },
+            { "min": 4, "name": "Skilled", "color": "#5dade2" },
+            { "min": 5.5, "name": "Renowned", "color": "#c39bd3" },
+            { "min": 7, "name": "Master-crafted", "color": "#f5c542" }
+        ]
+    },
+    "_soap": "A cake of soap in the pack is used when you bathe or wash your clothes by hand (player/core/needs.js): this much more hygiene and clothes freshness, x its grade's effect.",
+    "soap": { "hygiene": 15, "clothes": 15 },
+    "_hired": "Hired work (systems/commissions.js) comes out in the town's grades: its craftsmanship level for the product, with the trade's skill (a commission is not rolled: the shares are the market's mix, rounded down, the rest Common).",
+    "hired": { "levelBonus": 0.5 }
+}

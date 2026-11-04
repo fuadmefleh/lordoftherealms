@@ -991,7 +991,7 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
             html += `<div class="sinv-tile" title="${tip}">`;
             html += `<span class="sinv-tile-icon">${icon}</span>`;
             if (quantity > 1) html += `<span class="sinv-tile-qty">${quantity}</span>`;
-            html += `<span class="sinv-tile-name">${name}${qTag ? ` <span class="sinv-tile-quality">${qTag.split(' ')[0]}</span>` : ''}</span>`;
+            html += `<span class="sinv-tile-name">${name}${qTag ? ` <span class="sinv-tile-quality">${Crafting.bestTier(player, itemId).icon}</span>` : ''}</span>`;
             html += `</div>`;
         }
         body.innerHTML = html || '<p class="srel-empty">Your pack is empty.</p>';

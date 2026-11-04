@@ -22,10 +22,18 @@
 // State: player.commissions = [{ id, kind, recipeId, label, town, q, r,
 // runs, pay, fee, out: {good: n}, readyDay, collected }]. Content in
 // data/commissions.json. No randomness; player and world passed in.
+//
+// Grades (core/grades.js): the work comes out in the town's grades — its
+// craftsmanship for the product (world/marketGrades.js, + the trade's
+// data/craftGrades.json hired.levelBonus, + the grade of the goods you
+// brought) sets the shares of Poor, Fine, Excellent and Masterwork, rounded
+// down, the rest Common (job.grades; handed over on collection, best first).
 
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { Grades } from '../core/grades.js';
+import { MarketGrades } from '../world/marketGrades.js';
 import { Languages } from './languages.js';
 import { Ledger } from './ledger.js';
 
@@ -151,7 +159,38 @@ export const Commissions = {
             fee = Math.max(_num((C.fee || {}).min, 1), Math.round(worth * _num((C.fee || {}).share, 0.2) * (1 - tongue)));
         }
         const days = Math.max(0, Math.ceil(n / Math.max(1, offer.perDay)) - 1);
-        return { runs: n, inputs, made, keep, give, fee, worth: Math.round(worth), days };
+        const grades = Commissions.gradesFor(player, settlement, inputs, give);
+        return { runs: n, inputs, made, keep, give, fee, worth: Math.round(worth), days, grades };
+    },
+
+    /**
+     * The grades the work comes out in: { good: { poor, fine, excellent,
+     * masterwork } } of the units handed back (the rest Common).
+     */
+    gradesFor(player, settlement, inputs, give) {
+        const out = {};
+        if (!settlement) return out;
+        // The goods you bring: better stuff makes better work
+        let n = 0, sum = 0;
+        for (const [g, k] of Object.entries(inputs || {})) {
+            if (!Grades.gradeable(g) || !player) continue;
+            const p = Grades.peek(player, g, k, { order: 'best' });
+            n += p.n; sum += p.index * p.n;
+        }
+        const inputBonus = n > 0 ? (sum / n - Grades.COMMON) * 1.5 : 0;
+        const bonus = _num(((Grades.data() || {}).hired || {}).levelBonus, 0.5) + inputBonus;
+        for (const [g, q] of Object.entries(give || {})) {
+            if (!(q > 0) || !Grades.gradeable(g)) continue;
+            const mix = MarketGrades.mix(MarketGrades.level(settlement, g) + bonus);
+            const e = {};
+            let left = q;
+            for (const id of ['masterwork', 'excellent', 'fine', 'poor']) {
+                const k = Math.min(left, Math.floor(q * mix[id] + 1e-9));
+                if (k > 0) { e[id] = k; left -= k; }
+            }
+            if (Object.keys(e).length) out[g] = e;
+        }
+        return out;
     },
 
     /**
@@ -172,10 +211,8 @@ export const Commissions = {
         }
         if (pay !== 'cut' && _num(player.gold) < q.fee) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${q.fee} gold.` };
         if (Object.values(q.give).every(v => v <= 0)) return { success: false, reason: 'That is too little to be worth their while: bring more.' };
-        for (const [g, n] of Object.entries(q.inputs)) {
-            inv[g] = _num(inv[g]) - n;
-            if (inv[g] <= 0) delete inv[g];
-        }
+        // (the best of what you carry goes to the work — core/grades.js)
+        for (const [g, n] of Object.entries(q.inputs)) Grades.remove(player, g, n, { order: 'best' });
         if (pay !== 'cut') {
             player.gold -= q.fee;
             Ledger.record(player, 'hiredWork', -q.fee);
@@ -188,12 +225,28 @@ export const Commissions = {
             id: `cm_${_day(world)}_${_nextId++}_${player.commissions.length}`,
             kind: offer.kind, recipeId: offer.recipeId, label: offer.label, who: offer.who,
             town: s.name, q: s.q, r: s.r, runs: q.runs, pay, fee: q.fee, kept: q.keep,
-            out: q.give, readyDay: _day(world) + q.days, collected: false, told: false,
+            out: q.give, grades: q.grades, readyDay: _day(world) + q.days, collected: false, told: false,
         };
         player.commissions.push(job);
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${Commissions._goodName(g).toLowerCase()}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
         return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when}${pay === 'cut' ? ' (keeping their cut)' : ` (${q.fee} gold)`}.` };
+    },
+
+    /** `n` units of `g` just handed over from a job: its graded units go first, best first. */
+    _handGrades(player, job, g, n) {
+        const e = _obj(job.grades) && _obj(job.grades[g]);
+        if (!e || !(n > 0)) return;
+        let left = n;
+        for (const id of ['masterwork', 'excellent', 'fine', 'poor']) {
+            const k = Math.min(left, _num(e[id]));
+            if (k > 0) {
+                Grades.add(player, g, k, id);
+                e[id] -= k;
+                left -= k;
+                if (!(e[id] > 0)) delete e[id];
+            }
+        }
     },
 
     /** Jobs not yet collected */
@@ -229,10 +282,12 @@ export const Commissions = {
                     }
                     job.out[g] = n - taken;
                     if (taken) got[g] = _num(got[g]) + taken;
+                    Commissions._handGrades(player, job, g, taken);
                     full = true;
                 } else {
                     got[g] = _num(got[g]) + n;
                     job.out[g] = 0;
+                    Commissions._handGrades(player, job, g, n);
                 }
             }
             if (Object.values(job.out).every(v => v <= 0)) job.collected = true;

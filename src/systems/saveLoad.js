@@ -358,9 +358,10 @@ export const SaveLoad = {
         'culturalBuildings',
         // "Pretender to X", "Exile", an office's title — a fresh Player says "Nobody"
         'title',
-        // Crafting rank and the quality of crafted goods held (player/crafting.js),
+        // Crafting rank and the grades of made goods held (player/crafting.js, core/grades.js;
+        // craftQuality is an old save's averaged record, converted on first touch),
         // trained stats' progress (player/oddJobs.js), sellsword standing (player/mercContracts.js)
-        'crafting', 'craftQuality', 'attrXp', 'skillXp', 'mercRep',
+        'crafting', 'craftGrades', 'craftQuality', 'attrXp', 'skillXp', 'mercRep',
         // Winter trap lines left set in the snow (player/seasonalWork.js)
         'trapLines',
         // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)

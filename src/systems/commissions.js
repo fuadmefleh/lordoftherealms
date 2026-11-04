@@ -27,6 +27,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Languages } from './languages.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -177,6 +178,7 @@ export const Commissions = {
         }
         if (pay !== 'cut') {
             player.gold -= q.fee;
+            Ledger.record(player, 'hiredWork', -q.fee);
             if (s.economy) s.economy.gold = _num(s.economy.gold) + q.fee;
         } else if (s.market) {
             for (const [g, n] of Object.entries(q.keep)) if (n > 0 && SettlementMarket.tracks(g)) SettlementMarket.add(s, g, n);

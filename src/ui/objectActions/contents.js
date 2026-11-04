@@ -4,6 +4,8 @@
 import { InnerMap } from '../../world/innerMap.js';
 import { Hotbar } from '../hotbar.js';
 import { Containers } from '../../systems/containers.js';
+import { StreetCrime } from '../../systems/streetCrime.js';
+import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { _btn, _removeModal, _showStoreModal } from './logic.js';
 
@@ -29,11 +31,15 @@ export function theftScene(game, ctx) {
     const T = Containers.cfg('theft');
     const pq = InnerMap.playerInnerQ;
     const pr = InnerMap.playerInnerR;
-    const near = (InnerMap.npcs || []).filter(n => n && n.state !== 'at_building' && !n.departed
+    // Out on the street, folk indoors (standing on their door tile) see nothing;
+    // indoors, everyone in the room does (as for street violence, systems/streetCrime.js)
+    const hidden = ctx.building ? new Set(['gone']) : new Set(StreetCrime.config().sight.hiddenStates || []);
+    const near = (InnerMap.npcs || []).filter(n => n && !hidden.has(n.state) && n.state !== 'unconscious' && !n.departed
         && Math.abs(n.q - pq) + Math.abs(n.r - pr) <= T.witnessRange);
     const guards = near.filter(n => /guard|soldier|watch/i.test(String(n.type || ''))).length;
     const owner = ctx.building ? near.find(n => n.type !== 'traveler' && !/guard/i.test(String(n.type || ''))) : null;
     return {
+        near,
         witnesses: near.length - guards - (owner ? 1 : 0),
         guards,
         ownerInside: !!owner,
@@ -133,7 +139,23 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
         lastMsg = { text: res.text, bad: !res.ok };
         if (res.caught) {
             game.ui.showNotification('🚨 Caught stealing!', res.text, 'error');
-            if (res.jailDays) { modal.remove(); game.ui.updateStats(player, game.world); return; }
+            // Those who saw it remember: the owner most of all
+            for (const npc of scene.near || []) {
+                const isOwner = scene.ownerName && npc.name === scene.ownerName;
+                NpcDisposition.adjustDisposition(npc, isOwner ? -25 : -10, player);
+                NpcDisposition.getMemory(npc).lastAction = 'caught_stealing';
+            }
+            if (res.jailDays) {
+                modal.remove();
+                game.ui.updateStats(player, game.world);
+                // The watch hauls you off: into the cells (ui/innerMapJail.js), or off the street map
+                if (typeof game.enterJailMap === 'function') {
+                    game.enterJailMap().then(ok => {
+                        if (!ok && InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+                    });
+                } else if (InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+                return;
+            }
         }
         game.ui.updateStats(player, game.world);
         Hotbar.refresh();

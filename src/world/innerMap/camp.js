@@ -231,6 +231,13 @@ Object.assign(InnerMap, {
             npc.relationshipNpcId = k.id;
             npc.isKin = true;
             if (k.gender) npc.gender = k.gender;
+            // They greet you as the kin they are: their regard for you (player/dawnBirth.js) is their mood in talk
+            const rel = player.relationships && player.relationships[k.id];
+            const regard = rel && Number.isFinite(rel.score) ? rel.score : 60;
+            npc._dialogMemory = {
+                timesSpoken: 0, disposition: Math.max(0, Math.min(100, Math.round(regard))), lastAction: null, giftsReceived: 0,
+                threatened: false, flattered: false, questOffered: false, rumorsTold: 0, playerTitle: null, kin: k.kin,
+            };
             place(npc);
             this.npcs.push(npc);
         }

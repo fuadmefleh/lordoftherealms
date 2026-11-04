@@ -544,7 +544,9 @@ export const NpcKnowledge = {
         const tid = String((tile && tile.terrain && tile.terrain.id) || '').toLowerCase();
         const terr = _obj(L.terrain) || {};
         const tKey = Object.keys(terr).find(x => tid.includes(x));
-        parts.push(landLine + (tKey ? ` ${terr[tKey]}` : ''));
+        const land = landLine + (tKey ? ` ${terr[tKey]}` : '');
+        // What a line, once said, puts on the player's map (only what is actually told is marked)
+        const reveals = new Map();
 
         // The road and where it goes: the ways out, and how far
         const RD = _obj(R.road) || {};
@@ -566,8 +568,12 @@ export const NpcKnowledge = {
             const dir = NpcTasks.direction(world, q, r, l.q, l.r) || 'out';
             const leaderBit = l.leader && l.leader.name && !l.leader.slain ? ` — ${l.leader.name} leads them` : '';
             parts.push(_fill(pick(l.raids > 0 ? D.raids : D.quiet, 'lair'), { lair: l.name, dir, leaderBit }));
-            if (_num(ex.places, 1) >= 2 || role !== 'other') { l.rumoured = true; revealed.lairs.push(l.id); }
-        } else if (D.none) parts.push(pick(D.none, 'safe'));
+            if ((_num(ex.places, 1) >= 2 || role !== 'other') && !l.rumoured && !l.known) {
+                reveals.set(parts.length - 1, () => { l.rumoured = true; revealed.lairs.push(l.id); });
+            }
+        }
+        // (a quiet road is told after the land: it says least)
+        const safe = !lairBest && D.none ? pick(D.none, 'safe') : null;
 
         // An old place off the road
         const site = NpcTasks.delveSites(world, q, r, 8)[0];
@@ -575,17 +581,27 @@ export const NpcKnowledge = {
             const dir = NpcTasks.direction(world, q, r, site.q, site.r) || 'off';
             parts.push(_fill(pick(R.site, 'site'), { site: site.name.replace(/^The /, 'the '), dir: `${NpcTasks.distanceWords(site.d).replace('just outside town', 'close by')} to the ${dir}` }));
             const t = world.getTile ? world.getTile(site.q, site.r) : null;
-            if (t && !t.explored) t.explored = true;
-            revealed.sites.push({ q: site.q, r: site.r });
+            if (t && !t.explored) {
+                reveals.set(parts.length - 1, () => { t.explored = true; revealed.sites.push({ q: site.q, r: site.r }); });
+            }
         }
+        // Then whose land it is
+        parts.push(land);
+        if (safe) parts.push(safe);
 
         // The season on the road
         const S = _obj(R.season) || {};
         if (S[world.season]) parts.push(pick(S[world.season], 'season'));
 
         // How much they'll say: the speaker's own part first, then as their mood allows
-        const keep = NpcKnowledge.shareCount(disp) + 1;
-        let text = parts.filter(Boolean).slice(0, Math.max(2, keep)).join(' ');
+        const keep = Math.max(2, NpcKnowledge.shareCount(disp) + 1);
+        const said = [];
+        parts.forEach((p, i) => {
+            if (!p || said.length >= keep) return;
+            said.push(p);
+            if (reveals.has(i)) reveals.get(i)();
+        });
+        let text = said.join(' ');
         if (disp < 30) text = _pick(NpcKnowledge.config().guarded, _h(seed)) + text;
         // A name mid-sentence: "This is the Crooked Lantern", not "The"
         text = text.replace(/([a-z,] )The (?=[A-Z])/g, '$1the ');

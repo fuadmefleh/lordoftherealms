@@ -185,9 +185,12 @@ registerScene('ice_fishing', {
             if (where === 'far' && !SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: 'The ice is gone.', type: 'error' } };
             return _walk(game, 'ice_fishing', st, choice, (done, quit) => WildTaskRunner.iceFish(game, { player, where }, done, quit));
         }
+        // Fish landed on the inner map (the walk) are the least you come back with
+        const landed = Math.floor(Number(st._res && st._res.landed) || 0);
+        const floorFish = (items) => (landed > 0 ? { ...items, fish: Math.max(items.fish || 0, landed) } : items);
         st = _plain(st);
         if (choice === 'shore') {
-            const res = SeasonalWork.iceFish(player, tile, world);
+            const res = SeasonalWork.iceFish(player, tile, world, { landed });
             if (!res.success) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: res.reason, type: 'error' } };
             return { endDay: true, notification: { title: '🧊 Ice Fishing', body: res.message, type: Object.keys(res.lost || {}).length ? 'warning' : 'success' } };
         }
@@ -195,12 +198,12 @@ registerScene('ice_fishing', {
             if (!SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: 'The ice is gone.', type: 'error' } };
             const out = SeasonalWork.fishFarOut(player, world, 1);
             if (out.fell) return _fell(out, st);
-            return { state: { ...st, stage: 'far', catch: _add({}, out.items) } };
+            return { state: { ...st, stage: 'far', catch: _add({}, floorFish(out.items)) } };
         }
         if (choice === 'deeper' && st.stage === 'far') {
             const out = SeasonalWork.fishFarOut(player, world, 2);
             if (out.fell) return _fell(out, st);
-            const all = _add({ ...st.catch }, out.items);
+            const all = _add({ ...st.catch }, floorFish(out.items));
             return { endDay: true, notification: { title: '🎣 A Great Haul', body: `The far ice held. ${_bank(player, all)}`, type: 'success' } };
         }
         if (choice === 'back' && st.stage === 'far') {

@@ -29,6 +29,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Underworld } from './underworld.js';
+import { Laws } from './laws.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -239,12 +241,11 @@ export const Containers = {
 
         if (Utils.random() < chance) {
             const value = _num(g.basePrice) * n;
-            const fine = Math.min(_num(player.gold), Math.max(_num(T.fineMin), Math.round(value * _num(T.fineMult))));
+            // The realm's law on punishment scales the fine and the days in the cells (systems/laws.js)
+            const law = Laws.punishment(world, kingdom);
+            const fine = Math.min(_num(player.gold), Math.max(_num(T.fineMin), Math.round(value * _num(T.fineMult) * law.fine)));
             player.gold = _num(player.gold) - fine;
-            if (player.financeToday) {
-                player.financeToday.expenses = player.financeToday.expenses || {};
-                player.financeToday.expenses.fines = _num(player.financeToday.expenses.fines) + fine;
-            }
+            Ledger.record(player, 'fines', -fine);
             if (kingdom && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(T.reputation);
             if (!player.criminalRecord) player.criminalRecord = { pickpocket: 0, smuggling: 0 };
             player.criminalRecord.theft = _num(player.criminalRecord.theft) + 1;
@@ -257,7 +258,7 @@ export const Containers = {
             const offences = player.criminalRecord.theft;
             if (offences >= _num(T.jailFrom, 3) && ctx.inSettlement) {
                 const ladder = Array.isArray(T.jailDays) && T.jailDays.length ? T.jailDays : [2, 4, 7, 10];
-                jailDays = ladder[Math.min(ladder.length - 1, offences - _num(T.jailFrom, 3))];
+                jailDays = Math.max(1, Math.round(ladder[Math.min(ladder.length - 1, offences - _num(T.jailFrom, 3))] * law.jail));
                 player.jailState = {
                     daysRemaining: jailDays,
                     totalDays: jailDays,

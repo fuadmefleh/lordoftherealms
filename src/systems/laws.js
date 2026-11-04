@@ -10,7 +10,8 @@
 // (saved with the realm, systems/saveLoad.js).
 //
 // Every law is read: privatePrisons by systems/knockout.js, foreignLand by
-// systems/lots.js, punishment by systems/streetCrime.js. The panel is
+// systems/lots.js, punishment by systems/streetCrime.js (fines, cells) and
+// systems/knockout.js (deter). The panel is
 // ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';
@@ -21,11 +22,12 @@ const DEFAULTS = {
     laws: {
         privatePrisons: { name: 'Private Prisons', icon: '⛓️', desc: '', options: { forbidden: { label: 'Forbidden', share: 0.6, stability: 0 }, allowed: { label: 'Allowed', share: 0.4, stability: -3 } } },
         foreignLand: { name: 'Land for Foreigners', icon: '📜', desc: '', options: { open: { label: 'Open to all', share: 0.65, stability: 0 }, subjects: { label: 'Subjects only', share: 0.35, stability: 1 } } },
-        punishment: { name: 'Punishment', icon: '⚖️', desc: '', options: { lenient: { label: 'Lenient', share: 0.25, fine: 0.6, jail: 0.6 }, standard: { label: 'Customary', share: 0.5, fine: 1, jail: 1 }, harsh: { label: 'Harsh', share: 0.25, fine: 1.6, jail: 1.6, stability: -2 } } },
+        punishment: { name: 'Punishment', icon: '⚖️', desc: '', options: { lenient: { label: 'Lenient', share: 0.25, fine: 0.6, jail: 0.6, deter: 1.3 }, standard: { label: 'Customary', share: 0.5, fine: 1, jail: 1, deter: 1 }, harsh: { label: 'Harsh', share: 0.25, fine: 1.6, jail: 1.6, deter: 0.6, stability: -2 } } },
     },
 };
 
-const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+// (null, '' and false are no number: Number(null) is 0, which once made a town outside any realm fine ×0)
+const _num = (v, d = 0) => (v != null && v !== '' && typeof v !== 'boolean' && Number.isFinite(Number(v)) ? Number(v) : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 
 function _hash01(s) {
@@ -114,10 +116,14 @@ export const Laws = {
         return { ok: false, reason: `The law of ${(k && k.name) || 'this realm'} lets only its own subjects hold land here. Swear yourself to the crown first.` };
     },
 
-    /** How the watch punishes here: { fine, jail } multipliers. */
+    /**
+     * How the watch punishes here: { fine, jail, deter } multipliers. `deter`
+     * scales street violence against the player (systems/knockout.js): a harsh
+     * law makes the one who downs you think twice before finishing or robbing you.
+     */
     punishment(world, kingdomId) {
         const o = kingdomId != null ? Laws.option(world, kingdomId, 'punishment') : null;
-        return { fine: _num(o && o.fine, 1), jail: _num(o && o.jail, 1) };
+        return { fine: _num(o && o.fine, 1), jail: _num(o && o.jail, 1), deter: Math.max(0, _num(o && o.deter, 1)) };
     },
 
     // ──────────── THE RULER'S HAND ────────────

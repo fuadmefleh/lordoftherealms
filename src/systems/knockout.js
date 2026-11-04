@@ -107,7 +107,8 @@ export const Knockout = {
      * @param {object} player
      * @param {object} [ctx] { wanted: an unanswered incident here (the watch arrests),
      *   starter: 'player'|'npc'|null (who threw the first blow), hasWatch: a town watch to fetch,
-     *   campsAllowed: the realm lets private citizens keep prison camps, campName, rnd }
+     *   campsAllowed: the realm lets private citizens keep prison camps, campName,
+     *   deter: the realm's punishment law (systems/laws.js: × the chance they finish or rob you), rnd }
      * @returns {{ act:'finish'|'arrest'|'warn'|'rob'|'leave'|'fetch'|'capture', line:string|null, chance:number, why:string, days?:number }}
      */
     attackerVerdict(npc, player, ctx = {}) {
@@ -122,6 +123,8 @@ export const Knockout = {
         }
         const mem = npc ? NpcDisposition.getMemory(npc) : {};
         const grudge = mem.grudge || null;
+        // A harsh law makes them think twice; a lenient one emboldens them
+        const deter = Math.max(0, _num(ctx.deter, 1));
         if (grudge && grudge.victimName) vars.victim = grudge.victimName;
         const F = C.finish;
         let temperament = 'balanced';
@@ -143,14 +146,14 @@ export const Knockout = {
             let k = _num(N.finish.base);
             if (temperament === 'aggressive') k = Math.max(k, _num(N.finish.aggressive));
             if (grudge) k = Math.max(k, grudge.severity === 'murder' ? _num(N.finish.murderGrudge) : _num(N.finish.grudge));
-            k = Math.max(0, Math.min(1, k));
+            k = Math.max(0, Math.min(1, k * deter));
             if (rnd() < k) return { act: 'finish', line: say('finish'), chance: k, why: 'They meant to kill you from the first.' };
             if (ctx.campsAllowed && rnd() < _num(N.capture)) {
                 const days = Math.max(1, Math.round(_span(N.days, rnd)));
                 return { act: 'capture', line: say('capture'), chance: k, why: 'The realm lets them keep prisoners.', days };
             }
         }
-        chance = Math.max(0, Math.min(1, chance));
+        chance = Math.max(0, Math.min(1, chance * deter));
         if (rnd() < chance) return { act: 'finish', line: say('finish'), chance, why };
         // The player started it: off to fetch the watch
         if (ctx.starter === 'player' && ctx.hasWatch && !(npc && npc.type === 'child') && rnd() < _num(C.fetchWatch)) {
@@ -159,6 +162,7 @@ export const Knockout = {
         const R = C.rob;
         let rob = _num(R[npc && npc.type], _num(R.base));
         if (temperament === 'aggressive') rob = Math.max(rob, _num(R.aggressive));
+        rob = Math.min(1, rob * deter);
         const act = _num(player && player.gold) > 0 && rnd() < rob ? 'rob' : 'leave';
         return { act, line: say(act), chance, why };
     },
@@ -175,7 +179,7 @@ export const Knockout = {
      * Someone at home who hates the player: do they set on them as they walk in?
      * @returns {{ attacks:boolean, line:string|null, why:string|null }}
      */
-    householderAttacks(npc, rnd = Utils.random) {
+    householderAttacks(npc, rnd = Utils.random, deter = 1) {
         const C = Knockout.config();
         const H = C.householder;
         if (!npc || ['guard', 'child'].includes(npc.type) || npc._taskFoe) return { attacks: false, line: null, why: null };
@@ -184,7 +188,7 @@ export const Knockout = {
         try { temperament = Duels.fromNpc(npc).temperament || 'balanced'; } catch (e) { temperament = 'balanced'; }
         const disp = _num(mem.disposition, 50);
         const hostile = !!mem.grudge || disp < _num(H.hateBelow, 15) || (temperament === 'aggressive' && disp < _num(H.angryBelow, 30));
-        if (!hostile || rnd() >= _num(H.chance, 0.6)) return { attacks: false, line: null, why: null };
+        if (!hostile || rnd() >= Math.min(1, _num(H.chance, 0.6) * Math.max(0, _num(deter, 1)))) return { attacks: false, line: null, why: null };
         const why = mem.grudge ? `You hurt ${mem.grudge.victimName || 'their own'}.` : 'They hate you.';
         return { attacks: true, line: _fill(_pick(C.lines.householder, rnd), { victim: (mem.grudge && mem.grudge.victimName) || 'them' }), why };
     },

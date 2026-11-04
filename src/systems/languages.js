@@ -36,6 +36,7 @@
 
 import { Hex } from '../core/hex.js';
 import { Cultures } from '../world/cultures.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -244,6 +245,7 @@ export const Languages = {
             const wage = _num(t.wage);
             if (_num(player.gold) >= wage) {
                 player.gold -= wage;
+                Ledger.record(player, 'languages', -wage);
                 t.paid = _num(t.paid) + wage;
             } else {
                 out.notices.push({ icon: '🗣️', title: 'Your interpreter leaves', text: `${t.name} goes unpaid and leaves your service.`, type: 'warning' });
@@ -289,6 +291,7 @@ export const Languages = {
         if (Languages.fluency(player, lang) >= 100) return { success: false, reason: `You already speak ${Cultures.languageName(lang)} like a native.` };
         if (_num(player.gold) < cost) return { success: false, reason: `A lesson costs ${cost} gold.` };
         player.gold -= cost;
+        Ledger.record(player, 'languages', -cost);
         player.langTalk.lessons = _num(player.langTalk.lessons) + 1;
         const g = Languages._gain(player, lang, _num(T.gain, 5));
         const lv = g && g.levelUp ? Languages._levelNotice(lang, g.levelUp) : null;
@@ -335,6 +338,7 @@ export const Languages = {
         if (!offer) return { success: false, reason: 'There is no one to hire here.' };
         if (_num(player.gold) < offer.hire) return { success: false, reason: `${offer.name} asks ${offer.hire} gold to take service.` };
         player.gold -= offer.hire;
+        Ledger.record(player, 'languages', -offer.hire);
         player.translator = { ...offer, since: _day(world), paid: 0 };
         return { success: true, spent: offer.hire, text: `${offer.name} enters your service: ${offer.tongues.map(Cultures.languageName).join(', ')}, for ${offer.wage} gold a day.` };
     },

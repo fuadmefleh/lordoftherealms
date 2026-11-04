@@ -371,6 +371,9 @@ export const HeirAgency = {
         const child = HeirAgency._child(player, childId);
         const why = HeirAgency._grownAtHome(player, world, child);
         if (why) return { success: false, reason: why };
+        // Of age is not old enough to lead men (data/upbringing.json agency.commandMinAge)
+        const minAge = Number(HeirAgency.config().commandMinAge) || 0;
+        if (Number(child.age) < minAge) return { success: false, reason: `${child.firstName} is too young to lead the company (${minAge} at least).` };
         for (const c of player.children || []) {
             const a = c && c.upbringing && c.upbringing.agency;
             if (a && a.commission && a.commission.kind === 'command') a.commission = null;

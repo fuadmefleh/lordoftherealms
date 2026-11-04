@@ -38,7 +38,10 @@ function forYou(game, k, lawId, option) {
     if (lawId === 'privatePrisons' && option.id === 'allowed') return 'Anyone who sets on you and wins may take you for their prison camp.';
     if (lawId === 'punishment') {
         const p = Laws.punishment(world, k.id);
-        return p.fine === 1 && p.jail === 1 ? 'The watch fines and jails by long custom.' : `The watch's fines ×${p.fine}, days in the cells ×${p.jail}.`;
+        if (p.fine === 1 && p.jail === 1 && p.deter === 1) return 'The watch fines and jails by long custom.';
+        const street = p.deter < 1 ? ' Footpads and brawlers fear it: one who downs you is less likely to finish you or rob you.'
+            : p.deter > 1 ? ' Footpads and brawlers fear it little: one who downs you is more likely to finish you or rob you.' : '';
+        return `The watch's fines ×${p.fine}, days in the cells ×${p.jail}.${street}`;
     }
     return '';
 }

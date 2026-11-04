@@ -35,7 +35,9 @@
         "bakery":      { "shelf": [["bread", 0.85, 2, 6]], "sack": [["flour", 0.85, 2, 6]] },
         "marketplace": { "crate": [["fruit", 0.4, 2, 6], ["textiles", 0.2, 1, 2], ["pottery", 0.25, 1, 3], ["spices", 0.08, 1, 1]] },
         "guildhall":   { "chest": [["commerce_parts", 0.45, 1, 2], ["ancient_coin", 0.3, 1, 3], ["parchment", 0.5, 1, 4]] },
-        "post_house":  { "sack": [["parchment", 0.8, 2, 6], ["commerce_parts", 0.15, 1, 1]] }
+        "post_house":  { "sack": [["parchment", 0.8, 2, 6], ["commerce_parts", 0.15, 1, 1]] },
+        "castle":      { "chest": [["ancient_coin", 0.7, 2, 6], ["gold_bar", 0.2, 1, 1], ["gems", 0.25, 1, 2], ["silk", 0.3, 1, 2], ["luxuries", 0.3, 1, 1], ["enchanted_ring", 0.04, 1, 1]], "barrel": [["wine", 0.6, 1, 4], ["beer", 0.6, 2, 6]], "stall": [["grain", 0.7, 2, 6]], "rack": [["weapons", 0.6, 1, 2], ["shield", 0.4, 1, 2], ["arrows", 0.6, 4, 12]], "shelf": [["cheese", 0.5, 1, 3], ["bread", 0.5, 1, 4], ["preserved_fish", 0.3, 1, 3], ["honey", 0.2, 1, 2]] },
+        "jail":        { "chest": [["clothes", 0.5, 1, 2], ["weapons", 0.35, 1, 1], ["ancient_coin", 0.35, 1, 3], ["tools", 0.2, 1, 1], ["rope", 0.3, 1, 2], ["amulet", 0.05, 1, 1]], "barrel": [], "rack": [["weapons", 0.5, 1, 2], ["shield", 0.2, 1, 1]] }
     },
     "outdoors": {
         "crate":  [["wood", 0.35, 1, 4], ["grain", 0.3, 1, 5], ["rope", 0.25, 1, 2], ["pottery", 0.15, 1, 2]],

@@ -323,8 +323,14 @@ export const SaveLoad = {
                 // Tariffs, bans, embargoes, treaties, trade wars, the granary (systems/tradePolicy.js)
                 'tradePolicy',
                 // The crown's books: tax levels, budget lines, arrears, corruption, demesne (world/crownBooks.js)
-                'fisc']),
-            ...(k.createdByPlayer ? {
+                'fisc',
+                // What its shipwrights know (world/shipcraft.js: absent = the whole craft) and
+                // the tongues its court has learned (world/cultures.js)
+                'shipcraft', 'tongues']),
+            // A realm born after world generation (founded by the player, or risen at the
+            // Dawn of Man) isn't regenerated from the seed: keep what made it
+            ...(k.createdByPlayer || k.dawnBorn ? {
+                dawnBorn: !!k.dawnBorn,
                 foundedDay: k.foundedDay,
                 colorLight: k.colorLight,
                 preferredTerrain: k.preferredTerrain,
@@ -367,6 +373,10 @@ export const SaveLoad = {
         'annalsPast',
         // Origin, difficulty and victory goal (player/scenarios.js, core/difficulty.js)
         'scenario',
+        // Lots, rented and bought houses in town (systems/lots.js: rent day reads it)
+        'lotHoldings',
+        // How you last left the cells (ui/innerMapJail.js)
+        'lastJailRelease',
     ],
 
     _pickDefined(obj, keys) {

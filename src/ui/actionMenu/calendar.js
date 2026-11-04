@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { Calendar } from '../../systems/calendar.js';
 import { CARD, esc } from './uiKit.js';
+import { Dawn } from '../../world/dawn.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const SEASON_TINT = { Spring: '#7bd88f', Summer: '#f5c542', Autumn: '#e08a3c', Winter: '#8fc4ff' };
@@ -103,7 +104,9 @@ Object.assign(ActionMenu, {
         if (player && Number.isFinite(player.age)) html += `<div style="${NOTE}">${esc(player.name || 'You')}: age ${player.age}</div>`;
         html += '</div></div>';
 
-        html += `<div style="font-weight:bold; color:var(--gold); font-size:13px; margin-top:6px;">📅 Year ${today.year}</div>`;
+        // A world begun at the Dawn of Man names its age (world/dawn.js)
+        const era = Dawn.eraName(world);
+        html += `<div style="font-weight:bold; color:var(--gold); font-size:13px; margin-top:6px;">📅 Year ${today.year}${era ? ` <span style="${NOTE} font-weight:normal;">· ${esc(era.charAt(0).toUpperCase() + era.slice(1))}</span>` : ''}</div>`;
         html += _grid(world, today, marks, mine);
 
         // Your own matters first on a shared day, then the year's

@@ -11,6 +11,8 @@
 
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Languages } from '../../systems/languages.js';
+import { Lots } from '../../systems/lots.js';
+import { Townsfolk } from '../../systems/townsfolk.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Utils } from '../../core/utils.js';
 import { Hex } from '../../core/hex.js';
@@ -294,6 +296,12 @@ function _endDay(game) {
     mark(game, 'Relationships.processDailyEvents');
     const aging = Relationships.processAging(player, world);
     mark(game, 'Relationships.processAging');
+    // Building lots and houses to let: rent day, the town's other buyers (systems/lots.js);
+    // the townsfolk live their day (systems/townsfolk.js) — as ui/game/endDay.js does
+    Lots.processDay(world, player);
+    mark(game, 'Lots.processDay');
+    Townsfolk.processDay(world, player);
+    mark(game, 'Townsfolk.processDay');
     Relationships.syncFolk(player, world);
     if (aging && aging.died) {
         out.died = 'old age';

@@ -144,13 +144,14 @@ export const SeasonalWork = {
     },
 
     /** A day fishing through the ice: a steady catch, sometimes a big one. */
-    iceFish(player, tile, world) {
+    iceFish(player, tile, world, opts = {}) {
         if (!SeasonalWork.canIceFish(tile, world)) {
             return { success: false, reason: 'Ice fishing needs a frozen river or lake in winter.' };
         }
         const cfg = SeasonalWork._winter().iceFishing || {};
         const [lo, hi] = range(cfg.fish, [2, 5]);
-        const items = { fish: Utils.randInt(lo, hi) };
+        // Fished in person on the inner map: at least what you landed there
+        const items = { fish: Math.max(Utils.randInt(lo, hi), Math.floor(Number(opts.landed) || 0)) };
         if (Utils.random() < (cfg.bigChance ?? 0.15)) items.large_fish = 1;
         const { kept, lost } = SeasonalWork._bag(player, items);
         const got = SeasonalWork._describe(kept);

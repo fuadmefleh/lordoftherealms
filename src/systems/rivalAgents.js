@@ -45,6 +45,7 @@ import { Holdings } from './holdings.js';
 import { Ledger } from './ledger.js';
 import { Taxation } from './marketDynamics.js';
 import { Coalitions } from './coalitions.js';
+import { RivalHouses } from './rivalHouses.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -268,7 +269,8 @@ export const RivalAgents = {
         const towns = RivalAgents.towns(player, world);
         if (!Object.keys(towns).length) return;
         const candidates = Object.values(rivals)
-            .filter(r => r && _num(r.feud) >= _num(C.minFeud) && st.agents.filter(a => a.rivalId === r.kingdomId).length < _num(C.maxPerRival, 2))
+            // (a House under a truce with the player sends no new agents: systems/rivalAudience.js blood price)
+            .filter(r => r && !RivalHouses.inTruce(r, world) && _num(r.feud) >= _num(C.minFeud) && st.agents.filter(a => a.rivalId === r.kingdomId).length < _num(C.maxPerRival, 2))
             .sort((a, b) => _num(b.feud) - _num(a.feud));
         for (const r of candidates) {
             // Sworn into a league, or owed blood (a vendetta rival, systems/coalitions.js), a House spends more freely
@@ -379,11 +381,18 @@ export const RivalAgents = {
             const house = player.house;
             if (!Array.isArray(house.schemes) || house.schemes.length >= Schemes.CONFIG.maxActive) return;
             if (house.schemes.some(s => s.rivalId === a.rivalId)) return;
+            // A truce holds: no plots from them. And a plot costs the House its plotCost, as any other
+            if (!rival || RivalHouses.inTruce(rival, world)) return;
+            const plotCost = _num(RivalHouses.config().plotCost, 150);
+            if (typeof rival.gold === 'number' && rival.gold < plotCost) return;
             const options = Schemes.eligibleTypes(player, world, _num(rival && rival.feud));
             if (!options.length) return;
             const type = options[Math.floor(_roll(`ra-leak:${a.id}:${day}`) * options.length) % options.length];
             const scheme = Schemes.hatch(player, world, rival, type);
             if (scheme) {
+                if (typeof rival.gold === 'number') rival.gold -= plotCost;
+                rival.lastPlotDay = day;
+                if (rival.stats) rival.stats.plotsPaid = _num(rival.stats.plotsPaid) + 1;
                 scheme.dueDay = Math.min(scheme.dueDay, day + _num(K.leadDays, 4));
                 scheme.leakedBy = a.name;
                 if (f) Townsfolk.note(f.person, day, 'plotted', null, a.rivalName);

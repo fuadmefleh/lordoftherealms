@@ -487,6 +487,11 @@ Object.assign(ActionMenu, {
      * Get the AP cost for an action type
      */
     getAPCost(actionType) {
+        // Scrubbing clothes by hand: tuned in data/hospitality.json clothes.washByHandAP
+        if (actionType === 'wash_clothes') {
+            const C = DataLoader._gamedata && DataLoader._gamedata.hospitality && DataLoader._gamedata.hospitality.clothes;
+            if (C && Number.isFinite(C.washByHandAP)) return Math.max(0, C.washByHandAP);
+        }
         const cost = ActionMenu.AP_COSTS[actionType];
         return cost != null ? cost : 2; // Default 2 AP for unknown actions
     },

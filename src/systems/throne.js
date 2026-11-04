@@ -41,6 +41,7 @@ import { Titles } from './titles.js';
 import { Traits } from './traits.js';
 import { Quests } from './quests.js';
 import { Relationships } from './relationships.js';
+import { Regency } from './regency.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
@@ -661,6 +662,9 @@ export const Throne = {
         if (!k || !k.isAlive) return { ok: false, reason: 'No such kingdom.' };
         if (st.civilWar) return { ok: false, reason: 'You are already fighting for a crown.' };
         if (st.ruling) return { ok: false, reason: 'You already wear a crown.' };
+        // A child under a regent raises no banners: pressing a claim is war (systems/regency.js)
+        const minor = Regency.forbids(player, 'war');
+        if (minor) return { ok: false, reason: minor };
         if (Throne.isExiledFrom(player, world, kid)) return { ok: false, reason: `You are exiled from ${k.name} until day ${st.exile[kid]}.` };
         const strength = Throne.claimStrength(player, kid);
         if (strength < cfg.pressMinStrength) return { ok: false, reason: `Your claim is too weak (${strength}; need ${cfg.pressMinStrength}).` };

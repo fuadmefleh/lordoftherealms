@@ -143,7 +143,11 @@
             "hospitality": { "name": "Guest houses, inns & hotels", "group": "enterprise" },
             "hospitalityCosts": { "name": "Innkeeping: staff & supplies", "group": "enterprise" },
             "lodging": { "name": "Lodging & services", "group": "household" },
-            "pickpocketed": { "name": "Robbed in a common room", "group": "other" }
+            "pickpocketed": { "name": "Robbed in a common room", "group": "other" },
+            "hiredWork": { "name": "Tradesmen hired to work your goods", "group": "household" },
+            "languages": { "name": "Lessons & interpreters", "group": "household" },
+            "townRent": { "name": "Rent on houses in town", "group": "household" },
+            "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" }
         }
     },
 

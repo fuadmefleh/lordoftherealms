@@ -430,7 +430,9 @@ Object.assign(Relationships, {
         npc.age = Math.max(16, (child.age || 18) + Utils.randInt(-3, 3));
         npc.isMarried = true;
         npc.noble = true;
-        npc.royal = sp.kind === 'royal';
+        // A royal spouse keeps the link every reader expects (Throne claims by marriage,
+        // RealmIntel kin at court): { kingdomId, charId, dynasty }, as Throne's own royal match makes
+        npc.royal = sp.kind === 'royal' ? { kingdomId: sp.kingdomId || null, charId: sp.royalId != null ? sp.royalId : null, dynasty: npc.dynasty || null } : false;
         if (sp.royalId) npc.royalId = sp.royalId;
         player.spouse = npc.id;
         player.marriageDay = sp.day != null ? sp.day : ((world && world.day) || 0);

@@ -594,7 +594,8 @@ export const WildTaskRunner = {
         };
         return this.run(game, {
             title: c.title, icon: c.icon, say: where === 'shore' ? c.shoreSay : c.farSay, plan: { parHours: c.parHours }, custom,
-            onComplete: () => onDone(),
+            // The fish you landed on the map are yours: the scene's catch is never less (ui/actionMenu/winterScenes.js)
+            onComplete: (_score, info) => onDone({ landed: _num(info && info.done, 0) }),
             onAbandon: () => onAbandon && onAbandon(),
         }, () => onDone());
     },

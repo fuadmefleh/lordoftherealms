@@ -19,6 +19,7 @@
 
 import { LotBook } from '../world/lotBook.js';
 import { Laws } from './laws.js';
+import { Ledger } from './ledger.js';
 
 const _num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const _day = world => _num(world && world.day, 0);
@@ -68,6 +69,7 @@ export const Lots = {
         const price = LotBook.lotPrice(settlement.type, lot.w, lot.h);
         if (_num(player.gold) < price) return { success: false, reason: `The lot costs ${price}g; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= price;
+        Ledger.record(player, 'townLand', -price);
         book.lots[lot.id] = { holder: 'player', holderName: player.name || 'You', price, day: _day(world), built: null };
         _holdings(player).push({ kind: 'lot', q: settlement.q, r: settlement.r, id: lot.id, town: settlement.name, price });
         return { success: true, price, text: `You buy the lot (${lot.w}×${lot.h}) in ${settlement.name} for ${price}g. Build on it when you will.` };
@@ -101,6 +103,7 @@ export const Lots = {
         const rent = LotBook.rentPerDay(settlement.type);
         if (_num(player.gold) < rent) return { success: false, reason: `The first day's rent is ${rent}g.` };
         player.gold -= rent;
+        Ledger.record(player, 'townRent', -rent);
         book.vacancies[key] = { status: 'rented', holder: 'player', holderName: player.name || 'You', rent, day: _day(world) };
         _holdings(player).push({ kind: 'rent', q: settlement.q, r: settlement.r, key, town: settlement.name, rent, name });
         return { success: true, text: `You take ${name} in ${settlement.name} at ${rent}g a day, paid at each day's end.` };
@@ -117,6 +120,7 @@ export const Lots = {
         const price = LotBook.salePrice(settlement.type);
         if (_num(player.gold) < price) return { success: false, reason: `The house costs ${price}g.` };
         player.gold -= price;
+        Ledger.record(player, 'townLand', -price);
         book.vacancies[key] = { status: 'owned', holder: 'player', holderName: player.name || 'You', price, day: _day(world) };
         const hs = _holdings(player).filter(h => !(h.kind === 'rent' && h.key === key && h.q === settlement.q && h.r === settlement.r));
         hs.push({ kind: 'house', q: settlement.q, r: settlement.r, key, town: settlement.name, price, name });
@@ -158,6 +162,7 @@ export const Lots = {
             const rent = _num(v.rent, LotBook.rentPerDay(s.type));
             if (_num(player.gold) >= rent) {
                 player.gold -= rent;
+                Ledger.record(player, 'townRent', -rent);
                 v.paidDay = day;
                 keep.push(h);
             } else {

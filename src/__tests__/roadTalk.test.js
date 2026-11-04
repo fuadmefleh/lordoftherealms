@@ -74,3 +74,24 @@ describe('Talk on the open road', () => {
         expect(line).not.toMatch(/in town/i);
     });
 });
+
+describe('Road talk marks only what it tells', () => {
+    it('a lair the speaker never got round to naming stays off the map; named, it goes on', async () => {
+        const { vi } = await import('vitest');
+        const { OutlawLairs } = await import('../systems/outlawLairs.js');
+        const lair = { id: 'l1', name: 'the Black Hollow', q: 8, r: 6, raids: 2, status: 'active' };
+        const spy = vi.spyOn(OutlawLairs, 'active').mockReturnValue([lair]);
+        const ask = (disposition, seed) => NpcKnowledge.aboutRoad(makeWorld(), {}, { id: 1, type: 'villager', name: 'Maud' }, { q: 6, r: 5, house, isKeeper: true, disposition, seed });
+        const cold = ask(10, 'cold');
+        expect(cold.text).not.toMatch(/Black Hollow/);
+        expect(cold.revealed.lairs).toEqual([]);
+        expect(lair.rumoured).toBeFalsy();
+        const warm = ask(100, 'warm');
+        expect(warm.text).toMatch(/Black Hollow/);
+        expect(warm.revealed.lairs).toEqual(['l1']);
+        expect(lair.rumoured).toBe(true);
+        // Asked again, nothing new to put on the map
+        expect(ask(100, 'warm').revealed.lairs).toEqual([]);
+        spy.mockRestore();
+    });
+});

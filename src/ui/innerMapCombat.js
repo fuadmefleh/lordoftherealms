@@ -36,6 +36,8 @@ import { Duels } from '../systems/duels.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { Knockout } from '../systems/knockout.js';
 import { StreetCrime } from '../systems/streetCrime.js';
+import { Laws } from '../systems/laws.js';
+import { MapTasks } from '../systems/mapTasks.js';
 import { PlayerInventory } from '../player/inventory.js';
 import { Utils } from '../core/utils.js';
 import { drawGlyph } from './icons.js';
@@ -407,7 +409,7 @@ export const InnerMapCombat = {
         this._spawnHitFlash(npc.q * T + T / 2, npc.r * T + T / 2);
 
         // A job's opponent gives up before it comes to killing (ui/innerMapTasks.js)
-        if (npc._taskFoe && health.current <= health.max * 0.2) {
+        if (npc._taskFoe && health.current <= health.max * this._taskYieldAt()) {
             this.cancelAttack();
             npc._taskFoe.onYield();
             return;
@@ -547,6 +549,7 @@ export const InnerMapCombat = {
             : Knockout.attackerVerdict(attacker, player, {
                 wanted, starter, hasWatch: !!settlement, campName,
                 campsAllowed: Knockout.privatePrisonsAllowed(game.world, kingdom),
+                deter: Laws.punishment(game.world, kingdom).deter,
             });
         if (verdict.line && attacker) InnerMapReactions.bark(attacker, verdict.line, 3.5);
         const who = (attacker && attacker.name) || 'Your attacker';
@@ -603,6 +606,19 @@ export const InnerMapCombat = {
         });
     },
 
+    /** The health share a job's opponent yields at (data/mapTasks.json yieldAt). */
+    _taskYieldAt() {
+        const v = MapTasks.data().yieldAt;
+        return typeof v === 'number' && v >= 0 && v < 1 ? v : 0.2;
+    },
+
+    /** The punishment law of the realm whose town this is (systems/laws.js deter; 1 outside a realm). */
+    _lawDeter(game) {
+        const wt = InnerMap.currentWorldTile || {};
+        const s = (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || wt.settlement || null;
+        return Laws.punishment(game && game.world, s ? s.kingdom : null).deter;
+    },
+
     /**
      * Walking into a house where someone hates the player (a grudge, or bad
      * blood): they may set on them there and then — and so the fight is theirs
@@ -615,7 +631,7 @@ export const InnerMapCombat = {
         for (const npc of InnerMap.npcs || []) {
             const lives = (npc._home && npc._home.q === b.q && npc._home.r === b.r) || (b.ownerId != null && npc.id === b.ownerId);
             if (!lives || npc.state === 'unconscious' || npc._ko) continue;
-            const v = Knockout.householderAttacks(npc);
+            const v = Knockout.householderAttacks(npc, undefined, this._lawDeter(game));
             if (!v.attacks) continue;
             npc._struckPlayerFirst = true;
             npc._provokedBy = null;

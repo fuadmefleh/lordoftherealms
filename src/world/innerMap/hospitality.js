@@ -101,16 +101,18 @@ Object.assign(InnerMap, {
             const view = Hospitality.get(world, null, b.establishmentId);
             if (!view) continue;
             const free = n => !taken.has(n.id) && n.type !== 'child' && n.type !== 'traveler' && n.type !== 'beggar';
-            const bound = Hospitality.state(world).houses[b.establishmentId].keeperUid;
-            const keeper = (bound && this.npcs.find(n => n.uid === bound))
-                || this.npcs.find(n => free(n) && (n.type === 'villager' || n.type === 'merchant'))
-                || this.npcs.find(free);
+            const house = Hospitality.state(world).houses[b.establishmentId];
+            const bound = house.keeperUid;
+            const first = !bound;
+            const keeper = (bound && this.npcs.find(n => n.uid === bound)) || this._pickKeeper(first ? view.keeper : null, free);
             b.ownerTitle = view.keeperTitle;
             if (!keeper) {
                 b.ownerName = view.keeper;
                 continue;
             }
             taken.add(keeper.id);
+            // The house's first keeper from the town is the one the panels have named all along
+            if (first && view.keeper) this._nameAsKeeper(keeper, view.keeper);
             const name = keeper.fullName || keeper.name;
             if (keeper.uid) Hospitality.bindKeeper(world, b.establishmentId, keeper.uid, name);
             b.ownerId = keeper.id;
@@ -118,6 +120,38 @@ Object.assign(InnerMap, {
             keeper.roleTitle = `${view.keeperTitle.toLowerCase()} of ${view.name}`;
             keeper.destinations = [b.type, b.type, 'marketplace'];
         }
+    },
+
+    /**
+     * A townsperson to keep a house: for a house's first keeper (`name` given),
+     * an unattached adult of the name's sex where there is one — the one the
+     * name will suit — else any villager or merchant, else anyone free.
+     */
+    _pickKeeper(name, free) {
+        const trade = n => free(n) && (n.type === 'villager' || n.type === 'merchant');
+        if (name) {
+            const gender = Hospitality.keeperGender(name);
+            const single = n => { const p = n._person; return !p || (p.spouse == null && !(p.kids || []).length); };
+            const pick = this.npcs.find(n => trade(n) && n.gender === gender && single(n))
+                || this.npcs.find(n => trade(n) && n.gender === gender);
+            if (pick) return pick;
+        }
+        return this.npcs.find(trade) || this.npcs.find(free);
+    },
+
+    /** The keeper the house was founded with is this townsperson: they bear the name (on the town's roll too). */
+    _nameAsKeeper(npc, fullName) {
+        const parts = String(fullName).trim().split(/\s+/);
+        const first = parts[0];
+        const last = parts.slice(1).join(' ') || npc.lastName || '';
+        const p = npc._person;
+        if (p) {
+            p.first = first;
+            p.last = last;
+        }
+        npc.name = first;
+        npc.lastName = last;
+        npc.fullName = last ? `${first} ${last}` : first;
     },
 
     /** The keeper of a roadhouse and a traveller or two, on an open-road map. */

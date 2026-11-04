@@ -42,6 +42,7 @@ import './whispers.js';
 import './letters.js';
 import './threats.js';
 import './lodging.js';
+import './townLots.js';
 import './courierRiders.js';
 import './rivalHouses.js';
 import './townsfolk.js';

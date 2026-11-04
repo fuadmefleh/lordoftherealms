@@ -30,6 +30,7 @@ import { Transport } from '../../world/transport.js';
 import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
+import { Lots } from '../../systems/lots.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
@@ -151,6 +152,22 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 label: `Run ${v.name}`,
                 icon: '📒',
                 description: 'Your house: prices, staff, cleanliness, guests and takings',
+            });
+        }
+    }
+
+    // Building lots and houses in town (systems/lots.js): the ones you hold, everywhere — their state, tenants and rents
+    {
+        const held = Lots.holdingsView(world, player);
+        if (held.length) {
+            const here = held.filter(v => v.q === tile.q && v.r === tile.r).length;
+            const tenants = held.filter(v => v.tenant).length;
+            const owed = held.reduce((a, v) => a + (v.owed || 0), 0);
+            actions.push({
+                type: 'town_lots',
+                label: 'Your Lots & Town Houses',
+                icon: '🏘️',
+                description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}: build, let, put out, sell`,
             });
         }
     }

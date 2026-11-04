@@ -149,7 +149,9 @@
         },
         "keepers": {
             "first": ["Marla", "Odo", "Hilde", "Bram", "Ysolde", "Tobin", "Agnes", "Wendel", "Ottilie", "Garrick", "Rosamund", "Fenwick", "Berthe", "Alaric", "Mabel", "Corwin"],
-            "last": ["Pennywhistle", "Brewer", "Goodbody", "Hearthstone", "Fairweather", "Underhill", "Mossgrove", "Whitlock", "Tallow", "Copperkettle"]
+            "last": ["Pennywhistle", "Brewer", "Goodbody", "Hearthstone", "Fairweather", "Underhill", "Mossgrove", "Whitlock", "Tallow", "Copperkettle"],
+            "female": ["Marla", "Hilde", "Ysolde", "Agnes", "Ottilie", "Rosamund", "Berthe", "Mabel"],
+            "_doc": "A town house's keeper is named once, when it is founded, and the townsperson the inner map makes its keeper takes that name (world/innerMap/hospitality.js), so the name in the panels and the one in the house's name never change. female: the first names that are a woman's (the keeper chosen from the town is a woman for these)."
         }
     }
 }

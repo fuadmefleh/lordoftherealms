@@ -76,14 +76,15 @@ Object.assign(InnerMap, {
 
     // ──────────── ON ENTERING (interiors.enter) ────────────
 
-    /** Stand up the buildings AI holders have finished on their lots. */
+    /** Stand up the buildings AI holders (and the player's houses to let) have finished on their lots. */
     _raiseLotBuildings(settlement, day) {
         const book = settlement && settlement.lotBook;
         if (!book || !book.lots || typeof CustomBuildings === 'undefined' || !CustomBuildings.isLoaded || !CustomBuildings.isLoaded()) return;
         for (const lot of this.townLots()) {
             const rec = book.lots[lot.id];
             const b = rec && rec.built;
-            if (!b || b.by === 'player' || (b.readyDay != null && day < b.readyDay)) continue;
+            // (a property the player built stands as that property; a house they raised to let stands like the AI's)
+            if (!b || (b.by === 'player' && b.kind !== 'house') || (b.readyDay != null && day < b.readyDay)) continue;
             if (this._lotHasBuilding(lot)) continue;
             this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.name}|${lot.id}|${b.type}`));
         }

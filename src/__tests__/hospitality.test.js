@@ -348,6 +348,7 @@ describe('on the inner map and in the panels', () => {
         InnerMap._currentWorldTileRef = tile;
         InnerMap.buildings = Hospitality.kindsFor(tile.settlement).map((k, i) => ({ q: 10 + i * 5, r: 10, type: k, name: k, actions: [] }));
         InnerMap.npcs = [{ id: 1, type: 'villager', name: 'Ada', fullName: 'Ada Stone', uid: `${t.q},${t.r}#1` }, { id: 2, type: 'merchant', name: 'Brom', uid: `${t.q},${t.r}#2` }, { id: 3, type: 'villager', name: 'Una', uid: `${t.q},${t.r}#3` }, { id: 4, type: 'villager', name: 'Siv', uid: `${t.q},${t.r}#4` }, { id: 5, type: 'villager', name: 'Holt', uid: `${t.q},${t.r}#5` }];
+        const before = Hospitality.townHouses(world, t.q, t.r).map(h => ({ keeper: h.keeper, name: h.name }));
         InnerMap._bindHospitality(world);
         InnerMap._assignHospitalityKeepers(world, new Set());
         const houses = Hospitality.townHouses(world, t.q, t.r);
@@ -357,10 +358,88 @@ describe('on the inner map and in the panels', () => {
             expect(b.ownerName).toBeTruthy();
         });
         expect(houses[0].keeperUid).toBe(`${t.q},${t.r}#1`);
-        expect(houses[0].keeper).toBe('Ada Stone');
+        // The keeper the panels named is the one met in town: the townsperson takes the name
+        expect(houses[0].keeper).toBe(before[0].keeper);
+        expect(InnerMap.npcs[0].fullName).toBe(before[0].keeper);
+        houses.forEach((h, i) => expect(h.name).toBe(before[i].name));
         expect(InnerMap.getBuildingActions(InnerMap.buildings[0])).toContain('lodging');
         InnerMap.buildings = [];
         InnerMap.npcs = [];
+    });
+
+    it('a keeper keeps the name the panels gave them when the town map is first entered', () => {
+        const { world } = game;
+        reset();
+        const t = townOf('town');
+        const tile = world.getTile(t.q, t.r);
+        InnerMap.currentWorldTile = { q: t.q, r: t.r };
+        InnerMap._currentWorldTileRef = tile;
+        const house = Hospitality.townHouses(world, t.q, t.r)[0];
+        const shown = { ...Hospitality.get(world, null, house.id) };
+        const gender = Hospitality.keeperGender(shown.keeper);
+        const first = shown.keeper.split(' ')[0];
+        // Townspeople from the town's roll (systems/townsfolk.js): a married one, and a single one of the keeper's sex
+        const married = { id: 2, first: 'Ivo', last: 'Marsh', gender, spouse: 0, kids: [] };
+        const single = { id: 1, first: 'Elowen', last: 'Wolfsbane', gender, spouse: null, kids: [] };
+        const npc = (id, p) => {
+            const n = { id, type: 'villager', gender: p.gender, name: p.first, lastName: p.last, fullName: `${p.first} ${p.last}`, uid: `${t.q},${t.r}#${p.id}` };
+            Object.defineProperty(n, '_person', { value: p, enumerable: false });
+            return n;
+        };
+        const enter = (people) => {
+            InnerMap.buildings = [{ q: 10, r: 10, type: house.kind, name: house.kind, actions: [] }];
+            InnerMap.npcs = people.map((p, i) => npc(i + 1, p));
+            InnerMap._bindHospitality(world);
+            InnerMap._assignHospitalityKeepers(world, new Set());
+        };
+        enter([married, single]);
+        expect(house.keeper).toBe(shown.keeper);
+        expect(house.name).toBe(shown.name);
+        expect(house.keeperUid).toBe(`${t.q},${t.r}#1`);
+        // The single townsperson keeps the house, renamed on the town's roll too
+        expect(single.first).toBe(first);
+        expect(`${single.first} ${single.last}`).toBe(shown.keeper);
+        expect(married.first).toBe('Ivo');
+        expect(InnerMap.buildings[0].ownerName).toBe(shown.keeper);
+        expect(InnerMap.buildings[0].name).toBe(shown.name);
+        // The next visit: the same keeper, the same name
+        enter([married, single]);
+        expect(Hospitality.get(world, null, house.id).keeper).toBe(shown.keeper);
+        expect(InnerMap.buildings[0].ownerName).toBe(shown.keeper);
+        // The keeper gone, another townsperson keeps the house under their own name; the house keeps its name
+        enter([married]);
+        expect(house.keeper).toBe('Ivo Marsh');
+        expect(house.name).toBe(shown.name);
+        Hospitality.townHouses(world, t.q, t.r);
+        expect(house.name).toBe(shown.name);
+        InnerMap.buildings = [];
+        InnerMap.npcs = [];
+    });
+
+    it('an older save\'s house, its keeper renamed to a townsperson\'s, takes the new name into its own', () => {
+        const { world } = game;
+        reset();
+        const t = townOf('town');
+        const h = Hospitality.townHouses(world, t.q, t.r)[0];
+        const generated = h.keeper.split(' ')[0];
+        const embeds = h.name.includes(generated);
+        // As an old save had it: bound, the keeper's name overwritten, no kv mark
+        h.keeperUid = `${t.q},${t.r}#9`;
+        h.keeper = 'Elowen Wolfsbane';
+        delete h.kv;
+        const oldName = h.name;
+        Hospitality.townHouses(world, t.q, t.r);
+        expect(h.kv).toBe(1);
+        if (embeds) {
+            expect(h.name).toContain('Elowen');
+            expect(h.name).not.toContain(generated);
+        } else {
+            expect(h.name).toBe(oldName);
+        }
+        // Once only: a later keeper does not rename it again
+        h.keeper = 'Ivo Marsh';
+        Hospitality.townHouses(world, t.q, t.r);
+        expect(h.name).not.toContain('Ivo');
     });
 
     it('a roadhouse stands on its road tile\'s inner map', () => {

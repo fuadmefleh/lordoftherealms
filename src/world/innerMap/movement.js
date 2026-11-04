@@ -765,6 +765,23 @@ Object.assign(InnerMap, {
     },
 
     /**
+     * Move the clock on by `hours` (fractions welcome: 0.25 is a quarter hour)
+     * for work done in person. timeOfDay stays a whole hour and the minutes
+     * go into the accumulator, as updateTime keeps them; it stops at 11:59 PM
+     * so the day still ends through updateTime.
+     */
+    passHours(hours) {
+        const h = Number(hours);
+        if (!(h > 0)) return;
+        const scale = this.TIME_SCALE || 60;
+        const hour = Math.floor(Number(this.timeOfDay) || 0);
+        const now = hour * 60 + (Number(this._timeAccumulator) || 0) / scale * 60 + (Number(this.timeOfDay) - hour) * 60;
+        const next = Math.min(23 * 60 + 59, now + h * 60);
+        this.timeOfDay = Math.floor(next / 60);
+        this._timeAccumulator = (next - this.timeOfDay * 60) / 60 * scale;
+    },
+
+    /**
      * Get cached time info for a world tile (when not actively in inner map).
      * Returns { timeOfDay, timeString, period, periodIcon } or null.
      */

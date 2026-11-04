@@ -229,7 +229,7 @@ export const InnerMapFarming = {
 
     _spendMinutes(min) {
         if (!(min > 0)) return;
-        InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + min / 60);
+        InnerMap.passHours(min / 60);
     },
 
     till(game, q, r) {

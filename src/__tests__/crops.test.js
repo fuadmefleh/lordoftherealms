@@ -438,3 +438,23 @@ describe('the inner-map menu and art (ui/innerMapFarming.js)', () => {
         InnerMap.exit(game);
     });
 });
+
+describe('the clock for work in person (InnerMap.passHours)', () => {
+    it('keeps the hour whole and carries minutes in the accumulator', () => {
+        InnerMap.timeOfDay = 10;
+        InnerMap._timeAccumulator = InnerMap.TIME_SCALE * 0.75; // 10:45
+        InnerMap.passHours(20 / 60);
+        expect(InnerMap.timeOfDay).toBe(11);
+        expect(Math.round(InnerMap._timeAccumulator / InnerMap.TIME_SCALE * 60)).toBe(5);
+    });
+    it('heals a fractional hour and stops at 11:59 PM', () => {
+        InnerMap.timeOfDay = 10 + 1 / 3;
+        InnerMap._timeAccumulator = 0;
+        InnerMap.passHours(0.5);
+        expect(InnerMap.timeOfDay).toBe(10);
+        expect(Math.round(InnerMap._timeAccumulator / InnerMap.TIME_SCALE * 60)).toBe(50);
+        InnerMap.passHours(30);
+        expect(InnerMap.timeOfDay).toBe(23);
+        expect(Math.round(InnerMap._timeAccumulator / InnerMap.TIME_SCALE * 60)).toBe(59);
+    });
+});

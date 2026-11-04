@@ -537,7 +537,7 @@ export const InnerMapDeck = {
         const res = ship ? DeckLife.giveOrder(game.player, game.world, ship, id) : { success: false, message: 'You are not aboard.' };
         if (!res.success) { game.ui.showNotification('Orders', res.message, 'error'); return; }
         if (res.hours > 0) {
-            InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + res.hours);
+            InnerMap.passHours(res.hours);
         }
         const o = (DeckLife.config().orders || {})[id] || {};
         const delta = res.morale ? ` (morale ${res.morale > 0 ? '+' : ''}${res.morale})` : '';

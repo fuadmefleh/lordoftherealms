@@ -291,9 +291,21 @@ export function gameLoop(timestamp, loopId) {
             }
         }
 
-        // Always follow player with camera (camera is locked to player)
+        // Follow the player with the camera — but a room that fits on the screen
+        // is shown whole, centred (or its top rows hide under the top bar)
         const pWorld = InnerMap.getPlayerWorldPos();
-        this.innerMapCamera.follow(pWorld.x, pWorld.y);
+        const cam = this.innerMapCamera;
+        const Tz = InnerMapRenderer.tileSize * cam.zoom;
+        const roomFits = InnerMap._insideBuilding && this.canvas
+            && InnerMap.width * Tz <= this.canvas.width * 0.9 && InnerMap.height * Tz <= this.canvas.height * 0.68;
+        if (roomFits) {
+            const Ts = InnerMapRenderer.tileSize;
+            // (a touch below centre: the bottom bar covers more of the screen than the top)
+            // centred in the band clear of the bars (the top bar ~7%, the hotbar and day panel from ~75%)
+            cam.follow(InnerMap.width * Ts / 2, InnerMap.height * Ts / 2 + (0.5 - 0.41) * this.canvas.height / cam.zoom);
+        } else {
+            cam.follow(pWorld.x, pWorld.y);
+        }
 
         // Update NPCs
         InnerMap.updateNPCs(simDelta);

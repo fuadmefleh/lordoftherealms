@@ -235,7 +235,7 @@ export function _showEncounterNotification(encounter) {
         },
         onResolved: (res) => {
             if (res && res.hours > 0) {
-                InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + res.hours);
+                InnerMap.passHours(res.hours);
                 if (this.ui && this.ui.updateStats) this.ui.updateStats(this.player, this.world);
             }
             // (a repeatable choice not used up — a day's panning more — leaves it there)
@@ -503,7 +503,8 @@ export function _configureInnerMapCamera(mode) {
 
     if (mode === 'interior') {
         const innerPixelWidth = tileSize * InnerMap.width;
-        const fitZoom = Math.min(canvasW / innerPixelWidth, canvasH / innerPixelHeight);
+        // (fit the room between the top bar and the day panel at the bottom, not the whole canvas)
+        const fitZoom = Math.min(canvasW * 0.9 / innerPixelWidth, canvasH * 0.62 / innerPixelHeight) / 0.9;
         const zoomLevel = (Number.isFinite(fitZoom) && fitZoom > 0) ? fitZoom * 0.9 : 1.5;
         this.innerMapCamera.minZoom = Math.max(0.5, zoomLevel * 0.6);
         this.innerMapCamera.maxZoom = Math.max(this.innerMapCamera.minZoom + 0.5, zoomLevel * 2.5);

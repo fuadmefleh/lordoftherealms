@@ -253,7 +253,7 @@ export const InnerMapFurnish = {
         if (!el) {
             el = document.createElement('div');
             el.id = PANEL_ID;
-            el.style.cssText = 'position:fixed;top:110px;left:16px;width:270px;max-height:65vh;overflow:auto;zoom:var(--ui-zoom,1);z-index:950;'
+            el.style.cssText = 'position:fixed;top:132px;left:16px;width:270px;max-height:65vh;overflow:auto;zoom:var(--ui-zoom,1);z-index:950;'
                 + 'background:rgba(20,16,12,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:8px;padding:10px 12px;'
                 + 'font-family:var(--font-body,Georgia,serif);font-size:12px;color:#e8dcc0;box-shadow:0 6px 24px rgba(0,0,0,0.5);';
             el.addEventListener('click', (e) => this._onPanelClick(e));

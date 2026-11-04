@@ -562,7 +562,7 @@ export const InnerMapCombat = {
                 return;
             }
             const res = Knockout.playerWakes(player, verdict);
-            InnerMap.timeOfDay = Math.min(23, (InnerMap.timeOfDay || 8) + res.hours);
+            InnerMap.passHours(res.hours);
             if (attacker) {
                 attacker._broke = true;
                 InnerMapReactions._flee(attacker, { indoors: !!InnerMap._insideBuilding });

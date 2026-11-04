@@ -400,7 +400,9 @@ Object.assign(InnerMapRenderer, {
 
                 // Terrain interaction actions: till, sow, water, harvest (ui/innerMapFarming.js)
                 menuItems.push(...InnerMapFarming.menuItems(game, tile, q, r));
-                if (InnerMapDigging.canDig(tile)) {
+                // (not through a crop in the ground: Pull It Up first)
+                const sown = InnerMapFarming.cellAt(game, q, r);
+                if (InnerMapDigging.canDig(tile) && !(sown && sown.crop)) {
                     menuItems.push({ type: 'action', action: 'dig_hole', label: 'Dig a Hole', icon: '⛏️', desc: 'Dig into the ground here (you might turn something up)' });
                 }
 

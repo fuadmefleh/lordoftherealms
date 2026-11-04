@@ -65,7 +65,8 @@
 
         "water_ripple":        "assets/lpc/FX/WaterRipple.png",
         "water_ripple_back":   "assets/lpc/FX/WaterRipple_Back.png",
-        "water_reflections":   "assets/lpc/FX/Water Reflections.png"
+        "water_reflections":   "assets/lpc/FX/Water Reflections.png",
+        "water_splash":        "assets/lpc/FX/Splash.png"
     },
 
     "fallbackColors": {

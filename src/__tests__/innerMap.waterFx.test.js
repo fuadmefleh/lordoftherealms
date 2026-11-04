@@ -1,0 +1,116 @@
+/**
+ * Living water on the inner map (ui/innerMapLayers/waterFx.js): which water
+ * cells move (shore, open water, river), how far each spot of water is from
+ * land (the surf's waterline), the river's flow, and the weather's hand.
+ */
+import { describe, it, expect, beforeEach } from 'vitest';
+import { InnerMapRenderer } from '../ui/innerMapRenderer.js';
+import '../ui/innerMapLayers.js';
+import { InnerMap } from '../world/innerMap.js';
+
+/** A map: land to the west of column `coast`, sea from it east; a river row if asked */
+function lay({ W = 24, H = 12, coast = 10, river = null } = {}) {
+    const tiles = [];
+    for (let r = 0; r < H; r++) {
+        const row = [];
+        for (let q = 0; q < W; q++) {
+            const sea = q >= coast;
+            const riv = river != null && r === river && q < coast;
+            row.push({
+                q, r, explored: true, visible: true,
+                subTerrain: { id: sea ? 'sea_water' : riv ? 'river_water' : 'grass', passable: !(sea || riv) },
+                _wet: sea || riv, _sea: sea, _waterKind: sea ? 'sea' : riv ? 'river' : undefined,
+            });
+        }
+        tiles.push(row);
+    }
+    InnerMap.tiles = tiles;
+    InnerMap.width = W;
+    InnerMap.height = H;
+    return tiles;
+}
+
+beforeEach(() => {
+    InnerMapRenderer._waterFxCache = null;
+    InnerMapRenderer._waterFxFieldCache = null;
+    InnerMap._currentWorldTileRef = null;
+    InnerMap.weather = null;
+});
+
+describe('the water that moves', () => {
+    it('shore cells face the land; open water sparkles; the far side of the coast is still', () => {
+        lay();
+        const rows = InnerMapRenderer._waterFxCells();
+        const cells = [...rows.values()].flat();
+        const shore = cells.filter(c => c.sides);
+        // the whole first column of sea, facing west (W = 8)
+        expect(shore.length).toBe(12);
+        for (const c of shore) {
+            expect(c.q).toBe(10);
+            expect(c.sides & 8).toBe(8);
+            expect(c.strength).toBe(1);
+        }
+        // a few sparkle cells out on the open sea, none on land
+        const glints = cells.filter(c => c.glint);
+        expect(glints.length).toBeGreaterThan(0);
+        expect(glints.every(c => c.q > 10)).toBe(true);
+        // the same cells every time (hashed, not rolled)
+        InnerMapRenderer._waterFxCache = null;
+        expect([...InnerMapRenderer._waterFxCells().values()].flat().map(c => `${c.q},${c.r}`)).toEqual(cells.map(c => `${c.q},${c.r}`));
+    });
+
+    it('the distance to land grows out to sea, and is nothing on land', () => {
+        lay();
+        const F = InnerMapRenderer._waterFxField();
+        const at = (q, r) => F.dist[(r * F.SUB + (F.SUB >> 1)) * F.w + q * F.SUB + (F.SUB >> 1)];
+        expect(at(5, 5)).toBe(0);
+        expect(at(9, 5)).toBe(0);
+        // the middle of the first sea cell is half a tile from the shore
+        expect(at(10, 5)).toBeCloseTo(0.5, 1);
+        expect(at(12, 5)).toBeCloseTo(2.5, 1);
+        expect(at(12, 5)).toBeGreaterThan(at(11, 5));
+        // each shore cell knows where its waterline is (its west edge)
+        const edge = F.edge.get(5 * F.Wd + 10);
+        expect(edge[0]).toBeLessThan(0.15);
+        expect(edge[1]).toBeCloseTo(0.5, 1);
+        expect(F.strength[5 * F.Wd + 5]).toBe(0);
+        expect(F.strength[5 * F.Wd + 10]).toBe(1);
+    });
+
+    it('the river runs the way the world river flows (else along its run), and has no surf', () => {
+        lay({ river: 6 });
+        InnerMap._currentWorldTileRef = { riverDir: 3 }; // out by the west side
+        const cells = [...InnerMapRenderer._waterFxCells().values()].flat();
+        const river = cells.filter(c => c.river);
+        expect(river.length).toBeGreaterThan(0);
+        for (const c of river) expect([c.fx, c.fy]).toEqual([-1, 0]);
+        expect(cells.some(c => c.kind === 'river' && c.sides)).toBe(false);
+        // with no world river: along the river's run (a row, so east–west)
+        InnerMapRenderer._waterFxCache = null;
+        InnerMap._currentWorldTileRef = null;
+        for (const c of [...InnerMapRenderer._waterFxCells().values()].flat().filter(c => c.river)) expect(c.fx).toBe(1);
+    });
+
+    it('a storm makes the waves come faster and reach further; a calm day leaves them be', () => {
+        const cfg = InnerMapRenderer._waterFxCfg();
+        InnerMap.weather = { type: 'storm', wind: 1 };
+        const storm = InnerMapRenderer._waterFxWeather(cfg);
+        InnerMap.weather = { type: 'clear' };
+        const calm = InnerMapRenderer._waterFxWeather(cfg);
+        expect(storm.speed).toBeGreaterThan(calm.speed);
+        expect(storm.reach).toBeGreaterThan(calm.reach);
+        expect(storm.splash).toBeGreaterThan(calm.splash);
+        expect(storm.glint).toBeLessThan(calm.glint);
+    });
+
+    it('no water, nothing to do; drawing with no canvas to hand is harmless', () => {
+        const tiles = lay({ coast: 99 });
+        expect(tiles[0][0]._wet).toBe(false);
+        expect(InnerMapRenderer._waterFxCells()).toBeNull();
+        lay();
+        InnerMapRenderer._frameRange = { qMin: 0, qMax: 23, rMin: 0, rMax: 11 };
+        const ctx = { save() {}, restore() {}, drawImage() {}, fillRect() {}, globalAlpha: 1 };
+        const camera = { zoom: 1, worldToScreenFast: (x, y) => ({ x, y }) };
+        expect(() => InnerMapRenderer._renderWaterFx(ctx, camera)).not.toThrow();
+    });
+});

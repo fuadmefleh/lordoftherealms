@@ -653,6 +653,8 @@ export const InnerMapRenderer = {
 
         // ── Layer 1.5: Ground overlays (water / ice / waterfall — flat tiles) ──
         this._renderGroundOverlays(ctx, camera);
+        // ── Layer 1.6: Living water — surf on the shores, sun on the water, the river running (innerMapLayers/waterFx.js) ──
+        if (this._renderWaterFx) this._renderWaterFx(ctx, camera);
 
         // ── Layer 2: Depth-sorted sprites ──
         // Objects, buildings, NPCs, and the player are merged into one

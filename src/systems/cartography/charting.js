@@ -47,6 +47,17 @@ Object.assign(Cartography, {
         return !!(d && d.tiles[_key(q, r)]);
     },
 
+    /**
+     * Has the player charted (q, r) themselves — in the draft in hand, or on a
+     * map they drew from their charting and still carry? (Their own survey:
+     * the hex's whole inner map lies open to them, ui/game/innerMap.js.)
+     */
+    knowsTile(player, q, r) {
+        if (Cartography.isCharted(player, q, r)) return true;
+        return (player && Array.isArray(player.maps) ? player.maps : [])
+            .some(m => m && m.charted && Array.isArray(m.tiles) && m.tiles.some(t => t && t.q === q && t.r === r));
+    },
+
     /** Chart the tile the player stands on. */
     chartTile(player, world) {
         const tile = world.getTile(player.q, player.r);

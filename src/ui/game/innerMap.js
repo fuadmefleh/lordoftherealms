@@ -7,6 +7,7 @@ import { Wilds } from '../../player/wilds.js';
 import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
+import { Cartography } from '../../systems/cartography.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -64,6 +65,11 @@ export async function enterInnerMap(worldQ, worldR) {
             this.ui.showNotification('Error', 'Inner map data failed to generate.', 'error');
             InnerMap.exit(this);
             return;
+        }
+
+        // A hex you have charted you know end to end: its whole map lies open (systems/cartography.js)
+        if (Cartography.knowsTile(this.player, worldQ, worldR)) {
+            for (const row of InnerMap.tiles) for (const t of row) { t.explored = true; t.visible = true; }
         }
 
         this.innerMapMode = true;

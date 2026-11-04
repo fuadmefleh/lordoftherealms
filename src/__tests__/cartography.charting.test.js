@@ -246,3 +246,18 @@ describe('auto-charting an area', () => {
         expect(html).toContain('data-am-act="stopAutoChartArea"');
     }, 60000);
 });
+
+describe('a tile you charted yourself', () => {
+    it('is known end to end: in the draft, or on a map drawn from it that you carry', async () => {
+        const { Cartography } = await import('../systems/cartography.js');
+        const p = { chartDraft: { tiles: { '3,4': { q: 3, r: 4 } } }, maps: [] };
+        expect(Cartography.knowsTile(p, 3, 4)).toBe(true);
+        expect(Cartography.knowsTile(p, 5, 5)).toBe(false);
+        p.chartDraft = null;
+        p.maps.push({ charted: true, tiles: [{ q: 5, r: 5 }] });
+        expect(Cartography.knowsTile(p, 5, 5)).toBe(true);
+        // a bought or stolen map isn't your own survey
+        p.maps.push({ charted: false, tiles: [{ q: 7, r: 7 }] });
+        expect(Cartography.knowsTile(p, 7, 7)).toBe(false);
+    });
+});

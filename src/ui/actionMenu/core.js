@@ -115,7 +115,7 @@ Object.assign(ActionMenu, {
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
             smuggle: 'commerce', pickpocket: 'commerce',
-            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', preach: 'social', denounce_heresy: 'social',
+            tavern: 'social', talk_locals: 'social', lodging: 'social', manage_lodging: 'commerce', town_lots: 'commerce', furniture_maker: 'commerce', preach: 'social', denounce_heresy: 'social',
             pilgrimage: 'social', miracle: 'social', donate: 'social',
             pledge_allegiance: 'social', renounce_allegiance: 'social',
             realm_wars: 'social', fund_restoration: 'social',
@@ -479,7 +479,7 @@ Object.assign(ActionMenu, {
         // Outlaw lairs (the panel is free; each deed inside pays its own AP)
         meet_trader: 0, meet_courier: 0,
         // Lodgings (rooms and services are paid in gold, not time)
-        lodging: 0, manage_lodging: 0, town_lots: 0,
+        lodging: 0, manage_lodging: 0, town_lots: 0, furniture_maker: 0,
         outlaw_lair: 0, lair_scout: 3, lair_assault: 8, lair_strike: 4, lair_parley: 1,
         rival_duel: 4, rival_race: 1, rival_sabotage: 2, rival_hire: 1, rival_team_up: 1,
     },
@@ -786,6 +786,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'town_lots':
                 ActionMenu.showTownLots(game);
+                break;
+            case 'furniture_maker':
+                ActionMenu.showFurnitureShop(game);
                 break;
             case 'talk_locals':
                 ActionMenu.showTalkLocalsMenu(game, tile);

@@ -283,6 +283,14 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         }
     }
 
+    // A joiner in every settlement: furniture for the homes you own (systems/furnishing.js)
+    actions.push({
+        type: 'furniture_maker',
+        label: 'Furniture Maker',
+        icon: '🪑',
+        description: 'Buy beds, chests, tables and hearths for your homes; sell pieces back',
+    });
+
     // --- Early-Game Income: Settlement-based ---
 
     // Odd Jobs (always available in settlements)

@@ -91,6 +91,11 @@ export function _showSleepModal(game, objDef, cost = 0) {
 
     const currentHour = Math.floor(InnerMap.timeOfDay || 8);
     const maxHours = Math.max(1, 24 - currentHour);
+    // A good bed of your own: sleep restores more (data/furniture.json restBonus)
+    const bed = 1 + Math.max(0, Number(objDef && objDef.restBonus) || 0);
+    const energyFor = h => Math.round(_calcSleepEnergy(h) * bed);
+    const healthFor = h => Math.round(_calcSleepHealth(h) * bed);
+    const comfortFor = h => Math.round(_calcSleepComfort(h) * bed);
     const suggestedHours = Math.min(8, maxHours);
 
     modal.innerHTML = `
@@ -98,7 +103,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
             <span style="font-size:28px">🛏️</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">Sleep</div>
-                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${cost} gold` : 'Rest to recover energy and health'}</div>
+                <div style="font-size:11px;color:#999">${cost > 0 ? `A night's lodging costs ${cost} gold` : bed > 1 ? `A good bed: sleep restores ${Math.round((bed - 1) * 100)}% more` : 'Rest to recover energy and health'}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -111,9 +116,9 @@ export function _showSleepModal(game, objDef, cost = 0) {
                 <div>⏰ Current time: <strong>${_formatHour(currentHour)}</strong></div>
                 <div id="sleepWakeTime">🌅 Wake at: <strong>${_formatHour(currentHour + suggestedHours)}</strong></div>
                 <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px">
-                    <div>💤 Energy restored: <span style="color:#5ddb6a" id="sleepEnergyPreview">+${_calcSleepEnergy(suggestedHours)}</span></div>
-                    <div>❤️ Health restored: <span style="color:#e86a6a" id="sleepHealthPreview">+${_calcSleepHealth(suggestedHours)}</span></div>
-                    <div>🛋️ Comfort: <span style="color:#6ab8db" id="sleepComfortPreview">+${_calcSleepComfort(suggestedHours)}</span></div>
+                    <div>💤 Energy restored: <span style="color:#5ddb6a" id="sleepEnergyPreview">+${energyFor(suggestedHours)}</span></div>
+                    <div>❤️ Health restored: <span style="color:#e86a6a" id="sleepHealthPreview">+${healthFor(suggestedHours)}</span></div>
+                    <div>🛋️ Comfort: <span style="color:#6ab8db" id="sleepComfortPreview">+${comfortFor(suggestedHours)}</span></div>
                 </div>
             </div>
         </div>
@@ -130,9 +135,9 @@ export function _showSleepModal(game, objDef, cost = 0) {
         const h = parseInt(slider.value);
         document.getElementById('sleepHoursLabel').textContent = h;
         document.getElementById('sleepWakeTime').innerHTML = `🌅 Wake at: <strong>${_formatHour(currentHour + h)}</strong>`;
-        document.getElementById('sleepEnergyPreview').textContent = `+${_calcSleepEnergy(h)}`;
-        document.getElementById('sleepHealthPreview').textContent = `+${_calcSleepHealth(h)}`;
-        document.getElementById('sleepComfortPreview').textContent = `+${_calcSleepComfort(h)}`;
+        document.getElementById('sleepEnergyPreview').textContent = `+${energyFor(h)}`;
+        document.getElementById('sleepHealthPreview').textContent = `+${healthFor(h)}`;
+        document.getElementById('sleepComfortPreview').textContent = `+${comfortFor(h)}`;
     });
 
     window._execSleep = () => {
@@ -148,10 +153,10 @@ export function _showSleepModal(game, objDef, cost = 0) {
         }
         _advanceTime(hours);
         if (game.player.modifyNeed) {
-            game.player.modifyNeed('energy', _calcSleepEnergy(hours));
-            game.player.modifyNeed('comfort', _calcSleepComfort(hours));
+            game.player.modifyNeed('energy', energyFor(hours));
+            game.player.modifyNeed('comfort', comfortFor(hours));
         }
-        const hpGain = _calcSleepHealth(hours);
+        const hpGain = healthFor(hours);
         if (hpGain > 0) {
             const hp = game.player.health != null ? game.player.health : 100;
             game.player.health = Math.min(game.player.maxHealth || 100, hp + hpGain);

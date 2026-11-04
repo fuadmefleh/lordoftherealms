@@ -129,6 +129,8 @@ export const PlayerNeedsMethods = {
         if (context.inOwnHouse) {
             rates.comfort += 1.5;  // Home comfort
             rates.hygiene += 0.5;
+            // The furniture you've given it (world/innerMap/furnishing.js homeComfort, already capped)
+            if (Number.isFinite(context.homeComfort)) rates.comfort += Math.max(0, context.homeComfort);
         }
 
         for (const [need, rate] of Object.entries(rates)) {

@@ -1714,6 +1714,19 @@ Each house tier has a number of upgrade slots (1 for Shacks, up to 5 for Estates
 
 Attribute and skill bonuses from upgrades apply for as long as you own the house, and are removed if you sell it. Each point of Defense adds +1% to your army's power when you are attacked.
 
+### Furnishing Your Homes
+
+Every settlement has a **Furniture Maker** (in the town's action menu, or at a market stall on the town map). A village joiner makes plain pieces — straw pallets, plank beds, chests, crates, tables, benches, a hearth; towns add featherbeds, bookshelves, desks, cookstoves, shrines, candelabra and banners; cities and capitals canopy beds, carpets, statues and a high seat. What you buy goes into your **furniture store** (it takes no pack slot) until you set it down.
+
+Inside any building you own — a house you bought, a town house rented or bought, a house on your lot, a property, an inn you keep — open the menu on any floor tile and choose **Furnish**:
+
+- **Place** a stored piece from the palette; a ghost follows the cursor, green where it may stand and red (with the reason) where it may not. Furniture stands on bare floor only — not in a wall, the doorway or the tile just inside it, on other furniture, on you or anyone else, and never so it walls you off from the door. **R** turns a long piece (a long table, a canopy bed, a carpet).
+- **Click a piece** on the floor to pick it up and move it — the furniture the house came with too. Right-click or Esc puts it back where it was.
+- **Put in Store** takes it up again. A chest, crate or barrel must be emptied first; moving one carries what's inside with it.
+- Sell stored pieces back to any furniture maker for half their price (a house's own pieces for less).
+
+The arrangement is kept for each home and survives leaving and saving. What it does is what the furniture does: a bed of your own to sleep in (a featherbed restores a quarter more, a canopy bed 40% more), chests to store goods in, a hearth or stove to cook at and warm by, tables and benches to sit at, a tub to wash in. Each piece also adds a little to your comfort every hour you spend in the home (up to +1.2 an hour).
+
 ---
 
 ## 9. Military & Combat

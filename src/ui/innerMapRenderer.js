@@ -675,6 +675,9 @@ export const InnerMapRenderer = {
                 'rgba(245,197,66,0.15)', 'rgba(245,197,66,0.6)');
         }
 
+        // ── Furnishing a home: the piece in hand, green or red where it would stand (ui/innerMapFurnish.js) ──
+        if (typeof this.onFurnishLayer === 'function') this.onFurnishLayer(ctx, camera);
+
         // ── Selected custom-object highlight (multi-tile gold outline) ──
         if (this._selectedObject && typeof CustomObjects !== 'undefined') {
             const def = CustomObjects.getDef(this._selectedObject.defId);

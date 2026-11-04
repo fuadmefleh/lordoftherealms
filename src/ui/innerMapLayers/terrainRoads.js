@@ -441,6 +441,15 @@ Object.assign(InnerMapRenderer, {
 
         // Render furniture meta on top (if present and tile has custom furniture)
         const furniture = tile._furniture;
+        // A piece the player set down on a sprite floor: its drawn art (world/innerMap/furnishing.js)
+        if (furniture && furniture._piece && this._interiorArt && this._interiorArt.furniture) {
+            const fa = this._interiorArt.furniture[furniture.type];
+            const fImg = fa && this._getSheetByPath(fa.sheet);
+            if (fImg) {
+                ctx.drawImage(fImg, fa.sx, fa.sy, 32, 32, dx, dy, sz, sz);
+                return;
+            }
+        }
         if (furniture) {
             // Mark what the piece is (pieces with no glyph are left to their sprite)
             const glyph = sz >= 16 && furniture.icon && furnitureGlyph(furniture);

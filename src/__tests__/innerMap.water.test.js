@@ -174,7 +174,10 @@ describe('InnerMap water features — movement integration', () => {
         InnerMap.currentWorldTile = { q: 3, r: 4 };
     });
 
-    it('movePlayer refuses to step onto pond water', () => {
+    it('movePlayer refuses to step onto pond water (when swimming is not allowed)', () => {
+        // (swimming lets you in: world/innerMap/swimming.js)
+        const swim = InnerMap._swimAllowed;
+        InnerMap._swimAllowed = false;
         const pond = pondTiles(tiles)[0];
         // Stand just left of the pond tile (any tile works for the refusal check)
         InnerMap.playerInnerQ = pond.q - 1;
@@ -184,6 +187,7 @@ describe('InnerMap water features — movement integration', () => {
         expect(result.moved).toBe(false);
         expect(InnerMap.playerInnerQ).toBe(before.q);
         expect(InnerMap.playerInnerR).toBe(before.r);
+        InnerMap._swimAllowed = swim;
     });
 
     it('A* routes around ponds — path never crosses blocked water', () => {

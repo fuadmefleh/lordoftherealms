@@ -351,8 +351,8 @@ Object.assign(InnerMap, {
         savanna:              'dry_dirt',
         mountain:             'stone',
         snow_peak:            'stone',
-        hills:                'stone',
-        highlands:            'stone',
+        hills:                'grass',   // grassed over by the second grass layer (terrain.js), not left as bare cobbly dirt
+        highlands:            'grass',
         swamp:                'dark_stone',
         tundra:               'dirt',
         snow:                 'grass',   // seasonal sheet swap handles visuals

@@ -506,30 +506,51 @@ Object.assign(InnerMapRenderer, {
             ctx.setLineDash([Math.max(2, ds * 0.25), Math.max(2, ds * 0.18)]);
             ctx.strokeRect(x + ds * 0.15, y + ds * 0.15, w - ds * 0.3, h - ds * 0.3);
             ctx.restore();
-            // The stakes
-            const post = Math.max(2, ds * 0.14);
-            ctx.fillStyle = '#6b4a2b';
+            // The stakes: the LPC plain fence's single post, small, at each corner
+            const fence = this._sheets && this._sheets.get('fence_plain');
+            const boards = this._sheets && this._sheets.get('signs');
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            const stake = ds * 0.55;
             for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
-                ctx.fillRect(px - post / 2 + (px === x ? ds * 0.15 : -ds * 0.15), py - post + (py === y ? ds * 0.3 : -ds * 0.1), post, post * 1.6);
+                const sx0 = px + (px === x ? ds * 0.15 : -ds * 0.15) - stake / 2;
+                const sy0 = py + (py === y ? ds * 0.35 : -ds * 0.05) - stake;
+                if (fence) ctx.drawImage(fence, 96, 96, 32, 32, Math.round(sx0), Math.round(sy0), Math.round(stake), Math.round(stake));
+                else { ctx.fillStyle = '#6b4a2b'; ctx.fillRect(sx0 + stake * 0.4, sy0, stake * 0.2, stake); }
             }
-            // The sign, at the street
-            if (ds >= 10) {
-                const label = at.forSale ? `FOR SALE ${at.price}g` : at.mine ? 'YOURS' : 'SOLD';
-                const fs = Math.max(8, Math.min(14, ds * 0.32));
-                ctx.font = `bold ${fs}px Georgia, serif`;
-                const tw = ctx.measureText(label).width + fs * 0.8;
-                // At the lot's gate: the street side (its front, or its top when it opens north)
-                const sx = x + ds * 0.4, sy = lot.gate === 'north' ? y + ds * 0.3 : y + h - ds * 0.95;
-                ctx.fillStyle = '#5a3e22';
-                ctx.fillRect(sx + tw / 2 - post / 2, sy + fs * 1.3, post, ds * 0.5);
-                ctx.fillStyle = at.forSale ? '#e9d8a6' : at.mine ? '#f5c542' : '#c8a090';
-                ctx.fillRect(sx, sy, tw, fs * 1.4);
-                ctx.strokeStyle = '#3a2814';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(sx, sy, tw, fs * 1.4);
-                ctx.fillStyle = '#2a1a0a';
+            // The sign at the lot's gate (the street side: its front, or its top when it
+            // opens north): a post with a board on it, drawn to the world's scale (it zooms
+            // with the map, like everything on it) — the LPC fence post and sign board
+            const bw = ds * 1.1;                                   // the board, a tile and a bit
+            const gx = x + ds * 0.35, gy = lot.gate === 'north' ? y + ds * 1.2 : y + h - ds * 0.2;
+            if (fence) ctx.drawImage(fence, 96, 96, 32, 32, Math.round(gx + bw / 2 - ds * 0.5), Math.round(gy - ds), Math.round(ds), Math.round(ds));
+            // light board for sale, gold-edged for yours, dark for sold
+            const [bsx, bsy] = at.forSale ? [0, 32] : at.mine ? [0, 0] : [32, 32];
+            const by = gy - ds * 1.45;
+            if (boards) ctx.drawImage(boards, bsx, bsy, 32, 32, Math.round(gx), Math.round(by), Math.round(bw), Math.round(bw * 0.8));
+            ctx.restore();
+            // The words on the board, sized with it (hidden when too small to read)
+            if (ds >= 26) {
+                const word = at.forSale ? 'FOR SALE' : at.mine ? 'YOURS' : 'SOLD';
+                ctx.save();
+                ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(label, sx + fs * 0.4, sy + fs * 0.72);
+                // as big as the board's face allows (its frame is about a tenth of it each side)
+                let fs = bw * 0.2;
+                ctx.font = `bold ${fs}px Georgia, serif`;
+                const fit = (bw * 0.72) / Math.max(1, ctx.measureText(word).width);
+                if (fit < 1) { fs *= fit; ctx.font = `bold ${fs}px Georgia, serif`; }
+                ctx.fillStyle = at.forSale || at.mine ? '#2a1a0a' : '#e8dcc4';
+                const cx = gx + bw / 2;
+                ctx.fillText(word, cx, by + bw * (at.forSale ? 0.3 : 0.4));
+                if (at.forSale) {
+                    let ps = fs * 1.3;
+                    ctx.font = `bold ${ps}px Georgia, serif`;
+                    const pfit = (bw * 0.72) / Math.max(1, ctx.measureText(`${at.price}g`).width);
+                    if (pfit < 1) { ps *= pfit; ctx.font = `bold ${ps}px Georgia, serif`; }
+                    ctx.fillText(`${at.price}g`, cx, by + bw * 0.52);
+                }
+                ctx.restore();
             }
         }
     },

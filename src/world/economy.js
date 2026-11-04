@@ -232,6 +232,11 @@ export const Economy = {
         // Horses available at larger settlements
         if (type === 'town') add('HORSES', 0.005);  // Basic workhorses at towns
         if (type === 'city' || type === 'capital') add('HORSE', 0.003); // Quality riding horses
+        // Seed for the player's own fields (data/crops.json → markets, qtyMult; systems/crops.js)
+        const crops = DataLoader._gamedata && DataLoader._gamedata.crops && DataLoader._gamedata.crops.crops;
+        for (const c of Object.values(crops || {})) {
+            if (c && c.seed && (!Array.isArray(c.markets) || c.markets.includes(type))) add(c.seed.toUpperCase(), Number(c.qtyMult) || 0.01);
+        }
         // Local resources stock the market: coal from the pits, rock oil
         // from the seeps, beef and hides from the herds
         const resId = tile && tile.resource && tile.resource.id;

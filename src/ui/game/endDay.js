@@ -9,6 +9,7 @@ import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { Crops } from '../../systems/crops.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Underworld } from '../../systems/underworld.js';
@@ -626,6 +627,8 @@ export function endDay() {
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)
+            for (const n of Crops.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hired work finished in a town's mill, bakery, smithy… (systems/commissions.js)
             for (const n of Commissions.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Tongues: living among speakers teaches; the interpreter is paid (systems/languages.js)

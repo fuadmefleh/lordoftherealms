@@ -53,7 +53,7 @@ export const Seasons = {
         priceCurves: {
             food: {
                 label: 'Food',
-                goods: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey', 'food'],
+                goods: ['grain', 'flour', 'bread', 'fish', 'preserved_fish', 'meat', 'dried_meat', 'cheese', 'fruit', 'berries', 'honey', 'food', 'vegetables'],
                 points: [[1, 0.30], [25, 0.20], [50, 0.0], [70, -0.20], [88, -0.30], [100, -0.15], [112, 0.15], [120, 0.28]],
             },
             furs: {

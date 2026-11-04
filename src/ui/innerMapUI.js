@@ -29,6 +29,7 @@ import { InnerMapLots } from './innerMapLots.js';
 import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapFurnish } from './innerMapFurnish.js';
+import { InnerMapFarming } from './innerMapFarming.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph } from './icons.js';
@@ -397,10 +398,8 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
                 }
 
-                // Terrain interaction actions
-                if (tile.subTerrain.passable && !tile._dug && tile.subTerrain.id !== 'tilled_soil' && !tile.isRoad) {
-                    menuItems.push({ type: 'action', action: 'till_land', label: 'Till Land', icon: '🌾', desc: 'Prepare the soil for farming' });
-                }
+                // Terrain interaction actions: till, sow, water, harvest (ui/innerMapFarming.js)
+                menuItems.push(...InnerMapFarming.menuItems(game, tile, q, r));
                 if (InnerMapDigging.canDig(tile)) {
                     menuItems.push({ type: 'action', action: 'dig_hole', label: 'Dig a Hole', icon: '⛏️', desc: 'Dig into the ground here (you might turn something up)' });
                 }
@@ -709,6 +708,7 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
+        if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;
@@ -1062,22 +1062,6 @@ Object.assign(InnerMapRenderer, {
                 const depth = kind === 'sea' ? (water._deep ? 'deep' : 'mid') : kind === 'lake' ? (water._deep ? 'mid' : 'shallow') : 'shallow';
                 const wt = game.world.getTile(game.player.q, game.player.r);
                 if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth });
-                break;
-            }
-            case 'till_land': {
-                if (dist > 1) { InnerMap.cancelPlayerWalk(); InnerMap.movePlayerTo(q, r); }
-                const tile = InnerMap.getTile(q, r);
-                if (tile && tile.subTerrain.passable) {
-                    tile.baseTerrain = 'dirt';
-                    tile.subTerrain = { id: 'tilled_soil', name: 'Tilled Soil', icon: '🌾', color: '#8b7355', passable: true };
-                    tile._tilled = true;
-                    tile._cachedFill = null;
-                    // Strip the grass off this tile and re-auto-tile its neighbours
-                    InnerMap._refreshGrassLayer(InnerMap.tiles);
-                    game.ui.showNotification('🌾 Till Land', 'You till the land, preparing it for planting.', 'success');
-                } else {
-                    game.ui.showNotification('❌ Cannot Till', 'This terrain cannot be tilled.', 'error');
-                }
                 break;
             }
             case 'interact_object': {

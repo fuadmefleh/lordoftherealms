@@ -97,6 +97,9 @@ Object.assign(InnerMap, {
             this._refreshGrassLayer(this.tiles);
         }
 
+        // ── The player's tilled fields and crops here (world/innerMap/farmPlots.js) ──
+        if (this.applyFarmPlots) this.applyFarmPlots(game.player);
+
         // ── The player's own ships docked here lie at the pier (world/innerMap/harbour.js) ──
         if (this._mooringPlayerShips && !(worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id))) this._mooringPlayerShips(game);
 

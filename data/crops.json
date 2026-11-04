@@ -1,0 +1,105 @@
+{
+    "_doc": "Crops the player sows on land they tilled on the inner map (systems/crops.js; ui/innerMapFarming.js). Each crop: its seed good (a GOODS entry in playerEconomy.json, sold in markets of the listed settlement types at qtyMult x population), the product good and yield range per tile, the growth days of each stage after sowing (sown -> sprout -> growing -> ripe; their sum is the days to ripen on a well-watered day each), the seasons it may be sown in, hardy (survives winter frost, growing at winterGrowth), water need (low/medium/high -> dry days it bears before it wilts), and the art of each stage on an LPC sheet ([col, row] in 32px cells; h: 2 for a sprite two cells tall, its row the lower cell). A day of rain or a watering counts as a wet day (full growth); a dry day grows dryGrowth. A ripe crop keeps spoilDays before it rots in the ground. Yield: a roll in the range x care (wet days / days grown, floored at careFloor) x (1 + farming skill x skillBonus).",
+    "maxCellsPerHex": 60,
+    "dryGrowth": 0.5,
+    "winterGrowth": 0.5,
+    "careFloor": 0.5,
+    "skillBonus": 0.08,
+    "frostSeason": "Winter",
+    "rainTypes": ["rain", "storm", "snow"],
+    "dryTolerance": { "low": 6, "medium": 4, "high": 3 },
+    "spoilDays": 6,
+    "deadClearDays": 0,
+    "minutes": { "till": 20, "plant": 15, "water": 5, "harvest": 10, "clear": 5 },
+    "seconds": { "till": 3, "plant": 1.5, "water": 1, "harvest": 1.5, "clear": 1 },
+    "waterReach": 30,
+    "townRoadBuffer": 4,
+    "xpPerHarvest": 0.6,
+    "sheets": {
+        "crops": "assets/lpc/crops.png",
+        "wheat": "assets/lpc/ThatchedHouses/tilesets/wheat.png"
+    },
+    "sownArt": { "sheet": "crops", "cell": [0, 9] },
+    "crops": {
+        "wheat": {
+            "name": "Wheat", "icon": "🌾",
+            "seed": "wheat_seed",
+            "product": "grain", "yield": [4, 7],
+            "stages": [3, 5, 8],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "low",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.02,
+            "art": { "sheet": "wheat", "stages": [[0, 5], [1, 5], [2, 5]], "ripe": [1, 3] }
+        },
+        "cabbage": {
+            "name": "Cabbage", "icon": "🥬",
+            "seed": "cabbage_seed",
+            "product": "vegetables", "yield": [2, 4],
+            "stages": [3, 4, 5],
+            "sow": ["Spring", "Summer", "Autumn"],
+            "hardy": true, "water": "medium",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.015,
+            "art": { "sheet": "crops", "stages": [[6, 11], [6, 13], [6, 15]], "ripe": [6, 17] }
+        },
+        "turnip": {
+            "name": "Turnips", "icon": "🧅",
+            "seed": "turnip_seed",
+            "product": "vegetables", "yield": [2, 3],
+            "stages": [2, 3, 3],
+            "sow": ["Spring", "Autumn"],
+            "hardy": true, "water": "medium",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.015,
+            "art": { "sheet": "crops", "stages": [[10, 1], [10, 3], [10, 5]], "ripe": [10, 7] }
+        },
+        "carrot": {
+            "name": "Carrots", "icon": "🥕",
+            "seed": "carrot_seed",
+            "product": "vegetables", "yield": [2, 4],
+            "stages": [3, 3, 4],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "medium",
+            "markets": ["town", "city", "capital"], "qtyMult": 0.01,
+            "art": { "sheet": "crops", "stages": [[0, 1], [0, 3], [0, 5]], "ripe": [0, 7] }
+        },
+        "flax": {
+            "name": "Flax", "icon": "🌿",
+            "seed": "flax_seed",
+            "product": "flax", "yield": [2, 4],
+            "stages": [3, 5, 6],
+            "sow": ["Spring"],
+            "hardy": false, "water": "medium",
+            "markets": ["village", "town", "city", "capital"], "qtyMult": 0.01,
+            "art": { "sheet": "crops", "stages": [[12, 1], [12, 3], [12, 5]], "ripe": [16, 5] }
+        },
+        "hemp": {
+            "name": "Hemp", "icon": "🌱",
+            "seed": "hemp_seed",
+            "product": "hemp", "yield": [3, 5],
+            "stages": [3, 5, 6],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "low",
+            "markets": ["town", "city", "capital"], "qtyMult": 0.01,
+            "art": { "sheet": "crops", "stages": [[30, 1], [30, 3, 2], [30, 5, 2]], "ripe": [30, 9, 2] }
+        },
+        "herbs": {
+            "name": "Herbs", "icon": "🌿",
+            "seed": "herb_seed",
+            "product": "herbs", "yield": [2, 4],
+            "stages": [2, 3, 4],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "medium",
+            "markets": ["town", "city", "capital"], "qtyMult": 0.008,
+            "art": { "sheet": "crops", "stages": [[9, 11], [9, 13], [9, 15]], "ripe": [9, 17] }
+        },
+        "strawberry": {
+            "name": "Strawberries", "icon": "🍓",
+            "seed": "strawberry_seed",
+            "product": "berries", "yield": [3, 6],
+            "stages": [3, 4, 5],
+            "sow": ["Spring", "Summer"],
+            "hardy": false, "water": "high",
+            "markets": ["town", "city", "capital"], "qtyMult": 0.008,
+            "art": { "sheet": "crops", "stages": [[20, 11], [20, 19], [20, 13]], "ripe": [20, 17] }
+        }
+    }
+}

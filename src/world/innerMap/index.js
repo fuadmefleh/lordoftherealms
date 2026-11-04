@@ -22,5 +22,6 @@ import './deckLife.js';
 import './water.js';
 import './swimming.js';
 import './animals.js';
+import './farmPlots.js';
 
 export { InnerMap };

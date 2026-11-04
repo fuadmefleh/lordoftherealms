@@ -7,6 +7,7 @@ import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
@@ -797,6 +798,9 @@ Object.assign(InnerMapRenderer, {
                 }});
             }
         }
+
+        // ── Phase 3b: The deer (world/innerMap/animals.js; ui/innerMapAnimals.js) ──
+        InnerMapAnimals.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {

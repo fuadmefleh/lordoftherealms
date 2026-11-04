@@ -142,6 +142,8 @@ Object.assign(InnerMap, {
             // A clan of the Dawn of Man makes camp here: tents, a fire, its people (world/innerMap/camp.js)
             if (this._pitchCamps) this._pitchCamps(game);
         }
+        // The hex's deer, grazing where the hash puts their herds (world/innerMap/animals.js)
+        if (this._spawnAnimals) this._spawnAnimals(game, worldTile, worldQ, worldR);
 
         // For settlements, reveal all tiles (you're visiting a known location)
         if (hasSettlement) {
@@ -179,6 +181,7 @@ Object.assign(InnerMap, {
         this.currentWorldTile = null;
         this._currentWorldTileRef = null;
         this.npcs = [];
+        this.animals = [];
         this.buildings = [];
         this.roads = [];
         this.dayEnded = false;

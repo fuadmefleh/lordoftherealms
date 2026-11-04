@@ -82,7 +82,8 @@ const topLevel = [
     'cultures',
     'shipHulls',
     'commissions',
-    'deckLife'
+    'deckLife',
+    'animals'
 ];
 
 const merged = {};

@@ -505,6 +505,16 @@ export class Minimap {
             const kind = npc.type ? ` (${String(npc.type).replace(/_npc$/, '').replace(/_/g, ' ')})` : '';
             markers.push({ x: nx, y: ny, r: 4, label: `${npc.name || 'Someone'}${kind}` });
         }
+        // ── Deer: small fawn-coloured dots ──
+        if (!InnerMap._insideBuilding) {
+            for (const a of InnerMap.animals || []) {
+                const tile = InnerMap.tiles[a.r] && InnerMap.tiles[a.r][a.q];
+                if (!tile || !tile.visible) continue;
+                ctx.fillStyle = '#c8955a';
+                const ax = toX(a.q + 0.5), ay = toY(a.r + 0.5);
+                ctx.fillRect(ax - dot / 2, ay - dot / 2, dot, dot);
+            }
+        }
         this._markers = markers;
 
         // ── Player ──

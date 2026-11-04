@@ -1,7 +1,7 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { panelClosed } from './uiKit.js';
-import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
+import { InnerMap, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
@@ -903,7 +903,39 @@ Object.assign(ActionMenu, {
         const category = (ActionMenu._getForageData().terrain_mapping || {})[tile.terrain.id] || tile.terrain.id;
         WildTaskRunner.hunt(game, { player, prey }, (out) => {
             if (out === null) { _huntQuick(game, player, lootTable); return; }
-            _huntOutcome(game, player, lootTable, out, { preyName: WildTaskRunner.beastName(prey), preyIcon, category });
+            const kind = _huntOutcome(game, player, lootTable, out, { preyName: WildTaskRunner.beastName(prey), preyIcon, category });
+            _huntAnimalAfter(game, out, kind);
+        });
+    },
+
+    /**
+     * Hunt a deer you can see (the inner map's context menu, ui/innerMapAnimals.js):
+     * no trail to follow — creep up on that very animal and loose, judged by
+     * the same rules (Hunting.hitThreshold); a kill takes its own loot
+     * (data/animals.json species.loot, the hunting table's entries) and leaves
+     * its herd one the less (InnerMap.cullAnimal → world.wildlife).
+     */
+    huntAnimal(game, animal) {
+        const player = game.player;
+        if (!player || !animal) return;
+        const sp = InnerMap.animalSpecies(animal.species) || {};
+        const tables = ActionMenu._getHuntData().loot_table || {};
+        const lootTable = WildRules.animalLoot(sp, tables);
+        if (!lootTable.length) {
+            game.ui.showNotification('🏹 Hunting', `There is nothing to take from a ${String(sp.name || 'beast').toLowerCase()}.`, 'default');
+            return;
+        }
+        const worldTile = game.world && game.world.getTile ? game.world.getTile(player.q, player.r) : null;
+        const tid = worldTile && worldTile.terrain ? worldTile.terrain.id : 'woods';
+        const category = (ActionMenu._getForageData().terrain_mapping || {})[tid] || 'woods';
+        const prey = { name: sp.name || 'Deer', icon: sp.icon || '🦌' };
+        WildTaskRunner.hunt(game, { player, prey, animal }, (out) => {
+            if (out === null) {
+                game.ui.showNotification('🏹 Hunting', 'You cannot go after it just now.', 'default');
+                return;
+            }
+            const kind = _huntOutcome(game, player, lootTable, out, { preyName: WildTaskRunner.animalName(animal), preyIcon: prey.icon, category });
+            _huntAnimalAfter(game, out, kind);
         });
     },
 
@@ -1373,6 +1405,18 @@ function _huntQuick(game, player, lootTable) {
  * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before:
  * a hit banks Hunting.strikeLoot; a wild miss may injure. Continue ends the day.
  */
+/**
+ * After a hunt of an animal on the map: a kill is gone from its herd (and
+ * the map); one that lived goes back to its own life — running, if it was put up.
+ */
+function _huntAnimalAfter(game, out, kind) {
+    const a = out && out.animal;
+    if (!a) return;
+    if (kind === 'success') { InnerMap.cullAnimal(game.world, a); return; }
+    const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
+    InnerMap.releaseAnimal(a, out.result === 'abandoned' ? null : me);
+}
+
 function _huntOutcome(game, player, lootTable, out, p) {
     let kind = 'fled';
     let statusMsg = '';
@@ -1433,4 +1477,5 @@ function _huntOutcome(game, player, lootTable, out, p) {
     html += '</div>';
     game.ui.showCustomPanel('🏹 Hunting', html);
     game.ui.updateStats(player, game.world);
+    return kind;
 }

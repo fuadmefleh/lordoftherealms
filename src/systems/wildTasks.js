@@ -191,6 +191,29 @@ export const WildTasks = {
         return { alert, pace, bolt };
     },
 
+    /**
+     * The loot table of a living animal hunted (data/animals.json species.loot:
+     * [{ name, chance?, qty? }] or names): each the hunting table's own entry
+     * of that name (data/earlyJobs.json hunting.loot_table, any terrain), with
+     * the species' chance and qty in place of the terrain's. The first is the
+     * sure one (Hunting.strikeLoot always gives it).
+     */
+    animalLoot(species, lootTables) {
+        const all = [];
+        for (const list of Object.values(lootTables || {})) if (Array.isArray(list)) all.push(...list);
+        const out = [];
+        for (const spec of (species && species.loot) || []) {
+            const want = typeof spec === 'string' ? { name: spec } : spec || {};
+            const base = all.find(e => e && e.name === want.name);
+            if (!base || out.some(e => e.name === base.name)) continue;
+            const entry = { ...base };
+            if (typeof want.chance === 'number') entry.chance = want.chance;
+            if (want.qty) entry.qty = { ...want.qty };
+            out.push(entry);
+        }
+        return out;
+    },
+
     /** 0 calm, 1 wary, 2 alarmed. */
     alertLevel(alert) {
         return alert < 0.35 ? 0 : alert < 0.7 ? 1 : 2;

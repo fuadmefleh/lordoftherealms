@@ -19,5 +19,6 @@ import './camp.js';
 import './harbour.js';
 import './deckLife.js';
 import './water.js';
+import './animals.js';
 
 export { InnerMap };

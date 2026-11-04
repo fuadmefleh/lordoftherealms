@@ -9,6 +9,7 @@ import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
+import { InnerMapAnimals } from '../innerMapAnimals.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -250,6 +251,8 @@ export function gameLoop(timestamp, loopId) {
 
         // Update NPCs
         InnerMap.updateNPCs(simDelta);
+        // The deer graze, wander and bolt (world/innerMap/animals.js)
+        InnerMapAnimals.update(simDelta, this);
 
         // ── Update combat system (NPC attacks, float numbers, hit flashes) ──
         if (typeof InnerMapCombat !== 'undefined') {

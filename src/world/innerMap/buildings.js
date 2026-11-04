@@ -368,6 +368,8 @@ Object.assign(InnerMap, {
                 if (isEdge) continue;
                 if (!tile.subTerrain.passable) continue;
                 if (tile.building) continue;
+                // (not on the water's edge, a ford or a bridge)
+                if (tile._wet) continue;
                 // Lots are for whoever buys them (world/innerMap/lots.js)
                 if (tile._lot) continue;
 

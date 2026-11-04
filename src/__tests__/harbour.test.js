@@ -147,5 +147,12 @@ describe('the shore and the harbour', () => {
         expect(me._deck).toBe(true);
         expect(me.subTerrain.passable).toBe(true);
         expect(InnerMap.tiles[2][2]._sea).toBe(true);
+        // the deck isn't counted as deep water
+        for (const row of InnerMap.tiles) {
+            for (const t of row) {
+                if (!t._deck) continue;
+                expect(t._deep).toBeFalsy();
+            }
+        }
     });
 });

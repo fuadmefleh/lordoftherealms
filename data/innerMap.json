@@ -1,6 +1,26 @@
 {
     "innerMapSize": { "width": 128, "height": 128 },
     "waterSubTerrain": { "id": "pond_water", "name": "Water", "icon": "💧", "color": "#3a6ea5", "passable": false },
+    "water": {
+        "_doc": "Ponds, rivers, lakes and their shores on the inner map (world/innerMap/water.js). Ponds per terrain: subTerrains.*.waterFeatures { chance, count, radius (cells), lobes }, scaled up on a wet hex. rivers: radius (half-width in cells) and how it widens per river flowing in, how far its gates wander along the map edge, meander, the bends it swings in (bend: how far to either side, bendLength: cells per bend), what crossing a street (and running beside one, and the map border) costs the route, how far it keeps from buildings, fords in the wilds [min, max]. lake: the band of shore along the sides of a lake hex that face land. deep: how many cells from land water turns deep, by kind. dressing: chances per cell (reeds on shallows/bank, cattails and lilies on still water by the shore, stones on the bank, stepping stones on a ford) and the sprite cells ([col, row], 32px) of the LPC plants and rocks sheets.",
+        "rivers": { "radius": [2.8, 3.8], "radiusPerInflow": 0.4, "maxRadius": 5, "edgeJitter": 10, "meander": 5, "bend": [3, 7], "bendLength": [28, 48], "roadCost": 60, "roadNearCost": 6, "borderCost": 6, "clearance": 2, "wildFords": [1, 2], "springRadius": 3.5, "poolRadius": [5, 7] },
+        "lake": { "shoreDepth": [14, 22], "wobble": 4 },
+        "deep": { "pond": 3, "river": 2, "lake": 3, "sea": 3 },
+        "dressing": {
+            "reeds": 0.1, "tallReeds": 0.3, "cattails": 0.06, "lilies": 0.05, "lilyFlower": 0.3, "rocks": 0.025, "fordStones": 0.5,
+            "sprites": {
+                "plants": "assets/lpc/Terrain/plants_{season}.png",
+                "rocksSheet": "assets/lpc/Terrain/Rocks, Grasslands.png",
+                "reeds": [[8, 1], [9, 1], [10, 1]],
+                "tallReeds": [[11, 0], [12, 0], [13, 0]],
+                "cattails": [[14, 2], [15, 2], [14, 3], [15, 3], [14, 4], [15, 4]],
+                "lilies": [[12, 2], [13, 2], [12, 3], [13, 3], [12, 4], [13, 4]],
+                "lilyFlowers": [[14, 0], [15, 0], [14, 1], [15, 1]],
+                "rocks": [[5, 2], [4, 2], [5, 3], [5, 6], [4, 6], [5, 10], [4, 10]],
+                "stones": [[5, 3], [5, 7], [5, 11]]
+            }
+        }
+    },
     "subTerrains": {
         "grassland": {
             "primary": [
@@ -10,7 +30,7 @@
                 { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 7 }
             ],
             "encounters": ["rabbit", "deer", "herb_patch", "traveler", "hidden_cache"],
-            "waterFeatures": { "chance": 0.5, "count": [1, 2], "size": [12, 26] }
+            "waterFeatures": { "chance": 0.6, "count": [1, 3], "radius": [3, 10], "lobes": [1, 3] }
         },
         "plains": {
             "primary": [
@@ -20,7 +40,7 @@
                 { "id": "grass", "name": "Grass", "icon": "🌿", "color": "#88aa55", "weight": 8 }
             ],
             "encounters": ["snake", "horse_herd", "abandoned_cart", "bandit_camp", "herb_patch"],
-            "waterFeatures": { "chance": 0.3, "count": [1, 1], "size": [10, 18] }
+            "waterFeatures": { "chance": 0.35, "count": [1, 2], "radius": [3, 7], "lobes": [1, 2] }
         },
         "woodland": {
             "primary": [
@@ -30,7 +50,7 @@
                 { "id": "dirt", "name": "Forest Floor", "icon": "🟤", "color": "#6b4226", "weight": 10 }
             ],
             "encounters": ["wolf", "deer", "forager", "mushroom_circle", "hidden_shrine", "woodcutter"],
-            "waterFeatures": { "chance": 0.5, "count": [1, 2], "size": [10, 22] }
+            "waterFeatures": { "chance": 0.55, "count": [1, 3], "radius": [3, 9], "lobes": [1, 3] }
         },
         "boreal_forest": {
             "primary": [
@@ -40,7 +60,7 @@
                 { "id": "dirt", "name": "Forest Floor", "icon": "🟤", "color": "#6b4226", "weight": 10 }
             ],
             "encounters": ["bear", "elk", "hermit", "frozen_corpse", "ancient_carving"],
-            "waterFeatures": { "chance": 0.35, "count": [1, 1], "size": [10, 18] }
+            "waterFeatures": { "chance": 0.5, "count": [1, 3], "radius": [3, 9], "lobes": [1, 2] }
         },
         "seasonal_forest": {
             "primary": [
@@ -50,7 +70,7 @@
                 { "id": "dirt", "name": "Leaf Litter", "icon": "🍁", "color": "#c77a30", "weight": 10 }
             ],
             "encounters": ["fox", "songbird", "herbalist", "fairy_ring", "old_well"],
-            "waterFeatures": { "chance": 0.45, "count": [1, 2], "size": [10, 22] }
+            "waterFeatures": { "chance": 0.5, "count": [1, 2], "radius": [3, 9], "lobes": [1, 3] }
         },
         "temperate_rainforest": {
             "primary": [
@@ -59,7 +79,7 @@
                 { "id": "mud", "name": "Mud", "icon": "🟤", "color": "#6b5a3a", "weight": 25 }
             ],
             "encounters": ["rare_herb", "spider_nest", "druid", "glowing_moss", "ancient_statue"],
-            "waterFeatures": { "chance": 0.6, "count": [1, 2], "size": [12, 26] }
+            "waterFeatures": { "chance": 0.7, "count": [1, 3], "radius": [4, 11], "lobes": [1, 3] }
         },
         "tropical_rainforest": {
             "primary": [
@@ -69,7 +89,7 @@
                 { "id": "mud", "name": "Mud", "icon": "🟤", "color": "#6b5a3a", "weight": 10 }
             ],
             "encounters": ["parrot", "snake", "lost_explorer", "hidden_temple", "rare_orchid", "panther"],
-            "waterFeatures": { "chance": 0.6, "count": [1, 2], "size": [12, 26] }
+            "waterFeatures": { "chance": 0.7, "count": [1, 3], "radius": [4, 11], "lobes": [1, 3] }
         },
         "desert": {
             "primary": [
@@ -87,7 +107,7 @@
                 { "id": "dirt", "name": "Dry Dirt", "icon": "🟤", "color": "#b0a070", "weight": 8 }
             ],
             "encounters": ["lion", "elephant", "tribal_camp", "baobab_tree", "vultures"],
-            "waterFeatures": { "chance": 0.2, "count": [1, 1], "size": [9, 14] }
+            "waterFeatures": { "chance": 0.25, "count": [1, 1], "radius": [3, 5], "lobes": [1, 1] }
         },
         "mountain": {
             "primary": [
@@ -105,7 +125,7 @@
                 { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 25 }
             ],
             "encounters": ["sheep", "hawk", "prospector", "old_mine_shaft", "bandit_lookout"],
-            "waterFeatures": { "chance": 0.35, "count": [1, 1], "size": [9, 16] }
+            "waterFeatures": { "chance": 0.35, "count": [1, 2], "radius": [3, 7], "lobes": [1, 2] }
         },
         "swamp": {
             "primary": [
@@ -115,7 +135,7 @@
                 { "id": "grass", "name": "Dry Mound", "icon": "🌿", "color": "#6a7a4a", "weight": 10 }
             ],
             "encounters": ["giant_frog", "leech_swarm", "witch_hut", "sunken_chest", "will_o_wisp"],
-            "waterFeatures": { "chance": 0.8, "count": [2, 4], "size": [12, 30] }
+            "waterFeatures": { "chance": 0.95, "count": [3, 6], "radius": [4, 12], "lobes": [2, 4] }
         },
         "tundra": {
             "primary": [
@@ -151,7 +171,7 @@
                 { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 10 }
             ],
             "encounters": ["highland_cow", "eagle", "pict_stones", "hidden_spring", "shepherd"],
-            "waterFeatures": { "chance": 0.35, "count": [1, 1], "size": [9, 16] }
+            "waterFeatures": { "chance": 0.4, "count": [1, 2], "radius": [3, 8], "lobes": [1, 2] }
         },
         "beach": {
             "primary": [
@@ -170,7 +190,7 @@
                 { "id": "rocks", "name": "Rocky Coast", "icon": "⛰️", "color": "#7a7a6a", "weight": 15 }
             ],
             "encounters": ["parrot", "coconut_crab", "pirate_cache", "castaway", "tropical_fruit", "shipwreck"],
-            "waterFeatures": { "chance": 0.4, "count": [1, 1], "size": [9, 16] }
+            "waterFeatures": { "chance": 0.4, "count": [1, 1], "radius": [3, 7], "lobes": [1, 2] }
         }
     },
     "encounterChance": 0.15,

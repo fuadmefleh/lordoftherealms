@@ -20,7 +20,6 @@ import { ShipHulls } from '../shipHulls.js';
 import { Shipcraft } from '../shipcraft.js';
 
 const WATER_IDS = new Set(['ocean', 'deep_ocean', 'coast', 'sea', 'lake']);
-const SEA_WATER = { id: 'sea_water', name: 'Sea', icon: '🌊', color: '#2a5f8a', passable: false };
 const PIER = { id: 'pier', name: 'Pier', icon: '⚓', color: '#8b6a45', passable: true };
 const BRIDGE = 'assets/lpc/Structure/Bridges/Wood Bridge A - No Rails.png';
 // Plank cells of the bridge sheet (32px): planks running north-south, and east-west
@@ -71,63 +70,86 @@ Object.assign(InnerMap, {
         const depthOf = (kind) => (kind === 'lake' ? 20 : 30);
         const mask = Array.from({ length: H }, () => Array(W).fill(false));
         const cq = Math.floor(W / 2), cr = Math.floor(H / 2);
-        for (let r = 0; r < H; r++) {
-            for (let q = 0; q < W; q++) {
-                // keep the middle (where the player comes in) dry
-                if (Math.abs(q - cq) < 12 && Math.abs(r - cr) < 12) continue;
-                let wet = false;
-                if (sides.E && q > W - depthOf(sides.E) + wobble(r)) wet = true;
-                if (sides.W && q < depthOf(sides.W) + wobble(r)) wet = true;
-                if (sides.NE && q > W * 0.35 && r < depthOf(sides.NE) + wobble(q)) wet = true;
-                if (sides.NW && q < W * 0.65 && r < depthOf(sides.NW) + wobble(q)) wet = true;
-                if (sides.SE && q > W * 0.35 && r > H - depthOf(sides.SE) + wobble(q)) wet = true;
-                if (sides.SW && q < W * 0.65 && r > H - depthOf(sides.SW) + wobble(q)) wet = true;
-                if (!wet) continue;
-                const t = tiles[r][q];
-                if (t.isRoad || t.building || t.customBuilding || t.customBuildingPart || t._townCore || t._lot) continue;
+        // The town keeps a strip of land: water stops short of any building, lot or town street
+        const BUF = 2;
+        const townish = (t) => !!(t && (t.building || t.customBuilding || t.customBuildingPart || t._townCore || t._lot));
+        const blocked = (q, r) => {
+            if (Math.abs(q - cq) < 12 && Math.abs(r - cr) < 12) return true; // where the player comes in
+            for (let dr = -BUF; dr <= BUF; dr++) {
+                for (let dq = -BUF; dq <= BUF; dq++) {
+                    const y = r + dr, x = q + dq;
+                    if (y >= 0 && y < H && x >= 0 && x < W && townish(tiles[y][x])) return true;
+                }
+            }
+            return false;
+        };
+        // Water comes in from the map's edge along each row or column, up to
+        // the side's depth (a ragged shore), and stops at the first thing it
+        // mustn't cover — so it never runs round a house and strands it on an islet
+        const fromEdge = (cells) => {
+            for (const [q, r] of cells) {
+                if (blocked(q, r)) break;
                 mask[r][q] = true;
             }
+        };
+        const inRange = (lo, hi, v) => v >= lo && v <= hi;
+        // east and west: rows
+        for (let r = 0; r < H; r++) {
+            if (sides.E) {
+                const d = depthOf(sides.E) + wobble(r);
+                const cells = [];
+                for (let q = W - 1; q > W - d && q >= 0; q--) cells.push([q, r]);
+                fromEdge(cells);
+            }
+            if (sides.W) {
+                const d = depthOf(sides.W) + wobble(r);
+                const cells = [];
+                for (let q = 0; q < d && q < W; q++) cells.push([q, r]);
+                fromEdge(cells);
+            }
         }
-        this._fillWater(tiles, mask, worldTile.terrain.id);
+        // north and south: columns (a north-east or north-west sea covers that part of the top)
+        for (let q = 0; q < W; q++) {
+            const top = (sides.NE && inRange(W * 0.35, W, q)) || (sides.NW && inRange(0, W * 0.65, q));
+            const bottom = (sides.SE && inRange(W * 0.35, W, q)) || (sides.SW && inRange(0, W * 0.65, q));
+            const topKind = sides.NE || sides.NW;
+            const bottomKind = sides.SE || sides.SW;
+            if (top) {
+                const d = depthOf(topKind) + wobble(q);
+                const cells = [];
+                for (let r = 0; r < d && r < H; r++) cells.push([q, r]);
+                fromEdge(cells);
+            }
+            if (bottom) {
+                const d = depthOf(bottomKind) + wobble(q);
+                const cells = [];
+                for (let r = H - 1; r > H - d && r >= 0; r--) cells.push([q, r]);
+                fromEdge(cells);
+            }
+        }
+        // (a lake's shore is lake water; the sea's, sea)
+        const lakeOnly = Object.values(sides).every(k => !k || k === 'lake');
+        this._fillWater(tiles, mask, worldTile.terrain.id, lakeOnly ? 'lake' : 'sea');
+        // A road that ran on to the map's edge now ends at the shore
+        const layout = tiles._settlementLayout;
+        if (layout && Array.isArray(layout.roadTiles)) layout.roadTiles = layout.roadTiles.filter(p => !(tiles[p.r] && tiles[p.r][p.q] && tiles[p.r][p.q]._wet));
         // The side the harbour faces: the deepest water
         const score = { S: (sides.SE ? 1 : 0) + (sides.SW ? 1 : 0), N: (sides.NE ? 1 : 0) + (sides.NW ? 1 : 0), E: sides.E ? 1.5 : 0, W: sides.W ? 1.5 : 0 };
         const best = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
         return best && best[1] > 0 ? best[0] : null;
     },
 
-    /** Water over every masked cell: the shore brush's edges, open water inside */
-    _fillWater(tiles, mask, terrainId) {
+    /**
+     * Water over every masked cell (world/innerMap/water.js stamps all the
+     * map's water at once: the shore brush's edges, open water inside, deep
+     * water further out). `kind` is 'sea' or 'lake'.
+     */
+    _fillWater(tiles, mask, terrainId, kind = 'sea') {
         this._erodeUntileableStubs(mask);
-        const brush = this._getWaterNineTileBrush();
-        for (let r = 0; r < mask.length; r++) {
-            for (let q = 0; q < mask[r].length; q++) {
-                if (!mask[r][q]) continue;
-                const t = tiles[r][q];
-                t.customObject = null;
-                t.customObjectPart = null;
-                t._sea = true;
-            }
-        }
-        if (brush) {
-            const blockedGrid = [0, 1, 2].map(row => [0, 1, 2].map(col => this._isBrushSlotImpassable(brush, { row, col })));
-            const blockedIC = [0, 1, 2, 3].map(ic => this._isBrushSlotImpassable(brush, { ic }));
-            this._stampNineTileMask(tiles, mask, brush, 'water', (tile, info) => {
-                const blocked = info.ic !== undefined ? blockedIC[info.ic] : blockedGrid[info.row][info.col];
-                if (!blocked) { tile._sea = false; return; }
-                tile.subTerrain = { ...SEA_WATER };
-                tile.baseTerrain = 'water';
-            });
-        } else {
-            // No shore brush in the data: plain water, drawn by its fill (and no grass left over it)
-            for (let r = 0; r < mask.length; r++) {
-                for (let q = 0; q < mask[r].length; q++) {
-                    if (!mask[r][q]) continue;
-                    tiles[r][q].subTerrain = { ...SEA_WATER };
-                    tiles[r][q].baseTerrain = 'water';
-                    tiles[r][q].terrainDetail = { fillCategory: 'water', layer: 'water' };
-                }
-            }
-        }
+        const cells = [];
+        for (let r = 0; r < mask.length; r++) for (let q = 0; q < mask[r].length; q++) if (mask[r][q]) cells.push([q, r]);
+        this._markWet(tiles, cells, kind);
+        this._stampWater(tiles);
     },
 
     _isOpenWater(t) {
@@ -318,8 +340,10 @@ Object.assign(InnerMap, {
     _layOpenSea(game, tiles, worldTile) {
         const player = game && game.player;
         const H = tiles.length, W = tiles[0].length;
-        const mask = Array.from({ length: H }, () => Array(W).fill(true));
-        this._fillWater(tiles, mask, worldTile.terrain ? worldTile.terrain.id : 'ocean');
+        // On a lake its shores lie along the sides that face land (world/innerMap/water.js)
+        const onLake = !!(worldTile.terrain && worldTile.terrain.id === 'lake' && this._lakeMask);
+        const mask = onLake ? this._lakeMask(tiles, worldTile, game && game.world) : Array.from({ length: H }, () => Array(W).fill(true));
+        this._fillWater(tiles, mask, worldTile.terrain ? worldTile.terrain.id : 'ocean', onLake ? 'lake' : 'sea');
         const shipId = player && player.boardedShip;
         const ship = shipId && (player.ships || []).find(s => s && s.id === shipId);
         const def = CustomObjects.getDef(ShipHulls.hullFor(ship ? ship.typeId : 'sloop') || 'hull_sloop');
@@ -336,6 +360,7 @@ Object.assign(InnerMap, {
             const t = tiles[r + m.localRow][q + m.localCol];
             t.subTerrain = { ...PIER, id: 'deck', name: 'Deck' };
             t._deck = true;
+            t._deep = false; // (the water under the hull isn't the deep you'd drown in)
         }
         return { q, r, id: def.id };
     },

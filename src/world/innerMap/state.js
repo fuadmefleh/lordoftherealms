@@ -372,6 +372,8 @@ Object.assign(InnerMap, {
         sand:       'sand',
         dry_grass:  'dry_dirt',
         bog:        'dark_stone',
+        river_water: 'water',  // a river across the map (world/innerMap/water.js)
+        lake_water: 'water',
         pond_water: 'water',   // procedural water features (InnerMap._paintWaterFeatures)
     },
 });

@@ -507,10 +507,26 @@ Object.assign(InnerMapRenderer, {
         const originY = origin.y;
 
         // ── Phase 1: Collect objects (trees, plants, rocks, custom objects) ──────
-        for (let r = rMin; r <= rMax; r++) {
-            for (let q = qMin; q <= qMax; q++) {
+        // A custom object is anchored at its bottom-left and reaches right and up, so a
+        // big one (a ship is ~40 tiles long) shows while its anchor is off the view:
+        // the scan runs on past the view's left and bottom for anchors only
+        const SPAN = 48;
+        const mapH = InnerMap.tiles.length, mapW = mapH ? InnerMap.tiles[0].length : 0;
+        const qScan = Math.max(0, qMin - SPAN), rScan = Math.min(mapH - 1, rMax + SPAN);
+        const seen = (t) => !!(t && t.explored && t.visible);
+        for (let r = rMin; r <= rScan; r++) {
+            for (let q = qScan; q <= qMax; q++) {
                 const tile = InnerMap.tiles[r][q];
-                if (!tile.explored || !tile.visible) continue;
+                if (r > rMax || q < qMin) {
+                    // off the view: only an object that reaches into it, and has been seen
+                    if (!tile.customObject || typeof CustomObjects === 'undefined') continue;
+                    const xdef = CustomObjects.getDef(tile.customObject.defId);
+                    if (!xdef) continue;
+                    const ext = self._objectExtent(xdef);
+                    if (q + ext.w <= qMin || r - ext.h > rMax) continue;
+                    const midRow = InnerMap.tiles[Math.max(0, r - (ext.h >> 1))];
+                    if (!seen(tile) && !seen(midRow && midRow[Math.min(mapW - 1, q + (ext.w >> 1))])) continue;
+                } else if (!tile.explored || !tile.visible) continue;
                 if (tile.building) continue;
                 if (tile.customObjectPart) continue;
 

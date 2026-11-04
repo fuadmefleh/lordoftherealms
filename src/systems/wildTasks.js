@@ -16,7 +16,7 @@ const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Sub-terrains that are open water (or ice you can fish through). */
-const WATER_IDS = new Set(['pond_water', 'water', 'shallow_water', 'murky_water', 'pond', 'stream', 'river', 'pool', 'lake', 'bog', 'frozen_pool', 'frozen_lake', 'frozen_stream']);
+const WATER_IDS = new Set(['pond_water', 'river_water', 'lake_water', 'sea_water', 'water', 'shallow_water', 'murky_water', 'pond', 'stream', 'river', 'pool', 'lake', 'bog', 'frozen_pool', 'frozen_lake', 'frozen_stream']);
 const ICE_IDS = new Set(['ice', 'thick_ice', 'ice_sheet', 'frozen_pool', 'frozen_lake', 'frozen_stream']);
 
 function _data() {

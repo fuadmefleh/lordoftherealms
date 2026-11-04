@@ -18,5 +18,6 @@ import './hospitality.js';
 import './camp.js';
 import './harbour.js';
 import './deckLife.js';
+import './water.js';
 
 export { InnerMap };

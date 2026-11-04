@@ -121,10 +121,12 @@ describe('InnerMap water features — generation', () => {
         expect(pondTiles(tiles)).toHaveLength(0);
     });
 
-    it('generates no water when no water brush exists', () => {
+    it('with no water brush in the data, ponds use the water of the LPC terrain sheet (shore block and inside corners)', () => {
         DataLoader._gamedata = { terrainNineTileBrushes: [] };
         const tiles = InnerMap.generate(WORLD_TILE, 3, 4, null);
-        expect(pondTiles(tiles)).toHaveLength(0);
+        const ponds = pondTiles(tiles);
+        expect(ponds.length).toBeGreaterThan(0);
+        for (const t of ponds) expect(t.terrainDetail.sheetPath).toMatch(/assets\/lpc\/Terrain\/terrain_\w+\.png/);
     });
 
     it('finds a water brush by name when category is missing (legacy data)', () => {

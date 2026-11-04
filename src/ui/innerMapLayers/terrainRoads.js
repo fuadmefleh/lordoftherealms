@@ -203,14 +203,17 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 const ov = tile.terrainDetail || tile.grassOverlay || null;
-                if (!ov) continue;
+                const decor = tile.decor;
+                if (!ov && !decor) continue;
 
                 const dx = Math.floor(originX + (q - qMin) * ds);
                 const dy = dyFloor;
 
                 if (dx + sz < 0 || dx > canvasW) continue;
 
-                if (ov.sheetPath) {
+                if (!ov) {
+                    // (no ground detail here: only the decals)
+                } else if (ov.sheetPath) {
                     const ovImg = this._getSheetByPath(ov.sheetPath);
                     if (ovImg) {
                         const sw = Number.isFinite(ov.sw) ? ov.sw : 32;
@@ -226,6 +229,17 @@ Object.assign(InnerMapRenderer, {
                         const hash = (Math.abs((q * 83492791 ^ r * 29765729))) >>> 0;
                         const pick = fills[hash % fills.length];
                         ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
+                    }
+                }
+
+                // Shore dressing (world/innerMap/water.js): reeds, lily pads, stones —
+                // decals over the ground, a tall one reaching up into the cell above
+                if (decor) {
+                    for (const d of decor) {
+                        const img = d && d.sheetPath && this._getSheetByPath(d.sheetPath);
+                        if (!img) continue;
+                        const h = d.h > 1 ? d.h : 1;
+                        ctx.drawImage(img, d.sx, d.sy, 32, 32 * h, dx, dy - (h - 1) * (sz - 1), sz, sz + (h - 1) * (sz - 1));
                     }
                 }
             }

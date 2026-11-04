@@ -3,12 +3,6 @@ import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures } from './_imports.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
-// Cardinal steps a water blob can grow along, as [dq, dr].
-const WATER_GROWTH_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
-// Used only if innerMap.json is missing waterSubTerrain (e.g. stale modded gamedata).
-const DEFAULT_WATER_SUB_TERRAIN = { id: 'pond_water', name: 'Water', icon: '💧', color: '#3a6ea5', passable: false };
-
 Object.assign(InnerMap, {
     /**
      * Get the base terrain fill category for a tile.
@@ -104,8 +98,54 @@ Object.assign(InnerMap, {
         // fall back to name matching for brushes saved before the field existed.
         const byCategory = this._getNineTileBrushesByCategory('water');
         if (byCategory.length) return byCategory[0];
-        return this._getNineTileBrushesByCategory('terrain')
-            .find(b => /water|pond|lake|river/i.test(String(b.name || ''))) || null;
+        const byName = this._getNineTileBrushesByCategory('terrain')
+            .find(b => /water|pond|lake|river/i.test(String(b.name || '')));
+        if (byName) return byName;
+        return this._fallbackWaterBrush(this._waterGround);
+    },
+
+    /**
+     * Water with a grass shore from the LPC terrain sheets (one per season):
+     * the 3×3 shore block at cols 0-2, rows 10-12 (open water in the middle)
+     * and the inside corners from the grass-blob-in-water block at cols 0-1,
+     * rows 13-14 (each quarter is water with a grass bite in one corner).
+     * The open water and the inside corners are impassable; the shore edges
+     * stay walkable shallows (as a pond's do).
+     * On bare ground (`ground` 'dirt': a map with no grass layer) the shore
+     * is the dirt-banked block at cols 6-8 (the same open water in the
+     * middle) with the dirt-blob-in-water inside corners at cols 6-7, rows 13-14.
+     */
+    _fallbackWaterBrush(ground = 'grass') {
+        const dirt = ground === 'dirt';
+        const key = dirt ? 'dirt' : 'grass';
+        this._fallbackWater = this._fallbackWater || {};
+        if (this._fallbackWater[key]) return this._fallbackWater[key];
+        const c0 = dirt ? 6 : 0;
+        const ic0 = dirt ? 6 : 0;
+        const seasonTiles = {};
+        const seasonInsideCorners = {};
+        for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+            const sheet = `assets/lpc/Terrain/terrain_${season}.png`;
+            const cell = (c, r, impassable = false) => ({ sheetPath: sheet, sx: c * 32, sy: r * 32, ...(impassable ? { impassable: true } : {}) });
+            seasonTiles[season] = [
+                [cell(c0, 10), cell(c0 + 1, 10), cell(c0 + 2, 10)],
+                [cell(c0, 11), cell(1, 11, true), cell(c0 + 2, 11)],
+                [cell(c0, 12), cell(c0 + 1, 12), cell(c0 + 2, 12)],
+            ];
+            // IC order (core/nineTile.js): 0 = TL diagonal is land → the bite of land sits top-left
+            seasonInsideCorners[season] = [cell(ic0 + 1, 14, true), cell(ic0, 14, true), cell(ic0 + 1, 13, true), cell(ic0, 13, true)];
+        }
+        const brush = {
+            name: dirt ? 'Water, Dirt Banks (Default)' : 'Water (Default)',
+            category: 'water',
+            lpcDefault: true,
+            tiles: seasonTiles.spring,
+            insideCorners: seasonInsideCorners.spring,
+            seasonTiles,
+            seasonInsideCorners,
+        };
+        this._fallbackWater[key] = brush;
+        return brush;
     },
 
     /**
@@ -276,105 +316,7 @@ Object.assign(InnerMap, {
         return true;
     },
 
-    /**
-     * Procedurally place water features (ponds) on an inner map using a
-     * water 9-tile brush. Per-parent-terrain config comes from innerMap.json:
-     *   "waterFeatures": { "chance": 0.5, "count": [1, 2], "size": [5, 12] }
-     * No config → no water. Brush cells flagged impassable (via the terrain
-     * editor's ⛔ toggle) become blocked water tiles tagged as pond_water;
-     * unflagged shore-edge cells keep their sub-terrain and stay walkable.
-     * Blobs never touch the map border, roads, buildings, objects, or the
-     * player-start area, so bounded ponds can't disconnect the walkable map.
-     */
-    _paintWaterFeatures(tiles, terrainId, rng) {
-        const terrainCfg = this.CONFIG && this.CONFIG.subTerrains ? this.CONFIG.subTerrains[terrainId] : null;
-        const cfg = terrainCfg ? terrainCfg.waterFeatures : null;
-        if (!cfg) return;
-        const brush = this._getWaterNineTileBrush();
-        if (!brush) return;
-        const { chance = 0.5, count: countRange = [1, 1], size: sizeRange = [4, 10] } = cfg;
-        if (rng() > chance) return;
-
-        const H = this.height;
-        const W = this.width;
-        const count = countRange[0] + Math.floor(rng() * (countRange[1] - countRange[0] + 1));
-
-        const centerQ = Math.floor(W / 2);
-        const centerR = Math.floor(H / 2);
-        const MARGIN = 2;      // keep off the map border (clean edge, can't disconnect the map)
-        const START_CLEAR = 4; // keep clear of the player-start tile
-
-        const canHold = (q, r) => {
-            if (q < MARGIN || q >= W - MARGIN || r < MARGIN || r >= H - MARGIN) return false;
-            if (Math.abs(q - centerQ) + Math.abs(r - centerR) <= START_CLEAR) return false;
-            const t = tiles[r][q];
-            if (!t || t.isRoad || t.building || t.customBuilding || t.customBuildingPart || t.customObject || t.customObjectPart || t._townCore || t._lot) return false;
-            return true;
-        };
-
-        const mask = Array.from({ length: H }, () => Array(W).fill(false));
-
-        for (let p = 0; p < count; p++) {
-            // A pond needs at least one interior (all-4-cardinals) cell to get
-            // a blocked center tile — the smallest such blob is 3×3, so clamp
-            // the target size to 9 and seed from a full 3×3 core. The core
-            // survives stub erosion and guarantees real water, not just shore.
-            const target = Math.max(9, sizeRange[0] + Math.floor(rng() * (sizeRange[1] - sizeRange[0] + 1)));
-
-            // Find a seed spot with a clear 3×3 core (seed = top-left corner)
-            let seedQ = -1, seedR = -1;
-            for (let tries = 0; tries < 40; tries++) {
-                const q = MARGIN + Math.floor(rng() * (W - MARGIN * 2 - 2));
-                const r = MARGIN + Math.floor(rng() * (H - MARGIN * 2 - 2));
-                let clear = !mask[r][q];
-                for (let dr = 0; clear && dr < 3; dr++) {
-                    for (let dq = 0; clear && dq < 3; dq++) {
-                        if (!canHold(q + dq, r + dr) || mask[r + dr][q + dq]) clear = false;
-                    }
-                }
-                if (clear) {
-                    seedQ = q; seedR = r;
-                    break;
-                }
-            }
-            if (seedQ < 0) continue;
-
-            // Grow a compact blob from the 3×3 core by annexing random cells
-            // adjacent to cells already in the blob. Cells join the mask as they
-            // are pushed, so the mask test below covers both this blob and earlier ones.
-            const blob = [];
-            const push = (q, r) => { blob.push([q, r]); mask[r][q] = true; };
-            for (let dr = 0; dr < 3; dr++) {
-                for (let dq = 0; dq < 3; dq++) push(seedQ + dq, seedR + dr);
-            }
-            // The blob can run out of room to grow, so cap the attempts.
-            for (let attempt = 0; attempt < target * 20 && blob.length < target; attempt++) {
-                const [bq, br] = blob[Math.floor(rng() * blob.length)];
-                const [dq, dr] = WATER_GROWTH_DIRS[Math.floor(rng() * 4)];
-                const nq = bq + dq, nr = br + dr;
-                if (mask[nr][nq] || !canHold(nq, nr)) continue;
-                push(nq, nr);
-            }
-        }
-
-        this._erodeUntileableStubs(mask);
-
-        // ── Stamp visuals + passability ──
-        // Slot impassability depends only on (brush, slot), so resolve all 13
-        // slots once instead of re-walking the season grids per tile.
-        const blockedGrid = [0, 1, 2].map(row => [0, 1, 2].map(col => this._isBrushSlotImpassable(brush, { row, col })));
-        const blockedIC = [0, 1, 2, 3].map(ic => this._isBrushSlotImpassable(brush, { ic }));
-        const waterDef = this.CONFIG.waterSubTerrain || DEFAULT_WATER_SUB_TERRAIN;
-
-        this._stampNineTileMask(tiles, mask, brush, 'water', (tile, info) => {
-            // Blocked slots become tagged, impassable water; unflagged
-            // shore-edge slots keep their sub-terrain and stay walkable.
-            const blocked = info.ic !== undefined ? blockedIC[info.ic] : blockedGrid[info.row][info.col];
-            if (!blocked) return;
-            tile.subTerrain = { ...waterDef, passable: false };
-            tile.baseTerrain = this._getBaseTerrain(terrainId, waterDef.id);
-        });
-    },
+    // Ponds, rivers, lakes and their shores: world/innerMap/water.js
 
     /**
      * Generate or retrieve an inner map for a world tile
@@ -448,7 +390,9 @@ Object.assign(InnerMap, {
 
         const terrainId = worldTile.terrain ? worldTile.terrain.id : 'grassland';
         const config = this.CONFIG;
-        const subTerrains = config && config.subTerrains ? config.subTerrains[terrainId] : null;
+        // A lake hex's shores are the land about it (world/innerMap/water.js)
+        const landId = terrainId === 'lake' && this._lakeShoreTerrain ? this._lakeShoreTerrain(game && game.world, worldQ, worldR) : terrainId;
+        const subTerrains = config && config.subTerrains ? config.subTerrains[landId] : null;
 
         // Parent tile noise values (0-1 range)
         const parentElev = worldTile.elevation  !== undefined ? worldTile.elevation  : 0.5;
@@ -480,7 +424,7 @@ Object.assign(InnerMap, {
         };
 
         const tiles = [];
-        const primaryTerrains = subTerrains ? subTerrains.primary : this._defaultSubTerrains(terrainId);
+        const primaryTerrains = subTerrains ? subTerrains.primary : this._defaultSubTerrains(landId);
         const totalWeight = primaryTerrains.reduce((sum, t) => sum + (t.weight || 1), 0);
 
         // Noise offset derived from world coordinates so each tile's inner
@@ -598,7 +542,7 @@ Object.assign(InnerMap, {
         // Road tiles (isRoad) are excluded from the mask so the brush auto-tiles
         // smooth edges around dirt paths.
         // Only apply on grass-based terrains — skip sand/stone/dry_dirt etc.
-        const groundBase = this._getBaseTerrain(terrainId, null);
+        const groundBase = this._getBaseTerrain(landId, null);
         if (groundBase === 'grass') {
             this._paintGrassSecondLayer(tiles, worldQ, worldR);
         } else if (worldTile.settlement && ['stone', 'dirt', 'dry_dirt', 'dark_stone'].includes(groundBase)) {
@@ -606,10 +550,13 @@ Object.assign(InnerMap, {
             this._paintGrassSecondLayer(tiles, worldQ, worldR, true);
         }
 
-        // --- Procedural water features (ponds) ---
+        // The water's banks: grass where the ground is grassed, dirt where it is bare
+        this._waterGround = (groundBase === 'grass' || groundBase === 'snow' || groundBase === 'ice') ? 'grass' : 'dirt';
+
+        // --- Procedural water features (ponds; world/innerMap/water.js) ---
         // After the grass layer so pond visuals stamp over it, and before
         // player properties / object scatter so those avoid the blocked water.
-        this._paintWaterFeatures(tiles, terrainId, rng);
+        this._paintWaterFeatures(tiles, terrainId, rng, worldTile);
 
         // --- The sea or a lake along the sides that face it; a harbour with its
         // pier and ships in a settlement (world/innerMap/harbour.js; hash-placed) ---
@@ -621,6 +568,12 @@ Object.assign(InnerMap, {
         if (this._layOpenSea && atSea) {
             this._layOpenSea(game, tiles, worldTile);
         }
+        // --- The hex's river across the map, bridged where a street crosses
+        // it; then reeds, lilies and stones along the shores (world/innerMap/water.js; hash-placed) ---
+        if (this._layRiver && (!atSea || terrainId === 'lake')) {
+            this._layRiver(tiles, worldTile, worldQ, worldR, game && game.world);
+        }
+        if (this._dressWater) this._dressWater(tiles, worldQ, worldR);
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
@@ -759,6 +712,8 @@ Object.assign(InnerMap, {
                 const tile = tiles[r][q];
                 // Only consider passable, unoccupied terrain tiles
                 if (!tile.subTerrain.passable) continue;
+                // (nor on the shallows at the water's edge, a ford or a bridge)
+                if (tile._wet) continue;
                 // No wild trees inside a town; fewer the nearer you come to one (world/townPlanner.js)
                 if (tile._townCore || tile._townCleared) continue;
                 if (tile._townFade != null && rng() > Math.pow(tile._townFade, 1.6)) continue;
@@ -799,8 +754,8 @@ Object.assign(InnerMap, {
                     if (fr <= 0 || fr >= H - 1 || fq <= 0 || fq >= W - 1)
                         { clear = false; break; }
                     const ft = tiles[fr][fq];
-                    // ...and never across a building lot (world/townPlanner.js)
-                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad || ft._lot)
+                    // ...and never across a building lot (world/townPlanner.js) or out over the water
+                    if (ft.building || ft.customObject || ft.customObjectPart || ft.customBuilding || ft.customBuildingPart || ft.isRoad || ft._lot || ft._wet)
                         { clear = false; break; }
                     // Prevent placement in front of building doors
                     if (doorExclusion.has(`${fq},${fr}`))

@@ -15,6 +15,21 @@ Object.assign(InnerMapRenderer, {
     // These are separate from terrain — drawn on their own layer.
     // Collected and sorted by Y-bottom for correct painter's-algorithm overlap.
     // ══════════════════════════════════════════════
+    /** A custom object's size in cells: w to the right of its anchor, h above it (cached on the def). */
+    _objectExtent(def) {
+        if (!this._extents) this._extents = new WeakMap();
+        let ext = this._extents.get(def);
+        if (ext) return ext;
+        let w = 1, h = 0;
+        for (const t of def.tiles || []) {
+            w = Math.max(w, (t.localCol || 0) + 1);
+            h = Math.max(h, -(t.localRow || 0));
+        }
+        ext = { w, h };
+        this._extents.set(def, ext);
+        return ext;
+    },
+
     _renderObjectLayer(ctx, camera) {
         const T = this.TILE_SIZE;
         const ds = T * camera.zoom;
@@ -395,7 +410,8 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 // Impassable tint (skip tiles occupied by buildings, objects, or interior furniture)
-                if (!tile.subTerrain.passable && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile.customObject && !tile.customObjectPart && !tile._isInterior) {
+                // (not on water: a sea or a pond is plainly no place to walk, and a red mesh over it is noise)
+                if (!tile.subTerrain.passable && tile.baseTerrain !== 'water' && !tile.building && !tile.buildingInfo && !tile.customBuilding && !tile.customBuildingPart && !tile.customObject && !tile.customObjectPart && !tile._isInterior) {
                     impassRects.push(dx, dy, sz);
                 }
 

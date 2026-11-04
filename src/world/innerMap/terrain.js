@@ -265,7 +265,7 @@ Object.assign(InnerMap, {
             for (let q = 0; q < W; q++) {
                 if (!paintable[r][q]) continue;
                 const tile = tiles[r][q];
-                if (tile && tile.isRoad) continue;
+                if (tile && (tile.isRoad || tile._townSoil)) continue;
                 // On stony or dry land only the town's yards and fields are green
                 if (townOnly && !(tile._townCore || tile._townFade != null)) continue;
                 mask[r][q] = true;
@@ -299,7 +299,7 @@ Object.assign(InnerMap, {
         let stale = false;
         const mask = tiles.map(row => row.map(t => {
             const grass = isGrass(t);
-            const bare = !!(t && (t.isRoad || t._tilled));
+            const bare = !!(t && (t.isRoad || t._tilled || t._townSoil));
             if (grass && bare) stale = true;
             return grass && !bare;
         }));

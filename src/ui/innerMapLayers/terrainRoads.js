@@ -131,7 +131,12 @@ Object.assign(InnerMapRenderer, {
 
                 // Draw base terrain from analyzed LPC fills
                 const src = this._getTerrainFill(tile);
-                if (terrainSheet && src.sx >= 0) {
+                // Tilled ground of a town field (world/townProps.js): furrowed soil, the grass edged over it
+                const soil = tile._soilFill;
+                const soilImg = soil && this._getSheetByPath(soil.sheetPath);
+                if (soilImg) {
+                    ctx.drawImage(soilImg, soil.sx, soil.sy, 32, 32, dx, dy, sz, sz);
+                } else if (terrainSheet && src.sx >= 0) {
                     ctx.drawImage(terrainSheet, src.sx, src.sy, 32, 32, dx, dy, sz, sz);
                 } else {
                     ctx.fillStyle = src.fallbackColor || tile.subTerrain.color;

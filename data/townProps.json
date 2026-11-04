@@ -84,8 +84,8 @@
     },
     "fields": {
         "wheat":  { "name": "Wheat Field",      "fill": { "sheet": "wheat", "cells": [[1, 0], [2, 0], [1, 1], [2, 1]] } },
-        "veg":    { "name": "Vegetable Patch",  "soil": { "sheet": "soil", "x": 0, "y": 2 }, "crops": { "sheet": "crops", "cells": [[1, 15], [2, 15], [3, 15], [5, 15], [6, 15], [7, 15], [9, 15], [11, 15], [12, 15], [14, 15]] } },
-        "plowed": { "name": "Plowed Field",     "soil": { "sheet": "soil", "x": 0, "y": 2 } },
+        "veg":    { "name": "Vegetable Patch",  "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "crops": { "sheet": "crops", "cells": [[1, 15], [2, 15], [3, 15], [5, 15], [6, 15], [7, 15], [9, 15], [11, 15], [12, 15], [14, 15]] } },
+        "plowed": { "name": "Plowed Field",     "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] } },
         "greens": { "name": "Young Wheat",      "fill": { "sheet": "wheat", "cells": [[1, 5], [2, 5]] } }
     }
 }

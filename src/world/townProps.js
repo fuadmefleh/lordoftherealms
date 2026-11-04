@@ -86,14 +86,20 @@ function _fieldDef(d, kind, w, h) {
                 const [fc, fr] = f.fill.cells[(c * 7 + r * 3) % f.fill.cells.length];
                 tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: fc * T, sy: fr * T, sw: T, sh: T });
             }
-            if (f.crops && c > 0 && c < w - 1 && r > 0 && r < h - 1) {
+            // On tilled ground (bare soil the grass brush edges) every cell bears; else the rim stays bare
+            if (f.crops && (f.tilled || (c > 0 && c < w - 1 && r > 0 && r < h - 1))) {
                 const sheet = d.sheets[f.crops.sheet];
                 const [cc, cr] = f.crops.cells[(Math.floor(r) * 3 + Math.floor(c / 2)) % f.crops.cells.length];
                 tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: cc * T, sy: cr * T, sw: T, sh: T });
             }
         }
     }
-    return _def(TownProps.fieldId(kind, w, h), f.name, tiles, h, { allSolid: true, tags: ['field', kind] });
+    const def = _def(TownProps.fieldId(kind, w, h), f.name, tiles, h, { allSolid: true, tags: ['field', kind] });
+    if (f.tilled && f.fill) {
+        // The soil the ground layer draws under the field and the ring round it (the grass fringe lies over it)
+        def.tilled = { sheetPath: d.sheets[f.fill.sheet], cells: f.fill.cells };
+    }
+    return def;
 }
 
 export const TownProps = {
@@ -172,7 +178,28 @@ export const TownProps = {
         for (const m of cells.values()) {
             const t = tiles[r + m.localRow][q + m.localCol];
             if (m.localCol !== 0 || m.localRow !== 0) t.customObjectPart = { anchorQ: q, anchorR: r };
+            // A tilled field lies on bare ground: the grass layer leaves it out and edges round it
+            if (def.tilled) {
+                t.baseTerrain = 'dirt';
+                t._townSoil = true;
+                t._cachedFill = null;
+                t.terrainDetail = null;
+            }
             if (m.impassable) t.subTerrain.passable = false;
+        }
+        if (def.tilled) {
+            const H = tiles.length, W = tiles[0].length;
+            const { sheetPath, cells: fill } = def.tilled;
+            const { minCol, maxCol, minRow } = def.bounds;
+            for (let rr = r + minRow - 1; rr <= r + 1; rr++) {
+                for (let qq = q + minCol - 1; qq <= q + maxCol + 1; qq++) {
+                    if (rr < 0 || qq < 0 || rr >= H || qq >= W) continue;
+                    const t = tiles[rr][qq];
+                    if (!t || t.isRoad || t.customBuilding || t.customBuildingPart || t._soilFill) continue;
+                    const [fc, fr] = fill[((qq % fill.length) + fill.length) % fill.length];
+                    t._soilFill = { sheetPath, sx: fc * T, sy: fr * T };
+                }
+            }
         }
         return true;
     },

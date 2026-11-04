@@ -347,10 +347,30 @@ export const NpcBrain = {
             res = await LlmClient.chat(prompt, { maxTokens });
         }
         if (!res.ok) return fallback;
-        const line = NpcBrain._sanitizeLine(res.text, maxLen);
+        let line = NpcBrain._sanitizeLine(res.text, maxLen);
+        // A reply that only parrots the player back is no reply: cut the echo, or keep the written line
+        if (line && context.asked) line = NpcBrain._dropEcho(line, context.asked);
         if (!line) return fallback;
         cacheSet(key, { kind: 'line', value: line });
         return line;
+    },
+
+    /** The line without the player's own words repeated at its start; null when little else is left. */
+    _dropEcho(line, asked) {
+        const norm = (t) => String(t || '').toLowerCase().replace(/\*[^*]*\*/g, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const a = norm(asked);
+        if (a.length < 8) return line;
+        const l = norm(line);
+        if (l === a) return null;
+        if (!l.startsWith(a)) return line;
+        // Cut through the end of the echoed sentence
+        const words = a.split(' ').length;
+        let seen = 0, cut = 0;
+        const re = /[A-Za-z0-9]+/g;
+        let m;
+        while ((m = re.exec(line)) && seen < words) { seen++; cut = m.index + m[0].length; }
+        const rest = line.slice(cut).replace(/^[\s?!.,;:—-]+/, '').trim();
+        return norm(rest).length >= 6 ? rest.charAt(0).toUpperCase() + rest.slice(1) : null;
     },
 
     // ── The court scribe (on-demand async) ──────────────────────
@@ -428,10 +448,16 @@ export const NpcBrain = {
         // A reply: the player asked something, and the game has decided what this
         // person tells them (context.says). The model only says it in their voice.
         if (context.says) {
-            const asked = context.asked ? `The player says to you: "${context.asked}"\n` : '';
+            // The written line is the gist (its *stage directions* are how they act),
+            // not words to read out; the player's words are theirs, never to be echoed
+            const gist = String(context.says).replace(/\*([^*]+)\*/g, '($1)').trim();
+            const history = Array.isArray(context.history) && context.history.length
+                ? `The conversation so far:\n${context.history.slice(-6).map(h => `${h.npc ? name : 'Player'}: ${String(h.text).replace(/\*/g, '')}`).join('\n')}\n\n` : '';
+            const asked = context.asked ? `The player has just said to you: "${context.asked}"\n` : 'You are greeting the player.\n';
+            const outcome = context.outcome ? `How it landed with you: ${context.outcome}.\n` : '';
             return [
-                { role: 'system', content: `You voice ${who}. Answer in character, one to three sentences of spoken dialogue, no quotes, no narration. Keep every name, place, number and fact you are given; add no new facts, places or promises.` },
-                { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player.\n${asked}What you tell them, in your own words: ${context.says}${world}${memory}`) },
+                { role: 'system', content: `You are ${name}, ${who}. Speak only as ${name}: first person, one to three short sentences of natural spoken dialogue, in your own voice and manner. Answer what was said to you; never repeat, quote or paraphrase the other person's words back to them. No quotation marks and no narration, except at most one brief action in *asterisks*. Keep any names, places and numbers in the gist; invent no new facts, places or promises.` },
+                { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player.${world}${memory}\n\n${history}${asked}${outcome}The gist of your reply: ${gist}\n\nWrite only ${name}'s reply.`) },
             ];
         }
         return [
@@ -496,7 +522,7 @@ export const NpcBrain = {
         const memories = NpcBrain._memoryText(ctx.memories);
         const m = memories ? `:m${NpcBrain._hash(memories)}` : '';
         // ...and a reply by what it carries
-        const says = ctx.says ? `:s${NpcBrain._hash(String(ctx.says))}` : '';
+        const says = ctx.says ? `:s${NpcBrain._hash(`${ctx.asked || ''}|${ctx.says}`)}` : '';
         return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}${m}${says}`;
     },
     _hash(str) {

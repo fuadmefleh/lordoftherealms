@@ -16,6 +16,8 @@ export function npcVoice(persona) {
         {
             topic: how.topic || 'a reply',
             asked: how.asked,
+            outcome: how.outcome,
+            history: how.history,
             says: text,
             fresh: true, // a new turn of phrase each time, not the cached one
             role: read(persona.role),

@@ -204,7 +204,8 @@ describe('NpcBrain — voicing a reply (context.says)', () => {
             topic: 'reply:ask_location', asked: 'Tell me about this place.', says: 'The smithy is by the north gate; Tom keeps it.', role: 'a medieval smith in Eaglerock',
         });
         expect(p[0].content).toContain('a medieval smith in Eaglerock');
-        expect(p[0].content).toMatch(/Keep every name, place, number and fact/);
+        expect(p[0].content).toMatch(/never repeat, quote or paraphrase/);
+        expect(p[0].content).toMatch(/Keep any names, places and numbers/);
         expect(p[1].content).toContain('Tell me about this place.');
         expect(p[1].content).toContain('The smithy is by the north gate; Tom keeps it.');
     });
@@ -223,5 +224,34 @@ describe('NpcBrain — voicing a reply (context.says)', () => {
         const line = await NpcBrain.generateNpcLine({ id: 'n2', firstName: 'Ada' }, { topic: 'reply:x', says: 'The smithy is by the north gate; Tom keeps it.', fallback: 'x' });
         expect(line).toBe('Aye, the smithy sits by the north gate, and Tom keeps it.');
         expect(chat.mock.calls[0][1].maxTokens).toBeGreaterThan(80);
+    });
+});
+
+describe('NpcBrain — a reply never parrots the player', () => {
+    afterEach(() => { vi.restoreAllMocks(); NpcBrain.enable(false); });
+
+    it('cuts the player own words from the front of a reply, or falls back when nothing else is left', () => {
+        expect(NpcBrain._dropEcho('You look wonderful today, you know. Stay a little longer?', 'You look wonderful today, you know.')).toBe('Stay a little longer?');
+        expect(NpcBrain._dropEcho('Lovely day, is it not?', 'Lovely day, is it not?')).toBe(null);
+        expect(NpcBrain._dropEcho('Aye, it is. The flock likes the sun.', 'Lovely day, is it not?')).toBe('Aye, it is. The flock likes the sun.');
+    });
+
+    it('gives the model the gist, the outcome and the talk so far, stage directions as actions', () => {
+        const p = NpcBrain._buildLinePrompt({ firstName: 'Hadrian' }, {
+            asked: 'Lovely day, is it not?', says: '*holds your gaze a moment longer than needed*', outcome: 'it charmed you',
+            history: [{ npc: true, text: 'Hm? Can I help you?' }, { npc: false, text: 'Lovely day, is it not?' }], role: 'a shepherd',
+        });
+        expect(p[1].content).toContain('(holds your gaze a moment longer than needed)');
+        expect(p[1].content).toContain('How it landed with you: it charmed you');
+        expect(p[1].content).toContain('Hadrian: Hm? Can I help you?');
+        expect(p[1].content).toContain("Write only Hadrian's reply.");
+    });
+
+    it('a reply that only echoes comes back as the written line', async () => {
+        NpcBrain.enable(true);
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: 'Lovely day, is it not?' });
+        const line = await NpcBrain.generateNpcLine({ id: 'e1', firstName: 'H' }, { asked: 'Lovely day, is it not?', says: 'I suppose it is.', fallback: 'I suppose it is.', fresh: true });
+        expect(line).toBe('I suppose it is.');
     });
 });

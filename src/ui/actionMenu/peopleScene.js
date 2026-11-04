@@ -234,6 +234,8 @@ function _act(game, npcId, actionId, court) {
                 return;
             }
         }
+        how.outcome = result.success ? (result.gain < 0 ? 'it offended you' : court ? 'it charmed you' : 'it went well, you warmed to them')
+            : result.failed ? (court ? 'it fell flat and made things awkward' : 'it fell flat and was awkward') : null;
         if (result.success) {
             if (court) {
                 scene.npc(_pick(FOND, seed), how);

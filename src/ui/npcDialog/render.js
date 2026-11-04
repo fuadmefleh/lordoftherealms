@@ -161,6 +161,7 @@ export function _voiceLine(line, npc, opts = {}) {
     let streamed = false;
     return NpcBrain.generateNpcLine(npc, {
         topic: opts.topic, asked: opts.asked, says: opts.says, fresh: !!opts.says, role: _roleFor(npc),
+        history: (dialogState._lines || []).filter(l => l !== line).slice(-6).map(l => ({ npc: !!l.isNpc, text: l.text })),
         disposition: _dispositionLabel(mem.disposition || 0), fallback: written,
         worldContext: _worldContext(npc), memories: _memoryLines(npc),
         onPartial: (soFar) => {

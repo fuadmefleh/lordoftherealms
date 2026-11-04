@@ -354,7 +354,7 @@ class Scene {
         };
         this._later(() => settle(null), Number(this.cfg.voiceTimeoutMs) || 6000);
         let p;
-        try { p = voice(item.text, item.how); } catch { p = null; }
+        try { p = voice(item.text, { ...item.how, history: (this._said || []).slice(-6) }); } catch { p = null; }
         Promise.resolve(p).then(settle, () => settle(null));
     }
 
@@ -378,6 +378,8 @@ class Scene {
                 continue;
             }
             el.className = `npc-dialog-line ${item.kind === 'npc' ? 'is-npc' : 'is-player'}`;
+            // (what has been said, for the AI voice: ui/npcVoice.js)
+            (this._said = this._said || []).push({ npc: item.kind === 'npc', text: item.text });
             const textEl = document.createElement('div');
             textEl.className = 'npc-dialog-line-text';
             el.appendChild(textEl);

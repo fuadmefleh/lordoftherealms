@@ -125,6 +125,36 @@ function _spawnNpc(type, at, rng, name) {
  * Put a line in at `spot`. `onBite(struck)` gets true (struck in time),
  * false (too slow) or null (nothing bit); `onLeave()` when you walk off.
  */
+/**
+ * The rod in the player's hands while they fish (drawn by ui/innerMapLayers/entities.js
+ * from assets/lpc/Tools/fishing_pole_cast_128.png): frame 0 raised, 1 the cast,
+ * 2 the line out; a bite twitches it. Faces the nearest water.
+ */
+function _rodPose(ctx, dt) {
+    ctx.rodT = (ctx.rodT || 0) + dt;
+    const L = ctx.line;
+    const castMark = ctx.marks.find(m => m.cast && m.held > 0);
+    let frame = 0;
+    if (L) frame = L.state === 'bite' ? (Math.floor(ctx.rodT * 8) % 2 ? 1 : 2) : 2;
+    else if (castMark) frame = castMark.held / Math.max(0.1, _num(castMark.work, 1)) < 0.5 ? 0 : 1;
+    const me = _me();
+    const key = `${me.q},${me.r}`;
+    if (ctx.rodFrom !== key) {
+        ctx.rodFrom = key;
+        ctx.rodToward = null;
+        let best = Infinity;
+        for (let dr = -4; dr <= 4; dr++) {
+            for (let dq = -4; dq <= 4; dq++) {
+                const t = InnerMap.getTile(me.q + dq, me.r + dr);
+                if (!t || !(t._wet || t._sea || (t.subTerrain && /water/.test(t.subTerrain.id || '')))) continue;
+                const d = Math.abs(dq) + Math.abs(dr);
+                if (d && d < best) { best = d; ctx.rodToward = { q: me.q + dq, r: me.r + dr }; }
+            }
+        }
+    }
+    InnerMap._rod = { frame, toward: ctx.rodToward, at: Date.now() };
+}
+
 function _castLine(ctx, spot, luck, onBite, onLeave) {
     const c = Rules.cfg('fish');
     const mark = ctx.mark(spot, { glyph: c.glyph || 'fish', label: c.waiting, passive: true, line: true });
@@ -523,14 +553,14 @@ export const WildTaskRunner = {
                     this._markSpot(ctx);
                 }, () => this._markSpot(ctx));
             },
-            tick(dt, ctx) { _lineTick(ctx, dt); },
+            tick(dt, ctx) { _lineTick(ctx, dt); _rodPose(ctx, dt); },
             buttons(ctx) { return _lineButtons(ctx); },
             status(ctx) { return fmt(c.status, { done: ctx.done, total: ctx.total, catch: catches.length }); },
         };
         return this.run(game, {
             title: c.title, icon: c.icon, say: c.say, plan: { parHours: c.parHours }, custom,
-            onComplete: () => onDone(catches),
-            onAbandon: () => onDone(catches),
+            onComplete: () => { InnerMap._rod = null; onDone(catches); },
+            onAbandon: () => { InnerMap._rod = null; onDone(catches); },
         }, () => onDone(null));
     },
 

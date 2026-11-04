@@ -33,6 +33,7 @@ import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { MapTasks } from '../systems/mapTasks.js';
 import { drawMapMarker } from './mapInk.js';
+import { pictureIcon } from './icons.js';
 import { Utils } from '../core/utils.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -827,7 +828,7 @@ export const InnerMapTasks = {
         const hrs = h => `${Math.floor(h)}h ${String(Math.round((h % 1) * 60)).padStart(2, '0')}m`;
         this._hud.innerHTML = `
             <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:20px">${ctx.spec.icon || '🔨'}</span>
+                <span style="font-size:20px">${pictureIcon(ctx.spec.icon || '🔨', 22)}</span>
                 <div style="flex:1;font-family:var(--font-display,'Cinzel',serif);color:var(--gold,#f5c542);font-size:14px">${ctx.spec.title || 'Task'}</div>
                 <button id="mapTaskGiveUp" style="background:none;border:1px solid rgba(255,255,255,0.15);color:#aaa;border-radius:5px;padding:2px 8px;cursor:pointer;font-size:11px">Give up</button>
             </div>

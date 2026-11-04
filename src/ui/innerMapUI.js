@@ -32,7 +32,7 @@ import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
-import { drawGlyph, buildingGlyph } from './icons.js';
+import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
 
 /** Building actions that open a town panel, offered only where the town keeps that business. */
@@ -488,7 +488,7 @@ Object.assign(InnerMapRenderer, {
                 } else if (item.type === 'disabled') {
                     bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.3);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">🚫</span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>`;
                 } else {
-                    bodyHTML += `<button class="inner-ctx-btn" data-action="${item.action||''}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);padding:6px 8px;border-radius:5px;color:var(--text-primary,#e0e0e0);cursor:pointer;text-align:left;transition:background 0.12s,border-color 0.12s;font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;width:100%;" onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">${item.icon||'📋'}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.desc}</div>` : ''}</div></button>`;
+                    bodyHTML += `<button class="inner-ctx-btn" data-action="${item.action||''}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);padding:6px 8px;border-radius:5px;color:var(--text-primary,#e0e0e0);cursor:pointer;text-align:left;transition:background 0.12s,border-color 0.12s;font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;width:100%;" onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">${pictureIcon(item.icon||'📋')}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.desc}</div>` : ''}</div></button>`;
                 }
             }
         }

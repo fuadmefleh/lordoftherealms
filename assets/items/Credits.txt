@@ -1,0 +1,7 @@
+Fishing pole icon (fishing_pole.png, fishing_pole_64.png, fishing_pole_raw.png)
+-------------------
+  ARTIST(S): generated with ChatGPT (OpenAI image generation) at the user's request, 2026-11-04,
+             in the user's own ChatGPT conversation ("Create fishing rod icon").
+  LICENSE: OpenAI terms assign output rights to the user; confirm before any public release.
+  DETAILS: Inventory/hotbar icon, transparent. fishing_pole.png 32x32 (one tile),
+           fishing_pole_64.png 64x64, fishing_pole_raw.png the 1254x1254 original.

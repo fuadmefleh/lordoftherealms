@@ -1,6 +1,7 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { uiZoom } from '../uiScale.js';
+import { pictureIcon } from '../icons.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
@@ -351,7 +352,7 @@ Object.assign(ActionMenu, {
                 style="display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.015);
                     border: 1px dashed rgba(255,255,255,0.08); padding: 6px 8px; border-radius: 5px; color: #888;
                     cursor: not-allowed; text-align: left; font-family: var(--font-body); min-width: 0; opacity: 0.75;">
-                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; filter: grayscale(1);">${action.icon}</span>
+                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; filter: grayscale(1);">${pictureIcon(action.icon, 18)}</span>
                 <span style="display: flex; flex-direction: column; min-width: 0;">
                     <span style="font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${action.label}</span>
                     ${why ? `<span style="font-size: 10px; color: #c98a6a; white-space: normal; line-height: 1.25;">🔒 ${_escHtml(why)}</span>` : ''}
@@ -377,7 +378,7 @@ Object.assign(ActionMenu, {
                     min-width: 0;
                 " onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'"
                    onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'">
-                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0;">${action.icon}</span>
+                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0;">${pictureIcon(action.icon, 18)}</span>
                 <span style="font-size: 12px; color: #ddd; overflow: hidden; text-overflow: ellipsis;">${action.label}</span>
                 ${apBadge}
             </button>
@@ -411,7 +412,7 @@ Object.assign(ActionMenu, {
                 font-family: var(--font-body);
             " onmouseover="this.style.background='rgba(245,197,66,0.1)';this.style.borderColor='rgba(245,197,66,0.35)'"
                onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.borderColor='rgba(255,255,255,0.07)'">
-                <span style="font-size: 22px; width: 30px; text-align: center; flex-shrink: 0;">${action.icon}</span>
+                <span style="font-size: 22px; width: 30px; text-align: center; flex-shrink: 0;">${pictureIcon(action.icon, 18)}</span>
                 <div style="flex: 1; min-width: 0;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="font-size: 13px; font-weight: 600; color: #e0e0e0;">${action.label}</span>

@@ -710,3 +710,20 @@ export function glyphLabel(label) {
     const c = titleCrest(str, null);
     return c.glyph ? `${icon(c.glyph, 'ico-label')}${c.text}` : str;
 }
+
+// ── Pictures: a few things drawn as pixel art rather than a glyph or an emoji ──
+
+/** Emoji with their own picture (assets/items/*.png; see its Credits.txt). */
+export const PICTURE_ICONS = {
+    '🎣': 'assets/items/fishing_pole.png',
+};
+
+/**
+ * An emoji icon as HTML: its picture where it has one (at `px` square,
+ * pixel-crisp), else the emoji itself.
+ */
+export function pictureIcon(emoji, px = 20) {
+    const src = PICTURE_ICONS[emoji];
+    if (!src) return emoji == null ? '' : String(emoji);
+    return `<img src="${src}" alt="${emoji}" style="width:${px}px;height:${px}px;image-rendering:pixelated;vertical-align:middle;">`;
+}

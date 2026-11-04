@@ -1,0 +1,14 @@
+Fishing pole cast overlay (fishing_pole_cast.png, fishing_pole_cast_128.png, fishing_pole_cast_raw.png)
+-------------------
+  ARTIST(S): generated with ChatGPT (OpenAI image generation) at the user's request, 2026-11-04,
+             in the user's own ChatGPT conversation ("Create fishing rod icon").
+  LICENSE: OpenAI terms assign output rights to the user; confirm before any public release.
+  DETAILS: Held-rod overlay for LPC character frames, rod and line only (no body).
+           4 rows (up, left, down, right) x 3 frames (raise, cast, line out).
+           fishing_pole_cast.png: 192x256, 64px cells; the reel (hand point) per facing at
+             up (41,45), left (24,43), down (23,44), right (40,43) in each cell.
+           fishing_pole_cast_128.png: 384x512, 128px oversize cells, the 64px frame centred
+             (offset 32,32), rod drawn ~2.4x larger.
+           fishing_pole_cast_raw.png: the 1254x1254 original (transparent), re-gridded by
+             splitting into blobs, anchoring each frame on its reel, one scale, box filter,
+             hard alpha.

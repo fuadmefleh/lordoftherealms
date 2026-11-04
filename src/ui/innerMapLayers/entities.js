@@ -847,6 +847,15 @@ Object.assign(InnerMapRenderer, {
                     this._playerFacing = direction;
                 }
             }
+            // Fishing: the rod in hand, turned to the water (ui/mapTasks/wildTasks.js _rodPose)
+            const rodPose = InnerMap._rod;
+            const pRod = !deathState && !pos.walking && rodPose && Date.now() - rodPose.at < 600
+                && !(typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming()) ? rodPose : null;
+            if (pRod) {
+                anim = 'idle';
+                if (pRod.toward) direction = InnerMap.getDirectionToward(pRod.toward.q, pRod.toward.r);
+                this._playerFacing = direction;
+            }
             const sortY = pos.y + T / 2;
             const px = screen.x, py = screen.y;
             const pAnim = anim, pDir = direction;
@@ -918,7 +927,15 @@ Object.assign(InnerMapRenderer, {
                         ctx.ellipse(px, py + ds * 0.15, charW * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
                         ctx.fillStyle = 'rgba(0,0,0,0.25)';
                         ctx.fill();
+                        // The rod: behind you when you face away, in your hands otherwise
+                        const rodSheet = pRod && this._sheets && this._sheets.get('fishing_pole_cast');
+                        const drawRod = () => {
+                            // 128px cells with the 64px body frame at their middle: twice the body's box
+                            ctx.drawImage(rodSheet, pRod.frame * 128, pDir * 128, 128, 128, cx - charW / 2, cy - charH / 2, charW * 2, charH * 2);
+                        };
+                        if (rodSheet && pDir === InnerMapCharacters.DIR_UP) drawRod();
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+                        if (rodSheet && pDir !== InnerMapCharacters.DIR_UP) drawRod();
                     }
                 } else {
                     self._drawPlayerStandIn(ctx, pDeathState, px, py, ds);

@@ -18,8 +18,13 @@
 // defensive beast (a stag, an elk, an elephant, a cow) turns and fights when
 // struck or cornered. updateAnimals returns what happened — bites on the
 // player among it — for the UI to apply (ui/innerMapAnimals.js). A beast
-// killed plays its death and lies as a carcass to butcher; it is gone from
-// its hex until world.wildlife says it has grown back (data: respawnDays).
+// killed plays its death and lies as a carcass where it fell (however it was
+// killed: hunted, fought, slaughtered); it is gone from its hex's herd until
+// world.wildlife.culled says it has grown back (data: respawnDays). The
+// carcass itself is kept on world.wildlife.carcasses (saved with the world),
+// so it is still there when the player comes back — rotting, by the day, until
+// the scavengers have it (data: carcass). It can be carried (canCarryAnimal,
+// by its weight) and is only butchered by hand (butcherAnimal).
 import { InnerMap } from './_ref.js';
 import { Utils, DataLoader } from './_imports.js';
 
@@ -327,6 +332,8 @@ Object.assign(InnerMap, {
             a.timer = g[0] + this._animalRng() * (g[1] - g[0]);
             a.facing = STEPS[Math.floor(this._animalRng() * 4)][2];
         }
+        // The kills left lying here (and not yet rotted away)
+        this._restoreCarcasses(world, worldQ, worldR, cfg);
     },
 
     /** Can an animal step from (q, r) onto (nq, nr)? */
@@ -538,11 +545,13 @@ Object.assign(InnerMap, {
         const me = o.player || { q: this.playerInnerQ, r: this.playerInnerR };
         for (const a of this.animals.slice()) {
             const sp = this.animalSpecies(a.species, cfg) || {};
-            // A carcass lies a while (butchered, it is soon gone)
+            // A carcass lies where it fell until butchered (then it soon fades)
             if (a.state === 'dead') {
                 a.deadT = _num(a.deadT) + dt;
-                if (a.butchered) a.fadeT = _num(a.fadeT) + dt;
-                if ((a.butchered && a.fadeT >= _num(b.butcheredSeconds, 20)) || a.deadT >= _num(b.carcassSeconds, 900)) this.removeAnimal(a);
+                if (a.butchered) {
+                    a.fadeT = _num(a.fadeT) + dt;
+                    if (a.fadeT >= _num(b.butcheredSeconds, 20)) this.removeAnimal(a);
+                }
                 continue;
             }
             if (a.hunted) continue; // a hunt moves it (ui/mapTasks/wildTasks.js)
@@ -830,8 +839,9 @@ Object.assign(InnerMap, {
 
     /**
      * It dies where it stands: the death plays and it lies as a carcass to
-     * butcher (butcherAnimal), culled from its hex's herd. o.butchered: its
-     * meat is already taken (a hunt's kill banks its loot), so it soon goes.
+     * butcher by hand (butcherAnimal), culled from its hex's herd, and kept
+     * on world.wildlife.carcasses so it lies there still when the player
+     * comes back. o.butchered: nothing left on it worth taking (it soon goes).
      */
     killAnimal(world, a, o = {}) {
         if (!a || a.state === 'dead') return;
@@ -844,15 +854,184 @@ Object.assign(InnerMap, {
         a.deadT = 0;
         a.fadeT = 0;
         a.butchered = !!o.butchered;
+        a.diedDay = _num(world && world.day, 0);
         this._recordCull(world, a);
+        if (!a.butchered) this._recordCarcass(world, a);
     },
 
-    /** Butcher a carcass (once): true when it was there to butcher. */
-    butcherAnimal(a) {
+    /**
+     * Butcher a carcass (once): true when it was there to butcher. It is
+     * gone from world.wildlife.carcasses (and fades off the map soon after).
+     */
+    butcherAnimal(a, world = null) {
         if (!a || a.state !== 'dead' || a.butchered) return false;
         a.butchered = true;
         a.fadeT = 0;
+        a.carried = false;
+        a.drawQ = a.drawR = null;
+        this.forgetCarcass(world, a);
         return true;
+    },
+
+    // ── Carcasses: where they lie, how long they keep, who can carry one ──
+
+    /** data/animals.json carcass, with its defaults. */
+    carcassConfig(cfg = this.animalConfig()) {
+        return {
+            lifetimeDays: 6, freshDays: 1, rotPerDay: 0.2, minYield: 0.25,
+            maxCarry: 200, perStrength: 10, shoulderKg: 70, slowPerKg: 0.0035, minSpeed: 0.3,
+            secondsBase: 2, secondsPerKg: 0.02, secondsMax: 10, minutesBase: 10, minutesPerKg: 0.4, minutesMax: 240,
+            ...(cfg.carcass || {}),
+        };
+    },
+
+    /** A hex's list of carcasses on world.wildlife.carcasses (made when `make`), or null. */
+    _carcassList(world, key, make = false) {
+        if (!world || !key) return null;
+        if (!world.wildlife || typeof world.wildlife !== 'object') {
+            if (!make) return null;
+            world.wildlife = {};
+        }
+        if (!world.wildlife.carcasses || typeof world.wildlife.carcasses !== 'object') {
+            if (!make) return null;
+            world.wildlife.carcasses = {};
+        }
+        const all = world.wildlife.carcasses;
+        if (!Array.isArray(all[key])) {
+            if (!make) return null;
+            all[key] = [];
+        }
+        return all[key];
+    },
+
+    _hexKey() {
+        const t = this.currentWorldTile;
+        return t && t.q != null ? `${t.q},${t.r}` : null;
+    },
+
+    /** Keep a fresh kill on its hex (world.wildlife.carcasses), so it lies there on the next visit. */
+    _recordCarcass(world, a) {
+        const key = this._hexKey();
+        const list = this._carcassList(world, key, true);
+        if (!list) return;
+        if (!a.carcassId) {
+            world.wildlife.carcassSeq = _num(world.wildlife.carcassSeq, 0) + 1;
+            a.carcassId = `c${world.wildlife.carcassSeq}`;
+        }
+        a.carcassHex = key;
+        const rec = { id: a.carcassId, animal: a.id, species: a.species, q: a.q, r: a.r, facing: a.facing, day: _num(a.diedDay, _num(world.day, 0)) };
+        if (a.livestock) rec.livestock = true;
+        if (a.owner) rec.owner = { ...a.owner };
+        const i = list.findIndex(c => c && c.id === a.carcassId);
+        if (i >= 0) list[i] = rec;
+        else list.push(rec);
+        this._pruneCarcasses(world);
+    },
+
+    /** The carcass was moved (carried, put down): keep where it lies now. */
+    noteCarcassMoved(world, a) {
+        if (!a || !a.carcassId || a.butchered) return;
+        const list = this._carcassList(world, a.carcassHex || this._hexKey());
+        const rec = list && list.find(c => c && c.id === a.carcassId);
+        if (!rec) return;
+        rec.q = a.q; rec.r = a.r; rec.facing = a.facing;
+    },
+
+    /** Off the books: butchered, or gone. */
+    forgetCarcass(world, a) {
+        if (!a || !a.carcassId) return;
+        const key = a.carcassHex || this._hexKey();
+        const list = this._carcassList(world, key);
+        if (!list) return;
+        const left = list.filter(c => c && c.id !== a.carcassId);
+        if (left.length) world.wildlife.carcasses[key] = left;
+        else delete world.wildlife.carcasses[key];
+    },
+
+    /** How many whole days since it was killed. */
+    carcassAge(world, a) {
+        const died = a && (a.diedDay != null ? a.diedDay : a.day);
+        return Math.max(0, _num(world && world.day, 0) - _num(died, 0));
+    },
+
+    /** The share of a whole carcass's yield still worth taking: 1 fresh, falling by the day as it rots. */
+    carcassYield(world, a, cfg = this.animalConfig()) {
+        const C = this.carcassConfig(cfg);
+        const stale = Math.max(0, this.carcassAge(world, a) - _num(C.freshDays, 1));
+        return Math.max(_num(C.minYield, 0.25), Math.min(1, 1 - stale * _num(C.rotPerDay, 0.2)));
+    },
+
+    /** Drop the carcasses the scavengers have had (lifetimeDays old), on every hex. */
+    _pruneCarcasses(world, cfg = this.animalConfig()) {
+        const all = world && world.wildlife && world.wildlife.carcasses;
+        if (!all || typeof all !== 'object') return;
+        const life = _num(this.carcassConfig(cfg).lifetimeDays, 6);
+        const day = _num(world.day, 0);
+        for (const key of Object.keys(all)) {
+            const left = Array.isArray(all[key]) ? all[key].filter(c => c && day - _num(c.day, 0) < life) : [];
+            if (left.length) all[key] = left;
+            else delete all[key];
+        }
+    },
+
+    /** The carcasses kept on this hex, back on the map as they lay (the fall long since played). */
+    _restoreCarcasses(world, worldQ, worldR, cfg = this.animalConfig()) {
+        this._pruneCarcasses(world, cfg);
+        const key = `${worldQ},${worldR}`;
+        const list = this._carcassList(world, key);
+        if (!list) return;
+        for (const rec of list) {
+            if (!rec || !this.animalSpecies(rec.species, cfg)) continue;
+            if (!(rec.q >= 0 && rec.r >= 0 && rec.q < this.width && rec.r < this.height)) continue;
+            const a = this._makeAnimal({ id: rec.animal || rec.id, species: rec.species, q: rec.q, r: rec.r, livestock: rec.livestock, owner: rec.owner || null }, cfg);
+            a.state = 'dead';
+            a.hp = 0;
+            a.deadT = 999;
+            a.fadeT = 0;
+            a.butchered = false;
+            a.facing = rec.facing || 'down';
+            a.diedDay = _num(rec.day, 0);
+            a.carcassId = rec.id;
+            a.carcassHex = key;
+            this.animals.push(a);
+        }
+    },
+
+    /** A beast's weight in kg (data: species.weight). */
+    animalWeight(a, cfg = this.animalConfig()) {
+        const sp = (a && this.animalSpecies(a.species, cfg)) || {};
+        return Math.max(0, _num(sp.weight, 50));
+    },
+
+    /** The most a player of this strength can carry or drag, in kg. */
+    carryLimit(strength = 5, cfg = this.animalConfig()) {
+        const C = this.carcassConfig(cfg);
+        return Math.max(0, _num(C.maxCarry, 200) + (_num(strength, 5) - 5) * _num(C.perStrength, 10));
+    },
+
+    /**
+     * Can the player carry this carcass? { ok, kg, limit, how: 'shoulder' | 'drag',
+     * speed (the walk's multiplier while carrying it), reason? }
+     */
+    canCarryAnimal(a, strength = 5, cfg = this.animalConfig()) {
+        const C = this.carcassConfig(cfg);
+        const kg = this.animalWeight(a, cfg);
+        const limit = this.carryLimit(strength, cfg);
+        const how = kg <= _num(C.shoulderKg, 70) ? 'shoulder' : 'drag';
+        const speed = Math.max(_num(C.minSpeed, 0.3), Math.min(1, 1 - kg * _num(C.slowPerKg, 0.0035)));
+        if (!a || a.state !== 'dead' || a.butchered) return { ok: false, kg, limit, how, speed, reason: 'nothing to carry' };
+        if (kg > limit) return { ok: false, kg, limit, how, speed, reason: 'too heavy' };
+        return { ok: true, kg, limit, how, speed };
+    },
+
+    /** How long butchering it takes: seconds of work at the spot, minutes on the clock. */
+    butcherTime(a, cfg = this.animalConfig()) {
+        const C = this.carcassConfig(cfg);
+        const kg = this.animalWeight(a, cfg);
+        return {
+            seconds: Math.min(_num(C.secondsMax, 10), _num(C.secondsBase, 2) + kg * _num(C.secondsPerKg, 0.02)),
+            minutes: Math.round(Math.min(_num(C.minutesMax, 240), _num(C.minutesBase, 10) + kg * _num(C.minutesPerKg, 0.4))),
+        };
     },
 
     /** The hunt moved its beast to (q, r), drawn at (fq, fr). */

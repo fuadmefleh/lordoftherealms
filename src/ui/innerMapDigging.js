@@ -131,11 +131,13 @@ export const InnerMapDigging = {
         this.cancel();
         if (InnerMapCombat._attackState) InnerMapCombat.cancelAttack();
         // (other ground work — tilling, sowing, harvesting (ui/innerMapFarming.js) — brings its own
-        // time, label, needs and what to do when done: opts.seconds, opts.verb, opts.needs, opts.onDone)
+        // time, label, needs and what to do when done: opts.seconds, opts.verb, opts.needs, opts.onDone;
+        // opts.onTile: work on something lying on the ground (a carcass) may be done standing on it)
         const total = Number(opts.seconds) > 0 ? Number(opts.seconds) : this._seconds(game, kind);
         const job = { kind, q, r, t: null, total, corpse: opts.corpse || null, then: opts.then || null, game, onDone: opts.onDone || null, verb: opts.verb || null, needs: opts.needs || null };
         const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
-        if (_cheb(pq, pr, q, r) === 1) {
+        const near = _cheb(pq, pr, q, r);
+        if (near === 1 || (opts.onTile && near === 0 && !InnerMap._playerWalking)) {
             this._begin(job);
             return 'now';
         }

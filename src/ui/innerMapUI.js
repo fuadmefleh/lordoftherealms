@@ -622,7 +622,8 @@ Object.assign(InnerMapRenderer, {
             sep();
             menuItems.push({ type: 'header', label: `🕯️ ${body.name}, dead` });
             if (!body.searched) menuItems.push({ type: 'action', action: 'search_body', label: 'Search the Body', icon: '🖐️', desc: 'Go through their pockets', body });
-            if (!carried) menuItems.push({ type: 'action', action: 'carry_body', label: 'Carry the Body', icon: '🧍', desc: 'Drag them along with you (you walk slower)', body });
+            if (!carried && InnerMapAnimals._carry) menuItems.push({ type: 'disabled', label: 'Carry the Body: your hands are full' });
+            else if (!carried) menuItems.push({ type: 'action', action: 'carry_body', label: 'Carry the Body', icon: '🧍', desc: 'Drag them along with you (you walk slower)', body });
             const hole = InnerMapDigging.holeNear(body.q, body.r);
             if (hole) {
                 menuItems.push({ type: 'action', action: 'bury_body', label: 'Bury Them in the Hole', icon: '⚰️', desc: 'Lay them in the hole and fill it in', body, holeQ: hole.q, holeR: hole.r });

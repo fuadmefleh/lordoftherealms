@@ -911,9 +911,10 @@ Object.assign(ActionMenu, {
     /**
      * Hunt a deer you can see (the inner map's context menu, ui/innerMapAnimals.js):
      * no trail to follow — creep up on that very animal and loose, judged by
-     * the same rules (Hunting.hitThreshold); a kill takes its own loot
-     * (data/animals.json species.loot, the hunting table's entries) and leaves
-     * its herd one the less (InnerMap.cullAnimal → world.wildlife).
+     * the same rules (Hunting.hitThreshold); a kill lies where it fell, to be
+     * butchered by hand for its own loot (data/animals.json species.loot, the
+     * hunting table's entries), and leaves its herd one the less
+     * (InnerMap.killAnimal → world.wildlife).
      */
     huntAnimal(game, animal) {
         const player = game.player;
@@ -1401,30 +1402,42 @@ function _huntQuick(game, player, lootTable) {
 }
 
 /**
- * How a hunt ended. out: { result: 'shot', accuracy } | { result: 'fled' |
- * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before:
- * a hit banks Hunting.strikeLoot; a wild miss may injure. Continue ends the day.
- */
-/**
- * After a hunt of an animal on the map: a kill falls where it stood (its
- * loot already banked, the carcass soon gone) and is gone from its herd; one
- * that lived goes back to its own life — running, if it was put up, or
- * turning on the hunter if it is the kind (a missed bear, a wolf pack).
+ * After a hunt of an animal on the map: a kill falls where it stood and lies
+ * there, unbutchered — the player butchers it by hand, or carries it off
+ * (ui/innerMapAnimals.js) — and is gone from its herd; one that lived goes
+ * back to its own life — running, if it was put up, or turning on the hunter
+ * if it is the kind (a missed bear, a wolf pack).
  */
 function _huntAnimalAfter(game, out, kind) {
     const a = out && out.animal;
     if (!a) return;
-    if (kind === 'success') { InnerMap.killAnimal(game.world, a, { butchered: true }); return; }
+    if (kind === 'success') { InnerMap.killAnimal(game.world, a); return; }
     const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
     const provoked = out.result === 'shot' ? 'shot' : out.result === 'fled' ? 'near' : null;
     InnerMap.releaseAnimal(a, out.result === 'abandoned' ? null : me, { provoked });
 }
 
+/**
+ * How a hunt ended. out: { result: 'shot', accuracy, animal? } | { result: 'fled' |
+ * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before. A
+ * hit on a beast on the map leaves its carcass to butcher by hand (no loot
+ * now, and the day goes on); a hit on a quarry with no body on the map banks
+ * Hunting.strikeLoot. A wild miss may injure. Continue ends the day.
+ */
 function _huntOutcome(game, player, lootTable, out, p) {
     let kind = 'fled';
     let statusMsg = '';
     let totalLoot = [];
     let totalValue = 0;
+    if (out.result === 'shot' && out.animal && out.accuracy >= Hunting.hitThreshold(player)) {
+        // The beast falls where it stood: butcher it, or carry it off (ui/innerMapAnimals.js)
+        if (player.skills && Utils.random() < 0.25) player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
+        const words = (InnerMap.animalConfig ? InnerMap.animalConfig().words : null) || {};
+        const line = String(words.huntKill || 'The {name} is down. Butcher it where it lies, or carry it off.').replace('{name}', p.preyName);
+        if (game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(`${p.preyIcon || '🏹'} A Clean Kill`, line, 'success');
+        if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+        return 'success';
+    }
     if (out.result === 'shot') {
         const accuracy = out.accuracy;
         if (accuracy >= Hunting.hitThreshold(player)) {

@@ -103,6 +103,38 @@ describe('the water that moves', () => {
         expect(storm.glint).toBeLessThan(calm.glint);
     });
 
+    it('a ship mooring or casting off works the shore out again; a deck is not land', () => {
+        const tiles = lay();
+        const a = InnerMapRenderer._waterFxField();
+        expect(InnerMapRenderer._waterFxField()).toBe(a);
+        InnerMap._waterStamp = (InnerMap._waterStamp || 0) + 1;
+        const b = InnerMapRenderer._waterFxField();
+        expect(b).not.toBe(a);
+        // a deck cell out on the water: neither land nor surf, so the sea beside it has no shore
+        tiles[5][15]._deck = true;
+        tiles[5][15]._wet = false;
+        InnerMap._waterStamp++;
+        const F = InnerMapRenderer._waterFxField();
+        const at = (q, r) => F.dist[(r * F.SUB + (F.SUB >> 1)) * F.w + q * F.SUB + (F.SUB >> 1)];
+        expect(at(16, 5)).toBeCloseTo(at(16, 4), 5);
+        expect(F.strength[5 * F.Wd + 15]).toBe(0);
+    });
+
+    it('aboard and under way the bow wave and wake draw; hove to, they do not', () => {
+        lay();
+        InnerMapRenderer._frameRange = { qMin: 0, qMax: 23, rMin: 0, rMax: 11 };
+        const calls = [];
+        const ctx = { save() {}, restore() {}, drawImage() {}, fillRect: (...a) => calls.push(a), globalAlpha: 1, fillStyle: '' };
+        const camera = { zoom: 1, worldToScreenFast: (x, y) => ({ x, y }) };
+        const cfg = InnerMapRenderer._waterFxCfg();
+        const wx = InnerMapRenderer._waterFxWeather(cfg);
+        const L = { anchor: { q: 12, r: 8 }, defId: 'nope', helm: { q: 18, r: 6 }, bow: { q: 12, r: 6 } };
+        // (no hull def to hand: nothing drawn, nothing thrown)
+        expect(() => InnerMapRenderer._drawWake(ctx, camera, 1, wx, cfg, { L, flow: 1, underway: true })).not.toThrow();
+        expect(calls.length).toBe(0);
+        expect(() => InnerMapRenderer._drawSwell(ctx, { x: 0, y: 0 }, 32, InnerMapRenderer._frameRange, 1, wx, cfg, { L, flow: 1, underway: false })).not.toThrow();
+    });
+
     it('no water, nothing to do; drawing with no canvas to hand is harmless', () => {
         const tiles = lay({ coast: 99 });
         expect(tiles[0][0]._wet).toBe(false);

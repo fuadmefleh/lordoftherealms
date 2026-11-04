@@ -223,6 +223,8 @@ Object.assign(InnerMap, {
 
     /** Moor a hull with its anchor at (q, r) (the caller checked _shipFits) */
     _moorShip(tiles, def, q, r, extra = {}) {
+        // (the living water works its shore out again: ui/innerMapLayers/waterFx.js)
+        this._waterStamp = (this._waterStamp || 0) + 1;
         tiles[r][q].customObject = { defId: def.id, sheetPath: null, currentHealthPct: 100, planted: true, ...extra };
         for (const m of ShipHulls.footprint(def)) {
             const t = tiles[r + m.localRow][q + m.localCol];
@@ -323,6 +325,7 @@ Object.assign(InnerMap, {
     },
 
     _unmoor(tiles, q, r) {
+        this._waterStamp = (this._waterStamp || 0) + 1;
         const o = tiles[r][q].customObject;
         const def = o && CustomObjects.getDef(o.defId);
         tiles[r][q].customObject = null;

@@ -224,6 +224,8 @@ export const InnerMapDeck = {
         const key = `${sit.kind}|${sit.eventId || ''}`;
         const prev = this._sit;
         this._sit = sit;
+        // Under way or hove to: how the water runs past (ui/innerMapLayers/waterFx.js)
+        if (InnerMap._deck) InnerMap._deck.underway = !!ship.voyage;
         if (sit.landNear && !(prev && prev.landNear)) this._landHo(game, ship);
         if (!force && key === this._sitKey) return;
         this._sitKey = key;

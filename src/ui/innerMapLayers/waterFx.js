@@ -23,6 +23,7 @@
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
+import { CustomObjects } from '../../world/customObjects.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -34,6 +35,12 @@ const DEFAULTS = {
         splashEvery: 7, splashKinds: ['sea', 'lake'],
     },
     glint: { density: 0.08, cycle: [3.5, 7], fps: 7, alpha: 0.9, nightAlpha: 0.3, rippleKinds: ['pond'] },
+    swell: { enabled: true, density: 0.45, wavelength: 3.2, speed: 0.6, underway: 1.6, crest: 0.3, length: 0.55, alpha: 0.6, minDist: 2.2, color: '#d8f0ff' },
+    deck: { period: 2.4, from: 0.7, to: 0.04, alpha: 0.8, hullRows: 2 },
+    wake: {
+        enabled: true, rate: 0.45, alpha: 0.85, foam: '#eef9ff', bowPad: 0.3, sternPad: 0.6, waterRise: 0.35, wakeRise: 0.9,
+        bowCount: 34, bowLength: 5, bowSpread: 0.9, wakeCount: 75, wakeLength: 14, wakeAngle: 0.2,
+    },
     river: { density: 0.16, speed: 0.55, alpha: 0.75 },
     weather: {
         storm: { speed: 1.7, reach: 1.25, splash: 3, glint: 0.2 },
@@ -181,11 +188,18 @@ Object.assign(InnerMapRenderer, {
         const day = this._waterFxDay();
         const refl = this._sheets && this._sheets.get('water_reflections');
         const splash = this._sheets && this._sheets.get('water_splash');
-        const S_ = cfg.surf;
-        const period = S_.period / Math.max(0.2, wx.speed);
+        // Aboard at sea: the water runs past the ship, bow to stern (the helm is aft)
+        const L = InnerMap._deck;
+        const deck = L && L.helm && L.bow ? { L, flow: L.helm.q >= L.bow.q ? 1 : -1, underway: !!L.underway } : null;
+        let S_ = cfg.surf;
+        // The water lapping the hull: quicker, shorter waves than surf on a beach
+        if (deck) S_ = { ...S_, ...cfg.deck, kinds: S_.kinds, splashKinds: [] };
+        const period = S_.period / Math.max(0.2, wx.speed) / (deck && deck.underway ? 1.5 : 1);
         ctx.save();
         ctx.imageSmoothingEnabled = false;
+        this._drawSwell(ctx, origin, ds, this._frameRange, now, wx, cfg, deck);
         this._drawSurfField(ctx, origin, ds, this._frameRange, now, period, wx, S_);
+        if (deck) this._drawWake(ctx, camera, now, wx, cfg, deck);
         for (let r = rMin; r <= rMax; r++) {
             const list = rows.get(r);
             if (!list) continue;
@@ -204,12 +218,6 @@ Object.assign(InnerMapRenderer, {
         ctx.restore();
     },
 
-    /**
-     * Distance to land, in tiles, sampled SUB times per tile across the map
-     * (a chamfer distance from the land cells, so the contours round the
-     * corners the way the shore brush does), with each sample's surf strength
-     * by its cell's water kind. Cached on the tiles array.
-     */
     /**
      * The pixels of a terrain sheet (to tell water from shore inside a brush
      * cell), or null while it loads — the field is worked out again once it has.
@@ -238,10 +246,19 @@ Object.assign(InnerMapRenderer, {
         return null;
     },
 
+    /**
+     * Distance to land, in tiles, sampled SUB times per tile across the map
+     * (a chamfer distance from the land, so the contours round the corners
+     * the way the shore brush does), with each sample's surf strength by its
+     * cell's water kind. A ship's hull on the water counts as land, to its
+     * own pixels (the water laps it). Cached on the tiles array, and worked
+     * out again when a ship moors or casts off (InnerMap._waterStamp).
+     */
     _waterFxField() {
         const tiles = InnerMap.tiles;
         const f = this._waterFxFieldCache;
-        if (f && f.tiles === tiles && !f.pending) return f;
+        const stamp = InnerMap._waterStamp || 0;
+        if (f && f.tiles === tiles && !f.pending && f.stamp === stamp) return f;
         const cfg = this._waterFxCfg();
         const SUB = Math.max(2, Math.min(16, cfg.surf.sub | 0 || 16));
         const H = tiles.length, Wd = tiles[0].length;
@@ -254,7 +271,8 @@ Object.assign(InnerMapRenderer, {
             for (let q = 0; q < Wd; q++) {
                 const t = tiles[r][q];
                 const water = _isWater(t);
-                // Pier and deck are neither land nor surf
+                // A pier and a deck are neither land nor surf (the water runs under a
+                // pier; a ship is land only to its hull's own pixels, _waterFxHulls)
                 const land = !water && !(t && (t._pier || t._deck));
                 if (water) strength[r * Wd + q] = _num(cfg.surf.kinds[t._waterKind || (t._sea ? 'sea' : 'pond')], 0);
                 // A water cell drawn with a shore piece of the brush: its own
@@ -279,6 +297,8 @@ Object.assign(InnerMapRenderer, {
                 }
             }
         }
+        // Ships' hulls on the water: land where their tiles are opaque
+        if (this._waterFxHulls(tiles, dist, w, SUB)) waiting = true;
         // Two-pass chamfer (1, √2)
         const D2 = Math.SQRT2;
         for (let y = 0; y < h; y++) {
@@ -328,7 +348,7 @@ Object.assign(InnerMapRenderer, {
             }
         }
         const prev = this._waterFxFieldCache;
-        this._waterFxFieldCache = { tiles, SUB, w, h, Wd, H, dist, strength, edge, img: null, canvas: prev && prev.canvas || null, pending: false, waiting };
+        this._waterFxFieldCache = { tiles, SUB, w, h, Wd, H, dist, strength, edge, img: null, canvas: prev && prev.canvas || null, pending: false, waiting, stamp };
         return this._waterFxFieldCache;
     },
 
@@ -372,7 +392,8 @@ Object.assign(InnerMapRenderer, {
                 const st = F.strength[r * F.Wd + q];
                 if (!st) continue;
                 const t = row[q];
-                if (!t.explored || !t.visible || t.customObject || t.customObjectPart) continue;
+                // (a hull cell too: the foam laps under the hull, drawn over it)
+                if (!t.explored || !t.visible) continue;
                 // Skip open water far from any shore (cheap test on the cell's middle sample)
                 const mid = (r * SUB + (SUB >> 1)) * F.w + q * SUB + (SUB >> 1);
                 if (F.dist[mid] > reachMax + 1) continue;
@@ -423,6 +444,164 @@ Object.assign(InnerMapRenderer, {
         if (!any) return;
         g2.putImageData(F.img, 0, 0);
         ctx.drawImage(F.canvas, 0, 0, iw, ih, Math.round(origin.x), Math.round(origin.y), Math.round(cols * ds), Math.round(rowsN * ds));
+    },
+
+    /**
+     * Mark the samples a ship's hull covers as land (its tiles' opaque
+     * pixels), for every hull (`hull_*` objects) on the map. → true while a
+     * sheet is still loading.
+     */
+    _waterFxHulls(tiles, dist, w, SUB) {
+        let waiting = false;
+        const H = tiles.length, Wd = tiles[0].length;
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < Wd; q++) {
+                const o = tiles[r][q].customObject;
+                if (!o || !/^hull_/.test(o.defId || '')) continue;
+                const def = CustomObjects.getDef(o.defId);
+                if (!def || !Array.isArray(def.tiles)) continue;
+                // Only where the hull meets the water: the ship is drawn from
+                // the side, so that is the lowest rows of its footprint in each
+                // column (masts, sails, the deck and the far rail stand up over
+                // the sea behind it, and get no foam)
+                const foot = (def.meta || []).filter(m => m.hull);
+                const low = new Map();
+                for (const m of foot) low.set(m.localCol, Math.max(low.has(m.localCol) ? low.get(m.localCol) : -1e9, m.localRow));
+                const rowsDeep = Math.max(1, _num(this._waterFxCfg().deck.hullRows, 2));
+                const hull = new Set(foot.filter(m => m.localRow > low.get(m.localCol) - rowsDeep).map(m => `${m.localCol},${m.localRow}`));
+                for (const tl of def.tiles) {
+                    if (hull.size && !hull.has(`${tl.localCol || 0},${tl.localRow || 0}`)) continue;
+                    const cq = q + (tl.localCol || 0), cr = r + (tl.localRow || 0);
+                    if (cq < 0 || cr < 0 || cq >= Wd || cr >= H || !tl.sheetPath) continue;
+                    const sheet = this._waterFxSheet(tl.sheetPath);
+                    if (!sheet) { waiting = true; continue; }
+                    const sw = tl.sw || 32, sh = tl.sh || 32;
+                    for (let sy = 0; sy < SUB; sy++) {
+                        const py = tl.sy + Math.floor((sy + 0.5) * sh / SUB);
+                        const base = (cr * SUB + sy) * w + cq * SUB;
+                        for (let sx = 0; sx < SUB; sx++) {
+                            const px = tl.sx + Math.floor((sx + 0.5) * sw / SUB);
+                            if (sheet.data[(py * sheet.w + px) * 4 + 3] > 128) dist[base + sx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+        return waiting;
+    },
+
+    /**
+     * The swell on open water: crests (short pale arcs) travelling over the
+     * sea — toward the shore on a coast, past the ship when aboard (faster
+     * under way). Every visible open-water cell, hashed so some carry none.
+     */
+    _drawSwell(ctx, origin, ds, range, now, wx, cfg, deck) {
+        const F = this._waterFxField();
+        const SW = cfg.swell;
+        if (!SW || !SW.enabled) return;
+        const { qMin, qMax, rMin, rMax } = range;
+        const px = Math.max(2, Math.round(ds / 16)); // two art pixels
+        const lam = Math.max(1, SW.wavelength);
+        const speed = (SW.speed + (deck && deck.underway ? SW.underway : 0)) * wx.speed;
+        const mid = F.SUB >> 1;
+        const dAt = (q, r) => (q < 0 || r < 0 || q >= F.Wd || r >= F.H ? 99 : F.dist[(r * F.SUB + mid) * F.w + q * F.SUB + mid]);
+        ctx.fillStyle = SW.color;
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            for (let q = qMin; q <= qMax; q++) {
+                const st = F.strength[r * F.Wd + q];
+                if (!st) continue;
+                const t = row[q];
+                if (!t.explored || !t.visible || t.customObjectPart || t.customObject) continue;
+                if ((t._waterKind || 'sea') === 'river' || t._waterKind === 'pond') continue;
+                const d = dAt(q, r);
+                if (d < SW.minDist) continue;
+                const h = _hash(q, r, 11);
+                if (h > SW.density) continue;
+                // Which way: past the ship (bow → stern) aboard; else down the slope of the distance to land
+                let ux, uy;
+                if (deck) { ux = deck.flow; uy = 0; } else {
+                    const gx = dAt(q + 1, r) - dAt(q - 1, r), gy = dAt(q, r + 1) - dAt(q, r - 1);
+                    if (d > 40 || (!gx && !gy)) continue;
+                    if (Math.abs(gx) >= Math.abs(gy)) { ux = gx > 0 ? -1 : 1; uy = 0; } else { ux = 0; uy = gy > 0 ? -1 : 1; }
+                }
+                const p = now * speed / lam - (q * ux + r * uy) / lam + h * 0.37;
+                const k = p - Math.floor(p);
+                const show = SW.crest;
+                if (k > show) continue;
+                const f = k / show;
+                const a = Math.sin(f * Math.PI) * SW.alpha * (0.6 + 0.4 * st);
+                if (a <= 0.03) continue;
+                ctx.globalAlpha = a;
+                const x0 = origin.x + (q - qMin) * ds, y0 = origin.y + (r - rMin) * ds;
+                // Centre of the crest, carried across the cell along the travel
+                const cx = x0 + ds / 2 + ux * (f - 0.5) * ds * 0.9 + (h - 0.5) * ds * 0.4 * uy;
+                const cy = y0 + ds / 2 + uy * (f - 0.5) * ds * 0.9 + (h - 0.5) * ds * 0.4 * ux;
+                const len = Math.round(ds * SW.length * (0.6 + h * 0.8));
+                // A little arc, ︵, the way pixel-art seas are drawn: whichever
+                // way it travels, a crest reads as a ridge seen from above the shore
+                const x = Math.round(cx - len / 2), y = Math.round(cy);
+                ctx.fillRect(x + Math.round(len * 0.2), y, Math.round(len * 0.6), px);
+                ctx.fillRect(x, y + px, Math.round(len * 0.2), px);
+                ctx.fillRect(x + Math.round(len * 0.8), y + px, Math.round(len * 0.2), px);
+            }
+        }
+        ctx.globalAlpha = 1;
+    },
+
+    /**
+     * Aboard and under way: the bow wave peeling off both sides of the stem,
+     * and the wake spreading behind the stern. `deck` = { L, flow, underway }.
+     */
+    _drawWake(ctx, camera, now, wx, cfg, deck) {
+        const WK = cfg.wake;
+        const L = deck && deck.L;
+        if (!WK || !WK.enabled || !L || !deck.underway) return;
+        const T = this.TILE_SIZE;
+        const z = camera.zoom;
+        const ds = T * z;
+        const px = Math.max(2, Math.round(ds / 16));
+        const flow = deck.flow; // water runs this way along x (bow → stern)
+        // The hull's own extent: the ship is anchored bottom-left, its footprint
+        // rising from the anchor row, so the waterline is the anchor row's foot
+        const def = L.defId ? CustomObjects.getDef(L.defId) : null;
+        const foot = def && def.meta ? def.meta.filter(m => m.hull) : [];
+        if (!foot.length || !L.anchor) return;
+        // (the bottom row: where the hull is in the water — not the bowsprit over it)
+        const bottom = Math.max(...foot.map(m => m.localRow));
+        const keel = foot.filter(m => m.localRow === bottom);
+        const c0 = Math.min(...keel.map(m => m.localCol)), c1 = Math.max(...keel.map(m => m.localCol)) + 1;
+        const wl = L.anchor.r + 1 - WK.waterRise; // the waterline, a little up the hull's bottom row
+        const bowX = flow > 0 ? L.anchor.q + c0 + WK.bowPad : L.anchor.q + c1 - WK.bowPad;
+        const sternX = flow > 0 ? L.anchor.q + c1 - WK.sternPad : L.anchor.q + c0 + WK.sternPad;
+        const at = (x, y) => camera.worldToScreenFast(x * T, y * T);
+        const rate = WK.rate * wx.speed;
+        ctx.fillStyle = WK.foam;
+        // The bow wave: water thrown off the stem and running back along the side, curling out
+        for (let i = 0; i < WK.bowCount; i++) {
+            const s = _frac(now * rate * 1.3 + i / WK.bowCount);
+            const j = _hash(i, 3, 5);
+            const x = bowX + flow * (s * WK.bowLength - 0.3) + (j - 0.5) * 0.25;
+            // out from the hull as it goes, and up and down a little (spray at the stem)
+            const y = wl + s * WK.bowSpread + (j - 0.5) * 0.35 - (s < 0.15 ? (0.15 - s) * 4 * j : 0);
+            const p = at(x, y);
+            ctx.globalAlpha = WK.alpha * (1 - s) * (0.6 + 0.4 * j);
+            const sz = px * (s < 0.25 ? 2 : 1.5);
+            ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.round(sz * 1.5), Math.round(sz));
+        }
+        // The wake: two arms spreading out behind the stern, churned water between them
+        for (let i = 0; i < WK.wakeCount; i++) {
+            const s = _frac(now * rate + i / WK.wakeCount);
+            const j = _hash(i, 9, 2);
+            const arm = i % 3; // 0, 1: the arms; 2: the churn down the middle
+            const x = sternX + flow * (s * WK.wakeLength + 0.2) + (j - 0.5) * 0.3;
+            const half = s * WK.wakeLength * WK.wakeAngle;
+            const y = wl - WK.wakeRise + (arm === 2 ? (j - 0.5) * (0.4 + s * 0.8) : (arm ? 1 : -1) * (0.3 + half));
+            const p = at(x, y);
+            ctx.globalAlpha = WK.alpha * (1 - s) * (arm === 2 ? 0.55 : 0.9) * (0.6 + 0.4 * j);
+            ctx.fillRect(Math.round(p.x), Math.round(p.y), arm === 2 ? px * 3 : px * 2, arm === 2 ? px : Math.round(px * 1.5));
+        }
+        ctx.globalAlpha = 1;
     },
 
     /** Now and then a wave breaks in a splash where it meets the land (a shore cell). */

@@ -7,6 +7,10 @@
             "kinds": { "sea": 1, "lake": 0.7, "pond": 0.35, "river": 0 }, "splashEvery": 7, "splashKinds": ["sea", "lake"] },
         "glint": { "density": 0.08, "cycle": [3.5, 7], "fps": 7, "alpha": 0.9, "nightAlpha": 0.3, "rippleKinds": ["pond"] },
         "river": { "density": 0.16, "speed": 0.55, "alpha": 0.75 },
+        "swell": { "enabled": true, "density": 0.45, "wavelength": 3.2, "speed": 0.6, "underway": 1.6, "crest": 0.3, "length": 0.55, "alpha": 0.6, "minDist": 2.2, "color": "#d8f0ff" },
+        "deck": { "_doc": "Aboard at sea: the water lapping the hull (overrides surf).", "period": 2.4, "from": 0.7, "to": 0.04, "alpha": 0.8, "hullRows": 2 },
+        "wake": { "_doc": "Aboard and under way: the bow wave and the wake behind the stern (in tiles).", "enabled": true, "rate": 0.45, "alpha": 0.85, "foam": "#eef9ff", "bowPad": 0.3, "sternPad": 0.6, "waterRise": 0.35, "wakeRise": 0.9,
+            "bowCount": 34, "bowLength": 5, "bowSpread": 0.9, "wakeCount": 75, "wakeLength": 14, "wakeAngle": 0.2 },
         "weather": {
             "storm": { "speed": 1.7, "reach": 1.25, "splash": 3, "glint": 0.2 },
             "rain": { "speed": 1.2, "reach": 1.1, "splash": 1.5, "glint": 0.4 },

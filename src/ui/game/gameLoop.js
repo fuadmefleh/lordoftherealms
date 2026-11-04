@@ -188,6 +188,9 @@ export function gameLoop(timestamp, loopId) {
                 // ── Use the furniture / object the player walked over to ──
                 if (playerStepResult.arrived && InnerMap._pendingAction) {
                     InnerMap.runPendingAction();
+                } else if (playerStepResult.arrived && !InnerMap._pendingInteraction && !InnerMap._pendingCombat) {
+                    // ── Walked (or swam) to the map's edge: on into the next hex's map ──
+                    _crossEdge(this);
                 }
                 // ── Trigger pending NPC combat on arrival ──
                 if (playerStepResult.arrived && InnerMap._pendingCombat) {
@@ -955,4 +958,106 @@ function _swimStep(game) {
         InnerMap.cancelPlayerWalk();
         setTimeout(() => game._triggerDeath('drowning'), 0);
     }
+}
+
+/**
+ * The side of the world hex a map edge faces (Hex.neighbors order: E, NE, NW,
+ * W, SW, SE) — the top and bottom edges are two sides each, split down the
+ * middle (as rivers cross them: world/innerMap/water.js _riverGate). null
+ * off the edge.
+ */
+export function edgeSide(q, r, W, H) {
+    if (r <= 0) return q < W / 2 ? 2 : 1;
+    if (r >= H - 1) return q < W / 2 ? 4 : 5;
+    if (q <= 0) return 3;
+    if (q >= W - 1) return 0;
+    return null;
+}
+
+/** Where on the next hex's map you come in, crossing by `side` from (q, r) on this one. */
+export function edgeEntry(side, q, r, W, H) {
+    const half = Math.floor(W / 2);
+    const clampQ = x => Math.max(0, Math.min(W - 1, x));
+    switch (side) {
+        case 0: return { q: 0, r };
+        case 3: return { q: W - 1, r };
+        // out by the north-east, in by the south-west: the right half of the top → the left half of the bottom
+        case 1: return { q: clampQ(q - half), r: H - 1 };
+        case 2: return { q: clampQ(q + half), r: H - 1 };
+        case 4: return { q: clampQ(q + half), r: 0 };
+        case 5: return { q: clampQ(q - half), r: 0 };
+        default: return { q, r };
+    }
+}
+
+/**
+ * The player stands on the edge of the inner map: go on into the neighbouring
+ * hex — onto the world hex itself, then its own map, coming in on the matching
+ * edge, the clock running on. Not out of a building, off your ship's deck,
+ * onto ground no one can walk, or out over the open sea.
+ */
+function _crossEdge(game) {
+    if (!InnerMap.active || InnerMap._insideBuilding || game._crossingEdge) return;
+    const W = InnerMap.width, H = InnerMap.height;
+    const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+    const side = edgeSide(q, r, W, H);
+    if (side === null) return;
+    const player = game.player, world = game.world;
+    if (InnerMap._deck || player.boardedShip) {
+        game.ui.showNotification('⛵ Aboard', 'Your ship is here. Take the helm to sail on, or make for port.', 'info');
+        return;
+    }
+    if (InnerMap.jailLocked && InnerMap.jailLocked()) return;
+    const n = Hex.neighbors(player.q, player.r)[side];
+    const nq = world.width ? Hex.wrapQ(n.q, world.width) : n.q;
+    const nt = n.r >= 0 && n.r < world.height ? world.getTile(nq, n.r) : null;
+    if (!nt) { game.ui.showNotification('🌫️ The Edge of the World', 'There is nothing beyond.', 'info'); return; }
+    const water = Terrain.isWaterId(nt.terrain.id);
+    if (water) {
+        game.ui.showNotification('🌊 Open Water', `${nt.terrain.name || 'The sea'} stretches away — too far to swim. You need a ship.`, 'warning');
+        return;
+    }
+    if (!nt.terrain.passable) {
+        game.ui.showNotification('⛰️ No Way Through', `${nt.terrain.name || 'That ground'} lies beyond — there is no way on from here.`, 'warning');
+        return;
+    }
+    // On to the next hex, the hour unchanged
+    const clock = { timeOfDay: InnerMap.timeOfDay, acc: InnerMap._timeAccumulator };
+    const entry = edgeEntry(side, q, r, W, H);
+    game._crossingEdge = true;
+    InnerMap.cancelPlayerWalk();
+    game.exitInnerMap({ quiet: true });
+    player.prevQ = player.q; player.prevR = player.r;
+    player.q = nq; player.r = n.r;
+    nt.explored = true;
+    if (typeof player.revealArea === 'function') player.revealArea(world, 1);
+    if (typeof player.updateVisibility === 'function') player.updateVisibility(world, 4);
+    if (typeof game.onPlayerArrived === 'function') game.onPlayerArrived();
+    Promise.resolve(game.enterInnerMap(nq, n.r)).then(() => {
+        if (!InnerMap.active) return;
+        InnerMap.timeOfDay = clock.timeOfDay;
+        InnerMap._timeAccumulator = clock.acc;
+        // In on the matching edge: there, or the nearest spot you can stand (or swim)
+        let at = null;
+        for (let d = 0; d <= 8 && !at; d++) {
+            for (let dq = -d; dq <= d && !at; dq++) {
+                for (let dr = -d; dr <= d && !at; dr++) {
+                    if (Math.max(Math.abs(dq), Math.abs(dr)) !== d) continue;
+                    const x = entry.q + dq, y = entry.r + dr;
+                    const t = InnerMap.tiles[y] && InnerMap.tiles[y][x];
+                    if (t && !t.building && (t.subTerrain.passable || InnerMap.isSwimmable(x, y))) at = { q: x, r: y };
+                }
+            }
+        }
+        if (at) {
+            InnerMap.playerInnerQ = at.q;
+            InnerMap.playerInnerR = at.r;
+            InnerMap.cancelPlayerWalk();
+            if (InnerMap._revealAround) InnerMap._revealAround(InnerMap.tiles, at.q, at.r, 2);
+            const pw = InnerMap.getPlayerWorldPos();
+            game.innerMapCamera.centerOn(pw.x, pw.y);
+            game.innerMapCamera.precomputeFrame();
+        }
+        game.ui.updateStats(player, world);
+    }).finally(() => { game._crossingEdge = false; });
 }

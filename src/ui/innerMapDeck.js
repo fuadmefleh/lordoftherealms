@@ -405,7 +405,7 @@ export const InnerMapDeck = {
         if (outcome) html += `<div style="padding:8px;border:1px solid rgba(245,197,66,0.35);border-radius:8px;background:rgba(245,197,66,0.06);font-size:12px;margin-bottom:8px;">${outcome.icon || ''} ${esc(outcome.text)}</div>`;
         if (this._fight) {
             const left = this._fight.boarders.filter(b => !b._down).length;
-            html += `<div style="padding:8px;border:1px solid rgba(229,115,115,0.5);border-radius:8px;background:rgba(229,115,115,0.07);margin-bottom:8px;font-size:12px;">⚔️ <b>Boarders on deck</b> — ${left} still fighting. Strike them down (right-click → Attack), or strike your colours and let them take what they came for.`;
+            html += `<div style="padding:8px;border:1px solid rgba(229,115,115,0.5);border-radius:8px;background:rgba(229,115,115,0.07);margin-bottom:8px;font-size:12px;">⚔️ <b>Boarders on deck</b> — ${left} still fighting. Strike them down (click one → Attack), or strike your colours and let them take what they came for.`;
             html += `<div style="margin-top:6px;"><button onclick="window._deckStrike()" style="${BTN_SECONDARY}">🏳️ Strike your colours</button></div></div>`;
         } else {
             html += this._eventHtml(game);
@@ -600,7 +600,7 @@ export const InnerMapDeck = {
         this._sitKey = null;
         this._refresh(game, false);
         if (fresh || boarders.length) {
-            game.ui.showNotification('🏴‍☠️ Boarders!', `${boarders.length} of them come over the rail, steel out. Fight beside your crew — right-click a boarder to attack — or strike your colours at the helm.`, 'error');
+            game.ui.showNotification('🏴‍☠️ Boarders!', `${boarders.length} of them come over the rail, steel out. Fight beside your crew — click a boarder to attack — or strike your colours at the helm.`, 'error');
         }
     },
 

@@ -480,6 +480,17 @@ describe('the deck on the inner map', () => {
         b.deckTarget = { q: L.helm.q, r: L.helm.r };
         InnerMap._deckDestination(b);
         expect(['walking', 'idle']).toContain(b.state);
+        // boarders (and crew) stay aboard as the NPCs tick: a boarder is a
+        // 'traveler' sprite with no visits, and once walked off the deck and
+        // vanished, so the fight ended "won" with every boarder unhurt
+        for (const n of boarders) { n.state = 'idle'; n.idleTimer = 0; n.deckTarget = null; }
+        for (let i = 0; i < 120; i++) InnerMap.updateNPCs(0.25);
+        for (const n of boarders) {
+            expect(InnerMap.npcs).toContain(n);
+            expect(n.state).not.toBe('gone');
+            expect(n.departing).toBeFalsy();
+        }
+        expect(InnerMap.npcs.filter(n => n.deckRole).length).toBe(DeckLife.roster(s).length);
         InnerMap._clearPirateHull();
         expect(InnerMap.tiles[pir.r][pir.q].customObject).toBeNull();
         expect(InnerMap._deck.pirate).toBeNull();

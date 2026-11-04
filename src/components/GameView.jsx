@@ -193,7 +193,7 @@ export default function GameView() {
           <div className="hud-char-stat">
             <span className="hud-char-stat-icon"><Icon name="heart" /></span>
             <span className="hud-char-stat-val" id="charCardMorale">100%</span>
-            <span className="hud-char-stat-label">Morale</span>
+            <span className="hud-char-stat-label">Health</span>
           </div>
           <div className="hud-char-stat">
             <span className="hud-char-stat-icon"><Icon name="banner" /></span>

@@ -666,6 +666,14 @@ Object.assign(InnerMap, {
      * Pick a new destination for an NPC to walk to
      */
     _npcPickDestination(npc) {
+        // Aboard ship: the crew at their stations, boarders at their foes (world/innerMap/deckLife.js).
+        // First, before the traveler rule below: boarders are 'traveler' sprites
+        // with no visits, and would otherwise walk off the deck and vanish.
+        if ((npc.deckRole || npc._boarder) && this._deckDestination) {
+            this._deckDestination(npc);
+            return;
+        }
+
         // Traveler departing: head to edge of map
         if (npc.type === 'traveler' && npc.visitsLeft <= 0 && !npc.departing) {
             const edge = this._findNearestEdgeTile(npc.q, npc.r);
@@ -684,12 +692,6 @@ Object.assign(InnerMap, {
             }
             // Can't path to edge, just vanish
             npc.state = 'gone';
-            return;
-        }
-
-        // Aboard ship: the crew at their stations, boarders at their foes (world/innerMap/deckLife.js)
-        if ((npc.deckRole || npc._boarder) && this._deckDestination) {
-            this._deckDestination(npc);
             return;
         }
 

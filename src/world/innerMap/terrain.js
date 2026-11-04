@@ -267,7 +267,7 @@ Object.assign(InnerMap, {
                 const tile = tiles[r][q];
                 if (tile && (tile.isRoad || tile._townSoil)) continue;
                 // On stony or dry land only the town's yards and fields are green
-                if (townOnly && !(tile._townCore || tile._townFade != null)) continue;
+                if (townOnly === 'fields' ? !tile._fieldGreen : townOnly && !(tile._townCore || tile._townFade != null || tile._fieldGreen)) continue;
                 mask[r][q] = true;
             }
         }
@@ -548,6 +548,9 @@ Object.assign(InnerMap, {
         } else if (worldTile.settlement && ['stone', 'dirt', 'dry_dirt', 'dark_stone'].includes(groundBase)) {
             // A town in the hills (or on the steppe) still keeps its gardens and greens
             this._paintGrassSecondLayer(tiles, worldQ, worldR, true);
+        } else if (worldTile.settlement && !['snow', 'ice'].includes(groundBase)) {
+            // On sand (and other bare ground) only the town's fields have a green margin round them
+            this._paintGrassSecondLayer(tiles, worldQ, worldR, 'fields');
         }
 
         // The water's banks: grass where the ground is grassed, dirt where it is bare

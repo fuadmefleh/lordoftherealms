@@ -142,6 +142,49 @@ export const TownProps = {
         return `tp_field_${kind}_${w}x${h}`;
     },
 
+    /**
+     * The field kind a cycle has reached on a day of the year (1..120), shifted
+     * a few days by `shift` so neighbouring fields don't all turn at once.
+     */
+    fieldStage(cycle, dayOfYear, shift = 0) {
+        const d = _data();
+        const steps = d && d.growth && d.growth[cycle];
+        if (!steps || !steps.length) return null;
+        const doy = ((Math.floor(dayOfYear) - 1 - shift) % 120 + 120) % 120 + 1;
+        let kind = steps[steps.length - 1][1];
+        for (const [from, k] of steps) if (doy >= from) kind = k;
+        return kind;
+    },
+
+    /**
+     * Grow the town's fields to the day (world day number): each field object
+     * turns to the stage of its cycle (data/townProps.json growth). A field's
+     * cycle is fixed the first time it is seen, from what it was laid out as.
+     * Returns how many fields changed.
+     */
+    growFields(tiles, day) {
+        const d = _data();
+        if (!d || !d.growth || !tiles) return 0;
+        const cycleOf = {};
+        for (const [cycle, steps] of Object.entries(d.growth)) for (const [, k] of steps) if (k !== 'plowed') cycleOf[k] = cycle;
+        const doy = ((Math.max(1, Math.floor(day || 1)) - 1) % 120) + 1;
+        let changed = 0;
+        for (const row of tiles) {
+            for (const t of row) {
+                const obj = t && t.customObject;
+                const m = obj && /^tp_field_([a-z_]+)_(\d+)x(\d+)$/.exec(obj.defId || '');
+                if (!m) continue;
+                if (obj.fieldCycle === undefined) obj.fieldCycle = cycleOf[m[1]] || null;
+                if (!obj.fieldCycle) continue;
+                const shift = Math.abs((t.q * 73856093) ^ (t.r * 19349663)) % 6;
+                const kind = TownProps.fieldStage(obj.fieldCycle, doy, shift);
+                const id = kind && TownProps.fieldId(kind, m[2], m[3]);
+                if (id && id !== obj.defId) { obj.defId = id; changed++; }
+            }
+        }
+        return changed;
+    },
+
     fieldKinds() {
         const d = _data();
         return d ? Object.keys(d.fields || {}) : [];
@@ -190,6 +233,13 @@ export const TownProps = {
         }
         if (def.tilled) {
             const H = tiles.length, W = tiles[0].length;
+            // A wider green margin (two cells) for the grass layer on bare ground, so its brush has room
+            for (let rr = r + def.bounds.minRow - 2; rr <= r + 2; rr++) {
+                for (let qq = q + def.bounds.minCol - 2; qq <= q + def.bounds.maxCol + 2; qq++) {
+                    const t = rr >= 0 && qq >= 0 && rr < H && qq < W ? tiles[rr][qq] : null;
+                    if (t && !t.isRoad && !t._townSoil && !t.customBuilding && !t.customBuildingPart) t._fieldGreen = true;
+                }
+            }
             const { sheetPath, cells: fill } = def.tilled;
             const { minCol, maxCol, minRow } = def.bounds;
             for (let rr = r + minRow - 1; rr <= r + 1; rr++) {

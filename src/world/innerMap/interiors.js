@@ -1,6 +1,6 @@
 // InnerMap — interiors members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, TownProps } from './_imports.js';
 import { sidesMask } from '../../core/tileSides.js';
 
 Object.assign(InnerMap, {
@@ -96,6 +96,9 @@ Object.assign(InnerMap, {
             // re-auto-tile it so grass edges meet the dirt cleanly.
             this._refreshGrassLayer(this.tiles);
         }
+
+        // ── The town's fields grown to the day (world/townProps.js) ──
+        if (hasSettlement) TownProps.growFields(this.tiles, this.worldDay);
 
         // ── The player's tilled fields and crops here (world/innerMap/farmPlots.js) ──
         if (this.applyFarmPlots) this.applyFarmPlots(game.player);

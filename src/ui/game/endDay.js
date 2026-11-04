@@ -12,6 +12,7 @@ import { Hospitality } from '../../systems/hospitality.js';
 import { Crops } from '../../systems/crops.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
+import { TownProps } from '../../world/townProps.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
@@ -1293,6 +1294,11 @@ export function endDay() {
                 }
                 InnerMap.dayEnded = false;
                 this._innerMapDayEndShown = false;
+                // The town's fields grow on to the new day (world/townProps.js)
+                if (InnerMap.tiles && InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) {
+                    InnerMap.worldDay = this.world.day;
+                    TownProps.growFields(InnerMap.tiles, this.world.day);
+                }
             }
             this._midnightRollover = false;
 

@@ -82,10 +82,19 @@
         "v": { "sheet": "pfence", "top": [3, 0], "mid": [3, 1], "bottom": [3, 2] },
         "gate": { "sheet": "fence", "cell": [1, 5] }
     },
+    "_growthDoc": "Town fields grow through the year (world/townProps.js growFields): each cycle is [dayOfYear, field kind] steps (Spring 1-30, Summer 31-60, Autumn 61-90, Winter 91-120); a field keeps the last step reached, a few days early or late by where it lies. Kinds not in a cycle (plowed: fallow land) stay as they are.",
+    "growth": {
+        "wheat": [[1, "plowed"], [9, "wheat_sprouts"], [24, "greens"], [48, "wheat"], [84, "plowed"]],
+        "veg":   [[1, "plowed"], [7, "veg_sprouts"], [20, "veg_young"], [36, "veg"], [62, "veg_ripe"], [88, "plowed"]]
+    },
     "fields": {
         "wheat":  { "name": "Wheat Field",      "tilled": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "soil": { "sheet": "wheat", "x": 0, "y": 2 } },
         "veg":    { "name": "Vegetable Patch",  "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "crops": { "sheet": "crops", "cells": [[1, 15], [2, 15], [3, 15], [5, 15], [6, 15], [7, 15], [9, 15], [11, 15], [12, 15], [14, 15]] } },
         "plowed": { "name": "Plowed Field",     "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] } },
+        "wheat_sprouts": { "name": "Sown Wheat", "tilled": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "fill": { "sheet": "wheat", "cells": [[0, 5]] } },
+        "veg_sprouts": { "name": "Vegetable Patch", "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "crops": { "sheet": "crops", "cells": [[1, 11], [2, 11], [3, 11], [5, 11], [6, 11], [7, 11], [9, 11], [11, 11], [12, 11], [14, 11]] } },
+        "veg_young": { "name": "Vegetable Patch", "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "crops": { "sheet": "crops", "cells": [[1, 13], [2, 13], [3, 13], [5, 13], [6, 13], [7, 13], [9, 13], [11, 13], [12, 13], [14, 13]] } },
+        "veg_ripe": { "name": "Vegetable Patch", "tilled": true, "fill": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "crops": { "sheet": "crops", "cells": [[1, 17], [2, 17], [3, 17], [5, 17], [6, 17], [7, 17], [9, 17], [11, 17], [12, 17], [14, 17]] } },
         "greens": { "name": "Young Wheat",      "tilled": { "sheet": "soil", "cells": [[0, 5], [1, 5], [2, 5]] }, "fill": { "sheet": "wheat", "cells": [[1, 5], [2, 5]] } }
     }
 }

@@ -156,3 +156,47 @@ describe('the shore and the harbour', () => {
         }
     });
 });
+
+describe('a ship struck down', () => {
+    it('breaks up: the hull is gone, the water knows it, salvage floats where she lay', () => {
+        const g = coastGame({ settlement: { name: 'Portby', type: 'town', population: 2000, kingdom: null } });
+        InnerMap.enter(g, 5, 6);
+        const [ship] = objects(o => o.harbour);
+        const def = CustomObjects.getDef(ship.o.defId);
+        const stamp = InnerMap._waterStamp || 0;
+        InnerMap._lastWreck = null;
+        InnerMap._removeCustomObject(ship.q, ship.r);
+        const wreck = InnerMap._lastWreck;
+        expect(wreck && wreck.defId).toBe(ship.o.defId);
+        expect(InnerMap._waterStamp).toBeGreaterThan(stamp);
+        expect(InnerMap.tiles[ship.r][ship.q].customObject).toBeFalsy();
+        for (const m of ShipHulls.footprint(def)) expect(InnerMap.tiles[ship.r + m.localRow][ship.q + m.localCol].customObjectPart).toBeFalsy();
+        const pieces = InnerMap.scatterWreck(wreck, { cargo: { wine: 6, salt: 3 } });
+        const [lo, hi] = InnerMap.wreckConfig().pieces[ship.o.defId];
+        expect(pieces.length).toBeGreaterThanOrEqual(Math.min(lo, 3));
+        expect(pieces.length).toBeLessThanOrEqual(hi);
+        for (const p of pieces) {
+            const t = InnerMap.tiles[p.r][p.q];
+            expect(t._sea || t._wet).toBeTruthy();
+            expect(t.groundItem.placedBy).toBe('wreck');
+            expect(t.groundItem.salvage.kind).toBeTruthy();
+        }
+        // her hold floats off in crates
+        const goods = pieces.map(p => p.item.itemId);
+        expect(goods).toContain('wine');
+        expect(goods).toContain('salt');
+        // the swimmer can reach every piece
+        for (const p of pieces) expect(InnerMap.isSwimmable(p.q, p.r) || InnerMap.tiles[p.r][p.q].subTerrain.passable).toBe(true);
+    });
+
+    it('your own ship struck down leaves your fleet, her hold handed back', async () => {
+        const { Ships } = await import('../systems/ships.js');
+        const p = { ships: [{ id: 'ship_1', typeId: 'sloop', name: 'Gull', cargo: { fish: 4 }, customizations: [] }], boardedShip: 'ship_1' };
+        const res = Ships.wreckShip(p, 'ship_1');
+        expect(res.success).toBe(true);
+        expect(res.cargo).toEqual({ fish: 4 });
+        expect(p.ships).toEqual([]);
+        expect(p.boardedShip).toBeNull();
+        expect(Ships.wreckShip(p, 'ship_1').success).toBe(false);
+    });
+});

@@ -339,7 +339,8 @@ Object.assign(InnerMapRenderer, {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
             const gi = tile.groundItem;
             menuItems.push({ type: 'header', label: `${gi.icon} ${gi.name}` });
-            menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Pick Up ${gi.name}`, icon: '🖐️', desc: 'Add this item back to your inventory', groundItemTileQ: q, groundItemTileR: r });
+            if (gi.placedBy === 'wreck') menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Salvage ${gi.name}`, icon: '⚓', desc: 'Wreckage on the water: swim or wade out to it and haul it in', groundItemTileQ: q, groundItemTileR: r });
+            else menuItems.push({ type: 'action', action: 'pickup_ground_item', label: `Pick Up ${gi.name}`, icon: '🖐️', desc: 'Add this item back to your inventory', groundItemTileQ: q, groundItemTileR: r });
         }
 
         // ── Terrain actions (only for bare terrain, no building or object) ──
@@ -715,6 +716,18 @@ Object.assign(InnerMapRenderer, {
             return;
         }
         if (this._handleGroundAction(game, { ...item, q, r })) return;
+
+        // Something lying (or floating) out of reach: go to it (swim, for wreckage on the water), then take it
+        if (action === 'pickup_ground_item' && !item._approached && Math.max(Math.abs(playerQ - q), Math.abs(playerR - r)) > 1) {
+            InnerMap.cancelPlayerWalk();
+            const walk = InnerMap.movePlayerTo(q, r);
+            if (walk && walk.started) {
+                InnerMap._pendingAction = { q, r, run: () => this._handleContextAction(game, { ...item, _approached: true }, q, r) };
+            } else {
+                game.ui.showNotification('🖐️ Out of Reach', (walk && walk.refused) || 'You can\'t get to it from here.', 'warning');
+            }
+            return;
+        }
 
         if (!item._approached && this._needsApproach(item)) {
             this._approachThenAct(game, item, q, r);
@@ -1166,7 +1179,14 @@ Object.assign(InnerMapRenderer, {
             }
             case 'pickup_ground_item': {
                 const gTile = InnerMap.getTile(item.groundItemTileQ, item.groundItemTileR);
-                if (gTile && gTile.groundItem) {
+                if (gTile && gTile.groundItem && gTile.groundItem.gold) {
+                    // A strongbox from a wreck: its gold into your purse
+                    const gi = gTile.groundItem;
+                    game.player.gold = (game.player.gold || 0) + gi.gold;
+                    game.ui.showNotification(`${gi.icon} Salvage`, `You prise the strongbox open: ${gi.gold} gold.`, 'success');
+                    delete gTile.groundItem;
+                    game.ui.updateStats(game.player, game.world);
+                } else if (gTile && gTile.groundItem) {
                     const gi = gTile.groundItem;
                     // Add item back to player inventory (if there is room)
                     if (!PlayerInventory.addItem(game.player, gi.itemId, gi.quantity || 1).success) {

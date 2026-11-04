@@ -1,0 +1,20 @@
+{
+    "_doc": "A ship struck down on the town map breaks into salvage (world/innerMap/harbour.js scatterWreck): `pieces` [min, max] by hull, floating on the water where she lay and up to `spread` tiles round (each a ground item you swim or wade to and pick up). `loot` picks a piece's goods by weight (kind = how it floats: planks, rope, sail, crate, chest; drawn from the LPC lumber, crate and chest sheets). A crate carries goods from her hold when she had any, else one of crateGoods; a strongbox (chest) holds gold, only on the hulls listed in its `hulls`.",
+    "spread": 2,
+    "pieces": {
+        "hull_skiff": [3, 4],
+        "hull_sloop": [5, 7],
+        "hull_brig": [7, 10],
+        "hull_galleon": [10, 14]
+    },
+    "loot": [
+        { "kind": "planks", "itemId": "wood", "qty": [2, 5], "weight": 5 },
+        { "kind": "rope", "itemId": "rope", "qty": [1, 3], "weight": 2 },
+        { "kind": "sail", "itemId": "textiles", "qty": [1, 2], "weight": 2 },
+        { "kind": "planks", "itemId": "iron", "qty": [1, 2], "weight": 1, "name": "Iron Fittings" },
+        { "kind": "crate", "qty": [1, 4], "weight": 2 },
+        { "kind": "chest", "gold": [25, 140], "weight": 1, "hulls": ["hull_brig", "hull_galleon"] }
+    ],
+    "crateGoods": ["fish", "salt", "wine", "rum", "spices", "textiles", "grain", "pottery"],
+    "maxCargoCrates": 4
+}

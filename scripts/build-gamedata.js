@@ -84,7 +84,8 @@ const topLevel = [
     'commissions',
     'deckLife',
     'animals',
-    'swimming'
+    'swimming',
+    'wrecks'
 ];
 
 const merged = {};

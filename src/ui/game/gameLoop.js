@@ -230,6 +230,22 @@ export function gameLoop(timestamp, loopId) {
         if (interactionResult && interactionResult.completed) {
             if (interactionResult.nonDestructive) {
                 // Non-destructive interaction (sitting, emoting) — no resource, no removal
+            } else if (interactionResult.wreck) {
+                // A ship struck down: she breaks up, her salvage floats free (world/innerMap/harbour.js);
+                // your own ship leaves your fleet, her hold in the crates (systems/ships.js wreckShip)
+                const w = interactionResult.wreck;
+                let cargo = null;
+                let lost = null;
+                if (w.object && w.object.playerShip) {
+                    const res = Ships.wreckShip(this.player, w.object.playerShip);
+                    if (res.success) { cargo = res.cargo; lost = res.ship; }
+                }
+                const pieces = InnerMap.scatterWreck(w, { cargo });
+                const name = lost ? `the ${lost.name}` : (w.object && w.object.label) || 'the ship';
+                this.ui.showNotification(lost ? '⚓ Your Ship Is Lost' : '🪵 Wrecked',
+                    `${name.charAt(0).toUpperCase()}${name.slice(1)} breaks up.${pieces.length ? ` ${pieces.length} pieces of wreckage float free — swim out and haul them in.` : ''}`,
+                    lost ? 'warning' : 'info');
+                if (lost) this.ui.updateStats(this.player, this.world);
             } else if (interactionResult.resource) {
                 const resType = interactionResult.resource.type;
                 const resAmt = interactionResult.resource.amount || 1;

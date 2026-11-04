@@ -14,7 +14,7 @@
 // generation RNG.
 
 import { InnerMap } from './_ref.js';
-import { CustomObjects, DataLoader } from './_imports.js';
+import { CustomObjects, DataLoader, Utils } from './_imports.js';
 import { Hex } from '../../core/hex.js';
 import { ShipHulls } from '../shipHulls.js';
 import { Shipcraft } from '../shipcraft.js';
@@ -366,5 +366,94 @@ Object.assign(InnerMap, {
             t._deep = false; // (the water under the hull isn't the deep you'd drown in)
         }
         return { q, r, id: def.id };
+    },
+});
+
+// ── A ship struck down: her wreck breaks up into salvage ──
+Object.assign(InnerMap, {
+    wreckConfig() {
+        const g = DataLoader._gamedata;
+        return (g && g.wrecks) || { spread: 2, pieces: {}, loot: [], crateGoods: ['fish'], maxCargoCrates: 4 };
+    },
+
+    /**
+     * Scatter a struck hull's salvage on the water where she lay (the wreck
+     * movement.js _removeCustomObject left: { anchorQ, anchorR, defId }).
+     * Each piece is a ground item a swimmer (or someone wading the shallows)
+     * picks up: planks, rope, sailcloth, iron fittings, crates (her hold's
+     * goods when `cargo` is given, else a trader's stores), now and then a
+     * strongbox of gold. → the pieces placed, [{ q, r, item }].
+     */
+    scatterWreck(wreck, { cargo = null } = {}) {
+        if (!wreck || !this.tiles) return [];
+        const C = this.wreckConfig();
+        const def = CustomObjects.getDef(wreck.defId);
+        const foot = def ? ShipHulls.footprint(def) : [];
+        const H = this.tiles.length, W = this.tiles[0].length;
+        const spread = Math.max(0, C.spread | 0);
+        // Where she lay, and the water round her
+        const cells = [];
+        const seen = new Set();
+        const consider = (q, r, near) => {
+            const k = `${q},${r}`;
+            if (seen.has(k) || q < 0 || r < 0 || q >= W || r >= H) return;
+            seen.add(k);
+            const t = this.tiles[r][q];
+            if (!t || t.groundItem || t.customObject || t.customObjectPart || t.building || t._pier || t._deck) return;
+            const water = t._wet || t._sea || /_water$/.test((t.subTerrain && t.subTerrain.id) || '');
+            if (!water) return;
+            cells.push({ q, r, near });
+        };
+        for (const m of foot) consider(wreck.anchorQ + m.localCol, wreck.anchorR + m.localRow, true);
+        for (const m of foot) {
+            for (let dr = -spread; dr <= spread; dr++) {
+                for (let dq = -spread; dq <= spread; dq++) consider(wreck.anchorQ + m.localCol + dq, wreck.anchorR + m.localRow + dr, false);
+            }
+        }
+        if (!cells.length) return [];
+        // Mostly where she went down, a few drifted off
+        const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Utils.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+        const pick = shuffle(cells.filter(c => c.near)).concat(shuffle(cells.filter(c => !c.near)));
+        const range = C.pieces[wreck.defId] || [4, 6];
+        const n = Math.min(pick.length, Utils.randInt(range[0], range[1]));
+        // Her hold, crate by crate
+        const goods = DataLoader._gamedata && DataLoader._gamedata.playerEconomy ? DataLoader._gamedata.playerEconomy.GOODS || {} : {};
+        const goodOf = id => goods[String(id).toUpperCase()] || null;
+        const hold = Object.entries(cargo || {}).filter(([id, q]) => q > 0 && goodOf(id));
+        const crates = hold.slice(0, Math.max(0, C.maxCargoCrates | 0));
+        const loot = (C.loot || []).filter(l => !l.hulls || l.hulls.includes(wreck.defId));
+        const total = loot.reduce((s, l) => s + (l.weight || 1), 0);
+        const out = [];
+        for (let i = 0; i < n; i++) {
+            const at = pick[i];
+            let item;
+            if (i < crates.length) {
+                // A crate from her hold: a share of what she carried
+                const [id, qty] = crates[i];
+                const g = goodOf(id);
+                item = { itemId: id, quantity: Math.max(1, Math.round(qty)), name: g.name, icon: g.icon, kind: 'crate' };
+            } else {
+                let roll = Utils.random() * total;
+                let l = loot[loot.length - 1];
+                for (const x of loot) { roll -= x.weight || 1; if (roll <= 0) { l = x; break; } }
+                if (l.kind === 'chest') {
+                    const gold = Utils.randInt(l.gold[0], l.gold[1]);
+                    item = { itemId: 'gold', quantity: 1, gold, name: `Strongbox (${gold} gold)`, icon: '💰', kind: 'chest' };
+                } else {
+                    const id = l.itemId || Utils.randPick(C.crateGoods || ['fish']);
+                    const g = goodOf(id) || { name: id, icon: '📦' };
+                    const q = Array.isArray(l.qty) ? Utils.randInt(l.qty[0], l.qty[1]) : 1;
+                    item = { itemId: id, quantity: q, name: l.name || g.name, icon: g.icon, kind: l.kind };
+                }
+            }
+            const t = this.tiles[at.r][at.q];
+            t.groundItem = {
+                itemId: item.itemId, quantity: item.quantity, name: item.quantity > 1 && item.kind !== 'chest' ? `${item.name} ×${item.quantity}` : item.name,
+                icon: item.icon, placedBy: 'wreck', gold: item.gold || 0,
+                salvage: { kind: item.kind, frame: Utils.randInt(0, 9), phase: Utils.random() * Math.PI * 2 },
+            };
+            out.push({ q: at.q, r: at.r, item: t.groundItem });
+        }
+        return out;
     },
 });

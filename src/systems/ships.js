@@ -719,6 +719,23 @@ export const Ships = {
         return { success: true, message: `Sold ${ship.name} for ${salePrice}g.`, salePrice };
     },
 
+    /**
+     * Your ship broken up where she lay (struck down on the town map: the
+     * wreck's pieces float free, world/innerMap/harbour.js scatterWreck).
+     * She leaves your fleet, her fittings' perks with her. → { success,
+     * ship, cargo } — cargo is what was in her hold, to float off in crates.
+     */
+    wreckShip(player, shipId) {
+        const idx = (player && player.ships ? player.ships : []).findIndex(s => s.id === shipId);
+        if (idx === -1) return { success: false, message: 'Ship not found.' };
+        const ship = player.ships[idx];
+        player.ships.splice(idx, 1);
+        this._applyOwnerPerks(player, ship.customizations, -1);
+        if (player.boardedShip === shipId) player.boardedShip = null;
+        const cargo = { ...(ship.cargo || {}) };
+        return { success: true, ship, cargo, message: `The ${ship.name} breaks up and is gone.` };
+    },
+
     /* ── Ship value ──────────────────────────────────────────── */
 
     getShipValue(ship) {

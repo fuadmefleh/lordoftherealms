@@ -199,8 +199,10 @@ Object.assign(InnerMap, {
                 if (anchorTile && anchorTile.customObject && anchorTile.customObject.resource) {
                     resource = { ...anchorTile.customObject.resource };
                 }
+                this._lastWreck = null;
                 this._removeCustomObject(ia.anchorQ, ia.anchorR);
-                const result = { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource };
+                const result = { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource, wreck: this._lastWreck };
+                this._lastWreck = null;
                 this._activeInteraction = null;
                 return result;
             }
@@ -242,6 +244,13 @@ Object.assign(InnerMap, {
 
         const defId = anchorTile.customObject.defId;
         const def = (typeof CustomObjects !== 'undefined') ? CustomObjects.getDef(defId) : null;
+        // A ship's hull struck down: the water round it changes (the living water
+        // works its shore out again) and the wreck is left for scatterWreck
+        // (world/innerMap/harbour.js), which the caller runs with her cargo
+        if (/^hull_/.test(defId || '')) {
+            this._waterStamp = (this._waterStamp || 0) + 1;
+            this._lastWreck = { anchorQ, anchorR, defId, object: { ...anchorTile.customObject } };
+        }
 
         // Clear footprint tiles and restore passability for all tiles (including anchor)
         if (def && def.tiles) {

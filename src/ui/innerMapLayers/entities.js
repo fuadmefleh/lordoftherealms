@@ -608,6 +608,11 @@ Object.assign(InnerMapRenderer, {
                     continue;
                 }
 
+                // ── Wreckage afloat (a struck ship's salvage, world/innerMap/harbour.js scatterWreck) ──
+                if (tile.groundItem && tile.groundItem.salvage) {
+                    const gq = q, gr = r, sv = tile.groundItem.salvage;
+                    items.push({ sortY: (r + 0.4) * T, zLayer: 0, sortX: q, draw: () => this._drawSalvage(ctx, camera, gq, gr, sv, cs, now, T) });
+                } else
                 // ── Ground items (placed from hotbar) ──
                 if (tile.groundItem) {
                     const gq = q, gr = r;
@@ -937,5 +942,53 @@ Object.assign(InnerMapRenderer, {
         if (typeof InnerMapCombat !== 'undefined') {
             InnerMapCombat.render(ctx, camera);
         }
+    },
+
+    /**
+     * A piece of wreckage afloat: planks, a crate, a strongbox (the LPC lumber,
+     * crate and chest sheets), a coil of rope or a scrap of sail, bobbing on
+     * the water with a ripple round it — and a little marker so you know it's
+     * there for the taking.
+     */
+    _drawSalvage(ctx, camera, q, r, sv, cs, now, T) {
+        const screen = camera.worldToScreenFast(q * T, r * T);
+        const ph = sv.phase || 0;
+        const bob = Math.sin(now * 1.8 + ph) * cs * 0.04;
+        const cx = Math.floor(screen.x) + cs / 2, cy = Math.floor(screen.y) + cs * 0.55 + bob;
+        const ripple = this._sheets && this._sheets.get('water_ripple');
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        if (ripple) {
+            const fr = Math.floor(now * 4 + ph) % 4;
+            ctx.globalAlpha = 0.8;
+            ctx.drawImage(ripple, fr * 32, 0, 32, 32, Math.round(cx - cs * 0.55), Math.round(cy - cs * 0.62), Math.round(cs * 1.1), Math.round(cs * 1.1));
+            ctx.globalAlpha = 1;
+        }
+        const sheet = (k) => this._sheets && this._sheets.get(k);
+        const tilt = Math.sin(now * 1.3 + ph) * 0.06;
+        ctx.translate(cx, cy);
+        ctx.rotate(tilt);
+        const sz = cs * 0.8;
+        if (sv.kind === 'planks' && sheet('lumber')) {
+            // one of the first row's loose planks
+            ctx.drawImage(sheet('lumber'), (sv.frame % 10) * 32, 0, 32, 32, -sz / 2, -sz * 0.7, sz, sz);
+        } else if (sv.kind === 'crate' && sheet('crate')) {
+            ctx.drawImage(sheet('crate'), 0, 32, 32, 32, -sz / 2, -sz * 0.75, sz, sz);
+        } else if (sv.kind === 'chest' && sheet('chest')) {
+            ctx.drawImage(sheet('chest'), 64, 0, 32, 32, -sz / 2, -sz * 0.75, sz, sz);
+        } else if (sv.kind === 'sail') {
+            ctx.fillStyle = 'rgba(232,224,204,0.95)';
+            ctx.beginPath();
+            ctx.moveTo(-sz * 0.4, -sz * 0.1); ctx.lineTo(sz * 0.35, -sz * 0.25); ctx.lineTo(sz * 0.42, sz * 0.05); ctx.lineTo(-sz * 0.3, sz * 0.12);
+            ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = 'rgba(120,100,70,0.7)'; ctx.lineWidth = Math.max(1, cs / 32); ctx.stroke();
+        } else {
+            // a coil of rope (or anything without its own art)
+            ctx.strokeStyle = '#a07a4a'; ctx.lineWidth = Math.max(2, cs / 14);
+            for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.ellipse(0, -sz * 0.05, sz * (0.32 - i * 0.08), sz * (0.14 - i * 0.035), 0, 0, Math.PI * 2); ctx.stroke(); }
+        }
+        ctx.restore();
+        // Something to haul in
+        if (camera.zoom > 0.6) drawMapMarker(ctx, 'satchel', cx + cs * 0.32, cy - cs * 0.55, Math.max(6, cs * 0.14));
     },
 });

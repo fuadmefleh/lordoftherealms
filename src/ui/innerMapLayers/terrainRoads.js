@@ -132,7 +132,8 @@ Object.assign(InnerMapRenderer, {
                 // Draw base terrain from analyzed LPC fills
                 const src = this._getTerrainFill(tile);
                 // Tilled ground of a town field (world/townProps.js): furrowed soil, the grass edged over it
-                const soil = tile._soilFill;
+                // (only where grass is there to edge it: on bare ground the field lies on the bare earth)
+                const soil = tile._soilFill && this._soilShows(tile) ? tile._soilFill : null;
                 const soilImg = soil && this._getSheetByPath(soil.sheetPath);
                 if (soilImg) {
                     ctx.drawImage(soilImg, soil.sx, soil.sy, 32, 32, dx, dy, sz, sz);
@@ -166,6 +167,20 @@ Object.assign(InnerMapRenderer, {
             }
             ctx.stroke();
         }
+    },
+
+    /** A town field's soil shows on a grass cell round it, and under the field when grass rings it. */
+    _soilShows(tile) {
+        const grass = (t) => !!(t && t.terrainDetail && (t.terrainDetail.layer || 'grass') === 'grass');
+        if (!tile._townSoil) return grass(tile);
+        // Walk to the field's edge along the row: the ring cell beyond it says
+        const row = InnerMap.tiles[tile.r];
+        if (!row) return false;
+        let q = tile.q;
+        while (row[q] && row[q]._townSoil && q > 0) q--;
+        let e = tile.q;
+        while (row[e] && row[e]._townSoil && e < row.length - 1) e++;
+        return grass(row[q]) || grass(row[e]);
     },
 
     // ══════════════════════════════════════════════

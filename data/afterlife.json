@@ -1,6 +1,7 @@
 {
-    "_doc": "After the player dies (player/afterlife.js): who they can come back as, and how the world turns while they wait. stations: what each walk of life starts with as a new character (gold range, stat and skill bonuses on top of the base 5s and 1s).",
+    "_doc": "After the player dies (player/afterlife.js): who they can come back as, and how the world turns while they wait. stations: what each walk of life starts with as a new character (gold range, stat and skill bonuses on top of the base 5s and 1s). candidates: how many people are offered (at random, or of a chosen settlement); newcomer: a chosen settlement also offers someone just arriving from another town, with a mother tongue of their own.",
     "candidates": 4,
+    "newcomer": true,
     "minAge": 17,
     "maxAge": 42,
     "autoPlayMs": 220,

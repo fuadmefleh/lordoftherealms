@@ -551,6 +551,10 @@ export function setupInputHandlers() {
             this.ui.toggleCheatsPanel();
             return;
         }
+        if (e.key === 'Escape' && this._hexPick && typeof this._hexPick.onCancel === 'function') {
+            this._hexPick.onCancel();
+            return;
+        }
         if (e.key === 'Escape' && this._cheatTeleportArmed) {
             this._cheatTeleportArmed = false;
             this.ui.showNotification('🧪 Teleport', 'Cancelled', 'default');
@@ -829,6 +833,12 @@ export function handleClick(screenX, screenY, button = 'left') {
 
     const hex = this.renderer.getHexAtScreen(screenX, screenY);
     if (!hex) return;
+
+    // A panel waiting on a map pick takes the click (the new life's town, ui/actionMenu/afterlife.js)
+    if (this._hexPick && typeof this._hexPick.onPick === 'function') {
+        if (button === 'left') this._hexPick.onPick(hex.q, hex.r);
+        return;
+    }
 
     // Cheats: an armed teleport takes the next map click
     if (this._cheatTeleportArmed) {

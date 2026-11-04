@@ -9,7 +9,7 @@ This folder contains the `Game` class split into focused modules. The class is a
 | `core.js` | ~180 | Class definition, constructor — sets up canvas, camera, renderer |
 | `editorUI.js` | ~415 | `resumeGame`, settings screen, editor overlays, custom world picker |
 | `gameSetup.js` | ~503 | Audio controls, title screen, randomize settings, `startNewGame`, `_doStartNewGame` |
-| `gameLoop.js` | ~763 | Game loop tick, input handlers, `handleClick`, `handleDoubleClick` |
+| `gameLoop.js` | ~763 | Game loop tick, input handlers, `handleClick`, `handleDoubleClick`; a panel waiting on a map pick sets `game._hexPick = { onPick(q, r), onCancel }` and takes the next world-map click (Esc cancels) |
 | `innerMap.js` | ~642 | Enter/exit inner map, inner map UI, Tiled export/import |
 | `endDay.js` | ~643 | `onPlayerArrived`, full `endDay` turn processing |
 | `combat.js` | ~450 | Food purchase modal, hostile encounters (`_checkHostileEncounters` opens the encounter dialog, `ActionMenu.showEncounter`; headless it resolves automatically; `_settlePendingCombat` settles a dialog or battle walked away from), `_triggerDeath`, end-day confirm |

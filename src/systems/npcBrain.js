@@ -103,7 +103,13 @@ export const NpcBrain = {
 
         const available = await LlmClient.isAvailable(true);
         if (!available) {
-            return { ok: false, stage: 'health', detail: `no response from ${LlmClient.getConfig().endpoint}` };
+            const p = LlmClient.lastProbe();
+            const state = p.state || 'unreachable';
+            return {
+                ok: false, stage: 'health', state,
+                detail: p.detail || `no response from ${LlmClient.getConfig().endpoint}`,
+                hint: NpcBrain.HINTS[state] || NpcBrain.HINTS.unreachable,
+            };
         }
         const res = await LlmClient.chat(
             [{ role: 'user', content: NpcBrain._noThink('Reply with exactly one short word to confirm you are working.') }],
@@ -111,6 +117,32 @@ export const NpcBrain = {
         );
         if (!res.ok) return { ok: false, stage: 'query', detail: res.reason };
         return { ok: true, detail: NpcBrain._sanitizeLine(res.text) || res.text };
+    },
+
+    /** What to try next, by the health probe's state (shown under a failed test). */
+    HINTS: {
+        unreachable: 'Start llama-server (e.g. "llama-server -m your-model.gguf --port 8080") and check the endpoint address and port match.',
+        timeout: 'The server is slow to answer — it may be busy or still starting. Wait a moment and test again.',
+        loading: 'llama-server is running but still loading the model. Wait for it to finish, then test again.',
+        error: 'Something answered, but not like llama-server. Check the endpoint points at llama-server\'s port.',
+    },
+
+    /**
+     * Where the brain stands, for the settings status line (no network call):
+     * { enabled, state: 'off'|'unknown'|'ready'|'loading'|'unreachable'|'timeout'|'error',
+     *   detail, checkedAt }. `unknown` = on, but not probed yet.
+     */
+    /** Probe the server now (only when the brain is on) and return status(). Never throws. */
+    async refreshStatus() {
+        if (enabled) await LlmClient.probe();
+        return NpcBrain.status();
+    },
+
+    status() {
+        const p = LlmClient.lastProbe();
+        if (!enabled) return { enabled: false, state: 'off', detail: 'NPCs speak their written lines.', checkedAt: p.checkedAt };
+        if (!p.state) return { enabled: true, state: 'unknown', detail: 'Not checked yet.', checkedAt: p.checkedAt };
+        return { enabled: true, state: p.state, detail: p.detail, checkedAt: p.checkedAt };
     },
 
     // ── Tiering ─────────────────────────────────────────────────
@@ -131,7 +163,88 @@ export const NpcBrain = {
         return {
             decideRivalAction: (ctx) => NpcBrain._decideRivalActionSync(ctx),
             narrate: (kind, ctx) => NpcBrain._narrateSync(kind, ctx),
+            chooseErrand: (ctx) => NpcBrain._chooseFromMenuSync('errand', ctx),
+            chooseScheme: (ctx) => NpcBrain._chooseFromMenuSync('scheme', ctx),
         };
+    },
+
+    // ── Proposal menus (rival heads) ────────────────────────────
+    //
+    // The engine hands the brain a menu of only the moves it can carry out
+    // right now (ctx.options: ids — for an errand, those worth anything today;
+    // for a plot, the eligible scheme types) and the deterministic pick it
+    // would make itself (ctx.fallback). The model may only answer with one of
+    // the ids; anything else is thrown away. The engine re-checks the answer
+    // against its menu before acting on it, so a stale cached pick is harmless.
+
+    _menuIds(ctx) {
+        return ((ctx && ctx.options) || []).map(o => (typeof o === 'string' ? o : o && o.id)).filter(Boolean);
+    },
+
+    _chooseFromMenuSync(kind, ctx) {
+        const ids = NpcBrain._menuIds(ctx);
+        const fallback = ctx && ctx.fallback != null ? ctx.fallback : ids[0];
+        if (!enabled || ids.length < 2) return fallback;
+        const key = NpcBrain._menuKey(kind, ctx, ids);
+        const cached = cache.get(key);
+        if (cached && cached.kind === kind && ids.includes(cached.value)) return cached.value;
+        NpcBrain._enqueue(key, () => NpcBrain._genMenuChoice(kind, ctx, ids, key));
+        return fallback;
+    },
+
+    async _genMenuChoice(kind, ctx, ids, key) {
+        if (!enabled || !(await LlmClient.isAvailable())) return;
+        const res = await LlmClient.chat(NpcBrain._buildMenuPrompt(kind, ctx), { maxTokens: 60, temperature: 0.3 });
+        if (!res.ok) return;
+        const pick = NpcBrain._validateMenuChoice(res.text, ids);
+        if (pick) cacheSet(key, { kind, value: pick });
+    },
+
+    /** The model's pick, if it names exactly one id on the menu (JSON {"choice": id} or a bare id). */
+    _validateMenuChoice(text, ids) {
+        const obj = NpcBrain._extractJson(text);
+        let pick = obj && typeof obj === 'object' ? (obj.choice || obj.action || obj.errand || obj.scheme) : null;
+        if (typeof pick !== 'string') {
+            const cleaned = NpcBrain._stripReasoning(text);
+            pick = typeof cleaned === 'string' ? cleaned.trim().replace(/^["'`]+|["'`.]+$/g, '') : null;
+        }
+        if (typeof pick !== 'string') return null;
+        pick = pick.trim().toLowerCase();
+        return ids.find(id => id.toLowerCase() === pick) || null;
+    },
+
+    _buildMenuPrompt(kind, ctx) {
+        const rival = ctx.rival || {};
+        const house = ctx.house || {};
+        const menu = ((ctx && ctx.options) || []).map((o) => {
+            if (typeof o === 'string') return `- ${o}`;
+            return `- ${o.id}${o.about ? `: ${o.about}` : ''}`;
+        }).join('\n');
+        const memories = NpcBrain._memoryText(typeof ctx.memories === 'function' ? ctx.memories() : ctx.memories);
+        const who = ctx.self ? `${ctx.self}\n` : '';
+        const ask = kind === 'scheme'
+            ? `Choose which plot to pay for against ${house.name || 'the player\'s House'}.`
+            : 'Choose what you set out to do next.';
+        return [
+            { role: 'system', content: 'You play the head of a rival noble House in a medieval strategy game. You may only pick from the menu given. Reply with ONLY a JSON object, no prose.' },
+            { role: 'user', content: NpcBrain._noThink(
+                `${who}You are of ${rival.name || 'a rival House'}; your feud with ${house.name || 'the player\'s House'} stands at ${Math.round(rival.feud || 0)}/100.\n`
+                + (memories ? `What you remember of them: ${memories}\n` : '')
+                + `Recent events:\n${NpcBrain._recentChronicle(house)}\n\n`
+                + `${ask} The menu:\n${menu}\n\nRespond as JSON: {"choice": "<one id from the menu>"}.`) },
+        ];
+    },
+
+    _menuKey(kind, ctx, ids) {
+        const r = (ctx && ctx.rival) || {};
+        const feud = Math.round((r.feud || 0) / 10);
+        return `${kind}:${r.kingdomId || r.name || '?'}:${ctx.head || ''}:${feud}:${ctx.mood || ''}:${ids.slice().sort().join(',')}`;
+    },
+
+    /** Memories (strings, or { text } / { label }) as one prompt line, strongest first, capped. */
+    _memoryText(list, n = 5) {
+        if (!Array.isArray(list) || !list.length) return '';
+        return list.map(m => (typeof m === 'string' ? m : m && (m.text || m.label))).filter(Boolean).slice(0, n).join('; ');
     },
 
     _defaultRivalDecision(ctx) {
@@ -188,8 +301,15 @@ export const NpcBrain = {
 
     // ── Dialogue voice (on-demand async) ────────────────────────
 
-    /** Generate a spoken line for an NPC. Resolves the model's line, a cached
-     *  one, or context.fallback (used immediately by the UI when offline/slow). */
+    /**
+     * Generate a spoken line for an NPC. Resolves the model's line, a cached
+     * one, or context.fallback (used immediately by the UI when offline/slow).
+     * context: { topic, disposition, fallback, worldContext, memories
+     * (what this NPC remembers of the player — strings or { text }, strongest
+     * first), onPartial(textSoFar) }. With onPartial the line is streamed and
+     * onPartial is called as it grows (reasoning blocks hidden); a server that
+     * can't stream answers whole, and the caller sees no difference.
+     */
     async generateNpcLine(npc, context = {}) {
         const fallback = context.fallback != null ? context.fallback : null;
         if (!enabled) return fallback;
@@ -197,7 +317,19 @@ export const NpcBrain = {
         const cached = cache.get(key);
         if (cached && cached.kind === 'line') return cached.value;
         if (!(await LlmClient.isAvailable())) return fallback;
-        const res = await LlmClient.chat(NpcBrain._buildLinePrompt(npc, context), { maxTokens: 80 });
+        const prompt = NpcBrain._buildLinePrompt(npc, context);
+        let res;
+        if (typeof context.onPartial === 'function' && typeof LlmClient.chatStream === 'function') {
+            let last = '';
+            res = await LlmClient.chatStream(prompt, { maxTokens: 80 }, (soFar) => {
+                const shown = NpcBrain._partialLine(soFar);
+                if (!shown || shown === last) return;
+                last = shown;
+                try { context.onPartial(shown); } catch { /* the UI's problem, not the line's */ }
+            });
+        } else {
+            res = await LlmClient.chat(prompt, { maxTokens: 80 });
+        }
         if (!res.ok) return fallback;
         const line = NpcBrain._sanitizeLine(res.text);
         if (!line) return fallback;
@@ -273,10 +405,22 @@ export const NpcBrain = {
         const traits = (npc && npc.traits ? npc.traits.map(t => t.name || t).join(', ') : '') || 'unremarkable';
         // The same world facts the template lines are chosen from (systems/chatter.js)
         const world = context.worldContext ? `\nWhat is going on around you: ${context.worldContext}\nLet it colour what you say.` : '';
+        // What this NPC remembers of the player (lord memory, a rival's memory, past talks)
+        const memories = NpcBrain._memoryText(context.memories);
+        const memory = memories ? `\nWhat you remember of the player: ${memories}.\nYou may let a memory show if it fits; never invent others.` : '';
+        const who = context.role || 'a medieval townsperson';
         return [
-            { role: 'system', content: 'You voice a medieval townsperson. Reply with ONE short line of in-character dialogue, no quotes, no narration.' },
-            { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.${world}`) },
+            { role: 'system', content: `You voice ${who}. Reply with ONE short line of in-character dialogue, no quotes, no narration.` },
+            { role: 'user', content: NpcBrain._noThink(`You are ${name} (${traits}), feeling ${disposition} toward the player. Say ${topic}.${world}${memory}`) },
         ];
+    },
+
+    /** A growing streamed line as it may be shown: reasoning hidden, quotes and later lines dropped. */
+    _partialLine(text) {
+        if (typeof text !== 'string') return '';
+        const s = NpcBrain._stripReasoning(text);
+        if (typeof s !== 'string' || /^<[^>]*$/.test(s)) return ''; // a tag still arriving ("<thi…")
+        return s.replace(/^["'“”]+/, '').split('\n')[0].trim().slice(0, 240);
     },
 
     // ── Validation & sanitizing ─────────────────────────────────
@@ -323,7 +467,10 @@ export const NpcBrain = {
     _lineKey(npc, ctx) {
         // The world context is part of the key: when the news changes, so does the line
         const w = ctx.worldContext ? `:${NpcBrain._hash(ctx.worldContext)}` : '';
-        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}`;
+        // ...and so are the memories: a new deed remembered, a new line
+        const memories = NpcBrain._memoryText(ctx.memories);
+        const m = memories ? `:m${NpcBrain._hash(memories)}` : '';
+        return `line:${(npc && (npc.id || npc.firstName)) || 'npc'}:${ctx.topic || 'greet'}${w}${m}`;
     },
     _hash(str) {
         let h = 2166136261;

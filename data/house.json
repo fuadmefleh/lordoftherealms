@@ -1,24 +1,83 @@
 {
-    "_doc": "House ambitions and the demands made on a rich House (systems/house.js, systems/demands.js). An ambition's `requires` names the ambition that must be fulfilled first (its predecessor tier); `req` is a map of House._metrics keys to the minimum value (true for a flag). `reward` is paid when the capstone is reached: prestige, gold, renown, reputation (with every living realm), and an `honour` the House keeps forever — each honour's `fame` adds to the House's good fame in every realm (systems/fame.js).",
+    "_doc": "The House: its tuning, family offices, Prestige sources and sinks, ambitions, and the demands made on a rich House (systems/house.js, systems/demands.js). systems/house.js keeps identical defaults for every table, used only when this data is not loaded; each table here is laid over them key by key. `config` is the Prestige/rival/role tuning; `roles` the five family offices (the member skill each scales off); `sources` the Prestige a notable deed earns (House.recordDeed) and `sourceScales` its multiplier by kind (a miracle, a festival's budget tier, an achievement's tier; 0 awards nothing); `sinks` the Prestige price of what gold cannot buy. An ambition's `requires` names the ambition that must be fulfilled first (its predecessor tier); `req` is a map of House._metrics keys to the minimum value (true for a flag). `reward` is paid when the capstone is reached: prestige, gold, renown, reputation (with every living realm), and an `honour` the House keeps forever — each honour's `fame` adds to the House's good fame in every realm (systems/fame.js).",
+    "config": {
+        "idleWindow": 90, "decayPerDay": 1, "logCap": 30, "historyCap": 600,
+        "wealthMarkDays": 30, "wealthMarkCap": 240,
+        "roleBaseLoyalty": 60, "roleLoyaltyDriftDays": 60, "roleDisloyaltyThreshold": 25,
+        "rivalFeudDecayDays": 30, "rivalFeudDecay": 1, "rivalActionCadence": 45, "rivalClaimFeud": 60
+    },
+    "roles": {
+        "steward":    { "label": "Steward",    "skill": "commerce",   "blurb": "Runs the estates — raises property income." },
+        "marshal":    { "label": "Marshal",    "skill": "combat",     "blurb": "Commands the host — lowers army upkeep." },
+        "chancellor": { "label": "Chancellor", "skill": "diplomacy",  "blurb": "Holds the court — improves diplomacy." },
+        "spymaster":  { "label": "Spymaster",  "skill": "stealth",    "blurb": "Runs the shadows — aids espionage." },
+        "heir":       { "label": "Heir",       "skill": "leadership", "blurb": "Groomed to inherit the House." }
+    },
+    "sources": {
+        "quest": 3, "contract": 2, "battleWon": 4, "titleGained": 6, "settlementHeld": 12,
+        "religionFounded": 15, "templeRaised": 4, "miracle": 2, "artifactReforged": 10,
+        "nobleMarriage": 8, "festivalHosted": 3, "achievement": 2, "ambitionMilestone": 10
+    },
+    "sourceScales": {
+        "miracle": { "plague": 0, "smite": 0.5, "resurrection": 3, "revelation": 1.5 },
+        "festivalHosted": { "modest": 1, "fine": 1.5, "grand": 2.5 },
+        "achievement": { "bronze": 1, "silver": 2, "gold": 4, "legendary": 8 }
+    },
+    "sinks": { "pressClaim": 15, "prestigiousMarriage": 10, "callInFavor": 8, "secureSuccession": 20 },
     "ambitions": [
         {
             "id": "seat_of_power", "tier": 1, "next": ["crown_of_realms"],
+            "name": "Seat of Power", "blurb": "Carve out a realm of your own.",
+            "milestones": [
+                { "id": "title", "label": "Hold a royal office", "req": { "hasTitle": true } },
+                { "id": "army", "label": "Field an army of strength 100", "req": { "armyStrength": 100 } },
+                { "id": "first_hold", "label": "Seize your first settlement", "req": { "settlementsHeld": 1 } }
+            ],
+            "capstone": { "id": "realm", "label": "Hold three settlements", "req": { "settlementsHeld": 3 } },
             "reward": { "prestige": 20, "renown": 15, "reputation": 3, "honour": { "id": "realm_founders", "name": "Founders of a Realm", "fame": 6 } }
         },
         {
             "id": "faith_eternal", "tier": 1, "next": ["holy_see"],
+            "name": "Faith Eternal", "blurb": "Spread a faith that outlives you.",
+            "milestones": [
+                { "id": "found", "label": "Found a religion", "req": { "hasReligion": true } },
+                { "id": "flock", "label": "Gather 1,000 followers", "req": { "followers": 1000 } },
+                { "id": "temples", "label": "Raise 3 temples", "req": { "temples": 3 } }
+            ],
+            "capstone": { "id": "eternal", "label": "5,000 followers and 5 temples", "req": { "followers": 5000, "temples": 5 } },
             "reward": { "prestige": 20, "renown": 10, "honour": { "id": "keepers_of_faith", "name": "Keepers of the Faith", "fame": 5 } }
         },
         {
             "id": "merchant_dynasty", "tier": 1, "next": ["bankers_to_kings"],
+            "name": "Merchant Dynasty", "blurb": "Dominate the flow of coin.",
+            "milestones": [
+                { "id": "estates", "label": "Own 5 properties", "req": { "properties": 5 } },
+                { "id": "routes", "label": "Run 3 trade routes", "req": { "tradeRoutes": 3 } },
+                { "id": "coffers", "label": "Amass 25,000 gold", "req": { "gold": 25000 } }
+            ],
+            "capstone": { "id": "monopoly", "label": "50,000 gold and 5 trade routes", "req": { "gold": 50000, "tradeRoutes": 5 } },
             "reward": { "prestige": 15, "gold": 2500, "renown": 8, "honour": { "id": "merchant_princes", "name": "Merchant Princes", "fame": 5 } }
         },
         {
             "id": "bloodline_of_kings", "tier": 1, "next": ["blood_of_empires"],
+            "name": "Bloodline of Kings", "blurb": "Weave your blood through the realms.",
+            "milestones": [
+                { "id": "wed", "label": "Marry", "req": { "married": true } },
+                { "id": "heirs2", "label": "Raise 2 children", "req": { "children": 2 } },
+                { "id": "heirs4", "label": "Raise 4 children", "req": { "children": 4 } }
+            ],
+            "capstone": { "id": "dynasty", "label": "4 children across 2 generations", "req": { "children": 4, "generation": 2 } },
             "reward": { "prestige": 20, "renown": 8, "reputation": 2, "honour": { "id": "royal_blood", "name": "Blood of Kings", "fame": 5 } }
         },
         {
             "id": "the_great_house", "tier": 1, "next": ["house_eternal"],
+            "name": "The Great House", "blurb": "Build a name that endures the ages.",
+            "milestones": [
+                { "id": "prestige50", "label": "Reach 50 Prestige", "req": { "prestige": 50 } },
+                { "id": "holdings8", "label": "Own 8 properties", "req": { "properties": 8 } },
+                { "id": "gen2", "label": "Survive into a 2nd generation", "req": { "generation": 2 } }
+            ],
+            "capstone": { "id": "great", "label": "150 Prestige across 3 generations", "req": { "prestige": 150, "generation": 3 } },
             "reward": { "prestige": 25, "renown": 12, "honour": { "id": "great_house", "name": "A Great House", "fame": 6 } }
         },
 

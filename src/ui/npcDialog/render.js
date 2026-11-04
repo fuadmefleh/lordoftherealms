@@ -18,7 +18,7 @@ import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS
 import { dialogState } from './shared.js';
 import { renderChoiceGrid, formatSpokenLine } from '../conversationScene.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
-import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext } from './helpers.js';
+import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext, _memoryLines } from './helpers.js';
 import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice } from './choices.js';
 
 /**
@@ -132,18 +132,49 @@ export function _buildConversation(npc) {
     // immediately and stays if the model is off, slow, or offline.
     if (typeof NpcBrain !== 'undefined' && NpcBrain.isEnabled() && NpcBrain.isMajor(npc)) {
         const disposition = _dispositionLabel(mem.disposition || 0);
-        NpcBrain.generateNpcLine(npc, { topic: 'a fitting greeting', disposition, fallback: greeting, worldContext: _worldContext(npc) })
+        const first = dialogState._lines[0];
+        // Still showing this conversation's greeting? (the player may have moved on or closed it)
+        const onGreeting = () => dialogState._overlay && dialogState._lineIndex === 0 && dialogState._lines[0] === first;
+        const textEl = () => {
+            const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
+            return box && box.querySelector('.npc-dialog-text');
+        };
+        let streamed = false;
+        NpcBrain.generateNpcLine(npc, {
+            topic: 'a fitting greeting', disposition, fallback: greeting, worldContext: _worldContext(npc),
+            memories: _memoryLines(npc),
+            // Streamed words replace the template as they come (the typewriter stops for them)
+            onPartial: (soFar) => {
+                if (!onGreeting()) return;
+                const el = textEl();
+                if (!el) return;
+                if (!streamed) {
+                    streamed = true;
+                    if (dialogState._typewriteTimer) clearTimeout(dialogState._typewriteTimer);
+                    dialogState._typewriteTimer = null;
+                    dialogState._typewriteComplete = false; // the choices wait for the line to finish
+                    _setSpeaking(true);
+                }
+                el.textContent = soFar.replace(/\*/g, '');
+                _scrollLog();
+            },
+        })
             .then((line) => {
-                // Only swap if the dialog is still open on the greeting line.
-                if (!line || line === greeting) return;
-                if (dialogState._lineIndex !== 0 || !dialogState._lines[0]) return;
-                dialogState._lines[0].text = line;
-                const box = dialogState._overlay && dialogState._overlay.querySelector('.npc-dialog-box');
-                const textEl = box && box.querySelector('.npc-dialog-text');
-                if (textEl) {
-                    textEl.textContent = '';
+                if (!onGreeting()) return;
+                const el = textEl();
+                if (!line || line === greeting) {
+                    // The stream broke down to the template: show it whole again
+                    if (streamed && el) _skipTypewrite(el, greeting);
+                    return;
+                }
+                first.text = line;
+                if (!el) return;
+                if (streamed) {
+                    _skipTypewrite(el, line);
+                } else {
+                    el.textContent = '';
                     dialogState._typewriteComplete = false;
-                    _typewrite(textEl, line, 0);
+                    _typewrite(el, line, 0);
                 }
             })
             .catch(() => { /* keep the template greeting */ });

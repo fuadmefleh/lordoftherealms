@@ -543,7 +543,7 @@ Object.assign(ActionMenu, {
             if (!name || selectedTenets.length !== 3) return;
             if (!ActionMenu.commitPendingAP(game)) return;
 
-            const result = PlayerReligion.foundReligion(game.player, name, selectedTenets);
+            const result = PlayerReligion.foundReligion(game.player, name, selectedTenets, game.world);
             if (result.success) {
                 game.ui.hideCustomPanel();
                 game.ui.showNotification('Religion Founded!', `${name} has been established with tenets: ${selectedTenets.join(', ')}`, 'success');

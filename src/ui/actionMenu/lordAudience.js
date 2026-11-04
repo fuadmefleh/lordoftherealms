@@ -11,6 +11,7 @@ import { ConversationScene } from '../conversationScene.js';
 import { NPCLords, PlayerEffects, Treasures, Technology, Titles, Utils, Peoples, Religion } from './_imports.js';
 import { Traits } from '../../systems/traits.js';
 import { Coalitions } from '../../systems/coalitions.js';
+import { NpcBrain } from '../../systems/npcBrain.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, opinionWhy } from '../whyPopover.js';
 
@@ -110,6 +111,19 @@ function _memoryHtml(kingdom, lord, n = 3) {
     return `<div class="npc-dialog-memory" style="margin-top:4px;">${lines}</div>`;
 }
 
+/**
+ * The lord's memories of the player (NPCLords.memoryOf, strongest first) in
+ * the lord's own terms, for the local model's prompt (systems/npcBrain.js).
+ */
+function _memoryPrompt(kingdom, lord, n = 5) {
+    const parent = _pron(kingdom).parent;
+    return NPCLords.memoryOf(lord).slice(0, n).map(m => {
+        const feel = m.weight >= 0 ? 'kindly' : 'bitterly';
+        const what = `${m.label}${m.note ? ` (${m.note})` : ''}`;
+        return m.inherited ? `your ${parent}${m.from ? `, ${m.from},` : ''} spoke ${feel} of ${what}` : `${what} — you remember it ${feel}`;
+    });
+}
+
 /** A line the lord opens with when a memory weighs on them, or ''. */
 function _recall(kingdom, lord) {
     const m = NPCLords.memoryOf(lord)[0];
@@ -161,6 +175,8 @@ export function openLordAudience(game, unitId) {
     const place = tile && tile.settlement ? tile.settlement.name : 'On the road';
 
     const state = { unitId, used: new Set(), paid: false, scene: null, total: st.total };
+    const greeting = _recall(kingdom, lord) + _greeting(player, kingdom, lord, st.total);
+    const voiced = NpcBrain.isEnabled();
     state.scene = ConversationScene.open({
         variant: 'royal',
         name: lord.name,
@@ -171,7 +187,7 @@ export function openLordAudience(game, unitId) {
         mood: ConversationScene.moodFromStanding(st.total),
         moodTitle: `How ${lord.name} regards you`,
         facts: _factsHtml(player, kingdom, lord, st, world),
-        greeting: _recall(kingdom, lord) + _greeting(player, kingdom, lord, st.total),
+        greeting: voiced ? null : greeting,
         onClose: () => {
             // Leaving without asking anything costs nothing
             if (!state.paid) ActionMenu._pendingAP = null;
@@ -179,6 +195,28 @@ export function openLordAudience(game, unitId) {
         },
     });
     _current = state;
+    if (voiced) {
+        // A local model voices the greeting from what the lord remembers of you
+        // (systems/npcBrain.js); the written greeting stands in when it is off or slow
+        state.scene.thinking();
+        const npc = { id: `lord:${kingdom.id}:${lord.name}`, firstName: lord.name, isRuler: true, traits: (lord.traits || []).map(t => t.name || t) };
+        NpcBrain.generateNpcLine(npc, {
+            role: 'a medieval ruler granting an audience',
+            topic: `a greeting to a visitor come to your court in ${kingdom.name}`,
+            disposition: st.total >= 50 ? 'warm' : st.total >= 20 ? 'favourable' : st.total >= -10 ? 'neutral' : st.total >= -40 ? 'cool' : 'hostile',
+            fallback: greeting,
+            memories: _memoryPrompt(kingdom, lord),
+        }).then((line) => {
+            if (!state.scene.isOpen) return;
+            state.scene.npc(line || greeting);
+            state.scene.afterSpoken(200, () => _choices(game, state));
+        }).catch(() => {
+            if (!state.scene.isOpen) return;
+            state.scene.npc(greeting);
+            _choices(game, state);
+        });
+        return;
+    }
     _choices(game, state);
 }
 

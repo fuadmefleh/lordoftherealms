@@ -724,17 +724,39 @@ export const RivalHouses = {
         return { scores: s, trade, estate };
     },
 
-    /** Weighted pick of the next errand by its worth. → { kind, trade, estate }. */
+    /**
+     * Pick the next errand. The menu is only the errands worth something
+     * today (so only what the engine can carry out); the House brain seam
+     * (House._brain.chooseErrand) picks from it — by default a weighted draw by
+     * worth, or a local model's proposal (systems/npcBrain.js) — and an
+     * off-menu answer falls back to 'home'. → { kind, trade, estate }.
+     */
     _choose(player, world, rival, unit) {
         const got = this._scores(player, world, rival, unit || this.retinueOf(world, rival) || rival.seat || { q: 0, r: 0 });
-        const total = ERRANDS.reduce((a, k) => a + Math.max(0, _num(got.scores[k])), 0);
-        let roll = Utils.random() * total;
-        let kind = 'home';
-        for (const k of ERRANDS) {
-            roll -= Math.max(0, _num(got.scores[k]));
-            if (roll < 0) { kind = k; break; }
-        }
+        const options = ERRANDS.filter(k => _num(got.scores[k]) > 0)
+            .map(k => ({ id: k, worth: _num(got.scores[k]), about: this._errandAbout(k, got, rival) }));
+        const roll = Utils.random();
+        const self = this;
+        const choice = House._brain.chooseErrand({
+            rival, options, roll, house: player && player.house, world,
+            head: rival.head && rival.head.firstName,
+            mood: this.mood(rival, world).id,
+            self: `You are ${this.headName(rival)}, ${this.manner(rival)}, with ${Math.round(_num(rival.gold))} gold in your purse${rival.ambition && this.config().ambitions[rival.ambition.id] ? ` and the ambition to ${this.config().ambitions[rival.ambition.id].name.toLowerCase()}` : ''}.`,
+            memories: () => self.memoryOf(rival, world).slice(0, 5).map(m => self.memoryLabel(m)),
+        });
+        const kind = options.some(o => o.id === choice) ? choice : 'home';
         return { kind, trade: got.trade, estate: got.estate };
+    },
+
+    /** One line on what an errand would mean today, for a model choosing among them. */
+    _errandAbout(kind, got, rival) {
+        if (kind === 'trade' && got.trade) return `buy ${this.goodName(got.trade.good)} in ${got.trade.from.name} and sell it in ${got.trade.to.name}, about ${Math.round(got.trade.gain)} gold to be made`;
+        if (kind === 'invest' && got.estate) return `buy the estate of ${got.estate.name} for ${Math.round(got.estate.price)} gold`;
+        if (kind === 'court') return 'ride to a royal court to win favour (and speak against your rival there)';
+        if (kind === 'shadow') return `ride near your rival and pay ${this.config().plotCost} gold for a plot against them`;
+        if (kind === 'waylay') return 'hunt your rival\'s party on the road and fall on it';
+        if (kind === 'home') return `rest at your seat${rival.seat && rival.seat.name ? ` in ${rival.seat.name}` : ''}`;
+        return '';
     },
 
     /** The best bargain near the retinue: { from, to, good, qty, buy, sell } or null. */
@@ -962,7 +984,10 @@ export const RivalHouses = {
         if ((house.schemes || []).length >= 2) return null;
         const options = Schemes.eligibleTypes(player, world, _num(rival.feud));
         if (!options.length) return null;
-        const choice = House._brain.chooseScheme({ rival, options, roll: Utils.random(), house, world });
+        const choice = House._brain.chooseScheme({
+            rival, options, roll: Utils.random(), house, world, head: rival.head && rival.head.firstName,
+            memories: () => this.memoryOf(rival, world).slice(0, 5).map(m => this.memoryLabel(m)),
+        });
         const scheme = Schemes.hatch(player, world, rival, options.includes(choice) ? choice : options[0]);
         if (scheme) {
             rival.lastPlotDay = _day(world);

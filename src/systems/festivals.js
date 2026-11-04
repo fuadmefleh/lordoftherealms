@@ -6,6 +6,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Peoples } from './peoples.js';
 import { Traits } from './traits.js';
+import { House } from './house.js';
 
 
 export const Festivals = {
@@ -313,8 +314,13 @@ export const Festivals = {
         player.festivals.history.unshift(record);
         Traits.recordDeeds(player, { generosity: 2, popularity: 4, tournament: { champion: 2, strong: 1 }[contestResult.tier] || 0 });
         if (player.festivals.history.length > 20) player.festivals.history.length = 20;
+        // A feast for the realm's envoys is a deed for the House's name; a grand one more so
+        const prestige = House.recordPlayerDeed(player, world, 'festivalHosted', {
+            scale: House.deedScale('festivalHosted', tier.id), reason: `${tier.label.toLowerCase()} at ${record.settlement}`,
+        });
 
         return {
+            prestige,
             success: true,
             tier,
             stance,

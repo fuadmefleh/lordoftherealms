@@ -11,6 +11,7 @@ import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
 import { Ailments } from '../systems/ailments.js';
 import { Ledger } from '../systems/ledger.js';
+import { House } from '../systems/house.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { TownLabour } from '../world/townLabour.js';
 
@@ -220,7 +221,7 @@ export const PlayerReligion = {
     /**
      * Found a new religion
      */
-    foundReligion(player, religionName, tenets) {
+    foundReligion(player, religionName, tenets, world = null) {
         if (player.karma < 10) {
             return { success: false, reason: 'Need at least 10 karma to found a religion' };
         }
@@ -242,7 +243,13 @@ export const PlayerReligion = {
         // Increase faith attribute
         player.faith = Math.min(10, player.faith + 2);
 
-        return { success: true, religion: player.religion };
+        // A faith founded is a deed for the House's name (systems/house.js)
+        const prestige = House.recordPlayerDeed(player, world, 'religionFounded', {
+            reason: `founded ${religionName}`,
+            chronicle: `The House founded a faith: ${religionName}.`, tags: ['faith', 'religionFounded'],
+        });
+
+        return { success: true, religion: player.religion, prestige };
     },
 
     /**
@@ -303,8 +310,12 @@ export const PlayerReligion = {
         player.faith = Math.min(10, player.faith + 0.5);
 
         if (building.id === 'temple') Quests.trackTempleBuilt(player);
+        // A temple or monastery raised to the House's faith (a shrine is too small a thing)
+        const prestige = building.id === 'temple' || building.id === 'monastery'
+            ? House.recordPlayerDeed(player, world, 'templeRaised', { reason: `raised a ${building.name.toLowerCase()}` })
+            : 0;
 
-        return { success: true, building: tile.religiousBuilding, underConstruction: constructionDays > 0, constructionDays };
+        return { success: true, building: tile.religiousBuilding, underConstruction: constructionDays > 0, constructionDays, prestige };
     },
 
     /**
@@ -705,6 +716,10 @@ export const PlayerReligion = {
 
         Quests.track(player, 'miracles_performed');
         Achievements.trackMiracle(player);
+        // Word of a miracle lifts the House's name — a plague called down, not at all
+        result.prestige = House.recordPlayerDeed(player, world, 'miracle', {
+            scale: House.deedScale('miracle', miracle.id), reason: `miracle: ${miracle.name}`,
+        });
 
         return result;
     },

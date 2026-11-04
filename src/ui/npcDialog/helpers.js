@@ -258,4 +258,24 @@ export function _worldContext(npc) {
     return Chatter.promptFacts(Chatter.context(g.world, g.player, { q: g.player.q, r: g.player.r, npc, disposition: mem.disposition }));
 }
 
+/**
+ * What this NPC remembers of the player, for the local model's prompt
+ * (systems/npcBrain.js): the dialog memory NpcDisposition already keeps
+ * (npc._dialogMemory) put into words, weightiest first. [] for a stranger.
+ */
+export function _memoryLines(npc) {
+    const mem = npc && npc._dialogMemory;
+    if (!mem) return [];
+    const out = [];
+    if (mem.threatened) out.push('the player once threatened you');
+    if (mem.giftsReceived > 0) out.push(mem.giftsReceived > 1 ? `the player has given you ${mem.giftsReceived} gifts` : 'the player once gave you a gift');
+    if (mem.flattered) out.push('the player has flattered you before');
+    // (timesSpoken already counts this conversation — the dialog counts it on opening)
+    const before = (mem.timesSpoken || 0) - 1;
+    if (before > 1) out.push(`you have spoken with the player ${before} times before`);
+    else if (before === 1) out.push('you have met the player once before');
+    if (mem.lastAction && typeof mem.lastAction === 'string') out.push(`last time, the player chose to ${mem.lastAction.replace(/_/g, ' ')}`);
+    return out;
+}
+
 export function _getFarewell(type) { return _pick(FAREWELLS[type] || FAREWELLS.villager); }

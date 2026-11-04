@@ -1736,7 +1736,7 @@ Object.assign(ActionMenu, {
 
         window.reforgeArtifact = (artifactId) => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = LegendaryArtifacts.reforgeArtifact(game.player, artifactId);
+            const result = LegendaryArtifacts.reforgeArtifact(game.player, artifactId, game.world);
             if (result.success) {
                 const artifact = result.artifact;
                 game.ui.showNotification('Artifact Reforged!', `${artifact.icon} ${artifact.name} has been restored to glory.`, 'success');

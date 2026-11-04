@@ -5,6 +5,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Quests } from './quests.js';
+import { House } from './house.js';
 
 
 export const LegendaryArtifacts = {
@@ -207,7 +208,7 @@ export const LegendaryArtifacts = {
         return { found: false };
     },
 
-    reforgeArtifact(player, artifactId) {
+    reforgeArtifact(player, artifactId, world = null) {
         this.initialize(player);
         const artifact = this.getArtifactById(artifactId);
         if (!artifact) return { success: false, reason: 'Unknown artifact.' };
@@ -235,6 +236,12 @@ export const LegendaryArtifacts = {
             Quests.generateAvailableQuests(player);
         }
 
-        return { success: true, artifact, reward };
+        // A legend made whole is the House's to boast of (systems/house.js)
+        const prestige = House.recordPlayerDeed(player, world, 'artifactReforged', {
+            reason: `reforged ${artifact.name}`,
+            chronicle: `The House made ${artifact.name} whole again.`, tags: ['artifact', 'artifactReforged'],
+        });
+
+        return { success: true, artifact, reward, prestige };
     },
 };

@@ -5,6 +5,18 @@ import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
+/** The AI Brain status line, from NpcBrain.status(). */
+function _llmStatusText(st) {
+    const s = st || {};
+    switch (s.state) {
+        case 'off': return `● Off — ${s.detail || 'NPCs speak their written lines.'}`;
+        case 'unknown': return '● On — not checked yet.';
+        case 'ready': return '● On — the local model is reachable.';
+        case 'loading': return '● On — the server is still loading its model; written lines until it is ready.';
+        default: return `● On, but not reachable (${s.detail || s.state || 'unknown'}) — written lines are used.`;
+    }
+}
+
 Object.assign(UI.prototype, {
     // ============================================
     // MY PROPERTIES PANEL
@@ -937,6 +949,22 @@ Object.assign(UI.prototype, {
                 <div class="gs-row">
                     <div id="gsLlmTestResult" style="font-size:11px;color:var(--text-secondary);min-height:14px;flex:1;word-break:break-word;"></div>
                 </div>
+                <div class="gs-row">
+                    <div id="gsLlmStatus" title="Whether the game can reach the local model right now" style="font-size:11px;color:var(--text-secondary);flex:1;word-break:break-word;">${_llmStatusText(NpcBrain.status())}</div>
+                </div>
+                <div class="gs-row">
+                    <details style="font-size:11px;color:var(--text-secondary);flex:1;line-height:1.45;">
+                        <summary style="cursor:pointer;color:var(--text-primary);">How to set up a local model</summary>
+                        <ol style="margin:6px 0 0 16px;padding:0;">
+                            <li>Get <b>llama.cpp</b> (its release builds include <code>llama-server</code>) and a chat model in <b>.gguf</b> form — a small instruct model (3–8B, Q4) runs on most machines.</li>
+                            <li>Start it: <code>llama-server -m path/to/model.gguf --port 8080</code>. Wait until it reports it is listening.</li>
+                            <li>Set <b>Server Endpoint</b> to its address (default <code>http://127.0.0.1:8080</code>). <b>Model</b> can stay <code>local</code> — llama-server serves the one it loaded.</li>
+                            <li>Press <b>Test Connection</b>, then turn on <b>Enable Local LLM NPCs</b> and press Apply.</li>
+                            <li>The desktop build can start the server for you: set <code>LOTR_LLAMA_SERVER</code> (the llama-server program), <code>LOTR_LLAMA_MODEL</code> (the .gguf), and optionally <code>LOTR_LLAMA_PORT</code> / <code>LOTR_LLAMA_ARGS</code> before launching.</li>
+                        </ol>
+                        <div style="margin-top:4px;">The model only gives lords and rivals a voice and suggests their next move from what the game allows; the game decides everything. When it is off or unreachable, the written lines are used.</div>
+                    </details>
+                </div>
             </div>
 
             <!-- Display -->
@@ -1129,6 +1157,15 @@ Object.assign(UI.prototype, {
             });
         }
 
+        // LLM — status line: when the brain is on, check the server as the panel opens
+        const llmStatusEl = document.getElementById('gsLlmStatus');
+        if (llmStatusEl && NpcBrain.isEnabled()) {
+            llmStatusEl.textContent = '● Checking the local model…';
+            NpcBrain.refreshStatus()
+                .then((st) => { if (llmStatusEl.isConnected !== false) llmStatusEl.textContent = _llmStatusText(st); })
+                .catch(() => { /* status stays as it was */ });
+        }
+
         // LLM — Test Connection (uses the values currently in the inputs)
         const llmTestBtn = document.getElementById('gsLlmTest');
         if (llmTestBtn) {
@@ -1151,8 +1188,14 @@ Object.assign(UI.prototype, {
                             resultEl.textContent = `✓ Connected — model replied: "${r.detail}"`;
                         } else {
                             resultEl.style.color = '#e08080';
-                            resultEl.textContent = `✗ ${r.stage === 'health' ? 'Unreachable' : 'Query failed'}: ${r.detail}`;
+                            const head = r.stage !== 'health' ? 'Query failed' : r.state === 'loading' ? 'Still loading' : 'Unreachable';
+                            resultEl.textContent = `✗ ${head}: ${r.detail}${r.hint ? ` — ${r.hint}` : ''}`;
                         }
+                    }
+                    const statusEl = document.getElementById('gsLlmStatus');
+                    if (statusEl) {
+                        // The test is a probe of its own; say what it found even while the brain is off
+                        statusEl.textContent = r.ok ? '● Reachable — the model answered.' : `● Not reachable (${r.stage === 'health' ? (r.state || 'unreachable') : 'query failed'}).`;
                     }
                 } catch (e) {
                     if (resultEl) {

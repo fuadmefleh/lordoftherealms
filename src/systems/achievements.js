@@ -6,6 +6,7 @@ import { PlayerMilitary } from '../player/playerMilitary.js';
 import { Foraging, Hunting, FORAGE_RANKS, HUNT_RANKS } from '../player/foraging.js';
 import { Deeds } from './deeds.js';
 import { Traits } from './traits.js';
+import { House } from './house.js';
 import { Kingship } from './kingship.js';
 import { Legacy } from './legacy.js';
 import { Underworld } from './underworld.js';
@@ -762,6 +763,10 @@ export const Achievements = {
                     if (!player.achievements.progress || typeof player.achievements.progress !== 'object') player.achievements.progress = {};
                     player.achievements.progress[id] = { day: (world && world.day) || 0 };
                     newAchievements.push(achievement);
+                    // A deed for the records lifts the House's name, more for the rarer ones
+                    House.recordPlayerDeed(player, world, 'achievement', {
+                        scale: House.deedScale('achievement', achievement.tier), reason: `deed: ${achievement.name}`,
+                    });
                 }
             }
         } finally {

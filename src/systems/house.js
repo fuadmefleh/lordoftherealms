@@ -22,9 +22,12 @@ import { Ledger } from './ledger.js';
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
 
-// Prestige tuning. Source of truth lives here (Housing-style defensive
-// defaults); `DataLoader.house.config` overrides individual keys in-game so the
-// values stay moddable without a hard dependency on the data pipeline in tests.
+// The tables below are the House's content and tuning. data/house.json is the
+// source of truth (`config`, `roles`, `sources`, `sourceScales`, `sinks`,
+// `ambitions`); these constants are identical defensive defaults, used when
+// the data pipeline isn't loaded (unit tests, standalone tools), and each data
+// table is laid over them key by key. `DataLoader.house.<table>` (a runtime /
+// mod override) is laid over both, last.
 const CONFIG = {
     idleWindow: 90,     // days without a notable deed before Prestige decays
     decayPerDay: 1,     // Prestige eroded per idle day
@@ -53,8 +56,7 @@ const ROLE_DEFS = {
 
 // Prestige awarded per notable deed. Every hooked system feeds this table, so
 // unrelated systems (war, faith, titles, quests) all contribute to one
-// dynastic score — the mechanism that makes them relate. Moddable via
-// DataLoader.house.sources.
+// dynastic score — the mechanism that makes them relate.
 const SOURCES = {
     quest: 3,
     contract: 2,
@@ -62,12 +64,24 @@ const SOURCES = {
     titleGained: 6,
     settlementHeld: 12,
     religionFounded: 15,
-    artifactReforged: 10,
+    templeRaised: 4,        // a temple or monastery of the House's faith (PlayerReligion.buildReligiousBuilding)
+    miracle: 2,             // PlayerReligion.performMiracle (scaled per miracle by sourceScales.miracle)
+    artifactReforged: 10,   // a legendary artifact made whole (LegendaryArtifacts.reforgeArtifact)
     nobleMarriage: 8,
+    festivalHosted: 3,      // Festivals.hostFestival (scaled by budget tier)
+    achievement: 2,         // a deed for the records (Achievements.checkAchievements, scaled by tier)
     ambitionMilestone: 10,  // used from Phase 3
 };
 
-// Prestige costs for things gold cannot buy. Moddable via DataLoader.house.sinks.
+// Per-deed multipliers by kind: House.deedScale(deedId, kind). A kind not
+// listed scales 1; a 0 awards nothing (a plague called down is no glory).
+const SOURCE_SCALES = {
+    miracle: { plague: 0, smite: 0.5, resurrection: 3, revelation: 1.5 },
+    festivalHosted: { modest: 1, fine: 1.5, grand: 2.5 },
+    achievement: { bronze: 1, silver: 2, gold: 4, legendary: 8 },
+};
+
+// Prestige costs for things gold cannot buy.
 const SINKS = {
     pressClaim: 15,
     prestigiousMarriage: 10,
@@ -75,11 +89,11 @@ const SINKS = {
     secureSuccession: 20,    // used from Phase 4
 };
 
-// Multi-generational Ambitions. These five are the first tier and the
-// fallback when data is missing; data/house.json `ambitions` adds their
-// rewards and the tiers that follow (each entry's `requires` names the
-// ambition it succeeds), with milestones written as `req` maps over the flat
-// `metrics` object (see House._metrics) — so a new tier is data only.
+// Multi-generational Ambitions. These five are the first tier, kept as the
+// fallback when data is missing; data/house.json `ambitions` restates them
+// (with their rewards) and adds the tiers that follow (each entry's
+// `requires` names the ambition it succeeds). Milestones are `req` maps over
+// the flat `metrics` object (see House._metrics) — so a new tier is data only.
 const AMBITIONS = [
     {
         id: 'seat_of_power',
@@ -87,11 +101,11 @@ const AMBITIONS = [
         name: 'Seat of Power',
         blurb: 'Carve out a realm of your own.',
         milestones: [
-            { id: 'title', label: 'Hold a royal office', test: m => m.hasTitle },
-            { id: 'army', label: 'Field an army of strength 100', test: m => m.armyStrength >= 100 },
-            { id: 'first_hold', label: 'Seize your first settlement', test: m => m.settlementsHeld >= 1 },
+            { id: 'title', label: 'Hold a royal office', req: { hasTitle: true } },
+            { id: 'army', label: 'Field an army of strength 100', req: { armyStrength: 100 } },
+            { id: 'first_hold', label: 'Seize your first settlement', req: { settlementsHeld: 1 } },
         ],
-        capstone: { id: 'realm', label: 'Hold three settlements', test: m => m.settlementsHeld >= 3 },
+        capstone: { id: 'realm', label: 'Hold three settlements', req: { settlementsHeld: 3 } },
     },
     {
         id: 'faith_eternal',
@@ -99,11 +113,11 @@ const AMBITIONS = [
         name: 'Faith Eternal',
         blurb: 'Spread a faith that outlives you.',
         milestones: [
-            { id: 'found', label: 'Found a religion', test: m => m.hasReligion },
-            { id: 'flock', label: 'Gather 1,000 followers', test: m => m.followers >= 1000 },
-            { id: 'temples', label: 'Raise 3 temples', test: m => m.temples >= 3 },
+            { id: 'found', label: 'Found a religion', req: { hasReligion: true } },
+            { id: 'flock', label: 'Gather 1,000 followers', req: { followers: 1000 } },
+            { id: 'temples', label: 'Raise 3 temples', req: { temples: 3 } },
         ],
-        capstone: { id: 'eternal', label: '5,000 followers and 5 temples', test: m => m.followers >= 5000 && m.temples >= 5 },
+        capstone: { id: 'eternal', label: '5,000 followers and 5 temples', req: { followers: 5000, temples: 5 } },
     },
     {
         id: 'merchant_dynasty',
@@ -111,11 +125,11 @@ const AMBITIONS = [
         name: 'Merchant Dynasty',
         blurb: 'Dominate the flow of coin.',
         milestones: [
-            { id: 'estates', label: 'Own 5 properties', test: m => m.properties >= 5 },
-            { id: 'routes', label: 'Run 3 trade routes', test: m => m.tradeRoutes >= 3 },
-            { id: 'coffers', label: 'Amass 25,000 gold', test: m => m.gold >= 25000 },
+            { id: 'estates', label: 'Own 5 properties', req: { properties: 5 } },
+            { id: 'routes', label: 'Run 3 trade routes', req: { tradeRoutes: 3 } },
+            { id: 'coffers', label: 'Amass 25,000 gold', req: { gold: 25000 } },
         ],
-        capstone: { id: 'monopoly', label: '50,000 gold and 5 trade routes', test: m => m.gold >= 50000 && m.tradeRoutes >= 5 },
+        capstone: { id: 'monopoly', label: '50,000 gold and 5 trade routes', req: { gold: 50000, tradeRoutes: 5 } },
     },
     {
         id: 'bloodline_of_kings',
@@ -123,11 +137,11 @@ const AMBITIONS = [
         name: 'Bloodline of Kings',
         blurb: 'Weave your blood through the realms.',
         milestones: [
-            { id: 'wed', label: 'Marry', test: m => m.married },
-            { id: 'heirs2', label: 'Raise 2 children', test: m => m.children >= 2 },
-            { id: 'heirs4', label: 'Raise 4 children', test: m => m.children >= 4 },
+            { id: 'wed', label: 'Marry', req: { married: true } },
+            { id: 'heirs2', label: 'Raise 2 children', req: { children: 2 } },
+            { id: 'heirs4', label: 'Raise 4 children', req: { children: 4 } },
         ],
-        capstone: { id: 'dynasty', label: '4 children across 2 generations', test: m => m.children >= 4 && m.generation >= 2 },
+        capstone: { id: 'dynasty', label: '4 children across 2 generations', req: { children: 4, generation: 2 } },
     },
     {
         id: 'the_great_house',
@@ -135,11 +149,11 @@ const AMBITIONS = [
         name: 'The Great House',
         blurb: 'Build a name that endures the ages.',
         milestones: [
-            { id: 'prestige50', label: 'Reach 50 Prestige', test: m => m.prestige >= 50 },
-            { id: 'holdings8', label: 'Own 8 properties', test: m => m.properties >= 8 },
-            { id: 'gen2', label: 'Survive into a 2nd generation', test: m => m.generation >= 2 },
+            { id: 'prestige50', label: 'Reach 50 Prestige', req: { prestige: 50 } },
+            { id: 'holdings8', label: 'Own 8 properties', req: { properties: 8 } },
+            { id: 'gen2', label: 'Survive into a 2nd generation', req: { generation: 2 } },
         ],
-        capstone: { id: 'great', label: '150 Prestige across 3 generations', test: m => m.prestige >= 150 && m.generation >= 3 },
+        capstone: { id: 'great', label: '150 Prestige across 3 generations', req: { prestige: 150, generation: 3 } },
     },
 ];
 
@@ -163,7 +177,7 @@ function _ambitionCatalog() {
     const src = gd && gd.house && Array.isArray(gd.house.ambitions) ? gd.house.ambitions : null;
     if (_catalog && src === _catalogSrc) return _catalog;
     _catalogSrc = src;
-    const out = AMBITIONS.map(a => ({ ...a }));
+    const out = AMBITIONS.map(a => ({ ...a, milestones: a.milestones.map(_compileStep), capstone: _compileStep(a.capstone) }));
     for (const d of src || []) {
         if (!d || !d.id) continue;
         const base = out.find(a => a.id === d.id);
@@ -198,6 +212,19 @@ const DEFAULT_BRAIN = {
         const opts = ctx.options || [];
         return opts[Math.min(opts.length - 1, Math.floor((ctx.roll || 0) * opts.length))];
     },
+    // ctx: { rival, options: [{ id, worth, about }] (only errands worth
+    // something today, in a fixed order), roll, house, world } → an option id,
+    // drawn by worth. The engine validates the pick (RivalHouses._choose).
+    chooseErrand(ctx) {
+        const opts = ctx.options || [];
+        const total = opts.reduce((a, o) => a + Math.max(0, o.worth || 0), 0);
+        let roll = (ctx.roll || 0) * total;
+        for (const o of opts) {
+            roll -= Math.max(0, o.worth || 0);
+            if (roll < 0) return o.id;
+        }
+        return 'home';
+    },
     // Voice seam. Return a string to override built-in text, or null to keep it.
     narrate() { return null; },
 };
@@ -212,7 +239,16 @@ export const House = {
     /** Inject a provider (Spec 2's LLM brain). Missing methods fall back to the
      *  deterministic defaults, so a partial provider is safe. */
     setBrain(provider) {
-        House._brain = { ...DEFAULT_BRAIN, ...(provider || {}) };
+        const brain = { ...DEFAULT_BRAIN, ...(provider || {}) };
+        // A menu pick is handed the deterministic choice as ctx.fallback, so a
+        // provider that has no answer yet (a cold cache) picks exactly as the
+        // engine would have
+        for (const k of ['chooseScheme', 'chooseErrand']) {
+            if (brain[k] === DEFAULT_BRAIN[k]) continue;
+            const fn = brain[k];
+            brain[k] = (ctx) => fn({ ...ctx, fallback: DEFAULT_BRAIN[k](ctx) });
+        }
+        House._brain = brain;
         return House._brain;
     },
 
@@ -221,22 +257,28 @@ export const House = {
         House._brain = DEFAULT_BRAIN;
     },
 
-    _getConfig() {
-        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.config)
-            ? DataLoader.house.config : null;
-        return override ? { ...CONFIG, ...override } : CONFIG;
+    /**
+     * One table of the House's tuning: the code default, data/house.json's
+     * table over it, then a runtime `DataLoader.house[key]` override over both.
+     * Returns the default object itself when nothing overrides it.
+     */
+    _table(key, defaults) {
+        const gd = DataLoader._gamedata;
+        const data = gd && gd.house && gd.house[key] && typeof gd.house[key] === 'object' ? gd.house[key] : null;
+        const override = DataLoader.house && DataLoader.house[key] && typeof DataLoader.house[key] === 'object' ? DataLoader.house[key] : null;
+        if (!data && !override) return defaults;
+        return { ...defaults, ...(data || {}), ...(override || {}) };
     },
 
-    _getSources() {
-        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.sources)
-            ? DataLoader.house.sources : null;
-        return override ? { ...SOURCES, ...override } : SOURCES;
-    },
+    _getConfig() { return House._table('config', CONFIG); },
+    _getSources() { return House._table('sources', SOURCES); },
+    _getSinks() { return House._table('sinks', SINKS); },
 
-    _getSinks() {
-        const override = (typeof DataLoader !== 'undefined' && DataLoader.house && DataLoader.house.sinks)
-            ? DataLoader.house.sinks : null;
-        return override ? { ...SINKS, ...override } : SINKS;
+    /** The multiplier a deed of this kind earns (sourceScales; 1 when unlisted). */
+    deedScale(deedId, kind) {
+        const t = House._table('sourceScales', SOURCE_SCALES)[deedId];
+        const v = t && kind != null ? t[kind] : undefined;
+        return typeof v === 'number' && Number.isFinite(v) ? v : 1;
     },
 
     // ── Construction ────────────────────────────────────────────
@@ -643,7 +685,12 @@ export const House = {
 
     /** Role metadata for the assignment UI. */
     roleDefs() {
-        return ROLE_DEFS;
+        const t = House._table('roles', ROLE_DEFS);
+        if (t === ROLE_DEFS) return ROLE_DEFS;
+        // Data may restate a role in part: merge each over its default
+        const out = {};
+        for (const id of ROLE_IDS) out[id] = { ...ROLE_DEFS[id], ...((t[id] && typeof t[id] === 'object') ? t[id] : {}) };
+        return out;
     },
 
     /** Find an assignable family member (a living child) by id. */

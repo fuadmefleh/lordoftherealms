@@ -20,7 +20,7 @@ import { PlayerEconomy, Trading } from '../../player/playerEconomy.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
 import { Treasures } from '../../player/treasures.js';
 import { SeasonalWork } from '../../player/seasonalWork.js';
-import { Foraging } from '../../player/foraging.js';
+import { Foraging, Hunting } from '../../player/foraging.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { Relationships } from '../../systems/relationships.js';
@@ -1690,12 +1690,18 @@ export function botDay(game, stats) {
         if (docked && Ships.sellShip(player, docked.id).success) count(stats, 'shipsSold');
     }
     // Running out of food with money in the purse: make for the nearest town and buy some
+    // (one that had food the last time it was tried: a dawn village picked bare is no use)
+    const foodless = game.foodlessAt || (game.foodlessAt = {});
+    const stocked = (t) => !(world.day - (foodless[`${t.q},${t.r}`] ?? -1e9) < 20);
+    let cantBuy = false;
     if (player.getFoodCount() <= 2 && player.gold >= 50 && !player.boardedShip) {
         const at = world.getTile(player.q, player.r);
         if (at && at.settlement) {
             booked(game, 'buyFood', () => buyFood(game, at, stats));
+            if (player.getFoodCount() <= 2) { foodless[`${player.q},${player.r}`] = world.day; cantBuy = true; }
         } else {
-            const town = nearest(world, player, settlementTiles(world), 1)[0];
+            const town = nearest(world, player, settlementTiles(world).filter(stocked), 1)[0];
+            if (!town) cantBuy = true;
             if (town) {
                 game.dest = { q: town.q, r: town.r };
                 const from = `${player.q},${player.r}`;
@@ -1706,14 +1712,23 @@ export function botDay(game, stats) {
                 const now = world.getTile(player.q, player.r);
                 if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
                 count(stats, 'foodRuns');
-                return;
+                // No way there: that town is no help today — off to find food in the wild
+                if (from === `${player.q},${player.r}` && !player.boardedShip) {
+                    foodless[`${town.q},${town.r}`] = world.day;
+                    game.dest = null;
+                    cantBuy = true;
+                } else {
+                    return;
+                }
             }
         }
     }
-    // Broke and foodless: live off the land like anyone would — step out of
-    // town onto forageable ground and spend the day searching it
+    // Low on food and none to be had for money (broke, or nothing on the stalls
+    // — a dawn village sells little): live off the land like anyone would —
+    // step out of town onto forageable ground and forage or hunt the day there
     const forage = DataLoader.earlyJobs && DataLoader.earlyJobs.foraging;
-    if (player.gold < 20 && player.getFoodCount() === 0 && forage) {
+    const lowFood = player.gold < 20 ? player.getFoodCount() === 0 : player.getFoodCount() <= 2 && cantBuy;
+    if (lowFood && forage && !player.boardedShip) {
         // Ground where something edible grows (bare hills give only stone)
         const edible = (t) => {
             const table = t && !t.settlement && t.terrain.passable && Foraging.lootTableFor(t, forage);
@@ -1734,8 +1749,17 @@ export function botDay(game, stats) {
             here = world.getTile(player.q, player.r);
         }
         if (!here.settlement) {
-            const f = Foraging.quickForage(player, here, forage);
-            if (f.success && f.added) count(stats, 'foraged');
+            // Hunt where there is game worth eating (more meat than a forager's handful), else forage
+            const hunt = DataLoader.earlyJobs.hunting;
+            const cat = forage.terrain_mapping && forage.terrain_mapping[here.terrain.id];
+            const prey = hunt && hunt.loot_table && cat ? hunt.loot_table[cat] : null;
+            if (prey && prey.some(e => player.constructor.FOOD_TYPES.includes(e.item)) && Utils.random() < 0.5) {
+                const h = Hunting.quickHunt(player, prey);
+                if (h.success && h.added) count(stats, 'hunted');
+            } else {
+                const f = Foraging.quickForage(player, here, forage);
+                if (f.success && f.added) count(stats, 'foraged');
+            }
             return;
         }
     }

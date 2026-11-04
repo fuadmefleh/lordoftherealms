@@ -12,6 +12,7 @@ import { SettlementServices } from '../settlementServices.js';
 import { DAILY_RATION_HUNGER, MEAL_HUNGER } from './needs.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { Ships } from '../../systems/ships.js';
+import { DawnBirth } from '../dawnBirth.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -49,11 +50,21 @@ export const PlayerLifecycleMethods = {
         this.decayNeedsForDay();
 
         // Daily food consumption — eat 1 food per day
-        if (this.consumeFood()) {
+        // (at the dawn, the kin's pot: fed by your family at their fire, and
+        // repaid when you come home with food to spare — player/dawnBirth.js)
+        this._kinMeal = null;
+        const kinMeal = world && !this.jailState && !this.indenturedServitude && !(this.getFoodCount && this.getFoodCount() > 0)
+            ? DawnBirth.kinMeal(this, world) : null;
+        if (kinMeal && !kinMeal.refused) {
+            this._kinMeal = kinMeal;
+            this.starvationDays = 0;
+            this.modifyNeed('hunger', DAILY_RATION_HUNGER);
+        } else if (this.consumeFood()) {
             // Fed — reset starvation counter
             this.starvationDays = 0;
             // Eating food satisfies hunger
             this.modifyNeed('hunger', DAILY_RATION_HUNGER);
+            if (world) this._kinMeal = DawnBirth.repayKin(this, world);
         } else if (this.jailState || this.indenturedServitude) {
             // Prisoners and bonded workers get their captors' thin gruel: no
             // starving to death in a cell you can't leave to buy bread
@@ -61,6 +72,7 @@ export const PlayerLifecycleMethods = {
             this.modifyNeed('hunger', DAILY_RATION_HUNGER / 2);
         } else {
             // No food — increment starvation
+            if (kinMeal) this._kinMeal = kinMeal; // turned away from the pot
             this.starvationDays = (this.starvationDays || 0) + 1;
 
             // Escalating health loss: 5 + 3 per consecutive day starving

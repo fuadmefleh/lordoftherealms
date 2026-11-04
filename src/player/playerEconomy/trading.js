@@ -41,7 +41,7 @@ export const Trading = {
             goods.push({
                 ...good,
                 quantity: tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult),
-                price: Math.floor(askBase * Math.max(info.scarcity, floor)),
+                price: Math.max(1, Math.floor(askBase * Math.max(info.scarcity, floor))), // (never free: a glut still asks a coin)
                 guildFloor: floor > info.scarcity ? floor : 0,
                 askBase,
                 stock: info.stock,

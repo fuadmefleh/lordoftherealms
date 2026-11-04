@@ -53,6 +53,8 @@ export const NpcBrain = {
 
     /** Append Qwen3's /no_think switch to a prompt when enabled. */
     _noThink(content) {
+        // (a local Qwen-style switch; OpenAI models think by reasoning_effort, systems/llmClient.js)
+        if (LlmClient.getConfig().provider === 'openai') return content;
         return settings.noThink ? `${content}\n/no_think` : content;
     },
 
@@ -73,6 +75,8 @@ export const NpcBrain = {
      */
     applyFromSettings(s = {}, House) {
         const clientOpts = {};
+        if (s.llmProvider) clientOpts.provider = s.llmProvider;
+        if (s.llmApiKey != null) clientOpts.apiKey = String(s.llmApiKey || '').trim();
         if (s.llmEndpoint) clientOpts.endpoint = s.llmEndpoint;
         if (s.llmModel) clientOpts.model = s.llmModel;
         if (s.llmTemperature != null && s.llmTemperature !== '') clientOpts.temperature = Number(s.llmTemperature);
@@ -96,6 +100,8 @@ export const NpcBrain = {
      */
     async testConnection(opts = {}) {
         const clientOpts = {};
+        if (opts.provider) clientOpts.provider = opts.provider;
+        if (opts.apiKey != null) clientOpts.apiKey = String(opts.apiKey || '').trim();
         if (opts.endpoint) clientOpts.endpoint = opts.endpoint;
         if (opts.model) clientOpts.model = opts.model;
         if (opts.temperature != null && opts.temperature !== '') clientOpts.temperature = Number(opts.temperature);
@@ -108,7 +114,9 @@ export const NpcBrain = {
             return {
                 ok: false, stage: 'health', state,
                 detail: p.detail || `no response from ${LlmClient.getConfig().endpoint}`,
-                hint: NpcBrain.HINTS[state] || NpcBrain.HINTS.unreachable,
+                hint: (LlmClient.getConfig().provider === 'openai' && (state === 'unreachable' || state === 'timeout'))
+                    ? NpcBrain.HINTS.openaiUnreachable
+                    : NpcBrain.HINTS[state] || NpcBrain.HINTS.unreachable,
             };
         }
         const res = await LlmClient.chat(
@@ -125,6 +133,10 @@ export const NpcBrain = {
         timeout: 'The server is slow to answer — it may be busy or still starting. Wait a moment and test again.',
         loading: 'llama-server is running but still loading the model. Wait for it to finish, then test again.',
         error: 'Something answered, but not like llama-server. Check the endpoint points at llama-server\'s port.',
+        openaiUnreachable: 'Could not reach api.openai.com: check your internet connection (and that nothing blocks it).',
+        nokey: 'Paste your OpenAI API key (platform.openai.com → API keys) into the API Key box.',
+        badkey: 'OpenAI turned the key down: check it was copied whole and is still active.',
+        nomodel: 'Check the model name (e.g. gpt-6-luna) and that your OpenAI account can use it.',
     },
 
     /**

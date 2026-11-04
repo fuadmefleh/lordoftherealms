@@ -6,12 +6,17 @@ import { RealmIntel } from '../../systems/realmIntel.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 /** The AI Brain status line, from NpcBrain.status(). */
+/** A value safe inside an HTML attribute (the API key field). */
+function _escAttr(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function _llmStatusText(st) {
     const s = st || {};
     switch (s.state) {
         case 'off': return `● Off — ${s.detail || 'NPCs speak their written lines.'}`;
         case 'unknown': return '● On — not checked yet.';
-        case 'ready': return '● On — the local model is reachable.';
+        case 'ready': return '● On — the model is reachable.';
         case 'loading': return '● On — the server is still loading its model; written lines until it is ready.';
         default: return `● On, but not reachable (${s.detail || s.state || 'unknown'}) — written lines are used.`;
     }
@@ -922,11 +927,22 @@ Object.assign(UI.prototype, {
             <div class="gs-section">
                 <div class="gs-section-title">AI Brain (Experimental)</div>
                 <div class="gs-row">
-                    <label>Enable Local LLM NPCs<br><span style="font-size:10px;color:var(--text-secondary);">Requires a local llama-server. Falls back safely when off/offline.</span></label>
+                    <label>Enable AI NPCs<br><span style="font-size:10px;color:var(--text-secondary);">A local llama-server or OpenAI. Falls back safely when off/offline.</span></label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsLlmEnabled" ${s.llmEnabled ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
+                </div>
+                <div class="gs-row">
+                    <label>Provider</label>
+                    <select id="gsLlmProvider" class="gs-select">
+                        <option value="local" ${(s.llmProvider || 'local') === 'local' ? 'selected' : ''}>Local (llama.cpp)</option>
+                        <option value="openai" ${s.llmProvider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                    </select>
+                </div>
+                <div class="gs-row" id="gsLlmKeyRow" style="${s.llmProvider === 'openai' ? '' : 'display:none;'}">
+                    <label>API Key<br><span style="font-size:10px;color:var(--text-secondary);">Kept in this browser's settings only; sent only to the endpoint</span></label>
+                    <input type="password" id="gsLlmApiKey" autocomplete="off" value="${_escAttr(s.llmApiKey || '')}" placeholder="sk-…" style="flex:1;min-width:0;padding:4px 6px;">
                 </div>
                 <div class="gs-row">
                     <label>Server Endpoint</label>
@@ -959,7 +975,8 @@ Object.assign(UI.prototype, {
                             <li>Get <b>llama.cpp</b> (its release builds include <code>llama-server</code>) and a chat model in <b>.gguf</b> form — a small instruct model (3–8B, Q4) runs on most machines.</li>
                             <li>Start it: <code>llama-server -m path/to/model.gguf --port 8080</code>. Wait until it reports it is listening.</li>
                             <li>Set <b>Server Endpoint</b> to its address (default <code>http://127.0.0.1:8080</code>). <b>Model</b> can stay <code>local</code> — llama-server serves the one it loaded.</li>
-                            <li>Press <b>Test Connection</b>, then turn on <b>Enable Local LLM NPCs</b> and press Apply.</li>
+                            <li>Press <b>Test Connection</b>, then turn on <b>Enable AI NPCs</b> and press Apply.</li>
+                            <li><b>Or use OpenAI:</b> set <b>Provider</b> to OpenAI, paste an API key from platform.openai.com, keep the endpoint <code>https://api.openai.com</code> and model <code>gpt-6-luna</code> (fast and cheap, answering without reasoning), press <b>Test Connection</b>, then enable and Apply. Each line spoken is a small paid request on your account.</li>
                             <li>The desktop build can start the server for you: set <code>LOTR_LLAMA_SERVER</code> (the llama-server program), <code>LOTR_LLAMA_MODEL</code> (the .gguf), and optionally <code>LOTR_LLAMA_PORT</code> / <code>LOTR_LLAMA_ARGS</code> before launching.</li>
                         </ol>
                         <div style="margin-top:4px;">The model only gives lords and rivals a voice and suggests their next move from what the game allows; the game decides everything. When it is off or unreachable, the written lines are used.</div>
@@ -1166,14 +1183,33 @@ Object.assign(UI.prototype, {
                 .catch(() => { /* status stays as it was */ });
         }
 
+        // LLM — the provider: OpenAI needs a key; switching swaps the address and model
+        // when they are still the other provider's defaults
+        const provSel = document.getElementById('gsLlmProvider');
+        if (provSel) {
+            provSel.addEventListener('change', () => {
+                const pv = provSel.value;
+                const keyRow = document.getElementById('gsLlmKeyRow');
+                if (keyRow) keyRow.style.display = pv === 'openai' ? '' : 'none';
+                const ep = document.getElementById('gsLlmEndpoint');
+                const md = document.getElementById('gsLlmModel');
+                const D = { local: { endpoint: 'http://127.0.0.1:8080', model: 'local' }, openai: { endpoint: 'https://api.openai.com', model: 'gpt-6-luna' } };
+                const other = D[pv === 'openai' ? 'local' : 'openai'];
+                if (ep && (!ep.value || ep.value === other.endpoint)) ep.value = D[pv].endpoint;
+                if (md && (!md.value || md.value === other.model)) md.value = D[pv].model;
+            });
+        }
+
         // LLM — Test Connection (uses the values currently in the inputs)
         const llmTestBtn = document.getElementById('gsLlmTest');
         if (llmTestBtn) {
             llmTestBtn.addEventListener('click', async () => {
                 const resultEl = document.getElementById('gsLlmTestResult');
                 const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
-                const endpoint = getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080';
-                const model = getVal('gsLlmModel') || 'local';
+                const provider = getVal('gsLlmProvider') || 'local';
+                const apiKey = provider === 'openai' ? getVal('gsLlmApiKey') : '';
+                const endpoint = getVal('gsLlmEndpoint') || (provider === 'openai' ? 'https://api.openai.com' : 'http://127.0.0.1:8080');
+                const model = getVal('gsLlmModel') || (provider === 'openai' ? 'gpt-6-luna' : 'local');
                 const temperature = parseFloat(getVal('gsLlmTemperature')) || 0.7;
                 if (resultEl) {
                     resultEl.style.color = 'var(--text-secondary)';
@@ -1181,7 +1217,7 @@ Object.assign(UI.prototype, {
                 }
                 llmTestBtn.disabled = true;
                 try {
-                    const r = await NpcBrain.testConnection({ endpoint, model, temperature });
+                    const r = await NpcBrain.testConnection({ provider, apiKey, endpoint, model, temperature });
                     if (resultEl) {
                         if (r.ok) {
                             resultEl.style.color = '#7fd07f';
@@ -1305,8 +1341,10 @@ Object.assign(UI.prototype, {
             heralds: getChecked('gsHeralds'),
             townChatter: getChecked('gsTownChatter'),
             llmEnabled: getChecked('gsLlmEnabled'),
-            llmEndpoint: getVal('gsLlmEndpoint') || 'http://127.0.0.1:8080',
-            llmModel: getVal('gsLlmModel') || 'local',
+            llmProvider: getVal('gsLlmProvider') || 'local',
+            llmApiKey: getVal('gsLlmProvider') === 'openai' ? (getVal('gsLlmApiKey') || '').trim() : '',
+            llmEndpoint: getVal('gsLlmEndpoint') || (getVal('gsLlmProvider') === 'openai' ? 'https://api.openai.com' : 'http://127.0.0.1:8080'),
+            llmModel: getVal('gsLlmModel') || (getVal('gsLlmProvider') === 'openai' ? 'gpt-6-luna' : 'local'),
             llmTemperature: parseFloat(getVal('gsLlmTemperature')) || 0.7,
         };
 
@@ -1371,6 +1409,8 @@ Object.assign(UI, {
             townChatter: true,
             // Local LLM NPC brain (Spec 2) — off by default.
             llmEnabled: false,
+            llmProvider: 'local',
+            llmApiKey: '',
             llmEndpoint: 'http://127.0.0.1:8080',
             llmModel: 'local',
             llmTemperature: 0.7,

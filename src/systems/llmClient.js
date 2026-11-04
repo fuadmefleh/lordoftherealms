@@ -12,13 +12,56 @@
 // configured and is off by default (see NpcBrain / settings).
 
 const DEFAULTS = {
+    // 'local' (a llama.cpp llama-server, no key) or 'openai' (OpenAI's API, with an API key)
+    provider: 'local',
+    apiKey: '',
     endpoint: 'http://127.0.0.1:8080',
     model: 'local',
     temperature: 0.7,
     maxTokens: 200,
     timeoutMs: 8000,
     availabilityTtlMs: 15000,   // cache health-probe result this long
+    // OpenAI reasoning models: how hard to think before answering ('none' = answer at once)
+    reasoningEffort: 'none',
 };
+
+/** Where each provider lives and what it serves by default. */
+export const LLM_PROVIDERS = {
+    local: { endpoint: 'http://127.0.0.1:8080', model: 'local', label: 'Local (llama.cpp)' },
+    openai: { endpoint: 'https://api.openai.com', model: 'gpt-6-luna', label: 'OpenAI' },
+};
+
+function isOpenAI() {
+    return config.provider === 'openai';
+}
+
+/** Request headers: the API key as a bearer token when there is one. */
+function headers() {
+    const h = { 'Content-Type': 'application/json' };
+    if (config.apiKey) h.Authorization = `Bearer ${config.apiKey}`;
+    return h;
+}
+
+/**
+ * The chat request body. llama-server takes `max_tokens` and a temperature;
+ * OpenAI's reasoning models take `max_completion_tokens` and a
+ * `reasoning_effort` (and the temperature only with no reasoning).
+ */
+function chatBody(messages, opts, stream) {
+    const temperature = opts.temperature != null ? opts.temperature : config.temperature;
+    const maxTokens = opts.maxTokens || config.maxTokens;
+    const body = { model: opts.model || config.model, messages, stream };
+    if (isOpenAI()) {
+        body.max_completion_tokens = maxTokens;
+        const effort = opts.reasoningEffort || config.reasoningEffort;
+        if (effort) body.reasoning_effort = effort;
+        if (effort === 'none' && temperature != null) body.temperature = temperature;
+    } else {
+        body.temperature = temperature;
+        body.max_tokens = maxTokens;
+    }
+    return JSON.stringify(body);
+}
 
 let config = { ...DEFAULTS };
 let availability = { ok: false, checkedAt: -Infinity };
@@ -63,6 +106,21 @@ export const LlmClient = {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), Math.min(config.timeoutMs, 3000));
         try {
+            if (isOpenAI()) {
+                // OpenAI has no /health: ask for the model itself (a wrong key or model answers plainly)
+                if (!config.apiKey) {
+                    out = { ok: false, state: 'nokey', detail: 'no OpenAI API key is set' };
+                } else {
+                    const res = await fetch(`${config.endpoint}/v1/models/${encodeURIComponent(config.model)}`, { method: 'GET', headers: headers(), signal: ctrl.signal });
+                    if (res && res.ok) out = { ok: true, state: 'ready', detail: `OpenAI serves ${config.model}` };
+                    else if (res && (res.status === 401 || res.status === 403)) out = { ok: false, state: 'badkey', detail: `OpenAI refused the API key (http ${res.status})` };
+                    else if (res && res.status === 404) out = { ok: false, state: 'nomodel', detail: `OpenAI has no model "${config.model}" for this key` };
+                    else if (res && res.status === 429) out = { ok: false, state: 'error', detail: 'OpenAI says too many requests or no quota left (http 429)' };
+                    else out = { ok: false, state: 'error', detail: `OpenAI answered http ${res ? res.status : '?'}` };
+                }
+                availability = { ok: out.ok, checkedAt: t, state: out.state, detail: out.detail };
+                return out;
+            }
             const res = await fetch(`${config.endpoint}/health`, { method: 'GET', signal: ctrl.signal });
             if (res && res.ok) out = { ok: true, state: 'ready', detail: `${config.endpoint} is up` };
             else if (res && res.status === 503) out = { ok: false, state: 'loading', detail: 'the server is still loading its model' };
@@ -98,15 +156,9 @@ export const LlmClient = {
         try {
             const res = await fetch(`${config.endpoint}/v1/chat/completions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers(),
                 signal: ctrl.signal,
-                body: JSON.stringify({
-                    model: opts.model || config.model,
-                    messages,
-                    temperature: opts.temperature != null ? opts.temperature : config.temperature,
-                    max_tokens: opts.maxTokens || config.maxTokens,
-                    stream: false,
-                }),
+                body: chatBody(messages, opts, false),
             });
             clearTimeout(timer);
             if (!res || !res.ok) {
@@ -145,15 +197,9 @@ export const LlmClient = {
         try {
             const res = await fetch(`${config.endpoint}/v1/chat/completions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: headers(),
                 signal: ctrl.signal,
-                body: JSON.stringify({
-                    model: opts.model || config.model,
-                    messages,
-                    temperature: opts.temperature != null ? opts.temperature : config.temperature,
-                    max_tokens: opts.maxTokens || config.maxTokens,
-                    stream: true,
-                }),
+                body: chatBody(messages, opts, true),
             });
             if (!res || !res.ok) {
                 clearTimeout(timer);

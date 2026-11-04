@@ -85,3 +85,46 @@ describe('LlmClient — Phase A transport', () => {
         expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
 });
+
+describe('LlmClient — OpenAI', () => {
+    it('asks OpenAI with the key, its own token cap and no reasoning; llama-server without', async () => {
+        mockChatOk('Aye.');
+        LlmClient.configure({ provider: 'openai', apiKey: 'test-key', endpoint: 'https://api.openai.com', model: 'gpt-6-luna' });
+        const res = await LlmClient.chat([{ role: 'user', content: 'hi' }], { maxTokens: 50 });
+        expect(res.ok).toBe(true);
+        const [url, init] = globalThis.fetch.mock.calls[0];
+        expect(url).toBe('https://api.openai.com/v1/chat/completions');
+        expect(init.headers.Authorization).toBe('Bearer test-key');
+        const body = JSON.parse(init.body);
+        expect(body.model).toBe('gpt-6-luna');
+        expect(body.max_completion_tokens).toBe(50);
+        expect(body.max_tokens).toBeUndefined();
+        expect(body.reasoning_effort).toBe('none');
+        // the local server: no key, max_tokens, no reasoning_effort
+        LlmClient._reset();
+        mockChatOk('Aye.');
+        await LlmClient.chat([{ role: 'user', content: 'hi' }], { maxTokens: 50 });
+        const [, init2] = globalThis.fetch.mock.calls[0];
+        const body2 = JSON.parse(init2.body);
+        expect(init2.headers.Authorization).toBeUndefined();
+        expect(body2.max_tokens).toBe(50);
+        expect(body2.reasoning_effort).toBeUndefined();
+    });
+
+    it('probes OpenAI by its model: no key, a refused key, a missing model, ready', async () => {
+        LlmClient.configure({ provider: 'openai', apiKey: '', endpoint: 'https://api.openai.com', model: 'gpt-6-luna' });
+        globalThis.fetch = vi.fn();
+        expect((await LlmClient.probe()).state).toBe('nokey');
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+        LlmClient.configure({ apiKey: 'k' });
+        globalThis.fetch = vi.fn(async () => ({ ok: false, status: 401 }));
+        expect((await LlmClient.probe()).state).toBe('badkey');
+        globalThis.fetch = vi.fn(async () => ({ ok: false, status: 404 }));
+        expect((await LlmClient.probe()).state).toBe('nomodel');
+        globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200 }));
+        const ok = await LlmClient.probe();
+        expect(ok.ok).toBe(true);
+        expect(globalThis.fetch.mock.calls[0][0]).toBe('https://api.openai.com/v1/models/gpt-6-luna');
+        expect(globalThis.fetch.mock.calls[0][1].headers.Authorization).toBe('Bearer k');
+    });
+});

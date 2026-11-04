@@ -76,6 +76,8 @@ import { Player } from './player.js';
 import { DawnBirth } from './dawnBirth.js';
 import { Dawn } from '../world/dawn.js';
 import { Characters } from '../world/characters.js';
+import { Cultures } from '../world/cultures.js';
+import { Languages } from '../systems/languages.js';
 
 const DEFAULTS = {
     candidates: 4,
@@ -336,13 +338,204 @@ export const Afterlife = {
         return out;
     },
 
+    // ── A new life in a place of one's choosing ─────────
+
     /**
-     * New lives at the dawn: children of the wandering clans, or of the
-     * villages clans have founded (dawnBorn), each with the clan's name and a
-     * family to come (DawnBirth.apply in becomeStranger). → candidates, as
-     * `candidates` returns, with `dawn: { clanId }` or `dawn: { q, r }`.
+     * Every place a new life may begin, for the "Choose a settlement" list:
+     * the living towns and villages (at the Dawn of Man, the villages clans
+     * founded and the clans still wandering). Sorted by realm (the free lands
+     * last), then largest first.
+     * @returns {object[]} [{ id, q, r, name, type, population, kingdom, kingdomId, capital, culture, language, languageName, folk, clanId? }]
      */
-    _dawnCandidates(world, C, rng, pick) {
+    townChoices(world) {
+        if (!world || typeof world.getSettlementViews !== 'function') return [];
+        const day = _num(world.day);
+        const minAge = Afterlife.config().minAge;
+        const dawn = Dawn.isActive(world);
+        const out = [];
+        for (const v of world.getSettlementViews()) {
+            const tile = world.getTile(v.q, v.r);
+            const live = tile && tile.settlement;
+            if (!live || _num(live.population) <= 0) continue;
+            if (dawn && !live.dawnBorn) continue;
+            const k = live.kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(live.kingdom) : null;
+            const culture = Cultures.cultureOf(world, live);
+            const lang = Cultures.languageOfCulture(culture);
+            const folk = _obj(live.folk) && Array.isArray(live.folk.people) ? live.folk : null;
+            out.push({
+                id: `${v.q},${v.r}`, q: v.q, r: v.r, name: live.name, type: live.type || 'village',
+                population: Math.round(_num(live.population)),
+                kingdom: k ? k.name : null, kingdomId: k ? k.id : null,
+                capital: !!(k && k.capital && k.capital.q === v.q && k.capital.r === v.r),
+                culture, language: lang, languageName: lang ? Cultures.languageName(lang) : null,
+                folk: folk ? Townsfolk.residents(folk).filter(p => Townsfolk.age(p, day) >= minAge).length : null,
+            });
+        }
+        if (dawn) {
+            for (const u of world.units || []) {
+                if (u.type !== 'clan' || u.destroyed) continue;
+                const lang = Cultures.languageOfCulture(u.culture);
+                out.push({
+                    id: `clan:${u.id}`, clanId: u.id, q: u.q, r: u.r, name: u.name, type: 'clan',
+                    population: Math.round(_num(u.population)), kingdom: null, kingdomId: null, capital: false,
+                    culture: u.culture || null, language: lang, languageName: lang ? Cultures.languageName(lang) : null, folk: null,
+                });
+            }
+        }
+        out.sort((a, b) => {
+            if (!a.kingdom !== !b.kingdom) return a.kingdom ? -1 : 1;
+            if (a.kingdom !== b.kingdom) return String(a.kingdom).localeCompare(String(b.kingdom));
+            return b.population - a.population || String(a.name).localeCompare(String(b.name));
+        });
+        return out;
+    },
+
+    /** The townChoices entry at hex (q, r): a settlement, else (at the dawn) a clan camped there. */
+    townChoiceAt(world, q, r) {
+        const all = Afterlife.townChoices(world);
+        return all.find(t => t.clanId == null && t.q === q && t.r === r) || all.find(t => t.q === q && t.r === r) || null;
+    },
+
+    /**
+     * People the player could become in one chosen place (`at`: a
+     * townChoices entry, or { q, r } / { clanId }): grown townsfolk of its
+     * own roster first (a roster is seeded for a town never walked through),
+     * then locals with its culture's names, and one newcomer arriving from
+     * elsewhere with a mother tongue of their own. Same ages, stations and
+     * purses as `candidates`; at the Dawn of Man, children born into that
+     * clan or village. Deterministic for a world, place, day and `reroll`;
+     * draws nothing from the shared RNG.
+     * @returns {object[]} as `candidates`, each with `chosen: true`, `culture`,
+     *   `native` (mother tongue), `kin` (family in town) and, for the arrival,
+     *   `newcomer: { from, culture }`
+     */
+    candidatesAt(world, at, reroll = 0) {
+        if (!world || !at || typeof world.getSettlementViews !== 'function') return [];
+        const C = Afterlife.config();
+        const seed = (world.generationParams && world.generationParams.seed) || 1;
+        const where = at.clanId != null ? `clan:${at.clanId}` : `${at.q},${at.r}`;
+        let s = (Utils.hashStr(`${seed}|afterlife-at|${where}|${_num(world.day)}|${reroll}`) >>> 0) || 1;
+        const rng = () => {
+            s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+            return s / 4294967296;
+        };
+        const pick = arr => (arr && arr.length ? arr[Math.floor(rng() * arr.length)] : null);
+
+        // At the Dawn of Man: born into the clan or village chosen
+        if (Dawn.isActive(world)) {
+            const home = Afterlife._dawnHomes(world).find(h => (at.clanId != null
+                ? h.clan && h.clan.id === at.clanId
+                : !h.clan && h.q === at.q && h.r === at.r));
+            if (!home) return [];
+            return Afterlife._dawnCandidates(world, C, rng, pick, [home]).map(c => ({
+                ...c, chosen: true, culture: home.culture || null, native: Cultures.languageOfCulture(home.culture),
+            }));
+        }
+
+        // A town that is still there
+        const tile = typeof world.getTile === 'function' ? world.getTile(at.q, at.r) : null;
+        const live = tile && tile.settlement;
+        if (!live || _num(live.population) <= 0) return [];
+        const day = _num(world.day);
+        const kingdom = live.kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(live.kingdom) : null;
+        const culture = Cultures.cultureOf(world, live);
+        const native = Cultures.languageOfCulture(culture);
+        const base = { q: at.q, r: at.r, town: live.name, townType: live.type, kingdom: kingdom ? kingdom.name : null, chosen: true };
+        const roleOf = (role) => (C.stations[role] ? role : 'villager');
+        const station = (person) => {
+            const st = C.stations[person.role] || C.stations.villager;
+            const g = Array.isArray(st.gold) ? st.gold : [100, 200];
+            return {
+                station: person.role,
+                title: st.title || Townsfolk.title(person.role, person.gender),
+                gold: Math.round(_num(g[0], 100) + rng() * (_num(g[1], 200) - _num(g[0], 100))),
+            };
+        };
+        // Someone not on the roster, named as their people name their own
+        const stranger = (folkLike) => {
+            const gender = rng() < 0.5 ? 'male' : 'female';
+            const roles = Object.entries(C.roleWeights).filter(([r, w]) => w > 0 && C.stations[r]);
+            const wsum = roles.reduce((a, [, w]) => a + w, 0);
+            let roll = rng() * wsum;
+            let role = 'villager';
+            for (const [r, w] of roles) { roll -= w; if (roll <= 0) { role = r; break; } }
+            return {
+                first: pick(Townsfolk._firstNames(folkLike, gender)) || 'Wren',
+                last: pick(Townsfolk._lastNames(folkLike)) || 'Hayward',
+                gender,
+                age: C.minAge + Math.floor(rng() * (C.maxAge - C.minAge + 1)),
+                role,
+                folkId: null,
+            };
+        };
+        const out = [];
+        const names = new Set();
+        const push = (person, extra = {}) => {
+            names.add(`${person.first} ${person.last}`);
+            out.push({
+                key: `${at.q},${at.r}#${extra.newcomer ? 'newcomer' : person.folkId != null ? person.folkId : `n${out.length}`}`,
+                ...person, ...base, culture, native, kin: null, ...station(person), ...extra,
+            });
+        };
+
+        // Its own people first: a town never walked through gets its roster now (systems/townsfolk.js)
+        let folk = _obj(live.folk) && Array.isArray(live.folk.people) ? live.folk : null;
+        if (!folk) folk = Townsfolk.seed(live, world, { q: at.q, r: at.r });
+        const grown = folk ? Townsfolk.residents(folk).filter(p => {
+            const a = Townsfolk.age(p, day);
+            return a >= C.minAge && a <= C.maxAge && p.role !== 'child';
+        }) : [];
+        for (let i = grown.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [grown[i], grown[j]] = [grown[j], grown[i]];
+        }
+        for (const p of grown.slice(0, C.candidates)) {
+            push({ first: p.first, last: p.last, gender: p.gender, age: Townsfolk.age(p, day), role: roleOf(p.retired || p.role), folkId: p.id },
+                { kin: Afterlife._kinLine(folk, p) });
+        }
+        // ...then locals of its culture, when its roster runs short
+        const local = folk || { culture };
+        for (let tries = 0; out.length < C.candidates && tries < C.candidates * 6; tries++) {
+            const person = stranger(local);
+            if (names.has(`${person.first} ${person.last}`)) continue;
+            push(person);
+        }
+        // ...and someone just arriving, from another town (most likely of another tongue)
+        if (C.newcomer !== false) {
+            const others = world.getSettlementViews()
+                .map(v => ({ v, live: world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement }))
+                .filter(t => t.live && t.live !== live && _num(t.live.population) > 0);
+            const foreign = others.filter(t => Cultures.cultureOf(world, t.live) !== culture);
+            const from = pick(foreign.length && rng() < 0.75 ? foreign : others);
+            const fromCulture = from ? Cultures.cultureOf(world, from.live) : culture;
+            push(stranger({ culture: fromCulture }), {
+                culture: fromCulture,
+                native: Cultures.languageOfCulture(fromCulture) || native,
+                newcomer: { from: from ? from.live.name : null, culture: fromCulture },
+            });
+        }
+        return out;
+    },
+
+    /** "wed to Mara · 2 children": a townsperson's living family on the roster, or null. */
+    _kinLine(folk, p) {
+        if (!folk || !p) return null;
+        const alive = id => {
+            const o = Townsfolk.get(folk, id);
+            return o && o.died == null ? o : null;
+        };
+        const parts = [];
+        const sp = p.spouse != null ? alive(p.spouse) : null;
+        if (sp) parts.push(`wed to ${sp.first}`);
+        const kids = (p.kids || []).map(alive).filter(Boolean);
+        if (kids.length) parts.push(kids.length === 1 ? `a ${kids[0].gender === 'female' ? 'daughter' : 'son'}, ${kids[0].first}` : `${kids.length} children`);
+        const parents = (p.parents || []).map(alive).filter(Boolean);
+        if (parents.length) parts.push(parents.length === 2 ? 'both parents living' : `${Townsfolk.kinWord(parents[0], 'parent')} living`);
+        return parts.length ? parts.join(' · ') : null;
+    },
+
+    /** Where one may be born at the dawn: the wandering clans, and the villages clans founded. */
+    _dawnHomes(world) {
         const homes = [];
         for (const u of world.units || []) {
             if (u.type === 'clan' && !u.destroyed) homes.push({ clan: u, q: u.q, r: u.r, name: u.name, clanName: u.clanName, culture: u.culture });
@@ -353,6 +546,18 @@ export const Afterlife = {
             homes.push({ village: live, q: v.q, r: v.r, name: live.name, clanName: DawnBirth.villageClanName(live), culture: live.culture,
                 kingdom: live.kingdom != null && typeof world.getKingdom === 'function' && world.getKingdom(live.kingdom) ? world.getKingdom(live.kingdom).name : null });
         }
+        return homes;
+    },
+
+    /**
+     * New lives at the dawn: children of the wandering clans, or of the
+     * villages clans have founded (dawnBorn), each with the clan's name and a
+     * family to come (DawnBirth.apply in becomeStranger). → candidates, as
+     * `candidates` returns, with `dawn: { clanId }` or `dawn: { q, r }`.
+     * `homes` (from _dawnHomes) narrows where they are born.
+     */
+    _dawnCandidates(world, C, rng, pick, homes = null) {
+        homes = homes ? homes.slice() : Afterlife._dawnHomes(world);
         if (!homes.length) return [];
         for (let i = homes.length - 1; i > 0; i--) {
             const j = Math.floor(rng() * (i + 1));
@@ -498,6 +703,11 @@ export const Afterlife = {
         if (!world || !cand) return { success: false, reason: 'No one to become.' };
         const C = Afterlife.config();
         const cause = old && old.interregnum ? old.interregnum.cause : null;
+        // A town chosen a while ago may have been razed or emptied since (not a wandering clan's camp)
+        if (!cand.dawn || cand.dawn.clanId == null) {
+            const at = typeof world.getTile === 'function' ? world.getTile(cand.q, cand.r) : null;
+            if (!at || !at.settlement || _num(at.settlement.population) <= 0) return { success: false, reason: `${cand.town || 'That town'} is no more.` };
+        }
 
         // The old House: its last reign filed, its epitaph written
         let epitaph = null;
@@ -535,6 +745,8 @@ export const Afterlife = {
         player.inventory = { bread: 10 };
         player.birthDay = _num(world.day) - cand.age * (Relationships._getHeirSettings().daysPerYear || 120);
         player.origin = { station: cand.station, town: cand.town, q: cand.q, r: cand.r, day: _num(world.day), from: old ? old.name : null };
+        if (cand.chosen) player.origin.chosen = true;
+        if (cand.newcomer) player.origin.cameFrom = cand.newcomer.from || null;
         if (annalsPast.length) player.annalsPast = annalsPast;
         // The game's difficulty and victory goal go on into the new life (core/difficulty.js)
         player.scenario = Difficulty.carry(old, world);
@@ -565,6 +777,14 @@ export const Afterlife = {
                 player.lastName = cand.last;
                 player.name = `${player.firstName} ${player.lastName}`.trim();
             }
+        }
+        // A mother tongue: the clan's or the town's, or a newcomer's own (systems/languages.js)
+        Languages.initialize(player, world, { native: cand.native || null });
+        // Someone of the town knows their own realm; a newcomer has yet to learn it
+        if (!cand.newcomer && live && live.kingdom != null && typeof world.getKingdom === 'function' && world.getKingdom(live.kingdom)) {
+            if (!player.kingdomsVisited) player.kingdomsVisited = [];
+            if (!player.kingdomsVisited.includes(live.kingdom)) player.kingdomsVisited.push(live.kingdom);
+            if (typeof player.learnAboutKingdom === 'function') player.learnAboutKingdom(live.kingdom, 'basics');
         }
         House.initialize(player, world);
         House.seedRivals(player, world);

@@ -123,7 +123,7 @@ const EXPECTED_KEYS = [
     'meetingRenounceAllegiance', 'meetingRequestAid', 'meetingRequestTitle', 'meetingRequestTrade',
     'performAttack', 'performRaid', 'performSiege', 'postBail', 'preach', 'readMap', 'reinforceColony',
     'sellMapFromTrade', 'sellMapToArchive', 'sellPlayerMap', 'sendGoldToColony', 'show', 'showAddErrorsMenu',
-    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showHireSailorsMenu', 'showNewLife', '_showNewLifeWelcome', '_afterlifeTakeOver', 'beginInterregnum', 'renderInterregnumBar', 'stopInterregnum', 'passInterregnumDays', 'showJumpIn', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu', 'showUpgradeCulturalMenu',
+    'rowToShip', 'showAttackConfirm', 'showBoardShipMenu', 'showHireSailorsMenu', 'showNewLife', 'showNewLifeTowns', 'showNewLifeAt', '_showNewLifeWelcome', '_afterlifeTakeOver', 'beginInterregnum', 'renderInterregnumBar', 'stopInterregnum', 'passInterregnumDays', 'showJumpIn', 'openTileMenu', 'postSignboardAndManageColony', 'showPortMarketMenu', 'showPropertyPicker', 'showRowAshoreMenu', 'showShipHoldMenu', 'showBountyBoardMenu', 'showBuildCulturalMenu', 'showUpgradeCulturalMenu',
     'showBuildInfrastructureMenu', 'showBuildPropertyMenu', 'showBuildTempleMenu', 'showBuskingMenu',
     'showBuyHouseMenu', 'showCartographyMenu', 'showCharacterDataModal', 'showContractMenu',
     'showCouncilMenu', 'showDeathScreen', 'showDonateMenu', 'showDynastyMenu', 'showEspionageMenu',
@@ -155,8 +155,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 367 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(367);
+    it('has 369 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(369);
     });
 
     it('every member except the known data props is a function', () => {

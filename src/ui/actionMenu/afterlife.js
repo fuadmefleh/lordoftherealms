@@ -4,8 +4,9 @@
 // of age or as someone new. Logic lives in player/afterlife.js; these panels
 // present it.
 import { ActionMenu } from './_ref.js';
-import { Relationships, InnerMapRenderer, SaveLoad } from './_imports.js';
+import { Relationships, InnerMapRenderer, SaveLoad, InnerMap } from './_imports.js';
 import { Afterlife } from '../../player/afterlife.js';
+import { Cultures } from '../../world/cultures.js';
 
 const BAR_ID = 'interregnumBar';
 const BTN = 'padding:6px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.06);color:var(--text-primary);';
@@ -16,6 +17,134 @@ function _esc(s) {
 }
 
 function _plural(n, word) { return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+/** One person to become, as a card with its "Become" button (window._afterlifeBecome(i)). */
+function _candidateCard(c, i) {
+    const icon = c.gender === 'female' ? '👩' : '🧑';
+    let html = '<div style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;margin-bottom:6px;">';
+    html += `<div style="display:flex;justify-content:space-between;gap:8px;"><strong>${icon} ${_esc(c.first)} ${_esc(c.last)}</strong><span style="color:var(--gold);">${c.gold}g</span></div>`;
+    html += `<div style="color:#bbb;margin:2px 0 6px;">${_esc(c.title)}, aged ${c.age} · ${_esc(c.town)} (${_esc(c.townType)})${c.kingdom ? ` in ${_esc(c.kingdom)}` : ', beholden to no crown'}${c.folkId != null ? ' · <span title="Someone of this town\'s own people">a townsperson</span>' : ''}</div>`;
+    if (c.newcomer) {
+        const tongue = c.native ? Cultures.languageName(c.native) : null;
+        html += `<div style="color:#c9b27a;margin:-2px 0 6px;">🧳 Just arrived${c.newcomer.from ? ` from ${_esc(c.newcomer.from)}` : ''}${c.newcomer.culture ? ` · ${_esc(c.newcomer.culture)}` : ''}${tongue ? `, speaking ${_esc(tongue)}` : ''}. A stranger here.</div>`;
+    } else if (c.kin) {
+        html += `<div style="color:#999;margin:-2px 0 6px;">Family here: ${_esc(c.kin)}</div>`;
+    }
+    html += `<button onclick="window._afterlifeBecome(${i})" style="width:100%;${BTN_GOLD}">Become ${_esc(c.first)}</button>`;
+    html += '</div>';
+    return html;
+}
+
+/** "Riverford · town of 2,400 · Imperial, speaking Old Imperial · capital of Aster" */
+function _townLine(t) {
+    const kind = t.type === 'clan' ? `wandering clan of ${t.population}` : `${t.type === 'capital' ? 'city' : _esc(t.type)} of ${Number(t.population).toLocaleString()}`;
+    const tongue = t.languageName ? `, speaking ${_esc(t.languageName)}` : '';
+    const realm = t.kingdom ? `${t.capital ? 'capital of' : 'in'} ${_esc(t.kingdom)}` : (t.type === 'clan' ? 'roaming the wilds' : 'beholden to no crown');
+    const folk = t.folk ? ` · <span title="Grown townspeople you may have heard of">${t.folk} known folk</span>` : '';
+    return `<strong>${t.capital ? '👑 ' : ''}${_esc(t.name)}</strong> <span style="color:#bbb;">· ${kind} · ${t.culture ? _esc(t.culture) : 'of no known people'}${tongue} · ${realm}${folk}</span>`;
+}
+
+/** The settlement list, filtered by `state.query` and sorted by `state.sort` ('realm' groups under headings). */
+function _townListHtml(towns, state) {
+    const q = String(state.query || '').trim().toLowerCase();
+    let list = !q ? towns.slice() : towns.filter(t => [t.name, t.kingdom, t.culture, t.languageName, t.type]
+        .some(v => v && String(v).toLowerCase().includes(q)));
+    if (state.sort === 'size') list.sort((a, b) => b.population - a.population);
+    else if (state.sort === 'name') list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    if (!list.length) return '<p style="color:#aaa;">No settlement by that name.</p>';
+    let html = '';
+    let group;
+    for (const t of list) {
+        if (state.sort === 'realm') {
+            const g = t.kingdom || (t.type === 'clan' ? 'Wandering clans' : 'Free lands');
+            if (g !== group) {
+                group = g;
+                const n = list.filter(o => (o.kingdom || (o.type === 'clan' ? 'Wandering clans' : 'Free lands')) === g).length;
+                html += `<div style="color:var(--gold);font-weight:700;margin:8px 0 4px;">${_esc(g)} <span style="color:#888;font-weight:400;">(${n})</span></div>`;
+            }
+        }
+        html += `<button onclick="window._afterlifeTown('${_esc(t.id)}')" style="display:block;width:100%;text-align:left;margin-bottom:4px;${BTN}font-weight:400;">${_townLine(t)}</button>`;
+    }
+    return html;
+}
+
+/** Leave the new-life panels: to the deathbed, or to the interregnum's Jump In. */
+function _backFromNewLife(game, fromDeath, cause) {
+    if (fromDeath) ActionMenu.showDeathScreen(game, cause);
+    else ActionMenu.showJumpIn(game);
+}
+
+/** Become `cand` (a random one or one of a chosen town) and hand the game over. */
+function _become(game, cand, fromDeath, cause) {
+    if (!cand) return;
+    const world = game.world;
+    // A town chosen may be gone: refuse before the old life is closed
+    const tile = world.getTile(cand.q, cand.r);
+    if (!(cand.dawn && cand.dawn.clanId != null) && !(tile && tile.settlement && tile.settlement.population > 0)) {
+        game.ui.showNotification('Cannot', `${cand.town || 'That town'} is no more.`, 'error');
+        return;
+    }
+    // Leaving straight from the death screen: the reign is filed with its cause first
+    if (fromDeath) Afterlife.begin(game.player, world, cause);
+    const res = Afterlife.becomeStranger(game.player, world, cand);
+    if (!res.success) {
+        game.ui.showNotification('Cannot', res.reason || 'Something went wrong.', 'error');
+        return;
+    }
+    ActionMenu._afterlifeTakeOver(game, res.player);
+    ActionMenu._showNewLifeWelcome(game, cand, res);
+}
+
+const PICK_BAR_ID = 'newLifePickBar';
+
+/**
+ * Pick the new life's settlement on the world map: the panel steps aside, a
+ * bar says what to do, and the next map click on a settlement (or, at the
+ * dawn, a clan) opens its people. Escape or Cancel goes back to the list.
+ * No day can end while picking.
+ */
+function _pickOnMap(game, cause, listState) {
+    const wasFollowing = game.camera ? game.camera.following : null;
+    const wasProcessing = !!game.isProcessingTurn;
+    const done = () => {
+        game._hexPick = null;
+        game.isProcessingTurn = wasProcessing;
+        if (game.camera && wasFollowing != null) game.camera.following = wasFollowing;
+        const bar = document.getElementById(PICK_BAR_ID);
+        if (bar) bar.remove();
+    };
+    const cancel = () => {
+        done();
+        ActionMenu.showNewLifeTowns(game, cause, listState || {});
+    };
+    game._hexPick = {
+        onPick: (q, r) => {
+            const at = Afterlife.townChoiceAt(game.world, q, r);
+            if (!at) {
+                game.ui.showNotification('🏘️ Not there', 'Click a town or village on the map (or Cancel).', 'default');
+                return;
+            }
+            done();
+            ActionMenu.showNewLifeAt(game, at, 0, cause, listState);
+        },
+        onCancel: cancel,
+    };
+    game.isProcessingTurn = true;
+    if (game.camera) game.camera.following = false;
+    game.ui.hideCustomPanel();
+    let bar = document.getElementById(PICK_BAR_ID);
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = PICK_BAR_ID;
+        bar.style.cssText = 'position:fixed;left:0;right:0;top:64px;display:flex;justify-content:center;pointer-events:none;z-index:900;';
+        document.body.appendChild(bar);
+    }
+    bar.innerHTML = '<div style="pointer-events:auto;zoom:var(--ui-zoom, 1);max-width:96vw;background:rgba(18,20,28,0.94);border:1px solid rgba(245,197,66,0.45);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px rgba(0,0,0,0.5);font-size:12px;color:var(--text-primary);display:flex;gap:10px;align-items:center;">'
+        + '<strong style="color:var(--gold);">🗺️ Click the settlement your new life begins in</strong>'
+        + `<span style="color:#aaa;">drag to look around · Esc to cancel</span>`
+        + `<button onclick="window._afterlifePickCancel()" style="${BTN}">Cancel</button></div>`;
+    window._afterlifePickCancel = cancel;
+}
 
 Object.assign(ActionMenu, {
     // ── A new life ──────────────────────────────────────
@@ -31,14 +160,9 @@ Object.assign(ActionMenu, {
         let html = '<div style="max-height:560px;overflow-y:auto;font-size:12px;">';
         html += '<p style="color:var(--text-secondary);margin-top:0;">Become someone living in the world now. Your House ends with its chronicle; what it held passes to the crowns and towns. You keep only what you see on the map.</p>';
         if (!people.length) html += '<p>No one could be found.</p>';
-        people.forEach((c, i) => {
-            const icon = c.gender === 'female' ? '👩' : '🧑';
-            html += '<div style="background:rgba(0,0,0,0.3);padding:10px;border-radius:6px;margin-bottom:6px;">';
-            html += `<div style="display:flex;justify-content:space-between;gap:8px;"><strong>${icon} ${_esc(c.first)} ${_esc(c.last)}</strong><span style="color:var(--gold);">${c.gold}g</span></div>`;
-            html += `<div style="color:#bbb;margin:2px 0 6px;">${_esc(c.title)}, aged ${c.age} · ${_esc(c.town)} (${_esc(c.townType)})${c.kingdom ? ` in ${_esc(c.kingdom)}` : ', beholden to no crown'}${c.folkId != null ? ' · <span title="Someone of this town\'s own people">a townsperson</span>' : ''}</div>`;
-            html += `<button onclick="window._afterlifeBecome(${i})" style="width:100%;${BTN_GOLD}">Become ${_esc(c.first)}</button>`;
-            html += '</div>';
-        });
+        people.forEach((c, i) => { html += _candidateCard(c, i); });
+        // Or begin in a place of your own choosing (ActionMenu.showNewLifeTowns)
+        html += `<button onclick="window._afterlifeChooseTown()" style="width:100%;margin-top:2px;${BTN}">🏘️ Choose a settlement: begin a life in the town of your choice</button>`;
         html += '<div style="display:flex;gap:6px;margin-top:8px;">';
         html += `<button onclick="window._afterlifeReroll()" style="flex:1;${BTN}">🎲 Other people</button>`;
         html += `<button onclick="window._afterlifeBack()" style="flex:1;${BTN}">← Back</button>`;
@@ -47,30 +171,87 @@ Object.assign(ActionMenu, {
         game.ui.showCustomPanel('🎭 A New Life', html, { locked: fromDeath });
 
         window._afterlifeReroll = () => ActionMenu.showNewLife(game, reroll + 1, cause);
-        window._afterlifeBack = () => {
-            if (fromDeath) ActionMenu.showDeathScreen(game, cause);
-            else ActionMenu.showJumpIn(game);
+        window._afterlifeChooseTown = () => ActionMenu.showNewLifeTowns(game, cause);
+        window._afterlifeBack = () => _backFromNewLife(game, fromDeath, cause);
+        window._afterlifeBecome = (i) => _become(game, people[i], fromDeath, cause);
+    },
+
+    /**
+     * Choose where the new life begins: every living settlement, searchable,
+     * grouped by realm (or sorted by size or name), with its size, culture and
+     * tongue — or picked by clicking it on the world map.
+     * `opts`: { query, sort } to reopen as it was left.
+     */
+    showNewLifeTowns(game, cause = null, opts = {}) {
+        const world = game.world;
+        const fromDeath = !Afterlife.active(game.player);
+        const towns = Afterlife.townChoices(world);
+        const state = { query: opts.query || '', sort: opts.sort || 'realm' };
+        const dawn = towns.some(t => t.type === 'clan');
+        let html = '<div style="font-size:12px;">';
+        html += `<p style="color:var(--text-secondary);margin-top:0;">Pick the ${dawn ? 'clan or village' : 'town or village'} your new life begins in. You will be offered some of its own people, and someone just arriving there.</p>`;
+        html += '<div style="display:flex;gap:6px;margin-bottom:6px;">';
+        html += `<input id="newLifeTownSearch" type="text" placeholder="Search by name, realm or culture…" value="${_esc(state.query)}" style="flex:1;min-width:0;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.16);background:rgba(0,0,0,0.35);color:var(--text-primary);font-size:12px;">`;
+        html += `<select id="newLifeTownSort" style="padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.16);background:rgba(0,0,0,0.35);color:var(--text-primary);font-size:12px;">`;
+        for (const [v, label] of [['realm', 'By realm'], ['size', 'Largest first'], ['name', 'By name']]) html += `<option value="${v}"${state.sort === v ? ' selected' : ''}>${label}</option>`;
+        html += '</select></div>';
+        html += `<div id="newLifeTownList" style="max-height:440px;overflow-y:auto;">${_townListHtml(towns, state)}</div>`;
+        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+        // The world map takes the click (ui/game/gameLoop.js handleClick, game._hexPick)
+        if (!InnerMap.active && game.renderer) html += `<button onclick="window._afterlifePickOnMap()" style="flex:1;${BTN}">🗺️ Pick on the map</button>`;
+        html += `<button onclick="window._afterlifeTownsBack()" style="flex:1;${BTN}">← Back</button>`;
+        html += '</div></div>';
+        game.ui.showCustomPanel('🏘️ Where the New Life Begins', html, { locked: fromDeath });
+
+        const redraw = () => {
+            const list = typeof document !== 'undefined' && document.getElementById('newLifeTownList');
+            if (list) list.innerHTML = _townListHtml(towns, state);
         };
-        window._afterlifeBecome = (i) => {
-            const cand = people[i];
-            if (!cand) return;
-            // Leaving straight from the death screen: the reign is filed with its cause first
-            if (fromDeath) Afterlife.begin(game.player, world, cause);
-            const res = Afterlife.becomeStranger(game.player, world, cand);
-            if (!res.success) {
-                game.ui.showNotification('Cannot', res.reason || 'Something went wrong.', 'error');
-                return;
-            }
-            ActionMenu._afterlifeTakeOver(game, res.player);
-            ActionMenu._showNewLifeWelcome(game, cand, res);
+        const search = typeof document !== 'undefined' && document.getElementById('newLifeTownSearch');
+        if (search) search.addEventListener('input', () => { state.query = search.value; redraw(); });
+        const sort = typeof document !== 'undefined' && document.getElementById('newLifeTownSort');
+        if (sort) sort.addEventListener('change', () => { state.sort = sort.value; redraw(); });
+
+        window._afterlifeTown = (id) => {
+            const at = towns.find(t => t.id === id);
+            if (at) ActionMenu.showNewLifeAt(game, at, 0, cause, state);
         };
+        window._afterlifePickOnMap = () => _pickOnMap(game, cause, state);
+        window._afterlifeTownsBack = () => ActionMenu.showNewLife(game, 0, cause);
+    },
+
+    /** The people of one chosen place (`at`: an Afterlife.townChoices entry) to become. */
+    showNewLifeAt(game, at, reroll = 0, cause = null, listState = null) {
+        const world = game.world;
+        const fromDeath = !Afterlife.active(game.player);
+        const people = Afterlife.candidatesAt(world, at, reroll);
+        let html = '<div style="max-height:560px;overflow-y:auto;font-size:12px;">';
+        html += `<div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);padding:8px 10px;border-radius:6px;margin-bottom:8px;">${_townLine(at)}</div>`;
+        if (!people.length) html += `<p>No one could be found in ${_esc(at.name)}: it may be no more. Choose another place.</p>`;
+        people.forEach((c, i) => { html += _candidateCard(c, i); });
+        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+        if (people.length) html += `<button onclick="window._afterlifeRerollAt()" style="flex:1;${BTN}">🎲 Other people</button>`;
+        html += `<button onclick="window._afterlifeOtherTown()" style="flex:1;${BTN}">🏘️ Another settlement</button>`;
+        html += `<button onclick="window._afterlifeBackAt()" style="flex:1;${BTN}">← Back</button>`;
+        html += '</div></div>';
+        game.ui.showCustomPanel(`🎭 A New Life in ${at.name}`, html, { locked: fromDeath });
+
+        window._afterlifeRerollAt = () => ActionMenu.showNewLifeAt(game, at, reroll + 1, cause, listState);
+        window._afterlifeOtherTown = () => ActionMenu.showNewLifeTowns(game, cause, listState || {});
+        window._afterlifeBackAt = () => ActionMenu.showNewLife(game, 0, cause);
+        window._afterlifeBecome = (i) => _become(game, people[i], fromDeath, cause);
     },
 
     _showNewLifeWelcome(game, cand, res) {
         const p = res.player;
         let html = '<div style="text-align:center;font-size:12px;">';
         html += `<h3 style="color:var(--gold);margin-top:0;">${_esc(p.name)}</h3>`;
-        html += `<p style="font-size:14px;">You are ${_esc(p.name)}, ${_esc(cand.title.toLowerCase())} of ${_esc(cand.town)}${cand.kingdom ? ` in ${_esc(cand.kingdom)}` : ''}, aged ${p.age}, with ${p.gold} gold to your name.</p>`;
+        if (cand.newcomer) {
+            html += `<p style="font-size:14px;">You are ${_esc(p.name)}, ${_esc(cand.title.toLowerCase())}, aged ${p.age}, newly come to ${_esc(cand.town)}${cand.kingdom ? ` in ${_esc(cand.kingdom)}` : ''}${cand.newcomer.from ? ` from ${_esc(cand.newcomer.from)}` : ''}, with ${p.gold} gold to your name.</p>`;
+            if (p.nativeLanguage) html += `<p style="font-size:12px;color:#c9b27a;">You speak ${_esc(Cultures.languageName(p.nativeLanguage))}; the folk here may not.</p>`;
+        } else {
+            html += `<p style="font-size:14px;">You are ${_esc(p.name)}, ${_esc(cand.title.toLowerCase())} of ${_esc(cand.town)}${cand.kingdom ? ` in ${_esc(cand.kingdom)}` : ''}, aged ${p.age}, with ${p.gold} gold to your name.</p>`;
+        }
         // Born at the dawn: a family of the clan (player/dawnBirth.js)
         if (res.kin) html += `<p style="font-size:13px;color:#c9b27a;">You were born to the clan, and your kin are with you: ${_esc(res.kin)}. Their pot is yours when your packs are empty — pay it back.</p>`;
         const e = res.epitaph;

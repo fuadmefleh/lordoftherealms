@@ -437,6 +437,8 @@ Besides an heir, the death screen offers two other ways on (`player/afterlife.js
   | Merchant | 700–1,800 | +1 charisma, +1 intelligence, +2 commerce |
   | Minor Noble | 2,500–6,000 | +2 charisma, +1 intelligence, +2 leadership, +2 diplomacy |
 
+  **🏘️ Choose a settlement** lets you pick where the new life begins instead. The list shows every town and village still standing, grouped by realm (or largest first, or by name), with its size, culture and tongue; type to search it, or press **🗺️ Pick on the map** and click a settlement on the world map (Esc cancels). You are then offered four of that town's own grown townsfolk (with a word on the family they have there), filled out with locals named the way its people name their own, plus one **newcomer** just arrived from another town, who speaks their own mother tongue and may not know the local one. Ages, stations and purses follow the table above. A local of the town speaks its tongue and knows the basics of its realm; a newcomer has that to learn. At the Dawn of Man the list holds the clans' villages and the wandering clans, and you are born into the one you choose. A town razed or emptied while you chose cannot be begun in.
+
   Your old House ends and its epitaph is written. What it held in the world passes on:
   - estates escheat to the crown of their realm;
   - mining leases go back to the crown, and tax farms end;

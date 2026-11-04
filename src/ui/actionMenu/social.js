@@ -1122,6 +1122,11 @@ Object.assign(ActionMenu, {
             html += '<h3 style="color: #a33; margin-top: 0;">💀 Starvation</h3>';
             html += `<p style="font-size: 14px;">${player.name} has perished from starvation after ${player.starvationDays || '?'} days without food, at the age of ${player.age}.</p>`;
             html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"Even the mightiest lord cannot defy hunger forever."</p>';
+        } else if (cause === 'drowning') {
+            // Spent or frozen in the water (player/swimming.js)
+            html += '<h3 style="color: #a33; margin-top: 0;">🌊 Drowned</h3>';
+            html += `<p style="font-size: 14px;">${player.name} went under and did not come up again, at the age of ${player.age}.</p>`;
+            html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"The water keeps what it takes."</p>';
         } else if (cause === 'illness' || cause === 'wounds') {
             // Death from a disease or festering wounds (systems/ailments.js)
             const dc = (player.ailments && player.ailments.deathCause) || {};

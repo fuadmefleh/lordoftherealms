@@ -21,7 +21,8 @@ Object.assign(InnerMap, {
         }
 
         const tile = this.tiles[newR][newQ];
-        if (!tile.subTerrain.passable || this._stepBlocked(this.playerInnerQ, this.playerInnerR, newQ, newR)) {
+        // (water the player may swim into counts: world/innerMap/swimming.js)
+        if (!this._playerMayEnter(tile, newQ, newR) || this._stepBlocked(this.playerInnerQ, this.playerInnerR, newQ, newR)) {
             return { moved: false, encounter: null, outOfBounds: false };
         }
 
@@ -56,12 +57,12 @@ Object.assign(InnerMap, {
         }
 
         const tile = this.tiles[targetR][targetQ];
-        if (!tile.subTerrain.passable) {
-            return { started: false, moved: false, encounter: null, outOfBounds: false };
+        if (!this._playerMayEnter(tile, targetQ, targetR)) {
+            return { started: false, moved: false, encounter: null, outOfBounds: false, refused: !tile.subTerrain.passable && this.isSwimmable(targetQ, targetR) ? this._swimRefusal : null };
         }
 
-        // A* pathfinding
-        const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR);
+        // A* pathfinding (the player may swim where swimming is allowed)
+        const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR, { swim: !!this._swimAllowed });
         if (!path || path.length <= 1) {
             return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
@@ -391,7 +392,11 @@ Object.assign(InnerMap, {
     updatePlayer(deltaTime) {
         if (!this._playerWalking || !this._playerPath) return null;
 
-        this._playerMoveProgress += deltaTime * this._playerSpeed;
+        // A stroke through deep water is slower than a step (world/innerMap/swimming.js)
+        const next = this._playerPath[this._playerPathIndex];
+        const nextTile = next && this.tiles[next.r] && this.tiles[next.r][next.q];
+        const inWater = (nextTile && !nextTile.subTerrain.passable) || this.isPlayerSwimming();
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) : 1);
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -399,9 +404,9 @@ Object.assign(InnerMap, {
             // Advance to the next step
             const step = this._playerPath[this._playerPathIndex];
 
-            // Defensive: never step onto impassable tile
+            // Defensive: never step onto impassable tile (water only while swimming is allowed)
             const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
-            if (!stepTile || !stepTile.subTerrain.passable || this._stepBlocked(this.playerInnerQ, this.playerInnerR, step.q, step.r)) {
+            if (!stepTile || !this._playerMayEnter(stepTile, step.q, step.r) || this._stepBlocked(this.playerInnerQ, this.playerInnerR, step.q, step.r)) {
                 this.cancelPlayerWalk();
                 return { moved: false, encounter: null, blocked: true };
             }
@@ -481,8 +486,11 @@ Object.assign(InnerMap, {
     /**
      * Simple A* pathfinding for the inner map (binary-heap based)
      */
-    _findPath(startQ, startR, endQ, endR) {
+    _findPath(startQ, startR, endQ, endR, opts = null) {
         const W = this.width, H = this.height;
+        // The player's paths may swim (each water tile dearer than a step); nobody else's do
+        const swim = !!(opts && opts.swim);
+        const swimCost = swim ? Math.max(1, Number(this.swimConfig().pathCost) || 3) : 1;
         const tiles = this.tiles;
         // Flat index helpers
         const idx = (q, r) => r * W + q;
@@ -570,7 +578,6 @@ Object.assign(InnerMap, {
             inClosed[ci] = 1;
 
             const cq = cur.q, cr = cur.r;
-            const ng = gScore[ci] + 1;
 
             for (let d = 0; d < 4; d++) {
                 const nq = cq + dq[d];
@@ -579,7 +586,11 @@ Object.assign(InnerMap, {
                 const ni = idx(nq, nr);
                 if (inClosed[ni]) continue;
                 const tile = tiles[nr][nq];
-                if (!tile.subTerrain.passable) continue;
+                let ng = gScore[ci] + 1;
+                if (!tile.subTerrain.passable) {
+                    if (!swim || !this.isSwimmable(nq, nr)) continue;
+                    ng = gScore[ci] + swimCost;
+                }
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

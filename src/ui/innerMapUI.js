@@ -381,7 +381,11 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'header', label: `${tile.subTerrain.icon} ${tile.subTerrain.name}` });
 
                 if (!isPlayerHere) {
-                    menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
+                    // Water you can't stand in: swim there (world/innerMap/swimming.js, player/swimming.js)
+                    const swimTo = !tile.subTerrain.passable && InnerMap.isSwimmable(q, r);
+                    if (!swimTo) menuItems.push({ type: 'action', action: 'move_here', label: 'Move Here', icon: '🚶', desc: 'Walk to this spot' });
+                    else if (InnerMap._swimAllowed) menuItems.push({ type: 'action', action: 'move_here', label: 'Swim Here', icon: '🏊', desc: 'Into the water: slow, tiring — and cold in winter' });
+                    else menuItems.push({ type: 'disabled', label: `🏊 Swim — ${InnerMap._swimRefusal || 'not now'}` });
                 }
 
                 // Terrain interaction actions
@@ -706,7 +710,8 @@ Object.assign(InnerMapRenderer, {
 
         if (action === 'move_here') {
             InnerMap.cancelPlayerWalk();
-            InnerMap.movePlayerTo(q, r);
+            const walk = InnerMap.movePlayerTo(q, r);
+            if (walk && walk.refused) game.ui.showNotification('🏊 Not Now', walk.refused, 'warning');
             return;
         }
         if (this._handleGroundAction(game, { ...item, q, r })) return;

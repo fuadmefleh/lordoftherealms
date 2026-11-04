@@ -10,6 +10,7 @@ import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
+import { Swimming } from '../../player/swimming.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -90,8 +91,19 @@ export function gameLoop(timestamp, loopId) {
         // Update toolbar: show/hide "Exit Building" button
         this._updateBuildingExitButton();
 
+        // May the player take to the water (player/swimming.js; world/innerMap/swimming.js)?
+        const swimOk = Swimming.canSwim(this.player);
+        InnerMap._swimAllowed = swimOk.ok || InnerMap.isPlayerSwimming(); // (already in: always on to the shore)
+        InnerMap._swimRefusal = swimOk.ok ? null : swimOk.reason;
+        InnerMap._swimSpeedBonus = Swimming.speedBonus(this.player);
+
         // Update player walking animation
+        const preQ = InnerMap.playerInnerQ, preR = InnerMap.playerInnerR;
         const playerStepResult = InnerMap.updatePlayer(simDelta);
+        // A stroke through the water: tiredness, the cold, a wash, going under
+        if (InnerMap.playerInnerQ !== preQ || InnerMap.playerInnerR !== preR) {
+            _swimStep(this);
+        }
         // Wilderness encounters come into sight a few paces off (player/wilds.js)
         if (InnerMap._playerWalking || playerStepResult) {
             for (const e of InnerMap.spotWildEncounters(6)) {
@@ -896,3 +908,26 @@ export function handleDoubleClick(screenX, screenY) {
  * Enter the inner map for a given world tile
  */
 
+
+/**
+ * The player has moved a tile on the inner map: in deep water that is a
+ * stroke (player/swimming.js — tired, cold, washed, going under), on land the
+ * swim is over. Health gone in the water is drowning.
+ */
+function _swimStep(game) {
+    const player = game.player;
+    if (!player) return;
+    if (!InnerMap.isPlayerSwimming()) {
+        const strokes = Swimming.ashore(player);
+        if (strokes && strokes > 3) game.ui.showNotification('🏖️ Ashore', 'You haul yourself out of the water, dripping.', 'info');
+        return;
+    }
+    const wt = game.world && InnerMap.currentWorldTile ? game.world.getTile(InnerMap.currentWorldTile.q, InnerMap.currentWorldTile.r) : null;
+    const res = Swimming.stroke(player, game.world, wt, { deep: true });
+    for (const n of res.notices.slice(0, 2)) game.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+    if (typeof game.ui.updateStats === 'function' && (res.drowning || res.struggling || res.cold)) game.ui.updateStats(player, game.world);
+    if (player.health <= 0 && typeof game._triggerDeath === 'function') {
+        InnerMap.cancelPlayerWalk();
+        setTimeout(() => game._triggerDeath('drowning'), 0);
+    }
+}

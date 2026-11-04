@@ -379,6 +379,7 @@ export const SaveLoad = {
         'lotHoldings',
         // The month's rents taken and paid, for the rent-day summary (systems/lots.js)
         'lotRentBook',
+        'swimPractice',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
     ],

@@ -844,6 +844,7 @@ Object.assign(InnerMapRenderer, {
             const pAnim = anim, pDir = direction;
             const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
             const pDeathState = deathState; // capture for closure
+            const pSwimming = !deathState && typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming();
 
             items.push({ sortY, zLayer: 2, draw: () => {
                 // Glow — turns red during death
@@ -879,6 +880,30 @@ Object.assign(InnerMapRenderer, {
                         }
                         ctx.restore();
                         this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
+                    } else if (pSwimming) {
+                        // In the water (world/innerMap/swimming.js): head and shoulders
+                        // above it, bobbing, the water ringing out round them
+                        const bob = Math.sin(now * 3.2) * ds * 0.04;
+                        const cx = px - charW / 2, cy = py - charH + ds * 0.62 + bob;
+                        const waterY = py - ds * 0.38;
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(cx - ds, cy - ds, charW + ds * 2, waterY - (cy - ds));
+                        ctx.clip();
+                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+                        ctx.restore();
+                        const ripple = this._sheets && this._sheets.get('water_ripple');
+                        if (ripple) {
+                            const fr = Math.floor(now * 6) % 4;
+                            const rw = ds * 1.3;
+                            ctx.drawImage(ripple, fr * 32, 0, 32, 32, Math.round(px - rw / 2), Math.round(waterY - rw * 0.62), Math.round(rw), Math.round(rw));
+                        } else {
+                            ctx.strokeStyle = 'rgba(230,245,255,0.7)';
+                            ctx.lineWidth = Math.max(1, ds / 20);
+                            ctx.beginPath();
+                            ctx.ellipse(px, waterY, charW * 0.32, ds * 0.08, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
                     } else {
                         const cx = px - charW / 2, cy = py - charH + ds * 0.3;
                         ctx.beginPath();

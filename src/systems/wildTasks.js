@@ -195,7 +195,8 @@ export const WildTasks = {
      * The loot table of a living animal hunted (data/animals.json species.loot:
      * [{ name, chance?, qty? }] or names): each the hunting table's own entry
      * of that name (data/earlyJobs.json hunting.loot_table, any terrain), with
-     * the species' chance and qty in place of the terrain's. The first is the
+     * the species' chance and qty in place of the terrain's — or, named with
+     * an `item` (and icon, sellPrice), an entry of its own. The first is the
      * sure one (Hunting.strikeLoot always gives it).
      */
     animalLoot(species, lootTables) {
@@ -204,7 +205,9 @@ export const WildTasks = {
         const out = [];
         for (const spec of (species && species.loot) || []) {
             const want = typeof spec === 'string' ? { name: spec } : spec || {};
-            const base = all.find(e => e && e.name === want.name);
+            // An entry of its own (a sheep's fleece, a lion's pelt) where the hunting table has none of the name
+            const base = all.find(e => e && e.name === want.name)
+                || (want.item ? { item: want.item, name: want.name || want.item, icon: want.icon || '🥩', sellPrice: _num(want.sellPrice, 0) } : null);
             if (!base || out.some(e => e.name === base.name)) continue;
             const entry = { ...base };
             if (typeof want.chance === 'number') entry.chance = want.chance;

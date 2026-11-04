@@ -70,9 +70,18 @@ export function gameLoop(timestamp, loopId) {
             this._checkNeedWarnings();
         }
 
-        if (timeResult === 'day_ended' && !this._innerMapDayEndShown) {
+        // Midnight: the turn ends by itself and the clock runs on from 12:01 AM
+        // (endDay sees the rollover and doesn't wake you at 8 — ui/game/endDay.js)
+        if (timeResult === 'day_ended' && !this._innerMapDayEndShown && !this.isProcessingTurn) {
             this._innerMapDayEndShown = true;
-            this._showInnerMapEndDayModal();
+            this._midnightRollover = true;
+            this._endDayConfirmed = true;
+            this.endDay();
+            if (!this.isProcessingTurn) {
+                // (the day couldn't end — dead, or between lives: leave the clock at midnight)
+                this._midnightRollover = false;
+                this._endDayConfirmed = false;
+            }
         }
 
         // Update top bar with inner map time

@@ -494,7 +494,15 @@ Object.assign(UI.prototype, {
             .filter(Boolean).join('\n');
         if (turnEl) {
             const leanMark = outlook.lean ? ' · Lean' : '';
-            turnEl.textContent = `${wxText}${outlook.icon} ${world.season}${leanMark}, Year ${world.year}`;
+            // The hour of the day (the one clock: InnerMap's, which the town map runs and
+            // a day's end resets) — on the world map too, ahead of the season
+            let clock = '';
+            if (InnerMap && typeof InnerMap.getTimeString === 'function' && Number.isFinite(InnerMap.timeOfDay)) {
+                const period = typeof InnerMap.getTimePeriod === 'function' ? InnerMap.getTimePeriod() : null;
+                const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
+                clock = `${periodIcons[period] || '🕐'} ${InnerMap.getTimeString()} · `;
+            }
+            turnEl.textContent = `${clock}${wxText}${outlook.icon} ${world.season}${leanMark}, Year ${world.year}`;
             const title = wxTitle ? `${wxTitle}\n\n${outlookTitle}` : outlookTitle;
             if (turnEl.title !== title) turnEl.title = title;
         }

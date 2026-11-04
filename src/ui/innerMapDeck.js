@@ -167,8 +167,11 @@ export const InnerMapDeck = {
      */
     onVoyageDay(game, day) {
         if (!this.active(game) && !(InnerMap.active && InnerMap._deck)) return false;
-        InnerMap.timeOfDay = 8;
-        InnerMap._timeAccumulator = 0;
+        // (a day run out at midnight goes on from 12:01; one slept through wakes at 8)
+        if (InnerMap._midnightDay !== game.world.day) {
+            InnerMap.timeOfDay = 8;
+            InnerMap._timeAccumulator = 0;
+        }
         InnerMap.dayEnded = false;
         game._innerMapDayEndShown = false;
         if (day.arrived || !game.player.boardedShip) {

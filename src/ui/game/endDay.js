@@ -1276,13 +1276,21 @@ export function endDay() {
                 else setTimeout(() => ActionMenu.showReckoning(this, 'last'), 0);
             }
 
-            // Reset inner map time if the day was ended while on the inner map
-            if (this.innerMapMode && typeof InnerMap !== 'undefined') {
-                InnerMap.timeOfDay = 8;
-                InnerMap._timeAccumulator = 0;
+            // The inner map's clock for the new day: the day ended at midnight runs
+            // straight on (12:01 AM); a day ended by going to bed (End Turn) wakes at 8
+            if (typeof InnerMap !== 'undefined' && (this.innerMapMode || this._midnightRollover)) {
+                if (this._midnightRollover) {
+                    InnerMap.timeOfDay = 0;
+                    InnerMap._timeAccumulator = InnerMap.TIME_SCALE / 60; // one minute past
+                    InnerMap._midnightDay = this.world.day;
+                } else {
+                    InnerMap.timeOfDay = 8;
+                    InnerMap._timeAccumulator = 0;
+                }
                 InnerMap.dayEnded = false;
                 this._innerMapDayEndShown = false;
             }
+            this._midnightRollover = false;
 
             // The new day is announced across the map (ui/dayBanner.js); a new season or year gets the larger card
             const prevSeason = this._bannerSeason, prevYear = this._bannerYear;

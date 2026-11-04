@@ -1221,7 +1221,11 @@ Object.assign(UI.prototype, {
                     if (resultEl) {
                         if (r.ok) {
                             resultEl.style.color = '#7fd07f';
-                            resultEl.textContent = `✓ Connected — model replied: "${r.detail}"`;
+                            // It works: switch the AI NPCs on (Apply keeps it)
+                            const en = document.getElementById('gsLlmEnabled');
+                            const wasOff = en && !en.checked;
+                            if (en) en.checked = true;
+                            resultEl.textContent = `✓ Connected — model replied: "${r.detail}"${wasOff ? '. AI NPCs switched on: press Apply.' : ''}`;
                         } else {
                             resultEl.style.color = '#e08080';
                             const head = r.stage !== 'health' ? 'Query failed' : r.state === 'loading' ? 'Still loading' : 'Unreachable';

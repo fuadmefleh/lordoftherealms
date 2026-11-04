@@ -11,7 +11,7 @@ import { ConversationScene } from '../conversationScene.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { RivalAudience } from '../../systems/rivalAudience.js';
 import { Duels } from '../../systems/duels.js';
-import { NpcBrain } from '../../systems/npcBrain.js';
+import { npcVoice } from '../npcVoice.js';
 import { DuelPanel } from './duel.js';
 import { esc } from './uiKit.js';
 
@@ -102,7 +102,6 @@ export function openRivalAudience(game, unitId) {
     const tile = world.getTile(player.q, player.r);
     const place = tile && tile.settlement ? tile.settlement.name : 'On the road';
     const greeting = RivalAudience.greeting(player, world, rival);
-    const voiced = NpcBrain.isEnabled();
     const state = { unitId, kingdomId: rival.kingdomId, paid: false, scene: null, regard: RivalHouses.regard(rival, world), asked: false };
     state.scene = ConversationScene.open({
         variant: 'royal',
@@ -114,7 +113,15 @@ export function openRivalAudience(game, unitId) {
         mood: _mood(game, rival),
         moodTitle: `How ${RivalHouses.headName(rival)} regards you: the feud against what they remember`,
         facts: _factsHtml(game, rival),
-        greeting: voiced ? null : greeting,
+        greeting,
+        // Their own words for every line, by the AI brain when it is on (ui/npcVoice.js)
+        voice: npcVoice({
+            id: `rivalHead:${rival.houseKey}:${rival.head.firstName}`, firstName: RivalHouses.headName(rival),
+            traits: (rival.head.traits || []).map(t => (RivalHouses.config().traits[t] || {}).name || t),
+            role: `the head of ${rival.name}, a rival noble House, met on the road; ${RivalHouses.manner(rival)} in manner`,
+            disposition: () => RivalAudience.stance(state.regard),
+            worldContext: () => RivalAudience.llmContext(player, world, rival),
+        }),
         onClose: () => {
             if (!state.paid) ActionMenu._pendingAP = null;
             if (game.ui.updateStats) game.ui.updateStats(player, world);
@@ -122,20 +129,6 @@ export function openRivalAudience(game, unitId) {
         },
     });
     _current = state;
-    if (voiced) {
-        // A local model voices the greeting (systems/npcBrain.js); the template stands in when it is off or slow
-        state.scene.thinking();
-        const npc = { id: `rivalHead:${rival.houseKey}:${rival.head.firstName}`, firstName: RivalHouses.headName(rival), isRival: true, traits: (rival.head.traits || []).map(t => (RivalHouses.config().traits[t] || {}).name || t) };
-        NpcBrain.generateNpcLine(npc, {
-            topic: `a greeting to the head of a rival House you meet on the road, in a ${RivalHouses.manner(rival)} manner`,
-            disposition: RivalAudience.stance(state.regard), fallback: greeting, worldContext: RivalAudience.llmContext(player, world, rival),
-        }).then((line) => {
-            if (!state.scene.isOpen) return;
-            state.scene.npc(line || greeting);
-            state.scene.afterSpoken(200, () => _choices(game, state));
-        });
-        return state.scene;
-    }
     _choices(game, state);
     return state.scene;
 }

@@ -327,7 +327,8 @@ export const NpcBrain = {
         if (!enabled) return fallback;
         const key = NpcBrain._lineKey(npc, context);
         const cached = cache.get(key);
-        if (cached && cached.kind === 'line') return cached.value;
+        // (context.fresh: a new turn of phrase each time, the cache only written)
+        if (!context.fresh && cached && cached.kind === 'line') return cached.value;
         if (!(await LlmClient.isAvailable())) return fallback;
         const prompt = NpcBrain._buildLinePrompt(npc, context);
         // A reply carrying facts (context.says) runs longer than a greeting

@@ -6,6 +6,7 @@ import { ActionMenu } from './_ref.js';
 import { ConversationScene } from '../conversationScene.js';
 import { Relationships } from './_imports.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
+import { npcVoice } from '../npcVoice.js';
 
 const GROUPS = { matter: 'On their mind', talk: 'Friendship', romance: 'Romance', party: 'The road', hostile: 'Hostility' };
 
@@ -220,13 +221,14 @@ function _act(game, npcId, actionId, court) {
     const npc = Relationships.getNPC(npcId);
     if (npc) npc.lastInteraction = game.world?.day || 0;
     const seed = (game.world?.day || 0) + actionId.length;
+    const how = { topic: actionId, asked: (SAYS[actionId] || def.label || actionId).replace(/\*[^*]*\*\s*/g, '').trim() || def.label };
 
     scene.exchange(SAYS[actionId] || `*${(def.label || actionId).toLowerCase()}*`, () => {
         if (result.success && result.married) {
             const marry = Relationships.marry(player, npcId, game.world);
             if (marry.success) {
                 scene.seal('Proposal', 'Accepted', true);
-                scene.npc('*tears in their eyes* Yes. Yes, a thousand times!');
+                scene.npc('*tears in their eyes* Yes. Yes, a thousand times!', how);
                 st.noReturn = true;
                 scene.afterSpoken(1200, () => { scene.close(); ActionMenu._showMarriageCelebration(game, marry.npc); });
                 return;
@@ -234,19 +236,19 @@ function _act(game, npcId, actionId, court) {
         }
         if (result.success) {
             if (court) {
-                scene.npc(_pick(FOND, seed));
+                scene.npc(_pick(FOND, seed), how);
                 scene.note(`💗 Affection +${result.gain} · ${result.stage.icon} ${result.stage.label}${result.charismaUp ? ' · Charisma improved!' : ''}`, 'good');
                 if (result.affairRumor) scene.note('👀 Someone saw the two of you together. People will talk, and your spouse has ears.', 'bad');
             } else if (result.gain < 0) {
-                scene.npc(actionId === 'insult' ? '*bristles* How dare you!' : '*grimaces* You\'ll regret that.');
+                scene.npc(actionId === 'insult' ? '*bristles* How dare you!' : '*grimaces* You\'ll regret that.', how);
                 scene.note(`💢 Relationship ${result.gain}`, 'bad');
             } else {
-                scene.npc(_pick(WARM, seed));
+                scene.npc(_pick(WARM, seed), how);
                 scene.note(`🤝 Relationship +${result.gain}${result.skillUp ? ' · Diplomacy improved!' : ''}`, 'good');
             }
         } else if (result.failed) {
             if (actionId === 'propose') scene.seal('Proposal', 'Refused', false);
-            scene.npc(court ? `*${result.reason.replace(/\.$/, '')}*` : '*an awkward pause* …Right.');
+            scene.npc(court ? `*${result.reason.replace(/\.$/, '')}*` : '*an awkward pause* …Right.', how);
             scene.note(`😬 It went poorly${result.penalty ? ` · ${court ? 'Affection' : 'Relationship'} ${result.penalty}` : ''}`, 'bad');
         } else {
             player.actionPoints += apCost; // nothing happened — the time is not spent
@@ -267,7 +269,7 @@ function _matter(game, npcId, option) {
         if (!res.ok) {
             scene.note(res.reason || 'Not possible.', 'bad');
         } else {
-            scene.npc(res.reply);
+            scene.npc(res.reply, { topic: 'matter', asked: option.label });
             scene.note(res.note, res.tone === 'good' ? 'good' : res.tone === 'bad' ? 'bad' : 'info');
             if (res.divorced) {
                 scene.seal('Marriage', 'Ended', false);
@@ -289,7 +291,7 @@ function _party(game, npcId, join) {
         const r = Relationships.removeFromTravelParty(player, npcId);
         scene.exchange('Time we parted ways, I think.', () => {
             if (r.success) {
-                scene.npc('It was a good road. Look me up, if you pass this way again.');
+                scene.npc('It was a good road. Look me up, if you pass this way again.', { topic: 'travel', asked: join ? 'Come travel with me.' : 'Time we parted ways.' });
                 scene.note('🧭 They leave your travel party', 'info');
             } else scene.note(r.reason, 'bad');
             _refresh(game, before);
@@ -302,10 +304,10 @@ function _party(game, npcId, join) {
             scene.note(r.reason, 'bad');
         } else if (r.accepted) {
             scene.seal('Companion', 'Joined', true);
-            scene.npc('*grins* Give me a moment to pack.');
+            scene.npc('*grins* Give me a moment to pack.', { topic: 'travel', asked: join ? 'Come travel with me.' : 'Time we parted ways.' });
             scene.note('🧭 They join your travel party', 'good');
         } else {
-            scene.npc(`*shakes their head* ${r.reason}`);
+            scene.npc(`*shakes their head* ${r.reason}`, { topic: 'travel', asked: join ? 'Come travel with me.' : 'Time we parted ways.' });
         }
         _refresh(game, before);
     }, 700);
@@ -333,6 +335,14 @@ export function openPersonScene(game, tile, npcId, options = {}) {
         moodTitle: `How ${npc.firstName} feels about you`,
         facts: _facts(game, npc, rel),
         greeting: _greeting(game, npc, rel),
+        // Their own words, by the AI brain when it is on (ui/npcVoice.js)
+        voice: npcVoice({
+            id: npc.id,
+            firstName: npc.firstName,
+            traits: () => [npc.personality, ...(npc.traits || [])].filter(Boolean).map(t => t.name || t),
+            role: `a ${npc.occupation || 'townsperson'} of ${settlement ? settlement.name : 'these parts'}, aged ${npc.age}`,
+            disposition: () => Relationships.getRelationLabel(Relationships.getRelationship(player, npcId).score || 0).label.toLowerCase(),
+        }),
         onClose: () => {
             if (_cur === state) _cur = null;
             game.ui.updateStats(player, game.world);

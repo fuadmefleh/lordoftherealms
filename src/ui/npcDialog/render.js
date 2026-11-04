@@ -160,7 +160,7 @@ export function _voiceLine(line, npc, opts = {}) {
     const written = line.text;
     let streamed = false;
     return NpcBrain.generateNpcLine(npc, {
-        topic: opts.topic, asked: opts.asked, says: opts.says, role: _roleFor(npc),
+        topic: opts.topic, asked: opts.asked, says: opts.says, fresh: !!opts.says, role: _roleFor(npc),
         disposition: _dispositionLabel(mem.disposition || 0), fallback: written,
         worldContext: _worldContext(npc), memories: _memoryLines(npc),
         onPartial: (soFar) => {

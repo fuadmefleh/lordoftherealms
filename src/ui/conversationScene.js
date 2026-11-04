@@ -245,7 +245,7 @@ class Scene {
         if (ring) ring.style.strokeDashoffset = `${RING_C}`;
         requestAnimationFrame(() => this.setMood(mood));
 
-        if (c.greeting) this.npc(c.greeting);
+        if (c.greeting) this.npc(c.greeting, { topic: 'a fitting greeting' });
     }
 
     get isOpen() { return !this._closed; }
@@ -280,8 +280,17 @@ class Scene {
 
     // ── Transcript ──
 
-    /** The speaker says a line (typewritten, after anything still being said). */
-    npc(text) { this._enqueue({ kind: 'npc', text }); return this; }
+    /**
+     * The speaker says a line (typewritten, after anything still being said).
+     * With cfg.voice (an AI voice, ui/npcVoice.js) the line is said in the
+     * speaker's own words: `how` tells it what the line is ({ topic, asked }),
+     * false keeps the written line. The thinking dots stay up while it comes.
+     */
+    npc(text, how = null) {
+        const voice = how !== false && typeof this.cfg.voice === 'function' ? this.cfg.voice : null;
+        this._enqueue({ kind: 'npc', text, voice, how: how || {} });
+        return this;
+    }
 
     /** The player says a line. */
     player(text) { this._enqueue({ kind: 'player', text }); return this; }
@@ -326,11 +335,32 @@ class Scene {
     _enqueue(item) {
         if (this._closed) return;
         this._queue.push(item);
-        if (!this._typing) this._flush();
+        if (!this._typing && !this._voicing) this._flush();
+    }
+
+    /** Ask the AI voice for an NPC line; the queue waits (the dots up) until it comes or times out. */
+    _askVoice(item) {
+        const voice = item.voice;
+        item.voice = null;
+        this._voicing = true;
+        this.thinking();
+        let settled = false;
+        const settle = (said) => {
+            if (settled) return;
+            settled = true;
+            if (typeof said === 'string' && said.trim()) item.text = said.trim();
+            this._voicing = false;
+            if (!this._closed) this._flush();
+        };
+        this._later(() => settle(null), Number(this.cfg.voiceTimeoutMs) || 6000);
+        let p;
+        try { p = voice(item.text, item.how); } catch { p = null; }
+        Promise.resolve(p).then(settle, () => settle(null));
     }
 
     _flush() {
-        while (this._queue.length && !this._typing) {
+        while (this._queue.length && !this._typing && !this._voicing) {
+            if (this._queue[0].kind === 'npc' && this._queue[0].voice) { this._askVoice(this._queue[0]); break; }
             const item = this._queue.shift();
             const thinking = this.log.querySelector('.npc-dialog-thinking');
             if (thinking) thinking.remove();
@@ -363,7 +393,7 @@ class Scene {
             }
         }
         this._scroll();
-        if (!this._typing && !this._queue.length) this._idle();
+        if (!this._typing && !this._voicing && !this._queue.length) this._idle();
     }
 
     _type(idx) {
@@ -416,7 +446,7 @@ class Scene {
     afterSpoken(pause, fn) {
         if (this._closed) return;
         const go = () => this._later(fn, pause);
-        if (!this._typing && !this._queue.length) go();
+        if (!this._typing && !this._voicing && !this._queue.length) go();
         else (this._waiters = this._waiters || []).push(go);
     }
 

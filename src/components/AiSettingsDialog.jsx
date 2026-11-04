@@ -49,7 +49,11 @@ export default function AiSettingsDialog({ onClose }) {
     setResult({ ok: null, text: `Testing ${current().endpoint} …` });
     try {
       const r = await NpcBrain.testConnection(current());
-      if (r.ok) setResult({ ok: true, text: `Connected: the model replied "${r.detail}"` });
+      if (r.ok) {
+        // It works: switch it on (Save keeps it)
+        setEnabled(true);
+        setResult({ ok: true, text: `Connected: the model replied "${r.detail}". AI NPCs are switched on; press Save.` });
+      }
       else {
         const head = r.stage !== 'health' ? 'Query failed' : r.state === 'loading' ? 'Still loading' : 'Unreachable';
         setResult({ ok: false, text: `${head}: ${r.detail}${r.hint ? ` (${r.hint})` : ''}` });

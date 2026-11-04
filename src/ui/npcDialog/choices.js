@@ -11,9 +11,11 @@ import { House } from '../../systems/house.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
-import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews, _roadContext } from './helpers.js';
+import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _getNews, _roadContext, _worldContext, _memoryLines } from './helpers.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory, _syncTranscript, _showThinking, _renderChoiceList, _voiceLine } from './render.js';
 import { NpcBrain } from '../../systems/npcBrain.js';
+import { NpcChat } from '../../systems/npcChat.js';
+import { renderTalkBox } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
@@ -519,6 +521,76 @@ export function _handleChoice(action) {
 }
 
 /**
+ * Say whatever you like (systems/npcChat.js, the AI brain): the townsperson
+ * answers in their own words and may warm to you, sour, remember, or walk off.
+ * Costs the chat's AP once; the choices give way to a box to type in until
+ * Done talking.
+ */
+export function _startFreeTalk() {
+    const game = dialogState._game;
+    const npc = dialogState._npc;
+    if (!game || !game.player || !npc || !dialogState._overlay) return;
+    const settlement = _getSettlement();
+    const subject = NpcChat.townSubject(game.player, npc, {
+        place: settlement && settlement.name, role: npc.roleTitle || npc.type,
+        worldContext: _worldContext(npc), memories: _memoryLines(npc),
+    });
+    const can = NpcChat.canTalk(game.player, game.world, subject);
+    if (!can.ok) { game.ui.showNotification('💬 Talk', can.reason, 'warning'); return; }
+    const ap = NpcChat.config().apCost || 0;
+    if ((game.player.actionPoints || 0) < ap) {
+        game.ui.showNotification('💬 Talk', `You need ${ap} AP to sit and talk — you have ${game.player.actionPoints || 0}.`, 'warning');
+        return;
+    }
+    game.player.actionPoints -= ap;
+    if (game.ui.updateStats) game.ui.updateStats(game.player, game.world);
+    dialogState._freeTalk = { subject, session: NpcChat.startSession(game.player, game.world, subject) };
+    _renderChoices(dialogState._overlay.querySelector('.npc-dialog-box'));
+}
+
+/** The box to type in, in place of the choices, while talking freely. */
+export function _renderFreeTalk(box, choicesEl) {
+    const ft = dialogState._freeTalk;
+    const npc = dialogState._npc;
+    const game = dialogState._game;
+    const live = () => dialogState._active && dialogState._overlay && dialogState._freeTalk === ft;
+    renderTalkBox(choicesEl, {
+        placeholder: `Say something to ${ft.subject.firstName}…`,
+        isClosed: () => !live(),
+        onSend: async (text) => {
+            dialogState._lines.push({ speaker: 'You', text, isNpc: false, _action: 'free_talk' });
+            dialogState._lineIndex = dialogState._lines.length - 1;
+            const b = dialogState._overlay.querySelector('.npc-dialog-box');
+            choicesEl.innerHTML = '';
+            _syncTranscript(b);
+            _showThinking(b);
+            const before = _mem(npc).disposition;
+            const res = await NpcChat.say(game.player, game.world, ft.subject, ft.session, text);
+            if (!live()) return;
+            const line = { speaker: npc.name, icon: npc.icon, text: res.ok ? res.say : `*${res.reason}*`, isNpc: true, _action: 'free_talk' };
+            if (res.ok && res.notes.length) line.aside = res.notes.map(n => n.text).join(' · ');
+            dialogState._lines.push(line);
+            dialogState._lineIndex = dialogState._lines.length - 1;
+            const delta = _mem(npc).disposition - before;
+            if (delta) _animateDispositionChange(delta);
+            if (res.ended || (res.ok && !NpcChat.canTalk(game.player, game.world, ft.subject).ok)) {
+                // They walk away (or have talked enough for today)
+                dialogState._freeTalk = null;
+                if (res.ended) dialogState._overlay._closing = true;
+                _render();
+                if (res.ended) _afterSpoken(1100, () => NpcDialog.close());
+                return;
+            }
+            _render();
+        },
+        onDone: () => {
+            dialogState._freeTalk = null;
+            _renderChoices(dialogState._overlay.querySelector('.npc-dialog-box'));
+        },
+    });
+}
+
+/**
  * A task choice (render.js _taskChoices): hand a task in to its giver, carry
  * something to the person it names, or get something from them — asked,
  * bought, or lifted (a stealth check).
@@ -971,6 +1043,9 @@ export function _createOverlay() {
     // Keys: 1–9 choose, Esc backs out / says farewell / leaves, Space & Enter hurry the speaker
     overlay._escHandler = (e) => {
         if (e.ctrlKey || e.altKey || e.metaKey) return;
+        // Typing (free talk's box): the keys are the player's words, not the dialog's
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

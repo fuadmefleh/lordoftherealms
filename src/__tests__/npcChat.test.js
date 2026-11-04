@@ -56,7 +56,7 @@ describe('who they are', () => {
 
 describe('the reply', () => {
     it('parses JSON, JSON in prose, and plain speech', () => {
-        expect(NpcChat.parseReply('{"say":"Aye.","actions":[{"fn":"warm_to","amount":2}]}')).toEqual({ say: 'Aye.', actions: [{ fn: 'warm_to', amount: 2 }] });
+        expect(NpcChat.parseReply('{"say":"Aye.","actions":[{"fn":"warm_to","amount":2}]}')).toMatchObject({ say: 'Aye.', actions: [{ fn: 'warm_to', amount: 2 }] });
         expect(NpcChat.parseReply('Sure: {"say":"Well met."}').say).toBe('Well met.');
         expect(NpcChat.parseReply('Just words.').say).toBe('Just words.');
         expect(NpcChat.parseReply('')).toBe(null);
@@ -127,3 +127,62 @@ describe('what they do', () => {
         expect(res.ok).toBe(false);
     });
 });
+
+describe('the folk of the town map (townSubject)', () => {
+    it('talks from their dialog memory: goodwill on its 0-100 scale, memories kept there, no romance or road', () => {
+        const p = player(), w = world();
+        const folk = { uid: 'f1', name: 'Wren Hayward', type: 'villager', roleTitle: 'Townswoman', gender: 'female', age: 28 };
+        const who = NpcChat.townSubject(p, folk, { place: 'Riptide', worldContext: 'The harvest was thin.' });
+        const sheet = NpcChat.persona(p, w, who);
+        expect(sheet).toContain('Wren Hayward');
+        expect(sheet).toContain('Townswoman in Riptide');
+        expect(sheet).toContain('The harvest was thin.');
+        expect(NpcChat._systemPrompt(p, w, who)).not.toContain('feel_attraction');
+        expect(NpcChat._systemPrompt(p, w, who)).not.toContain('agree_to_travel');
+        const s = NpcChat.startSession(p, w, who);
+        const before = folk._dialogMemory.disposition;
+        NpcChat.applyActions(p, w, who, s, [
+            { fn: 'warm_to', amount: 3 }, { fn: 'remember', fact: 'They asked after my brother.' },
+            { fn: 'feel_attraction', amount: 4 }, { fn: 'agree_to_travel' },
+        ]);
+        expect(folk._dialogMemory.disposition).toBeGreaterThan(before);
+        expect(folk._dialogMemory.memories).toHaveLength(1);
+        expect(NpcChat.persona(p, w, who)).toContain('asked after my brother');
+    });
+});
+
+describe('what is said makes things happen', () => {
+    it('the feeling of a turn is the regard change: a rude demand costs goodwill even when they go along', () => {
+        const r = NpcChat.parseReply('{"say":"*sighs* Fine. Take it.","feeling":{"change":-6,"why":"ordered about"},"actions":[{"fn":"warm_to","amount":3},{"fn":"give_item","item":"bread","qty":1}]}');
+        expect(r.feeling.change).toBe(-6);
+        expect(r.actions.map(a => a.fn)).toEqual(['sour_on', 'give_item']);
+    });
+
+    it('give_item hands over what they carry, and it is gone from their stock; only what they have', () => {
+        const p = player(), w = world();
+        const baker = npc({ occupation: 'baker' });
+        const s = NpcChat.startSession(p, w, baker);
+        const sheet = NpcChat.persona(p, w, baker);
+        expect(sheet).toMatch(/WHAT YOU HAVE WITH YOU.*bread x\d/);
+        const out = NpcChat.applyActions(p, w, baker, s, [{ fn: 'give_item', item: 'bread', qty: 1 }, { fn: 'give_item', item: 'dragon_scale', qty: 1 }]);
+        expect(p.inventory.bread).toBe(1);
+        expect(out.notes[0].text).toMatch(/gives you 1 Bread/);
+        expect(out.notes[1].text).toMatch(/hasn't any/);
+        expect(p.inventory.dragon_scale).toBeUndefined();
+        const rel = Relationships.getRelationship(p, baker.id);
+        expect(rel.stock.items.bread.qty).toBe(NpcChat.config().carries.baker.bread - 1);
+    });
+
+    it('sell_item takes a fair price at least, accept_gold and give_gold move coin within limits', () => {
+        const p = player(), w = world();
+        const baker = npc({ occupation: 'baker' });
+        const s = NpcChat.startSession(p, w, baker);
+        NpcChat.applyActions(p, w, baker, s, [{ fn: 'sell_item', item: 'bread', qty: 2, price: 0 }]);
+        expect(p.inventory.bread).toBe(2);
+        expect(p.gold).toBeLessThan(100);
+        const g0 = p.gold;
+        NpcChat.applyActions(p, w, baker, s, [{ fn: 'accept_gold', amount: 5 }, { fn: 'give_gold', amount: 999 }]);
+        expect(p.gold).toBe(g0 - 5 + NpcChat.config().limits.coinPerDay);
+    });
+});
+

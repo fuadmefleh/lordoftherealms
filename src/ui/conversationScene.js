@@ -133,6 +133,72 @@ export function renderChoiceGrid(overlay, choicesEl, choices, opts = {}) {
     }
 }
 
+/**
+ * A box to type in (free talk, systems/npcChat.js), set into `container`.
+ * opts: { placeholder, onSend(text) (may return a promise: the box waits for
+ * it), onDone() (the Done button and Esc), doneLabel, hint, maxLength,
+ * isClosed() }. Returns { box, focus, finish }.
+ */
+export function renderTalkBox(container, opts = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'npc-scene-input';
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:4px 2px;';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:stretch;';
+    const box = document.createElement('textarea');
+    box.rows = 2;
+    box.maxLength = opts.maxLength || 300;
+    box.placeholder = opts.placeholder || 'Say something…';
+    box.style.cssText = 'flex:1;min-width:0;resize:none;padding:8px 10px;font:inherit;font-size:15px;line-height:1.35;color:#e8e2d0;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,66,0.35);border-radius:6px;outline:none;';
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.textContent = 'Say';
+    send.style.cssText = 'padding:0 16px;font-weight:600;color:#1a1408;background:var(--gold,#f5c542);border:none;border-radius:6px;cursor:pointer;';
+    row.appendChild(box);
+    row.appendChild(send);
+    const foot = document.createElement('div');
+    foot.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.45);';
+    const hint = document.createElement('span');
+    hint.textContent = opts.hint || 'Enter to speak · Shift+Enter for a new line · Esc when you are done';
+    const done = document.createElement('button');
+    done.type = 'button';
+    done.textContent = opts.doneLabel || 'Done talking';
+    done.style.cssText = 'padding:5px 12px;color:#e0e0e0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:5px;cursor:pointer;';
+    foot.appendChild(hint);
+    foot.appendChild(done);
+    wrap.appendChild(row);
+    wrap.appendChild(foot);
+    container.appendChild(wrap);
+
+    const closed = () => (opts.isClosed ? opts.isClosed() : false);
+    let busy = false;
+    const finish = () => { if (busy) return; if (opts.onDone) opts.onDone(); };
+    const go = () => {
+        const text = box.value.trim();
+        if (!text || busy || closed()) return;
+        busy = true;
+        box.value = '';
+        box.disabled = true; send.disabled = true;
+        send.style.opacity = '0.5';
+        Promise.resolve(opts.onSend ? opts.onSend(text) : null).catch(() => {}).finally(() => {
+            busy = false;
+            if (closed() || !box.isConnected) return;
+            box.disabled = false; send.disabled = false;
+            send.style.opacity = '';
+            box.focus();
+        });
+    };
+    send.addEventListener('click', go);
+    done.addEventListener('click', finish);
+    box.addEventListener('keydown', (e) => {
+        e.stopPropagation(); // (the game's keys are not for typing)
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
+        else if (e.key === 'Escape') { e.preventDefault(); finish(); }
+    });
+    setTimeout(() => { if (box.isConnected) box.focus(); }, 30);
+    return { box, focus: () => box.focus(), finish };
+}
+
 class Scene {
     constructor(cfg) {
         this.cfg = cfg;
@@ -474,63 +540,9 @@ class Scene {
     input(opts = {}) {
         if (this._closed) return;
         this.clearChoices();
-        const wrap = document.createElement('div');
-        wrap.className = 'npc-scene-input';
-        wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:4px 2px;';
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;gap:8px;align-items:stretch;';
-        const box = document.createElement('textarea');
-        box.rows = 2;
-        box.maxLength = opts.maxLength || 300;
-        box.placeholder = opts.placeholder || 'Say something…';
-        box.style.cssText = 'flex:1;min-width:0;resize:none;padding:8px 10px;font:inherit;font-size:15px;line-height:1.35;color:#e8e2d0;background:rgba(0,0,0,0.35);border:1px solid rgba(245,197,66,0.35);border-radius:6px;outline:none;';
-        const send = document.createElement('button');
-        send.type = 'button';
-        send.textContent = 'Say';
-        send.style.cssText = 'padding:0 16px;font-weight:600;color:#1a1408;background:var(--gold,#f5c542);border:none;border-radius:6px;cursor:pointer;';
-        row.appendChild(box);
-        row.appendChild(send);
-        const foot = document.createElement('div');
-        foot.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.45);';
-        const hint = document.createElement('span');
-        hint.textContent = opts.hint || 'Enter to speak · Shift+Enter for a new line · Esc when you are done';
-        const done = document.createElement('button');
-        done.type = 'button';
-        done.textContent = opts.doneLabel || 'Done talking';
-        done.style.cssText = 'padding:5px 12px;color:#e0e0e0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:5px;cursor:pointer;';
-        foot.appendChild(hint);
-        foot.appendChild(done);
-        wrap.appendChild(row);
-        wrap.appendChild(foot);
-        this.choicesEl.appendChild(wrap);
-
-        let busy = false;
-        const finish = () => { if (busy) return; if (opts.onDone) opts.onDone(); };
-        const go = () => {
-            const text = box.value.trim();
-            if (!text || busy || this._closed) return;
-            busy = true;
-            box.value = '';
-            box.disabled = true; send.disabled = true;
-            send.style.opacity = '0.5';
-            Promise.resolve(opts.onSend ? opts.onSend(text) : null).finally(() => {
-                busy = false;
-                if (this._closed || !box.isConnected) return;
-                box.disabled = false; send.disabled = false;
-                send.style.opacity = '';
-                box.focus();
-            });
-        };
-        send.addEventListener('click', go);
-        done.addEventListener('click', finish);
-        box.addEventListener('keydown', (e) => {
-            e.stopPropagation(); // (the game's keys are not for typing)
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); }
-            else if (e.key === 'Escape') { e.preventDefault(); finish(); }
-        });
-        this.overlay._escChoice = finish;
-        setTimeout(() => { if (box.isConnected) box.focus(); }, 30);
-        return { box, focus: () => box.focus() };
+        const box = renderTalkBox(this.choicesEl, { ...opts, isClosed: () => this._closed });
+        this.overlay._escChoice = box.finish;
+        return box;
     }
 
     // ── Flourishes ──

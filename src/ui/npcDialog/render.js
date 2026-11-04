@@ -19,7 +19,8 @@ import { dialogState } from './shared.js';
 import { renderChoiceGrid, formatSpokenLine } from '../conversationScene.js';
 import { NpcDialog } from './index.js'; // call-time facade ref (ESM cycle-safe)
 import { _mem, _dispositionLabel, _pick, _getTimeOfDay, _getWeather, _getSettlement, _getKingdom, _skillCheck, _getAttributeBonus, _getSkillTotal, _getPlayerTitle, _isPlayerRenowned, _getGreeting, _getRumor, _getFarewell, _worldContext, _memoryLines } from './helpers.js';
-import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice } from './choices.js';
+import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAskAboutSubmenu, _showSkillCheckResult, _animateDispositionChange, _updateDispositionBar, _createOverlay, _taskChoice, _startFreeTalk, _renderFreeTalk } from './choices.js';
+import { NpcChat } from '../../systems/npcChat.js';
 
 /**
  * The tongue the NPC speaks and what the player makes of it (systems/
@@ -54,6 +55,7 @@ function _heard(line) {
 }
 
 export function _buildConversation(npc) {
+    dialogState._freeTalk = null; // (a new conversation starts with the choices)
     // First impressions: the player's name here, and a rival House's feud (systems/fame.js)
     const g0 = dialogState._game;
     if (g0 && g0.player) NpcDisposition.seedFromStanding(npc, g0.player, Fame._kingdomAt(g0.world, g0.player.q, g0.player.r));
@@ -354,6 +356,9 @@ export function _renderChoices(box) {
     const line = dialogState._lines[dialogState._lineIndex];
     if (!line || !line.isNpc || dialogState._overlay._closing) return;
 
+    // Talking freely: a box to type in instead of the choices (choices.js _renderFreeTalk)
+    if (dialogState._freeTalk) { _renderFreeTalk(box, choicesEl); return; }
+
     const npcType = dialogState._npc.type || 'villager';
     const mem = _mem(dialogState._npc);
     const choices = [];
@@ -396,6 +401,15 @@ export function _renderChoices(box) {
         }
         // A townsperson named in a rival House's plot (systems/schemes.js)
         for (const c of _suspectChoices()) choices.push(c);
+    }
+
+    // ── Say whatever you like, with the AI brain on (systems/npcChat.js) ──
+    if (NpcChat.available() && game && game.player) {
+        const ap = NpcChat.config().apCost || 0;
+        choices.push({
+            icon: '🗣️', label: 'Talk freely…', onPick: () => _startFreeTalk(),
+            tooltip: `Say whatever you like to ${dialogState._npc.name || 'them'}, in your own words${ap ? ` (${ap} AP)` : ''}. How it goes is up to them.`,
+        });
     }
 
     // ── Ask for rumors (can ask multiple unique ones) ──

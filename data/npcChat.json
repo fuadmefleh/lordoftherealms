@@ -14,7 +14,11 @@
         "attractionLossPerTurn": 6,
         "messagesPerDay": 14,
         "memories": 12,
-        "memoryLength": 160
+        "memoryLength": 160,
+        "giftValuePerDay": 30,
+        "coinPerDay": 12,
+        "sellMinShare": 0.6,
+        "purse": 25
     },
     "functions": {
         "warm_to": "They like you better for what you said: { \"fn\": \"warm_to\", \"amount\": 1-4, \"why\": \"...\" }. Only for real kindness, wit, help or flattery that lands with this person.",
@@ -22,7 +26,11 @@
         "feel_attraction": "Romantic interest rises or falls: { \"fn\": \"feel_attraction\", \"amount\": -6 to 4, \"why\": \"...\" }. Only when the talk turns flirtatious or tender, and only as this person would feel it.",
         "remember": "A lasting memory of the player, kept for future talks: { \"fn\": \"remember\", \"fact\": \"...\" }. Use it for things worth remembering: a promise, a confession, an insult, a name, a shared joke.",
         "agree_to_travel": "They agree to join the player on the road: { \"fn\": \"agree_to_travel\" }. Only if the player asked and this person truly would (the game still checks).",
-        "end_conversation": "They walk away and the talk ends: { \"fn\": \"end_conversation\", \"why\": \"...\" }. When insulted, bored, busy, or when it is naturally over."
+        "end_conversation": "They walk away and the talk ends: { \"fn\": \"end_conversation\", \"why\": \"...\" }. When insulted, bored, busy, or when it is naturally over.",
+        "give_item": "You hand the player something you have with you, for nothing: { \"fn\": \"give_item\", \"item\": \"<item id from WHAT YOU HAVE>\", \"qty\": 1, \"why\": \"...\" }. Only if you would truly give it away to this person, asked like that; most people don't give their goods to strangers who demand them.",
+        "sell_item": "You sell the player something you have, for coin they pay now: { \"fn\": \"sell_item\", \"item\": \"<item id>\", \"qty\": 1, \"price\": <total gold> }. Only when they agree to buy; ask a fair price or more.",
+        "accept_gold": "The player hands you coin and you take it: { \"fn\": \"accept_gold\", \"amount\": <gold>, \"why\": \"...\" }. Only when they offer it.",
+        "give_gold": "You give the player a little coin from your purse: { \"fn\": \"give_gold\", \"amount\": <gold>, \"why\": \"...\" }. Rare: a loan, a reward, charity."
     },
     "personalityVoice": {
         "kind": "warm and gentle; reassures, asks after people, slow to take offence",
@@ -98,5 +106,93 @@
         "wants a good master or patron",
         "grieving a loss they don't talk about easily",
         "proud of a child doing well"
-    ]
+    ],
+    "_feeling": "Every reply must judge how the player's words landed with this person: feeling.change from -10 (deeply offended) to +4 (truly won over); 0 for nothing much. Rudeness, demands, threats and condescension cost goodwill even when the person goes along with them.",
+    "carries": {
+        "_doc": "What someone has with them to give or sell, by their trade or kind (item ids from the goods list, with how many). Merchants and others with a shop sell from their shop instead. Restocked each day.",
+        "baker": {
+            "bread": 6,
+            "flour": 2
+        },
+        "farmer": {
+            "vegetables": 4,
+            "grain": 3,
+            "fruit": 2
+        },
+        "shepherd": {
+            "wool": 3,
+            "cheese": 2,
+            "meat": 1
+        },
+        "miller": {
+            "flour": 5,
+            "grain": 3
+        },
+        "blacksmith": {
+            "tools": 1,
+            "iron": 2
+        },
+        "blacksmith_npc": {
+            "tools": 1,
+            "iron": 2
+        },
+        "hunter": {
+            "meat": 3,
+            "pelts": 2,
+            "hide": 1
+        },
+        "herbalist": {
+            "herbs": 4,
+            "healing_salve": 1
+        },
+        "healer": {
+            "healing_salve": 2,
+            "herbs": 2
+        },
+        "weaver": {
+            "textiles": 2,
+            "linen": 2
+        },
+        "woodcutter": {
+            "firewood": 5,
+            "wood": 2
+        },
+        "priest": {
+            "candles": 3,
+            "holy_water": 1
+        },
+        "merchant": {
+            "spices": 1,
+            "salt": 2
+        },
+        "artisan": {
+            "pottery": 2,
+            "candles": 2
+        },
+        "guard": {
+            "bread": 1,
+            "beer": 1
+        },
+        "noble": {
+            "fine_wine": 1
+        },
+        "scholar": {
+            "parchment": 2
+        },
+        "villager": {
+            "bread": 1,
+            "vegetables": 1
+        },
+        "traveler": {
+            "dried_meat": 2,
+            "rope": 1
+        },
+        "beggar": {},
+        "child": {
+            "berries": 1
+        },
+        "default": {
+            "bread": 1
+        }
+    }
 }

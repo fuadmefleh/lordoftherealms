@@ -311,7 +311,7 @@ describe('the land market', () => {
         expect(LandMarket.buy(g.player, w, e.id).success).toBe(true);
         expect(g.player.gold).toBe(10);
         expect(seller.purse).toBe(q.price);
-        expect(k.treasury - t0).toBe(q.duty);
+        expect(k.treasury - t0).toBeCloseTo(q.duty, 6); // (float: the treasury carries fractions)
         expect(Ledger.today(g.player).income.estatesBought).toBe(-q.cost);
         // A rich buyer about takes it at the quick price — less than was paid
         const rich = Estates.ensureHolder(w, 'house:orsini');

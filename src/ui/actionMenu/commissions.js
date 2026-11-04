@@ -3,6 +3,8 @@
 // Buttons route through data-am-act → ActionMenu.commissionAct.
 import { ActionMenu } from './_ref.js';
 import { Commissions } from '../../systems/commissions.js';
+import { Grades } from '../../core/grades.js';
+import { MarketGrades } from '../../world/marketGrades.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -16,6 +18,17 @@ function act(label, args, style = BTN_GOLD, enabled = true, title = '') {
     return `<button data-am-act="commissionAct" data-am-args='${esc(JSON.stringify(args))}' style="${style}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
 }
 
+/** The graded part of a quote ({ good: { fine: n, … } }) as coloured chips, or ''. */
+const gradeNote = (grades) => {
+    const parts = [];
+    for (const [g, e] of Object.entries(grades || {})) {
+        for (const id of ['masterwork', 'excellent', 'fine', 'poor']) {
+            if (e[id] > 0) { const gr = Grades.get(id); parts.push(`<span style="color:${gr.color}">${e[id]} ${gr.name}</span> ${esc(Commissions._goodName(g).toLowerCase())}`); }
+        }
+    }
+    return parts.length ? ` <span style="font-size:11px;">(${parts.join(', ')}; the rest Common)</span>` : '';
+};
+
 const goods = (obj) => Object.entries(obj).filter(([, n]) => n > 0).map(([g, n]) => `${+(+n).toFixed(2)} ${esc(Commissions._goodName(g).toLowerCase())}`).join(' + ');
 
 Object.assign(ActionMenu, {
@@ -25,7 +38,9 @@ Object.assign(ActionMenu, {
         const tile = world.getTile(player.q, player.r);
         const s = tile && tile.settlement;
         if (!s) return;
-        let html = `<div style="font-size:12px; max-height:620px; overflow-y:auto;"><p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold || 0)} gold · bring your own goods; pay with gold, or let them keep a share of what they make.</p>`;
+        // (the town's craftsmanship sets the grades the work comes out in — world/marketGrades.js)
+        const lb = MarketGrades.label(MarketGrades.level(s));
+        let html = `<div style="font-size:12px; max-height:620px; overflow-y:auto;"><p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold || 0)} gold · bring your own goods; pay with gold, or let them keep a share of what they make. <span style="color:${lb.color}">${lb.name} craftsmen</span>: the better the town's hands (and your goods), the more of the work comes back Fine.</p>`;
 
         // Work waiting here
         const mine = Commissions.pending(player).filter(j => j.q === s.q && j.r === s.r);
@@ -67,6 +82,7 @@ Object.assign(ActionMenu, {
                 const cutOk = Object.values(qc.give).some(v => v > 0);
                 html += act(`✂️ their cut → ${goods(qc.give) || 'nothing'}`, ['hire', o.id, n, 'cut'], BTN_PLAIN, cutOk, 'Too little: bring more.');
                 if (qf.days > 0) html += ` <span style="${NOTE}">${qf.days + 1} days</span>`;
+                html += gradeNote(qf.grades);
                 html += '</div>';
             }
             html += '</div>';

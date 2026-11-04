@@ -7,6 +7,8 @@ import { TradePolicy } from '../../systems/tradePolicy.js';
 import { policyLine } from './tradePolicy.js';
 import { MercContracts } from '../../player/mercContracts.js';
 import { Crafting } from '../../player/crafting.js';
+import { Grades } from '../../core/grades.js';
+import { MarketGrades } from '../../world/marketGrades.js';
 import { Fame } from '../../systems/fame.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, priceWhy, sellWhy } from '../whyPopover.js';
@@ -948,12 +950,12 @@ Object.assign(ActionMenu, {
 
         // ── Categorise goods ──
         const CATEGORIES = {
-            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','golden_fish','cheese','dried_meat','honey','salt','tea','wine']) },
-            materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass']) },
-            crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','bronze','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow']) },
+            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','golden_fish','cheese','dried_meat','honey','salt','tea','wine','mead','cider','sausage','meat_pie','honey_cake','jam','pickles','cooked_meal','cooked_fish','cooked_meat']) },
+            materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass','planks','resin','tallow','soap','parchment','ink','steel','silver_bar','glass','leather','linen']) },
+            crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','steel_tools','bronze','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow','joinery','barrel','boots','saddle','wool_cloak','fur_coat','chainmail','plate_armor','helmet','steel_sword','spear','crossbow','glassware']) },
             // Seed for your own fields (data/crops.json)
             seeds:     { label: 'Seed', icon: '🌱', keys: new Set(Object.values(PlayerEconomy.GOODS).map(g => g.id).filter(id => /_seed$/.test(id))) },
-            luxury:    { label: 'Luxury & Rare', icon: '💎', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring']) },
+            luxury:    { label: 'Luxury & Rare', icon: '💎', keys: new Set(['luxuries','gems','gold_ore','spices','exotic_spices','silk','perfume','horses','horse','herbs','antler','feather','healing_salve','potion','elixir','treasure_map','ancient_coin','rare_book','amulet','enchanted_ring','book','silver_jewellery','gold_jewellery','fine_garments','tonic','poultice']) },
         };
         function getCat(id) {
             for (const [cat, def] of Object.entries(CATEGORIES)) { if (def.keys.has(id)) return cat; }
@@ -977,8 +979,15 @@ Object.assign(ActionMenu, {
                 // ...less the crown's duty on goods bought in another realm (systems/tradePolicy.js)
                 const policy = TradePolicy.saleCheck(game.player, game.world, tile.settlement, goodId, 1);
                 // ...and the quality of crafted goods (player/crafting.js; Trading.sellGoods applies it)
-                const sellPrice = Math.floor(Trading.saleUnitPrice(game.player, good, tile.settlement, game.world) * (policy.ok ? policy.mult : 1) * Crafting.saleMult(game.player, goodId));
-                sellItems.push({ ...good, quantity, sellPrice, quality: Crafting.qualityTag(game.player, goodId) });
+                // ...and the grade (core/grades.js): one row for each grade held
+                const unit = Trading.saleUnitPrice(game.player, good, tile.settlement, game.world) * (policy.ok ? policy.mult : 1);
+                if (Grades.hasGraded(game.player, goodId)) {
+                    for (const g of Grades.summary(game.player, goodId)) {
+                        sellItems.push({ ...good, quantity: g.n, grade: g.id, sellPrice: Math.floor(unit * g.price), quality: Grades.labelHtml(g.id) });
+                    }
+                } else {
+                    sellItems.push({ ...good, quantity, grade: null, sellPrice: Math.floor(unit), quality: '' });
+                }
             }
         }
 
@@ -1067,6 +1076,14 @@ Object.assign(ActionMenu, {
         </details>
         ${fair ? `<div style="margin:0 0 10px; font-size:12px; color:var(--gold);">🎪 The ${fair.name} is on until day ${fair.until}: the stalls ask less and buy dearer.</div>` : ''}`;
 
+        // ── The town's craftsmanship (world/marketGrades.js): how much of its work is Fine, or Poor ──
+        let craftBadge = '';
+        if (tile.settlement) {
+            const lv = MarketGrades.level(tile.settlement);
+            const lb = MarketGrades.label(lv);
+            craftBadge = ` · <span style="color:${lb.color};text-transform:none;" title="The town's craftsmanship (${lv.toFixed(1)}/10) sets how much of its made goods is Fine or better, and how much Poor">${lb.name} craftsmen</span>`;
+        }
+
         // ── Render HTML ──
         let html = `
         <style>
@@ -1114,7 +1131,7 @@ Object.assign(ActionMenu, {
         </style>
 
         <div class="trade-header">
-            <span class="trade-settlement-badge" style="text-transform:capitalize;">${settlementType} market</span>
+            <span class="trade-settlement-badge" style="text-transform:capitalize;">${settlementType} market${craftBadge}</span>
             <div class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</div>
         </div>
         ${outlookHtml}
@@ -1138,20 +1155,38 @@ Object.assign(ActionMenu, {
                 const canAfford = playerGold >= unitCost;
                 // The price climbs as the stall empties: offer what the purse covers
                 const maxBuy = Math.max(1, Trading.affordable(game.player, good, tile.settlement));
+                // Graded lots on the stall (world/marketGrades.js): Common is the rest
+                const lots = good.lots;
+                const commonQty = lots ? lots.common : good.quantity;
                 html += `<div class="trade-row ${isSoldOut ? 'sold-out' : ''}">
                     <span class="trade-icon">${good.icon}</span>
                     <div>
-                        <div class="trade-name">${good.name}</div>
+                        <div class="trade-name">${good.name}${lots ? ` <span style="font-size:11px;color:${Grades.get('common').color}">${Grades.get('common').icon} Common</span>` : ''}</div>
                         <div class="trade-meta">${stockBadge(good.id)}${policyBadge(good.id, false)}</div>
                     </div>
                     <div class="trade-price"${trendTitle(good.id)}>${isSoldOut ? '' : unitCost + ' 💰' + whyIcon(priceWhy(why(good.id)), 'Why this price?')}
-                        <span class="trade-qty">${isSoldOut ? '' : good.quantity + ' avail.'}</span>
+                        <span class="trade-qty">${isSoldOut ? '' : commonQty + ' avail.'}</span>
                     </div>
                     <div>${isSoldOut
                         ? '<span class="trade-sold-out">Sold Out</span>'
-                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" title="The price rises as the stall empties" onclick="window._tradeBuy('${good.id}', ${good.price}, ${maxBuy})">Buy</button>`
+                        : `<button class="trade-btn trade-btn-buy ${canAfford ? '' : 'trade-btn-disabled'}" title="The price rises as the stall empties" onclick="window._tradeBuy('${good.id}', ${good.price}, ${lots ? Math.max(1, Math.min(maxBuy, commonQty)) : maxBuy})">Buy</button>`
                     }</div>
                 </div>`;
+                // ...and the better (and worse) work on the stall, each at its grade's price
+                if (lots && !isSoldOut) {
+                    for (const gid of ['masterwork', 'excellent', 'fine', 'poor']) {
+                        const n = lots[gid];
+                        if (!(n > 0)) continue;
+                        const gc = Trading.buyGradeCost(game.player, good, 1, tile.settlement, gid);
+                        const gmax = Math.max(1, Trading.affordableGrade(game.player, good, tile.settlement, gid));
+                        html += `<div class="trade-row" style="padding-left:28px;">
+                            <span class="trade-icon" style="font-size:14px;">${Grades.get(gid).icon}</span>
+                            <div><div class="trade-name" style="font-size:12px;">${good.name} ${Grades.labelHtml(gid)}</div></div>
+                            <div class="trade-price">${gc} 💰<span class="trade-qty">${n} avail.</span></div>
+                            <div><button class="trade-btn trade-btn-buy ${playerGold >= gc ? '' : 'trade-btn-disabled'}" onclick="window._tradeBuy('${good.id}', ${gc}, ${gmax}, '${gid}')">Buy</button></div>
+                        </div>`;
+                    }
+                }
             }
             html += '</div>';
         }
@@ -1169,14 +1204,14 @@ Object.assign(ActionMenu, {
                 html += `<div class="trade-row">
                     <span class="trade-icon">${item.icon}</span>
                     <div>
-                        <div class="trade-name">${item.name}${item.quality ? ` <span style="color:#8fc3ff; font-size:11px;" title="The quality of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
+                        <div class="trade-name">${item.name}${item.quality ? ` <span style="font-size:11px;" title="The grade of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
                         <div class="trade-meta"><span class="trade-chip" style="cursor:default">You have ${item.quantity}</span>${stockBadge(item.id)}${guildBadge(item.id)}${policyBadge(item.id, true)}</div>
                     </div>
                     <div class="trade-price" style="color:#2ecc71;"${trendTitle(item.id)}>${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
                         <span class="trade-qty">per unit</span>
                     </div>
                     <div>
-                        <button class="trade-btn trade-btn-sell" onclick="window._tradeSell('${item.id}', ${item.sellPrice}, ${item.quantity})">Sell</button>
+                        <button class="trade-btn trade-btn-sell" onclick="window._tradeSell('${item.id}', ${item.sellPrice}, ${item.quantity}, ${item.grade ? `'${item.grade}'` : 'null'})">Sell</button>
                     </div>
                 </div>`;
             }
@@ -1192,14 +1227,15 @@ Object.assign(ActionMenu, {
 
         // ── Buy / Sell handlers ──
         window.currentTile = tile;
-        window._tradeBuy = (goodId, price, maxQty) => {
-            ActionMenu.showQuantityInput(`Buy ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
+        window._tradeBuy = (goodId, price, maxQty, grade = null) => {
+            const gName = grade ? `${Grades.get(grade).name} ` : '';
+            ActionMenu.showQuantityInput(`Buy ${gName}${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 const good = goods.find(g => g.id === goodId);
                 if (good) {
                     if (!ActionMenu.commitPendingAP(game)) return;
-                    const result = Trading.buyGoods(game.player, good, qty, tile.settlement);
+                    const result = Trading.buyGoods(game.player, good, qty, tile.settlement, grade);
                     if (result.success) {
-                        game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${good.name} for ${result.spent} gold`, 'success');
+                        game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${gName}${good.name} for ${result.spent} gold`, 'success');
                         if (tile.settlement.kingdom) {
                             game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                         }
@@ -1219,13 +1255,14 @@ Object.assign(ActionMenu, {
             });
         };
 
-        window._tradeSell = (goodId, price, maxQty) => {
-            ActionMenu.showQuantityInput(`Sell ${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
+        window._tradeSell = (goodId, price, maxQty, grade = null) => {
+            const gName = grade ? `${Grades.get(grade).name} ` : '';
+            ActionMenu.showQuantityInput(`Sell ${gName}${PlayerEconomy.GOODS[goodId.toUpperCase()]?.name || goodId}`, maxQty, (qty) => {
                 if (!ActionMenu.commitPendingAP(game)) return;
-                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world);
+                const result = Trading.sellGoods(game.player, goodId, qty, tile.settlement, game.world, grade);
                 if (result.success) {
                     const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
-                    game.ui.showNotification('Sale Complete', `Sold ${qty}x ${good.name} for ${result.earned} gold`, 'success');
+                    game.ui.showNotification('Sale Complete', `Sold ${qty}x ${gName}${good.name} for ${result.earned} gold`, 'success');
                     if (tile.settlement.kingdom) {
                         game.player.learnAboutKingdom(tile.settlement.kingdom, 'economy');
                     }
@@ -1444,7 +1481,9 @@ Object.assign(ActionMenu, {
             const goodDef = PlayerEconomy.GOODS[goodId.toUpperCase()];
             const displayName = goodDef ? goodDef.name : goodId;
             ActionMenu.showQuantityInput(`Sell ${displayName}`, maxQty, (qty) => {
-                const totalEarned = sellPrice * qty;
+                // (the row's price is for the first unit sold — Common first; the grades of the rest count too, core/grades.js)
+                const unitBase = sellPrice / Math.max(0.01, Crafting.saleMult(game.player, goodId, 1));
+                const totalEarned = Math.floor(unitBase * qty * Crafting.saleMult(game.player, goodId, qty));
                 // Remove from player inventory
                 if (!game.player.inventory || (game.player.inventory[goodId] || 0) < qty) {
                     game.ui.showNotification('Cannot Sell', 'You don\'t have enough of this item.', 'error');

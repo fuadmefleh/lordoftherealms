@@ -4,6 +4,7 @@
 // All methods use `this` to reference the player instance.
 // ============================================
 import { DataLoader } from '../../core/dataLoader.js';
+import { Grades } from '../../core/grades.js';
 import { Hex } from '../../core/hex.js';
 import { Terrain } from '../../world/terrain.js';
 
@@ -200,10 +201,18 @@ export const PlayerNeedsMethods = {
         return typeof f === 'number' && Number.isFinite(f) ? Math.max(0, Math.min(100, f)) : 100;
     },
 
-    /** Wear and dirt on the clothes. */
+    /** Wear and dirt on the clothes (good clothes in the pack wear slower: their grade's effect — core/grades.js). */
     soilClothes(amount) {
         if (!this.needsEnabled || !(amount > 0)) return;
-        this.clothesFreshness = Math.max(0, this.getClothesFreshness() - amount);
+        this.clothesFreshness = Math.max(0, this.getClothesFreshness() - amount / this.clothesDurability());
+    },
+
+    /** How well the best clothes carried hold up: the best grade's effect (1 without any graded clothes). */
+    clothesDurability() {
+        const C = DataLoader._gamedata && DataLoader._gamedata.craftGrades;
+        const kinds = (C && Array.isArray(C.clothing)) ? C.clothing : ['clothes'];
+        const best = Grades.bestOf(this, kinds);
+        return best ? Math.max(0.5, Grades.effectMult(best.index)) : 1;
     },
 
     /**
@@ -242,10 +251,24 @@ export const PlayerNeedsMethods = {
         const where = this.washWaterHere(world);
         if (!where) return { success: false, reason: 'There is no water here to wash in.' };
         const C = _clothesConfig();
-        const gained = this.washClothes(typeof C.washByHand === 'number' ? C.washByHand : 80);
+        // A cake of soap scrubs them cleaner (its grade: how much — core/grades.js)
+        const soap = this.getClothesFreshness() < 100 ? this.useSoap() : null;
+        const gained = this.washClothes((typeof C.washByHand === 'number' ? C.washByHand : 80) + (soap ? soap.clothes : 0));
         if (!(gained > 0)) return { success: false, reason: 'Your clothes are as clean as scrubbing will get them.' };
         this.modifyNeed('comfort', -4); // damp clothes
-        return { success: true, where, gained: Math.round(gained) };
+        return { success: true, where, gained: Math.round(gained), soap: !!soap };
+    },
+
+    /**
+     * Use a cake of soap from the pack (the best first) → { hygiene, clothes }
+     * the extra it gives (data/craftGrades.json soap × its grade's effect), or
+     * null when there is none.
+     */
+    useSoap() {
+        if (!(this.inventory && this.inventory.soap > 0)) return null;
+        const D = (DataLoader._gamedata && DataLoader._gamedata.craftGrades && DataLoader._gamedata.craftGrades.soap) || {};
+        const fx = Grades.remove(this, 'soap', 1, { order: 'best' }).effect;
+        return { hygiene: Math.round((typeof D.hygiene === 'number' ? D.hygiene : 15) * fx), clothes: Math.round((typeof D.clothes === 'number' ? D.clothes : 15) * fx) };
     },
 
     /**
@@ -289,11 +312,13 @@ export const PlayerNeedsMethods = {
         const B = _bathingConfig();
         const spec = B[place.kind] || BATHING_DEFAULTS[place.kind];
         if (place.cost > 0) this.gold -= place.cost;
+        // Soap in the pack: a cleaner bath and cleaner clothes (core/grades.js)
+        const soap = this.useSoap();
         // Dirty clothes would cap the bath: they get scrubbed first
         let clothes = 0;
-        if (this.getClothesFreshness() < (_clothesConfig().freshAt || 60)) clothes = this.washClothes(spec.clothes || 80);
+        if (this.getClothesFreshness() < (_clothesConfig().freshAt || 60)) clothes = this.washClothes((spec.clothes || 80) + (soap ? soap.clothes : 0));
         const before = this.needs.hygiene;
-        this.modifyNeed('hygiene', spec.hygiene || 50);
+        this.modifyNeed('hygiene', (spec.hygiene || 50) + (soap ? soap.hygiene : 0));
         let cold = 0;
         if (place.kind === 'wild') {
             const season = (world && world.season) || 'Summer';
@@ -302,7 +327,7 @@ export const PlayerNeedsMethods = {
             cold = Math.round(spec.comfort || 0);
         }
         if (cold) this.modifyNeed('comfort', cold);
-        return { success: true, where: place.where, kind: place.kind, cost: place.cost, gained: Math.round(this.needs.hygiene - before), clothes: Math.round(clothes), cold };
+        return { success: true, where: place.where, kind: place.kind, cost: place.cost, gained: Math.round(this.needs.hygiene - before), clothes: Math.round(clothes), cold, soap: !!soap };
     },
 
     /** { freshness, label, icon, cap, smelly } for the HUD and panels. */

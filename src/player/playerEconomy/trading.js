@@ -12,6 +12,8 @@ import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 import { Crafting } from '../crafting.js';
+import { Grades } from '../../core/grades.js';
+import { MarketGrades } from '../../world/marketGrades.js';
 import { Difficulty } from '../../core/difficulty.js';
 
 export const Trading = {
@@ -38,9 +40,12 @@ export const Trading = {
             const info = SettlementMarket.info(settlement, good.id);
             // A town guild holds a floor under its goods' ask (systems/guilds.js)
             const floor = Guilds.askFloor(settlement, good.id);
+            const quantity = tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult);
             goods.push({
                 ...good,
-                quantity: tracked ? SettlementMarket.available(settlement, good.id) : Math.floor((settlement.population || 0) * qtyMult),
+                quantity,
+                // Made goods come in grades: the stall's lots by grade (world/marketGrades.js)
+                lots: Grades.gradeable(good.id) ? MarketGrades.lots(settlement, good.id, quantity, world ? world.day : 0) : null,
                 price: Math.max(1, Math.floor(askBase * Math.max(info.scarcity, floor))), // (never free: a glut still asks a coin)
                 guildFloor: floor > info.scarcity ? floor : 0,
                 askBase,
@@ -91,6 +96,26 @@ export const Trading = {
         let sum = 0;
         for (let i = 0; i < q; i++) sum += Math.floor(entry.askBase * Math.max(floor, SettlementMarket.scarcity(settlement, entry.id, s0 - i)));
         return Math.ceil(sum * disc);
+    },
+
+    /**
+     * What `quantity` units of one grade of a market entry cost: the Common
+     * price × the grade's price (core/grades.js).
+     */
+    buyGradeCost(player, entry, quantity, settlement, grade = 'common') {
+        const base = Trading.buyCost(player, entry, quantity, settlement);
+        return Grades.get(grade).id === 'common' ? base : Math.ceil(base * Grades.priceMult(grade));
+    },
+
+    /** Most units of one grade of a market entry the player can pay for (and the stall holds). */
+    affordableGrade(player, entry, settlement, grade = 'common') {
+        const g = Grades.get(grade).id;
+        if (g === 'common' && !entry.lots) return Trading.affordable(player, entry, settlement);
+        const have = entry.lots ? entry.lots[g] : (g === 'common' ? entry.quantity : 0);
+        let n = Math.max(0, Math.floor(have || 0));
+        const gold = Math.max(0, (player && player.gold) || 0);
+        while (n > 0 && Trading.buyGradeCost(player, entry, n, settlement, g) > gold) n--;
+        return n;
     },
 
     /**
@@ -243,12 +268,17 @@ export const Trading = {
     /**
      * Buy goods from a settlement
      */
-    buyGoods(player, good, quantity, settlement) {
+    buyGoods(player, good, quantity, settlement, grade = null) {
         if (quantity > good.quantity) {
             return { success: false, reason: 'Not enough in stock' };
         }
+        // A named grade comes off its own lot, at its own price (world/marketGrades.js)
+        const gradeId = grade ? Grades.get(grade).id : 'common';
+        if (gradeId !== 'common' && !(good.lots && good.lots[gradeId] >= quantity)) {
+            return { success: false, reason: `Not that many ${Grades.get(gradeId).name.toLowerCase()} ${good.name || good.id} on the stalls` };
+        }
 
-        const totalCost = Trading.buyCost(player, good, quantity, settlement);
+        const totalCost = Trading.buyGradeCost(player, good, quantity, settlement, gradeId);
 
         if (player.gold < totalCost) {
             return { success: false, reason: 'Not enough gold' };
@@ -271,8 +301,13 @@ export const Trading = {
             mono.revenue = (mono.revenue || 0) + totalCost * mono.markup / (1 + mono.markup);
         }
 
-        // Add to player inventory
+        // Add to player inventory (at the grade bought)
         PlayerInventory.addItem(player, good.id, quantity);
+        if (gradeId !== 'common') {
+            Grades.add(player, good.id, quantity, gradeId);
+            if (settlement) MarketGrades.take(settlement, good.id, quantity, gradeId);
+            good.lots[gradeId] -= quantity;
+        }
 
         // The season's tally of what the player moved here, before the stock moves (systems/reckoning.js)
         if (settlement) Reckoning.noteTrade(player, settlement, good.id, quantity, 'buy', totalCost);
@@ -289,15 +324,19 @@ export const Trading = {
         // The Merchant's Ledger books the cost (systems/priceKnowledge.js)
         PriceKnowledge.recordBuy(player, settlement, good.id, quantity, totalCost);
 
-        return { success: true, spent: totalCost };
+        return { success: true, spent: totalCost, grade: gradeId };
     },
 
     /**
      * Sell goods to a settlement
      */
-    sellGoods(player, goodId, quantity, settlement = null, world = null) {
+    sellGoods(player, goodId, quantity, settlement = null, world = null, grade = null) {
         if (!player.inventory || !player.inventory[goodId] || player.inventory[goodId] < quantity) {
             return { success: false, reason: 'Not enough in inventory' };
+        }
+        // A named grade sells only units of that grade (core/grades.js)
+        if (grade && Grades.counts(player, goodId)[Grades.get(grade).id] < quantity) {
+            return { success: false, reason: `You don't have ${quantity} ${Grades.get(grade).name.toLowerCase()} ${goodId.replace(/_/g, ' ')}` };
         }
 
         // Find the good in PlayerEconomy.GOODS
@@ -327,12 +366,20 @@ export const Trading = {
         const policy = TradePolicy.saleCheck(player, world, settlement, goodId, quantity);
         if (!policy.ok) return { success: false, reason: policy.reason, embargoed: true };
 
-        // Crafted goods sell by their quality: a masterwork blade fetches more than a crude one (player/crafting.js)
-        const qualityMult = Crafting.saleMult(player, goodId);
+        // Made goods sell by their grade: a masterwork blade fetches more than a poor one
+        // (core/grades.js; a sale that names no grade sells the Common units first)
+        const qualityMult = Crafting.saleMult(player, goodId, quantity, grade);
         const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity * qualityMult);
         const duty = TradePolicy.onSale(player, world, settlement, goodId, quantity, totalEarned, policy);
 
-        Crafting.takeForSale(player, goodId, quantity);
+        const drawn = Grades.take(player, goodId, quantity, grade ? { grade } : { order: 'sale' }).drawn;
+        // (the graded units go on the stalls as what they are — world/marketGrades.js)
+        if (settlement && settlement.market) {
+            const avail = SettlementMarket.tracks(goodId) ? SettlementMarket.available(settlement, goodId) : 0;
+            for (const [gid, n] of Object.entries(drawn)) {
+                if (gid !== 'common') MarketGrades.add(settlement, goodId, n, gid, world ? world.day : 0, avail);
+            }
+        }
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
         Quests.track(player, 'trade_profit', totalEarned);
@@ -357,6 +404,6 @@ export const Trading = {
         // ...and the sale, against what the goods cost (profit by good and route)
         PriceKnowledge.recordSale(player, settlement, goodId, quantity, totalEarned);
 
-        return { success: true, earned: totalEarned, tariff: legality.tariff || 0, duty: duty.duty, breachHeat: duty.heat };
+        return { success: true, earned: totalEarned, drawn, tariff: legality.tariff || 0, duty: duty.duty, breachHeat: duty.heat };
     },
 };

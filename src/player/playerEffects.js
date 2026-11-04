@@ -19,6 +19,7 @@ import { Treasures } from './treasures.js';
 import { Religion } from '../systems/religion.js';
 import { Traits } from '../systems/traits.js';
 import { DataLoader } from '../core/dataLoader.js';
+import { Grades } from '../core/grades.js';
 import { Companions } from '../systems/companions.js';
 import { Underworld } from '../systems/underworld.js';
 import { Ailments } from '../systems/ailments.js';
@@ -30,7 +31,7 @@ function _tenet(player, key) {
 }
 
 /** Personal damage reduction from gear in the inventory (multiplicative). */
-const ARMOR_REDUCTION = { leather_armor: 0.2, shield: 0.15, amulet: 0.1 };
+const ARMOR_REDUCTION = { leather_armor: 0.2, chainmail: 0.28, plate_armor: 0.36, helmet: 0.08, shield: 0.15, amulet: 0.1 };
 
 /** Better buy/sell prices in a kingdom the player has a trade agreement with. */
 const TRADE_AGREEMENT_BONUS = 0.10;
@@ -316,12 +317,10 @@ export const PlayerEffects = {
         };
     },
 
-    /** { itemId: effectMult } for every crafted stack the player carries (Fine > 1, Crude < 1). */
+    /** { itemId: effectMult } for every graded stack the player carries (its best grade: Fine > 1, Poor < 1). */
     craftedQuality(player) {
         const out = {};
-        const q = player && player.craftQuality;
-        if (!q || typeof q !== 'object') return out;
-        for (const id of Object.keys(q)) {
+        for (const id of Grades.gradedItems(player)) {
             const m = Crafting.effectMult(player, id);
             if (m !== 1) out[id] = m;
         }

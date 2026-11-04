@@ -903,8 +903,9 @@ Object.assign(UI.prototype, {
                 }
                 const title = item && item.description ? ` title="${String(item.description).replace(/"/g, '&quot;')}"` : '';
                 // Crafted goods carry their quality (player/crafting.js)
-                const qTag = Crafting.qualityTag(player, itemId);
-                const quality = qTag ? `<span style="color: #8fc3ff; font-size: 11px; margin-left: 6px;" title="Average quality of the ${name} you carry: it scales the price and the effect">${qTag}</span>` : '';
+                // The grades held (core/grades.js): they scale the price and the effect
+                const qHtml = Crafting.qualityHtml(player, itemId);
+                const quality = qHtml ? `<span style="margin-left: 6px;" title="The grades of the ${name} you carry: they scale the price and the effect">${qHtml}</span>` : '';
                 inventoryHtml += `
                     <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                         <div style="display: flex; justify-content: space-between;">

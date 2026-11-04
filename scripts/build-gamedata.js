@@ -87,7 +87,8 @@ const topLevel = [
     'swimming',
     'wrecks',
     'furniture',
-    'crops'
+    'crops',
+    'craftGrades'
 ];
 
 const merged = {};

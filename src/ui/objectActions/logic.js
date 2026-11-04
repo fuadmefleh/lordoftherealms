@@ -4,6 +4,7 @@ import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { Crafting } from '../../player/crafting.js';
+import { Grades } from '../../core/grades.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
 
@@ -199,8 +200,8 @@ export function _showEatModal(game, objDef) {
              onclick="window._execEat('${f.id}')">
             <span style="font-size:22px">${f.icon}</span>
             <div style="flex:1">
-                <div style="font-size:13px;font-weight:600">${f.label} <span style="color:#888;font-weight:400">×${f.qty}</span></div>
-                <div style="font-size:11px;color:#888">🍖 +${f.hunger} hunger${f.energy ? ` · ⚡ +${f.energy} energy` : ''}${f.fun ? ` · 🎉 +${f.fun} fun` : ''}</div>
+                <div style="font-size:13px;font-weight:600">${f.label} <span style="color:#888;font-weight:400">×${f.qty}</span> ${Crafting.qualityHtml(game.player, f.id)}</div>
+                <div style="font-size:11px;color:#888">${Grades.hasGraded(game.player, f.id) ? 'The best is eaten first · ' : ''}🍖 +${f.hunger} hunger${f.energy ? ` · ⚡ +${f.energy} energy` : ''}${f.fun ? ` · 🎉 +${f.fun} fun` : ''}</div>
             </div>
         </div>
     `).join('');
@@ -239,7 +240,7 @@ export function _showEatModal(game, objDef) {
             if (def.comfort) game.player.modifyNeed('comfort', Math.round(def.comfort * q));
         }
         _removeModal(id);
-        game.ui.showNotification(`${def.icon} Ate ${def.label}`, `Mmm, delicious! Hunger restored.`, 'success');
+        game.ui.showNotification(`${def.icon} Ate ${def.label}`, q > 1.05 ? 'Excellent fare! Hunger restored, and then some.' : q < 0.95 ? 'Poor stuff, but it fills a hole.' : 'Mmm, delicious! Hunger restored.', 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
         delete window._execEat;
@@ -272,8 +273,13 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
         }).join(' · ');
         const resultStr = Object.entries(r.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
         const odds = Crafting.odds(game.player, r, { building });
-        const tier = Crafting.tier(odds.tier);
-        const oddsStr = `Fail ${Math.round(odds.fail * 100)}%${r.quality === false ? '' : ` · likely ${tier.icon} ${tier.name}`}${r.smith ? ' · ⚒️ forge work' : ''}`;
+        const sk = Crafting.skillDef(odds.skill);
+        // The odds of each grade (core/grades.js): the likely ones, coloured
+        const gradeOdds = r.quality === false ? '' : Grades.list()
+            .map((g, gi) => ({ g, p: odds.dist[gi] }))
+            .filter(x => x.p >= 0.03)
+            .map(x => `<span style="color:${x.g.color}">${x.g.name} ${Math.round(x.p * 100)}%</span>`).join(' ');
+        const oddsStr = `${sk.icon} ${sk.name} ${odds.level.toFixed(1)} · Fail ${Math.round(odds.fail * 100)}%${r.smith ? ' · ⚒️ forge work' : ''}${odds.parts.tool ? ` · 🔧 ${odds.parts.tool.item.replace(/_/g, ' ')}` : ''}`;
         return `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;opacity:${opacity};${cursor}transition:background .15s"
                  ${canMake ? `onmouseenter="this.style.background='rgba(245,197,66,0.1)'" onmouseleave="this.style.background='rgba(255,255,255,0.03)'" onclick="window._execRecipe(${i})"` : ''}>
@@ -284,13 +290,17 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
                     <div style="font-size:10px;margin-top:2px">Needs: ${ingredientStr}</div>
                     <div style="font-size:10px;color:#6ab8db">Yields: ${resultStr}</div>
                     <div style="font-size:10px;color:#b9a77a">${oddsStr}</div>
+                    ${gradeOdds ? `<div style="font-size:10px">${gradeOdds}</div>` : ''}
                 </div>
             </div>
         `;
     }).join('');
 
     const shop = recipes.length ? Crafting.workshopBonus(recipes[0], building) : 0;
-    const rankLine = `${rank.icon} ${rank.name} crafter (${Math.floor(rank.xp)} xp${rank.next ? ` · ${rank.next.name} at ${rank.next.at}` : ''})${shop ? ' · 🏛️ proper workshop' : ''}`;
+    // The skills these recipes use (data/craftGrades.json), and the overall rank
+    const skillIds = [...new Set(recipes.map(r => Crafting.skillOf(r)))];
+    const skillStr = skillIds.map(sid => { const si = Crafting.skillInfo(game.player, sid); return `${si.icon} ${si.name} ${si.level.toFixed(1)} (${si.title})`; }).join(' · ');
+    const rankLine = `${skillStr}<br>${rank.icon} ${rank.name} crafter (${Math.floor(rank.xp)} xp${rank.next ? ` · ${rank.next.name} at ${rank.next.at}` : ''})${shop ? ' · 🏛️ proper workshop' : ''}`;
     modal.innerHTML = `
         <div style="${MODAL_HEADER_STYLE}">
             <span style="font-size:28px">${icon}</span>
@@ -319,12 +329,13 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
         }
         _advanceTime(1);
         if (res.failed) {
-            game.ui.showNotification(`${recipe.icon} Spoiled`, `The work went wrong — you lost ${PlayerInventory.describe(res.lost) || 'nothing'}. (+${res.xp} crafting xp)`, 'warning');
+            game.ui.showNotification(`${recipe.icon} Spoiled`, `The work went wrong — you lost ${PlayerInventory.describe(res.lost) || 'nothing'}. (+${res.xp} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, 'warning');
         } else {
             const resultStr = Object.entries(res.results).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
             const q = res.quality ? ` ${res.tierIcon} ${res.tierName}` : '';
-            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced${q} ${resultStr}! (+${res.xp} crafting xp)`, res.tier >= 2 ? 'success' : 'info');
+            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced${q} ${resultStr}! (+${res.xp} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, res.tier >= 2 ? 'success' : res.tier < 1 ? 'warning' : 'info');
         }
+        if (res.skillUp) game.ui.showNotification(`${res.skillUp.icon} ${res.skillUp.name}`, `Your ${res.skillUp.name.toLowerCase()} improves to ${res.skillUp.level.toFixed(1)} (${res.skillUp.title}).`, 'success');
         if (res.toolWorn) game.ui.showNotification('🔧 Tools Worn', 'A set of tools wore out at the work.', 'info');
         if (res.rankUp) game.ui.showNotification(`${res.rankUp.icon} ${res.rankUp.name}`, `Your craft improves: you are now a ${res.rankUp.name}.`, 'success');
         game.ui.updateStats(game.player, game.world);
@@ -558,7 +569,7 @@ export function _showHealModal(game, objDef) {
              onclick="window._execHeal('${h.itemId}')">
             <span style="font-size:22px">${h.icon}</span>
             <div style="flex:1">
-                <div style="font-size:13px;font-weight:600">${h.label} <span style="color:#888;font-weight:400">×${h.qty}</span></div>
+                <div style="font-size:13px;font-weight:600">${h.label} <span style="color:#888;font-weight:400">×${h.qty}</span> ${Crafting.qualityHtml(game.player, h.itemId)}</div>
                 <div style="font-size:11px;color:#888">❤️ +${h.heal} HP${h.energy ? ` · ⚡ +${h.energy} energy` : ''}</div>
             </div>
         </div>

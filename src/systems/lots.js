@@ -103,6 +103,7 @@ export const Lots = {
         const book = LotBook.of(settlement);
         if (book.lots[lot.id]) return { success: false, reason: `This lot is already ${LotBook.isPlayer(book.lots[lot.id]) ? 'yours' : `sold to ${book.lots[lot.id].holderName}`}.` };
         const price = LotBook.lotPrice(settlement.type, lot.w, lot.h);
+        if (!Number.isFinite(price) || price < 0) return { success: false, reason: 'This lot has no price.' };
         if (_num(player.gold) < price) return { success: false, reason: `The lot costs ${price}g; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= price;
         Ledger.record(player, 'townLand', -price);
@@ -259,7 +260,7 @@ export const Lots = {
             const rec = LotBook.lot(s, h.id);
             if (!LotBook.isPlayer(rec)) return 0;
             const house = rec.built && rec.built.kind === 'house' ? _num(rec.built.cost) : 0;
-            return Math.round((_num(rec.price, h.price) + house) * this._sellBack());
+            return Math.round((_num(rec.price, _num(h.price, 0)) + house) * this._sellBack());
         }
         if (h.kind === 'house') return Math.round(_num(h.price, LotBook.salePrice(s.type)) * this._sellBack());
         return 0;

@@ -226,3 +226,13 @@ const OLD = {
     nordicCity3: '52:1545:bd0389db',
     imperialVillage2: '11:639:fa5dd1a7',
 };
+
+describe('a nomadic town', () => {
+    it('pitches no tents among its houses', () => {
+        for (const [type, q] of [['village', 4], ['town', 9], ['city', 12], ['capital', 17]]) {
+            const tiles = town('Nomadic', type, 4, q, 14);
+            const tents = tiles.flat().filter(t => t.customObject && /tent/.test(t.customObject.defId || ''));
+            expect(tents.length).toBe(0);
+        }
+    });
+});

@@ -107,7 +107,7 @@ describe('settlement food model', () => {
 
     it('a solvent city buys in food and holds steady', () => {
         const c = { type: 'city', population: 5000, _marketFood: 40 };
-        Economy.initSettlement(c);
+        Economy.initSettlement(c, { fresh: true }); // an empty granary: living on what it buys in
         c.economy.gold = 100000;
         feed(c, 365);
         expect(c.population).toBe(5000);

@@ -355,7 +355,7 @@ export const Dawn = {
             dawnBorn: true,
             foundedBy: clan.name,
         };
-        Economy.initSettlement(tile.settlement);
+        Economy.initSettlement(tile.settlement, { fresh: true });
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
         clan.destroyed = true;
         world.dawn.villagesFounded++;

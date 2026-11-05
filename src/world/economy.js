@@ -419,11 +419,18 @@ export const Economy = {
     /**
      * Initialize economy data for a settlement
      */
-    initSettlement(settlement) {
+    /**
+     * Give a settlement its economy record. An established town has food put
+     * by in its granary (FOOD.startDays of its needs: the world didn't start
+     * out of nowhere); a newly founded one (`fresh`: a colony, a dawn clan's
+     * village) starts with an empty granary.
+     */
+    initSettlement(settlement, { fresh = false } = {}) {
         if (!settlement.economy) {
+            const F = Economy.FOOD;
             settlement.economy = {
                 gold: 0,
-                food: 0,
+                food: fresh ? 0 : Math.round(Math.max(0, Number(settlement.population) || 0) * F.perCapita * F.startDays),
                 goods: 0,
                 production: { gold: 0, food: 0, goods: 0 },
                 tradeRoutes: [],
@@ -585,6 +592,7 @@ export const Economy = {
         maxGrowth: 0.0003,             // per day, before the capacity taper
         starvation: 0.003,             // daily loss at a 100% shortfall
         stockDays: 10,                 // granary holds this many days' needs
+        startDays: 6,                  // an established town's granary at the start: this many days put by
     },
 
     /** Feed a settlement for one day and grow or shrink its population. */

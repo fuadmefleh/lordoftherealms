@@ -580,7 +580,7 @@ export const Colonization = {
         };
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
-        Economy.initSettlement(tile.settlement);
+        Economy.initSettlement(tile.settlement, { fresh: true });
 
         // Set colony data on the settlement
         tile.settlement.colony = {
@@ -853,7 +853,7 @@ export const Colonization = {
         };
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
-        Economy.initSettlement(tile.settlement);
+        Economy.initSettlement(tile.settlement, { fresh: true });
 
         tile.settlement.colony = {
             loyalty: 60,
@@ -913,7 +913,7 @@ export const Colonization = {
         };
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
 
-        Economy.initSettlement(tile.settlement);
+        Economy.initSettlement(tile.settlement, { fresh: true });
 
         tile.settlement.colony = {
             loyalty: 55,

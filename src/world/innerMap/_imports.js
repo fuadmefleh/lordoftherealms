@@ -13,4 +13,5 @@ export { Townsfolk } from '../../systems/townsfolk.js';
 export { Hospitality } from '../../systems/hospitality.js';
 export { Cultures } from '../cultures.js';
 export { TownProps } from '../townProps.js';
+export { Economy } from '../economy.js';
 export { Characters } from '../characters.js';

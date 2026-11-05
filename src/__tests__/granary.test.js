@@ -52,3 +52,14 @@ describe('the granary', () => {
         expect(notes.length).toBe(1);
     });
 });
+
+describe('the granary on the first day', () => {
+    it('an established town starts with food put by; a new colony with none', async () => {
+        const { Economy } = await import('../world/economy.js');
+        const town = Economy.initSettlement({ type: 'town', population: 1000 });
+        expect(town.economy.food).toBe(1000 * Economy.FOOD.perCapita * Economy.FOOD.startDays);
+        expect(InnerMapGranary.spare(town)).toBeGreaterThan(0);
+        const colony = Economy.initSettlement({ type: 'village', population: 80 }, { fresh: true });
+        expect(colony.economy.food).toBe(0);
+    });
+});

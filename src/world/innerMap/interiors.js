@@ -1,6 +1,6 @@
 // InnerMap — interiors members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, TownProps } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, TownProps, Economy } from './_imports.js';
 import { sidesMask } from '../../core/tileSides.js';
 
 Object.assign(InnerMap, {
@@ -99,6 +99,8 @@ Object.assign(InnerMap, {
 
         // ── The town's fields grown to the day (world/townProps.js) ──
         if (hasSettlement) TownProps.growFields(this.tiles, this.worldDay);
+        // ── Its granary stocked from the first day (world/economy.js), for the farmers to carry into and the keeper to sell from ──
+        if (hasSettlement && worldTile && worldTile.settlement && !worldTile.settlement.economy) Economy.initSettlement(worldTile.settlement);
 
         // ── The player's tilled fields and crops here (world/innerMap/farmPlots.js) ──
         if (this.applyFarmPlots) this.applyFarmPlots(game.player);

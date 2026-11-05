@@ -141,7 +141,7 @@ Object.assign(InnerMap, {
         church:       { name: 'Church',        icon: '⛪', sprite: 'buildings/church00.png',          actions: ['pray', 'donate', 'meditate', 'talk_priest'] },
         temple:       { name: 'Temple',        icon: '🕌', sprite: 'buildings/temple.png',            actions: ['pray', 'donate', 'meditate', 'seek_blessing'] },
         barracks:     { name: 'Barracks',      icon: '🏰', sprite: 'buildings/barracks00.png',        actions: ['recruit', 'train_combat', 'talk_captain'] },
-        granary:      { name: 'Granary',       icon: '🌾', sprite: 'buildings/granary00.png',         actions: ['buy_food', 'store_goods'] },
+        granary:      { name: 'Granary',       icon: '🌾', sprite: 'buildings/granary00.png',         actions: ['store_goods'] },  // grain is sold by the keeper (ui/innerMapGranary.js)
         warehouse:    { name: 'Warehouse',     icon: '📦', sprite: 'buildings/warehouse00.png',       actions: ['store_goods', 'collect_goods'] },
         well:         { name: 'Well',          icon: '💧', sprite: 'buildings/well00.png',            actions: ['rest', 'talk_locals'] },
         barn:         { name: 'Barn',          icon: '🏚️', sprite: 'buildings/barn00.png',            actions: ['rest', 'forage'] },

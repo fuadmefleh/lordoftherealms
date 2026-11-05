@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import fs from 'fs';
 
-let InnerMap, DataLoader, Utils;
+let InnerMap, DataLoader, Utils, TownProps;
 const TOWN_LIFE = JSON.parse(fs.readFileSync('data/townLife.json', 'utf-8'));
 
 beforeAll(async () => {
@@ -20,6 +20,7 @@ beforeAll(async () => {
     ({ InnerMap } = await import('../world/innerMap.js'));
     ({ DataLoader } = await import('../core/dataLoader.js'));
     ({ Utils } = await import('../core/utils.js'));
+    ({ TownProps } = await import('../world/townProps.js'));
     const { CustomBuildings } = await import('../world/customBuildings.js');
     const { CustomObjects } = await import('../world/customObjects.js');
     CustomBuildings.reset(); await CustomBuildings.loadAll();
@@ -79,17 +80,42 @@ describe('Town life', () => {
         expect(settled.filter(n => n._home).length / settled.length).toBeGreaterThan(0.9);
     });
 
-    it('through a day, no one wanders out of town (save the departing)', () => {
+    it('through a day, no one wanders out of town (save the departing, and hands out in the fields)', () => {
         enter('town');
+        const m = InnerMap.townArea().margin;
         for (let h = 7; h < 23; h++) {
             InnerMap.timeOfDay = h;
             run(60, 0.5);
             for (const n of InnerMap.npcs) {
                 if (n.departing || n.state === 'inside_building') continue;
                 const end = n.path && n.path.length ? n.path[n.path.length - 1] : { q: n.q, r: n.r };
+                if (n._field) {
+                    expect(end.q >= m && end.r >= m && end.q < InnerMap.width - m && end.r < InnerMap.height - m).toBe(true);
+                    continue;
+                }
                 expect(InnerMap.inTown(end.q, end.r)).toBe(true);
             }
         }
+    });
+
+    it('farmers go out to work the fields, and cut a ripe one down', () => {
+        const game = enter('town', 9);
+        const fields = InnerMap._townFields();
+        expect(fields.length).toBeGreaterThan(0);
+        // High summer: the wheat and the vegetables are ripe
+        InnerMap.worldDay = 66;
+        TownProps.growFields(InnerMap.tiles, 66);
+        const left = () => fields.reduce((s, f) => s + TownProps.fieldCrop(InnerMap.tiles[f.r][f.q].customObject, 66).left, 0);
+        const before = left();
+        let working = 0;
+        for (let i = 0; i < 600; i++) {
+            InnerMap.timeOfDay = 9 + Math.floor(i / 120);
+            InnerMap.updateNPCs(0.5);
+            working = Math.max(working, InnerMap.npcs.filter(n => n.activity && n.activity.type === 'field').length);
+        }
+        expect(game).toBeTruthy();
+        expect(working).toBeGreaterThan(0);
+        expect(left()).toBeLessThan(before);
     });
 
     it('goes about the day: some at work, some talking; most abed at night', () => {

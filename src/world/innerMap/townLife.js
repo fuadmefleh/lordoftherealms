@@ -2,8 +2,11 @@
 // InnerMap — town life: where townsfolk live, work and go each hour
 // ============================================
 // Folk keep to the town itself — its streets, its square, its doors — and
-// never wander off into the fields or out to the edge of the map (only a
-// departing traveler or someone fleeing walks out of town). Each has a home
+// never wander off out to the edge of the map (only a departing traveler or
+// someone fleeing walks out of town). Farmers (and a few others) go out to
+// work the town's fields: hoeing and weeding as the crop grows, cutting and
+// carrying it in when it is ripe (world/townProps.js, so a field the town
+// works runs down before the player's eyes). Each has a home
 // and a place of work, and the hour decides what they're about: up at dawn,
 // at work in the morning, the market or the tavern at midday, an evening out,
 // abed at night. Neighbours stop to talk; children play about the square.
@@ -15,7 +18,7 @@
 // Draws only from Utils (seedable) and the spawn rng it is handed.
 
 import { InnerMap } from './_ref.js';
-import { Utils, DataLoader } from './_imports.js';
+import { Utils, DataLoader, TownProps } from './_imports.js';
 import { PLAN } from '../townPlanner.js';
 
 const DEFAULTS = {
@@ -39,12 +42,16 @@ const DEFAULTS = {
     },
     // How long each thing takes once there (seconds, [min, max]); 1 real minute is an hour
     stay: {
-        home: [25, 50], work: [20, 45], tend: [12, 25], errand: [8, 20], market: [10, 22], tavern: [20, 40],
+        home: [25, 50], work: [20, 45], tend: [12, 25], field: [20, 40], errand: [8, 20], market: [10, 22], tavern: [20, 40],
         church: [15, 30], plaza: [8, 18], well: [5, 12], stroll: [2, 6], play: [1, 3], post: [30, 60], patrol: [2, 5],
         chat: [6, 12], sleep: [60, 120],
     },
     // Roles that work out front of their door (a stall, an anvil) rather than inside
     tendOutside: { merchant: 0.6, blacksmith_npc: 0.5, farmer: 0.4, beggar: 1 },
+    // At work, the share of each role that goes out to the fields instead (when the town has any);
+    // a hand cutting a ripe field brings in this much of its crop each spell of work
+    fieldWork: { farmer: 0.75, villager: 0.15, child: 0.05 },
+    fieldHarvestPerSpell: 2,
     workplaces: {
         merchant: ['marketplace', 'warehouse', 'bakery'],
         farmer: ['farm', 'barn', 'granary', 'mill'],
@@ -105,6 +112,7 @@ Object.assign(InnerMap, {
                 schedule: { ...DEFAULTS.schedule, ...(_obj(d.schedule) || {}) },
                 stay: { ...DEFAULTS.stay, ...(_obj(d.stay) || {}) },
                 tendOutside: { ...DEFAULTS.tendOutside, ...(_obj(d.tendOutside) || {}) },
+                fieldWork: { ...DEFAULTS.fieldWork, ...(_obj(d.fieldWork) || {}) },
                 workplaces: { ...DEFAULTS.workplaces, ...(_obj(d.workplaces) || {}) },
                 chat: { ...DEFAULTS.chat, ...(_obj(d.chat) || {}), lines: { ...DEFAULTS.chat.lines, ...((_obj(d.chat) || {}).lines || {}) } },
             };
@@ -345,6 +353,7 @@ Object.assign(InnerMap, {
         const period = this.townPeriod();
         const rnd = Utils.random;
         npc._chatWith = null;
+        if (npc._field) this._leaveField(npc);
 
         // A guard: the night watch walks by night and sleeps by day's end; the day watch the reverse
         npc._awaiting = null;
@@ -369,6 +378,8 @@ Object.assign(InnerMap, {
         switch (act) {
             case 'home': return this._goHome(npc, period === 'night' ? 'sleep' : 'home');
             case 'work': {
+                // Out to the fields
+                if (rnd() < (Number(C.fieldWork[npc.type]) || 0) && this._goToField(npc)) return true;
                 if (!npc._work) return this._doActivity(npc, 'errand', period);
                 const outside = rnd() < (Number(C.tendOutside[npc.type]) || 0);
                 return outside ? this._goStand(npc, this._findPassableAdjacentTile(npc._work.q, npc._work.r), 'tend', 2)
@@ -416,6 +427,75 @@ Object.assign(InnerMap, {
             default:
                 return this._goStand(npc, this.townSpot(rnd, rnd() < 0.6 ? { q: npc.q, r: npc.r } : null, 14), 'stroll');
         }
+    },
+
+    // ──────────── THE FIELDS ────────────
+
+    /** The town's fields on this map: [{ q, r, w, h }] by their anchors (bottom-left). */
+    _townFields() {
+        if (this._fieldsCache && this._fieldsCache.tiles === this.tiles) return this._fieldsCache.list;
+        const list = [];
+        for (const row of this.tiles || []) {
+            for (const t of row) {
+                const f = t && t.customObject && TownProps.parseFieldId(t.customObject.defId);
+                if (f && !t._isInterior) list.push({ q: t.q, r: t.r, w: f.w, h: f.h });
+            }
+        }
+        this._fieldsCache = { tiles: this.tiles, list };
+        return list;
+    },
+
+    /** Walk out to a field (one of the nearer few to home) and stand at its edge, facing it. */
+    _goToField(npc) {
+        const fields = this._townFields();
+        if (!fields.length) return false;
+        const rnd = Utils.random;
+        const base = npc._home || npc;
+        const near = fields.map(f => ({ f, d: Math.hypot(f.q - base.q, f.r - base.r) })).sort((a, b) => a.d - b.d).slice(0, 3);
+        const { f } = near[Math.floor(rnd() * near.length)];
+        // The cells round its edge a hand can stand on
+        const ring = [];
+        const top = f.r - f.h + 1;
+        for (let q = f.q - 1; q <= f.q + f.w; q++) for (const r of [top - 1, f.r + 1]) ring.push({ q, r });
+        for (let r = top; r <= f.r; r++) for (const q of [f.q - 1, f.q + f.w]) ring.push({ q, r });
+        const free = ring.filter(s => {
+            const t = this.tiles[s.r] && this.tiles[s.r][s.q];
+            return t && t.subTerrain && t.subTerrain.passable && !t.customObject && !t.customObjectPart && !t.isWater
+                && !(this.npcs || []).some(o => o !== npc && o.q === s.q && o.r === s.r);
+        });
+        // (never out by the map's edge)
+        const m = (this.townArea() || {}).margin || 8;
+        const inMap = free.filter(s => s.q >= m && s.r >= m && s.q < this.width - m && s.r < this.height - m);
+        if (!inMap.length) return false;
+        const spot = inMap[Math.floor(rnd() * inMap.length)];
+        const cq = Math.min(Math.max(spot.q, f.q), f.q + f.w - 1), cr = Math.min(Math.max(spot.r, top), f.r);
+        npc._field = { q: f.q, r: f.r };
+        if (this._goStand(npc, spot, 'field', _dirTo(cq - spot.q, cr - spot.r))) return true;
+        npc._field = null;
+        return false;
+    },
+
+    /** At the field's edge: to work, cutting if it is ripe, else hoeing and weeding. */
+    _startFieldWork(npc) {
+        const t = npc._field && this.tiles[npc._field.r] && this.tiles[npc._field.r][npc._field.q];
+        const obj = t && t.customObject;
+        if (!obj) { npc._field = null; return; }
+        const crop = TownProps.fieldCrop(obj, this.worldDay || 1);
+        npc.activity = crop.ripe && crop.left > 0
+            ? { type: 'field', icon: '🌾', label: 'Bringing in the harvest', anim: 'halfslash' }
+            : { type: 'field', icon: '🌱', label: 'Working the field', anim: 'swing' };
+    },
+
+    /** Done with a spell in the field: what was cut is carried in. */
+    _leaveField(npc) {
+        const f = npc._field;
+        npc._field = null;
+        const cutting = npc.activity && npc.activity.type === 'field' && npc.activity.anim === 'halfslash';
+        if (npc.activity && npc.activity.type === 'field') npc.activity = null;
+        const t = f && this.tiles[f.r] && this.tiles[f.r][f.q];
+        // Only a hand who stood and worked (not one called away on the road out)
+        if (!cutting || !t || !t.customObject || Math.hypot(npc.q - f.q, npc.r - f.r) > 12) return;
+        TownProps.takeFromField(t.customObject, this.worldDay || 1, Number(this.townLifeConfig().fieldHarvestPerSpell) || 2, this.tiles);
     },
 
     _goHome(npc, act) {
@@ -514,6 +594,7 @@ Object.assign(InnerMap, {
         npc.idleTimer = _span(C.stay[act] || C.stay.stroll, Utils.random);
         if (npc._face != null) npc.facing = npc._face;
         if (act === 'chat') this._startChat(npc);
+        if (act === 'field') this._startFieldWork(npc);
         npc._activity = null;
         npc._face = null;
     },

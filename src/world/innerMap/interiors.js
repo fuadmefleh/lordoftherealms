@@ -727,21 +727,9 @@ Object.assign(InnerMap, {
         // A home of the player's they've furnished: lay their furniture out (world/innerMap/furnishing.js)
         if (this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
 
-        // Populate interior with NPCs that are currently inside this building
-        const interiorNpcs = [];
-        const outerNpcs = this._outerMapState.npcs;
-        for (const npc of outerNpcs) {
-            if (npc.state === 'inside_building' &&
-                npc._insideBuildingQ === building.q &&
-                npc._insideBuildingR === building.r) {
-                // Upstairs folk are met upstairs (world/innerMap/floors.js)
-                if (this.npcFloor && this.npcFloor(npc) !== 0) continue;
-                // Place NPC on a passable interior tile
-                const placed = this._placeNpcInInterior(npc, interior);
-                if (placed) interiorNpcs.push(npc);
-            }
-        }
-        this.npcs = interiorNpcs;
+        // Populate interior with NPCs that are currently inside this building: those
+        // on the ground floor (upstairs folk are met upstairs, sleepers in their beds — world/innerMap/floors.js)
+        this.npcs = this._peopleOnFloor(interior, 0);
 
         // Place player at the door (bottom center)
         this.playerInnerQ = Math.floor(this.width / 2);

@@ -678,4 +678,27 @@ Object.assign(InnerMap, {
         const lodging = npc.type === 'traveler' && (this.townLifeConfig().lodgings || []).includes(npc.currentBuilding);
         return atHome || lodging ? _span(this.townLifeConfig().stay.sleep, Utils.random) : 0;
     },
+
+    /** A traveller staying the night at this house of lodging. */
+    _isLodger(npc, bldg) {
+        return !!(npc && bldg && npc.type === 'traveler' && (this.townLifeConfig().lodgings || []).includes(bldg.type)
+            && npc._insideBuildingQ === bldg.q && npc._insideBuildingR === bldg.r);
+    },
+
+    /**
+     * In bed, in a town: indoors at home (or a lodger at their inn) by night,
+     * or a guard of the day watch off duty… the night watch sleeps the
+     * morning away. (world/innerMap/floors.js lays them in their beds.)
+     */
+    _townAbed(npc) {
+        const ref = this._currentWorldTileRef;
+        if (!npc || !(ref && ref.settlement) || npc.state !== 'inside_building' || npc.departing) return false;
+        const home = npc._home;
+        const atHome = !!(home && npc._insideBuildingQ === home.q && npc._insideBuildingR === home.r);
+        if (npc.type === 'guard') return atHome && !this._guardOnDuty(npc);
+        if (this.townPeriod() !== 'night') return false;
+        if (atHome) return true;
+        const b = { type: npc.currentBuilding, q: npc._insideBuildingQ, r: npc._insideBuildingR };
+        return this._isLodger(npc, b);
+    },
 });

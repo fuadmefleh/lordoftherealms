@@ -176,7 +176,8 @@ Object.assign(InnerMap, {
 
     /** The NPC currently occupying or heading for the furniture at (q, r), or null. */
     getFurnitureOccupant(q, r) {
-        return this.npcs.find(n => n._act && n._act.spot && n._act.spot.q === q && n._act.spot.r === r) || null;
+        return this.npcs.find(n => (n._act && n._act.spot && n._act.spot.q === q && n._act.spot.r === r)
+            || (n._asleep && n._asleep.q === q && n._asleep.r === r)) || null;
     },
 
     /** Make an NPC give up the furniture they're using or heading for. */
@@ -260,6 +261,11 @@ Object.assign(InnerMap, {
      * their visit is up walk out through the door instead of vanishing.
      */
     _updateInteriorNpc(npc, deltaTime) {
+        // Asleep in bed till the hour comes round (world/innerMap/floors.js)
+        if (npc._asleep) {
+            if (this._townAbed && this._townAbed(npc)) { npc.idleTimer = Math.max(npc.idleTimer || 0, 5); return; }
+            this._wakeNpc(npc);
+        }
         if (!npc._act) npc._act = { phase: 'rest', timer: 0.5 + Utils.random() * 2, spot: null };
         const act = npc._act;
 
@@ -267,7 +273,8 @@ Object.assign(InnerMap, {
         npc.idleTimer -= deltaTime;
         if (npc.idleTimer <= 0 && act.phase !== 'exit') {
             npc.activity = null;
-            const door = this._doorTile();
+            // (upstairs, the way out is down the stairs)
+            const door = this._doorTile() || (this._stairsDownTile && this._stairsDownTile());
             act.phase = 'exit';
             act.spot = null;
             if (!door || !this._npcWalkTo(npc, door.q, door.r)) { npc.state = 'leaving_building'; return; }

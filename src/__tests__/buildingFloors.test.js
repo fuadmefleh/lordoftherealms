@@ -142,3 +142,68 @@ describe('the folk inside', () => {
         expect(InnerMap.npcs.length + ground.length).toBeLessThanOrEqual(12);
     });
 });
+
+describe('living and sleeping upstairs', () => {
+    const resident = (i, home) => ({ id: `r${i}`, name: `R${i}`, type: 'villager', state: 'inside_building', _home: home, currentBuilding: home.type, _insideBuildingQ: home.q, _insideBuildingR: home.r, q: home.q, r: home.r });
+
+    it('by night the household sleeps in the beds upstairs; a caller stays downstairs', () => {
+        street('city');
+        const g = game();
+        const house = { type: 'manor', name: 'Manor', q: 3, r: 4 };
+        const folk = [0, 1, 2].map(i => resident(i, house));
+        const caller = { id: 'c1', name: 'Caller', type: 'merchant', state: 'inside_building', currentBuilding: 'manor', _insideBuildingQ: 3, _insideBuildingR: 4, q: 3, r: 4 };
+        InnerMap.npcs = [...folk, caller];
+        InnerMap.timeOfDay = 23;
+        InnerMap.enterBuilding(house, g);
+        const beds = InnerMap.bedFloors(house);
+        expect(beds.every(k => k > 0)).toBe(true);
+        expect(InnerMap.npcs.map(n => n.id)).toEqual(['c1']);
+        for (const n of folk) expect(beds).toContain(InnerMap.npcFloor(n));
+        InnerMap.goToFloor(beds[0], g);
+        const sleepers = InnerMap.npcs.filter(n => n._asleep);
+        expect(sleepers.length).toBe(InnerMap.npcs.length);
+        expect(sleepers.length).toBeGreaterThan(0);
+        // Each in a bed of their own (or a bedroll when the beds run out)
+        const spots = new Set(sleepers.map(n => `${n.q},${n.r}`));
+        expect(spots.size).toBe(sleepers.length);
+        for (const n of sleepers.filter(s => !s._asleep.bedroll)) expect(InnerMap.tiles[n.r][n.q]._furniture.type).toBe('bed');
+        InnerMap.exitBuilding(g);
+        InnerMap.timeOfDay = 8;
+    });
+
+    it('come the morning they wake, get up, and go down the stairs', () => {
+        street('city');
+        const g = game();
+        const house = { type: 'manor', name: 'Manor', q: 5, r: 2 };
+        const folk = [0, 1, 2, 3].map(i => resident(i, house));
+        InnerMap.npcs = folk;
+        InnerMap.timeOfDay = 23;
+        InnerMap.enterBuilding(house, g);
+        InnerMap.goToFloor(InnerMap.bedFloors(house)[0], g);
+        const sleeper = InnerMap.npcs.find(n => n._asleep);
+        expect(sleeper).toBeTruthy();
+        InnerMap._updateInteriorNpc(sleeper, 1);
+        expect(sleeper._asleep).toBeTruthy();
+        InnerMap.timeOfDay = 9;
+        InnerMap._updateInteriorNpc(sleeper, 1);
+        expect(sleeper._asleep).toBeNull();
+        // Their visit up here over, they make for the stairs down
+        sleeper.idleTimer = 0;
+        InnerMap._updateInteriorNpc(sleeper, 0.01);
+        expect(sleeper._act.phase === 'exit' || sleeper.state === 'leaving_building').toBe(true);
+        InnerMap.exitBuilding(g);
+        InnerMap.timeOfDay = 8;
+    });
+
+    it('by day those who live there keep about the whole house', () => {
+        street('city');
+        const g = game();
+        const house = { type: 'manor', name: 'Manor', q: 7, r: 3 };
+        InnerMap.timeOfDay = 11;
+        InnerMap.npcs = [];
+        InnerMap.enterBuilding(house, g);
+        const floors = new Set(Array.from({ length: 30 }, (_, i) => InnerMap.npcFloor(resident(i, house))));
+        expect(floors.size).toBe(InnerMap._floorCount);
+        InnerMap.exitBuilding(g);
+    });
+});

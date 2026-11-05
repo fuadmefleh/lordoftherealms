@@ -9,6 +9,7 @@ import { InnerMapCombat } from '../innerMapCombat.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
+import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
@@ -774,6 +775,14 @@ Object.assign(InnerMapRenderer, {
                 if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
                 if (charReady && !npc.preset) {
                     npc.preset = InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender);
+                }
+                // Asleep in bed, under the blanket (world/innerMap/floors.js, ui/innerMapSleepers.js)
+                if (npc._asleep && InnerMap._insideBuilding) {
+                    const zs = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
+                    const zx = zs.x, zy = zs.y;
+                    const zRef = npc;
+                    items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() { InnerMapSleepers.draw(ctx, zRef, zx, zy, ds); } });
+                    continue;
                 }
                 // Beaten senseless: lying where they fell, under anyone standing on that row
                 if (npc.state === 'unconscious') {

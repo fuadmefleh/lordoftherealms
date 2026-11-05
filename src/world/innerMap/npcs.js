@@ -450,8 +450,9 @@ Object.assign(InnerMap, {
 
         for (const npc of this.npcs) {
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
+            // (not someone asleep in bed: they lie on it — world/innerMap/floors.js)
             const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];
-            if (!curTile || !curTile.subTerrain.passable) {
+            if (!npc._asleep && (!curTile || !curTile.subTerrain.passable)) {
                 let relocated = false;
                 const neighbors = [
                     { q: npc.q + 1, r: npc.r },

@@ -26,7 +26,7 @@
     },
     "rooms": {
         "bedchamber": { "name": "Bedchamber", "floor": "wood_floor", "furniture": [
-            { "type": "bed", "icon": "🛏️", "name": "Bed", "count": 2 },
+            { "type": "bed", "icon": "🛏️", "name": "Bed", "count": 3 },
             { "type": "chest", "icon": "🧳", "name": "Clothes Chest", "count": 1 },
             { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true },
             { "type": "bucket", "icon": "🧺", "name": "Wash Basin", "count": 1, "passable": true },

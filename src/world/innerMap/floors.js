@@ -16,7 +16,7 @@
 // up to a floor. Anyone inside keeps to their own floor.
 
 import { InnerMap } from './_ref.js';
-import { DataLoader } from './_imports.js';
+import { DataLoader, Utils } from './_imports.js';
 
 const _cfg = () => {
     const d = (DataLoader.get && DataLoader.get('buildingFloors')) || (DataLoader._gamedata && DataLoader._gamedata.buildingFloors) || {};
@@ -310,11 +310,107 @@ Object.assign(InnerMap, {
         }
     },
 
-    /** NPCs inside this building keep to a floor of their own (fixed by who they are). */
+    /**
+     * The floor someone inside this building is on. Abed, they're where the
+     * beds are (upstairs, where there are any); those who live here keep about
+     * the whole house by day, each on a floor of their own; a lodger keeps to
+     * the rooms above; anyone else (a customer, a worker, a caller) is
+     * downstairs.
+     */
     npcFloor(npc) {
         const n = this._floorCount || 1;
-        if (n <= 1 || !npc) return 0;
-        return _hash(String(npc.id != null ? npc.id : npc.name || '')) % n;
+        const b = this._insideBuilding;
+        if (n <= 1 || !npc || !b) return 0;
+        const h = _hash(String(npc.id != null ? npc.id : npc.name || ''));
+        if (this._townAbed && this._townAbed(npc)) {
+            const beds = this.bedFloors(b);
+            return beds.length ? beds[h % beds.length] : 0;
+        }
+        const home = npc._home;
+        if (home && home.q === b.q && home.r === b.r) return h % n;
+        if (this._isLodger && this._isLodger(npc, b)) return 1 + (h % (n - 1));
+        return 0;
+    },
+
+    /** The floors of a building with beds on them (upstairs first; the ground floor only when none above has any). */
+    bedFloors(building) {
+        const n = this._insideBuilding === building ? (this._floorCount || 1) : this.floorsOf(building);
+        const up = [];
+        for (let k = 1; k < n; k++) {
+            if ((this.floorRoom(building, k).furniture || []).some(f => f.type === 'bed')) up.push(k);
+        }
+        return up.length ? up : [0];
+    },
+
+    /**
+     * Someone abed is laid in a free bed on this floor (their own, in
+     * effect: who sleeps where is fixed by who they are); anyone else stands
+     * about the floor as usual. Returns whether they were placed.
+     */
+    _placeNpcOnFloor(npc, interior) {
+        npc._asleep = null;
+        if (this._townAbed && this._townAbed(npc)) {
+            const taken = new Set((this._sleepersPlaced || []).map(s => `${s.q},${s.r}`));
+            const beds = [];
+            for (const row of interior.tiles) for (const t of row) {
+                if (t && t._furniture && t._furniture.type === 'bed' && !taken.has(`${t.q},${t.r}`)) beds.push(t);
+            }
+            if (beds.length) {
+                const bed = beds[_hash(String(npc.id != null ? npc.id : npc.name || '')) % beds.length];
+                npc.q = npc.prevQ = bed.q;
+                npc.r = npc.prevR = bed.r;
+                npc.path = null;
+                npc.moveProgress = 0;
+                npc._act = null;
+                npc._asleep = { q: bed.q, r: bed.r };
+                npc.activity = { type: 'bed', icon: '💤', label: 'asleep', anim: 'idle' };
+                npc.facing = 2;
+                (this._sleepersPlaced = this._sleepersPlaced || []).push({ q: bed.q, r: bed.r });
+                return true;
+            }
+            // More of them than beds: a bedroll on the floor
+            if (!this._placeNpcInInterior(npc, interior)) return false;
+            npc._asleep = { q: npc.q, r: npc.r, bedroll: true };
+            npc.activity = { type: 'bed', icon: '💤', label: 'asleep', anim: 'idle' };
+            npc.facing = 2;
+            (this._sleepersPlaced = this._sleepersPlaced || []).push({ q: npc.q, r: npc.r });
+            return true;
+        }
+        return this._placeNpcInInterior(npc, interior);
+    },
+
+    /** Gather this floor's people from those inside the building (and lay the sleepers in their beds). */
+    _peopleOnFloor(interior, k) {
+        const b = this._insideBuilding;
+        const outer = (this._outerMapState && this._outerMapState.npcs) || [];
+        this._sleepersPlaced = [];
+        const here = [];
+        for (const npc of outer) {
+            if (npc.state !== 'inside_building' || npc._insideBuildingQ !== b.q || npc._insideBuildingR !== b.r) continue;
+            if (this.npcFloor(npc) !== k) continue;
+            if (this._placeNpcOnFloor(npc, interior)) here.push(npc);
+        }
+        this._sleepersPlaced = null;
+        return here;
+    },
+
+    /** Awake again (the hour has come round): up out of bed, to go about the day. */
+    _wakeNpc(npc) {
+        if (!npc._asleep) return;
+        const bed = npc._asleep;
+        npc._asleep = null;
+        npc.activity = null;
+        npc._act = null;
+        const stand = this.findAdjacentPassable ? this.findAdjacentPassable(bed.q, bed.r) : null;
+        if (stand) { npc.q = npc.prevQ = stand.q; npc.r = npc.prevR = stand.r; }
+        npc.idleTimer = 2 + Utils.random() * 6;
+    },
+
+    /** The stairs down on this floor (the way out from upstairs), or null. */
+    _stairsDownTile() {
+        if (!(this._floor > 0) || !this.tiles) return null;
+        for (const row of this.tiles) for (const t of row) if (t && t._stairs && t._stairs.to < this._floor) return { q: t.q, r: t.r };
+        return null;
     },
 
     /**
@@ -337,14 +433,7 @@ Object.assign(InnerMap, {
         this.height = interior.height;
         this._floor = k;
         const b = this._insideBuilding;
-        const outer = (this._outerMapState && this._outerMapState.npcs) || [];
-        const here = [];
-        for (const npc of outer) {
-            if (npc.state !== 'inside_building' || npc._insideBuildingQ !== b.q || npc._insideBuildingR !== b.r) continue;
-            if (this.npcFloor(npc) !== k) continue;
-            if (this._placeNpcInInterior(npc, interior)) here.push(npc);
-        }
-        this.npcs = here;
+        this.npcs = this._peopleOnFloor(interior, k);
         if (k === 0 && this.applyHomeFurnishings && game && game.player) this.applyHomeFurnishings(game.player);
         // Stand beside the stairs that brought you (up: this floor's stairs down; down: its stairs up)
         const st = interior._stairs || {};

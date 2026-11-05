@@ -203,7 +203,7 @@ export const Discovery = {
         for (const g of goods) {
             if (!g || !g.id) continue;
             const key = String(g.id).toUpperCase();
-            if (!goodsTable[key]) goodsTable[key] = { id: g.id, name: g.name, icon: g.icon, basePrice: g.basePrice, exotic: true };
+            if (!goodsTable[key]) goodsTable[key] = { id: g.id, name: g.name, icon: g.icon, basePrice: g.basePrice, exotic: true, ...(g.description ? { description: g.description } : {}) };
         }
     },
 

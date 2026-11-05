@@ -8,6 +8,7 @@ import { StreetCrime } from '../../systems/streetCrime.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { _btn, _removeModal, _showStoreModal } from './logic.js';
+import { goodInfoIcon } from '../goodInfo.js';
 
 const MODAL_ID = 'objActionModal';
 
@@ -129,7 +130,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             }
             return `
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:12px">
-                    <span>${g.icon} ${g.name} ×${n} <span style="color:#888">· ${g.basePrice}g each</span></span>
+                    <span>${g.icon} ${g.name}${goodInfoIcon(id)} ×${n} <span style="color:#888">· ${g.basePrice}g each</span></span>
                     <span style="display:flex;gap:4px;flex-shrink:0">${buttons}</span>
                 </div>`;
         }).join('');

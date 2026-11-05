@@ -9,6 +9,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Fame } from '../../systems/fame.js';
 import { Crafting } from '../../player/crafting.js';
+import { goodInfoIcon } from '../goodInfo.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
@@ -901,7 +902,8 @@ Object.assign(UI.prototype, {
                     if (info.prestige > 0 && player.house) extra += `<button data-ui-act="dedicateTreasure" data-ui-args='["${itemId}"]' style="${btn}">🏛️ Enshrine (+${info.prestige} Prestige)</button>`;
                     if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
                 }
-                const title = item && item.description ? ` title="${String(item.description).replace(/"/g, '&quot;')}"` : '';
+                // (what it is: hover the i beside its name — ui/goodInfo.js)
+                const title = '';
                 // Crafted goods carry their quality (player/crafting.js)
                 // The grades held (core/grades.js): they scale the price and the effect
                 const qHtml = Crafting.qualityHtml(player, itemId);
@@ -909,7 +911,7 @@ Object.assign(UI.prototype, {
                 inventoryHtml += `
                     <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span>${icon} ${name}${quality}${worth}</span>
+                            <span>${icon} ${name}${goodInfoIcon(itemId)}${quality}${worth}</span>
                             <span style="color: var(--gold);">×${quantity}</span>
                         </div>${extra}
                     </div>

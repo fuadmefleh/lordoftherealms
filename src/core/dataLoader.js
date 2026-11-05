@@ -701,7 +701,8 @@ export const DataLoader = {
                     const key = String(e.item).toUpperCase();
                     if (goodsTable[key]) continue;
                     const sell = e.sellPrice || e.sell || 3;
-                    goodsTable[key] = { id: e.item, name: e.name || e.item, icon: e.icon || '🌿', basePrice: Math.max(1, Math.round(sell / 0.7)), wild: true };
+                    const description = earlyJobs.wildGoodDescriptions && earlyJobs.wildGoodDescriptions[e.item];
+                    goodsTable[key] = { id: e.item, name: e.name || e.item, icon: e.icon || '🌿', basePrice: Math.max(1, Math.round(sell / 0.7)), wild: true, ...(description ? { description } : {}) };
                 }
             }
         }

@@ -7,6 +7,7 @@ import { Crafting } from '../../player/crafting.js';
 import { Grades } from '../../core/grades.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
+import { goodInfoIcon } from '../goodInfo.js';
 
 export function _getPlayerFoods(game) {
     const inv = game.player.inventory || {};
@@ -269,9 +270,9 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
         const ingredientStr = Object.entries(r.ingredients).map(([k, v]) => {
             const has = (game.player.inventory || {})[k] || 0;
             const color = has >= v ? '#5ddb6a' : '#e86a6a';
-            return `<span style="color:${color}">${k.replace(/_/g, ' ')} ${has}/${v}</span>`;
+            return `<span style="color:${color}">${k.replace(/_/g, ' ')}${goodInfoIcon(k)} ${has}/${v}</span>`;
         }).join(' · ');
-        const resultStr = Object.entries(r.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
+        const resultStr = Object.entries(r.result).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}${goodInfoIcon(k)}`).join(', ');
         const odds = Crafting.odds(game.player, r, { building });
         const sk = Crafting.skillDef(odds.skill);
         // The odds of each grade (core/grades.js): the likely ones, coloured

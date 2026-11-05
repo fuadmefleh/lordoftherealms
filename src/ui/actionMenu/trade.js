@@ -12,6 +12,7 @@ import { MarketGrades } from '../../world/marketGrades.js';
 import { Fame } from '../../systems/fame.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, priceWhy, sellWhy } from '../whyPopover.js';
+import { goodInfoIcon } from '../goodInfo.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 
 /**
@@ -1161,7 +1162,7 @@ Object.assign(ActionMenu, {
                 html += `<div class="trade-row ${isSoldOut ? 'sold-out' : ''}">
                     <span class="trade-icon">${good.icon}</span>
                     <div>
-                        <div class="trade-name">${good.name}${lots ? ` <span style="font-size:11px;color:${Grades.get('common').color}">${Grades.get('common').icon} Common</span>` : ''}</div>
+                        <div class="trade-name">${good.name}${goodInfoIcon(good.id)}${lots ? ` <span style="font-size:11px;color:${Grades.get('common').color}">${Grades.get('common').icon} Common</span>` : ''}</div>
                         <div class="trade-meta">${stockBadge(good.id)}${policyBadge(good.id, false)}</div>
                     </div>
                     <div class="trade-price"${trendTitle(good.id)}>${isSoldOut ? '' : unitCost + ' 💰' + whyIcon(priceWhy(why(good.id)), 'Why this price?')}
@@ -1204,7 +1205,7 @@ Object.assign(ActionMenu, {
                 html += `<div class="trade-row">
                     <span class="trade-icon">${item.icon}</span>
                     <div>
-                        <div class="trade-name">${item.name}${item.quality ? ` <span style="font-size:11px;" title="The grade of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
+                        <div class="trade-name">${item.name}${goodInfoIcon(item.id)}${item.quality ? ` <span style="font-size:11px;" title="The grade of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
                         <div class="trade-meta"><span class="trade-chip" style="cursor:default">You have ${item.quantity}</span>${stockBadge(item.id)}${guildBadge(item.id)}${policyBadge(item.id, true)}</div>
                     </div>
                     <div class="trade-price" style="color:#2ecc71;"${trendTitle(item.id)}>${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}

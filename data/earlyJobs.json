@@ -1,4 +1,25 @@
 {
+  "wildGoodDescriptions": {
+      "_note": "What the foraging and hunting finds the market's goods table lacks are (core/dataLoader.js registerWildGoods), shown on their info card (ui/goodInfo.js)",
+      "truffles": "Black truffles nosed out from under the oaks. A cook's treasure, sold by the ounce.",
+      "feathers": "Goose and wild-fowl feathers for fletching, quills and stuffing pillows.",
+      "ore_scraps": "Rusty lumps and scraps of ore picked from old diggings. A smith will take them for little.",
+      "fossils": "Stone shells and bones from the cliffs. Scholars and collectors pay for the curious ones.",
+      "shells": "Seashells from the strand, for buttons, inlay and trinkets, or burnt for lime.",
+      "driftwood": "Sea-worn wood from the tideline. Burns well and costs nothing but the walk.",
+      "cactus_fruit": "Prickly desert fruit, sweet and wet inside: food and drink at once in the dry lands.",
+      "scorpion_venom": "Venom milked from desert scorpions. Apothecaries want it for remedies, and others for worse.",
+      "desert_rose": "A rosette of crystal grown in the sand. Pretty, rare, and prized by collectors.",
+      "leeches": "Live medicinal leeches in a jar. Physicians bleed their patients with them.",
+      "peat": "Cut turf from the bog, dried for fuel where no wood grows.",
+      "rare_frog": "A brightly coloured marsh frog. Alchemists and collectors of curiosities pay well.",
+      "game_meat": "Venison, boar or goat from the hunt. Cook it, or dry it before it turns.",
+      "antlers": "Shed or taken antlers, carved into handles, combs and buttons.",
+      "bear_pelt": "A whole bear's pelt, thick and heavy: a lord's bed-cover or a great cloak.",
+      "hides": "Raw animal skins from the hunt. The tannery turns them into leather.",
+      "eagle_feathers": "Great flight feathers of an eagle, prized by fletchers and for crests.",
+      "crabs": "Shore crabs from the rock pools. Boiled, they make a cheap supper."
+  },
   "oddJobs": {
     "settlement_jobs": {
       "village": [

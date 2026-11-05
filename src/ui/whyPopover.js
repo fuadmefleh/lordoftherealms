@@ -32,10 +32,12 @@ const tone = (n, good = 1) => (n * good > 0 ? 'up' : n * good < 0 ? 'down' : '')
  * The ⓘ that opens a payload: { title, value, rows: [[label, value, tone?]],
  * notes: [text], foot }. tone: 'up' (good for you, green) | 'down' (red) | ''.
  */
-export function whyIcon(payload, title = 'Why?') {
+export function whyIcon(payload, title = 'Why?', opts = {}) {
     if (!payload) return '';
     installWhy();
-    return `<span class="why-i" role="button" tabindex="0" title="${esc(title)}" data-why="${esc(JSON.stringify(payload))}">ⓘ</span>`;
+    // opts.hover: the card opens as the pointer rests on it (ui/goodInfo.js); opts.glyph / opts.cls: its look
+    const hover = opts.hover ? ' data-hover="1"' : '';
+    return `<span class="why-i${opts.cls ? ` ${esc(opts.cls)}` : ''}" role="button" tabindex="0" aria-label="${esc(title)}"${opts.hover ? '' : ` title="${esc(title)}"`}${hover} data-why="${esc(JSON.stringify(payload))}">${esc(opts.glyph || 'ⓘ')}</span>`;
 }
 
 // ── Formatters: Causes.* → payloads ───────────────────
@@ -134,6 +136,7 @@ const STYLE = `
 .why-i { display:inline-block; margin-left:4px; width:14px; height:14px; line-height:14px; text-align:center; border-radius:50%;
     font-size:11px; font-weight:700; color:var(--gold); background:rgba(245,197,66,0.12); cursor:help; vertical-align:middle; user-select:none; }
 .why-i:hover, .why-i:focus { background:rgba(245,197,66,0.3); outline:none; }
+.why-i.good-i { font-family:Georgia, 'Times New Roman', serif; font-style:italic; font-size:10px; border:1px solid rgba(245,197,66,0.45); width:13px; height:13px; line-height:12px; }
 #whyPopover { position:fixed; z-index:100000; max-width:min(360px, calc(90vw / var(--ui-zoom, 1))); max-height:calc(70vh / var(--ui-zoom, 1)); overflow-y:auto;
     background:rgba(20,18,28,0.97); border:1px solid rgba(245,197,66,0.45); border-radius:6px; padding:8px 10px;
     box-shadow:0 6px 24px rgba(0,0,0,0.6); font-family:var(--font-body); font-size:12px; color:var(--text-primary, #eee); }
@@ -148,7 +151,10 @@ const STYLE = `
 #whyPopover .why-foot { margin-top:6px; font-size:10px; color:rgba(255,255,255,0.45); }
 `;
 
+let _hoverFrom = null; // the ⓘ whose card the pointer opened
+
 export function closeWhy() {
+    _hoverFrom = null;
     if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
     const el = document.getElementById(POP_ID);
     if (el && el.remove) el.remove();
@@ -201,6 +207,20 @@ export function installWhy() {
             return;
         }
         if (!(ev.target && ev.target.closest && ev.target.closest(`#${POP_ID}`))) closeWhy();
+    }, true);
+    // An ⓘ marked data-hover opens as the pointer rests on it, and closes as it leaves (unless into the card)
+    document.addEventListener('mouseover', (ev) => {
+        const t = ev.target && ev.target.closest ? ev.target.closest('.why-i[data-hover]') : null;
+        if (!t || t === _hoverFrom) return;
+        openWhy(t);
+        _hoverFrom = t;
+    }, true);
+    document.addEventListener('mouseout', (ev) => {
+        if (!_hoverFrom) return;
+        const to = ev.relatedTarget;
+        if (to && to.closest && (to.closest(`#${POP_ID}`) || to.closest('.why-i[data-hover]') === _hoverFrom)) return;
+        const from = ev.target;
+        if (from && from.closest && (from.closest('.why-i[data-hover]') === _hoverFrom || from.closest(`#${POP_ID}`))) closeWhy();
     }, true);
     document.addEventListener('keydown', (ev) => {
         if (ev.key === 'Escape') closeWhy();

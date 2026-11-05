@@ -5,7 +5,7 @@
     "lengths": {
         "quick": { "share": 0.5, "minutes": 5, "label": "Quick Dive", "icon": "🤿", "desc": "A short look at the bottom, well inside your breath" },
         "full": { "share": 0.9, "minutes": 10, "label": "Dive", "icon": "🤿", "desc": "Down as long as your breath allows" },
-        "push": { "share": 1.4, "minutes": 15, "label": "Push Your Breath", "icon": "🫁", "desc": "Stay down past your breath: more finds, and it hurts" }
+        "push": { "share": 1.4, "minutes": 15, "label": "Push Your Breath", "icon": "💨", "desc": "Stay down past your breath: more finds, and it hurts" }
     },
     "realSeconds": { "base": 1.5, "perGrab": 0.5, "max": 7 },
     "energy": 5,

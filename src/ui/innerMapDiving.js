@@ -162,7 +162,7 @@ export const InnerMapDiving = {
             return;
         }
         if (res.blackout) {
-            _note(game, '🫧 Blacked Out', 'The dark closes in. You come to at the surface, coughing up water, your hands empty.', 'error');
+            _note(game, '😵 Blacked Out', 'The dark closes in. You come to at the surface, coughing up water, your hands empty.', 'error');
             return;
         }
         const list = res.finds.map(f => (f.gold ? `${f.icon} ${f.name} (${f.gold} gold)` : `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}`));
@@ -177,7 +177,7 @@ export const InnerMapDiving = {
         }
         const dropped = Object.keys(res.dropped);
         if (dropped.length) _note(game, '🎒 Packs Full', `You have no room for ${dropped.join(', ').replace(/_/g, ' ')}, and let it sink again.`, 'warning');
-        if (res.plan.over > 0 && fraction >= 1) _note(game, '🫁 Lungs Burning', `You stayed down past your breath and come up gasping (−${Math.round(res.hurt)} health).`, 'warning');
+        if (res.plan.over > 0 && fraction >= 1) _note(game, '💨 Lungs Burning', `You stayed down past your breath and come up gasping (−${Math.round(res.hurt)} health).`, 'warning');
         else if (res.cold) _note(game, '🥶 Freezing Water', 'The cold down there bites to the bone.', 'warning');
     },
 

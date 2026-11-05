@@ -2663,6 +2663,18 @@ body {
     text-overflow: ellipsis;
 }
 .ctx-person-doing { margin-left: 6px; color: var(--text-muted); }
+/* Asleep in bed (world/innerMap/floors.js): a dimmer card, a badge, Wake for Talk */
+.ctx-person.asleep .ctx-person-portrait { filter: brightness(0.7) saturate(0.7); }
+.ctx-person-asleep {
+    margin-left: 6px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #b8cdf5;
+    background: rgba(120, 150, 230, 0.14);
+    border: 1px solid rgba(140, 170, 240, 0.35);
+    border-radius: 3px;
+}
 .ctx-person-doing::before { content: '· '; }
 .ctx-person-mood {
     display: flex;

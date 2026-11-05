@@ -401,7 +401,17 @@ Object.assign(InnerMap, {
         npc._asleep = null;
         npc.activity = null;
         npc._act = null;
-        const stand = this.findAdjacentPassable ? this.findAdjacentPassable(bed.q, bed.r) : null;
+        // Out of bed onto the floor beside it (not where the player stands, nor on anyone else)
+        let stand = null;
+        for (const [dq, dr] of [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+            const q = bed.q + dq, r = bed.r + dr;
+            const t = this.tiles[r] && this.tiles[r][q];
+            if (!t || !t.subTerrain.passable || t._stairs || t._isDoor) continue;
+            if (q === this.playerInnerQ && r === this.playerInnerR) continue;
+            if (this.npcs.some(n => n !== npc && n.q === q && n.r === r)) continue;
+            stand = { q, r };
+            break;
+        }
         if (stand) { npc.q = npc.prevQ = stand.q; npc.r = npc.prevR = stand.r; }
         npc.idleTimer = 2 + Utils.random() * 6;
     },

@@ -345,7 +345,7 @@ Object.assign(InnerMapRenderer, {
                 const npcDef = InnerMap.NPC_TYPES[npc.type] || {};
                 const npcHealth = (typeof InnerMapCombat !== 'undefined') ? InnerMapCombat.getNPCHealth(npc.id) : null;
                 const hpDesc = npcHealth ? `${Math.ceil(npcHealth.current)}/${npcHealth.max} HP` : '';
-                menuItems.push({ type: 'person', npc, role: npc.roleTitle || npcDef.name || npc.type, hpDesc });
+                menuItems.push({ type: 'person', npc, role: npc.roleTitle || npcDef.name || npc.type, hpDesc, asleep: !!npc._asleep });
             }
         }
 
@@ -542,7 +542,8 @@ Object.assign(InnerMapRenderer, {
             card.querySelector('.ctx-person-emoji').style.display = ok ? 'none' : '';
             card.querySelector('.ctx-person-talk').addEventListener('click', () => {
                 this.closeContextMenu();
-                this._handleContextAction(game, { type: 'action', action: 'talk_npc', npc: p.npc }, q, r);
+                // Asleep in bed: wake them first (world/innerMap/floors.js)
+                this._handleContextAction(game, { type: 'action', action: p.npc._asleep ? 'wake_npc' : 'talk_npc', npc: p.npc }, q, r);
             });
             card.querySelector('.ctx-person-attack').addEventListener('click', () => {
                 this.closeContextMenu();
@@ -574,9 +575,11 @@ Object.assign(InnerMapRenderer, {
         const mem = NpcDisposition.getMemory(npc);
         const mood = _dispositionLabel(mem.disposition);
         const role = item.role ? item.role.charAt(0).toUpperCase() + item.role.slice(1) : '';
-        const doing = npc.activity ? `<span class="ctx-person-doing">${npc.activity.icon} ${npc.activity.label}</span>` : '';
-        const met = mem.timesSpoken > 0 ? '' : '<span class="ctx-person-new">New face</span>';
-        return `<div class="ctx-person" data-pi="${index}" style="--mood:${mood.color}">`
+        const asleep = !!npc._asleep;
+        const doing = npc.activity && !asleep ? `<span class="ctx-person-doing">${npc.activity.icon} ${npc.activity.label}</span>` : '';
+        const met = (asleep ? `<span class="ctx-person-asleep">💤 Asleep${npc._asleep.bedroll ? ' on a bedroll' : ''}</span>` : '')
+            + (mem.timesSpoken > 0 ? '' : '<span class="ctx-person-new">New face</span>');
+        return `<div class="ctx-person${asleep ? ' asleep' : ''}" data-pi="${index}" style="--mood:${mood.color}">`
             + '<div class="ctx-person-portrait"><canvas width="72" height="72"></canvas>'
             + `<span class="ctx-person-emoji">${npc.icon}</span></div>`
             + '<div class="ctx-person-info">'
@@ -585,7 +588,9 @@ Object.assign(InnerMapRenderer, {
             + `<div class="ctx-person-mood"><span class="ctx-person-mood-bar"><span style="width:${Math.max(4, mem.disposition)}%"></span></span>${mood.icon} ${mood.text}</div>`
             + '</div>'
             + '<div class="ctx-person-actions">'
-            + `<button class="ctx-person-talk" title="Talk to ${npc.name}">💬 Talk</button>`
+            + (asleep
+                ? `<button class="ctx-person-talk" title="Wake ${npc.name} (they won't thank you for it)">😴 Wake</button>`
+                : `<button class="ctx-person-talk" title="Talk to ${npc.name}">💬 Talk</button>`)
             + `<button class="ctx-person-attack" title="Attack ${npc.name}${item.hpDesc ? ` (${item.hpDesc})` : ''}">⚔️</button>`
             + '</div></div>';
     },
@@ -793,6 +798,28 @@ Object.assign(InnerMapRenderer, {
                 break;
             }
             case 'talk_merchant': case 'talk_locals': case 'talk_priest': case 'talk_captain':
+            case 'wake_npc': {
+                // Shake a sleeper awake (world/innerMap/floors.js): they sit up, none too pleased, and you can talk
+                const npc = item.npc;
+                if (!npc) break;
+                const wake = () => {
+                    if (!npc._asleep) return;
+                    if (InnerMap._wakeNpc) InnerMap._wakeNpc(npc);
+                    npc.idleTimer = Math.max(npc.idleTimer || 0, 40);
+                    NpcDisposition.adjustDisposition(npc, -3, game.player);
+                    const night = InnerMap.townPeriod && InnerMap.townPeriod() === 'night';
+                    game.ui.showNotification(`😴 ${npc.name}`, `${npc.name} stirs, blinks up at you and sits up. "${night ? 'Wha— at this hour? What is it?' : 'Mm? What is it?'}"`, 'info');
+                    this._handleContextAction(game, { type: 'action', action: 'talk_npc', npc }, npc.q, npc.r);
+                };
+                // Beside the bed: shake them now; further off, go over first
+                if (Math.max(Math.abs(playerQ - npc.q), Math.abs(playerR - npc.r)) <= 1) { wake(); break; }
+                const adj = InnerMap.findAdjacentPassable(npc.q, npc.r);
+                InnerMap.cancelPlayerWalk();
+                const walk = adj ? InnerMap.movePlayerTo(adj.q, adj.r) : null;
+                if (walk && walk.started) InnerMap._pendingAction = { q: npc.q, r: npc.r, run: wake };
+                else game.ui.showNotification('Blocked', `You can't get to ${npc.name}.`, 'error');
+                break;
+            }
             case 'talk_guard': case 'talk_official': case 'ask_directions': case 'talk_npc': {
                 const npc = item.npc;
                 if (npc) {

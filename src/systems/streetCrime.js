@@ -75,7 +75,8 @@ const DEFAULTS = {
     found: { radius: 6, gatherShare: 0.5, overRadius: 1, holdSeconds: 12, mournSeconds: 30, barks: {} },
 };
 
-const CRIMES = ['assault', 'murder'];
+// (vandalism: smashing the town's things — the 'victim' is the thing smashed: ui/innerMapReactions.js onVandalism)
+const CRIMES = ['assault', 'murder', 'vandalism'];
 const MAX_INCIDENTS = 40;
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -548,6 +549,7 @@ export const StreetCrime = {
     rumourKind(r) {
         const t = String((r && r.type) || '');
         if (t === 'assault') return 'assault';
+        if (t === 'vandalism') return 'vandalism';
         if (t === 'murder' || /_murder$/.test(t)) return 'murder';
         return null;
     },
@@ -591,7 +593,7 @@ export const StreetCrime = {
             const live = entry.rel === 'guard' ? arrest : fresh;
             const pool = live ? (byCrime[mood] || byCrime.anger || byCrime.fear) : (byCrime.old || byCrime[mood]);
             const kin = entry.kin ? `my ${entry.kin} ${entry.v}` : entry.v;
-            const text = _cap(_fill(_pick(pool, seed), { victim: entry.v, kin, player: (player && player.name) || 'you', town: entry.town || 'town', deed: entry.k === 'murder' ? 'killed' : 'beat' }));
+            const text = _cap(_fill(_pick(pool, seed), { victim: entry.v, kin, player: (player && player.name) || 'you', town: entry.town || 'town', deed: entry.k === 'murder' ? 'killed' : entry.k === 'vandalism' ? 'smashed' : 'beat' }));
             const refuse = entry.rel !== 'guard' && _num(mem.disposition, 50) < _num(C.refuse.talkBelow, 20);
             return text ? { kind: 'witness', role: entry.rel, crime: entry.k, mood, text, refuse, arrest, entry } : null;
         }
@@ -654,11 +656,13 @@ export const StreetCrime = {
     /** The fine for a beating in this town (never less than the bounty owed in the realm). */
     fineFor(player, world, incident) {
         const A = StreetCrime.config().arrest;
-        if (!incident || incident.k !== 'assault') return null;
+        // (a beating or broken property is paid for; a killing is not)
+        const perCrime = incident && (A.fine || {})[incident.k];
+        if (perCrime == null) return null;
         const tile = world && typeof world.getTile === 'function' && incident.key ? world.getTile(...incident.key.split(',').map(Number)) : null;
         const type = (tile && tile.settlement && tile.settlement.type) || 'town';
         // The realm's law on punishment scales the fine (systems/laws.js)
-        const base = Math.round(_num(A.fine.assault, 40) * _num((A.fineTown || {})[type], 1) * Laws.punishment(world, incident.kingdom).fine);
+        const base = Math.round(_num(perCrime, 40) * _num((A.fineTown || {})[type], 1) * Laws.punishment(world, incident.kingdom).fine);
         const owed = incident.kingdom != null ? Gossip.bountyTotalForKingdom(player, incident.kingdom) : 0;
         return Math.max(base, owed);
     },
@@ -681,13 +685,13 @@ export const StreetCrime = {
         const gold = _num(player.gold);
         const options = [{ id: 'submit', icon: '⛓️', label: 'Give yourself up', hint: 'A night or more in the cells; the matter is closed with the watch here.', chance: null, odds: false, isDefault: true }];
         if (fine != null) {
-            options.push({ id: 'fine', icon: '💰', label: 'Pay the fine', cost: `${fine} gold`, hint: 'The watch lets a beating go for coin.', chance: null, odds: false, can: gold >= fine, reason: `You need ${fine} gold.` });
+            options.push({ id: 'fine', icon: '💰', label: 'Pay the fine', cost: `${fine} gold`, hint: inc.k === 'vandalism' ? 'You pay for the damage, and the watch lets it go.' : 'The watch lets a beating go for coin.', chance: null, odds: false, can: gold >= fine, reason: `You need ${fine} gold.` });
         }
         options.push({ id: 'run', icon: '🏃', label: 'Run for it', hint: 'Caught, and it goes worse for you.', chance: StreetCrime.escapeChance(player) });
         options.push({ id: 'resist', icon: '⚔️', label: 'Resist', hint: 'Fight the guard here and now.', chance: null, odds: false });
         return {
             icon: '🛡️', title: (C.watch && C.watch.title) || 'The Watch',
-            stats: [`${inc.k === 'murder' ? 'Murder' : 'Assault'} of ${inc.victim}`, inc.town],
+            stats: [`${inc.k === 'murder' ? 'Murder of' : inc.k === 'vandalism' ? 'Damage to' : 'Assault of'} ${inc.victim}`, inc.town],
             text: _fill(((C.watch && C.watch.text) || {})[inc.k] || '{guard} comes for you.', vars),
             options,
         };
@@ -705,7 +709,7 @@ export const StreetCrime = {
         if (!inc || inc.answered) return { invalid: true, outcome: 'none', notification: { title: 'No One There', body: 'The guard has gone.', type: 'info' } };
         const vars = { guard: 'the guard', victim: inc.victim, town: inc.town };
         const jail = (extra) => {
-            const out = Underworld._arrest(player, world, settlement || { name: inc.town, kingdom: inc.kingdom }, inc.k === 'murder' ? 'murder' : 'assault');
+            const out = Underworld._arrest(player, world, settlement || { name: inc.town, kingdom: inc.kingdom }, CRIMES.includes(inc.k) ? inc.k : 'assault');
             const base = _num((A.days || {})[inc.k]) + _num(extra);
             // The realm's law on punishment: the whole sentence, longer or shorter (systems/laws.js)
             const mult = Laws.punishment(world, inc.kingdom).jail;

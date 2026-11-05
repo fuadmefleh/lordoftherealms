@@ -14,6 +14,18 @@
             "spreadChance": 0.7,
             "description": "{perpetrator} murdered {victim} in {location}"
         },
+        "vandalism": {
+            "label": "Vandalism",
+            "icon": "🔨",
+            "baseSeverity": 15,
+            "reputationPenalty": -4,
+            "renownPenalty": -1,
+            "karmaPenalty": -1,
+            "bountyGold": 20,
+            "decayDays": 14,
+            "spreadChance": 0.35,
+            "description": "{perpetrator} smashed {victim} in {location}"
+        },
         "assault": {
             "label": "Assault",
             "icon": "⚔️",

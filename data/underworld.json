@@ -37,6 +37,7 @@
         "mail_robbery":    { "heat": 8,  "caughtHeat": 20, "deeds": { "greed": 1, "deceit": 0.5 }, "karma": -2 },
         "jailbreak":       { "heat": 20, "caughtHeat": 0,  "deeds": { "deceit": 1, "cunning": 1 }, "karma": -2 },
         "map_theft":       { "heat": 6,  "caughtHeat": 15, "deeds": { "deceit": 0.5, "cunning": 0.5 }, "karma": -1 },
+        "vandalism":       { "heat": 3,  "caughtHeat": 6,  "deeds": { "cruelty": 0.3 }, "karma": 0 },
         "assault":         { "heat": 8,  "caughtHeat": 14, "deeds": { "cruelty": 1, "dread": 0.5 }, "karma": 0 },
         "murder":          { "heat": 25, "caughtHeat": 35, "deeds": { "cruelty": 3, "dread": 2 }, "karma": 0 }
     },

@@ -7,6 +7,7 @@ import { Afterlife } from '../../player/afterlife.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
+import { InnerMapReactions } from '../innerMapReactions.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
@@ -250,6 +251,8 @@ export function gameLoop(timestamp, loopId) {
             // Spawn floating damage number over object on each swing
             const ia = InnerMap._activeInteraction;
             if (ia) InnerMapCombat.onObjectHit(ia.anchorQ, ia.anchorR, interactionResult.damage, interactionResult.healthPct);
+            // Smashing the town's things: the street sees, the watch comes (ui/innerMapReactions.js)
+            if (ia) InnerMapReactions.onVandalism(this, ia.anchorQ, ia.anchorR, ia.defId);
         }
         if (interactionResult && interactionResult.completed) {
             if (interactionResult.nonDestructive) {

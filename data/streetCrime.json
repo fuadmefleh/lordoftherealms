@@ -1,5 +1,5 @@
 {
-    "_comment": "Violence on a town's street map (systems/streetCrime.js, ui/innerMapReactions.js): who sees it, how they react on the spot, what they remember, and what they say afterwards. Placeholders in lines: {victim} the victim's name, {kin} how the speaker names the victim ('my brother Brom', 'Brom'), {player} the player's name, {town} where it happened, {deed} 'killed' / 'beat'.",
+    "_comment": "Violence on a town's street map (systems/streetCrime.js, ui/innerMapReactions.js): who sees it, how they react on the spot, what they remember, and what they say afterwards. Vandalism is smashing the town's things (a well, a stall, a lamp, the furniture in someone's house): {victim} is then the thing smashed ('the well'). Placeholders in lines: {victim} the victim's name, {kin} how the speaker names the victim ('my brother Brom', 'Brom'), {player} the player's name, {town} where it happened, {deed} 'killed' / 'beat'.",
 
     "sight": {
         "_comment": "Chebyshev tiles from the victim. Indoors everyone in the building sees it. Guards within guardHearRadius who did not see it come running all the same; anyone else within hearRadius turns to look, and the timid hurry away.",
@@ -11,19 +11,19 @@
 
     "disposition": {
         "_comment": "Change to a witness's opinion of the player (0-100, 50 neutral). Kin and friends are also hit by NpcDisposition.onNpcHarmed; these are on top.",
-        "bystander": { "assault": -15, "murder": -35 },
-        "guard": { "assault": -20, "murder": -40 },
-        "kin": { "assault": -10, "murder": -15 },
-        "friend": { "assault": -8, "murder": -12 },
+        "bystander": { "assault": -15, "murder": -35, "vandalism": -6 },
+        "guard": { "assault": -20, "murder": -40, "vandalism": -10 },
+        "kin": { "assault": -10, "murder": -15, "vandalism": -4 },
+        "friend": { "assault": -8, "murder": -12, "vandalism": -3 },
         "victim": { "assault": -10 },
-        "rosterKin": { "assault": -20, "murder": -55 },
-        "hearsay": { "assault": -4, "murder": -10 }
+        "rosterKin": { "assault": -20, "murder": -55, "vandalism": 0 },
+        "hearsay": { "assault": -4, "murder": -10, "vandalism": -2 }
     },
 
     "refuse": {
         "_comment": "A witness below talkBelow will not chat (amends or leave only). Traders who saw it refuse to deal below tradeBelow.",
         "talkBelow": 20,
-        "tradeBelow": { "assault": 25, "murder": 45 }
+        "tradeBelow": { "assault": 25, "murder": 45, "vandalism": 15 }
     },
 
     "memory": { "max": 6, "freshDays": 12 },
@@ -49,16 +49,16 @@
 
     "heat": {
         "_comment": "Share of the crime's underworld heat when no one saw it (a body is still found).",
-        "unseenShare": { "assault": 0, "murder": 0.3 }
+        "unseenShare": { "assault": 0, "murder": 0.3, "vandalism": 0 }
     },
 
-    "karmaUnseen": { "assault": -3, "murder": -10 },
+    "karmaUnseen": { "assault": -3, "murder": -10, "vandalism": -1 },
 
     "arrest": {
         "_comment": "The watch: days in the cell on top of the heat-based sentence, a fine for a beating (scaled by town size, never less than the bounty owed here), the odds of running for it, and how long the guards remember an unanswered crime in their town.",
         "windowDays": 30,
-        "days": { "assault": 2, "murder": 10 },
-        "fine": { "assault": 40 },
+        "days": { "assault": 2, "murder": 10, "vandalism": 1 },
+        "fine": { "assault": 40, "vandalism": 25 },
         "fineTown": { "village": 0.75, "town": 1, "city": 1.4, "capital": 1.8 },
         "escape": { "base": 0.25, "stealth": 0.04, "agility": 0.02, "max": 0.75 },
         "escapeFailDays": 3,
@@ -69,6 +69,7 @@
     "barks": {
         "followIn": ["You can't hide in there!","Out you come — or I come in!","I saw you go in! Stay where you are!","Nowhere to run now."],
         "bystander": {
+            "vandalism": {"fear": ["Guards! Guards!", "Somebody stop them!", "They're smashing {victim}!", "Oh, not {victim}!"], "anger": ["Leave {victim} alone, you lout!", "Oi! Stop that!", "That's not yours to break! Guards!", "Someone fetch the watch!"]},
             "assault": {
                 "fear": ["Help! Somebody help!", "Leave {victim} alone!", "Guards! Guards!", "Oh gods, no!"],
                 "anger": ["Stop that! Let {victim} be!", "You brute! Guards!", "Get off {victim}!", "Someone fetch the watch!"]
@@ -79,6 +80,7 @@
             }
         },
         "kin": {
+            "vandalism": {"fear": ["Guards! Guards!", "Somebody stop them!", "They're smashing {victim}!", "Oh, not {victim}!"], "anger": ["Leave {victim} alone, you lout!", "Oi! Stop that!", "That's not yours to break! Guards!", "Someone fetch the watch!"]},
             "assault": {
                 "anger": ["Get away from {kin}!", "You'll pay for that!", "Touch {kin} again and I'll kill you!"],
                 "fear": ["{kin}! Please, stop!", "Leave {kin} be, I beg you!"]
@@ -89,6 +91,7 @@
             }
         },
         "friend": {
+            "vandalism": {"fear": ["Guards! Guards!", "Somebody stop them!", "They're smashing {victim}!", "Oh, not {victim}!"], "anger": ["Leave {victim} alone, you lout!", "Oi! Stop that!", "That's not yours to break! Guards!", "Someone fetch the watch!"]},
             "assault": {
                 "anger": ["Hands off {victim}!", "{victim}'s my friend, you swine!"],
                 "fear": ["{victim}! Run!", "Leave {victim} alone!"]
@@ -99,6 +102,7 @@
             }
         },
         "guard": {
+            "vandalism": {"anger": ["Halt! Stop that at once!", "You there! Put that down!", "Wrecking the town, are we? Stop!"]},
             "assault": { "anger": ["Halt! In the name of the crown!", "You there! Stop!", "Break it up!"] },
             "murder": { "anger": ["Murderer! Halt!", "Seize the killer!", "Drop your weapon!"] }
         },
@@ -111,6 +115,7 @@
 
     "lines": {
         "witness": {
+            "vandalism": {"fear": ["*keeps their distance* You're the one who smashed {victim}. I don't want any trouble.", "*eyes you warily* I saw you take {victim} to pieces. What next, my door?"], "anger": ["I saw you smash {victim}, you vandal. Who's to mend it, eh?", "You've a nerve, after what you did to {victim}."], "old": ["You're the one who smashed {victim}. We haven't forgotten.", "Mind your hands. {victim} is still not mended."]},
             "assault": {
                 "fear": [
                     "*backs away* I saw what you did to {victim}. Please... I don't want any trouble.",
@@ -157,6 +162,7 @@
             }
         },
         "kin": {
+            "vandalism": {"fear": ["*keeps their distance* You're the one who smashed {victim}. I don't want any trouble.", "*eyes you warily* I saw you take {victim} to pieces. What next, my door?"], "anger": ["I saw you smash {victim}, you vandal. Who's to mend it, eh?", "You've a nerve, after what you did to {victim}."], "old": ["You're the one who smashed {victim}. We haven't forgotten.", "Mind your hands. {victim} is still not mended."]},
             "assault": {
                 "fear": [
                     "*steps between you and the door* You hurt {kin}. Please, just go.",
@@ -187,6 +193,7 @@
             }
         },
         "friend": {
+            "vandalism": {"fear": ["*keeps their distance* You're the one who smashed {victim}. I don't want any trouble.", "*eyes you warily* I saw you take {victim} to pieces. What next, my door?"], "anger": ["I saw you smash {victim}, you vandal. Who's to mend it, eh?", "You've a nerve, after what you did to {victim}."], "old": ["You're the one who smashed {victim}. We haven't forgotten.", "Mind your hands. {victim} is still not mended."]},
             "assault": {
                 "fear": ["{victim} is my friend. I saw what you did. Please, just leave."],
                 "anger": ["{victim} is my friend, and you beat them in the street. I'll not forget it."],
@@ -199,6 +206,7 @@
             }
         },
         "guard": {
+            "vandalism": {"anger": ["You're the one who smashed {victim}. You'll pay for the damage, one way or another.", "Wrecking the town's things in plain sight? You're coming with me."], "old": ["I've had my eye on you since you smashed {victim}. Keep your hands to yourself."]},
             "assault": {
                 "anger": [
                     "You're the one who beat {victim} in the street. You'll answer for that.",
@@ -215,6 +223,7 @@
             }
         },
         "hearsay": {
+            "vandalism": {"here": ["Did you hear? Some stranger smashed {victim} in broad daylight. About your build, now I think of it.", "*looks you over* Somebody wrecked {victim}. You wouldn't know anything about that?"], "elsewhere": ["There's talk of a lout in {town} who went about smashing things. Was that you?", "I heard of trouble in {town}: someone breaking up the town's things."]},
             "assault": {
                 "here": [
                     "Did you hear? Someone set upon {victim} in the street. A stranger, they say... about your build, now I look at you.",
@@ -237,6 +246,7 @@
             }
         },
         "refuseTrade": {
+            "vandalism": "{name} won't trade with someone who goes about smashing the town's things.",
             "assault": "{name} won't trade with someone who beats people in the street.",
             "murder": "{name} saw you kill {victim} and will have nothing to do with you."
         },
@@ -246,6 +256,7 @@
     "watch": {
         "title": "The Watch",
         "text": {
+            "vandalism": "{guard} steps into your path, hand on his sword. \"You smashed {victim}, in front of the whole street. Pay for the damage, or see the inside of a cell.\"",
             "assault": "{guard} plants himself in your path, hand on his sword. \"You beat {victim} in the street, in front of half the town. You can pay the fine, or you can see the inside of a cell.\"",
             "murder": "{guard} blocks your way, blade half drawn. \"{victim} lies dead and the whole street saw who did it. You're coming with me.\""
         },

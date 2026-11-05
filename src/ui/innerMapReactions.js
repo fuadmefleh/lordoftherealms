@@ -19,6 +19,7 @@
 // InnerMapCombat.render).
 
 import { InnerMap } from '../world/innerMap.js';
+import { CustomObjects } from '../world/customObjects.js';
 import { StreetCrime } from '../systems/streetCrime.js';
 import { Utils } from '../core/utils.js';
 import { Duels } from '../systems/duels.js';
@@ -105,13 +106,45 @@ export const InnerMapReactions = {
             if (seen.length) {
                 const names = seen.slice(0, 3).map(w => w.npc.name).join(', ');
                 game.ui.showNotification(crime === 'murder' ? '👁️ Witnessed!' : '👁️ Seen!',
-                    `${seen.length} saw you ${crime === 'murder' ? 'kill' : 'attack'} ${victim.name} (${names}${seen.length > 3 ? '…' : ''}). They will remember it, and the town will talk.${guards ? ` The watch is coming!` : ''}`,
+                    `${seen.length} saw you ${crime === 'murder' ? 'kill' : crime === 'vandalism' ? 'smashing' : 'attack'} ${victim.name} (${names}${seen.length > 3 ? '…' : ''}). They will remember it, and the town will talk.${guards ? ` The watch is coming!` : ''}`,
                     'warning');
             } else if (crime === 'murder') {
                 game.ui.showNotification('🤫 Unseen', `No one saw you kill ${victim.name}. The body will be found all the same.`, 'warning');
             }
         }
         return { ...(res || {}), witnesses };
+    },
+
+    /**
+     * The player has struck one of the town's things (a well, a stall, a lamp, a
+     * barrel, the furniture in someone's house): vandalism. Those who see it
+     * shout, flee or stand; the watch comes to arrest. Once a thing (the
+     * first blow is enough); not in the wild, nor in the player's own home.
+     * Returns onViolence's result, or null when it isn't the town's to break.
+     */
+    onVandalism(game, q, r, defId) {
+        if (!game || !game.player || !InnerMap.active) return null;
+        const ref = InnerMap._currentWorldTileRef;
+        if (!(ref && ref.settlement)) return null;
+        const inside = InnerMap._insideBuilding;
+        if (inside && InnerMap.isOwnHome && InnerMap.isOwnHome(inside)) return null;
+        const tile = InnerMap.getTile(q, r);
+        if (!tile) return null;
+        const townThing = !!inside || /^tp_/.test(String(defId || '')) || tile._townCore || tile._townFade != null || tile._lot || tile._plaza;
+        if (!townThing) return null;
+        // The player's own ship at the pier is theirs to break
+        if (tile.customObject && tile.customObject.playerShip) return null;
+        const wt = InnerMap.currentWorldTile || {};
+        const day = (game.world && game.world.day) || 0;
+        const key = `${day}|${wt.q},${wt.r}|${inside ? `${inside.q},${inside.r}|` : ''}${q},${r}`;
+        if (!this._vandalised) this._vandalised = new Set();
+        if (this._vandalised.has(key)) return null;
+        this._vandalised.add(key);
+        let def = null;
+        try { def = CustomObjects.getDef(defId); } catch (e) { def = null; }
+        const name = String((def && def.name) || 'the town’s property').replace(/\s*\(.*\)$/, '');
+        const victim = { id: `thing:${key}`, name: /^the\s/i.test(name) ? name : `the ${name.toLowerCase()}`, type: 'property', q, r };
+        return this.onViolence(game, victim, 'vandalism');
     },
 
     /**
@@ -584,7 +617,7 @@ export const InnerMapReactions = {
         this.bark(best.n, StreetCrime.watchBark(`${key}|${inc.id}`) || 'You there! Stop!');
         this._respond(best.n, 'arrest', inc);
         if (game.ui && typeof game.ui.showNotification === 'function') {
-            game.ui.showNotification('🛡️ The Watch', `${best.n.name} has recognised you: the ${inc.k === 'murder' ? 'killing' : 'beating'} of ${inc.victim} has not been forgotten here.`, 'error');
+            game.ui.showNotification('🛡️ The Watch', `${best.n.name} has recognised you: the ${inc.k === 'murder' ? 'killing' : inc.k === 'vandalism' ? 'smashing' : 'beating'} of ${inc.victim} has not been forgotten here.`, 'error');
         }
     },
 

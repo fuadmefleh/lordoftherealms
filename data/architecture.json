@@ -221,13 +221,14 @@
         },
 
         "Desert": {
-            "summary": "Whitewashed and sand-coloured adobe with flat parapet roofs, carved lattice and pointed windows, arched double doors; houses packed wall to wall along sandy lanes, a great bazaar square round a pool, potted trees in the shade.",
+            "summary": "Whitewashed and sand-coloured adobe with flat parapet roofs, carved lattice and pointed windows, arched double doors; houses packed wall to wall along sandy lanes, a great bazaar square round a pool with a date palm at each corner, potted trees along the lanes and palms standing about the town.",
             "plan": {
                 "wind": 0, "laneGap": [11, 11], "alleyStep": [9, 12], "gap": [0, 0], "setback": [0, 0],
-                "plaza": { "kind": "square", "scale": [1.3, 1.1], "centre": "tp_pool", "corners": ["tp_potted_tree", "tp_planter_tree"], "stalls": 2 },
+                "plaza": { "kind": "square", "scale": [1.3, 1.1], "centre": "tp_pool", "corners": ["tp_palm_1", "tp_palm_3", "tp_palm_9", "tp_palm_12"], "stalls": 2 },
                 "streets": { "main": [13, 53], "lane": [2, 59], "plaza": [13, 51] },
                 "lamps": "none",
-                "streetProps": [{ "ids": ["tp_potted_tree", "tp_planter_tree"], "step": [7, 10], "on": "all" }]
+                "streetProps": [{ "ids": ["tp_potted_tree", "tp_planter_tree"], "step": [7, 10], "on": "all" }],
+                "scatter": [{ "ids": ["tp_palm_1", "tp_palm_2", "tp_palm_3", "tp_palm_4", "tp_palm_6", "tp_palm_8", "tp_palm_9", "tp_palm_12", "tp_palm_young"], "count": [10, 16] }, { "ids": ["tp_palm_low_1", "tp_palm_low_2", "tp_palm_low_3"], "count": [2, 4] }]
             },
             "mix": {
                 "core": { "flat": 0.4, "shop": 0.4, "grand": 0.2 },

@@ -79,3 +79,7 @@ Wildflowers
   SOURCE: https://opengameart.org/content/lpc-winter-tiles
   LICENSE: OGA-BY 3.0
   DETAILS: Original wildflowers by Lanea Zimmerman, as part of the grass. Original winter stems by Demetrius. Reconfigured and recolored by Eliza Wyatt.
+Palm Trees (palm_trees_source.png, cut into palm_trees.png by scripts/make_palm_sheet.py)
+-------------------
+  SOURCE: "LPC Palm Tree Sprite Sheet", supplied by the project owner (artist and licence to be confirmed)
+  DETAILS: Each palm cut out, scaled to the LPC trees and packed into 96x128 cells.

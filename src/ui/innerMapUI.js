@@ -1089,7 +1089,7 @@ Object.assign(InnerMapRenderer, {
                 const kind = water._waterKind || (water._sea ? 'sea' : 'pond');
                 const depth = kind === 'sea' ? (water._deep ? 'deep' : 'mid') : kind === 'lake' ? (water._deep ? 'mid' : 'shallow') : 'shallow';
                 const wt = game.world.getTile(game.player.q, game.player.r);
-                if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth });
+                if (wt) ActionMenu.doFish(game, wt, { spots: [bank], depth, target: { q, r } });
                 break;
             }
             case 'interact_object': {

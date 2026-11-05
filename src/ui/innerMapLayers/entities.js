@@ -12,7 +12,57 @@ import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
+// Where the rod's tip is in its line-out frame (frame 3 of
+// assets/lpc/Tools/fishing_pole_cast_128.png, by scripts/make_rod_noline.py),
+// in the 128px cell, by facing (up, left, down, right)
+const ROD_TIPS = [[73, 44], [17, 68], [56, 81], [116, 67]];
+
 Object.assign(InnerMapRenderer, {
+    /**
+     * A fishing line from the rod's tip (tx, ty on screen) to the float on its
+     * water tile: a slack curve, the float bobbing on the ripples, pulled
+     * under (and the line drawn taut) when a fish bites.
+     */
+    _drawFishingLine(ctx, camera, T, ds, now, tx, ty, bobber) {
+        const at = camera.worldToScreenFast(bobber.q * T + T / 2, bobber.r * T + T / 2);
+        const bite = !!bobber.bite;
+        const bob = bite ? ds * 0.06 + Math.sin(now * 22) * ds * 0.03 : Math.sin(now * 2.2) * ds * 0.025;
+        const bx = at.x + (bite ? Math.sin(now * 17) * ds * 0.04 : 0), by = at.y + bob;
+        // A light droop below the straight line from tip to float (taut when a fish pulls)
+        const sag = bite ? 0 : Math.min(ds * 0.35, Math.hypot(bx - tx, by - ty) * 0.08);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(232, 226, 210, 0.85)';
+        ctx.lineWidth = Math.max(1, ds * 0.02);
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.quadraticCurveTo((tx + bx) / 2, (ty + by) / 2 + sag * 2, bx, by);
+        ctx.stroke();
+        // Ripples round the float
+        const rr = ds * (0.12 + ((now * 0.8) % 1) * 0.18);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${bite ? 0.55 : 0.35 * (1 - ((now * 0.8) % 1))})`;
+        ctx.beginPath();
+        ctx.ellipse(at.x, at.y + ds * 0.04, rr, rr * 0.45, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // The float: red over white, half under when a fish has it
+        const fr = Math.max(2.5, ds * 0.07);
+        ctx.fillStyle = '#f4efe4';
+        ctx.beginPath();
+        ctx.arc(bx, by, fr, 0, Math.PI);
+        ctx.fill();
+        if (!bite) {
+            ctx.fillStyle = '#c8402e';
+            ctx.beginPath();
+            ctx.arc(bx, by, fr, Math.PI, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(30, 20, 15, 0.8)';
+        ctx.lineWidth = Math.max(1, ds * 0.015);
+        ctx.beginPath();
+        ctx.arc(bx, by, fr, 0, bite ? Math.PI : Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    },
+
     /** Small bobbing marker over an NPC using furniture (a tankard drinking, a hammer at the anvil…). */
     _drawNpcActivity(ctx, npc, sx, sy, ds, now) {
         const charScale = npc.type === 'child' ? 0.7 : 1.0;
@@ -954,7 +1004,11 @@ Object.assign(InnerMapRenderer, {
                         const rodSheet = pRod && this._sheets && this._sheets.get('fishing_pole_cast');
                         const drawRod = () => {
                             // 128px cells with the 64px body frame at their middle: twice the body's box
-                            ctx.drawImage(rodSheet, pRod.frame * 128, pDir * 128, 128, 128, cx - charW / 2, cy - charH / 2, charW * 2, charH * 2);
+                            const ox = cx - charW / 2, oy = cy - charH / 2, sx = charW * 2 / 128, sy = charH * 2 / 128;
+                            ctx.drawImage(rodSheet, pRod.frame * 128, pDir * 128, 128, 128, ox, oy, charW * 2, charH * 2);
+                            // The line out: from the rod's tip to the float where the cast landed
+                            const tip = pRod.frame === 3 && pRod.bobber && ROD_TIPS[pDir];
+                            if (tip) self._drawFishingLine(ctx, camera, T, ds, now, ox + tip[0] * sx, oy + tip[1] * sy, pRod.bobber);
                         };
                         if (rodSheet && pDir === InnerMapCharacters.DIR_UP) drawRod();
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);

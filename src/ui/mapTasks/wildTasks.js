@@ -125,40 +125,77 @@ function _spawnNpc(type, at, rng, name) {
  * Put a line in at `spot`. `onBite(struck)` gets true (struck in time),
  * false (too slow) or null (nothing bit); `onLeave()` when you walk off.
  */
+// Open water a float can sit on (not the wet, walkable shore at its edge)
+const _isWater = (t) => !!(t && (t._sea || (t.subTerrain && /water/.test(t.subTerrain.id || '')) || (t._wet && t.subTerrain && !t.subTerrain.passable)));
+// Any water you might choose to fish (Fish Here is offered on the wet shore too)
+const _isWet = (t) => !!(t && (t._wet || _isWater(t)));
+/** How far out a line is cast (tiles). */
+const CAST_REACH = 3;
+
+/** The water tile nearest a point (within 4), or null. */
+function _nearestWater(me) {
+    let best = Infinity, at = null;
+    for (let dr = -4; dr <= 4; dr++) {
+        for (let dq = -4; dq <= 4; dq++) {
+            if (!_isWater(InnerMap.getTile(me.q + dq, me.r + dr))) continue;
+            const d = Math.abs(dq) + Math.abs(dr);
+            if (d && d < best) { best = d; at = { q: me.q + dq, r: me.r + dr }; }
+        }
+    }
+    return at;
+}
+
+/**
+ * Where the float lands: the water you chose (Fish Here on that tile) when
+ * it is within a cast, else out past the nearest water, one to CAST_REACH
+ * tiles from the bank, as far as the water goes that way.
+ */
+function _castTo(ctx) {
+    const me = _me();
+    const t = ctx.castTarget;
+    if (t && Math.max(Math.abs(t.q - me.q), Math.abs(t.r - me.r)) <= CAST_REACH && _isWet(InnerMap.getTile(t.q, t.r))) return { q: t.q, r: t.r };
+    const w = _nearestWater(me);
+    if (!w) return null;
+    const dq = Math.sign(w.q - me.q), dr = Math.sign(w.r - me.r);
+    const want = 1 + Math.floor(ctx.rng() * CAST_REACH);
+    let to = w;
+    for (let k = 1; k <= CAST_REACH; k++) {
+        const n = { q: me.q + dq * k, r: me.r + dr * k };
+        if (k > want || !_isWater(InnerMap.getTile(n.q, n.r))) { if (k > 1) break; continue; }
+        to = n;
+    }
+    return to;
+}
+
 /**
  * The rod in the player's hands while they fish (drawn by ui/innerMapLayers/entities.js
  * from assets/lpc/Tools/fishing_pole_cast_128.png): frame 0 raised, 1 the cast,
- * 2 the line out; a bite twitches it. Faces the nearest water.
+ * 3 the line out (the rod alone: the line is drawn from its tip out to the float,
+ * where the cast landed, and a bite pulls the float under). Faces the water cast into.
  */
 function _rodPose(ctx, dt) {
     ctx.rodT = (ctx.rodT || 0) + dt;
     const L = ctx.line;
     const castMark = ctx.marks.find(m => m.cast && m.held > 0);
     let frame = 0;
-    if (L) frame = L.state === 'bite' ? (Math.floor(ctx.rodT * 8) % 2 ? 1 : 2) : 2;
+    if (L) frame = L.to ? 3 : 2;
     else if (castMark) frame = castMark.held / Math.max(0.1, _num(castMark.work, 1)) < 0.5 ? 0 : 1;
     const me = _me();
     const key = `${me.q},${me.r}`;
     if (ctx.rodFrom !== key) {
         ctx.rodFrom = key;
-        ctx.rodToward = null;
-        let best = Infinity;
-        for (let dr = -4; dr <= 4; dr++) {
-            for (let dq = -4; dq <= 4; dq++) {
-                const t = InnerMap.getTile(me.q + dq, me.r + dr);
-                if (!t || !(t._wet || t._sea || (t.subTerrain && /water/.test(t.subTerrain.id || '')))) continue;
-                const d = Math.abs(dq) + Math.abs(dr);
-                if (d && d < best) { best = d; ctx.rodToward = { q: me.q + dq, r: me.r + dr }; }
-            }
-        }
+        const t = ctx.castTarget;
+        ctx.rodToward = t && Math.max(Math.abs(t.q - me.q), Math.abs(t.r - me.r)) <= CAST_REACH ? t : _nearestWater(me);
     }
-    InnerMap._rod = { frame, toward: ctx.rodToward, at: Date.now() };
+    const toward = (L && L.to) || ctx.rodToward;
+    const bobber = L && L.to ? { q: L.to.q, r: L.to.r, bite: L.state === 'bite' } : null;
+    InnerMap._rod = { frame, toward, bobber, at: Date.now() };
 }
 
 function _castLine(ctx, spot, luck, onBite, onLeave) {
     const c = Rules.cfg('fish');
     const mark = ctx.mark(spot, { glyph: c.glyph || 'fish', label: c.waiting, passive: true, line: true });
-    ctx.line = { spot, mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave };
+    ctx.line = { spot, to: _castTo(ctx), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave };
 }
 
 function _endLine(ctx) {
@@ -500,7 +537,7 @@ export const WildTaskRunner = {
     // ── Fishing ──
 
     /**
-     * o: { player, casts, rollFish() → fish, waterDir? {x, y} }.
+     * o: { player, casts, rollFish() → fish, waterDir? {x, y}, spots?, target? {q, r} (the water to cast into) }.
      * onDone(catches) at the end (or on giving up, with what you have);
      * onDone(null) when it couldn't start.
      */
@@ -521,6 +558,8 @@ export const WildTaskRunner = {
                 if (!water.length) water = Rules.near(w.shore.concat(w.ice), me, 999, 6);
                 if (!water.length) water = Rules.near(w.open, me, 12, 4);
                 ctx.fishSpots = MapTasks.pickSpread(water, Math.max(1, _num(c.spots, 2)), ctx.rng, 6);
+                // The water you chose to fish (Fish Here): the float lands there
+                ctx.castTarget = o.target ? { q: o.target.q, r: o.target.r } : null;
                 ctx.total = Math.max(1, _num(o.casts, 3));
                 ctx.si = 0;
                 ctx.here = 0;

@@ -234,10 +234,19 @@
       "adobe_brick": {
         "kind": "parapet",
         "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
-        "x": 0,
+        "x": 1,
         "rowsY": [
-          32,
-          96
+          0,
+          64
+        ]
+      },
+      "adobe_brick_tan": {
+        "kind": "parapet",
+        "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+        "x": 1,
+        "rowsY": [
+          128,
+          192
         ]
       },
       "turf": {

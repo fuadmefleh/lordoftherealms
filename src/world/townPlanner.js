@@ -507,6 +507,19 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     const propDef = id => CustomObjects.getDef(id);
     const pickTag = tag => { const ids = TownProps.idsWithTag(tag); return ids.length ? ids[Math.floor(rng() * ids.length)] : null; };
     const putProp = (id, q, r, opts) => { const d = propDef(id); return !!d && TownProps.place(tiles, d, q, r, opts); };
+    // Nothing set down on a doorstep: no cell of it in the two rows below a door, nor a tile to either side
+    const blocksDoor = (id, q, r) => {
+        const d = propDef(id);
+        if (!d) return false;
+        for (const m of [...(d.meta || []), ...(d.tiles || [])]) {
+            const fq = q + m.localCol, fr = r + m.localRow;
+            for (let dr = 1; dr <= 2; dr++) for (let dq = -1; dq <= 1; dq++) {
+                const t = tiles[fr - dr] && tiles[fr - dr][fq + dq];
+                if (t && t._doorMarker) return true;
+            }
+        }
+        return false;
+    };
     const tree = propDef('large_tree_1');
 
     // One-tile props that stand flush against a wall (a barrel, a woodpile, crates, a flower box)
@@ -567,7 +580,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             const id = SQ.corners[i % SQ.corners.length];
             const d = propDef(id);
             const w = d ? d.bounds.maxCol - d.bounds.minCol + 1 : 1;
-            putProp(id, i % 2 ? q - w + 1 : q, r, opts);
+            const at = i % 2 ? q - w + 1 : q;
+            if (!blocksDoor(id, at, r)) putProp(id, at, r, opts);
         });
     }
     // Stalls in rows across the square, leaving the fountain and the doors on its north side clear
@@ -586,9 +600,14 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     let stalls = 0;
     for (const [q, row] of stallSpots) {
         if (stalls >= P.stalls) break;
+        // (a culture's square keeps its doorsteps clear: no stall walling in a door)
+        if (arch && blocksDoor('tp_stall', q, row)) continue;
         if (putProp('tp_stall', q, row, plazaKind === 'green' ? { ignoreReserved: true } : opts)) {
             stalls++;
-            if (rng() < 0.7) putProp(pickTag('stall'), q + 3, row, opts);
+            if (rng() < 0.7) {
+                const side = pickTag('stall');
+                if (!(arch && blocksDoor(side, q + 3, row))) putProp(side, q + 3, row, opts);
+            }
         }
     }
     // A culture lights its town its own way: not at all, the square, the high street, or every lane
@@ -625,7 +644,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             for (let x = line.x0 + 2 + _ri(rng, [0, 4]); x < line.x1 - 1; x += _ri(rng, sp.step || [8, 12])) {
                 const y = line.bottom(x) + 1;
                 if (!tiles[y] || reach(x, y) > 0.95 || tiles[y][x]._plaza) continue;
-                putProp(ids[Math.floor(rng() * ids.length)], x, y);
+                const id = ids[Math.floor(rng() * ids.length)];
+                if (!blocksDoor(id, x, y)) putProp(id, x, y);
             }
         }
     }

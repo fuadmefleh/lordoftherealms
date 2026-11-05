@@ -41,6 +41,16 @@
             }
         }
     },
+    "palms": {
+        "_note": "Palms in the wild (world/innerMap/palms.js): which palm props (data/townProps.json), on which ground, and per terrain the chance a cell grows one - oasis: within nearWater cells of water, chance: anywhere else. Not on a town's map.",
+        "ids": ["tp_palm_1", "tp_palm_2", "tp_palm_3", "tp_palm_4", "tp_palm_5", "tp_palm_6", "tp_palm_7", "tp_palm_8", "tp_palm_9", "tp_palm_10", "tp_palm_11", "tp_palm_12", "tp_palm_young", "tp_palm_low_1", "tp_palm_low_2", "tp_palm_low_3"],
+        "ground": ["sand", "dirt", "grass", "trees", "brush", "dry_grass"],
+        "terrains": {
+            "desert": { "nearWater": 5, "oasis": 0.09, "chance": 0.0015 },
+            "beach": { "nearWater": 8, "oasis": 0.035, "chance": 0.012 },
+            "island": { "nearWater": 0, "chance": 0.05 }
+        }
+    },
     "treeDensity": {
         "_note": "Share of the usual wild trees a terrain's inner map grows (world/innerMap/terrain.js scatter; 1 = as on grassland).",
         "mountain": 0.2, "snow_peak": 0.1, "highlands": 0.4, "hills": 0.5, "swamp": 0.15

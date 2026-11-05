@@ -601,6 +601,13 @@ Object.assign(InnerMap, {
         // --- Wilderness encounters (hash-placed: draws nothing from rng) ---
         this._placeWildEncounters(tiles, worldTile, worldQ, worldR, game);
 
+        // --- Palms in the desert's oases, along the beaches, over the islands
+        // (world/innerMap/palms.js; a stream of their own: draws nothing from rng) ---
+        if (this._plantPalms && typeof CustomObjects !== 'undefined' && CustomObjects.isLoaded()) {
+            const wseed = game && game.world && game.world.generationParams ? game.world.generationParams.seed : 0;
+            this._plantPalms(tiles, worldTile, worldQ, worldR, Number(wseed) || 0);
+        }
+
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);

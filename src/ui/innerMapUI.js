@@ -307,6 +307,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'separator' });
                 for (const ai of objActionItems) menuItems.push(ai);
             }
+            // A ship: over the side from her deck, or up her side from the water (ui/innerMapDiving.js)
+            menuItems.push(...InnerMapDiving.shipItems(game, q, r));
             // A town field: bring in its crop, or help yourself (ui/innerMapFields.js)
             if ((customObjDef.tags || []).includes('field')) menuItems.push(...InnerMapFields.menuItems(game, objAnchorQ, objAnchorR));
             if (customObjDef.resource) {

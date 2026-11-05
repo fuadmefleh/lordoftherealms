@@ -19,6 +19,7 @@
 
 import { InnerMap } from '../world/innerMap.js';
 import { Diving } from '../player/diving.js';
+import { Swimming } from '../player/swimming.js';
 import { Hotbar } from './hotbar.js';
 
 const BTN_ID = 'innerMapSurfaceBtn';
@@ -117,9 +118,12 @@ export const InnerMapDiving = {
             items.push({ type: 'action', action: 'dive_surface', label: 'Surface', icon: '⬆️', desc: 'Up for air where you are (V)' });
             return items;
         }
-        if (!InnerMap.isDivable(q, r)) return [];
+        // On the deck: over the side, toward the water clicked (the hull walls the deck in)
+        if (this.onDeck()) return InnerMap.isSwimmable(q, r) ? this._overboardItems(game, q, r) : [];
+        const climb = this._climbItems(game);
+        if (!InnerMap.isDivable(q, r)) return climb;
         const ok = Diving.canDive(game.player);
-        if (!ok.ok) return [{ type: 'disabled', label: `🤿 Dive — ${ok.reason}` }];
+        if (!ok.ok) return [{ type: 'disabled', label: `🤿 Dive — ${ok.reason}` }, ...climb];
         const water = Diving.waterOf(tile);
         const where = `the ${water.deep ? 'deep ' : ''}${water.kind} floor`;
         const breath = Diving.breath(game.player);
@@ -127,7 +131,122 @@ export const InnerMapDiving = {
             type: 'action', action: 'dive_under', icon: '🤿',
             label: here ? 'Dive Under' : 'Dive Under Here',
             desc: `${here ? '' : 'Swim out, then '}go under and search ${where}: ${breath}s of breath (V)`,
-        }];
+        }, ...climb];
+    },
+
+    // ── Over the side of a ship, and back aboard ──
+
+    /** Is the player standing on a ship's deck? */
+    onDeck() {
+        const t = InnerMap.getTile(InnerMap.playerInnerQ, InnerMap.playerInnerR);
+        return !!(t && t._deck);
+    },
+
+    /** Is (q, r) part of a ship (her deck, her hull)? */
+    isShipAt(q, r) {
+        const t = InnerMap.getTile(q, r);
+        if (!t) return false;
+        if (t._deck) return true;
+        const at = t.customObject ? t : t.customObjectPart ? InnerMap.getTile(t.customObjectPart.anchorQ, t.customObjectPart.anchorR) : null;
+        const o = at && at.customObject;
+        return !!(o && (o.aboard || o.playerShip || o.harbour || /^hull_/.test(String(o.defId || ''))));
+    },
+
+    /**
+     * The water just off the ship's side nearest the player, leaning toward
+     * (towardQ, towardR): the first ring of swimmable water (deep enough to go
+     * under in, when `deep`) out from where they stand, past the hull.
+     */
+    overboardSpot(towardQ, towardR, deep = false) {
+        const q0 = InnerMap.playerInnerQ, r0 = InnerMap.playerInnerR;
+        const ok = (q, r) => (deep ? InnerMap.isDivable(q, r) : InnerMap.isSwimmable(q, r));
+        for (let d = 1; d <= 8; d++) {
+            let best = null, bestD = Infinity;
+            for (let r = r0 - d; r <= r0 + d; r++) {
+                for (let q = q0 - d; q <= q0 + d; q++) {
+                    if (Math.max(Math.abs(q - q0), Math.abs(r - r0)) !== d || !ok(q, r)) continue;
+                    const dt = Math.hypot(q - towardQ, r - towardR);
+                    if (dt < bestD) { bestD = dt; best = { q, r }; }
+                }
+            }
+            if (best) return best;
+        }
+        return null;
+    },
+
+    /** The deck within reach of a swimmer alongside (a stroke or two off her side), or null. */
+    aboardSpot() {
+        const q0 = InnerMap.playerInnerQ, r0 = InnerMap.playerInnerR;
+        let best = null, bestD = Infinity;
+        for (let r = r0 - 3; r <= r0 + 3; r++) {
+            for (let q = q0 - 3; q <= q0 + 3; q++) {
+                const t = InnerMap.getTile(q, r);
+                if (!t || !t._deck || !t.subTerrain || !t.subTerrain.passable) continue;
+                if ((InnerMap.npcs || []).some(n => n.q === q && n.r === r)) continue;
+                const d = Math.hypot(q - q0, r - r0);
+                if (d < bestD) { bestD = d; best = { q, r }; }
+            }
+        }
+        return best;
+    },
+
+    _overboardItems(game, q, r) {
+        const items = [];
+        const swim = Swimming.canSwim(game.player);
+        if (!swim.ok) return [{ type: 'disabled', label: `🌊 Over the Side — ${swim.reason}` }];
+        const dive = Diving.canDive(game.player);
+        if (dive.ok && this.overboardSpot(q, r, true)) {
+            items.push({ type: 'action', action: 'dive_overboard', towardQ: q, towardR: r, label: 'Dive Over the Side', icon: '🤿', desc: `Off the rail and straight down: ${Diving.breath(game.player)}s of breath (V to come up)` });
+        } else if (!dive.ok) {
+            items.push({ type: 'disabled', label: `🤿 Dive Over the Side — ${dive.reason}` });
+        }
+        if (this.overboardSpot(q, r, false)) items.push({ type: 'action', action: 'dive_jump', towardQ: q, towardR: r, label: 'Jump Over the Side', icon: '🌊', desc: 'Into the sea beside her, to swim' });
+        return items;
+    },
+
+    _climbItems(game) {
+        if (this._under || !InnerMap.isPlayerSwimming() || !this.aboardSpot()) return [];
+        return [{ type: 'action', action: 'dive_climb', label: 'Climb Aboard', icon: '⬆️', desc: 'Haul yourself up her side onto the deck' }];
+    },
+
+    /** The ship's own menu (her deck or hull clicked): over the side from the deck, aboard from the water. */
+    shipItems(game, q, r) {
+        if (!game || !game.player || InnerMap._insideBuilding || this._under || !this.isShipAt(q, r)) return [];
+        if (this.onDeck()) return this._overboardItems(game, q, r);
+        return this._climbItems(game);
+    },
+
+    /** Over the side: into the water off her rail, and under if `dive`. */
+    goOverboard(game, towardQ, towardR, dive) {
+        if (!this.onDeck()) return false;
+        const spot = this.overboardSpot(towardQ, towardR, dive);
+        if (!spot) { _note(game, '🌊 Over the Side', 'There is no clear water off her side here.', 'warning'); return false; }
+        const swim = Swimming.canSwim(game.player);
+        if (!swim.ok) { _note(game, '🌊 Over the Side', swim.reason, 'warning'); return false; }
+        InnerMap.cancelPlayerWalk();
+        InnerMap._pendingAction = null;
+        InnerMap.playerInnerQ = spot.q;
+        InnerMap.playerInnerR = spot.r;
+        if (dive) {
+            if (!this.goUnder(game)) return true;
+            _note(game, '🤿 Over the Side', 'You climb the rail and dive. The sea closes over you, cold and green.');
+        } else {
+            _note(game, '🌊 Over the Side', 'You swing over the rail and drop into the sea with a splash. Swim, or press V to go under.');
+        }
+        return true;
+    },
+
+    /** Back up her side onto the deck. */
+    climbAboard(game) {
+        if (this._under) { _note(game, '⬆️ Climb Aboard', 'Come up for air first (V).', 'warning'); return false; }
+        const spot = this.aboardSpot();
+        if (!spot) { _note(game, '⬆️ Climb Aboard', 'Swim in close alongside her first.', 'warning'); return false; }
+        InnerMap.cancelPlayerWalk();
+        InnerMap._pendingAction = null;
+        InnerMap.playerInnerQ = spot.q;
+        InnerMap.playerInnerR = spot.r;
+        _note(game, '⬆️ Aboard', 'You catch a line and haul yourself up her side onto the deck, streaming water.');
+        return true;
     },
 
     /** Carry out a dive_* action at (q, r). Returns true when it was one. */
@@ -135,6 +254,11 @@ export const InnerMapDiving = {
         const action = item.action || '';
         if (!/^dive_/.test(action)) return false;
         if (action === 'dive_surface') { this.surface(game); return true; }
+        if (action === 'dive_overboard' || action === 'dive_jump') {
+            this.goOverboard(game, item.towardQ != null ? item.towardQ : q, item.towardR != null ? item.towardR : r, action === 'dive_overboard');
+            return true;
+        }
+        if (action === 'dive_climb') { this.climbAboard(game); return true; }
         if (action === 'dive_pickup') {
             if (!this._under) return true;
             if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) { this._takeHere(game); return true; }

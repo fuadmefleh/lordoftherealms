@@ -191,22 +191,41 @@ Object.assign(InnerMapRenderer, {
         const now = _now();
         const r0 = Math.max(0, range.rMin), r1 = Math.min(InnerMap.height - 1, range.rMax);
         const q0 = Math.max(0, range.qMin), q1 = Math.min(InnerMap.width - 1, range.qMax);
-        const sz = Math.ceil(ds) + 1;
         ctx.save();
+        // The murk as one shape (cells overlapping by a pixel would show a grid where the tint doubles)
+        ctx.beginPath();
+        const lights = [];
         for (let r = r0; r <= r1; r++) {
             for (let q = q0; q <= q1; q++) {
                 if (!InnerMap.isDivable(q, r)) continue;
                 const s = camera.worldToScreenFast(q * T, r * T);
-                ctx.fillStyle = 'rgba(8, 62, 70, 0.55)';
-                ctx.fillRect(s.x, s.y, sz, sz);
+                const x = Math.floor(s.x), y = Math.floor(s.y);
+                const w = Math.floor(s.x + ds) - x, h = Math.floor(s.y + ds) - y;
+                ctx.rect(x, y, w, h);
                 // Light rippling over the bottom: bands that drift and swell
                 const wx = q * 0.9, wy = r * 0.7;
                 const a = (Math.sin(wx + now * 1.3) + Math.sin(wy * 1.3 - now * 1.1) + Math.sin((wx + wy) * 0.6 + now * 0.7)) / 3;
-                if (a > 0.15) {
-                    ctx.fillStyle = `rgba(150, 230, 220, ${(a - 0.15) * 0.22})`;
-                    ctx.fillRect(s.x, s.y, sz, sz);
-                }
+                if (a > 0.15) lights.push([q, r, a]);
             }
+        }
+        ctx.fillStyle = 'rgba(8, 62, 70, 0.55)';
+        ctx.fill();
+        // The light: one pixel a cell on a small canvas, scaled up smooth, so it lies in soft patches, not squares
+        const cw = q1 - q0 + 1, ch = r1 - r0 + 1;
+        if (cw > 0 && ch > 0 && typeof document !== 'undefined') {
+            const lc = this._uwLight || (this._uwLight = document.createElement('canvas'));
+            if (lc.width !== cw || lc.height !== ch) { lc.width = cw; lc.height = ch; }
+            const lx = lc.getContext('2d');
+            const img = lx.createImageData(cw, ch);
+            for (const [q, r, a] of lights) {
+                const i = ((r - r0) * cw + (q - q0)) * 4;
+                img.data[i] = 150; img.data[i + 1] = 230; img.data[i + 2] = 220;
+                img.data[i + 3] = Math.round(Math.min(1, (a - 0.15) * 0.3) * 255);
+            }
+            lx.putImageData(img, 0, 0);
+            const o = camera.worldToScreenFast(q0 * T, r0 * T);
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(lc, o.x, o.y, cw * ds, ch * ds);
         }
         ctx.restore();
         const bed = InnerMapDiving.bed();
@@ -225,16 +244,19 @@ Object.assign(InnerMapRenderer, {
         const ds = T * camera.zoom;
         const range = this._frameRange || this._getVisibleTileRange(camera);
         const now = _now();
-        const sz = Math.ceil(ds) + 1;
         ctx.save();
+        // (one shape, so no seams where cells meet)
         ctx.fillStyle = 'rgba(3, 20, 28, 0.62)';
+        ctx.beginPath();
         for (let r = Math.max(0, range.rMin); r <= Math.min(InnerMap.height - 1, range.rMax); r++) {
             for (let q = Math.max(0, range.qMin); q <= Math.min(InnerMap.width - 1, range.qMax); q++) {
                 if (InnerMap.isDivable(q, r)) continue;
                 const s = camera.worldToScreenFast(q * T, r * T);
-                ctx.fillRect(s.x, s.y, sz, sz);
+                const x = Math.floor(s.x), y = Math.floor(s.y);
+                ctx.rect(x, y, Math.floor(s.x + ds) - x, Math.floor(s.y + ds) - y);
             }
         }
+        ctx.fill();
         // Over all: a faint green-blue cast, shafts of light from above, motes
         const W = ctx.canvas.width, H = ctx.canvas.height;
         ctx.fillStyle = 'rgba(10, 70, 80, 0.12)';

@@ -7,6 +7,7 @@ import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
@@ -979,6 +980,9 @@ Object.assign(InnerMapRenderer, {
                         }
                         ctx.restore();
                         this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
+                    } else if (pSwimming && InnerMapDiving.isUnder()) {
+                        // Under the water, diving (ui/innerMapDiving.js): only the bubbles show
+                        InnerMapDiving.drawUnder(ctx, px, py, ds, now);
                     } else if (pSwimming) {
                         // In the water (world/innerMap/swimming.js): head and shoulders
                         // above it, bobbing, the water ringing out round them

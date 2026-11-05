@@ -413,6 +413,8 @@ Object.assign(InnerMap, {
             }
         }
         if (!cells.length) return [];
+        // Where she went down: the bottom there keeps what sank with her (diving, ui/innerMapDiving.js)
+        for (const c of cells) if (c.near) this.tiles[c.r][c.q]._wreckSite = true;
         // Mostly where she went down, a few drifted off
         const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Utils.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
         const pick = shuffle(cells.filter(c => c.near)).concat(shuffle(cells.filter(c => !c.near)));

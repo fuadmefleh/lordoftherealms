@@ -1,0 +1,121 @@
+{
+    "_doc": "Diving under the water of an inner map to scavenge the bottom (player/diving.js: what a dive brings up and costs; ui/innerMapDiving.js: the Dive entries and the dive itself on the map). Breath: seconds you can stay down, breath.base plus breath.perPractice at full swimming practice (player.swimPractice, data/swimming.json practiceMax). A dive is a share of your breath (lengths): quick and full stay inside it, push goes past it. Each grabSeconds on the bottom is one grab, which finds something from tables[kind][depth] (nothing is a weight there too) or, rarely, treasure. Past your breath each second hurts (overHealthPerSecond, cold.mult in cold water) and you may black out (blackout: chance, plus perOverSecond; the haul is lost and you take its health). Each dive costs energy (less with practice) and in-game minutes, washes you a little like a swim, and adds practicePerDive to swimming practice. The same spot dived again the same day yields less (repeatCut each time). Treasure is likelier in deep sea, with luck, and within wreckRange tiles of a wreck (wreckMult; and the wreck's own finds weigh wreckWeight).",
+    "breath": { "base": 30, "perPractice": 60 },
+    "grabSeconds": 10,
+    "lengths": {
+        "quick": { "share": 0.5, "minutes": 5, "label": "Quick Dive", "icon": "🤿", "desc": "A short look at the bottom, well inside your breath" },
+        "full": { "share": 0.9, "minutes": 10, "label": "Dive", "icon": "🤿", "desc": "Down as long as your breath allows" },
+        "push": { "share": 1.4, "minutes": 15, "label": "Push Your Breath", "icon": "🫁", "desc": "Stay down past your breath: more finds, and it hurts" }
+    },
+    "realSeconds": { "base": 1.5, "perGrab": 0.5, "max": 7 },
+    "energy": 5,
+    "practiceEnergyCut": 0.5,
+    "minEnergy": 15,
+    "hygiene": 6,
+    "comfort": -3,
+    "practicePerDive": 5,
+    "overHealthPerSecond": 0.5,
+    "blackout": { "chance": 0.08, "perOverSecond": 0.004, "health": 25 },
+    "cold": { "mult": 2, "health": 3, "comfort": -8, "blackout": 0.06 },
+    "repeatCut": 0.6,
+    "wreckRange": 3,
+    "treasure": {
+        "chance": {
+            "sea": { "shallow": 0.01, "deep": 0.03 },
+            "lake": { "shallow": 0.006, "deep": 0.015 },
+            "river": { "shallow": 0.008, "deep": 0.012 },
+            "pond": { "shallow": 0.003, "deep": 0.005 }
+        },
+        "wreckMult": 4,
+        "luckPer": 0.05,
+        "finds": [
+            { "item": "pearls", "qty": [1, 2], "weight": 4, "kinds": ["sea"], "text": "An old oyster, and in it a pearl" },
+            { "item": "pearls", "qty": [1, 1], "weight": 1, "kinds": ["lake", "river"], "text": "A freshwater mussel with a pearl in it" },
+            { "item": "blue_coral", "qty": [1, 2], "weight": 2, "kinds": ["sea"], "deep": true, "text": "A branch of blue coral, broken off the reef" },
+            { "item": "ancient_coin", "qty": [1, 3], "weight": 5, "text": "Old coins in the silt, from no reign you know" },
+            { "item": "silver_jewellery", "qty": [1, 1], "weight": 2, "text": "A silver ring someone lost over the side" },
+            { "item": "gold_jewellery", "qty": [1, 1], "weight": 1, "kinds": ["sea", "lake"], "text": "A gold chain, green with weed but gold under it" },
+            { "item": "ancient_artifact", "qty": [1, 1], "weight": 0.5, "deep": true, "text": "A thing of an older age, lying where it sank long ago" },
+            { "name": "Sunken Chest", "icon": "🧰", "gold": [40, 180], "weight": 1, "kinds": ["sea", "lake"], "wreckWeight": 6, "text": "A small sunken chest; you prise it open and the coins spill out" }
+        ]
+    },
+    "tables": {
+        "sea": {
+            "shallow": [
+                { "item": null, "weight": 30 },
+                { "item": "seaweed", "qty": [1, 3], "weight": 18 },
+                { "item": "shells", "qty": [1, 4], "weight": 16 },
+                { "item": "mussels", "qty": [2, 5], "weight": 14 },
+                { "item": "crabs", "qty": [1, 2], "weight": 10 },
+                { "item": "oysters", "qty": [1, 3], "weight": 6 },
+                { "item": "sea_sponge", "qty": [1, 1], "weight": 3 },
+                { "item": "boot", "qty": [1, 1], "weight": 2 },
+                { "item": "rope", "qty": [1, 1], "weight": 1 }
+            ],
+            "deep": [
+                { "item": null, "weight": 30 },
+                { "item": "oysters", "qty": [1, 4], "weight": 12 },
+                { "item": "lobster", "qty": [1, 1], "weight": 8 },
+                { "item": "crab", "qty": [1, 2], "weight": 8 },
+                { "item": "sea_sponge", "qty": [1, 2], "weight": 8 },
+                { "item": "seaweed", "qty": [1, 3], "weight": 8 },
+                { "item": "shells", "qty": [1, 4], "weight": 6 },
+                { "item": "mussels", "qty": [2, 5], "weight": 6 },
+                { "item": "rope", "qty": [1, 2], "weight": 2 },
+                { "item": "iron", "qty": [1, 1], "weight": 1, "text": "a length of anchor chain" },
+                { "item": "tools", "qty": [1, 1], "weight": 1, "text": "a tool lost overboard" }
+            ]
+        },
+        "lake": {
+            "shallow": [
+                { "item": null, "weight": 35 },
+                { "item": "mussels", "qty": [1, 4], "weight": 14 },
+                { "item": "crayfish", "qty": [1, 3], "weight": 12 },
+                { "item": "clay", "qty": [1, 2], "weight": 7 },
+                { "item": "driftwood", "qty": [1, 2], "weight": 6, "text": "a sunken branch" },
+                { "item": "shells", "qty": [1, 2], "weight": 4 },
+                { "item": "boot", "qty": [1, 1], "weight": 3 }
+            ],
+            "deep": [
+                { "item": null, "weight": 35 },
+                { "item": "mussels", "qty": [2, 5], "weight": 12 },
+                { "item": "crayfish", "qty": [1, 3], "weight": 10 },
+                { "item": "clay", "qty": [1, 3], "weight": 6 },
+                { "item": "driftwood", "qty": [1, 2], "weight": 6, "text": "a sunken log" },
+                { "item": "boot", "qty": [1, 1], "weight": 3 },
+                { "item": "tools", "qty": [1, 1], "weight": 2, "text": "a tool dropped from a boat" }
+            ]
+        },
+        "river": {
+            "shallow": [
+                { "item": null, "weight": 40 },
+                { "item": "crayfish", "qty": [1, 3], "weight": 14 },
+                { "item": "mussels", "qty": [1, 3], "weight": 10 },
+                { "item": "driftwood", "qty": [1, 2], "weight": 8, "text": "a snagged branch" },
+                { "item": "clay", "qty": [1, 2], "weight": 6 },
+                { "item": "boot", "qty": [1, 1], "weight": 4 },
+                { "item": "tools", "qty": [1, 1], "weight": 2, "text": "a tool lost at the ford" }
+            ],
+            "deep": [
+                { "item": null, "weight": 40 },
+                { "item": "crayfish", "qty": [1, 3], "weight": 12 },
+                { "item": "mussels", "qty": [1, 4], "weight": 10 },
+                { "item": "driftwood", "qty": [1, 2], "weight": 8, "text": "a snagged log" },
+                { "item": "clay", "qty": [1, 2], "weight": 5 },
+                { "item": "boot", "qty": [1, 1], "weight": 4 },
+                { "item": "tools", "qty": [1, 1], "weight": 3, "text": "a tool lost at the ford" }
+            ]
+        },
+        "pond": {
+            "shallow": [
+                { "item": null, "weight": 45 },
+                { "item": "leeches", "qty": [1, 3], "weight": 8 },
+                { "item": "crayfish", "qty": [1, 2], "weight": 8 },
+                { "item": "mussels", "qty": [1, 2], "weight": 6 },
+                { "item": "clay", "qty": [1, 2], "weight": 6 },
+                { "item": "driftwood", "qty": [1, 1], "weight": 4, "text": "a rotten branch" },
+                { "item": "boot", "qty": [1, 1], "weight": 4 }
+            ]
+        }
+    }
+}

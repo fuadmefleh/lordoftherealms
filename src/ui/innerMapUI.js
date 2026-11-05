@@ -32,6 +32,7 @@ import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
 import { InnerMapFields } from './innerMapFields.js';
 import { InnerMapGranary } from './innerMapGranary.js';
+import { InnerMapDiving } from './innerMapDiving.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
@@ -424,6 +425,8 @@ Object.assign(InnerMapRenderer, {
                 if ((tile._wet || tile._sea) && !/frozen|ice/.test(tile.subTerrain.id || '')) {
                     menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
                 }
+                // Water deep enough to swim: dive and scavenge the bottom (ui/innerMapDiving.js)
+                menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
 
                 // Terrain interaction actions: till, sow, water, harvest (ui/innerMapFarming.js)
                 menuItems.push(...InnerMapFarming.menuItems(game, tile, q, r));
@@ -775,6 +778,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
         if (/^granary_/.test(action) && InnerMapGranary.handle(game, item)) return;
+        if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
 
         // (fishing goes to the bank, never out to the water it casts into)
         if (dist > 1 && !item._approached && action !== 'fish_here') {

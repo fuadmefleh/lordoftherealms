@@ -27,6 +27,10 @@ export const FOOD_ITEMS = {
     jam:         { label: 'Fruit Preserve', icon: '🫙', hunger: 12, energy: 10, fun: 6 },
     pickles:     { label: 'Pickles',       icon: '🥒', hunger: 14, energy: 4 },
     vegetables:  { label: 'Vegetables',    icon: '🥬', hunger: 14, energy: 4 },
+    // From the water's floor (player/diving.js)
+    mussels:     { label: 'Mussels',       icon: '🦪', hunger: 10, energy: 3 },
+    oysters:     { label: 'Oysters',       icon: '🦪', hunger: 10, energy: 3, fun: 3 },
+    crayfish:    { label: 'Crayfish',      icon: '🦐', hunger: 10, energy: 3 },
     beer:        { label: 'Ale',           icon: '🍺', hunger: 6, fun: 10, social: 8, energy: -5 },
     mead:        { label: 'Mead',          icon: '🍶', hunger: 6, fun: 14, social: 10, energy: -5 },
     cider:       { label: 'Cider',         icon: '🍏', hunger: 5, fun: 10, social: 8, energy: -4 },

@@ -35,6 +35,8 @@ export const MEAL_HUNGER = {
     // Wild foods: they keep you alive, they don't fill you up
     fruit: 15, honey: 15, game_meat: 15, crabs: 12, berries: 10, mushrooms: 10, truffles: 12,
     cactus_fruit: 10, seaweed: 8,
+    // From the water's floor (player/diving.js)
+    mussels: 10, oysters: 10, crayfish: 10,
 };
 
 /**

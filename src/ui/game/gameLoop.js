@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { Afterlife } from '../../player/afterlife.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
@@ -327,6 +328,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapTasks.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
+        // Under the water, scavenging the bottom (ui/innerMapDiving.js)
+        InnerMapDiving.update(simDelta, this);
         // Aboard ship: the crew, the sea's events, boarders (ui/innerMapDeck.js)
         InnerMapDeck.update(simDelta, this);
 

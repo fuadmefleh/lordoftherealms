@@ -86,6 +86,7 @@ const topLevel = [
     'deckLife',
     'animals',
     'swimming',
+    'diving',
     'wrecks',
     'furniture',
     'crops',

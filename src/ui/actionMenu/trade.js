@@ -951,7 +951,7 @@ Object.assign(ActionMenu, {
 
         // ── Categorise goods ──
         const CATEGORIES = {
-            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','golden_fish','cheese','dried_meat','honey','salt','tea','wine','mead','cider','sausage','meat_pie','honey_cake','jam','pickles','cooked_meal','cooked_fish','cooked_meat']) },
+            food:      { label: 'Food & Drink', icon: '🍞', keys: new Set(['grain','vegetables','flour','bread','fish','preserved_fish','beer','liquor','meat','berries','mushrooms','small_fish','large_fish','crab','swordfish','lobster','mussels','oysters','crayfish','golden_fish','cheese','dried_meat','honey','salt','tea','wine','mead','cider','sausage','meat_pie','honey_cake','jam','pickles','cooked_meal','cooked_fish','cooked_meat']) },
             materials: { label: 'Materials',     icon: '⛏️', keys: new Set(['wood','firewood','stone','iron','copper','ore','wool','hide','pelts','rope','candles','dyes','incense','pottery','lantern','arrows','compass','planks','resin','tallow','soap','parchment','ink','steel','silver_bar','glass','leather','linen']) },
             crafted:   { label: 'Crafted Goods', icon: '🔧', keys: new Set(['tools','steel_tools','bronze','weapons','textiles','clothes','agri_parts','industry_parts','military_parts','infra_parts','commerce_parts','leather_armor','shield','bow','joinery','barrel','boots','saddle','wool_cloak','fur_coat','chainmail','plate_armor','helmet','steel_sword','spear','crossbow','glassware']) },
             // Seed for your own fields (data/crops.json)

@@ -405,7 +405,8 @@ Object.assign(InnerMap, {
         const next = this._playerPath[this._playerPathIndex];
         const nextTile = next && this.tiles[next.r] && this.tiles[next.r][next.q];
         const inWater = (nextTile && !nextTile.subTerrain.passable) || this.isPlayerSwimming();
-        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) : 1);
+        const under = this._underwater ? (this._underwaterSpeed || 0.75) : 1; // (slower again under the surface)
+        this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : 1);
 
         if (this._playerMoveProgress >= 1.0) {
             this._playerMoveProgress = 0;
@@ -599,6 +600,8 @@ Object.assign(InnerMap, {
                 if (!tile.subTerrain.passable) {
                     if (!swim || !this.isSwimmable(nq, nr)) continue;
                     ng = gScore[ci] + swimCost;
+                } else if (swim && this._underwater) {
+                    continue; // under the water: no land, no shallows (world/innerMap/swimming.js)
                 }
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&

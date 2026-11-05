@@ -1,22 +1,27 @@
 // ============================================================
-// INNER MAP — diving to the bottom of the water
+// INNER MAP — diving: under the water, swimming about the bottom
 // ============================================================
-// Right-click water deep enough to swim in (world/innerMap/swimming.js):
-// a Quick Dive, a full Dive, or Push Your Breath past its end. The player
-// swims out to the spot if not there already, then goes under: hidden below
-// the surface, a stream of bubbles where they went down and a ring for the
-// breath running out (drawn by ui/innerMapLayers/entities.js through
-// drawUnder). Walking off cuts the dive short, with what was found so far.
-// What a dive brings up and costs is player/diving.js; tables in
-// data/diving.json. A spot dived the same day yields less (tile._dived), and
-// the bottom by a wreck (world/innerMap/harbour.js marks where she sank,
-// tile._wreckSite) hides more treasure.
+// On water deep enough to swim in (world/innerMap/swimming.js), Dive Under
+// (the right-click menu, or V while swimming) takes the player below the
+// surface. Under the water they move by clicking as ever, but through water
+// only (InnerMap._underwater keeps their paths off land and the shallows) and
+// slower than a swim. Breath drains as they go (player/diving.js): a bar over
+// their head, red when it runs low; out of it they hurt, and may black out,
+// coming up with nothing they picked up on this dive. Surface (the menu, the
+// toolbar button, or V again) brings them up where they are, breath full.
+//
+// The bottom of each map is scattered with finds once a day (Diving.bedFor,
+// kept here by world hex), seen only from under the water (drawn by
+// ui/innerMapLayers/underwater.js): swim onto one, or right-click it and
+// Pick Up. What is taken stays taken until the next day.
+//
+// Tables and numbers in data/diving.json.
 
 import { InnerMap } from '../world/innerMap.js';
 import { Diving } from '../player/diving.js';
 import { Hotbar } from './hotbar.js';
 
-const LENGTHS = ['quick', 'full', 'push'];
+const BTN_ID = 'innerMapSurfaceBtn';
 
 function _note(game, title, text, type = 'info') {
     if (game && game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(title, text, type);
@@ -27,13 +32,30 @@ function _worldTile(game) {
     return game && game.world && at ? game.world.getTile(at.q, at.r) : null;
 }
 
-export const InnerMapDiving = {
-    // { q, r, length, t, total, breathAt, game }
-    _job: null,
+function _mapKey() {
+    const at = InnerMap.currentWorldTile;
+    return at ? `${at.q},${at.r}` : null;
+}
 
-    /** Water at (q, r) a body can dive in: swimmable, not shallows you stand in. */
-    canDiveAt(tile, q, r) {
-        return !!(tile && tile.subTerrain && !tile.subTerrain.passable && InnerMap.isSwimmable(q, r));
+function _day(game) {
+    return (game && game.world && game.world.day) || 0;
+}
+
+export const InnerMapDiving = {
+    // The bottoms of the maps dived today, by world hex: { [key]: { day, finds } }
+    _beds: {},
+    // Under the water: { game, tiles, key, bed }
+    _under: null,
+    _keysBound: false,
+
+    /** Is the player under the water? */
+    isUnder() {
+        return !!this._under;
+    },
+
+    /** The bottom of the map the player is under (null on the surface). */
+    bed() {
+        return this._under ? this._under.bed : null;
     },
 
     /** Is there wreckage on or under the water near (q, r)? */
@@ -48,193 +70,318 @@ export const InnerMapDiving = {
         return false;
     },
 
-    /** Dives at this spot today. */
-    picked(tile, day) {
-        const d = tile && tile._dived;
-        return d && d.day === day ? d.n : 0;
+    /** Every cell of this map a diver can reach the bottom of, with its water. */
+    _cells() {
+        const out = [];
+        const tiles = InnerMap.tiles || [];
+        // Wreck sites first, so their reach is cheap to ask
+        const wrecks = [];
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < (tiles[r] || []).length; q++) {
+                const t = tiles[r][q];
+                if (t && (t._wreckSite || (t.groundItem && t.groundItem.placedBy === 'wreck'))) wrecks.push([q, r]);
+            }
+        }
+        const R = Math.max(0, Diving.config().wreckRange | 0);
+        for (let r = 0; r < tiles.length; r++) {
+            for (let q = 0; q < (tiles[r] || []).length; q++) {
+                if (!InnerMap.isDivable(q, r)) continue;
+                const w = Diving.waterOf(tiles[r][q]);
+                const nearWreck = wrecks.some(([x, y]) => Math.abs(x - q) <= R && Math.abs(y - r) <= R);
+                out.push({ q, r, kind: w.kind, deep: w.deep, nearWreck });
+            }
+        }
+        return out;
     },
 
-    /** The Dive entries for a water tile. */
+    /** The bottom of this map today (scattered on the first dive of the day). */
+    _bedHere(game) {
+        const key = _mapKey();
+        if (!key) return null;
+        const day = _day(game);
+        return Diving.bedFor(this._beds, key, day, () => this._cells(), { seed: Diving.bedSeed(game.world, key, day), player: game.player });
+    },
+
+    // ══════════════════════════════════════════════
+    // THE MENU
+    // ══════════════════════════════════════════════
+
+    /** The diving entries for a tile. */
     menuItems(game, tile, q, r) {
-        if (!game || !game.player || InnerMap._insideBuilding || !this.canDiveAt(tile, q, r)) return [];
-        if (this._job) return [{ type: 'disabled', label: '🤿 Under the water…' }];
+        if (!game || !game.player || InnerMap._insideBuilding || !tile) return [];
+        const here = InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r;
+        if (this._under) {
+            const items = [];
+            const f = Diving.findAt(this._under.bed, q, r);
+            if (f) items.push({ type: 'action', action: 'dive_pickup', label: `Pick Up ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}`, icon: f.rare ? '✨' : f.icon, desc: here ? 'Off the bottom and into your packs' : 'Swim to it and take it' });
+            items.push({ type: 'action', action: 'dive_surface', label: 'Surface', icon: '⬆️', desc: 'Up for air where you are (V)' });
+            return items;
+        }
+        if (!InnerMap.isDivable(q, r)) return [];
         const ok = Diving.canDive(game.player);
         if (!ok.ok) return [{ type: 'disabled', label: `🤿 Dive — ${ok.reason}` }];
-        const C = Diving.config();
         const water = Diving.waterOf(tile);
-        const where = `${water.deep ? 'deep ' : ''}${water.kind}`;
-        return LENGTHS.map(length => {
-            const p = Diving.plan(game.player, length);
-            const L = C.lengths[length] || {};
-            const desc = `${L.desc || 'Down to the bottom'} (${p.bottom}s down, breath ${p.breath}s; the ${where} floor)`;
-            return { type: 'action', action: 'dive_' + length, length, label: L.label || 'Dive', icon: L.icon || '🤿', desc };
-        });
+        const where = `the ${water.deep ? 'deep ' : ''}${water.kind} floor`;
+        const breath = Diving.breath(game.player);
+        return [{
+            type: 'action', action: 'dive_under', icon: '🤿',
+            label: here ? 'Dive Under' : 'Dive Under Here',
+            desc: `${here ? '' : 'Swim out, then '}go under and search ${where}: ${breath}s of breath (V)`,
+        }];
     },
 
     /** Carry out a dive_* action at (q, r). Returns true when it was one. */
     handle(game, item, q, r) {
-        const m = /^dive_(\w+)$/.exec(item.action || '');
-        if (!m) return false;
-        const length = LENGTHS.includes(m[1]) ? m[1] : 'full';
-        const tile = InnerMap.getTile(q, r);
-        if (!this.canDiveAt(tile, q, r)) { _note(game, '🤿 Dive', 'There is no water deep enough to dive here.', 'warning'); return true; }
-        const ok = Diving.canDive(game.player);
-        if (!ok.ok) { _note(game, '🤿 Dive', ok.reason, 'warning'); return true; }
-        if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r && !InnerMap._playerWalking) {
-            this.start(game, q, r, length);
+        const action = item.action || '';
+        if (!/^dive_/.test(action)) return false;
+        if (action === 'dive_surface') { this.surface(game); return true; }
+        if (action === 'dive_pickup') {
+            if (!this._under) return true;
+            if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) { this._takeHere(game); return true; }
+            InnerMap.cancelPlayerWalk();
+            const walk = InnerMap.movePlayerTo(q, r);
+            if (!walk || !walk.started) _note(game, '🤿 Out of Reach', 'You can\'t swim to it from here without coming up.', 'warning');
             return true;
         }
-        // Swim out to the spot first
-        InnerMap.cancelPlayerWalk();
-        const walk = InnerMap.movePlayerTo(q, r);
-        if (walk && walk.started) {
-            InnerMap._pendingAction = { q, r, run: () => this.start(game, q, r, length) };
-        } else {
-            _note(game, '🤿 Dive', (walk && walk.refused) || 'You can\'t swim out to that spot.', 'warning');
+        if (action === 'dive_under') {
+            if (!InnerMap.isDivable(q, r)) { _note(game, '🤿 Dive', 'The water here is too shallow to go under.', 'warning'); return true; }
+            const ok = Diving.canDive(game.player);
+            if (!ok.ok) { _note(game, '🤿 Dive', ok.reason, 'warning'); return true; }
+            if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r && !InnerMap._playerWalking) {
+                this.goUnder(game);
+                return true;
+            }
+            // Swim out to the spot first
+            InnerMap.cancelPlayerWalk();
+            const walk = InnerMap.movePlayerTo(q, r);
+            if (walk && walk.started) {
+                InnerMap._pendingAction = { q, r, run: () => this.goUnder(game) };
+            } else {
+                _note(game, '🤿 Dive', (walk && walk.refused) || 'You can\'t swim out to that spot.', 'warning');
+            }
+            return true;
         }
+        return false;
+    },
+
+    // ══════════════════════════════════════════════
+    // UNDER AND UP
+    // ══════════════════════════════════════════════
+
+    /** Fill your lungs and go under, where you are. */
+    goUnder(game) {
+        if (this._under || !game || !game.player) return false;
+        const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+        if (InnerMap._insideBuilding || !InnerMap.isDivable(q, r)) {
+            _note(game, '🤿 Dive', 'Swim out into deeper water first.', 'warning');
+            return false;
+        }
+        const ok = Diving.canDive(game.player);
+        if (!ok.ok) { _note(game, '🤿 Dive', ok.reason, 'warning'); return false; }
+        InnerMap.cancelPlayerWalk();
+        const first = !game.player.dives;
+        Diving.goUnder(game.player, game.world, _worldTile(game));
+        InnerMap._underwater = true;
+        InnerMap._underwaterSpeed = Number(Diving.config().underwaterSpeed) || 0.75;
+        this._under = { game, tiles: InnerMap.tiles, key: _mapKey(), bed: this._bedHere(game) };
+        this._takeHere(game);
+        if (first) _note(game, '🤿 Under the Water', 'You fill your lungs and go under. Swim about the bottom and take what you find; watch your breath, and come up (V) before it runs out.');
+        this._syncButton(game);
         return true;
     },
 
-    /** Go under at (q, r), where the player is. */
-    start(game, q, r, length) {
-        if (InnerMap.playerInnerQ !== q || InnerMap.playerInnerR !== r) return false;
-        const p = Diving.plan(game.player, length);
-        this._job = {
-            q, r, length, t: 0, total: p.realSeconds,
-            breathAt: Math.min(1, p.breath / Math.max(1, p.bottom)),
-            game,
-        };
-        InnerMap._diving = this._job;
-        if (!game.player.dives) _note(game, '🤿 Under', 'You fill your lungs and go down, feeling along the bottom for anything worth the taking.');
+    /** Up for air where you are. `blackout`: you come up senseless, the haul let go. */
+    surface(game, { blackout = false, quiet = false } = {}) {
+        if (!this._under) return null;
+        const player = game && game.player;
+        this._under = null;
+        InnerMap._underwater = false;
+        const res = player ? Diving.surface(player, { blackout }) : null;
+        this._syncButton(game);
+        if (!res || quiet) return res;
+        if (blackout) {
+            _note(game, '😵 Blacked Out', res.lost
+                ? 'The dark closes in. You come to at the surface, coughing up water, and whatever you held is gone to the bottom again.'
+                : 'The dark closes in. You come to at the surface, coughing up water.', 'error');
+        } else {
+            const got = Object.entries(res.haul).length + (res.gold > 0 ? 1 : 0);
+            _note(game, '🌊 Surfaced', got ? `You come up for air after ${res.seconds}s under, with your finds.` : `You come up for air after ${res.seconds}s under.`, 'info');
+        }
+        if (player && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
+        Hotbar.refresh();
+        return res;
+    },
+
+    /** Take whatever lies on the bottom where the player is. */
+    _takeHere(game) {
+        const u = this._under;
+        if (!u) return false;
+        const f = Diving.findAt(u.bed, InnerMap.playerInnerQ, InnerMap.playerInnerR);
+        if (!f) return false;
+        if (f._full) return false; // (already told the packs are full; swim off and back to try again)
+        const res = Diving.take(game.player, f);
+        if (!res.ok) {
+            f._full = true;
+            _note(game, '🎒 Packs Full', `${f.icon} ${f.name}: ${res.reason}`, 'warning');
+            return false;
+        }
+        Diving.removeFind(u.bed, f);
+        if (f.rare) {
+            _note(game, '✨ Treasure!', `${f.text || 'Something precious in the silt'}: ${f.icon} ${f.name}${f.gold ? ` (${f.gold} gold)` : f.qty > 1 ? ` ×${f.qty}` : ''}.`, 'success');
+        } else {
+            _note(game, '🤿 Found', `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}${f.text ? `: ${f.text}` : ''}.`, 'success');
+        }
+        if (typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
+        Hotbar.refresh();
         return true;
-    },
-
-    /** Is the player under the water? (the renderer hides them) */
-    isUnder() {
-        return !!this._job;
-    },
-
-    cancel() {
-        this._job = null;
-        InnerMap._diving = null;
     },
 
     /** Each frame, from the game loop. */
     update(deltaTime, game) {
-        const job = this._job;
-        if (!job) return;
-        if (!InnerMap.active || InnerMap._insideBuilding) { this.cancel(); return; }
-        // Swimming off cuts the dive short: up with what you have
-        if (InnerMap._playerWalking || InnerMap.playerInnerQ !== job.q || InnerMap.playerInnerR !== job.r) {
-            this._surface(game || job.game, job, Math.min(1, job.t / job.total));
+        this._bindKeys(game);
+        const u = this._under;
+        if (!u) {
+            if (InnerMap._underwater) InnerMap._underwater = false;
             return;
         }
-        job.t += deltaTime;
-        if (job.t >= job.total) this._surface(game || job.game, job, 1);
-    },
-
-    /** Back up: the dive's finds and costs (player/diving.js), told. */
-    _surface(game, job, fraction) {
-        this.cancel();
         const player = game && game.player;
-        if (!player) return;
-        const tile = InnerMap.getTile(job.q, job.r);
-        const water = Diving.waterOf(tile);
-        const day = (game.world && game.world.day) || 0;
-        const res = Diving.dive(player, game.world, _worldTile(game), {
-            kind: water.kind, deep: water.deep, length: job.length, fraction,
-            nearWreck: this.nearWreck(job.q, job.r), picked: this.picked(tile, day),
-        });
-        if (tile) tile._dived = { day, n: this.picked(tile, day) + 1 };
-        InnerMap.passHours(Math.max(1, res.plan.minutes * Math.max(0.3, fraction)) / 60);
-        this._tell(game, res, fraction);
-        if (typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
-        Hotbar.refresh();
-        if (res.drowned && typeof game._triggerDeath === 'function') {
-            InnerMap.cancelPlayerWalk();
-            setTimeout(() => game._triggerDeath('drowning'), 0);
+        // Off this map, indoors, or somehow out of the deep water: simply back on the surface
+        if (!player || !player.dive || !InnerMap.active || InnerMap._insideBuilding || InnerMap.tiles !== u.tiles
+            || !InnerMap.isDivable(InnerMap.playerInnerQ, InnerMap.playerInnerR)) {
+            this.surface(game, { quiet: true });
+            return;
         }
-    },
-
-    _tell(game, res, fraction) {
+        // Swim onto a find: it's yours (a full pack is told once; leave and come back to try again)
+        for (const f of u.bed.finds) if (f._full && (f.q !== InnerMap.playerInnerQ || f.r !== InnerMap.playerInnerR)) f._full = false;
+        this._takeHere(game);
+        const res = Diving.tick(player, game.world, _worldTile(game), deltaTime);
+        if (res.low) _note(game, '💨 Short of Breath', 'Your chest is tight. Make for the surface (V).', 'warning');
+        if (res.outOfBreath) _note(game, '💨 Out of Breath', res.cold ? 'Your breath is gone, and the cold is crushing. Surface now!' : 'Your breath is gone. Surface now, before the dark takes you!', 'error');
         if (res.drowned) {
+            this.surface(game, { blackout: true, quiet: true });
             _note(game, '🌊 Drowned', 'You stayed down too long. The light above goes out.', 'error');
+            InnerMap.cancelPlayerWalk();
+            if (typeof game._triggerDeath === 'function') setTimeout(() => game._triggerDeath('drowning'), 0);
             return;
         }
         if (res.blackout) {
-            _note(game, '😵 Blacked Out', 'The dark closes in. You come to at the surface, coughing up water, your hands empty.', 'error');
-            return;
+            InnerMap.cancelPlayerWalk();
+            this.surface(game, { blackout: true });
         }
-        const list = res.finds.map(f => (f.gold ? `${f.icon} ${f.name} (${f.gold} gold)` : `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}`));
-        const cut = fraction < 1 ? 'You come up early. ' : '';
-        if (!list.length) {
-            _note(game, '🤿 Nothing', `${cut}Silt, weed and stones: nothing worth bringing up.`, 'info');
-        } else {
-            _note(game, '🤿 From the Bottom', `${cut}You surface with ${list.join(', ')}.`, 'success');
-        }
-        for (const f of res.finds.filter(x => x.rare)) {
-            _note(game, '✨ Treasure!', `${f.text || 'Something precious in the silt'}: ${f.icon} ${f.name}${f.gold ? ` (${f.gold} gold)` : ''}.`, 'success');
-        }
-        const dropped = Object.keys(res.dropped);
-        if (dropped.length) _note(game, '🎒 Packs Full', `You have no room for ${dropped.join(', ').replace(/_/g, ' ')}, and let it sink again.`, 'warning');
-        if (res.plan.over > 0 && fraction >= 1) _note(game, '💨 Lungs Burning', `You stayed down past your breath and come up gasping (−${Math.round(res.hurt)} health).`, 'warning');
-        else if (res.cold) _note(game, '🥶 Freezing Water', 'The cold down there bites to the bone.', 'warning');
     },
+
+    // ══════════════════════════════════════════════
+    // THE KEY AND THE BUTTON
+    // ══════════════════════════════════════════════
+
+    /** V: dive under while swimming, or come up while under. */
+    toggle(game) {
+        if (!game || !InnerMap.active || InnerMap._insideBuilding) return;
+        if (this._under) { this.surface(game); return; }
+        if (!InnerMap.isPlayerSwimming()) { _note(game, '🤿 Dive', 'Swim out into the water first (right-click it and Swim Here, or Dive Under Here).', 'info'); return; }
+        this.goUnder(game);
+    },
+
+    _bindKeys(game) {
+        if (this._keysBound || typeof window === 'undefined' || !window.addEventListener) return;
+        this._keysBound = true;
+        this._game = game;
+        window.addEventListener('keydown', (e) => {
+            if (e.key !== 'v' && e.key !== 'V') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
+            const g = this._game;
+            if (!g || !g.player || !InnerMap.active) return;
+            this.toggle(g);
+        });
+    },
+
+    /** The toolbar's Surface button, while under (as the Leave building button: ui/game/innerMap.js). */
+    _syncButton(game) {
+        if (typeof document === 'undefined') return;
+        const toolbar = document.getElementById('innerMapToolbar');
+        const btn = document.getElementById(BTN_ID);
+        if (!this._under) { if (btn) btn.remove(); return; }
+        if (!toolbar || btn) return;
+        const b = document.createElement('button');
+        b.id = BTN_ID;
+        b.innerHTML = '⬆️ Surface (V)';
+        b.style.cssText = `background: rgba(8, 40, 52, 0.88); border: 1px solid rgba(120, 210, 230, 0.45); color: #9fe6f5;
+            padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; font-family: var(--font-body);
+            cursor: pointer; letter-spacing: 0.5px; transition: all 0.2s ease;`;
+        b.addEventListener('mouseenter', () => { b.style.borderColor = 'rgba(120, 210, 230, 0.9)'; });
+        b.addEventListener('mouseleave', () => { b.style.borderColor = 'rgba(120, 210, 230, 0.45)'; });
+        b.addEventListener('click', () => this.surface(game));
+        const worldExitBtn = document.getElementById('innerMapExitBtn');
+        if (worldExitBtn) toolbar.insertBefore(b, worldExitBtn);
+        else toolbar.appendChild(b);
+    },
+
+    // ══════════════════════════════════════════════
+    // THE DIVER
+    // ══════════════════════════════════════════════
 
     /**
      * The player under the water (ui/innerMapLayers/entities.js, in place of the
-     * swimmer): bubbles rising where they went down, and a ring round the spot
-     * for the breath they have left: pale while it lasts, red past it.
+     * swimmer): the whole body, sunk in a blue-green murk, bubbles rising off
+     * them, and the breath bar over their head.
+     * drawChar(ctx, x, y, w, h) draws the player's sprite.
      */
-    drawUnder(ctx, px, py, ds, now) {
-        const job = this._job;
-        if (!job) return;
-        const p = Math.min(1, job.t / Math.max(0.01, job.total));
-        const waterY = py - ds * 0.3;
+    drawUnder(ctx, px, py, ds, now, drawChar, charW, charH) {
+        const player = this._under && this._under.game && this._under.game.player;
+        const bob = Math.sin(now * 2) * ds * 0.05;
+        const cx = px - charW / 2, cy = py - charH + ds * 0.35 + bob;
+        // The body, tinted by the water over it (drawn apart, then washed)
+        const w = Math.max(1, Math.ceil(charW)), h = Math.max(1, Math.ceil(charH));
+        let off = this._off;
+        if (typeof document !== 'undefined' && (!off || off.width !== w || off.height !== h)) {
+            off = this._off = document.createElement('canvas');
+            off.width = w;
+            off.height = h;
+        }
+        if (off) {
+            const o = off.getContext('2d');
+            o.clearRect(0, 0, w, h);
+            drawChar(o, 0, 0, charW, charH);
+            o.globalCompositeOperation = 'source-atop';
+            o.fillStyle = 'rgba(20, 110, 120, 0.45)';
+            o.fillRect(0, 0, w, h);
+            o.globalCompositeOperation = 'source-over';
+            ctx.save();
+            ctx.globalAlpha = 0.85;
+            ctx.drawImage(off, Math.round(cx), Math.round(cy));
+            ctx.restore();
+        }
         ctx.save();
-        // A dark shape under the surface
-        ctx.fillStyle = 'rgba(10, 30, 50, 0.28)';
-        ctx.beginPath();
-        ctx.ellipse(px, waterY + ds * 0.08, ds * 0.22, ds * 0.1, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Bubbles: a few at a time, rising and fading
-        for (let i = 0; i < 6; i++) {
-            const phase = (now * 0.9 + i / 6) % 1;
-            const x = px + Math.sin(now * 2.3 + i * 1.7) * ds * 0.1 + (i % 3 - 1) * ds * 0.05;
-            const y = waterY - phase * ds * 0.45;
-            const rad = Math.max(1, ds * (0.025 + (i % 3) * 0.012) * (0.6 + phase * 0.6));
-            ctx.strokeStyle = `rgba(235, 248, 255, ${0.85 * (1 - phase)})`;
+        // Bubbles off the diver's head
+        const headY = cy + charH * 0.25;
+        for (let i = 0; i < 5; i++) {
+            const phase = (now * 0.7 + i / 5) % 1;
+            const x = px + Math.sin(now * 2.1 + i * 1.9) * ds * 0.08 + (i % 2 ? ds * 0.06 : -ds * 0.04);
+            const y = headY - phase * ds * 0.7;
+            const rad = Math.max(1, ds * (0.02 + (i % 3) * 0.01) * (0.6 + phase * 0.7));
+            ctx.strokeStyle = `rgba(225, 248, 255, ${0.8 * (1 - phase)})`;
             ctx.lineWidth = Math.max(1, ds / 40);
             ctx.beginPath();
             ctx.arc(x, y, rad, 0, Math.PI * 2);
             ctx.stroke();
         }
-        // The ring on the water, widening
-        const rp = (now * 0.8) % 1;
-        ctx.strokeStyle = `rgba(230, 245, 255, ${0.55 * (1 - rp)})`;
-        ctx.lineWidth = Math.max(1, ds / 24);
-        ctx.beginPath();
-        ctx.ellipse(px, waterY, ds * (0.15 + rp * 0.3), ds * (0.05 + rp * 0.1), 0, 0, Math.PI * 2);
-        ctx.stroke();
-        // The breath ring
-        const R = ds * 0.42, cy = py - ds * 0.1;
-        ctx.lineWidth = Math.max(2, ds * 0.06);
-        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath();
-        ctx.arc(px, cy, R, 0, Math.PI * 2);
-        ctx.stroke();
-        const past = p > job.breathAt;
-        ctx.strokeStyle = past ? '#e74c3c' : '#8fd3ff';
-        ctx.beginPath();
-        ctx.arc(px, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
-        ctx.stroke();
-        if (job.breathAt < 1) {
-            // Where the breath runs out
-            const a = -Math.PI / 2 + Math.PI * 2 * job.breathAt;
-            ctx.fillStyle = '#e74c3c';
-            ctx.beginPath();
-            ctx.arc(px + Math.cos(a) * R, cy + Math.sin(a) * R, Math.max(2, ds * 0.04), 0, Math.PI * 2);
-            ctx.fill();
+        // The breath bar
+        if (player && player.dive) {
+            const share = Diving.breathShare(player);
+            const low = share <= (Number(Diving.config().lowBreath) || 0.25);
+            const bw = ds * 0.9, bh = Math.max(3, ds * 0.08);
+            const bx = px - bw / 2, by = cy - bh - ds * 0.12;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+            ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+            if (share > 0) {
+                ctx.fillStyle = low ? '#e74c3c' : '#8fd3ff';
+                ctx.fillRect(bx, by, bw * share, bh);
+            } else if (Math.floor(now * 4) % 2) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(bx, by, bw, bh);
+            }
         }
         ctx.restore();
     },

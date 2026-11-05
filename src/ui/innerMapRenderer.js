@@ -655,12 +655,16 @@ export const InnerMapRenderer = {
         this._renderGroundOverlays(ctx, camera);
         // ── Layer 1.6: Living water — surf on the shores, sun on the water, the river running (innerMapLayers/waterFx.js) ──
         if (this._renderWaterFx) this._renderWaterFx(ctx, camera);
+        // ── Layer 1.7: Under the water, diving — the bottom and its finds (innerMapLayers/underwater.js) ──
+        if (this._renderUnderwaterFloor) this._renderUnderwaterFloor(ctx, camera);
 
         // ── Layer 2: Depth-sorted sprites ──
         // Objects, buildings, NPCs, and the player are merged into one
         // Y-sorted pass so characters correctly walk behind / in front
         // of tall scenery (trees, buildings, rocks) based on screen Y.
         this._renderDepthSortedSprites(ctx, camera, deltaTime);
+        // ── Layer 2.5: Under the water — all above it dimmed (innerMapLayers/underwater.js) ──
+        if (this._renderUnderwaterVeil) this._renderUnderwaterVeil(ctx, camera);
 
         // ── Layer 3: Fog of war + weather tints ──
         this._renderFogLayer(ctx, camera);

@@ -1,24 +1,28 @@
 {
-    "_doc": "Diving under the water of an inner map to scavenge the bottom (player/diving.js: what a dive brings up and costs; ui/innerMapDiving.js: the Dive entries and the dive itself on the map). Breath: seconds you can stay down, breath.base plus breath.perPractice at full swimming practice (player.swimPractice, data/swimming.json practiceMax). A dive is a share of your breath (lengths): quick and full stay inside it, push goes past it. Each grabSeconds on the bottom is one grab, which finds something from tables[kind][depth] (nothing is a weight there too) or, rarely, treasure. Past your breath each second hurts (overHealthPerSecond, cold.mult in cold water) and you may black out (blackout: chance, plus perOverSecond; the haul is lost and you take its health). Each dive costs energy (less with practice) and in-game minutes, washes you a little like a swim, and adds practicePerDive to swimming practice. The same spot dived again the same day yields less (repeatCut each time). Treasure is likelier in deep sea, with luck, and within wreckRange tiles of a wreck (wreckMult; and the wreck's own finds weigh wreckWeight).",
+    "_doc": "Diving under the water of an inner map (player/diving.js: breath, costs and the finds on the bottom; ui/innerMapDiving.js: going under, moving, picking up and surfacing; ui/innerMapLayers/underwater.js: the view below). Dive Under on water you can swim in (or the V key while swimming): you swim about under the surface by clicking, through water only, at underwaterSpeed of a swim. Breath: breath.base seconds plus breath.perPractice at full swimming practice (player.swimPractice, data/swimming.json practiceMax); it drains drainPerSecond a second (cold.breathMult in cold water) and is full again on surfacing. Out of breath, each second costs overHealthPerSecond health (cold.mult in cold water) and risks a blackout (blackout.perSecond, plus perOverSecond for every second past, plus cold.blackout): you come up, take blackout.health hurt and lose everything picked up on this dive. Health gone under the water is drowning. Each second under costs energyPerSecond (less with practice: practiceEnergyCut) and adds practicePerSecond swimming practice. Going under washes you a little (hygiene) and chills you (comfort; cold.comfort more). The bottom of each map is scattered once a day (bed): a share of its divable water cells (perTile, at most max finds) each get a find from tables[kind][depth] (a 'nothing' draw leaves the cell bare) or, rarely, treasure (treasure.chance by kind and depth, by luck, times wreckMult within wreckRange tiles of a wreck); seeded by the world, the map and the day; what is taken stays taken until the next day. bed.looks: how a find is drawn on the floor.",
     "breath": { "base": 30, "perPractice": 60 },
-    "grabSeconds": 10,
-    "lengths": {
-        "quick": { "share": 0.5, "minutes": 5, "label": "Quick Dive", "icon": "🤿", "desc": "A short look at the bottom, well inside your breath" },
-        "full": { "share": 0.9, "minutes": 10, "label": "Dive", "icon": "🤿", "desc": "Down as long as your breath allows" },
-        "push": { "share": 1.4, "minutes": 15, "label": "Push Your Breath", "icon": "💨", "desc": "Stay down past your breath: more finds, and it hurts" }
-    },
-    "realSeconds": { "base": 1.5, "perGrab": 0.5, "max": 7 },
-    "energy": 5,
+    "drainPerSecond": 1,
+    "underwaterSpeed": 0.75,
+    "energyPerSecond": 0.12,
     "practiceEnergyCut": 0.5,
+    "practicePerSecond": 0.25,
     "minEnergy": 15,
     "hygiene": 6,
     "comfort": -3,
-    "practicePerDive": 5,
-    "overHealthPerSecond": 0.5,
-    "blackout": { "chance": 0.08, "perOverSecond": 0.004, "health": 25 },
-    "cold": { "mult": 2, "health": 3, "comfort": -8, "blackout": 0.06 },
-    "repeatCut": 0.6,
+    "lowBreath": 0.25,
+    "overHealthPerSecond": 1.5,
+    "blackout": { "perSecond": 0.02, "perOverSecond": 0.002, "health": 25 },
+    "cold": { "mult": 2, "breathMult": 1.5, "healthPerSecond": 0.3, "comfort": -8, "blackout": 0.02 },
     "wreckRange": 3,
+    "bed": {
+        "perTile": 0.1,
+        "max": 60,
+        "looks": {
+            "seaweed": "weed", "shells": "shell", "mussels": "mussel", "oysters": "mussel", "crabs": "crab", "crab": "crab",
+            "lobster": "crab", "crayfish": "crab", "sea_sponge": "sponge", "clay": "lump", "driftwood": "wood",
+            "boot": "junk", "rope": "junk", "iron": "junk", "tools": "junk", "leeches": "weed"
+        }
+    },
     "treasure": {
         "chance": {
             "sea": { "shallow": 0.01, "deep": 0.03 },
@@ -36,7 +40,7 @@
             { "item": "silver_jewellery", "qty": [1, 1], "weight": 2, "text": "A silver ring someone lost over the side" },
             { "item": "gold_jewellery", "qty": [1, 1], "weight": 1, "kinds": ["sea", "lake"], "text": "A gold chain, green with weed but gold under it" },
             { "item": "ancient_artifact", "qty": [1, 1], "weight": 0.5, "deep": true, "text": "A thing of an older age, lying where it sank long ago" },
-            { "name": "Sunken Chest", "icon": "🧰", "gold": [40, 180], "weight": 1, "kinds": ["sea", "lake"], "wreckWeight": 6, "text": "A small sunken chest; you prise it open and the coins spill out" }
+            { "name": "Sunken Chest", "icon": "💰", "gold": [40, 180], "weight": 1, "kinds": ["sea", "lake"], "wreckWeight": 6, "text": "A small sunken chest; you prise it open and the coins spill out" }
         ]
     },
     "tables": {

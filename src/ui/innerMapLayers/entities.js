@@ -981,8 +981,9 @@ Object.assign(InnerMapRenderer, {
                         ctx.restore();
                         this._drawDeadPlumbob(ctx, px, py - charH + ds * 0.1, ds);
                     } else if (pSwimming && InnerMapDiving.isUnder()) {
-                        // Under the water, diving (ui/innerMapDiving.js): only the bubbles show
-                        InnerMapDiving.drawUnder(ctx, px, py, ds, now);
+                        // Under the water, diving (ui/innerMapDiving.js): the whole body, sunk in the murk
+                        InnerMapDiving.drawUnder(ctx, px, py, ds, now,
+                            (c, x, y, w, h) => InnerMapCharacters.drawCharacter(c, playerPreset, pAnim, pDir, now, x, y, w, h), charW, charH);
                     } else if (pSwimming) {
                         // In the water (world/innerMap/swimming.js): head and shoulders
                         // above it, bobbing, the water ringing out round them

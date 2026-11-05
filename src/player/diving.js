@@ -3,26 +3,27 @@
 // ============================================
 //
 // The player swims out (world/innerMap/swimming.js, player/swimming.js) and
-// dives: down on one breath, groping along the bottom for what lies there.
-// Where the Dive is offered and how it looks is ui/innerMapDiving.js; what a
-// dive brings up and what it costs is here:
+// goes under: they swim about below the surface on one breath, through water
+// only, picking up what lies on the bottom. Going under, moving, picking up
+// and surfacing on the map is ui/innerMapDiving.js; the view below is
+// ui/innerMapLayers/underwater.js. What it does to the diver is here:
 //
 //   • breath(player): seconds you can stay down, longer as you get used to
 //     the water (player.swimPractice, the same practice swimming builds).
-//   • waterOf(tile): the water body (sea, lake, river, pond: tile._waterKind)
-//     and its depth (tile._deep), which pick the table.
-//   • plan(player, length): a quick dive, a full one or one pushed past your
-//     breath → { bottom, breath, over, grabs, minutes, realSeconds }.
-//   • rollFind(player, water, opts): one grab of the bottom: nothing, a find
-//     from the tables (food, shells, junk, lost things) or, rarely, treasure
-//     (likelier in the deep sea, with luck, and by a wreck).
-//   • dive(player, world, worldTile, opts): the whole dive: the finds into the
-//     packs (PlayerInventory.addItem; what won't fit is let go), gold from a
-//     sunken chest, energy and practice, a wash; past your breath, hurt, and
-//     a chance to black out and lose the haul; cold water hurts more.
+//   • goUnder(player) → the dive (player.dive: { breath, max, haul, gold, under, past }).
+//   • tick(player, world, worldTile, dt): breath drains (faster in the cold);
+//     out of it, each second hurts and risks a blackout; energy goes, practice
+//     comes. → { blackout, drowned, outOfBreath, low, cold }
+//   • take(player, find): a find from the bottom into the packs (or the purse),
+//     noted on the dive's haul.
+//   • surface(player, { blackout }): breath back; a blackout loses the haul.
+//   • scatter(cells, opts) / bedFor(store, key, day, cells, opts): what lies on
+//     the bottom of a map, seeded by the world, the map and the day, drawn
+//     from the tables by water (sea, lake, river, pond: tile._waterKind) and
+//     depth (tile._deep); treasure rare, likelier by a wreck. Kept for the day.
 //
-// Numbers and tables in data/diving.json. Randomness through Utils; player and
-// world passed in.
+// Numbers and tables in data/diving.json. Randomness through Utils, or a local
+// seeded stream for the bottom's scatter; player and world passed in.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
@@ -32,24 +33,20 @@ import { Swimming } from './swimming.js';
 
 const DEFAULTS = {
     breath: { base: 30, perPractice: 60 },
-    grabSeconds: 10,
-    lengths: {
-        quick: { share: 0.5, minutes: 5 },
-        full: { share: 0.9, minutes: 10 },
-        push: { share: 1.4, minutes: 15 },
-    },
-    realSeconds: { base: 1.5, perGrab: 0.5, max: 7 },
-    energy: 5,
+    drainPerSecond: 1,
+    underwaterSpeed: 0.75,
+    energyPerSecond: 0.12,
     practiceEnergyCut: 0.5,
+    practicePerSecond: 0.25,
     minEnergy: 15,
     hygiene: 6,
     comfort: -3,
-    practicePerDive: 5,
-    overHealthPerSecond: 0.5,
-    blackout: { chance: 0.08, perOverSecond: 0.004, health: 25 },
-    cold: { mult: 2, health: 3, comfort: -8, blackout: 0.06 },
-    repeatCut: 0.6,
+    lowBreath: 0.25,
+    overHealthPerSecond: 1.5,
+    blackout: { perSecond: 0.02, perOverSecond: 0.002, health: 25 },
+    cold: { mult: 2, breathMult: 1.5, healthPerSecond: 0.3, comfort: -8, blackout: 0.02 },
     wreckRange: 3,
+    bed: { perTile: 0.1, max: 60, looks: {} },
     treasure: { chance: {}, wreckMult: 4, luckPer: 0.05, finds: [] },
     tables: {},
 };
@@ -58,20 +55,35 @@ const KINDS = ['sea', 'lake', 'river', 'pond'];
 
 function _num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
 
-function _qty(q) {
-    if (Array.isArray(q)) return Utils.randInt(Math.round(q[0]), Math.round(q[1]));
+function _qty(q, rng) {
+    if (Array.isArray(q)) {
+        const lo = Math.round(q[0]), hi = Math.round(q[1]);
+        return lo + Math.floor(rng() * (hi - lo + 1));
+    }
     return Math.max(1, Math.round(_num(q, 1)));
 }
 
-function _pick(list, weightOf) {
+function _pick(list, weightOf, rng) {
     const total = list.reduce((s, e) => s + Math.max(0, weightOf(e)), 0);
     if (!(total > 0)) return null;
-    let roll = Utils.random() * total;
+    let roll = rng() * total;
     for (const e of list) {
         roll -= Math.max(0, weightOf(e));
         if (roll <= 0) return e;
     }
     return list[list.length - 1];
+}
+
+/** A small seeded stream (mulberry32), for the bottom's scatter */
+function _stream(seed) {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6D2B79F5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
 }
 
 export const Diving = {
@@ -81,10 +93,9 @@ export const Diving = {
         return {
             ...DEFAULTS, ...d,
             breath: { ...DEFAULTS.breath, ...(d.breath || {}) },
-            lengths: { ...DEFAULTS.lengths, ...(d.lengths || {}) },
-            realSeconds: { ...DEFAULTS.realSeconds, ...(d.realSeconds || {}) },
             blackout: { ...DEFAULTS.blackout, ...(d.blackout || {}) },
             cold: { ...DEFAULTS.cold, ...(d.cold || {}) },
+            bed: { ...DEFAULTS.bed, ...(d.bed || {}) },
             treasure: { ...DEFAULTS.treasure, ...(d.treasure || {}) },
             tables: d.tables || DEFAULTS.tables,
         };
@@ -102,7 +113,7 @@ export const Diving = {
         return { kind, deep: !!(tile && tile._deep) };
     },
 
-    /** May the player dive now? → { ok, reason } (as for a swim, and not too tired to hold a breath) */
+    /** May the player go under now? → { ok, reason } (as for a swim, and not too tired to hold a breath) */
     canDive(player) {
         const swim = Swimming.canSwim(player);
         if (!swim.ok) return swim;
@@ -111,21 +122,114 @@ export const Diving = {
         return { ok: true, reason: null };
     },
 
-    /**
-     * How a dive of `length` ('quick' | 'full' | 'push') goes for this player:
-     * { length, breath, bottom, over, grabs, minutes, realSeconds } (seconds).
-     */
-    plan(player, length = 'full') {
-        const C = Diving.config();
-        const L = C.lengths[length] || C.lengths.full;
-        const breath = Diving.breath(player);
-        const bottom = Math.round(breath * _num(L.share, 0.9));
-        const over = Math.max(0, bottom - breath);
-        const grabs = Math.max(1, Math.floor(bottom / Math.max(1, C.grabSeconds)));
-        const R = C.realSeconds;
-        const realSeconds = Math.min(_num(R.max, 7), _num(R.base, 1.5) + grabs * _num(R.perGrab, 0.5));
-        return { length: C.lengths[length] ? length : 'full', breath, bottom, over, grabs, minutes: _num(L.minutes, 10), realSeconds };
+    // ══════════════════════════════════════════════
+    // THE DIVE
+    // ══════════════════════════════════════════════
+
+    isUnder(player) {
+        return !!(player && player.dive);
     },
+
+    /** Fill your lungs and go under. */
+    goUnder(player, world = null, worldTile = null) {
+        const C = Diving.config();
+        const max = Diving.breath(player);
+        player.dive = { breath: max, max, haul: {}, gold: 0, under: 0, past: 0, warned: false };
+        player.dives = _num(player.dives, 0) + 1;
+        if (typeof player.modifyNeed === 'function' && player.needs) {
+            const SC = Swimming.config();
+            if (_num(player.needs.hygiene, 100) < SC.hygieneMax) player.modifyNeed('hygiene', Math.min(C.hygiene, SC.hygieneMax - player.needs.hygiene));
+            player.modifyNeed('comfort', C.comfort + (Swimming.isCold(world, worldTile) ? _num(C.cold.comfort, 0) : 0));
+        }
+        return player.dive;
+    },
+
+    /** The breath left, 0..1 */
+    breathShare(player) {
+        const d = player && player.dive;
+        return d ? Math.max(0, Math.min(1, d.breath / Math.max(1, d.max))) : 1;
+    },
+
+    /**
+     * `dt` seconds under the water.
+     * → { blackout, drowned, outOfBreath (just ran out), low (just ran low), cold }
+     */
+    tick(player, world, worldTile, dt, rng = Utils.random) {
+        const out = { blackout: false, drowned: false, outOfBreath: false, low: false, cold: false };
+        const d = player && player.dive;
+        if (!d || !(dt > 0)) return out;
+        const C = Diving.config();
+        const SC = Swimming.config();
+        const cold = Swimming.isCold(world, worldTile);
+        out.cold = cold;
+        d.under += dt;
+        // Practice, and the work of it
+        const prac = Swimming.practice(player);
+        player.swimPractice = Math.min(SC.practiceMax, _num(player.swimPractice, 0) + C.practicePerSecond * dt);
+        if (typeof player.modifyNeed === 'function' && player.needs) {
+            player.modifyNeed('energy', -C.energyPerSecond * dt * (1 - prac * C.practiceEnergyCut));
+        }
+        // The breath
+        const had = d.breath;
+        d.breath = Math.max(0, d.breath - C.drainPerSecond * dt * (cold ? _num(C.cold.breathMult, 1) : 1));
+        const lowAt = d.max * _num(C.lowBreath, 0.25);
+        if (had > lowAt && d.breath <= lowAt && d.breath > 0) out.low = true;
+        if (had > 0 && d.breath <= 0) out.outOfBreath = true;
+        let hurt = cold ? _num(C.cold.healthPerSecond, 0) * dt : 0;
+        if (d.breath <= 0) {
+            d.past += dt;
+            hurt += C.overHealthPerSecond * dt * (cold ? _num(C.cold.mult, 1) : 1);
+            const p = (_num(C.blackout.perSecond, 0) + d.past * _num(C.blackout.perOverSecond, 0) + (cold ? _num(C.cold.blackout, 0) : 0)) * dt;
+            if (rng() < p) {
+                out.blackout = true;
+                hurt += _num(C.blackout.health, 25);
+            }
+        }
+        if (hurt > 0) player.health = Math.max(0, _num(player.health, 100) - hurt);
+        out.drowned = player.health <= 0;
+        return out;
+    },
+
+    /** A find off the bottom into the packs (gold into the purse) → { ok, reason } */
+    take(player, find) {
+        if (!player || !find) return { ok: false, reason: 'Nothing there.' };
+        const d = player.dive;
+        if (find.gold > 0) {
+            player.gold = _num(player.gold, 0) + find.gold;
+            if (d) d.gold += find.gold;
+            return { ok: true, reason: null };
+        }
+        const res = PlayerInventory.addItem(player, find.item, find.qty);
+        if (!res.success) return { ok: false, reason: res.reason || 'Your packs are full.' };
+        if (d) d.haul[find.item] = (d.haul[find.item] || 0) + find.qty;
+        if (find.rare) player.diveTreasures = _num(player.diveTreasures, 0) + 1;
+        return { ok: true, reason: null };
+    },
+
+    /**
+     * Up for air. A blackout lets go of everything picked up on this dive.
+     * → { seconds, haul, gold, lost }
+     */
+    surface(player, { blackout = false } = {}) {
+        const d = player && player.dive;
+        if (!d) return null;
+        const out = { seconds: Math.round(d.under), haul: { ...d.haul }, gold: d.gold, lost: false };
+        if (blackout) {
+            out.lost = Object.keys(d.haul).length > 0 || d.gold > 0;
+            for (const [id, q] of Object.entries(d.haul)) {
+                const left = _num(player.inventory && player.inventory[id], 0) - q;
+                if (left > 0) player.inventory[id] = left;
+                else if (player.inventory) delete player.inventory[id];
+            }
+            player.gold = Math.max(0, _num(player.gold, 0) - d.gold);
+        }
+        player.dive = null;
+        return out;
+    },
+
+    // ══════════════════════════════════════════════
+    // WHAT LIES ON THE BOTTOM
+    // ══════════════════════════════════════════════
 
     /** The common finds for this water (deep water with no table of its own uses the shallows'). */
     table(water) {
@@ -133,7 +237,7 @@ export const Diving = {
         return (water.deep ? t.deep || t.shallow : t.shallow || t.deep) || [];
     },
 
-    /** The chance a grab turns up treasure here. */
+    /** The chance a find here is treasure. */
     treasureChance(player, water, { nearWreck = false } = {}) {
         const T = Diving.config().treasure;
         const byKind = (T.chance && T.chance[water.kind]) || {};
@@ -151,96 +255,74 @@ export const Diving = {
     },
 
     /**
-     * One grab of the bottom → a find { item, qty, gold, name, icon, rare, text } or null.
-     * opts: { nearWreck, picked (dives at this spot today) }
+     * One draw from the bottom → a find { item, qty, gold, name, icon, rare, text, look } or null.
+     * opts: { nearWreck }
      */
-    rollFind(player, water, { nearWreck = false, picked = 0 } = {}) {
-        const C = Diving.config();
-        // A spot already picked over today: often there is nothing left to find
-        if (picked > 0 && Utils.random() >= Math.pow(_num(C.repeatCut, 0.6), picked)) return null;
-        if (Utils.random() < Diving.treasureChance(player, water, { nearWreck })) {
-            const f = _pick(Diving.treasures(water), e => (nearWreck && e.wreckWeight != null ? e.wreckWeight : _num(e.weight, 1)));
-            if (f) return Diving._find(f, true);
+    rollFind(player, water, { nearWreck = false } = {}, rng = Utils.random) {
+        if (rng() < Diving.treasureChance(player, water, { nearWreck })) {
+            const f = _pick(Diving.treasures(water), e => (nearWreck && e.wreckWeight != null ? e.wreckWeight : _num(e.weight, 1)), rng);
+            if (f) return Diving._find(f, true, rng);
         }
-        const e = _pick(Diving.table(water), x => _num(x.weight, 1));
-        return e && e.item ? Diving._find(e, false) : null;
+        const e = _pick(Diving.table(water), x => _num(x.weight, 1), rng);
+        return e && e.item ? Diving._find(e, false, rng) : null;
     },
 
-    _find(e, rare) {
+    _find(e, rare, rng) {
         if (Array.isArray(e.gold)) {
-            return { item: null, qty: 1, gold: Utils.randInt(e.gold[0], e.gold[1]), name: e.name || 'Sunken Chest', icon: e.icon || '🧰', rare, text: e.text || null };
+            const gold = Math.round(e.gold[0]) + Math.floor(rng() * (Math.round(e.gold[1]) - Math.round(e.gold[0]) + 1));
+            return { item: null, qty: 1, gold, name: e.name || 'Sunken Chest', icon: e.icon || '💰', rare, text: e.text || null, look: 'chest' };
         }
         const g = Containers.good(e.item);
-        return { item: e.item, qty: _qty(e.qty), gold: 0, name: e.name || g.name, icon: e.icon || g.icon, rare, text: e.text || null };
+        const look = rare ? 'treasure' : ((Diving.config().bed.looks || {})[e.item] || 'junk');
+        return { item: e.item, qty: _qty(e.qty, rng), gold: 0, name: e.name || g.name, icon: e.icon || g.icon, rare, text: e.text || null, look };
     },
 
     /**
-     * The whole dive, applied to the player.
-     * opts: { kind, deep, length, nearWreck, picked, fraction (0..1: cut short) }
-     * → { plan, finds[], added{}, dropped{}, gold, hurt, cold, blackout, drowned, practice }
+     * Scatter finds over the divable cells of a map: [{ q, r, kind, deep, nearWreck }]
+     * → [{ q, r, ...find }]. opts: { seed, player }. The same seed lays the same bottom.
      */
-    dive(player, world, worldTile, opts = {}) {
+    scatter(cells, { seed = 0, player = null } = {}) {
         const C = Diving.config();
-        const water = { kind: KINDS.includes(opts.kind) ? opts.kind : 'pond', deep: !!opts.deep };
-        const plan = Diving.plan(player, opts.length);
-        const frac = Math.max(0, Math.min(1, _num(opts.fraction, 1)));
-        const bottom = plan.bottom * frac;
-        const over = Math.max(0, bottom - plan.breath);
-        const grabs = frac >= 1 ? plan.grabs : Math.floor(bottom / Math.max(1, C.grabSeconds));
-        const cold = Swimming.isCold(world, worldTile);
-        const out = { plan, water, finds: [], added: {}, dropped: {}, gold: 0, hurt: 0, cold, blackout: false, drowned: false, practice: 0 };
-
-        // The bottom, a grab at a time
-        const finds = [];
-        for (let i = 0; i < grabs; i++) {
-            const f = Diving.rollFind(player, water, { nearWreck: !!opts.nearWreck, picked: _num(opts.picked, 0) });
-            if (f) finds.push(f);
+        const rng = _stream(seed);
+        const out = [];
+        const max = Math.max(0, _num(C.bed.max, 60));
+        for (const c of cells) {
+            if (out.length >= max) break;
+            if (rng() >= _num(C.bed.perTile, 0.1)) continue;
+            const f = Diving.rollFind(player, { kind: c.kind, deep: !!c.deep }, { nearWreck: !!c.nearWreck }, rng);
+            if (f) out.push({ q: c.q, r: c.r, ...f });
         }
-
-        // Past your breath: it hurts, and you may black out
-        let hurt = 0;
-        if (over > 0) {
-            hurt += over * C.overHealthPerSecond * (cold ? _num(C.cold.mult, 1) : 1);
-            const pBlack = _num(C.blackout.chance, 0) + over * _num(C.blackout.perOverSecond, 0) + (cold ? _num(C.cold.blackout, 0) : 0);
-            if (Utils.random() < pBlack) {
-                out.blackout = true;
-                hurt += _num(C.blackout.health, 25);
-            }
-        }
-        if (cold) hurt += _num(C.cold.health, 0);
-
-        // Costs and practice
-        const prac = Swimming.practice(player);
-        const SC = Swimming.config();
-        if (typeof player.modifyNeed === 'function' && player.needs) {
-            const share = Math.max(0.3, plan.bottom / Math.max(1, plan.breath)) * frac;
-            player.modifyNeed('energy', -C.energy * share * (1 - prac * C.practiceEnergyCut));
-            if (_num(player.needs.hygiene, 100) < SC.hygieneMax) player.modifyNeed('hygiene', Math.min(C.hygiene, SC.hygieneMax - player.needs.hygiene));
-            player.modifyNeed('comfort', C.comfort + (cold ? _num(C.cold.comfort, 0) : 0));
-        }
-        const before = _num(player.swimPractice, 0);
-        player.swimPractice = Math.min(SC.practiceMax, before + C.practicePerDive);
-        out.practice = player.swimPractice - before;
-        player.dives = _num(player.dives, 0) + 1;
-
-        out.hurt = Math.round(hurt * 10) / 10;
-        player.health = Math.max(0, _num(player.health, 100) - out.hurt);
-        out.drowned = player.health <= 0;
-
-        // Blacked out: you come to on the surface, the haul let go
-        if (out.blackout || out.drowned) return out;
-
-        for (const f of finds) {
-            out.finds.push(f);
-            if (f.gold > 0) {
-                player.gold = _num(player.gold, 0) + f.gold;
-                out.gold += f.gold;
-                continue;
-            }
-            if (PlayerInventory.addItem(player, f.item, f.qty).success) out.added[f.item] = (out.added[f.item] || 0) + f.qty;
-            else out.dropped[f.item] = (out.dropped[f.item] || 0) + f.qty;
-        }
-        if (out.finds.some(f => f.rare)) player.diveTreasures = _num(player.diveTreasures, 0) + 1;
         return out;
+    },
+
+    /** The seed of a map's bottom on a day */
+    bedSeed(world, key, day) {
+        const p = world && world.generationParams;
+        return Utils.hashStr(`${(p && p.seed) || 0}|dive|${key}|${day}`) >>> 0;
+    },
+
+    /**
+     * The bottom of the map `key` today, kept in `store` (scattered on the first
+     * dive of the day; taken finds stay taken). `cells` may be a function, only
+     * called when the bottom is new.
+     */
+    bedFor(store, key, day, cells, opts = {}) {
+        const have = store[key];
+        if (have && have.day === day) return have;
+        const list = typeof cells === 'function' ? cells() : cells;
+        store[key] = { day, finds: Diving.scatter(list || [], opts) };
+        return store[key];
+    },
+
+    /** The find lying at (q, r) on a bottom, or null */
+    findAt(bed, q, r) {
+        return (bed && bed.finds.find(f => f.q === q && f.r === r)) || null;
+    },
+
+    /** Take a find off the bottom for good (for the rest of the day) */
+    removeFind(bed, find) {
+        if (!bed) return;
+        const i = bed.finds.indexOf(find);
+        if (i >= 0) bed.finds.splice(i, 1);
     },
 };

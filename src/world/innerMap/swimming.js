@@ -11,6 +11,10 @@
 //     each water tile dearer (swimming.pathCost), so a walk round is taken
 //     when it isn't much longer.
 //
+//   • Under the water (InnerMap._underwater, set by ui/innerMapDiving.js):
+//     the player keeps to water they can't stand in (isDivable) — no land,
+//     no shallows — at _underwaterSpeed of a stroke.
+//
 // What swimming does to the swimmer (tiredness, the cold, a wash, going
 // under) is player/swimming.js, applied by the game loop on each stroke.
 
@@ -22,6 +26,8 @@ const DEFAULTS = { pathCost: 3, speed: 0.45 };
 Object.assign(InnerMap, {
     _swimAllowed: true,
     _swimRefusal: null,
+    _underwater: false,
+    _underwaterSpeed: 0.75,
 
     swimConfig() {
         const g = DataLoader._gamedata;
@@ -38,9 +44,16 @@ Object.assign(InnerMap, {
         return !!(t._wet || t._sea || /_water$/.test(id));
     },
 
-    /** May the player step onto this tile: dry land, or water they can swim in. */
+    /** Water deep enough to go under in: swimmable, and not shallows you stand in. */
+    isDivable(q, r) {
+        const t = this.tiles && this.tiles[r] && this.tiles[r][q];
+        return !!(t && t.subTerrain && !t.subTerrain.passable && this.isSwimmable(q, r));
+    },
+
+    /** May the player step onto this tile: dry land, or water they can swim in (under the water: only that). */
     _playerMayEnter(tile, q, r) {
         if (!tile) return false;
+        if (this._underwater) return this.isDivable(q, r);
         if (tile.subTerrain && tile.subTerrain.passable) return true;
         return !!(this._swimAllowed && this.isSwimmable(q, r));
     },

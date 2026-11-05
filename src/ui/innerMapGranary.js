@@ -1,0 +1,95 @@
+// ============================================================
+// INNER MAP — buying grain at the town's granary
+// ============================================================
+// The granary holds the town's food store (settlement.economy.food: what the
+// people eat from, world/economy.js, and where the farmers carry the harvest,
+// world/innerMap/townLife.js). The keeper sells what the town can spare, a
+// unit of grain for a unit of food, at a little under the market's ask
+// (no stallholder's cut), and keeps back reserveDays of the town's needs:
+// in a lean year there is nothing to sell. The gold goes to the town.
+// Tables in data/townProps.json granary.
+
+import { InnerMap } from '../world/innerMap.js';
+import { Economy } from '../world/economy.js';
+import { DataLoader } from '../core/dataLoader.js';
+import { Containers } from '../systems/containers.js';
+import { Ledger } from '../systems/ledger.js';
+import { Hotbar } from './hotbar.js';
+
+const _cfg = () => {
+    const d = (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || {};
+    return { reserveDays: 3, priceMult: 0.9, lots: [1, 5, 20], ...(d.granary || {}) };
+};
+
+function _settlement() {
+    const ref = InnerMap._currentWorldTileRef;
+    return ref && ref.settlement ? { settlement: ref.settlement, tile: ref } : null;
+}
+
+export const InnerMapGranary = {
+    /** Grain the granary can spare (whole units). */
+    spare(settlement) {
+        const econ = settlement && settlement.economy;
+        if (!econ) return 0;
+        const pop = Math.max(0, Number(settlement.population) || 0);
+        const reserve = pop * Economy.FOOD.perCapita * (Number(_cfg().reserveDays) || 0);
+        return Math.max(0, Math.floor((Number(econ.food) || 0) - reserve));
+    },
+
+    /** The granary's price for a unit of grain. */
+    price(game, settlement, tile) {
+        const good = Containers.good('grain');
+        const ask = Economy.marketPrice(good, settlement, tile, game.world) || good.basePrice || 5;
+        return Math.max(1, Math.round(ask * (Number(_cfg().priceMult) || 1)));
+    },
+
+    /** Menu entries for a granary (not one of the player's own). */
+    menuItems(game, building) {
+        if (!building || building.type !== 'granary' || building.isPlayerOwned || building.isPlayerProperty) return [];
+        const at = _settlement();
+        if (!at || !at.settlement.economy) return [];
+        const spare = InnerMapGranary.spare(at.settlement);
+        const g = Containers.good('grain');
+        if (spare <= 0) return [{ type: 'disabled', label: `${g.icon} No grain to spare: the town keeps what it has` }];
+        const price = InnerMapGranary.price(game, at.settlement, at.tile);
+        const items = [{ type: 'disabled', label: `${g.icon} ${spare} ${g.name} to spare, ${price}g each` }];
+        for (const k of _cfg().lots.filter(n => n <= spare)) {
+            items.push({
+                type: 'action', action: 'granary_buy', qty: k, building,
+                label: `Buy ${k} ${g.name}`, icon: g.icon, desc: `${k * price} gold, from the town's store`,
+            });
+        }
+        return items;
+    },
+
+    /** Carry out a granary_* action. Returns true when it was one. */
+    handle(game, item) {
+        if (!/^granary_/.test(item.action || '')) return false;
+        const at = _settlement();
+        const player = game.player;
+        const g = Containers.good('grain');
+        const spare = at ? InnerMapGranary.spare(at.settlement) : 0;
+        const n = Math.min(spare, Math.max(1, Math.floor(item.qty || 1)));
+        if (n <= 0) {
+            game.ui.showNotification('🌾 Nothing to Spare', 'The keeper shakes their head: the town needs every sack it has.', 'warning');
+            return true;
+        }
+        const price = InnerMapGranary.price(game, at.settlement, at.tile);
+        const cost = n * price;
+        if ((Number(player.gold) || 0) < cost) {
+            game.ui.showNotification('🌾 Not Enough Gold', `${n} ${g.name} comes to ${cost} gold.`, 'warning');
+            return true;
+        }
+        player.gold -= cost;
+        Ledger.record(player, 'goodsBought', -cost);
+        const econ = at.settlement.economy;
+        econ.food = Math.max(0, (Number(econ.food) || 0) - n);
+        econ.gold = (Number(econ.gold) || 0) + cost;
+        if (!player.inventory) player.inventory = {};
+        player.inventory.grain = (Number(player.inventory.grain) || 0) + n;
+        game.ui.showNotification('🌾 Grain Bought', `The keeper measures out ${n} ${g.name} from the town's store for ${cost} gold.`, 'success');
+        game.ui.updateStats(player, game.world);
+        Hotbar.refresh();
+        return true;
+    },
+};

@@ -31,6 +31,7 @@ import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
 import { InnerMapFields } from './innerMapFields.js';
+import { InnerMapGranary } from './innerMapGranary.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
@@ -240,6 +241,11 @@ Object.assign(InnerMapRenderer, {
 
         const menuItems = [];
 
+        // Inside the town's granary: the keeper sells grain wherever you are (ui/innerMapGranary.js)
+        const inGranary = InnerMap._insideBuilding && InnerMap._insideBuilding.type === 'granary'
+            ? InnerMapGranary.menuItems(game, InnerMap._insideBuilding) : [];
+        if (inGranary.length) menuItems.push({ type: 'header', label: '🌾 The Granary' }, ...inGranary, { type: 'separator' });
+
         // ── Building actions ──
         if (building) {
             const actions = InnerMap.getBuildingActions(building);
@@ -253,6 +259,8 @@ Object.assign(InnerMapRenderer, {
             }
             // A house to let or for sale (ui/innerMapLots.js)
             menuItems.push(...InnerMapLots.buildingItems(game, building));
+            // The town's granary sells the grain it can spare (ui/innerMapGranary.js)
+            menuItems.push(...InnerMapGranary.menuItems(game, building));
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
             // A service the town doesn't keep (no guild here, no mint, nothing to treat) is left off
@@ -751,6 +759,7 @@ Object.assign(InnerMapRenderer, {
             return;
         }
         if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
+        if (/^granary_/.test(action) && InnerMapGranary.handle(game, item)) return;
 
         // (fishing goes to the bank, never out to the water it casts into)
         if (dist > 1 && !item._approached && action !== 'fish_here') {

@@ -421,15 +421,18 @@ export const Economy = {
      */
     /**
      * Give a settlement its economy record. An established town has food put
-     * by in its granary (FOOD.startDays of its needs: the world didn't start
-     * out of nowhere); a newly founded one (`fresh`: a colony, a dawn clan's
-     * village) starts with an empty granary.
+     * by in its granary (FOOD.startDays of its needs) and coin in its coffers
+     * (START_GOLD_DAYS of its base takings): the world didn't start out of
+     * nowhere. A newly founded one (`fresh`: a colony, a dawn clan's village)
+     * starts with both empty.
      */
     initSettlement(settlement, { fresh = false } = {}) {
         if (!settlement.economy) {
             const F = Economy.FOOD;
+            const rates = Economy.PRODUCTION_RATES[settlement.type] || Economy.PRODUCTION_RATES.village;
+            const popMod = 1 + ((Number(settlement.population) || 0) / 10000) * 0.5;
             settlement.economy = {
-                gold: 0,
+                gold: fresh ? 0 : Math.round(rates.baseGold * popMod * Economy.START_GOLD_DAYS),
                 food: fresh ? 0 : Math.round(Math.max(0, Number(settlement.population) || 0) * F.perCapita * F.startDays),
                 goods: 0,
                 production: { gold: 0, food: 0, goods: 0 },
@@ -584,6 +587,8 @@ export const Economy = {
      * by buying food with their own gold. Growth slows towards a size cap per
      * settlement type; real shortfalls (broke and hungry) shrink the place.
      */
+    START_GOLD_DAYS: 20,             // an established town's coffers at the start: this many days' base takings
+
     FOOD: {
         perCapita: 0.1,                // food eaten per person per day
         selfSufficiency: { village: 1.0, town: 0.92, city: 0.82, capital: 0.75 },

@@ -14,8 +14,8 @@ beforeAll(async () => {
     }
 });
 
-function setup(food) {
-    const settlement = { name: 'Testby', type: 'village', population: 300, economy: { food, gold: 0 } };
+function setup(food, gold = 0) {
+    const settlement = { name: 'Testby', type: 'village', population: 300, economy: { food, gold } };
     InnerMap._currentWorldTileRef = { settlement, terrain: { id: 'grassland' } };
     const notes = [];
     const game = {
@@ -66,7 +66,7 @@ describe('the granary on the first day', () => {
 
 describe('selling grain to the granary', () => {
     it('the keeper buys your grain into the store, for less than they sell it', () => {
-        const { game, settlement } = setup(150);
+        const { game, settlement } = setup(150, 1000);
         game.player.inventory.grain = 12;
         const tile = InnerMap._currentWorldTileRef;
         const pay = InnerMapGranary.price(game, settlement, tile, true);
@@ -77,15 +77,40 @@ describe('selling grain to the granary', () => {
         expect(game.player.inventory.grain).toBeUndefined();
         expect(game.player.gold).toBe(500 + 12 * pay);
         expect(settlement.economy.food).toBe(162);
+        expect(settlement.economy.gold).toBe(1000 - 12 * pay);
     });
 
     it('a full granary buys no more than it has room for', () => {
         // 300 folk, ten days' needs: room for 300
-        const { game, settlement } = setup(295);
+        const { game, settlement } = setup(295, 1000);
         game.player.inventory.grain = 20;
         InnerMapGranary.handle(game, { action: 'granary_sell', qty: 20 });
         expect(game.player.inventory.grain).toBe(15);
         expect(settlement.economy.food).toBe(300);
         expect(InnerMapGranary.menuItems(game, granary).some(i => i.action === 'granary_sell')).toBe(false);
+    });
+});
+
+describe('the keeper’s purse', () => {
+    it('buys only what the town can pay for, and nothing once the purse is empty', () => {
+        const { game, settlement, notes } = setup(150);
+        const pay = InnerMapGranary.price(game, settlement, InnerMap._currentWorldTileRef, true);
+        settlement.economy.gold = pay * 3 + 1;
+        game.player.inventory.grain = 10;
+        const sells = InnerMapGranary.menuItems(game, granary).filter(i => i.action === 'granary_sell');
+        expect(sells[sells.length - 1].qty).toBe(3);
+        InnerMapGranary.handle(game, { action: 'granary_sell', qty: 10 });
+        expect(game.player.inventory.grain).toBe(7);
+        expect(settlement.economy.gold).toBe(1);
+        expect(InnerMapGranary.menuItems(game, granary).some(i => i.action === 'granary_sell')).toBe(false);
+        InnerMapGranary.handle(game, { action: 'granary_sell', qty: 1 });
+        expect(game.player.inventory.grain).toBe(7);
+        expect(notes[notes.length - 1][1]).toMatch(/empty purse/);
+    });
+
+    it('an established town starts with coin in its coffers; a new colony with none', async () => {
+        const { Economy } = await import('../world/economy.js');
+        expect(Economy.initSettlement({ type: 'town', population: 1000 }).economy.gold).toBeGreaterThan(0);
+        expect(Economy.initSettlement({ type: 'town', population: 1000 }, { fresh: true }).economy.gold).toBe(0);
     });
 });

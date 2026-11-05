@@ -30,6 +30,7 @@ import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
+import { InnerMapFields } from './innerMapFields.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
@@ -290,6 +291,8 @@ Object.assign(InnerMapRenderer, {
                 menuItems.push({ type: 'separator' });
                 for (const ai of objActionItems) menuItems.push(ai);
             }
+            // A town field: bring in its crop, or help yourself (ui/innerMapFields.js)
+            if ((customObjDef.tags || []).includes('field')) menuItems.push(...InnerMapFields.menuItems(game, objAnchorQ, objAnchorR));
             if (customObjDef.resource) {
                 const resName = (customObjDef.resource.type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 menuItems.push({ type: 'action', action: 'harvest_object', label: `Harvest ${resName}`, icon: '⛏️', desc: `Gather resources from this ${customObjDef.name || 'object'}`, customObjDef, objAnchorQ, objAnchorR });
@@ -299,7 +302,8 @@ Object.assign(InnerMapRenderer, {
             const _attackVerb = _objAttackVerbs[customObjDef.objectType] || 'Attack';
             const _objHpTile = (objAnchorQ != null) ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
             const _objHp = (_objHpTile && _objHpTile.customObject && _objHpTile.customObject.currentHealthPct != null) ? _objHpTile.customObject.currentHealthPct : 100;
-            menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🪓', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
+            // (not a field: there is nothing there to strike)
+            if (!(customObjDef.tags || []).includes('field')) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🪓', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
         }
 
         // Built-in overlay interactions removed (editor-authored objects only)
@@ -576,7 +580,7 @@ Object.assign(InnerMapRenderer, {
 
     /** Furniture / object uses happen in person: these actions walk over first. */
     _needsApproach(item) {
-        return item.action === 'interact_furniture' || item.action.startsWith('obj_action_');
+        return item.action === 'interact_furniture' || item.action.startsWith('obj_action_') || item.action.startsWith('field_');
     },
 
     /**
@@ -746,6 +750,7 @@ Object.assign(InnerMapRenderer, {
             this._approachThenAct(game, item, q, r);
             return;
         }
+        if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
 
         // (fishing goes to the bank, never out to the water it casts into)
         if (dist > 1 && !item._approached && action !== 'fish_here') {

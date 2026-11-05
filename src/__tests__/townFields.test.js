@@ -52,4 +52,26 @@ describe('town fields', () => {
         // Every stage it can reach is a registered field of that size
         for (const k of ['wheat_sprouts', 'greens', 'veg_sprouts', 'veg_young', 'veg_ripe']) expect(defOf(TownProps.fieldId(k, 4, 3))).toBeTruthy();
     });
+
+    it('a ripe field has a crop to bring in; taking it all leaves it harvested till the new year', () => {
+        const tiles = grid(20, 20);
+        TownProps.place(tiles, defOf(TownProps.fieldId('wheat', 4, 3)), 3, 6);
+        const obj = tiles[6][3].customObject;
+        TownProps.growFields(tiles, 20);
+        expect(TownProps.fieldCrop(obj, 20).ripe).toBe(false);
+        TownProps.growFields(tiles, 65);
+        const c = TownProps.fieldCrop(obj, 65);
+        expect(c).toMatchObject({ ripe: true, good: 'grain' });
+        expect(c.left).toBe(c.total);
+        expect(TownProps.takeFromField(obj, 65, 2, tiles)).toBe(2);
+        expect(TownProps.fieldCrop(obj, 65).left).toBe(c.total - 2);
+        expect(TownProps.takeFromField(obj, 65, 999, tiles)).toBe(c.total - 2);
+        expect(obj.defId).toBe(TownProps.fieldId('plowed', 4, 3));
+        TownProps.growFields(tiles, 70);
+        expect(obj.defId).toBe(TownProps.fieldId('plowed', 4, 3));
+        expect(TownProps.fieldCrop(obj, 70).left).toBe(0);
+        // The next year it grows and ripens again
+        TownProps.growFields(tiles, 120 + 65);
+        expect(TownProps.fieldCrop(obj, 120 + 65).ripe).toBe(true);
+    });
 });

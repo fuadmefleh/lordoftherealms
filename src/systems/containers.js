@@ -233,6 +233,20 @@ export const Containers = {
         const have = _num(Containers.contents(player, world, ctx)[goodId]);
         const n = Math.min(have, Math.max(1, Math.floor(qty)));
         if (n <= 0) return { ok: false, caught: false, text: 'There is none left.' };
+        const res = Containers.stealGoods(player, world, ctx, goodId, n, scene);
+        if (res.ok) {
+            const rec = Containers._record(player, world, ctx);
+            rec.taken[goodId] = _num(rec.taken[goodId]) + n;
+        }
+        return res;
+    },
+
+    /**
+     * The theft itself, of n of a good from wherever (a container, a field):
+     * one roll from the game's RNG; caught → fine, standing, record, maybe the
+     * cells; away → the goods, hot. → { ok, caught, qty, fine, jailDays, text }
+     */
+    stealGoods(player, world, ctx, goodId, n, scene = {}) {
         const T = Containers.cfg('theft');
         const g = Containers.good(goodId);
         const { chance } = Containers.stealOdds(player, ctx, goodId, n, scene);
@@ -276,8 +290,6 @@ export const Containers = {
             return { ok: false, caught: true, fine, jailDays, text: `Caught with your hand in it! The ${g.name} goes back. Fined ${fine}g${rep}.${jail}` };
         }
 
-        const rec = Containers._record(player, world, ctx);
-        rec.taken[goodId] = _num(rec.taken[goodId]) + n;
         Containers._give(player, goodId, n);
         Underworld.markHot(player, goodId, n, _day(world));
         Underworld.recordCrime(player, world, 'theft', { kingdom, caught: false, scale: Math.min(2, 0.5 + (_num(g.basePrice) * n) / 100) });

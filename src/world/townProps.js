@@ -24,6 +24,9 @@ function _data() {
     return (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || null;
 }
 
+/** The year a day falls in (120 days a year, world/seasons.js). */
+const _year = (day) => Math.floor((Math.max(1, Math.floor(day || 1)) - 1) / 120);
+
 function _def(id, name, tiles, solidRows, opts = {}) {
     let minC = 0, maxC = 0, minR = 0;
     for (const t of tiles) {
@@ -177,12 +180,59 @@ export const TownProps = {
                 if (obj.fieldCycle === undefined) obj.fieldCycle = cycleOf[m[1]] || null;
                 if (!obj.fieldCycle) continue;
                 const shift = Math.abs((t.q * 73856093) ^ (t.r * 19349663)) % 6;
-                const kind = TownProps.fieldStage(obj.fieldCycle, doy, shift);
+                // Brought in this year: bare earth till the new year
+                const kind = obj.harvestYear === _year(day) ? 'plowed' : TownProps.fieldStage(obj.fieldCycle, doy, shift);
                 const id = kind && TownProps.fieldId(kind, m[2], m[3]);
                 if (id && id !== obj.defId) { obj.defId = id; changed++; }
             }
         }
         return changed;
+    },
+
+    /** 'tp_field_veg_young_4x3' → { kind: 'veg_young', w: 4, h: 3 }, or null. */
+    parseFieldId(id) {
+        const m = /^tp_field_([a-z_]+)_(\d+)x(\d+)$/.exec(id || '');
+        return m ? { kind: m[1], w: Number(m[2]), h: Number(m[3]) } : null;
+    },
+
+    /**
+     * What a field (its anchor's customObject) has to bring in on a day:
+     * { ripe, good, total, left, kind } — ripe only in its cycle's harvest
+     * stages (data/townProps.json harvest.crops), and left what nobody has
+     * taken this year.
+     */
+    fieldCrop(obj, day) {
+        const d = _data();
+        const f = obj && TownProps.parseFieldId(obj.defId);
+        const H = d && d.harvest;
+        const crop = f && H && obj.fieldCycle && H.crops && H.crops[obj.fieldCycle];
+        if (!crop) return { ripe: false, good: null, total: 0, left: 0, kind: f && f.kind };
+        const total = Math.max(1, Math.round(f.w * f.h * (Number(crop.perCell) || 0.5)));
+        const year = _year(day);
+        const taken = obj.fieldTaken && obj.fieldTaken.year === year ? Number(obj.fieldTaken.qty) || 0 : 0;
+        const ripe = (crop.stages || []).includes(f.kind) && obj.harvestYear !== year;
+        return { ripe, good: crop.good, total, left: ripe ? Math.max(0, total - taken) : 0, kind: f.kind };
+    },
+
+    /**
+     * Take n of a field's crop (it must be ripe). Taking the last of it
+     * leaves the field harvested — plowed — until the new year.
+     * Returns how many were taken.
+     */
+    takeFromField(obj, day, n, tiles = null) {
+        const c = TownProps.fieldCrop(obj, day);
+        const k = Math.min(c.left, Math.max(0, Math.floor(n)));
+        if (k <= 0) return 0;
+        const year = _year(day);
+        if (!obj.fieldTaken || obj.fieldTaken.year !== year) obj.fieldTaken = { year, qty: 0 };
+        obj.fieldTaken.qty += k;
+        if (obj.fieldTaken.qty >= c.total) {
+            obj.harvestYear = year;
+            const f = TownProps.parseFieldId(obj.defId);
+            obj.defId = TownProps.fieldId('plowed', f.w, f.h);
+        }
+        if (tiles) TownProps.growFields(tiles, day);
+        return k;
     },
 
     fieldKinds() {

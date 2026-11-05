@@ -48,6 +48,31 @@ export function theftScene(game, ctx) {
     };
 }
 
+/**
+ * After a theft roll: caught, those who saw it think the worse of you (the
+ * owner most), and from the third offence the watch hauls you to the cells.
+ * Returns true when the player was taken away.
+ */
+export function theftAftermath(game, res, scene) {
+    if (!res || !res.caught) return false;
+    const player = game.player;
+    game.ui.showNotification('🚨 Caught stealing!', res.text, 'error');
+    for (const npc of scene.near || []) {
+        const isOwner = scene.ownerName && npc.name === scene.ownerName;
+        NpcDisposition.adjustDisposition(npc, isOwner ? -25 : -10, player);
+        NpcDisposition.getMemory(npc).lastAction = 'caught_stealing';
+    }
+    if (!res.jailDays) return false;
+    game.ui.updateStats(player, game.world);
+    // The watch hauls you off: into the cells (ui/innerMapJail.js), or off the street map
+    if (typeof game.enterJailMap === 'function') {
+        game.enterJailMap().then(ok => {
+            if (!ok && InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+        });
+    } else if (InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
+    return true;
+}
+
 function _riskColour(c) {
     return c < 0.25 ? '#5ddb6a' : c < 0.5 ? '#e0c060' : '#e06a5a';
 }
@@ -137,26 +162,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             ? Containers.steal(player, game.world, ctx, goodId, qty, scene)
             : Containers.take(player, game.world, ctx, goodId, qty);
         lastMsg = { text: res.text, bad: !res.ok };
-        if (res.caught) {
-            game.ui.showNotification('🚨 Caught stealing!', res.text, 'error');
-            // Those who saw it remember: the owner most of all
-            for (const npc of scene.near || []) {
-                const isOwner = scene.ownerName && npc.name === scene.ownerName;
-                NpcDisposition.adjustDisposition(npc, isOwner ? -25 : -10, player);
-                NpcDisposition.getMemory(npc).lastAction = 'caught_stealing';
-            }
-            if (res.jailDays) {
-                modal.remove();
-                game.ui.updateStats(player, game.world);
-                // The watch hauls you off: into the cells (ui/innerMapJail.js), or off the street map
-                if (typeof game.enterJailMap === 'function') {
-                    game.enterJailMap().then(ok => {
-                        if (!ok && InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
-                    });
-                } else if (InnerMap.active && typeof game.exitInnerMap === 'function') game.exitInnerMap({ force: true });
-                return;
-            }
-        }
+        if (theftAftermath(game, res, scene)) { modal.remove(); return; }
         game.ui.updateStats(player, game.world);
         Hotbar.refresh();
         render();

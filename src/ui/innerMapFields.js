@@ -4,8 +4,9 @@
 // A ripe wheat field or vegetable patch in town (world/townProps.js fieldCrop)
 // offers two ways to its crop:
 //   Help bring it in   honest work by day: the hours pass by the field's size
-//                      and the farmer pays you a share of what you cut; the
-//                      field lies harvested till the new year.
+//                      and the farmer pays you a share of what you cut (the
+//                      rest goes into the town's granary); the field lies
+//                      harvested till the new year.
 //   Help yourself      lift a few (or an armful) at the theft odds
 //                      (systems/containers.js stealGoods): the farmer and the
 //                      watch don't like it.
@@ -90,10 +91,12 @@ export const InnerMapFields = {
             const hours = Math.min(_hours(crop, f), Math.max(0.5, 23.9 - hour));
             const share = Math.max(1, Math.floor(crop.left * (Number(H.workShare) || 0.3)));
             TownProps.takeFromField(obj, day, crop.left, InnerMap.tiles);
+            const ref = InnerMap._currentWorldTileRef;
+            TownProps.storeHarvest(ref && ref.settlement, crop.good, Math.max(0, crop.left - share));
             if (!player.inventory) player.inventory = {};
             player.inventory[crop.good] = (Number(player.inventory[crop.good]) || 0) + share;
             InnerMap.passHours(hours);
-            game.ui.showNotification('🌾 Harvest In', `${hours} hours in the field, cutting and carrying. The farmer pays you ${share} ${g.name}.`, 'success');
+            game.ui.showNotification('🌾 Harvest In', `${hours} hours in the field, cutting and carrying it to the granary. The farmer pays you ${share} ${g.name}.`, 'success');
         } else {
             const n = Math.min(crop.left, Math.max(1, Math.floor(item.qty || 1)));
             const ctx = containerContext(game, 'field', q, r);

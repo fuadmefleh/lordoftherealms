@@ -68,6 +68,7 @@
         "fishing_pole_cast":   "assets/lpc/Tools/fishing_pole_cast_128.png",
         "tool_sickle":         "assets/lpc/Tools/sickle_halfslash_128.png",
         "tool_hoe":            "assets/lpc/Tools/hoe_swing_128.png",
+        "carry_sack":          "assets/lpc/ThatchedHouses/tilesets/farming_fishing.png",
         "water_reflections":   "assets/lpc/FX/Water Reflections.png",
         "water_splash":        "assets/lpc/FX/Splash.png"
     },

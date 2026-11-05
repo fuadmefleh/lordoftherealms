@@ -89,7 +89,7 @@ describe('Town life', () => {
             for (const n of InnerMap.npcs) {
                 if (n.departing || n.state === 'inside_building') continue;
                 const end = n.path && n.path.length ? n.path[n.path.length - 1] : { q: n.q, r: n.r };
-                if (n._field) {
+                if (n._field || n._carry) {
                     expect(end.q >= m && end.r >= m && end.q < InnerMap.width - m && end.r < InnerMap.height - m).toBe(true);
                     continue;
                 }
@@ -116,6 +116,21 @@ describe('Town life', () => {
         expect(game).toBeTruthy();
         expect(working).toBeGreaterThan(0);
         expect(left()).toBeLessThan(before);
+    });
+
+    it('the hands carry what they cut to the granary, into the town food store', () => {
+        const game = enter('town', 9);
+        game.settlement.economy = { food: 0 };
+        InnerMap.worldDay = 66;
+        TownProps.growFields(InnerMap.tiles, 66);
+        let carried = 0;
+        for (let i = 0; i < 900; i++) {
+            InnerMap.timeOfDay = 9 + Math.floor(i / 150);
+            InnerMap.updateNPCs(0.5);
+            carried = Math.max(carried, InnerMap.npcs.filter(n => n._carry && n.state === 'walking').length);
+        }
+        expect(carried).toBeGreaterThan(0);
+        expect(game.settlement.economy.food).toBeGreaterThan(0);
     });
 
     it('goes about the day: some at work, some talking; most abed at night', () => {

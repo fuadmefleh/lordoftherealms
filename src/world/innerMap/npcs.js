@@ -536,6 +536,8 @@ Object.assign(InnerMap, {
                                     // As long as the business takes (world/innerMap/townLife.js)
                                     if (npc._stayFor) { npc.idleTimer = npc._stayFor; npc._stayFor = null; }
                                     npc._targetBuilding = null;
+                                    // A farmer's load carried into the granary (world/innerMap/townLife.js)
+                                    if (npc._carry && this._townDelivered) this._townDelivered(npc, bldg);
                                     // Traveler visited a place
                                     if (npc.visitsLeft > 0) npc.visitsLeft--;
                                 } else if (npc._activity) {

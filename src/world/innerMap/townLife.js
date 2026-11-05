@@ -6,7 +6,9 @@
 // someone fleeing walks out of town). Farmers (and a few others) go out to
 // work the town's fields: hoeing and weeding as the crop grows, cutting and
 // carrying it in when it is ripe (world/townProps.js, so a field the town
-// works runs down before the player's eyes). Each has a home
+// works runs down before the player's eyes). What they cut they carry on
+// their back to the granary (or the barn, the mill, the warehouse), where it
+// goes into the town's food store. Each has a home
 // and a place of work, and the hour decides what they're about: up at dawn,
 // at work in the morning, the market or the tavern at midday, an evening out,
 // abed at night. Neighbours stop to talk; children play about the square.
@@ -42,7 +44,7 @@ const DEFAULTS = {
     },
     // How long each thing takes once there (seconds, [min, max]); 1 real minute is an hour
     stay: {
-        home: [25, 50], work: [20, 45], tend: [12, 25], field: [20, 40], errand: [8, 20], market: [10, 22], tavern: [20, 40],
+        home: [25, 50], work: [20, 45], tend: [12, 25], field: [20, 40], deliver: [4, 10], errand: [8, 20], market: [10, 22], tavern: [20, 40],
         church: [15, 30], plaza: [8, 18], well: [5, 12], stroll: [2, 6], play: [1, 3], post: [30, 60], patrol: [2, 5],
         chat: [6, 12], sleep: [60, 120],
     },
@@ -52,6 +54,8 @@ const DEFAULTS = {
     // a hand cutting a ripe field brings in this much of its crop each spell of work
     fieldWork: { farmer: 0.75, villager: 0.15, child: 0.05 },
     fieldHarvestPerSpell: 2,
+    // Where the cut crop is carried, in order of preference
+    harvestStores: ['granary', 'barn', 'mill', 'warehouse', 'farm', 'marketplace'],
     workplaces: {
         merchant: ['marketplace', 'warehouse', 'bakery'],
         farmer: ['farm', 'barn', 'granary', 'mill'],
@@ -354,6 +358,9 @@ Object.assign(InnerMap, {
         const rnd = Utils.random;
         npc._chatWith = null;
         if (npc._field) this._leaveField(npc);
+        // Carrying in what was cut: to the granary first
+        if (npc._carry && this._goStore(npc)) return true;
+        npc._carry = null;
 
         // A guard: the night watch walks by night and sleeps by day's end; the day watch the reverse
         npc._awaiting = null;
@@ -495,7 +502,32 @@ Object.assign(InnerMap, {
         const t = f && this.tiles[f.r] && this.tiles[f.r][f.q];
         // Only a hand who stood and worked (not one called away on the road out)
         if (!cutting || !t || !t.customObject || Math.hypot(npc.q - f.q, npc.r - f.r) > 12) return;
-        TownProps.takeFromField(t.customObject, this.worldDay || 1, Number(this.townLifeConfig().fieldHarvestPerSpell) || 2, this.tiles);
+        const day = this.worldDay || 1;
+        const good = TownProps.fieldCrop(t.customObject, day).good;
+        const n = TownProps.takeFromField(t.customObject, day, Number(this.townLifeConfig().fieldHarvestPerSpell) || 2, this.tiles);
+        if (n > 0 && good) npc._carry = { good, qty: (npc._carry && npc._carry.good === good ? npc._carry.qty : 0) + n };
+    },
+
+    /** Off to the nearest granary (or barn, mill, warehouse…) with what they carry. */
+    _goStore(npc) {
+        const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
+        const blds = (this.buildings || []).filter(b => b && !b.isPlayerProperty);
+        for (const type of types) {
+            const near = blds.filter(b => b.type === type).sort((a, b) => Math.hypot(a.q - npc.q, a.r - npc.r) - Math.hypot(b.q - npc.q, b.r - npc.r));
+            for (const b of near.slice(0, 2)) if (this._goInto(npc, b, 'deliver')) return true;
+        }
+        return false;
+    },
+
+    /** Gone indoors: a load carried into a store goes into the town's food. */
+    _townDelivered(npc, bldg) {
+        const c = npc._carry;
+        if (!c || !bldg) return;
+        const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
+        if (!types.includes(bldg.type)) return;
+        npc._carry = null;
+        const ref = this._currentWorldTileRef;
+        TownProps.storeHarvest(ref && ref.settlement, c.good, c.qty);
     },
 
     _goHome(npc, act) {
@@ -521,6 +553,7 @@ Object.assign(InnerMap, {
     },
 
     _enterNow(npc, bldg, act) {
+        this._townDelivered(npc, bldg);
         npc.path = null;
         npc.state = 'inside_building';
         npc.currentBuilding = bldg.type;

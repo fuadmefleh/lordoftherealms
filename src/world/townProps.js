@@ -235,6 +235,23 @@ export const TownProps = {
         return k;
     },
 
+    /**
+     * A field's crop carried into the town's granary: it goes into the
+     * settlement's food store (settlement.economy.food, which the town eats
+     * from, world/economy.js) at harvest.foodPerUnit food a unit. Returns the
+     * food added.
+     */
+    storeHarvest(settlement, good, qty) {
+        const econ = settlement && settlement.economy;
+        const n = Math.max(0, Number(qty) || 0);
+        if (!econ || !n) return 0;
+        const H = (_data() || {}).harvest || {};
+        const per = H.foodPerUnit && H.foodPerUnit[good] != null ? Number(H.foodPerUnit[good]) : 1;
+        const food = n * (Number.isFinite(per) ? per : 1);
+        econ.food = (Number(econ.food) || 0) + food;
+        return food;
+    },
+
     fieldKinds() {
         const d = _data();
         return d ? Object.keys(d.fields || {}) : [];

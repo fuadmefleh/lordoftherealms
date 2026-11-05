@@ -796,9 +796,20 @@ Object.assign(InnerMapRenderer, {
                             const frame = Math.floor(npcTime * extra.fps) % extra.frames;
                             ctx.drawImage(toolSheet, frame * 128, nDir * 128, 128, 128, cx - cw / 2, cy - ch / 2, cw * 2, ch * 2);
                         };
+                        // A sack of the harvest carried to the granary (world/innerMap/townLife.js _carry),
+                        // held before them: behind their back when they walk away from us
+                        const sackSheet = nRef._carry && self._sheets && self._sheets.get('carry_sack');
+                        const drawSack = () => {
+                            const s = ds * 0.6 * charScale;
+                            const side = nDir === InnerMapCharacters.DIR_LEFT ? -1 : nDir === InnerMapCharacters.DIR_RIGHT ? 1 : 0;
+                            const bob = nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0;
+                            ctx.drawImage(sackSheet, 32, 96, 32, 32, sx - s / 2 + side * cw * 0.22, cy + ch * 0.42 - s / 2 - bob, s, s);
+                        };
+                        if (sackSheet && nDir === InnerMapCharacters.DIR_UP) drawSack();
                         if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, npcTime, cx, cy, cw, ch);
                         if (extra && nDir !== InnerMapCharacters.DIR_UP) drawTool();
+                        if (sackSheet && nDir !== InnerMapCharacters.DIR_UP) drawSack();
                     } else {
                         self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }

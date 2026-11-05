@@ -74,4 +74,11 @@ describe('town fields', () => {
         TownProps.growFields(tiles, 120 + 65);
         expect(TownProps.fieldCrop(obj, 120 + 65).ripe).toBe(true);
     });
+
+    it('a crop carried to the granary goes into the town food store', () => {
+        const settlement = { economy: { food: 5 } };
+        expect(TownProps.storeHarvest(settlement, 'grain', 3)).toBe(3);
+        expect(settlement.economy.food).toBe(8);
+        expect(TownProps.storeHarvest({}, 'grain', 3)).toBe(0);
+    });
 });

@@ -137,6 +137,11 @@ export function gameLoop(timestamp, loopId) {
                     this._showEncounterNotification(arrivedTile.encounter);
                 }
 
+                // ── Up or down the stairs, walking onto them (world/innerMap/floors.js) ──
+                if (arrivedTile && InnerMap._insideBuilding && arrivedTile._stairs && playerStepResult.arrived && typeof this._takeStairs === 'function') {
+                    this._takeStairs(arrivedTile._stairs.to);
+                }
+
                 // ── Auto-enter building when stepping on a door tile ──
                 // Only triggers on tiles with an explicit _doorMarker set by the building editor.
                 if (arrivedTile && !InnerMap._insideBuilding && arrivedTile._doorMarker) {

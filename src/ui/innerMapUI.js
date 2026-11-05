@@ -263,6 +263,13 @@ Object.assign(InnerMapRenderer, {
             menuItems.push(...InnerMapGranary.menuItems(game, building));
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
+            // A building of several floors: straight up to one from the front door (world/innerMap/floors.js)
+            const floors = InnerMap.floorsOf ? InnerMap.floorsOf(building, game) : 1;
+            for (let k = 1; k < floors; k++) {
+                const room = InnerMap.floorRoom(building, k);
+                const where = InnerMap.floorLabel(k).replace(/^the /, '');
+                menuItems.push({ type: 'action', action: 'enter_building', floor: k, label: `Go Up to the ${where.replace(/^./, c => c.toUpperCase())}`, icon: '⬆️', desc: `In at the door and up the stairs: ${room.name}`, building });
+            }
             // A service the town doesn't keep (no guild here, no mint, nothing to treat) is left off
             const offered = this._townServices(game);
             for (const action of actions) {
@@ -364,6 +371,14 @@ Object.assign(InnerMapRenderer, {
             // ── Interior-specific actions ──
             if (tile._isInterior) {
                 menuItems.push({ type: 'header', label: `${tile.subTerrain.icon} ${tile.subTerrain.name}` });
+
+                // Stairs: up or down to the next floor (world/innerMap/floors.js)
+                if (tile._stairs) {
+                    const to = tile._stairs.to;
+                    const up = to > (InnerMap._floor || 0);
+                    const room = to > 0 ? InnerMap.floorRoom(InnerMap._insideBuilding, to) : null;
+                    menuItems.push({ type: 'action', action: 'take_stairs', label: up ? 'Climb the Stairs' : 'Go Downstairs', icon: up ? '⬆️' : '⬇️', desc: `To ${InnerMap.floorLabel(to)}${room ? ` (${room.name})` : ''}`, stairsTo: to });
+                }
 
                 // Door = exit
                 if (tile._isDoor) {
@@ -1044,7 +1059,8 @@ Object.assign(InnerMapRenderer, {
                                 game.innerMapCamera.centerOn(pWorld.x, pWorld.y);
                                 game.innerMapCamera.precomputeFrame();
                             }
-                            game.ui.showNotification(`🚪 Entered ${building.name}`, `You step inside ${building.name}. Press ESC or click "Exit" to leave.`, 'info');
+                            if (item.floor && typeof game._takeStairs === 'function') game._takeStairs(item.floor, { fromDoor: true });
+                            else game.ui.showNotification(`🚪 Entered ${building.name}`, `You step inside ${building.name}. Press ESC or click "Exit" to leave.`, 'info');
                         } else {
                             const no = InnerMap._entryRefused;
                             const who = no && no.by ? `${no.by.name}, ${no.by.roleTitle || 'Guard'}` : building.name;
@@ -1056,6 +1072,12 @@ Object.assign(InnerMapRenderer, {
             }
             case 'exit_building': {
                 if (typeof game._leaveBuilding === 'function') game._leaveBuilding();
+                break;
+            }
+            case 'take_stairs': {
+                // Beside them: up (or down) now; further off: walk there, and the stairs take you on arrival
+                if (dist <= 1 && typeof game._takeStairs === 'function') game._takeStairs(item.stairsTo);
+                else { InnerMap.cancelPlayerWalk(); InnerMap.movePlayerTo(q, r); }
                 break;
             }
             case 'fish_here': {

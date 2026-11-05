@@ -468,8 +468,8 @@ Object.assign(InnerMapRenderer, {
 
         // Render furniture meta on top (if present and tile has custom furniture)
         const furniture = tile._furniture;
-        // A piece the player set down on a sprite floor: its drawn art (world/innerMap/furnishing.js)
-        if (furniture && furniture._piece && this._interiorArt && this._interiorArt.furniture) {
+        // A piece the player set down on a sprite floor, or the stairs (world/innerMap/floors.js): its drawn art
+        if (furniture && (furniture._piece || furniture._stairs) && this._interiorArt && this._interiorArt.furniture) {
             const fa = this._interiorArt.furniture[furniture.type];
             const fImg = fa && this._getSheetByPath(fa.sheet);
             if (fImg) {

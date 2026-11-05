@@ -75,6 +75,7 @@ const topLevel = [
     'realmIntel',
     'containers',
     'townProps',
+    'buildingFloors',
     'mapTasks',
     'performTasks',
     'wildTasks',

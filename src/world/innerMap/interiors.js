@@ -669,7 +669,7 @@ Object.assign(InnerMap, {
         fireplace: '#e74c3c', bed: '#7a6a5a', rack: '#5a5a5a', anvil: '#4a4a4a',
         forge: '#e74c3c', stall: '#6a5a3a', altar: '#aaaacc', pew: '#6a4a2a',
         statue: '#999999', crate: '#7a5a2a', scales: '#aaaaaa', well: '#6a8aaa',
-        bucket: '#6a5a4a', stairs: '#8a7a6a',
+        bucket: '#6a5a4a', stairs: '#8a7a6a', stairs_down: '#5a4a3a',
         desk: '#6a4a2a', shelf: '#5a3a1a', cauldron: '#3a3a3a', tub: '#b87333', oven: '#8a4a3a',
         millstone: '#8a8a8a', cell: '#4a4a52', press: '#5a5a5a', lectern: '#6a4a2a', sack: '#a08a5a', rug: '#8a2a2a',
     },
@@ -714,6 +714,9 @@ Object.assign(InnerMap, {
             if (!isJail) this._interiorCache[interiorKey] = interior;
         }
 
+        // Its floors, and the stairs up from this one (world/innerMap/floors.js)
+        if (this._prepareFloors) this._prepareFloors(interior, building, interiorKey, game);
+
         // Apply interior state
         this._insideBuilding = building;
         this.tiles = interior.tiles;
@@ -731,6 +734,8 @@ Object.assign(InnerMap, {
             if (npc.state === 'inside_building' &&
                 npc._insideBuildingQ === building.q &&
                 npc._insideBuildingR === building.r) {
+                // Upstairs folk are met upstairs (world/innerMap/floors.js)
+                if (this.npcFloor && this.npcFloor(npc) !== 0) continue;
                 // Place NPC on a passable interior tile
                 const placed = this._placeNpcInInterior(npc, interior);
                 if (placed) interiorNpcs.push(npc);
@@ -803,6 +808,9 @@ Object.assign(InnerMap, {
         this._insideBuilding = null;
         this._outerMapState = null;
         this._seatVisit = null;
+        this._floor = 0;
+        this._floorCount = 1;
+        this._floorInteriors = null;
 
         // Cancel any walk/interaction state
         this.cancelPlayerWalk();

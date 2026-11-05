@@ -94,7 +94,8 @@ Object.assign(InnerMap, {
 
     /** Is this a piece of furniture the player may move (procedural furniture, not an authored sprite)? */
     _movableFurniture(tile) {
-        return !!(tile && tile._furniture && !(tile._customTile && tile._customTile.furniture) && !tile.customObject && !tile.customObjectPart);
+        // (never the stairs: they belong to the house — world/innerMap/floors.js)
+        return !!(tile && tile._furniture && !tile._stairs && !tile._furniture._stairs && !(tile._customTile && tile._customTile.furniture) && !tile.customObject && !tile.customObjectPart);
     },
 
     /**

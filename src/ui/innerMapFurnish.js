@@ -46,7 +46,8 @@ export const InnerMapFurnish = {
 
     /** May the player furnish where they stand? */
     available() {
-        return !!(InnerMap.active && InnerMap._insideBuilding && InnerMap.isOwnHome && InnerMap.isOwnHome());
+        // (the ground floor only: the layout is laid there each time you come in)
+        return !!(InnerMap.active && InnerMap._insideBuilding && !(InnerMap._floor > 0) && InnerMap.isOwnHome && InnerMap.isOwnHome());
     },
 
     /** Context-menu entries inside a home of the player's. */

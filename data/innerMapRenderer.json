@@ -298,7 +298,9 @@
             "lectern": { "sheet": "assets/buildingKit/furniture.png", "sx": 0, "sy": 224 },
             "sack": { "sheet": "assets/buildingKit/furniture.png", "sx": 32, "sy": 224 },
             "rug": { "sheet": "assets/buildingKit/furniture.png", "sx": 64, "sy": 224 },
-            "well": { "sheet": "assets/buildingKit/furniture.png", "sx": 96, "sy": 224 }
+            "well": { "sheet": "assets/buildingKit/furniture.png", "sx": 96, "sy": 224 },
+            "stairs": { "sheet": "assets/lpc/Structure/Stairs/Wood Interior Stairs A.png", "sx": 32, "sy": 288 },
+            "stairs_down": { "sheet": "assets/lpc/Structure/Stairs/Wood Interior Stairs A.png", "sx": 128, "sy": 288 }
         }
     },
 

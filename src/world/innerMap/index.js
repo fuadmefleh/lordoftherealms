@@ -6,6 +6,7 @@ import './state.js';
 import './terrain.js';
 import './buildings.js';
 import './interiors.js';
+import './floors.js';
 import './movement.js';
 import './npcs.js';
 import './townLife.js';

@@ -602,7 +602,7 @@ const FURNITURE_GLYPHS = {
     table: 'table', pew: 'chair', chair: 'chair', bar: 'tankard', barrel: 'barrel', fireplace: 'fire', forge: 'fire',
     bed: 'bed', bookshelf: 'book', anvil: 'anvil', altar: 'chalice', statue: 'statue', stall: 'stall', scales: 'scales',
     crate: 'crate', chest: 'chest', throne: 'crown', well: 'well', bucket: 'bucket', candle: 'candle', banner: 'pennant',
-    stairs: 'stairs', desk: 'quill', shelf: 'urn', cauldron: 'flask', tub: 'droplet', oven: 'bread', millstone: 'wheat',
+    stairs: 'stairs', stairs_down: 'stairs', desk: 'quill', shelf: 'urn', cauldron: 'flask', tub: 'droplet', oven: 'bread', millstone: 'wheat',
     cell: 'lock', press: 'coins', lectern: 'book', sack: 'sack', rug: 'palette',
 };
 

@@ -555,6 +555,30 @@ export function _leaveBuilding() {
 }
 
 /**
+ * Up or down the stairs to floor `to` of the building the player is in
+ * (world/innerMap/floors.js), or straight to it from the front door.
+ */
+export function _takeStairs(to, opts = {}) {
+    const b = InnerMap._insideBuilding;
+    if (!b || typeof InnerMap.goToFloor !== 'function') return false;
+    const res = InnerMap.goToFloor(to, this);
+    if (!res.ok) {
+        this.ui.showNotification('🚪 Stairs', res.reason || 'You cannot go that way.', 'warning');
+        return false;
+    }
+    if (res.from === undefined) return true;
+    this._configureInnerMapCamera('interior');
+    this._updateBuildingExitButton();
+    const where = InnerMap.floorLabel(to);
+    const room = res.room && res.room.name ? `: ${res.room.name.toLowerCase().replace(/^./, c => c.toUpperCase())}` : '';
+    const text = opts.fromDoor
+        ? `In at the door of ${b.name} and straight up the stairs to ${where}${room}.`
+        : to > res.from ? `You climb the stairs to ${where}${room}.` : `You go down the stairs to ${where}${room}.`;
+    this.ui.showNotification(to > res.from ? '⬆️ Upstairs' : '⬇️ Downstairs', text, 'info');
+    return true;
+}
+
+/**
  * Into the jail of the town that holds the player: a walkable cell with their
  * cellmates (world/innerMap/jail.js, ui/innerMapJail.js). Enters the town's
  * street map first if need be. Returns whether they're in.
@@ -603,8 +627,10 @@ export function _updateBuildingExitButton() {
     const insideBuilding = InnerMap._insideBuilding;
     // In a locked cell the button says so (and only says so); unlocked, it's the way out
     const locked = !!(InnerMap.jailLocked && InnerMap.jailLocked());
+    // Upstairs, the button says which floor you're on (world/innerMap/floors.js)
+    const floorTag = InnerMap._floor > 0 ? ` (${InnerMap.floorLabel(InnerMap._floor).replace(/^the /, '')})` : '';
     if (existingBtn && insideBuilding) {
-        existingBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}`;
+        existingBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}${floorTag}`;
         return;
     }
 
@@ -625,7 +651,7 @@ export function _updateBuildingExitButton() {
         `;
         const exitBldgBtn = document.createElement('button');
         exitBldgBtn.id = 'innerMapExitBuildingBtn';
-        exitBldgBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}`;
+        exitBldgBtn.innerHTML = locked ? '🔒 Locked In' : `← Leave ${insideBuilding.name}${floorTag}`;
         exitBldgBtn.style.cssText = btnStyle;
         exitBldgBtn.addEventListener('mouseenter', () => {
             exitBldgBtn.style.borderColor = 'rgba(245, 197, 66, 0.8)';

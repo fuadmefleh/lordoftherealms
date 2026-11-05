@@ -1,0 +1,90 @@
+{
+    "_note": "Floors above the ground (world/innerMap/floors.js). A building has between minFloors and maxFloors floors (by its type), never more than its builders can raise: the player's own by the techs they know (baseFloors, raised by techFloors), a town's by its size (townCraft); a camp of the Dawn of Man raises none. Which count a town building has is fixed by its place. upperRooms: what each floor above the ground holds, by type (the last repeats); rooms: what goes in each kind of room.",
+    "baseFloors": 2,
+    "techFloors": [
+        { "tech": "stonecutting", "floors": 3 },
+        { "tech": "fortification", "floors": 4 }
+    ],
+    "townCraft": { "village": 2, "town": 3, "city": 4, "capital": 4, "_default": 2 },
+    "maxFloors": {
+        "house": 2, "manor": 3, "tavern": 2, "inn": 3, "hotel": 4, "guest_house": 2, "roadhouse": 2,
+        "town_hall": 3, "guildhall": 3, "bank": 3, "library": 3, "post_house": 2, "mint": 2,
+        "guard_tower": 4, "barracks": 2, "warehouse": 2, "granary": 2, "mill": 2, "barn": 2, "stable": 2, "farm": 2,
+        "blacksmith": 2, "bakery": 2, "apothecary": 2, "bathhouse": 2,
+        "marketplace": 1, "church": 1, "temple": 1, "chapel": 1, "well": 1, "jail": 1, "castle": 1,
+        "_default": 2
+    },
+    "minFloors": { "manor": 2, "inn": 2, "hotel": 2, "guard_tower": 2, "town_hall": 2, "mill": 2 },
+    "upperRooms": {
+        "house": ["bedchamber"],
+        "manor": ["bedchamber", "gallery"],
+        "tavern": ["guest_rooms"], "inn": ["guest_rooms"], "hotel": ["guest_rooms"], "guest_house": ["guest_rooms"], "roadhouse": ["guest_rooms"],
+        "town_hall": ["offices", "archive"], "guildhall": ["offices", "archive"], "bank": ["offices", "archive"], "library": ["archive"], "mint": ["offices"], "post_house": ["offices"],
+        "guard_tower": ["watch_room", "lookout"], "barracks": ["dormitory"],
+        "warehouse": ["loft"], "granary": ["loft"], "mill": ["loft"], "barn": ["loft"], "stable": ["loft"], "farm": ["loft"],
+        "_default": ["quarters"]
+    },
+    "rooms": {
+        "bedchamber": { "name": "Bedchamber", "floor": "wood_floor", "furniture": [
+            { "type": "bed", "icon": "🛏️", "name": "Bed", "count": 2 },
+            { "type": "chest", "icon": "🧳", "name": "Clothes Chest", "count": 1 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true },
+            { "type": "bucket", "icon": "🧺", "name": "Wash Basin", "count": 1, "passable": true },
+            { "type": "rug", "icon": "🟥", "name": "Rug", "count": 1, "passable": true, "middle": true }
+        ] },
+        "gallery": { "name": "Long Gallery", "floor": "herringbone_floor", "furniture": [
+            { "type": "bookshelf", "icon": "📚", "name": "Bookshelf", "count": 2 },
+            { "type": "statue", "icon": "🗿", "name": "Bust", "count": 1 },
+            { "type": "banner", "icon": "🚩", "name": "Banner", "count": 2 },
+            { "type": "desk", "icon": "🖋️", "name": "Writing Desk", "count": 1 },
+            { "type": "rug", "icon": "🟥", "name": "Rug", "count": 1, "passable": true, "middle": true }
+        ] },
+        "guest_rooms": { "name": "Guest Rooms", "floor": "wood_floor", "furniture": [
+            { "type": "bed", "icon": "🛏️", "name": "Guest Bed", "count": 4 },
+            { "type": "chest", "icon": "🧳", "name": "Guest's Chest", "count": 2 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true },
+            { "type": "bucket", "icon": "🧺", "name": "Wash Basin", "count": 1, "passable": true }
+        ] },
+        "offices": { "name": "Offices", "floor": "herringbone_floor", "furniture": [
+            { "type": "desk", "icon": "🖋️", "name": "Clerk's Desk", "count": 3 },
+            { "type": "shelf", "icon": "🗄️", "name": "Ledger Shelf", "count": 2 },
+            { "type": "chest", "icon": "📦", "name": "Strongbox", "count": 1 },
+            { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true }
+        ] },
+        "archive": { "name": "Archive", "floor": "wood_floor", "furniture": [
+            { "type": "bookshelf", "icon": "📚", "name": "Record Shelves", "count": 4 },
+            { "type": "lectern", "icon": "📖", "name": "Lectern", "count": 1 },
+            { "type": "chest", "icon": "📦", "name": "Deed Chest", "count": 1 }
+        ] },
+        "watch_room": { "name": "Watch Room", "floor": "stone_floor", "furniture": [
+            { "type": "rack", "icon": "🏹", "name": "Bow Rack", "count": 1 },
+            { "type": "crate", "icon": "📦", "name": "Arrow Crates", "count": 1 },
+            { "type": "bed", "icon": "🛏️", "name": "Watchman's Cot", "count": 1 }
+        ] },
+        "lookout": { "name": "Lookout", "floor": "stone_floor", "furniture": [
+            { "type": "banner", "icon": "🚩", "name": "Signal Banner", "count": 1 },
+            { "type": "barrel", "icon": "🛢️", "name": "Water Barrel", "count": 1 },
+            { "type": "candle", "icon": "🔥", "name": "Beacon Brazier", "count": 1 }
+        ] },
+        "dormitory": { "name": "Dormitory", "floor": "wood_floor", "furniture": [
+            { "type": "bed", "icon": "🛌", "name": "Bunk", "count": 5 },
+            { "type": "chest", "icon": "🧳", "name": "Footlocker", "count": 2 },
+            { "type": "rack", "icon": "⚔️", "name": "Weapon Rack", "count": 1 }
+        ] },
+        "loft": { "name": "Loft", "floor": "wood_floor", "furniture": [
+            { "type": "sack", "icon": "🌾", "name": "Sacks", "count": 4 },
+            { "type": "crate", "icon": "📦", "name": "Crates", "count": 2 },
+            { "type": "barrel", "icon": "🛢️", "name": "Barrel", "count": 1 }
+        ] },
+        "quarters": { "name": "Living Quarters", "floor": "wood_floor", "furniture": [
+            { "type": "bed", "icon": "🛏️", "name": "Bed", "count": 1 },
+            { "type": "table", "icon": "🪑", "name": "Table", "count": 1 },
+            { "type": "chest", "icon": "🧳", "name": "Chest", "count": 1 },
+            { "type": "fireplace", "icon": "🔥", "name": "Hearth", "count": 1 }
+        ] }
+    },
+    "stairs": {
+        "up": { "type": "stairs", "icon": "🧗", "name": "Stairs Up" },
+        "down": { "type": "stairs_down", "icon": "🧗", "name": "Stairs Down" }
+    }
+}

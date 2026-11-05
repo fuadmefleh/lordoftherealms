@@ -786,7 +786,19 @@ Object.assign(InnerMapRenderer, {
                         ctx.fillStyle = 'rgba(0,0,0,0.25)';
                         ctx.fill();
                         const npcTime = now + nRef.id * 0.37;
+                        // A tool in hand at field work (world/innerMap/townLife.js): posed per frame
+                        // of the swing (scripts/make_farm_tools.py), behind them when they face away
+                        const tool = nRef.activity && nRef.activity.tool;
+                        const toolSheet = tool && self._sheets && self._sheets.get('tool_' + tool);
+                        const comp = toolSheet && InnerMapCharacters.getComposited(nRef.preset);
+                        const extra = comp && comp[nAnim] && InnerMapCharacters._EXTRA_ANIMS.find(e => e.key === nAnim);
+                        const drawTool = () => {
+                            const frame = Math.floor(npcTime * extra.fps) % extra.frames;
+                            ctx.drawImage(toolSheet, frame * 128, nDir * 128, 128, 128, cx - cw / 2, cy - ch / 2, cw * 2, ch * 2);
+                        };
+                        if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, npcTime, cx, cy, cw, ch);
+                        if (extra && nDir !== InnerMapCharacters.DIR_UP) drawTool();
                     } else {
                         self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }

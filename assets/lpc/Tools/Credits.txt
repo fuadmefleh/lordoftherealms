@@ -12,3 +12,12 @@ Fishing pole cast overlay (fishing_pole_cast.png, fishing_pole_cast_128.png, fis
            fishing_pole_cast_raw.png: the 1254x1254 original (transparent), re-gridded by
              splitting into blobs, anchoring each frame on its reel, one scale, box filter,
              hard alpha.
+
+Farm tool overlays (sickle_halfslash_128.png, hoe_swing_128.png)
+-------------------
+  ARTIST(S): drawn by scripts/make_farm_tools.py (this project), posed frame by frame from
+             the LPC "Sword 01 - Arming Sword" prop sheets (assets/lpc/Characters/Props;
+             see assets/lpc/Characters/Credits.txt for that art's authors and licence).
+  DETAILS: 768x512, 6 frames x 4 rows (up, left, down, right), 128px cells with the 64px
+           LPC body frame centred. The sickle follows 'Combat 1h - Halfslash', the hoe
+           'Legacy - Swing'. Re-run the script to redraw them.

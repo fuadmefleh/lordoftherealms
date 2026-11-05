@@ -66,6 +66,8 @@
         "water_ripple":        "assets/lpc/FX/WaterRipple.png",
         "water_ripple_back":   "assets/lpc/FX/WaterRipple_Back.png",
         "fishing_pole_cast":   "assets/lpc/Tools/fishing_pole_cast_128.png",
+        "tool_sickle":         "assets/lpc/Tools/sickle_halfslash_128.png",
+        "tool_hoe":            "assets/lpc/Tools/hoe_swing_128.png",
         "water_reflections":   "assets/lpc/FX/Water Reflections.png",
         "water_splash":        "assets/lpc/FX/Splash.png"
     },

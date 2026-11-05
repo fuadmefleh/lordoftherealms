@@ -482,8 +482,8 @@ Object.assign(InnerMap, {
         if (!obj) { npc._field = null; return; }
         const crop = TownProps.fieldCrop(obj, this.worldDay || 1);
         npc.activity = crop.ripe && crop.left > 0
-            ? { type: 'field', icon: '🌾', label: 'Bringing in the harvest', anim: 'halfslash' }
-            : { type: 'field', icon: '🌱', label: 'Working the field', anim: 'swing' };
+            ? { type: 'field', icon: '🌾', label: 'Bringing in the harvest', anim: 'halfslash', tool: 'sickle' }
+            : { type: 'field', icon: '🌾', label: 'Working the field', anim: 'swing', tool: 'hoe' };
     },
 
     /** Done with a spell in the field: what was cut is carried in. */

@@ -398,8 +398,9 @@ export async function _doStartNewGame(settingsOverride) {
     this.world.generate({
         seed: mapSeed,
         // Current terrain generator: 2 = peaks on land, rivers that reach the
-        // sea; 3 = generated with the true hex distance (core/hex.js)
-        terrainGen: 3,
+        // sea; 3 = generated with the true hex distance (core/hex.js); 4 =
+        // towns built in their culture's own architecture (data/architecture.json)
+        terrainGen: 4,
         continentCount,
         terrainFreq,
         riverCount,

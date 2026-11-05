@@ -112,7 +112,9 @@ function compose(recipe, kit) {
             }
         }
     }
-    for (let i = 0; i < door.cells.length; i++) {
+    // (a wide door, an arched pair of leaves, lists its tiles as [dq, dr, sx, sy] from the door cell)
+    for (const [tq, tr, sx, sy] of door.tiles || []) layers.roof.push(cell(dq + tq, tr, door.sheet, sx, sy));
+    for (let i = 0; i < (door.cells || []).length; i++) {
         const [sx, sy] = door.cells[i];
         const h = door.cells.length;
         layers.roof.push(cell(dq + (door.dq || 0), -(h - 1) + i, door.sheet, sx, sy, door.sw || T));
@@ -121,7 +123,11 @@ function compose(recipe, kit) {
     // ── Windows, awnings, signs, chimneys and anything else, cell by cell ──
     for (const w of recipe.windows || []) {
         const win = need('windows', w.style, 'window');
-        win.cells.forEach(([sx, sy], i) => layers.walls.push(cell(w.q, w.r + i, win.sheet, sx, sy)));
+        // A culture's tall window stands on the sill of its storey (row -1 or -4), never below it
+        // (the kit's older buildings keep theirs as they were drawn)
+        const tall = recipe.culture && (w.r === -1 || w.r === -4) && win.cells.length > 1;
+        const wr = tall ? Math.max(main.wallTop, w.r - win.cells.length + 1) : w.r;
+        win.cells.forEach(([sx, sy], i) => { if (!tall || wr + i <= w.r) layers.walls.push(cell(w.q, wr + i, win.sheet, sx, sy)); });
         if (w.awning) {
             const a = need('awnings', w.awning, 'awning');
             layers.overlay.push(cell(w.q, w.r - 1, a.sheet, a.sx, a.sy));
@@ -172,10 +178,12 @@ function compose(recipe, kit) {
         name: recipe.name,
         buildingType: recipe.buildingType,
         style: recipe.style || null,
+        // A culture's own building (data/architecture.json): only that culture's towns use it
+        ...(recipe.culture ? { culture: recipe.culture } : {}),
         // What it is built of: towns pick by their culture's materials (world/cultures.js)
         wall: recipe.wall || null,
         roof: recipe.roof || null,
-        tags: ['composed', ...(recipe.tags || [])],
+        tags: ['composed', ...(recipe.culture ? [`culture:${recipe.culture}`] : []), ...(recipe.tags || [])],
         tileW: T, tileH: T,
         width: maxQ - minQ + 1, height: 1 - minR,
         layers,
@@ -275,6 +283,25 @@ function expandFamily(f, kit) {
     return out;
 }
 
+/**
+ * A culture's family: ids prefixed with the culture, every recipe stamped with
+ * it. A family with `buildingTypes` makes `count` of each type (a hall that is
+ * town hall, guildhall, church…), named and signed by `typeNames`/`typeSigns`.
+ */
+function expandCultureFamily(culture, f, kit) {
+    const base = `${culture.toLowerCase()}_${f.id}`;
+    const types = f.buildingTypes || [f.buildingType || 'house'];
+    const out = [];
+    for (const t of types) {
+        const id = f.buildingTypes ? `${base}_${t}` : base;
+        const sign = (f.typeSigns || {})[t];
+        const fam = { ...f, id, buildingType: t, name: (f.typeNames || {})[t] || f.name };
+        if (sign) fam.signs = [{ emblem: sign, plaque: f.plaque || 'oak', name: fam.name }];
+        for (const r of expandFamily(fam, kit)) out.push({ ...r, culture });
+    }
+    return out;
+}
+
 function main() {
     const kitFile = JSON.parse(fs.readFileSync(path.join(dataDir, 'buildingKit.json'), 'utf8'));
     const out = path.join(dataDir, 'buildings.json');
@@ -282,10 +309,18 @@ function main() {
     const kept = existing.filter(b => !(b.tags || []).includes('composed'));
     const recipes = [...kitFile.recipes];
     for (const f of kitFile.families || []) recipes.push(...expandFamily(f, kitFile.kit));
+    // Each culture's own houses, shops and halls (data/architecture.json), built of the same kit
+    const arch = JSON.parse(fs.readFileSync(path.join(dataDir, 'architecture.json'), 'utf8'));
+    for (const [culture, a] of Object.entries(arch.cultures || {})) {
+        for (const f of a.families || []) recipes.push(...expandCultureFamily(culture, f, kitFile.kit));
+    }
     const composed = recipes.map(r => compose(r, kitFile.kit));
-    fs.writeFileSync(out, JSON.stringify([...kept, ...composed], null, 2) + '\n');
+    // One cell to a line: hundreds of buildings of a few dozen cells each
+    const text = JSON.stringify([...kept, ...composed], null, 2)
+        .replace(/\{\n\s+([^{}[\]]*?)\n\s+\}/g, (m, body) => `{ ${body.split(/,\n\s+/).join(', ')} }`);
+    fs.writeFileSync(out, text + '\n');
     console.log(`Composed ${composed.length} building(s) into data/buildings.json (${kept.length} authored kept)`);
 }
 
 if (require.main === module) main();
-module.exports = { compose, expandFamily };
+module.exports = { compose, expandFamily, expandCultureFamily };

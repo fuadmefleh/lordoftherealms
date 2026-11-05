@@ -1,6 +1,6 @@
 // InnerMap — interiors members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, TownProps, Economy } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, TownProps, Economy, Cultures } from './_imports.js';
 import { sidesMask } from '../../core/tileSides.js';
 
 Object.assign(InnerMap, {
@@ -939,9 +939,18 @@ Object.assign(InnerMap, {
 
         // ── Fallback: procedural interior from INTERIOR_LAYOUTS ──
         console.log(`[Interior] Falling back to procedural interior for "${building.name}" (type: ${building.type}, defId: ${building._customDefId || 'none'}, customInteriorsLoaded: ${typeof CustomInteriors !== 'undefined' ? CustomInteriors.hasAny() : false})`);
-        const layout = this.INTERIOR_LAYOUTS[building.type]
+        const baseLayout = this.INTERIOR_LAYOUTS[building.type]
             || this.INTERIOR_LAYOUTS[String(building.type || '').replace(/^player_/, '')]
             || this.INTERIOR_LAYOUTS.house;
+        // A culture's own building is built of its own stuff inside too (data/architecture.json
+        // `interior`): its walls everywhere, its floors in the homes
+        const ownDef = building._customDefId && typeof CustomBuildings !== 'undefined' ? CustomBuildings.getBuilding(building._customDefId) : null;
+        const inside = ownDef && ownDef.culture ? ((Cultures.architecture(ownDef.culture) || {}).interior || null) : null;
+        const layout = inside ? {
+            ...baseLayout,
+            wall: inside.wall || baseLayout.wall,
+            floor: inside.floor && ['house', 'farm', 'guest_house'].includes(baseLayout === this.INTERIOR_LAYOUTS.house ? 'house' : building.type) && this.INTERIOR_FLOORS[inside.floor] ? inside.floor : baseLayout.floor,
+        } : baseLayout;
         const w = layout.width;
         const h = layout.height;
         const floorDef = this.INTERIOR_FLOORS[layout.floor] || this.INTERIOR_FLOORS.wood_floor;

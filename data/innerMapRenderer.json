@@ -263,7 +263,12 @@
             "timber": { "sheet": "assets/buildingKit/wall_timber.png", "sx": 32, "sy": 32 },
             "plaster": { "sheet": "assets/buildingKit/wall_plaster.png", "sx": 32, "sy": 32 },
             "fieldstone": { "sheet": "assets/buildingKit/wall_fieldstone.png", "sx": 32, "sy": 32 },
-            "planks": { "sheet": "assets/buildingKit/wall_planks.png", "sx": 32, "sy": 32 }
+            "planks": { "sheet": "assets/buildingKit/wall_planks.png", "sx": 32, "sy": 32 },
+            "adobe": { "sheet": "assets/lpc/Structure/Walls/Adobe Stucco Wall.png", "sx": 32, "sy": 32 },
+            "whitewash": { "sheet": "assets/buildingKit/wall_whitewash.png", "sx": 32, "sy": 32 },
+            "siding_red": { "sheet": "assets/buildingKit/wall_siding_red.png", "sx": 32, "sy": 32 },
+            "logs": { "sheet": "assets/buildingKit/wall_siding_tar.png", "sx": 32, "sy": 32 },
+            "painted": { "sheet": "assets/buildingKit/wall_siding_blue.png", "sx": 32, "sy": 32 }
         },
         "door": { "sheet": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 64 },
         "furniture": {

@@ -82,6 +82,107 @@
         "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
         "x": 3,
         "y": 6
+      },
+      "whitewash": {
+        "sheet": "assets/buildingKit/wall_whitewash.png",
+        "x": 0,
+        "y": 0
+      },
+      "plaster_ochre": {
+        "sheet": "assets/buildingKit/wall_plaster_ochre.png",
+        "x": 0,
+        "y": 0
+      },
+      "plaster_rose": {
+        "sheet": "assets/buildingKit/wall_plaster_rose.png",
+        "x": 0,
+        "y": 0
+      },
+      "plaster_blue": {
+        "sheet": "assets/buildingKit/wall_plaster_blue.png",
+        "x": 0,
+        "y": 0
+      },
+      "adobe_white": {
+        "sheet": "assets/buildingKit/wall_adobe_white.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_red": {
+        "sheet": "assets/buildingKit/wall_siding_red.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_rust": {
+        "sheet": "assets/buildingKit/wall_siding_rust.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_blue": {
+        "sheet": "assets/buildingKit/wall_siding_blue.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_teal": {
+        "sheet": "assets/buildingKit/wall_siding_teal.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_yellow": {
+        "sheet": "assets/buildingKit/wall_siding_yellow.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_white": {
+        "sheet": "assets/buildingKit/wall_siding_white.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_green": {
+        "sheet": "assets/buildingKit/wall_siding_green.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_brown": {
+        "sheet": "assets/buildingKit/wall_siding_brown.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_grey": {
+        "sheet": "assets/buildingKit/wall_siding_grey.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_dark": {
+        "sheet": "assets/buildingKit/wall_siding_dark.png",
+        "x": 0,
+        "y": 0
+      },
+      "siding_tar": {
+        "sheet": "assets/buildingKit/wall_siding_tar.png",
+        "x": 0,
+        "y": 0
+      },
+      "timber_black": {
+        "sheet": "assets/buildingKit/wall_timber_black.png",
+        "x": 0,
+        "y": 0,
+        "stack": true
+      },
+      "adobe": {
+        "sheet": "assets/lpc/Structure/Walls/Adobe Stucco Wall.png",
+        "x": 0,
+        "y": 0
+      },
+      "adobe_brick": {
+        "sheet": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
+        "x": 0,
+        "y": 0
+      },
+      "adobe_brick_mauve": {
+        "sheet": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
+        "x": 0,
+        "y": 3
       }
     },
     "roofs": {
@@ -133,6 +234,63 @@
       "adobe_brick": {
         "kind": "parapet",
         "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+        "x": 0,
+        "rowsY": [
+          32,
+          96
+        ]
+      },
+      "turf": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_turf.png",
+        "x": 0,
+        "y": 0
+      },
+      "thatch_dark": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_thatch_dark.png",
+        "x": 0,
+        "y": 0
+      },
+      "slate_blue": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_slate_blue.png",
+        "x": 0,
+        "y": 0
+      },
+      "clay_teal": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_clay_teal.png",
+        "x": 0,
+        "y": 0
+      },
+      "clay_brown": {
+        "kind": "nine",
+        "sheet": "assets/buildingKit/roof_clay_brown.png",
+        "x": 0,
+        "y": 0
+      },
+      "shingle_brown": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 13,
+        "y": 0
+      },
+      "shingle_rust": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 13,
+        "y": 4
+      },
+      "shingle_orange": {
+        "kind": "nine",
+        "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+        "x": 13,
+        "y": 8
+      },
+      "flat_white": {
+        "kind": "parapet",
+        "sheet": "assets/buildingKit/roof_flat_white.png",
         "x": 0,
         "rowsY": [
           32,
@@ -294,6 +452,122 @@
             960
           ]
         ]
+      },
+      "arched_oak": {
+        "sheet": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png",
+        "tiles": [
+          [
+            0,
+            -1,
+            0,
+            32
+          ],
+          [
+            1,
+            -1,
+            32,
+            32
+          ],
+          [
+            0,
+            0,
+            0,
+            64
+          ],
+          [
+            1,
+            0,
+            32,
+            64
+          ]
+        ]
+      },
+      "arched_dark": {
+        "sheet": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png",
+        "tiles": [
+          [
+            0,
+            -1,
+            0,
+            160
+          ],
+          [
+            1,
+            -1,
+            32,
+            160
+          ],
+          [
+            0,
+            0,
+            0,
+            192
+          ],
+          [
+            1,
+            0,
+            32,
+            192
+          ]
+        ]
+      },
+      "arched_walnut": {
+        "sheet": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png",
+        "tiles": [
+          [
+            0,
+            -1,
+            0,
+            224
+          ],
+          [
+            1,
+            -1,
+            32,
+            224
+          ],
+          [
+            0,
+            0,
+            0,
+            256
+          ],
+          [
+            1,
+            0,
+            32,
+            256
+          ]
+        ]
+      },
+      "arched_olive": {
+        "sheet": "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png",
+        "tiles": [
+          [
+            0,
+            -1,
+            0,
+            352
+          ],
+          [
+            1,
+            -1,
+            32,
+            352
+          ],
+          [
+            0,
+            0,
+            0,
+            384
+          ],
+          [
+            1,
+            0,
+            32,
+            384
+          ]
+        ]
       }
     },
     "windows": {
@@ -380,6 +654,150 @@
         "cells": [
           [
             0,
+            96
+          ]
+        ]
+      },
+      "ornate_dark": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows A.png",
+        "cells": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            32
+          ],
+          [
+            0,
+            64
+          ]
+        ]
+      },
+      "ogee_dark": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            0,
+            32
+          ]
+        ]
+      },
+      "round_dark": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      "lattice_dark": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            0,
+            64
+          ],
+          [
+            0,
+            96
+          ]
+        ]
+      },
+      "ornate": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows A.png",
+        "cells": [
+          [
+            32,
+            0
+          ],
+          [
+            32,
+            32
+          ],
+          [
+            32,
+            64
+          ]
+        ]
+      },
+      "ogee": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            32,
+            32
+          ]
+        ]
+      },
+      "round": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            32,
+            0
+          ]
+        ]
+      },
+      "lattice": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            32,
+            64
+          ],
+          [
+            32,
+            96
+          ]
+        ]
+      },
+      "ornate_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows A.png",
+        "cells": [
+          [
+            64,
+            0
+          ],
+          [
+            64,
+            32
+          ],
+          [
+            64,
+            64
+          ]
+        ]
+      },
+      "ogee_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            64,
+            32
+          ]
+        ]
+      },
+      "round_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            64,
+            0
+          ]
+        ]
+      },
+      "lattice_lit": {
+        "sheet": "assets/lpc/Structure/Windows/Ornamental Windows B.png",
+        "cells": [
+          [
+            64,
+            64
+          ],
+          [
+            64,
             96
           ]
         ]

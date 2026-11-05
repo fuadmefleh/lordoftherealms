@@ -215,6 +215,18 @@ export const Cultures = {
         return (c && _obj(c.build)) || null;
     },
 
+    /**
+     * How a culture builds its towns (data/architecture.json): { culture, plan,
+     * mix, interior, streetSheet }, or null for a culture with none of its own.
+     */
+    architecture(culture) {
+        const g = DataLoader._gamedata;
+        const a = g && _obj(g.architecture);
+        const c = a && _obj(a.cultures) && _obj(a.cultures[culture]);
+        if (!c) return null;
+        return { culture, plan: _obj(c.plan) || {}, mix: _obj(c.mix), interior: _obj(c.interior), streetSheet: a.streetSheet || null };
+    },
+
     /** How well a composed building fits a palette (higher is better) */
     fit(palette, def) {
         if (!palette || !def) return 1;

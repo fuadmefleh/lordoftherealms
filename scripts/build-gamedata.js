@@ -81,6 +81,7 @@ const topLevel = [
     'wildTasks',
     'dawn',
     'cultures',
+    'architecture',
     'shipHulls',
     'commissions',
     'deckLife',

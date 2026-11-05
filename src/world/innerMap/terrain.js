@@ -523,12 +523,16 @@ Object.assign(InnerMap, {
             } else if (typeof SettlementGenerator !== 'undefined') {
             // Use the procedural settlement generator (road network + parcels + lots)
                 // A world made since terrainGen 3 builds each town of its
-                // culture's materials (world/cultures.js); older saves' towns keep their look
+                // culture's materials (world/cultures.js); since terrainGen 4 in its
+                // culture's own architecture and town plan (data/architecture.json).
+                // Older saves' towns keep their look
                 const gp = (game && game.world && game.world.generationParams) || {};
-                const palette = (Number(gp.terrainGen) || 1) >= 3 && Cultures.cultureOf(game.world, worldTile.settlement)
-                    ? Cultures.palette(worldTile.settlement.culture) : null;
+                const gen = Number(gp.terrainGen) || 1;
+                const culture = gen >= 3 ? Cultures.cultureOf(game.world, worldTile.settlement) : null;
+                const palette = culture ? Cultures.palette(worldTile.settlement.culture) : null;
+                const arch = culture && gen >= 4 ? Cultures.architecture(worldTile.settlement.culture) : null;
                 const genResult = SettlementGenerator.generate(
-                    tiles, worldTile.settlement, rng, this.width, this.height, { palette }
+                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch }
                 );
                 // Store layout data for road generation at enter() time
                 tiles._settlementLayout = genResult;

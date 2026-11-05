@@ -103,11 +103,43 @@ function _wave(rng, amp, len) {
     return x => a1 * Math.sin(x / l1 + p1) + a2 * Math.sin(x / l2 + p2);
 }
 
+/**
+ * A size of place's plan as a culture lays it out (data/architecture.json `plan`):
+ * its lane spacing, how close its houses stand, how far its lanes reach, the
+ * size and shape of its square, how many stalls, and how big the place spreads.
+ */
+function _archPlan(base, ap, type) {
+    const P = { ...base };
+    if (Array.isArray(ap.laneGap)) P.laneGap = ap.laneGap;
+    // A village always stands a little looser than a town of the same people
+    const loose = type === 'village' ? 1 : 0;
+    if (Array.isArray(ap.gap)) P.gap = [ap.gap[0] + loose, ap.gap[1] + loose];
+    if (Array.isArray(ap.setback)) P.setback = ap.setback;
+    if (Number.isFinite(ap.laneSpan)) P.laneSpan = Math.min(base.laneSpan, ap.laneSpan + (type === 'village' ? 0 : 0.1));
+    if (Number.isFinite(ap.sizeScale)) P.R = Math.round(base.R * ap.sizeScale);
+    const sq = ap.plaza || {};
+    const [sw, sh] = Array.isArray(sq.scale) ? sq.scale : [1, 1];
+    const kind = sq.kind || 'square';
+    P.plaza = [Math.max(6, Math.round(base.plaza[0] * sw)), Math.max(kind === 'long' ? 5 : 4, Math.round(base.plaza[1] * sh))];
+    if (Number.isFinite(sq.stalls)) P.stalls = Math.max(kind === 'green' ? 0 : 1, Math.round(base.stalls * sq.stalls));
+    return P;
+}
+
+/** Which ring of town a distance from the centre (fraction of R) falls in, for a culture's house mix. */
+function _ring(type, d) {
+    if (type === 'village') return d <= 0.5 ? 'core' : d <= 0.85 ? 'mid' : 'edge';
+    return d <= 0.35 ? 'core' : d <= 0.7 ? 'mid' : 'edge';
+}
+
 export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts = {}) {
     // The culture's materials and house styles (world/cultures.js), when the world builds by culture
     const palette = (planOpts && planOpts.palette) || null;
+    // How the culture builds its towns (data/architecture.json), for worlds made since terrainGen 4:
+    // its own buildings, its house mix, and the shape of its streets, square and dressing
+    const arch = (planOpts && planOpts.arch && planOpts.arch.culture) ? planOpts.arch : null;
+    const AP = (arch && arch.plan) || {};
     const type = PLAN[settlement.type] ? settlement.type : 'village';
-    const P = PLAN[type];
+    const P = arch ? _archPlan(PLAN[type], AP, type) : PLAN[type];
     const cx = Math.floor(W / 2) + Math.round((rng() - 0.5) * 4);
     const cy = Math.floor(H / 2) + Math.round((rng() - 0.5) * 4);
     const R = Math.min(P.R, Math.floor(Math.min(W, H) / 2) - 6);
@@ -120,10 +152,11 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         return d / (R * (1 + edgeWave(Math.atan2(dy, dx) * 3)));
     };
 
-    // Streets in a town are paved; a village keeps its dirt tracks (structure/floors.png cells)
-    const FLOORS = 'assets/lpc/Structure/Floor/floors.png';
-    const PAVE = { main: [29, 58], lane: [24, 58], plaza: [12, 56] };
-    const paved = type !== 'village';
+    // Streets in a town are paved; a village keeps its dirt tracks (structure/floors.png cells).
+    // A culture paves with its own stone, or not at all (streets: null)
+    const FLOORS = (arch && arch.streetSheet) || 'assets/lpc/Structure/Floor/floors.png';
+    const PAVE = (arch && AP.streets) ? { main: AP.streets.main, lane: AP.streets.lane, plaza: AP.streets.plaza } : { main: [29, 58], lane: [24, 58], plaza: [12, 56] };
+    const paved = type !== 'village' && !(arch && !AP.streets);
 
     const roadTiles = [];
     const roadSet = new Set();
@@ -184,19 +217,27 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
 
     // ── 1. High street (east–west) and the cross road (north–south) ──
     const hsOff = meander(W, x => reach(x, cy) <= 1.1);
-    const hsAt = x => cy + hsOff[Math.max(0, Math.min(W - 1, x))];
+    // A culture of winding streets bends its high street through town too (straight by the square)
+    const wind = arch ? Math.max(0, AP.wind || 0) : 0;
+    const hsWave = wind ? _wave(rng, wind * 0.6, 7) : null;
+    const hsBend = x => (hsWave ? Math.round(hsWave(x) * Math.min(1, Math.max(0, Math.abs(x - cx) - P.plaza[0] / 2 - 2) / 8)) : 0);
+    const hsAt = x => cy + hsOff[Math.max(0, Math.min(W - 1, x))] + hsBend(x);
     layAlong(Array.from({ length: W }, (_, x) => [x, hsAt(x)]), P.mainW, 'main', true);
     const crOff = meander(H, y => reach(cx, y) <= 1.1);
     const crAt = y => cx + crOff[Math.max(0, Math.min(H - 1, y))];
     layAlong(Array.from({ length: H }, (_, y) => [y, crAt(y)]), P.crossW, 'main', false);
 
     // ── 2. The market square: north of the high street, about the crossing ──
+    // (a culture's may be a village green ringed by a path, or a long market strip along the high street)
+    const plazaKind = (arch && AP.plaza && AP.plaza.kind) || 'square';
     const [pw, ph] = P.plaza;
     const pq0 = cx - Math.floor(pw / 2);
     const plazaBottom = cy;
     const plazaTop = plazaBottom - ph;
     for (let r = plazaTop; r < plazaBottom; r++) for (let q = pq0; q < pq0 + pw; q++) {
-        addRoad(q, r, 'plaza');
+        const rim = r === plazaTop || q === pq0 || q === pq0 + pw - 1;
+        if (plazaKind !== 'green' || rim) addRoad(q, r, 'plaza');
+        else { tiles[r][q]._townCleared = true; tiles[r][q]._reserved = true; }
         tiles[r][q]._plaza = true;
     }
 
@@ -211,7 +252,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         for (let i = 0; i < P.lanes; i++) {
             let gap = _ri(rng, P.laneGap);
             // North of the square the first gap must clear the square and the landmarks facing it
-            if (dir < 0 && i === 0) gap = Math.max(gap, ph + 10 + P.laneW);
+            if (dir < 0 && i === 0) gap = Math.max(gap, ph + 10 + P.laneW + (wind ? wind + 1 : 0));
             off = dir < 0 ? off - gap : (i === 0 ? P.mainW - 1 + gap : off + gap);
             const y = cy + off;
             const frac = off / (R * 1.02);
@@ -220,8 +261,12 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             if (half < 8) break;
             const x0 = Math.max(2, Math.round(cx - half + (rng() - 0.5) * 6));
             const x1 = Math.min(W - 3, Math.round(cx + half + (rng() - 0.5) * 6));
-            for (let x = x0; x <= x1; x++) for (let k = 0; k < P.laneW; k++) addRoad(x, y + k, 'lane', [x, y]);
-            const lane = { kind: 'lane', x0, x1, top: () => y, bottom: () => y + P.laneW - 1 };
+            // A winding lane bends a step at a time with its own wobble; a straight one runs true
+            const lw = wind ? _wave(rng, wind, 5 + rng() * 4) : null;
+            const ly = lw ? (x => y + Math.round(lw(x))) : (() => y);
+            if (lw) layAlong(Array.from({ length: x1 - x0 + 1 }, (_, i) => [x0 + i, ly(x0 + i)]), P.laneW, 'lane', true);
+            else for (let x = x0; x <= x1; x++) for (let k = 0; k < P.laneW; k++) addRoad(x, y + k, 'lane', [x, y]);
+            const lane = { kind: 'lane', x0, x1, top: lw ? ly : () => y, bottom: lw ? (x => ly(x) + P.laneW - 1) : () => y + P.laneW - 1 };
             lines.push(lane);
             laneRows.push({ y0: off, top: lane.top, bottom: lane.bottom, x0, x1 });
         }
@@ -232,7 +277,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         const a = laneRows[i], b = laneRows[i + 1];
         const lo = Math.max(a.x0, b.x0) + 3, hi = Math.min(a.x1, b.x1) - 3;
         if (hi <= lo) continue;
-        for (let x = lo + _ri(rng, [2, 10]); x < hi; x += _ri(rng, [14, 24])) {
+        const step = (arch && AP.alleyStep) || [14, 24];
+        for (let x = lo + _ri(rng, [2, 10]); x < hi; x += _ri(rng, step)) {
             if (Math.abs(x - cx) < 6) continue;
             if (x >= pq0 - 2 && x <= pq0 + pw + 1 && (a.y0 === 0 || b.y0 === 0)) continue;
             for (let y = a.bottom(x) + 1; y < b.top(x); y++) for (let k = 0; k < P.alleyW; k++) addRoad(x + k, y, 'lane');
@@ -301,8 +347,17 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         return rec;
     };
 
-    const defsOfType = t => _shuffle(CustomBuildings.getByType(t).filter(d => d.meta && d.bounds), rng);
-    const houses = CustomBuildings.getByType('house').filter(d => d.meta && d.bounds && !d._procedural);
+    // A culture's own buildings of a type (data/architecture.json); else the common ones, its materials first
+    const ownOfType = t => (arch ? CustomBuildings.getByCulture(arch.culture, t).filter(d => d.meta && d.bounds) : []);
+    const byPaletteFit = arr => arr.map((d, i) => [d, i]).sort((a, b) => Cultures.fit(palette, b[0]) - Cultures.fit(palette, a[0]) || a[1] - b[1]).map(x => x[0]);
+    const defsOfType = t => {
+        const own = ownOfType(t);
+        if (own.length) return _shuffle([...own], rng);
+        const common = _shuffle(CustomBuildings.getByType(t).filter(d => d.meta && d.bounds), rng);
+        return arch && palette ? byPaletteFit(common) : common;
+    };
+    const ownHouses = ownOfType('house');
+    const houses = ownHouses.length ? ownHouses : CustomBuildings.getByType('house').filter(d => d.meta && d.bounds && !d._procedural);
     const byStyle = {};
     for (const d of houses) (byStyle[d.style || 'row'] = byStyle[d.style || 'row'] || []).push(d);
 
@@ -406,6 +461,11 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     // 4b. Houses fill the frontages
     const styleFor = (x, y) => {
         const d = reach(x, y);
+        // A culture's own mix of its own house styles, by ring of town
+        if (arch && arch.mix && ownHouses.length) {
+            const mix = arch.mix[_ring(type, d)] || arch.mix.mid || {};
+            if (Object.keys(mix).length) return _pickWeighted(rng, mix);
+        }
         for (const [lim, mix] of STYLE_MIX[type]) {
             if (d > lim) continue;
             if (!palette || !palette.styles) return _pickWeighted(rng, mix);
@@ -418,9 +478,9 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     // The style wanted first, then anything low enough to fit under the lane behind
     const lowHouses = houses.filter(d => d.bounds.maxRow - d.bounds.minRow <= 7 && d.style !== 'farmstead');
     const houseFor = (style) => {
-        const list = byStyle[style] && byStyle[style].length ? byStyle[style] : (byStyle.row || houses);
+        const list = byStyle[style] && byStyle[style].length ? byStyle[style] : (byStyle.row || (ownHouses.length ? ownHouses.filter(d => d.style !== 'farmstead') : houses));
         // (the culture's own materials first: a stable sort keeps the shuffle's order among equals)
-        const byFit = (arr) => (palette ? arr.map((d, i) => [d, i]).sort((a, b) => Cultures.fit(palette, b[0]) - Cultures.fit(palette, a[0]) || a[1] - b[1]).map(x => x[0]) : arr);
+        const byFit = (arr) => (palette && !ownHouses.length ? byPaletteFit(arr) : arr);
         return [...byFit(_shuffle([...list], rng)).slice(0, 8), ...byFit(_shuffle([...lowHouses], rng)).slice(0, 6)];
     };
     for (const line of [plazaLine, ..._shuffle([...frontLines], rng)]) {
@@ -491,18 +551,34 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         }
     }
 
-    // The square: a fountain well in the middle, stalls round it, lamps at the corners
-    const pcx = pq0 + Math.floor(pw / 2) - 1;
-    const pcy = plazaTop + Math.floor(ph / 2) + 1;
-    const opts = { onRoad: true };
-    putProp('tp_fountain', pcx, pcy, opts);
+    // The square: a fountain well in the middle (a culture's own centre piece), stalls round it, lamps at the corners
+    const SQ = (arch && AP.plaza) || {};
+    const centreDef = propDef(SQ.centre || 'tp_fountain');
+    const cw = centreDef ? centreDef.bounds.maxCol - centreDef.bounds.minCol + 1 : 2;
+    const pcx = arch ? pq0 + Math.floor((pw - cw) / 2) : pq0 + Math.floor(pw / 2) - 1;
+    const pcy = arch && plazaKind === 'long' ? plazaBottom - 2 : plazaTop + Math.floor(ph / 2) + 1;
+    // (the green's turf is held back from the houses: what stands on it may go there)
+    const opts = arch ? { onRoad: true, ignoreReserved: true } : { onRoad: true };
+    putProp(arch ? (SQ.centre || 'tp_fountain') : 'tp_fountain', pcx, pcy, opts);
+    // Its corner pieces (columns, rune-stones, planters, a tent), a tile in from each corner
+    if (arch && Array.isArray(SQ.corners) && SQ.corners.length) {
+        const corners = [[pq0, plazaTop + 2], [pq0 + pw - 1, plazaTop + 2], [pq0, plazaBottom - 1], [pq0 + pw - 1, plazaBottom - 1]];
+        corners.forEach(([q, r], i) => {
+            const id = SQ.corners[i % SQ.corners.length];
+            const d = propDef(id);
+            const w = d ? d.bounds.maxCol - d.bounds.minCol + 1 : 1;
+            putProp(id, i % 2 ? q - w + 1 : q, r, opts);
+        });
+    }
     // Stalls in rows across the square, leaving the fountain and the doors on its north side clear
     const stallSpots = [];
     const stallRows = ph >= 9 ? [plazaBottom - 1, plazaTop + 6] : [plazaBottom - 1];
+    // (clear of the corner pieces a culture stands in its square)
+    const cornerW = arch && Array.isArray(SQ.corners) ? Math.max(0, ...SQ.corners.map(id => { const d = propDef(id); return d ? d.bounds.maxCol - d.bounds.minCol : 0; })) : 0;
     for (const row of stallRows) {
-        for (let q = pq0 + 1; q + 2 <= pq0 + pw - 2; q += 4) {
+        for (let q = pq0 + 1 + cornerW; q + 2 <= pq0 + pw - 2 - cornerW; q += 4) {
             // A stall is 3 wide; keep a tile clear either side of the 2-wide fountain
-            if (q <= pcx + 2 && q + 2 >= pcx - 1 && Math.abs(row - pcy) < 5) continue;
+            if (q <= pcx + cw && q + 2 >= pcx - 1 && Math.abs(row - pcy) < 5) continue;
             stallSpots.push([q, row]);
         }
     }
@@ -510,20 +586,69 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     let stalls = 0;
     for (const [q, row] of stallSpots) {
         if (stalls >= P.stalls) break;
-        if (putProp('tp_stall', q, row, opts)) {
+        if (putProp('tp_stall', q, row, plazaKind === 'green' ? { ignoreReserved: true } : opts)) {
             stalls++;
             if (rng() < 0.7) putProp(pickTag('stall'), q + 3, row, opts);
         }
     }
-    if (P.lamps) {
+    // A culture lights its town its own way: not at all, the square, the high street, or every lane
+    const lamps = arch ? (AP.lamps || 'none') : (P.lamps ? 'street' : 'none');
+    const lampsOut = lamps === 'all' && type === 'village' ? 'street' : lamps;
+    if (lampsOut !== 'none') {
         putProp('tp_lamp_a', pq0, plazaTop + 2, opts);
         putProp('tp_lamp_a', pq0 + pw - 1, plazaTop + 2, opts);
         putProp('tp_lamp_b', pq0, plazaBottom - 1, opts);
         putProp('tp_lamp_b', pq0 + pw - 1, plazaBottom - 1, opts);
-        // Lamp posts along the high street's south verge
-        for (let x = 3; x < W - 3; x += 9) {
-            if (reach(x, hsAt(x)) > 0.9) continue;
-            putProp('tp_lamp_a', x, hsAt(x) + P.mainW);
+        // Lamp posts along the high street's south verge (and every lane's, in a town lit throughout)
+        if (lampsOut !== 'square') {
+            for (let x = 3; x < W - 3; x += 9) {
+                if (reach(x, hsAt(x)) > 0.9) continue;
+                putProp('tp_lamp_a', x, hsAt(x) + P.mainW);
+            }
+        }
+        if (lampsOut === 'all') {
+            for (const line of frontLines) {
+                if (line.kind !== 'lane') continue;
+                for (let x = line.x0 + 2; x < line.x1 - 1; x += 8) {
+                    if (reach(x, line.top(x)) <= 0.95) putProp('tp_lamp_b', x, line.bottom(x) + 1);
+                }
+            }
+        }
+    }
+
+    // A culture's things along its streets (planters, columns, woodpiles, barrels) on the south verges
+    for (const sp of (arch && AP.streetProps) || []) {
+        const ids = (sp.ids || []).filter(id => propDef(id));
+        if (!ids.length) continue;
+        for (const line of frontLines) {
+            if ((sp.on === 'high' && line.kind !== 'high') || (sp.on === 'lanes' && line.kind !== 'lane')) continue;
+            for (let x = line.x0 + 2 + _ri(rng, [0, 4]); x < line.x1 - 1; x += _ri(rng, sp.step || [8, 12])) {
+                const y = line.bottom(x) + 1;
+                if (!tiles[y] || reach(x, y) > 0.95 || tiles[y][x]._plaza) continue;
+                putProp(ids[Math.floor(rng() * ids.length)], x, y);
+            }
+        }
+    }
+
+    // A culture's things standing about town: oaks and pines left among the houses, a herder's tents
+    for (const sc of (arch && AP.scatter) || []) {
+        const ids = (sc.ids || []).filter(id => propDef(id));
+        if (!ids.length) continue;
+        const want = _ri(rng, sc.count || [3, 6]) + (type === 'city' || type === 'capital' ? 2 : 0);
+        let put = 0;
+        for (let tries = 0; tries < want * 40 && put < want; tries++) {
+            const q = 2 + Math.floor(rng() * (W - 4)), r = 2 + Math.floor(rng() * (H - 4));
+            if (reach(q, r) > 0.95) continue;
+            const d = propDef(ids[Math.floor(rng() * ids.length)]);
+            // A tile of room all round, so nothing stands hard against a wall or out in a street
+            let room = true;
+            for (let rr = r + d.bounds.minRow - 1; rr <= r + 1 && room; rr++) {
+                for (let qq = q + d.bounds.minCol - 1; qq <= q + d.bounds.maxCol + 1; qq++) {
+                    const t = tiles[rr] && tiles[rr][qq];
+                    if (!t || t.isRoad || t.customBuilding || t.customBuildingPart || t._lot) { room = false; break; }
+                }
+            }
+            if (room && TownProps.place(tiles, d, q, r)) put++;
         }
     }
 

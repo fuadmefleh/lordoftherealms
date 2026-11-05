@@ -25,6 +25,7 @@ import { CustomSheets } from '../core/customSheets.js';
 
 const _defs     = new Map();   // id → normalised def
 const _byType   = new Map();   // buildingType → [def, ...]
+const _byCulture = new Map();  // 'Culture|buildingType' → [def, ...] (a culture's own buildings)
 const _imgCache = new Map();   // sheetPath → HTMLImageElement | null (pending)
 let   _loaded   = false;
 
@@ -84,6 +85,14 @@ function registerBuilding(b) {
     _defs.set(b.id, def);
 
     const t = b.buildingType || 'other';
+    // A culture's own building (data/architecture.json) stands only in that culture's towns,
+    // so it is kept out of the pools every other town (and every older save) draws from
+    if (b.culture) {
+        const k = `${b.culture}|${t}`;
+        if (!_byCulture.has(k)) _byCulture.set(k, []);
+        _byCulture.get(k).push(def);
+        return;
+    }
     if (!_byType.has(t)) _byType.set(t, []);
     _byType.get(t).push(def);
 }
@@ -107,12 +116,15 @@ export const CustomBuildings = {
     reset() {
         _defs.clear();
         _byType.clear();
+        _byCulture.clear();
         _imgCache.clear();
         _loaded = false;
     },
 
     getBuilding(id) { return _defs.get(id) || null; },
     getByType(type) { return _byType.get(type) || []; },
+    /** A culture's own buildings of a type (data/architecture.json), [] when it has none */
+    getByCulture(culture, type) { return _byCulture.get(`${culture}|${type}`) || []; },
     getImg(path)    { return _imgCache.get(path) || null; },
 
     /**

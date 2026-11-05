@@ -63,3 +63,29 @@ describe('the granary on the first day', () => {
         expect(colony.economy.food).toBe(0);
     });
 });
+
+describe('selling grain to the granary', () => {
+    it('the keeper buys your grain into the store, for less than they sell it', () => {
+        const { game, settlement } = setup(150);
+        game.player.inventory.grain = 12;
+        const tile = InnerMap._currentWorldTileRef;
+        const pay = InnerMapGranary.price(game, settlement, tile, true);
+        expect(pay).toBeLessThan(InnerMapGranary.price(game, settlement, tile));
+        const sells = InnerMapGranary.menuItems(game, granary).filter(i => i.action === 'granary_sell');
+        expect(sells.map(i => i.qty)).toEqual([1, 5, 12]);
+        InnerMapGranary.handle(game, sells[2]);
+        expect(game.player.inventory.grain).toBeUndefined();
+        expect(game.player.gold).toBe(500 + 12 * pay);
+        expect(settlement.economy.food).toBe(162);
+    });
+
+    it('a full granary buys no more than it has room for', () => {
+        // 300 folk, ten days' needs: room for 300
+        const { game, settlement } = setup(295);
+        game.player.inventory.grain = 20;
+        InnerMapGranary.handle(game, { action: 'granary_sell', qty: 20 });
+        expect(game.player.inventory.grain).toBe(15);
+        expect(settlement.economy.food).toBe(300);
+        expect(InnerMapGranary.menuItems(game, granary).some(i => i.action === 'granary_sell')).toBe(false);
+    });
+});

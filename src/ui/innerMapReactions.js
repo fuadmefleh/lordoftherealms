@@ -40,7 +40,7 @@ function _dist(aq, ar, bq, br) {
 }
 
 export const InnerMapReactions = {
-    // npc.id → { mode: 'fight'|'arrest', until, repath, incidentId, speed, confronted }
+    // npc.id → { mode: 'fight'|'arrest', left (game seconds of chase left), repath, incidentId, speed, confronted }
     _responders: new Map(),
     // npcs given a burst of speed to flee: npc.id → original speed
     _fleeing: new Map(),
@@ -274,7 +274,8 @@ export const InnerMapReactions = {
         const prev = this._responders.get(npc.id);
         if (prev && prev.mode === 'arrest' && mode === 'fight') return;
         this._responders.set(npc.id, {
-            mode, until: _now() + (R.chaseSeconds || 30) * 1000, repath: 0,
+            // (the chase runs on game time: a slow frame or a paused game doesn't cut it short)
+            mode, left: R.chaseSeconds || 30, repath: 0,
             incidentId: incident ? incident.id : (prev && prev.incidentId), speed: prev ? prev.speed : npc.speed,
             confronted: false,
         });
@@ -301,7 +302,7 @@ export const InnerMapReactions = {
         const r = this._responders.get(npcId);
         if (r) {
             r.mode = 'fight';
-            r.until = _now() + 60000;
+            r.left = 60;
         }
         InnerMapCombat._npcReactions.set(npcId, { mode: 'fight', attackTimer: InnerMapCombat.NPC_ATTACK_INTERVAL });
     },
@@ -622,7 +623,6 @@ export const InnerMapReactions = {
     },
 
     _driveResponders(deltaTime, game) {
-        const now = _now();
         const pq = InnerMap.playerInnerQ;
         const pr = InnerMap.playerInnerR;
         for (const [id, r] of [...this._responders]) {
@@ -630,7 +630,8 @@ export const InnerMapReactions = {
             // (One on their way in through the door after the player is still after them)
             if (!npc && this._followers.has(id)) continue;
             if (!npc || npc.state === 'gone') { this._responders.delete(id); continue; }
-            if (now > r.until) { this.release(id); continue; }
+            r.left -= deltaTime;
+            if (r.left <= 0) { this.release(id); continue; }
             if (npc._dialogFrozen) continue;
             if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
             const d = _dist(npc.q, npc.r, pq, pr);

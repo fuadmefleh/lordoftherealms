@@ -94,4 +94,19 @@ describe('vandalism', () => {
         expect(InnerMapReactions.onVandalism(g, 3, 3, 'chest')).toBeNull();
         InnerMap._insideBuilding = null;
     });
+
+    it('the guard’s chase runs on game time, not the clock', () => {
+        const g = makeGame();
+        const guard = npc('Brom', 'guard', 15, 15);
+        street([guard]);
+        InnerMapReactions.onVandalism(g, 5, 5, 'tp_well');
+        const r = InnerMapReactions._responders.get(guard.id);
+        expect(r.left).toBeGreaterThan(0);
+        // However long the wall clock runs, a paused (or crawling) game keeps him after you
+        InnerMapReactions._driveResponders(0, g);
+        expect(InnerMapReactions._responders.has(guard.id)).toBe(true);
+        // Game time past the chase: he gives it up
+        InnerMapReactions._driveResponders(r.left + 1, g);
+        expect(InnerMapReactions._responders.has(guard.id)).toBe(false);
+    });
 });

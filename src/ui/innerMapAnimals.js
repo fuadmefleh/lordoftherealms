@@ -472,13 +472,45 @@ export const InnerMapAnimals = {
         const name = String(sp.name || a.species).toLowerCase();
         const words = InnerMap.animalConfig().words || {};
         const got = trip.kept.map(f => `${f.entry.icon || ''} ${f.entry.name} x${f.qty}`.trim());
-        let body = got.length ? `You butcher the ${name}: ${got.join(', ')}.` : `There is nothing worth taking from the ${name}.`;
+        // What the packs can't take is laid on the ground by the carcass, to come back for
+        const left = this._leaveOnGround(a, trip.lost);
+        const leftText = left.map(f => `${f.entry.icon || ''} ${f.entry.name} x${f.qty}`.trim()).join(', ');
+        let body = got.length ? `You butcher the ${name}: ${got.join(', ')}.`
+            : trip.lost.length ? `You butcher the ${name}, but your packs are full.`
+                : `There is nothing worth taking from the ${name}.`;
         if (share < 1) body += ` ${share <= 0.5 ? (words.rotten || 'It is far gone.') : (words.stale || 'It has begun to turn.')}`;
-        if (trip.lost.length) body += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')}.`;
+        if (left.length) body += ` ${got.length ? 'No room for the rest: ' : ''}${leftText} left on the ground beside it.`;
+        const gone = trip.lost.filter(f => !left.includes(f));
+        if (gone.length) body += ` No room for ${gone.map(f => `${f.entry.name} x${f.qty}`).join(', ')}.`;
         if (trip.rankUp) body += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
-        _notify(game, `${(InnerMap.animalConfig().butcher || {}).icon || '🔪'} Butchered`, body, got.length ? 'success' : 'info');
+        _notify(game, `${(InnerMap.animalConfig().butcher || {}).icon || '🔪'} Butchered`, body, got.length ? 'success' : left.length ? 'warning' : 'info');
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         return trip;
+    },
+
+    /**
+     * Lay butchered goods the packs couldn't take on the ground round the
+     * carcass (a stack a tile: the carcass's own, then those about it), to
+     * pick up later. Returns the finds laid down.
+     */
+    _leaveOnGround(a, lost) {
+        const out = [];
+        if (!a || !Array.isArray(lost) || !lost.length) return out;
+        const spots = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
+        let i = 0;
+        for (const f of lost) {
+            if (!f || !f.entry || !f.entry.item) continue;
+            for (; i < spots.length; i++) {
+                const q = a.q + spots[i][0], r = a.r + spots[i][1];
+                const t = InnerMap.getTile(q, r);
+                if (!t || t.groundItem || !t.subTerrain || !t.subTerrain.passable || t._wet || t._sea) continue;
+                t.groundItem = { itemId: f.entry.item, name: f.entry.name, icon: f.entry.icon || '📦', quantity: f.qty, placedBy: 'butcher' };
+                out.push(f);
+                i++;
+                break;
+            }
+        }
+        return out;
     },
 
     // ── Carrying a carcass (as a body is carried: ui/innerMapDigging.js) ──

@@ -9,7 +9,7 @@ import { ActionMenu } from './_ref.js';
 import { Guilds } from '../../systems/guilds.js';
 import { Underworld } from '../../systems/underworld.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -102,7 +102,7 @@ function myGuilds(game) {
     let html = '';
     const list = Guilds.memberships(player, world);
     if (list.length) {
-        html += '<h5 style="margin:10px 0 4px;">Your guilds</h5>';
+        html += sectionHead('Your guilds');
         for (const x of list) html += `<div style="font-size:12px;">${esc((x.def && x.def.icon) || '')} ${esc(Guilds.rankName(x.m.rank))} of the ${esc(x.guild ? x.guild.name : x.m.guild)} (${esc(x.m.town)}) · standing ${Math.floor(x.m.standing)}</div>`;
     }
     for (const c of st.contracts) {
@@ -110,7 +110,10 @@ function myGuilds(game) {
     }
     for (const l of st.loans) html += `<div style="font-size:12px;">💰 Owe the guild at ${esc(l.town)} ${g(l.owed)} (${g(l.weekly)} a week) ${act('Repay', ['repay', l.id], BTN_PLAIN, player.gold >= l.owed)}</div>`;
     const s = st.stats;
-    html += `<div style="${NOTE} margin-top:6px;">Fees ${g(s.fees)} · dues ${g(s.dues)} · tolls paid ${g(s.tolls)} · guild mark earned ${g(s.premium)} · contracts ${s.contractsDone} (${g(s.contractIncome)}) · stipends ${g(s.stipends)}</div>`;
+    html += chips([
+        ['', 'Fees', g(s.fees)], ['', 'Dues', g(s.dues)], ['', 'Tolls paid', g(s.tolls)], ['', 'Guild mark earned', g(s.premium)],
+        ['', 'Contracts', `${s.contractsDone} (${g(s.contractIncome)})`], ['', 'Stipends', g(s.stipends)],
+    ]);
     if (st.log.length) for (const l of st.log.slice(-5).reverse()) html += `<div style="${NOTE}">Day ${l.day}: ${esc(l.text)}</div>`;
     return html;
 }
@@ -123,8 +126,13 @@ Object.assign(ActionMenu, {
         const t = tile || world.getTile(player.q, player.r);
         const s = t && t.settlement;
         let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold).toLocaleString()} gold${s ? ` · at ${esc(s.name)}` : ''}</p>`;
-        html += `<div style="${NOTE}">The town's guilds work its trades. Outsiders pay their toll on the goods they guard and may sell only so much a week; their masters' goods carry the guild's mark; journeymen buy the guild's materials at guild rates. A monopoly — the crown's above all — sets a guild's rights aside.</div>`;
+        html += chips([purse(player.gold), s ? ['📍', esc(s.name)] : null]);
+        html += lede('The town’s guilds work its trades.');
+        html += bullets([
+            'Outsiders pay their toll on the goods the guilds guard, and may sell only so much a week.',
+            'Masters’ goods carry the guild’s mark; journeymen buy the guild’s materials at guild rates.',
+            'A monopoly — the crown’s above all — sets a guild’s rights aside.',
+        ]);
         const gs = s && Guilds.townGuilds(s);
         if (!gs) html += `<div style="color:#aaa; margin-top:8px;">${s ? `${esc(s.name)} has no guilds${s.guildBans ? ' (abolished by the crown)' : ''}.` : 'Stand in a town to visit its guildhall.'}</div>`;
         else for (const gd of Object.values(gs)) html += guildCard(game, t, gd);

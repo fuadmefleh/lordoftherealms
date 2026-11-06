@@ -8,9 +8,10 @@ import { Religion } from './_imports.js';
 import { Devotion } from '../../systems/devotion.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF, CARD, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF, CARD, esc, chips } from './uiKit.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--text-secondary);';
+// The panel kit's section heading (styles.css .pk-head), inline so the temple card can share it
+const HEAD = 'font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 6px; color: var(--gold);';
 const NOTE = 'font-size: 11px; color: var(--text-secondary); margin: 2px 0;';
 
 function _btn(ok, label, call, style = BTN_GOLD, why = '') {
@@ -182,17 +183,21 @@ export const DevotionPanel = {
         const stand = Object.entries(st.standing).filter(([, v]) => Math.abs(v) >= 1);
         if (stand.length) {
             h += `<div style="${HEAD}">Clergy standing</div>`;
-            for (const [fid, v] of stand) {
+            h += chips(stand.map(([fid, v]) => {
                 const f = Religion.FAITHS[fid];
-                if (f) h += `<div style="${NOTE}">${f.icon} ${esc(f.name)}: ${Math.round(v)}</div>`;
-            }
+                return f ? [f.icon, esc(f.name), Math.round(v)] : null;
+            }));
         }
         // The soul
         const pact = SoulPact.state(player);
         if (SoulPact.isSold(player)) {
             h += `<div style="${HEAD}">Your soul</div><div style="${NOTE} color: #e07070;">${esc(pact.buyer)} holds it${pact.state === 'cursed' ? ' — and you are cursed' : ''}. A temple can buy it back; so can a pilgrimage kept at a shrine of your own faith.</div>`;
         }
-        h += `<div style="${HEAD}">Record</div><div style="${NOTE}">${st.stats.prayers} prayers · ${st.stats.meditations} meditations · ${st.stats.almsGiven} gold in alms · vows kept ${st.stats.vowsKept}, broken ${st.stats.vowsBroken} · ${st.stats.pilgrimages} pilgrimages</div>`;
+        const rec = (icon, label, n) => [icon, label, n, n ? '' : 'dim'];
+        h += `<div style="${HEAD}">Record</div>` + chips([
+            rec('🙏', 'Prayers', st.stats.prayers), rec('🕯️', 'Meditations', st.stats.meditations), ['💰', 'Alms', `${st.stats.almsGiven}g`, st.stats.almsGiven ? '' : 'dim'],
+            rec('📜', 'Vows kept', st.stats.vowsKept), rec('💔', 'Broken', st.stats.vowsBroken), rec('⛪', 'Pilgrimages', st.stats.pilgrimages),
+        ]);
         h += '</div>';
         game.ui.showCustomPanel('📿 Devotions', h);
         DevotionPanel._bind(game, tile);

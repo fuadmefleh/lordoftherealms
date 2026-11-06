@@ -7,7 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { Ships } from '../../systems/ships.js';
 import { Landings } from '../../systems/landings.js';
 import { CoastalRaids } from '../../player/coastalRaids.js';
-import { BTN_GOLD, BTN_OFF, BTN_RED, BTN_PLAIN, CARD, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_OFF, BTN_RED, BTN_PLAIN, CARD, esc, bullets } from './uiKit.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; color: var(--gold);';
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -47,7 +47,11 @@ function _raidSection(game) {
         if (!q.ok) html += `<div style="font-size:10px; color:#888;">${esc(q.reason)}</div>`;
         html += '</div>';
     }
-    html += `<div style="${NOTE}">Plunder carries gold and the best of the market to your hold (a boat-load per ship). Burning leaves little gold but starves the town. Either way: karma, reputation, the lord remembers, and the realm's coast stays on alarm for ${C.alarmDays} days.</div>`;
+    html += bullets([
+        'Plunder carries gold and the best of the market to your hold (a boat-load per ship).',
+        'Burning leaves little gold but starves the town.',
+        `Either way: karma, reputation, the lord remembers, and the realm’s coast stays on alarm for ${C.alarmDays} days.`,
+    ]);
     return html;
 }
 
@@ -85,7 +89,11 @@ function _landfallSection(game) {
     const L = Landings.config().landfall;
     const q = Landings.landfallQuote(player, world);
     let html = `<div style="${HEAD}">🏕️ Found a Colony Here</div>`;
-    html += `<div style="${NOTE}">The landing party brings its own stores: ${q.cost}g instead of the usual price, ${L.supplies} founding stores (food, timber, stone, tools) off the hold, and ${L.settlers} settlers from the ship. It has no quay: build a jetty there so ships can berth — until then supplies come ashore a boat-load a day.</div>`;
+    html += `<div style="${NOTE}">The landing party brings its own stores:</div>` + bullets([
+        `${q.cost}g instead of the usual price.`,
+        `${L.supplies} founding stores (food, timber, stone, tools) off the hold, and ${L.settlers} settlers from the ship.`,
+        'It has no quay: build a jetty there so ships can berth — until then supplies come ashore a boat-load a day.',
+    ]);
     const ok = q.ok && (player.actionPoints || 0) >= L.ap;
     html += _btn(ok, `🏕️ Found a landfall colony (${L.ap} AP, ${q.cost}g)`, 'window._landing.landfall()', BTN_GOLD, q.ok ? `Needs ${L.ap} AP` : q.reason);
     if (!q.ok) html += `<div style="font-size:10px; color:#888;">${esc(q.reason)}</div>`;

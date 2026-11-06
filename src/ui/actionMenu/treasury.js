@@ -124,7 +124,7 @@ function budgetTab(game) {
 function realmsTab(game) {
     const { player, world } = game;
     const rows = Fiscal.realmTable(world);
-    let html = `<div style="${NOTE}">Every realm's posted taxes, and its chests as far as you can know them: the figures for a realm whose books are open to you (🔓), the talk of the street for the rest.</div>`;
+    let html = lede('Every realm’s posted taxes, and its chests as far as you can know them: the figures for a realm whose books are open to you (🔓), the talk of the street for the rest.');
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Treasury</th><th style="${TH}">Year</th><th style="${TH}">Week: in · out</th><th style="${TH}">Taxes</th><th style="${TH}">Troubles</th></tr>`;
     for (const r of rows) {
         const why = RealmIntel.whyLabel(player, world, r.id, 'books');

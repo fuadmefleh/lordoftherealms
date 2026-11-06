@@ -9,7 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { Coalitions } from '../../systems/coalitions.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
-import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc, bullets } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--gold);';
@@ -64,7 +64,10 @@ Object.assign(ActionMenu, {
             html += `<div style="color:#ccc;">Against ${esc(c.target)} · led by ${esc(c.leaderName)} · ${c.stage === 'forming' ? `<span style="color:#f5c542;">terms open until day ${c.dueDay}</span>` : '<span style="color:#e06060;">at war</span>'} · sworn day ${c.formed}${c.generation && player.house && c.generation < (player.house.generation || 1) ? ' · against your forebear' : ''}</div>`;
             html += `<div style="font-style:italic;color:#bbb;margin:3px 0;">"${esc(c.casusBelli)}"</div>`;
             html += `<div style="font-size:11px;">Resolve ${Math.round(Math.max(0, c.resolve))}</div>${_bar(c.resolve, 100, '#e06060')}`;
-            html += `<div style="font-size:11px;color:var(--text-secondary);">Its members levy ${Math.round(Coalitions.config().embargoLevy * 100)}% on what you sell in their towns, cancel your licences, and their lords will not receive you. Breaking their hosts, outlasting them, and splitting them wears its resolve down; your growth hardens it.</div>`;
+            html += bullets([
+                `Its members levy ${Math.round(Coalitions.config().embargoLevy * 100)}% on what you sell in their towns, cancel your licences, and their lords will not receive you.`,
+                'Breaking their hosts, outlasting them, and splitting them wears its resolve down; your growth hardens it.',
+            ]);
             const q = v.quote;
             html += '<div style="margin-top:6px;">';
             html += _btn(`💰 Pay the league (${q.gold}g)`, 'concede', ['gold'], BTN_GOLD, gold >= q.gold, 'Every member stands down; the courts see you bend.');

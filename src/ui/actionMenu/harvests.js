@@ -8,7 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { Harvests } from '../../world/harvests.js';
 import { Seasons } from '../../world/seasons.js';
 import { Engrossing } from '../../systems/engrossing.js';
-import { BTN_GOLD, BTN_DIM, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, CARD, chips, lede, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const CROP_LABEL = { grain: '🌾 Grain', veg: '🥕 Vegetables & legumes', fibre: '🌿 Flax', vine: '🍇 Vines & orchards', fallow: '🐑 Fallow & hay' };
@@ -28,15 +28,16 @@ function hereHtml(game, tile) {
     const { world, player } = game;
     const id = Harvests.regionOf(world, tile ? tile.q : player.q, tile ? tile.r : player.r);
     const f = Harvests.forecast(world, id);
-    const name = Harvests.regionName(world, id);
+    const rawName = String(Harvests.regionName(world, id) || '');
+    const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
     if (!f) return `<div style="${CARD}"><b>${esc(name)}</b><div style="${NOTE}">No harvest is reckoned here yet: the fields are sown at the turn of the year.</div></div>`;
     const doy = Seasons.dayOfYear(world.day);
     let html = `<div style="${CARD}"><div><b>${esc(name)}</b> · ${f.settled ? `the harvest of year ${f.year + 1} is in` : `the crop of year ${f.year + 1} in the fields (day ${doy} of the year)`}: <b style="color:${tone(f.est)};">${pct(f.est)}</b> of a normal year${f.settled ? '' : ` · ${pct(f.conf)} of the season seen`}</div>`;
     const parts = [`weather ${pct(f.weather)}`];
     if (f.war > 0.005) parts.push(`war −${pct(f.war)}`);
     for (const b of f.blights || []) parts.push(`<span style="color:#e74c3c;">${esc(Harvests.blightName(b))}</span>`);
-    html += `<div style="${NOTE}">${parts.join(' · ')}</div>`;
-    if (f.yields) html += `<div style="${NOTE}">Grain ${pct(f.yields.grain)} · vegetables ${pct(f.yields.veg)} · flax ${pct(f.yields.fibre)} · vines ${pct(f.yields.vine)} · herds ${pct(f.yields.stock)}</div>`;
+    html += `<div style="${NOTE} margin:4px 0;">${parts.join(' · ')}</div>`;
+    if (f.yields) html += chips([['🌾', 'Grain', pct(f.yields.grain)], ['🥕', 'Vegetables', pct(f.yields.veg)], ['🧶', 'Flax', pct(f.yields.fibre)], ['🍇', 'Vines', pct(f.yields.vine)], ['🐑', 'Herds', pct(f.yields.stock)]]);
     return html + '</div>';
 }
 
@@ -48,13 +49,14 @@ function townHtml(game, tile) {
     const reaped = Harvests.townHarvestYear(s);
     const f = Harvests.forecast(game.world, Harvests.regionOfTown(game.world, s));
     let html = `<div style="${CARD}"><div><b>The fields of ${esc(s.name)}</b> · soil ${pct(farm.soil || 1)}</div>`;
-    html += `<div style="${NOTE}">Sown this year: ${Harvests.CROPS.map(c => `${CROP_LABEL[c]} ${pct(farm.mix[c] || 0)}`).join(' · ')}</div>`;
+    html += `<div style="${NOTE} margin-top:4px;">Sown this year</div>` + chips(Harvests.CROPS.map(c => ['', CROP_LABEL[c], pct(farm.mix[c] || 0), farm.mix[c] ? '' : 'dim']));
     // The yields are the town's last reckoned harvest — the grain now in its
     // markets — not the crop in the fields; say which year each figure is.
     if (reaped == null) {
         html += `<div style="${NOTE}">No harvest reaped here yet: the markets sell at a normal year's grain.</div>`;
     } else {
-        html += `<div style="${NOTE}"><b>Last harvest (year ${reaped + 1}), now in the markets:</b> ${Harvests.CROPS.filter(c => c !== 'fallow').map(c => `${CROP_LABEL[c]} ${pct(y[c])}`).join(' · ')} · grain to market ×${Harvests.grainFactor(s).toFixed(2)}</div>`;
+        html += `<div style="${NOTE}"><b>Last harvest (year ${reaped + 1}), now in the markets</b></div>`
+            + chips([...Harvests.CROPS.filter(c => c !== 'fallow').map(c => ['', CROP_LABEL[c], pct(y[c])]), ['🌾', 'Grain to market', `×${Harvests.grainFactor(s).toFixed(2)}`, 'gold']]);
     }
     if (f && !f.settled) {
         html += `<div style="${NOTE}"><b>This year's crop (year ${f.year + 1}), still in the fields:</b> the region's forecast <b style="color:${tone(f.est)};">${pct(f.est)}</b>${f.yields ? ` · grain ${pct(f.yields.grain)}` : ''} · it reaches the markets at the reckoning.</div>`;
@@ -68,7 +70,7 @@ function townHtml(game, tile) {
 
 function reportsHtml(game) {
     const known = Harvests.known(game.player, game.world);
-    if (!known.length) return `<div style="${NOTE}">No crop reports yet. Market towns post them weekly from late spring; you see your own region's fields wherever you stand.</div>`;
+    if (!known.length) return lede('No crop reports yet. Market towns post them weekly from late spring; you see your own region’s fields wherever you stand.');
     let html = `<div style="${CARD}"><div><b>📜 Crop reports</b></div>`;
     for (const k of known.slice(0, 14)) {
         const age = game.world.day - (k.day || 0);
@@ -99,7 +101,7 @@ function farmsHtml(game) {
         rows.push(row + '</div>');
     }
     if (!rows.length) return '';
-    return `<div style="margin-top:6px;"><b>Your farms</b></div>${rows.join('')}`;
+    return `${sectionHead('Your farms')}${rows.join('')}`;
 }
 
 Object.assign(ActionMenu, {

@@ -7,7 +7,7 @@
 import { ActionMenu } from './_ref.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { openRivalAudience } from './rivalAudience.js';
-import { CARD, esc } from './uiKit.js';
+import { CARD, esc, lede, bullets } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -64,7 +64,12 @@ Object.assign(ActionMenu, {
         const { player, world } = game;
         const rivals = RivalHouses.rivals(player).filter(r => r.head);
         let html = '<div style="font-size:12px; max-height:var(--panel-max-h, 560px); overflow-y:auto; min-width:440px;">';
-        html += `<div style="${NOTE}">The Houses that resent yours, and the lords who lead them. Their retinues ride the map (🏰): meet one within a hex to talk with its lord: they remember what you have done to them, have moods of their own, and make offers of their own. They trade in the same markets you do, sit at the same courts, and pay for their plots out of their own purses.</div>`;
+        html += lede('The Houses that resent yours, and the lords who lead them.');
+        html += bullets([
+            'Their retinues ride the map (🏰): meet one within a hex to talk with its lord.',
+            'They remember what you have done to them, have moods of their own, and make offers of their own.',
+            'They trade in the same markets you do, sit at the same courts, and pay for their plots out of their own purses.',
+        ]);
         if (!rivals.length) html += `<div style="${CARD}">No rival House has shown its face yet.</div>`;
         for (const r of rivals) html += headCard(RivalHouses.view(player, world, r));
         html += '</div>';

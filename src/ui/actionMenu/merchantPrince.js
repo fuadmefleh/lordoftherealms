@@ -10,7 +10,7 @@ import { MerchantPrince } from '../../systems/merchantPrince.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { TownLabour } from '../../world/townLabour.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['invest', '🏭 Invest'], ['warehouse', '📦 Warehouse'], ['contracts', '📜 Contracts'], ['ledger', '📒 Holdings']];
@@ -45,7 +45,12 @@ function investTab(game, tile) {
     const { player, world } = game;
     const s = tile && tile.settlement;
     if (!s) return '<div style="color:#aaa;">Stand in a town to fund works there.</div>';
-    let html = `<div style="${NOTE}">Fund works in ${esc(s.name)}: they take over a share of the town's own trade (more of a big, busy trade), then run on in its market with real inputs from its stores and real output, and pay you a share of the value they add at the town's prices. A works stands idle when the trade is idle and its inputs run short or its goods glut the stalls; a war, an empty royal treasury or a ruined name can cost you it.</div>`;
+    let html = lede(`Fund works in <b>${esc(s.name)}</b>: they take over a share of the town’s own trade (more of a big, busy trade) and pay you a share of the value they add at the town’s prices.`);
+    html += bullets([
+        'They run on in its market with real inputs from its stores and real output.',
+        'A works stands idle when the trade is idle and its inputs run short, or its goods glut the stalls.',
+        'A war, an empty royal treasury or a ruined name can cost you it.',
+    ]);
     const kinds = MerchantPrince.kinds();
     for (const [id, def] of Object.entries(kinds)) {
         if (!SettlementMarket.hasTrade(s, id)) continue;
@@ -74,7 +79,12 @@ function investTab(game, tile) {
 function warehouseTab(game, tile) {
     const { player, world } = game;
     const s = tile && tile.settlement;
-    let html = `<div style="${NOTE}">A store-room keeps goods outside your packs, to sell into this town's market later — buy the harvest glut and sell in the lean weeks. Goods keep twice as well as on a stall, rent falls due weekly, and thieves follow the guild, your heat and outlaws on the roads.</div>`;
+    let html = lede('A store-room keeps goods outside your packs, to sell into this town’s market later — buy the harvest glut and sell in the lean weeks.');
+    html += bullets([
+        'Goods keep twice as well as on a stall.',
+        'Rent falls due weekly.',
+        'Thieves follow the guild, your heat and outlaws on the roads.',
+    ]);
     if (!s) return html + '<div style="color:#aaa;">Stand in a town to rent or use a store-room.</div>';
     const w = MerchantPrince.warehouseAt(player, tile.q, tile.r);
     const sizes = MerchantPrince.sizes();
@@ -141,7 +151,11 @@ function contractsTab(game, tile) {
     const { player, world } = game;
     const st = MerchantPrince.state(player);
     const s = tile && tile.settlement;
-    let html = `<div style="${NOTE}">A forward contract fixes today's price for goods you deliver by a set day, in parts if you like, from your packs or your store-room in the town. The town pays what the lot is worth here now, a little more for the wait; miss the day and a quarter of the undelivered value is forfeit, and your name suffers.</div>`;
+    let html = lede('A forward contract fixes today’s price for goods you deliver by a set day, in parts if you like, from your packs or your store-room in the town.');
+    html += bullets([
+        'The town pays what the lot is worth here now, a little more for the wait.',
+        'Miss the day and a quarter of the undelivered value is forfeit, and your name suffers.',
+    ]);
     for (const f of st.forwards) {
         const left = f.qty - f.delivered;
         const can = MerchantPrince.deliverable(player, world, f);

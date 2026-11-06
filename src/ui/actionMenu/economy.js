@@ -10,7 +10,7 @@ import { ActionMenu } from './_ref.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 /** The crown's own figures (treasury, debt) are for those whose books are open (systems/realmIntel.js). */
@@ -65,9 +65,15 @@ const SERIES_FMT = {
 function realmsTab(game) {
     const g = EconomyChronicle.gazette(game.player, game.world);
     if (!g.realms.length && !g.world) {
-        return `<div style="${NOTE}">You have read no gazette yet. Every town with a market posts one each week: the realms' prices, trade, work and money. Stand in a market town to read it.</div>`;
+        return lede('You have read no gazette yet. Every town with a market posts one each week: the realms’ prices, trade, work and money.') + bullets(['Stand in a market town to read it.']);
     }
-    let html = `<div style="${NOTE}">From the gazettes you have read${g.at ? `, the last at ${esc(g.at)} on day ${g.read}` : ''}. Indices: 100 = goods at their base price (season, scarcity, debased coin and the coin about all count; 'coin' is the realm's price level from its coin in circulation, 100 = the world's norm). Your own realm's gazette is this week's; other realms' news is a week older. Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.</div>`;
+    let html = lede(`From the gazettes you have read${g.at ? `, the last at <b>${esc(g.at)}</b> on day ${g.read}` : ''}.`);
+    html += bullets([
+        'Indices: 100 = goods at their base price (season, scarcity, debased coin and the coin about all count).',
+        '“Coin” is the realm’s price level from its coin in circulation; 100 = the world’s norm.',
+        'Your own realm’s gazette is this week’s; other realms’ news is a week older.',
+        `Changes are over the last ${EconomyIndex.config().changeWeeks} weeks.`,
+    ]);
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Food</th><th style="${TH}">Cost of living</th><th style="${TH}">Change</th><th style="${TH}">Trade</th><th style="${TH}">Short / dearth</th><th style="${TH}">Idle</th><th style="${TH}">Treasury</th><th style="${TH}">Debt · coin</th><th style="${TH}">As of</th></tr>`;
     const { player, world } = game;
     const row = (name, x, link, kid = null) => {
@@ -125,7 +131,7 @@ function chartsTab(game) {
 function marketsTab(game) {
     const { player, world } = game;
     const sig = EconomyChronicle.marketSignals(player, world, { limit: 10 });
-    let html = `<div style="${NOTE}">The sharpest shortages and gluts in your price book: only towns you visited, your factors and stewards report, merchants you met or tavern talk told of. Old news may be wrong.</div>`;
+    let html = lede('The sharpest shortages and gluts in your price book: only towns you visited, your factors and stewards report, merchants you met or tavern talk told of. Old news may be wrong.');
     const table = (title, list, color) => {
         let t = `<h5 style="margin:10px 0 4px;">${title}</h5>`;
         if (!list.length) return t + `<div style="${NOTE}">None that you know of.</div>`;
@@ -146,7 +152,13 @@ function marketsTab(game) {
 function fashionsTab(game) {
     const { player, world } = game;
     const list = EconomyChronicle.knownFashions(player, world);
-    let html = `<div style="${NOTE}">Fashions at court move what the nobles and merchants buy for a season: their goods grow dear where the fashion reaches, and exotic goods no market keeps fetch more. They spread from a capital and fade. The heralds, the gazette and the tavern carry the news; a patron with standing at a court can set one (Patronage → Fashion at Court).</div>`;
+    let html = lede('Fashions at court move what the nobles and merchants buy for a season.');
+    html += bullets([
+        'Their goods grow dear where the fashion reaches, and exotic goods no market keeps fetch more.',
+        'They spread from a capital and fade.',
+        'The heralds, the gazette and the tavern carry the news.',
+        'A patron with standing at a court can set one (Patronage → Fashion at Court).',
+    ]);
     if (!list.length) return html + `<div style="${NOTE} margin-top:6px;">You have heard of no fashion yet.</div>`;
     for (const x of list) {
         const d = x.def || {};

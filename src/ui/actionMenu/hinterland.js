@@ -8,7 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { Hinterland } from '../../world/hinterland.js';
 import { Concessions } from '../../systems/concessions.js';
 import { Throne } from '../../systems/throne.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -101,17 +101,22 @@ export function hinterlandHtml(game, tile) {
         const sites = Hinterland.sitesOf(world, tile.q, tile.r);
         const key = `${tile.q},${tile.r}`;
         const feeds = Hinterland.sites(world).filter(x => x.m === key && x.h !== key);
-        html += `<div style="${NOTE}">The villages and countryside around ${esc(s.name)} dig, cut, shear and fish; half of what they bring goes to their own market, half to the nearest market town. Deposits run down as they are dug: the yield falls past half the vein, and a worked-out mine closes (its towns go short and its miners leave). The crown leases its deposits: the holder pays the lease, a royalty on every unit, and the hands at the local wage.</div>`;
-        html += `<h5 style="margin:10px 0 4px;">${esc(s.name)}'s hinterland</h5>`;
+        html += lede(`The villages and countryside around <b>${esc(s.name)}</b> dig, cut, shear and fish; half of what they bring goes to their own market, half to the nearest market town.`);
+        html += bullets([
+            'Deposits run down as they are dug: the yield falls past half the vein.',
+            'A worked-out mine closes: its towns go short and its miners leave.',
+            'The crown leases its deposits: the holder pays the lease, a royalty on every unit, and the hands at the local wage.',
+        ]);
+        html += sectionHead(`${esc(s.name)}'s hinterland`);
         if (!sites.length) html += `<div style="${NOTE}">No rural sites work for ${esc(s.name)}.</div>`;
         for (const site of sites) html += siteCard(game, site, true);
         if (feeds.length) {
-            html += '<h5 style="margin:10px 0 4px;">Selling into this market</h5>';
+            html += sectionHead('Selling into this market');
             for (const site of feeds) html += siteCard(game, site, true);
         }
         const auctions = s.kingdom ? Concessions.auctions(world, s.kingdom).filter(a => !sites.some(x => x.id === a.site) && !feeds.some(x => x.id === a.site)) : [];
         if (auctions.length) {
-            html += `<h5 style="margin:10px 0 4px;">🔨 Leases on auction in the realm</h5>`;
+            html += sectionHead('🔨 Leases on auction in the realm');
             for (const a of auctions) {
                 const site = Hinterland.site(world, a.site);
                 if (site) html += siteCard(game, site, false);
@@ -121,10 +126,10 @@ export function hinterlandHtml(game, tile) {
         html += `<div style="${CARD}"><b>⛏️ Prospecting</b><div style="${NOTE}">Send prospectors into the hills around ${esc(s.name)}: ${pq.cost}g, ${pq.days} days, about a ${pct(pq.chance)} chance of a strike. A strike is yours to lease at the reserve price before the merchant houses may bid.</div>`;
         html += act(`Fund a search (${pq.cost}g)`, ['prospect'], BTN_GOLD, pq.ok, pq.reason);
         html += '</div>';
-    } else html += `<div style="${NOTE}">Stand in a town to see its hinterland, bid for its leases and send prospectors out.</div>`;
+    } else html += lede('Stand in a town to see its hinterland, bid for its leases and send prospectors out.');
 
     const mine = Concessions.mine(player, world);
-    html += '<h5 style="margin:10px 0 4px;">Your leases</h5>';
+    html += sectionHead('Your leases');
     if (!mine.length) html += `<div style="${NOTE}">You hold no mining leases.</div>`;
     for (const row of mine) html += leaseCard(game, row);
 
@@ -167,7 +172,7 @@ Object.assign(ActionMenu, {
         let t = tile && typeof tile === 'object' ? tile : null;
         if (!t && Number.isFinite(q) && Number.isFinite(r)) t = world.getTile(q, r);
         if (!t) t = world.getTile(game.player.q, game.player.r);
-        const html = `<div style="font-size:12px; max-height:620px; overflow-y:auto;"><p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(game.player.gold).toLocaleString()} gold${t && t.settlement ? ` · at ${esc(t.settlement.name)}` : ''}</p>${hinterlandHtml(game, t)}</div>`;
+        const html = `<div style="font-size:12px; max-height:620px; overflow-y:auto;">${chips([purse(game.player.gold), t && t.settlement ? ['📍', esc(t.settlement.name)] : null])}${hinterlandHtml(game, t)}</div>`;
         game.ui.showCustomPanel(`⛏️ The Hinterland${t && t.settlement ? ` of ${t.settlement.name}` : ''}`, html);
     },
 

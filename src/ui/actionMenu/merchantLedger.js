@@ -16,7 +16,7 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
@@ -58,11 +58,18 @@ function goodPicker(goods) {
 function bookTab(game) {
     const { player, world } = game;
     const goods = PriceKnowledge.knownGoods(player);
-    if (!goods.length) return `<div style="${NOTE}">You know no prices yet. Visit markets, buy merchants' talk in a tavern, hail caravans on the road, or open trading posts and hold towns whose stewards report.</div>`;
+    if (!goods.length) {
+        return lede('You know no prices yet.') + bullets([
+            'Visit markets, or buy merchants’ talk in a tavern.',
+            'Hail caravans on the road.',
+            'Open trading posts, and hold towns whose stewards report.',
+        ]);
+    }
     if (!goods.includes(view.good)) view.good = goods.includes('grain') ? 'grain' : goods[0];
     let html = goodPicker(goods);
     const list = PriceKnowledge.known(player, world, view.good);
-    html += `<div style="${NOTE}">What ${esc(goodDef(view.good).name.toLowerCase())} cost and fetched when you last had news of each town. Asking prices from hearsay are estimated from what the good was said to be worth. ${act('🗺️ Show on the trade map', ['map', view.good], BTN_GOLD)}</div>`;
+    html += lede(`What ${esc(goodDef(view.good).name.toLowerCase())} cost and fetched when you last had news of each town. Asking prices from hearsay are estimated from what the good was said to be worth.`);
+    html += `<div style="margin:0 0 6px;">${act('🗺️ Show on the trade map', ['map', view.good], BTN_GOLD)}</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Town</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">Stock</th><th style="${TH}">Hexes</th><th style="${TH}">News</th></tr>`;
     for (const k of list) {
         const l = SettlementMarket.label(k.scarcity);
@@ -77,7 +84,8 @@ function bookTab(game) {
 function spreadsTab(game) {
     const { player, world } = game;
     const C = PriceKnowledge.config();
-    let html = `<div style="${NOTE}">The best margins your news shows between two towns within reach (about ${C.hexesPerDay} hexes a day): buy at the cheapest known asking price, sell where the stalls are known to pay most. Old news may be wrong, and a big lot moves the price against you.</div>`;
+    let html = lede(`The best margins your news shows between two towns within reach (about ${C.hexesPerDay} hexes a day): buy at the cheapest known asking price, sell where the stalls are known to pay most.`);
+    html += bullets(['Old news may be wrong.', 'A big lot moves the price against you.']);
     html += `<div style="margin:6px 0;">Within ${RANGES.map(d => act(`${d} days`, ['days', d], d === view.days ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     const list = PriceKnowledge.spreads(player, world, { days: view.days, limit: 15 });
     if (!list.length) return html + `<div style="${NOTE}">Your news shows no margin within ${view.days} days. Learn more markets.</div>`;
@@ -135,27 +143,38 @@ function statementHtml(game) {
     if (!periods.includes(view.period)) view.period = periods[0];
     const st = Ledger.statement(player, world, view.period);
     let html = `<div style="margin:6px 0;">Over the last ${periods.map(d => act(d === 30 ? '30 days (a season)' : d === 120 ? '120 days (a year)' : `${d} days`, ['period', d], d === view.period ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
-    html += `<div style="${NOTE}">Every gold flow you had, by source. Trading lines are margins: each sale against the average cost of what you bought (the cash for the goods is under capital and stock). ${st.from != null ? `Days ${st.from}–${st.to}.` : ''}</div>`;
+    html += lede(`Every gold flow you had, by source.${st.from != null ? ` Days ${st.from}–${st.to}.` : ''}`);
+    html += bullets(['Trading lines are margins: each sale against the average cost of what you bought (the cash for the goods is under capital and stock).']);
     if (!st.op.income.length && !st.op.expenses.length && !st.cap.length) return html + `<div style="${NOTE}">Nothing on the books yet: the ledger fills as the days pass.</div>`;
     html += `<div style="margin:6px 0; font-size:13px;">Net income: <b>${col(st.op.net)}</b></div>`;
-    if (st.groups.length) html += `<div style="font-size:11px; margin-bottom:4px;">${st.groups.map(g => `${g.icon} ${esc(g.name)} ${col(g.net)}`).join(' · ')}</div>`;
+    if (st.groups.length) html += chips(st.groups.map(g => [g.icon, esc(g.name), col(g.net)]));
     const lines = (list) => list.map(l => `<tr><td style="${TD}">${esc(l.name)} <span style="${NOTE}">${esc(Ledger.group(l.group).icon)}</span></td><td style="${TD} text-align:right;">${col(l.amount)}</td></tr>`).join('');
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Income</th><th style="${TH} text-align:right;"></th></tr>${lines(st.op.income)}`;
     html += `<tr><th style="${TH}">Expenses</th><th style="${TH}"></th></tr>${lines(st.op.expenses)}</table>`;
-    if (st.cap.length) html += `<h5 style="margin:8px 0 4px;">📦 Capital and stock (not profit or loss)</h5><table style="width:100%; border-collapse:collapse; font-size:12px;">${lines(st.cap)}</table>`;
+    if (st.cap.length) html += `${sectionHead('📦 Capital and stock (not profit or loss)')}<table style="width:100%; border-collapse:collapse; font-size:12px;">${lines(st.cap)}</table>`;
     if (st.memo.length) html += `<div style="${NOTE} margin-top:4px;">Of which inside your prices: ${st.memo.map(l => `${esc(l.name)} ${Math.abs(l.amount).toLocaleString()}g`).join(' · ')}</div>`;
     const nw = EconomyChronicle.netWorth(player, world);
     const A = nw.assets;
-    html += `<h5 style="margin:10px 0 4px;">💰 Net worth: ${col(nw.total)}</h5>`;
-    html += `<div style="${NOTE}">gold ${A.gold.toLocaleString()} · deposits ${A.deposits.toLocaleString()} · bonds ${A.bonds.toLocaleString()} · goods ${A.goods.toLocaleString()} · properties ${A.properties.toLocaleString()} · works ${A.works.toLocaleString()} · ships ${A.ships.toLocaleString()} · company ${A.company.toLocaleString()}${A.bank ? ` · bank ${A.bank.toLocaleString()}` : ''} − debts ${(nw.debts.loans + nw.debts.guildLoans + nw.debts.arrears).toLocaleString()} ${act('📰 More', ['economy', 'worth'])}</div>`;
+    html += sectionHead(`💰 Net worth: ${col(nw.total)}`);
+    const debts = nw.debts.loans + nw.debts.guildLoans + nw.debts.arrears;
+    const nwChip = (label, v) => ['', label, v.toLocaleString(), v ? '' : 'dim'];
+    html += chips([
+        nwChip('Gold', A.gold), nwChip('Deposits', A.deposits), nwChip('Bonds', A.bonds), nwChip('Goods', A.goods),
+        nwChip('Properties', A.properties), nwChip('Works', A.works), nwChip('Ships', A.ships), nwChip('Company', A.company),
+        A.bank ? nwChip('Bank', A.bank) : null, ['', 'Debts', `−${debts.toLocaleString()}`, debts ? '' : 'dim'],
+    ]) + `<div style="margin:-4px 0 6px;">${act('📰 More', ['economy', 'worth'])}</div>`;
     return html;
 }
 
 function pnlTab(game) {
     const p = PriceKnowledge.pnl(game.player);
     let html = statementHtml(game);
-    html += '<h5 style="margin:12px 0 4px;">⚖️ Trading margins by good</h5>';
-    html += `<div style="${NOTE}">Your dealings at the stalls, ports, store-rooms, forward contracts and with traders on the road: each sale against the average cost of what you bought of that good (goods found, looted or made count as free). Routes run from where you last bought the good to where you sold it.</div>`;
+    html += sectionHead('⚖️ Trading margins by good');
+    html += lede('Your dealings at the stalls, ports, store-rooms, forward contracts and with traders on the road.');
+    html += bullets([
+        'Each sale is set against the average cost of what you bought of that good (goods found, looted or made count as free).',
+        'Routes run from where you last bought the good to where you sold it.',
+    ]);
     html += `<div style="margin:6px 0; font-size:13px;">Trading profit so far: <b>${col(p.total)}</b></div>`;
     if (!p.goods.length) return html + `<div style="${NOTE}">No trades yet.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Bought</th><th style="${TH}">Sold</th><th style="${TH}">Profit</th></tr>`;
@@ -164,7 +183,7 @@ function pnlTab(game) {
     }
     html += '</table>';
     if (p.routes.length) {
-        html += '<h5 style="margin:10px 0 4px;">Routes</h5>';
+        html += sectionHead('Routes');
         html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Route</th><th style="${TH}">Sales</th><th style="${TH}">Goods</th><th style="${TH}">Profit</th></tr>`;
         for (const r of p.routes) {
             const goods = Object.entries(r.goods).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => goodDef(id).icon || id).join(' ');
@@ -181,7 +200,7 @@ Object.assign(ActionMenu, {
         if (tab) view.tab = tab;
         const { player } = game;
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">💰 ${Math.floor(player.gold).toLocaleString()} gold · news of ${PriceKnowledge.towns(player).length} towns ${act('📰 Economic Chronicle', ['economy'])}</p>`;
+        html += `<div style="display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap;">${chips([purse(player.gold), ['📰', 'News of', `${PriceKnowledge.towns(player).length} towns`]])}${act('📰 Economic Chronicle', ['economy'])}</div>`;
         html += panelTabs(game, {
             id: 'ledger', title: "📒 Merchant's Ledger", tabs: TABS, active: view.tab,
             go: (k) => { ActionMenu.showMerchantLedger(game, k); },

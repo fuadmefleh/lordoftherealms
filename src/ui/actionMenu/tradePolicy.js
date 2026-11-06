@@ -9,7 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Throne } from '../../systems/throne.js';
-import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs, intelBadge } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, BTN_PLAIN, BTN_RED, CARD, panelTabs, intelBadge, lede, bullets, chips } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -61,11 +61,15 @@ function hereTab(game) {
     const tile = world.getTile(player.q, player.r);
     const s = tile && tile.settlement;
     const k = s && s.kingdom != null ? world.getKingdom(s.kingdom) : null;
-    if (!k || k.isAlive === false) return `<div style="${NOTE}">No crown's customs men stand here: ${s ? `${esc(s.name)} is a free town` : 'you are out in the wilds'}. Goods change hands without duty.</div>`;
+    if (!k || k.isAlive === false) return lede(`No crown’s customs men stand here: ${s ? `<b>${esc(s.name)}</b> is a free town` : 'you are out in the wilds'}. Goods change hands without duty.`);
     const sum = TradePolicy.summary(world, k);
     let html = `<div style="${CARD}"><b>${esc(k.name)}</b> · ${policyLine(world, k)}`;
     html += tariffTable(sum);
-    html += `<div style="${NOTE} margin-top:6px;">Duties raise the price of what crosses the border: less comes in, and the market here pays more for it. Caravans pay the import duty on their cargo as their toll. You pay it selling goods you bought in another realm.</div></div>`;
+    html += `<div style="margin-top:8px;">${bullets([
+        'Duties raise the price of what crosses the border: less comes in, and the market here pays more for it.',
+        'Caravans pay the import duty on their cargo as their toll.',
+        'You pay it selling goods you bought in another realm.',
+    ])}</div></div>`;
     // ── The goods you carry ──
     const rows = [];
     for (const [id, qty] of Object.entries(player.inventory || {})) {
@@ -121,11 +125,15 @@ function realmsTab(game, pick = null) {
 function crownTab(game) {
     const { player, world } = game;
     const k = Throne.ruledKingdom(player, world);
-    if (!k) return `<div style="${NOTE}">You wear no crown. Those who do set the duties, bans and embargoes you trade under.</div>`;
+    if (!k) return lede('You wear no crown. Those who do set the duties, bans and embargoes you trade under.');
     const s = TradePolicy.summary(world, k);
     const levels = TradePolicy.config().ruler.levels;
     let html = `<div style="${CARD}"><b>👑 The trade of ${esc(k.name)}</b><div style="${NOTE}">${policyLine(world, k, { books: true })}</div>`;
-    html += `<div style="${NOTE}">Customs: ${Math.round(s.revenue ? s.revenue.last : 0)}g last week, ${Math.round(s.revenue ? s.revenue.total : 0)}g in all. Cut duties and the Guild Coalition cheers; raise them on goods your guilds make (⚒️) and they cheer louder — but your neighbours answer duty with duty.</div>`;
+    html += `<div style="margin-top:6px;">${chips([['🛃', 'Customs last week', `${Math.round(s.revenue ? s.revenue.last : 0)}g`, 'gold'], ['', 'In all', `${Math.round(s.revenue ? s.revenue.total : 0)}g`]])}</div>`;
+    html += bullets([
+        'Cut duties and the Guild Coalition cheers.',
+        'Raise them on goods your guilds make (⚒️) and they cheer louder — but your neighbours answer duty with duty.',
+    ]);
     html += tariffTable(s, (c) => {
         const step = (side, dir) => {
             const cur = side === 'imp' ? c.imp : c.exp;
@@ -155,7 +163,8 @@ function crownTab(game) {
     html += '</div>';
     // ── The granary ──
     const g = s.granary || {};
-    html += `<div style="${CARD}"><b>🌾 The royal granaries</b><div style="${NOTE}">${Math.round(g.grain || 0)} grain in store · bought ${Math.round(g.bought || 0)} for ${Math.round(g.spent || 0)}g · released ${Math.round(g.released || 0)} to hungry towns. The granaries buy grain where it is cheap and feed the towns that go hungry.</div>`;
+    html += `<div style="${CARD}"><b>🌾 The royal granaries</b><div style="${NOTE} margin:2px 0 6px;">The granaries buy grain where it is cheap and feed the towns that go hungry.</div>`;
+    html += chips([['🌾', 'In store', Math.round(g.grain || 0)], ['', 'Bought', `${Math.round(g.bought || 0)} for ${Math.round(g.spent || 0)}g`], ['', 'Released to hungry towns', Math.round(g.released || 0)]]);
     html += act(g.on ? 'Stop buying' : 'Fill the granaries', ['granary', !g.on], g.on ? BTN_PLAIN : BTN_GOLD);
     html += '</div>';
     return html;

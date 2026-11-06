@@ -10,7 +10,7 @@
 import { ActionMenu } from './_ref.js';
 import { Lots } from '../../systems/lots.js';
 import { LotBook } from '../../world/lotBook.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc, lede, bullets } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const STATE = {
@@ -81,7 +81,10 @@ Object.assign(ActionMenu, {
         let html = '<div style="font-size:12px;">';
         if (message) html += `<div style="${CARD} border-color:${message.ok ? 'rgba(159,216,159,0.5)' : 'rgba(224,128,128,0.5)'};">${esc(message.text)}</div>`;
         if (!list.length) {
-            html += `<p style="${NOTE}">You hold no building lots or houses in town. Walk a town's streets: the staked-out lots are for sale, and a house or two stands empty, to rent or to buy.</p>`;
+            html += lede('You hold no building lots or houses in town.') + bullets([
+                'Walk a town’s streets: the staked-out lots are for sale.',
+                'A house or two stands empty, to rent or to buy.',
+            ]);
         } else {
             const income = list.filter(v => v.tenant).reduce((a, v) => a + (v.rent || 0), 0);
             const outgo = list.filter(v => v.state === 'rented').reduce((a, v) => a + (v.rent || 0), 0);

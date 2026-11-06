@@ -142,7 +142,449 @@
         "localRow": 0,
         "interactionPoint": true
       }
-    ]
+    ],
+    "seasonVariants": {
+      "spring": [
+        {
+          "localCol": -1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 224,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 256,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 288,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 224,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 256,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 288,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 224,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 256,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 288,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 224,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 256,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_spring.png",
+          "sx": 288,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        }
+      ],
+      "summer": [
+        {
+          "localCol": -1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 224,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 256,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 288,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 224,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 256,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 288,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 224,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 256,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 288,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 224,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 256,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_summer.png",
+          "sx": 288,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        }
+      ],
+      "autumn": [
+        {
+          "localCol": -1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 224,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 256,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 288,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 224,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 256,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 288,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 224,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 256,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 288,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 224,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 256,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_autumn.png",
+          "sx": 288,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        }
+      ],
+      "winter": [
+        {
+          "localCol": -1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 128,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 160,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -3,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 192,
+          "sy": 128,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 128,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 160,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -2,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 192,
+          "sy": 160,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 128,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 160,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": -1,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 192,
+          "sy": 192,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": -1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 128,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 0,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 160,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        },
+        {
+          "localCol": 1,
+          "localRow": 0,
+          "sheetPath": "assets/lpc/Terrain/trees_winter.png",
+          "sx": 192,
+          "sy": 224,
+          "sw": 32,
+          "sh": 32
+        }
+      ]
+    }
   },
   {
     "id": "stump_1",

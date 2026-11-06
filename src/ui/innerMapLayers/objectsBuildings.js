@@ -137,6 +137,10 @@ Object.assign(InnerMapRenderer, {
             // ── Sprite-based overlays ──
             const sheet = this._sheets.get(o.sheet);
             if (!sheet) continue;
+            // (a painted repaint is drawn smooth from its scaled cells: ui/sheetScale.js)
+            const k = this._sheetScale ? this._sheetScale(sheet) : 1;
+            ctx.imageSmoothingEnabled = k > 1;
+            const osx = o.sx * k, osy = o.sy * k, osw = o.sw * k, osh = o.sh * k;
 
             if (o.type === 'tree') {
                 // Trees: scale to tile width, extend upward from tile bottom
@@ -145,7 +149,7 @@ Object.assign(InnerMapRenderer, {
                 const oh = o.sh * scale;
                 const ox = dx;
                 const oy = dy + ds - oh;  // anchor bottom of tree at bottom of tile
-                ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, ox, oy, ow, oh);
+                ctx.drawImage(sheet, osx, osy, osw, osh, ox, oy, ow, oh);
             } else if (o.type === 'plant' || o.type === 'flower' || o.type === 'mushroom') {
                 // Small objects: centered in tile, ~60% tile size
                 const ratio = 0.6;
@@ -153,7 +157,7 @@ Object.assign(InnerMapRenderer, {
                 const oh = ds * ratio;
                 const ox = dx + (ds - ow) / 2;
                 const oy = dy + (ds - oh) / 2;
-                ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, ox, oy, ow, oh);
+                ctx.drawImage(sheet, osx, osy, osw, osh, ox, oy, ow, oh);
             } else if (o.type === 'rock') {
                 // Rocks are 2×2 tile sprites (64×64 source px).
                 // Draw at full 2×2 tile area, anchored at top-left of placement tile.
@@ -163,10 +167,10 @@ Object.assign(InnerMapRenderer, {
                 const oh = ds * tilesH;
                 const ox = dx + (ds - ow) / 2; // center horizontally on origin tile
                 const oy = dy + ds - oh;        // anchor bottom edge at bottom of origin tile
-                ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, ox, oy, ow, oh);
+                ctx.drawImage(sheet, osx, osy, osw, osh, ox, oy, ow, oh);
             } else {
                 // Default: fill tile
-                ctx.drawImage(sheet, o.sx, o.sy, o.sw, o.sh, dx, dy, ds, ds);
+                ctx.drawImage(sheet, osx, osy, osw, osh, dx, dy, ds, ds);
             }
         }
     },

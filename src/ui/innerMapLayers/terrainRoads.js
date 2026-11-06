@@ -285,7 +285,11 @@ Object.assign(InnerMapRenderer, {
                         const img = d && d.sheetPath && this._getSheetByPath(d.sheetPath);
                         if (!img) continue;
                         const h = d.h > 1 ? d.h : 1;
-                        ctx.drawImage(img, d.sx, d.sy, 32, 32 * h, dx, dy - (h - 1) * (sz - 1), sz, sz + (h - 1) * (sz - 1));
+                        const kd = this._sheetScale(img);   // (the painted shore plants and stones)
+                        const smooth = ctx.imageSmoothingEnabled;
+                        ctx.imageSmoothingEnabled = kd > 1;
+                        ctx.drawImage(img, d.sx * kd, d.sy * kd, 32 * kd, 32 * h * kd, dx, dy - (h - 1) * (sz - 1), sz, sz + (h - 1) * (sz - 1));
+                        ctx.imageSmoothingEnabled = smooth;
                     }
                 }
             }

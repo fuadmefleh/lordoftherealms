@@ -9,7 +9,13 @@ import { LightSystem } from './lightSystem.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawHoverCoords } from './hoverCoords.js';
 import { resetCanvasTransform } from './hiDpi.js';
-import { CustomSheets } from '../core/customSheets.js';
+import { CustomSheets, loadSheetInto } from '../core/customSheets.js';
+import { sheetScale } from './sheetScale.js';
+
+// Map scatter sheets that load their painted repaint (data/innerMapRenderer.json
+// `modernSheets`, at 4x in the original layout) — every draw from them scales its
+// 32px cell addresses by sheetScale(). Other keyed sheets stay the originals.
+const MODERN_KEYS = /^(trees|plants)_|^rocks_grass$/;
 
 // ============================================
 // INNER MAP RENDERER — LPC (Liberated Pixel Cup) Style
@@ -107,7 +113,8 @@ export const InnerMapRenderer = {
                     img.onload = () => { this._sheets.set(key, img); resolve(); };
                     img.onerror = () => { console.warn(`LPC sheet missing: ${path}`); resolve(); };
                 });
-                img.src = path;
+                if (MODERN_KEYS.test(key)) loadSheetInto(img, path, DataLoader._gamedata, img.onerror);
+                else img.src = path;
                 promises.push(p);
             }
             // Also load the spritesheet terrain JSON for fill definitions
@@ -319,17 +326,20 @@ export const InnerMapRenderer = {
         const sheet = this._sheets.get(key);
         if (!sheet || !sheet.width) return;
 
+        // (a painted repaint is analysed at its original's size, so the boxes
+        //  found are in the original's px, as every draw addresses it)
+        const k = sheetScale(sheet);
         const cvs = document.createElement('canvas');
-        cvs.width = sheet.width;
-        cvs.height = sheet.height;
+        cvs.width = Math.round(sheet.width / k);
+        cvs.height = Math.round(sheet.height / k);
         const c = cvs.getContext('2d');
-        c.drawImage(sheet, 0, 0);
+        c.drawImage(sheet, 0, 0, cvs.width, cvs.height);
 
         // Divide sheet into a 4×4 grid of blocks
         const GRID_COLS = 4;
         const GRID_ROWS = 4;
-        const blockW = Math.floor(sheet.width / GRID_COLS);
-        const blockH = Math.floor(sheet.height / GRID_ROWS);
+        const blockW = Math.floor(cvs.width / GRID_COLS);
+        const blockH = Math.floor(cvs.height / GRID_ROWS);
 
         const sprites = [];
 
@@ -337,8 +347,8 @@ export const InnerMapRenderer = {
             for (let gc = 0; gc < GRID_COLS; gc++) {
                 const bx = gc * blockW;
                 const by = gr * blockH;
-                const bw = Math.min(blockW, sheet.width - bx);
-                const bh = Math.min(blockH, sheet.height - by);
+                const bw = Math.min(blockW, cvs.width - bx);
+                const bh = Math.min(blockH, cvs.height - by);
 
                 const data = c.getImageData(bx, by, bw, bh).data;
 
@@ -390,15 +400,18 @@ export const InnerMapRenderer = {
         const sheet = this._sheets.get(key);
         if (!sheet || !sheet.width) return;
 
+        // (a painted repaint is analysed at its original's size, so the boxes
+        //  found are in the original's px, as every draw addresses it)
+        const k = sheetScale(sheet);
         const cvs = document.createElement('canvas');
-        cvs.width = sheet.width;
-        cvs.height = sheet.height;
+        cvs.width = Math.round(sheet.width / k);
+        cvs.height = Math.round(sheet.height / k);
         const c = cvs.getContext('2d');
-        c.drawImage(sheet, 0, 0);
+        c.drawImage(sheet, 0, 0, cvs.width, cvs.height);
 
         const T = 32;
-        const cols = Math.floor(sheet.width / T);
-        const rows = Math.floor(sheet.height / T);
+        const cols = Math.floor(cvs.width / T);
+        const rows = Math.floor(cvs.height / T);
         const sprites = [];
 
         for (let r = 0; r < rows; r++) {

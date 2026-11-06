@@ -27,6 +27,8 @@ function _data() {
 /** The year a day falls in (120 days a year, world/seasons.js). */
 const _year = (day) => Math.floor((Math.max(1, Math.floor(day || 1)) - 1) / 120);
 
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+
 function _def(id, name, tiles, solidRows, opts = {}) {
     let minC = 0, maxC = 0, minR = 0;
     for (const t of tiles) {
@@ -116,7 +118,18 @@ export const TownProps = {
         for (const p of d.props || []) {
             const sheet = d.sheets[p.sheet];
             if (!sheet) continue;
-            out.push(_def(p.id, p.name, _rectTiles(sheet, p.rect), p.solid == null ? 1 : p.solid, { tags: p.tags }));
+            const def = _def(p.id, p.name, _rectTiles(sheet, p.rect), p.solid == null ? 1 : p.solid, { tags: p.tags });
+            // A prop from a seasonal sheet (trees_summer.png …) turns with the year:
+            // the same cells of each season's sheet
+            const m = /_(spring|summer|autumn|winter)\.png$/.exec(sheet);
+            if (m) {
+                def.seasonVariants = {};
+                for (const s of SEASONS) {
+                    const path = sheet.slice(0, m.index) + `_${s}.png`;
+                    def.seasonVariants[s] = _rectTiles(path, p.rect);
+                }
+            }
+            out.push(def);
         }
         const fence = d.fence;
         if (fence) {

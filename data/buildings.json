@@ -12,19 +12,19 @@
     "height": 6,
     "layers": {
       "floor": [
-        { "q": -1, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 0, "sy": 32, "sw": 32, "sh": 32 },
-        { "q": 0, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 32, "sy": 32, "sw": 32, "sh": 32 },
-        { "q": 1, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 64, "sy": 32, "sw": 32, "sh": 32 },
-        { "q": -1, "r": -4, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 0, "sy": 96, "sw": 32, "sh": 32 },
-        { "q": 0, "r": -4, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 32, "sy": 96, "sw": 32, "sh": 32 },
-        { "q": 1, "r": -4, "sheetPath": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png", "sx": 64, "sy": 96, "sw": 32, "sh": 32 },
-        { "q": -1, "r": -3, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 0, "sy": 0, "sw": 32, "sh": 32 },
-        { "q": 0, "r": -3, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
-        { "q": 1, "r": -3, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 64, "sy": 0, "sw": 32, "sh": 32 },
-        { "q": -1, "r": -2, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 0, "sy": 32, "sw": 32, "sh": 32 },
-        { "q": 1, "r": -2, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 64, "sy": 32, "sw": 32, "sh": 32 },
-        { "q": -1, "r": -1, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 0, "sy": 64, "sw": 32, "sh": 32 },
-        { "q": 1, "r": -1, "sheetPath": "assets/lpc/Structure/Walls/Brick Wall A.png", "sx": 64, "sy": 64, "sw": 32, "sh": 32 }
+        { "q": -1, "r": -5, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 0, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": 0, "r": -5, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": 1, "r": -5, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 64, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": -1, "r": -4, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 0, "sy": 32, "sw": 32, "sh": 32 },
+        { "q": 0, "r": -4, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 32, "sy": 32, "sw": 32, "sh": 32 },
+        { "q": 1, "r": -4, "sheetPath": "assets/buildingKit/modern/roofs_adobe_stucco.png", "sx": 64, "sy": 32, "sw": 32, "sh": 32 },
+        { "q": -1, "r": -3, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 0, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": 0, "r": -3, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": 1, "r": -3, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 64, "sy": 0, "sw": 32, "sh": 32 },
+        { "q": -1, "r": -2, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 0, "sy": 32, "sw": 32, "sh": 32 },
+        { "q": 1, "r": -2, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 64, "sy": 32, "sw": 32, "sh": 32 },
+        { "q": -1, "r": -1, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 0, "sy": 64, "sw": 32, "sh": 32 },
+        { "q": 1, "r": -1, "sheetPath": "assets/buildingKit/modern/walls_brick_beige.png", "sx": 64, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "walls": [
         { "q": -1, "r": -2, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png", "sx": 0, "sy": 0, "sw": 32, "sh": 32 },

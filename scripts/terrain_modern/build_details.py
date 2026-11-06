@@ -146,18 +146,28 @@ def r_flat(c, x, y):
     return 'flat'
 
 
-# name -> (source under assets/, rules, colour quantisation or None[, mask smoothing])
+# name -> (source under assets/, rules, colour quantisation or None[, mask smoothing[, options]])
 # (rectilinear structure art - panes, panels, mouldings - is smoothed less, so
 # square corners stay square; round things - hay, barrels, leaves - more)
+# options:
+#   colour_sig  smoothing of the colour masks inside a material (default: the mask smoothing)
+#   beta_scale  how much crisper the shade bands inside a material stay (x the MAT beta)
+#   vert        grain direction forced (1 = boards run up and down)
+#   grain       'door': a bolder, coarser grain that still reads at 2x
+#   glazing     panes and cames drawn crisp (see glaze())
+#   cloth       'awning': no weave, soft folds down the cloth
 RECT = 0.5
+GLAZING = {'glazing': True}
 SHEETS = {
     'doorframe':  ('lpc/Structure/Doors/32x64px Doors/Doorframe A.png', r_frame, None, RECT),
-    'door':       ('lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png', r_door, None, RECT),
+    'door':       ('lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png', r_door, None, RECT,
+                   {'colour_sig': 0.32, 'beta_scale': 3.5, 'vert': 1.0, 'grain': 'door'}),
     'arched':     ('lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png', r_door, None, RECT),
-    'stonewin':   ('lpc/Structure/Windows/Stone Windows A.png', r_window, None, RECT),
-    'ornwin_a':   ('lpc/Structure/Windows/Ornamental Windows A.png', r_window, None, RECT),
-    'ornwin_b':   ('lpc/Structure/Windows/Ornamental Windows B.png', r_window, None, RECT),
-    'awning':     ('lpc/Structure/Windows/Window Awnings A.png', r_awning, None, 0.6),
+    'stonewin':   ('lpc/Structure/Windows/Stone Windows A.png', r_window, None, RECT, GLAZING),
+    'ornwin_a':   ('lpc/Structure/Windows/Ornamental Windows A.png', r_window, None, RECT, GLAZING),
+    'ornwin_b':   ('lpc/Structure/Windows/Ornamental Windows B.png', r_window, None, RECT, GLAZING),
+    'awning':     ('lpc/Structure/Windows/Window Awnings A.png', r_awning, None, 0.58,
+                   {'colour_sig': 0.62, 'beta_scale': 1.6, 'cloth': 'awning'}),
     'chimney':    ('lpc/Structure/Roofing/Brick Chimney A.png', r_stone, None, RECT),
     'sign':       ('lpc/Structure/Signs/Sign Backgrounds A.png', r_sign, None, RECT),
     'pillar':     ('lpc/Structure/Pillars/Stone Pillar A.png', r_stone, None, RECT),
@@ -199,6 +209,21 @@ def _tex_hp(name, size, sig):
 _g = _norm(_noise((16, 0.7))) * 0.6 + _norm(_noise((40, 1.8))) * 0.4
 GRAIN_V = _std(_g + 0.35 * _norm(_noise((6, 0.5))))
 GRAIN_H = GRAIN_V.T.copy()
+# a door's boards: coarser fibres and long darker streaks, so the grain survives being drawn at 2x
+_rng2 = np.random.default_rng(20261107)
+
+
+def _noise2(sig):
+    return ndimage.gaussian_filter(_rng2.standard_normal((TS, TS)), sig, mode='wrap')
+
+
+GRAIN_DOOR = _std(_norm(_noise2((28, 1.5))) * 0.5 + _norm(_noise2((90, 3.5))) * 0.3
+                  + _norm(_noise2((7, 0.7))) * 0.2)
+# an awning's folds: soft vertical swells, their spacing wandering a little
+_fx = np.arange(TS, dtype=np.float32)
+_wob = ndimage.gaussian_filter1d(_rng2.standard_normal(TS), 40, mode='wrap')
+_wob = _wob / (np.abs(_wob).max() + 1e-6)
+FOLDS = np.tile(np.sin(2 * np.pi * (_fx / 22.0 + 0.35 * _wob))[None, :], (TS, 1)).astype(np.float32)
 SPECKLE = _std(_norm(_noise(1.6)) * 0.4 + _norm(_noise(4.0)) * 0.35 + _norm(_noise(12.0)) * 0.25)
 CLOTH = _std(_norm(_noise((0.6, 3))) * 0.5 + _norm(_noise((3, 0.6))) * 0.3 + _norm(_noise(12)) * 0.2)
 STRAW = _tex_hp('thatch_tile.png', 256, 6)
@@ -211,12 +236,22 @@ def field(F, oy, ox, h, w):
     return F[np.ix_(ys, xs)]
 
 
-def surface(kind, rgb, oy, ox, vert, m):
+def surface(kind, rgb, oy, ox, vert, m, opts=None):
     """Lay a material's surface over its colour field rgb (h,w,3)."""
+    opts = opts or {}
     h, w = rgb.shape[:2]
     if kind is None:
         return rgb
     L = rgb.mean(2, keepdims=True)
+    if kind == 'wood' and opts.get('grain') == 'door':
+        # the panels' bevels pressed in harder (the shade bands' contrast lifted
+        # locally), then the boards' grain
+        soft = np.dstack([ndimage.gaussian_filter(rgb[..., i], 3.0) for i in range(3)])
+        rgb = rgb + 0.9 * (rgb - soft)
+        return rgb * (1 + 0.095 * field(GRAIN_DOOR, oy, ox, h, w)[..., None])
+    if kind == 'cloth' and opts.get('cloth') == 'awning':
+        f = field(FOLDS, oy, ox, h, w)
+        return rgb * (1 + 0.045 * f[..., None] + 0.008 * field(CLOTH, oy, ox, h, w)[..., None])
     if kind in ('wood', 'paintwood'):
         g = vert * field(GRAIN_V, oy, ox, h, w) + (1 - vert) * field(GRAIN_H, oy, ox, h, w)
         amp = 0.085 if kind == 'wood' else 0.035
@@ -286,6 +321,9 @@ def build(name):
         return save(out, rel)
     rel, rules, quant = SHEETS[name][:3]
     sig = SHEETS[name][3] if len(SHEETS[name]) > 3 else SIG
+    opts = SHEETS[name][4] if len(SHEETS[name]) > 4 else {}
+    csig = opts.get('colour_sig', sig)
+    bscale = opts.get('beta_scale', 1.0)
     src = os.path.join(ROOT, 'assets', rel)
     im = Image.open(src).convert('RGBA')
     if quant:
@@ -330,8 +368,8 @@ def build(name):
                 continue
             M = np.where(L >= 0, mat_of[L], -1)
 
-            def up(mask):
-                g = ndimage.gaussian_filter(mask.astype(np.float32), sig, mode='nearest')
+            def up(mask, s=sig):
+                g = ndimage.gaussian_filter(mask.astype(np.float32), s, mode='nearest')
                 return ndimage.zoom(g, K, order=3, grid_mode=True, mode='nearest')
 
             # the grain's direction: along the pixel art's edges (vertical edges -> vertical grain)
@@ -343,6 +381,8 @@ def build(name):
             vert = np.clip(0.5 + 1.2 * (jxx - jyy) / (jxx + jyy + 50), 0, 1)
             vert = ndimage.zoom(vert, K, order=1, grid_mode=True, mode='nearest')
             vert = np.where(vert > 0.5, np.clip((vert - 0.5) * 4 + 0.5, 0, 1), np.clip(0.5 - (0.5 - vert) * 4, 0, 1))
+            if 'vert' in opts:
+                vert = np.full_like(vert, opts['vert'])
 
             present = sorted(int(v) for v in np.unique(M) if v >= 0)
             hh, ww = (y1 - y0) * K, (x1 - x0) * K
@@ -359,12 +399,12 @@ def build(name):
                     rgb = np.broadcast_to(col[cids[0]], (hh, ww, 3)).astype(np.float32)
                     al = np.full((hh, ww), alp[cids[0]], np.float32)
                 else:
-                    st = np.stack([up(L == c) for c in cids])
-                    e = np.exp((st - st.max(0, keepdims=True)) * beta_in * 2)
+                    st = np.stack([up(L == c, csig) for c in cids])
+                    e = np.exp((st - st.max(0, keepdims=True)) * beta_in * bscale * 2)
                     wts = e / e.sum(0, keepdims=True)
                     rgb = np.einsum('kyx,kc->yxc', wts, col[cids])
                     al = np.einsum('kyx,k->yx', wts, alp[cids])
-                rgb = surface(surf, rgb, oy, ox, vert, mm)
+                rgb = surface(surf, rgb, oy, ox, vert, mm, opts)
                 fields.append(np.dstack([rgb, al]))
             st = np.stack(scores)
             beta = np.full((len(scores), 1, 1), BETA, np.float32)
@@ -379,7 +419,89 @@ def build(name):
             ey, ex = sy + min(B, H - by) * K, sx + min(B, W - bx) * K
             out[by * K:by * K + (ey - sy), bx * K:bx * K + (ex - sx), :3] = rgb_out[sy:ey, sx:ex]
             out[by * K:by * K + (ey - sy), bx * K:bx * K + (ex - sx), 3] = a_out[sy:ey, sx:ex] * 255
+    if opts.get('glazing'):
+        glaze(out, a, rules)
     save(out, rel)
+
+
+def _nn(v):
+    return np.repeat(np.repeat(v, K, 0), K, 1)
+
+
+def glaze(out, a, rules):
+    """Redraw a window sheet's glazing crisp: the panes and the cames (lead / iron
+    glazing bars) between them, with any stone mullion or transom set in it, are
+    one region drawn from the pixel art's own grid - straight muntins, square
+    pane corners - instead of the soft mask blend, which rounded each small pane
+    into a blob. Glass keeps its kind (dark, pale, lit): a soft reflection across
+    the window, the came's shadow along each pane's upper-left edges, a slight
+    tone of its own per pane (old glass), and the warm glow when lit; cames get
+    a lead ridge. The region's outer edge is anti-aliased into the frame."""
+    H, W = a.shape[:2]
+    mat = np.full((H, W), '', object)
+    for y in range(H):
+        for x in range(W):
+            if a[y, x, 3] == 255:
+                mat[y, x] = rules(tuple(int(v) for v in a[y, x, :3]), x, y)
+    glass = np.isin(mat, ['glass_dark', 'glass_pale', 'glass_lit'])
+    came = mat == 'iron'
+    # the glazing: the panes, the bars between them (closing across gaps of up
+    # to five px - a mullion with its edge lines), and the came round them
+    G = np.zeros((H, W), bool)
+    hl, vl = np.ones((1, 6), bool), np.ones((6, 1), bool)
+    for cx in range(0, W, C):
+        g = np.pad(glass[:, cx:cx + C], 6)
+        cl = (ndimage.binary_closing(g, hl) | ndimage.binary_closing(g, vl))[6:-6, 6:-6]
+        G[:, cx:cx + C] = cl | (ndimage.binary_dilation(cl, np.ones((3, 3), bool)) & came[:, cx:cx + C])
+    G &= a[..., 3] == 255
+    # (a lattice of wooden bars - often diagonal - stays as the soft blend drew it:
+    # only glazing barred with cames or stone is redrawn on the grid)
+    wood = ndimage.binary_dilation(mat == 'wood', np.ones((3, 3), bool))
+    comp, n = ndimage.label(G)
+    if n:
+        G &= ~np.isin(comp, np.unique(comp[wood & G]))
+    glass &= G
+    if not G.any():
+        return
+
+    def hi(mask, s):
+        g = ndimage.gaussian_filter(mask.astype(np.float32), s, mode='nearest')
+        return ndimage.zoom(g, K, order=1, grid_mode=True, mode='nearest')
+
+    def crisp(v, k):
+        return 1 / (1 + np.exp(-(v - 0.5) * k))
+
+    aG = crisp(hi(G, 0.3), 18)
+    ga = crisp(hi(glass, 0.2), 26)
+    rgb = a[..., :3].astype(np.float32)
+    # the bars' colour carried under the glass, nearest-neighbour (crisp bars)
+    _, (iy, ix) = ndimage.distance_transform_edt(glass, return_indices=True)
+    bar = _nn(rgb[iy, ix])
+    barcame = _nn(came[iy, ix])
+    # the cames a flat lead, lit along their upper edge; a touch of stone speckle on mullions
+    lip = np.clip(ndimage.shift(ga, (1, 0), order=0, mode='nearest') - ga, 0, 1) * barcame
+    sp = np.tile(SPECKLE, (H * K // TS + 1, W * K // TS + 1))[:H * K, :W * K]
+    bar = np.where(barcame[..., None], bar + 10 + lip[..., None] * 26, bar * (1 + 0.035 * sp[..., None]))
+    # the glass: each kind's colour (nearest), each pane a tone of its own
+    _, (jy, jx) = ndimage.distance_transform_edt(~glass, return_indices=True)
+    panes, n = ndimage.label(glass)
+    tone = np.concatenate([[1.0], 1 + 0.045 * np.random.default_rng(H * 1000 + W).standard_normal(n)]).astype(np.float32)
+    gcol = _nn(rgb[jy, jx] * tone[panes[jy, jx]][..., None])
+    gk = _nn(mat[jy, jx])
+    lit = _nn((mat == 'glass_lit').astype(np.float32))
+    # the cames' shadow on the glass along each pane's upper and left edges
+    sh = ndimage.shift(ndimage.gaussian_filter(1 - ga, 0.9), (1.2, 1.2), order=1, mode='nearest')
+    gl = np.zeros_like(gcol)
+    for kind in ('glass_dark', 'glass_pale', 'glass_lit'):
+        m = gk == kind
+        if not m.any():
+            continue
+        sf = surface(kind, gcol, 0, 0, None, lit)
+        depth = 0.30 if kind != 'glass_lit' else 0.18
+        sf = sf * (1 - depth * np.clip(sh, 0, 1))[..., None]
+        gl[m] = sf[m]
+    inner = ga[..., None] * gl + (1 - ga[..., None]) * bar
+    out[..., :3] = aG[..., None] * inner + (1 - aG[..., None]) * out[..., :3]
 
 
 def save(out, rel):

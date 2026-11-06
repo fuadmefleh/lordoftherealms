@@ -4873,6 +4873,62 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 #customPanel .custom-panel-body img, #customPanel .custom-panel-body canvas, #customPanel .custom-panel-body svg { max-width: 100%; }
 #customPanel .custom-panel-body table { max-width: 100%; }
 
+/* Body copy: the browser's "normal" leading packed running text into grey
+   slabs; give prose room to breathe, and keep words from overflowing a card */
+#customPanel .custom-panel-body { line-height: 1.45; overflow-wrap: break-word; }
+#customPanel .custom-panel-body button { line-height: 1.3; }
+#customPanel .custom-panel-body p { margin: 0 0 8px; }
+
+/* Panel kit (ui/actionMenu/uiKit.js): the shared building blocks that turn a
+   wall of text into something to scan — a lede paragraph, stat chips,
+   key/value rows, a section heading, a bullet list and a "not yet" chip cloud */
+#customPanel .pk-lede {
+    margin: 0 0 10px;
+    padding: 2px 0 2px 10px;
+    border-left: 2px solid rgba(245, 197, 66, 0.45);
+    color: #c9bfae;
+    font-size: 12.5px;
+    line-height: 1.5;
+}
+#customPanel .pk-lede b, #customPanel .pk-lede strong { color: var(--text-primary); }
+#customPanel .pk-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0 0 10px; }
+#customPanel .pk-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+#customPanel .pk-chip b { color: var(--text-primary); font-weight: 600; }
+#customPanel .pk-chip.gold b { color: var(--gold); }
+#customPanel .pk-chip.dim { opacity: 0.7; }
+#customPanel .pk-head {
+    margin: 12px 0 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+#customPanel .pk-list { margin: 0 0 10px; padding-left: 18px; color: #c9bfae; font-size: 12.5px; }
+#customPanel .pk-list li { margin: 2px 0; }
+#customPanel .pk-kv { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+#customPanel .pk-kv > :first-child { color: var(--text-secondary); }
+#customPanel .pk-kv > :last-child { color: var(--text-primary); font-weight: 600; text-align: right; }
+#customPanel details.pk-more { margin: 4px 0 10px; }
+#customPanel details.pk-more > summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; list-style: none; }
+#customPanel details.pk-more > summary::-webkit-details-marker { display: none; }
+#customPanel details.pk-more > summary::before { content: '▸ '; color: var(--gold); }
+#customPanel details.pk-more[open] > summary::before { content: '▾ '; }
+#customPanel details.pk-more > summary:hover { color: var(--text-primary); }
+#customPanel details.pk-more > .pk-chips { margin-top: 6px; }
+
 /* Many panels wrap their whole content in a fixed-height scroll box
    (max-height: 450–620px) inside the panel body, which scrolls too: two nested
    scrollbars and a dead band under the box. The body is the one scroller. */
@@ -5072,9 +5128,17 @@ body > :not(#root):not(script):not(style):not(#buildingCreatorOverlay):not(a) {
 /* The custom panel stops above the bottom turn bar instead of covering it */
 :root { --panel-max-h: calc(92.5vh / var(--ui-zoom) - 150px); }
 #customPanel { max-height: var(--panel-max-h) !important; }
-#customPanel.custom-panel--hub,
-#customPanel:has(.bp-menu),
-#customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
+/* A tabbed window (setPanelNav) used to be pinned at full height, so a tab
+   with one line in it (Laws, Letters, the Mint's coiners) was a screen-tall
+   empty box. It now sizes to its tab, from a floor that keeps short tabs from
+   jumping about. Beats the inline rule showCustomPanel writes (body prefix). */
+body #customPanel.custom-panel--hub {
+    height: auto;
+    min-height: min(var(--panel-max-h), 380px);
+}
+/* Panels that toggle tabs in place keep one height (the toggle never re-renders) */
+body #customPanel:has(.bp-menu),
+body #customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
 #simsBottomHUD { max-width: 800px; }
 .hud-bb-date { white-space: nowrap; }
 

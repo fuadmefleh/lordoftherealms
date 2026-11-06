@@ -1,0 +1,115 @@
+{
+    "_doc": "Trades pack (systems/tradeSkills.js): Smithing, Tanning & Weaving, Brewing and Medicine as practised skills. The three craft skills take over the old 0-10 craft skills of player/crafting.js through trades.craftSkills (old craft skill id -> practised skill): the recipe modal and the craft roll read the level from here, and old saves' player.skills values (and the old crafting rank) migrate into XP (a level v of the old scale becomes the XP where (level - 1) + progress = v). Craft perks: quality = craftsmanship added to the grade roll (in place of the old level x perLevel); waste = % of each input lost when the work spoils; minutes = time a piece takes; forge (smithing) = extra steadiness at the anvil (the forge minigame's zones widen as with that much more strength); spare = % chance of one more unit from a success. xp.craft: practised XP per point of a recipe's xp (a spoiled piece gives its failure share). Medicine perks: remedy = % more from remedies, salves and potions (health, dressing days, mending, the odds of drawing an infection or easing a stage); care = % less likely a sickness worsens or kills you (your own physicking, systems/ailments.js careFactor); resist = % less likely to catch one; mend = % faster your wounds mend; tend = % chance to nurse a sick companion through it yourself (once a day each, using herbs or a remedy). xp: heal (a healing item used), remedy (one used on a wound or sickness), tendWin / tendFail, treated (watching a physician at work). NPCs: roles and dailyXp as in practiceSkills.json (base -1: a person outside the trades tops out at 3 by spread and age, under the notable level; the trades' roles carry +2 to make up for it); craftTrades: a share of some roles work a craft on the side (picked by a hash of who they are) and take that trade's levels and daily XP too. trades.tradeSkills: which town trades (data/markets.json recipes, commissions) are worked with which skill; trades.hired: the best hand in town at the skill adds (level - ref) x perLevel to the craftsmanship of hired work (systems/commissions.js); trades.physician: a town's physician or herbalist is its best healer (townsfolk) or a typical one for its size, and treats at (level - typical) x perLevel better; trades.companions: a healer companion's care scales with their Medicine level against ref (never better than min).",
+    "skills": {
+        "smithing": {
+            "name": "Smithing",
+            "icon": "⚒️",
+            "desc": "Smelting ore and working metal at the forge: tools, blades, mail and plate. Every piece made teaches it; a spoiled one a little.",
+            "order": 10,
+            "perks": {
+                "quality": { "levels": [0, 0.25, 0.5, 0.75, 1.0, 1.3, 1.6, 1.9, 2.25, 2.6], "text": "+{d} craftsmanship (better grades)", "show": "craftsmanship +{v}" },
+                "waste": { "levels": [50, 46, 42, 38, 34, 30, 26, 22, 18, 12], "text": "{a}% less metal lost when work spoils", "show": "{v}% of the materials lost when work spoils" },
+                "minutes": { "levels": [60, 57, 54, 50, 46, 42, 38, 34, 30, 25], "text": "{a} minutes quicker a piece", "show": "{v} minutes a piece" },
+                "forge": { "levels": [0, 0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4], "text": "+{d} steadiness at the anvil (wider strike zones)", "show": "+{v} steadiness at the anvil" }
+            },
+            "xp": { "craft": 2 }
+        },
+        "tanning": {
+            "name": "Tanning & Weaving",
+            "icon": "🧵",
+            "desc": "Hides into leather, wool and flax into cloth, and both into boots, saddles, cloaks and fine garments.",
+            "order": 11,
+            "perks": {
+                "quality": { "levels": [0, 0.25, 0.5, 0.75, 1.0, 1.3, 1.6, 1.9, 2.25, 2.6], "text": "+{d} craftsmanship (better grades)", "show": "craftsmanship +{v}" },
+                "waste": { "levels": [50, 46, 42, 38, 34, 30, 26, 22, 18, 12], "text": "{a}% less hide and cloth lost when work spoils", "show": "{v}% of the materials lost when work spoils" },
+                "minutes": { "levels": [60, 56, 52, 48, 44, 40, 36, 32, 28, 24], "text": "{a} minutes quicker a piece", "show": "{v} minutes a piece" },
+                "spare": { "levels": [0, 0, 0, 5, 8, 11, 14, 17, 21, 25], "text": "+{d}% chance of a spare piece", "show": "{v}% chance of a spare piece" }
+            },
+            "xp": { "craft": 2 }
+        },
+        "brewing": {
+            "name": "Brewing",
+            "icon": "🍺",
+            "desc": "Ale, mead, cider, wine and spirits, and the still's other work: potions, tonics, salves, soap and ink.",
+            "order": 12,
+            "perks": {
+                "quality": { "levels": [0, 0.25, 0.5, 0.75, 1.0, 1.3, 1.6, 1.9, 2.25, 2.6], "text": "+{d} craftsmanship (better grades)", "show": "craftsmanship +{v}" },
+                "waste": { "levels": [50, 46, 42, 38, 34, 30, 26, 22, 18, 12], "text": "{a}% less lost when a brew spoils", "show": "{v}% of the materials lost when a brew spoils" },
+                "minutes": { "levels": [60, 57, 54, 50, 46, 42, 38, 34, 30, 25], "text": "{a} minutes quicker a batch", "show": "{v} minutes a batch" },
+                "spare": { "levels": [0, 0, 0, 5, 8, 11, 14, 17, 21, 25], "text": "+{d}% chance of an extra measure", "show": "{v}% chance of an extra measure" }
+            },
+            "xp": { "craft": 2 }
+        },
+        "medicine": {
+            "name": "Medicine",
+            "icon": "⚕️",
+            "desc": "Dressing wounds, dosing fevers and nursing the sick: yourself and your companions. Learned by using remedies and potions, tending the sick and watching a physician work.",
+            "order": 13,
+            "perks": {
+                "remedy": { "levels": [0, 10, 20, 30, 40, 50, 62, 75, 88, 100], "text": "remedies and potions do {a}% more", "show": "remedies and potions +{v}%" },
+                "care": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 45], "text": "sickness {a}% less likely to worsen in your care", "show": "sickness {v}% less likely to worsen" },
+                "resist": { "levels": [0, 2, 4, 6, 8, 10, 12, 14, 17, 20], "text": "{a}% less likely to catch a sickness", "show": "{v}% less likely to catch a sickness" },
+                "mend": { "levels": [0, 0, 10, 15, 20, 30, 40, 50, 60, 75], "text": "wounds mend {a}% faster", "show": "wounds mend {v}% faster" },
+                "tend": { "levels": [15, 22, 29, 36, 43, 50, 58, 66, 75, 85], "text": "+{d}% to nurse a sick companion through", "show": "{v}% to nurse a companion through a sickness" }
+            },
+            "xp": { "heal": 2, "remedy": 5, "tendWin": 14, "tendFail": 5, "treated": 3 }
+        }
+    },
+    "npc": {
+        "base": { "smithing": -1, "tanning": -1, "brewing": -1, "medicine": -1 },
+        "roles": {
+            "blacksmith_npc": { "smithing": 7 },
+            "blacksmith": { "smithing": 7 },
+            "smith": { "smithing": 7 },
+            "artisan": { "smithing": 4, "tanning": 4 },
+            "tanner": { "tanning": 7 },
+            "weaver": { "tanning": 6 },
+            "brewer": { "brewing": 7 },
+            "alewife": { "brewing": 6 },
+            "tavern keeper": { "brewing": 5 },
+            "innkeeper": { "brewing": 5 },
+            "healer": { "medicine": 7, "brewing": 3 },
+            "herbalist": { "medicine": 5, "brewing": 4 },
+            "physician": { "medicine": 8 },
+            "apothecary": { "medicine": 5, "brewing": 5 },
+            "priest": { "medicine": 3 },
+            "farmer": { "brewing": 2, "tanning": 2 }
+        },
+        "craftTrades": {
+            "villager": { "weaver": 0.07, "tanner": 0.05, "alewife": 0.06, "healer": 0.03 },
+            "farmer": { "tanner": 0.04, "alewife": 0.06 },
+            "merchant": { "brewer": 0.08 },
+            "priest": { "healer": 0.35 }
+        },
+        "dailyXp": {
+            "blacksmith_npc": { "smithing": 1.2 },
+            "blacksmith": { "smithing": 1.2 },
+            "smith": { "smithing": 1.2 },
+            "tanner": { "tanning": 1 },
+            "weaver": { "tanning": 0.9 },
+            "brewer": { "brewing": 1 },
+            "alewife": { "brewing": 0.9 },
+            "healer": { "medicine": 0.8 },
+            "physician": { "medicine": 1 },
+            "herbalist": { "medicine": 0.5, "brewing": 0.4 }
+        }
+    },
+    "trades": {
+        "craftSkills": { "smithing": "smithing", "leatherwork": "tanning", "tailoring": "tanning", "brewing": "brewing", "alchemy": "brewing" },
+        "tradeSkills": {
+            "smithy": "smithing", "forge": "smithing", "armoury": "smithing", "founder": "smithing", "steelworks": "smithing", "mailer": "smithing",
+            "tannery": "tanning", "weaver": "tanning", "linen_weaver": "tanning", "tailor": "tanning", "cobbler": "tanning",
+            "brewery": "brewing", "distillery": "brewing"
+        },
+        "stationSkills": { "smelt": "smithing", "tan": "tanning", "brew": "brewing" },
+        "masterRoles": {
+            "smithing": ["blacksmith_npc"],
+            "tanning": ["tanner", "weaver"],
+            "brewing": ["brewer", "alewife"],
+            "medicine": ["healer", "physician", "herbalist"]
+        },
+        "hired": { "ref": 5, "perLevel": 0.25 },
+        "physician": { "typical": { "village": 3, "town": 5, "city": 6, "capital": 7 }, "perLevel": 0.03 },
+        "companions": { "ref": 6, "min": 0.3 }
+    }
+}

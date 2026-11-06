@@ -3,6 +3,7 @@
 // Buttons route through data-am-act → ActionMenu.commissionAct.
 import { ActionMenu } from './_ref.js';
 import { Commissions } from '../../systems/commissions.js';
+import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { Grades } from '../../core/grades.js';
 import { MarketGrades } from '../../world/marketGrades.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD } from './uiKit.js';
@@ -69,6 +70,9 @@ Object.assign(ActionMenu, {
             shown++;
             html += `<div style="${CARD}"><b>${o.icon ? esc(o.icon) + ' ' : ''}${esc(o.label[0].toUpperCase() + o.label.slice(1))}</b> <span style="${NOTE}">— ${esc(o.who)}, ${o.perDay} a day</span><br>`;
             html += `<span style="${NOTE}">Each: ${goods(o.in)} → ${goods(o.out)}</span><br>`;
+            // The town's best hand at the work (systems/tradeSkills.js)
+            const q1 = Commissions.quote(player, world, s, o, 1, 'fee');
+            if (q1.master) html += `<span style="${NOTE}">Worked by ${esc(q1.master.name)}, ${esc(q1.master.role)} — ${esc(PracticeSkills.def(Commissions.skillOf(o)).name)} ${q1.master.level} (${esc(q1.master.levelName)})${q1.masterBonus > 0 ? ', finer work than most' : q1.masterBonus < 0 ? ', rougher work than most' : ''}</span><br>`;
             if (max <= 0) {
                 html += `<span style="${NOTE}">You have nothing for them to work.</span></div>`;
                 continue;

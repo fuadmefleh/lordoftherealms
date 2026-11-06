@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { DevotionPanel } from './devotion.js';
 import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from './_imports.js';
 import { Ailments } from '../../systems/ailments.js';
+import { TradeSkills } from '../../systems/tradeSkills.js';
 
 const BTN = 'width: 100%; padding: 9px; margin-top: 6px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
 const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
@@ -33,6 +34,8 @@ Object.assign(ActionMenu, {
     _serviceResult(game, title, result, reopen) {
         if (result.success) {
             game.ui.showNotification(title, result.message, 'success');
+            // a practised skill that rose doing it (systems/practiceSkills.js)
+            if (result.levelUp) game.ui.showNotification(`${result.levelUp.icon} ${result.levelUp.name} Improved`, result.levelUp.text, 'success');
         } else {
             game.ui.showNotification(title, result.reason, 'error');
         }
@@ -50,10 +53,11 @@ Object.assign(ActionMenu, {
         const active = _days(player, cfg.key);
 
         let html = '<div>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The forge roars. The smith eyes your gear with a professional frown.</p>`;
+        const hone = SettlementServices.honeArmsDays(settlement, game.world);
+        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The forge roars. ${hone.smith ? `${hone.smith.name}, the best hand at the anvil here (Smithing ${hone.smith.level}, ${hone.smith.levelName}),` : 'The smith'} eyes your gear with a professional frown.</p>`;
         html += `<div style="${CARD}">`;
         html += `<div style="font-weight: bold;">⚔️ Hone Your Company's Arms</div>`;
-        html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">Sharpen blades and mend armour for every soldier: army strength +${Math.round(cfg.strengthBonus * 100)}% for ${cfg.days} days.</div>`;
+        html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">Sharpen blades and mend armour for every soldier: army strength +${Math.round(cfg.strengthBonus * 100)}% for ${hone.days} days.</div>`;
         if (active > 0) html += `<div style="font-size: 12px; color: #5ddb6a;">Your arms are honed — ${active} day${active > 1 ? 's' : ''} left.</div>`;
         html += units > 0
             ? _button(`Hone ${units} soldier${units > 1 ? 's' : ''}' arms (${cost}g)`, 'hone', player.gold >= cost)
@@ -64,7 +68,7 @@ Object.assign(ActionMenu, {
 
         game.ui.showCustomPanel('⚒️ Blacksmith', html);
         window._svc = {
-            hone: () => ActionMenu._serviceResult(game, '⚒️ Blacksmith', SettlementServices.honeArms(player, settlement),
+            hone: () => ActionMenu._serviceResult(game, '⚒️ Blacksmith', SettlementServices.honeArms(player, settlement, game.world),
                 () => ActionMenu.showBlacksmithMenu(game, tile)),
             shop: () => { game.ui.hideCustomPanel(); ActionMenu.handleAction(game, tile, 'trade'); },
         };
@@ -136,6 +140,9 @@ Object.assign(ActionMenu, {
         html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">${who === 'herbalist'
             ? 'The village herbalist clears a bench among drying bundles of herbs.'
             : `The ${settlement.type}'s physician washes his hands and looks you over.`}</p>`;
+        // Who treats here, and how good they are (Medicine, systems/tradeSkills.js)
+        const doc = TradeSkills.physician(settlement, game.world);
+        html += `<div style="font-size: 11px; color: #9fd6a8; margin-bottom: 6px;">⚕️ ${doc.name ? `${doc.name}, ${doc.role}` : `The ${who}`} — Medicine ${doc.level} (${doc.levelName})${doc.level > doc.typical ? ', better than most here' : doc.level < doc.typical ? ', not the best of healers' : ''}. Watching them work teaches you a little.</div>`;
         if (!options.length && !sickParty.length) {
             html += `<div style="${CARD} font-size: 12px; color: var(--text-secondary);">"You're as sound as a bell. Come back when something hurts."</div>`;
         }

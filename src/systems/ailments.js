@@ -26,6 +26,15 @@
 //     (herbs, salves, potions, holy water), prayer, and the Divine Healing
 //     miracle.
 //
+// MEDICINE as a practised skill (systems/tradeSkills.js, data/skillPacks/
+// trades.json): the player's level makes remedies and potions do more
+// (medicineMult), sickness less likely to worsen in their care, less likely
+// to be caught, wounds mend faster, and lets them nurse a sick companion
+// through themselves (tendCompanion). XP from remedies, healing items,
+// tending and watching a physician (learnMedicine → a level-up event). A
+// town's physician is its best healer by Medicine (or a typical one), and a
+// healer companion's care scales with their level.
+//
 // The old delve injuries (player.delves.injuries) are folded in here: delves
 // inflict ailments, and legacy injury records are migrated on load.
 //
@@ -43,6 +52,8 @@ import { Technology } from './technology.js';
 import { Relationships } from './relationships.js';
 import { Companions } from './companions.js';
 import { Quests } from './quests.js';
+import { PracticeSkills } from './practiceSkills.js';
+import { TradeSkills } from './tradeSkills.js';
 
 export const AILMENT_ATTRS = ['strength', 'charisma', 'intelligence', 'faith', 'luck'];
 export const AILMENT_SKILLS = ['combat', 'stealth', 'diplomacy', 'leadership', 'commerce', 'cartography'];
@@ -364,7 +375,8 @@ export const Ailments = {
     _catchMult(player) {
         const cfg = Ailments.cfg();
         const strength = _num(player.strength) || 5;
-        return Math.max(0.3, (_num(cfg.sicknessMult) || 1) * (1 - (strength - 5) * _num(cfg.strengthResist)));
+        const resist = 1 - Math.min(0.9, Ailments.medicinePerk(player, 'resist') / 100);
+        return Math.max(0.3, (_num(cfg.sicknessMult) || 1) * (1 - (strength - 5) * _num(cfg.strengthResist))) * resist;
     },
 
     /**
@@ -435,10 +447,13 @@ export const Ailments = {
         let best = 1;
         let healerName = null;
         for (const npc of Ailments._party(player)) {
-            const v = _num((c.companions || {})[npc.occupation]);
+            // a healer companion's care goes with their Medicine (systems/tradeSkills.js)
+            const v = TradeSkills.companionCare(npc, _num((c.companions || {})[npc.occupation]));
             if (v > 0 && v < best) { best = v; healerName = npc.firstName || npc.occupation; }
         }
         if (best < 1) { m *= best; parts.push(`${healerName}'s care`); }
+        const own = Ailments.medicinePerk(player, 'care');
+        if (own > 0) { m *= 1 - Math.min(0.9, own / 100); parts.push('your own physicking'); }
         if (player.blessings && player.blessings.temple_blessing > 0 && c.blessing) { m *= c.blessing; parts.push('a blessing'); }
         if (Ailments._hasHospital(player, world) && c.hospital) { m *= c.hospital; parts.push('a hospital'); }
         if (Ailments._knows(player, 'herbalism') && c.herbalism) { m *= c.herbalism; parts.push('herb-lore'); }
@@ -579,6 +594,7 @@ export const Ailments = {
             if (healer) heal += _num(cfgW.healerHeal);
             if (hospital) heal += _num(cfgW.hospitalHeal);
             heal += _num(player.patronage && player.patronage.fx && player.patronage.fx.woundHeal); // medical texts
+            heal *= 1 + Ailments.medicinePerk(player, 'mend') / 100; // your own Medicine
             rec.daysLeft = _num(rec.daysLeft) - heal;
             if (rec.daysLeft <= 0) {
                 Ailments._remove(player, rec);
@@ -861,9 +877,11 @@ export const Ailments = {
     // ──────────── MEDICINE ────────────
 
     /** Treatment quality a settlement's physician offers this player (0..1). */
-    physicianQuality(player, settlement, kind) {
+    physicianQuality(player, settlement, kind, world = null) {
         const t = Ailments.cfg().treatment || {};
         let q = _num((t.quality || {})[settlement && settlement.type]) || 0.5;
+        // The town's own physician: its best healer by Medicine against a typical one (systems/tradeSkills.js)
+        q = Math.max(0.2, q + TradeSkills.physicianBonus(settlement, world));
         for (const [tech, bonus] of Object.entries(t.techQuality || {})) {
             if (!Ailments._knows(player, tech)) continue;
             q += _num(bonus.any) + _num(bonus[kind]);
@@ -898,7 +916,7 @@ export const Ailments = {
     treatmentOptions(player, world, settlement, temple = false) {
         const charity = (Ailments.cfg().treatment || {}).charity || null;
         return Ailments.list(player).map(rec => {
-            let quality = temple ? Ailments.templeQuality(player) : Ailments.physicianQuality(player, settlement, rec.kind);
+            let quality = temple ? Ailments.templeQuality(player) : Ailments.physicianQuality(player, settlement, rec.kind, world);
             let cost = Ailments.treatmentCost(player, settlement, rec, temple);
             // A pauper who cannot pay is seen to once for charity, at a lesser
             // standard: without it, a broke player with a festering wound could only die
@@ -956,7 +974,9 @@ export const Ailments = {
         if (opt.charity) rec.charity = true;
         const who = temple ? 'The priests' : (settlement && settlement.type === 'village' ? 'The village herbalist' : 'The physician');
         const paid = opt.charity ? 'for charity, as well as can be done for nothing' : `${opt.cost}g`;
-        return { success: true, cost: opt.cost, quality: opt.quality, charity: !!opt.charity, message: `${who} sees to your ${name.toLowerCase()}: ${lines.join(', ')}. (${paid})` };
+        // You watch how it is done (Medicine)
+        const levelUp = temple ? null : Ailments.learnMedicine(player, 'treated');
+        return { success: true, cost: opt.cost, quality: opt.quality, charity: !!opt.charity, levelUp, message: `${who} sees to your ${name.toLowerCase()}: ${lines.join(', ')}. (${paid})` };
     },
 
     /** Cost to have a physician see to a sick companion. */
@@ -1015,6 +1035,10 @@ export const Ailments = {
         if (!(player.inventory && player.inventory[item] > 0)) return { success: false, reason: `You have no ${def.name || item}.` };
         if (!Ailments.remedyFits(def, rec)) return { success: false, reason: `${def.name} won't help with that.` };
         player.inventory[item]--;
+        const med = Ailments.medicineMult(player);
+        const levelUp = Ailments.learnMedicine(player, 'remedy');
+        const upText = levelUp ? ` ${levelUp.text}` : '';
+        const hp = Math.round(_num(def.health) * med);
         if (player.inventory[item] <= 0) delete player.inventory[item];
         const day = _day(world);
         const lines = [];
@@ -1022,28 +1046,30 @@ export const Ailments = {
         // A true antidote purges what it is made against outright (data/ailments.json remedies.*.cures)
         if (Array.isArray(def.cures) && def.cures.includes(rec.id)) {
             Ailments._remove(player, rec);
-            if (def.health) player.health = Math.min(player.maxHealth || 100, _num(player.health) + def.health);
-            return { success: true, cured: true, message: `You take ${def.name}: the ${name.toLowerCase()} is purged from your body.` };
+            if (hp) player.health = Math.min(player.maxHealth || 100, _num(player.health) + hp);
+            return { success: true, cured: true, levelUp, message: `You take ${def.name}: the ${name.toLowerCase()} is purged from your body.${upText}` };
         }
         if (rec.kind === 'wound') {
-            if (def.dress) { rec.dressedUntil = Math.max(rec.dressedUntil || -1, day + def.dress); lines.push(`dressed for ${def.dress} days`); }
-            if (def.mend) { rec.daysLeft = Math.max(1, _num(rec.daysLeft) - def.mend); lines.push('it knits faster'); }
-            if (rec.infected && def.clearInfection && Utils.random() < def.clearInfection) { rec.infected = false; lines.push('the infection is drawn out'); }
+            const dress = Math.round(_num(def.dress) * med);
+            if (dress) { rec.dressedUntil = Math.max(rec.dressedUntil || -1, day + dress); lines.push(`dressed for ${dress} days`); }
+            if (def.mend) { rec.daysLeft = Math.max(1, _num(rec.daysLeft) - def.mend * med); lines.push('it knits faster'); }
+            if (rec.infected && def.clearInfection && Utils.random() < Math.min(0.95, def.clearInfection * med)) { rec.infected = false; lines.push('the infection is drawn out'); }
         } else {
             if (def.ease) {
-                rec.easeMult = Math.min(rec.easedUntil >= day ? rec.easeMult || 1 : 1, def.ease);
+                const ease = Math.max(0.2, 1 - (1 - def.ease) * med);
+                rec.easeMult = Math.min(rec.easedUntil >= day ? rec.easeMult || 1 : 1, ease);
                 rec.easedUntil = Math.max(rec.easedUntil || -1, day + (def.easeDays || 3));
                 lines.push('the fever is eased');
             }
-            const down = _num(def.stageDown) + _num(def.stageDownPerFaith) * _num(player.faith);
+            const down = Math.min(0.95, (_num(def.stageDown) + _num(def.stageDownPerFaith) * _num(player.faith)) * med);
             if (down > 0 && Utils.random() < down) {
                 const wasFirst = rec.stage === 0;
                 Ailments._stepDown(player, rec);
                 lines.push(wasFirst ? 'the sickness lifts' : 'the worst of it passes');
             }
         }
-        if (def.health) player.health = Math.min(player.maxHealth || 100, _num(player.health) + def.health);
-        return { success: true, message: `You use ${def.name} on your ${name.toLowerCase()}${lines.length ? `: ${lines.join(', ')}` : ''}.` };
+        if (hp) player.health = Math.min(player.maxHealth || 100, _num(player.health) + hp);
+        return { success: true, levelUp, message: `You use ${def.name} on your ${name.toLowerCase()}${lines.length ? `: ${lines.join(', ')}` : ''}.${upText}` };
     },
 
     /**
@@ -1157,6 +1183,76 @@ export const Ailments = {
     /** One-line tooltip for a HUD icon. */
     tooltip(info) {
         return [`${info.icon} ${info.name}`, info.effects, info.timeText, info.note].filter(Boolean).join('\n');
+    },
+
+    // ──────────── YOUR OWN MEDICINE ────────────
+
+    /** A Medicine perk for the player (systems/practiceSkills.js; 0 when unknown) */
+    medicinePerk(player, perkId) {
+        if (!player || !PracticeSkills.def('medicine')) return 0;
+        return PracticeSkills.perk(player, 'medicine', perkId);
+    },
+
+    /** How much more remedies, salves and potions do in the player's hands (1 = no more) */
+    medicineMult(player) {
+        return 1 + Ailments.medicinePerk(player, 'remedy') / 100;
+    },
+
+    /** Medicine XP for something done (data skills.medicine.xp[key]) → a level-up event or null */
+    learnMedicine(player, key, mult = 1) {
+        const xp = TradeSkills.xpRate('medicine', key, 0) * _num(mult);
+        return xp > 0 ? TradeSkills.gain(player, 'medicine', xp) : null;
+    },
+
+    /** Remedies the player could nurse a sick companion with: herbs first, then the rest that ease a fever */
+    _tendingRemedy(player) {
+        const rem = Ailments.cfg().remedies || {};
+        const order = ['herbs', 'rare_herbs', ...Object.keys(rem).filter(k => k !== 'herbs' && k !== 'rare_herbs')];
+        return order.find(item => rem[item] && (rem[item].ease || rem[item].stageDown) && _num(player.inventory && player.inventory[item]) > 0) || null;
+    },
+
+    /** Can the player nurse this companion today? → { can, chance, remedy, reason } */
+    tendOption(player, world, npcId) {
+        const st = Ailments.getState(player);
+        const sick = st && st.party[npcId];
+        if (!sick) return { can: false, reason: 'They are well.' };
+        const chance = Math.min(0.95, Ailments.medicinePerk(player, 'tend') / 100);
+        const remedy = Ailments._tendingRemedy(player);
+        if (sick.tendedDay === _day(world)) return { can: false, chance, remedy, reason: 'Already tended today.' };
+        if (!remedy) return { can: false, chance, remedy, reason: 'You need herbs or a remedy to tend them.' };
+        return { can: true, chance, remedy };
+    },
+
+    /**
+     * Nurse a sick companion yourself (once a day): a remedy is used up, and
+     * with your Medicine's tend chance they come through it; either way you learn.
+     */
+    tendCompanion(player, world, npcId) {
+        const opt = Ailments.tendOption(player, world, npcId);
+        if (!opt.can) return { success: false, reason: opt.reason };
+        const st = Ailments.getState(player);
+        const sick = st.party[npcId];
+        const def = Ailments.def(sick.id);
+        sick.tendedDay = _day(world);
+        player.inventory[opt.remedy]--;
+        if (player.inventory[opt.remedy] <= 0) delete player.inventory[opt.remedy];
+        const remName = ((Ailments.cfg().remedies || {})[opt.remedy] || {}).name || opt.remedy;
+        let name = 'your companion';
+        try { const npc = Relationships.getNPC(npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown NPC */ }
+        const disease = def ? def.name.toLowerCase() : 'sickness';
+        const won = Utils.random() < opt.chance;
+        if (won) {
+            delete st.party[npcId];
+            st.stats.treatments++;
+        } else {
+            // a night's nursing still shortens it
+            sick.daysLeft = Math.max(1, _num(sick.daysLeft) - 1);
+        }
+        const levelUp = Ailments.learnMedicine(player, won ? 'tendWin' : 'tendFail');
+        const message = won
+            ? `You nurse ${name} with ${remName.toLowerCase()} and broth: the ${disease} breaks.`
+            : `You sit up with ${name} and dose them with ${remName.toLowerCase()}. The ${disease} holds on, but a little less fiercely.`;
+        return { success: true, cured: won, levelUp, message: `${message}${levelUp ? ` ${levelUp.text}` : ''}` };
     },
 
     /** Sick companions: [{ npcId, disease, daysLeft }]. */

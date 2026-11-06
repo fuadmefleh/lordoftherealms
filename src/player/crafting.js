@@ -29,6 +29,14 @@
 // Artisan) still counts all the work done; old saves seed the new skills
 // from it the first time they're read.
 //
+// Smithing, Tanning & Weaving (leatherwork + tailoring) and Brewing (brewing
+// + alchemy) are practised skills in levels (systems/tradeSkills.js,
+// data/skillPacks/trades.json): their level replaces the 0..10 value, their
+// perks set the craftsmanship added to the roll, how much a spoiled piece
+// wastes, how long a piece takes (result.hours), the forge's steadiness and
+// the chance of a spare piece; a level-up comes back as result.levelUp. Old
+// player.skills values migrate into their XP and are kept in step.
+//
 // Domain rules: player / world / context are parameters, all randomness via
 // Utils, packs through PlayerInventory (the inventory cap is respected: a
 // craft whose product doesn't fit is undone).
@@ -38,6 +46,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Grades } from '../core/grades.js';
 import { PlayerInventory } from './inventory.js';
 import { OddJobs } from './oddJobs.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
+import { TradeSkills } from '../systems/tradeSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -137,7 +147,40 @@ export const Crafting = {
     },
 
     skillDef(id) {
+        const pid = TradeSkills.forCraft(id);
+        const pd = pid && PracticeSkills.def(pid);
+        if (pd) return { name: pd.name || pid, icon: pd.icon || '🔨', desc: pd.desc || '', practice: pid };
         return Crafting.skills()[id] || { name: String(id || 'craft'), icon: '🔨', desc: '' };
+    },
+
+    /** The practised skill (systems/tradeSkills.js) a craft skill is worked through, or null */
+    practiceOf(skill) {
+        return TradeSkills.forCraft(skill);
+    },
+
+    /** A practised craft's perk for the player at a craft skill (0 when the skill is not practised) */
+    perk(player, skill, perkId) {
+        const pid = TradeSkills.forCraft(skill);
+        if (!pid || !player) return 0;
+        TradeSkills.migrate(player);
+        return PracticeSkills.perk(player, pid, perkId);
+    },
+
+    /** Hours a piece of this recipe takes the player (a practised craft's minutes; else an hour) */
+    hoursFor(player, recipe) {
+        const m = Crafting.perk(player, Crafting.skillOf(recipe), 'minutes');
+        return m > 0 ? Math.round((m / 60) * 100) / 100 : 1;
+    },
+
+    /** The XP a craft's `xp` gives its skill (a practised craft's own rate; shown in notices) */
+    practiceXp(skill, xp) {
+        const pid = TradeSkills.forCraft(skill);
+        return pid ? Math.round(_num(xp) * TradeSkills.xpRate(pid, 'craft', 2) * 10) / 10 : _num(xp);
+    },
+
+    /** Extra steadiness at the anvil (the forge minigame's strength) from Smithing */
+    forgeBonus(player, recipe) {
+        return Crafting.perk(player, Crafting.skillOf(recipe), 'forge');
     },
 
     /** The skill a recipe trains and leans on. */
@@ -166,6 +209,11 @@ export const Crafting = {
     skillLevel(player, skill) {
         if (!player) return 0;
         Crafting._seedFromRank(player);
+        const pid = TradeSkills.forCraft(skill);
+        if (pid) {
+            TradeSkills.migrate(player);
+            return _clamp(TradeSkills.craftLevel(player, pid), 0, 10);
+        }
         return _clamp(_num(player.skills && player.skills[skill]), 0, 10);
     },
 
@@ -181,6 +229,13 @@ export const Crafting = {
     skillInfo(player, skill) {
         const def = Crafting.skillDef(skill);
         const level = Crafting.skillLevel(player, skill);
+        if (def.practice) {
+            const p = PracticeSkills.progress(player || {}, def.practice);
+            return {
+                id: def.practice, name: def.name, icon: def.icon, level, title: p.levelName,
+                practice: def.practice, practiceLevel: p.level, xp: p.into, need: p.need,
+            };
+        }
         return {
             id: skill, name: def.name, icon: def.icon, level, title: Crafting.skillTitle(level),
             xp: _num(player && player.skillXp && player.skillXp[skill]), need: _r2(2 + level * 0.5),
@@ -189,14 +244,24 @@ export const Crafting = {
 
     /** Every craft skill the player has any level in, best first. */
     skillList(player) {
+        const seen = new Set();
         return Object.keys(Crafting.skills()).map(id => Crafting.skillInfo(player, id))
-            .filter(s => s.level > 0 || s.xp > 0).sort((a, b) => b.level - a.level);
+            .filter(s => {
+                if (seen.has(s.id)) return false;
+                seen.add(s.id);
+                return s.level > 0 || s.xp > 0;
+            }).sort((a, b) => b.level - a.level);
     },
 
     /** Craft xp into a skill (× data xpScale). → [{ id, by }] the levels gained. */
     trainSkill(player, skill, xp) {
         if (!player || !(xp > 0)) return [];
         Crafting._seedFromRank(player);
+        const pid = TradeSkills.forCraft(skill);
+        if (pid) {
+            const up = TradeSkills.gain(player, pid, xp * TradeSkills.xpRate(pid, 'craft', 2));
+            return up ? [{ id: pid, kind: 'practice', by: up.to - up.from, event: up }] : [];
+        }
         if (!player.skills || typeof player.skills !== 'object') player.skills = {};
         if (player.skills[skill] == null) player.skills[skill] = 0;
         return OddJobs.gainXp(player, { skills: { [skill]: 1 } }, xp * _num(_gradesData().xpScale, 0.6));
@@ -204,6 +269,7 @@ export const Crafting = {
 
     /** The skill's info when it passed a whole level since `before`, else null (for a notice). */
     _levelUp(player, skill, before) {
+        if (TradeSkills.forCraft(skill)) return null; // announced as result.levelUp
         const now = Crafting.skillLevel(player, skill);
         return Math.floor(now + 1e-9) > Math.floor(_num(before) + 1e-9) ? Crafting.skillInfo(player, skill) : null;
     },
@@ -281,7 +347,10 @@ export const Crafting = {
         const attr = _num(player[recipe.attr || 'intelligence'], 5);
         const forge = ctx.forgeScore != null ? _clamp(_num(ctx.forgeScore), 0, 100) : null;
         const input = Crafting.inputGrade(player, recipe);
-        let score = R.base + level * R.perLevel + shop * R.workshop + (tool ? R.tools * tool.power * tool.effect : 0)
+        // A practised craft's levels give their craftsmanship perk in place of level x perLevel
+        const practised = !!TradeSkills.forCraft(skill);
+        const skillScore = practised ? Crafting.perk(player, skill, 'quality') : level * R.perLevel;
+        let score = R.base + skillScore + shop * R.workshop + (tool ? R.tools * tool.power * tool.effect : 0)
             + (attr - 5) * R.perAttr - (diff - 1) * R.perDifficulty + (input - Grades.COMMON) * R.perInputGrade;
         if (forge != null) score += ((forge - 50) / 50) * R.forge;
         let fail = F.base + diff * F.perDifficulty - level * F.perLevel - shop * F.workshop - tools * F.tools;
@@ -290,7 +359,8 @@ export const Crafting = {
         const dist = recipe.quality === false ? Grades.list().map((g, i) => (i === Grades.COMMON ? 1 : 0)) : Grades.distribution(score, R.noise);
         let tier = Grades.COMMON;
         for (let i = 0; i < dist.length; i++) if (dist[i] > dist[tier]) tier = i;
-        return { fail: _r2(fail), score: _r2(score), tier, dist, skill, level, parts: { level, shop, tools, tool, diff, forge, input } };
+        const waste = practised ? Crafting.perk(player, skill, 'waste') / 100 : _num(F.loss, 0.5);
+        return { fail: _r2(fail), score: _r2(score), tier, dist, skill, level, waste: _r2(waste), parts: { level, shop, tools, tool, diff, forge, input, skillScore: _r2(skillScore) } };
     },
 
     /** Grade index (0 poor … 4 masterwork) for a quality score. */
@@ -339,7 +409,7 @@ export const Crafting = {
             // Spoiled: part of every input is wasted (the worst of it first)
             const lost = {};
             for (const [item, amt] of Object.entries(recipe.ingredients || {})) {
-                const n = Math.max(1, Math.ceil(amt * _num(C.failure.loss, 0.5)));
+                const n = Math.max(1, Math.ceil(amt * _num(odds.waste, _num(C.failure.loss, 0.5)) - 1e-9));
                 const take = Math.min(n, _num(inv[item]));
                 if (take > 0) {
                     Grades.remove(player, item, take, { order: 'worst' });
@@ -350,9 +420,12 @@ export const Crafting = {
             const xp = Math.round(xpFull * _num(C.failure.xpShare, 0.5) * 10) / 10;
             st.xp = _r2(_num(st.xp) + xp);
             st.failed = _num(st.failed) + 1;
-            Crafting.trainSkill(player, skill, xp);
+            const upF = Crafting.trainSkill(player, skill, xp);
             const after = Crafting.rank(player);
-            return { success: false, failed: true, recipe, lost, xp, skill, skillUp: Crafting._levelUp(player, skill, odds.level), rankUp: after.level > before ? after : null, toolWorn, odds };
+            return {
+                success: false, failed: true, recipe, lost, xp, skill, skillUp: Crafting._levelUp(player, skill, odds.level),
+                levelUp: Crafting._practiceEvent(upF), hours: Crafting.hoursFor(player, recipe), rankUp: after.level > before ? after : null, toolWorn, odds,
+            };
         }
 
         // Success: the grade of the work
@@ -370,19 +443,37 @@ export const Crafting = {
         if (recipe.quality !== false) {
             for (const [item, qty] of Object.entries(recipe.result || {})) Grades.add(player, item, qty, tierIdx);
         }
+        // A practised hand sometimes gets a spare piece out of the same stuff
+        let spare = null;
+        const spareChance = Crafting.perk(player, skill, 'spare') / 100;
+        if (spareChance > 0 && Utils.random() < spareChance) {
+            const [item] = Object.keys(recipe.result || {});
+            if (item && !PlayerInventory.addItems(player, { [item]: 1 }).full) {
+                if (recipe.quality !== false) Grades.add(player, item, 1, tierIdx);
+                spare = item;
+            }
+        }
         wearTools();
         st.xp = _r2(_num(st.xp) + xpFull);
         st.made = _num(st.made) + 1;
         if (tierIdx >= Grades.index('masterwork') && recipe.quality !== false) st.masterworks = _num(st.masterworks) + 1;
-        Crafting.trainSkill(player, skill, xpFull);
+        const hours = Crafting.hoursFor(player, recipe);
+        const up = Crafting.trainSkill(player, skill, xpFull);
         const skillUp = Crafting._levelUp(player, skill, odds.level);
         const tier = Crafting.tier(tierIdx);
         const after = Crafting.rank(player);
         return {
             success: true, recipe, tier: tierIdx, tierName: tier.name, tierIcon: tier.icon, tierColor: tier.color, quality: recipe.quality !== false,
-            results: { ...recipe.result }, xp: xpFull, skill, skillUp,
+            results: spare ? { ...recipe.result, [spare]: _num(recipe.result[spare]) + 1 } : { ...recipe.result }, spare, xp: xpFull, skill, skillUp,
+            levelUp: Crafting._practiceEvent(up), hours,
             rankUp: after.level > before ? after : null, toolWorn, odds,
         };
+    },
+
+    /** The level-up event out of trainSkill's gains, or null */
+    _practiceEvent(gains) {
+        const g = Array.isArray(gains) ? gains.find(x => x && x.kind === 'practice' && x.event) : null;
+        return g ? g.event : null;
     },
 
     // ── Grades of goods held (core/grades.js) ────────────

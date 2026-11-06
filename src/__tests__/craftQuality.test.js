@@ -131,8 +131,12 @@ describe('crafting skills drive the grade', () => {
     it('an old save\'s single crafting rank seeds the new skills once', () => {
         const p = crafter({ crafting: { xp: 400 } });
         expect(Crafting.skillLevel(p, 'smithing')).toBeGreaterThan(5);
+        p.skills.carpentry = 2;
+        expect(Crafting.skillLevel(p, 'carpentry')).toBe(2);
+        // a practised craft (systems/tradeSkills.js) keeps its XP: an old value never lowers it
+        const before = Crafting.skillLevel(p, 'smithing');
         p.skills.smithing = 2;
-        expect(Crafting.skillLevel(p, 'smithing')).toBe(2);
+        expect(Crafting.skillLevel(p, 'smithing')).toBe(before);
     });
 });
 

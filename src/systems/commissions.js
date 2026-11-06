@@ -28,6 +28,9 @@
 // data/craftGrades.json hired.levelBonus, + the grade of the goods you
 // brought) sets the shares of Poor, Fine, Excellent and Masterwork, rounded
 // down, the rest Common (job.grades; handed over on collection, best first).
+// The town's best hand at the trade's practised skill (Smithing, Tanning &
+// Weaving, Brewing — systems/tradeSkills.js, its townsfolk roster) raises or
+// lowers that craftsmanship by their level (quote.master).
 
 import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
@@ -36,6 +39,7 @@ import { Grades } from '../core/grades.js';
 import { MarketGrades } from '../world/marketGrades.js';
 import { Languages } from './languages.js';
 import { Ledger } from './ledger.js';
+import { TradeSkills } from './tradeSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -118,6 +122,16 @@ export const Commissions = {
         return out;
     },
 
+    /** The practised skill the work of an offer takes (systems/tradeSkills.js), or null */
+    skillOf(offer) {
+        if (!offer) return null;
+        if (offer.kind === 'trade') return TradeSkills.forTrade(offer.recipeId);
+        const recipes = (DataLoader._gamedata && DataLoader._gamedata.crafting && DataLoader._gamedata.crafting.recipes) || [];
+        const r = recipes.find(x => x.id === offer.recipeId);
+        if (!r) return null;
+        return (r.skill && TradeSkills.forCraft(r.skill)) || TradeSkills.forStation(r.station);
+    },
+
     offer(world, settlement, offerId) {
         return Commissions.offers(world, settlement).find(o => o.id === offerId) || null;
     },
@@ -159,15 +173,16 @@ export const Commissions = {
             fee = Math.max(_num((C.fee || {}).min, 1), Math.round(worth * _num((C.fee || {}).share, 0.2) * (1 - tongue)));
         }
         const days = Math.max(0, Math.ceil(n / Math.max(1, offer.perDay)) - 1);
-        const grades = Commissions.gradesFor(player, settlement, inputs, give);
-        return { runs: n, inputs, made, keep, give, fee, worth: Math.round(worth), days, grades };
+        const hand = TradeSkills.hiredBonus(settlement, world, Commissions.skillOf(offer));
+        const grades = Commissions.gradesFor(player, settlement, inputs, give, hand.bonus);
+        return { runs: n, inputs, made, keep, give, fee, worth: Math.round(worth), days, grades, master: hand.master, masterBonus: hand.bonus };
     },
 
     /**
      * The grades the work comes out in: { good: { poor, fine, excellent,
      * masterwork } } of the units handed back (the rest Common).
      */
-    gradesFor(player, settlement, inputs, give) {
+    gradesFor(player, settlement, inputs, give, handBonus = 0) {
         const out = {};
         if (!settlement) return out;
         // The goods you bring: better stuff makes better work
@@ -178,7 +193,7 @@ export const Commissions = {
             n += p.n; sum += p.index * p.n;
         }
         const inputBonus = n > 0 ? (sum / n - Grades.COMMON) * 1.5 : 0;
-        const bonus = _num(((Grades.data() || {}).hired || {}).levelBonus, 0.5) + inputBonus;
+        const bonus = _num(((Grades.data() || {}).hired || {}).levelBonus, 0.5) + inputBonus + _num(handBonus);
         for (const [g, q] of Object.entries(give || {})) {
             if (!(q > 0) || !Grades.gradeable(g)) continue;
             const mix = MarketGrades.mix(MarketGrades.level(settlement, g) + bonus);

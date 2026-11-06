@@ -28,10 +28,57 @@ export function intelBadge(why) {
 
 /** The note shown where a realm's books are closed to the player. */
 export function closedBooks(what = 'the crown\'s books') {
-    return `<div style="font-size:11px; color:var(--text-secondary); margin:4px 0;">🔒 ${esc(what)} are not for a commoner's eyes: the throne, an office at that court (chancellor, tax collector, treasurer, spymaster) or a spy placed in the realm would open them. What you have is the talk of the street.</div>`;
+    return `<div style="font-size:11px; color:var(--text-secondary); margin:4px 0;">🔒 ${esc(String(what).charAt(0).toUpperCase() + String(what).slice(1))} are not for a commoner's eyes: the throne, an office at that court (chancellor, tax collector, treasurer, spymaster) or a spy placed in the realm would open them. What you have is the talk of the street.</div>`;
 }
 
-export const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
+// ── Structure helpers (styles.css "Panel kit") ──────────────────────────
+// Panels used to open on a grey slab of prose; these give them a shape the
+// eye can scan. All take trusted HTML (callers escape what they interpolate).
+
+/** The panel's opening paragraph: one or two sentences, gold rule at the left. */
+export function lede(html) {
+    return html ? `<p class="pk-lede">${html}</p>` : '';
+}
+
+/** A row of stat chips. items: [icon, label, value, cls?] or { icon, label, value, cls } or a plain string. */
+export function chips(items) {
+    const parts = (items || []).filter(Boolean).map(i => {
+        if (typeof i === 'string') return `<span class="pk-chip">${i}</span>`;
+        const [ic, label, value, cls] = Array.isArray(i) ? i : [i.icon, i.label, i.value, i.cls];
+        const v = value == null || value === '' ? '' : ` <b>${value}</b>`;
+        return `<span class="pk-chip${cls ? ' ' + cls : ''}">${ic ? ic + ' ' : ''}${label || ''}${v}</span>`;
+    });
+    return parts.length ? `<div class="pk-chips">${parts.join('')}</div>` : '';
+}
+
+/** The player's purse as a chip: "💰 Purse 1,250g". */
+export function purse(gold) {
+    const n = Math.floor(Number(gold) || 0);
+    return { icon: '💰', label: 'Purse', value: `${n.toLocaleString('en-US')}g`, cls: 'gold' };
+}
+
+/** A small uppercase section heading. */
+export function sectionHead(text) {
+    return `<div class="pk-head">${text}</div>`;
+}
+
+/** A bullet list of short points. */
+export function bullets(items) {
+    const li = (items || []).filter(Boolean).map(i => `<li>${i}</li>`).join('');
+    return li ? `<ul class="pk-list">${li}</ul>` : '';
+}
+
+/** Label/value row. */
+export function kv(label, value) {
+    return `<div class="pk-kv"><span>${label}</span><span>${value}</span></div>`;
+}
+
+/** A collapsed "summary ▸" that opens to its body (long lists nobody needs open). */
+export function more(summary, bodyHtml) {
+    return bodyHtml ? `<details class="pk-more"><summary>${summary}</summary>${bodyHtml}</details>` : '';
+}
+
+export const CARD ='background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
 
 /**
  * True once the player has closed the custom panel. A minigame whose loop

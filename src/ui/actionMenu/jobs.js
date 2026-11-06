@@ -7,6 +7,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { CombatSkills } from '../../systems/combatSkills.js';
 import { OddJobs } from '../../player/oddJobs.js';
+import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { MapTasks } from '../../systems/mapTasks.js';
 import { startTrapping, startIceFishing } from './winterScenes.js';
@@ -166,6 +167,16 @@ Object.assign(ActionMenu, {
         if (f.season !== 1) notes.push(`${f.season > 1 ? 'a bumper harvest' : 'a thin harvest'} (×${f.season})`);
         if (notes.length) html += `<div style="font-size: 11px; color: var(--text-secondary);">${notes.join(' · ')}</div>`;
         for (const g of res.gains) {
+            if (g.kind === 'practice') {
+                // a practised skill: XP, and a level-up announced (systems/practiceSkills.js)
+                const d = PracticeSkills.def(g.id) || {};
+                html += `<div style="font-size: 12px; color: #2ecc71;">${d.icon || ''} ${d.name || g.id} +${g.by} xp</div>`;
+                if (g.event) {
+                    html += `<div style="font-size: 12px; color: #f5c542;">${g.event.text}</div>`;
+                    game.ui.showNotification(`${g.event.icon} ${g.event.name} Improved`, g.event.text, 'success');
+                }
+                continue;
+            }
             const name = g.id.charAt(0).toUpperCase() + g.id.slice(1);
             html += `<div style="font-size: 12px; color: #2ecc71;">${name} +${g.by}</div>`;
         }

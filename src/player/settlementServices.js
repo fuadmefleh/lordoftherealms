@@ -10,6 +10,7 @@
 import { Utils } from '../core/utils.js';
 import { PlayerEffects } from './playerEffects.js';
 import { Gossip } from '../systems/gossip.js';
+import { TradeSkills } from '../systems/tradeSkills.js';
 
 /** Price multiplier by settlement size — bigger towns charge more. */
 const SIZE_PRICE = { village: 0.85, town: 1.0, city: 1.15, capital: 1.3 };
@@ -58,8 +59,18 @@ export const SettlementServices = {
         return Math.round(Math.max(cfg.minCost, units * cfg.costPerUnit) * _priceFactor(settlement));
     },
 
-    /** Sharpen blades and mend armour: +15% army strength for a week. */
-    honeArms(player, settlement) {
+    /**
+     * Sharpen blades and mend armour: +15% army strength for a week — longer
+     * from the town's best smith, shorter from a poor one (their Smithing
+     * level against 5 adds or takes a day each; systems/tradeSkills.js).
+     */
+    honeArmsDays(settlement, world = null) {
+        const cfg = SERVICE_CONFIG.honedArms;
+        const smith = TradeSkills.master(settlement, world, 'smithing');
+        return { days: Math.max(4, cfg.days + (smith ? smith.level - 5 : 0)), smith };
+    },
+
+    honeArms(player, settlement, world = null) {
         const cfg = SERVICE_CONFIG.honedArms;
         if (!player.army || player.army.length === 0) {
             return { success: false, reason: 'You have no soldiers whose arms need tending.' };
@@ -67,10 +78,11 @@ export const SettlementServices = {
         const cost = this.honeArmsCost(player, settlement);
         if (player.gold < cost) return { success: false, reason: `The smith wants ${cost} gold.` };
         _spend(player, cost, 'smithing');
-        _grantBlessing(player, cfg.key, cfg.days);
+        const { days, smith } = this.honeArmsDays(settlement, world);
+        _grantBlessing(player, cfg.key, days);
         return {
-            success: true, cost, days: cfg.days,
-            message: `The smith hones your company's arms. Army strength +${Math.round(cfg.strengthBonus * 100)}% for ${cfg.days} days.`,
+            success: true, cost, days,
+            message: `${smith ? `${smith.name} (Smithing ${smith.level})` : 'The smith'} hones your company's arms. Army strength +${Math.round(cfg.strengthBonus * 100)}% for ${days} days.`,
         };
     },
 

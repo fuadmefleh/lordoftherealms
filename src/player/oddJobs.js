@@ -14,7 +14,11 @@
 //            strength/intelligence/charisma build the attribute, combat and
 //            stealth jobs the skill, a crier's day some commerce, a herald's
 //            some diplomacy. XP accumulates on player.attrXp / player.skillXp;
-//            each full measure raises the stat by 0.1 (cap 10).
+//            each full measure raises the stat by 0.1 (cap 10). A job's
+//            `practice` ({ smithing: 8 }) also gives practised-skill XP
+//            (systems/practiceSkills.js) of that many per measure: the
+//            smith's striker learns Smithing (a gain { kind: 'practice',
+//            event } carries any level-up).
 //   Labour   a land or craft job in a town short of hands does real work:
 //            the goods it yields (job.good) join the town's market.
 //   Bounties the board's instant notices are resolved here with the seeded
@@ -28,6 +32,7 @@ import { Harvests } from '../world/harvests.js';
 import { Seasons } from '../world/seasons.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Ledger } from '../systems/ledger.js';
+import { TradeSkills } from '../systems/tradeSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -72,7 +77,14 @@ export const OddJobs = {
      */
     train(player, job, scorePercent) {
         const amount = Math.max(1, _num(job && job.difficulty, 3)) * (0.5 + _clamp(_num(scorePercent), 0, 100) / 100) * 0.5;
-        return OddJobs.gainXp(player, OddJobs.trainingFor(job), amount);
+        const gains = OddJobs.gainXp(player, OddJobs.trainingFor(job), amount);
+        for (const [id, w] of Object.entries((job && job.practice) || {})) {
+            const xp = _r2(amount * _num(w));
+            if (!(xp > 0)) continue;
+            const event = TradeSkills.gain(player, id, xp);
+            gains.push({ id, kind: 'practice', by: xp, event });
+        }
+        return gains;
     },
 
     /** Add `amount` × weight XP to each trained stat; each measure (2 + value × 0.5) raises it by 0.1. */

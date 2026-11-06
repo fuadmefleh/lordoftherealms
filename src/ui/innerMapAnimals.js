@@ -412,7 +412,7 @@ export const InnerMapAnimals = {
             if (kingdom != null && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(L.reputation, 3);
             Underworld.recordCrime(player, world, 'theft', {
                 kingdom, caught: true, q: wt.q, r: wt.r,
-                victim: { name: `a shepherd of ${town}`, type: 'farmer', icon: '🧑‍🌾' },
+                victim: { name: `a shepherd of ${town}`, type: 'farmer', icon: '👨‍🌾' },
             });
             _notify(game, '⚖️ Seen', `You were seen killing ${town}'s ${name}. It's theft: fined ${fine} gold${kingdom != null ? ', and your name is mud hereabouts' : ''}.`, 'error');
             if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, world);

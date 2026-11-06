@@ -90,7 +90,7 @@
         "line": { "base": 0.4, "perQuality": 1.2, "min": 0.3, "max": 1.5 }
     },
     "iceFish": {
-        "title": "Ice Fishing", "icon": "🧊", "parHours": 3,
+        "title": "Ice Fishing", "icon": "❄️", "parHours": 3,
         "shoreSay": "Cut a hole near the bank and fish through it.",
         "farSay": "Walk out to where the ice is thin, cut a hole and fish.",
         "radius": 24, "cutSeconds": 3, "bites": { "shore": 2, "far": 1 },
@@ -112,7 +112,7 @@
         "status": "Suspicion {pct}%"
     },
     "pickpocket": {
-        "title": "Pickpocket", "icon": "🤏", "parHours": 1,
+        "title": "Pickpocket", "icon": "👛", "parHours": 1,
         "say": "Get close to the {name} and lift the purse while they're not looking. Step back when they turn round.",
         "from": [7, 14],
         "types": { "peasant": "farmer", "merchant": "merchant", "noble": "noble", "drunk": "villager", "traveler": "traveler", "guard": "guard", "priest": "priest", "aristocrat": "noble" },

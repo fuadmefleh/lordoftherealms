@@ -35,7 +35,7 @@ Object.assign(ActionMenu, {
         // ── Target generation ──
         const targetPool = [
             { type: 'peasant',    icon: '👨‍🌾', name: 'Farmer',         gold: [3, 12],   awareness: 0.2, tier: ['village','town','capital'] },
-            { type: 'merchant',   icon: '🧑‍💼', name: 'Merchant',       gold: [10, 35],  awareness: 0.45, tier: ['town','capital'] },
+            { type: 'merchant',   icon: '👨‍💼', name: 'Merchant',       gold: [10, 35],  awareness: 0.45, tier: ['town','capital'] },
             { type: 'noble',      icon: '🤴',  name: 'Minor Noble',    gold: [25, 60],  awareness: 0.6,  tier: ['town','capital'] },
             { type: 'drunk',      icon: '🍺',  name: 'Drunkard',       gold: [2, 10],   awareness: 0.1,  tier: ['village','town','capital'] },
             { type: 'traveler',   icon: '🧳',  name: 'Traveler',       gold: [8, 25],   awareness: 0.35, tier: ['village','town','capital'] },
@@ -57,7 +57,7 @@ Object.assign(ActionMenu, {
         }
 
         let html = '<div style="max-width: 520px; text-align: center;">';
-        html += '<h4 style="margin: 0 0 4px;">🤏 Pickpocket</h4>';
+        html += '<h4 style="margin: 0 0 4px;">👛 Pickpocket</h4>';
         html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Stealth: ${stealthSkill} | Luck: ${luckStat} | ${settlement.name} (${tier})</p>`;
         html += '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Choose your mark from the crowd:</div>';
         for (let i = 0; i < targets.length; i++) {
@@ -83,7 +83,7 @@ Object.assign(ActionMenu, {
             style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
                    border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Nevermind</button>`;
         html += '</div>';
-        game.ui.showCustomPanel('🤏 Pickpocket', html);
+        game.ui.showCustomPanel('👛 Pickpocket', html);
 
         window._ppSelectTarget = (idx) => {
             const target = targets[idx];
@@ -92,7 +92,7 @@ Object.assign(ActionMenu, {
                 const successChance = Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3);
                 if (Math.random() < successChance) {
                     const res = _ppLift(game, player, settlement, target);
-                    game.ui.showNotification('🤏 Pickpocket', `Swiped ${res.gold}g from the ${target.name}. -1 karma.`, 'success');
+                    game.ui.showNotification('👛 Pickpocket', `Swiped ${res.gold}g from the ${target.name}. -1 karma.`, 'success');
                 } else {
                     ActionMenu._ppDoCaught(game, tile, player, settlement, target);
                 }
@@ -102,7 +102,7 @@ Object.assign(ActionMenu, {
             };
             if (!WildTaskRunner.inWorld(game)) { quick(); return; }
             WildTaskRunner.choose(game, {
-                title: '🤏 Pickpocket ' + target.name,
+                title: '👛 Pickpocket ' + target.name,
                 icon: target.icon,
                 description: `Attempt to steal from the ${target.name}. ${target.diff} difficulty.`,
                 baseText: `Simple roll (~${Math.floor(Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3) * 100)}% success, ~${target.goldAmount}g)`,
@@ -1292,10 +1292,10 @@ function _ppInPerson(game, tile, player, settlement, target, quick) {
             style="padding: 10px 32px; margin-top: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
                    border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">Continue</button>`;
         html += '</div>';
-        game.ui.showCustomPanel('🤏 Pickpocket', html);
+        game.ui.showCustomPanel('👛 Pickpocket', html);
         game.ui.updateStats(player, game.world);
     }, () => {
-        game.ui.showNotification('🤏 Pickpocket', 'You thought better of it and melted back into the crowd.', 'default');
+        game.ui.showNotification('👛 Pickpocket', 'You thought better of it and melted back into the crowd.', 'default');
     });
 }
 

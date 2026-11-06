@@ -54,7 +54,7 @@ Object.assign(PlayerMilitary, {
         PIKEMAN: {
             id: 'pikeman',
             name: 'Pikeman',
-            icon: '🪓',
+            icon: '🗡️',
             cost: 110,
             upkeep: 5,
             strength: 12,

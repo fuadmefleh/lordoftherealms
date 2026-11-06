@@ -260,7 +260,7 @@ export function _checkNeedWarnings() {
         social:  { icon: '💬', label: 'Lonely' },
         fun:     { icon: '🎭', label: 'Bored' },
         hygiene: { icon: '🧼', label: 'Dirty' },
-        comfort: { icon: '🪑', label: 'Uncomfortable' },
+        comfort: { icon: '💺', label: 'Uncomfortable' },
     };
 
     // What to do about it (the actions that raise each need)

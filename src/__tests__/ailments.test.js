@@ -179,7 +179,7 @@ describe('wounds', () => {
     it('a wound can leave a lasting mark that earns the Scarred trait and changes how NPCs react', () => {
         const w = makeWorld();
         const p = makePlayer();
-        Ailments.DEFS.test_scar = { kind: 'wound', name: 'Test Cut', icon: '🩸', severity: 1, days: [1, 1], infection: 0, effects: {}, permanent: { chance: 1, deed: 'scarring' } };
+        Ailments.DEFS.test_scar = { kind: 'wound', name: 'Test Cut', icon: '🔴', severity: 1, days: [1, 1], infection: 0, effects: {}, permanent: { chance: 1, deed: 'scarring' } };
         Ailments.inflict(p, w, 'test_scar');
         w.day++;
         const out = Ailments.processDay(w, p);

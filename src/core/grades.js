@@ -45,10 +45,10 @@ const ORDERS = {
 };
 
 const DEFAULT_GRADES = [
-    { id: 'poor', name: 'Poor', icon: '🟤', color: '#b08968', price: 0.6, effect: 0.8, below: 0.6 },
+    { id: 'poor', name: 'Poor', icon: '⚫', color: '#b08968', price: 0.6, effect: 0.8, below: 0.6 },
     { id: 'common', name: 'Common', icon: '⚪', color: '#d6d2c8', price: 1, effect: 1, below: 1.7 },
     { id: 'fine', name: 'Fine', icon: '🔵', color: '#5dade2', price: 1.4, effect: 1.2, below: 2.6 },
-    { id: 'excellent', name: 'Excellent', icon: '🟣', color: '#c39bd3', price: 2, effect: 1.4, below: 3.4 },
+    { id: 'excellent', name: 'Excellent', icon: '🔮', color: '#c39bd3', price: 2, effect: 1.4, below: 3.4 },
     { id: 'masterwork', name: 'Masterwork', icon: '🌟', color: '#f5c542', price: 3, effect: 1.65, below: null },
 ];
 

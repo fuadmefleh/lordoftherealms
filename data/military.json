@@ -100,7 +100,7 @@
       "id": "berserker",
       "minSettlement": "town",
       "name": "Berserker",
-      "icon": "🪓",
+      "icon": "🗡️",
       "cost": 180,
       "upkeep": 8,
       "strength": 22,

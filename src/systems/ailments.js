@@ -184,7 +184,7 @@ export const Ailments = {
             if (inj.stat && _num(inj.amount) > 0) applied.attrs[inj.stat] = _num(inj.amount);
             st.list.push({
                 key: `a${st.nextKey++}`, id, kind: 'wound',
-                name: (def && def.name) || inj.name || id, icon: (def && def.icon) || '🩹',
+                name: (def && def.name) || inj.name || id, icon: (def && def.icon) || '🤕',
                 daysLeft: left, totalDays: left, infected: false, treated: 0, dressedUntil: -1,
                 source: 'delve', sinceDay: day == null ? 0 : day, applied,
             });
@@ -1118,7 +1118,7 @@ export const Ailments = {
 
     stageIcon(rec) {
         const def = Ailments.def(rec.id);
-        if (!def) return rec.icon || '🩹';
+        if (!def) return rec.icon || '🤕';
         if (rec.kind !== 'disease') return def.icon;
         const s = (def.stages || [])[rec.stage || 0];
         return (s && s.icon) || def.icon;

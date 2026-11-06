@@ -1,6 +1,7 @@
-// Windows 10's emoji font (Segoe UI Emoji) stops at Emoji 12.1; anything
-// newer renders as a blank white box (e.g. 🪙 for gold). Keep icons in the
-// game's code and data to Emoji 12.1 or older.
+// Windows 10's emoji font (Segoe UI Emoji) on a machine without the later
+// font updates stops at Emoji 11; anything newer renders as a blank white box
+// (e.g. 🪙 for gold, or Emoji 12's chair and axe). Keep icons in the game's
+// code and data to Emoji 11 or older.
 
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
@@ -9,14 +10,15 @@ import { fileURLToPath } from 'url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-// Code point ranges first introduced in Emoji 13.0 or later
-const NEWER_THAN_12_1 = [
-    [0x1F6D6, 0x1F6D7], [0x1F6DC, 0x1F6DF], [0x1F7F0, 0x1F7F0], [0x1F90C, 0x1F90C],
-    [0x1F972, 0x1F972], [0x1F977, 0x1F979], [0x1F9A3, 0x1F9A4], [0x1F9AB, 0x1F9AD],
-    [0x1F9CB, 0x1F9CC], [0x1FA74, 0x1FA74], [0x1FA7B, 0x1FA7C], [0x1FA83, 0x1FA8F],
-    [0x1FA96, 0x1FAFF],
+// Code point ranges first introduced in Emoji 12.0 or later
+const NEWER_THAN_11 = [
+    [0x1F6D5, 0x1F6DF], [0x1F6FA, 0x1F6FF], [0x1F7E0, 0x1F7FF], [0x1F90C, 0x1F90F],
+    [0x1F93F, 0x1F93F], [0x1F971, 0x1F972], [0x1F977, 0x1F979], [0x1F97B, 0x1F97B],
+    [0x1F9A3, 0x1F9AF], [0x1F9BA, 0x1F9BF], [0x1F9C3, 0x1F9CF], [0x1FA70, 0x1FAFF],
 ];
-const isTooNew = (cp) => NEWER_THAN_12_1.some(([a, b]) => cp >= a && cp <= b);
+const isTooNew = (cp) => NEWER_THAN_11.some(([a, b]) => cp >= a && cp <= b);
+// Gender-neutral people in a joined sequence (🧑 + ZWJ, Emoji 12.1)
+const NEUTRAL_ZWJ = /\u{1F9D1}‍/u;
 
 function walk(dir, exts, out = []) {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -31,16 +33,18 @@ function walk(dir, exts, out = []) {
 }
 
 describe('emoji compatibility', () => {
-    it('uses no emoji newer than Emoji 12.1 in src/ or data/', () => {
+    it('uses no emoji newer than Emoji 11 in src/ or data/', () => {
         const files = [
             ...walk(path.join(root, 'src'), ['.js', '.jsx', '.css']),
             ...walk(path.join(root, 'data'), ['.json']).filter(f => !f.endsWith('gamedata.json')),
         ];
         const offenders = [];
         for (const f of files) {
-            for (const ch of fs.readFileSync(f, 'utf-8')) {
+            const text = fs.readFileSync(f, 'utf-8');
+            for (const ch of text) {
                 if (isTooNew(ch.codePointAt(0))) offenders.push(`${path.relative(root, f)}: ${ch}`);
             }
+            if (NEUTRAL_ZWJ.test(text)) offenders.push(`${path.relative(root, f)}: a gender-neutral person sequence`);
         }
         expect(offenders).toEqual([]);
     });

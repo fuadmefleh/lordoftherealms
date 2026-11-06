@@ -170,7 +170,7 @@ export const ObjectActions = {
                 case 'craft': _showRecipeModal(game, objDef, 'Craft', '🔨', 'craft'); return;
                 case 'smelt': _showRecipeModal(game, objDef, 'Smelt', '⚒️', 'smelt'); return;
                 case 'brew':  _showRecipeModal(game, objDef, 'Brew Potion', '🧪', 'brew'); return;
-                case 'tan':   _showRecipeModal(game, objDef, 'Tanning & Weaving', '🟫', 'tan'); return;
+                case 'tan':   _showRecipeModal(game, objDef, 'Tanning & Weaving', '👞', 'tan'); return;
                 case 'fish':  _showFishModal(game, objDef); return;
                 case 'store': _showStoreModal(game, objDef, anchorQ, anchorR); return;
                 case 'contents': showContentsModal(game, objDef, anchorQ, anchorR); return;

@@ -53,14 +53,14 @@ export const InnerMapFurnish = {
     /** Context-menu entries inside a home of the player's. */
     menuItems(game, tile, q, r) {
         if (!this.available() || this.active) return [];
-        const items = [{ type: 'separator' }, { type: 'header', label: '🪑 Your Home' }];
+        const items = [{ type: 'separator' }, { type: 'header', label: '💺 Your Home' }];
         const f = tile && tile._furniture;
         if (f && InnerMap._movableFurniture(tile)) {
             items.push({ type: 'action', action: 'furnish_move', label: `Move the ${f.name}`, icon: '✋', desc: 'Pick it up and set it down elsewhere', fq: q, fr: r });
             items.push({ type: 'action', action: 'furnish_putaway', label: `Put the ${f.name} in Store`, icon: '📦', desc: 'Into your furniture store, to set down later or sell', fq: q, fr: r });
         }
         const n = Furnishing.store(game.player).length;
-        items.push({ type: 'action', action: 'furnish_start', label: 'Furnish', icon: '🪑', desc: n ? `Arrange the furniture; ${n} piece${n === 1 ? '' : 's'} in store to set down` : 'Arrange the furniture. Buy more from a furniture maker in town.' });
+        items.push({ type: 'action', action: 'furnish_start', label: 'Furnish', icon: '💺', desc: n ? `Arrange the furniture; ${n} piece${n === 1 ? '' : 's'} in store to set down` : 'Arrange the furniture. Buy more from a furniture maker in town.' });
         return items;
     },
 
@@ -84,7 +84,7 @@ export const InnerMapFurnish = {
     },
 
     start(game) {
-        if (!this.available()) { _notify(game, '🪑 Furnish', 'You can only furnish a home of your own.', 'error'); return false; }
+        if (!this.available()) { _notify(game, '💺 Furnish', 'You can only furnish a home of your own.', 'error'); return false; }
         this._game = game;
         InnerMap.adoptHomeFurniture(game.player);
         this._homeKey = InnerMap.furnishHomeKey();
@@ -234,12 +234,12 @@ export const InnerMapFurnish = {
         }
         if (this.held) {
             const res = this.drop(q, r);
-            if (!res.ok) _notify(game, '🪑 Furnish', res.reason, 'warning');
+            if (!res.ok) _notify(game, '💺 Furnish', res.reason, 'warning');
             return true;
         }
         if (!this.liftAt(q, r)) {
             const t = InnerMap.getTile(q, r);
-            if (t && t._furniture) _notify(game, '🪑 Furnish', `The ${t._furniture.name} is built in.`, 'info');
+            if (t && t._furniture) _notify(game, '💺 Furnish', `The ${t._furniture.name} is built in.`, 'info');
         }
         return true;
     },
@@ -262,7 +262,7 @@ export const InnerMapFurnish = {
         }
         const rec = InnerMap.homeLayout(player, false);
         const btn = (act, label, extra = '', gold = false) => `<button data-fa="${act}" ${extra} style="padding:3px 9px;margin:3px 4px 0 0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;${gold ? 'background:#f5c542;color:#1a1a1a;' : 'background:rgba(255,255,255,0.12);color:#e8dcc0;'}">${label}</button>`;
-        let html = `<div style="font-family:var(--font-display,'Cinzel',serif);color:#f5c542;font-size:14px;margin-bottom:4px;">🪑 Furnishing</div>`;
+        let html = `<div style="font-family:var(--font-display,'Cinzel',serif);color:#f5c542;font-size:14px;margin-bottom:4px;">💺 Furnishing</div>`;
         html += `<div style="color:#aaa;font-size:11px;margin-bottom:6px;">${_esc((rec && rec.name) || 'Your home')} · comfort +${InnerMap.homeComfort()}/h</div>`;
         if (this.held) {
             const v = FurnitureCatalogue.view(this.held);

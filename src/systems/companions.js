@@ -939,7 +939,7 @@ export const Companions = {
             if (!commented && Math.abs(d) >= 2) {
                 commented = true;
                 const line = Companions._line(Companions.lines(victory ? 'battleWin' : 'battleLoss'), `${npc.id}:${day}:${info.enemyName}`, npc);
-                if (line) Companions._notice(player, `${victory ? '⚔️' : '🩸'} ${npc.firstName}`, line, victory ? 'success' : 'warning');
+                if (line) Companions._notice(player, `${victory ? '⚔️' : '🔴'} ${npc.firstName}`, line, victory ? 'success' : 'warning');
             }
         }
         // The fallen — fighters stand in the front rank

@@ -470,7 +470,7 @@ export const Achievements = {
             check: (player) => Achievements._deed(player, 'rivals.duelsWon') >= 10,
         },
         BLOOD_FEUD: {
-            id: 'blood_feud', name: 'Blood Feud', description: 'Slay a rival adventurer', icon: '🩸', tier: 'silver',
+            id: 'blood_feud', name: 'Blood Feud', description: 'Slay a rival adventurer', icon: '🔴', tier: 'silver',
             check: (player) => Achievements._deed(player, 'rivals.slain') >= 1,
         },
         FRIEND_FOR_LIFE: {

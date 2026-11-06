@@ -14,7 +14,7 @@
     "deeds": {
         "valor":       { "name": "Valor",        "icon": "⚔️" },
         "cowardice":   { "name": "Cowardice",    "icon": "🏳️" },
-        "cruelty":     { "name": "Cruelty",      "icon": "🩸" },
+        "cruelty":     { "name": "Cruelty",      "icon": "🔴" },
         "mercy":       { "name": "Mercy",        "icon": "🕊️" },
         "greed":       { "name": "Greed",        "icon": "💰" },
         "generosity":  { "name": "Generosity",   "icon": "🎁" },
@@ -33,7 +33,7 @@
         "travel":      { "name": "Travel",       "icon": "🧭" },
         "kinslaying":  { "name": "Kinslaying",   "icon": "🗡️" },
         "tournament":  { "name": "Tournaments",  "icon": "🏆" },
-        "scarring":    { "name": "Scars",        "icon": "🩹" },
+        "scarring":    { "name": "Scars",        "icon": "🤕" },
         "maiming":     { "name": "Lasting wounds", "icon": "🦵" }
     },
     "statDeeds": {
@@ -75,7 +75,7 @@
             "greetings": ["*smirks* Off to run from another fight?"]
         },
         "cruel": {
-            "name": "Cruel", "icon": "🩸", "opposite": "merciful",
+            "name": "Cruel", "icon": "🔴", "opposite": "merciful",
             "description": "You hurt the weak and enjoy it. Fear opens doors; affection closes them.",
             "threshold": 15,
             "deeds": { "cruelty": 1 },
@@ -267,7 +267,7 @@
             "greetings": ["*gasps* The champion of the lists! May I shake your hand?"]
         },
         "scarred": {
-            "name": "Scarred", "icon": "🩹",
+            "name": "Scarred", "icon": "🤕",
             "description": "An old wound left its mark across your face. Hard men respect it; most folk look away.",
             "threshold": 1,
             "deeds": { "scarring": 1 },

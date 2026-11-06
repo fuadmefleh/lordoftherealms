@@ -149,7 +149,7 @@ function _add(into, items) {
 function _fell(out, st) {
     const lost = Object.keys(st.catch || {}).length ? ` Your catch (${_desc(st.catch)}) went to the bottom.` : '';
     const chill = out.chill ? ` ${out.chill.icon} The cold gets into you: ${out.chill.name}.` : '';
-    return { endDay: true, notification: { title: '🧊 Through the Ice!', body: `The ice cracked and you went in. You hauled yourself out, half-drowned and frozen (−${out.healthLost} health).${lost}${chill}`, type: 'error' } };
+    return { endDay: true, notification: { title: '❄️ Through the Ice!', body: `The ice cracked and you went in. You hauled yourself out, half-drowned and frozen (−${out.healthLost} health).${lost}${chill}`, type: 'error' } };
 }
 
 registerScene('ice_fishing', {
@@ -159,7 +159,7 @@ registerScene('ice_fishing', {
         if (st.stage === 'far') {
             const risk = SeasonalWork.thinIceChance(player, world, 2);
             return {
-                icon: '🎣', title: 'Out on the Ice', panelTitle: '🧊 Ice Fishing',
+                icon: '🎣', title: 'Out on the Ice', panelTitle: '❄️ Ice Fishing',
                 stats: [`Catch: ${_desc(st.catch)}`],
                 text: 'Out here the big fish bite. Further out, past the dark patches, the ice groans under you.',
                 options: [
@@ -170,12 +170,12 @@ registerScene('ice_fishing', {
         }
         const risk = SeasonalWork.thinIceChance(player, world, 1);
         return {
-            icon: '🧊', title: 'Ice Fishing', panelTitle: '🧊 Ice Fishing',
+            icon: '❄️', title: 'Ice Fishing', panelTitle: '❄️ Ice Fishing',
             stats: [`❤️ ${Math.round(player.health || 0)}`],
             text: 'Near the shore the ice is thick and the fish are small. Out in the middle, where it is thinner, the big ones lie.',
             options: [
                 { id: 'shore', icon: '🎣', label: 'Fish near the shore', hint: 'A steady catch on safe ice. Takes the day.', chance: null, isDefault: true },
-                { id: 'far', icon: '🧊', label: 'Walk out onto thinner ice', hint: 'A bigger catch and a chance at a great fish — if the ice holds.', chance: 1 - risk },
+                { id: 'far', icon: '❄️', label: 'Walk out onto thinner ice', hint: 'A bigger catch and a chance at a great fish — if the ice holds.', chance: 1 - risk },
             ],
         };
     },
@@ -184,7 +184,7 @@ registerScene('ice_fishing', {
         const tile = _tile(game, st);
         const where = choice === 'shore' ? 'shore' : choice === 'far' && st.stage !== 'far' ? 'far' : choice === 'deeper' && st.stage === 'far' ? 'deeper' : null;
         if (where && _walkHere(game, st, choice)) {
-            if (where === 'far' && !SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: 'The ice is gone.', type: 'error' } };
+            if (where === 'far' && !SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '❄️ Ice Fishing', body: 'The ice is gone.', type: 'error' } };
             return _walk(game, 'ice_fishing', st, choice, (done, quit) => WildTaskRunner.iceFish(game, { player, where }, done, quit));
         }
         // Fish landed on the inner map (the walk) are the least you come back with
@@ -193,11 +193,11 @@ registerScene('ice_fishing', {
         st = _plain(st);
         if (choice === 'shore') {
             const res = SeasonalWork.iceFish(player, tile, world, { landed });
-            if (!res.success) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: res.reason, type: 'error' } };
-            return { endDay: true, notification: { title: '🧊 Ice Fishing', body: res.message, type: Object.keys(res.lost || {}).length ? 'warning' : 'success' } };
+            if (!res.success) return { invalid: true, notification: { title: '❄️ Ice Fishing', body: res.reason, type: 'error' } };
+            return { endDay: true, notification: { title: '❄️ Ice Fishing', body: res.message, type: Object.keys(res.lost || {}).length ? 'warning' : 'success' } };
         }
         if (choice === 'far' && st.stage !== 'far') {
-            if (!SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '🧊 Ice Fishing', body: 'The ice is gone.', type: 'error' } };
+            if (!SeasonalWork.canIceFish(tile, world)) return { invalid: true, notification: { title: '❄️ Ice Fishing', body: 'The ice is gone.', type: 'error' } };
             const out = SeasonalWork.fishFarOut(player, world, 1);
             if (out.fell) return _fell(out, st);
             return { state: { ...st, stage: 'far', catch: _add({}, floorFish(out.items)) } };

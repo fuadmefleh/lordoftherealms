@@ -215,7 +215,7 @@ Object.assign(UI.prototype, {
                     if (e.farmProductionBonus) effectParts.push(`🌾+${Math.round(e.farmProductionBonus * 100)}%`);
                     if (e.pastureProductionBonus) effectParts.push(`🐑+${Math.round(e.pastureProductionBonus * 100)}%`);
                     if (e.mineProductionBonus) effectParts.push(`⛏️+${Math.round(e.mineProductionBonus * 100)}%`);
-                    if (e.loggingProductionBonus) effectParts.push(`🪓+${Math.round(e.loggingProductionBonus * 100)}%`);
+                    if (e.loggingProductionBonus) effectParts.push(`🌲+${Math.round(e.loggingProductionBonus * 100)}%`);
                     if (e.workshopProductionBonus) effectParts.push(`🔨+${Math.round(e.workshopProductionBonus * 100)}%`);
                     if (e.unitStrengthBonus) effectParts.push(`⚔️+${Math.round(e.unitStrengthBonus * 100)}%`);
                     if (e.tradeProfitBonus) effectParts.push(`💰+${Math.round(e.tradeProfitBonus * 100)}%`);

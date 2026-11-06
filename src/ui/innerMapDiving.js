@@ -127,12 +127,12 @@ export const InnerMapDiving = {
         const climb = this._climbItems(game);
         if (!InnerMap.isDivable(q, r)) return climb;
         const ok = Diving.canDive(game.player);
-        if (!ok.ok) return [this._refusedItem(game, '🤿 Dive', ok), ...climb];
+        if (!ok.ok) return [this._refusedItem(game, '🐚 Dive', ok), ...climb];
         const water = Diving.waterOf(tile);
         const where = `the ${water.deep ? 'deep ' : ''}${water.kind} floor`;
         const breath = Diving.breath(game.player);
         return [{
-            type: 'action', action: 'dive_under', icon: '🤿',
+            type: 'action', action: 'dive_under', icon: '🐚',
             label: here ? 'Dive Under' : 'Dive Under Here',
             desc: `${here ? '' : 'Swim out, then '}go under and search ${where}: ${breath}s of breath (V)`,
         }, ...climb];
@@ -200,9 +200,9 @@ export const InnerMapDiving = {
         if (!swim.ok) return [{ type: 'disabled', label: `🌊 Over the Side — ${swim.reason}` }];
         const dive = Diving.canDive(game.player);
         if (dive.ok && this.overboardSpot(q, r, true)) {
-            items.push({ type: 'action', action: 'dive_overboard', towardQ: q, towardR: r, label: 'Dive Over the Side', icon: '🤿', desc: `Off the rail and straight down: ${Diving.breath(game.player)}s of breath (V to come up)` });
+            items.push({ type: 'action', action: 'dive_overboard', towardQ: q, towardR: r, label: 'Dive Over the Side', icon: '🐚', desc: `Off the rail and straight down: ${Diving.breath(game.player)}s of breath (V to come up)` });
         } else if (!dive.ok) {
-            items.push(this._refusedItem(game, '🤿 Dive Over the Side', dive));
+            items.push(this._refusedItem(game, '🐚 Dive Over the Side', dive));
         }
         if (this.overboardSpot(q, r, false)) items.push({ type: 'action', action: 'dive_jump', towardQ: q, towardR: r, label: 'Jump Over the Side', icon: '🌊', desc: 'Into the sea beside her, to swim' });
         return items;
@@ -245,7 +245,7 @@ export const InnerMapDiving = {
         InnerMap.playerInnerR = spot.r;
         if (dive) {
             if (!this.goUnder(game)) return true;
-            _note(game, '🤿 Over the Side', 'You climb the rail and dive. The sea closes over you, cold and green.');
+            _note(game, '🐚 Over the Side', 'You climb the rail and dive. The sea closes over you, cold and green.');
         } else {
             _note(game, '🌊 Over the Side', 'You swing over the rail and drop into the sea with a splash. Swim, or press V to go under.');
         }
@@ -280,13 +280,13 @@ export const InnerMapDiving = {
             if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) { this._takeHere(game); return true; }
             InnerMap.cancelPlayerWalk();
             const walk = InnerMap.movePlayerTo(q, r);
-            if (!walk || !walk.started) _note(game, '🤿 Out of Reach', 'You can\'t swim to it from here without coming up.', 'warning');
+            if (!walk || !walk.started) _note(game, '🐚 Out of Reach', 'You can\'t swim to it from here without coming up.', 'warning');
             return true;
         }
         if (action === 'dive_under') {
-            if (!InnerMap.isDivable(q, r)) { _note(game, '🤿 Dive', 'The water here is too shallow to go under.', 'warning'); return true; }
+            if (!InnerMap.isDivable(q, r)) { _note(game, '🐚 Dive', 'The water here is too shallow to go under.', 'warning'); return true; }
             const ok = Diving.canDive(game.player);
-            if (!ok.ok) { _note(game, '🤿 Dive', ok.reason, 'warning'); return true; }
+            if (!ok.ok) { _note(game, '🐚 Dive', ok.reason, 'warning'); return true; }
             if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r && !InnerMap._playerWalking) {
                 this.goUnder(game);
                 return true;
@@ -297,7 +297,7 @@ export const InnerMapDiving = {
             if (walk && walk.started) {
                 InnerMap._pendingAction = { q, r, run: () => this.goUnder(game) };
             } else {
-                _note(game, '🤿 Dive', (walk && walk.refused) || 'You can\'t swim out to that spot.', 'warning');
+                _note(game, '🐚 Dive', (walk && walk.refused) || 'You can\'t swim out to that spot.', 'warning');
             }
             return true;
         }
@@ -313,11 +313,11 @@ export const InnerMapDiving = {
         if (this._under || !game || !game.player) return false;
         const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
         if (InnerMap._insideBuilding || !InnerMap.isDivable(q, r)) {
-            _note(game, '🤿 Dive', 'Swim out into deeper water first.', 'warning');
+            _note(game, '🐚 Dive', 'Swim out into deeper water first.', 'warning');
             return false;
         }
         const ok = Diving.canDive(game.player);
-        if (!ok.ok) { _note(game, '🤿 Dive', ok.reason, 'warning'); return false; }
+        if (!ok.ok) { _note(game, '🐚 Dive', ok.reason, 'warning'); return false; }
         InnerMap.cancelPlayerWalk();
         const first = !game.player.dives;
         Diving.goUnder(game.player, game.world, _worldTile(game));
@@ -325,7 +325,7 @@ export const InnerMapDiving = {
         InnerMap._underwaterSpeed = (Number(Diving.config().underwaterSpeed) || 0.75) * Diving.speedMult(game.player);
         this._under = { game, tiles: InnerMap.tiles, key: _mapKey(), bed: this._bedHere(game) };
         this._takeHere(game);
-        if (first) _note(game, '🤿 Under the Water', 'You fill your lungs and go under. Swim about the bottom and take what you find; watch your breath, and come up (V) before it runs out.');
+        if (first) _note(game, '🐚 Under the Water', 'You fill your lungs and go under. Swim about the bottom and take what you find; watch your breath, and come up (V) before it runs out.');
         this._syncButton(game);
         return true;
     },
@@ -375,7 +375,7 @@ export const InnerMapDiving = {
         if (f.rare) {
             _note(game, '✨ Treasure!', `${f.text || 'Something precious in the silt'}: ${f.icon} ${f.name}${f.gold ? ` (${f.gold} gold)` : f.qty > 1 ? ` ×${f.qty}` : ''}.`, 'success');
         } else {
-            _note(game, '🤿 Found', `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}${f.text ? `: ${f.text}` : ''}.`, 'success');
+            _note(game, '🐚 Found', `${f.icon} ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}${f.text ? `: ${f.text}` : ''}.`, 'success');
         }
         if (typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
@@ -437,7 +437,7 @@ export const InnerMapDiving = {
     toggle(game) {
         if (!game || !InnerMap.active || InnerMap._insideBuilding) return;
         if (this._under) { this.surface(game); return; }
-        if (!InnerMap.isPlayerSwimming()) { _note(game, '🤿 Dive', 'Swim out into the water first (right-click it and Swim Here, or Dive Under Here).', 'info'); return; }
+        if (!InnerMap.isPlayerSwimming()) { _note(game, '🐚 Dive', 'Swim out into the water first (right-click it and Swim Here, or Dive Under Here).', 'info'); return; }
         this.goUnder(game);
     },
 

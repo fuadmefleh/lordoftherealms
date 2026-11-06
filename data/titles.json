@@ -247,11 +247,11 @@
     { "name": "Scarface", "crime": "murder", "reward": 40, "difficulty": 6, "icon": "🗡️" },
     { "name": "The Rat", "crime": "theft", "reward": 25, "difficulty": 4, "icon": "🐀" },
     { "name": "Red Mara", "crime": "arson", "reward": 35, "difficulty": 5, "icon": "🔥" },
-    { "name": "Old Fingers", "crime": "pickpocketing", "reward": 20, "difficulty": 3, "icon": "🤏" },
+    { "name": "Old Fingers", "crime": "pickpocketing", "reward": 20, "difficulty": 3, "icon": "👛" },
     { "name": "The Shadow", "crime": "espionage", "reward": 50, "difficulty": 7, "icon": "🕶️" },
     { "name": "Bloodbeard", "crime": "piracy", "reward": 45, "difficulty": 7, "icon": "☠️" },
     { "name": "Silk Tongue", "crime": "fraud", "reward": 30, "difficulty": 5, "icon": "🎭" },
-    { "name": "The Butcher", "crime": "murder", "reward": 55, "difficulty": 8, "icon": "🪓" },
+    { "name": "The Butcher", "crime": "murder", "reward": 55, "difficulty": 8, "icon": "🗡️" },
     { "name": "Whispering Jane", "crime": "treason", "reward": 60, "difficulty": 8, "icon": "🗣️" },
     { "name": "Copperhand", "crime": "counterfeiting", "reward": 35, "difficulty": 5, "icon": "💰" }
   ]

@@ -1208,7 +1208,7 @@ Object.assign(ActionMenu, {
         return {
             village: [
                 { id: 'farm_hand', name: 'Farm Hand', icon: '🌾', description: 'Help local farmers with planting and harvesting.', pay: { min: 10, max: 25 }, stat: 'strength', difficulty: 3 },
-                { id: 'woodcutter', name: 'Woodcutter', icon: '🪓', description: 'Chop firewood for the village hearths.', pay: { min: 12, max: 22 }, stat: 'strength', difficulty: 3 },
+                { id: 'woodcutter', name: 'Woodcutter', icon: '🌲', description: 'Chop firewood for the village hearths.', pay: { min: 12, max: 22 }, stat: 'strength', difficulty: 3 },
                 { id: 'shepherd', name: 'Shepherd', icon: '🐑', description: 'Watch over the village flock for the day.', pay: { min: 8, max: 15 }, stat: 'intelligence', difficulty: 2 },
                 { id: 'herb_picker', name: 'Herb Picker', icon: '🌿', description: 'Gather medicinal herbs for the local healer.', pay: { min: 10, max: 20 }, stat: 'intelligence', difficulty: 3 },
             ],
@@ -1252,7 +1252,7 @@ Object.assign(ActionMenu, {
                     { item: 'berries', name: 'Wild Berries', icon: '🍇', chance: 0.35, qty: { min: 2, max: 5 }, sellPrice: 3 },
                     { item: 'mushrooms', name: 'Mushrooms', icon: '🍄', chance: 0.25, qty: { min: 1, max: 4 }, sellPrice: 4 },
                     { item: 'honey', name: 'Wild Honey', icon: '🍯', chance: 0.10, qty: { min: 1, max: 2 }, sellPrice: 12 },
-                    { item: 'truffles', name: 'Truffles', icon: '🟤', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 25 },
+                    { item: 'truffles', name: 'Truffles', icon: '🍄', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 25 },
                 ],
                 plains: [
                     { item: 'herbs', name: 'Prairie Herbs', icon: '🌿', chance: 0.35, qty: { min: 1, max: 3 }, sellPrice: 5 },
@@ -1271,7 +1271,7 @@ Object.assign(ActionMenu, {
                     { item: 'driftwood', name: 'Driftwood', icon: '🌲', chance: 0.30, qty: { min: 1, max: 3 }, sellPrice: 4 },
                     { item: 'seaweed', name: 'Edible Seaweed', icon: '🌊', chance: 0.25, qty: { min: 2, max: 4 }, sellPrice: 3 },
                     { item: 'pearls', name: 'Pearls', icon: '🔮', chance: 0.03, qty: { min: 1, max: 1 }, sellPrice: 35 },
-                    { item: 'ambergris', name: 'Ambergris', icon: '🟡', chance: 0.02, qty: { min: 1, max: 1 }, sellPrice: 50 },
+                    { item: 'ambergris', name: 'Ambergris', icon: '💛', chance: 0.02, qty: { min: 1, max: 1 }, sellPrice: 50 },
                 ],
                 desert: [
                     { item: 'cactus_fruit', name: 'Cactus Fruit', icon: '🌵', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 6 },
@@ -1281,7 +1281,7 @@ Object.assign(ActionMenu, {
                 swamp: [
                     { item: 'leeches', name: 'Medicinal Leeches', icon: '🐛', chance: 0.30, qty: { min: 1, max: 3 }, sellPrice: 8 },
                     { item: 'mushrooms', name: 'Swamp Mushrooms', icon: '🍄', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 5 },
-                    { item: 'peat', name: 'Peat', icon: '🟫', chance: 0.20, qty: { min: 2, max: 4 }, sellPrice: 4 },
+                    { item: 'peat', name: 'Peat', icon: '🍂', chance: 0.20, qty: { min: 2, max: 4 }, sellPrice: 4 },
                     { item: 'rare_frog', name: 'Rare Frog', icon: '🐸', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 30 },
                 ],
             },
@@ -1302,7 +1302,7 @@ Object.assign(ActionMenu, {
                 ],
                 plains: [
                     { item: 'game_meat', name: 'Game Meat', icon: '🥩', chance: 0.40, qty: { min: 1, max: 4 }, sellPrice: 6 },
-                    { item: 'hides', name: 'Hides', icon: '🟤', chance: 0.35, qty: { min: 1, max: 2 }, sellPrice: 8 },
+                    { item: 'hides', name: 'Hides', icon: '🐾', chance: 0.35, qty: { min: 1, max: 2 }, sellPrice: 8 },
                     { item: 'feathers', name: 'Feathers', icon: '🦅', chance: 0.25, qty: { min: 2, max: 5 }, sellPrice: 4 },
                     { item: 'ivory', name: 'Ivory', icon: '🐘', chance: 0.03, qty: { min: 1, max: 1 }, sellPrice: 45 },
                 ],

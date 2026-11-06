@@ -493,7 +493,7 @@ export const HeirAgency = {
             rec.wounds++;
             a.wounded = { day, until: day + F.woundDays };
             text = `${child.firstName} was wounded leading the company against ${enemyName}, and must rest ${F.woundDays} days.`;
-            HeirAgency._news(player, { icon: '🩸', title: `${child.firstName} Wounded`, text, type: 'warning' });
+            HeirAgency._news(player, { icon: '🔴', title: `${child.firstName} Wounded`, text, type: 'warning' });
         }
         return { child, fate, text, victory };
     },
@@ -575,7 +575,7 @@ export const HeirAgency = {
             // Wounds heal; a captive no one ransomed is let go
             if (a.wounded && day >= _num(a.wounded.until)) {
                 a.wounded = null;
-                out.notices.push({ icon: '🩹', title: `${child.firstName} Recovered`, text: `${child.firstName} is fit to ride again.`, type: 'info' });
+                out.notices.push({ icon: '🤕', title: `${child.firstName} Recovered`, text: `${child.firstName} is fit to ride again.`, type: 'info' });
             }
             if (a.captive && day >= _num(a.captive.until)) {
                 const by = a.captive.by;

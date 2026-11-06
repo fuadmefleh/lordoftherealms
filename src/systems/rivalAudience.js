@@ -45,7 +45,7 @@ function _hash(str) {
 }
 
 const OFFER_ORDER = ['duel', 'against', 'match', 'bloodPrice', 'speak', 'buyEstate', 'loan'];
-const OFFER_ICONS = { duel: '⚔️', against: '🗡️', match: '💍', bloodPrice: '🩸', speak: '👑', buyEstate: '🌾', loan: '💰' };
+const OFFER_ICONS = { duel: '⚔️', against: '🗡️', match: '💍', bloodPrice: '🔴', speak: '👑', buyEstate: '🌾', loan: '💰' };
 
 export const RivalAudience = {
     voice() {

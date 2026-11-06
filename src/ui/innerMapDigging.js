@@ -38,7 +38,7 @@ const DEFAULTS = {
 
 const GROUND = {
     hole: { id: 'dug_hole', name: 'Hole', icon: '🕳️', color: '#3b2a1c', passable: false },
-    filled: { id: 'turned_earth', name: 'Turned Earth', icon: '🟫', color: '#6b5034', passable: true },
+    filled: { id: 'turned_earth', name: 'Turned Earth', icon: '⬛', color: '#6b5034', passable: true },
     grave: { id: 'grave', name: 'Grave', icon: '⚰️', color: '#6b5034', passable: true },
 };
 
@@ -246,7 +246,7 @@ export const InnerMapDigging = {
             const body = InnerMapCombat.corpsesHere().find(c => c.q === job.q && c.r === job.r && c !== InnerMapCombat._carrying);
             if (body) { this._buryBody(game, tile, body, day); return; }
             this.setGround(tile, 'filled', { day });
-            this._note(game, '🟫 Filled in', C.text.fill || 'You fill the hole in.');
+            this._note(game, '⬛ Filled in', C.text.fill || 'You fill the hole in.');
         } else if (job.kind === 'bury') {
             if (!tile._dug || tile._dug.kind !== 'hole') return;
             const body = job.corpse && InnerMapCombat._corpses.includes(job.corpse) ? job.corpse : this._bodyIn(job.q, job.r);

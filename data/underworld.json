@@ -69,7 +69,7 @@
         "contactSettlementTypes": ["town", "city", "capital"],
         "ranks": [
             { "id": "footpad",     "name": "Footpad",     "icon": "👣", "standing": 0 },
-            { "id": "cutpurse",    "name": "Cutpurse",    "icon": "🤏", "standing": 20 },
+            { "id": "cutpurse",    "name": "Cutpurse",    "icon": "👛", "standing": 20 },
             { "id": "prowler",     "name": "Prowler",     "icon": "🐈‍⬛", "standing": 55 },
             { "id": "shadow",      "name": "Shadow",      "icon": "🌑", "standing": 110 },
             { "id": "master_thief","name": "Master Thief","icon": "🗝️", "standing": 190 },
@@ -83,7 +83,7 @@
     },
     "jobs": {
         "pickpocket": {
-            "name": "Work the Crowd", "icon": "🤏", "rank": 0, "ap": 2,
+            "name": "Work the Crowd", "icon": "👛", "rank": 0, "ap": 2,
             "description": "Lift purses in the market. Small pickings, small risk.",
             "base": 0.62, "stat": "luck", "caughtShare": 0.45,
             "gold": [6, 28], "goldPerGuard": 6, "standing": 2
@@ -97,7 +97,7 @@
             "lootQty": [1, 3]
         },
         "racket": {
-            "name": "Start a Protection Racket", "icon": "🪓", "rank": 2, "ap": 3,
+            "name": "Start a Protection Racket", "icon": "🗡️", "rank": 2, "ap": 3,
             "description": "Lean on the shopkeepers. Pays every week; the watch hears about it every week too.",
             "base": 0.55, "stat": "strength", "caughtShare": 0.4,
             "weeklyPerPop": 0.04, "weeklyMin": 20, "weeklyMax": 160, "bustHeat": 70, "standing": 6

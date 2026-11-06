@@ -340,7 +340,7 @@
       "id": "blood_feud",
       "name": "Blood Feud",
       "description": "Slay a rival adventurer",
-      "icon": "🩸",
+      "icon": "🔴",
       "tier": "silver"
     },
     "FRIEND_FOR_LIFE": {

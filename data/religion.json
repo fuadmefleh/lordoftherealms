@@ -172,7 +172,7 @@
     "bloodmoon": {
       "id": "bloodmoon",
       "name": "The Blood Moon Covenant",
-      "icon": "🩸",
+      "icon": "🔴",
       "founded": 50,
       "extinctYear": 390,
       "extinct": true,
@@ -292,7 +292,7 @@
     "TEMPLE": {
       "id": "temple",
       "name": "Temple",
-      "icon": "🛕",
+      "icon": "🏛️",
       "cost": 1000,
       "constructionDays": 8,
       "faithGain": 15,

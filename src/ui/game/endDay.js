@@ -594,7 +594,7 @@ export function endDay() {
                 this.ui.showNotification('🕯️ Delve Ended',
                     `You leave ${delveDay.ended.name} with your haul (${delveDay.ended.chambers} of ${delveDay.ended.total} chambers).`, 'info');
             }
-            for (const name of delveDay.healed) this.ui.showNotification('🩹 Mended', `Your ${name.toLowerCase()} has healed.`, 'success');
+            for (const name of delveDay.healed) this.ui.showNotification('🤕 Mended', `Your ${name.toLowerCase()} has healed.`, 'success');
             if (delveDay.curse && delveDay.curse.health > 0) {
                 this.ui.showNotification('🗿 Cursed', `The idol in your packs saps you (-${delveDay.curse.health} health, -${delveDay.curse.karma} karma). Sell it or be rid of it.`, 'warning');
             }
@@ -1387,16 +1387,16 @@ export function _reportAilments(out) {
     }
     for (const c of out.crises || []) n('💀 A Bad Crisis', `Your ${c.name.toLowerCase()} nearly took you in the night (−${c.blow} health). Once you are weakened, the next crisis may kill. See a physician.`, 'error');
     for (const w of out.worsened || []) n(`${w.icon} ${w.stage}`, `Your ${w.name.toLowerCase()} has worsened. Rest at an inn or at home, and get it treated.`, 'error');
-    for (const name of out.healed || []) n('🩹 Recovered', `Your ${name.toLowerCase()} has passed.`, 'success');
+    for (const name of out.healed || []) n('🤕 Recovered', `Your ${name.toLowerCase()} has passed.`, 'success');
     for (const name of out.infected || []) n('🧫 Infection', `Your ${name.toLowerCase()} has turned infected and stopped mending. A physician or a healing salve can save it.`, 'error');
     for (const f of out.festered || []) n(`${f.icon} ${f.name}`, `Your infected ${f.wound.toLowerCase()} has poisoned your blood.`, 'error');
     for (const s of out.scarred || []) {
         const t = (s.traits || []).length ? ' You are now ' + s.traits.map(id => (Traits.TRAITS[id] || {}).name || id).join(', ') + '.' : '';
-        n('🩹 A Lasting Mark', `Your ${s.wound.toLowerCase()} has healed, but it left its mark.${t}`, 'warning');
+        n('💊 A Lasting Mark', `Your ${s.wound.toLowerCase()} has healed, but it left its mark.${t}`, 'warning');
     }
     for (const c of out.companions || []) {
         if (c.event === 'caught') n('🤒 Companion Ill', `${c.name} has caught your ${c.disease.toLowerCase()}.`, 'warning');
-        else if (c.event === 'recovered') n('🩹 Companion Recovered', `${c.name} is over the ${c.disease.toLowerCase()}.`, 'success');
+        else if (c.event === 'recovered') n('🤕 Companion Recovered', `${c.name} is over the ${c.disease.toLowerCase()}.`, 'success');
     }
     for (const c of out.crews || []) {
         if (c.event === 'outbreak') n('🤒 Sickness Aboard', `${c.disease} has broken out among the crew of the ${c.name}. Put into port to let it pass.`, 'warning');
@@ -1413,7 +1413,7 @@ export function _reportUpbringing(out) {
         if (e.event) n(`${e.event.icon} ${e.child.firstName}: ${e.event.title}`, `${e.event.text} Decide from Dynasty → ${e.child.firstName} within ${Math.max(0, e.event.expires - this.world.day)} days.`, 'info');
     }
     for (const r of out.resolved || []) n(`${r.event.icon || '📜'} ${r.child.firstName}`, `Left to the household: ${r.text}`, r.died ? 'error' : 'info');
-    for (const t of out.tutorsLeft || []) n('🧑‍🏫 Tutor Gone', t.text, 'warning');
+    for (const t of out.tutorsLeft || []) n('👨‍🏫 Tutor Gone', t.text, 'warning');
     for (const c of out.comeOfAge || []) n('🎓 Coming of Age', `${c.text} Give them an office, a match or a wardship from the Dynasty menu.`, 'success');
     for (const w of out.wardsReturned || []) n('🏰 A Ward Returns', w.text, 'success');
     // Your example rubbing off on a child (Upbringing._growthTick)

@@ -30,14 +30,14 @@
             { "type": "chest", "icon": "🧳", "name": "Clothes Chest", "count": 1 },
             { "type": "candle", "icon": "🕯️", "name": "Candle", "count": 1, "passable": true },
             { "type": "bucket", "icon": "🧺", "name": "Wash Basin", "count": 1, "passable": true },
-            { "type": "rug", "icon": "🟥", "name": "Rug", "count": 1, "passable": true, "middle": true }
+            { "type": "rug", "icon": "♦️", "name": "Rug", "count": 1, "passable": true, "middle": true }
         ] },
         "gallery": { "name": "Long Gallery", "floor": "herringbone_floor", "furniture": [
             { "type": "bookshelf", "icon": "📚", "name": "Bookshelf", "count": 2 },
             { "type": "statue", "icon": "🗿", "name": "Bust", "count": 1 },
             { "type": "banner", "icon": "🚩", "name": "Banner", "count": 2 },
             { "type": "desk", "icon": "🖋️", "name": "Writing Desk", "count": 1 },
-            { "type": "rug", "icon": "🟥", "name": "Rug", "count": 1, "passable": true, "middle": true }
+            { "type": "rug", "icon": "♦️", "name": "Rug", "count": 1, "passable": true, "middle": true }
         ] },
         "guest_rooms": { "name": "Guest Rooms", "floor": "wood_floor", "furniture": [
             { "type": "bed", "icon": "🛏️", "name": "Guest Bed", "count": 4 },
@@ -78,7 +78,7 @@
         ] },
         "quarters": { "name": "Living Quarters", "floor": "wood_floor", "furniture": [
             { "type": "bed", "icon": "🛏️", "name": "Bed", "count": 1 },
-            { "type": "table", "icon": "🪑", "name": "Table", "count": 1 },
+            { "type": "table", "icon": "💺", "name": "Table", "count": 1 },
             { "type": "chest", "icon": "🧳", "name": "Chest", "count": 1 },
             { "type": "fireplace", "icon": "🔥", "name": "Hearth", "count": 1 }
         ] }

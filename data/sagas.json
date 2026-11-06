@@ -955,7 +955,7 @@
                     "days": [10, 15],
                     "effects": [
                         { "do": "stability", "amount": -4, "scope": "kingdom" },
-                        { "do": "event", "name": "The Red Star", "icon": "🩸", "days": [15, 20], "scope": "kingdom", "effects": { "prices": 0.15, "morale": -10 }, "text": "Panic grips {kingdom} under a red star." }
+                        { "do": "event", "name": "The Red Star", "icon": "🔴", "days": [15, 20], "scope": "kingdom", "effects": { "prices": 0.15, "morale": -10 }, "text": "Panic grips {kingdom} under a red star." }
                     ],
                     "actions": [
                         { "id": "debate2", "label": "Debate {villain} before the cult", "text": "Even under a red sky, your charts carry the day. The comet is already fading.", "requires": { "flag": "studied", "near": "settlement", "radius": 3 }, "flags": ["debunked"], "effects": [ { "do": "reward", "deeds": { "learning": 1, "honesty": 1 } } ] }

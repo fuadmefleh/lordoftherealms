@@ -40,10 +40,10 @@ Object.assign(ActionMenu, {
         if (message) html += `<div style="${CARD} border-color:${message.ok ? 'rgba(159,216,159,0.5)' : 'rgba(224,128,128,0.5)'};">${esc(message.text)}</div>`;
         html += `<p style="${NOTE}">${s ? `The joiner of ${esc(s.name)}` : 'A joiner'} makes what a ${esc(type)} can make — bigger places, finer pieces. What you buy waits in your furniture store until you set it down in a home you own: go inside it and choose <b>Furnish</b>.</p>`;
 
-        html += `<div style="font-weight:bold; color:var(--gold); margin-top:8px;">🪑 For sale</div>`;
+        html += `<div style="font-weight:bold; color:var(--gold); margin-top:8px;">💺 For sale</div>`;
         for (const item of Furnishing.shopList(player, type)) {
             html += `<div style="${CARD} display:flex; justify-content:space-between; gap:8px; align-items:center;">`;
-            html += `<div><div><span style="font-size:15px;">${item.icon || '🪑'}</span> <b>${esc(item.name)}</b> <span style="color:var(--gold);">${item.price}g</span></div>`;
+            html += `<div><div><span style="font-size:15px;">${item.icon || '💺'}</span> <b>${esc(item.name)}</b> <span style="color:var(--gold);">${item.price}g</span></div>`;
             html += `<div style="${NOTE}">${esc(item.desc || '')}${_does(item) ? ` <i>(${esc(_does(item))})</i>` : ''}</div></div>`;
             html += `<div style="flex-shrink:0;">${item.affordable ? act('Buy', ['buy', item.id], BTN_GOLD) : `<button style="${BTN_OFF}" title="Not enough gold">Buy</button>`}</div>`;
             html += '</div>';
@@ -62,7 +62,7 @@ Object.assign(ActionMenu, {
             html += `<div style="${NOTE} margin-top:8px;">Furnished: ${homes.map(h => `${esc(h.name)}${h.town ? ` in ${esc(h.town)}` : ''} (${h.pieces})`).join(' · ')}</div>`;
         }
         html += '</div>';
-        game.ui.showCustomPanel('🪑 Furniture Maker', html);
+        game.ui.showCustomPanel('💺 Furniture Maker', html);
     },
 
     /** The shop's buttons: ['buy', itemId] or ['sell', uid]. */

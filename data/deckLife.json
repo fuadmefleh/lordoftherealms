@@ -28,7 +28,7 @@
         "pump": { "label": "Working the pumps", "icon": "💦", "anim": "swing", "secs": [3, 6] },
         "fishing": { "label": "Fishing over the side", "icon": "🎣", "anim": "idle", "secs": [10, 18] },
         "pray": { "label": "Praying", "icon": "🙏", "anim": "sitting", "secs": [8, 14] },
-        "wounded": { "label": "Nursing a wound", "icon": "🩹", "anim": "sitting", "secs": [20, 30] },
+        "wounded": { "label": "Nursing a wound", "icon": "🤕", "anim": "sitting", "secs": [20, 30] },
         "fight": { "label": "Fighting", "icon": "⚔️", "anim": "halfslash", "secs": [1, 2] }
     },
     "situations": {

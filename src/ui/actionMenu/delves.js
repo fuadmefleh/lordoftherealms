@@ -26,7 +26,7 @@ function _haulHtml(haul) {
     if ((haul.lore || []).length) parts.push(`📜 ${haul.lore.length} lore`);
     const bad = [];
     for (const [id, n] of Object.entries(haul.leftBehind || {})) bad.push(`${n} ${id.replace(/_/g, ' ')} left behind`);
-    for (const i of haul.injuries || []) bad.push(`🩹 ${i}`);
+    for (const i of haul.injuries || []) bad.push(`🤕 ${i}`);
     if (haul.curse) bad.push('🗿 cursed idol');
     if (haul.guardian) bad.push(`⚠️ ${haul.guardian} roams`);
     let html = `<div style="${CARD} border-color: rgba(245,197,66,0.3);"><div style="font-weight:bold; color:var(--gold); margin-bottom:4px;">🎒 Your Haul</div>`;

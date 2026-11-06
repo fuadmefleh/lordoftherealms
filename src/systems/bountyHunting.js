@@ -19,7 +19,7 @@ export const BountyHunting = {
     TARGET_POOL: [
         { baseName: 'Ragpicker Venn', icon: '🗡️', crime: 'serial robberies', profile: 'A nimble cutpurse who vanished into border hamlets.' },
         { baseName: 'Mara Ashveil', icon: '🎭', crime: 'forgery and blackmail', profile: 'A former court scribe selling noble secrets to rivals.' },
-        { baseName: 'Tarn Coaleye', icon: '🪓', crime: 'caravan raids', profile: 'An ex-mercenary leader who now hunts isolated trade routes.' },
+        { baseName: 'Tarn Coaleye', icon: '🗡️', crime: 'caravan raids', profile: 'An ex-mercenary leader who now hunts isolated trade routes.' },
         { baseName: 'Jorek Saltfang', icon: '☠️', crime: 'river piracy', profile: 'Known for boarding ferries and vanishing before dawn.' },
         { baseName: 'Sister Hollow', icon: '🕯️', crime: 'grave theft', profile: 'Steals relics from shrines and sells them to collectors.' },
         { baseName: 'Ilya Black Reed', icon: '🏹', crime: 'royal poaching', profile: 'A ghost archer wanted by three hunting lodges.' },

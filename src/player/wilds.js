@@ -481,11 +481,11 @@ export const Wilds = {
         }
         if (o.ailment && (o.ailmentChance == null || Utils.random() < _num(o.ailmentChance))) {
             const rep = Ailments.inflict(player, world, o.ailment, { source: 'wilds' });
-            if (rep) lines.push(`${rep.icon || '🩹'} ${rep.name}${rep.days ? ` (${rep.days} days)` : ''}`);
+            if (rep) lines.push(`${rep.icon || '🤕'} ${rep.name}${rep.days ? ` (${rep.days} days)` : ''}`);
         }
         if (o.wound) {
             const rep = Ailments.maybeWound(player, world, o.wound);
-            if (rep) lines.push(`${rep.icon || '🩹'} Wounded: ${rep.name}`);
+            if (rep) lines.push(`${rep.icon || '🤕'} Wounded: ${rep.name}`);
         }
         for (const [skill, amt] of Object.entries(o.skills || {})) {
             if (!player.skills) player.skills = {};

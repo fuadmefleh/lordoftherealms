@@ -141,7 +141,7 @@
         "againDays": [30, 50],
         "demands": {
             "pay": { "label": "Pay the debt in gold", "icon": "💰", "goldMult": 2, "text": "\"Coin was what you wanted. Coin is what I want back — {gold} of it.\"" },
-            "cruelty": { "label": "Do a cruel thing", "icon": "🩸", "deed": "cruelty", "amount": 1, "text": "\"Hurt someone who cannot hurt you back. You'll know it when you've done it. So will I.\"" },
+            "cruelty": { "label": "Do a cruel thing", "icon": "🔴", "deed": "cruelty", "amount": 1, "text": "\"Hurt someone who cannot hurt you back. You'll know it when you've done it. So will I.\"" },
             "deceit": { "label": "Tell a damning lie", "icon": "🎭", "deed": "deceit", "amount": 1, "text": "\"Plant a lie about someone great — let it take root and choke them.\"" },
             "dread": { "label": "Make a town fear you", "icon": "💀", "deed": "dread", "amount": 1, "text": "\"Let a town learn your name the way children learn of wolves.\"" }
         },

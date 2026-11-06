@@ -563,7 +563,7 @@ const EMOJI_GLYPHS = {
     '🎵': 'note', '🎶': 'note', '👶': 'person', '👤': 'person', '🧑': 'person', '🚢': 'ship', '⛵': 'ship', '🚣': 'boat',
     '🛶': 'boat', '📦': 'satchel', '🎒': 'satchel', '🔨': 'hammer', '🛠': 'hammer', '🔧': 'hammer', '🌿': 'wheat',
     '🏹': 'bow', '👥': 'council', '🐫': 'wagon', '🐪': 'wagon', '📒': 'ledger', '🏭': 'anvil', '🏕': 'fire', '🎨': 'palette',
-    '🛣': 'compass', '🧶': 'satchel', '🔥': 'fire', '🗡': 'dagger', '🏆': 'trophy', '🗼': 'tower', '🤏': 'dagger',
+    '🛣': 'compass', '🧶': 'satchel', '🔥': 'fire', '🗡': 'dagger', '🏆': 'trophy', '🗼': 'tower', '👛': 'dagger',
     '🏴': 'skull', '☠': 'skull', '💀': 'skull', '🧘': 'sun', '☀': 'sun', '✨': 'star', '⭐': 'star', '🌟': 'star',
     '🕵': 'eye', '👁': 'eye', '⏳': 'hourglass', '⌛': 'hourglass', '🕰': 'hourglass', '🏪': 'coins',
     '🛡': 'shield', '🙏': 'chalice', '🏠': 'house', '🏡': 'house', '🏘': 'house', '⚙': 'gear', '🔬': 'flask', '⚗': 'flask',
@@ -581,19 +581,19 @@ const EMOJI_GLYPHS = {
  */
 const MAP_GLYPHS = {
     '🌲': 'tree', '🌳': 'oak', '🌴': 'island', '🍂': 'oak', '🌿': 'wheat', '⛰': 'mountain', '🏔': 'mountain', '🗻': 'mountain',
-    '🏜': 'sun', '❄': 'snowflake', '🧊': 'snowflake', '⛏': 'ore', '✨': 'nugget', '🟠': 'ore', '🥇': 'ingot', '🥈': 'ingot',
+    '🏜': 'sun', '❄': 'snowflake', '⛏': 'ore', '✨': 'nugget', '🔶': 'ore', '🥇': 'ingot', '🥈': 'ingot',
     '⚫': 'coal', '🛢': 'barrel', '🧂': 'salt', '🌶': 'spice', '🐄': 'cow', '🐑': 'sheep', '🐴': 'horseshoe', '🐎': 'horseshoe',
-    '🏇': 'horseshoe', '🧱': 'brick', '🪓': 'axe', '🎣': 'fish', '🐟': 'fish', '🌾': 'wheat', '💎': 'gem', '💰': 'coins',
+    '🏇': 'horseshoe', '🧱': 'brick', '🎣': 'fish', '🐟': 'fish', '🌾': 'wheat', '💎': 'gem', '💰': 'coins',
     '🏚': 'ruin', '🗿': 'stones', '⛲': 'droplet', '🔭': 'spyglass', '⚱': 'urn', '🦴': 'bone', '⛈': 'storm', '🏝': 'island',
     '🌕': 'moon', '🔴': 'orb', '🏫': 'book', '🎓': 'book', '🗽': 'obelisk', '🏟': 'tower', '🌉': 'bridge', '🌊': 'wave',
-    '🐚': 'shell', '⛴': 'boat', '🚧': 'barrier', '🏕': 'tent', '⛪': 'church', '⛩': 'church', '🛕': 'temple', '🏛': 'temple',
+    '🐚': 'shell', '⛴': 'boat', '🚧': 'barrier', '🏕': 'tent', '⛪': 'church', '⛩': 'church', '🏛': 'temple',
     '🏗': 'hammer', '🔨': 'hammer', '❔': 'help', '❓': 'help', '👤': 'person', '💀': 'skull', '⚓': 'anchor', '🛶': 'boat',
     '🗡': 'dagger', '🕯': 'candle', '🐺': 'paw', '🏘': 'house', '🏠': 'house', '🏰': 'castle', '🐪': 'wagon', '🐫': 'wagon',
     // Inner maps: the furniture of a room, the trades of a town, its people
-    '🪑': 'chair', '🛏': 'bed', '📦': 'crate', '🧗': 'stairs', '🔼': 'stairs', '🔽': 'stairs', '🏪': 'stall', '🍲': 'bowl', '🧺': 'bucket', '💧': 'droplet',
+    '💺': 'chair', '🛏': 'bed', '📦': 'crate', '🧗': 'stairs', '🔼': 'stairs', '🔽': 'stairs', '🏪': 'stall', '🍲': 'bowl', '🧺': 'bucket', '💧': 'droplet',
     '💤': 'moon', '🕌': 'temple', '⚒': 'anvil', '🗼': 'tower', '🍻': 'tankard', '🍺': 'tankard', '🗺': 'map', '🚪': 'house',
     '💂': 'helm', '🤴': 'crown', '👸': 'crown', '👦': 'person', '👧': 'person', '🧒': 'person', '🧑': 'person', '👨': 'person',
-    '👩': 'person', '🧎': 'person', '🧳': 'satchel', '🧙': 'orb', '🛡': 'shield', '⚔': 'swords',
+    '👩': 'person', '🙇': 'person', '🧳': 'satchel', '🧙': 'orb', '🛡': 'shield', '⚔': 'swords',
     '✒': 'quill', '🏺': 'urn', '🛁': 'droplet',
 };
 

@@ -98,7 +98,7 @@
     },
     "ailments": {
         "gash": {
-            "kind": "wound", "name": "Deep Gash", "icon": "🩸", "severity": 1, "days": [5, 9], "infection": 0.06,
+            "kind": "wound", "name": "Deep Gash", "icon": "🔴", "severity": 1, "days": [5, 9], "infection": 0.06,
             "effects": { "battlePower": -0.03 },
             "description": "A long cut that needs keeping clean."
         },

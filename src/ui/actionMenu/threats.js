@@ -102,7 +102,7 @@ Object.assign(ActionMenu, {
             const member = c && Coalitions.isMember(player, r.kingdomId);
             html += `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);">`;
             html += `<div style="display:flex;justify-content:space-between;"><span><b>${esc(r.name)}</b>${member ? ' ⚜️' : ''}</span><span style="color:${hc};">hostility ${r.hostility}</span></div>`;
-            html += `<div style="font-size:11px;color:#bbb;">😨 fear ${r.fear} · 😒 envy ${r.envy} · 🗡️ grudge ${r.grudge}${r.vendetta >= 1 ? ` · 🩸 blood feud ${Math.round(r.vendetta)}${r.generations ? ` (${r.generations} gen.)` : ''}` : ''} · ${Math.round((r.prox || 0) * 100)}% near</div>`;
+            html += `<div style="font-size:11px;color:#bbb;">😨 fear ${r.fear} · 😒 envy ${r.envy} · 🗡️ grudge ${r.grudge}${r.vendetta >= 1 ? ` · 🔴 blood feud ${Math.round(r.vendetta)}${r.generations ? ` (${r.generations} gen.)` : ''}` : ''} · ${Math.round((r.prox || 0) * 100)}% near</div>`;
             if (r.reasons && r.reasons.length) html += `<div style="font-size:11px;color:#999;font-style:italic;">${esc(r.reasons.join('; '))}</div>`;
             html += '</div>';
         }

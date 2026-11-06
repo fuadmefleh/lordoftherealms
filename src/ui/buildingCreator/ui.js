@@ -313,7 +313,7 @@ export function _buildLayerButtons() {
     const container = bcState._overlay.querySelector('#bc-layer-bar');
     if (!container) return;
     const layerNames = ['floor', 'walls', 'roof', 'overlay'];
-    const layerIcons = { floor: '🟫', walls: '🧱', roof: '🏠', overlay: '✨' };
+    const layerIcons = { floor: '⬛', walls: '🧱', roof: '🏠', overlay: '✨' };
     container.innerHTML = '';
     for (const ln of layerNames) {
         const btn = document.createElement('button');

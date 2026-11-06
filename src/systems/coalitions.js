@@ -497,7 +497,7 @@ export const Coalitions = {
             house.rivals[k.id] = { kingdomId: k.id, name, feud: floor, lastActedDay: _day(world), vendetta: true };
             const lord = k.lord ? k.lord.name : 'its lord';
             House._chronicle(house, world, `${name} of ${k.name} swears a blood feud against ${house.name}${a.generations ? `, as ${lord}'s fathers swore before him` : ''}.`, ['rival', 'feud', 'vendetta']);
-            out.notices.push({ icon: '🩸', title: 'A Blood Feud', text: `${lord} of ${k.name} will not forget ${NPCLords.vendettaOf(k.lord, _day(world)).causes[0]?.label || 'what you did'}. ${name} is now a rival of your House.`, type: 'warning' });
+            out.notices.push({ icon: '🔴', title: 'A Blood Feud', text: `${lord} of ${k.name} will not forget ${NPCLords.vendettaOf(k.lord, _day(world)).causes[0]?.label || 'what you did'}. ${name} is now a rival of your House.`, type: 'warning' });
         }
     },
 

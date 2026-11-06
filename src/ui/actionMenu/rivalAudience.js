@@ -360,7 +360,7 @@ function _duel(game, state, rival) {
             intro: `🏰 <b>${esc(RivalHouses.headName(rival))}</b> salutes with the blade. Their retainers form a ring.`,
             onFinish: (outcome) => {
                 const res = RivalHouses.settleDuel(player, world, kid, outcome);
-                if (res.success) game.ui.showNotification(res.playerWon ? '⚔️ Honour Satisfied' : '🩸 First Blood to Them', res.text, res.playerWon ? 'success' : 'warning');
+                if (res.success) game.ui.showNotification(res.playerWon ? '⚔️ Honour Satisfied' : '🔴 First Blood to Them', res.text, res.playerWon ? 'success' : 'warning');
                 if (game.ui.updateStats) game.ui.updateStats(player, world);
             },
         });

@@ -19,7 +19,7 @@ export const Councils = {
         { id: 'military', name: 'War Hawks', icon: '⚔️', baseSupport: 52, influence: 22 },
         { id: 'merchants', name: 'Guild Coalition', icon: '💰', baseSupport: 50, influence: 20 },
         { id: 'clergy', name: 'Clerical Synod', icon: '⛪', baseSupport: 54, influence: 18 },
-        { id: 'commons', name: 'Commons Deputies', icon: '🧑‍🌾', baseSupport: 48, influence: 16 },
+        { id: 'commons', name: 'Commons Deputies', icon: '👨‍🌾', baseSupport: 48, influence: 16 },
     ],
 
     _ensureState(player) {

@@ -12,7 +12,7 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 function battleExtrasHtml(result) {
     let html = '';
     if (result.wounded > 0) {
-        html += `<div style="color: #81c784;">🩹 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
+        html += `<div style="color: #81c784;">💊 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
     }
     if (result.navalSupport > 0) {
         html += result.theatre === 'sea'

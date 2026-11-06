@@ -891,7 +891,7 @@ export const Rivals = {
             const fled = !res.rivalDied;
             notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" — but you beat them off${fled ? '; they fled wounded' : ' and they fell'}. (-${res.harm} health, +${res.renown} renown)`, 'warning');
         } else {
-            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${res.goldLost} gold.${res.wound ? ` ${res.wound.icon || '🩸'} ${res.wound.name}.` : ''}`, 'error');
+            notify('🗡️', 'Ambushed!', `${rival.name} sprang on you — "${line}" You were beaten and robbed: -${res.harm} health, -${res.goldLost} gold.${res.wound ? ` ${res.wound.icon || '🔴'} ${res.wound.name}.` : ''}`, 'error');
         }
     },
 

@@ -47,7 +47,7 @@ export const DevotionPanel = {
         if (res.intelligence) h += `<div style="color: #f5c542;">🧠 Your mind feels sharper (+${res.intelligence}).</div>`;
         if (res.standing) h += `<div style="${NOTE}">The clergy's regard for you grows (+${res.standing}).</div>`;
         if (res.fine) h += `<div style="color: #e07070;">💰 Fined ${res.fine} gold.</div>`;
-        if (res.harm) h += `<div style="color: #e07070;">🩸 −${res.harm} health.</div>`;
+        if (res.harm) h += `<div style="color: #e07070;">🔴 −${res.harm} health.</div>`;
         for (const n of res.notes || []) h += `<div style="${NOTE}">${esc(n)}</div>`;
         h += '</div>';
         if (res.omen) h += `<div style="${CARD} border-color: rgba(155,89,182,0.5);"><strong>${res.omen.icon} An omen</strong><div style="font-size: 12px; font-style: italic; margin-top: 4px;">${esc(res.omen.text)}</div>${res.omen.q != null ? '<div style="font-size: 10px; color: var(--text-muted);">The place is marked on your map.</div>' : ''}</div>`;

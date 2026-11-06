@@ -68,7 +68,7 @@
                 { "id": "grass", "name": "Grass", "icon": "🌿", "color": "#88aa55", "weight": 60 },
                 { "id": "tall_grass", "name": "Tall Grass", "icon": "🌾", "color": "#7a9a48", "weight": 25 },
                 { "id": "rocks", "name": "Rocks", "icon": "⛰️", "color": "#999", "weight": 8 },
-                { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 7 }
+                { "id": "dirt", "name": "Dirt", "icon": "🌰", "color": "#8b7355", "weight": 7 }
             ],
             "encounters": ["rabbit", "deer", "herb_patch", "traveler", "hidden_cache"],
             "waterFeatures": { "chance": 0.6, "count": [1, 3], "radius": [3, 10], "lobes": [1, 3] }
@@ -76,7 +76,7 @@
         "plains": {
             "primary": [
                 { "id": "dry_grass", "name": "Dry Grass", "icon": "🌾", "color": "#bfa751", "weight": 55 },
-                { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 25 },
+                { "id": "dirt", "name": "Dirt", "icon": "🌰", "color": "#8b7355", "weight": 25 },
                 { "id": "rocks", "name": "Boulders", "icon": "⛰️", "color": "#888", "weight": 12 },
                 { "id": "grass", "name": "Grass", "icon": "🌿", "color": "#88aa55", "weight": 8 }
             ],
@@ -88,7 +88,7 @@
                 { "id": "trees", "name": "Forest", "icon": "🌳", "color": "#668844", "weight": 50 },
                 { "id": "brush", "name": "Underbrush", "icon": "🌿", "color": "#4a6a2a", "weight": 25 },
                 { "id": "grass", "name": "Clearing", "icon": "🌿", "color": "#88aa55", "weight": 15 },
-                { "id": "dirt", "name": "Forest Floor", "icon": "🟤", "color": "#6b4226", "weight": 10 }
+                { "id": "dirt", "name": "Forest Floor", "icon": "🌰", "color": "#6b4226", "weight": 10 }
             ],
             "encounters": ["wolf", "deer", "forager", "mushroom_circle", "hidden_shrine", "woodcutter"],
             "waterFeatures": { "chance": 0.55, "count": [1, 3], "radius": [3, 9], "lobes": [1, 3] }
@@ -98,7 +98,7 @@
                 { "id": "trees", "name": "Pine Forest", "icon": "🌲", "color": "#446633", "weight": 50 },
                 { "id": "snow", "name": "Snow Patch", "icon": "❄️", "color": "#e8e8e8", "weight": 20 },
                 { "id": "brush", "name": "Moss Ground", "icon": "🌿", "color": "#4a7a3a", "weight": 20 },
-                { "id": "dirt", "name": "Forest Floor", "icon": "🟤", "color": "#6b4226", "weight": 10 }
+                { "id": "dirt", "name": "Forest Floor", "icon": "🌰", "color": "#6b4226", "weight": 10 }
             ],
             "encounters": ["bear", "elk", "hermit", "frozen_corpse", "ancient_carving"],
             "waterFeatures": { "chance": 0.5, "count": [1, 3], "radius": [3, 9], "lobes": [1, 2] }
@@ -117,7 +117,7 @@
             "primary": [
                 { "id": "trees", "name": "Mossy Trees", "icon": "🌲", "color": "#2a4a1a", "weight": 45 },
                 { "id": "brush", "name": "Ferns", "icon": "🌿", "color": "#335522", "weight": 30 },
-                { "id": "mud", "name": "Mud", "icon": "🟤", "color": "#6b5a3a", "weight": 25 }
+                { "id": "mud", "name": "Mud", "icon": "🌰", "color": "#6b5a3a", "weight": 25 }
             ],
             "encounters": ["rare_herb", "spider_nest", "druid", "glowing_moss", "ancient_statue"],
             "waterFeatures": { "chance": 0.7, "count": [1, 3], "radius": [4, 11], "lobes": [1, 3] }
@@ -127,7 +127,7 @@
                 { "id": "trees", "name": "Dense Jungle", "icon": "🌴", "color": "#224411", "weight": 45 },
                 { "id": "brush", "name": "Jungle Floor", "icon": "🌿", "color": "#2a5a1a", "weight": 30 },
                 { "id": "grass", "name": "Canopy Gap", "icon": "☀️", "color": "#6aaa44", "weight": 15 },
-                { "id": "mud", "name": "Mud", "icon": "🟤", "color": "#6b5a3a", "weight": 10 }
+                { "id": "mud", "name": "Mud", "icon": "🌰", "color": "#6b5a3a", "weight": 10 }
             ],
             "encounters": ["parrot", "snake", "lost_explorer", "hidden_temple", "rare_orchid", "panther"],
             "waterFeatures": { "chance": 0.7, "count": [1, 3], "radius": [4, 11], "lobes": [1, 3] }
@@ -136,7 +136,7 @@
             "primary": [
                 { "id": "sand", "name": "Sand", "icon": "🏜️", "color": "#d4a843", "weight": 55 },
                 { "id": "rocks", "name": "Rocky Ground", "icon": "⛰️", "color": "#b08a5a", "weight": 25 },
-                { "id": "dirt", "name": "Hard Pack", "icon": "🟤", "color": "#c89a5a", "weight": 20 }
+                { "id": "dirt", "name": "Hard Pack", "icon": "🌰", "color": "#c89a5a", "weight": 20 }
             ],
             "encounters": ["scorpion", "mirage", "buried_treasure", "nomad_camp", "sand_wurm"]
         },
@@ -145,7 +145,7 @@
                 { "id": "dry_grass", "name": "Savanna Grass", "icon": "🌾", "color": "#ddbb66", "weight": 55 },
                 { "id": "tall_grass", "name": "Tall Grass", "icon": "🌾", "color": "#c4a44a", "weight": 25 },
                 { "id": "rocks", "name": "Rocky Outcrop", "icon": "⛰️", "color": "#8a7a5a", "weight": 12 },
-                { "id": "dirt", "name": "Dry Dirt", "icon": "🟤", "color": "#b0a070", "weight": 8 }
+                { "id": "dirt", "name": "Dry Dirt", "icon": "🌰", "color": "#b0a070", "weight": 8 }
             ],
             "encounters": ["lion", "elephant", "tribal_camp", "baobab_tree", "vultures"],
             "waterFeatures": { "chance": 0.25, "count": [1, 1], "radius": [3, 5], "lobes": [1, 1] }
@@ -162,7 +162,7 @@
             "primary": [
                 { "id": "grass", "name": "Grassy Hill", "icon": "🌿", "color": "#8a9a5a", "weight": 45 },
                 { "id": "rocks", "name": "Rocky Hill", "icon": "⛰️", "color": "#7a6a4a", "weight": 30 },
-                { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 25 }
+                { "id": "dirt", "name": "Dirt", "icon": "🌰", "color": "#8b7355", "weight": 25 }
             ],
             "encounters": ["sheep", "hawk", "prospector", "old_mine_shaft", "bandit_lookout"],
             "waterFeatures": { "chance": 0.35, "count": [1, 2], "radius": [3, 7], "lobes": [1, 2] }
@@ -180,7 +180,7 @@
         "tundra": {
             "primary": [
                 { "id": "snow", "name": "Frozen Ground", "icon": "🥶", "color": "#bce4ce", "weight": 45 },
-                { "id": "dirt", "name": "Permafrost", "icon": "🟤", "color": "#a8c8b8", "weight": 30 },
+                { "id": "dirt", "name": "Permafrost", "icon": "🌰", "color": "#a8c8b8", "weight": 30 },
                 { "id": "rocks", "name": "Stones", "icon": "⛰️", "color": "#8a8a7a", "weight": 15 },
                 { "id": "grass", "name": "Lichen", "icon": "🌿", "color": "#8aaa7a", "weight": 10 }
             ],
@@ -189,7 +189,7 @@
         "snow": {
             "primary": [
                 { "id": "snow", "name": "Snow", "icon": "❄️", "color": "#ffffff", "weight": 60 },
-                { "id": "ice", "name": "Ice", "icon": "🧊", "color": "#e5f9ff", "weight": 20 },
+                { "id": "ice", "name": "Ice", "icon": "❄️", "color": "#e5f9ff", "weight": 20 },
                 { "id": "trees", "name": "Snow Pines", "icon": "🌲", "color": "#99aa88", "weight": 12 },
                 { "id": "rocks", "name": "Stones", "icon": "⛰️", "color": "#d8d8d0", "weight": 8 }
             ],
@@ -197,7 +197,7 @@
         },
         "ice": {
             "primary": [
-                { "id": "ice", "name": "Thick Ice", "icon": "🧊", "color": "#e5f9ff", "weight": 55 },
+                { "id": "ice", "name": "Thick Ice", "icon": "❄️", "color": "#e5f9ff", "weight": 55 },
                 { "id": "snow", "name": "Snow Cover", "icon": "❄️", "color": "#ffffff", "weight": 30 },
                 { "id": "rocks", "name": "Ice Spire", "icon": "💎", "color": "#c8e8ff", "weight": 15 }
             ],
@@ -208,7 +208,7 @@
                 { "id": "grass", "name": "Highland Grass", "icon": "🌿", "color": "#7a8a5a", "weight": 40 },
                 { "id": "rocks", "name": "Rocky Terrain", "icon": "⛰️", "color": "#6d7a5b", "weight": 35 },
                 { "id": "brush", "name": "Heather", "icon": "🌸", "color": "#8a6a8a", "weight": 15 },
-                { "id": "dirt", "name": "Dirt", "icon": "🟤", "color": "#8b7355", "weight": 10 }
+                { "id": "dirt", "name": "Dirt", "icon": "🌰", "color": "#8b7355", "weight": 10 }
             ],
             "encounters": ["highland_cow", "eagle", "pict_stones", "hidden_spring", "shepherd"],
             "waterFeatures": { "chance": 0.4, "count": [1, 2], "radius": [3, 8], "lobes": [1, 2] }
@@ -218,7 +218,7 @@
                 { "id": "sand", "name": "Sand", "icon": "🏖️", "color": "#e8d5a3", "weight": 55 },
                 { "id": "rocks", "name": "Rocky Shore", "icon": "⛰️", "color": "#8a8a7a", "weight": 25 },
                 { "id": "grass", "name": "Dune Grass", "icon": "🌿", "color": "#6b8e23", "weight": 12 },
-                { "id": "dirt", "name": "Wet Sand", "icon": "🟤", "color": "#8b7355", "weight": 8 }
+                { "id": "dirt", "name": "Wet Sand", "icon": "🌰", "color": "#8b7355", "weight": 8 }
             ],
             "encounters": ["sea_turtle", "hermit_crab", "washed_up_chest", "fisherman", "message_bottle", "shipwreck"]
         },
@@ -2588,7 +2588,7 @@
         },
         "herbalist": {
             "name": "Wandering Herbalist",
-            "icon": "🧑‍🌾",
+            "icon": "👨‍🌾",
             "description": "An herbalist gathers rare plants.",
             "text": "A young woman with green-stained hands and a satchel of bundled roots is crouched over a patch of comfrey, muttering Latin-sounding names. She looks up hopefully: 'You wouldn't happen to have a knife sharper than this one?'",
             "choices": [
@@ -2806,7 +2806,7 @@
         },
         "shepherd": {
             "name": "Highland Shepherd",
-            "icon": "🧑‍🌾",
+            "icon": "👨‍🌾",
             "description": "A shepherd tends their flock.",
             "text": "An old shepherd sits on a boulder with a crook across her knees and two black-and-white dogs at her feet, watching her flock scatter over the slope. She has watched you coming for the last mile. 'You'll be lost, then,' she says.",
             "choices": [
@@ -2947,7 +2947,7 @@
         },
         "woodcutter": {
             "name": "Woodcutter",
-            "icon": "🪓",
+            "icon": "🌲",
             "description": "A woodcutter chops nearby trees.",
             "text": "The steady thock of an axe leads you to a broad-shouldered man felling a beech. He has a dozen logs stacked, a mule to drag them and a temper visibly frayed by a jammed saw.",
             "choices": [
@@ -6002,7 +6002,7 @@
         },
         "ice_elemental": {
             "name": "Ice Elemental",
-            "icon": "🧊",
+            "icon": "❄️",
             "description": "A being made of living ice.",
             "text": "What you took for a pressure ridge unfolds itself: a hunched thing of blue ice twice your height, grinding as it moves. Snow whirls around it in a slow ring. It has not seen you yet, or it does not care.",
             "choices": [
@@ -7856,7 +7856,7 @@
         },
         "shrine_pilgrim": {
             "name": "Footsore Pilgrim",
-            "icon": "🧎",
+            "icon": "🙇",
             "description": "A pilgrim rests at the shrine, too lame to go on.",
             "text": "An old pilgrim sits against the shrine wall with his boots off and his feet wrapped in bloody rags. He is three weeks from home and two from the holy city, he says, and he will not make either on these feet.",
             "choices": [

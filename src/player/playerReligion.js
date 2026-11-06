@@ -198,7 +198,7 @@ export const PlayerReligion = {
         TEMPLE: {
             id: 'temple',
             name: 'Temple',
-            icon: '🛕',
+            icon: '🏛️',
             cost: 1000,
             constructionDays: 12,
             faithGain: 15,

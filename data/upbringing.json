@@ -73,7 +73,7 @@
         }
     },
     "tutors": [
-        { "id": "hedge_tutor", "name": "Hedge Tutor", "icon": "🧑‍🏫", "focus": null, "quality": 1.25, "hireCost": 40, "wage": 6, "blurb": "A poor scholar who teaches a little of everything." },
+        { "id": "hedge_tutor", "name": "Hedge Tutor", "icon": "👨‍🏫", "focus": null, "quality": 1.25, "hireCost": 40, "wage": 6, "blurb": "A poor scholar who teaches a little of everything." },
         { "id": "master_at_arms", "name": "Master-at-Arms", "icon": "🛡️", "focus": "martial", "quality": 1.8, "hireCost": 150, "wage": 20, "seeds": { "brave": 0.3 }, "blurb": "A grizzled veteran of a dozen campaigns." },
         { "id": "court_steward", "name": "Retired Steward", "icon": "📒", "focus": "stewardship", "quality": 1.8, "hireCost": 140, "wage": 18, "seeds": { "honest": 0.2 }, "blurb": "Ran a duke's household for thirty years." },
         { "id": "court_envoy", "name": "Court Envoy", "icon": "🎩", "focus": "diplomacy", "quality": 1.8, "hireCost": 160, "wage": 20, "seeds": { "generous": 0.2 }, "blurb": "Has carried treaties between three crowns." },

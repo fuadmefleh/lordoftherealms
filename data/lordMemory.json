@@ -74,7 +74,7 @@
         "child_recalled": { "weight": -8, "halfLife": 360, "icon": "🐎", "label": "the child you took back from court", "recall": "You took your child from my court as if we were brigands." },
         "rival_truce": { "weight": 8, "halfLife": 360, "icon": "🕊️", "label": "the truce you made between your Houses", "recall": "Our Houses made peace." },
         "rival_defied": { "weight": -6, "halfLife": 240, "icon": "🗡️", "label": "the demand you defied", "recall": "You defied my House." },
-        "kin_slain": { "vendetta": true, "weight": -35, "halfLife": 1500, "icon": "🩸", "label": "the blood of the ruler's kin you spilled", "recall": "My father's blood is on your hands." },
+        "kin_slain": { "vendetta": true, "weight": -35, "halfLife": 1500, "icon": "🔴", "label": "the blood of the ruler's kin you spilled", "recall": "My father's blood is on your hands." },
         "assassin_caught": { "vendetta": true, "weight": -20, "halfLife": 720, "icon": "🗡️", "label": "the assassin of yours taken at court", "recall": "Your knife-man hanged in my courtyard. I know who sent him." },
         "scandal_traced": { "vendetta": true, "weight": -12, "halfLife": 540, "icon": "🐍", "label": "the scandal you spread about the throne", "recall": "You dragged my name through the taverns." },
         "coalition_bought": { "weight": 6, "halfLife": 240, "icon": "💰", "label": "the gold you paid to leave the league", "recall": "You paid well to keep me out of the league." },

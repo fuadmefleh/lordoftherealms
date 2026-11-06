@@ -176,7 +176,7 @@ export function addWildernessActions(actions, player, tile, world) {
         actions.push({
             type: 'ice_fish',
             label: 'Ice Fishing',
-            icon: '🧊',
+            icon: '❄️',
             description: 'Cut a hole in the ice and fish the frozen water'
         });
     }
@@ -231,7 +231,7 @@ export function addWildernessActions(actions, player, tile, world) {
         actions.push({
             type: 'clear_trees',
             label: 'Clear Trees',
-            icon: '🪓',
+            icon: '🌲',
             description: 'Fell the trees for wood and clear the land for farming'
         });
     }

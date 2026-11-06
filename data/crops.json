@@ -40,7 +40,7 @@
             "art": { "sheet": "crops", "stages": [[6, 11], [6, 13], [6, 15]], "ripe": [6, 17] }
         },
         "turnip": {
-            "name": "Turnips", "icon": "🧅",
+            "name": "Turnips", "icon": "🥔",
             "seed": "turnip_seed",
             "product": "vegetables", "yield": [2, 3],
             "stages": [2, 3, 3],

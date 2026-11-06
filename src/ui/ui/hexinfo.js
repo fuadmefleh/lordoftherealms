@@ -581,7 +581,7 @@ Object.assign(UI.prototype, {
                     title.textContent = panelTitle;
                     title.style.color = 'var(--gold)';
 
-                    const _TYPE_ICONS = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📌' };
+                    const _TYPE_ICONS = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '💺', building: '🏠', other: '📌' };
                     const typeIcon = _TYPE_ICONS[def.objectType] || '📦';
                     const bw = def.bounds ? (def.bounds.maxCol - def.bounds.minCol + 1) : 1;
                     const bh = def.bounds ? (def.bounds.maxRow - def.bounds.minRow + 1) : 1;
@@ -591,7 +591,7 @@ Object.assign(UI.prototype, {
                     html += `<div class="info-row"><span class="info-label">Size</span><span class="info-value">${bw}×${bh} tiles</span></div>`;
 
                     if (def.animation && def.animation !== 'none') {
-                        const _ANIM_LABELS = { combat_1h_slash: '⚔️ Chop / Slash', combat_1h_halfslash: '🪓 Half Swing', legacy_swing: '⛏️ Swing (Mine/Dig)', sitting: '🪑 Sit', idle: '🧍 Idle / Inspect', emotes: '🙏 Emote / Pray', climb: '⛰️ Climb' };
+                        const _ANIM_LABELS = { combat_1h_slash: '⚔️ Chop / Slash', combat_1h_halfslash: '🗡️ Half Swing', legacy_swing: '⛏️ Swing (Mine/Dig)', sitting: '💺 Sit', idle: '👤 Idle / Inspect', emotes: '🙏 Emote / Pray', climb: '⛰️ Climb' };
                         html += `<div class="info-row"><span class="info-label">Interact</span><span class="info-value" style="color:#4FC3F7;">${_ANIM_LABELS[def.animation] || def.animation}</span></div>`;
                     }
                     if (def.resource) {

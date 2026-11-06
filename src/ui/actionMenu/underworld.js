@@ -123,7 +123,7 @@ Object.assign(ActionMenu, {
         }
 
         if (sum.rackets.length) {
-            html += '<h5 style="margin:10px 0 4px;">🪓 Rackets</h5><div style="font-size:11px;">';
+            html += '<h5 style="margin:10px 0 4px;">🗡️ Rackets</h5><div style="font-size:11px;">';
             for (const rk of sum.rackets) html += `<div>${rk.name}: ${rk.weekly}g / week</div>`;
             html += '</div>';
         }

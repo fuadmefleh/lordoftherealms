@@ -684,7 +684,7 @@ Object.assign(ActionMenu, {
                 options: [
                     { text: '🎭 Use dramatic gestures and a powerful cadence', mood: 20 },
                     { text: '📖 Present the facts clearly and concisely', mood: 14 },
-                    { text: '🥱 Drone on about minor bureaucratic details', mood: -8 },
+                    { text: '😪 Drone on about minor bureaucratic details', mood: -8 },
                 ]
             },
             {
@@ -802,7 +802,7 @@ Object.assign(ActionMenu, {
     /** Winter: fish through the ice — near the shore, or out where it is thin. */
     doIceFish(game, tile) {
         if (!SeasonalWork.canIceFish(tile, game.world)) {
-            game.ui.showNotification('🧊 Ice Fishing', 'Ice fishing needs a frozen river or lake in winter.', 'default');
+            game.ui.showNotification('❄️ Ice Fishing', 'Ice fishing needs a frozen river or lake in winter.', 'default');
             return;
         }
         ActionMenu.showScene(game, 'ice_fishing', startIceFishing(game, tile));

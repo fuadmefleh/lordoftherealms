@@ -2,19 +2,19 @@
     "_doc": "Quality grades of made goods and the craft skills that set them (core/grades.js, player/crafting.js, world/marketGrades.js). A held stack keeps plain qty in player.inventory; the units above or below Common are counted in player.craftGrades[good] = { poor, fine, excellent, masterwork } (Common is whatever is left). price: what a unit of the grade fetches and costs against a Common one. effect: how much more it does (nourishment, healing, protection, a weapon's cut, how long clothes stay fresh, how much tools help at the bench). below: the quality score under which a roll lands on this grade (the last has none).",
 
     "grades": [
-        { "id": "poor", "name": "Poor", "icon": "🟤", "color": "#b08968", "price": 0.6, "effect": 0.8, "below": 0.6 },
+        { "id": "poor", "name": "Poor", "icon": "⚫", "color": "#b08968", "price": 0.6, "effect": 0.8, "below": 0.6 },
         { "id": "common", "name": "Common", "icon": "⚪", "color": "#d6d2c8", "price": 1.0, "effect": 1.0, "below": 1.7 },
         { "id": "fine", "name": "Fine", "icon": "🔵", "color": "#5dade2", "price": 1.4, "effect": 1.2, "below": 2.6 },
-        { "id": "excellent", "name": "Excellent", "icon": "🟣", "color": "#c39bd3", "price": 2.0, "effect": 1.4, "below": 3.4 },
+        { "id": "excellent", "name": "Excellent", "icon": "🔮", "color": "#c39bd3", "price": 2.0, "effect": 1.4, "below": 3.4 },
         { "id": "masterwork", "name": "Masterwork", "icon": "🌟", "color": "#f5c542", "price": 3.0, "effect": 1.65, "below": null }
     ],
 
     "_skills": "Craft skills: each recipe in data/crafting.json names its `skill` (or takes its station's). Levels 0-10 live on player.skills like the other skills and rise with crafting xp (OddJobs.gainXp, x xpScale). titles: the name of a level band (the highest `min` not above the level).",
     "skills": {
         "smithing": { "name": "Smithing", "icon": "⚒️", "desc": "Smelting, forging tools, blades and armour" },
-        "carpentry": { "name": "Carpentry", "icon": "🪓", "desc": "Planks, joinery, barrels, bows, shields and arrows" },
+        "carpentry": { "name": "Carpentry", "icon": "🌲", "desc": "Planks, joinery, barrels, bows, shields and arrows" },
         "tailoring": { "name": "Tailoring", "icon": "🧵", "desc": "Spinning, weaving and sewing clothes and cloaks" },
-        "leatherwork": { "name": "Leatherwork", "icon": "🟫", "desc": "Tanning, leather armour, boots, saddles and bookbinding" },
+        "leatherwork": { "name": "Leatherwork", "icon": "👞", "desc": "Tanning, leather armour, boots, saddles and bookbinding" },
         "cooking": { "name": "Cooking", "icon": "🍳", "desc": "Meals, baking and preserves" },
         "brewing": { "name": "Brewing", "icon": "🍺", "desc": "Ale, mead, cider and wine" },
         "alchemy": { "name": "Alchemy & Herbalism", "icon": "🧪", "desc": "Potions, salves, soap, candles and ink" },

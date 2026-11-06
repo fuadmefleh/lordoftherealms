@@ -177,7 +177,7 @@ Object.assign(UI.prototype, {
                             </div>
                             <div style="font-size: 12px;">
                                 ${controller ? `<span style="color: ${controller.color};">${controller.name}</span>` : '<span style="color: #f39c12;">Unclaimed</span>'}
-                                | 🧑‍🤝‍🧑 ${Utils.formatNumber(hs.site.pilgrimCount || 0)} pilgrims
+                                | 👫 ${Utils.formatNumber(hs.site.pilgrimCount || 0)} pilgrims
                             </div>
                         </div>
                     `;

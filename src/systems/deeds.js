@@ -114,7 +114,7 @@ export const DEED_SECTIONS = [
         ['voyages.voyages', 'Voyages completed'], ['voyages.daysAtSea', 'Days at sea'], ['voyages.events', 'Events at sea'],
         ['voyages.longest', 'Longest voyage (days)'],
     ] },
-    { id: 'ailments', title: 'Wounds & Sickness', icon: '🩹', rows: [
+    { id: 'ailments', title: 'Wounds & Sickness', icon: '🤕', rows: [
         ['ailments.wounds', 'Wounds taken'], ['ailments.diseases', 'Diseases caught'], ['ailments.healed', 'Recoveries'],
         ['ailments.infections', 'Wounds that festered'], ['ailments.scars', 'Lasting scars'], ['ailments.treatments', 'Treatments received'],
     ] },

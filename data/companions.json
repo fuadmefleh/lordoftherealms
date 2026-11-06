@@ -196,7 +196,7 @@
         "shield_brother": { "name": "Shield-Sibling", "icon": "🛡️", "text": "+6% battle power", "bonus": { "power": 0.06 } },
         "silver_tongue": { "name": "Silver Tongue", "icon": "🗣️", "text": "+1 diplomacy", "bonus": { "diplomacy": 1 } },
         "quartermaster": { "name": "Quartermaster", "icon": "📦", "text": "+4% trade prices", "bonus": { "trade": 0.04 } },
-        "field_surgeon": { "name": "Field Surgeon", "icon": "🩹", "text": "heals 3 more a day", "bonus": { "heal": 3 } },
+        "field_surgeon": { "name": "Field Surgeon", "icon": "💊", "text": "heals 3 more a day", "bonus": { "heal": 3 } },
         "pilgrims_grace": { "name": "Pilgrim's Grace", "icon": "✨", "text": "heals 2 more a day, +0.5 diplomacy", "bonus": { "heal": 2, "diplomacy": 0.5 } },
         "pathfinder": { "name": "Pathfinder", "icon": "🧭", "text": "+3% battle power, heals 1 more a day", "bonus": { "power": 0.03, "heal": 1 } },
         "sworn_blade": { "name": "Sworn Blade", "icon": "⚔️", "text": "+8% battle power", "bonus": { "power": 0.08 } },
@@ -210,7 +210,7 @@
     "questTemplates": {
         "avenge_family": {
             "title": "Blood Owed",
-            "icon": "🩸",
+            "icon": "🔴",
             "description": "{name}'s {kin} was cut down by {foe}'s band years ago. {name} has never forgotten. Help them bring the killers to the sword.",
             "occupations": ["knight", "guard", "general", "hunter"],
             "objectives": [{ "stat": "battles_won", "target": 3, "text": "Hunt down {foe}'s band (win 3 battles)" }],

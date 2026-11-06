@@ -111,7 +111,7 @@ Object.assign(Relationships, {
             tell_stories: { id: 'tell_stories', label: 'Tell Stories', icon: '📖', relationGain: { min: 2, max: 6 }, statBonus: 'intelligence', failChance: 0.1, minLevel: 'acquaintance', minScore: 10, apCost: 1 },
             train_together: { id: 'train_together', label: 'Train Together', icon: '⚔️', relationGain: { min: 3, max: 7 }, statBonus: 'strength', failChance: 0.15, minLevel: 'friend', minScore: 30, apCost: 2 },
             confide_secret: { id: 'confide_secret', label: 'Confide a Secret', icon: '🤫', relationGain: { min: 5, max: 9 }, statBonus: 'diplomacy', failChance: 0.2, failPenalty: -4, minLevel: 'close_friend', minScore: 60, apCost: 2 },
-            blood_oath: { id: 'blood_oath', label: 'Swear Blood Oath', icon: '🩸', relationGain: { min: 8, max: 14 }, statBonus: 'leadership', failChance: 0.28, failPenalty: -6, cost: 40, minLevel: 'best_friend', minScore: 90, apCost: 3 },
+            blood_oath: { id: 'blood_oath', label: 'Swear Blood Oath', icon: '🔴', relationGain: { min: 8, max: 14 }, statBonus: 'leadership', failChance: 0.28, failPenalty: -6, cost: 40, minLevel: 'best_friend', minScore: 90, apCost: 3 },
             insult: { id: 'insult', label: 'Insult', icon: '😤', relationGain: { min: -8, max: -3 }, statBonus: null, failChance: 0, apCost: 1 },
             challenge: { id: 'challenge', label: 'Challenge to Duel', icon: '🗡️', relationGain: { min: -2, max: 5 }, statBonus: 'strength', failChance: 0.3, failResult: 'humiliation', apCost: 2 },
         };

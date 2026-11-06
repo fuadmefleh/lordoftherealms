@@ -54,7 +54,7 @@ Object.assign(PlayerMilitary, {
         {
             id: 'red_lances',
             name: 'The Red Lances',
-            icon: '🩸',
+            icon: '🔴',
             reputation: 'Famed heavy cavalry shock company',
             hireCost: 620,
             dailyWage: 95,

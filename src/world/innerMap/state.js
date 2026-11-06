@@ -197,7 +197,7 @@ Object.assign(InnerMap, {
     PROPERTY_BUILDING_DEFS: {
         farm:          { name: 'Farm',          icon: '🌾', actions: ['manage_property', 'collect_goods'] },
         pasture:       { name: 'Pasture',       icon: '🐑', actions: ['manage_property', 'collect_goods'] },
-        logging_camp:  { name: 'Logging Camp',  icon: '🪓', actions: ['manage_property', 'collect_goods'] },
+        logging_camp:  { name: 'Logging Camp',  icon: '🌲', actions: ['manage_property', 'collect_goods'] },
         mine:          { name: 'Mine',          icon: '⛏️', actions: ['manage_property', 'collect_goods'] },
         workshop:      { name: 'Workshop',      icon: '🔨', actions: ['manage_property', 'collect_goods'] },
         trading_post:  { name: 'Trading Post',  icon: '🏪', actions: ['manage_property'] },
@@ -307,16 +307,16 @@ Object.assign(InnerMap, {
     },
 
     NPC_TYPES: {
-        merchant:    { name: 'Merchant',     icon: '🧑‍💼', speed: 0.4, destinations: ['marketplace', 'warehouse', 'tavern'] },
+        merchant:    { name: 'Merchant',     icon: '👨‍💼', speed: 0.4, destinations: ['marketplace', 'warehouse', 'tavern'] },
         guard:       { name: 'Guard',        icon: '💂', speed: 0.3, destinations: ['guard_tower', 'barracks', 'town_hall', 'gate'] },
-        farmer:      { name: 'Farmer',       icon: '🧑‍🌾', speed: 0.5, destinations: ['farm', 'granary', 'marketplace', 'barn', 'well'] },
-        priest:      { name: 'Priest',       icon: '🧑‍⚖️', speed: 0.3, destinations: ['church', 'temple', 'well'] },
+        farmer:      { name: 'Farmer',       icon: '👨‍🌾', speed: 0.5, destinations: ['farm', 'granary', 'marketplace', 'barn', 'well'] },
+        priest:      { name: 'Priest',       icon: '👨‍⚖️', speed: 0.3, destinations: ['church', 'temple', 'well'] },
         blacksmith_npc: { name: 'Blacksmith', icon: '⚒️', speed: 0.3, destinations: ['blacksmith', 'marketplace', 'tavern'] },
         villager:    { name: 'Villager',     icon: '🧑', speed: 0.5, destinations: ['house', 'marketplace', 'tavern', 'well', 'church'] },
         child:       { name: 'Child',        icon: '👦', speed: 0.7, destinations: ['house', 'well', 'tavern'] },
         noble:       { name: 'Noble',        icon: '🤴', speed: 0.3, destinations: ['town_hall', 'church', 'manor', 'marketplace'] },
         traveler:    { name: 'Traveler',     icon: '🧳', speed: 0.5, destinations: ['tavern', 'marketplace', 'stable', 'inn', 'guest_house', 'hotel', 'roadhouse'] },
-        beggar:      { name: 'Beggar',       icon: '🧎', speed: 0.2, destinations: ['marketplace', 'church', 'tavern', 'well'] },
+        beggar:      { name: 'Beggar',       icon: '🙇', speed: 0.2, destinations: ['marketplace', 'church', 'tavern', 'well'] },
     },
 
     // NPC pool per settlement type (the townsfolk roster's usual head count; the

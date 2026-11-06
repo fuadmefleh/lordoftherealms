@@ -6,7 +6,7 @@
         "BEACH": { "id": "beach", "name": "Beach", "color": "#e8d5a3", "moveCost": 2, "passable": true, "icon": "🏖️" },
         "LAKE": { "id": "lake", "name": "Lake", "color": "#5dade2", "moveCost": null, "passable": false, "icon": "💧" },
         "SEA": { "id": "sea", "name": "Sea", "color": "#0077be", "moveCost": null, "passable": false, "icon": "🌊" },
-        "ICE": { "id": "ice", "name": "Ice Sheet", "color": "#e5f9ff", "moveCost": 3, "passable": true, "icon": "🧊" },
+        "ICE": { "id": "ice", "name": "Ice Sheet", "color": "#e5f9ff", "moveCost": 3, "passable": true, "icon": "❄️" },
         "SNOW": { "id": "snow", "name": "Snow", "color": "#ffffff", "moveCost": 3, "passable": true, "icon": "❄️" },
         "TUNDRA": { "id": "tundra", "name": "Tundra", "color": "#bce4ce", "moveCost": 2, "passable": true, "icon": "🥶" },
         "GRASSLAND": { "id": "grassland", "name": "Grassland", "color": "#88aa55", "moveCost": 2, "passable": true, "icon": "🌿" },

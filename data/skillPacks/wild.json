@@ -3,7 +3,7 @@
     "skills": {
         "woodcutting": {
             "name": "Woodcutting",
-            "icon": "🪓",
+            "icon": "🌲",
             "desc": "Felling trees and cutting them up. Every blow teaches it, every tree brought down more.",
             "order": 30,
             "perks": {

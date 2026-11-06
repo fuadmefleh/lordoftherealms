@@ -54,7 +54,7 @@ const BAND_IDX = { good: 0, worn: 1, ruined: 2, closed: 3 };
 
 const DEFAULTS = {
     tiers: {
-        track: { name: 'Track', icon: '🟫', rank: 0, move: 0.6, speed: 0.8, friction: 0.72, decay: 4, repair: 4, upkeep: 0.6, crossing: 'ford', color: '#9a7b52', width: 1.5 },
+        track: { name: 'Track', icon: '👣', rank: 0, move: 0.6, speed: 0.8, friction: 0.72, decay: 4, repair: 4, upkeep: 0.6, crossing: 'ford', color: '#9a7b52', width: 1.5 },
         road: { name: 'Road', icon: '🛤️', rank: 1, move: 0.5, speed: 1, friction: 0.5, decay: 3, repair: 4, upkeep: 1.5, crossing: 'bridge', color: '#c8a46a', width: 2.5 },
         highway: { name: 'Paved highway', icon: '🛣️', rank: 2, move: 0.33, speed: 1.3, friction: 0.36, decay: 1.5, repair: 3, upkeep: 3, crossing: 'bridge', color: '#e8e0c8', width: 4 },
     },

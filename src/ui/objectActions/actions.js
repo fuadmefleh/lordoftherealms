@@ -75,7 +75,7 @@ export const OBJECT_ACTIONS = {
     },
     sit: {
         label: 'Sit Down',
-        icon: '🪑',
+        icon: '💺',
         desc: 'Take a seat and relax',
         category: 'rest',
         modal: null, // instant
@@ -246,7 +246,7 @@ export const OBJECT_ACTIONS = {
     },
     tan: {
         label: 'Tan & Weave',
-        icon: '🟫',
+        icon: '👞',
         desc: 'Tan hides into leather, weave flax and wool into cloth',
         category: 'production',
         modal: 'tan',
@@ -316,7 +316,7 @@ export const OBJECT_ACTIONS = {
     // The town's joiner: furniture for the player's homes (ui/actionMenu/furnishing.js)
     furniture_maker: {
         label: 'Furniture Maker',
-        icon: '🪑',
+        icon: '💺',
         desc: 'Beds, chests, tables and hearths for your homes',
         category: 'service',
         panel: 'showFurnitureShop',

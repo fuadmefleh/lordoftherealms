@@ -23,7 +23,7 @@ function buildRoom() {
     }
     tiles[H - 1][4]._isDoor = true;
     const place = (q, r, type, name) => {
-        tiles[r][q]._furniture = { type, name, icon: '🪑', passable: false };
+        tiles[r][q]._furniture = { type, name, icon: '💺', passable: false };
         tiles[r][q].subTerrain = { id: `furniture_${type}`, passable: false };
     };
     place(1, 1, 'bar', 'Bar Counter');

@@ -41,7 +41,7 @@ afterAll(() => { if (logSpy) logSpy.mockRestore(); });
 
 const FOREST = [
     { item: 'berries', name: 'Wild Berries', icon: '🍇', chance: 0.5, qty: { min: 2, max: 5 }, sellPrice: 3 },
-    { item: 'truffles', name: 'Truffles', icon: '🟤', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 25 },
+    { item: 'truffles', name: 'Truffles', icon: '🍄', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 25 },
 ];
 const FORAGE = { terrain_mapping: { woodland: 'forest' }, loot_table: { forest: FOREST } };
 const WOODS = { terrain: { id: 'woodland' } };

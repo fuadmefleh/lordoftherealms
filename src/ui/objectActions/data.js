@@ -40,10 +40,10 @@ export const FOOD_ITEMS = {
 
 export const HEAL_ITEMS = {
     herbs:         { label: 'Herbs',         icon: '🌿', heal: 10, cost: 1 },
-    healing_salve: { label: 'Healing Salve', icon: '🩹', heal: 30, cost: 1 },
+    healing_salve: { label: 'Healing Salve', icon: '💊', heal: 30, cost: 1 },
     potion:        { label: 'Healing Potion', icon: '❤️', heal: 50, cost: 1 },
     elixir:        { label: 'Elixir',         icon: '⚡', heal: 40, cost: 1, energy: 30 },
-    poultice:      { label: 'Poultice',       icon: '🩹', heal: 18, cost: 1 },
+    poultice:      { label: 'Poultice',       icon: '💊', heal: 18, cost: 1 },
     tonic:         { label: 'Herbal Tonic',   icon: '🍶', heal: 25, cost: 1, energy: 20 },
 };
 

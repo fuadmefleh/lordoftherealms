@@ -6,7 +6,7 @@
     "skills": {
         "diving": {
             "name": "Diving",
-            "icon": "🤿",
+            "icon": "🐚",
             "desc": "Holding your breath and working the bottom. Dive to your limit to learn it fastest; a dive to the very end of your breath leaves you winded a while.",
             "order": 1,
             "perks": {

@@ -61,7 +61,7 @@ export const FurnitureCatalogue = {
         const it = this.item(piece.id);
         if (it) {
             return {
-                id: it.id, type: it.type, name: it.name, icon: it.icon || '🪑',
+                id: it.id, type: it.type, name: it.name, icon: it.icon || '💺',
                 passable: !!it.passable,
                 footprint: Array.isArray(it.footprint) ? [Math.max(1, _num(it.footprint[0], 1)), Math.max(1, _num(it.footprint[1], 1))] : [1, 1],
                 comfort: _num(it.comfort), restBonus: _num(it.restBonus), price: _num(it.price), original: false, desc: it.desc || '',
@@ -70,7 +70,7 @@ export const FurnitureCatalogue = {
         const look = piece.look || {};
         const type = look.type || 'crate';
         return {
-            id: null, type, name: look.name || String(type).replace(/_/g, ' '), icon: look.icon || '🪑',
+            id: null, type, name: look.name || String(type).replace(/_/g, ' '), icon: look.icon || '💺',
             passable: !!look.passable, footprint: [1, 1],
             comfort: this.typeComfort(type), restBonus: this.typeRestBonus(type), price: this.typePrice(type), original: true, desc: 'Came with the house.',
         };

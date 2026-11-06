@@ -405,7 +405,7 @@ R.ailments = (ctx, p) => {
                 severity: deadly ? (a.treated ? 'warning' : 'critical') : 'notice',
             });
         } else if (a.kind === 'wound' && a.infected) {
-            out.push({ key: a.key || a.id, icon: '🩹', name: a.name || 'A wound', stage: 'infected', text: '{name} has festered: have it treated', severity: 'warning' });
+            out.push({ key: a.key || a.id, icon: '🤕', name: a.name || 'A wound', stage: 'infected', text: '{name} has festered: have it treated', severity: 'warning' });
         }
     }
     return out;

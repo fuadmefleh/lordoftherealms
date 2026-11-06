@@ -186,7 +186,7 @@ export const Duels = {
         return {
             id: p.id || 'npc',
             name: p.name || 'Stranger',
-            icon: p.icon || '🧍',
+            icon: p.icon || '👤',
             kind: p.kind || 'npc',
             attack: _num(p.attack, 2),
             defense: _num(p.defense, 2),
@@ -399,7 +399,7 @@ export const Duels = {
             id: npc && npc.id != null ? `npc_${npc.id}` : 'npc',
             kind: 'npc',
             name: (npc && (npc.fullName || npc.name)) || 'Stranger',
-            icon: (npc && npc.icon) || '🧍',
+            icon: (npc && npc.icon) || '👤',
             temperament: Duels.npcTemperament(npc),
             hpNow: opts.hpNow,
             ref: npc || null,

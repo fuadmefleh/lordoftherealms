@@ -293,7 +293,7 @@ Object.assign(InnerMapRenderer, {
         // ── Custom object actions ──
         if (customObjDef && !building) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
-            const typeIcons = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '🪑', building: '🏠', other: '📦' };
+            const typeIcons = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '💺', building: '🏠', other: '📦' };
             const objIcon = typeIcons[customObjDef.objectType] || '📦';
             menuItems.push({ type: 'header', label: `${objIcon} ${customObjDef.name || customObjDef.id}` });
             menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });
@@ -327,7 +327,7 @@ Object.assign(InnerMapRenderer, {
             const _objHpTile = (objAnchorQ != null) ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
             const _objHp = (_objHpTile && _objHpTile.customObject && _objHpTile.customObject.currentHealthPct != null) ? _objHpTile.customObject.currentHealthPct : 100;
             // (not a field: there is nothing there to strike)
-            if (!(customObjDef.tags || []).includes('field')) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🪓', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
+            if (!(customObjDef.tags || []).includes('field')) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
         }
 
         // Built-in overlay interactions removed (editor-authored objects only)
@@ -685,7 +685,7 @@ Object.assign(InnerMapRenderer, {
         const carried = InnerMapCombat._carrying;
         if (carried) {
             sep();
-            menuItems.push({ type: 'header', label: `🧍 Carrying ${carried.name}` });
+            menuItems.push({ type: 'header', label: `👤 Carrying ${carried.name}` });
             menuItems.push({ type: 'action', action: 'drop_body', label: 'Put the Body Down', icon: '⬇️', desc: 'Lay them down where you stand' });
         }
         const bodies = InnerMapCombat.corpsesHere().filter(c => c !== carried && c.q === q && c.r === r);
@@ -694,7 +694,7 @@ Object.assign(InnerMapRenderer, {
             menuItems.push({ type: 'header', label: `🕯️ ${body.name}, dead` });
             if (!body.searched) menuItems.push({ type: 'action', action: 'search_body', label: 'Search the Body', icon: '🖐️', desc: 'Go through their pockets', body });
             if (!carried && InnerMapAnimals._carry) menuItems.push({ type: 'disabled', label: 'Carry the Body: your hands are full' });
-            else if (!carried) menuItems.push({ type: 'action', action: 'carry_body', label: 'Carry the Body', icon: '🧍', desc: 'Drag them along with you (you walk slower)', body });
+            else if (!carried) menuItems.push({ type: 'action', action: 'carry_body', label: 'Carry the Body', icon: '👤', desc: 'Drag them along with you (you walk slower)', body });
             const hole = InnerMapDigging.holeNear(body.q, body.r);
             if (hole) {
                 menuItems.push({ type: 'action', action: 'bury_body', label: 'Bury Them in the Hole', icon: '⚰️', desc: 'Lay them in the hole and fill it in', body, holeQ: hole.q, holeR: hole.r });
@@ -716,7 +716,7 @@ Object.assign(InnerMapRenderer, {
                 const b = inside || beside;
                 menuItems.push({ type: 'action', action: 'bury_body', label: `Bury ${b.name} Here`, icon: '⚰️', desc: 'Lay them in the hole and fill it in', body: b, holeQ: q, holeR: r });
             }
-            menuItems.push({ type: 'action', action: 'fill_hole', label: 'Fill In the Hole', icon: '🟫', desc: inside ? `Fill it in over ${inside.name}` : 'Shovel the earth back in', holeQ: q, holeR: r });
+            menuItems.push({ type: 'action', action: 'fill_hole', label: 'Fill In the Hole', icon: '⬛', desc: inside ? `Fill it in over ${inside.name}` : 'Shovel the earth back in', holeQ: q, holeR: r });
         } else if (dug.kind === 'grave') {
             sep();
             menuItems.push({ type: 'header', label: `⚰️ Grave of ${dug.name || 'someone'}` });
@@ -766,7 +766,7 @@ Object.assign(InnerMapRenderer, {
                     if (item.action === 'search_body') InnerMapCombat.searchBody(body, game);
                     else {
                         InnerMapDigging.carry(body);
-                        game.ui.showNotification('🧍 Carrying', `You heave ${body.name} up. Find a hole to bury them in, or put them down somewhere.`, 'info');
+                        game.ui.showNotification('👤 Carrying', `You heave ${body.name} up. Find a hole to bury them in, or put them down somewhere.`, 'info');
                     }
                 };
                 const res = InnerMap.approachAndThen(body.q, body.r, act);

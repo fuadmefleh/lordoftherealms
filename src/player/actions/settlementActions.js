@@ -287,7 +287,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
     actions.push({
         type: 'furniture_maker',
         label: 'Furniture Maker',
-        icon: '🪑',
+        icon: '💺',
         description: 'Buy beds, chests, tables and hearths for your homes; sell pieces back',
     });
 
@@ -736,7 +736,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         actions.push({
             type: 'pickpocket',
             label: 'Pickpocket',
-            icon: '🤏',
+            icon: '👛',
             description: 'Attempt to lift a purse from the crowd (risky)'
         });
     }

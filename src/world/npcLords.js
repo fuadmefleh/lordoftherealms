@@ -468,7 +468,7 @@ export const NPCLords = {
             kingdom.stability = Math.min(100, stability + T.crushStability);
             if (Array.isArray(world.events)) {
                 world.events.push({
-                    text: `🪓 ${kingdom.lord.name}'s soldiers crush dissent in ${kingdom.name}.`,
+                    text: `🗡️ ${kingdom.lord.name}'s soldiers crush dissent in ${kingdom.name}.`,
                     type: 'political',
                     kingdom: kingdom.id,
                 });

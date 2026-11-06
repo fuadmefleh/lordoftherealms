@@ -175,7 +175,7 @@ export const Upbringing = {
         if ((player.gold || 0) < cost) return { success: false, reason: `The ${def.name} wants ${cost} gold up front.` };
         player.gold -= cost;
         up.tutor = {
-            kind: 'court', id: def.id, name: def.name, icon: def.icon || '🧑‍🏫', focus: def.focus || null,
+            kind: 'court', id: def.id, name: def.name, icon: def.icon || '👨‍🏫', focus: def.focus || null,
             quality: _num(def.quality) || 1, wage: _num(def.wage), seeds: { ...(def.seeds || {}) },
             since: (world && world.day) || 0,
         };

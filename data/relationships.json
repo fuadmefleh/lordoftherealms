@@ -181,7 +181,7 @@
             "apCost": 2
         },
         "blood_oath": {
-            "id": "blood_oath", "label": "Swear Blood Oath", "icon": "🩸",
+            "id": "blood_oath", "label": "Swear Blood Oath", "icon": "🔴",
             "description": "Bind your loyalty in solemn ritual. Powerful, but risky.",
             "relationGain": { "min": 8, "max": 14 },
             "statBonus": "leadership",

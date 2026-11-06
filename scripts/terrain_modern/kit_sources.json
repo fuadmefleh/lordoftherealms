@@ -1,0 +1,309 @@
+{
+ "_doc": "The building kits as they were drawn in pixel art (data/buildingKit.json before the modern repaint): build_kits.py reads its source cells from here.",
+ "walls": {
+  "brick_beige": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 0,
+   "y": 0
+  },
+  "brick_grey": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 3,
+   "y": 0
+  },
+  "brick_slate": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 0,
+   "y": 3
+  },
+  "brick_red": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 3,
+   "y": 3
+  },
+  "brick_dark": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 0,
+   "y": 6
+  },
+  "brick_brown": {
+   "sheet": "assets/lpc/Structure/Walls/Brick Wall A.png",
+   "x": 3,
+   "y": 6
+  },
+  "timber": {
+   "sheet": "assets/buildingKit/wall_timber.png",
+   "x": 0,
+   "y": 0,
+   "stack": true
+  },
+  "plaster": {
+   "sheet": "assets/buildingKit/wall_plaster.png",
+   "x": 0,
+   "y": 0
+  },
+  "fieldstone": {
+   "sheet": "assets/buildingKit/wall_fieldstone.png",
+   "x": 0,
+   "y": 0
+  },
+  "planks": {
+   "sheet": "assets/buildingKit/wall_planks.png",
+   "x": 0,
+   "y": 0
+  },
+  "stone_beige": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 0,
+   "y": 0
+  },
+  "stone_grey": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 3,
+   "y": 0
+  },
+  "stone_slate": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 0,
+   "y": 3
+  },
+  "stone_ochre": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 3,
+   "y": 3
+  },
+  "stone_dark": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 0,
+   "y": 6
+  },
+  "stone_gold": {
+   "sheet": "assets/lpc/Structure/Walls/Jagged Stone Walls.png",
+   "x": 3,
+   "y": 6
+  },
+  "whitewash": {
+   "sheet": "assets/buildingKit/wall_whitewash.png",
+   "x": 0,
+   "y": 0
+  },
+  "plaster_ochre": {
+   "sheet": "assets/buildingKit/wall_plaster_ochre.png",
+   "x": 0,
+   "y": 0
+  },
+  "plaster_rose": {
+   "sheet": "assets/buildingKit/wall_plaster_rose.png",
+   "x": 0,
+   "y": 0
+  },
+  "plaster_blue": {
+   "sheet": "assets/buildingKit/wall_plaster_blue.png",
+   "x": 0,
+   "y": 0
+  },
+  "adobe_white": {
+   "sheet": "assets/buildingKit/wall_adobe_white.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_red": {
+   "sheet": "assets/buildingKit/wall_siding_red.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_rust": {
+   "sheet": "assets/buildingKit/wall_siding_rust.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_blue": {
+   "sheet": "assets/buildingKit/wall_siding_blue.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_teal": {
+   "sheet": "assets/buildingKit/wall_siding_teal.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_yellow": {
+   "sheet": "assets/buildingKit/wall_siding_yellow.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_white": {
+   "sheet": "assets/buildingKit/wall_siding_white.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_green": {
+   "sheet": "assets/buildingKit/wall_siding_green.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_brown": {
+   "sheet": "assets/buildingKit/wall_siding_brown.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_grey": {
+   "sheet": "assets/buildingKit/wall_siding_grey.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_dark": {
+   "sheet": "assets/buildingKit/wall_siding_dark.png",
+   "x": 0,
+   "y": 0
+  },
+  "siding_tar": {
+   "sheet": "assets/buildingKit/wall_siding_tar.png",
+   "x": 0,
+   "y": 0
+  },
+  "timber_black": {
+   "sheet": "assets/buildingKit/wall_timber_black.png",
+   "x": 0,
+   "y": 0,
+   "stack": true
+  },
+  "adobe": {
+   "sheet": "assets/lpc/Structure/Walls/Adobe Stucco Wall.png",
+   "x": 0,
+   "y": 0
+  },
+  "adobe_brick": {
+   "sheet": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
+   "x": 0,
+   "y": 0
+  },
+  "adobe_brick_mauve": {
+   "sheet": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
+   "x": 0,
+   "y": 3
+  }
+ },
+ "roofs": {
+  "shingle_grey": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 1,
+   "y": 0
+  },
+  "shingle_purple": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 1,
+   "y": 4
+  },
+  "shingle_dark": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 1,
+   "y": 8
+  },
+  "thatch": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_thatch.png",
+   "x": 0,
+   "y": 0
+  },
+  "clay": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_clay.png",
+   "x": 0,
+   "y": 0
+  },
+  "slate": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_slate.png",
+   "x": 0,
+   "y": 0
+  },
+  "adobe_stucco": {
+   "kind": "parapet",
+   "sheet": "assets/lpc/Structure/Roofing/Adobe Stucco Roof.png",
+   "x": 0,
+   "rowsY": [
+    32,
+    96
+   ]
+  },
+  "adobe_brick": {
+   "kind": "parapet",
+   "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+   "x": 1,
+   "rowsY": [
+    0,
+    64
+   ]
+  },
+  "adobe_brick_tan": {
+   "kind": "parapet",
+   "sheet": "assets/lpc/Structure/Roofing/Adobe Brick Roof.png",
+   "x": 1,
+   "rowsY": [
+    128,
+    192
+   ]
+  },
+  "turf": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_turf.png",
+   "x": 0,
+   "y": 0
+  },
+  "thatch_dark": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_thatch_dark.png",
+   "x": 0,
+   "y": 0
+  },
+  "slate_blue": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_slate_blue.png",
+   "x": 0,
+   "y": 0
+  },
+  "clay_teal": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_clay_teal.png",
+   "x": 0,
+   "y": 0
+  },
+  "clay_brown": {
+   "kind": "nine",
+   "sheet": "assets/buildingKit/roof_clay_brown.png",
+   "x": 0,
+   "y": 0
+  },
+  "shingle_brown": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 13,
+   "y": 0
+  },
+  "shingle_rust": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 13,
+   "y": 4
+  },
+  "shingle_orange": {
+   "kind": "nine",
+   "sheet": "assets/lpc/Structure/Roofing/Flat Shingle Roof A.png",
+   "x": 13,
+   "y": 8
+  },
+  "flat_white": {
+   "kind": "parapet",
+   "sheet": "assets/buildingKit/roof_flat_white.png",
+   "x": 0,
+   "rowsY": [
+    32,
+    96
+   ]
+  }
+ }
+}

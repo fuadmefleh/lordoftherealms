@@ -152,10 +152,14 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         return d / (R * (1 + edgeWave(Math.atan2(dy, dx) * 3)));
     };
 
-    // Streets in a town are paved; a village keeps its dirt tracks (structure/floors.png cells).
-    // A culture paves with its own stone, or not at all (streets: null)
-    const FLOORS = (arch && arch.streetSheet) || 'assets/lpc/Structure/Floor/floors.png';
-    const PAVE = (arch && AP.streets) ? { main: AP.streets.main, lane: AP.streets.lane, plaza: AP.streets.plaza } : { main: [29, 58], lane: [24, 58], plaza: [12, 56] };
+    // Streets in a town are paved; a village keeps its dirt tracks. A culture paves with
+    // its own stone, or not at all (streets: null). The street sheet holds each surface as
+    // a block of BLOCK x BLOCK cells (structure/Floor/streets_modern.png: 2x2, painted at
+    // 128px a cell), and a tile takes the cell its position picks, so the pattern runs on
+    // across the street instead of repeating every tile.
+    const FLOORS = (arch && arch.streetSheet) || 'assets/lpc/Structure/Floor/streets_modern.png';
+    const BLOCK = arch && arch.streetSheet ? (arch.streetBlock || 1) : 2;
+    const PAVE = (arch && AP.streets) ? { main: AP.streets.main, lane: AP.streets.lane, plaza: AP.streets.plaza } : { main: [0, 0], lane: [0, 4], plaza: [14, 2] };
     const paved = type !== 'village' && !(arch && !AP.streets);
 
     const roadTiles = [];
@@ -167,7 +171,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         const t = tiles[r][q];
         if (paved && kind && reach(ref ? ref[0] : q, ref ? ref[1] : r) <= 1.08 && (!t.paving || kind === 'plaza' || (kind === 'main' && t._pave !== 'plaza'))) {
             const [c, rr] = PAVE[kind];
-            t.paving = { sheetPath: FLOORS, sx: c * 32, sy: rr * 32 };
+            t.paving = { sheetPath: FLOORS, sx: (c + q % BLOCK) * 32, sy: (rr + r % BLOCK) * 32 };
             t._pave = kind;
         }
         if (roadSet.has(k)) return;

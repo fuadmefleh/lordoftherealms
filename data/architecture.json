@@ -1,7 +1,8 @@
 {
-    "_note": "How each culture builds its towns, for worlds made since terrainGen 4 (world/townPlanner.js, world/cultures.js). `families` are the culture's own buildings, composed from the building kit (data/buildingKit.json kit) by scripts/compose-buildings.js into data/buildings.json with their culture stamped on (a family with buildingTypes makes each of those types: halls, trades, workshops). `mix` is which house styles stand where (core: the middle of town, mid, edge: the outskirts). `plan` is the town's shape: straight or winding streets (wind), lanes close or far apart (laneGap), houses shoulder to shoulder or apart (gap, setback), the square (plaza: square, green or long; its centre piece and corner pieces, stall count), how the streets are surfaced (streets: cells of structure/floors.png, or none for dirt tracks), lamps (none, square, street, all), props along the streets, and things standing about town (scatter). `interior` is what their houses are made of inside (data/innerMapRenderer.json interiorArt).",
+    "_note": "How each culture builds its towns, for worlds made since terrainGen 4 (world/townPlanner.js, world/cultures.js). `families` are the culture's own buildings, composed from the building kit (data/buildingKit.json kit) by scripts/compose-buildings.js into data/buildings.json with their culture stamped on (a family with buildingTypes makes each of those types: halls, trades, workshops). `mix` is which house styles stand where (core: the middle of town, mid, edge: the outskirts). `plan` is the town's shape: straight or winding streets (wind), lanes close or far apart (laneGap), houses shoulder to shoulder or apart (gap, setback), the square (plaza: square, green or long; its centre piece and corner pieces, stall count), how the streets are surfaced (streets: the top-left cell of a 2x2 block of streetSheet, painted by scripts/terrain_modern/build_streets.py, or none for dirt tracks), lamps (none, square, street, all), props along the streets, and things standing about town (scatter). `interior` is what their houses are made of inside (data/innerMapRenderer.json interiorArt).",
 
-    "streetSheet": "assets/lpc/Structure/Floor/floors.png",
+    "streetSheet": "assets/lpc/Structure/Floor/streets_modern.png",
+    "streetBlock": 2,
 
     "cultures": {
         "Imperial": {
@@ -9,7 +10,7 @@
             "plan": {
                 "wind": 0, "laneGap": [12, 12], "alleyStep": [11, 13], "gap": [0, 0], "setback": [0, 0],
                 "plaza": { "kind": "square", "scale": [1.2, 1.1], "centre": "tp_fountain", "corners": ["tp_column_white"], "stalls": 1.2 },
-                "streets": { "main": [28, 53], "lane": [22, 53], "plaza": [13, 51] },
+                "streets": { "main": [2, 0], "lane": [4, 0], "plaza": [6, 0] },
                 "lamps": "street",
                 "streetProps": [{ "ids": ["tp_planter_tree", "tp_potted_tree"], "step": [8, 11], "on": "high" }]
             },
@@ -37,7 +38,7 @@
             "plan": {
                 "wind": 0, "laneGap": [11, 12], "alleyStep": [14, 16], "gap": [1, 2], "setback": [0, 1],
                 "plaza": { "kind": "square", "scale": [1.1, 1.2], "centre": "tp_column_white", "corners": ["tp_planter_tree"], "stalls": 0.6 },
-                "streets": { "main": [13, 51], "lane": [22, 51], "plaza": [26, 51] },
+                "streets": { "main": [6, 0], "lane": [8, 0], "plaza": [10, 0] },
                 "lamps": "square",
                 "streetProps": [{ "ids": ["tp_column_slim"], "step": [12, 14], "on": "high" }]
             },
@@ -65,7 +66,7 @@
             "plan": {
                 "wind": 0, "laneGap": [11, 12], "alleyStep": [12, 14], "gap": [1, 2], "setback": [0, 0],
                 "plaza": { "kind": "square", "scale": [1.1, 1.1], "centre": "tp_column_dark", "corners": ["tp_column_grey"], "stalls": 0.6 },
-                "streets": { "main": [8, 57], "lane": [11, 57], "plaza": [10, 53] },
+                "streets": { "main": [12, 0], "lane": [14, 0], "plaza": [0, 2] },
                 "lamps": "all"
             },
             "mix": {
@@ -172,7 +173,7 @@
             "plan": {
                 "wind": 0, "laneGap": [10, 11], "alleyStep": [10, 12], "gap": [0, 1], "setback": [0, 0], "sizeScale": 0.85,
                 "plaza": { "kind": "square", "scale": [0.7, 0.9], "centre": "tp_well", "corners": ["tp_column_grey"], "stalls": 0.6 },
-                "streets": { "main": [13, 59], "lane": [24, 60], "plaza": [26, 59] },
+                "streets": { "main": [2, 2], "lane": [4, 2], "plaza": [6, 2] },
                 "lamps": "square",
                 "streetProps": [{ "ids": ["tp_crate_stack", "tp_barrel"], "step": [9, 13], "on": "high" }]
             },
@@ -225,7 +226,7 @@
             "plan": {
                 "wind": 0, "laneGap": [11, 11], "alleyStep": [9, 12], "gap": [0, 0], "setback": [0, 0],
                 "plaza": { "kind": "square", "scale": [1.3, 1.1], "centre": "tp_pool", "corners": ["tp_palm_1", "tp_palm_3", "tp_palm_9", "tp_palm_12"], "stalls": 2 },
-                "streets": { "main": [13, 53], "lane": [2, 59], "plaza": [13, 51] },
+                "streets": { "main": [8, 2], "lane": [10, 2], "plaza": [6, 0] },
                 "lamps": "none",
                 "streetProps": [{ "ids": ["tp_potted_tree", "tp_planter_tree"], "step": [7, 10], "on": "all" }],
                 "scatter": [{ "ids": ["tp_palm_1", "tp_palm_2", "tp_palm_3", "tp_palm_4", "tp_palm_6", "tp_palm_8", "tp_palm_9", "tp_palm_12", "tp_palm_young"], "count": [10, 16] }, { "ids": ["tp_palm_low_1", "tp_palm_low_2", "tp_palm_low_3"], "count": [2, 4] }]
@@ -253,7 +254,7 @@
             "plan": {
                 "wind": 1, "laneGap": [10, 12], "alleyStep": [12, 16], "gap": [0, 1], "setback": [0, 0],
                 "plaza": { "kind": "long", "scale": [1.9, 0.55], "centre": "tp_fountain", "corners": ["tp_barrels", "tp_crate_stack"], "stalls": 1.6 },
-                "streets": { "main": [29, 56], "lane": [6, 59], "plaza": [12, 56] },
+                "streets": { "main": [0, 0], "lane": [12, 2], "plaza": [14, 2] },
                 "lamps": "street",
                 "streetProps": [{ "ids": ["tp_barrels", "tp_crate_stack", "tp_crate", "tp_barrel"], "step": [6, 9], "on": "all" }]
             },

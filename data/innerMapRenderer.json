@@ -13,7 +13,9 @@
         "Terrain/cliff_winter.png": 512,
         "ThatchedHouses/tilesets/plowed_soil.png": 96,
         "ThatchedHouses/tilesets/plowed_soil_wet.png": 96,
-        "ThatchedHouses/tilesets/wheat.png": 96
+        "ThatchedHouses/tilesets/wheat.png": 96,
+        "buildingKit/modern/": 96,
+        "Floor/streets_modern.png": 512
     },
     "sheetPaths": {
         "terrain_summer":      "assets/lpc/Terrain/terrain_summer.png",

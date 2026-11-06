@@ -4,6 +4,7 @@ import { DataLoader, Utils, Characters, House, Traits, Upbringing, Legacy, Towns
 import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
 import { Regency } from '../regency.js';
+import { PracticeSkills } from '../practiceSkills.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -311,6 +312,8 @@ Object.assign(Relationships, {
         if (world.day % settings.daysPerYear !== 0) return null;
 
         player.age++;
+        // Age shapes practised skills: a milestone year is told (systems/practiceSkills.js)
+        PracticeSkills.birthday(player);
 
         // Age all known NPCs (the spouse among them — once, not twice)
         const deaths = [];

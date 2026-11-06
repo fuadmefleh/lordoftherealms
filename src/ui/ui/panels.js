@@ -185,7 +185,7 @@ Object.assign(UI.prototype, {
             return `<div class="info-row" title="${esc(sk.desc)}" style="flex-direction:column;align-items:stretch;gap:3px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <span class="info-label">${sk.icon} ${esc(sk.name)}</span>
-                    <span class="info-value">Lv ${sk.level} · ${esc(sk.levelName)}</span>
+                    <span class="info-value">Lv ${sk.level} · ${esc(sk.levelName)}${sk.ageShift ? ` <span style="color:${sk.ageShift < 0 ? '#e0a070' : '#9fd6a8'};" title="Your years: the perks below are at level ${sk.effective}">(${sk.effective} with age)</span>` : ''}</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;">
                     <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
@@ -197,7 +197,10 @@ Object.assign(UI.prototype, {
                 <div style="font-size:10px;color:#9fd6a8;line-height:1.35;">${esc(next)}</div>
             </div>`;
         }).join('');
-        return rows ? `<div class="info-section-title">Practised Skills</div>${rows}` : '';
+        // Age shapes the skills (systems/practiceSkills.js ageSummary): one line
+        const yrs = PracticeSkills.ageSummary(player);
+        const ageLine = yrs ? `<div style="font-size:10px;color:var(--text-secondary);padding:0 0 4px;">⏳ Your years (${yrs.age}): ${esc(yrs.lines.join(' · '))}</div>` : '';
+        return rows ? `<div class="info-section-title">Practised Skills</div>${ageLine}${rows}` : '';
     },
 
     /**

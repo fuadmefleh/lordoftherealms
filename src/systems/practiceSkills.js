@@ -19,6 +19,12 @@
 //   • NPCs: seedNpc(holder, who) gives a person levels from who they are
 //     (role, age, a coastal town; a hash for the spread — no RNG draws);
 //     growNpc(holder, who, days) adds the XP of their work; notable(holder).
+//   • Age (data/skillPacks/age.json → practiceSkills.age): the young learn
+//     faster (learnMult, in gain); the body's skills fade from about 55 and
+//     a seasoned mind's trades rise a level from 50 (ageShift). XP is never
+//     taken: trainedLevel is what the XP makes, level() the effective level
+//     that every perk reads. ageOf: holder.age, else holder.skillAge (seedNpc
+//     / growNpc stamp it), else unknown — prime, no change.
 //
 // Numbers in data/practiceSkills.json. No randomness, no globals.
 
@@ -124,15 +130,126 @@ export const PracticeSkills = {
         return s ? Math.max(0, _num(s[id])) : 0;
     },
 
-    level(holder, id) {
+    /** The level the XP makes, before age (for XP sums and the bar) */
+    trainedLevel(holder, id) {
         return PracticeSkills.levelForXp(PracticeSkills.xp(holder, id));
     },
 
-    /** → { id, name, icon, level, levelName, xp, into, need, share (0..1 toward the next), max } */
+    /** The effective level — trained, shifted by age (ageShift), 1..max. Perks read this. */
+    level(holder, id) {
+        const L = PracticeSkills.trainedLevel(holder, id);
+        let s = PracticeSkills.ageShift(holder, id);
+        // Seasoning ripens practice: no bonus to a skill never taken up (seasoned.minLevel)
+        if (s > 0) {
+            const S = ((PracticeSkills.config().age || {}).seasoned || {})[PracticeSkills.ageGroup(id)] || {};
+            if (L < _num(S.minLevel, 2)) s = 0;
+        }
+        return s ? Math.max(1, Math.min(PracticeSkills.maxLevel(), L + s)) : L;
+    },
+
+    // ── Age (data/skillPacks/age.json) ──
+
+    /** The holder's age in years, or null when unknown (taken as prime) */
+    ageOf(holder) {
+        if (!holder) return null;
+        if (typeof holder.age === 'number' && Number.isFinite(holder.age)) return holder.age;
+        if (typeof holder.skillAge === 'number' && Number.isFinite(holder.skillAge)) return holder.skillAge;
+        return null;
+    },
+
+    /** The skill's age group: body | hardy | mind | other */
+    ageGroup(id) {
+        const G = (PracticeSkills.config().age || {}).groups || {};
+        for (const [g, ids] of Object.entries(G)) if (Array.isArray(ids) && ids.includes(id)) return g;
+        return 'other';
+    },
+
+    /** The XP multiplier for a skill of `group` at `age` (1 when unknown) */
+    learnAt(age, group) {
+        const A = PracticeSkills.config().age;
+        if (!A || age == null || !Array.isArray(A.learn)) return 1;
+        const row = A.learn.find(r => age < _num(r.under, 999));
+        if (!row) return 1;
+        return Math.max(0, _num(row[group], _num(row.other, 1)));
+    },
+
+    /** Levels added (seasoned) or lost (decline) for a skill of `group` at `age` */
+    shiftAt(age, group) {
+        const A = PracticeSkills.config().age;
+        if (!A || age == null) return 0;
+        const D = (A.decline || {})[group];
+        let s = 0;
+        if (D && age >= _num(D.onset, 999)) {
+            s -= Math.min(_num(D.cap, 99), 1 + Math.floor((age - _num(D.onset)) / Math.max(1, _num(D.every, 5))));
+        }
+        const S = (A.seasoned || {})[group];
+        if (S && age >= _num(S.from, 999)) s += _num(S.bonus);
+        return s;
+    },
+
+    /** How fast the holder learns the skill at their age (XP multiplier; 1 when age unknown) */
+    learnMult(holder, id) {
+        return PracticeSkills.learnAt(PracticeSkills.ageOf(holder), PracticeSkills.ageGroup(id));
+    },
+
+    /** Levels the holder's age adds to or takes from the skill (0 when age unknown) */
+    ageShift(holder, id) {
+        return PracticeSkills.shiftAt(PracticeSkills.ageOf(holder), PracticeSkills.ageGroup(id));
+    },
+
+    /**
+     * The holder's years, told for a panel → { age, learn {group: ×}, shift
+     * {group: levels}, lines ["learning ×1.25", "body skills −1 level"] } or null
+     */
+    ageSummary(holder) {
+        const A = PracticeSkills.config().age;
+        const age = PracticeSkills.ageOf(holder);
+        if (!A || age == null) return null;
+        const names = A.groupNames || {};
+        const groups = ['body', 'hardy', 'mind', 'other'];
+        const learn = {}, shift = {};
+        for (const g of groups) { learn[g] = PracticeSkills.learnAt(age, g); shift[g] = PracticeSkills.shiftAt(age, g); }
+        const x = (v) => `×${Math.round(v * 100) / 100}`;
+        const lines = [groups.every(g => learn[g] === learn.body)
+            ? `learning ${x(learn.body)}`
+            : `learning ${groups.map(g => `${names[g] || g} ${x(learn[g])}`).join(', ')}`];
+        for (const g of groups) {
+            if (shift[g]) lines.push(`${names[g] || g} skills ${shift[g] > 0 ? '+' : '−'}${Math.abs(shift[g])} level${Math.abs(shift[g]) === 1 ? '' : 's'}`);
+        }
+        return { age, learn, shift, lines };
+    },
+
+    /** The age milestone reached at exactly `age` years ({ age, icon, title, text }) or null */
+    ageMilestone(age) {
+        const M = (PracticeSkills.config().age || {}).milestones;
+        if (!Array.isArray(M) || age == null) return null;
+        return M.find(m => m && _num(m.age, -1) === age) || null;
+    },
+
+    /**
+     * A birthday: queue the milestone's notice for the player (told like a
+     * level-up by ui/skillUps.js). Called once as each year begins, so each
+     * is told once. → the event or null
+     */
+    birthday(player) {
+        const m = player ? PracticeSkills.ageMilestone(PracticeSkills.ageOf(player)) : null;
+        if (!m) return null;
+        const icon = m.icon || '⏳';
+        const ev = { skill: null, age: m.age, name: m.title, icon, heading: `${icon} ${m.title}`, title: `${icon} ${m.title}`, text: m.text, gains: [] };
+        // Onto the player's queue of skill notices (unsaved), told by ui/skillUps.js
+        if (!Object.prototype.hasOwnProperty.call(player, '_skillUps')) {
+            Object.defineProperty(player, '_skillUps', { value: [], configurable: true, enumerable: false, writable: true });
+        }
+        player._skillUps.push(ev);
+        return ev;
+    },
+
+    /** → { id, name, icon, level (trained), effective, ageShift, levelName, xp, into, need, share (0..1 toward the next), max } */
     progress(holder, id) {
         const d = PracticeSkills.def(id) || {};
         const xp = PracticeSkills.xp(holder, id);
         const level = PracticeSkills.levelForXp(xp);
+        const effective = PracticeSkills.level(holder, id);
         const max = level >= PracticeSkills.maxLevel();
         const at = PracticeSkills.xpForLevel(level);
         const need = max ? 0 : PracticeSkills.stepXp(level);
@@ -140,6 +257,7 @@ export const PracticeSkills = {
         return {
             id, name: d.name || id, icon: d.icon || '⭐', desc: d.desc || '',
             level, levelName: PracticeSkills.levelName(level), xp, into, need,
+            effective, ageShift: effective - level, effectiveName: PracticeSkills.levelName(effective),
             share: max ? 1 : Math.max(0, Math.min(1, into / Math.max(1, need))), max,
         };
     },
@@ -174,8 +292,9 @@ export const PracticeSkills = {
 
     /** What the holder's next level would give (empty at the top) */
     nextGains(holder, id) {
+        if (PracticeSkills.trainedLevel(holder, id) >= PracticeSkills.maxLevel()) return [];
         const L = PracticeSkills.level(holder, id);
-        return L >= PracticeSkills.maxLevel() ? [] : PracticeSkills.gainsBetween(id, L, L + 1);
+        return PracticeSkills.gainsBetween(id, L, Math.min(PracticeSkills.maxLevel(), L + 1));
     },
 
     /** Each perk's present value, described ("55s of breath") */
@@ -202,16 +321,20 @@ export const PracticeSkills = {
         const s = PracticeSkills._store(holder, true);
         const from = PracticeSkills.levelForXp(_num(s[id]));
         const cap = PracticeSkills.xpForLevel(PracticeSkills.maxLevel());
-        s[id] = Math.min(cap, Math.round((_num(s[id]) + amount) * 1000) / 1000);
+        // The young learn faster, the old body slower (learnMult; 1 when age unknown)
+        const got = amount * PracticeSkills.learnMult(holder, id);
+        s[id] = Math.min(cap, Math.round((_num(s[id]) + got) * 1000) / 1000);
         const to = PracticeSkills.levelForXp(s[id]);
         if (to <= from) return null;
-        return PracticeSkills._event(id, from, to);
+        return PracticeSkills._event(id, from, to, PracticeSkills.ageShift(holder, id));
     },
 
-    _event(id, from, to) {
+    _event(id, from, to, shift = 0) {
         const d = PracticeSkills.def(id) || {};
         const name = d.name || id;
-        const gains = PracticeSkills.gainsBetween(id, from, to);
+        // What the rise gives at the holder's age (the effective levels it moves between)
+        const eff = (L) => Math.max(1, Math.min(PracticeSkills.maxLevel(), L + shift));
+        const gains = PracticeSkills.gainsBetween(id, eff(from), eff(to));
         const levelName = PracticeSkills.levelName(to);
         return {
             skill: id, name, icon: d.icon || '⭐', from, to, levelName, gains,
@@ -345,6 +468,7 @@ export const PracticeSkills = {
      */
     seedNpc(holder, who = {}) {
         if (!holder) return null;
+        if (typeof who.age === 'number') holder.skillAge = who.age;   // age shapes their skills (ageShift)
         if (holder.practiceSkills) return holder.practiceSkills;
         const N = PracticeSkills.config().npc;
         const trade = PracticeSkills.tradeOf(who);
@@ -373,6 +497,7 @@ export const PracticeSkills = {
     /** `days` of an NPC's work: XP for what their trade does (no events) */
     growNpc(holder, who = {}, days = 1) {
         if (!holder || !(days > 0)) return;
+        if (typeof who.age === 'number') holder.skillAge = who.age;
         const N = PracticeSkills.config().npc;
         if (_num(who.age, 30) < _num(N.adultAge, 14)) return;
         const trade = PracticeSkills.tradeOf(who);
@@ -391,8 +516,10 @@ export const PracticeSkills = {
     /** An NPC's skills worth a mention: [{ id, name, icon, level, levelName }] best first */
     notable(holder, min = null) {
         const floor = min != null ? min : _num(PracticeSkills.config().npc.notableLevel, 4);
+        // At their effective level: an old diver's breath is shorter than his XP
         return PracticeSkills.ids()
             .map(id => PracticeSkills.progress(holder, id))
+            .map(p => ({ ...p, trained: p.level, level: p.effective, levelName: p.effectiveName }))
             .filter(p => p.level >= floor)
             .sort((a, b) => b.level - a.level);
     },

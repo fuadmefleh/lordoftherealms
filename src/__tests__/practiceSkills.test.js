@@ -23,6 +23,7 @@ const diver = (level = 1) => {
     const p = new Player();
     p.inventory = {};
     p.health = 100;
+    p.age = 30;   // in their prime: age neither speeds nor slows the learning (systems/practiceSkills.js)
     p.gold = 0;
     if (p.needs) p.needs.energy = 100;
     if (level > 1) PracticeSkills.setLevel(p, 'diving', level);

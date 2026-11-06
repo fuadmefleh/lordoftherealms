@@ -86,7 +86,7 @@ export const CombatSkills = {
             for (const id of FIGHT_IDS) {
                 const share = _num(M.riseShare[id], 0);
                 if (share > 0 && CombatSkills.has(id)) {
-                    PracticeSkills.gain(player, id, rise * share * PracticeSkills.stepXp(PracticeSkills.level(player, id)));
+                    PracticeSkills.gain(player, id, rise * share * PracticeSkills.stepXp(PracticeSkills.trainedLevel(player, id)));
                 }
             }
             store._combat = combat;

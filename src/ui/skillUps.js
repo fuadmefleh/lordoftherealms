@@ -21,5 +21,5 @@ export function announceSkillUps(game, now = 0) {
     }
     const ups = SocialSkills.drain(player);
     if (!ups.length || !game.ui || typeof game.ui.showNotification !== 'function') return;
-    for (const up of ups) game.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success');
+    for (const up of ups) game.ui.showNotification(up.heading || `${up.icon} ${up.name} Improved`, up.text, 'success');
 }

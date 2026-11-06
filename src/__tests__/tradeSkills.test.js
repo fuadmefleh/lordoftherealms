@@ -289,7 +289,7 @@ describe('NPC smiths, tanners, brewers and healers', () => {
         expect(TradeSkills.master({ name: 'Nowhere', type: 'village' }, world, 'smithing')).toBe(null);
         expect(TradeSkills.hiredBonus({ name: 'Nowhere' }, world, 'smithing').bonus).toBe(0);
         // a brilliant smith hones for longer
-        PracticeSkills.setLevel(m.person, 'smithing', 9);
+        PracticeSkills.setLevel(m.person, 'smithing', 9 - PracticeSkills.ageShift(m.person, 'smithing'));   // 9 at their age
         expect(SettlementServices.honeArmsDays(t, world).days).toBe(11);
         expect(SettlementServices.honeArmsDays({ name: 'Nowhere' }, world).days).toBe(7);
         // hired smithing names the master

@@ -88,7 +88,7 @@ export const SocialSkills = {
                 store[id] = Math.min(cap, Math.max(_num(store[id]), SocialSkills.xpForValue(v)));
             } else if (v > _num(mark[old]) + 1e-6) {
                 const rise = v - _num(mark[old]);
-                const ev = PracticeSkills.gain(player, id, rise * C.rate * PracticeSkills.stepXp(PracticeSkills.level(player, id)));
+                const ev = PracticeSkills.gain(player, id, rise * C.rate * PracticeSkills.stepXp(PracticeSkills.trainedLevel(player, id)));
                 if (ev) out.push(ev);
             } else if (v < _num(mark[old]) - 0.5) {
                 // A big drop: someone else's numbers now (an heir, a new life) — they are the measure

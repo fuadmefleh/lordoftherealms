@@ -359,6 +359,8 @@ export function endDay() {
                     if (rep.crewLost) text += ' A sailor was lost overboard.';
                     this.ui.showNotification(`${wx.icon} Storm at Sea`, text, 'warning');
                 }
+                // Sailing rose a level (systems/ships.js _sailingDay); on a voyage it is in the log too
+                if (shipDay && shipDay.sailing) this.ui.showNotification(`${shipDay.sailing.icon} ${shipDay.sailing.name} Improved`, shipDay.sailing.text, 'success');
                 const crewDay = shipDay && shipDay.crew;
                 if (crewDay && !crewDay.paid) {
                     this.ui.showNotification('👥 Wages Unpaid',

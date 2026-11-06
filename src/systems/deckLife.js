@@ -346,10 +346,10 @@ export const DeckLife = {
         return { count, hp: _num(B.hp, 70), names };
     },
 
-    /** A hand's blow against a boarder: steadier with a full, willing crew. */
-    crewBlow(ship) {
+    /** A hand's blow against a boarder: steadier with a full, willing crew (and a captain who knows the sea). */
+    crewBlow(ship, player = null) {
         const B = this.config().boarding;
-        return Math.max(1, Math.round(_roll(B.crewHit) * Ships.getCrewCombatFactor(ship)));
+        return Math.max(1, Math.round(_roll(B.crewHit) * Ships.getCrewCombatFactor(ship, player)));
     },
 
     /** A boarder's blow against a hand. */

@@ -7,6 +7,7 @@ import { Hex } from '../core/hex.js';
 import { Peoples } from './peoples.js';
 import { Traits } from './traits.js';
 import { House } from './house.js';
+import { CombatSkills } from './combatSkills.js';
 
 
 export const Festivals = {
@@ -146,12 +147,19 @@ export const Festivals = {
         const intelligence = player.intelligence || 5;
         const luck = player.luck || 5;
 
+        // The lists are won with Blades, the butts with Archery (systems/combatSkills.js)
+        const skillId = contestId === 'jousting' ? 'blades' : 'archery';
+        const skilled = CombatSkills.has(skillId);
+        const lvl = skilled ? CombatSkills.level(player, skillId) : combat;
         let statPower = 0;
         if (contestId === 'jousting') {
-            statPower = combat * 1.2 + leadership * 0.8 + ((player.strength || 5) - 4) * 0.7;
+            statPower = lvl * 1.2 + leadership * 0.8 + ((player.strength || 5) - 4) * 0.7;
         } else {
-            statPower = combat * 0.9 + intelligence * 0.8 + luck * 0.45;
+            const bow = skilled ? (CombatSkills.perk(player, 'archery', 'aim') + CombatSkills.perk(player, 'archery', 'draw')) / 10 : 0;
+            statPower = lvl * 0.9 + bow + intelligence * 0.8 + luck * 0.45;
         }
+        const skillUp = skilled ? CombatSkills.trainBy(player, skillId, skillId === 'archery' ? 'contest' : 'duelWin') : null;
+        const withSkill = (r) => (skillUp ? { ...r, skillUp, text: `${r.text} ${skillUp.text}` } : r);
 
         const scorePower = score * 2.1 + this.getReputation(player).contestVeteran;
         const randomness = Utils.randFloat(0.5, 5.5);
@@ -159,7 +167,7 @@ export const Festivals = {
         const total = statPower + scorePower + recommendedBonus + randomness;
 
         if (total >= 16) {
-            return {
+            return withSkill({
                 tier: 'champion',
                 renown: 8,
                 gold: Utils.randInt(140, 260),
@@ -167,11 +175,11 @@ export const Festivals = {
                 text: contestId === 'jousting'
                     ? 'You are crowned champion of the lists after a thunderous final pass.'
                     : 'Your final volley splits the center mark and wins roaring applause.'
-            };
+            });
         }
 
         if (total >= 11) {
-            return {
+            return withSkill({
                 tier: 'strong',
                 renown: 4,
                 gold: Utils.randInt(60, 140),
@@ -179,10 +187,10 @@ export const Festivals = {
                 text: contestId === 'jousting'
                     ? 'You place among the top riders and earn a noble commendation.'
                     : 'Your arrows land true enough to claim a respected finish.'
-            };
+            });
         }
 
-        return {
+        return withSkill({
             tier: 'rough',
             renown: 1,
             gold: Utils.randInt(0, 45),
@@ -190,7 +198,7 @@ export const Festivals = {
             text: contestId === 'jousting'
                 ? 'A broken lance and shaky seat keep you from the finals.'
                 : 'Shifting winds ruin your aim and you bow out early.'
-        };
+        });
     },
 
     _nearbyRivalKingdoms(player, world, tile, limit = 3) {

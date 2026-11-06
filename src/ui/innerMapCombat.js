@@ -35,6 +35,7 @@ import { Ailments } from '../systems/ailments.js';
 import { Duels } from '../systems/duels.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { Knockout } from '../systems/knockout.js';
+import { CombatSkills } from '../systems/combatSkills.js';
 import { StreetCrime } from '../systems/streetCrime.js';
 import { Laws } from '../systems/laws.js';
 import { MapTasks } from '../systems/mapTasks.js';
@@ -199,13 +200,17 @@ export const InnerMapCombat = {
         }
 
         const dmg = this._computePlayerDamage(game.player);
+        const foe = Duels.fromNpc(npc, { world: game && game.world });
         this._attackState = {
             targetType: 'npc',
             npc,
             swingTimer: 0,          // counts up — hits on each interval
             swingInterval: 0.5,     // seconds between swings
             baseDamage: dmg,
-            npcArmour: Duels.fromNpc(npc).armour,
+            npcArmour: foe.armour,
+            // Blades or Brawling: the weapon in hand (systems/combatSkills.js)
+            skill: this._playerFightSkill(game.player),
+            foeGuard: this._npcGuard(npc, foe, game),
             game,
             _notified: false,
             chaseTimer: 0,
@@ -390,21 +395,60 @@ export const InnerMapCombat = {
         const health = this._npcHealth.get(npc.id);
         if (!health) { this.cancelAttack(); return; }
 
+        const g = game || ia.game;
+        const player = g && g.player;
+        const T = InnerMapRenderer.TILE_SIZE;
+        const sk = ia.skill;
+        // Does it land? Your skill's aim against their parry or footwork
+        const roll = sk && player ? Utils.random() : 0;
+        if (sk && player && roll >= this._playerHitChance(player, sk, ia.foeGuard)) {
+            // Wide of them, or turned by their parry / slipped by their footwork
+            const guarded = ia.foeGuard && ia.foeGuard.chance > 0 && roll < this._playerHitChance(player, sk, null);
+            this._spawnFloat(npc.q * T + T / 2, npc.r * T + T * 0.1, 0, 'normal', guarded ? ia.foeGuard.word : 'Miss');
+            this._skillXp(g, sk, 'miss');
+            return;
+        }
+
         const variance = 0.875 + Utils.random() * 0.25;
-        const rawDmg   = Math.max(1, ia.baseDamage * variance);
+        let rawDmg     = Math.max(1, ia.baseDamage * variance);
+        // A Blades hand's power swing: a heavy cut
+        let label = null;
+        if (sk === 'blades' && player) {
+            const pw = CombatSkills.chance(player, 'blades', 'powerSwing');
+            if (pw > 0 && Utils.random() < pw) {
+                rawDmg *= Number(CombatSkills.config().inner.powerMult) || 1.8;
+                label = 'Power swing!';
+            }
+        }
         // The NPC's armour (a guard's mail) turns part of the blow
         const dmg      = Math.max(1, Math.round(rawDmg * (1 - (ia.npcArmour || 0))));
-        const isCrit   = rawDmg > ia.baseDamage * 1.09;
+        const isCrit   = !!label || rawDmg > ia.baseDamage * 1.09;
         health.current = Math.max(0, health.current - dmg);
+        this._skillXp(g, sk, 'hit');
+        // A brawler's moves: a haymaker fells one already reeling, a stagger costs them their next blow
+        if (sk === 'brawling' && player && health.current > 0) {
+            const hay = CombatSkills.chance(player, 'brawling', 'haymaker');
+            if (hay > 0 && health.current < health.max * hay && !npc._taskFoe) {
+                health.current = 0;
+                label = 'Haymaker!';
+            } else {
+                const st = CombatSkills.chance(player, 'brawling', 'stagger');
+                const reaction = this._npcReactions.get(npc.id);
+                if (st > 0 && reaction && reaction.mode === 'fight' && Utils.random() < st) {
+                    reaction.attackTimer += this.NPC_ATTACK_INTERVAL;
+                    label = 'Staggered';
+                }
+            }
+        }
         // A townsperson carries the beating with them (healed day by day)
         if (npc._person && health.current > 0) Townsfolk.injure(npc._person, this._day(game || ia.game), health.current, health.max);
 
-        const T = InnerMapRenderer.TILE_SIZE;
         this._spawnFloat(
             npc.q * T + T / 2,
             npc.r * T + T * 0.1,
             dmg,
-            isCrit ? 'critical' : 'normal'
+            isCrit ? 'critical' : 'normal',
+            label
         );
         this._spawnHitFlash(npc.q * T + T / 2, npc.r * T + T / 2);
 
@@ -417,6 +461,7 @@ export const InnerMapCombat = {
         if (health.current <= 0) {
             // Beaten senseless, not dead: the player chooses what comes next (systems/knockout.js)
             this.cancelAttack();
+            this._skillXp(g, sk, 'knockout');
             this._knockOutNPC(npc, game || ia.game);
             return;
         }
@@ -852,6 +897,23 @@ export const InnerMapCombat = {
             if (!player) continue;
             npc._swingAt = _nowMs();
 
+            // Their aim (their level in what they fight with) against your
+            // parry (Blades) or footwork (Brawling)
+            const T0 = InnerMapRenderer.TILE_SIZE;
+            if (Utils.random() >= this._npcAttackChance(npc, game)) {
+                this._spawnFloat(InnerMap.playerInnerQ * T0 + T0 / 2, InnerMap.playerInnerR * T0 + T0 * 0.1, 0, 'normal', 'Miss');
+                continue;
+            }
+            const guard = this._playerDefence(player);
+            if (guard.chance > 0 && Utils.random() < guard.chance) {
+                this._spawnFloat(InnerMap.playerInnerQ * T0 + T0 / 2, InnerMap.playerInnerR * T0 + T0 * 0.1, 0, 'normal', guard.word);
+                this._skillXp(game, guard.skill, guard.skill === 'blades' ? 'parry' : 'dodge');
+                // A master answers a parry at once
+                const ia = this._attackState;
+                if (guard.riposte && ia && ia.npc && ia.npc.id === npc.id) ia.swingTimer = ia.swingInterval;
+                continue;
+            }
+
             // The blow comes from their duel profile (strength, weapon); armour
             // and Divine Protection soften it
             const dmg      = PlayerEffects.scaleDamage(player, Duels.npcSwing(npc));
@@ -974,6 +1036,59 @@ export const InnerMapCombat = {
 
     _day(game) {
         return (game && game.world && game.world.day) || 0;
+    },
+
+    // ── Practised fighting skills (systems/combatSkills.js) ─────
+
+    /** Blades or Brawling: what the player fights with now (null without the skills). */
+    _playerFightSkill(player) {
+        if (!player || !CombatSkills.has('blades')) return null;
+        return CombatSkills.weaponSkill(Duels.playerWeapon(player).id);
+    },
+
+    /** An NPC's guard against the player's swings: { chance, word } from their parry or footwork. */
+    _npcGuard(npc, foe, game) {
+        if (!npc || !CombatSkills.has('blades')) return { chance: 0, word: null };
+        const sk = (foe && foe.fightSkill) || 'blades';
+        const perk = sk === 'brawling' ? 'dodge' : 'parry';
+        return { chance: CombatSkills.npcPerk(npc, sk, perk, game && game.world) / 100, word: sk === 'brawling' ? 'Slipped' : 'Parried' };
+    },
+
+    /** The share of the player's swings that land. */
+    _playerHitChance(player, sk, guard) {
+        const I = CombatSkills.config().inner;
+        const c = CombatSkills.chance(player, sk, 'hit') - (guard ? guard.chance : 0);
+        return Math.max(I.minHit, Math.min(I.maxHit, c));
+    },
+
+    /** The share of an NPC's blows that would land (before the player's parry/slip). */
+    _npcAttackChance(npc, game) {
+        if (!CombatSkills.has('blades')) return 1;
+        const I = CombatSkills.config().inner;
+        const foe = Duels.fromNpc(npc, { world: game && game.world });
+        const sk = foe.fightSkill || 'blades';
+        const c = CombatSkills.npcPerk(npc, sk, 'hit', game && game.world) / 100 + (Number(I.npcHitBonus) || 0);
+        return Math.max(I.minHit, Math.min(I.maxHit, c));
+    },
+
+    /** The player's guard against a blow: { chance, word, skill, riposte }. */
+    _playerDefence(player) {
+        const sk = this._playerFightSkill(player);
+        if (!sk) return { chance: 0 };
+        if (sk === 'brawling') return { chance: CombatSkills.chance(player, 'brawling', 'dodge'), word: 'Slipped', skill: sk, riposte: false };
+        return { chance: CombatSkills.chance(player, 'blades', 'parry'), word: 'Parried', skill: sk, riposte: CombatSkills.perk(player, 'blades', 'riposte') > 0 };
+    },
+
+    /** XP for a fighting skill by what happened (data skills.<id>.xp), and the level-up announced. */
+    _skillXp(game, sk, key) {
+        const player = game && game.player;
+        if (!sk || !player) return;
+        this._announceSkill(game, CombatSkills.trainBy(player, sk, key));
+    },
+
+    _announceSkill(game, ev) {
+        if (!ev || !game || !game.ui || typeof game.ui.showNotification !== 'function') return;
+        game.ui.showNotification(`${ev.icon} ${ev.name} Improved`, ev.text, 'success');
     },
 
     /** Take a fallen NPC's purse (kept on a townsperson's roster entry) and some wares. */
@@ -1316,6 +1431,13 @@ export const InnerMapCombat = {
                 const left = -(px * 1.6 + ctx.measureText('Defeated').width) / 2;
                 drawGlyph(ctx, 'skull', left + px * 0.65, 0, px * 1.3, style.color, 2.2);
                 drawMapText(ctx, 'Defeated', left + px * 1.6, 0, { size, min: style.min, family: 'body', weight: 800, color: style.color, align: 'left' });
+            } else if (fn.label && !fn.value) {
+                // A miss, a parry, a slip (systems/combatSkills.js)
+                drawMapText(ctx, fn.label, 0, 0, { size, min: style.min, family: 'body', weight: 800, color: '#d8e4ee' });
+            } else if (fn.label) {
+                // A move that landed: the number and what it was (a power swing, a stagger)
+                drawMapText(ctx, `\u2212${fn.value}`, 0, 0, { size, min: style.min, family: 'body', weight: 800, color: style.color });
+                drawMapText(ctx, fn.label, 0, textPx(size, style.min) * 1.05, { size: size * 0.8, min: style.min - 2, family: 'body', weight: 800, color: '#ffd27a' });
             } else {
                 drawMapText(ctx, `\u2212${fn.value}${style.bang ? '!' : ''}`, 0, 0, {
                     size, min: style.min, family: 'body', weight: 800, color: style.color,

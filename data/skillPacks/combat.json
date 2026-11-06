@@ -1,0 +1,107 @@
+{
+    "_doc": "Combat pack (systems/combatSkills.js): Blades, Brawling, Archery, Sailing. Blades/Brawling: the weapon in your hand picks the skill (combatSkills.weaponSkill: data/duels.json weapons; fists brawl, anything else is a blade). Its level is your skill in duels (systems/duels.js: attack and defence, in place of the old flat combat number) and on the inner map (ui/innerMapCombat.js): hit = % of your swings that land (less the foe's parry/dodge), damage = % more on every blow; moves: parry (% of blows turned aside; from level 8 answered by a riposte), powerSwing (% of swings a heavy cut for powerMult), dodge (% of blows slipped), stagger (% of hits that cost the foe their next blow), haymaker (a hit that leaves the foe under this % of their strength knocks them out). Archery (ui/actionMenu/jobs.js hunting shots, systems/festivals.js archery contest, player/fieldBattle.js): aim = points on every hunting shot's accuracy (and in the contest), draw = % force of your arrows: your own share of a battle's opening volley when you carry a bow (fieldBattle personal.volleyWeight of it) and the contest, steady = a shot short of the mark by no more than this still strikes, secondArrow = % chance to loose again after a miss (fresh aim, half the gap closed). The festival contests: archery by your Archery level, jousting by Blades. Sailing (systems/ships.js, shipVoyages.js) aboard your own ship: speed = % faster voyages, stormHold = % of the way a storm would cost you kept, stormSafety = % less hull damage, cargo washed out and sailors lost in a storm, crew = % less morale lost to storms, % less stamina sailing by hand, % to the crew in a fight. combatSkills.migrate: an old save's flat combat skill seeds levels (level = combat × rate); later rises in the old combat number (training, bounties, battles) feed in as rate × a level's XP; and the old number is kept at least your best fighting level. combatSkills.inner: npcHitBonus added to an NPC's hit chance; minHit/maxHit clamp every blow's chance; npcLevelWeight: attack per level an NPC is above (or below) the usual for their kind (defence 0.7 of it).",
+    "skills": {
+        "blades": {
+            "name": "Blades",
+            "icon": "⚔️",
+            "desc": "Swords, axes, knives, spears, hammers: any weapon in the hand. Your level is your skill in duels. Learned by every blow struck in a fight, by duels and by training.",
+            "order": 40,
+            "perks": {
+                "hit": { "levels": [78, 80, 82, 84, 86, 88, 90, 92, 94, 96], "text": "+{d}% to hit", "show": "{v}% to hit" },
+                "damage": { "levels": [0, 5, 10, 15, 20, 26, 32, 38, 45, 52], "text": "+{d}% damage", "show": "+{v}% damage" },
+                "parry": { "levels": [0, 0, 8, 10, 12, 15, 18, 21, 24, 28], "text": "Parry: turn aside {v}% of blows", "show": "Parry {v}% of blows" },
+                "powerSwing": { "levels": [0, 0, 0, 0, 12, 14, 16, 19, 22, 25], "text": "Power swing: {v}% of swings a heavy cut", "show": "Power swing {v}%" },
+                "riposte": { "levels": [0, 0, 0, 0, 0, 0, 0, 1, 1, 1], "text": "Riposte: a parried blow is answered at once", "show": "Riposte after a parry" }
+            },
+            "xp": { "hit": 1.5, "miss": 0.5, "parry": 1, "knockout": 8, "duelHit": 2, "duelWin": 12, "battle": 10 }
+        },
+        "brawling": {
+            "name": "Brawling",
+            "icon": "✊",
+            "desc": "Fists, elbows and dirty tricks. Your level is your skill in a fist fight. Learned by every punch thrown and every knockout.",
+            "order": 41,
+            "perks": {
+                "hit": { "levels": [75, 78, 80, 82, 84, 86, 88, 90, 92, 94], "text": "+{d}% to hit", "show": "{v}% to hit" },
+                "damage": { "levels": [0, 8, 16, 24, 32, 40, 48, 56, 64, 72], "text": "+{d}% punch", "show": "+{v}% punch" },
+                "dodge": { "levels": [0, 0, 6, 8, 10, 12, 14, 16, 18, 20], "text": "Slip: dodge {v}% of blows", "show": "Slip {v}% of blows" },
+                "stagger": { "levels": [0, 0, 0, 15, 17, 19, 21, 23, 25, 28], "text": "Stagger: {v}% of hits cost them their next blow", "show": "Stagger {v}%" },
+                "haymaker": { "levels": [0, 0, 0, 0, 0, 20, 22, 25, 28, 32], "text": "Haymaker: a hit that leaves them under {v}% knocks them out", "show": "Haymaker under {v}%" }
+            },
+            "xp": { "hit": 1.5, "miss": 0.5, "dodge": 1, "knockout": 10, "duelHit": 2, "duelWin": 12 }
+        },
+        "archery": {
+            "name": "Archery",
+            "icon": "🏹",
+            "desc": "The bow: hunting shots, and your own arrows in a battle's opening volley. Learned by every arrow loosed, more by those that strike home.",
+            "order": 42,
+            "perks": {
+                "aim": { "levels": [0, 2, 4, 6, 8, 10, 12, 14, 16, 20], "text": "+{d} aim on every shot", "show": "+{v} aim" },
+                "draw": { "levels": [0, 2, 4, 6, 8, 10, 12, 14, 16, 20], "text": "+{d}% to your arrows' force", "show": "+{v}% arrow force" },
+                "steady": { "levels": [0, 0, 3, 4, 5, 6, 7, 8, 9, 10], "text": "Steady: a near miss (within {v}) still strikes home", "show": "Near misses within {v} strike" },
+                "secondArrow": { "levels": [0, 0, 0, 0, 20, 25, 30, 35, 40, 50], "text": "Second arrow: {v}% chance to loose again after a miss", "show": "Second arrow {v}%" }
+            },
+            "xp": { "shot": 3, "hit": 6, "secondArrow": 3, "battle": 6, "contest": 15 }
+        },
+        "sailing": {
+            "name": "Sailing",
+            "icon": "⛵",
+            "desc": "Sheets, helm and weather on your own ship. Learned by every day at sea, most of all in a storm, and by making port.",
+            "order": 43,
+            "perks": {
+                "speed": { "levels": [0, 4, 8, 12, 16, 20, 24, 28, 32, 36], "text": "+{d}% voyage speed", "show": "+{v}% voyage speed" },
+                "stormHold": { "levels": [0, 0, 10, 15, 20, 25, 30, 40, 50, 60], "text": "keep {a}% more way in a storm", "show": "{v}% of a storm's lost way kept" },
+                "stormSafety": { "levels": [0, 5, 10, 15, 20, 25, 30, 36, 42, 50], "text": "storms do {a}% less harm", "show": "{v}% less storm harm" },
+                "crew": { "levels": [0, 3, 6, 9, 12, 15, 18, 21, 25, 30], "text": "the crew works {a}% better", "show": "crew +{v}%" }
+            },
+            "xp": { "day": 6, "storm": 10, "port": 12 }
+        }
+    },
+    "combatSkills": {
+        "weaponSkill": { "fists": "brawling" },
+        "defaultWeaponSkill": "blades",
+        "migrate": { "levels": { "blades": 1, "brawling": 0.8, "archery": 0.7 }, "riseShare": { "blades": 1, "brawling": 0.6, "archery": 0.4 } },
+        "inner": { "npcHitBonus": 0, "minHit": 0.3, "maxHit": 0.97, "npcLevelWeight": 0.35, "powerMult": 1.8 },
+        "duel": { "parryDefense": 0.05, "parryRiposte": 0.01, "powerMult": 1.75, "staggerDrain": 2 },
+        "field": { "volleyWeight": 0.5, "meleePerLevel": 0.01 }
+    },
+    "npc": {
+        "base": { "blades": 1, "brawling": 1, "archery": 1, "sailing": 1 },
+        "roles": {
+            "guard": { "blades": 4, "brawling": 2, "archery": 1 },
+            "soldier": { "blades": 4, "brawling": 2, "archery": 2 },
+            "noble": { "blades": 3, "archery": 1 },
+            "traveler": { "blades": 1, "archery": 2, "brawling": 1 },
+            "hunter": { "archery": 5, "blades": 1 },
+            "blacksmith_npc": { "brawling": 3, "blades": 2 },
+            "farmer": { "brawling": 2, "archery": 1 },
+            "fisher": { "sailing": 3, "brawling": 1 },
+            "sailor": { "sailing": 5, "brawling": 2, "blades": 1 },
+            "captain": { "sailing": 7, "blades": 2 },
+            "pirate": { "sailing": 4, "blades": 3, "brawling": 3 },
+            "pearl_diver": { "sailing": 2 },
+            "brawler": { "brawling": 5 },
+            "tough": { "brawling": 4, "blades": 1 },
+            "bruiser": { "brawling": 6 },
+            "drunk": { "brawling": 2 },
+            "champion": { "blades": 6, "brawling": 3 },
+            "cutpurse": { "blades": 1, "brawling": 1 },
+            "thief": { "brawling": 1, "blades": 1 },
+            "merchant": { "sailing": 1 }
+        },
+        "coastal": { "sailing": 1 },
+        "craftTrades": { "villager": { "hunter": 0.08, "tough": 0.05 }, "farmer": { "hunter": 0.1 }, "traveler": { "hunter": 0.15 } },
+        "dailyXp": {
+            "guard": { "blades": 0.5, "brawling": 0.2 },
+            "soldier": { "blades": 0.6, "brawling": 0.2, "archery": 0.2 },
+            "noble": { "blades": 0.2 },
+            "hunter": { "archery": 0.7 },
+            "farmer": { "brawling": 0.05 },
+            "blacksmith_npc": { "brawling": 0.1 },
+            "fisher": { "sailing": 0.4 },
+            "sailor": { "sailing": 0.8 },
+            "captain": { "sailing": 0.6 },
+            "pirate": { "sailing": 0.5, "blades": 0.3 },
+            "coastal": { "sailing": 0.1 }
+        }
+    }
+}

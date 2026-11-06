@@ -445,12 +445,21 @@ export const VoyageMethods = {
         }
 
         let hexes = this.getSailingSpeed(player, ship);
+        // A skilled captain makes more way (Sailing's speed, the fraction carried to the next day)
+        const quick = this.seamanship(player, ship, 'speed');
+        if (quick > 0) {
+            const more = hexes * quick + _num(v.skillCarry);
+            hexes += Math.floor(more);
+            v.skillCarry = more - Math.floor(more);
+        }
         if (v.delay > 0) {
             v.delay -= 1;
             hexes = 0;
             this._voyageLog(ship, '⏸️', 'Lay to all day.', world);
         } else if (storm) {
-            hexes = Math.floor(hexes * cfg.stormProgress);
+            // ...and keeps more of it in a storm (Sailing's stormHold)
+            const hold = this.seamanship(player, ship, 'stormHold');
+            hexes = Math.floor(hexes * (cfg.stormProgress + (1 - cfg.stormProgress) * hold));
         }
         const before = v.step;
         v.step = Math.min(v.route.length, v.step + hexes);

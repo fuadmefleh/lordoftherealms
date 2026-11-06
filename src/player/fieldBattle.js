@@ -43,6 +43,8 @@ import { Traits } from '../systems/traits.js';
 import { Companions } from '../systems/companions.js';
 import { HeirAgency } from '../systems/heirAgency.js';
 import { Ledger } from '../systems/ledger.js';
+import { CombatSkills } from '../systems/combatSkills.js';
+import { Duels } from '../systems/duels.js';
 
 const DEFAULTS = {
     phases: [
@@ -177,6 +179,8 @@ export const FieldBattle = {
             pMult,
             eMult,
             pCasMult,
+            // Your own hand in it, by phase (systems/combatSkills.js): your bow in the opening volley, your blade in the melee
+            personal: FieldBattle.personalEdge(player),
             pCounter: PlayerMilitary._counterMultiplier(pComp, eComp),
             eCounter: PlayerMilitary._counterMultiplier(eComp, pComp),
             pTerrain: PlayerMilitary._terrainMultiplier(terrainId, pComp),
@@ -196,6 +200,39 @@ export const FieldBattle = {
             done: false,
             result: null,
         };
+    },
+
+    /**
+     * The commander's own hand by phase: { opening, melee, pursuit } multipliers.
+     * A bow carried adds your Archery draw (× volleyWeight) to the opening;
+     * your level in what you fight with adds meleePerLevel a level over 1 to
+     * the melee (half that to the pursuit). All 1 for a beginner.
+     */
+    personalEdge(player) {
+        const out = { opening: 1, melee: 1, pursuit: 1 };
+        if (!player || !CombatSkills.has('blades')) return out;
+        const F = { volleyWeight: 0.5, meleePerLevel: 0.01, ...(CombatSkills.config().field || {}) };
+        const inv = player.inventory || {};
+        if (inv.bow > 0) out.opening = 1 + CombatSkills.perk(player, 'archery', 'draw') / 100 * Number(F.volleyWeight);
+        const sk = CombatSkills.weaponSkill(Duels.playerWeapon(player).id);
+        const lv = CombatSkills.level(player, sk);
+        out.melee = 1 + (lv - 1) * Number(F.meleePerLevel);
+        out.pursuit = 1 + (lv - 1) * Number(F.meleePerLevel) / 2;
+        return out;
+    },
+
+    /** What a fought battle taught you: Blades/Brawling, and Archery with a bow carried. → [level-up events] */
+    _battleSkills(player) {
+        if (!CombatSkills.has('blades')) return [];
+        const out = [];
+        const sk = CombatSkills.weaponSkill(Duels.playerWeapon(player).id);
+        const a = CombatSkills.train(player, sk, CombatSkills.xpFor('blades', 'battle'));
+        if (a) out.push(a);
+        if ((player.inventory || {}).bow > 0) {
+            const b = CombatSkills.trainBy(player, 'archery', 'battle');
+            if (b) out.push(b);
+        }
+        return out;
     },
 
     /** The battle's current phase definition (null once it is over). */
@@ -261,7 +298,8 @@ export const FieldBattle = {
 
         const spread = cfg.rollSpread;
         const pPow = sim.pStr * battle.pMult * (1 + (battle.pCounter - 1) * cw) * FieldBattle._compWeight(battle.pComp, ph.weights)
-            * pMorale * stancePower * (sim.fortune || battle.fortune || 1) * Utils.randFloat(1 - spread, 1 + spread);
+            * pMorale * stancePower * (sim.fortune || battle.fortune || 1) * ((battle.personal && battle.personal[ph.id]) || 1)
+            * Utils.randFloat(1 - spread, 1 + spread);
         const ePow = sim.eStr * battle.eMult * (1 + (battle.eCounter - 1) * cw) * FieldBattle._compWeight(battle.eComp, ph.weights)
             * eMorale * enemyPower * Utils.randFloat(1 - spread, 1 + spread);
         const r = pPow / Math.max(1e-6, pPow + ePow);
@@ -511,6 +549,7 @@ export const FieldBattle = {
         if (spoils.captured) {
             Object.assign(result, { captured: true, servitudeDays: spoils.servitudeDays, goldConfiscated: spoils.goldConfiscated });
         }
+        if (!withdrew) result.skillUps = FieldBattle._battleSkills(player);
 
         // A world unit: its losses stand, and its fate follows the usual rules
         const unit = battle.unitId && world && Array.isArray(world.units)

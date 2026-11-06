@@ -603,6 +603,7 @@ export const InnerMapDeck = {
             // A fair fight: no crime in cutting down a boarder, and one beaten low goes over the side
             n._taskFoe = { onYield: () => this._boarderDown(game, n, 'goes over the side') };
             n._struckPlayerFirst = true;
+            n._skillRole = 'pirate'; // sea-rovers' blades and fists (systems/combatSkills.js)
         }
         for (const n of this._crew()) n._deckHp = DeckLife.crewHp();
         this._fight = { boarders, blowTimer: 0, started: _now() };
@@ -694,7 +695,7 @@ export const InnerMapDeck = {
             n.activity = { type: 'fight', icon: '⚔️', label: 'Fighting', anim: 'halfslash' };
             const hp = InnerMapCombat._npcHealth.get(foe.id);
             if (hp) {
-                const dmg = DeckLife.crewBlow(ship);
+                const dmg = DeckLife.crewBlow(ship, game.player);
                 hp.current = Math.max(0, hp.current - dmg);
                 InnerMapCombat._spawnFloat(foe.q * T + T / 2, foe.r * T + T * 0.1, dmg, 'hit');
                 if (hp.current <= 0) { this._boarderDown(game, foe, 'falls'); continue; }

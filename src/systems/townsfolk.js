@@ -541,7 +541,7 @@ export const Townsfolk = {
         if (npc._person && npc._folk) return Townsfolk.skillsOf(npc._folk, npc._person, world);
         if (!npc._skills) {
             const holder = {};
-            const role = npc.deckRole ? 'sailor' : (npc.type || 'villager');
+            const role = npc._skillRole || (npc.deckRole ? 'sailor' : (npc.type || 'villager'));
             const coastal = !!npc.deckRole || (at ? PracticeSkills.coastalAt(world, at.q, at.r) : false);
             PracticeSkills.seedNpc(holder, { key: npc.uid || npc.id || npc.fullName || npc.name || '', role, age: _num(npc.age, 30), coastal });
             Object.defineProperty(npc, '_skills', { value: holder, configurable: true, enumerable: false, writable: true });

@@ -42,6 +42,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Traits } from './traits.js';
 import { Ailments } from './ailments.js';
+import { CombatSkills } from './combatSkills.js';
+import { PracticeSkills } from './practiceSkills.js';
 
 const MOVE_IDS = ['strike', 'thrust', 'feint', 'guard'];
 
@@ -200,8 +202,23 @@ export const Duels = {
             maxStamina,
             stamina: Math.max(0, Math.min(maxStamina, Math.round(_num(p.staminaNow, maxStamina)))),
             skill: _num(p.skill, 3),
+            // The practised skill fought with and its moves (systems/combatSkills.js)
+            fightSkill: p.fightSkill || null,
+            moves: p.moves || null,
             ref: p.ref || null,
         };
+    },
+
+    /**
+     * A fighter's moves from their level in the skill they fight with:
+     * { power (chance of a power swing), stagger, haymaker (share of hp) }.
+     * perk(id, perkId) reads the level (the player's or an NPC's).
+     */
+    _skillMoves(skillId, perk) {
+        if (skillId === 'brawling') {
+            return { power: 0, stagger: perk('brawling', 'stagger') / 100, haymaker: perk('brawling', 'haymaker') / 100 };
+        }
+        return { power: perk('blades', 'powerSwing') / 100, stagger: 0, haymaker: 0 };
     },
 
     /**
@@ -265,10 +282,17 @@ export const Duels = {
      */
     fromPlayer(player, opts = {}) {
         const mods = opts.mods || {};
-        const skill = _num(player.skills && player.skills.combat, 1) || 1;
         const str = _num(player.strength, 5);
         const luck = _num(player.luck, 5);
         const weapon = Duels.playerWeapon(player, mods.quality);
+        // The skill is the level of what you fight with: Blades for a weapon,
+        // Brawling for bare fists (systems/combatSkills.js; was the flat combat number)
+        const fightSkill = CombatSkills.has('blades') ? CombatSkills.weaponSkill(weapon.id) : null;
+        const skill = fightSkill ? CombatSkills.level(player, fightSkill) : (_num(player.skills && player.skills.combat, 1) || 1);
+        const perk = (id, pid) => (fightSkill ? CombatSkills.perk(player, id, pid) : 0);
+        const dmgMult = 1 + perk(fightSkill, 'damage') / 100;
+        const D = CombatSkills.config().duel;
+        const guardPerk = fightSkill === 'brawling' ? perk('brawling', 'dodge') : perk('blades', 'parry');
         const shield = Duels.playerShield(player, mods.quality);
         const traitMult = Math.max(0.5, 1 + _num(Traits.effect(player, 'battlePower')));
         const ail = Ailments.battleMultiplier(player);
@@ -285,10 +309,10 @@ export const Duels = {
             name: player.name || 'You',
             icon: '🧑',
             attack: (skill + (str - 5) * 0.3 + (luck - 5) * 0.1 + _num(weapon.attack)) * mult,
-            defense: (skill * 0.7 + luck * 0.15 + (shield ? _num(shield.guard) : 0) - lame * 0.5) * ail,
-            power: (4 + str * 0.6 + _num(weapon.dmg)) * mult,
+            defense: (skill * 0.7 + luck * 0.15 + (shield ? _num(shield.guard) : 0) - lame * 0.5 + guardPerk * _num(D.parryDefense)) * ail,
+            power: (4 + str * 0.6 + _num(weapon.dmg)) * mult * dmgMult,
             armour: Duels.playerArmour(player, mods.damageReduction, mods.quality),
-            riposte: shield ? _num(shield.riposte) : 0,
+            riposte: (shield ? _num(shield.riposte) : 0) + (fightSkill === 'blades' ? perk('blades', 'parry') * _num(D.parryRiposte) : 0),
             weapon: weapon.name,
             weaponDmg: _num(weapon.dmg),
             shield: shield ? shield.name : null,
@@ -298,6 +322,8 @@ export const Duels = {
             stamina: maxStamina,
             staminaNow: maxStamina - _num(opts.staminaLoss),
             skill,
+            fightSkill,
+            moves: fightSkill ? Duels._skillMoves(fightSkill, perk) : null,
             ref: player,
         });
     },
@@ -347,8 +373,29 @@ export const Duels = {
     fromNpc(npc, opts = {}) {
         const C = Duels.config();
         const prof = C.npcs[npc && npc.type] || C.npcs.villager || DEFAULTS.npcs.villager;
+        // Their level in what they fight with (systems/combatSkills.js): a
+        // veteran guard is sharper than most guards, a green one duller
+        let skilled = {};
+        if (npc && CombatSkills.has('blades')) {
+            const fightSkill = CombatSkills.npcWeaponSkill(prof.weapon);
+            const edge = CombatSkills.npcEdge(npc, fightSkill, opts.world || null);
+            const w = _num(CombatSkills.config().inner.npcLevelWeight, 0.35);
+            const level = CombatSkills.npcLevel(npc, fightSkill, opts.world || null);
+            const perk = (id, pid) => PracticeSkills.perkAt(id, pid, level);
+            const usual = Math.max(1, Math.round(level - edge));
+            const dmg = (1 + perk(fightSkill, 'damage') / 100) / (1 + PracticeSkills.perkAt(fightSkill, 'damage', usual) / 100);
+            skilled = {
+                power: _num(prof.power, 6) * dmg,
+                attack: _num(prof.attack, 2) + edge * w,
+                defense: _num(prof.defense, 2) + edge * w * 0.7,
+                skill: level,
+                fightSkill,
+                moves: Duels._skillMoves(fightSkill, perk),
+            };
+        }
         return Duels.fromProfile({
             ...prof,
+            ...skilled,
             id: npc && npc.id != null ? `npc_${npc.id}` : 'npc',
             kind: 'npc',
             name: (npc && (npc.fullName || npc.name)) || 'Stranger',
@@ -452,10 +499,29 @@ export const Duels = {
         }
         const move = Duels.move(moveId) || { dmg: 1 };
         const variance = 0.85 + rng() * 0.3;
-        const raw = att.power * _num(move.dmg, 1) * mult * variance;
+        const D = CombatSkills.config().duel;
+        const mv = att.moves || null;
+        // A Blades master's strike may come as a power swing
+        let power = 1;
+        if (mv && mv.power > 0 && moveId === 'strike' && rng() < mv.power) {
+            power = _num(D.powerMult, 1.75);
+            entry.notes.push(`${att.name} puts everything into a power swing!`);
+        }
+        const raw = att.power * _num(move.dmg, 1) * mult * variance * power;
         const dmg = Math.max(1, Math.round(raw * (1 - def.armour)));
         def.hp = Math.max(0, def.hp - dmg);
         entry[from === 'a' ? 'dmgToB' : 'dmgToA'] += dmg;
+        if (mv && def.hp > 0) {
+            // A brawler's haymaker on one already reeling ends it; a stagger takes their wind
+            if (mv.haymaker > 0 && def.hp / def.maxHp < mv.haymaker) {
+                entry[from === 'a' ? 'dmgToB' : 'dmgToA'] += def.hp;
+                def.hp = 0;
+                entry.notes.push(`A haymaker! ${def.name} goes down.`);
+            } else if (mv.stagger > 0 && rng() < mv.stagger) {
+                def.stamina = Math.max(0, def.stamina - _num(D.staggerDrain, 2));
+                entry.notes.push(`${def.name} staggers.`);
+            }
+        }
         return dmg;
     },
 

@@ -5,6 +5,7 @@ import { InnerMap, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, U
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
+import { CombatSkills } from '../../systems/combatSkills.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { MapTasks } from '../../systems/mapTasks.js';
@@ -1418,6 +1419,37 @@ function _huntAnimalAfter(game, out, kind) {
 }
 
 /**
+ * The bow in your hands (systems/combatSkills.js Archery): your aim added to
+ * the shot; a near miss within your Steady still strikes; a miss may be
+ * followed by a second arrow (the gap half closed). Archery XP for the shot,
+ * more if it struck; a level-up announced. → { accuracy, secondArrow }
+ */
+function _archeryShot(game, player, accuracy) {
+    if (!CombatSkills.has('archery')) return { accuracy };
+    const need = Hunting.hitThreshold(player);
+    let acc = Math.min(100, Number(accuracy || 0) + CombatSkills.perk(player, 'archery', 'aim'));
+    const steady = CombatSkills.perk(player, 'archery', 'steady');
+    if (acc < need && steady > 0 && acc >= need - steady) acc = need;
+    let second = false;
+    if (acc < need) {
+        const ch = CombatSkills.chance(player, 'archery', 'secondArrow');
+        if (ch > 0 && Utils.random() < ch) {
+            second = true;
+            acc = Math.round(acc + (need - acc) / 2 + Utils.random() * 25);
+        }
+    }
+    const hit = acc >= need;
+    const xp = CombatSkills.xpFor('archery', 'shot', second ? 2 : 1) + (hit ? CombatSkills.xpFor('archery', 'hit') : 0);
+    const ev = CombatSkills.train(player, 'archery', xp);
+    const ui = game && game.ui;
+    if (ui && typeof ui.showNotification === 'function') {
+        if (second) ui.showNotification('🏹 Second Arrow', hit ? 'The first went wide; you nock again and the second flies true.' : 'You nock and loose again, but the second goes wide too.', hit ? 'success' : 'info');
+        if (ev) ui.showNotification(`${ev.icon} ${ev.name} Improved`, ev.text, 'success');
+    }
+    return { accuracy: acc, secondArrow: second };
+}
+
+/**
  * How a hunt ended. out: { result: 'shot', accuracy, animal? } | { result: 'fled' |
  * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before. A
  * hit on a beast on the map leaves its carcass to butcher by hand (no loot
@@ -1429,6 +1461,7 @@ function _huntOutcome(game, player, lootTable, out, p) {
     let statusMsg = '';
     let totalLoot = [];
     let totalValue = 0;
+    if (out && out.result === 'shot') out = { ...out, ..._archeryShot(game, player, out.accuracy) };
     if (out.result === 'shot' && out.animal && out.accuracy >= Hunting.hitThreshold(player)) {
         // The beast falls where it stood: butcher it, or carry it off (ui/innerMapAnimals.js)
         if (player.skills && Utils.random() < 0.25) player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);

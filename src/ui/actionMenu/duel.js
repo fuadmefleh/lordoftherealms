@@ -5,6 +5,7 @@
 // instinct" (auto-finish), and the narration of the last exchanges. The
 // engine decides everything; this file only draws it and routes the clicks.
 import { Duels } from '../../systems/duels.js';
+import { CombatSkills } from '../../systems/combatSkills.js';
 import { BTN, BTN_GOLD, BTN_DARK, BTN_RED, CARD, esc } from './uiKit.js';
 
 function _bar(cur, max, color) {
@@ -18,6 +19,8 @@ function _card(c, isPlayer) {
     let h = `<div style="${CARD} flex: 1; margin: 0; text-align: left;">`;
     h += `<div style="font-size: 13px;"><span style="font-size: 18px;">${c.icon}</span> <b>${esc(c.name)}</b></div>`;
     if (c.title) h += `<div style="font-size: 10px; color: var(--text-muted);">${esc(c.title)}</div>`;
+    // The practised skill they fight with and its level (systems/combatSkills.js)
+    if (c.fightSkill) h += `<div style="font-size: 10px; color: #9fd6a8;">${c.fightSkill === 'brawling' ? '✊ Brawling' : '⚔️ Blades'} ${Math.round(c.skill)}</div>`;
     h += `<div style="font-size: 10px; color: var(--text-secondary); margin: 2px 0;">${esc(c.weapon)}${c.shield ? ` · ${esc(c.shield)}` : ''}${c.armour > 0.01 ? ` · armour ${Math.round(c.armour * 100)}%` : ''}</div>`;
     if (!isPlayer) h += `<div style="font-size: 10px; color: #c9a86a;">${T.icon || ''} Fights ${esc(String(T.label || 'steady').toLowerCase())}</div>`;
     h += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">❤️ ${c.hp}/${c.maxHp}</div>`;
@@ -35,6 +38,20 @@ function _entryHtml(state, e, faded) {
     const notes = e.notes && e.notes.length ? ` <span style="color: var(--text-muted);">${e.notes.map(esc).join(' ')}</span>` : '';
     return `<div style="font-size: ${faded ? 10 : 12}px; ${faded ? 'opacity: 0.6;' : ''} margin: 3px 0;">
         <b>R${e.round}</b> ${vs}${esc(e.text)}${notes}</div>`;
+}
+
+/**
+ * What the player's side learned from the bout: Blades or Brawling XP for
+ * every exchange that drew blood, more for the win; a level-up announced.
+ */
+function _duelXp(game, state) {
+    const me = state && state.a;
+    const player = game && game.player;
+    if (!me || me.kind !== 'player' || !me.fightSkill || !player) return;
+    const hits = state.log.filter(e => e.dmgToB > 0).length;
+    const xp = CombatSkills.xpFor(me.fightSkill, 'duelHit', hits) + (state.winner === 'a' ? CombatSkills.xpFor(me.fightSkill, 'duelWin') : 0);
+    const ev = CombatSkills.train(player, me.fightSkill, xp);
+    if (ev && game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(`${ev.icon} ${ev.name} Improved`, ev.text, 'success');
 }
 
 export const DuelPanel = {
@@ -118,6 +135,7 @@ export const DuelPanel = {
             done: () => {
                 if (!state.over || finished) return;
                 finished = true;
+                _duelXp(game, state);
                 if (typeof onFinish === 'function') onFinish(Duels.result(state));
                 else if (game.ui.hideCustomPanel) game.ui.hideCustomPanel();
             },

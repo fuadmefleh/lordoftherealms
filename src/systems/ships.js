@@ -22,6 +22,7 @@ import { PriceKnowledge } from './priceKnowledge.js';
 import { LossBook } from './lossBook.js';
 import { Ledger } from './ledger.js';
 import { TradePolicy } from './tradePolicy.js';
+import { CombatSkills } from './combatSkills.js';
 
 /**
  * Ships System
@@ -248,13 +249,23 @@ export const Ships = {
         return `Your fleet is at its limit of ${cap} ships. ${hint}`;
     },
 
+    /**
+     * The player's Sailing perk on a ship they are aboard (0 for one they
+     * are not, or without the skill): systems/combatSkills.js, as a fraction.
+     */
+    seamanship(player, ship, perkId) {
+        if (!player || !ship || player.boardedShip !== ship.id || !CombatSkills.has('sailing')) return 0;
+        return Math.max(0, CombatSkills.perk(player, 'sailing', perkId) / 100);
+    },
+
     /** Hexes per day a ship sails, with Navigation's speed bonus. */
     getSailingSpeed(player, ship) {
         const base = this.getShipEffectiveStats(ship).speed;
         // The Astrolabe of Tides reads the currents for you
         const relic = player ? 1 + LegendaryArtifacts.getPassiveTotal(player, 'shipSpeed') : 1;
         // Too few hands on the oars and sheets: an undercrewed ship is slower
-        const crew = this.getCrewSpeedFactor(ship);
+        // (a skilled captain gets more out of the hands there are)
+        const crew = 1 - (1 - this.getCrewSpeedFactor(ship)) * (1 - this.seamanship(player, ship, 'crew'));
         return Math.max(1, Math.round(base * relic * crew * (player ? Technology.getSailingSpeedMultiplier(player) : 1)));
     },
 
@@ -327,10 +338,11 @@ export const Ships = {
      * Fighting multiplier: 40% with no crew, 100% fully crewed, scaled by
      * morale around its resting value (100 morale: +15%, 0 morale: −35%).
      */
-    getCrewCombatFactor(ship) {
+    getCrewCombatFactor(ship, player = null) {
         const s = this._getCrewSettings();
         const moraleMult = Math.max(0.5, 1 + (this.getMorale(ship) - s.restingMorale) / 200);
-        return (0.4 + 0.6 * this.getCrewRatio(ship)) * moraleMult;
+        // A skilled captain aboard: the crew works better (Sailing's crew perk)
+        return (0.4 + 0.6 * this.getCrewRatio(ship)) * moraleMult * (1 + this.seamanship(player, ship, 'crew'));
     },
 
     /** Stamina per hex while the player sails the ship: 2 fully crewed, up to 4 short-handed. */
@@ -1643,7 +1655,10 @@ export const Ships = {
             const storm = this._stormAtSea(ship, world);
             if (storm) storms[ship.id] = storm;
             if (storm) {
-                const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger));
+                // A skilled captain aboard rides it out better (Sailing: stormSafety, crew)
+                const safe = 1 - this.seamanship(player, ship, 'stormSafety');
+                const steady = 1 - this.seamanship(player, ship, 'crew');
+                const damage = this.mitigateHullDamage(ship, Math.round(Utils.randInt(3, 8) * storm.danger * safe));
                 const condBefore = ship.condition || 100;
                 ship.condition = Math.max(10, condBefore - damage);
                 const report = { shipId: ship.id, name: ship.name, weather: storm.type, damage, delayed: false, cargoLost: null };
@@ -1653,7 +1668,7 @@ export const Ships = {
                 }
                 // Heavy seas can wash part of the cargo overboard
                 const goods = Object.keys(ship.cargo || {}).filter(g => ship.cargo[g] > 0);
-                if (goods.length > 0 && Utils.random() < 0.2 * storm.danger) {
+                if (goods.length > 0 && Utils.random() < 0.2 * storm.danger * safe) {
                     const good = Utils.randPick(goods);
                     // A worn, leaking hull loses more of it
                     const lost = Math.min(ship.cargo[good], Math.max(1, Math.floor(ship.cargo[good] * 0.2 * this.leakFactor(ship))));
@@ -1665,9 +1680,9 @@ export const Ships = {
                 // The crew is shaken, and a sailor may go over the side
                 this._ensureCrew(ship);
                 const crewCfg = this._getCrewSettings();
-                this._setMorale(ship, ship.morale - Math.round(crewCfg.stormMoraleLoss * storm.danger));
+                this._setMorale(ship, ship.morale - Math.round(crewCfg.stormMoraleLoss * storm.danger * steady));
                 report.crewLost = 0;
-                if (ship.crew > 0 && Utils.random() < crewCfg.stormOverboardChance * storm.danger) {
+                if (ship.crew > 0 && Utils.random() < crewCfg.stormOverboardChance * storm.danger * safe) {
                     ship.crew -= 1;
                     report.crewLost = 1;
                 }
@@ -1738,8 +1753,28 @@ export const Ships = {
         // Crews away from port eat from the hold
         const provisions = this._feedCrews(player, world);
         const crew = this._payCrews(player, ships);
+        // A day at sea aboard your own ship teaches Sailing (most of all a storm, and making port)
+        const sailing = this._sailingDay(player, storms, voyage);
+        if (voyage && sailing) this._voyageLog(this.getShipById(player, voyage.shipId) || {}, sailing.icon, sailing.text, world);
         if (voyage) this._logVoyageDay(player, world, voyage, { stormReports, interceptions, provisions, crew });
-        return { stormReports, crew, interceptions, upkeepShort, provisions, voyage };
+        return { stormReports, crew, interceptions, upkeepShort, provisions, voyage, sailing };
+    },
+
+    /**
+     * Sailing XP for the day: aboard one of your ships away from the quay
+     * (on a voyage, at the helm, at anchor), more in a storm, more on making
+     * port. → a level-up event or null.
+     */
+    _sailingDay(player, storms, voyage) {
+        const arrived = !!(voyage && voyage.arrived);
+        const shipId = arrived ? voyage.shipId : player && player.boardedShip;
+        if (!player || shipId == null || !CombatSkills.has('sailing')) return null;
+        const ship = this.getShipById(player, shipId);
+        if (!ship || (!arrived && !['moving', 'at_sea', 'anchored'].includes(ship.status) && !ship.voyage)) return null;
+        let xp = CombatSkills.xpFor('sailing', 'day');
+        if (storms && storms[ship.id]) xp += CombatSkills.xpFor('sailing', 'storm');
+        if (arrived) xp += CombatSkills.xpFor('sailing', 'port');
+        return CombatSkills.train(player, 'sailing', xp);
     },
 
     /* ── Royal fleets at sea ─────────────────────────────────── */
@@ -1894,7 +1929,7 @@ export const Ships = {
         // Condition penalty
         strength *= ship.condition / 100;
         // Short-handed or demoralised crews fight worse
-        strength = Math.floor(strength * this.getCrewCombatFactor(ship));
+        strength = Math.floor(strength * this.getCrewCombatFactor(ship, player));
         // War galleys in the army sail alongside as escorts
         if (player) strength += this.getEscortStrength(player);
         return Math.max(1, strength);

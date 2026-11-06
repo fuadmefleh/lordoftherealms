@@ -130,6 +130,7 @@ Object.assign(ActionMenu, {
                 if (r.renownChange > 0) html += `<div style="color:#4fc3f7;">⭐ Renown +${r.renownChange}</div>`;
                 if (r.captured) html += `<div style="color:#ff6666;">⛓️ Captured into servitude for ${r.servitudeDays} days. ${r.goldConfiscated || 0} gold confiscated.</div>`;
                 if (r.personalWound) html += `<div style="color:#e57373;">${r.personalWound.icon} You were wounded: ${esc(r.personalWound.name)}.</div>`;
+                for (const up of r.skillUps || []) html += `<div style="color:#9fd6a8;">${up.icon} ${esc(up.text)}</div>`;
             }
             html += '</div>';
             html += `<button data-am-act="closePanelAndRefresh" style="${BTN_PLAIN}width:100%; padding:9px; margin-top:8px;">Continue</button>`;

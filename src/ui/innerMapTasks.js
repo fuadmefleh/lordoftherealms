@@ -595,6 +595,8 @@ export const InnerMapTasks = {
         const npc = InnerMap._makeNpc ? InnerMap._makeNpc(def.type || 'villager', 90000 + (++_seq), ctx.rng) : null;
         if (!npc) { then(); return; }
         Object.assign(npc, { q: spot.q, r: spot.r, targetQ: spot.q, targetR: spot.r, prevQ: spot.q, prevR: spot.r, name: def.name, path: null, state: 'idle', idleTimer: 999 });
+        // Their fighting levels by what they are (a pit bruiser brawls; data/skillPacks/combat.json npc.roles)
+        npc._skillRole = key;
         npc._taskFoe = {
             onYield: () => {
                 ctx.note(`The ${def.name} yields.`);

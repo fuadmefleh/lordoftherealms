@@ -32,7 +32,8 @@ import { InnerMap } from '../world/innerMap.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { MapTasks } from '../systems/mapTasks.js';
-import { drawMapMarker } from './mapInk.js';
+import { drawMapMarker, drawMarkerPlate } from './mapInk.js';
+import { JobItems } from './jobItems.js';
 import { pictureIcon } from './icons.js';
 import { Utils } from '../core/utils.js';
 
@@ -680,18 +681,20 @@ export const InnerMapTasks = {
         // A guiding mark (where you're leading the flock) outranks the rest: its
         // arrow is the big green one, the others fade while it shows
         const guiding = ctx.marks.some(m => m.guide);
+        const heaps = this._heaps(ctx);
         for (const m of ctx.marks) {
             const q = m.follow ? m.follow.q : m.q, r = m.follow ? m.follow.r : m.r;
-            items.push({ q, r, glyph: m.glyph, held: m.work ? Math.min(1, m.held / m.work) : 0, passive: m.passive && !m.guide, follow: !!m.follow, guide: !!m.guide, name: m.name });
+            const heap = heaps.some(h => h.q === m.q && h.r === m.r && h.n > 0);
+            items.push({ q, r, glyph: m.glyph, item: this._markItem(ctx, m), heap, held: m.work ? Math.min(1, m.held / m.work) : 0, passive: m.passive && !m.guide, follow: !!m.follow, guide: !!m.guide, name: m.name });
         }
         for (const mv of ctx.movers) {
             if (mv.hidden || mv.following) continue;
-            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: !!mv.tracked, animal: !!mv.animal });
+            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: !!mv.tracked, animal: !!mv.animal, sprite: this._moverSprite(mv) });
         }
         // Followers are drawn on screen only (no edge arrow: they're behind you)
         for (const mv of ctx.movers) {
             if (mv.hidden || !mv.following) continue;
-            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: false, noArrow: true });
+            items.push({ q: mv.fq, r: mv.fr, glyph: mv.glyph, mover: true, tracked: false, noArrow: true, sprite: this._moverSprite(mv) });
         }
         const me = _playerPos();
         const safe = this._safeArea(canvas);
@@ -700,8 +703,19 @@ export const InnerMapTasks = {
             const on = s.x > -ds && s.y > -ds && s.x < W + ds && s.y < H + ds;
             if (on) {
                 if (it.mover) {
-                    // A living animal draws itself among the sprites (ui/innerMapAnimals.js)
+                    // A living animal draws itself among the sprites (ui/innerMapAnimals.js),
+                    // and so does a painted stray or rat (collect below): a tracked one gets a ring
                     if (it.animal) continue;
+                    if (it.sprite) {
+                        if (it.tracked) {
+                            ctx2d.save();
+                            ctx2d.strokeStyle = 'rgba(245,197,66,0.75)';
+                            ctx2d.lineWidth = Math.max(1.5, ds * 0.04);
+                            ctx2d.beginPath(); ctx2d.ellipse(s.x, s.y + ds * 0.3, ds * 0.36, ds * 0.14, 0, 0, Math.PI * 2); ctx2d.stroke();
+                            ctx2d.restore();
+                        }
+                        continue;
+                    }
                     // A creature: a small token on the ground with a soft shadow
                     ctx2d.save();
                     ctx2d.globalAlpha = 0.35; ctx2d.fillStyle = '#000';
@@ -711,20 +725,16 @@ export const InnerMapTasks = {
                     continue;
                 }
                 const pulse = 0.55 + 0.45 * Math.sin(t * 4);
-                // A ring on the ground…
-                ctx2d.save();
-                ctx2d.strokeStyle = it.guide ? `rgba(93,219,106,${0.5 + 0.4 * pulse})` : it.passive ? 'rgba(160,200,255,0.7)' : `rgba(245,197,66,${0.45 + 0.4 * pulse})`;
-                ctx2d.lineWidth = Math.max(2, ds * 0.06);
-                ctx2d.beginPath(); ctx2d.ellipse(s.x, s.y + ds * 0.25, ds * 0.42, ds * 0.18, 0, 0, Math.PI * 2); ctx2d.stroke();
-                if (it.held > 0) {
-                    ctx2d.strokeStyle = 'rgba(93,219,106,0.95)';
-                    ctx2d.lineWidth = Math.max(3, ds * 0.08);
-                    ctx2d.beginPath(); ctx2d.ellipse(s.x, s.y + ds * 0.25, ds * 0.42, ds * 0.18, 0, -Math.PI / 2, -Math.PI / 2 + it.held * Math.PI * 2); ctx2d.stroke();
-                }
-                ctx2d.restore();
-                // …and a marker bobbing above it
+                // A ring on the ground (under a heap it is drawn with the heap, in collect)…
+                if (!(it.item && it.heap)) this._drawRing(ctx2d, s.x, s.y, ds, it, pulse);
+                // …and above it what the spot is for, bobbing: the painted item
+                // (a heap on the ground already says it: a small pointer instead),
+                // or the glyph plate when the item has no art
                 const bob = Math.sin(t * 3) * ds * 0.06;
-                drawMapMarker(ctx2d, it.glyph, s.x, s.y - ds * (it.follow ? 1.3 : 0.9) + bob, Math.max(8, ds * 0.24));
+                if (it.item && it.heap) this._drawPointer(ctx2d, s.x, s.y - ds * 0.5 + bob, ds, it.passive);
+                else if (!it.item || !this._drawFloating(ctx2d, it.item, s.x, s.y - ds * (it.follow ? 1.0 : 0.5) + bob, ds, pulse)) {
+                    drawMapMarker(ctx2d, it.glyph, s.x, s.y - ds * (it.follow ? 1.3 : 0.9) + bob, Math.max(8, ds * 0.24));
+                }
             } else if ((!it.passive || it.follow) && !it.noArrow) {
                 // Off screen: an arrow at the edge pointing the way
                 // Kept inside the part of the screen the HUD leaves free
@@ -747,7 +757,8 @@ export const InnerMapTasks = {
                 const gx = ex - Math.cos(ang) * 26 * big, gy = ey - Math.sin(ang) * 26 * big;
                 ctx2d.save();
                 ctx2d.globalAlpha = guiding && !it.guide ? 0.4 : 1;
-                drawMapMarker(ctx2d, it.glyph, gx, gy, 10 * big);
+                // The plate, with the painted item on it (the glyph when it has no art)
+                if (!it.item || !this._drawPlated(ctx2d, it.item, gx, gy, 12 * big)) drawMapMarker(ctx2d, it.glyph, gx, gy, 10 * big);
                 ctx2d.restore();
                 if (it.guide) {
                     // "Fold · 37" under the marker: where, and how far
@@ -771,11 +782,171 @@ export const InnerMapTasks = {
         if (ctx.tpl.draw) {
             try { ctx.tpl.draw(ctx2d, camera, ctx, T); } catch (e) { /* cosmetic */ }
         }
-        // What you're carrying, over your head
-        if (ctx.carrying) {
+        // What you're carrying is in your arms (drawCarried, with the body);
+        // over your head only when it has no painted art
+        if (ctx.carrying && !this._carriedItem(ctx)) {
             const p = camera.worldToScreen(InnerMap.playerInnerQ * T + T / 2, InnerMap.playerInnerR * T);
             drawMapMarker(ctx2d, ctx.carrying.glyph, p.x, p.y - ds * 0.85, Math.max(8, ds * 0.22));
         }
+    },
+
+    // ── The painted things (ui/jobItems.js) ──
+
+    /** The item a mark shows: a haul's drop-off shows the load you bring it. */
+    _markItem(ctx, m) {
+        if (ctx.tpl === TEMPLATES.haul && ctx.carrying) return this._carriedItem(ctx) || JobItems.itemFor(m.glyph, ctx.plan);
+        return JobItems.itemFor(m.glyph, ctx.plan);
+    },
+
+    /**
+     * What is in the player's hands: a haul's load, the parcels once collected,
+     * the tool of a job worked at spots (the shovel, the crier's bell, the
+     * watch's lantern).
+     */
+    _carriedItem(ctx) {
+        if (!ctx) return null;
+        if (ctx.carrying) return JobItems.itemFor(ctx.carrying.glyph, ctx.plan);
+        if (ctx.tpl === TEMPLATES.deliver) {
+            if (ctx.done >= ctx.total || ctx.marks.some(m => m.glyph === 'satchel')) return null;
+            return JobItems.itemFor(ctx.plan.glyph || 'seal', ctx.plan);
+        }
+        if ([TEMPLATES.work, TEMPLATES.gather, TEMPLATES.cry, TEMPLATES.patrol].includes(ctx.tpl)) {
+            // the job's own item, or a tool its glyph names (the woodcutter's axe)
+            const name = JobItems.itemFor(ctx.plan.glyph, ctx.plan);
+            return name && (ctx.plan.item || JobItems.carryOf(name) === 'tool') ? name : null;
+        }
+        return null;
+    },
+
+    /** The heaps a haul leaves: the loads still to fetch, and those set down at each drop. */
+    _heaps(ctx) {
+        if (ctx.tpl !== TEMPLATES.haul || !ctx.pickup) return [];
+        const item = JobItems.itemFor(ctx.plan.glyph || 'crate', ctx.plan);
+        if (!item) return [];
+        const out = [{ q: ctx.pickup.q, r: ctx.pickup.r, item, n: Math.max(0, ctx.total - ctx.done - (ctx.carrying ? 1 : 0)) }];
+        const drops = ctx.drops || [];
+        drops.forEach((d, i) => {
+            let n = 0;
+            for (let k = 0; k < (ctx.trip || 0); k++) if (k % drops.length === i) n++;
+            const same = out.find(h => h.q === d.q && h.r === d.r);
+            if (same) same.n += n; else out.push({ q: d.q, r: d.r, item, n });
+        });
+        return out;
+    },
+
+    /** Which painted creature a mover is, if any. */
+    _moverSprite(mv) {
+        if (mv.animal) return null;
+        if (mv.glyph === 'sheep') return 'sheep';
+        if (mv.kind === 'rat') return 'rat';
+        return null;
+    },
+
+    /** The ring on the ground round a spot, and the green arc of work put in there. */
+    _drawRing(ctx2d, x, y, ds, it, pulse) {
+        const rx = ds * (it.heap ? 0.56 : 0.42), ry = ds * (it.heap ? 0.24 : 0.18), cy = y + ds * 0.25;
+        ctx2d.save();
+        ctx2d.strokeStyle = it.guide ? `rgba(93,219,106,${0.5 + 0.4 * pulse})` : it.passive ? 'rgba(160,200,255,0.7)' : `rgba(245,197,66,${0.45 + 0.4 * pulse})`;
+        ctx2d.lineWidth = Math.max(2, ds * 0.06);
+        ctx2d.beginPath(); ctx2d.ellipse(x, cy, rx, ry, 0, 0, Math.PI * 2); ctx2d.stroke();
+        if (it.held > 0) {
+            ctx2d.strokeStyle = 'rgba(93,219,106,0.95)';
+            ctx2d.lineWidth = Math.max(3, ds * 0.08);
+            ctx2d.beginPath(); ctx2d.ellipse(x, cy, rx, ry, 0, -Math.PI / 2, -Math.PI / 2 + it.held * Math.PI * 2); ctx2d.stroke();
+        }
+        ctx2d.restore();
+    },
+
+    /** A job's item floating over its spot, a warm light behind it. */
+    _drawFloating(ctx2d, item, x, by, ds, pulse) {
+        const sz = JobItems.size(item);
+        if (!sz) return false;
+        const k = Math.min(0.75, 0.62 / Math.max(0.3, sz.w, sz.h));
+        const cy = by - sz.h * ds * k / 2;
+        ctx2d.save();
+        const g = ctx2d.createRadialGradient(x, cy, 0, x, cy, ds * 0.42);
+        g.addColorStop(0, `rgba(255,226,150,${0.22 + 0.12 * pulse})`);
+        g.addColorStop(1, 'rgba(255,226,150,0)');
+        ctx2d.fillStyle = g;
+        ctx2d.beginPath(); ctx2d.arc(x, cy, ds * 0.42, 0, Math.PI * 2); ctx2d.fill();
+        ctx2d.restore();
+        return JobItems.draw(ctx2d, item, x, by, ds, k);
+    },
+
+    /** An edge-arrow plate (radius r) with the painted item on it. */
+    _drawPlated(ctx2d, item, x, y, r) {
+        const sz = JobItems.size(item);
+        if (!sz) return false;
+        drawMarkerPlate(ctx2d, x, y, r);
+        // the item a little bigger than the plate, so it reads at a glance
+        const ds = (r * 2.3) / Math.max(0.3, sz.w, sz.h);
+        return JobItems.draw(ctx2d, item, x, y + sz.h * ds / 2, ds, 1);
+    },
+
+    /** A small gold pointer over a heap: fetch from here / set down here. */
+    _drawPointer(ctx2d, x, y, ds, passive) {
+        const w = Math.max(6, ds * 0.16), h = Math.max(6, ds * 0.15);
+        ctx2d.save();
+        ctx2d.fillStyle = passive ? 'rgba(160,200,255,0.9)' : 'rgba(245,197,66,0.95)';
+        ctx2d.strokeStyle = 'rgba(40,26,8,0.75)';
+        ctx2d.lineWidth = Math.max(1.5, ds * 0.03);
+        ctx2d.beginPath();
+        ctx2d.moveTo(x - w, y - h); ctx2d.lineTo(x + w, y - h); ctx2d.lineTo(x, y + h * 0.6); ctx2d.closePath();
+        ctx2d.fill(); ctx2d.stroke();
+        ctx2d.restore();
+    },
+
+    /**
+     * The task's things that stand among the sprites (ui/innerMapLayers/entities.js):
+     * the heaps at pick-ups and drop-offs, the painted strays and rats.
+     */
+    collect(items, ctx2d, camera, T) {
+        const ctx = this.active;
+        if (!ctx || !InnerMap.active || InnerMap._insideBuilding) return;
+        const ds = T * camera.zoom;
+        const W = ctx2d.canvas.width, H = ctx2d.canvas.height;
+        const now = performance.now() / 1000;
+        const at = (q, r) => {
+            const s = camera.worldToScreen(q * T + T / 2, r * T + T / 2);
+            return s.x > -ds * 2 && s.y > -ds * 2 && s.x < W + ds * 2 && s.y < H + ds * 2 ? s : null;
+        };
+        for (const h of this._heaps(ctx)) {
+            const s = h.n > 0 && at(h.q, h.r);
+            if (!s) continue;
+            // The spot's ring goes under the heap, not across it
+            const m = ctx.marks.find(x => !x.follow && x.q === h.q && x.r === h.r);
+            items.push({ sortY: h.r * T + T * 0.7, zLayer: 1, draw: () => {
+                if (m) {
+                    const pulse = 0.55 + 0.45 * Math.sin(now * 4);
+                    this._drawRing(ctx2d, s.x, s.y, ds, { heap: true, held: m.work ? Math.min(1, m.held / m.work) : 0, passive: m.passive && !m.guide, guide: !!m.guide }, pulse);
+                }
+                JobItems.drawPile(ctx2d, h.item, s.x, s.y + ds * 0.32, ds, h.n);
+            } });
+        }
+        for (const mv of ctx.movers) {
+            const kind = !mv.hidden && this._moverSprite(mv);
+            const s = kind && at(mv.fq, mv.fr);
+            if (!s) continue;
+            const dq = mv.q - mv.fq, dr = mv.r - mv.fr;
+            const moving = Math.abs(dq) + Math.abs(dr) > 0.04;
+            if (moving) mv._face = Math.abs(dq) >= Math.abs(dr) ? (dq < 0 ? 'left' : 'right') : (dr < 0 ? 'up' : 'down');
+            const face = mv._face || 'down';
+            items.push({ sortY: mv.fr * T + T * 0.85, zLayer: 2, draw: () => {
+                const by = s.y + ds * 0.32;
+                const ok = kind === 'sheep' ? JobItems.drawSheep(ctx2d, s.x, by, ds, face, moving, now)
+                    : JobItems.drawRat(ctx2d, s.x, by, ds, face === 'left', moving, now);
+                if (!ok) drawMapMarker(ctx2d, mv.glyph, s.x, s.y, Math.max(7, ds * 0.22));
+            } });
+        }
+    },
+
+    /**
+     * What the player holds, drawn with the body (ui/innerMapLayers/entities.js):
+     * once before it (behind = true) and once after; each pose shows in one.
+     */
+    drawCarried(ctx2d, px, py, ds, dir, anim, now, behind) {
+        const item = this.active && !InnerMap._insideBuilding ? this._carriedItem(this.active) : null;
+        return item ? JobItems.drawCarried(ctx2d, item, px, py, ds, dir, anim, now, behind) : false;
     },
 
     /** The canvas area not covered by the top bar, turn bar and side cards, in canvas pixels. */

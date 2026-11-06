@@ -10,6 +10,7 @@ import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
+import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
@@ -911,6 +912,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapAnimals.collect(items, ctx, camera, T);
         // ── Phase 3c: The player's crops (ui/innerMapFarming.js) ──
         InnerMapFarming.collect(items, ctx, camera, T);
+        // ── Phase 3d: A job's heaps and strays (ui/innerMapTasks.js) ──
+        InnerMapTasks.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {
@@ -1049,7 +1052,10 @@ Object.assign(InnerMapRenderer, {
                             if (tip) self._drawFishingLine(ctx, camera, T, ds, now, ox + tip[0] * sx, oy + tip[1] * sy, pRod.bobber);
                         };
                         if (rodSheet && pDir === InnerMapCharacters.DIR_UP) drawRod();
+                        // A job's load or tool (ui/innerMapTasks.js): behind the body or in front, by facing
+                        InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, true);
                         InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+                        InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, false);
                         if (rodSheet && pDir !== InnerMapCharacters.DIR_UP) drawRod();
                     }
                 } else {

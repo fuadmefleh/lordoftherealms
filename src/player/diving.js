@@ -8,15 +8,22 @@
 // and surfacing on the map is ui/innerMapDiving.js; the view below is
 // ui/innerMapLayers/underwater.js. What it does to the diver is here:
 //
-//   • breath(player): seconds you can stay down, longer as you get used to
-//     the water (player.swimPractice, the same practice swimming builds).
-//   • goUnder(player) → the dive (player.dive: { breath, max, haul, gold, under, past }).
+//   • breath(player): seconds you can stay down — the Diving skill's level
+//     (systems/practiceSkills.js, data/practiceSkills.json perk breath). The
+//     skill also eases the cold's drain (coldResist) and speeds you (speed).
+//   • goUnder(player) → the dive (player.dive: { breath, max, haul, gold, under, past, finds, treasures }).
 //   • tick(player, world, worldTile, dt): breath drains (faster in the cold);
-//     out of it, each second hurts and risks a blackout; energy goes, practice
-//     comes. → { blackout, drowned, outOfBreath, low, cold }
+//     out of it, each second hurts and risks a blackout; energy goes.
+//     → { blackout, drowned, outOfBreath, low, cold }
 //   • take(player, find): a find from the bottom into the packs (or the purse),
 //     noted on the dive's haul.
-//   • surface(player, { blackout }): breath back; a blackout loses the haul.
+//   • surface(player, { blackout }): a blackout loses the haul. The dive is
+//     Diving XP (time under, more for pushing to the limit, finds and
+//     treasure) and Swimming XP; level-ups come back on the result. Then the
+//     diver must get their breath back before going under again
+//     (player.breathRecovery): a few seconds after an easy dive, winded a
+//     long while after one to the limit or a blackout — shorter as the skill
+//     rises. recover(player, dt) counts it down; canDive refuses meanwhile.
 //   • scatter(cells, opts) / bedFor(store, key, day, cells, opts): what lies on
 //     the bottom of a map, seeded by the world, the map and the day, drawn
 //     from the tables by water (sea, lake, river, pond: tile._waterKind) and
@@ -30,14 +37,14 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Utils } from '../core/utils.js';
 import { Containers } from '../systems/containers.js';
 import { Swimming } from './swimming.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 
 const DEFAULTS = {
-    breath: { base: 30, perPractice: 60 },
     drainPerSecond: 1,
     underwaterSpeed: 0.75,
     energyPerSecond: 0.12,
     practiceEnergyCut: 0.5,
-    practicePerSecond: 0.25,
+    recovery: { windedShare: 0.1, blackoutMult: 1.5, curve: 2 },
     minEnergy: 15,
     hygiene: 6,
     comfort: -3,
@@ -92,7 +99,7 @@ export const Diving = {
         const d = (g && g.diving) || {};
         return {
             ...DEFAULTS, ...d,
-            breath: { ...DEFAULTS.breath, ...(d.breath || {}) },
+            recovery: { ...DEFAULTS.recovery, ...(d.recovery || {}) },
             blackout: { ...DEFAULTS.blackout, ...(d.blackout || {}) },
             cold: { ...DEFAULTS.cold, ...(d.cold || {}) },
             bed: { ...DEFAULTS.bed, ...(d.bed || {}) },
@@ -101,10 +108,79 @@ export const Diving = {
         };
     },
 
-    /** Seconds the player can stay under on one breath. */
+    /** Seconds the player can stay under on one breath (by their Diving level). */
     breath(player) {
+        return Math.max(1, Math.round(PracticeSkills.perk(player, 'diving', 'breath') || 20));
+    },
+
+    /** A multiplier on the speed under the water (by their Diving level). */
+    speedMult(player) {
+        return 1 + PracticeSkills.perk(player, 'diving', 'speed') / 100;
+    },
+
+    /** How much faster the cold drains this diver's breath (the skill shrugs some of it off). */
+    coldBreathMult(player) {
         const C = Diving.config();
-        return Math.round(C.breath.base + Swimming.practice(player) * C.breath.perPractice);
+        const extra = Math.max(0, _num(C.cold.breathMult, 1) - 1);
+        const resist = Math.max(0, Math.min(1, PracticeSkills.perk(player, 'diving', 'coldResist') / 100));
+        return 1 + extra * (1 - resist);
+    },
+
+    // ══════════════════════════════════════════════
+    // GETTING YOUR BREATH BACK
+    // ══════════════════════════════════════════════
+
+    /**
+     * The seconds to get your breath back after a dive that left `share` of
+     * it (0..1). → { seconds, winded }
+     */
+    recoveryFor(player, share, { blackout = false } = {}) {
+        const R = Diving.config().recovery;
+        const winded = PracticeSkills.perk(player, 'diving', 'winded') || 60;
+        const easy = Math.min(winded, PracticeSkills.perk(player, 'diving', 'catchBreath') || 5);
+        const at = Math.max(0, Math.min(0.99, _num(R.windedShare, 0.1)));
+        if (blackout) return { seconds: Math.round(winded * _num(R.blackoutMult, 1.5)), winded: true };
+        if (share <= at) return { seconds: Math.round(winded), winded: true };
+        const spent = Math.max(0, Math.min(1, (1 - share) / (1 - at)));
+        return { seconds: Math.round(easy + (winded - easy) * Math.pow(spent, _num(R.curve, 2))), winded: false };
+    },
+
+    /** Is the player still getting their breath back? */
+    recovering(player) {
+        const b = player && player.breathRecovery;
+        return !!(b && b.left > 0);
+    },
+
+    /** Seconds left getting their breath back (whole, rounded up) */
+    recoveryLeft(player) {
+        const b = player && player.breathRecovery;
+        return b && b.left > 0 ? Math.ceil(b.left) : 0;
+    },
+
+    /** The breath back so far, 0..1 (1 when not recovering) */
+    recoveryShare(player) {
+        const b = player && player.breathRecovery;
+        if (!b || !(b.left > 0)) return 1;
+        const from = Math.max(0, Math.min(1, _num(b.from, 0)));
+        return Math.max(0, Math.min(1, from + (1 - from) * (1 - b.left / Math.max(1, b.total))));
+    },
+
+    /** "Catching your breath — 6s" / "Winded — catching your breath, 40s" */
+    recoveryText(player) {
+        const b = player && player.breathRecovery;
+        if (!b || !(b.left > 0)) return null;
+        const secs = Math.ceil(b.left);
+        return b.winded ? `Winded — catching your breath, ${secs}s` : `Catching your breath — ${secs}s`;
+    },
+
+    /** `dt` seconds out of the water's grip. → true when a winded diver's breath has just come back */
+    recover(player, dt) {
+        const b = player && player.breathRecovery;
+        if (!b || !(dt > 0)) return false;
+        b.left = Math.max(0, b.left - dt);
+        if (b.left > 0) return false;
+        player.breathRecovery = null;
+        return !!b.winded;
     },
 
     /** The water at a map tile: { kind: 'sea'|'lake'|'river'|'pond', deep } */
@@ -119,6 +195,7 @@ export const Diving = {
         if (!swim.ok) return swim;
         const energy = player.needs ? _num(player.needs.energy, 100) : 100;
         if (energy < Diving.config().minEnergy) return { ok: false, reason: 'You are too tired to hold your breath and go down. Rest first.' };
+        if (Diving.recovering(player)) return { ok: false, reason: Diving.recoveryText(player), recovering: true };
         return { ok: true, reason: null };
     },
 
@@ -134,7 +211,8 @@ export const Diving = {
     goUnder(player, world = null, worldTile = null) {
         const C = Diving.config();
         const max = Diving.breath(player);
-        player.dive = { breath: max, max, haul: {}, gold: 0, under: 0, past: 0, warned: false };
+        player.dive = { breath: max, max, haul: {}, gold: 0, under: 0, past: 0, warned: false, finds: 0, treasures: 0 };
+        player.breathRecovery = null;
         player.dives = _num(player.dives, 0) + 1;
         if (typeof player.modifyNeed === 'function' && player.needs) {
             const SC = Swimming.config();
@@ -159,19 +237,17 @@ export const Diving = {
         const d = player && player.dive;
         if (!d || !(dt > 0)) return out;
         const C = Diving.config();
-        const SC = Swimming.config();
         const cold = Swimming.isCold(world, worldTile);
         out.cold = cold;
         d.under += dt;
-        // Practice, and the work of it
+        // The work of it (less for a strong swimmer)
         const prac = Swimming.practice(player);
-        player.swimPractice = Math.min(SC.practiceMax, _num(player.swimPractice, 0) + C.practicePerSecond * dt);
         if (typeof player.modifyNeed === 'function' && player.needs) {
             player.modifyNeed('energy', -C.energyPerSecond * dt * (1 - prac * C.practiceEnergyCut));
         }
         // The breath
         const had = d.breath;
-        d.breath = Math.max(0, d.breath - C.drainPerSecond * dt * (cold ? _num(C.cold.breathMult, 1) : 1));
+        d.breath = Math.max(0, d.breath - C.drainPerSecond * dt * (cold ? Diving.coldBreathMult(player) : 1));
         const lowAt = d.max * _num(C.lowBreath, 0.25);
         if (had > lowAt && d.breath <= lowAt && d.breath > 0) out.low = true;
         if (had > 0 && d.breath <= 0) out.outOfBreath = true;
@@ -196,24 +272,52 @@ export const Diving = {
         const d = player.dive;
         if (find.gold > 0) {
             player.gold = _num(player.gold, 0) + find.gold;
-            if (d) d.gold += find.gold;
+            if (d) { d.gold += find.gold; if (find.rare) d.treasures++; else d.finds++; }
             return { ok: true, reason: null };
         }
         const res = PlayerInventory.addItem(player, find.item, find.qty);
         if (!res.success) return { ok: false, reason: res.reason || 'Your packs are full.' };
-        if (d) d.haul[find.item] = (d.haul[find.item] || 0) + find.qty;
+        if (d) {
+            d.haul[find.item] = (d.haul[find.item] || 0) + find.qty;
+            if (find.rare) d.treasures++; else d.finds++;
+        }
         if (find.rare) player.diveTreasures = _num(player.diveTreasures, 0) + 1;
         return { ok: true, reason: null };
     },
 
+    /** The Diving XP a dive earned → { xp, limit (pushed to the end of the breath) } */
+    diveXp(dive, { blackout = false } = {}) {
+        const X = (PracticeSkills.def('diving') || {}).xp || {};
+        const share = dive.breath / Math.max(1, dive.max);
+        const limit = blackout || dive.past > 0 || share <= _num(X.limitShare, 0.2);
+        let xp = _num(dive.under, 0) * _num(X.perSecond, 0.6) * (limit ? _num(X.limitMult, 1.75) : 1);
+        xp += _num(dive.finds, 0) * _num(X.find, 1) + _num(dive.treasures, 0) * _num(X.treasure, 15);
+        return { xp, limit };
+    },
+
     /**
      * Up for air. A blackout lets go of everything picked up on this dive.
-     * → { seconds, haul, gold, lost }
+     * The dive is Diving and Swimming XP; then the breath must come back.
+     * → { seconds, haul, gold, lost, xp, limit, levelUps: [event], recovery: { seconds, winded } }
      */
     surface(player, { blackout = false } = {}) {
         const d = player && player.dive;
         if (!d) return null;
-        const out = { seconds: Math.round(d.under), haul: { ...d.haul }, gold: d.gold, lost: false };
+        const out = { seconds: Math.round(d.under), haul: { ...d.haul }, gold: d.gold, lost: false, xp: 0, limit: false, levelUps: [], recovery: null };
+        // What it taught you
+        const earned = Diving.diveXp(d, { blackout });
+        out.xp = Math.round(earned.xp * 10) / 10;
+        out.limit = earned.limit;
+        const X = (PracticeSkills.def('diving') || {}).xp || {};
+        const share = Math.max(0, Math.min(1, d.breath / Math.max(1, d.max)));
+        const up = PracticeSkills.gain(player, 'diving', earned.xp);
+        if (up) out.levelUps.push(up);
+        const sw = PracticeSkills.gain(player, 'swimming', d.under * _num(X.swimmingPerSecond, 0));
+        if (sw) out.levelUps.push(sw);
+        // The breath to get back (at the level you came up with)
+        const rec = Diving.recoveryFor(player, share, { blackout });
+        out.recovery = rec;
+        player.breathRecovery = rec.seconds > 0 ? { left: rec.seconds, total: rec.seconds, winded: rec.winded, from: share } : null;
         if (blackout) {
             out.lost = Object.keys(d.haul).length > 0 || d.gold > 0;
             for (const [id, q] of Object.entries(d.haul)) {

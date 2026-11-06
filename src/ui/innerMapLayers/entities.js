@@ -1047,6 +1047,11 @@ Object.assign(InnerMapRenderer, {
                     self._drawPlayerStandIn(ctx, pDeathState, px, py, ds);
                 }
                 if (camera.zoom > 0.5) self._drawPlayerTag(ctx, pDeathState, px, py, ds, camera.zoom);
+                // Getting their breath back after a dive: the bar over their head fills (ui/innerMapDiving.js)
+                if (!pDeathState && charReady) {
+                    const g = InnerMapDiving._game;
+                    InnerMapDiving.drawRecovery(ctx, px, py - ds * 1.8 + ds * (pSwimming ? 0.62 : 0.3), ds, g && g.player);
+                }
             }});
         }
 

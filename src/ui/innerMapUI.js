@@ -34,6 +34,8 @@ import { InnerMapFields } from './innerMapFields.js';
 import { InnerMapGranary } from './innerMapGranary.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
+import { Townsfolk } from '../systems/townsfolk.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
@@ -508,6 +510,7 @@ Object.assign(InnerMapRenderer, {
         }
 
         const personItems = [];
+        const liveItems = []; // greyed-out entries whose text counts down (a diver's breath coming back)
         let bodyHTML = `<div style="padding:6px;display:flex;flex-direction:column;gap:3px;">`;
         for (const cat of categories) {
             if (cat.label) {
@@ -515,10 +518,10 @@ Object.assign(InnerMapRenderer, {
             }
             for (const item of cat.items) {
                 if (item.type === 'person') {
-                    bodyHTML += this._personCardHTML(item, personItems.length);
+                    bodyHTML += this._personCardHTML(item, personItems.length, game);
                     personItems.push(item);
                 } else if (item.type === 'disabled') {
-                    bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.3);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">🚫</span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>`;
+                    bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.3);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">🚫</span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;"${typeof item.live === 'function' ? ` data-live="${liveItems.push(item) - 1}"` : ''}>${item.label}</span></div>`;
                 } else {
                     bodyHTML += `<button class="inner-ctx-btn" data-action="${item.action||''}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);padding:6px 8px;border-radius:5px;color:var(--text-primary,#e0e0e0);cursor:pointer;text-align:left;transition:background 0.12s,border-color 0.12s;font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;width:100%;" onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">${pictureIcon(item.icon||'📋')}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.desc}</div>` : ''}</div></button>`;
                 }
@@ -528,6 +531,16 @@ Object.assign(InnerMapRenderer, {
 
         menu.innerHTML = headerHTML + bodyHTML;
         document.body.appendChild(menu);
+        if (liveItems.length) {
+            this._ctxLiveTimer = setInterval(() => {
+                if (!menu.isConnected) { clearInterval(this._ctxLiveTimer); this._ctxLiveTimer = null; return; }
+                menu.querySelectorAll('[data-live]').forEach((el) => {
+                    const it = liveItems[Number(el.dataset.live)];
+                    const text = it && it.live();
+                    if (text && el.textContent !== text) el.textContent = text;
+                });
+            }, 250);
+        }
 
         document.getElementById('closeInnerContextMenu').addEventListener('click', () => this.closeContextMenu());
 
@@ -572,8 +585,15 @@ Object.assign(InnerMapRenderer, {
     },
 
     /** A "People Here" card: portrait, who they are, how they feel about you, Talk / Attack. */
-    _personCardHTML(item, index) {
+    _personCardHTML(item, index, game = null) {
         const npc = item.npc;
+        // What they're good at (systems/practiceSkills.js): a fisher's diving, a sailor's swimming
+        let skills = '';
+        try {
+            const holder = Townsfolk.npcSkills(npc, game && game.world, InnerMap.currentWorldTile);
+            const top = PracticeSkills.notable(holder).slice(0, 2);
+            if (top.length) skills = `<div class="ctx-person-skills" style="font-size:11px;color:rgba(160,220,240,0.8);margin-top:2px;">${top.map(t => `<span title="${t.name}: level ${t.level} (${t.levelName})">${t.icon} ${t.levelName} ${t.name.toLowerCase()}</span>`).join(' · ')}</div>`;
+        } catch (e) { skills = ''; }
         const mem = NpcDisposition.getMemory(npc);
         const mood = _dispositionLabel(mem.disposition);
         const role = item.role ? item.role.charAt(0).toUpperCase() + item.role.slice(1) : '';
@@ -587,6 +607,7 @@ Object.assign(InnerMapRenderer, {
             + '<div class="ctx-person-info">'
             + `<div class="ctx-person-name">${npc.fullName || npc.name}${met}</div>`
             + `<div class="ctx-person-role">${role}${npc.age != null ? `, ${npc.age}` : ''}${doing}</div>`
+            + skills
             + `<div class="ctx-person-mood"><span class="ctx-person-mood-bar"><span style="width:${Math.max(4, mem.disposition)}%"></span></span>${mood.icon} ${mood.text}</div>`
             + '</div>'
             + '<div class="ctx-person-actions">'
@@ -601,6 +622,7 @@ Object.assign(InnerMapRenderer, {
         const menu = document.getElementById('innerMapContextMenu');
         if (menu) menu.remove();
         if (this._ctxCloseTimer) { clearTimeout(this._ctxCloseTimer); this._ctxCloseTimer = null; }
+        if (this._ctxLiveTimer) { clearInterval(this._ctxLiveTimer); this._ctxLiveTimer = null; }
         if (this._ctxCloseHandler) {
             document.removeEventListener('mousedown', this._ctxCloseHandler);
             this._ctxCloseHandler = null;

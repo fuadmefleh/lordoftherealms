@@ -9,6 +9,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Fame } from '../../systems/fame.js';
 import { Crafting } from '../../player/crafting.js';
+import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
@@ -164,9 +165,39 @@ Object.assign(UI.prototype, {
 
             <div class="info-section-title">Skills</div>
             ${skillsHtml}
+
+            ${this._practiceSkillsHtml(player)}
         `;
 
         this.showPanel('characterPanel');
+    },
+
+    /**
+     * Character-panel section: the skills learned by doing (systems/practiceSkills.js) —
+     * level and its name, a bar to the next level, what each level gives now
+     * and what the next will add.
+     */
+    _practiceSkillsHtml(player) {
+        const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const rows = PracticeSkills.list(player).map((sk) => {
+            const pct = Math.round(sk.share * 100);
+            const next = sk.max ? 'The top of the craft.' : `Next: ${sk.next.join(', ') || 'a little more ease'}`;
+            return `<div class="info-row" title="${esc(sk.desc)}" style="flex-direction:column;align-items:stretch;gap:3px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="info-label">${sk.icon} ${esc(sk.name)}</span>
+                    <span class="info-value">Lv ${sk.level} · ${esc(sk.levelName)}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+                        <div style="width:${pct}%;height:100%;background:#5fb8d4;border-radius:3px;"></div>
+                    </div>
+                    <span style="font-size:10px;color:var(--text-secondary);white-space:nowrap;">${sk.max ? 'max' : `${Math.floor(sk.into)} / ${sk.need} xp`}</span>
+                </div>
+                <div style="font-size:10px;color:var(--text-secondary);line-height:1.35;">${esc(sk.perks.join(' · '))}</div>
+                <div style="font-size:10px;color:#9fd6a8;line-height:1.35;">${esc(next)}</div>
+            </div>`;
+        }).join('');
+        return rows ? `<div class="info-section-title">Practised Skills</div>${rows}` : '';
     },
 
     /**

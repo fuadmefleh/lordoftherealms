@@ -8,7 +8,11 @@
 // slower than a swim. Breath drains as they go (player/diving.js): a bar over
 // their head, red when it runs low; out of it they hurt, and may black out,
 // coming up with nothing they picked up on this dive. Surface (the menu, the
-// toolbar button, or V again) brings them up where they are, breath full.
+// toolbar button, or V again) brings them up where they are. Each dive is
+// Diving XP (systems/practiceSkills.js; a level-up is told on surfacing), and
+// after it the diver must get their breath back before going under again —
+// winded a long while after a dive to the limit (Diving.recoveryFor): the
+// Dive entry shows the countdown, V refuses, and a bar over their head fills.
 //
 // The bottom of each map is scattered with finds once a day (Diving.bedFor,
 // kept here by world hex), seen only from under the water (drawn by
@@ -123,7 +127,7 @@ export const InnerMapDiving = {
         const climb = this._climbItems(game);
         if (!InnerMap.isDivable(q, r)) return climb;
         const ok = Diving.canDive(game.player);
-        if (!ok.ok) return [{ type: 'disabled', label: `🤿 Dive — ${ok.reason}` }, ...climb];
+        if (!ok.ok) return [this._refusedItem(game, '🤿 Dive', ok), ...climb];
         const water = Diving.waterOf(tile);
         const where = `the ${water.deep ? 'deep ' : ''}${water.kind} floor`;
         const breath = Diving.breath(game.player);
@@ -198,10 +202,22 @@ export const InnerMapDiving = {
         if (dive.ok && this.overboardSpot(q, r, true)) {
             items.push({ type: 'action', action: 'dive_overboard', towardQ: q, towardR: r, label: 'Dive Over the Side', icon: '🤿', desc: `Off the rail and straight down: ${Diving.breath(game.player)}s of breath (V to come up)` });
         } else if (!dive.ok) {
-            items.push({ type: 'disabled', label: `🤿 Dive Over the Side — ${dive.reason}` });
+            items.push(this._refusedItem(game, '🤿 Dive Over the Side', dive));
         }
         if (this.overboardSpot(q, r, false)) items.push({ type: 'action', action: 'dive_jump', towardQ: q, towardR: r, label: 'Jump Over the Side', icon: '🌊', desc: 'Into the sea beside her, to swim' });
         return items;
+    },
+
+    /** A greyed-out dive entry; while getting your breath back, its countdown runs live. */
+    _refusedItem(game, label, ok) {
+        const item = { type: 'disabled', label: `${label} — ${ok.reason}` };
+        if (ok.recovering) {
+            item.live = () => {
+                const t = Diving.recoveryText(game.player);
+                return t ? `${label} — ${t}` : `${label} — your breath is back (open the menu again)`;
+            };
+        }
+        return item;
     },
 
     _climbItems(game) {
@@ -306,7 +322,7 @@ export const InnerMapDiving = {
         const first = !game.player.dives;
         Diving.goUnder(game.player, game.world, _worldTile(game));
         InnerMap._underwater = true;
-        InnerMap._underwaterSpeed = Number(Diving.config().underwaterSpeed) || 0.75;
+        InnerMap._underwaterSpeed = (Number(Diving.config().underwaterSpeed) || 0.75) * Diving.speedMult(game.player);
         this._under = { game, tiles: InnerMap.tiles, key: _mapKey(), bed: this._bedHere(game) };
         this._takeHere(game);
         if (first) _note(game, '🤿 Under the Water', 'You fill your lungs and go under. Swim about the bottom and take what you find; watch your breath, and come up (V) before it runs out.');
@@ -322,6 +338,7 @@ export const InnerMapDiving = {
         InnerMap._underwater = false;
         const res = player ? Diving.surface(player, { blackout }) : null;
         this._syncButton(game);
+        if (res) for (const up of res.levelUps || []) _note(game, `${up.icon} ${up.name} Improved`, up.text, 'success');
         if (!res || quiet) return res;
         if (blackout) {
             _note(game, '😵 Blacked Out', res.lost
@@ -329,7 +346,12 @@ export const InnerMapDiving = {
                 : 'The dark closes in. You come to at the surface, coughing up water.', 'error');
         } else {
             const got = Object.entries(res.haul).length + (res.gold > 0 ? 1 : 0);
-            _note(game, '🌊 Surfaced', got ? `You come up for air after ${res.seconds}s under, with your finds.` : `You come up for air after ${res.seconds}s under.`, 'info');
+            const rec = res.recovery;
+            if (rec && rec.winded) {
+                _note(game, '😮‍💨 Winded', `You break the surface gasping after ${res.seconds}s under${got ? ', with your finds' : ''}. You must get your breath back (${rec.seconds}s) before you can go down again.`, 'warning');
+            } else {
+                _note(game, '🌊 Surfaced', got ? `You come up for air after ${res.seconds}s under, with your finds.` : `You come up for air after ${res.seconds}s under.`, 'info');
+            }
         }
         if (player && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         Hotbar.refresh();
@@ -366,6 +388,10 @@ export const InnerMapDiving = {
         const u = this._under;
         if (!u) {
             if (InnerMap._underwater) InnerMap._underwater = false;
+            // Getting your breath back on the surface
+            if (game && game.player && Diving.recover(game.player, deltaTime)) {
+                _note(game, '🫁 Breath Back', 'Your chest eases. You can dive again.', 'info');
+            }
             return;
         }
         const player = game && game.player;
@@ -445,6 +471,25 @@ export const InnerMapDiving = {
     // ══════════════════════════════════════════════
     // THE DIVER
     // ══════════════════════════════════════════════
+
+    /**
+     * Over the player's head while they get their breath back after a dive
+     * (ui/innerMapLayers/entities.js): the breath bar filling again, amber
+     * while winded. `topY`: the top of their head on screen.
+     */
+    drawRecovery(ctx, px, topY, ds, player = this._game && this._game.player) {
+        if (!player || !Diving.recovering(player) || this._under) return;
+        const share = Diving.recoveryShare(player);
+        const winded = !!(player.breathRecovery && player.breathRecovery.winded);
+        const bw = ds * 0.9, bh = Math.max(3, ds * 0.08);
+        const bx = px - bw / 2, by = topY - bh - ds * 0.12;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+        ctx.fillStyle = winded ? '#e6a23c' : '#8fd3ff';
+        ctx.fillRect(bx, by, bw * share, bh);
+        ctx.restore();
+    },
 
     /**
      * The player under the water (ui/innerMapLayers/entities.js, in place of the

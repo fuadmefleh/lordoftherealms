@@ -380,7 +380,9 @@ export const SaveLoad = {
         'lotHoldings',
         // The month's rents taken and paid, for the rent-day summary (systems/lots.js)
         'lotRentBook',
-        'swimPractice',
+        // Skills learned by doing — diving, swimming — as XP (systems/practiceSkills.js);
+        // swimPractice is an old save's swimming practice, turned into XP on first touch
+        'practiceSkills', 'swimPractice',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)

@@ -12,6 +12,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { Diving } from '../player/diving.js';
 import { Swimming } from '../player/swimming.js';
 import { Player } from '../player/player.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) await DataLoader.initializeAll();
@@ -20,13 +21,13 @@ beforeAll(async () => {
 const summer = { season: 'Summer', day: 10 };
 const winter = { season: 'Winter', day: 10 };
 
-const diver = (practice = 0) => {
+const diver = (level = 1) => {
     const p = new Player();
     p.inventory = {};
     p.health = 100;
     p.luck = 5;
     p.gold = 0;
-    p.swimPractice = practice;
+    PracticeSkills.setLevel(p, 'diving', level);
     if (p.needs) p.needs.energy = 100;
     return p;
 };
@@ -64,10 +65,11 @@ describe('the data', () => {
 describe('breath', () => {
     beforeEach(() => Utils.setSeed(1234));
 
-    it('grows with swimming practice', () => {
-        const C = Diving.config();
-        expect(Diving.breath(diver(0))).toBe(C.breath.base);
-        expect(Diving.breath(diver(Swimming.config().practiceMax))).toBe(C.breath.base + C.breath.perPractice);
+    it('grows with the Diving level', () => {
+        const lv = PracticeSkills.def('diving').perks.breath.levels;
+        expect(Diving.breath(diver(1))).toBe(lv[0]);
+        expect(Diving.breath(diver(PracticeSkills.maxLevel()))).toBe(lv[lv.length - 1]);
+        expect(Diving.breath(diver(5))).toBeGreaterThan(Diving.breath(diver(4)));
     });
 
     it('drains while under, faster in the cold, and surfacing refills it', () => {
@@ -126,12 +128,16 @@ describe('breath', () => {
         expect(blackout).toBe(true);
     });
 
-    it('time under tires you and builds your swimming', () => {
+    it('time under tires you, and surfacing teaches diving and swimming', () => {
         const p = diver();
         Diving.goUnder(p, summer);
-        Diving.tick(p, summer, null, 20, () => 1);
+        Diving.tick(p, summer, null, 10, () => 1);
         expect(p.needs.energy).toBeLessThan(100);
-        expect(p.swimPractice).toBeCloseTo(20 * Diving.config().practicePerSecond);
+        const res = Diving.surface(p);
+        const X = PracticeSkills.def('diving').xp;
+        expect(res.limit).toBe(false);
+        expect(PracticeSkills.xp(p, 'diving')).toBeCloseTo(10 * X.perSecond);
+        expect(PracticeSkills.xp(p, 'swimming')).toBeCloseTo(10 * X.swimmingPerSecond);
     });
 
     it('too tired, or too laden, you cannot go under', () => {

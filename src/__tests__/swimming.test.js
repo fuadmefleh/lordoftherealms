@@ -7,6 +7,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { InnerMap } from '../world/innerMap.js';
 import { Swimming } from '../player/swimming.js';
 import { Player } from '../player/player.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) await DataLoader.initializeAll();
@@ -122,7 +123,7 @@ describe('what a swim does to you', () => {
         expect(p.needs.hygiene).toBeGreaterThan(20);
         expect(out.notices[0].title).toMatch(/Water/);
         const fresh = 80 - p.needs.energy;
-        p.swimPractice = Swimming.config().practiceMax;
+        PracticeSkills.setLevel(p, 'swimming', PracticeSkills.maxLevel());
         const e0 = p.needs.energy;
         Swimming.stroke(p, world, null);
         expect(e0 - p.needs.energy).toBeLessThan(fresh);

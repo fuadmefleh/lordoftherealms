@@ -1,0 +1,60 @@
+{
+    "_doc": "Practised skills (systems/practiceSkills.js): skills that rise in levels by doing them, for the player and for NPCs alike. A holder keeps total XP by skill on holder.practiceSkills ({ diving: 120, swimming: 40 }); the level comes from the XP: reaching level L+1 from L takes round(xp.base * xp.growth^(L-1)) XP, up to maxLevel. levelNames: the word for each level (1-based). Each skill has perks, one value per level (index 0 = level 1); text says what a rise gives ({d}: the gain, {a}: its size either way, {v}: the new value) and show describes the value ({v}). Diving (player/diving.js): breath = seconds on one breath; coldResist = % of the cold's extra breath drain shrugged off; speed = % faster underwater; winded = seconds to recover after a dive to the limit (or a blackout); catchBreath = seconds after a dive with plenty of breath left (between the two by how much breath was spent). xp: perSecond under; limitMult on the whole dive when you surface with limitShare of breath or less (or black out); find / treasure for each common find / treasure off the bottom; swimmingPerSecond: swimming XP for time under. Swimming (player/swimming.js): energySaved = % less energy a stroke; speed = % faster strokes; xp per stroke swum. migrate: an old save's player.swimPractice (0..400 strokes of practice) becomes this many XP per point in each skill. npc: NPC skill levels seeded from who they are (systems/townsfolk.js persons and walking NPCs): base level by skill, plus by role, plus coastal (a town by the sea or a lake) for the water skills (and there coastalTrades: a share of some roles work the water as fishers, sailors or pearl divers, picked by a hash of who they are), plus up to spread more by a hash of who they are, and ageBonus a level per that many years over 20 (at most ageMax); children (under adultAge) get half. They grow by work: dailyXp by role (coastal ones for the water trades), reckoned each townsfolk season. notableLevel: the least level shown on an NPC's card.",
+    "maxLevel": 10,
+    "xp": { "base": 40, "growth": 1.45 },
+    "levelNames": ["Untried", "Novice", "Apprentice", "Practised", "Journeyman", "Able", "Adept", "Expert", "Master", "Grandmaster"],
+    "skills": {
+        "diving": {
+            "name": "Diving",
+            "icon": "🤿",
+            "desc": "Holding your breath and working the bottom. Dive to your limit to learn it fastest; a dive to the very end of your breath leaves you winded a while.",
+            "order": 1,
+            "perks": {
+                "breath": { "levels": [20, 28, 36, 45, 55, 65, 76, 88, 103, 120], "text": "+{d}s of breath", "show": "{v}s of breath" },
+                "coldResist": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "the cold takes {a}% less of your breath", "show": "{v}% cold-water resistance" },
+                "speed": { "levels": [0, 0, 4, 8, 12, 16, 20, 24, 28, 32], "text": "+{d}% speed underwater", "show": "+{v}% speed underwater" },
+                "winded": { "levels": [90, 82, 75, 68, 61, 55, 49, 43, 37, 30], "text": "winded {a}s less after a deep dive", "show": "{v}s winded after a dive to the limit" },
+                "catchBreath": { "levels": [10, 9, 8, 8, 7, 6, 6, 5, 5, 4], "text": "{a}s quicker to catch your breath", "show": "{v}s to catch your breath" }
+            },
+            "xp": { "perSecond": 0.6, "limitShare": 0.2, "limitMult": 1.75, "find": 1, "treasure": 15, "swimmingPerSecond": 0.15 }
+        },
+        "swimming": {
+            "name": "Swimming",
+            "icon": "🏊",
+            "desc": "Strength and ease in the water: every stroke in deep water teaches it.",
+            "order": 2,
+            "perks": {
+                "energySaved": { "levels": [0, 6, 12, 18, 24, 30, 36, 42, 46, 50], "text": "strokes tire you {a}% less", "show": "{v}% less tiring" },
+                "speed": { "levels": [0, 4, 8, 12, 16, 20, 24, 28, 32, 35], "text": "+{d}% swimming speed", "show": "+{v}% swimming speed" }
+            },
+            "xp": { "perStroke": 0.5 }
+        }
+    },
+    "migrate": { "swimPractice": { "swimming": 2, "diving": 1.5 } },
+    "npc": {
+        "base": { "diving": 1, "swimming": 1 },
+        "roles": {
+            "fisher": { "diving": 3, "swimming": 4 },
+            "sailor": { "diving": 2, "swimming": 4 },
+            "pearl_diver": { "diving": 7, "swimming": 6 },
+            "guard": { "swimming": 1 },
+            "noble": { "swimming": 1 },
+            "villager": { "swimming": 1 },
+            "beggar": {},
+            "child": {}
+        },
+        "coastal": { "diving": 1, "swimming": 2 },
+        "coastalTrades": { "villager": { "fisher": 0.4, "pearl_diver": 0.05 }, "farmer": { "fisher": 0.15 }, "merchant": { "sailor": 0.2 } },
+        "spread": 2,
+        "ageBonus": 15,
+        "ageMax": 2,
+        "adultAge": 14,
+        "dailyXp": {
+            "fisher": { "diving": 0.6, "swimming": 0.8 },
+            "sailor": { "diving": 0.3, "swimming": 0.8 },
+            "pearl_diver": { "diving": 2, "swimming": 1 },
+            "coastal": { "diving": 0.1, "swimming": 0.2 }
+        },
+        "notableLevel": 4
+    }
+}

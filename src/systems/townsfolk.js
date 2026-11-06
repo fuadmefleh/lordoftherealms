@@ -11,7 +11,9 @@
 //   person = { id, first, last, maiden, gender, born, died, cause, role,
 //              retired, traits, spouse, parents, kids, away: {d, to}|null,
 //              log: [{d, k, o, x}], seen: {d, age, role}|undefined,
-//              mem: dialog memory (systems/npcDisposition.js)|undefined }
+//              mem: dialog memory (systems/npcDisposition.js)|undefined,
+//              practiceSkills: { diving: xp, … } (systems/practiceSkills.js;
+//              seeded from role, age and a coastal town, grown each season) }
 //
 // The inner map (world/innerMap/npcs.js) spawns the walking NPCs from the
 // roster (`attach` + `dress`); the dialog reads it for reunions, family and
@@ -24,6 +26,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Cultures } from '../world/cultures.js';
 import { Characters } from '../world/characters.js';
+import { PracticeSkills } from './practiceSkills.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -511,7 +514,49 @@ export const Townsfolk = {
             note('rivalMen', null, null, `${ctx.rivalHouse}|${player.house.name}`);
         }
 
+        // A season of work: each grown resident's practised skills (diving, swimming, …) grow by their trade
+        const coastal = PracticeSkills.coastalAt(world, folk.q, folk.r);
+        for (const p of Townsfolk.residents(folk)) {
+            const who = Townsfolk.skillWho(folk, p, day, coastal);
+            PracticeSkills.seedNpc(p, who);
+            PracticeSkills.growNpc(p, who, C.tickDays);
+        }
+
         Townsfolk._prune(folk, day);
+    },
+
+    /** Who a person is, for their practised skills (systems/practiceSkills.js) */
+    skillWho(folk, p, day, coastal) {
+        return { key: `${folk.q},${folk.r}#${p.id}`, role: p.role, age: Townsfolk.age(p, day), coastal: !!coastal };
+    },
+
+    /**
+     * Any walking NPC's practised skills → a holder for systems/practiceSkills.js.
+     * A townsperson's are their person's (kept, grown each season); anyone
+     * else (a traveller, a ship's hand) is seeded from who they are, kept on
+     * the NPC unsaved. at: the world hex they are met on (for a coastal town).
+     */
+    npcSkills(npc, world, at = null) {
+        if (!npc) return null;
+        if (npc._person && npc._folk) return Townsfolk.skillsOf(npc._folk, npc._person, world);
+        if (!npc._skills) {
+            const holder = {};
+            const role = npc.deckRole ? 'sailor' : (npc.type || 'villager');
+            const coastal = !!npc.deckRole || (at ? PracticeSkills.coastalAt(world, at.q, at.r) : false);
+            PracticeSkills.seedNpc(holder, { key: npc.uid || npc.id || npc.fullName || npc.name || '', role, age: _num(npc.age, 30), coastal });
+            Object.defineProperty(npc, '_skills', { value: holder, configurable: true, enumerable: false, writable: true });
+        }
+        return npc._skills;
+    },
+
+    /** A person's practised skills, seeded from who they are on first asking → the holder (p) */
+    skillsOf(folk, p, world) {
+        if (!p) return null;
+        if (!p.practiceSkills) {
+            const day = _num(world && world.day, 1);
+            PracticeSkills.seedNpc(p, Townsfolk.skillWho(folk, p, day, PracticeSkills.coastalAt(world, folk.q, folk.r)));
+        }
+        return p;
     },
 
     // ── Life events ──────────────────────────────────────

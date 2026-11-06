@@ -77,6 +77,30 @@ describe('over the side', () => {
         expect(InnerMap._underwater).toBe(false);
     });
 
+    it('down to the end of your breath, you come up winded: the dive is barred, V refuses, until it passes', () => {
+        InnerMapDiving.goOverboard(game, 2, 9, true);
+        game.player.dive.under = 19;
+        game.player.dive.breath = 1;           // 1s of 20 left
+        InnerMapDiving.surface(game);
+        expect(notes.some(n => /Winded/.test(n[0]))).toBe(true);
+        const items = InnerMapDiving.menuItems(game, InnerMap.tiles[9][6], 6, 9);
+        const barred = items.find(i => i.type === 'disabled');
+        expect(barred.label).toMatch(/Dive — Winded — catching your breath, \d+s/);
+        expect(typeof barred.live).toBe('function');
+        notes.length = 0;
+        InnerMapDiving.toggle(game);
+        expect(InnerMapDiving.isUnder()).toBe(false);
+        expect(notes.some(n => /catching your breath/.test(n[1]))).toBe(true);
+        // the surface clock runs; the breath comes back
+        InnerMapDiving.update(30, game);
+        expect(barred.live()).toMatch(/\d+s/);
+        InnerMapDiving.update(200, game);
+        expect(notes.some(n => /Breath Back/.test(n[0]))).toBe(true);
+        expect(InnerMapDiving.menuItems(game, InnerMap.tiles[9][6], 6, 9).some(i => i.action === 'dive_under')).toBe(true);
+        InnerMapDiving.toggle(game);
+        expect(InnerMapDiving.isUnder()).toBe(true);
+    });
+
     it('too far off her side, there is no climbing aboard', () => {
         InnerMapDiving.goOverboard(game, 15, 9, false);
         InnerMap.playerInnerQ = 17;

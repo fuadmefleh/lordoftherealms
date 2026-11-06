@@ -1,12 +1,8 @@
 {
-    "_doc": "Swimming on the inner map (world/innerMap/swimming.js: where; player/swimming.js: what it does). A stroke is one tile of water the player can't stand in. pathCost: how much dearer a water tile is than a step when choosing a route (so a walk round wins when not much longer); speed: a stroke's pace against a step; practice (0..practiceMax strokes) cuts the energy a stroke costs and quickens it. A swim washes you up to hygieneMax and soaks the clothes (comfort). Cold water (cold.seasons, or a cold hex) hurts each stroke. Below tiredBelow energy you struggle (struggleHealth a stroke), below spentBelow you go under (drownHealth). Too laden (pack fuller than ladenShare) or too spent, you can't take to the water.",
+    "_doc": "Swimming on the inner map (world/innerMap/swimming.js: where; player/swimming.js: what it does). A stroke is one tile of water the player can't stand in. pathCost: how much dearer a water tile is than a step when choosing a route (so a walk round wins when not much longer); speed: a stroke's pace against a step; the Swimming skill (systems/practiceSkills.js, data/practiceSkills.json: XP each stroke, levels) cuts the energy a stroke costs and quickens it. A swim washes you up to hygieneMax and soaks the clothes (comfort). Cold water (cold.seasons, or a cold hex) hurts each stroke. Below tiredBelow energy you struggle (struggleHealth a stroke), below spentBelow you go under (drownHealth). Too laden (pack fuller than ladenShare) or too spent, you can't take to the water.",
     "pathCost": 3,
     "speed": 0.45,
     "energyPerStroke": 0.5,
-    "practicePerStroke": 1,
-    "practiceMax": 400,
-    "practiceEnergyCut": 0.5,
-    "practiceSpeed": 0.35,
     "hygienePerStroke": 1.5,
     "hygieneMax": 70,
     "comfortPerStroke": -0.3,

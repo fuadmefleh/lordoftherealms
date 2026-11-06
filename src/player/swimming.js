@@ -8,27 +8,27 @@
 //   • canSwim(player): not when too laden (a full pack drags you under) or
 //     spent (no strength left to swim). → { ok, reason }.
 //   • stroke(player, world, worldTile): each tile swum costs energy (less as
-//     the player gets used to the water), washes a little (a rough bath:
+//     the Swimming skill rises: systems/practiceSkills.js, perk energySaved),
+//     washes a little (a rough bath:
 //     hygiene up to a cap, clothes soaked), and chills — a winter swim hurts.
 //     Tired in deep water, the swimmer struggles; spent, they go under and
 //     take hurt each stroke until they reach land. → { notices[], drowning,
 //     cold, tired } for the game loop to tell.
-//   • speedBonus(player): practice makes a stronger swimmer (a little faster).
+//   • speedBonus(player): a better swimmer is a little faster (perk speed).
+//   Each stroke is Swimming XP; a level-up comes back as a notice.
 //
-// Numbers in data/swimming.json. No randomness; player and world passed in.
+// Numbers in data/swimming.json; the skill's levels in data/practiceSkills.json.
+// No randomness; player and world passed in.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 
 const DEFAULTS = {
     pathCost: 3,
     speed: 0.45,
     energyPerStroke: 0.5,
-    practicePerStroke: 1,
-    practiceMax: 400,
-    practiceEnergyCut: 0.5,
-    practiceSpeed: 0.35,
     hygienePerStroke: 1.5,
     hygieneMax: 70,
     comfortPerStroke: -0.3,
@@ -50,15 +50,20 @@ export const Swimming = {
         return { ...DEFAULTS, ...data, cold: { ...DEFAULTS.cold, ...(data.cold || {}) } };
     },
 
-    /** How used to the water the player is, 0..1 */
+    /** How good a swimmer the player is, 0..1 (the Swimming level, from 1 to the top) */
     practice(player) {
-        const C = Swimming.config();
-        return Math.max(0, Math.min(1, _num(player && player.swimPractice, 0) / Math.max(1, C.practiceMax)));
+        const max = PracticeSkills.maxLevel();
+        return max > 1 ? (PracticeSkills.level(player, 'swimming') - 1) / (max - 1) : 0;
     },
 
-    /** Faster with practice: a multiplier on the stroke speed */
+    /** The skill's share of a stroke's energy saved, 0..1 */
+    energySaved(player) {
+        return Math.max(0, Math.min(0.9, PracticeSkills.perk(player, 'swimming', 'energySaved') / 100));
+    },
+
+    /** A better swimmer is faster: a multiplier on the stroke speed */
     speedBonus(player) {
-        return 1 + Swimming.practice(player) * Swimming.config().practiceSpeed;
+        return 1 + PracticeSkills.perk(player, 'swimming', 'speed') / 100;
     },
 
     /** May the player take to the water now? → { ok, reason } */
@@ -84,24 +89,27 @@ export const Swimming = {
     /**
      * One tile swum. `deep`: water the player can't stand in (the map says);
      * the shallows are wading, and cost nothing here.
-     * → { notices, drowning, struggling, cold }
+     * → { notices, drowning, struggling, cold, levelUp? }
      */
     stroke(player, world, worldTile, { deep = true } = {}) {
         const out = { notices: [], drowning: false, struggling: false, cold: false };
         if (!player || !deep) return out;
         const C = Swimming.config();
-        const prac = Swimming.practice(player);
-        player.swimPractice = Math.min(C.practiceMax, _num(player.swimPractice, 0) + C.practicePerStroke);
+        const saved = Swimming.energySaved(player);
+        const sk = PracticeSkills.def('swimming');
+        const up = PracticeSkills.gain(player, 'swimming', _num(sk && sk.xp && sk.xp.perStroke, 0.5));
+        if (up) out.levelUp = up;
         player.swimStrokes = _num(player.swimStrokes, 0) + 1;
         const n = player.swimStrokes;
         const every = Math.max(1, C.noticeEvery | 0);
         if (typeof player.modifyNeed === 'function' && player.needs) {
-            player.modifyNeed('energy', -C.energyPerStroke * (1 - prac * C.practiceEnergyCut));
+            player.modifyNeed('energy', -C.energyPerStroke * (1 - saved));
             // A rough wash: the water cleans you some way, and soaks your clothes
             if (_num(player.needs.hygiene, 100) < C.hygieneMax) player.modifyNeed('hygiene', Math.min(C.hygienePerStroke, C.hygieneMax - player.needs.hygiene));
             player.modifyNeed('comfort', C.comfortPerStroke);
         }
         if (n === 1) out.notices.push({ icon: '🏊', title: 'Into the Water', text: 'You wade out and swim. It is slow going, and tiring; a full pack would drag you under.', type: 'info' });
+        if (up) out.notices.unshift({ icon: up.icon, title: `${up.name} Improved`, text: up.text, type: 'success' });
         // The cold
         if (Swimming.isCold(world, worldTile)) {
             out.cold = true;

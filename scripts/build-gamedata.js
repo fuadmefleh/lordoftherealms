@@ -88,6 +88,7 @@ const topLevel = [
     'animals',
     'swimming',
     'diving',
+    'practiceSkills',
     'wrecks',
     'furniture',
     'crops',

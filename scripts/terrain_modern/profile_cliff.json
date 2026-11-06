@@ -1,0 +1,15 @@
+{
+  "_doc": "Cliffs (assets/lpc/Terrain/cliff_<season>.png layout): the rock face keeps all its strata shading over the painted rock; the dirt and grass tops, vines, water and (winter) snow.",
+  "MAT": {
+    "rock": [[107,60,46],[96,52,41],[127,76,49],[68,39,37],[46,31,28],[174,107,63]],
+    "dirt": [[162,121,75],[173,132,79],[148,107,68],[97,72,44],[117,80,45]],
+    "grass": [[92,154,42],[124,184,47],[70,130,50],[37,86,46],[28,69,37],[48,100,47]],
+    "vine": [[25,51,45],[64,54,29]],
+    "water": [[42,133,152],[33,112,135],[58,90,114],[58,175,194],[108,220,231],[24,80,111]],
+    "snow": []
+  },
+  "BASE": {"rock": [107,60,46], "dirt": [173,132,79], "grass": [92,154,42], "vine": [37,86,46], "water": [42,133,152], "snow": [224,242,243]},
+  "RIM": [[37,86,46],[28,69,37],[70,130,50],[117,80,45],[97,72,44],[33,112,135],[58,90,114],[58,175,194],[108,220,231],[24,80,111]],
+  "ALWAYS": ["rock", "vine"],
+  "TEX": {"rock": "rock.png", "dirt": "dirt.png", "grass": "grass.png", "vine": "vine.png", "water": "water.png", "snow": "snow.png"}
+}

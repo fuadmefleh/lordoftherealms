@@ -605,7 +605,10 @@ Object.assign(InnerMapRenderer, {
 
                         // Check if this object is being interacted with
                         const ia = InnerMap._activeInteraction;
-                        const isInteracting = ia && !ia.done && ia.anchorQ === q && ia.anchorR === r;
+                        // (only an object being struck shakes and fades: washing at a well, sitting on
+                        //  a bench and the like leave it still — they keep no swing timers, and the
+                        //  shake would come out NaN and blank the object for the whole animation)
+                        const isInteracting = ia && !ia.done && !ia.nonDestructive && ia.anchorQ === q && ia.anchorR === r;
 
                         items.push({ sortY, zLayer: 1, sortH, sortX, draw() {
                             // Apply shake and fade if being interacted with

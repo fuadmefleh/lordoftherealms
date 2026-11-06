@@ -228,7 +228,8 @@ Object.assign(InnerMapRenderer, {
                     const pImg = this._getSheetByPath(pave.sheetPath);
                     if (pImg) {
                         const pdx = Math.floor(originX + (q - qMin) * ds);
-                        ctx.drawImage(pImg, pave.sx, pave.sy, 32, 32, pdx, dyFloor, sz, sz);
+                        const kp = this._sheetScale(pImg);
+                        ctx.drawImage(pImg, pave.sx * kp, pave.sy * kp, 32 * kp, 32 * kp, pdx, dyFloor, sz, sz);
                     }
                 }
 
@@ -273,7 +274,8 @@ Object.assign(InnerMapRenderer, {
 
                 // A crag's rim or rock face (world/innerMap/cliffs.js), from the season's cliff sheet
                 if (crag && cliffSheet) {
-                    ctx.drawImage(cliffSheet, crag.c * 32, crag.r * 32, 32, 32, dx, dy, sz, sz);
+                    const kc = this._sheetScale(cliffSheet);
+                    ctx.drawImage(cliffSheet, crag.c * 32 * kc, crag.r * 32 * kc, 32 * kc, 32 * kc, dx, dy, sz, sz);
                 }
 
                 // Shore dressing (world/innerMap/water.js): reeds, lily pads, stones —

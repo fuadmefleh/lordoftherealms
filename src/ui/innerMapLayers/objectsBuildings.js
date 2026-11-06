@@ -259,9 +259,11 @@ Object.assign(InnerMapRenderer, {
                 if (y + cs < 0 || y > ctx.canvas.height + cs) continue;
                 const img = CustomBuildings.getImg(cell.sheetPath);
                 if (!img) continue;
-                ctx.imageSmoothingEnabled = false;
+                // (a sheet repainted at more than 32px a cell is drawn smooth: ui/sheetScale.js)
+                const k = this._sheetScale ? this._sheetScale(img) : 1;
+                ctx.imageSmoothingEnabled = k > 1;
                 ctx.drawImage(img,
-                    cell.sx, cell.sy, cell.sw || 32, cell.sh || 32,
+                    cell.sx * k, cell.sy * k, (cell.sw || 32) * k, (cell.sh || 32) * k,
                     x, y, cs, cs);
             }
         }

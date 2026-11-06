@@ -121,5 +121,27 @@
                 { "item": "boot", "qty": [1, 1], "weight": 4 }
             ]
         }
+    },
+    "fish": {
+        "_doc": "Fish swimming about under the water while diving (ui/innerMapLayers/underwaterFish.js; only seen, not caught). Each species: colours (back, belly, fin, mark), pattern (bars|spots|stripe|none), length in tiles, height (of its length), speed in tiles a second, school [min, max] (a shoal keeps together), weight (how often it is the one met) and the waters it lives in. perCell: fish to each divable cell near the diver (by water kind), up to max; they live within radius tiles of the diver and are met anew past it. Within shy tiles of the diver a fish darts away at fleeSpeed times its speed. dorsal: extra pixels of back fin (a shark's).",
+        "radius": 13,
+        "max": 34,
+        "shy": 2.2,
+        "fleeSpeed": 2.6,
+        "perCell": { "sea": 0.07, "lake": 0.06, "river": 0.05, "pond": 0.05 },
+        "species": [
+            { "id": "sprat", "back": "#4f7f95", "belly": "#d8e4e6", "fin": "#8fb0bc", "pattern": "none", "length": 0.32, "height": 0.36, "speed": 1.6, "school": [8, 14], "weight": 5, "waters": ["sea"] },
+            { "id": "mackerel", "back": "#2d5a74", "belly": "#cfdce0", "fin": "#5d8296", "mark": "#16323f", "pattern": "bars", "length": 0.55, "height": 0.3, "speed": 1.4, "school": [5, 9], "weight": 5, "waters": ["sea"] },
+            { "id": "bream", "back": "#8c979c", "belly": "#dfe5e6", "fin": "#6e7c84", "pattern": "none", "length": 0.6, "height": 0.5, "speed": 0.9, "school": [2, 4], "weight": 4, "waters": ["sea"] },
+            { "id": "snapper", "back": "#b8463a", "belly": "#efb39a", "fin": "#d06a52", "pattern": "none", "length": 0.7, "height": 0.42, "speed": 0.8, "school": [1, 2], "weight": 3, "waters": ["sea"] },
+            { "id": "wrasse", "back": "#3d8a68", "belly": "#a8d39a", "fin": "#2f6e55", "mark": "#e0b83c", "pattern": "stripe", "length": 0.5, "height": 0.36, "speed": 0.9, "school": [1, 1], "weight": 3, "waters": ["sea"] },
+            { "id": "cod", "back": "#7c6c4c", "belly": "#d8cfb4", "fin": "#5e5238", "mark": "#4e432c", "pattern": "spots", "length": 0.95, "height": 0.34, "speed": 0.55, "school": [1, 1], "weight": 2, "waters": ["sea"] },
+            { "id": "dogfish", "back": "#6d6a64", "belly": "#cfc9bd", "fin": "#56534d", "mark": "#3e3b36", "pattern": "spots", "dorsal": 4, "length": 1.3, "height": 0.22, "speed": 0.7, "school": [1, 1], "weight": 1, "waters": ["sea"] },
+            { "id": "minnow", "back": "#7d8a6a", "belly": "#d6dcc4", "fin": "#a2ab8c", "pattern": "none", "length": 0.26, "height": 0.34, "speed": 1.5, "school": [6, 12], "weight": 5, "waters": ["lake", "river", "pond"] },
+            { "id": "perch", "back": "#6e7d38", "belly": "#d9d49a", "fin": "#d0702e", "mark": "#3a4220", "pattern": "bars", "length": 0.5, "height": 0.42, "speed": 0.9, "school": [2, 5], "weight": 4, "waters": ["lake", "river", "pond"] },
+            { "id": "trout", "back": "#6f735e", "belly": "#e3d8c6", "fin": "#8a8a6c", "mark": "#c86a6a", "pattern": "stripe", "length": 0.7, "height": 0.3, "speed": 1.1, "school": [1, 2], "weight": 3, "waters": ["river", "lake"] },
+            { "id": "carp", "back": "#a3803a", "belly": "#e2c98a", "fin": "#8a6a2e", "pattern": "none", "length": 0.9, "height": 0.42, "speed": 0.45, "school": [1, 3], "weight": 3, "waters": ["lake", "pond"] },
+            { "id": "pike", "back": "#5a6b36", "belly": "#d6d6a8", "fin": "#6b7a3c", "mark": "#c9c88a", "pattern": "spots", "length": 1.25, "height": 0.22, "speed": 0.6, "school": [1, 1], "weight": 1, "waters": ["lake", "river"] }
+        ]
     }
 }

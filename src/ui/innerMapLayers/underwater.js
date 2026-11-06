@@ -6,6 +6,7 @@
 //     cells sunk in a blue-green murk, light rippling across the bottom in
 //     moving bands, and the finds lying there (Diving.bedFor: shells, weed,
 //     shellfish, wood, junk; treasure glinting, a chest).
+//     Then the fish swimming about (innerMapLayers/underwaterFish.js).
 //   • _renderUnderwaterVeil (over the sprites): everything not under the water
 //     — the land, the shallows, the folk on the shore — dimmed to a dark blur,
 //     with shafts of light slanting down and motes drifting.
@@ -15,6 +16,7 @@
 import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
+import { UnderwaterFish } from './underwaterFish.js';
 
 function _now() {
     return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
@@ -262,12 +264,23 @@ Object.assign(InnerMapRenderer, {
         }
         ctx.restore();
         const bed = InnerMapDiving.bed();
-        if (!bed) return;
-        for (const f of bed.finds) {
-            if (f.q < q0 || f.q > q1 || f.r < r0 || f.r > r1) continue;
-            const s = camera.worldToScreenFast(f.q * T, f.r * T);
-            _drawFind(ctx, f, s.x, s.y, ds, now);
+        if (bed) {
+            for (const f of bed.finds) {
+                if (f.q < q0 || f.q > q1 || f.r < r0 || f.r > r1) continue;
+                const s = camera.worldToScreenFast(f.q * T, f.r * T);
+                _drawFind(ctx, f, s.x, s.y, ds, now);
+            }
         }
+        // The fish (innerMapLayers/underwaterFish.js): new ones for each dive
+        const dive = InnerMapDiving._under;
+        if (UnderwaterFish._dive !== dive) {
+            const w = InnerMap.currentWorldTile || { q: 0, r: 0 };
+            UnderwaterFish.reset(dive, (w.q * 73856093) ^ (w.r * 19349663) ^ Math.floor(now * 1000));
+            this._fishLast = now;
+        }
+        UnderwaterFish.update(now - (this._fishLast || now));
+        this._fishLast = now;
+        UnderwaterFish.draw(ctx, camera, T, ds, now);
     },
 
     /** Above the water, dimmed; shafts of light and drifting motes (over the sprites). */

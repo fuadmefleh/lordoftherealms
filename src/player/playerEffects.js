@@ -23,6 +23,7 @@ import { Grades } from '../core/grades.js';
 import { Companions } from '../systems/companions.js';
 import { Underworld } from '../systems/underworld.js';
 import { Ailments } from '../systems/ailments.js';
+import { SocialSkills } from '../systems/socialSkills.js';
 import { Crafting } from './crafting.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
@@ -244,6 +245,8 @@ export const PlayerEffects = {
         bonus += Traits.effect(player, 'tradeBonus');
         // Haggling in a tongue you lack costs you; a native speaker gets a fair deal (systems/languages.js)
         bonus += Languages.tradeModifier(player, settlement);
+        // Haggling against the town's merchants (systems/socialSkills.js)
+        if (settlement) bonus += SocialSkills.hagglingBonus(player, settlement);
         return bonus;
     },
 

@@ -35,6 +35,7 @@ import { Economy } from '../world/economy.js';
 import { Quests } from './quests.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Fame } from './fame.js';
+import { SocialSkills } from './socialSkills.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -1017,10 +1018,11 @@ export const Underworld = {
         const discount = Underworld.ensure(player).guild.member
             ? Underworld.ensure(player).guild.rank * Underworld.cfg('guild').bribeDiscountPerRank : 0;
         // The distrusted and the shunned pay dearer (systems/fame.js)
+        // Persuasion: a smooth talker pays less and is reported less (systems/socialSkills.js)
         const gold = Math.ceil(relief * b.goldPerHeatPerGuard * Underworld.guardStrength(settlement, kingdom) * Math.max(0.4, 1 - discount)
-            * Fame.bribeMult(player, settlement.kingdom));
+            * Fame.bribeMult(player, settlement.kingdom) * (1 - SocialSkills.frac(player, 'persuasion', 'bribe')));
         const fail = _clamp(b.failChance * ((kingdom && (kingdom.traits || []).includes('orderly')) ? 1.5 : 1)
-            - (_num(player.charisma, 5) - 5) * b.charismaPerPoint, 0.02, 0.5);
+            - (_num(player.charisma, 5) - 5) * b.charismaPerPoint - SocialSkills.frac(player, 'persuasion', 'bribeOdds'), 0.02, 0.5);
         return { gold, relief, fail };
     },
 
@@ -1032,6 +1034,7 @@ export const Underworld = {
         const kingdomId = tile.settlement.kingdom;
         player.gold -= quote.gold;
         Traits.recordDeed(player, 'deceit', 1);
+        SocialSkills.trainBy(player, 'persuasion', 'bribe');
         if (Utils.random() < quote.fail) {
             Underworld.addHeat(player, kingdomId, Underworld.cfg('bribe').failHeat, world);
             return { success: true, accepted: false, text: `The sergeant pockets your ${quote.gold}g — and reports the attempt. (+heat)` };

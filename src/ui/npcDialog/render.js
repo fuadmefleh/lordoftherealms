@@ -551,7 +551,7 @@ export function _renderChoices(box) {
         choices.push({
             icon: '😊', check: 'Charm', label: 'You seem wise — tell me more.', action: 'flatter',
             skillTag: _oddsTag(chance), chance,
-            tooltip: `Diplomacy ${diplomacyTotal} against ${difficulty}${sd.reasons.length ? ` (${sd.reasons.join(', ')})` : ''}: ${chance}% chance. Success warms them and they may make good on a promise.`,
+            tooltip: `Persuasion ${diplomacyTotal} against ${difficulty}${sd.reasons.length ? ` (${sd.reasons.join(', ')})` : ''}: ${chance}% chance. Success warms them and they may make good on a promise.`,
         });
     }
 
@@ -579,7 +579,7 @@ export function _renderChoices(box) {
         choices.push({
             icon: '🤝', check: 'Persuade', label: 'I need your trust on something important.', action: 'persuade',
             skillTag: _oddsTag(chance), chance,
-            tooltip: `Diplomacy ${diplomacyTotal} against ${difficulty}${sd.reasons.length ? ` (${sd.reasons.join(', ')})` : ''}: ${chance}% chance. They may share a map, a cache, true intel or a discount.`,
+            tooltip: `Persuasion ${diplomacyTotal} against ${difficulty}${sd.reasons.length ? ` (${sd.reasons.join(', ')})` : ''}: ${chance}% chance. They may share a map, a cache, true intel or a discount.`,
         });
     }
 

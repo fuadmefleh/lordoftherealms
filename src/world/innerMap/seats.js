@@ -154,6 +154,8 @@ Object.assign(InnerMap, {
         if (this.playerHoldsSeat(building, game)) return by ? say('welcome', true) : { ok: true, why: 'held' };
         const castle = String(building.type).replace(/^player_/, '') === 'castle';
         const home = castle || this.whoIsHome(building).length > 0;
+        // A barred door the player has picked (ui/innerMapLocks.js) opens while no guard stands at it
+        if (!home && !by && building._lockPicked) return { ok: true, why: 'picked' };
         if (!home) return by ? say('away', false) : say('barred', false);
         if (!by) return say('unguarded', true);
         if (this._playerWanted(game)) return say('warrant', false);

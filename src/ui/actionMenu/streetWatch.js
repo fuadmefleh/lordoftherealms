@@ -8,14 +8,21 @@ import { registerScene } from './choiceScenes.js';
 import { StreetCrime } from '../../systems/streetCrime.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { InnerMapReactions } from '../innerMapReactions.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
+
+/** The guard's Persuasion (for talking your way out). */
+function _guardLevel(game, st) {
+    const npc = (InnerMap.npcs || []).find(n => n && n.id === st.guardId);
+    return npc ? SocialSkills.npcLevel(npc, 'persuasion', game.world) : 1;
+}
 
 registerScene('street_watch', {
     view(game, st) {
-        return StreetCrime.watchView(game.player, game.world, st.incidentId, st.guardName);
+        return StreetCrime.watchView(game.player, game.world, st.incidentId, st.guardName, _guardLevel(game, st));
     },
     act(game, st, choice) {
         const tile = game.world && game.world.getTile(game.player.q, game.player.r);
-        const out = StreetCrime.answerWatch(game.player, game.world, st.incidentId, choice, tile && tile.settlement);
+        const out = StreetCrime.answerWatch(game.player, game.world, st.incidentId, choice, tile && tile.settlement, { guardLevel: _guardLevel(game, st) });
         if (out.invalid) return { invalid: true, notification: out.notification };
         if (out.fight) {
             InnerMapReactions.guardResists(st.guardId);

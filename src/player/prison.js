@@ -38,6 +38,7 @@ import { Ledger } from '../systems/ledger.js';
 import { Traits } from '../systems/traits.js';
 import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
+import { SocialSkills } from '../systems/socialSkills.js';
 
 const DEFAULTS = {
     cellmates: { count: [2, 3], firstNames: ['Odo'], epithets: ['the Grey'] },
@@ -252,13 +253,15 @@ export const Prison = {
         const base = _num(b.base[pr.type], _num(b.base.town, 30));
         const mult = { lookaway: b.lookAwayMult, release: b.releaseMult, tools: b.toolsMult }[kind] || 1;
         const days = kind === 'release' ? _num(jail.daysRemaining, 1) : _num(jail.totalDays, 1);
-        return Math.max(5, Math.round(base * (1 + days * b.perDay) * (1 + (_num(jail.offenseNumber, 1) - 1) * b.perOffense) * mult));
+        // Persuasion: bribes come cheaper (systems/socialSkills.js)
+        return Math.max(5, Math.round(base * (1 + days * b.perDay) * (1 + (_num(jail.offenseNumber, 1) - 1) * b.perOffense) * mult
+            * (1 - SocialSkills.frac(player, 'persuasion', 'bribe'))));
     },
 
     bribeChance(player, world) {
         const b = Prison.config().bribe;
         const pr = Prison.state(player, world);
-        return _clamp(1 - _num(b.refuse[pr.type], 0.2) + _skill(player, 'diplomacy') * b.diplomacy);
+        return _clamp(1 - _num(b.refuse[pr.type], 0.2) + _skill(player, 'diplomacy') * b.diplomacy + SocialSkills.frac(player, 'persuasion', 'bribeOdds'));
     },
 
     /** Bribe a guard: 'lookaway' (tonight), 'tools', 'release' (lost papers). */
@@ -273,6 +276,7 @@ export const Prison = {
         player.gold -= cost;
         Ledger.record(player, 'bribes', -cost);
         const ok = Utils.random() < Prison.bribeChance(player, world);
+        SocialSkills.trainBy(player, 'persuasion', 'bribe');
         if (!ok) {
             const [lo, hi] = Prison.config().bribe.reportDays;
             const added = Utils.randInt(lo, hi);

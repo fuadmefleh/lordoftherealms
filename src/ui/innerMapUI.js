@@ -26,6 +26,7 @@ import { DevotionPanel } from './actionMenu/devotion.js';
 import { NpcPortrait } from './npcPortrait.js';
 import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
+import { InnerMapLocks } from './innerMapLocks.js';
 import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
 import { InnerMapFurnish } from './innerMapFurnish.js';
@@ -267,6 +268,8 @@ Object.assign(InnerMapRenderer, {
             menuItems.push(...InnerMapGranary.menuItems(game, building));
             // Add "Enter" action for buildings
             menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
+            // A barred seat's lock to pick (ui/innerMapLocks.js)
+            menuItems.push(...InnerMapLocks.menuItems(game, building));
             // A building of several floors: straight up to one from the front door (world/innerMap/floors.js)
             const floors = InnerMap.floorsOf ? InnerMap.floorsOf(building, game) : 1;
             for (let k = 1; k < floors; k++) {
@@ -810,6 +813,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
         if (/^granary_/.test(action) && InnerMapGranary.handle(game, item)) return;
+        if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;
 

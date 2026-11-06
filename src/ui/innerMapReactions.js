@@ -24,6 +24,7 @@ import { StreetCrime } from '../systems/streetCrime.js';
 import { Utils } from '../core/utils.js';
 import { Duels } from '../systems/duels.js';
 import { PlayerEffects } from '../player/playerEffects.js';
+import { SocialSkills } from '../systems/socialSkills.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCombat } from './innerMapCombat.js';
@@ -60,7 +61,9 @@ export const InnerMapReactions = {
         const player = game.player;
         const world = game.world;
         const day = (world && world.day) || 0;
-        const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding };
+        // (Stealth: seen and heard from less far off, the watch slower to start — systems/socialSkills.js)
+        this._player = game.player;
+        const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding, sightCut: SocialSkills.perk(game.player, 'stealth', 'sight') };
         const npcs = InnerMap.npcs || [];
         const witnesses = StreetCrime.selectWitnesses(npcs, scene, victim);
         let playerAttack = 0;
@@ -202,7 +205,9 @@ export const InnerMapReactions = {
         const C = StreetCrime.config();
         const crime = victim._crime || 'assault';
         const day = (game.world && game.world.day) || 0;
-        const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding };
+        // (Stealth: seen and heard from less far off, the watch slower to start — systems/socialSkills.js)
+        this._player = game.player;
+        const scene = { q: victim.q, r: victim.r, indoors: !!InnerMap._insideBuilding, sightCut: SocialSkills.perk(game.player, 'stealth', 'sight') };
         const npcs = InnerMap.npcs || [];
         const fresh = StreetCrime.selectWitnesses(npcs, scene, victim).filter(w => !victim._reacted.has(w.npc.id));
         if (!fresh.length) {
@@ -281,6 +286,8 @@ export const InnerMapReactions = {
         this._responders.set(npc.id, {
             // (the chase runs on game time: a slow frame or a paused game doesn't cut it short)
             mode, left: R.chaseSeconds || 30, repath: 0,
+            // (a stealthy player: the watch takes a moment to notice before it gives chase)
+            wait: mode === 'arrest' && !prev && this._player ? SocialSkills.perk(this._player, 'stealth', 'watchDelay') : 0,
             incidentId: incident ? incident.id : (prev && prev.incidentId), speed: prev ? prev.speed : npc.speed,
             confronted: false,
         });
@@ -635,6 +642,7 @@ export const InnerMapReactions = {
             // (One on their way in through the door after the player is still after them)
             if (!npc && this._followers.has(id)) continue;
             if (!npc || npc.state === 'gone') { this._responders.delete(id); continue; }
+            if (r.wait > 0) { r.wait -= deltaTime; continue; }
             r.left -= deltaTime;
             if (r.left <= 0) { this.release(id); continue; }
             if (npc._dialogFrozen) continue;

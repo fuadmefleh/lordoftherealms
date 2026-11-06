@@ -31,6 +31,7 @@ import { Utils } from '../core/utils.js';
 import { Underworld } from './underworld.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
+import { SocialSkills } from './socialSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -190,19 +191,42 @@ export const Containers = {
         const parts = [];
         let c = _num(T.base);
         parts.push({ label: 'Base risk', delta: c });
+        // Stealth (systems/socialSkills.js): onlookers slower to notice, and less risk all told
+        const levelled = SocialSkills.has('stealth');
+        const unseen = levelled ? Math.max(0, Math.min(0.9, SocialSkills.frac(player, 'stealth', 'noticed'))) : 0;
         const w = Math.max(0, _num(scene.witnesses));
-        if (w) { c += w * T.perWitness; parts.push({ label: `${w} ${w === 1 ? 'person' : 'people'} nearby`, delta: w * T.perWitness }); }
+        if (w) { const dw = w * T.perWitness * (1 - unseen); c += dw; parts.push({ label: `${w} ${w === 1 ? 'person' : 'people'} nearby`, delta: dw }); }
         const g = Math.max(0, _num(scene.guards));
-        if (g) { c += g * T.guardWitness; parts.push({ label: `${g} guard${g === 1 ? '' : 's'} in sight`, delta: g * T.guardWitness }); }
-        if (scene.ownerInside) { c += T.ownerInside; parts.push({ label: 'The owner is here', delta: T.ownerInside }); }
+        if (g) { const dg = g * T.guardWitness * (1 - unseen); c += dg; parts.push({ label: `${g} guard${g === 1 ? '' : 's'} in sight`, delta: dg }); }
+        if (scene.ownerInside) { const dO = T.ownerInside * (1 - unseen); c += dO; parts.push({ label: 'The owner is here', delta: dO }); }
         const h = _num(scene.hour, 12);
         if (h >= T.nightFrom || h < T.nightTo) { c += T.night; parts.push({ label: 'Dark of night', delta: T.night }); }
         if (!ctx.building && ctx.inSettlement) { c += T.outdoorsTown; parts.push({ label: 'Out in the street', delta: T.outdoorsTown }); }
-        const stealth = _num(player && player.skills && player.skills.stealth);
-        if (stealth) { c += stealth * T.perStealth; parts.push({ label: `Stealth ${Math.round(stealth * 10) / 10}`, delta: stealth * T.perStealth }); }
+        if (levelled && player) {
+            const risk = -SocialSkills.perk(player, 'stealth', 'theftRisk') / 100;
+            const lv = SocialSkills.level(player, 'stealth');
+            if (risk) { c += risk; parts.push({ label: `Stealth ${lv}${unseen ? ` (onlookers ${Math.round(unseen * 100)}% slower)` : ''}`, delta: risk }); }
+        } else {
+            const stealth = _num(player && player.skills && player.skills.stealth);
+            if (stealth) { c += stealth * T.perStealth; parts.push({ label: `Stealth ${Math.round(stealth * 10) / 10}`, delta: stealth * T.perStealth }); }
+        }
         const value = _num(Containers.good(goodId).basePrice) * Math.max(1, qty);
         if (value) { c += value * T.perValue; parts.push({ label: `Worth ${value}g`, delta: value * T.perValue }); }
         return { chance: Math.min(T.max, Math.max(T.min, c)), parts };
+    },
+
+    /** Stealth for a theft (systems/socialSkills.js; the old flat number without the skill pack). */
+    _stealthXp(player, kind, value) {
+        if (!SocialSkills.has('stealth')) {
+            const T = Containers.cfg('theft');
+            player.skills.stealth = Math.min(10, _num(player.skills.stealth) + (kind === 'caught' ? T.stealthXp / 3 : T.stealthXp));
+            return null;
+        }
+        const X = (SocialSkills.xpFor('stealth', 'stealMax') || 30);
+        const xp = kind === 'steal'
+            ? Math.min(X, SocialSkills.xpFor('stealth', 'steal') + value * SocialSkills.xpFor('stealth', 'stealPerGold'))
+            : SocialSkills.xpFor('stealth', kind);
+        return SocialSkills.train(player, 'stealth', xp);
     },
 
     _give(player, goodId, qty) {
@@ -267,7 +291,7 @@ export const Containers = {
                 kingdom, caught: true, q: ctx.worldQ, r: ctx.worldR,
                 victim: { name: ctx.ownerName || (ctx.building && ctx.building.name) || 'the townsfolk', type: 'merchant', icon: '🧑' },
             });
-            player.skills.stealth = Math.min(10, _num(player.skills.stealth) + T.stealthXp / 3);
+            Containers._stealthXp(player, 'caught', 0);
             let jailDays = 0;
             const offences = player.criminalRecord.theft;
             if (offences >= _num(T.jailFrom, 3) && ctx.inSettlement) {
@@ -293,7 +317,7 @@ export const Containers = {
         Containers._give(player, goodId, n);
         Underworld.markHot(player, goodId, n, _day(world));
         Underworld.recordCrime(player, world, 'theft', { kingdom, caught: false, scale: Math.min(2, 0.5 + (_num(g.basePrice) * n) / 100) });
-        player.skills.stealth = Math.min(10, _num(player.skills.stealth) + T.stealthXp);
+        Containers._stealthXp(player, ctx.furnitureType === 'field' ? 'fieldSteal' : 'steal', _num(g.basePrice) * n);
         return { ok: true, caught: false, qty: n, text: `You slip ${n} ${g.name} into your pack unseen. Mind where you sell it: it's hot.` };
     },
 };

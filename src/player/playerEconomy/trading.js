@@ -10,6 +10,7 @@ import { Guilds } from '../../systems/guilds.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
 import { Reckoning } from '../../systems/reckoning.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, PlayerEffects, PlayerInventory, Economy, Seasons, SettlementMarket } from './_imports.js';
 import { Crafting } from '../crafting.js';
 import { Grades } from '../../core/grades.js';
@@ -319,8 +320,9 @@ export const Trading = {
         // The goods are booked by the realm they were bought in (crown tariffs, embargoes — systems/tradePolicy.js)
         if (settlement) TradePolicy.onBuy(player, settlement, good.id, quantity);
 
-        // Increase commerce skill
+        // Increase commerce skill; Haggling practice by the size of the deal (systems/socialSkills.js)
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
+        SocialSkills.train(player, 'haggling', SocialSkills.tradeXp(totalCost));
         // The Merchant's Ledger books the cost (systems/priceKnowledge.js)
         PriceKnowledge.recordBuy(player, settlement, good.id, quantity, totalCost);
 
@@ -399,8 +401,9 @@ export const Trading = {
             settlement.economy.food = (settlement.economy.food || 0) + quantity;
         }
 
-        // Increase commerce skill
+        // Increase commerce skill; Haggling practice by the size of the deal (systems/socialSkills.js)
         player.skills.commerce = Math.min(10, player.skills.commerce + 0.1);
+        SocialSkills.train(player, 'haggling', SocialSkills.tradeXp(totalEarned));
         // ...and the sale, against what the goods cost (profit by good and route)
         PriceKnowledge.recordSale(player, settlement, goodId, quantity, totalEarned);
 

@@ -3,6 +3,7 @@ import { PlayerMilitary } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Kingship } from '../../systems/kingship.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -75,6 +76,8 @@ Object.assign(PlayerMilitary, {
         playerPower *= HeirAgency.commandMultiplier(player);
         // A wounded or fevered commander (systems/ailments.js)
         playerPower *= PlayerEffects.ailmentBattleMultiplier(player);
+        // Leadership: men fight harder for a commander they follow (systems/socialSkills.js)
+        playerPower *= 1 + SocialSkills.frac(player, 'leadership', 'power');
         // Fortification techs help when the player is the one attacked
         if (context.defending) playerPower *= 1 + Technology.getDefenseBonus(player);
         // A fortified house (watchtower, fortification upgrades) adds +1% per point of defense
@@ -102,6 +105,8 @@ Object.assign(PlayerMilitary, {
         }
 
         const victory = playerPower > enemyPower;
+        // Leadership practice: every battle teaches, a victory more
+        SocialSkills.trainBy(player, 'leadership', victory ? 'victory' : 'battle');
         // Travelling companions react to the outcome; with low odds one may fall
         Companions.onBattle(player, victory, { enemyName, roleOf: n => PlayerEffects.companionRole(n) }, context.world);
         // The commanding child's record and fate (wounded, captured, killed)

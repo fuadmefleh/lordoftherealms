@@ -17,6 +17,7 @@ import { NpcBrain } from '../../systems/npcBrain.js';
 import { NpcChat } from '../../systems/npcChat.js';
 import { renderTalkBox } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
 const ASK_TOPICS = {
@@ -327,6 +328,7 @@ export function _handleChoice(action) {
                     }
                 }
                 _showSkillCheckResult(success, 'Charm');
+                if (!success && dialogState._game?.player) SocialSkills.trainBy(dialogState._game.player, 'persuasion', 'fail');
                 break;
             }
 
@@ -410,12 +412,15 @@ export function _handleChoice(action) {
                     dispositionChange = -3;
                 }
                 _showSkillCheckResult(success, 'Persuade');
+                if (!success && dialogState._game?.player) SocialSkills.trainBy(dialogState._game.player, 'persuasion', 'fail');
                 break;
             }
 
             case 'bargain': {
                 const res = NpcKnowledge.bargain(dialogState._npc, mem, dialogState._game?.player);
-                responseText = `*sighs* For you? Very well — ${Math.round(res.pct * 100)}% off, today only. Don't tell the others.`;
+                responseText = res.them > res.you + 1
+                    ? `*narrows eyes* You haggle like a lamb, friend. ${Math.round(res.pct * 100)}% off, and that's my last word.`
+                    : `*sighs* For you? Very well — ${Math.round(res.pct * 100)}% off, today only. Don't tell the others.`;
                 _animateDispositionChange(-res.cost);
                 break;
             }
@@ -472,6 +477,11 @@ export function _handleChoice(action) {
         // Apply skill gains
         if (skillGains && dialogState._game?.player?.skills) {
             for (const [skill, xp] of Object.entries(skillGains)) {
+                // Diplomacy is Persuasion now: practice, in levels (systems/socialSkills.js; level-ups announced from the queue)
+                if (skill === 'diplomacy' && SocialSkills.has('persuasion')) {
+                    SocialSkills.trainBy(dialogState._game.player, 'persuasion', action === 'persuade' ? 'persuade' : 'charm');
+                    continue;
+                }
                 dialogState._game.player.skills[skill] = (dialogState._game.player.skills[skill] || 0) + xp;
                 if (dialogState._game?.ui?.showNotification) {
                     dialogState._game.ui.showNotification('📈 Skill Up', `${skill.charAt(0).toUpperCase() + skill.slice(1)} +${xp}`, 'success');

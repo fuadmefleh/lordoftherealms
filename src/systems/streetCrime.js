@@ -38,6 +38,7 @@ import { Townsfolk } from './townsfolk.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
+import { SocialSkills } from './socialSkills.js';
 
 const DEFAULTS = {
     sight: { radius: 7, guardHearRadius: 16, hiddenStates: ['inside_building', 'leaving_building', 'gone'] },
@@ -176,7 +177,7 @@ export const StreetCrime = {
     /**
      * Everyone who saw the deed, and the guards who heard it.
      * @param {Array} npcs the inner map's NPCs (the victim may be among them)
-     * @param {object} scene { q, r, indoors } — the victim's inner-map tile
+     * @param {object} scene { q, r, indoors, sightCut? } — the victim's inner-map tile (sightCut: tiles off the sight and hearing radii)
      * @param {object} victim the NPC harmed
      * @returns {Array<{ npc, distance, role, kinWord, seen }>}
      */
@@ -185,8 +186,10 @@ export const StreetCrime = {
         const out = [];
         if (!Array.isArray(npcs) || !scene) return out;
         const hidden = new Set(C.sight.hiddenStates || []);
-        const radius = _num(C.sight.radius, 7);
-        const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius));
+        // (scene.sightCut: a stealthy player is seen and heard from less far off — systems/socialSkills.js)
+        const cut = Math.max(0, _num(scene.sightCut));
+        const radius = Math.max(1, _num(C.sight.radius, 7) - cut);
+        const hear = Math.max(radius, _num(C.sight.guardHearRadius, radius) - cut);
         for (const npc of npcs) {
             if (!npc || npc === victim || (victim && npc.id === victim.id)) continue;
             if (npc.state === 'gone' || npc.state === 'unconscious') continue;
@@ -676,7 +679,7 @@ export const StreetCrime = {
     },
 
     /** The choice scene when a guard comes for the player. */
-    watchView(player, world, incidentId, guardName = 'The guard') {
+    watchView(player, world, incidentId, guardName = 'The guard', guardLevel = 1) {
         const C = StreetCrime.config();
         const inc = StreetCrime._incident(player, incidentId);
         if (!inc || inc.answered) return null;
@@ -686,6 +689,10 @@ export const StreetCrime = {
         const options = [{ id: 'submit', icon: '⛓️', label: 'Give yourself up', hint: 'A night or more in the cells; the matter is closed with the watch here.', chance: null, odds: false, isDefault: true }];
         if (fine != null) {
             options.push({ id: 'fine', icon: '💰', label: 'Pay the fine', cost: `${fine} gold`, hint: inc.k === 'vandalism' ? 'You pay for the damage, and the watch lets it go.' : 'The watch lets a beating go for coin.', chance: null, odds: false, can: gold >= fine, reason: `You need ${fine} gold.` });
+        }
+        // Talk your way out (Persuasion against the guard's own — systems/socialSkills.js); not a killing
+        if (inc.k !== 'murder' && SocialSkills.has('persuasion')) {
+            options.push({ id: 'talk', icon: '🗣️', label: 'Talk your way out', hint: `Persuasion ${SocialSkills.level(player, 'persuasion')} against the guard's ${guardLevel}. Fail, and it's the cells and a day more.`, chance: SocialSkills.talkOutChance(player, guardLevel) });
         }
         options.push({ id: 'run', icon: '🏃', label: 'Run for it', hint: 'Caught, and it goes worse for you.', chance: StreetCrime.escapeChance(player) });
         options.push({ id: 'resist', icon: '⚔️', label: 'Resist', hint: 'Fight the guard here and now.', chance: null, odds: false });
@@ -698,10 +705,10 @@ export const StreetCrime = {
     },
 
     /**
-     * Answer the watch: 'submit' | 'fine' | 'run' | 'resist'.
+     * Answer the watch: 'submit' | 'fine' | 'talk' | 'run' | 'resist' (opts.guardLevel: the guard's Persuasion, for 'talk').
      * @returns {{ invalid?:boolean, outcome:string, jailed?:number, fight?:boolean, notification }}
      */
-    answerWatch(player, world, incidentId, choice, settlement = null) {
+    answerWatch(player, world, incidentId, choice, settlement = null, opts = {}) {
         const C = StreetCrime.config();
         const A = C.arrest;
         const O = (C.watch && C.watch.outcomes) || {};
@@ -742,6 +749,17 @@ export const StreetCrime = {
                 }
                 const days = jail(_num(A.escapeFailDays, 3));
                 return { outcome: 'jailed', jailed: days, notification: { title: '⛓️ Caught', body: _fill(O.caught || 'They catch you: {days} days.', { ...vars, days }), type: 'error' } };
+            }
+            case 'talk': {
+                if (inc.k === 'murder') return { invalid: true, outcome: 'none', notification: { title: 'No Talking', body: 'There is no talking your way out of a killing.', type: 'error' } };
+                if (Utils.random() < SocialSkills.talkOutChance(player, _num(opts.guardLevel, 1))) {
+                    SocialSkills.trainBy(player, 'persuasion', 'talkOut');
+                    StreetCrime._answer(player, inc);
+                    return { outcome: 'talked', notification: { title: '🗣️ Talked Round', body: _fill(O.talked || '{guard} hears you out, sighs, and lets it go with a warning.', vars), type: 'success' } };
+                }
+                SocialSkills.trainBy(player, 'persuasion', 'talkOutFail');
+                const days = jail(1);
+                return { outcome: 'jailed', jailed: days, notification: { title: '⛓️ Not Buying It', body: _fill(O.talkFailed || '{guard} has heard it all before. To the cells: {days} days.', { ...vars, days }), type: 'error' } };
             }
             case 'resist': {
                 if (inc.kingdom != null) Underworld.addHeat(player, inc.kingdom, _num(A.resistHeat, 12), world);

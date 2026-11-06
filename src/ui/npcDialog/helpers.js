@@ -10,6 +10,7 @@ import { _handleChoice, _showGiftSubmenu, _giveGoldGift, _giveItemGift, _showAsk
 import { Traits } from '../../systems/traits.js';
 import { Chatter } from '../../systems/chatter.js';
 import { NpcKnowledge } from '../../systems/npcKnowledge.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 import { Fame } from '../../systems/fame.js';
 import { Hospitality } from '../../systems/hospitality.js';
 
@@ -87,7 +88,8 @@ export function _skillCheck(skillName, difficulty) {
 export function _getAttributeBonus(skillName) {
     if (!dialogState._game?.player) return 0;
     switch (skillName) {
-        case 'diplomacy': return Math.floor((dialogState._game.player.charisma || 5) / 3);
+        // (Persuasion's talk perk on top of charisma — systems/socialSkills.js)
+        case 'diplomacy': return Math.floor((dialogState._game.player.charisma || 5) / 3) + SocialSkills.perk(dialogState._game.player, 'persuasion', 'talk');
         case 'combat': return Math.floor((dialogState._game.player.strength || 5) / 3);
         case 'stealth': return Math.floor((dialogState._game.player.luck || 5) / 4);
         case 'commerce': return Math.floor((dialogState._game.player.intelligence || 5) / 3);
@@ -97,7 +99,7 @@ export function _getAttributeBonus(skillName) {
 
 export function _getSkillTotal(skillName) {
     if (!dialogState._game?.player) return 0;
-    return (dialogState._game.player.skills?.[skillName] || 0) + _getAttributeBonus(skillName);
+    return Math.round(((dialogState._game.player.skills?.[skillName] || 0) + _getAttributeBonus(skillName)) * 10) / 10;
 }
 
 export function _getPlayerTitle() {

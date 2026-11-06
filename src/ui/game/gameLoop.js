@@ -15,6 +15,7 @@ import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
+import { announceSkillUps } from '../skillUps.js';
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -26,6 +27,8 @@ export function gameLoop(timestamp, loopId) {
 
     const deltaTime = Math.min((timestamp - this.lastTime) / 1000, 0.1);
     this.lastTime = timestamp;
+    // Practised-skill level-ups queued by the systems (ui/skillUps.js)
+    announceSkillUps(this, timestamp);
 
     // -- Inner Map Mode --
     if (InnerMap.active) {

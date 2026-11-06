@@ -2,6 +2,7 @@
 import { PlayerMilitary } from './_ref.js';
 import { Utils, Technology, Quests, Kingdom } from './_imports.js';
 import { MercContracts } from '../mercContracts.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -313,6 +314,8 @@ Object.assign(PlayerMilitary, {
         PlayerMilitary._ensureMercenaryState(player);
         const events = [];
         let wagesPaid = 0;
+        // Leadership: companies under a commander they follow lose less loyalty and are harder to buy off (systems/socialSkills.js)
+        const steady = player.mercenaryCompanies.length ? Math.max(0, Math.min(0.9, SocialSkills.frac(player, 'leadership', 'loyalty'))) : 0;
 
         for (let i = player.mercenaryCompanies.length - 1; i >= 0; i--) {
             const company = player.mercenaryCompanies[i];
@@ -327,7 +330,8 @@ Object.assign(PlayerMilitary, {
                 company.loyalty = Math.max(0, company.loyalty - 12);
             }
 
-            company.loyalty = Math.max(0, company.loyalty - Utils.randFloat(0.5, 2.5));
+            company.loyalty = Math.max(0, company.loyalty - Utils.randFloat(0.5, 2.5) * (1 - steady));
+            SocialSkills.trainBy(player, 'leadership', 'perMercDay');
 
             if (company.daysRemaining <= 0) {
                 const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, company.id);
@@ -344,7 +348,7 @@ Object.assign(PlayerMilitary, {
 
             const outbidPressure = paidWage ? 0 : 0.22;
             const loyaltyPressure = Math.max(0, (45 - company.loyalty) * 0.012);
-            const switchChance = Math.max(0.04, Math.min(0.82, company.outbidRisk + outbidPressure + loyaltyPressure));
+            const switchChance = Math.max(0.04, Math.min(0.82, company.outbidRisk + outbidPressure + loyaltyPressure)) * (1 - steady);
 
             if (Utils.random() < switchChance) {
                 const unitsRemoved = PlayerMilitary._removeMercenaryCompanyUnits(player, company.id);

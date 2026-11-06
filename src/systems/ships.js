@@ -23,6 +23,7 @@ import { LossBook } from './lossBook.js';
 import { Ledger } from './ledger.js';
 import { TradePolicy } from './tradePolicy.js';
 import { CombatSkills } from './combatSkills.js';
+import { SocialSkills } from './socialSkills.js';
 
 /**
  * Ships System
@@ -1878,22 +1879,29 @@ export const Ships = {
         }
 
         const deserted = [];
+        // Leadership: a crew rests in better spirits and holds on longer before it deserts (systems/socialSkills.js)
+        const lead = ships.some(sh => sh.crew > 0) ? SocialSkills.perk(player, 'leadership', 'crew') : 0;
+        const resting = cfg.restingMorale + lead;
+        let crewed = 0;
         for (const ship of ships) {
             if (ship.crew <= 0) continue;
+            crewed++;
             if (!paid) {
                 this._setMorale(ship, ship.morale - cfg.unpaidMoraleLoss);
-            } else if (ship.morale < cfg.restingMorale) {
+            } else if (ship.morale < resting) {
                 // Shore leave in a harbour mends spirits faster than the open sea
-                this._setMorale(ship, Math.min(cfg.restingMorale, ship.morale + (ship.status === 'docked' ? 3 : 1)));
-            } else if (ship.morale > cfg.restingMorale) {
+                this._setMorale(ship, Math.min(resting, ship.morale + (ship.status === 'docked' ? 3 : 1)));
+            } else if (ship.morale > resting) {
                 this._setMorale(ship, ship.morale - 1);
             }
-            if (ship.morale < cfg.desertionMorale) {
+            if (ship.morale < cfg.desertionMorale - lead) {
                 const count = Math.min(ship.crew, Math.max(1, Math.ceil(ship.crew * cfg.desertionShare)));
                 ship.crew -= count;
                 deserted.push({ shipId: ship.id, name: ship.name, count });
             }
         }
+        // A paid crew under you: Leadership practice
+        if (paid && crewed) SocialSkills.trainBy(player, 'leadership', 'perCrewDay', crewed);
         return { wages, paid, deserted };
     },
 

@@ -1,0 +1,127 @@
+{
+    "_doc": "Social and shady skills (systems/socialSkills.js). Stealth: theftRisk = points off the odds of being caught stealing from a chest or a field; noticed = % less weight each onlooker and guard adds to those odds; lift = % added to lifting a purse (the quick roll and the mark's sense in the street); sight = tiles off how far onlookers see a theft or a deed of violence (and guards hear it); watchDelay = seconds before the watch gives chase after a deed it saw. Lockpicking: pick = % base chance at a lock of difficulty 1 (each step of difficulty above takes lockStep %); reach = the hardest lock you will try at all; minutes = in-game minutes an attempt takes; quiet = % less chance a failed attempt is noticed. Locks (skills.lockpicking.locks): containers of these types in someone else's building carry a lock by a hash of the box and the restock period: byBuilding [min difficulty, max difficulty, share of boxes locked] (default for unlisted buildings; none outdoors); doors: a barred seat's door difficulty by type. Haggling: prices = % off what you buy and on what you sell in a market (and to a trader in person), against the town's merchants' haggling (each level you stand above or below them moves it by contest % a level, never below nothing); bargain = % more on a trader's bargain. Persuasion: talk = added to talk checks (flatter, persuade, prison talk); bribe = % off a bribe's price; bribeOdds = points off the odds a bribed guard reports you; talkOut = % chance to talk the watch out of an arrest for a beating or broken things (less talkOutPerGuardLevel % for each level of the guard's own persuasion above 2). Leadership: power = % battle power of your army; loyalty = % less loyalty mercenary companies lose a day and % less chance they are bought off; crew = morale your ships' crews rest at above the usual, and points off the morale at which sailors desert; companions = % less chance an unhappy companion walks off. socialSkills.legacy: the old flat player.skills numbers (0-10) these take over: the first time, the old number becomes the level (with its fraction of the way to the next); afterwards any rise of the old number by other systems is XP (rate x the step to the next level per point), and the old number is kept at level + share so everything still reading it works. migrateFrom: a skill seeded once from another old number ({ id: { from, share } }; none: Haggling starts fresh, commerce stays its own number for caravans, property and the guilds).",
+    "skills": {
+        "stealth": {
+            "name": "Stealth",
+            "icon": "🥷",
+            "desc": "Moving unseen and taking what isn't yours: every theft, purse and escape teaches it, a clean one most.",
+            "order": 20,
+            "perks": {
+                "theftRisk": { "levels": [4, 7, 10, 13, 16, 20, 24, 28, 32, 36], "text": "{a}% less risk when stealing", "show": "−{v}% odds of being caught stealing" },
+                "noticed": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "onlookers {a}% slower to notice a theft", "show": "onlookers {v}% slower to notice" },
+                "lift": { "levels": [6, 12, 18, 24, 30, 36, 42, 48, 54, 60], "text": "+{d}% to lift a purse", "show": "+{v}% to lift a purse" },
+                "sight": { "levels": [0, 0, 0, 1, 1, 1, 2, 2, 2, 3], "text": "seen from {a} tile less far off", "show": "seen {v} tile(s) less far off" },
+                "watchDelay": { "levels": [0, 0, 1, 1, 2, 2, 3, 3, 4, 5], "text": "the watch {a}s slower to give chase", "show": "the watch {v}s slower to give chase" }
+            },
+            "xp": { "steal": 4, "stealPerGold": 0.05, "stealMax": 30, "caught": 1.5, "lift": 8, "liftCaught": 2, "fieldSteal": 2 }
+        },
+        "lockpicking": {
+            "name": "Lockpicking",
+            "icon": "🗝️",
+            "desc": "Opening locked chests, desks and barred doors that aren't yours. Harder locks teach more; a botched try may be heard.",
+            "order": 21,
+            "perks": {
+                "pick": { "levels": [45, 52, 59, 66, 72, 78, 83, 88, 92, 96], "text": "+{d}% at a lock", "show": "{v}% at a simple lock (−9% a step harder)" },
+                "reach": { "levels": [4, 5, 6, 7, 8, 9, 10, 10, 10, 10], "text": "can try locks of difficulty {v}", "show": "locks up to difficulty {v}" },
+                "minutes": { "levels": [20, 18, 16, 14, 12, 11, 10, 9, 8, 6], "text": "{a} min quicker at a lock", "show": "{v} min an attempt" },
+                "quiet": { "levels": [0, 5, 10, 15, 20, 25, 30, 40, 50, 60], "text": "a botched try {a}% less likely heard", "show": "botched tries {v}% quieter" }
+            },
+            "xp": { "success": 6, "perDifficulty": 2, "fail": 2, "failPerDifficulty": 0.5 },
+            "pickRules": { "lockStep": 9, "min": 3, "max": 95, "noticeBase": 0.15, "perWitness": 0.12, "perGuard": 0.25, "owner": 0.2, "noticeMax": 0.9, "fine": 8, "finePerDifficulty": 3, "reputation": 2 },
+            "locks": {
+                "types": ["chest", "desk"],
+                "default": [2, 4, 0.4],
+                "byBuilding": {
+                    "house": [1, 3, 0.45], "tavern": [2, 4, 0.6], "inn": [2, 4, 0.6], "blacksmith": [2, 5, 0.6],
+                    "bank": [7, 10, 1], "mint": [7, 10, 1], "manor": [4, 7, 0.9], "castle": [6, 9, 1],
+                    "town_hall": [4, 6, 0.8], "church": [2, 4, 0.6], "temple": [2, 4, 0.6], "chapel": [2, 3, 0.5],
+                    "apothecary": [3, 5, 0.7], "library": [2, 4, 0.5], "barracks": [3, 6, 0.7], "guard_tower": [3, 6, 0.7],
+                    "warehouse": [2, 5, 0.6], "granary": [1, 3, 0.3], "guildhall": [3, 6, 0.8], "post_house": [3, 5, 0.7],
+                    "jail": [5, 8, 1], "marketplace": [2, 4, 0.5], "bakery": [1, 3, 0.4]
+                },
+                "doors": { "manor": 5, "castle": 8 },
+                "names": ["Flimsy", "Simple", "Plain", "Sturdy", "Good", "Strong", "Fine", "Masterwork", "Iron-banded", "Vault"]
+            }
+        },
+        "haggling": {
+            "name": "Haggling",
+            "icon": "⚖️",
+            "desc": "Beating a price down and talking one up: every deal on a market teaches it, a big one more.",
+            "order": 22,
+            "perks": {
+                "prices": { "levels": [0, 1, 2, 3, 4, 5, 6, 8, 10, 12], "text": "{a}% better prices", "show": "{v}% better prices (against merchants as good as you)" },
+                "bargain": { "levels": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "text": "+{d}% on a trader's bargain", "show": "+{v}% on a trader's bargain" }
+            },
+            "contest": 0.5,
+            "xp": { "trade": 0.5, "perGold": 0.02, "max": 15, "bargain": 4 }
+        },
+        "persuasion": {
+            "name": "Persuasion",
+            "icon": "🗣️",
+            "desc": "Talking people round: charm, persuasion, bribes and talking your way out of trouble all teach it.",
+            "order": 23,
+            "perks": {
+                "talk": { "levels": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], "text": "+{d} to talk people round", "show": "+{v} to talk checks" },
+                "bribe": { "levels": [0, 3, 6, 9, 12, 15, 18, 21, 25, 30], "text": "bribes {a}% cheaper", "show": "bribes {v}% cheaper" },
+                "bribeOdds": { "levels": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "text": "a bribed guard {a}% less likely to report you", "show": "−{v}% chance a bribe backfires" },
+                "talkOut": { "levels": [10, 15, 20, 25, 30, 36, 42, 48, 54, 62], "text": "+{d}% to talk the watch out of an arrest", "show": "{v}% to talk the watch round" }
+            },
+            "npcEdge": 0.5,
+            "talkOutPerGuardLevel": 3,
+            "xp": { "charm": 5, "persuade": 9, "fail": 1.5, "bribe": 4, "talkOut": 15, "talkOutFail": 4, "prisonTalk": 3 }
+        },
+        "leadership": {
+            "name": "Leadership",
+            "icon": "🎖️",
+            "desc": "Men follow you: battles, hired companies, a ship's crew and the companions at your side teach it.",
+            "order": 24,
+            "perks": {
+                "power": { "levels": [0, 2, 4, 6, 8, 10, 12, 14, 17, 20], "text": "+{d}% army battle power", "show": "+{v}% army battle power" },
+                "loyalty": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "hired companies {a}% steadier", "show": "hired companies {v}% steadier" },
+                "crew": { "levels": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "text": "+{d} crew morale at rest", "show": "+{v} crew morale at rest, desert {v} later" },
+                "companions": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "unhappy companions {a}% less likely to leave", "show": "companions {v}% less likely to walk off" }
+            },
+            "xp": { "battle": 6, "victory": 10, "perMercDay": 0.4, "perCrewDay": 0.3, "hire": 5 }
+        }
+    },
+    "socialSkills": {
+        "legacy": { "stealth": "stealth", "diplomacy": "persuasion", "leadership": "leadership" },
+        "rate": 1,
+        "migrateFrom": {}
+    },
+    "npc": {
+        "base": { "stealth": 1, "lockpicking": 1, "haggling": 1, "persuasion": 1, "leadership": 1 },
+        "roles": {
+            "pickpocket": { "stealth": 5, "lockpicking": 3, "persuasion": 1 },
+            "thief": { "stealth": 5, "lockpicking": 4 },
+            "smuggler": { "stealth": 4, "lockpicking": 2, "haggling": 3 },
+            "poacher": { "stealth": 4 },
+            "hunter": { "stealth": 2 },
+            "merchant": { "haggling": 4, "persuasion": 2 },
+            "trader": { "haggling": 4, "persuasion": 1 },
+            "innkeeper": { "haggling": 2, "persuasion": 1 },
+            "noble": { "persuasion": 4, "leadership": 3, "haggling": 1 },
+            "official": { "persuasion": 4, "leadership": 1, "haggling": 1 },
+            "priest": { "persuasion": 3 },
+            "guard": { "persuasion": 1, "leadership": 1 },
+            "soldier": { "leadership": 1 },
+            "knight": { "leadership": 4, "persuasion": 2 },
+            "captain": { "leadership": 5, "persuasion": 2 },
+            "sailor": { "leadership": 1 },
+            "beggar": { "stealth": 2, "persuasion": 1 }
+        },
+        "dailyXp": {
+            "pickpocket": { "stealth": 0.6, "lockpicking": 0.2 },
+            "thief": { "stealth": 0.5, "lockpicking": 0.4 },
+            "smuggler": { "stealth": 0.4, "haggling": 0.3 },
+            "poacher": { "stealth": 0.4 },
+            "merchant": { "haggling": 0.5, "persuasion": 0.1 },
+            "trader": { "haggling": 0.5 },
+            "noble": { "persuasion": 0.4, "leadership": 0.2 },
+            "official": { "persuasion": 0.4 },
+            "priest": { "persuasion": 0.3 },
+            "knight": { "leadership": 0.3 },
+            "captain": { "leadership": 0.4 }
+        }
+    }
+}

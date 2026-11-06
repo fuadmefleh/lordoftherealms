@@ -279,7 +279,7 @@ describe('StreetCrime: the watch', () => {
         expect(said.role).toBe('guard');
         expect(said.arrest).toBe(true);
         const view = StreetCrime.watchView(player, world, res.incident.id, 'Knut');
-        expect(view.options.map(o => o.id)).toEqual(['submit', 'fine', 'run', 'resist']);
+        expect(view.options.map(o => o.id)).toEqual(['submit', 'fine', 'talk', 'run', 'resist']);
         const gold = player.gold;
         const out = StreetCrime.answerWatch(player, world, res.incident.id, 'fine');
         expect(out.outcome).toBe('fined');

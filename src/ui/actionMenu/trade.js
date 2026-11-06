@@ -14,6 +14,7 @@ import { Causes } from '../../player/causes.js';
 import { whyIcon, priceWhy, sellWhy } from '../whyPopover.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -1083,6 +1084,12 @@ Object.assign(ActionMenu, {
             const lv = MarketGrades.level(tile.settlement);
             const lb = MarketGrades.label(lv);
             craftBadge = ` · <span style="color:${lb.color};text-transform:none;" title="The town's craftsmanship (${lv.toFixed(1)}/10) sets how much of its made goods is Fine or better, and how much Poor">${lb.name} craftsmen</span>`;
+            // Your haggling against the town's merchants (systems/socialSkills.js)
+            if (SocialSkills.has('haggling')) {
+                const hg = SocialSkills.haggle(game.player, tile.settlement);
+                const pct = Math.round(hg.bonus * 1000) / 10;
+                craftBadge += ` · <span style="color:${pct > 0 ? '#9fd6a8' : '#bbb'};text-transform:none;" title="Haggling ${hg.level} against merchants of ${hg.merchants}: your level's edge, ±0.5% a level between you, never below nothing. It cheapens what you buy and lifts what you sell.">⚖️ Haggling ${hg.level} vs ${hg.merchants}: ${pct > 0 ? `${pct}% better prices` : 'no edge'}</span>`;
+            }
         }
 
         // ── Render HTML ──

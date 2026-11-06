@@ -9,6 +9,7 @@ import { DuelPanel } from './duel.js';
 import { DevotionPanel } from './devotion.js';
 import { WildTaskRunner } from '../mapTasks/wildTasks.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -23,7 +24,9 @@ Object.assign(ActionMenu, {
         const settlement = tile.settlement;
         if (!settlement) return;
 
-        const stealthSkill = player.skills?.stealth || 1;
+        // Stealth's level and its purse-lifting edge (systems/socialSkills.js; 6% a level)
+        const stealthSkill = SocialSkills.has('stealth') ? SocialSkills.level(player, 'stealth') : (player.skills?.stealth || 1);
+        const liftEdge = SocialSkills.has('stealth') ? SocialSkills.frac(player, 'stealth', 'lift') : stealthSkill * 0.06;
         const luckStat = player.luck || 5;
         const tier = settlement.type === 'capital' ? 'capital' : (settlement.type === 'town' || settlement.type === 'city' ? 'town' : 'village');
 
@@ -84,7 +87,7 @@ Object.assign(ActionMenu, {
             const target = targets[idx];
             const quick = () => {
                 // Simple stealth roll
-                const successChance = Math.max(0.1, 0.5 + stealthSkill * 0.06 - target.awareness * 0.3);
+                const successChance = Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3);
                 if (Math.random() < successChance) {
                     const res = _ppLift(game, player, settlement, target);
                     game.ui.showNotification('🤏 Pickpocket', `Swiped ${res.gold}g from the ${target.name}. -1 karma.`, 'success');
@@ -100,7 +103,7 @@ Object.assign(ActionMenu, {
                 title: '🤏 Pickpocket ' + target.name,
                 icon: target.icon,
                 description: `Attempt to steal from the ${target.name}. ${target.diff} difficulty.`,
-                baseText: `Simple roll (~${Math.floor((0.5 + stealthSkill * 0.06 - target.awareness * 0.3) * 100)}% success, ~${target.goldAmount}g)`,
+                baseText: `Simple roll (~${Math.floor(Math.max(0.1, 0.5 + liftEdge - target.awareness * 0.3) * 100)}% success, ~${target.goldAmount}g)`,
                 onQuick: quick,
                 onGo: () => _ppInPerson(game, tile, player, settlement, target, quick),
             });
@@ -111,6 +114,7 @@ Object.assign(ActionMenu, {
      * Handle getting caught pickpocketing — fines, jail, reputation
      */
     _ppDoCaught(game, tile, player, settlement, target) {
+        SocialSkills.trainBy(player, 'stealth', 'liftCaught');
         const fine = Math.floor(Math.random() * 30) + 10;
         const actualFine = Math.min(fine, player.gold);
         player.gold -= actualFine;
@@ -1280,8 +1284,10 @@ function _ppLift(game, player, settlement, target, extra = 0) {
         player.financeToday.income.theft = (player.financeToday.income.theft || 0) + gold;
     }
     player.karma = (player.karma || 0) - 1;
+    // Stealth practice (systems/socialSkills.js; a level-up is announced from the queue)
     let skillUp = false;
-    if (Math.random() < 0.2 && player.skills) {
+    if (SocialSkills.has('stealth')) SocialSkills.trainBy(player, 'stealth', 'lift');
+    else if (Math.random() < 0.2 && player.skills) {
         player.skills.stealth = Math.min((player.skills.stealth || 1) + 1, 10);
         skillUp = true;
     }
@@ -1331,7 +1337,8 @@ function _smuggleSettle(game, tile, player, settlement, itemName, price, success
             player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + price;
         }
         player.karma = (player.karma || 0) - 1;
-        if (Math.random() < 0.15 && player.skills) {
+        if (SocialSkills.has('stealth')) SocialSkills.train(player, 'stealth', SocialSkills.xpFor('stealth', 'steal') + price * SocialSkills.xpFor('stealth', 'stealPerGold'));
+        else if (Math.random() < 0.15 && player.skills) {
             player.skills.stealth = Math.min((player.skills.stealth || 1) + 1, 10);
         }
         return { text: `Sold ${itemName} for ${price}g on the black market.` };

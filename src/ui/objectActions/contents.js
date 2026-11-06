@@ -6,6 +6,8 @@ import { Hotbar } from '../hotbar.js';
 import { Containers } from '../../systems/containers.js';
 import { StreetCrime } from '../../systems/streetCrime.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
+import { Locks } from '../../systems/locks.js';
 import { MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { _btn, _removeModal, _showStoreModal } from './logic.js';
 import { goodInfoIcon } from '../goodInfo.js';
@@ -35,8 +37,10 @@ export function theftScene(game, ctx) {
     // Out on the street, folk indoors (standing on their door tile) see nothing;
     // indoors, everyone in the room does (as for street violence, systems/streetCrime.js)
     const hidden = ctx.building ? new Set(['gone']) : new Set(StreetCrime.config().sight.hiddenStates || []);
+    // (Stealth: onlookers see a thief from less far off — systems/socialSkills.js)
+    const range = Math.max(1, T.witnessRange - SocialSkills.perk(game.player, 'stealth', 'sight'));
     const near = (InnerMap.npcs || []).filter(n => n && !hidden.has(n.state) && n.state !== 'unconscious' && !n.departed
-        && Math.abs(n.q - pq) + Math.abs(n.r - pr) <= T.witnessRange);
+        && Math.abs(n.q - pq) + Math.abs(n.r - pr) <= range);
     const guards = near.filter(n => /guard|soldier|watch/i.test(String(n.type || ''))).length;
     const owner = ctx.building ? near.find(n => n.type !== 'traveler' && !/guard/i.test(String(n.type || ''))) : null;
     return {
@@ -74,6 +78,26 @@ export function theftAftermath(game, res, scene) {
     return true;
 }
 
+/** A locked box: the lock, the odds, and the button to pick it (or the bar while you work). */
+function _lockHtml(player, lock, scene, picking) {
+    const chance = Locks.chance(player, lock.difficulty);
+    const lv = SocialSkills.level(player, 'lockpicking');
+    const heard = Locks.noticeChance(player, scene);
+    const head = `<div style="font-size:12px;color:#e0c070;padding:6px 8px;background:rgba(224,192,112,0.08);border-radius:4px">🔒 Locked: a ${lock.name.toLowerCase()} lock (difficulty ${lock.difficulty}). You can't see what's inside.</div>`;
+    if (picking) {
+        return `${head}<div style="font-size:12px;color:#bbb;padding:6px 2px">🗝️ Working the lock…</div>
+            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden"><div style="height:100%;width:0;background:#e0c070;animation:lockPickBar 1.4s linear forwards"></div></div>
+            <style>@keyframes lockPickBar{from{width:0}to{width:100%}}</style>`;
+    }
+    if (chance <= 0) {
+        return `${head}<div style="font-size:11px;color:#999;padding:4px 2px">Beyond your skill: Lockpicking ${lv} tries locks up to difficulty ${Locks.reach(player)}.</div>`;
+    }
+    return `${head}
+        <button onclick="window._containerPick()" title="Lockpicking ${lv}: ${Math.round(chance * 100)}% to open it; ${Locks.minutes(player)} minutes a try; if it holds, ${Math.round(heard * 100)}% someone hears"
+            style="align-self:flex-start;background:rgba(224,192,112,0.18);color:#f0d890;border:none;border-radius:3px;padding:5px 10px;cursor:pointer;font-size:12px">
+            🗝️ Pick the lock <span style="color:${_riskColour(1 - chance)}">(${Math.round(chance * 100)}%)</span> · ${Locks.minutes(player)} min · <span style="color:${_riskColour(heard)}">${Math.round(heard * 100)}% heard if it holds</span></button>`;
+}
+
 function _riskColour(c) {
     return c < 0.25 ? '#5ddb6a' : c < 0.5 ? '#e0c060' : '#e06a5a';
 }
@@ -100,7 +124,8 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
         const player = game.player;
         const scene = theftScene(game, ctx);
         ctx.ownerName = scene.ownerName;
-        const items = Object.entries(Containers.contents(player, game.world, ctx)).filter(([, n]) => n > 0);
+        const lock = Locks.lockedBox(player, game.world, ctx);
+        const items = lock ? [] : Object.entries(Containers.contents(player, game.world, ctx)).filter(([, n]) => n > 0);
         const whose = access === 'free'
             ? 'No one claims this. Take what you like.'
             : ctx.building
@@ -146,13 +171,41 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
             <div style="${MODAL_BODY_STYLE}">
                 ${watchers ? `<div style="font-size:11px;color:#bbb">👁 ${watchers}${InnerMap.timeOfDay >= 22 || InnerMap.timeOfDay < 5 ? ' · the dark is on your side' : ''}</div>` : ''}
                 ${lastMsg ? `<div style="font-size:12px;padding:6px 8px;border-radius:4px;background:${lastMsg.bad ? 'rgba(224,106,90,0.15)' : 'rgba(93,219,106,0.12)'};color:${lastMsg.bad ? '#e8a090' : '#9fe0a6'}">${lastMsg.text}</div>` : ''}
-                <div style="display:flex;flex-direction:column;gap:3px">
+                ${lock ? _lockHtml(player, lock, scene, picking) : `<div style="display:flex;flex-direction:column;gap:3px">
                     ${rows || '<div style="font-size:12px;color:#777;padding:8px">Empty. Nothing worth having.</div>'}
-                </div>
+                </div>`}
             </div>
             <div style="${MODAL_FOOTER_STYLE}">
                 ${_btn('Close', false, `document.getElementById('${MODAL_ID}').remove()`)}
             </div>`;
+    };
+
+    // Pick the lock: a short wait at it (the bar fills), then the roll (systems/locks.js)
+    let picking = false;
+    window._containerPick = () => {
+        if (picking) return;
+        picking = true;
+        render();
+        setTimeout(() => {
+            picking = false;
+            if (!document.getElementById(MODAL_ID)) return;
+            const player = game.player;
+            const scene = theftScene(game, ctx);
+            ctx.ownerName = scene.ownerName;
+            const res = Locks.pickBox(player, game.world, ctx, scene);
+            if (res.minutes && typeof InnerMap.passHours === 'function') InnerMap.passHours(res.minutes / 60);
+            lastMsg = { text: res.text, bad: !res.ok };
+            if (res.noticed) {
+                game.ui.showNotification('🚨 Heard at the Lock', res.text, 'error');
+                for (const npc of scene.near || []) {
+                    const isOwner = scene.ownerName && npc.name === scene.ownerName;
+                    NpcDisposition.adjustDisposition(npc, isOwner ? -15 : -6, player);
+                    NpcDisposition.getMemory(npc).lastAction = 'caught_stealing';
+                }
+            }
+            game.ui.updateStats(player, game.world);
+            render();
+        }, 1400);
     };
 
     window._containerAct = (kind, goodId, qty) => {

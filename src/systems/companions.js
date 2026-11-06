@@ -38,6 +38,7 @@ import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Relationships } from './relationships.js';
 import { Traits } from './traits.js';
+import { SocialSkills } from './socialSkills.js';
 import { Quests } from './quests.js';
 import { House } from './house.js';
 import { Schemes } from './schemes.js';
@@ -833,7 +834,8 @@ export const Companions = {
             }
 
             // Desertion
-            if (c.approval < cfg.leaveApproval && Utils.random() < cfg.leaveChance) {
+            // (Leadership: an unhappy companion is slower to walk off — systems/socialSkills.js)
+            if (c.approval < cfg.leaveApproval && Utils.random() < cfg.leaveChance * (1 - Math.max(0, Math.min(0.9, SocialSkills.frac(player, 'leadership', 'companions'))))) {
                 Companions._depart(player, npc, world, 'deserted');
                 out.left.push(npc.id);
             }

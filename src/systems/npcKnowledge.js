@@ -42,6 +42,7 @@ import { TradePolicy } from './tradePolicy.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { NpcTasks } from './npcTasks.js';
 import { Townsfolk } from './townsfolk.js';
+import { SocialSkills } from './socialSkills.js';
 import { Ledger } from './ledger.js';
 
 const DEFAULTS = {
@@ -695,6 +696,9 @@ export const NpcKnowledge = {
         if (disp >= 70 && S.warm) { d += S.warm; reasons.push(`Likes you ${S.warm}`); }
         if (disp < 35 && S.cold) { d += S.cold; reasons.push(`Dislikes you +${S.cold}`); }
         if (kind === 'flatter' && mem && mem.flattered && S.again) { d += S.again; reasons.push(`Flattered before +${S.again}`); }
+        // A practised talker is harder to talk round: nobles, officials (Persuasion, systems/socialSkills.js)
+        const glib = Math.round(SocialSkills.npcResistance(npc) * 10) / 10;
+        if (glib > 0) { d += glib; reasons.push(`Silver-tongued +${glib}`); }
         return { difficulty: Math.max(1, d), reasons };
     },
 
@@ -714,10 +718,19 @@ export const NpcKnowledge = {
     bargain(npc, mem, player) {
         const F = NpcKnowledge.config().favour;
         const skill = _num(player && player.skills && player.skills.commerce);
-        const pct = _clamp(0.05 + (_num(mem.disposition) - F.bargainMin) / 500 + skill * 0.01, 0.03, F.bargainMax);
+        // Haggling against the trader's own (systems/socialSkills.js): the perk, ±1% a level between you
+        let edge = 0, top = 0, you = 1, them = 1;
+        if (player && SocialSkills.has('haggling')) {
+            you = SocialSkills.level(player, 'haggling');
+            them = SocialSkills.npcLevel(npc, 'haggling');
+            top = SocialSkills.frac(player, 'haggling', 'bargain');
+            edge = top + (you - them) * 0.01;
+        }
+        const pct = _clamp(0.05 + (_num(mem.disposition) - F.bargainMin) / 500 + skill * 0.01 + edge, 0.03, F.bargainMax + top);
         mem.bargain = { pct: Math.round(pct * 100) / 100, spoken: mem.timesSpoken };
         mem.disposition = _clamp(_num(mem.disposition) - F.bargainCost, 0, 100);
-        return { pct: mem.bargain.pct, cost: F.bargainCost };
+        if (player) SocialSkills.trainBy(player, 'haggling', 'bargain');
+        return { pct: mem.bargain.pct, cost: F.bargainCost, you, them };
     },
 
     /** Can this NPC be asked a favour now (not a trader; liked enough; not asked lately)? */

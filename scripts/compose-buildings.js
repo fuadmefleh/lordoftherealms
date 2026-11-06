@@ -76,6 +76,111 @@ function block(layers, kit, id, left, W, R, wallKey, roofKey, roofRowsWanted) {
     return { left, right, wallTop, roofTop };
 }
 
+// ── Keeping the front's features inside the wall ──
+// Windows, awnings, flower boxes and signs are a whole cell wide. In a wall's
+// outermost column they would cover its side trim (the outline and pilaster that
+// make the building read as a block) and run right up to the next house, so every
+// feature keeps EDGE_MARGIN of a cell clear of each side of the wall block it
+// sits on; a feature may stand at a half cell (the renderer draws cells at any q).
+// A door keeps DOOR_GAP clear of the windows beside it (a framed door's frame
+// reaches FRAME_REACH into the cells either side).
+const EDGE_MARGIN = 0.5;
+const FRAME_REACH = 0.22;
+const DOOR_GAP = 0.08;
+
+/** Subtract [x0, x1] spans from [A, B]: the free stretches left, in order. */
+function freeSpans(A, B, blocked) {
+    let spans = [[A, B]];
+    for (const [x0, x1] of blocked) {
+        const next = [];
+        for (const [a, b] of spans) {
+            if (x1 <= a || x0 >= b) { next.push([a, b]); continue; }
+            if (x0 > a) next.push([a, x0]);
+            if (x1 < b) next.push([x1, b]);
+        }
+        spans = next;
+    }
+    return spans.filter(([a, b]) => b - a >= 1 - 1e-9);
+}
+
+/**
+ * Fit a run of one-cell features (sorted by x) into [a, b]: drop the outermost
+ * (toward `dropFrom`: 'low', 'high' or 'both') until they fit, shrink the gaps
+ * between them if they are spread too wide, then slide the run the least it
+ * takes to sit inside. Returns the kept features' new x, by index (null: dropped).
+ */
+function packRun(xs, a, b, dropFrom) {
+    const idx = xs.map((x, i) => i);
+    let keep = idx.slice();
+    const room = Math.floor(b - a + 1e-9);
+    let flip = false;
+    while (keep.length > room) {
+        const fromLow = dropFrom === 'low' || (dropFrom === 'both' && !flip);
+        if (fromLow) keep.shift(); else keep.pop();
+        flip = !flip;
+    }
+    const out = xs.map(() => null);
+    if (!keep.length) return out;
+    const k = keep.map(i => xs[i]);
+    const gaps = [];
+    for (let i = 1; i < k.length; i++) gaps.push(Math.max(0, k[i] - k[i - 1] - 1));
+    const gapSum = gaps.reduce((s, g) => s + g, 0);
+    const need = k.length + gapSum;
+    const f = need > b - a && gapSum > 0 ? Math.max(0, (b - a - k.length) / gapSum) : 1;
+    const rel = [0];
+    for (let i = 1; i < k.length; i++) rel.push(rel[i - 1] + 1 + gaps[i - 1] * f);
+    const span = rel[rel.length - 1] + 1;
+    const start = Math.min(Math.max(k[0], a), b - span);
+    keep.forEach((i, j) => { out[i] = Math.round((start + rel[j]) * 100) / 100; });
+    return out;
+}
+
+/**
+ * Place a block's features. `items` are { x, top, bottom } (x: the cell's left,
+ * top/bottom: the rows it covers); `fixed` are spans already taken
+ * ({ x0, x1, top, bottom }: the door, a sign). Items are grouped by `group` (a
+ * window's storey row) or else by the rows they cover; each group is spread over the free stretches of the wall, never nearer
+ * than EDGE_MARGIN to the block's sides. Returns each item's new x (null: dropped).
+ */
+function fitFeatures(items, fixed, left, right) {
+    const A = left + EDGE_MARGIN;
+    const B = right + 1 - EDGE_MARGIN;
+    const res = items.map(() => null);
+    const groups = new Map();
+    items.forEach((it, i) => {
+        const key = it.group != null ? it.group : `${it.top},${it.bottom}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(i);
+    });
+    for (const ids of groups.values()) {
+        const top = Math.min(...ids.map(i => items[i].top));
+        const bottom = Math.max(...ids.map(i => items[i].bottom));
+        const blocked = fixed.filter(f => f.top <= bottom && f.bottom >= top).map(f => [f.x0, f.x1]);
+        const spans = freeSpans(A, B, blocked);
+        if (!spans.length) continue;
+        // each feature to the stretch its middle is in (or the nearest)
+        const bySpan = spans.map(() => []);
+        for (const i of ids) {
+            const c = items[i].x + 0.5;
+            let best = 0, bestD = Infinity;
+            spans.forEach(([a, b], s) => {
+                const d = c < a ? a - c : c > b ? c - b : 0;
+                if (d < bestD) { bestD = d; best = s; }
+            });
+            bySpan[best].push(i);
+        }
+        spans.forEach(([a, b], s) => {
+            const run = bySpan[s].sort((p, q) => items[p].x - items[q].x);
+            if (!run.length) return;
+            // drop from the end toward the building's side, never the door's
+            const dropFrom = blocked.length === 0 ? 'both' : a <= A + 1e-9 && b >= B - 1e-9 ? 'both' : a <= A + 1e-9 ? 'low' : b >= B - 1e-9 ? 'high' : 'both';
+            const xs = packRun(run.map(i => items[i].x), a, b, dropFrom);
+            run.forEach((i, j) => { res[i] = xs[j]; });
+        });
+    }
+    return res;
+}
+
 function compose(recipe, kit) {
     const W = recipe.width;
     const R = recipe.wallRows || 3;
@@ -95,15 +200,21 @@ function compose(recipe, kit) {
         const aLeft = a.side === 'left' ? minQ - a.width : maxQ + 1;
         const ab = block(layers, kit, recipe.id, aLeft, a.width, a.wallRows || 3, a.wall || recipe.wall, a.roof || recipe.roof, a.roofRows || 2);
         minQ = Math.min(minQ, ab.left); maxQ = Math.max(maxQ, ab.right);
-        for (const w of a.windows || []) {
-            const win = need('windows', w.style, 'window');
-            win.cells.forEach(([sx, sy], i) => layers.walls.push(cell(ab.left + w.q, w.r + i, win.sheet, sx, sy)));
-        }
+        const wins = (a.windows || []).map(w => ({ w, win: need('windows', w.style, 'window') }));
+        const xs = fitFeatures(wins.map(({ w, win }) => ({ x: ab.left + w.q, top: w.r, bottom: w.r + win.cells.length - 1 })), [], ab.left, ab.right);
+        wins.forEach(({ w, win }, i) => {
+            if (xs[i] == null) return;
+            win.cells.forEach(([sx, sy], j) => layers.walls.push(cell(xs[i], w.r + j, win.sheet, sx, sy)));
+        });
     }
 
     // ── Door: a frame three tiles wide, the panel in the middle ──
     const dq = recipe.doorQ || 0;
     const door = need('doors', recipe.door, 'door');
+    const doorW = door.tiles ? Math.max(...door.tiles.map(t => t[0])) + 1 : 1;
+    // (a wide door stands in the middle of the front: half a cell over on an odd width)
+    const dx0 = recipe.doorQ == null && doorW > 1 ? (main.left + W / 2) - doorW / 2 : dq;
+    const doorTop = door.tiles ? Math.min(...door.tiles.map(t => t[1])) : door.frame ? -1 : -((door.cells || [[]]).length - 1);
     if (door.frame) {
         const fr = need('doorFrames', door.frame, 'door frame');
         for (let dr = 0; dr < 2; dr++) {
@@ -113,46 +224,70 @@ function compose(recipe, kit) {
         }
     }
     // (a wide door, an arched pair of leaves, lists its tiles as [dq, dr, sx, sy] from the door cell)
-    for (const [tq, tr, sx, sy] of door.tiles || []) layers.roof.push(cell(dq + tq, tr, door.sheet, sx, sy));
+    for (const [tq, tr, sx, sy] of door.tiles || []) layers.roof.push(cell(dx0 + tq, tr, door.sheet, sx, sy));
     for (let i = 0; i < (door.cells || []).length; i++) {
         const [sx, sy] = door.cells[i];
         const h = door.cells.length;
         layers.roof.push(cell(dq + (door.dq || 0), -(h - 1) + i, door.sheet, sx, sy, door.sw || T));
     }
+    const reach = door.frame ? FRAME_REACH : 0;
+    const fixed = [{ x0: dx0 - reach - DOOR_GAP, x1: dx0 + doorW + reach + DOOR_GAP, top: doorTop, bottom: 0 }];
+    if (recipe.porch) fixed.push({ x0: dx0 + doorW / 2 - 0.5, x1: dx0 + doorW / 2 + 0.5, top: -2, bottom: -2 });
 
-    // ── Windows, awnings, signs, chimneys and anything else, cell by cell ──
-    for (const w of recipe.windows || []) {
+    // ── Signs: over the door, centred on it; anywhere else, inside the wall's sides ──
+    const signs = (recipe.signs || []).map(s => {
+        const x = s.q === dq ? dx0 + doorW / 2 - 0.5 : Math.min(Math.max(s.q, main.left + EDGE_MARGIN), main.right - EDGE_MARGIN);
+        fixed.push({ x0: x, x1: x + 1, top: s.r, bottom: s.r });
+        return { ...s, x };
+    });
+
+    // ── Windows (with their awnings and flower boxes), spread over the wall clear of its sides ──
+    const wins = (recipe.windows || []).map(w => {
         const win = need('windows', w.style, 'window');
         // A culture's tall window stands on the sill of its storey (row -1 or -4), never below it
         // (the kit's older buildings keep theirs as they were drawn)
         const tall = recipe.culture && (w.r === -1 || w.r === -4) && win.cells.length > 1;
         const wr = tall ? Math.max(main.wallTop, w.r - win.cells.length + 1) : w.r;
-        win.cells.forEach(([sx, sy], i) => { if (!tall || wr + i <= w.r) layers.walls.push(cell(w.q, wr + i, win.sheet, sx, sy)); });
-        if (w.awning) {
+        const bottom = tall ? w.r : w.r + win.cells.length - 1;
+        return { w, win, tall, wr, top: wr, bottom };
+    });
+    const wx = fitFeatures(wins.map(o => ({ x: o.w.q, top: o.top, bottom: o.bottom, group: o.w.r })), fixed, main.left, main.right);
+    const movedTo = new Map();      // a ground-floor window's old q -> where it went (its flower box follows)
+    wins.forEach(({ w, win, tall, wr }, i) => {
+        if (w.r === -1) movedTo.set(w.q, wx[i]);
+        if (wx[i] == null) return;
+        win.cells.forEach(([sx, sy], j) => { if (!tall || wr + j <= w.r) layers.walls.push(cell(wx[i], wr + j, win.sheet, sx, sy)); });
+        // (an awning that would run into a sign or the porch over the door is left off)
+        const x = wx[i];
+        if (w.awning && !fixed.some(f => f.top <= w.r - 1 && f.bottom >= w.r - 1 && f.x0 < x + 1 && f.x1 > x)) {
             const a = need('awnings', w.awning, 'awning');
-            layers.overlay.push(cell(w.q, w.r - 1, a.sheet, a.sx, a.sy));
+            layers.overlay.push(cell(x, w.r - 1, a.sheet, a.sx, a.sy));
         }
-    }
+    });
     if (recipe.porch) {
         const a = need('awnings', recipe.porch, 'awning');
-        layers.overlay.push(cell(dq, -2, a.sheet, a.sx, a.sy));
+        layers.overlay.push(cell(dx0 + doorW / 2 - 0.5, -2, a.sheet, a.sx, a.sy));
     }
     for (const fb of recipe.flowerBoxes || []) {
         const box = need('parts', fb.part || 'flower_box', 'part');
-        box.cells.forEach(([dx, dy, sx, sy]) => layers.overlay.push(cell(fb.q + dx, dy, box.sheet, sx, sy)));
+        const x = movedTo.has(fb.q) ? movedTo.get(fb.q) : Math.min(Math.max(fb.q, main.left + EDGE_MARGIN), main.right - EDGE_MARGIN);
+        if (x == null) continue;
+        box.cells.forEach(([dx, dy, sx, sy]) => layers.overlay.push(cell(x + dx, dy, box.sheet, sx, sy)));
     }
-    for (const s of recipe.signs || []) {
+    for (const s of signs) {
         const plaque = need('signs', s.plaque || 'oak', 'sign');
-        layers.overlay.push(cell(s.q, s.r, plaque.sheet, plaque.sx, plaque.sy));
+        layers.overlay.push(cell(s.x, s.r, plaque.sheet, plaque.sx, plaque.sy));
         if (s.emblem) {
             const e = need('emblems', s.emblem, 'emblem');
-            layers.overlay.push(cell(s.q, s.r, e.sheet, e.sx, e.sy));
+            layers.overlay.push(cell(s.x, s.r, e.sheet, e.sx, e.sy));
         }
     }
+    // (a chimney stands on the roof, in from its eaves)
     for (const c of recipe.chimneys || []) {
         const ch = need('chimneys', c.style, 'chimney');
-        layers.overlay.push(cell(c.q, main.roofTop + (c.r || 0) - 1, ch.sheet, ch.sx, ch.sy));
-        layers.overlay.push(cell(c.q, main.roofTop + (c.r || 0), ch.sheet, ch.sx, ch.sy + T));
+        const x = Math.min(Math.max(c.q, main.left + EDGE_MARGIN), main.right - EDGE_MARGIN);
+        layers.overlay.push(cell(x, main.roofTop + (c.r || 0) - 1, ch.sheet, ch.sx, ch.sy));
+        layers.overlay.push(cell(x, main.roofTop + (c.r || 0), ch.sheet, ch.sx, ch.sy + T));
     }
     for (const p of recipe.parts || []) {
         const part = need('parts', p.part, 'part');

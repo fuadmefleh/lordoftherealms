@@ -19,6 +19,11 @@
 # layout); its colour from the season's sheet. Winter: wherever the winter
 # sheet has snow, the painted snow.
 #
+# Mends (cliff_fixes.py, run first on every season alike): the angled front's
+# feet joined into one foot with its strata bent round from the straight
+# front's, and the sides of a crag's top drawn as its top rim turned on its
+# side (the LPC sheet never drew those pieces side by side).
+#
 # Seams: each cell is smoothed with a margin of the cells cliffs.js lays round
 # it (scripts/terrain_modern/cliff_layout.py), so pieces that meet in the game
 # are smoothed as one picture and meet exactly.
@@ -30,6 +35,7 @@ from scipy import ndimage
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cliff_layout import adjacency  # noqa: E402
+import cliff_fixes  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SEASON = sys.argv[1]
@@ -104,6 +110,9 @@ ROCK_GRAIN = np.clip(1 + GRAIN * (_rk / np.maximum(_rk_lo, 1) - 1), 0.6, 1.4).as
 def main():
     spr = np.asarray(Image.open(os.path.join(HERE, 'lpc_cliff_spring.png')).convert('RGBA'))
     sea = np.asarray(Image.open(os.path.join(HERE, f'lpc_cliff_{SEASON}.png')).convert('RGBA'))
+    # Mend the pieces the LPC sheet never drew side by side (cliff_fixes.py)
+    mend, shear = cliff_fixes.remap(spr, K)
+    spr, sea = cliff_fixes.apply(spr, mend), cliff_fixes.apply(sea, mend)
     H, W = spr.shape[:2]
 
     # Classes: one per (material, colour), with the fills merged per material.
@@ -220,7 +229,12 @@ def main():
         a = np.zeros((T, T), np.float32)
         for j, i in enumerate(present):
             wa = wts[j] * alphas[i]
-            rgb += wa[..., None] * colours[i]
+            col = colours[i]
+            if keys[i][0] == 'rock' and (cx, cy) in shear:
+                # (the angled front's sides: the grain's ledges run along its bent strata)
+                yy = (np.arange(T)[:, None] - np.round(shear[(cx, cy)])[None, :].astype(int)) % T
+                col = np.array(keys[i][1], np.float32) * ROCK_GRAIN[yy, np.arange(T)[None, :]][..., None]
+            rgb += wa[..., None] * col
             a += wa
         rgb = rgb / np.maximum(a, 1e-6)[..., None]
         out[cy*T:(cy+1)*T, cx*T:(cx+1)*T, :3] = rgb

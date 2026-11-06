@@ -4354,6 +4354,10 @@ body {
 }
 #gameTitle { font-size: 17px; letter-spacing: 4px; }
 #turnDisplay { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--hud-teal-dim); display: flex; align-items: center; gap: 8px; }
+/* The date opens the Calendar */
+button#turnDisplay { background: none; border: none; padding: 1px 4px; margin: 0; font-family: inherit; cursor: pointer; border-radius: 4px; }
+button#turnDisplay:hover, button#turnDisplay:focus-visible { color: var(--gold); outline: none; }
+button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 /* Gold flourishes either side of the date, as on the title plate */
 #turnDisplay::before,
 #turnDisplay::after {

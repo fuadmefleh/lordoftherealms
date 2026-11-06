@@ -58,7 +58,8 @@ Object.assign(UI.prototype, {
         // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)
         document.getElementById('btnReckoning')?.addEventListener('click', () => ActionMenu.showReckoning(this.game, 'last'));
         document.getElementById('btnCalendar')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
-        document.getElementById('hudBottomDateBtn')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
+        // The date in the top bar opens the Calendar too
+        document.getElementById('turnDisplay')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
 
         // Event Log button
         const btnEventLog = document.getElementById('btnEventLog');
@@ -456,29 +457,29 @@ Object.assign(UI.prototype, {
             servitudeEl.style.display = 'none';
         }
 
-        const dayInSeason = ((world.day - 1) % 30) + 1;
+        this._topBarDate(world);
+    },
+
+    /**
+     * The date in the top bar (a button: it opens the Calendar). One line for
+     * the world map and the town map alike: the hour, today's weather, the day
+     * and the season (lean, when it is), the year, and the building you are in.
+     * Its card on hover: the weather's effects, the season's outlook, the day
+     * of the year and the days played (systems/calendar.js).
+     */
+    _topBarDate(world = this.game && this.game.world) {
         const turnEl = document.getElementById('turnDisplay');
-        // Show time of day - DISABLED: Inner map feature disabled, show simple day display
-        // const cachedTime = InnerMap.getCachedTimeForTile
-        //     ? InnerMap.getCachedTimeForTile(this.game.player.q, this.game.player.r)
-        //     : null;
-        // if (cachedTime) {
-        //     turnEl.textContent = `${cachedTime.periodIcon} ${cachedTime.timeString} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
-        // } else {
-        //     // Fallback: derive time directly from InnerMap's live clock
-        //     const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : null;
-        //     const period = InnerMap.getTimePeriod ? InnerMap.getTimePeriod() : null;
-        //     const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
-        //     if (timeStr && period) {
-        //         turnEl.textContent = `${periodIcons[period] || '🕐'} ${timeStr} — Day ${dayInSeason}, ${world.season}, Year ${world.year}`;
-        //     } else {
-        //         turnEl.textContent = `Day ${dayInSeason} — ${world.season}, Year ${world.year}`;
-        //     }
-        // }
-        // Top-bar subtitle: season + year (mockup style). Bottom bar carries the day.
-        // Today's weather where the player stands, with what it does on hover
-        let wxText = '';
-        let wxTitle = '';
+        if (!turnEl || !world) return;
+        const dayInSeason = ((world.day - 1) % 30) + 1;
+        // The hour (the one clock: InnerMap's, which the town map runs and a day's end resets)
+        let clock = '';
+        if (InnerMap && typeof InnerMap.getTimeString === 'function' && Number.isFinite(InnerMap.timeOfDay)) {
+            const period = typeof InnerMap.getTimePeriod === 'function' ? InnerMap.getTimePeriod() : null;
+            const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
+            clock = `${periodIcons[period] || '🕐'} ${InnerMap.getTimeString()} · `;
+        }
+        // Today's weather where the player stands
+        let wxText = '', wxTitle = '';
         if (world.weather && this.game && this.game.player) {
             const wx = world.weather.getWeather(this.game.player.q, this.game.player.r);
             const info = WEATHER_TYPES[wx.type];
@@ -488,37 +489,23 @@ Object.assign(UI.prototype, {
                 wxTitle = fx ? `${info.name}: ${fx}` : info.name;
             }
         }
-        // Season outlook: what's producing, what's cheap or dear (world/seasons.js)
+        // The season's outlook: what's producing, what's cheap or dear (world/seasons.js)
         const outlook = Seasons.outlook(world.day);
-        const outlookTitle = [`${outlook.icon} ${world.season}, day ${outlook.dayInSeason} of 30`, outlook.note, outlook.summary]
-            .filter(Boolean).join('\n');
-        if (turnEl) {
-            const leanMark = outlook.lean ? ' · Lean' : '';
-            // The hour of the day (the one clock: InnerMap's, which the town map runs and
-            // a day's end resets) — on the world map too, ahead of the season
-            let clock = '';
-            if (InnerMap && typeof InnerMap.getTimeString === 'function' && Number.isFinite(InnerMap.timeOfDay)) {
-                const period = typeof InnerMap.getTimePeriod === 'function' ? InnerMap.getTimePeriod() : null;
-                const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌇', night: '🌙' };
-                clock = `${periodIcons[period] || '🕐'} ${InnerMap.getTimeString()} · `;
-            }
-            turnEl.textContent = `${clock}${wxText}${outlook.icon} ${world.season}${leanMark}, Year ${world.year}`;
-            const title = wxTitle ? `${wxTitle}\n\n${outlookTitle}` : outlookTitle;
-            if (turnEl.title !== title) turnEl.title = title;
-        }
-        const bottomDate = document.getElementById('hudBottomDate');
-        if (bottomDate) {
-            const s = `Day ${dayInSeason} of ${world.season}, Year ${world.year}`;
-            if (bottomDate.textContent !== s) bottomDate.textContent = s;
-        }
-        // Day of the year and days played (systems/calendar.js; the Calendar panel has the rest)
-        const dayCount = document.getElementById('hudBottomDayCount');
-        if (dayCount) {
-            const cal = Calendar.date(world);
-            const played = Calendar.daysPlayed(world);
-            const s = `Day ${cal.dayOfYear} of ${cal.daysInYear} · ${played.toLocaleString()} day${played === 1 ? '' : 's'} played`;
-            if (dayCount.textContent !== s) dayCount.textContent = s;
-        }
+        const leanMark = outlook.lean ? ' · Lean' : '';
+        const inside = InnerMap && InnerMap.active && InnerMap._insideBuilding;
+        const where = inside && inside.name ? ` · ${inside.name}` : '';
+        const text = `${clock}${wxText}Day ${dayInSeason} of ${world.season}${leanMark}, Year ${world.year}${where}`;
+        if (turnEl.textContent !== text) turnEl.textContent = text;
+        // The card: weather, the season, and the year so far
+        const cal = Calendar.date(world);
+        const played = Calendar.daysPlayed(world);
+        const title = [
+            wxTitle,
+            [`${outlook.icon} ${world.season}, day ${outlook.dayInSeason} of 30`, outlook.note, outlook.summary].filter(Boolean).join('\n'),
+            `Day ${cal.dayOfYear} of ${cal.daysInYear} of the year · ${played.toLocaleString()} day${played === 1 ? '' : 's'} played`,
+            'Click to open the Calendar',
+        ].filter(Boolean).join('\n\n');
+        if (turnEl.title !== title) turnEl.title = title;
     },
 
     /**

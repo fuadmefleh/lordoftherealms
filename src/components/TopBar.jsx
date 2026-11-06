@@ -208,7 +208,8 @@ export default function TopBar() {
       <div id="topBarCenter">
         <span id="titleFlourish" className="title-flourish"><Icon name="crown" /></span>
         <span id="gameTitle">Lord of the Realms</span>
-        <span id="turnDisplay">Day {turn.day} — {turn.season}, Year {turn.year}</span>
+        {/* The date: opens the Calendar (bound in ui/ui/hud.js; text kept by HUD._topBarDate) */}
+        <button type="button" id="turnDisplay" title="Open the Calendar">Day {turn.day} — {turn.season}, Year {turn.year}</button>
       </div>
 
       <div id="topBarRight">

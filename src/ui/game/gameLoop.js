@@ -92,18 +92,8 @@ export function gameLoop(timestamp, loopId) {
             }
         }
 
-        // Update top bar with inner map time
-        const turnEl = document.getElementById('turnDisplay');
-        if (turnEl) {
-            const timeStr = InnerMap.getTimeString();
-            const period = InnerMap.getTimePeriod();
-            const periodIcons = { morning: '🌅', midday: '☀️', afternoon: '🌤️', evening: '🌆', night: '🌙' };
-            const periodIcon = periodIcons[period] || '🕐';
-            const dayInSeason = ((this.world.day - 1) % 30) + 1;
-            const insideBldg = InnerMap._insideBuilding;
-            const locationSuffix = insideBldg ? ` — Inside ${insideBldg.name}` : '';
-            turnEl.textContent = `${periodIcon} ${timeStr} — Day ${dayInSeason}, ${this.world.season}, Year ${this.world.year}${locationSuffix}`;
-        }
+        // The top bar's date, with the inner map's hour (ui/ui/hud.js _topBarDate)
+        if (this.ui && typeof this.ui._topBarDate === 'function') this.ui._topBarDate(this.world);
 
         // Update toolbar: show/hide "Exit Building" button
         this._updateBuildingExitButton();

@@ -17,8 +17,9 @@
 //            each full measure raises the stat by 0.1 (cap 10). A job's
 //            `practice` ({ smithing: 8 }) also gives practised-skill XP
 //            (systems/practiceSkills.js) of that many per measure: the
-//            smith's striker learns Smithing (a gain { kind: 'practice',
-//            event } carries any level-up).
+//            smith's striker learns Smithing, the woodcutter Woodcutting, the
+//            herb picker Foraging, a hauler Endurance (a gain { kind:
+//            'practice', event } carries any level-up).
 //   Labour   a land or craft job in a town short of hands does real work:
 //            the goods it yields (job.good) join the town's market.
 //   Bounties the board's instant notices are resolved here with the seeded
@@ -33,6 +34,7 @@ import { Seasons } from '../world/seasons.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Ledger } from '../systems/ledger.js';
 import { TradeSkills } from '../systems/tradeSkills.js';
+import { Foraging, Hunting } from './foraging.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -81,6 +83,9 @@ export const OddJobs = {
         for (const [id, w] of Object.entries((job && job.practice) || {})) {
             const xp = _r2(amount * _num(w));
             if (!(xp > 0)) continue;
+            // An old save's foraging / hunting trips count first, so this XP adds to them
+            if (id === 'foraging') Foraging.skill(player);
+            else if (id === 'hunting') Hunting.skill(player);
             const event = TradeSkills.gain(player, id, xp);
             gains.push({ id, kind: 'practice', by: xp, event });
         }

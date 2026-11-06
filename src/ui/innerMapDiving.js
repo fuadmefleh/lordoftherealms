@@ -382,6 +382,17 @@ export const InnerMapDiving = {
         return true;
     },
 
+    /**
+     * Breath coming back out of the water: each frame on the inner map, and
+     * on the world map too (the game loop), so a winded diver who leaves the
+     * map isn't still winded when they come back. A day's end clears it.
+     */
+    recoverOnSurface(deltaTime, game) {
+        if (game && game.player && Diving.recover(game.player, deltaTime)) {
+            _note(game, '💨 Breath Back', 'Your chest eases. You can dive again.', 'info');
+        }
+    },
+
     /** Each frame, from the game loop. */
     update(deltaTime, game) {
         this._bindKeys(game);
@@ -389,9 +400,7 @@ export const InnerMapDiving = {
         if (!u) {
             if (InnerMap._underwater) InnerMap._underwater = false;
             // Getting your breath back on the surface
-            if (game && game.player && Diving.recover(game.player, deltaTime)) {
-                _note(game, '💨 Breath Back', 'Your chest eases. You can dive again.', 'info');
-            }
+            this.recoverOnSurface(deltaTime, game);
             return;
         }
         const player = game && game.player;
@@ -433,18 +442,26 @@ export const InnerMapDiving = {
     },
 
     _bindKeys(game) {
+        // The game of this frame: after a load or a new game the old one is
+        // gone, and V on it dived the old player — this frame's update then
+        // found the new one not under and surfaced at once
+        if (game) this._game = game;
         if (this._keysBound || typeof window === 'undefined' || !window.addEventListener) return;
         this._keysBound = true;
-        this._game = game;
-        window.addEventListener('keydown', (e) => {
+        // One listener only, even when this module is reloaded (two would
+        // toggle twice: under and straight back up)
+        if (window.__divingKeys) window.removeEventListener('keydown', window.__divingKeys);
+        window.__divingKeys = (e) => {
             if (e.key !== 'v' && e.key !== 'V') return;
+            if (e.repeat) return; // a held key toggles once, not under-and-up again
             if (e.ctrlKey || e.metaKey || e.altKey) return;
             const tag = e.target && e.target.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
             const g = this._game;
             if (!g || !g.player || !InnerMap.active) return;
             this.toggle(g);
-        });
+        };
+        window.addEventListener('keydown', window.__divingKeys);
     },
 
     /** The toolbar's Surface button, while under (as the Leave building button: ui/game/innerMap.js). */

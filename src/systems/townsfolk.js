@@ -540,13 +540,14 @@ export const Townsfolk = {
     npcSkills(npc, world, at = null) {
         if (!npc) return null;
         if (npc._person && npc._folk) return Townsfolk.skillsOf(npc._folk, npc._person, world);
-        if (!npc._skills) {
-            const holder = {};
+        const stale = npc._skills && npc._skills.practiceSkills && npc._skills.practiceSkills._seed !== PracticeSkills._seedSig();
+        if (!npc._skills || stale) {
+            const holder = npc._skills || {};
             const role = npc._skillRole || (npc.deckRole ? 'sailor' : (npc.type || 'villager'));
             const coastal = !!npc.deckRole || (at ? PracticeSkills.coastalAt(world, at.q, at.r) : false);
             const mountain = at ? PracticeSkills.mountainAt(world, at.q, at.r) : false;
             PracticeSkills.seedNpc(holder, { key: npc.uid || npc.id || npc.fullName || npc.name || '', role, age: _num(npc.age, 30), coastal, mountain });
-            Object.defineProperty(npc, '_skills', { value: holder, configurable: true, enumerable: false, writable: true });
+            if (!npc._skills) Object.defineProperty(npc, '_skills', { value: holder, configurable: true, enumerable: false, writable: true });
         }
         return npc._skills;
     },
@@ -554,7 +555,8 @@ export const Townsfolk = {
     /** A person's practised skills, seeded from who they are on first asking → the holder (p) */
     skillsOf(folk, p, world) {
         if (!p) return null;
-        if (!p.practiceSkills) {
+        if (!p.practiceSkills || p.practiceSkills._seed !== PracticeSkills._seedSig()) {
+            // First asking, or seeded before some skills existed: fill them in
             const day = _num(world && world.day, 1);
             PracticeSkills.seedNpc(p, Townsfolk.skillWho(folk, p, day, PracticeSkills.coastalAt(world, folk.q, folk.r), PracticeSkills.mountainAt(world, folk.q, folk.r)));
         }

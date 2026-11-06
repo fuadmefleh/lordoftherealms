@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 
-let InnerMap, DataLoader, Utils, Ships, DeckLife, CustomObjects;
+let InnerMap, DataLoader, Utils, Ships, DeckLife, CustomObjects, _PS;
 
 beforeAll(async () => {
     globalThis.HTMLImageElement = globalThis.HTMLImageElement || class {};
@@ -22,6 +22,7 @@ beforeAll(async () => {
     ({ Utils } = await import('../core/utils.js'));
     ({ Ships } = await import('../systems/ships.js'));
     ({ DeckLife } = await import('../systems/deckLife.js'));
+    ({ PracticeSkills: _PS } = await import('../systems/practiceSkills.js'));
     const { CustomBuildings } = await import('../world/customBuildings.js');
     ({ CustomObjects } = await import('../world/customObjects.js'));
     CustomBuildings.reset(); await CustomBuildings.loadAll();
@@ -196,6 +197,24 @@ describe('the captain\'s orders', () => {
         // no provisions, no grog
         s.cargo = {};
         expect(DeckLife.orderReason(p, w, s, 'grog')).toMatch(/provisions/);
+    });
+
+    it('lending a hand costs a hardy captain less, and is Endurance XP', () => {
+        const { w, s, p } = underWay();
+        const PracticeSkills = _PS;
+        p.needsEnabled = true; p.needs = { energy: 80 };
+        p.modifyNeed = (k, d) => { p.needs[k] += d; };
+        p.practiceSkills = { endurance: PracticeSkills.xpForLevel(10) };
+        DeckLife.giveOrder(p, w, s, 'lend');
+        const hardy = 80 - p.needs.energy;
+        const { w: w2, s: s2, p: q } = underWay();
+        q.needsEnabled = true; q.needs = { energy: 80 };
+        q.modifyNeed = (k, d) => { q.needs[k] += d; };
+        DeckLife.giveOrder(q, w2, s2, 'lend');
+        const soft = 80 - q.needs.energy;
+        expect(hardy).toBeLessThan(soft);
+        expect(hardy).toBeCloseTo(soft * PracticeSkills.energyMult(p));
+        expect(PracticeSkills.xp(q, 'endurance')).toBeGreaterThan(0);
     });
 
     it('the first sight of land lifts the crew once', () => {

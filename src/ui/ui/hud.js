@@ -1245,8 +1245,11 @@ Object.assign(UI.prototype, {
     /** Right-rail Recent Events + bottom Activity Log, from notificationLog. */
     updateEventsPanel() {
         const log = this.notificationLog || [];
-        if (this._lastEventLen === log.length) return;
-        this._lastEventLen = log.length;
+        // A count of every entry ever logged, not the length: the log is
+        // capped (200), so at the cap a new entry leaves the length unchanged
+        const seq = this._notifSeq || log.length;
+        if (this._lastEventSeq === seq) return;
+        this._lastEventSeq = seq;
 
         const typeIcons = { success: '✅', error: '⚠️', info: 'ℹ️', default: '📜' };
         const iconOf = (e) => typeIcons[e.type] || typeIcons.default;

@@ -42,6 +42,7 @@ import { Hex } from '../core/hex.js';
 import { Ledger } from './ledger.js';
 import { Fame } from './fame.js';
 import { FoodSkills } from './foodSkills.js';
+import { PracticeSkills } from './practiceSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -817,7 +818,9 @@ export const Hospitality = {
         const h = this.hosp(property);
         if (h.clean >= 95) return { ok: false, text: 'It is already spotless.' };
         h.clean = _clamp(h.clean + 30, 0, 100);
-        if (player.modifyNeed) { player.modifyNeed('energy', -20); player.modifyNeed('hygiene', -15); }
+        // Endurance cuts the energy it costs, and the scrubbing is Endurance XP
+        PracticeSkills.labour(player, 20);
+        if (player.modifyNeed) player.modifyNeed('hygiene', -15);
         return { ok: true, text: `You roll up your sleeves and scrub ${property.name} from cellar to attic.` };
     },
 

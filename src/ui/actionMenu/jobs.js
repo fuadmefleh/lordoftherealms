@@ -1438,7 +1438,8 @@ function _huntAnimalAfter(game, out, kind) {
 function _archeryShot(game, player, accuracy) {
     if (!CombatSkills.has('archery')) return { accuracy };
     const need = Hunting.hitThreshold(player);
-    let acc = Math.min(100, Number(accuracy || 0) + CombatSkills.perk(player, 'archery', 'aim'));
+    // Archery's aim and Hunting's don't stack: the better governs (Hunting.bowAim)
+    let acc = Math.min(100, Number(accuracy || 0) + Hunting.bowAim(player, CombatSkills.perk(player, 'archery', 'aim')));
     const steady = CombatSkills.perk(player, 'archery', 'steady');
     if (acc < need && steady > 0 && acc >= need - steady) acc = need;
     let second = false;

@@ -183,6 +183,23 @@ describe('save and load', () => {
         expect(PracticeSkills.xp(back, 'swimming')).toBeCloseTo(33);
     });
 
+    it('keeps a winded diver winded through a save and load', () => {
+        const p = diver();
+        Diving.goUnder(p, summer);
+        Diving.tick(p, summer, null, 19, never);
+        Diving.surface(p);
+        Diving.recover(p, 3);
+        const left = p.breathRecovery.left;
+        expect(Diving.recovering(p)).toBe(true);
+        const back = new Player();
+        SaveLoad.restorePlayer(JSON.parse(JSON.stringify(SaveLoad.serializePlayer(p))), back);
+        expect(Diving.recovering(back)).toBe(true);
+        expect(back.breathRecovery.left).toBeCloseTo(left);
+        expect(Diving.canDive(back).ok).toBe(false);
+        expect(Diving.recover(back, left + 1)).toBe(true);
+        expect(Diving.recovering(back)).toBe(false);
+    });
+
     it('an old save\'s swimming practice becomes XP, once', () => {
         const back = new Player();
         SaveLoad.restorePlayer(JSON.parse(JSON.stringify({ ...SaveLoad.serializePlayer(new Player()), swimPractice: 400 })), back);
@@ -242,6 +259,38 @@ describe('NPCs', () => {
         const kept = coast.practiceSkills;
         Townsfolk.skillsOf({ q: 5, r: 5 }, coast, sea);
         expect(coast.practiceSkills).toBe(kept);
+    });
+
+    it('an NPC seeded before newer skills existed has them filled in, and nothing else changed', () => {
+        const who = { key: '7,2#41', role: 'smith', age: 40, coastal: false, mountain: true };
+        const fresh = {};
+        PracticeSkills.seedNpc(fresh, who);
+        // An old save's townsperson: only diving/swimming, and some XP earned since
+        const old = { practiceSkills: { diving: 5, swimming: 777 } };
+        PracticeSkills.seedNpc(old, who);
+        const s = old.practiceSkills;
+        expect(s.diving).toBe(5);
+        expect(s.swimming).toBe(777);
+        for (const id of PracticeSkills.ids()) {
+            if (id === 'diving' || id === 'swimming') continue;
+            expect(PracticeSkills.level(old, id)).toBe(PracticeSkills.level(fresh, id));
+        }
+        expect(PracticeSkills.level(old, 'smithing')).toBeGreaterThan(1);
+        expect(s._seed).toBe(PracticeSkills._seedSig());
+        // Once up to date it is left alone
+        PracticeSkills.gain(old, 'smithing', 50);
+        const after = PracticeSkills.xp(old, 'smithing');
+        PracticeSkills.seedNpc(old, who);
+        expect(PracticeSkills.xp(old, 'smithing')).toBe(after);
+        // A townsperson from an old save gets them on asking; a cached traveller too
+        const p = { id: 3, role: 'villager', born: 4000 - 120 * 30, practiceSkills: { diving: 0 } };
+        Townsfolk.skillsOf({ q: 1, r: 1 }, p, { day: 4000, getTile: () => ({ terrain: { id: 'grassland' } }) });
+        expect(p.practiceSkills._seed).toBe(PracticeSkills._seedSig());
+        const trav = { name: 'Odo', type: 'merchant', age: 40 };
+        const h = Townsfolk.npcSkills(trav, null);
+        h.practiceSkills = { swimming: 1 };
+        Townsfolk.npcSkills(trav, null);
+        expect(PracticeSkills.level(h, 'haggling')).toBeGreaterThan(1);
     });
 
     it('a ship\'s hand met on deck is a swimmer', () => {

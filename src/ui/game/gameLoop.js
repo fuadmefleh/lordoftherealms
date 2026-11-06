@@ -40,6 +40,8 @@ export function gameLoop(timestamp, loopId) {
     this.lastTime = timestamp;
     // Practised-skill level-ups queued by the systems (ui/skillUps.js)
     announceSkillUps(this, timestamp);
+    // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
+    if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
 
     // -- Inner Map Mode --
     if (InnerMap.active) {

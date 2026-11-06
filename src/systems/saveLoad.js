@@ -383,6 +383,8 @@ export const SaveLoad = {
         // Skills learned by doing — diving, swimming — as XP (systems/practiceSkills.js);
         // swimPractice is an old save's swimming practice, turned into XP on first touch
         'practiceSkills', 'swimPractice',
+        // Winded after a deep dive: the seconds left getting your breath back (player/diving.js)
+        'breathRecovery',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)

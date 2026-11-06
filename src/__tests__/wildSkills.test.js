@@ -10,6 +10,7 @@ import { PracticeSkills } from '../systems/practiceSkills.js';
 import { Gathering } from '../player/gathering.js';
 import { Foraging, Hunting, FORAGE_RANKS } from '../player/foraging.js';
 import { InnerMap } from '../world/innerMap.js';
+import { OddJobs } from '../player/oddJobs.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) await DataLoader.initializeAll();
@@ -139,6 +140,23 @@ describe('Foraging and Hunting & Butchering (player/foraging.js)', () => {
         expect(Hunting.butcherTimeMult(h9)).toBeLessThan(1);
     });
 
+    it('a bow\'s Archery aim and the Hunting aim do not stack: the better governs', () => {
+        const both = { practiceSkills: { hunting: PracticeSkills.xpForLevel(10), archery: PracticeSkills.xpForLevel(10) }, strength: 5, luck: 5 };
+        const hunt = Hunting.perk(both, 'aim');
+        const arch = PracticeSkills.perk(both, 'archery', 'aim');
+        expect(hunt).toBeGreaterThan(0);
+        // the whole aim on a shot = what hitThreshold takes off + what the bow adds
+        const base = { strength: 5, luck: 5 };
+        const total = (Hunting.hitThreshold(base) - Hunting.hitThreshold(both)) + Hunting.bowAim(both, arch);
+        expect(total).toBe(Math.max(hunt, arch));
+        // a hunter with no archery still gets the hunter's aim; an archer no hunting the archer's
+        const hunter = at('hunting', 10);
+        expect(Hunting.bowAim(hunter, 0)).toBe(0);
+        expect(Hunting.hitThreshold(base) - Hunting.hitThreshold(hunter)).toBe(hunt);
+        const archer = at('archery', 10);
+        expect(Hunting.bowAim(archer, arch)).toBe(arch);
+    });
+
     it('an old save\'s trips become XP once, never twice', () => {
         const p = { foragingTrips: 15 };
         const L = Foraging.skill(p).practice;
@@ -185,5 +203,31 @@ describe('NPC woodcutters, miners and herbalists', () => {
         }
         expect(wood).toBeGreaterThan(5);
         expect(best).toBeGreaterThanOrEqual(PracticeSkills.config().npc.notableLevel);
+    });
+});
+
+describe('odd jobs train the wild skills', () => {
+    const jobs = () => {
+        const o = DataLoader._gamedata.earlyJobs.oddJobs;
+        return [...Object.values(o.settlement_jobs).flat(), ...Object.values(o.seasonal_jobs || {}).flat()];
+    };
+
+    it("a woodcutter's day is Woodcutting XP, a herb picker's Foraging", () => {
+        for (const [jobId, skill] of [['woodcutter', 'woodcutting'], ['herb_picker', 'foraging'], ['farm_hand', 'farming'], ['cargo_hauler', 'endurance']]) {
+            const job = jobs().find(j => j.id === jobId);
+            expect(job, jobId).toBeTruthy();
+            const p = { strength: 5, intelligence: 5, skills: {} };
+            const g = OddJobs.train(p, job, 80).find(x => x.kind === 'practice' && x.id === skill);
+            expect(g, jobId).toBeTruthy();
+            expect(PracticeSkills.xp(p, skill)).toBeCloseTo(g.by, 5);
+        }
+    });
+
+    it("an old save's foraging trips are counted before the job's XP is added", () => {
+        const job = jobs().find(j => j.id === 'herb_picker');
+        const p = { strength: 5, intelligence: 5, skills: {}, foragingTrips: 10 };
+        const g = OddJobs.train(p, job, 80).find(x => x.kind === 'practice');
+        const rate = PracticeSkills.def('foraging').xp.migrateTrips;
+        expect(PracticeSkills.xp(p, 'foraging')).toBeCloseTo(10 * rate + g.by, 5);
     });
 });

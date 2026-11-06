@@ -46,11 +46,7 @@ export const Endurance = {
 
     /** Queue a level-up event for the UI to tell (unsaved). */
     queue(player, up) {
-        if (!player || !up) return;
-        if (!Array.isArray(player._skillUps)) {
-            Object.defineProperty(player, '_skillUps', { value: [], configurable: true, enumerable: false, writable: true });
-        }
-        player._skillUps.push(up);
+        PracticeSkills.queueUp(player, up);
     },
 
     /** Take the queued level-ups (empties the queue). */
@@ -70,7 +66,7 @@ export const Endurance = {
 
     /** The share of an energy cost still paid, 0.1..1 */
     energyMult(player) {
-        return Math.max(0.1, 1 - PracticeSkills.perk(player, ID, 'energySaved') / 100);
+        return PracticeSkills.energyMult(player);
     },
 
     /**
@@ -78,11 +74,7 @@ export const Endurance = {
      * skill, is taken from the player's energy and earns XP. → energy spent.
      */
     labour(player, energy) {
-        if (!player || !(energy > 0)) return 0;
-        const spent = energy * Endurance.energyMult(player);
-        if (typeof player.modifyNeed === 'function') player.modifyNeed('energy', -spent);
-        Endurance.train(player, energy * _num(_xpCfg().perEnergy, 0.3));
-        return spent;
+        return PracticeSkills.labour(player, energy);
     },
 
     /** Multiplier on energy restored by sleep */

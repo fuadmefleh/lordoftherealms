@@ -379,6 +379,9 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
                 strength: (game.player.strength || 5) + Crafting.forgeBonus(game.player, recipe),
                 onComplete: (scorePercent) => {
                     host.close();
+                    // The forge's own window goes too (a day's labour replaces it with its
+                    // pay panel; here nothing else would, and it stayed up, dead)
+                    if (game.ui && typeof game.ui.hideCustomPanel === 'function') game.ui.hideCustomPanel();
                     finish(recipe, Crafting.craft(game.player, recipe, { building, forgeScore: scorePercent }));
                 },
             });

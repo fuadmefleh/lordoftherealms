@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Utils } from '../core/utils.js';
 import { Hospitality } from '../systems/hospitality.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { PlayerActions } from '../player/playerActions.js';
@@ -235,6 +236,21 @@ describe('the player\'s own house', () => {
         expect(player.gold).toBe(gold + day.takings - day.costs);
         expect(player.financeToday.expenses.hospitalityCosts || 0).toBeGreaterThan(0);
         removeProps(t.q, t.r);
+    });
+
+    it('scrubbing it costs a hardy keeper less energy, and is Endurance XP', () => {
+        const spent = (endurance) => {
+            const p = { needs: { energy: 90, hygiene: 90 }, modifyNeed(k, d) { this.needs[k] += d; }, practiceSkills: endurance ? { endurance } : {} };
+            const prop = { type: 'INN', name: 'The Scrubbed Pail' };
+            Hospitality.hosp(prop).clean = 20;
+            expect(Hospitality.scrub(p, prop).ok).toBe(true);
+            return { p, cost: 90 - p.needs.energy };
+        };
+        const soft = spent(0), hardy = spent(PracticeSkills.xpForLevel(10));
+        expect(soft.cost).toBe(20);
+        expect(hardy.cost).toBeLessThan(soft.cost);
+        expect(PracticeSkills.xp(soft.p, 'endurance')).toBeGreaterThan(0);
+        expect(soft.p.needs.hygiene).toBe(75);
     });
 
     it('cheaper rooms and more stars draw more guests; dirt and dear rooms fewer', () => {

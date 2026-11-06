@@ -47,7 +47,7 @@
             "order": 33,
             "perks": {
                 "stalk": { "levels": [0, 6, 12, 18, 24, 30, 36, 42, 48, 55], "text": "beasts notice you {a}% closer", "show": "beasts notice you {v}% closer" },
-                "aim": { "levels": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "text": "a steadier shot (+{d})", "show": "+{v} steadier shot" },
+                "aim": { "levels": [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], "text": "a steadier shot (+{d})", "show": "+{v} steadier shot (with a bow, this or Archery's aim, whichever is better)" },
                 "meat": { "levels": [0, 8, 16, 24, 32, 40, 48, 56, 64, 72], "text": "+{d}% chance of an extra cut", "show": "{v}% chance of an extra cut" },
                 "hides": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "+{d}% better hides and pelts", "show": "+{v}% hides and pelts" },
                 "butcher": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "butcher {a}% quicker", "show": "butcher {v}% quicker" }

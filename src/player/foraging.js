@@ -311,6 +311,17 @@ export const Hunting = {
         return 35 - combat * 2 - str - Hunting.perk(player, 'aim');
     },
 
+    /**
+     * What a bow's Archery aim (archeryAim, combat pack) adds to a hunting
+     * shot on top of hitThreshold, which already holds the Hunting aim: the
+     * better of the two governs — a seasoned hunter places a shot as well as
+     * a fair archer, an archer shoots straight at any quarry — they never
+     * stack. → max(0, archery − hunting aim)
+     */
+    bowAim(player, archeryAim) {
+        return Math.max(0, _num(archeryAim) - Hunting.perk(player, 'aim'));
+    },
+
     /** Chance of an extra cut from each part: the meat perk and luck. */
     qtyBonusChance(player) {
         return Math.max(0, Hunting.perk(player, 'meat') / 100 + (_num(player && player.luck, 5) - 5) * 0.04);

@@ -30,6 +30,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Ships } from './ships.js';
+import { PracticeSkills } from './practiceSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -266,7 +267,7 @@ export const DeckLife = {
             const need = this.grogCost(ship);
             if (Ships.getProvisions(ship) < need) return `Needs ${need} provisions in the hold`;
         }
-        if (id === 'lend' && player && player.needsEnabled && player.needs && _num(player.needs.energy, 100) < _num(o.energy, 12)) return 'You are too tired.';
+        if (id === 'lend' && player && player.needsEnabled && player.needs && _num(player.needs.energy, 100) < _num(o.energy, 12) * PracticeSkills.energyMult(player)) return 'You are too tired.';
         return null;
     },
 
@@ -314,7 +315,8 @@ export const DeckLife = {
             Ships._setMorale(ship, ship.morale + _num(o.morale, 5));
             message = 'A double ration and a tot all round. Somebody starts a song.';
         } else if (id === 'lend') {
-            if (player && typeof player.modifyNeed === 'function') player.modifyNeed('energy', -_num(o.energy, 12));
+            // Endurance cuts the cost, and the hauling is Endurance XP (systems/practiceSkills.js)
+            if (player) PracticeSkills.labour(player, _num(o.energy, 12));
             Ships._setMorale(ship, ship.morale + _num(o.morale, 2));
             hours = _num(o.hours, 2);
             message = 'You haul with the hands until your palms burn. They take note of a captain who will.';

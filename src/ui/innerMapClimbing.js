@@ -18,6 +18,7 @@
 import { InnerMap } from '../world/innerMap.js';
 import { Climbing } from '../player/climbing.js';
 import { Endurance } from '../player/endurance.js';
+import { queueSkillUps } from './skillUps.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 
@@ -125,7 +126,8 @@ export const InnerMapClimbing = {
     /** Tell the body skills' level-ups queued from anywhere (player._skillUps). */
     flushSkillUps(game) {
         const player = game && game.player;
-        for (const up of Endurance.takeQueued(player)) _note(game, `${up.icon} ${up.name} Improved`, up.text, 'success');
+        // Told in turn by the game loop (ui/skillUps.js), never two lost in one frame
+        queueSkillUps(Endurance.takeQueued(player));
     },
 
     // ══════════════════════════════════════════════

@@ -1366,6 +1366,17 @@ Object.assign(UI.prototype, {
         if (this.notificationLog.length > 200) {
             this.notificationLog = this.notificationLog.slice(-200);
         }
+        // Every entry reaches the Activity Log, not only those followed by an
+        // updateStats (a level-up told from the game loop, a second in the
+        // same frame): one refresh per frame, however many were logged
+        this._notifSeq = (this._notifSeq || 0) + 1;
+        if (!this._eventsRefreshQueued && typeof this.updateEventsPanel === 'function' && typeof requestAnimationFrame === 'function') {
+            this._eventsRefreshQueued = true;
+            requestAnimationFrame(() => {
+                this._eventsRefreshQueued = false;
+                try { this.updateEventsPanel(); } catch (e) { /* HUD not mounted */ }
+            });
+        }
     },
 
     /**

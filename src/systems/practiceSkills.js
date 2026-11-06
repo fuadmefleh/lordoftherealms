@@ -343,6 +343,37 @@ export const PracticeSkills = {
         };
     },
 
+    // ── Endurance, for the systems (player/endurance.js wraps these) ──
+
+    /** The share of an energy cost still paid, 0.1..1 (Endurance perk energySaved) */
+    energyMult(holder) {
+        return Math.max(0.1, 1 - PracticeSkills.perk(holder, 'endurance', 'energySaved') / 100);
+    },
+
+    /** Queue a level-up on the player for the UI to tell (ui/skillUps.js; unsaved) */
+    queueUp(player, up) {
+        if (!player || !up) return;
+        if (!Array.isArray(player._skillUps)) {
+            Object.defineProperty(player, '_skillUps', { value: [], configurable: true, enumerable: false, writable: true });
+        }
+        player._skillUps.push(up);
+    },
+
+    /**
+     * Hard work costing `energy`: the cost, cut by Endurance, is taken from
+     * the player's energy and is Endurance XP (xp.perEnergy) — a level-up
+     * queued for the UI. Systems call this (they can't import player code).
+     * → the energy actually spent
+     */
+    labour(player, energy) {
+        if (!player || !(energy > 0)) return 0;
+        const spent = energy * PracticeSkills.energyMult(player);
+        if (typeof player.modifyNeed === 'function') player.modifyNeed('energy', -spent);
+        const d = PracticeSkills.def('endurance');
+        if (d) PracticeSkills.queueUp(player, PracticeSkills.gain(player, 'endurance', energy * _num(d.xp && d.xp.perEnergy, 0.3)));
+        return spent;
+    },
+
     /** Set a level outright (its XP at the level's start). */
     setLevel(holder, id, level) {
         const s = PracticeSkills._store(holder, true);
@@ -462,14 +493,28 @@ export const PracticeSkills = {
         return hit(world.getTile(q, r)) || Hex.neighbors(q, r).some(n => hit(world.getTile(n.q, n.r)));
     },
 
+    /** A stamp of the skills known now (seedNpc marks a store with it: _seed) */
+    _seedSig() {
+        const cfg = PracticeSkills.config();
+        if (cfg._seedSig == null) cfg._seedSig = Utils.hashStr(PracticeSkills.ids().join(',')) >>> 0;
+        return cfg._seedSig;
+    },
+
     /**
-     * Give an NPC levels from who they are, if they have none yet.
-     * who: { key (stable id), role, age, coastal } → the store
+     * Give an NPC levels from who they are. A holder seeded before some skills
+     * existed (an old save's townsfolk, a pack added since) has the missing
+     * ones filled in from the same hash — skills it already has XP in are
+     * never touched. The store is stamped (_seed) with the skill set it was
+     * seeded for, so this is a cheap no-op once up to date. NPCs only — the
+     * player is never seeded. who: { key (stable id), role, age, coastal,
+     * mountain } → the store
      */
     seedNpc(holder, who = {}) {
         if (!holder) return null;
         if (typeof who.age === 'number') holder.skillAge = who.age;   // age shapes their skills (ageShift)
-        if (holder.practiceSkills) return holder.practiceSkills;
+        const sig = PracticeSkills._seedSig();
+        const had = holder.practiceSkills;
+        if (had && had._seed === sig) return had;
         const N = PracticeSkills.config().npc;
         const trade = PracticeSkills.tradeOf(who);
         const byRole = (N.roles || {})[trade] || {};
@@ -490,6 +535,12 @@ export const PracticeSkills = {
             L = Math.max(1, Math.min(PracticeSkills.maxLevel(), Math.round(L)));
             if (L > 1) s[id] = PracticeSkills.xpForLevel(L);
         }
+        if (had) {
+            for (const [id, xp] of Object.entries(s)) if (had[id] == null) had[id] = xp;
+            had._seed = sig;
+            return had;
+        }
+        s._seed = sig;
         holder.practiceSkills = s;
         return s;
     },

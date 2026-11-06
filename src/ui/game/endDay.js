@@ -212,6 +212,8 @@ export function endDay() {
             settleScene(this);
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
+            // A night between: whatever a deep dive took, the breath is back (player/diving.js)
+            if (this.player.breathRecovery && !this.player.dive) this.player.breathRecovery = null;
 
             // Show jail update notifications
             if (playerResults.jailUpdate) {

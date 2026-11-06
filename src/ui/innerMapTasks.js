@@ -57,6 +57,15 @@ function _cap(s) {
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+/** "sack of grain" → "sacks of grain", "crate" → "crates", "box" → "boxes" (the head word takes the plural). */
+function _pluralNoun(noun) {
+    const s = String(noun || '');
+    const m = s.match(/^(\S+)(\s+(?:of|for|with)\s+.*)$/i);
+    const head = m ? m[1] : s, rest = m ? m[2] : '';
+    const plural = /(s|x|z|ch|sh)$/i.test(head) ? `${head}es` : /[^aeiou]y$/i.test(head) ? `${head.slice(0, -1)}ies` : `${head}s`;
+    return plural + rest;
+}
+
 // ──────────────────────────────────────────────
 // Templates: each builds objectives in setup and reacts as they are met
 // ──────────────────────────────────────────────
@@ -119,7 +128,7 @@ const TEMPLATES = {
                 } });
             }
         },
-        status(ctx) { return `${_cap(ctx.plan.noun)}s carried ${ctx.done}/${ctx.total}`; },
+        status(ctx) { return `${_cap(_pluralNoun(ctx.plan.noun))} carried ${ctx.done}/${ctx.total}`; },
     },
 
     work: {

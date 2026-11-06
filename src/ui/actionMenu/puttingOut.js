@@ -8,7 +8,7 @@ import { ActionMenu } from './_ref.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 import { Estates } from '../../world/estates.js';
 import { Seasons } from '../../world/seasons.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD, lede, bullets, chips, purse } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -32,8 +32,13 @@ Object.assign(ActionMenu, {
         const C = PuttingOut.config();
         const day = world.day;
         let html = '<div style="font-size:12px; max-height:640px; overflow-y:auto;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p>`;
-        html += `<div style="${NOTE}">Put out raw wool and flax to the cottagers, who spin and weave at home for a piece rate and hand back textiles and linen. Cheaper than a guild workshop and slower; the work is good or coarse by the hands it finds. They have time for it in winter, little at harvest — and out of season it takes hands from the fields. Where the weavers' guild holds a royal charter its officers may seize the cloth and fine you; the villages have no guild.</div>`;
+        html += chips([purse(player.gold)]);
+        html += lede('Put out raw wool and flax to the cottagers, who spin and weave at home for a piece rate and hand back textiles and linen.');
+        html += bullets([
+            'Cheaper than a guild workshop, and slower; the work is good or coarse by the hands it finds.',
+            'They have time for it in winter, little at harvest — and out of season it takes hands from the fields.',
+            'Where the weavers\' guild holds a royal charter its officers may seize the cloth and fine you; villages have no guild.',
+        ]);
         if (!live) {
             html += `<div style="${NOTE}">Stand in a town or village to put work out.</div>`;
         } else {

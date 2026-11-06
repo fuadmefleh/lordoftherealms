@@ -11,7 +11,7 @@ import { ActionMenu } from './_ref.js';
 import { Transport } from '../../world/transport.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
 import { Hex } from '../../core/hex.js';
-import { BTN_GOLD, BTN_DIM, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, CARD, lede, chips } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const BAND = { good: ['Good repair', '#5fbf6a'], worn: ['Rutted', '#d08a3a'], ruined: ['Ruined', '#e74c3c'], closed: ['Closed', '#8fb4d8'] };
@@ -137,7 +137,16 @@ Object.assign(ActionMenu, {
         const town = t && t.settlement ? { q: t.q != null ? t.q : game.player.q, r: t.r != null ? t.r : game.player.r, name: t.settlement.name } : null;
         if (town && t.settlement && Number.isFinite(t.settlement.q)) { town.q = t.settlement.q; town.r = t.settlement.r; }
         const sum = PublicWorks.summary(world);
-        const head = `<div style="${NOTE}">Roads of the known world: ${sum.segments} stretches · ${sum.bands.good} in good repair, ${sum.bands.worn} rutted, ${sum.bands.ruined} ruined${sum.bands.closed ? `, ${sum.bands.closed} closed` : ''} · ${sum.canals} canal(s) · works under way: ${sum.works}. Good roads haul cheaper and faster, so prices between their towns draw together; tolls on works you fund are yours.</div>`;
+        const head = lede('Good roads haul cheaper and faster, so prices between their towns draw together. Tolls on works you fund are yours.')
+            + chips([
+                ['🛣️', 'Roads', sum.segments],
+                ['✅', 'Good', sum.bands.good],
+                ['〰️', 'Rutted', sum.bands.worn, sum.bands.worn ? '' : 'dim'],
+                ['💥', 'Ruined', sum.bands.ruined, sum.bands.ruined ? '' : 'dim'],
+                sum.bands.closed ? ['⛔', 'Closed', sum.bands.closed] : null,
+                ['🚣', 'Canals', sum.canals, sum.canals ? '' : 'dim'],
+                ['🔨', 'Works under way', sum.works, sum.works ? '' : 'dim'],
+            ]);
         const html = `<div style="font-size:12px; max-height:620px; overflow-y:auto;">${head}${roadsHtml(game, town)}${greatWorksHtml(game, town)}${myWorksHtml(game)}${nearbyHtml(game)}</div>`;
         game.ui.showCustomPanel(`🛣️ Roads & Public Works${town ? ` — ${town.name}` : ''}`, html);
     },

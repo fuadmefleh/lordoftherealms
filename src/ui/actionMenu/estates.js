@@ -8,7 +8,7 @@
 import { ActionMenu } from './_ref.js';
 import { Estates } from '../../world/estates.js';
 import { LandMarket } from '../../systems/landMarket.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -93,7 +93,12 @@ function hereTab(game, tile) {
     if (!live) return `<div style="${NOTE}">Stand in a town or village to see the estates about it.</div>`;
     const ests = Estates.estatesOf(world, live.q, live.r);
     const C = Estates.config();
-    let html = `<div style="${NOTE}">The farmland about ${esc(live.name)}: ${Math.round((1 - C.derive.estateShare) * 100)}% is the peasants' own freeholds and commons; the rest is held in estates whose tenants pay rent once a month. An estate's crops are the town's own — drain or marl its fields and the town reaps more; enclose them for sheep and it reaps less grain and more wool, and the tenants go. Land is priced at its net rent over the realm's land rate, which follows the crown's bond rate.</div>`;
+    let html = lede(`The farmland about <b>${esc(live.name)}</b>: ${Math.round((1 - C.derive.estateShare) * 100)}% is the peasants' own freeholds and commons; the rest is held in estates whose tenants pay rent once a month.`);
+    html += bullets([
+        'An estate’s crops feed the town: drain or marl its fields and the town reaps more.',
+        'Enclose it for sheep and the town reaps less grain, more wool, and the tenants go.',
+        'Land is priced at its net rent over the realm’s land rate (which follows the crown’s bond rate).',
+    ]);
     if (!ests.length) return html + `<div style="${NOTE}">The estates here are not yet surveyed (tomorrow).</div>`;
     for (const e of ests) html += estateCard(game, e, live);
     return html;
@@ -102,7 +107,13 @@ function hereTab(game, tile) {
 function mineTab(game) {
     const { player, world } = game;
     const mine = LandMarket.mine(player, world);
-    if (!mine.length) return `<div style="${NOTE}">You hold no land. Estates come on the market when their lords fall into debt or a crown needs money; a holder may also take an offer above the land's worth (the Church never sells). See the estates about any town, or the land for sale near you.</div>`;
+    if (!mine.length) {
+        return lede('You hold no land yet.') + bullets([
+            'Estates come on the market when their lords fall into debt or a crown needs money.',
+            'A holder may also take an offer above the land’s worth (the Church never sells).',
+            'Look over the estates about any town, or the land for sale near you.',
+        ]);
+    }
     const s = LandMarket.summary(player, world);
     let html = `<div style="${CARD}"><b>${s.n} estate(s)</b> worth ${s.value.toLocaleString()}g · ${s.rent.toLocaleString()}g net rent a year expected${s.yield != null ? ` (${(s.yield * 100).toFixed(1)}% on the ${s.paid.toLocaleString()}g paid)` : ''} · ${s.earned.toLocaleString()}g banked</div>`;
     for (const e of mine) {
@@ -117,7 +128,7 @@ function mineTab(game) {
 function marketTab(game) {
     const { player, world } = game;
     const list = LandMarket.listingsNear(world, player.q, player.r, 25);
-    let html = `<div style="${NOTE}">Estates on the market within 25 hexes. A listing waits a week for a buyer before the merchant houses, the burghers, the realm's nobles or the Church take it; unsold, its price falls each month.</div>`;
+    let html = lede('Estates on the market within 25 hexes. A listing waits a week for a buyer before the merchant houses, burghers, nobles or the Church take it; unsold, its price falls each month.');
     if (!list.length) return html + `<div style="${NOTE}">No land is for sale near you.</div>`;
     const WHY = { debts: 'its lord is in debt', crown: 'the crown needs money', player: 'yours', default: '' };
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Estate</th><th style="${TH}">Near</th><th style="${TH}">Seller</th><th style="${TH}">Price</th><th style="${TH}">Worth</th><th style="${TH}">Hexes</th><th style="${TH}"></th></tr>`;
@@ -141,7 +152,7 @@ Object.assign(ActionMenu, {
             return;
         }
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p>`;
+        html += chips([purse(player.gold)]);
         html += panelTabs(game, {
             id: 'estates', title: '🌾 Estates & Land', tabs: TABS, active: _tab,
             go: (k) => { _tab = k; ActionMenu.showEstates(game, t); },

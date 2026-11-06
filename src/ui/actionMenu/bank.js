@@ -7,7 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { Finance } from '../../systems/finance.js';
 import { Bills } from '../../systems/bills.js';
 import { Underworld } from '../../systems/underworld.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 const TABS = [['house', '🏛️ Your House'], ['accounts', '🏦 Accounts'], ['loans', '📜 Loans'], ['bills', '✉️ Bills'], ['bonds', '👑 Royal Bonds'], ['credit', '📊 Credit'], ['coin', '💱 Coin']];
@@ -54,7 +54,7 @@ function bankLine(world, b, day, player = null) {
 function accountsTab(player, world, here) {
     const st = Finance.state(player);
     const day = world.day || 0;
-    let html = '<div style="font-size:11px; color:#999;">Deposits earn a slow, safe interest, compounded daily, and the house lends them on. If a house fails, its receivers pay back only part.</div>';
+    let html = lede('Deposits earn a slow, safe interest, compounded daily, and the house lends them on. If a house fails, its receivers pay back only part.');
     for (const b of here) {
         if (b.owner === 'player') {
             html += `<div style="${CARD}">${bankLine(world, b, day, player)} · <i>your own house: see 🏛️ Your House</i></div>`;
@@ -116,7 +116,12 @@ function loansTab(player, world, here) {
 function billsTab(player, world, here) {
     const C = Bills.config();
     const day = world.day || 0;
-    let html = `<div style="font-size:11px; color:#999;">Robbers take a share of any gold you carry. Pay it in here and carry a bill of exchange instead, payable at another house's seat or branches. The fee rises with the distance. A stolen bill can be stopped at the paying house before a forger cashes it (a few days); a bill on a failed house falls on the house that drew it.</div>`;
+    let html = lede('Robbers take a share of any gold you carry. Pay it in here and carry a <b>bill of exchange</b> instead, payable at another house\'s seat or branches.');
+    html += bullets([
+        'The fee rises with the distance.',
+        'A stolen bill can be stopped at the paying house before a forger cashes it (a few days).',
+        'A bill on a failed house falls on the house that drew it.',
+    ]);
     const held = Bills.held(player);
     if (held.length) {
         html += '<h5 style="margin:10px 0 4px;">Your bills</h5>';
@@ -155,7 +160,7 @@ function billsTab(player, world, here) {
 function bondsTab(player, world) {
     const st = Finance.state(player);
     const D = Finance.cfg('bonds');
-    let html = `<div style="font-size:11px; color:#999;">Lend to a crown: interest every ${D.couponEvery || 7} days, the principal at maturity, the crown's favour (reputation) and Prestige for your House. A crown in trouble may miss payments, or repudiate its debts.</div>`;
+    let html = lede(`Lend to a crown: interest every ${D.couponEvery || 7} days, the principal at maturity, the crown's favour (reputation) and Prestige for your House. A crown in trouble may miss payments, or repudiate its debts.`);
     if (st.bonds.length) {
         html += '<h5 style="margin:10px 0 4px;">Your bonds</h5>';
         for (const b of st.bonds) {
@@ -190,7 +195,7 @@ function creditTab(player, world) {
 }
 
 function coinTab(player, world) {
-    let html = '<div style="font-size:11px; color:#999;">Each realm strikes its own coin. A crown in trouble may clip it: gold for the mint now, dearer prices in every market of the realm after.</div>';
+    let html = lede('Each realm strikes its own coin. A crown in trouble may clip it: gold for the mint now, dearer prices in every market of the realm after.');
     for (const k of (world.kingdoms || []).filter(x => x && x.isAlive !== false)) {
         const r = Finance.realmReport(world, k);
         // What a crown owes is in its books, and known to those who lent it (your bonds)
@@ -222,7 +227,12 @@ function signed(v) {
 
 function charterHtml(player, world) {
     const terms = Finance.charterTerms(player, world);
-    let html = '<div style="font-size:11px; color:#999;">Charter a banking house of your own. The townsfolk bring you their savings and you pay them interest; you lend the coin on to merchants (and, if you like, to crowns) at a better rate, and keep the difference. Lend too much and a panic can empty the vault. A house that cannot pay its depositors fails, and your stake goes with it.</div>';
+    let html = lede('Charter a banking house of your own: the townsfolk bring you their savings and you pay them interest.');
+    html += bullets([
+        'Lend the coin on to merchants (and, if you like, to crowns) at a better rate, and keep the difference.',
+        'Lend too much and a panic can empty the vault.',
+        'A house that cannot pay its depositors fails, and your stake goes with it.',
+    ]);
     if (!terms.ok) return html + `<div style="${CARD} color:#c9a;">${esc(terms.reason)}</div>`;
     html += `<div style="${CARD}"><b>A charter from ${esc(terms.kingdom)}</b> for a house seated in <b>${esc(terms.seat)}</b>: a fee of <b>${money(terms.fee)}</b> to the crown, and capital paid into the vault (at least ${money(terms.minCapital)}).<div style="margin-top:6px;">`;
     for (const cap of terms.capitalOptions) {
@@ -285,7 +295,13 @@ Object.assign(ActionMenu, {
         const here = Finance.banksAt(player, world, t);
         const s = Finance.summary(player, world);
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Credit <b>${s.score}</b> (${esc(s.label)}) · deposits ${s.deposits}g · owed ${s.debt}g (${s.dailyDue}g a day) · bonds ${s.bonds}g · gold ${Math.floor(player.gold)}</p>`;
+        html += chips([
+            purse(player.gold),
+            ['📈', 'Credit', `${s.score} <span style="font-weight:400; color:var(--text-secondary);">(${esc(s.label)})</span>`],
+            ['🏦', 'Deposits', `${s.deposits}g`],
+            ['📜', 'Owed', s.debt ? `${s.debt}g · ${s.dailyDue}g/day` : '0g'],
+            ['👑', 'Bonds', `${s.bonds}g`],
+        ]);
         if (!here.length && _tab !== 'house') {
             const open = Finance.openBanks(player);
             html += `<div style="font-size:11px; color:#c9a;">No banking house serves this place: deposits, loans and bonds are arranged at ${open.length ? open.map(b => `${esc(b.name)} (${esc(b.seat)})`).join(', ') : 'a house in a great city'} or its branches in their realm's cities. You can still repay a loan from here.</div>`;

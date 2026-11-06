@@ -12,7 +12,7 @@ import { MoneySupply } from '../../world/moneySupply.js';
 import { Finance } from '../../systems/finance.js';
 import { Underworld } from '../../systems/underworld.js';
 import { PlayerInventory } from '../../core/inventory.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -48,7 +48,12 @@ function coinTab(game) {
     const { player, world } = game;
     const here = Mints.realmHere(player, world);
     const rows = Mints.realmTable(world, here ? here.id : null);
-    let html = `<div style="${NOTE}">Each realm strikes its own coin. Its <b>price level</b> follows the coin about against its people, as against the world's (100 = the norm): a realm awash in coin is dear, one drained of it cheap. Clipped coin (less silver in each piece) raises prices on top. Coin flows with the balance of trade, tribute and crown loans; war and panics hoard it; debased coin drives the good abroad. Rates are the silver in each coin against ${here ? `the coin of <b>${esc(here.name)}</b>, where you stand` : 'its neighbour'}; the money changers charge for a purity gap when you cross a border with gold.</div>`;
+    let html = lede('Each realm strikes its own coin. Its <b>price level</b> (100 = the norm) follows how much coin is about for its people: a realm awash in coin is dear, one drained of it cheap.');
+    html += bullets([
+        'Clipped coin (less silver in each piece) raises prices on top.',
+        'Coin flows with the balance of trade, tribute and crown loans; war and panics hoard it; debased coin drives the good abroad.',
+        `Rates are the silver in each coin against ${here ? `the coin of <b>${esc(here.name)}</b>, where you stand` : 'its neighbour'}; money changers charge for the purity gap when you cross a border with gold.`,
+    ]);
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Silver</th><th style="${TH}">Price level</th><th style="${TH}">All prices</th><th style="${TH}">Coin about</th><th style="${TH}">4 weeks</th><th style="${TH}">Hoarded</th>${here ? `<th style="${TH}">Rate · changers</th>` : ''}<th style="${TH}">Mint last week</th></tr>`;
     for (const r of rows) {
         const me = here && r.id === here.id;
@@ -85,7 +90,11 @@ function mintTab(game, tile) {
     const k = at.kingdom;
     const rec = MoneySupply.ensureRealm(world, k);
     const pol = MoneySupply.policy(rec);
-    let html = `<div style="${NOTE}">The mint of <b>${esc(k.name)}</b> strikes coin of ${Math.round((k.finance && k.finance.purity != null ? k.finance.purity : 1) * 100)}% silver and takes ${Math.round(pol.seigniorage * 100)}% seigniorage. It pays for bullion at its fine worth, less the seigniorage, in the realm's own prices — never more than the market here asks. A mint where the coin is clipped or dear pays more: bullion bought where coin is sound and cheap fetches its best price there.</div>`;
+    let html = lede(`The mint of <b>${esc(k.name)}</b> strikes coin of ${Math.round((k.finance && k.finance.purity != null ? k.finance.purity : 1) * 100)}% silver and takes ${Math.round(pol.seigniorage * 100)}% seigniorage.`);
+    html += bullets([
+        'It pays for bullion at its fine worth, less the seigniorage, in the realm\'s own prices — never more than the market here asks.',
+        'A mint where the coin is clipped or dear pays more: buy bullion where coin is sound and cheap, sell it there.',
+    ]);
     html += `<div style="${CARD}"><b>Sell bullion</b>`;
     let any = false;
     for (const g of BULLION) {
@@ -138,7 +147,11 @@ function coinersTab(game, tile) {
     const uw = player.underworld;
     if (!uw || !uw.guild || !uw.guild.member) return `<div style="${NOTE}">Coiners keep to the Thieves' Guild. You know none of them.</div>`;
     const C = Mints.config().counterfeit;
-    let html = `<div style="${NOTE}">The guild's coiners silver copper blanks with good coin and pass them in the markets. Clipped coin is easier to fake; a hot name is easier to catch. Caught, you lose the stake and pay a fine as large again, and may see the inside of the gaol.</div>`;
+    let html = lede('The guild\'s coiners silver copper blanks with good coin and pass them in the markets.');
+    html += bullets([
+        'Clipped coin is easier to fake; a hot name is easier to catch.',
+        'Caught, you lose the stake, pay a fine as large again, and may see the inside of the gaol.',
+    ]);
     for (const stake of [C.minStake, Math.round((C.minStake + C.maxStake) / 2), C.maxStake]) {
         const q = Mints.counterfeitQuote(player, world, tile, stake);
         if (!q.ok) { html += `<div style="${NOTE}">${esc(q.reason)}</div>`; break; }
@@ -157,7 +170,7 @@ Object.assign(ActionMenu, {
             return;
         }
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p>`;
+        html += chips([purse(player.gold)]);
         html += panelTabs(game, {
             id: 'mint', title: '💰 The Mint & the Coin', tabs: TABS, active: _tab,
             go: (k) => { _tab = k; ActionMenu.showMint(game, t); },

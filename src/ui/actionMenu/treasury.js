@@ -9,7 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { CrownBooks } from '../../world/crownBooks.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
@@ -95,7 +95,13 @@ function budgetTab(game) {
     const { k } = realmFor(game);
     if (!k) return `<div style="${NOTE}">Stand in a town of a realm to read its books, or rule one.</div>`;
     const b = Fiscal.budget(world, k);
-    let html = `<div style="${NOTE}">The crown's taxes come out of its towns' purses, and its wages and upkeep go back into them: the treasury is what is left. Land tax falls on the peasants' earnings (and swells with the harvest), the hearth tax on every working head (clergy and nobles are exempt), the excise on the artisans' work and the merchants' trade. Unpaid soldiers desert after a week; unpaid clerks help themselves.</div>`;
+    let html = lede('The crown\'s taxes come out of its towns\' purses, and its wages and upkeep go back into them: the treasury is what is left.');
+    html += bullets([
+        '<b>Land tax</b> falls on the peasants\' earnings (and swells with the harvest).',
+        '<b>Hearth tax</b> falls on every working head (clergy and nobles are exempt).',
+        '<b>Excise</b> falls on the artisans\' work and the merchants\' trade.',
+        'Unpaid soldiers desert after a week; unpaid clerks help themselves.',
+    ]);
     // The books themselves are for the ruler, the realm's officers and your spies (systems/realmIntel.js)
     const why = RealmIntel.whyLabel(player, world, k, 'books');
     if (!why) return html + publicBudget(game, k, b);
@@ -140,7 +146,12 @@ function farmsTab(game) {
     const { player, world } = game;
     const { here, ruled } = realmFor(game);
     const F = Fiscal.config().farms;
-    let html = `<div style="${NOTE}">A crown short of money sells the taxes of a town for ${F.term} days to the highest bidder, who collects them in its place. Collect gently and you barely clear your stake; press hard and you grow rich, hated, and may be driven out by a tax revolt. The new masters of a conquered town do not honour your farm.</div>`;
+    let html = lede(`A crown short of money sells the taxes of a town for ${F.term} days to the highest bidder, who collects them in its place.`);
+    html += bullets([
+        'Collect gently and you barely clear your stake.',
+        'Press hard and you grow rich, hated, and may be driven out by a tax revolt.',
+        'The new masters of a conquered town do not honour your farm.',
+    ]);
     const lots = here ? Fiscal.lots(world, here.id) : [];
     html += `<h5 style="margin:8px 0 4px;">Taxes at auction${here ? ` in ${esc(here.name)}` : ''}</h5>`;
     if (!here) html += `<div style="${NOTE}">Stand in a town of a realm to bid for its taxes.</div>`;
@@ -169,7 +180,8 @@ function crownTab(game) {
     if (!ruled) return `<div style="${NOTE}">Only a ruler sets the taxes.</div>`;
     const b = Fiscal.budget(world, ruled);
     const C = Fiscal.config();
-    let html = `<div style="${NOTE}">Set each tax, the army's pay and the court. Heavy taxes fill the chests and drive the poor to lighter realms; light ones starve the army. The burden here is what the people feel (welfare, migration, tax revolts); the stability term is the realm's.</div>`;
+    let html = lede('Set each tax, the army\'s pay and the court. Heavy taxes fill the chests and drive the poor to lighter realms; light ones starve the army.');
+    html += `<div style="${NOTE} margin-bottom:8px;">The <b>burden</b> is what the people feel (welfare, migration, tax revolts); <b>stability</b> is the realm's.</div>`;
     for (const tax of ['land', 'poll', 'excise']) {
         html += `<div style="margin-top:6px;"><b>${esc(LABEL[tax])}</b>: `;
         for (const id of CrownBooks.LEVELS) html += act(lvl(id), ['rate', tax, id], b.rates[tax] === id ? BTN_GOLD : BTN_PLAIN, b.rates[tax] !== id, (C.levels[id] || {}).blurb || '');
@@ -204,7 +216,7 @@ Object.assign(ActionMenu, {
             return;
         }
         let html = '<div style="font-size:12px;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">Gold ${Math.floor(player.gold)}</p>`;
+        html += chips([purse(player.gold)]);
         html += panelTabs(game, {
             id: 'treasury', title: '🧾 The Crown\'s Treasury', tabs: TABS, active: _tab,
             go: (k) => { _tab = k; ActionMenu.showTreasury(game); },

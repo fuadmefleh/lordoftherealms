@@ -4,6 +4,8 @@ import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { Crafting } from '../../player/crafting.js';
+import { PracticeSkills } from '../../systems/practiceSkills.js';
+import { Ailments } from '../../systems/ailments.js';
 import { Endurance } from '../../player/endurance.js';
 import { Grades } from '../../core/grades.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
@@ -54,7 +56,21 @@ export function _settlementTile(game) {
 }
 
 export function _advanceTime(hours) {
-    InnerMap.timeOfDay += hours;
+    // The clock keeps whole hours (timeOfDay) and the minutes of the hour on
+    // _timeAccumulator (of TIME_SCALE): a part hour (a 42-minute piece at the
+    // forge) goes on the minutes; whole hours start the next hour fresh
+    const whole = Math.floor(hours + 1e-9);
+    const frac = Math.max(0, hours - whole);
+    InnerMap.timeOfDay += whole;
+    if (frac > 1e-6) {
+        const scale = InnerMap.TIME_SCALE || 60;
+        let acc = (whole > 0 ? 0 : (InnerMap._timeAccumulator || 0)) + frac * scale;
+        if (acc >= scale) { acc -= scale; InnerMap.timeOfDay += 1; }
+        InnerMap._timeAccumulator = acc;
+    } else {
+        // Reset accumulator so the next partial hour starts fresh
+        InnerMap._timeAccumulator = 0;
+    }
     // Handle day rollover
     while (InnerMap.timeOfDay >= 24) {
         InnerMap.timeOfDay -= 24;
@@ -62,8 +78,6 @@ export function _advanceTime(hours) {
             InnerMap.endDay();
         }
     }
-    // Reset accumulator so the next partial hour starts fresh
-    InnerMap._timeAccumulator = 0;
 }
 
 export function _applyEffects(game, effects) {
@@ -281,7 +295,9 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
             .map((g, gi) => ({ g, p: odds.dist[gi] }))
             .filter(x => x.p >= 0.03)
             .map(x => `<span style="color:${x.g.color}">${x.g.name} ${Math.round(x.p * 100)}%</span>`).join(' ');
-        const oddsStr = `${sk.icon} ${sk.name} ${odds.level.toFixed(1)} · Fail ${Math.round(odds.fail * 100)}%${r.smith ? ' · ⚒️ forge work' : ''}${odds.parts.tool ? ` · 🔧 ${odds.parts.tool.item.replace(/_/g, ' ')}` : ''}`;
+        const lvStr = sk.practice ? `Lv ${PracticeSkills.level(game.player, sk.practice)}` : odds.level.toFixed(1);
+        const mins = Math.round(Crafting.hoursFor(game.player, r) * 60);
+        const oddsStr = `${sk.icon} ${sk.name} ${lvStr} · Fail ${Math.round(odds.fail * 100)}%${sk.practice ? ` · ⏱️ ${mins} min` : ''}${r.smith ? ' · ⚒️ forge work' : ''}${odds.parts.tool ? ` · 🔧 ${odds.parts.tool.item.replace(/_/g, ' ')}` : ''}`;
         return `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;opacity:${opacity};${cursor}transition:background .15s"
                  ${canMake ? `onmouseenter="this.style.background='rgba(245,197,66,0.1)'" onmouseleave="this.style.background='rgba(255,255,255,0.03)'" onclick="window._execRecipe(${i})"` : ''}>
@@ -301,7 +317,8 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
     const shop = recipes.length ? Crafting.workshopBonus(recipes[0], building) : 0;
     // The skills these recipes use (data/craftGrades.json), and the overall rank
     const skillIds = [...new Set(recipes.map(r => Crafting.skillOf(r)))];
-    const skillStr = skillIds.map(sid => { const si = Crafting.skillInfo(game.player, sid); return `${si.icon} ${si.name} ${si.level.toFixed(1)} (${si.title})`; }).join(' · ');
+    const skillStr = [...new Map(skillIds.map(sid => { const si = Crafting.skillInfo(game.player, sid); return [si.id, si]; })).values()]
+        .map(si => (si.practice ? `${si.icon} ${si.name} Lv ${si.practiceLevel} (${si.title}${si.need ? ` · ${Math.floor(si.xp)}/${si.need} xp` : ''})` : `${si.icon} ${si.name} ${si.level.toFixed(1)} (${si.title})`)).join(' · ');
     const rankLine = `${skillStr}<br>${rank.icon} ${rank.name} crafter (${Math.floor(rank.xp)} xp${rank.next ? ` · ${rank.next.name} at ${rank.next.at}` : ''})${shop ? ' · 🏛️ proper workshop' : ''}`;
     modal.innerHTML = `
         <div style="${MODAL_HEADER_STYLE}">
@@ -329,14 +346,15 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
             game.ui.showNotification(`${recipe.icon} ${recipe.label}`, res.reason || 'You cannot make that.', 'error');
             return;
         }
-        _advanceTime(1);
+        _advanceTime(res.hours > 0 ? res.hours : 1);
         if (res.failed) {
-            game.ui.showNotification(`${recipe.icon} Spoiled`, `The work went wrong — you lost ${PlayerInventory.describe(res.lost) || 'nothing'}. (+${res.xp} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, 'warning');
+            game.ui.showNotification(`${recipe.icon} Spoiled`, `The work went wrong — you lost ${PlayerInventory.describe(res.lost) || 'nothing'}. (+${Crafting.practiceXp(res.skill, res.xp)} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, 'warning');
         } else {
             const resultStr = Object.entries(res.results).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`).join(', ');
             const q = res.quality ? ` ${res.tierIcon} ${res.tierName}` : '';
-            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced${q} ${resultStr}! (+${res.xp} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, res.tier >= 2 ? 'success' : res.tier < 1 ? 'warning' : 'info');
+            game.ui.showNotification(`${recipe.icon} ${recipe.label}`, `Produced${q} ${resultStr}!${res.spare ? ' (a spare piece from the same stuff)' : ''} (+${Crafting.practiceXp(res.skill, res.xp)} ${Crafting.skillDef(res.skill).name.toLowerCase()} xp)`, res.tier >= 2 ? 'success' : res.tier < 1 ? 'warning' : 'info');
         }
+        if (res.levelUp) game.ui.showNotification(`${res.levelUp.icon} ${res.levelUp.name} Improved`, res.levelUp.text, 'success');
         if (res.skillUp) game.ui.showNotification(`${res.skillUp.icon} ${res.skillUp.name}`, `Your ${res.skillUp.name.toLowerCase()} improves to ${res.skillUp.level.toFixed(1)} (${res.skillUp.title}).`, 'success');
         if (res.toolWorn) game.ui.showNotification('🔧 Tools Worn', 'A set of tools wore out at the work.', 'info');
         if (res.rankUp) game.ui.showNotification(`${res.rankUp.icon} ${res.rankUp.name}`, `Your craft improves: you are now a ${res.rankUp.name}.`, 'success');
@@ -353,7 +371,7 @@ export function _showRecipeModal(game, objDef, title, icon, station) {
             // Smithing is worked at the forge: the minigame's score sets the quality
             const host = new MinigameHost(game, { title: `🔥 ${recipe.label}`, height: 380 });
             startForge(host, {
-                strength: game.player.strength || 5,
+                strength: (game.player.strength || 5) + Crafting.forgeBonus(game.player, recipe),
                 onComplete: (scorePercent) => {
                     host.close();
                     finish(recipe, Crafting.craft(game.player, recipe, { building, forgeScore: scorePercent }));
@@ -563,6 +581,9 @@ export function _showHealModal(game, objDef) {
 
     const currentHp = game.player.health != null ? game.player.health : 100;
     const maxHp = game.player.maxHealth || 100;
+    // Medicine (systems/tradeSkills.js): a practised hand gets more out of the same potion
+    const med = Ailments.medicineMult(game.player);
+    const medLv = PracticeSkills.level(game.player, 'medicine');
 
     let listHtml = healItems.map(h => `
         <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:6px;cursor:pointer;transition:background .15s"
@@ -572,7 +593,7 @@ export function _showHealModal(game, objDef) {
             <span style="font-size:22px">${h.icon}</span>
             <div style="flex:1">
                 <div style="font-size:13px;font-weight:600">${h.label} <span style="color:#888;font-weight:400">×${h.qty}</span> ${Crafting.qualityHtml(game.player, h.itemId)}</div>
-                <div style="font-size:11px;color:#888">❤️ +${h.heal} HP${h.energy ? ` · ⚡ +${h.energy} energy` : ''}</div>
+                <div style="font-size:11px;color:#888">❤️ +${Math.round(h.heal * med)} HP${h.energy ? ` · ⚡ +${h.energy} energy` : ''}</div>
             </div>
         </div>
     `).join('');
@@ -582,7 +603,7 @@ export function _showHealModal(game, objDef) {
             <span style="font-size:28px">💊</span>
             <div>
                 <div style="font-family:var(--font-display,'Cinzel',serif);font-size:16px;color:var(--gold,#f5c542)">Heal</div>
-                <div style="font-size:11px;color:#999">HP: ${currentHp}/${maxHp}</div>
+                <div style="font-size:11px;color:#999">HP: ${currentHp}/${maxHp} · ⚕️ Medicine Lv ${medLv}${med > 1 ? ` (+${Math.round((med - 1) * 100)}% from remedies)` : ''}</div>
             </div>
         </div>
         <div style="${MODAL_BODY_STYLE}">
@@ -598,7 +619,7 @@ export function _showHealModal(game, objDef) {
         const def = HEAL_ITEMS[itemId];
         if (!def || (inv[itemId] || 0) <= 0) return;
         // A masterwork potion heals more than a crude one (player/crafting.js)
-        const heal = Math.round(def.heal * Crafting.consume(game.player, itemId, 1));
+        const heal = Math.round(def.heal * Crafting.consume(game.player, itemId, 1) * Ailments.medicineMult(game.player));
         inv[itemId]--;
         if (inv[itemId] <= 0) delete inv[itemId];
         // Read health now: it may have changed while the modal was open
@@ -607,6 +628,8 @@ export function _showHealModal(game, objDef) {
         if (def.energy && game.player.modifyNeed) game.player.modifyNeed('energy', def.energy);
         _removeModal(id);
         game.ui.showNotification(`${def.icon} Healed`, `Restored ${heal} HP!`, 'success');
+        const up = Ailments.learnMedicine(game.player, 'heal');
+        if (up) game.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
         delete window._execHeal;

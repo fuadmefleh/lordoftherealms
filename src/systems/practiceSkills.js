@@ -32,7 +32,7 @@ const DEFAULTS = {
     levelNames: [],
     skills: {},
     migrate: { swimPractice: {} },
-    npc: { base: {}, roles: {}, coastal: {}, coastalTrades: {}, spread: 0, ageBonus: 0, ageMax: 0, adultAge: 14, dailyXp: {}, notableLevel: 4 },
+    npc: { base: {}, roles: {}, coastal: {}, coastalTrades: {}, craftTrades: {}, spread: 0, ageBonus: 0, ageMax: 0, adultAge: 14, dailyXp: {}, notableLevel: 4 },
 };
 
 const COAST_WATER = ['ocean', 'deep_ocean', 'coast', 'lake', 'sea'];
@@ -290,6 +290,23 @@ export const PracticeSkills = {
     },
 
     /**
+     * A craft some people work on the side (npc.craftTrades: a share of
+     * villagers weave, brew or heal…), picked by a hash of who they are → the
+     * craft's role id, or null. Adds its roles levels and dailyXp.
+     */
+    craftOf(who) {
+        const trades = ((PracticeSkills.config().npc.craftTrades) || {})[(who && who.role) || 'villager'];
+        if (!trades) return null;
+        const roll = (Utils.hashStr(`${(who && who.key) || ''}|craft`) >>> 0) / 4294967296;
+        let acc = 0;
+        for (const [t, share] of Object.entries(trades)) {
+            acc += _num(share);
+            if (roll < acc) return t;
+        }
+        return null;
+    },
+
+    /**
      * Body work some people do (data/skillPacks/body.json): a share of some
      * roles everywhere haul as labourers or porters (npc.labourTrades), and in
      * or by the mountains (who.mountain) climb as mountaineers or dig as miners
@@ -330,11 +347,13 @@ export const PracticeSkills = {
         const N = PracticeSkills.config().npc;
         const trade = PracticeSkills.tradeOf(who);
         const byRole = (N.roles || {})[trade] || {};
+        const craft = PracticeSkills.craftOf(who);
+        const byCraft = (craft && (N.roles || {})[craft]) || {};
         const body = PracticeSkills.bodyTradesOf(who).map(t => (N.roles || {})[t] || {});
         const age = _num(who.age, 30);
         const s = {};
         for (const id of PracticeSkills.ids()) {
-            let L = _num((N.base || {})[id], 1) + _num(byRole[id]);
+            let L = _num((N.base || {})[id], 1) + _num(byRole[id]) + _num(byCraft[id]);
             if (who.coastal) L += _num((N.coastal || {})[id]);
             if (who.mountain) L += _num((N.mountain || {})[id]);
             for (const b of body) L += _num(b[id]);
@@ -359,6 +378,8 @@ export const PracticeSkills = {
         if (who.coastal && trade === who.role) {
             for (const [id, v] of Object.entries((N.dailyXp || {}).coastal || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
         }
+        const craft = PracticeSkills.craftOf(who);
+        for (const [id, v] of Object.entries((craft && (N.dailyXp || {})[craft]) || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
         for (const t of [...PracticeSkills.bodyTradesOf(who), ...(who.mountain ? ['mountain'] : [])]) {
             for (const [id, v] of Object.entries((N.dailyXp || {})[t] || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
         }

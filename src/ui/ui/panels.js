@@ -230,7 +230,12 @@ Object.assign(UI.prototype, {
             for (const s of sickParty) {
                 let name = 'A companion';
                 try { const npc = Relationships.getNPC(s.npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown */ }
-                html += `<div class="info-row"><span class="info-label">🤒 ${name}</span><span class="info-value" style="font-size:11px;">${s.disease}</span></div>`;
+                // Nurse them yourself (Medicine, systems/ailments.js tendCompanion)
+                const t = Ailments.tendOption(player, world, s.npcId);
+                const tend = t.can
+                    ? `<button data-ui-act="_tendCompanion" data-ui-args='${JSON.stringify([s.npcId])}' style="font-size:10px; padding:2px 6px; border-radius:3px; border:1px solid rgba(245,197,66,0.4); background:rgba(245,197,66,0.08); color:var(--gold); cursor:pointer;">⚕️ Tend ${name} (${Math.round(t.chance * 100)}%)</button>`
+                    : `<span style="font-size:10px; color:var(--text-secondary);">${t.reason || ''}</span>`;
+                html += `<div class="info-row" style="flex-wrap:wrap;"><span class="info-label">🤒 ${name}</span><span class="info-value" style="font-size:11px;">${s.disease}</span><div style="width:100%; margin:2px 0 4px;">${tend}</div></div>`;
             }
         }
         return html;
@@ -247,6 +252,16 @@ Object.assign(UI.prototype, {
         if (!game || !game.player) return;
         const r = Ailments.useRemedy(game.player, game.world, item, key);
         this.showNotification(r.success ? '🌿 Remedy' : '🌿 No Use', r.success ? r.message : r.reason, r.success ? 'success' : 'error');
+        this.updateStats(game.player, game.world);
+        this.showCharacterPanel();
+    },
+
+    /** Nurse a sick companion yourself (Character panel button). */
+    _tendCompanion(npcId) {
+        const game = this.game;
+        if (!game || !game.player) return;
+        const r = Ailments.tendCompanion(game.player, game.world, npcId);
+        this.showNotification(r.success ? '⚕️ Tending' : '⚕️ Not Now', r.success ? r.message : r.reason, r.success ? (r.cured ? 'success' : 'info') : 'error');
         this.updateStats(game.player, game.world);
         this.showCharacterPanel();
     },

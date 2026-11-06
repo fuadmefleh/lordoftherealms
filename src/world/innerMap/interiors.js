@@ -101,6 +101,8 @@ Object.assign(InnerMap, {
 
         // ── The town's fields grown to the day (world/townProps.js) ──
         if (hasSettlement) TownProps.growFields(this.tiles, this.worldDay);
+        // ── Its fences joined at the corners (a town laid out before fences joined comes right on entry) ──
+        if (hasSettlement) TownProps.joinFences(this.tiles);
         // ── Its granary stocked from the first day (world/economy.js), for the farmers to carry into and the keeper to sell from ──
         if (hasSettlement && worldTile && worldTile.settlement && !worldTile.settlement.economy) Economy.initSettlement(worldTile.settlement);
 

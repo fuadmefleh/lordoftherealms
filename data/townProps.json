@@ -114,7 +114,21 @@
         "name": "Fence",
         "h": { "sheet": "fence", "left": [0, 0], "mid": [1, 0], "right": [2, 0] },
         "v": { "sheet": "pfence", "top": [3, 0], "mid": [3, 1], "bottom": [3, 2] },
-        "gate": { "sheet": "fence", "cell": [1, 5] }
+        "gate": { "sheet": "fence", "cell": [1, 5] },
+        "_joinDoc": "Fence pieces joined by their neighbours (world/townProps.js joinFences): the ThatchedHouses fence sheet is a full set — each key names the sides (n, e, s, w) a cell has fence on, and its cell carries the rails out to just those sides, so corners, T-joins, crossings and run ends meet. gateLeft/gateRight are the run pieces either side of a gate, with its gateposts. The legacy h/v pieces above stay registered so old saves still draw until the town is entered.",
+        "join": {
+            "sheet": "fence",
+            "cells": {
+                "post": [0, 1],
+                "e": [0, 0], "ew": [1, 0], "w": [2, 0],
+                "n": [0, 1], "ns": [1, 1], "s": [2, 1],
+                "es": [0, 2], "esw": [1, 2], "sw": [2, 2],
+                "nes": [0, 3], "nesw": [1, 3], "nsw": [2, 3],
+                "ne": [0, 4], "new": [1, 4], "nw": [2, 4]
+            },
+            "gateLeft": [0, 5],
+            "gateRight": [2, 5]
+        }
     },
     "_growthDoc": "Town fields grow through the year (world/townProps.js growFields): each cycle is [dayOfYear, field kind] steps (Spring 1-30, Summer 31-60, Autumn 61-90, Winter 91-120); a field keeps the last step reached, a few days early or late by where it lies. Kinds not in a cycle (plowed: fallow land) stay as they are.",
     "growth": {

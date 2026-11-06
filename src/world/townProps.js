@@ -142,6 +142,13 @@ export const TownProps = {
             out.push(one('tp_fence_v_b', fence.v.sheet, fence.v.bottom));
             const gate = _def('tp_fence_gate', 'Gate', [{ localCol: 0, localRow: 0, sheetPath: d.sheets[fence.gate.sheet], sx: fence.gate.cell[0] * T, sy: fence.gate.cell[1] * T, sw: T, sh: T }], 0, { tags: ['fence'] });
             out.push(gate);
+            // The joined pieces (joinFences): one per set of sides with fence, and the gateposts
+            const join = fence.join;
+            if (join) {
+                for (const [mask, cell] of Object.entries(join.cells || {})) out.push(one(`tp_fence_${mask}`, join.sheet, cell));
+                if (join.gateLeft) out.push(one('tp_fence_gl', join.sheet, join.gateLeft));
+                if (join.gateRight) out.push(one('tp_fence_gr', join.sheet, join.gateRight));
+            }
         }
         for (const kind of Object.keys(d.fields || {})) {
             for (const w of FIELD_W) for (const h of FIELD_H) out.push(_fieldDef(d, kind, w, h));
@@ -264,6 +271,43 @@ export const TownProps = {
         const food = n * (Number.isFinite(per) ? per : 1);
         econ.food = (Number(econ.food) || 0) + food;
         return food;
+    },
+
+    /** Is this object id a piece of fence (a gate included)? */
+    isFence(id) {
+        return typeof id === 'string' && id.startsWith('tp_fence_');
+    },
+
+    /**
+     * Join every fence on the map to its neighbours: each piece becomes the one
+     * whose rails run out to exactly the sides that have fence (or a gate) —
+     * corners, T-joins, run ends — and the run pieces either side of a gate
+     * carry its gateposts. Changes only which piece is drawn (defId), never
+     * what blocks. Returns how many pieces changed.
+     */
+    joinFences(tiles) {
+        const d = _data();
+        const join = d && d.fence && d.fence.join;
+        if (!join || !tiles || !tiles.length) return 0;
+        const H = tiles.length, W = tiles[0].length;
+        const objAt = (q, r) => (q >= 0 && r >= 0 && q < W && r < H && tiles[r][q] && tiles[r][q].customObject) || null;
+        const fenceAt = (q, r) => { const o = objAt(q, r); return !!o && TownProps.isFence(o.defId); };
+        const gateAt = (q, r) => { const o = objAt(q, r); return !!o && o.defId === 'tp_fence_gate'; };
+        let changed = 0;
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                const obj = objAt(q, r);
+                if (!obj || !TownProps.isFence(obj.defId) || obj.defId === 'tp_fence_gate') continue;
+                const mask = (fenceAt(q, r - 1) ? 'n' : '') + (fenceAt(q + 1, r) ? 'e' : '') + (fenceAt(q, r + 1) ? 's' : '') + (fenceAt(q - 1, r) ? 'w' : '');
+                let key = mask || 'post';
+                if (mask === 'ew' && gateAt(q + 1, r) && join.gateLeft) key = 'gl';
+                else if (mask === 'ew' && gateAt(q - 1, r) && join.gateRight) key = 'gr';
+                else if (!join.cells[key]) continue;
+                const id = `tp_fence_${key}`;
+                if (obj.defId !== id) { obj.defId = id; changed++; }
+            }
+        }
+        return changed;
     },
 
     fieldKinds() {

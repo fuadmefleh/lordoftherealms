@@ -726,16 +726,15 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             }
         }
         if (fenced) {
+            // Laid as plain runs; joinFences (below) turns each into its corner, end or gatepost piece
             const gateQ = q0 + Math.floor(fw / 2);
             for (let q = q0 - 1; q <= q0 + fw; q++) {
-                const top = q === q0 - 1 ? 'tp_fence_h_l' : q === q0 + fw ? 'tp_fence_h_r' : 'tp_fence_h_m';
-                putProp(top, q, r0 - 1);
-                putProp(q === gateQ ? 'tp_fence_gate' : top, q, r0 + fh);
+                putProp('tp_fence_ew', q, r0 - 1);
+                putProp(q === gateQ ? 'tp_fence_gate' : 'tp_fence_ew', q, r0 + fh);
             }
             for (let r = r0; r < r0 + fh; r++) {
-                const piece = r === r0 ? 'tp_fence_v_t' : r === r0 + fh - 1 ? 'tp_fence_v_b' : 'tp_fence_v_m';
-                putProp(piece, q0 - 1, r);
-                putProp(piece, q0 + fw, r);
+                putProp('tp_fence_ns', q0 - 1, r);
+                putProp('tp_fence_ns', q0 + fw, r);
             }
         }
         // Farmland is cleared land: keep the woods back from the fence
@@ -744,6 +743,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         }
         fields++;
     }
+    // Every fence joined to its neighbours: corners, ends and the gateposts either side of a gate
+    TownProps.joinFences(tiles);
     for (const row of tiles) for (const t of row) if (t._reserved) delete t._reserved;
     tiles._lots = lots;
 

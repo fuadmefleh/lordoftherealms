@@ -5,7 +5,7 @@
 // shapes: square (a straight face, a few rows tall) and angled (the face
 // sweeps round its front corners on the sheet's slanting pieces). A big one
 // may carry a smaller crag on its top, a second step up. The whole of it is
-// impassable: nobody climbs up. How many crags a terrain carries, how big and
+// impassable to walkers: only a climber goes up a face (climbing.js). How many crags a terrain carries, how big and
 // of which shape is data (data/innerMap.json → cliffs[terrain]:
 // { count, width, height, face, tier, angled }).
 //
@@ -16,6 +16,9 @@
 //     and two clear tiles between crags, so the open ground always joins up.
 //   • tile._crag = { c, r }: the sheet cell to draw over the ground (null on
 //     the open top of the crag, where the grass below shows through).
+//   • tile._cragLevel: the height of a top (1, or 2 on a second step up); of
+//     a face, the ground at its foot. Climbers go up and down the faces
+//     (world/innerMap/climbing.js); nobody else does.
 //
 // Hash-placed from the hex's coordinates: draws nothing from the map's rng.
 
@@ -135,9 +138,20 @@ Object.assign(InnerMap, {
 
     _markCrag(t, cell, name) {
         if (!t) return;
+        this._cragLevelOf(t, name);
         t.subTerrain = { id: 'cliff', name, icon: '🧗', color: '#6b5440', passable: false };
         t._crag = cell ? { c: cell[0], r: cell[1] } : null;
         t._cragTop = name === 'Crag';
+    },
+
+    /**
+     * How high a crag tile stands (for climbing: world/innerMap/climbing.js):
+     * its top one step above the ground it was raised on (a second crag on a
+     * first's top: two), a face at the level of the ground at its foot.
+     */
+    _cragLevelOf(t, name) {
+        const base = t._cragTop === true ? (t._cragLevel || 1) : 0;
+        t._cragLevel = name === 'Crag' ? base + 1 : base;
     },
 
     /**
@@ -167,6 +181,7 @@ Object.assign(InnerMap, {
     _standCrag(tiles, q0, r0, w, h, face = 2) {
         const mark = (t, cell, name) => {
             if (!t) return;
+            this._cragLevelOf(t, name);
             t.subTerrain = { id: 'cliff', name, icon: '🧗', color: '#6b5440', passable: false };
             t._crag = cell ? { c: cell[0], r: cell[1] } : null;
             t._cragTop = name === 'Crag';

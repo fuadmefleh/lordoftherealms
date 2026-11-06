@@ -12,14 +12,20 @@
 //     combat skill and strength steady a hunter's aim.
 //   - Luck favours the rare finds (truffles, pearls, a bear pelt) and now and
 //     then adds one more to the bundle.
-//   - Experience: every outing counts (player.foragingTrips /
-//     player.huntingTrips). The trips make a craft rank — Novice to Master —
-//     that raises the odds of a find and the size of each bundle.
+//   - Practice: Foraging and Hunting & Butchering are practised skills in
+//     levels (systems/practiceSkills.js; data/skillPacks/wild.json). Each
+//     outing is XP (a find, a rare find, a part of a carcass, a butchering);
+//     each level's perks widen the search, fatten the bundle, favour the rare
+//     finds, steady the aim, bring the hides and the extra cuts. The old craft
+//     rank (Novice … Master, 0..4) now follows the level (two levels a rank)
+//     for whatever reads it; an old save's trips (player.foragingTrips /
+//     player.huntingTrips, still counted) become XP once.
 // Each loot entry's qty { min, max } range is honoured on every path.
 // All randomness flows through Utils (seedable).
 
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from './inventory.js';
+import { PracticeSkills } from '../systems/practiceSkills.js';
 
 /** Rare finds (chance at or below this) are the ones luck favours. */
 const RARE_CHANCE = 0.1;
@@ -45,11 +51,62 @@ function _num(v, d = 0) {
     return typeof v === 'number' && isFinite(v) ? v : d;
 }
 
-function _rank(trips, ranks) {
-    let level = 0;
-    for (let i = 0; i < ranks.length; i++) if (trips >= ranks[i].min) level = i;
+/** Practice levels to each old craft rank (level 1-2 the first, 9-10 the last). */
+const LEVELS_PER_RANK = 2;
+
+/**
+ * The practised skill's level. An old save's trips become XP once (the
+ * skill's xp.migrateTrips each), marked on the store so it isn't done twice;
+ * nothing is written for a holder with no trips.
+ */
+function _practice(player, id, tripsField) {
+    if (!player) return 1;
+    const flag = `_${tripsField}`;
+    const trips = _num(player[tripsField]);
+    const s = player.practiceSkills;
+    if (trips > 0 && !(s && s[flag]) && PracticeSkills.def(id)) {
+        const store = s || (player.practiceSkills = {});
+        const rate = _num((PracticeSkills.def(id).xp || {}).migrateTrips, 0);
+        const cap = PracticeSkills.xpForLevel(PracticeSkills.maxLevel());
+        if (rate > 0) store[id] = Math.min(cap, Math.max(_num(store[id]), trips * rate));
+        store[flag] = 1;
+    }
+    return PracticeSkills.level(player, id);
+}
+
+/** Mark an old save's trips as counted (before a new trip is), so they aren't taken for old ones later. */
+function _markMigrated(player, id, tripsField) {
+    _practice(player, id, tripsField);
+    if (!PracticeSkills.def(id)) return;
+    const store = player.practiceSkills || (player.practiceSkills = {});
+    store[`_${tripsField}`] = 1;
+}
+
+/** The old craft rank (0..4), from the practised level: { level, name, icon, trips, practice, levelName, next } */
+function _rank(player, id, tripsField, ranks) {
+    const L = _practice(player, id, tripsField);
+    const level = Math.max(0, Math.min(ranks.length - 1, Math.floor((L - 1) / LEVELS_PER_RANK)));
     const next = ranks[level + 1] || null;
-    return { level, ...ranks[level], trips, next: next ? { name: next.name, at: next.min } : null };
+    return {
+        level, ...ranks[level], trips: _num(player && player[tripsField]), practice: L,
+        levelName: PracticeSkills.levelName(L),
+        next: next ? { name: next.name, level: (level + 1) * LEVELS_PER_RANK + 1 } : null,
+    };
+}
+
+/** A perk of the player's practised skill */
+function _perk(player, id, perkId, tripsField) {
+    _practice(player, id, tripsField);
+    return PracticeSkills.perk(player, id, perkId);
+}
+
+/**
+ * The XP an outing earned, as a level-up shaped for the old rankUp readers:
+ * { ...event, name: 'Foraging 3 (Apprentice)' } or null.
+ */
+function _learn(player, id, xp) {
+    const up = PracticeSkills.gain(player, id, xp);
+    return up ? { ...up, skillName: up.name, name: `${up.name} ${up.to} (${up.levelName})` } : null;
 }
 
 /** Luck's pull on rare finds: ×(1 + (luck − 5) × 0.08), never below ×0.6. */
@@ -61,8 +118,8 @@ function _luckRare(player) {
  * One weighted roll over a loot table. `mult` scales every entry; luck scales
  * rare entries again. Returns an entry or null (nothing found).
  */
-function _rollEntry(table, player, mult) {
-    const luck = _luckRare(player);
+function _rollEntry(table, player, mult, rareMult = 1) {
+    const luck = _luckRare(player) * rareMult;
     const roll = Utils.random();
     let cum = 0;
     for (const e of table) {
@@ -116,33 +173,37 @@ export const Foraging = {
         return table && table.length ? table : null;
     },
 
-    /** The forager's craft rank from trips made: { level, name, icon, trips, next }. */
+    /** The forager's craft rank (0..4) from the Foraging level: { level, name, icon, trips, practice, levelName, next }. */
     skill(player) {
-        return _rank(_num(player && player.foragingTrips), FORAGE_RANKS);
+        return _rank(player, 'foraging', 'foragingTrips', FORAGE_RANKS);
     },
 
-    /** Find-chance multiplier: intelligence widens the search, experience sharpens the eye. */
+    /** A Foraging perk's value for the player (data/skillPacks/wild.json) */
+    perk(player, perkId) {
+        return _perk(player, 'foraging', perkId, 'foragingTrips');
+    },
+
+    /** Find-chance multiplier: intelligence widens the search, Foraging (finds) sharpens the eye. */
     findMultiplier(player) {
         const int = _num(player && player.intelligence, 5);
-        return (1 + int * 0.05) * 0.6 * (1 + Foraging.skill(player).level * 0.08);
+        return (1 + int * 0.05) * 0.6 * (1 + Foraging.perk(player, 'finds') / 100);
     },
 
-    /** Chance of one more in each bundle: experience, luck and wits. */
+    /** Chance of one more in each bundle: Foraging (bundle), luck and wits. */
     qtyBonusChance(player) {
-        const lvl = Foraging.skill(player).level;
-        return Math.max(0, lvl * 0.1 + (_num(player && player.luck, 5) - 5) * 0.04
+        return Math.max(0, Foraging.perk(player, 'bundle') / 100 + (_num(player && player.luck, 5) - 5) * 0.04
             + (_num(player && player.intelligence, 5) - 5) * 0.03);
     },
 
-    /** Patches a minigame forager may search: 4 + int/3, +1 at Woodwise and Master. */
+    /** Patches a minigame forager may search: 4 + int/3, + Foraging's searches. */
     searches(player) {
-        return 4 + Math.floor(_num(player && player.intelligence, 5) / 3) + Math.floor(Foraging.skill(player).level / 2);
+        return 4 + Math.floor(_num(player && player.intelligence, 5) / 3) + Math.floor(Foraging.perk(player, 'searches'));
     },
 
     /** One patch searched: an entry or null. */
     rollFind(table, player) {
         if (!Array.isArray(table) || !table.length) return null;
-        return _rollEntry(table, player, Foraging.findMultiplier(player));
+        return _rollEntry(table, player, Foraging.findMultiplier(player), 1 + Foraging.perk(player, 'rare') / 100);
     },
 
     /** How many of an entry a find yields (its qty range plus bonuses). */
@@ -175,18 +236,25 @@ export const Foraging = {
     },
 
     /**
-     * End of a foraging outing: put the finds in the packs, count the trip
-     * (the craft rank grows with them) and note a good day's renown.
-     * Returns { kept, lost, value, renown, rankUp } — rankUp is the new rank or null.
+     * End of a foraging outing: put the finds in the packs, count the trip,
+     * the Foraging XP (a trip, each find, more for a rare one) and note a good
+     * day's renown. Returns { kept, lost, value, renown, xp, rankUp } —
+     * rankUp is a Foraging level-up ({ icon, name: 'Foraging 3 (Apprentice)', text, … }) or null.
      */
     finishTrip(player, found) {
-        const before = Foraging.skill(player).level;
+        _markMigrated(player, 'foraging', 'foragingTrips');
         const res = _bank(player, found);
         player.foragingTrips = _num(player.foragingTrips) + 1;
         const renown = res.kept.length > 2 ? 1 : 0;
         if (renown) player.renown = _num(player.renown) + renown;
-        const after = Foraging.skill(player);
-        return { ...res, renown, rankUp: after.level > before ? after : null };
+        const X = (PracticeSkills.def('foraging') || {}).xp || {};
+        let xp = _num(X.perTrip, 3);
+        for (const f of found || []) {
+            if (!f || !f.entry || !(f.qty > 0)) continue;
+            xp += _num(X.perFind, 5) + (_num(f.entry.chance, 1) <= RARE_CHANCE ? _num(X.rare, 15) : 0);
+        }
+        const rankUp = _learn(player, 'foraging', xp);
+        return { ...res, renown, xp, rankUp };
     },
 
     /**
@@ -209,27 +277,43 @@ export const Foraging = {
 };
 
 export const Hunting = {
-    /** The hunter's craft rank from trips made: { level, name, icon, trips, next }. */
+    /** The hunter's craft rank (0..4) from the Hunting & Butchering level: same shape as Foraging.skill. */
     skill(player) {
-        return _rank(_num(player && player.huntingTrips), HUNT_RANKS);
+        return _rank(player, 'hunting', 'huntingTrips', HUNT_RANKS);
     },
 
-    /** Loot-chance multiplier on a clean hit: combat, strength and experience. */
+    /** A Hunting & Butchering perk's value for the player (data/skillPacks/wild.json) */
+    perk(player, perkId) {
+        return _perk(player, 'hunting', perkId, 'huntingTrips');
+    },
+
+    /** How much nearer you come before a beast notices you: 0..0.9 (the stalk perk) */
+    stalk(player) {
+        return Math.max(0, Math.min(0.9, Hunting.perk(player, 'stalk') / 100));
+    },
+
+    /** Butchering speed: the share of the time it still takes (the butcher perk) */
+    butcherTimeMult(player) {
+        return Math.max(0.1, 1 - Hunting.perk(player, 'butcher') / 100);
+    },
+
+    /** Loot-chance multiplier on a clean hit: combat, strength and the hides perk. */
     lootMultiplier(player) {
         const combat = _num(player && player.skills && player.skills.combat, 1) || 1;
         const str = _num(player && player.strength, 5);
-        return (1 + combat * 0.08) * (1 + str * 0.03) * 1.3 * (1 + Hunting.skill(player).level * 0.08);
+        return (1 + combat * 0.08) * (1 + str * 0.03) * 1.3 * (1 + Hunting.perk(player, 'hides') / 100);
     },
 
-    /** How much accuracy a shot needs to land (lower is easier). */
+    /** How much accuracy a shot needs to land (lower is easier): the aim perk steadies it. */
     hitThreshold(player) {
         const combat = _num(player && player.skills && player.skills.combat, 1) || 1;
         const str = _num(player && player.strength, 5);
-        return 35 - combat * 2 - str - Hunting.skill(player).level * 2;
+        return 35 - combat * 2 - str - Hunting.perk(player, 'aim');
     },
 
+    /** Chance of an extra cut from each part: the meat perk and luck. */
     qtyBonusChance(player) {
-        return Math.max(0, Hunting.skill(player).level * 0.1 + (_num(player && player.luck, 5) - 5) * 0.04);
+        return Math.max(0, Hunting.perk(player, 'meat') / 100 + (_num(player && player.luck, 5) - 5) * 0.04);
     },
 
     rollQty(entry, player) {
@@ -264,13 +348,24 @@ export const Hunting = {
         return found;
     },
 
-    /** End of a hunt: bank the kill (if any) and count the trip. Same shape as Foraging.finishTrip. */
-    finishTrip(player, found) {
-        const before = Hunting.skill(player).level;
+    /**
+     * End of a hunt: bank the kill (if any), count the trip, and the Hunting
+     * XP (a trip, each part taken, more for a rare one; butcherKg: a carcass
+     * butchered by hand, by its weight). Same shape as Foraging.finishTrip.
+     */
+    finishTrip(player, found, { butcherKg = null } = {}) {
+        _markMigrated(player, 'hunting', 'huntingTrips');
         const res = _bank(player, found || []);
         player.huntingTrips = _num(player.huntingTrips) + 1;
-        const after = Hunting.skill(player);
-        return { ...res, renown: 0, rankUp: after.level > before ? after : null };
+        const X = (PracticeSkills.def('hunting') || {}).xp || {};
+        let xp = _num(X.perTrip, 4);
+        for (const f of found || []) {
+            if (!f || !f.entry || !(f.qty > 0)) continue;
+            xp += _num(X.perPart, 4) + (_num(f.entry.chance, 1) <= RARE_CHANCE ? _num(X.rare, 12) : 0);
+        }
+        if (butcherKg != null) xp += _num(X.butcher, 6) + Math.max(0, _num(butcherKg)) * _num(X.butcherPerKg, 0.05);
+        const rankUp = _learn(player, 'hunting', xp);
+        return { ...res, renown: 0, xp, rankUp };
     },
 
     /** The quick hunt: one quarry, in its qty range. Same shape as Foraging.quickForage. */

@@ -7,6 +7,7 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Grades } from '../../core/grades.js';
 import { Hex } from '../../core/hex.js';
 import { Terrain } from '../../world/terrain.js';
+import { Endurance } from '../endurance.js';
 
 /** Waking hours in one day — the inner-map day and the world-map day share it. */
 export const WAKING_HOURS = 16;
@@ -136,6 +137,8 @@ export const PlayerNeedsMethods = {
             if (Number.isFinite(context.homeComfort)) rates.comfort += Math.max(0, context.homeComfort);
         }
 
+        // The hardy tire slower (player/endurance.js)
+        if (rates.energy < 0) rates.energy *= Endurance.energyMult(this);
         for (const [need, rate] of Object.entries(rates)) {
             this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + rate));
         }
@@ -156,7 +159,7 @@ export const PlayerNeedsMethods = {
         const fraction = Math.max(0, 1 - innerHours / WAKING_HOURS);
         if (fraction <= 0) return 0;
         for (const [need, amount] of Object.entries(WORLD_DAY_DECAY)) {
-            this.modifyNeed(need, -amount * fraction);
+            this.modifyNeed(need, -amount * fraction * (need === 'energy' ? Endurance.energyMult(this) : 1));
         }
         this.soilClothes(_clothesConfig().dailyWear * fraction);
         this.modifyNeed('hygiene', 0); // re-apply the clothes' cap
@@ -408,7 +411,7 @@ export const PlayerNeedsMethods = {
             ownHouse: 65,    // Rest at player's own house
             camp:     40,    // Rough camping
             outdoors: 25,    // Sleeping rough
-        }[restType] || 25;
+        }[restType] * Endurance.recoveryMult(this) || 25;
 
         const comfortGain = {
             inn:      40,

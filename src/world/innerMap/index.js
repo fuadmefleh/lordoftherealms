@@ -25,6 +25,7 @@ import './swimming.js';
 import './animals.js';
 import './farmPlots.js';
 import './cliffs.js';
+import './climbing.js';
 import './palms.js';
 
 export { InnerMap };

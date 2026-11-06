@@ -3,6 +3,7 @@ import { ActionMenu } from './_ref.js';
 import { uiZoom } from '../uiScale.js';
 import { pictureIcon } from '../icons.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Endurance } from '../../player/endurance.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
 const _escHtml = (v) => String(v == null ? '' : v)
@@ -625,40 +626,41 @@ Object.assign(ActionMenu, {
         // ── Apply need effects based on action type ──
         if (game.player.modifyNeed) {
             const p = game.player;
+            // (labour's energy: less for the hardy, and it builds Endurance — player/endurance.js)
             switch (actionType) {
-                case 'forage':      p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -5); p.modifyNeed('fun', 5); break;
-                case 'hunt':        p.modifyNeed('energy', -12); p.modifyNeed('hygiene', -8); p.modifyNeed('fun', 10); break;
-                case 'trap_furs':   p.modifyNeed('energy', -12); p.modifyNeed('comfort', -8); break;
-                case 'ice_fish':    p.modifyNeed('energy', -6); p.modifyNeed('comfort', -6); p.modifyNeed('fun', 8); break;
-                case 'planting_contract': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -8); p.modifyNeed('social', 4); break;
-                case 'fish':        p.modifyNeed('energy', -5); p.modifyNeed('fun', 12); p.modifyNeed('comfort', 5); break;
+                case 'forage':      Endurance.labour(p, 8); p.modifyNeed('hygiene', -5); p.modifyNeed('fun', 5); break;
+                case 'hunt':        Endurance.labour(p, 12); p.modifyNeed('hygiene', -8); p.modifyNeed('fun', 10); break;
+                case 'trap_furs':   Endurance.labour(p, 12); p.modifyNeed('comfort', -8); break;
+                case 'ice_fish':    Endurance.labour(p, 6); p.modifyNeed('comfort', -6); p.modifyNeed('fun', 8); break;
+                case 'planting_contract': Endurance.labour(p, 10); p.modifyNeed('hygiene', -8); p.modifyNeed('social', 4); break;
+                case 'fish':        Endurance.labour(p, 5); p.modifyNeed('fun', 12); p.modifyNeed('comfort', 5); break;
                 case 'meditate':    p.modifyNeed('comfort', 15); p.modifyNeed('energy', 8); p.modifyNeed('fun', 3); break;
-                case 'train_combat': p.modifyNeed('energy', -15); p.modifyNeed('hygiene', -10); p.modifyNeed('fun', 8); break;
+                case 'train_combat': Endurance.labour(p, 15); p.modifyNeed('hygiene', -10); p.modifyNeed('fun', 8); break;
                 case 'meet_people': p.modifyNeed('social', 15); p.modifyNeed('fun', 5); break;
                 case 'talk_locals': p.modifyNeed('social', 10); p.modifyNeed('fun', 3); break;
                 case 'gambling':    p.modifyNeed('fun', 15); p.modifyNeed('social', 10); break;
-                case 'busking':     p.modifyNeed('fun', 12); p.modifyNeed('social', 8); p.modifyNeed('energy', -5); break;
+                case 'busking':     p.modifyNeed('fun', 12); p.modifyNeed('social', 8); Endurance.labour(p, 5); break;
                 case 'host_feast':  p.modifyNeed('social', 20); p.modifyNeed('fun', 15); p.modifyNeed('hunger', 25); break;
                 case 'hold_tournament': p.modifyNeed('fun', 20); p.modifyNeed('social', 15); break;
                 case 'host_festival':   p.modifyNeed('fun', 25); p.modifyNeed('social', 20); break;
                 case 'preach':      p.modifyNeed('social', 8); p.modifyNeed('comfort', 5); break;
                 case 'denounce_heresy': p.modifyNeed('social', 8); break;
-                case 'pilgrimage':  p.modifyNeed('comfort', 15); p.modifyNeed('energy', -10); break;
+                case 'pilgrimage':  p.modifyNeed('comfort', 15); Endurance.labour(p, 10); break;
                 case 'donate':      p.modifyNeed('comfort', 8); break;
                 case 'trade':       p.modifyNeed('social', 5); break;
                 case 'tavern':      p.modifyNeed('social', 5); p.modifyNeed('comfort', 5); break;
-                case 'explore_poi': p.modifyNeed('fun', 10); p.modifyNeed('energy', -5); break;
-                case 'delve':       p.modifyNeed('fun', 12); p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -6); break;
+                case 'explore_poi': p.modifyNeed('fun', 10); Endurance.labour(p, 5); break;
+                case 'delve':       p.modifyNeed('fun', 12); Endurance.labour(p, 8); p.modifyNeed('hygiene', -6); break;
                 case 'explore_inner_map': p.modifyNeed('fun', 5); break;
-                case 'clear_trees': p.modifyNeed('energy', -10); p.modifyNeed('hygiene', -5); break;
+                case 'clear_trees': Endurance.labour(p, 10); p.modifyNeed('hygiene', -5); break;
                 case 'pickpocket':  p.modifyNeed('fun', 5); p.modifyNeed('comfort', -8); break;
                 case 'smuggle':     p.modifyNeed('fun', 5); p.modifyNeed('comfort', -5); break;
                 case 'request_meeting': p.modifyNeed('social', 10); break;
-                case 'prospect':    p.modifyNeed('energy', -8); p.modifyNeed('fun', 5); break;
-                case 'tame_horse':  p.modifyNeed('fun', 10); p.modifyNeed('energy', -8); break;
+                case 'prospect':    Endurance.labour(p, 8); p.modifyNeed('fun', 5); break;
+                case 'tame_horse':  p.modifyNeed('fun', 10); Endurance.labour(p, 8); break;
                 case 'craft_campfire': p.modifyNeed('comfort', 10); p.modifyNeed('fun', 3); break;
-                case 'dig_treasure': p.modifyNeed('fun', 10); p.modifyNeed('energy', -8); p.modifyNeed('hygiene', -5); break;
-                case 'odd_jobs':    p.modifyNeed('energy', -8); p.modifyNeed('social', 5); break;
+                case 'dig_treasure': p.modifyNeed('fun', 10); Endurance.labour(p, 8); p.modifyNeed('hygiene', -5); break;
+                case 'odd_jobs':    Endurance.labour(p, 8); p.modifyNeed('social', 5); break;
             }
         }
 

@@ -89,11 +89,13 @@ describe('foraging pays goods, not gold', () => {
         expect(Foraging.findMultiplier(master)).toBeGreaterThan(Foraging.findMultiplier(novice));
         expect(Foraging.qtyBonusChance(master)).toBeGreaterThan(Foraging.qtyBonusChance(novice));
         expect(Foraging.searches(master)).toBeGreaterThan(Foraging.searches(novice));
-        // A rank-up is reported once
-        const p = { inventory: {}, foragingTrips: 4 };
+        // The craft is the Foraging skill now (data/skillPacks/wild.json): a level-up is reported once
+        const p = { inventory: {}, practiceSkills: { foraging: 39 } };
         Utils.setSeed(1);
         const r = Foraging.quickForage(p, WOODS, FORAGE);
-        expect(r.rankUp && r.rankUp.name).toBe(FORAGE_RANKS[1].name);
+        expect(r.rankUp && r.rankUp.to).toBe(2);
+        expect(r.rankUp.name).toMatch(/^Foraging 2/);
+        expect(Foraging.quickForage(p, WOODS, FORAGE).rankUp).toBeNull();
     });
 
     it('luck favours the rare finds; intelligence and luck add to the bundle', () => {

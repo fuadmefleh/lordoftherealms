@@ -42,6 +42,8 @@ export const InnerMapCharacters = {
         { key: 'swing',     file: 'Legacy - Swing',        frames: 6, fps: 12 },
         // On guard: sword and shield held ready (a guard at their post)
         { key: 'ready',     file: 'Combat 1h - Idle',      frames: 2, fps: 1.5 },
+        // On a rock face (ui/innerMapClimbing.js): the sheet has one row, the back turned
+        { key: 'climb',     file: 'Climb',                 frames: 6, fps: 8, rows: 1 },
     ],
 
     // Map from object-definition animation name → internal drawCharacter anim key
@@ -389,7 +391,7 @@ export const InnerMapCharacters = {
 
         // Source rectangle from the composited sheet
         const sx = frameIndex * this.FRAME_W;
-        const sy = direction * this.FRAME_H;
+        const sy = (extraDef && extraDef.rows === 1 && comp[anim] ? 0 : direction) * this.FRAME_H;
 
         ctx.drawImage(sheet, sx, sy, this.FRAME_W, this.FRAME_H, dx, dy, dw, dh);
         return true;

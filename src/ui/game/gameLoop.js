@@ -7,6 +7,7 @@ import { Afterlife } from '../../player/afterlife.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
+import { InnerMapClimbing } from '../innerMapClimbing.js';
 import { InnerMapReactions } from '../innerMapReactions.js';
 import { InnerMapJail } from '../innerMapJail.js';
 import { InnerMapZones } from '../innerMapZones.js';
@@ -104,12 +105,15 @@ export function gameLoop(timestamp, loopId) {
         InnerMap._swimRefusal = swimOk.ok ? null : swimOk.reason;
         InnerMap._swimSpeedBonus = Swimming.speedBonus(this.player);
 
+        // Up and down the crags' faces; the body skills' level-ups told (ui/innerMapClimbing.js)
+        InnerMapClimbing.update(simDelta, this);
         // Update player walking animation
         const preQ = InnerMap.playerInnerQ, preR = InnerMap.playerInnerR;
         const playerStepResult = InnerMap.updatePlayer(simDelta);
         // A stroke through the water: tiredness, the cold, a wash, going under
         if (InnerMap.playerInnerQ !== preQ || InnerMap.playerInnerR !== preR) {
             _swimStep(this);
+            InnerMapClimbing.onStep(this);
         }
         // Wilderness encounters come into sight a few paces off (player/wilds.js)
         if (InnerMap._playerWalking || playerStepResult) {
@@ -231,7 +235,8 @@ export function gameLoop(timestamp, loopId) {
                         }
                     }
                 }
-                this.ui.showNotification('Blocked', 'Path blocked — impassable terrain!', 'error');
+                if (playerStepResult.climbRefused) this.ui.showNotification('🧗 Can\'t Climb', InnerMapClimbing._refusal || 'That face is too much for you now.', 'warning');
+                else this.ui.showNotification('Blocked', 'Path blocked — impassable terrain!', 'error');
             }
         }
 
@@ -405,6 +410,8 @@ export function gameLoop(timestamp, loopId) {
     if (this.player.isMoving) {
         const moved = this.player.stepAlongPath(this.world, deltaTime);
         if (moved) {
+            // The miles build Endurance: a level-up told (player/endurance.js)
+            InnerMapClimbing.flushSkillUps(this);
             if (this._cheats && this._cheats.fullVision) this.ui.applyCheats(true);
             this.ui.updateStats(this.player, this.world);
             this.minimap.invalidate();

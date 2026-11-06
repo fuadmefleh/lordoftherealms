@@ -28,7 +28,7 @@
         "title": "Hunting", "icon": "🏹", "parHours": 3,
         "say": "Follow the sign to the {name}. Creep up: walking near it alarms it, standing still calms it. Loose when you are close.",
         "trackFrom": 5, "trackTo": [18, 26], "trackMarks": [5, 7], "readSeconds": 0.7,
-        "alertBase": 8, "alertMin": 3, "alertPerStealth": 0.4, "alertPerRank": 0.3,
+        "alertBase": 8, "alertMin": 3, "alertPerStealth": 0.4, "alertPerRank": 0.8,
         "gainPerSecond": 0.45, "pacePerSecond": 0.6, "paceMax": 2, "calmPerSecond": 0.25,
         "spookRadius": 1, "shootRange": 4, "bolts": 1, "boltSeconds": 3,
         "glyph": "paw", "trackGlyph": "paw",

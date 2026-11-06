@@ -1,0 +1,77 @@
+{
+    "_doc": "Body skills (deep-merged into practiceSkills by build:data). Climbing (player/climbing.js; the inner map's crags: world/innerMap/climbing.js, ui/innerMapClimbing.js): reach = the tallest cliff face you can climb, in rows of rock (winter or snowy country counts a face climb.hardship rows taller); speed = % faster up and down the rock; slip = % chance to slip on a face at your very reach (less on shorter ones, by (height/reach)^slipShape); energySaved = % less energy a climb; breakFall = % less hurt when you fall. climb: secondsPerRow (a row of rock at level 1), energyPerRow, downPace (climbing down takes this share of the time), fallPerRow (hurt per row fallen), minEnergy (too spent below this), ladenShare (packs fuller than this share are too heavy), pathCost (a path counts a row of climbing as this many steps). xp: perRow, limitMult at your reach, slipMult when you fall. Endurance (player/endurance.js): energySaved = % less energy for walking's wear (the hourly tiring), labour, swimming and climbing; recovery = % more energy from a night's sleep; carry = more kinds of goods in your packs; stride = more movement on the world map each day. xp: perStep (a tile walked on a town or wild map), perHex (a hex travelled on the world map; mounted: mountedMult), perEnergy (each point of energy spent labouring), perClimbRow, perStroke (swimming). NPCs: labourers and porters (a share of villagers and merchants everywhere: labourTrades) are hardy; mountain folk (a hex in or by the mountains, mountainTerrains: mountain, mountainTrades) climb.",
+    "skills": {
+        "climbing": {
+            "name": "Climbing",
+            "icon": "🧗",
+            "desc": "Up and down the rock faces of the crags instead of walking round. Taller faces need more skill; winter and snow make every face harder. Climb near your limit to learn fastest — and risk a fall.",
+            "order": 3,
+            "perks": {
+                "reach": { "levels": [2, 2, 3, 3, 3, 4, 4, 4, 5, 5], "text": "climb faces {a} row taller", "show": "faces up to {v} rows tall" },
+                "speed": { "levels": [0, 8, 16, 24, 32, 40, 50, 60, 70, 80], "text": "+{d}% climbing speed", "show": "+{v}% climbing speed" },
+                "slip": { "levels": [25, 20, 16, 13, 10, 8, 6, 4, 3, 2], "text": "{a}% less likely to slip", "show": "{v}% slip chance at your limit" },
+                "energySaved": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 45], "text": "climbing tires you {a}% less", "show": "{v}% less tiring" },
+                "breakFall": { "levels": [0, 0, 5, 10, 15, 20, 25, 30, 35, 40], "text": "falls hurt {a}% less", "show": "falls hurt {v}% less" }
+            },
+            "climb": {
+                "secondsPerRow": 1.6,
+                "energyPerRow": 2.5,
+                "downPace": 0.8,
+                "fallPerRow": 7,
+                "minEnergy": 8,
+                "ladenShare": 0.9,
+                "pathCost": 5,
+                "slipShape": 2,
+                "hardship": { "seasons": ["Winter"], "terrains": ["snow_peak", "tundra", "glacier", "snow"], "rows": 1 }
+            },
+            "xp": { "perRow": 2.5, "limitMult": 1.6, "slipMult": 0.5 }
+        },
+        "endurance": {
+            "name": "Endurance",
+            "icon": "🥾",
+            "desc": "Walking, hauling and working longer before you tire. Every mile walked and every hard day's labour builds it.",
+            "order": 4,
+            "perks": {
+                "energySaved": { "levels": [0, 4, 8, 12, 16, 20, 24, 28, 32, 36], "text": "walking and work tire you {a}% less", "show": "{v}% less tiring to walk, work and swim" },
+                "recovery": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 50], "text": "+{d}% energy from sleep", "show": "+{v}% energy from sleep" },
+                "carry": { "levels": [0, 0, 1, 1, 2, 2, 3, 3, 4, 5], "text": "+{d} pack slot", "show": "+{v} pack slots" },
+                "stride": { "levels": [0, 0, 0, 1, 1, 1, 1, 2, 2, 2], "text": "+{d} movement a day on the road", "show": "+{v} movement a day" }
+            },
+            "xp": { "perStep": 0.04, "perHex": 1.2, "mountedMult": 0.4, "perEnergy": 0.3, "perClimbRow": 0.5, "perStroke": 0.1 }
+        }
+    },
+    "npc": {
+        "base": { "climbing": 1, "endurance": 1 },
+        "roles": {
+            "villager": { "endurance": 1 },
+            "farmer": { "endurance": 3 },
+            "guard": { "endurance": 2, "climbing": 1 },
+            "blacksmith_npc": { "endurance": 2 },
+            "traveler": { "endurance": 3, "climbing": 1 },
+            "merchant": { "endurance": 1 },
+            "beggar": { "endurance": 1 },
+            "sailor": { "climbing": 3, "endurance": 2 },
+            "fisher": { "endurance": 1 },
+            "pearl_diver": { "endurance": 1 },
+            "labourer": { "endurance": 4, "climbing": 1 },
+            "porter": { "endurance": 5 },
+            "miner": { "endurance": 4, "climbing": 2 },
+            "mountaineer": { "climbing": 6, "endurance": 4 }
+        },
+        "mountain": { "climbing": 2, "endurance": 1 },
+        "mountainTerrains": ["mountain", "snow_peak", "highlands"],
+        "mountainTrades": { "villager": { "mountaineer": 0.25, "miner": 0.2 }, "farmer": { "mountaineer": 0.1 }, "guard": { "mountaineer": 0.2 } },
+        "labourTrades": { "villager": { "labourer": 0.2, "porter": 0.1 }, "merchant": { "porter": 0.15 } },
+        "dailyXp": {
+            "farmer": { "endurance": 0.5 },
+            "guard": { "endurance": 0.3 },
+            "traveler": { "endurance": 0.8 },
+            "sailor": { "climbing": 0.3 },
+            "labourer": { "endurance": 1.0 },
+            "porter": { "endurance": 1.2 },
+            "miner": { "endurance": 0.8, "climbing": 0.3 },
+            "mountaineer": { "climbing": 1.2, "endurance": 0.6 },
+            "mountain": { "climbing": 0.3 }
+        }
+    }
+}

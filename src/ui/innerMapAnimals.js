@@ -220,6 +220,8 @@ export const InnerMapAnimals = {
         const events = InnerMap.updateAnimals(dt, {
             walking: !!InnerMap._playerWalking,
             stealth: _num(player && player.skills && player.skills.stealth, 1),
+            // Hunting & Butchering: a practised stalker comes closer before they look up (player/foraging.js)
+            stalk: player ? Hunting.stalk(player) : 0,
             night: this._night(),
             noTarget: down,
         });
@@ -435,7 +437,7 @@ export const InnerMapAnimals = {
         this._fight = null;
         const cfg = InnerMap.animalConfig();
         const C = InnerMap.carcassConfig(cfg);
-        const time = InnerMap.butcherTime(a, cfg);
+        const time = this.butcherTime(game, a, cfg);
         const res = InnerMapDigging.start(game, 'butcher', a.q, a.r, {
             seconds: time.seconds,
             verb: 'Butchering',
@@ -451,15 +453,25 @@ export const InnerMapAnimals = {
         return res;
     },
 
+    /** How long the player takes to butcher it: InnerMap.butcherTime, quicker with Hunting & Butchering (its butcher perk). */
+    butcherTime(game, a, cfg = InnerMap.animalConfig()) {
+        const t = InnerMap.butcherTime(a, cfg);
+        const player = game && game.player;
+        const m = player ? Hunting.butcherTimeMult(player) : 1;
+        return { seconds: t.seconds * m, minutes: Math.round(t.minutes * m) };
+    },
+
     /**
      * The carcass's loot (data: species.loot) into the packs, thinned as it
-     * rots (InnerMap.carcassYield). It is gone after. Returns the trip, or null.
+     * rots (InnerMap.carcassYield). It is gone after. Butchering it is
+     * Hunting & Butchering XP (by its weight). Returns the trip, or null.
      */
     _butcherNow(game, a) {
         const player = game && game.player;
         const world = game && game.world;
         if (!player || !a || a.state !== 'dead' || a.butchered) return null;
         const share = InnerMap.carcassYield(world, a);
+        const kg = InnerMap.animalWeight(a);
         if (this._carry && this._carry.a === a) this.drop(game, { quiet: true });
         if (!InnerMap.butcherAnimal(a, world)) return null;
         const sp = InnerMap.animalSpecies(a.species) || {};
@@ -468,7 +480,7 @@ export const InnerMapAnimals = {
         let found = Hunting.strikeLoot(loot, player);
         // Gone off: only part of it is worth the taking (rounded at random, so a little is still a chance)
         if (share < 1) found = found.map(f => ({ ...f, qty: Math.floor(f.qty * share + Utils.random()) })).filter(f => f.qty > 0);
-        const trip = Hunting.finishTrip(player, found);
+        const trip = Hunting.finishTrip(player, found, { butcherKg: kg });
         const name = String(sp.name || a.species).toLowerCase();
         const words = InnerMap.animalConfig().words || {};
         const got = trip.kept.map(f => `${f.entry.icon || ''} ${f.entry.name} x${f.qty}`.trim());
@@ -615,7 +627,7 @@ export const InnerMapAnimals = {
         const out = [];
         const world = game && game.world;
         const butcherItem = (a, lower, extra = '') => {
-            const mins = InnerMap.butcherTime(a, cfg).minutes;
+            const mins = this.butcherTime(game, a, cfg).minutes;
             const time = mins >= 60 ? `about ${Math.round(mins / 30) / 2} hours` : `about ${mins} minutes`;
             return { type: 'action', action: 'animal_butcher', label: `${bu.label || 'Butcher'} the ${lower}`, icon: bu.icon || '🔪',
                 desc: `${_fmt(bu.desc || 'Take its meat and hide.', { name: lower })} (${time})${extra}`, animal: a };

@@ -4,6 +4,7 @@ import { Hotbar } from '../hotbar.js';
 import { PlayerInventory } from '../../player/inventory.js';
 import { FOOD_ITEMS, HEAL_ITEMS, MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { Crafting } from '../../player/crafting.js';
+import { Endurance } from '../../player/endurance.js';
 import { Grades } from '../../core/grades.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
@@ -95,7 +96,7 @@ export function _showSleepModal(game, objDef, cost = 0) {
     const maxHours = Math.max(1, 24 - currentHour);
     // A good bed of your own: sleep restores more (data/furniture.json restBonus)
     const bed = 1 + Math.max(0, Number(objDef && objDef.restBonus) || 0);
-    const energyFor = h => Math.round(_calcSleepEnergy(h) * bed);
+    const energyFor = h => Math.round(_calcSleepEnergy(h) * bed * Endurance.recoveryMult(game.player)); // (more for the hardy: player/endurance.js)
     const healthFor = h => Math.round(_calcSleepHealth(h) * bed);
     const comfortFor = h => Math.round(_calcSleepComfort(h) * bed);
     const suggestedHours = Math.min(8, maxHours);

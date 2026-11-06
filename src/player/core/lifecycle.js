@@ -13,6 +13,7 @@ import { DAILY_RATION_HUNGER, MEAL_HUNGER } from './needs.js';
 import { PlayerMilitary } from '../playerMilitary.js';
 import { Ships } from '../../systems/ships.js';
 import { DawnBirth } from '../dawnBirth.js';
+import { Endurance } from '../endurance.js';
 
 export const PlayerLifecycleMethods = {
     /**
@@ -98,6 +99,8 @@ export const PlayerLifecycleMethods = {
         staminaBonus += SettlementServices.movementBonus(this);
         // Scouts in the army find the quick paths
         staminaBonus += PlayerMilitary.getScoutMovementBonus(this);
+        // A hardy walker goes further (player/endurance.js)
+        staminaBonus += Endurance.stride(this);
         this.movementRemaining = this.stamina + staminaBonus;
 
         // Only regenerate health if not starving

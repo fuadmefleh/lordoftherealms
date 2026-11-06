@@ -24,6 +24,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
+import { Endurance } from './endurance.js';
 
 const DEFAULTS = {
     pathCost: 3,
@@ -103,7 +104,9 @@ export const Swimming = {
         const n = player.swimStrokes;
         const every = Math.max(1, C.noticeEvery | 0);
         if (typeof player.modifyNeed === 'function' && player.needs) {
-            player.modifyNeed('energy', -C.energyPerStroke * (1 - saved));
+            // (less for the hardy, and a little Endurance for it: player/endurance.js)
+            player.modifyNeed('energy', -C.energyPerStroke * (1 - saved) * Endurance.energyMult(player));
+            Endurance.train(player, _num(((PracticeSkills.def('endurance') || {}).xp || {}).perStroke, 0));
             // A rough wash: the water cleans you some way, and soaks your clothes
             if (_num(player.needs.hygiene, 100) < C.hygieneMax) player.modifyNeed('hygiene', Math.min(C.hygienePerStroke, C.hygieneMax - player.needs.hygiene));
             player.modifyNeed('comfort', C.comfortPerStroke);

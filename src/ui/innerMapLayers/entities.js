@@ -204,7 +204,11 @@ Object.assign(InnerMapRenderer, {
         let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
 
         if (!deathState) {
-            if (pos.walking) {
+            if (pos.climbing) {
+                anim = 'climb';
+                direction = InnerMapCharacters.DIR_UP;
+                this._playerFacing = direction;
+            } else if (pos.walking) {
                 anim = 'walk';
                 direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
                 this._playerFacing = direction;
@@ -917,7 +921,12 @@ Object.assign(InnerMapRenderer, {
             let direction = this._playerFacing != null ? this._playerFacing : InnerMapCharacters.DIR_DOWN;
             const digging = InnerMapDigging.playerAnim();
             if (!deathState) {
-                if (pos.walking) {
+                if (pos.climbing) {
+                    // On the rock, facing it (ui/innerMapClimbing.js)
+                    anim = 'climb';
+                    direction = InnerMapCharacters.DIR_UP;
+                    this._playerFacing = direction;
+                } else if (pos.walking) {
                     anim = 'walk';
                     direction = InnerMapCharacters.getDirection(pos.dq, pos.dr);
                     this._playerFacing = direction;

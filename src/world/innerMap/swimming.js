@@ -54,6 +54,9 @@ Object.assign(InnerMap, {
     _playerMayEnter(tile, q, r) {
         if (!tile) return false;
         if (this._underwater) return this.isDivable(q, r);
+        // Up on a crag, or below one: only ground at your own height (world/innerMap/climbing.js)
+        const lv = this.standLevel(tile), mine = this.playerLevel();
+        if (lv !== 0 || mine !== 0) return lv === mine;
         if (tile.subTerrain && tile.subTerrain.passable) return true;
         return !!(this._swimAllowed && this.isSwimmable(q, r));
     },

@@ -232,5 +232,301 @@
         "impassable": true
       }
     ]
+  },
+  {
+    "id": "rock_boulder_grey",
+    "name": "Boulder",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 8
+    },
+    "resistance": 40,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": -1,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 0,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 160,
+        "sy": 0,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 32,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 160,
+        "sy": 32,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
+  },
+  {
+    "id": "rock_low_grey",
+    "name": "Low Boulder",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 5
+    },
+    "resistance": 30,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1.5,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": 0,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 64,
+        "sy": 64,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 96,
+        "sy": 64,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
+  },
+  {
+    "id": "rock_small_grey",
+    "name": "Rock",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 2
+    },
+    "resistance": 10,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1.5,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": 0,
+      "maxCol": 0,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 96,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
+  },
+  {
+    "id": "rock_boulder_granite",
+    "name": "Granite Boulder",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 8
+    },
+    "resistance": 40,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": -1,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 256,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": -1,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 160,
+        "sy": 256,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 288,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 160,
+        "sy": 288,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
+  },
+  {
+    "id": "rock_low_granite",
+    "name": "Low Granite Boulder",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 5
+    },
+    "resistance": 30,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1.5,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": 0,
+      "maxCol": 1,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 64,
+        "sy": 320,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      },
+      {
+        "localCol": 1,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 96,
+        "sy": 320,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
+  },
+  {
+    "id": "rock_small_granite",
+    "name": "Granite Rock",
+    "objectType": "rock",
+    "animation": "combat_1h_halfslash",
+    "resource": {
+      "type": "stone",
+      "amount": 2
+    },
+    "resistance": 10,
+    "terrainBindings": [
+      "rocks"
+    ],
+    "spawnWeight": 1.5,
+    "scatterChance": 0.35,
+    "bounds": {
+      "minCol": 0,
+      "minRow": 0,
+      "maxCol": 0,
+      "maxRow": 0
+    },
+    "hasBlockedTiles": true,
+    "hasInteraction": true,
+    "tiles": [
+      {
+        "localCol": 0,
+        "localRow": 0,
+        "sheetPath": "assets/lpc/Terrain/Rocks, Grasslands.png",
+        "sx": 128,
+        "sy": 352,
+        "sw": 32,
+        "sh": 32,
+        "impassable": true
+      }
+    ]
   }
 ]

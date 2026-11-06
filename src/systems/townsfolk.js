@@ -516,8 +516,9 @@ export const Townsfolk = {
 
         // A season of work: each grown resident's practised skills (diving, swimming, …) grow by their trade
         const coastal = PracticeSkills.coastalAt(world, folk.q, folk.r);
+        const mountain = PracticeSkills.mountainAt(world, folk.q, folk.r);
         for (const p of Townsfolk.residents(folk)) {
-            const who = Townsfolk.skillWho(folk, p, day, coastal);
+            const who = Townsfolk.skillWho(folk, p, day, coastal, mountain);
             PracticeSkills.seedNpc(p, who);
             PracticeSkills.growNpc(p, who, C.tickDays);
         }
@@ -526,8 +527,8 @@ export const Townsfolk = {
     },
 
     /** Who a person is, for their practised skills (systems/practiceSkills.js) */
-    skillWho(folk, p, day, coastal) {
-        return { key: `${folk.q},${folk.r}#${p.id}`, role: p.role, age: Townsfolk.age(p, day), coastal: !!coastal };
+    skillWho(folk, p, day, coastal, mountain = false) {
+        return { key: `${folk.q},${folk.r}#${p.id}`, role: p.role, age: Townsfolk.age(p, day), coastal: !!coastal, mountain: !!mountain };
     },
 
     /**
@@ -543,7 +544,8 @@ export const Townsfolk = {
             const holder = {};
             const role = npc._skillRole || (npc.deckRole ? 'sailor' : (npc.type || 'villager'));
             const coastal = !!npc.deckRole || (at ? PracticeSkills.coastalAt(world, at.q, at.r) : false);
-            PracticeSkills.seedNpc(holder, { key: npc.uid || npc.id || npc.fullName || npc.name || '', role, age: _num(npc.age, 30), coastal });
+            const mountain = at ? PracticeSkills.mountainAt(world, at.q, at.r) : false;
+            PracticeSkills.seedNpc(holder, { key: npc.uid || npc.id || npc.fullName || npc.name || '', role, age: _num(npc.age, 30), coastal, mountain });
             Object.defineProperty(npc, '_skills', { value: holder, configurable: true, enumerable: false, writable: true });
         }
         return npc._skills;
@@ -554,7 +556,7 @@ export const Townsfolk = {
         if (!p) return null;
         if (!p.practiceSkills) {
             const day = _num(world && world.day, 1);
-            PracticeSkills.seedNpc(p, Townsfolk.skillWho(folk, p, day, PracticeSkills.coastalAt(world, folk.q, folk.r)));
+            PracticeSkills.seedNpc(p, Townsfolk.skillWho(folk, p, day, PracticeSkills.coastalAt(world, folk.q, folk.r), PracticeSkills.mountainAt(world, folk.q, folk.r)));
         }
         return p;
     },

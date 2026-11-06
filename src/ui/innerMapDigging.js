@@ -24,6 +24,7 @@ import { Utils } from '../core/utils.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawTilledSoil } from './tilledSoil.js';
+import { Endurance } from '../player/endurance.js';
 
 const DEFAULTS = {
     seconds: { dig: 5, fill: 3, bury: 4, exhume: 5 },
@@ -216,13 +217,20 @@ export const InnerMapDigging = {
         const player = game && game.player;
         if (typeof job.onDone === 'function') {
             if (player && typeof player.modifyNeed === 'function') {
-                for (const [need, v] of Object.entries(job.needs || {})) player.modifyNeed(need, v);
+                for (const [need, v] of Object.entries(job.needs || {})) {
+                    // Hard work: the hardy tire less, and it builds Endurance (player/endurance.js)
+                    if (need === 'energy' && v < 0) Endurance.labour(player, -v);
+                    else player.modifyNeed(need, v);
+                }
             }
             job.onDone(game, tile);
             return;
         }
         if (player && typeof player.modifyNeed === 'function') {
-            for (const [need, v] of Object.entries(C.needs || {})) player.modifyNeed(need, v);
+            for (const [need, v] of Object.entries(C.needs || {})) {
+                if (need === 'energy' && v < 0) Endurance.labour(player, -v);
+                else player.modifyNeed(need, v);
+            }
         }
         if (job.kind === 'dig') {
             if (!this.canDig(tile)) return;

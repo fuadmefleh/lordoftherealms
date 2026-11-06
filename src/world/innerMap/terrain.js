@@ -771,6 +771,8 @@ Object.assign(InnerMap, {
                 if (def.objectType === 'tree' && !tile.terrainDetail) continue;
                 // ...and thinner on the heights and in the marsh (data/innerMap.json treeDensity)
                 if (def.objectType === 'tree' && treeDensity < 1 && rng() > treeDensity) continue;
+                // ...and a sparser kind (a boulder on bare rock) only now and then (its scatterChance)
+                if (Number.isFinite(def.scatterChance) && def.scatterChance < 1 && rng() > def.scatterChance) continue;
 
                 // Verify every footprint tile is in-bounds and free
                 let clear = true;

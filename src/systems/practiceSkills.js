@@ -290,6 +290,37 @@ export const PracticeSkills = {
     },
 
     /**
+     * Body work some people do (data/skillPacks/body.json): a share of some
+     * roles everywhere haul as labourers or porters (npc.labourTrades), and in
+     * or by the mountains (who.mountain) climb as mountaineers or dig as miners
+     * (npc.mountainTrades) → role ids for their levels and dailyXp.
+     */
+    bodyTradesOf(who) {
+        const N = PracticeSkills.config().npc;
+        const role = (who && who.role) || 'villager';
+        const pick = (table, salt) => {
+            const trades = (table || {})[role];
+            if (!trades) return null;
+            const roll = (Utils.hashStr(`${(who && who.key) || ''}|${salt}`) >>> 0) / 4294967296;
+            let acc = 0;
+            for (const [t, share] of Object.entries(trades)) {
+                acc += _num(share);
+                if (roll < acc) return t;
+            }
+            return null;
+        };
+        return [pick(N.labourTrades, 'labour'), who && who.mountain ? pick(N.mountainTrades, 'mountain') : null].filter(Boolean);
+    },
+
+    /** Is the world hex (q, r) in or beside the mountains (npc.mountainTerrains)? */
+    mountainAt(world, q, r) {
+        if (!world || typeof world.getTile !== 'function' || q == null || r == null) return false;
+        const ids = PracticeSkills.config().npc.mountainTerrains || ['mountain', 'snow_peak', 'highlands'];
+        const hit = (t) => !!(t && t.terrain && ids.includes(t.terrain.id));
+        return hit(world.getTile(q, r)) || Hex.neighbors(q, r).some(n => hit(world.getTile(n.q, n.r)));
+    },
+
+    /**
      * Give an NPC levels from who they are, if they have none yet.
      * who: { key (stable id), role, age, coastal } → the store
      */
@@ -299,11 +330,14 @@ export const PracticeSkills = {
         const N = PracticeSkills.config().npc;
         const trade = PracticeSkills.tradeOf(who);
         const byRole = (N.roles || {})[trade] || {};
+        const body = PracticeSkills.bodyTradesOf(who).map(t => (N.roles || {})[t] || {});
         const age = _num(who.age, 30);
         const s = {};
         for (const id of PracticeSkills.ids()) {
             let L = _num((N.base || {})[id], 1) + _num(byRole[id]);
             if (who.coastal) L += _num((N.coastal || {})[id]);
+            if (who.mountain) L += _num((N.mountain || {})[id]);
+            for (const b of body) L += _num(b[id]);
             const spread = Math.max(0, N.spread | 0);
             if (spread) L += (Utils.hashStr(`${who.key || ''}|${id}`) >>> 0) % (spread + 1);
             if (age > 20 && _num(N.ageBonus) > 0) L += Math.min(_num(N.ageMax), Math.floor((age - 20) / N.ageBonus));
@@ -324,6 +358,9 @@ export const PracticeSkills = {
         const rates = { ...((N.dailyXp || {})[trade] || {}) };
         if (who.coastal && trade === who.role) {
             for (const [id, v] of Object.entries((N.dailyXp || {}).coastal || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
+        }
+        for (const t of [...PracticeSkills.bodyTradesOf(who), ...(who.mountain ? ['mountain'] : [])]) {
+            for (const [id, v] of Object.entries((N.dailyXp || {})[t] || {})) rates[id] = Math.max(_num(rates[id]), _num(v));
         }
         for (const [id, rate] of Object.entries(rates)) if (rate > 0) PracticeSkills.gain(holder, id, rate * days);
     },

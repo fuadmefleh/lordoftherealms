@@ -9,6 +9,7 @@
 // Capacity bonuses:
 //   - a mount (player.mount, bought at a stable)  +MOUNT_SLOTS
 //   - each owned house (player.houses) gives a home stash  +HOUSE_SLOTS
+//   - the Endurance skill's carry perk (data/skillPacks/body.json)  +0..5
 //
 // All gain paths that hand the player new goods go through addItem(); paths
 // where the goods are already owed (quest rewards, returned stock) use
@@ -38,7 +39,27 @@ export const PlayerInventory = {
         const base = Number.isFinite(player.maxInventory) ? player.maxInventory : BASE_INVENTORY_SLOTS;
         const mount = player.mount ? MOUNT_SLOTS : 0;
         const houses = Array.isArray(player.houses) ? player.houses.length * HOUSE_SLOTS : 0;
-        return base + mount + houses;
+        return base + mount + houses + PlayerInventory.enduranceSlots(player);
+    },
+
+    /**
+     * Pack slots from the Endurance skill (perk carry). The level is worked out
+     * here from the XP, as systems/practiceSkills.js does (core can't import it).
+     */
+    enduranceSlots(player) {
+        const xp = player && player.practiceSkills && player.practiceSkills.endurance;
+        const P = DataLoader._gamedata && DataLoader._gamedata.practiceSkills;
+        const lv = P && P.skills && P.skills.endurance && P.skills.endurance.perks && P.skills.endurance.perks.carry && P.skills.endurance.perks.carry.levels;
+        if (!(xp > 0) || !Array.isArray(lv)) return 0;
+        const base = Number(P.xp && P.xp.base) || 40, growth = Number(P.xp && P.xp.growth) || 1.45;
+        const max = Math.max(1, P.maxLevel | 0 || 10);
+        let L = 1, t = 0;
+        while (L < max) {
+            t += Math.round(base * Math.pow(growth, L - 1));
+            if (xp < t) break;
+            L++;
+        }
+        return Math.max(0, Math.round(Number(lv[Math.min(lv.length, L) - 1]) || 0));
     },
 
     /** Number of occupied slots (distinct goods with a positive quantity). */

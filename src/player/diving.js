@@ -38,6 +38,7 @@ import { Utils } from '../core/utils.js';
 import { Containers } from '../systems/containers.js';
 import { Swimming } from './swimming.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
+import { Endurance } from './endurance.js';
 
 const DEFAULTS = {
     drainPerSecond: 1,
@@ -243,7 +244,7 @@ export const Diving = {
         // The work of it (less for a strong swimmer)
         const prac = Swimming.practice(player);
         if (typeof player.modifyNeed === 'function' && player.needs) {
-            player.modifyNeed('energy', -C.energyPerSecond * dt * (1 - prac * C.practiceEnergyCut));
+            player.modifyNeed('energy', -C.energyPerSecond * dt * (1 - prac * C.practiceEnergyCut) * Endurance.energyMult(player));
         }
         // The breath
         const had = d.breath;

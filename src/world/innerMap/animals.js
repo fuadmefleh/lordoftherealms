@@ -359,12 +359,13 @@ Object.assign(InnerMap, {
         return { q: a.q + (a.next.q - a.q) * a.progress, r: a.r + (a.next.r - a.r) * a.progress };
     },
 
-    /** How near the player may come before an animal notices. */
+    /** How near the player may come before an animal notices (o.stalk: 0..0.9 nearer, the Hunting skill's stalk). */
     animalNoticeRadius(a, o = {}, cfg = this.animalConfig()) {
         const b = cfg.behaviour || {};
         const sp = this.animalSpecies(a.species, cfg) || {};
         const base = Math.max(_num(b.noticeMin, 3), _num(b.noticeRadius, 7) - _num(o.stealth, 1) * _num(b.noticePerStealth, 0.3));
-        return base * _num(sp.wary, 1) * (o.walking === false ? _num(b.noticeStill, 0.55) : 1);
+        const stalk = Math.max(0, Math.min(0.9, _num(o.stalk, 0)));
+        return base * _num(sp.wary, 1) * (o.walking === false ? _num(b.noticeStill, 0.55) : 1) * (1 - stalk);
     },
 
     /** Send an animal (and the rest of its herd near it) running from `from`. */

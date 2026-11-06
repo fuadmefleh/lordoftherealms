@@ -5,6 +5,7 @@
 // ============================================
 
 import { Hex } from '../../core/hex.js';
+import { Endurance } from '../endurance.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { PublicWorks } from '../../systems/publicWorks.js';
@@ -312,6 +313,8 @@ export const PlayerMovementMethods = {
 
             this.movementRemaining = Math.max(0, this.movementRemaining - moveCost);
             this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+            // The miles build Endurance (player/endurance.js)
+            Endurance.walked(this, 'hex', 1);
 
             // A toll gate or a ferry on the road (systems/publicWorks.js)
             if (currentTile && (currentTile.tollGate || currentTile.roadCross === 'ferry')) PublicWorks.playerCrossing(world, this, currentTile);

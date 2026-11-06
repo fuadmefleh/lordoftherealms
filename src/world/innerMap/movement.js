@@ -9,6 +9,8 @@ Object.assign(InnerMap, {
      * @returns {{ moved: boolean, encounter: Object|null }}
      */
     movePlayer(dq, dr) {
+        // Not halfway up a rock face (world/innerMap/climbing.js)
+        if (this._climb) return { moved: false, encounter: null, outOfBounds: false };
         // Cancel any animated walk in progress
         this.cancelPlayerWalk();
 
@@ -56,13 +58,23 @@ Object.assign(InnerMap, {
             return { started: false, moved: false, encounter: null, outOfBounds: true };
         }
 
+        if (this._climb) return { started: false, moved: false, encounter: null, outOfBounds: false };
+        // A climber makes for a crag's top, or down off it; a click on a face is its far end (world/innerMap/climbing.js)
+        const climbing = this._climbMax > 0 && !this._insideBuilding;
+        if (climbing) {
+            const to = this.climbTargetFor(targetQ, targetR);
+            if (to) { targetQ = to.q; targetR = to.r; }
+        }
         const tile = this.tiles[targetR][targetQ];
-        if (!this._playerMayEnter(tile, targetQ, targetR)) {
+        const lv = this.standLevel(tile);
+        const climbTo = climbing && lv != null && lv !== this.playerLevel() && (lv > 0 || tile.subTerrain.passable);
+        if (!this._playerMayEnter(tile, targetQ, targetR) && !climbTo) {
             return { started: false, moved: false, encounter: null, outOfBounds: false, refused: !tile.subTerrain.passable && this.isSwimmable(targetQ, targetR) ? this._swimRefusal : null };
         }
 
-        // A* pathfinding (the player may swim where swimming is allowed)
-        const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR, { swim: !!this._swimAllowed });
+        // A* pathfinding (the player may swim where swimming is allowed, and climb faces they can)
+        const path = this._findPath(this.playerInnerQ, this.playerInnerR, targetQ, targetR,
+            { swim: !!this._swimAllowed, levels: true, climb: climbing ? { max: this._climbMax } : null });
         if (!path || path.length <= 1) {
             return { started: false, moved: false, encounter: null, outOfBounds: false };
         }
@@ -400,9 +412,21 @@ Object.assign(InnerMap, {
      */
     updatePlayer(deltaTime) {
         if (!this._playerWalking || !this._playerPath) return null;
+        // On the rock: ui/innerMapClimbing.js drives the climb, the walk waits
+        if (this._climb || this._climbRequest) return null;
 
         // A stroke through deep water is slower than a step (world/innerMap/swimming.js)
         const next = this._playerPath[this._playerPathIndex];
+        // A step that jumps from a face's foot to its top (or back) is a climb (world/innerMap/climbing.js)
+        if (next && Math.abs(next.q - this.playerInnerQ) + Math.abs(next.r - this.playerInnerR) > 1) {
+            const link = this.linkBetween(this.playerInnerQ, this.playerInnerR, next.q, next.r);
+            if (!link || link.rows > (this._climbMax || 0)) {
+                this.cancelPlayerWalk();
+                return { moved: false, encounter: null, blocked: true, climbRefused: true };
+            }
+            this._climbRequest = link;
+            return null;
+        }
         const nextTile = next && this.tiles[next.r] && this.tiles[next.r][next.q];
         const inWater = (nextTile && !nextTile.subTerrain.passable) || this.isPlayerSwimming();
         const under = this._underwater ? (this._underwaterSpeed || 0.75) : 1; // (slower again under the surface)
@@ -459,6 +483,12 @@ Object.assign(InnerMap, {
      */
     getPlayerWorldPos() {
         const T = 32; // TILE_SIZE
+        // On a rock face, between its foot and its top (world/innerMap/climbing.js)
+        const cp = this._climbPos();
+        if (cp) return { x: cp.x, y: cp.y, walking: false, climbing: true, dq: 0, dr: 0 };
+        if (this._climbRequest) {
+            return { x: this.playerInnerQ * T + T / 2, y: this.playerInnerR * T + T / 2, walking: false, dq: 0, dr: 0 };
+        }
         if (this._playerWalking && this._playerPath && this._playerPathIndex < this._playerPath.length) {
             const target = this._playerPath[this._playerPathIndex];
             const progress = this._playerMoveProgress;
@@ -501,6 +531,11 @@ Object.assign(InnerMap, {
         // The player's paths may swim (each water tile dearer than a step); nobody else's do
         const swim = !!(opts && opts.swim);
         const swimCost = swim ? Math.max(1, Number(this.swimConfig().pathCost) || 3) : 1;
+        // The player's paths keep to their own height, and may climb faces no taller than climb.max
+        // (world/innerMap/climbing.js); nobody else's do
+        const climb = opts && opts.climb ? opts.climb : null;
+        const levels = !!(opts && (opts.levels || climb));
+        const climbCost = Math.max(1, Number(this._climbPathCost) || 4);
         const tiles = this.tiles;
         // Flat index helpers
         const idx = (q, r) => r * W + q;
@@ -597,7 +632,15 @@ Object.assign(InnerMap, {
                 if (inClosed[ni]) continue;
                 const tile = tiles[nr][nq];
                 let ng = gScore[ci] + 1;
-                if (!tile.subTerrain.passable) {
+                let high = false;
+                if (levels) {
+                    const lc = this.standLevel(tiles[cr][cq]), ln = this.standLevel(tile);
+                    if (ln == null || ln !== (lc == null ? 0 : lc)) continue;
+                    high = ln > 0;
+                }
+                if (high) {
+                    // across a crag's top
+                } else if (!tile.subTerrain.passable) {
                     if (!swim || !this.isSwimmable(nq, nr)) continue;
                     ng = gScore[ci] + swimCost;
                 } else if (swim && this._underwater) {
@@ -612,6 +655,21 @@ Object.assign(InnerMap, {
                     parentQ[ni] = cq;
                     parentR[ni] = cr;
                     push(ng + heuristic(nq, nr), ni, nq, nr);
+                }
+            }
+            // Up or down a face from here
+            if (climb) {
+                for (const l of this.linksFrom(cq, cr)) {
+                    if (l.rows > climb.max) continue;
+                    const ni = idx(l.toQ, l.toR);
+                    if (inClosed[ni]) continue;
+                    const ng = gScore[ci] + l.rows * climbCost;
+                    if (ng < gScore[ni]) {
+                        gScore[ni] = ng;
+                        parentQ[ni] = cq;
+                        parentR[ni] = cr;
+                        push(ng + heuristic(l.toQ, l.toR), ni, l.toQ, l.toR);
+                    }
                 }
             }
         }

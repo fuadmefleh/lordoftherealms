@@ -337,6 +337,9 @@ Object.assign(InnerMap, {
             }
         }
 
+        // Bare ground coming down to the water: a dirt bank there, not a square of grass
+        this._dirtBankShores(tiles);
+
         // Deep water, with the LPC sheet's own dark-water block (a modder's
         // brush may be another water altogether, so only with the default one)
         if (!brush.lpcDefault) return;
@@ -364,6 +367,43 @@ Object.assign(InnerMap, {
                 if (ref && ref.sheetPath) t.terrainDetail = { sheetPath: ref.sheetPath, sx: ref.sx, sy: ref.sy, sw: 32, sh: 32, layer: 'water' };
             }
         }
+    },
+
+    /**
+     * Where bare ground (a road, a town's trodden soil, dirt the grass never
+     * covered) comes down to the water, the shore piece beside it is the
+     * dirt-banked one, not the grass-banked: the default LPC shore pieces
+     * carry grass on their land side, so a road reaching the water would butt
+     * against a square of grass. Same slot, the dirt-banked block six columns
+     * over (shore cols 0-2 -> 6-8, rows 10-12; inside corners cols 0-1 -> 6-7,
+     * rows 13-14). Only the default sheets' pieces are touched (a modder's
+     * brush is left alone). Run after the water is stamped, and again once a
+     * town's roads are down (world/innerMap/interiors.js).
+     * @returns {number} how many shore pieces were changed
+     */
+    _dirtBankShores(tiles) {
+        const H = tiles.length, W = H ? tiles[0].length : 0;
+        const bare = (t) => !!(t && !t._wet && !t.building && t.subTerrain && t.subTerrain.passable &&
+            (t.isRoad || t._townSoil || t._tilled || !t.terrainDetail));
+        let n = 0;
+        for (let r = 0; r < H; r++) {
+            for (let q = 0; q < W; q++) {
+                const d = tiles[r][q] && tiles[r][q].terrainDetail;
+                if (!d || d.layer !== 'water' || !d.sheetPath || !/Terrain\/terrain_[a-z_]+\.png$/.test(d.sheetPath)) continue;
+                const c = Math.round(d.sx / 32), row = Math.round(d.sy / 32);
+                const shore = row >= 10 && row <= 12 && c <= 2 && !(c === 1 && row === 11);
+                const corner = (row === 13 || row === 14) && c <= 1;
+                if (!shore && !corner) continue;
+                const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dq, dr]) => {
+                    const y = r + dr, x = q + dq;
+                    return y >= 0 && y < H && x >= 0 && x < W && bare(tiles[y][x]);
+                });
+                if (!nb) continue;
+                d.sx = (c + 6) * 32;
+                n++;
+            }
+        }
+        return n;
     },
 
     /**

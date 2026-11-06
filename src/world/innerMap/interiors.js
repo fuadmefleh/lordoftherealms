@@ -95,6 +95,8 @@ Object.assign(InnerMap, {
             // Roads added after generation cut through the grass layer —
             // re-auto-tile it so grass edges meet the dirt cleanly.
             this._refreshGrassLayer(this.tiles);
+            // …and where a road now comes down to the water, the shore beside it is a dirt bank
+            this._dirtBankShores(this.tiles);
         }
 
         // ── The town's fields grown to the day (world/townProps.js) ──

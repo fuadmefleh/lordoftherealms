@@ -14,8 +14,19 @@ import { InnerMapZones } from '../innerMapZones.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
+import { Gathering } from '../../player/gathering.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
 import { announceSkillUps } from '../skillUps.js';
+
+// Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
+// world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
+if (!InnerMap._computeObjectDamage._practised) {
+    const baseDamage = InnerMap._computeObjectDamage;
+    InnerMap._computeObjectDamage = function (player, def) {
+        return baseDamage.call(this, player, def) * Gathering.damageMult(player, def);
+    };
+    InnerMap._computeObjectDamage._practised = true;
+}
 
 export function gameLoop(timestamp, loopId) {
     if (!this.isRunning) return;
@@ -251,6 +262,9 @@ export function gameLoop(timestamp, loopId) {
             if (ia) InnerMapCombat.onObjectHit(ia.anchorQ, ia.anchorR, interactionResult.damage, interactionResult.healthPct);
             // Smashing the town's things: the street sees, the watch comes (ui/innerMapReactions.js)
             if (ia) InnerMapReactions.onVandalism(this, ia.anchorQ, ia.anchorR, ia.defId);
+            // A blow at a tree or a rock: tiring work, and Woodcutting / Mining practice (player/gathering.js)
+            const sw = ia && Gathering.swing(this.player, CustomObjects.getDef(ia.defId));
+            if (sw && sw.levelUp) this.ui.showNotification(`${sw.levelUp.icon} ${sw.levelUp.name} Improved`, sw.levelUp.text, 'success');
         }
         if (interactionResult && interactionResult.completed) {
             if (interactionResult.nonDestructive) {
@@ -273,7 +287,11 @@ export function gameLoop(timestamp, loopId) {
                 if (lost) this.ui.updateStats(this.player, this.world);
             } else if (interactionResult.resource) {
                 const resType = interactionResult.resource.type;
-                const resAmt = interactionResult.resource.amount || 1;
+                // Felled or broken: extra logs or stone, a rarer find in the rock, and the practice (player/gathering.js)
+                const wt = InnerMap.currentWorldTile;
+                const got = Gathering.felled(this.player, CustomObjects.getDef(interactionResult.defId), interactionResult.resource,
+                    wt && wt.terrain ? wt.terrain.id : null);
+                const resAmt = got.skill ? got.amount : (interactionResult.resource.amount || 1);
                 let gathered = true;
                 if (resType === 'gold') {
                     this.player.gold += resAmt;
@@ -282,11 +300,18 @@ export function gameLoop(timestamp, loopId) {
                 }
                 // Format resource name for display
                 const displayName = resType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                const bonus = got.extra ? ` (${got.extra} more for a practised hand)` : '';
                 if (gathered) {
-                    this.ui.showNotification('Gathered', `+${resAmt} ${displayName}`, 'success');
+                    this.ui.showNotification('Gathered', `+${resAmt} ${displayName}${bonus}`, 'success');
                 } else {
                     this.ui.showNotification('Packs Full', `${resAmt} ${displayName} left on the ground. ${PlayerInventory.fullMessage(this.player)}`, 'warning');
                 }
+                if (got.rare) {
+                    const rName = got.rare.item.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const ok = PlayerInventory.addItem(this.player, got.rare.item, got.rare.qty).success;
+                    this.ui.showNotification('⛏️ A Find in the Rock', ok ? `+${got.rare.qty} ${rName}` : `${got.rare.qty} ${rName}, but your packs are full.`, ok ? 'success' : 'warning');
+                }
+                for (const up of got.levelUps) this.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success');
             } else {
                 this.ui.showNotification('Cleared', 'Object removed.', 'info');
             }

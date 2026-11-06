@@ -23,8 +23,9 @@ function _fmt(n) {
 }
 
 function _craftLine(label, rank) {
-    const next = rank.next ? ` · ${rank.next.at - rank.trips} more to ${_esc(rank.next.name)}` : ' · mastered';
-    return `<div style="${ROW}"><span>${label}</span><span style="color:#ccc;">${rank.icon} ${_esc(rank.name)}${next}</span></div>`;
+    // (the rank follows the practised skill's level: player/foraging.js)
+    const next = rank.next ? ` · ${_esc(rank.next.name)} at level ${rank.next.level}` : ' · mastered';
+    return `<div style="${ROW}"><span>${label}</span><span style="color:#ccc;">${rank.icon} ${_esc(rank.name)} (level ${rank.practice})${next}</span></div>`;
 }
 
 Object.assign(ActionMenu, {

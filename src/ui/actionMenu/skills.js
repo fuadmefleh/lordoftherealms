@@ -8,6 +8,8 @@ import { PlayerEffects } from '../../player/playerEffects.js';
 import { DuelPanel } from './duel.js';
 import { DevotionPanel } from './devotion.js';
 import { WildTaskRunner } from '../mapTasks/wildTasks.js';
+import { FoodSkills } from '../../systems/foodSkills.js';
+import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
@@ -418,78 +420,44 @@ Object.assign(ActionMenu, {
     doFish(game, tile, opts = {}) {
         const player = game.player;
         const luckStat = player.luck || 5;
-        const intStat = player.intelligence || 5;
-        const strStat = player.strength || 5;
-        const skillBonus = 1 + luckStat * 0.05 + intStat * 0.03;
+        // The fishing level (systems/foodSkills.js, data/skillPacks/food.json): more
+        // bites, bigger fish, less junk, more casts, deep-water fish and deep water
+        const angler = FoodSkills.fishing(player);
 
         // Determine fishing spot quality
         const nearbyTiles = Hex.neighbors(tile.q, tile.r).map(n => game.world.getTile(n.q, n.r)).filter(Boolean);
         // Deep-Sea Nets on one of your ships moored alongside: extra casts and
         // the nets reach deep water from any shore
         const netBonus = Ships.getFishingBonus(player, tile.q, tile.r, game.world);
-        const deepWater = netBonus > 0 || nearbyTiles.some(t => ['ocean', 'deep_ocean', 'sea'].includes(t.terrain.id));
+        const deepSea = netBonus > 0 || nearbyTiles.some(t => ['ocean', 'deep_ocean', 'sea'].includes(t.terrain.id));
         const isCoast = ['coast', 'beach'].includes(tile.terrain.id);
+        const seaShore = isCoast || nearbyTiles.some(t => t.terrain.id === 'coast');
+        const deepWater = FoodSkills.canFishDeep(player, deepSea, seaShore);
 
         const depths = [];
-        depths.push({ id: 'shallow', label: '🏖️ Shallows', desc: 'Easy catches, smaller fish', color: '#1abc9c' });
-        if (isCoast || deepWater) depths.push({ id: 'mid', label: '🌊 Mid Waters', desc: 'Moderate fish, decent value', color: '#3498db' });
-        if (deepWater) depths.push({ id: 'deep', label: '🌀 Deep Waters', desc: 'Rare fish, bigger fight', color: '#2c3e50' });
+        const more = (id) => (FoodSkills.lockedFish(id, angler.level).length ? ' · more to find for a practised angler' : '');
+        depths.push({ id: 'shallow', label: '🏖️ Shallows', desc: `Easy catches, smaller fish${more('shallow')}`, color: '#1abc9c' });
+        if (isCoast || deepWater) depths.push({ id: 'mid', label: '🌊 Mid Waters', desc: `Moderate fish, decent value${more('mid')}`, color: '#3498db' });
+        if (deepWater) depths.push({ id: 'deep', label: '🌀 Deep Waters', desc: `Rare fish, bigger fight${!deepSea ? ' · your long casts reach it' : ''}${more('deep')}`, color: '#2c3e50' });
 
-        // Fish table by depth
-        const fishByDepth = {
-            shallow: [
-                { name: 'fish', label: 'Common Fish', icon: '🐟', value: 5, rarity: 'common', color: '#aaa', fight: 2 },
-                { name: 'small_fish', label: 'Small Fry', icon: '🐠', value: 2, rarity: 'common', color: '#aaa', fight: 1 },
-                { name: 'seaweed', label: 'Seaweed', icon: '🌿', value: 1, rarity: 'junk', color: '#666', fight: 0 },
-                { name: 'boot', label: 'Old Boot', icon: '👢', value: 0, rarity: 'junk', color: '#666', fight: 0 },
-                { name: 'golden_fish', label: 'Golden Fish', icon: '✨🐟', value: 50, rarity: 'legendary', color: '#f5c542', fight: 5 },
-            ],
-            mid: [
-                { name: 'fish', label: 'Common Fish', icon: '🐟', value: 5, rarity: 'common', color: '#aaa', fight: 2 },
-                { name: 'large_fish', label: 'Large Cod', icon: '🐟', value: 8, rarity: 'uncommon', color: '#3498db', fight: 3 },
-                { name: 'crab', label: 'Crab', icon: '🦀', value: 12, rarity: 'uncommon', color: '#3498db', fight: 3 },
-                { name: 'seaweed', label: 'Seaweed', icon: '🌿', value: 1, rarity: 'junk', color: '#666', fight: 0 },
-                { name: 'golden_fish', label: 'Golden Fish', icon: '✨🐟', value: 50, rarity: 'legendary', color: '#f5c542', fight: 6 },
-            ],
-            deep: [
-                { name: 'large_fish', label: 'Large Cod', icon: '🐟', value: 8, rarity: 'uncommon', color: '#3498db', fight: 3 },
-                { name: 'crab', label: 'Crab', icon: '🦀', value: 12, rarity: 'uncommon', color: '#3498db', fight: 3 },
-                { name: 'swordfish', label: 'Swordfish', icon: '🗡️🐟', value: 25, rarity: 'rare', color: '#9b59b6', fight: 6 },
-                { name: 'lobster', label: 'Lobster', icon: '🦞', value: 20, rarity: 'rare', color: '#9b59b6', fight: 5 },
-                { name: 'golden_fish', label: 'Golden Fish', icon: '✨🐟', value: 50, rarity: 'legendary', color: '#f5c542', fight: 8 },
-            ],
-        };
+        // The fish by depth and rarity: data/skillPacks/food.json (skills.fishing.catches)
+        const rollFish = (depth) => FoodSkills.rollFish(player, depth, Math.random, luckStat)
+            || { name: 'seaweed', label: 'Seaweed', icon: '🌿', value: 1, rarity: 'junk', color: '#666', fight: 0 };
 
-        // Weights by rarity (luck boosts rare/legendary)
-        const rarityWeights = {
-            junk: 15,
-            common: 40,
-            uncommon: 25,
-            rare: 10 + luckStat * 0.5,
-            legendary: 2 + luckStat * 0.4,
-        };
+        // A level-up, announced
+        const announce = (up) => { if (up) game.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success'); };
 
-        const rollFish = (depth) => {
-            const table = fishByDepth[depth] || fishByDepth.shallow;
-            const weighted = table.map(f => ({ ...f, w: rarityWeights[f.rarity] || 10 }));
-            const total = weighted.reduce((s, f) => s + f.w, 0);
-            let r = Math.random() * total;
-            for (const f of weighted) {
-                r -= f.w;
-                if (r <= 0) return { ...f };
-            }
-            return { ...weighted[0] };
-        };
-
-        // Casts for the day; Deep-Sea Nets add more
-        const maxCasts = 3 + Math.floor(Math.random() * 2) + netBonus;
+        // Casts for the day; Deep-Sea Nets and a practised hand add more
+        const maxCasts = 3 + Math.floor(Math.random() * 2) + netBonus + angler.casts;
 
         // From the town map: "Fish Here" on the water you see — straight to the cast,
         // from the bank by that water, with the catch of its depth (ui/innerMapUI.js)
         if (opts.spots && opts.depth && WildTaskRunner.inWorld(game)) {
-            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots, target: opts.target }, (catches) => {
+            WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(opts.depth), spots: opts.spots, target: opts.target }, (catches, tally) => {
                 if (catches === null) { game.ui.showNotification('🎣 Fishing', 'You can\'t get a line in the water from here.', 'warning'); return; }
-                game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player)}</div>`);
+                const up = FoodSkills.fishXp(player, { ...(tally || {}), catches });
+                game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player, up)}</div>`);
+                announce(up);
                 game.ui.updateStats(player, game.world);
             });
             return;
@@ -526,16 +494,18 @@ Object.assign(ActionMenu, {
         window._fishPickDepth = (depthId) => {
             const quick = () => {
                 // Base reward: 1-2 simple fish rolls
-                const catches = 1 + (Math.random() < 0.4 ? 1 : 0);
+                const catches = 1 + (Math.random() < 0.4 + angler.bites ? 1 : 0);
                 let totalVal = 0;
                 let msg = 'Quick fishing trip — ';
                 const items = [];
+                const landed = [];
                 for (let i = 0; i < catches; i++) {
                     const fish = rollFish(depthId);
                     if (fish && fish.name && fish.value > 0) {
                         if (!PlayerInventory.addItem(player, fish.name, 1).success) continue;
                         totalVal += fish.value;
-                        items.push(`${fish.icon} ${fish.label}`);
+                        landed.push(fish);
+                        items.push(`${fish.icon} ${fish.label}${fish.bigger ? ' (a big one)' : ''}`);
                     }
                 }
                 if (items.length > 0) {
@@ -548,6 +518,7 @@ Object.assign(ActionMenu, {
                     msg += ' 🍀 Luck increased!';
                 }
                 game.ui.showNotification('🎣 Fishing', msg, items.length > 0 ? 'success' : 'default');
+                announce(FoodSkills.fishXp(player, { casts: catches, catches: landed, quick: true }));
                 game.ui.hideCustomPanel();
                 game.ui.updateStats(player, game.world);
                 game.endDay();
@@ -561,10 +532,12 @@ Object.assign(ActionMenu, {
                 baseText: '1-2 basic catches',
                 onQuick: quick,
                 onGo: () => {
-                    WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(depthId), waterDir }, (catches) => {
+                    WildTaskRunner.fish(game, { player, casts: maxCasts, rollFish: () => rollFish(depthId), waterDir }, (catches, tally) => {
                         if (catches === null) { quick(); return; }
-                        // The day's catch into the packs (as the old reel game did)
-                        game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player)}</div>`);
+                        // The day's catch into the packs (as the old reel game did); the casts and catch teach fishing
+                        const up = FoodSkills.fishXp(player, { ...(tally || {}), catches });
+                        game.ui.showCustomPanel('🎣 Fishing', `<div style="max-width: 500px;">${ActionMenu._renderFishingResults(catches, player, up)}</div>`);
+                        announce(up);
                         game.ui.updateStats(player, game.world);
                     });
                 },
@@ -575,7 +548,7 @@ Object.assign(ActionMenu, {
     /**
      * Render final fishing results and add to inventory
      */
-    _renderFishingResults(catches, player) {
+    _renderFishingResults(catches, player, levelUp = null) {
         let html = '<div style="text-align: left; padding: 8px;">';
         html += '<h4 style="margin: 0 0 12px; text-align: center;">🎣 Day\'s Catch</h4>';
 
@@ -613,6 +586,10 @@ Object.assign(ActionMenu, {
             player.luck = (player.luck || 5) + 1;
             html += '<div style="color: #88f; margin-top: 8px; text-align: center; font-size: 12px;">🍀 Your patience improved your luck!</div>';
         }
+        // The fishing level (systems/foodSkills.js)
+        const fp = PracticeSkills.progress(player, 'fishing');
+        html += `<div style="color: #6ab8db; margin-top: 8px; text-align: center; font-size: 12px;">${fp.icon} ${fp.name} ${fp.level} (${fp.levelName})${fp.max ? '' : ` · ${Math.floor(fp.into)}/${fp.need} xp`}</div>`;
+        if (levelUp) html += `<div style="color: #5ddb6a; margin-top: 4px; text-align: center; font-size: 12px;">${levelUp.icon} ${levelUp.text}</div>`;
 
         html += `<button data-am-act="closePanelAndEndDay"
                     style="width: 100%; margin-top: 14px; padding: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none; border-radius: 6px; cursor: pointer;

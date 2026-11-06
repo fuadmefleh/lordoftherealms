@@ -11,6 +11,7 @@ import { Grades } from '../../core/grades.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { OBJECT_ACTIONS } from './actions.js';
 import { goodInfoIcon } from '../goodInfo.js';
+import { FoodSkills } from '../../systems/foodSkills.js';
 
 export function _getPlayerFoods(game) {
     const inv = game.player.inventory || {};
@@ -217,7 +218,7 @@ export function _showEatModal(game, objDef) {
             <span style="font-size:22px">${f.icon}</span>
             <div style="flex:1">
                 <div style="font-size:13px;font-weight:600">${f.label} <span style="color:#888;font-weight:400">×${f.qty}</span> ${Crafting.qualityHtml(game.player, f.id)}</div>
-                <div style="font-size:11px;color:#888">${Grades.hasGraded(game.player, f.id) ? 'The best is eaten first · ' : ''}🍖 +${f.hunger} hunger${f.energy ? ` · ⚡ +${f.energy} energy` : ''}${f.fun ? ` · 🎉 +${f.fun} fun` : ''}</div>
+                <div style="font-size:11px;color:#888">${Grades.hasGraded(game.player, f.id) ? 'The best is eaten first · ' : ''}🍖 +${Math.round(f.hunger * FoodSkills.heartyMult(game.player, f.id))} hunger${f.energy ? ` · ⚡ +${f.energy} energy` : ''}${f.fun ? ` · 🎉 +${f.fun} fun` : ''}${FoodSkills.heartyMult(game.player, f.id) > 1 ? ' · 🍳 your cooking' : ''}</div>
             </div>
         </div>
     `).join('');
@@ -246,17 +247,21 @@ export function _showEatModal(game, objDef) {
         if ((inv[foodId] || 0) <= 0) return;
         // A fine meal nourishes more than a burnt one (player/crafting.js)
         const q = Crafting.consume(game.player, foodId, 1);
+        // A practised cook's dish fills more (systems/foodSkills.js: cooking hearty)
+        const hearty = FoodSkills.heartyMult(game.player, foodId);
         inv[foodId]--;
         if (inv[foodId] <= 0) delete inv[foodId];
         if (game.player.modifyNeed) {
-            if (def.hunger) game.player.modifyNeed('hunger', Math.round(def.hunger * q));
-            if (def.energy) game.player.modifyNeed('energy', def.energy > 0 ? Math.round(def.energy * q) : def.energy);
+            if (def.hunger) game.player.modifyNeed('hunger', Math.round(def.hunger * q * hearty));
+            if (def.energy) game.player.modifyNeed('energy', def.energy > 0 ? Math.round(def.energy * q * hearty) : def.energy);
             if (def.fun) game.player.modifyNeed('fun', Math.round(def.fun * q));
             if (def.social) game.player.modifyNeed('social', def.social);
             if (def.comfort) game.player.modifyNeed('comfort', Math.round(def.comfort * q));
         }
+        const fed = FoodSkills.afterEating(game.player, foodId);
         _removeModal(id);
-        game.ui.showNotification(`${def.icon} Ate ${def.label}`, q > 1.05 ? 'Excellent fare! Hunger restored, and then some.' : q < 0.95 ? 'Poor stuff, but it fills a hole.' : 'Mmm, delicious! Hunger restored.', 'success');
+        const extra = `${hearty > 1 ? ` Your cooking makes the most of it (+${Math.round((hearty - 1) * 100)}%).` : ''}${fed ? ` Well fed: hunger comes back ${Math.round(fed.slower * 100)}% slower for ${fed.hours} hours.` : ''}`;
+        game.ui.showNotification(`${def.icon} Ate ${def.label}`, (q > 1.05 ? 'Excellent fare! Hunger restored, and then some.' : q < 0.95 ? 'Poor stuff, but it fills a hole.' : 'Mmm, delicious! Hunger restored.') + extra, 'success');
         game.ui.updateStats(game.player, game.world);
         Hotbar.refresh();
         delete window._execEat;
@@ -453,9 +458,12 @@ export function _showFishModal(game, objDef) {
             _advanceTime(1);
 
             // Determine catch
-            const catchRoll = Math.random() + luck * 0.3;
+            const angler = FoodSkills.fishing(game.player);
+            const catchRoll = Math.random() + luck * 0.3 + angler.bites;
             if (catchRoll > 0.35) {
-                const catchAmount = 1 + Math.floor(Math.random() * 3);
+                const catchAmount = 1 + Math.floor(Math.random() * 3) + (Math.random() < angler.bigger ? 1 : 0);
+                const up = FoodSkills.fishXp(game.player, { casts: 1, catches: Array.from({ length: catchAmount }, () => ({ rarity: 'common' })) });
+                if (up) game.ui.showNotification(`${up.icon} ${up.name} Improved`, up.text, 'success');
                 if (!PlayerInventory.addItem(game.player, 'fish', catchAmount).success) {
                     game.ui.showNotification('🐟 Released', `You caught ${catchAmount} fish but had no room to keep them. ${PlayerInventory.fullMessage(game.player)}`, 'warning');
                 } else {
@@ -466,6 +474,7 @@ export function _showFishModal(game, objDef) {
                     game.player.modifyNeed('comfort', -3);
                 }
             } else {
+                FoodSkills.fishXp(game.player, { casts: 1 });
                 game.ui.showNotification('🎣 Nothing', 'The fish got away this time.', 'info');
                 if (game.player.modifyNeed) {
                     game.player.modifyNeed('fun', -5);

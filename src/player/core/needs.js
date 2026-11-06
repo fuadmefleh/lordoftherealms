@@ -7,6 +7,7 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Grades } from '../../core/grades.js';
 import { Hex } from '../../core/hex.js';
 import { Terrain } from '../../world/terrain.js';
+import { FoodSkills } from '../../systems/foodSkills.js';
 import { Endurance } from '../endurance.js';
 
 /** Waking hours in one day — the inner-map day and the world-map day share it. */
@@ -139,6 +140,9 @@ export const PlayerNeedsMethods = {
 
         // The hardy tire slower (player/endurance.js)
         if (rates.energy < 0) rates.energy *= Endurance.energyMult(this);
+        // Well fed after a practised cook's meal: hunger comes back slower (systems/foodSkills.js)
+        if (rates.hunger < 0) rates.hunger *= FoodSkills.hungerDrainMult(this);
+        FoodSkills.tickWellFed(this, 1);
         for (const [need, rate] of Object.entries(rates)) {
             this.needs[need] = Math.max(0, Math.min(100, this.needs[need] + rate));
         }
@@ -159,8 +163,9 @@ export const PlayerNeedsMethods = {
         const fraction = Math.max(0, 1 - innerHours / WAKING_HOURS);
         if (fraction <= 0) return 0;
         for (const [need, amount] of Object.entries(WORLD_DAY_DECAY)) {
-            this.modifyNeed(need, -amount * fraction * (need === 'energy' ? Endurance.energyMult(this) : 1));
+            this.modifyNeed(need, -amount * fraction * (need === 'energy' ? Endurance.energyMult(this) : need === 'hunger' ? FoodSkills.hungerDrainMult(this) : 1));
         }
+        this.wellFed = null; // the well-fed spell lasts the day at most
         this.soilClothes(_clothesConfig().dailyWear * fraction);
         this.modifyNeed('hygiene', 0); // re-apply the clothes' cap
         return fraction;
@@ -177,10 +182,12 @@ export const PlayerNeedsMethods = {
             if (this.inventory[food] > 0) {
                 this.inventory[food]--;
                 if (this.inventory[food] <= 0) delete this.inventory[food];
-                const hunger = MEAL_HUNGER[food];
+                // A practised cook makes more of a cooked ration (systems/foodSkills.js)
+                const hunger = Math.round(MEAL_HUNGER[food] * FoodSkills.heartyMult(this, food));
                 this.modifyNeed('hunger', hunger);
                 this.modifyNeed('comfort', 3);
-                return { success: true, food, hunger };
+                const wellFed = FoodSkills.afterEating(this, food);
+                return { success: true, food, hunger, wellFed };
             }
         }
         return { success: false, reason: 'You have no food.' };

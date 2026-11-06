@@ -5,12 +5,14 @@
 // tilled soil, the wheat — is drawn from the same addresses scaled by the
 // factor its width bears to the original's. The originals' widths are listed in
 // data/innerMapRenderer.json `hiResSheets` (path -> width in px); every
-// terrain_<season>.png is a 512px LPC sheet. Any other sheet: 1.
+// terrain_<season>.png is a 512px LPC sheet; the painted detail sheets under
+// assets/modern/ take their original's width from `modernSheets`. Any other sheet: 1.
 //
 //   const k = sheetScale(img);
 //   ctx.drawImage(img, sx * k, sy * k, sw * k, sh * k, dx, dy, dw, dh);
 
 import { DataLoader } from '../core/dataLoader.js';
+import { modernBaseWidth } from '../core/customSheets.js';
 
 const TERRAIN = /Terrain\/terrain_[a-z_]+\.png/;
 
@@ -19,6 +21,8 @@ function _baseWidth(src) {
     const list = (g && g.innerMapRenderer && g.innerMapRenderer.hiResSheets) || {};
     let path = src;
     try { path = decodeURI(src); } catch { /* keep it as it is */ }
+    const modern = modernBaseWidth(path, g);   // (a painted detail sheet: `modernSheets`)
+    if (modern) return modern;
     for (const [p, w] of Object.entries(list)) {
         if (p.startsWith('_')) continue;
         if (path.includes(p)) return Number(w) || 0;

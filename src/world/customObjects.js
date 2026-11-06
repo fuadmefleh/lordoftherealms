@@ -59,7 +59,7 @@
 
 import { DataLoader } from '../core/dataLoader.js';
 import { ShipHulls } from './shipHulls.js';
-import { CustomSheets } from '../core/customSheets.js';
+import { CustomSheets, modernSheet } from '../core/customSheets.js';
 import { TownProps } from './townProps.js';
 
 // id → full definition (includes sheetName, sheetPath, tileW/H merged in)
@@ -173,7 +173,8 @@ export const CustomObjects = {
                     const img = new Image();
                     img.onload  = () => { _images.set(path, img); resolve(); };
                     img.onerror = () => { console.warn(`Objects: image not found — ${path}`); resolve(); };
-                    img.src = CustomSheets.resolve(path);
+                    // (a detail sheet repainted in the modern style loads its repaint: core/customSheets.js)
+                    img.src = CustomSheets.resolve(modernSheet(path, DataLoader._gamedata));
                 });
                 imgPromises.push(p);
             }

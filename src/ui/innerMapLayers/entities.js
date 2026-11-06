@@ -649,6 +649,7 @@ Object.assign(InnerMapRenderer, {
                             // mast and sail, a tree leaning over the pond) stands on those dim tiles and
                             // is above the water too — its parts over the water are dimmed here alike
                             const uw = InnerMap._underwater && !InnerMap._insideBuilding;
+                            const smooth0 = ctx.imageSmoothingEnabled;
                             for (const td of activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
@@ -659,9 +660,11 @@ Object.assign(InnerMapRenderer, {
                                 const k = self._sheetScale(img);   // (a high-res sheet: ui/sheetScale.js)
                                 const veiled = uw && !self._veiledTile(oq + td.localCol, or2 + td.localRow)
                                     ? self._veiledSprite(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k) : null;
-                                if (veiled) ctx.drawImage(veiled, 0, 0, td.sw, td.sh, tdx, tdy, cs, cs);
+                                ctx.imageSmoothingEnabled = k > 1;   // (a painted sheet draws smooth, pixel art crisp)
+                                if (veiled) ctx.drawImage(veiled, tdx, tdy, cs, cs);
                                 else ctx.drawImage(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k, tdx, tdy, cs, cs);
                             }
+                            ctx.imageSmoothingEnabled = smooth0;
 
                             if (isInteracting && alpha < 1.0) ctx.globalAlpha = 1.0;
                             // ── Object health bar (shown when object has taken damage) ──

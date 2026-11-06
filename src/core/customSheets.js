@@ -8,6 +8,34 @@
 // exist on disk, so every image loader routes its src through resolve().
 
 const CUSTOM_PREFIX = 'custom/';
+const MODERN_DIR = 'assets/modern/';
+
+/**
+ * The painted (modern) replacement of an LPC detail sheet, if it has one.
+ * data/innerMapRenderer.json `modernSheets` lists the sheets repainted at 4x in
+ * their original layout (scripts/terrain_modern/build_details.py): original path
+ * -> the original's width in px. The repaint lives at assets/modern/<the path
+ * under assets/>; ui/sheetScale.js scales cell addresses by the width ratio, so
+ * data keeps addressing the original's 32px cells.
+ * @param {string} path      sheet path as data names it (e.g. 'assets/lpc/…/Doorframe A.png')
+ * @param {object} [gamedata] DataLoader._gamedata
+ * @returns {string} the path to load
+ */
+export function modernSheet(path, gamedata) {
+    const list = gamedata && gamedata.innerMapRenderer && gamedata.innerMapRenderer.modernSheets;
+    if (!list || typeof path !== 'string' || !path.startsWith('assets/') || path.startsWith(MODERN_DIR)) return path;
+    return Object.prototype.hasOwnProperty.call(list, path)
+        ? MODERN_DIR + path.slice('assets/'.length) : path;
+}
+
+/** The original's width for a loaded modern sheet's src (0 if it is not one). */
+export function modernBaseWidth(src, gamedata) {
+    const list = gamedata && gamedata.innerMapRenderer && gamedata.innerMapRenderer.modernSheets;
+    const i = typeof src === 'string' ? src.indexOf(MODERN_DIR) : -1;
+    if (!list || i < 0) return 0;
+    const w = list['assets/' + src.slice(i + MODERN_DIR.length)];
+    return Number(w) || 0;
+}
 const _sources = new Map(); // assetPath → dataUrl
 
 export const CustomSheets = {

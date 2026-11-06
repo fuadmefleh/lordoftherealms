@@ -91,6 +91,7 @@ Object.assign(InnerMapRenderer, {
                     if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
                     if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
                     const k = this._sheetScale ? this._sheetScale(img) : 1;
+                    ctx.imageSmoothingEnabled = k > 1;
                     ctx.drawImage(img, tDef.sx * k, tDef.sy * k, tDef.sw * k, tDef.sh * k, tdx, tdy, cs, cs);
                 }
                 continue;

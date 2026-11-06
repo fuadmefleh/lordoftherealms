@@ -17,6 +17,8 @@ import { Crops } from '../systems/crops.js';
 import { InnerMapDigging } from './innerMapDigging.js';
 import { OddJobs } from '../player/oddJobs.js';
 import { sheetScale } from './sheetScale.js';
+import { loadSheetInto } from '../core/customSheets.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -335,7 +337,8 @@ export const InnerMapFarming = {
         let img = this._imgs.get(path);
         if (!img) {
             img = new Image();
-            img.src = path;
+            // (a sheet repainted in the modern style loads its repaint, else the original: core/customSheets.js)
+            loadSheetInto(img, path, DataLoader._gamedata);
             this._imgs.set(path, img);
         }
         return img.complete && img.naturalWidth ? img : null;

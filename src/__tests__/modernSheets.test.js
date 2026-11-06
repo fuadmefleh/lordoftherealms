@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { modernSheet, modernBaseWidth } from '../core/customSheets.js';
+import { modernSheet, modernBaseWidth, loadSheetInto } from '../core/customSheets.js';
 import { sheetScale } from '../ui/sheetScale.js';
 import { DataLoader } from '../core/dataLoader.js';
 
@@ -48,5 +48,23 @@ describe('modern detail sheets', () => {
         expect(modernBaseWidth(decodeURI(src), GD)).toBe(384);
         expect(sheetScale({ src, naturalWidth: 384 * 4 })).toBe(4);
         expect(sheetScale({ src: 'http://localhost:8082/' + encodeURI(DOOR), naturalWidth: 384 })).toBe(1);
+    });
+
+    it('a missing repaint falls back to the original sheet; a missing original reports', () => {
+        const img = { src: '', onerror: null };
+        let failed = 0;
+        loadSheetInto(img, DOOR, GD, () => failed++);
+        expect(img.src).toBe('assets/modern/lpc/Structure/Doors/32x64px Doors/Doorframe A.png');
+        img.onerror();                       // the repaint 404s
+        expect(img.src).toBe(DOOR);
+        expect(failed).toBe(0);
+        img.onerror();                       // and so does the original
+        expect(failed).toBe(1);
+
+        const plain = { src: '', onerror: null };
+        loadSheetInto(plain, 'assets/lpc/Terrain/terrain_summer.png', GD, () => failed++);
+        expect(plain.src).toBe('assets/lpc/Terrain/terrain_summer.png');
+        plain.onerror();
+        expect(failed).toBe(2);
     });
 });

@@ -36,6 +36,31 @@ export function modernBaseWidth(src, gamedata) {
     const w = list['assets/' + src.slice(i + MODERN_DIR.length)];
     return Number(w) || 0;
 }
+/**
+ * Point an image at a sheet, preferring its modern repaint: if the repaint fails
+ * to load (missing file), it falls back to the original sheet, so a listed but
+ * absent repaint never leaves the art blank. onError runs only when the sheet
+ * itself (or the original, after a failed repaint) cannot be loaded.
+ * @param {{src:string,onerror:any}} img   an Image (or anything with src/onerror)
+ * @param {string} path                     sheet path as data names it
+ * @param {object} [gamedata]               DataLoader._gamedata
+ * @param {function} [onError]
+ */
+export function loadSheetInto(img, path, gamedata, onError) {
+    const modern = modernSheet(path, gamedata);
+    const fail = () => { if (onError) onError(); };
+    if (modern === path) {
+        img.onerror = fail;
+    } else {
+        img.onerror = () => {
+            console.warn(`[sheets] repaint missing, using the original: ${modern}`);
+            img.onerror = fail;
+            img.src = CustomSheets.resolve(path);
+        };
+    }
+    img.src = CustomSheets.resolve(modern);
+}
+
 const _sources = new Map(); // assetPath → dataUrl
 
 export const CustomSheets = {

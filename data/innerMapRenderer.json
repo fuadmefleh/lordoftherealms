@@ -18,7 +18,7 @@
         "Floor/streets_modern.png": 512
     },
     "modernSheets": {
-        "_doc": "LPC detail sheets repainted in the painted (modern) style at 4x, in their original layout (scripts/terrain_modern/build_details.py): original path -> the original's width in px. Buildings and town props built from these paths load assets/modern/<path under assets/> instead (core/customSheets.js modernSheet); ui/sheetScale.js scales the 32px cell addresses by the width ratio.",
+        "_doc": "LPC detail sheets repainted in the painted (modern) style at 4x, in their original layout (scripts/terrain_modern/build_details.py, build_props.py): original path -> the original's width in px. Buildings and town props built from these paths load assets/modern/<path under assets/> instead (core/customSheets.js modernSheet); ui/sheetScale.js scales the 32px cell addresses by the width ratio.",
         "assets/lpc/Structure/Doors/32x64px Doors/Doorframe A.png": 384,
         "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png": 896,
         "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png": 256,
@@ -33,7 +33,22 @@
         "assets/lpc/Objects/Small Items/Hay & Straw.png": 128,
         "assets/lpc/Objects/Furniture/Barrel.png": 160,
         "assets/lpc/Objects/Furniture/Crate.png": 96,
-        "assets/buildingKit/emblems.png": 160
+        "assets/buildingKit/emblems.png": 160,
+        "assets/lpc/Objects/Furniture/Lighting, Outdoors.png": 64,
+        "assets/lpc/Objects/Furniture/Sawhorse.png": 64,
+        "assets/lpc/Objects/Small Items/Lumber.png": 320,
+        "assets/lpc/Structure/Fences/Plain Fence A.png": 160,
+        "assets/lpc/ThatchedHouses/tilesets/fence.png": 96,
+        "assets/lpc/Objects/Small Items/Baskets A.png": 96,
+        "assets/lpc/Objects/Small Items/Buckets.png": 96,
+        "assets/lpc/Structure/Misc/Fountain A.png": 64,
+        "assets/lpc/Structure/Misc/Pool A.png": 96,
+        "assets/lpc/Objects/Small Items/Fire, Camp.png": 128,
+        "assets/lpc/Objects/Camp/Clan Tents.png": 192,
+        "assets/lpc/Objects/Furniture/Wolf Stone.png": 128,
+        "assets/lpc/Objects/Small Items/Flowers.png": 288,
+        "assets/lpc/ThatchedHouses/tilesets/farming_fishing.png": 640,
+        "assets/lpc/crops.png": 1024
     },
     "sheetPaths": {
         "terrain_summer":      "assets/lpc/Terrain/terrain_summer.png",

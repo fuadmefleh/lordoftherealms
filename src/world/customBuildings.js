@@ -21,7 +21,7 @@
  */
 
 import { DataLoader } from '../core/dataLoader.js';
-import { CustomSheets, modernSheet } from '../core/customSheets.js';
+import { loadSheetInto } from '../core/customSheets.js';
 
 const _defs     = new Map();   // id → normalised def
 const _byType   = new Map();   // buildingType → [def, ...]
@@ -42,9 +42,8 @@ function loadImg(path) {
     return new Promise(resolve => {
         const img = new Image();
         img.onload  = () => { _imgCache.set(path, img); resolve(); };
-        img.onerror = () => { console.warn(`[CustomBuildings] image missing: ${path}`); resolve(); };
-        // (a detail sheet repainted in the modern style loads its repaint: core/customSheets.js)
-        img.src = CustomSheets.resolve(modernSheet(path, DataLoader._gamedata));
+        // (a detail sheet repainted in the modern style loads its repaint, else the original: core/customSheets.js)
+        loadSheetInto(img, path, DataLoader._gamedata, () => { console.warn(`[CustomBuildings] image missing: ${path}`); resolve(); });
     });
 }
 

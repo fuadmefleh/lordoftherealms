@@ -134,6 +134,11 @@ export const InnerMapReactions = {
         if (!townThing) return null;
         // The player's own ship at the pier is theirs to break
         if (tile.customObject && tile.customObject.playerShip) return null;
+        // Gathering is work, not damage: chopping a tree, quarrying a rock, picking a bush
+        // (anything with a resource to take) draws no one's ire
+        let gathered = null;
+        try { gathered = CustomObjects.getDef(defId); } catch (e) { gathered = null; }
+        if (gathered && gathered.resource) return null;
         const wt = InnerMap.currentWorldTile || {};
         const day = (game.world && game.world.day) || 0;
         const key = `${day}|${wt.q},${wt.r}|${inside ? `${inside.q},${inside.r}|` : ''}${q},${r}`;

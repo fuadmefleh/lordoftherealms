@@ -80,6 +80,21 @@ describe('vandalism', () => {
         expect(InnerMapReactions.onVandalism(g, 5, 5, 'tp_well')).toBeNull();
     });
 
+    it('chopping a tree in town is work, not vandalism: no one comes', async () => {
+        const { CustomObjects } = await import('../world/customObjects.js');
+        const g = makeGame();
+        const guard = npc('Brom', 'guard', 7, 5);
+        street([guard]);
+        const orig = CustomObjects.getDef;
+        CustomObjects.getDef = (id) => (id === 'oak_tree' ? { id, name: 'Oak', resource: { itemId: 'wood' } } : orig.call(CustomObjects, id));
+        try {
+            expect(InnerMapReactions.onVandalism(g, 5, 5, 'oak_tree')).toBeNull();
+            expect(InnerMapReactions._responders.has(guard.id)).toBe(false);
+        } finally {
+            CustomObjects.getDef = orig;
+        }
+    });
+
     it('not out in the wild, nor in your own home', () => {
         const g = makeGame();
         street([npc('Brom', 'guard', 7, 5)]);

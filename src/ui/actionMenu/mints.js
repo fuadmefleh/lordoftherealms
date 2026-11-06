@@ -12,7 +12,7 @@ import { MoneySupply } from '../../world/moneySupply.js';
 import { Finance } from '../../systems/finance.js';
 import { Underworld } from '../../systems/underworld.js';
 import { PlayerInventory } from '../../core/inventory.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse, sectionHead, kv } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -76,7 +76,14 @@ function coinTab(game) {
     if (mine && mine.last && mineWhy) {
         const parts = Object.entries(mine.last).filter(([, v]) => Math.abs(v) >= 1).map(([k, v]) => `${FLOW_LABEL[k] || k} <span style="color:${v > 0 ? '#8fd18f' : '#e08080'};">${v > 0 ? '+' : ''}${Math.round(v)}g</span>`);
         const broad = MoneySupply.broadMoney(world, here, Finance.openBanks(player).filter(b => b.kingdomId === here.id).reduce((s, b) => s + Math.max(0, b.capital || 0), 0));
-        html += `<div style="${CARD}"><b>${esc(here.name)}</b> ${intelBadge(mineWhy)}: last week's coin ${parts.length ? parts.join(' · ') : 'stood still'}.<br><span style="${NOTE}">Coin about ${Math.round(broad.coin).toLocaleString()}g · in the crown's chests ${Math.round(broad.treasury).toLocaleString()}g · in the banks' vaults ${Math.round(broad.banks).toLocaleString()}g (the chests and vaults move no prices until they are spent).</span></div>`;
+        html += sectionHead(`${esc(here.name)}'s coin`);
+        html += `<div style="${CARD}">${intelBadge(mineWhy)} Last week's coin ${parts.length ? parts.join(' · ') : 'stood still'}.`;
+        html += chips([
+            ['', 'Coin about', `${Math.round(broad.coin).toLocaleString()}g`],
+            ['', 'In the crown\'s chests', `${Math.round(broad.treasury).toLocaleString()}g`],
+            ['', 'In the banks\' vaults', `${Math.round(broad.banks).toLocaleString()}g`],
+        ]);
+        html += `<div style="${NOTE}">The chests and vaults move no prices until they are spent.</div></div>`;
     }
     const st = player.mints;
     if (st && st.stats && st.stats.exchangeFees > 0) html += `<div style="${NOTE}">The money changers have had ${Math.round(st.stats.exchangeFees)}g of you.</div>`;
@@ -95,7 +102,8 @@ function mintTab(game, tile) {
         'It pays for bullion at its fine worth, less the seigniorage, in the realm\'s own prices — never more than the market here asks.',
         'A mint where the coin is clipped or dear pays more: buy bullion where coin is sound and cheap, sell it there.',
     ]);
-    html += `<div style="${CARD}"><b>Sell bullion</b>`;
+    html += sectionHead('Sell bullion');
+    html += `<div style="${CARD}">`;
     let any = false;
     for (const g of BULLION) {
         const have = Math.floor((player.inventory && player.inventory[g]) || 0);
@@ -112,11 +120,15 @@ function mintTab(game, tile) {
     // The lease
     const lq = Mints.leaseQuote(player, world, tile);
     const st = player.mints;
-    html += `<div style="${CARD}"><b>Lease the mint</b><br>`;
+    html += sectionHead('Lease the mint');
+    html += `<div style="${CARD}">`;
     if (st && st.lease && st.lease.kingdomId === k.id) {
         html += `You hold this mint until day ${st.lease.until}: ${Math.round(st.lease.share * 100)}% of its seigniorage, ${Math.round(st.lease.earned || 0)}g so far for ${st.lease.fee}g.`;
     } else {
-        html += `<span style="${NOTE}">${Math.round(lq.share * 100)}% of the mint's seigniorage for ${lq.days} days, for ${lq.fee}g now (its seigniorage lately: ${Math.round(lq.avg || 0)}g a week, from the bullion it buys and the foreign coin it restrikes).</span><br>`;
+        html += bullets([
+            `${Math.round(lq.share * 100)}% of the mint's seigniorage for ${lq.days} days, for ${lq.fee}g now.`,
+            `Its seigniorage lately: ${Math.round(lq.avg || 0)}g a week, from the bullion it buys and the foreign coin it restrikes.`,
+        ]);
         html += act(`Lease for ${lq.fee}g`, ['lease'], BTN_GOLD, lq.ok && player.gold >= lq.fee, lq.reason || '');
     }
     html += '</div>';
@@ -130,15 +142,24 @@ function crownTab(game) {
     const rec = MoneySupply.ensureRealm(world, k);
     const P = Mints.config().mint.policies;
     const purity = k.finance && k.finance.purity != null ? k.finance.purity : 1;
-    let html = `<div style="${CARD}"><b>The mint of ${esc(k.name)}</b>: ${Math.round(purity * 100)}% silver · price level ${Math.round(MoneySupply.level(world, k.id) * 100)} · ${Math.round(rec.coin).toLocaleString()}g about · last week ${Math.round(rec.mint.lastStruck)}g struck, ${Math.round(rec.mint.lastSeign)}g seigniorage.</div>`;
-    html += `<div style="${CARD}"><b>Seigniorage</b> <span style="${NOTE}">A greedy mint keeps more of each piece, and sellers take their bullion elsewhere.</span><br>`;
+    let html = lede(`<b>The mint of ${esc(k.name)}</b>.`);
+    html += chips([
+        ['', 'Silver', `${Math.round(purity * 100)}%`],
+        ['', 'Price level', Math.round(MoneySupply.level(world, k.id) * 100)],
+        ['', 'Coin about', `${Math.round(rec.coin).toLocaleString()}g`],
+        ['', 'Last week', `${Math.round(rec.mint.lastStruck)}g struck, ${Math.round(rec.mint.lastSeign)}g seigniorage`, 'gold'],
+    ]);
+    html += sectionHead('Seigniorage');
+    html += `<div style="${CARD}"><div style="${NOTE}">A greedy mint keeps more of each piece, and sellers take their bullion elsewhere.</div>`;
     for (const [id, p] of Object.entries(P)) html += act(esc(p.label), ['policy', id], rec.mint.policy === id ? BTN_GOLD : BTN_PLAIN);
     html += '</div>';
     const rq = Mints.recoinQuote(world, k);
-    html += `<div style="${CARD}"><b>Recoinage</b> <span style="${NOTE}">Call in the clipped coin and strike it anew at full weight. The crown makes up half the missing silver; the holders lose the rest, so there is less coin about and prices fall.</span><br>`;
+    html += sectionHead('Recoinage');
+    html += `<div style="${CARD}">${bullets(['Call in the clipped coin and strike it anew at full weight.', 'The crown makes up half the missing silver; the holders lose the rest, so there is less coin about and prices fall.'])}`;
     html += rq.ok ? act(`Proclaim a recoinage (${rq.cost}g)`, ['recoin'], BTN_GOLD, k.treasury >= rq.cost, k.treasury >= rq.cost ? '' : 'The treasury cannot pay for it.') : `<span style="${NOTE}">${esc(rq.reason)}</span>`;
     html += '</div>';
-    html += `<div style="${CARD}"><b>Debase the coin</b> <span style="${NOTE}">Recoin at a tenth less silver: gold for the crown now, more coin about (prices rise), trust lost, and the good coin flees abroad.</span><br>${act('Clip the coin', ['debase'], BTN_RED, purity > 0.55)}</div>`;
+    html += sectionHead('Debase the coin');
+    html += `<div style="${CARD}">${lede('Recoin at a tenth less silver:')}${bullets(['gold for the crown now;', 'more coin about (prices rise);', 'trust lost, and the good coin flees abroad.'])}${act('Clip the coin', ['debase'], BTN_RED, purity > 0.55)}</div>`;
     return html;
 }
 

@@ -6,7 +6,7 @@
 // Court and the Counsel. Buttons route through data-am-act → ActionMenu.lawsAct.
 import { ActionMenu } from './_ref.js';
 import { Laws } from '../../systems/laws.js';
-import { BTN_GOLD, BTN_DIM, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, CARD, panelTabs, lede, chips, bullets, sectionHead } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TABS = [['here', '📍 This realm'], ['realms', '🗺️ All realms'], ['crown', '👑 Your crown']];
@@ -49,14 +49,14 @@ function forYou(game, k, lawId, option) {
 function hereTab(game) {
     const k = hereKingdom(game);
     if (!k) return `<div style="${CARD}">No crown holds this land. Out here there is no law but what a stronger arm makes.</div>`;
-    let html = `<div style="${NOTE} margin-bottom:6px;">The laws of <b>${esc(k.name)}</b>, under ${esc(k.ruler || 'its crown')}.</div>`;
+    let html = lede(`The laws of <b>${esc(k.name)}</b>, under ${esc(k.ruler || 'its crown')}.`);
     for (const { law, option, set } of Laws.of(game.world, k.id)) {
         html += `<div style="${CARD}">`;
         html += `<div style="font-weight:bold;">${law.icon} ${esc(law.name)}: <span style="color:var(--gold);">${esc(option ? option.label : '—')}</span>${set ? '' : ` <small style="${NOTE}">(by old custom)</small>`}</div>`;
         html += `<div style="${NOTE}">${esc(law.desc)}</div>`;
         if (option && option.desc) html += `<div style="margin-top:2px;">${esc(option.desc)}</div>`;
         const you = forYou(game, k, law.id, option);
-        if (you) html += `<div style="${NOTE} margin-top:2px;">➜ ${esc(you)}</div>`;
+        if (you) html += bullets([`<b>For you:</b> ${esc(you)}`]);
         html += '</div>';
     }
     return html;
@@ -83,7 +83,15 @@ function crownTab(game) {
     const k = Laws.ruled(player, world);
     if (!k) return `<div style="${CARD}">You rule no realm. Only a ruler may change a realm's laws.</div>`;
     const C = Laws.config();
-    let html = `<div style="${NOTE} margin-bottom:6px;">Proclaim the laws of <b>${esc(k.name)}</b>. Each change costs the treasury ${Math.round(C.changeCost.treasury)}g and the realm ${Math.round(C.changeCost.stability)} stability (more for a hard law), and a law can't be changed again for ${C.cooldownDays} days. Treasury ${Math.floor(k.treasury || 0)}g · stability ${Math.round(k.stability || 0)}.</div>`;
+    let html = chips([
+        ['💰', 'Treasury', `${Math.floor(k.treasury || 0)}g`, 'gold'],
+        ['⚖️', 'Stability', Math.round(k.stability || 0)],
+    ]);
+    html += lede(`Proclaim the laws of <b>${esc(k.name)}</b>.`);
+    html += bullets([
+        `Each change costs the treasury ${Math.round(C.changeCost.treasury)}g and the realm ${Math.round(C.changeCost.stability)} stability (more for a hard law).`,
+        `A law can't be changed again for ${C.cooldownDays} days.`,
+    ]);
     for (const { law, option } of Laws.of(world, k.id)) {
         html += `<div style="${CARD}">`;
         html += `<div style="font-weight:bold;">${law.icon} ${esc(law.name)}: <span style="color:var(--gold);">${esc(option ? option.label : '—')}</span></div>`;
@@ -102,7 +110,7 @@ function crownTab(game) {
     }
     const hist = (k.laws && Array.isArray(k.laws.history)) ? k.laws.history.slice(-6).reverse() : [];
     if (hist.length) {
-        html += '<h5 style="margin:10px 0 4px;">📖 Proclamations</h5>';
+        html += sectionHead('📖 Proclamations');
         for (const h of hist) {
             const L = Laws.law(h.law);
             const to = L && L.options.find(o => o.id === h.to);

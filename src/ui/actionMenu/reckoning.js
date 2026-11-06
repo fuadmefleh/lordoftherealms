@@ -9,7 +9,7 @@
 // Opener: ActionMenu.showReckoning(game, tab) — tab 'last' | 'now' | 'past'.
 import { ActionMenu } from './_ref.js';
 import { Reckoning } from '../../systems/reckoning.js';
-import { CARD, panelTabs, esc } from './uiKit.js';
+import { CARD, panelTabs, esc, lede, bullets, chips } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const H = 'font-weight:bold; color:var(--gold); font-size:13px; margin-bottom:4px;';
@@ -26,7 +26,10 @@ function _card(title, body) {
 }
 
 function _money(m) {
-    let html = `<div>Purse ${m.goldFrom.toLocaleString()}g → ${m.goldTo.toLocaleString()}g (${num(m.change)}g) · earned less spent ${num(m.net)}g</div>`;
+    let html = chips([
+        ['💰', 'Purse', `${m.goldFrom.toLocaleString()}g → ${m.goldTo.toLocaleString()}g (${num(m.change)}g)`],
+        ['', 'Earned less spent', `${num(m.net)}g`],
+    ]);
     const line = (l) => `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${esc(l.name)}</span><span style="color:${col(l.amount)};">${sgn(l.amount)}g</span></div>`;
     if (m.income.length) html += `<div style="${NOTE} margin-top:4px;">Came in from</div>${m.income.map(line).join('')}`;
     if (m.expenses.length) html += `<div style="${NOTE} margin-top:4px;">Went out on</div>${m.expenses.map(line).join('')}`;
@@ -44,7 +47,7 @@ function _towns(towns) {
             return `<div style="font-size:12px; margin-left:8px;">${esc(g.name)}: you ${did}${stock}${price}</div>`;
         }).join('');
         return `<div style="margin-bottom:4px;"><b>${esc(t.name)}</b>${goods}</div>`;
-    }).join('') + `<div style="${NOTE}">What you buy leaves the stalls dearer; what you sell gluts them. The town's own trade moves them too.</div>`;
+    }).join('') + bullets(['What you buy leaves the stalls dearer; what you sell gluts them.', 'The town’s own trade moves them too.']);
 }
 
 function _lords(lords) {
@@ -95,7 +98,7 @@ function _events(evs) {
 /** One report as HTML (also used by the render test). */
 export function reckoningHtml(r) {
     if (!r) return `<div style="${NOTE}">No season has turned since your record began. The first reckoning comes at the next change of season.</div>`;
-    let html = `<div style="${NOTE} margin-bottom:6px;">${esc(r.headline)} · days ${r.fromDay}–${r.toDay}</div>`;
+    let html = `<div style="font-weight:bold; margin:8px 0 2px;">${esc(r.headline)} <span style="${NOTE} font-weight:normal;">· days ${r.fromDay}–${r.toDay}</span></div>`;
     html += _card('💰 Money by source', _money(r.money));
     html += _card('🏪 Markets your trade moved', _towns(r.towns));
     html += _card('👑 Lords won and lost', _lords(r.lords));
@@ -126,7 +129,8 @@ Object.assign(ActionMenu, {
                 : `<div style="${NOTE}">No earlier seasons are kept yet.</div>`;
         } else body = reckoningHtml(st.last);
         const html = `${sub}<div style="max-height:var(--panel-max-h, 560px); overflow-y:auto; min-width:380px;">
-            <div style="${NOTE} margin-bottom:6px;">Your steward's account of what your doings changed in the world. The popup at each season's turn can be switched off in Settings; it is always here in the Journal.</div>
+            ${lede('Your steward’s account of what your doings changed in the world.')}
+            ${bullets(['The popup at each season’s turn can be switched off in Settings; it is always here in the Journal.'])}
             ${body}</div>`;
         game.ui.showCustomPanel('⏳ The Season\'s Reckoning', html);
     },

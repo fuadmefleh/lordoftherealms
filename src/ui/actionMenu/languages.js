@@ -4,7 +4,7 @@
 import { ActionMenu } from './_ref.js';
 import { Languages } from '../../systems/languages.js';
 import { Cultures } from '../../world/cultures.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, CARD, lede, chips, bullets, sectionHead, purse } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 
@@ -33,6 +33,8 @@ Object.assign(ActionMenu, {
         const s = tile && tile.settlement;
         const here = Languages.here(player, world);
         let html = '<div style="font-size:12px; max-height:620px; overflow-y:auto;">';
+        const known = Languages.known(player);
+        html += chips([purse(player.gold), ['🗣️', 'Tongues', known.length], player.translator ? ['🤝', 'Interpreter', esc(player.translator.name)] : null]);
 
         // Where you stand
         if (here.lang) {
@@ -42,27 +44,32 @@ Object.assign(ActionMenu, {
             html += `You: ${bar(here.value, here.level.id)} <b>${esc(here.level.name)}</b>${here.via === 'translator' ? ' — through your interpreter' : here.via === 'kin' ? ' — through a kindred tongue' : ''}`;
             const fx = (Cultures.data().effects || {}).trade || {};
             const t = fx[here.level.id];
-            if (t) html += `<div style="${NOTE}">${t < 0 ? `Haggling in a tongue you lack: prices ${Math.round(-t * 100)}% against you.` : `Speaking it well: a fair deal (+${Math.round(t * 100)}%).`}</div>`;
-            if (here.level.id === 'none' || here.level.id === 'broken') html += `<div style="${NOTE}">Talk is ${here.level.id === 'none' ? 'by gesture only' : 'simple questions only'}, and a lord's court will not hear you without ${Cultures.level((Cultures.data().effects || {}).audience || 50).name.toLowerCase()} speech or an interpreter.</div>`;
+            const notes = [];
+            if (t) notes.push(t < 0 ? `Haggling in a tongue you lack: prices ${Math.round(-t * 100)}% against you.` : `Speaking it well: a fair deal (+${Math.round(t * 100)}%).`);
+            if (here.level.id === 'none' || here.level.id === 'broken') notes.push(`Talk is ${here.level.id === 'none' ? 'by gesture only' : 'simple questions only'}, and a lord's court will not hear you without ${Cultures.level((Cultures.data().effects || {}).audience || 50).name.toLowerCase()} speech or an interpreter.`);
+            html += bullets(notes);
             html += '</div>';
         } else {
             html += `<div style="${CARD}"><span style="${NOTE}">No one lives here to speak to.</span></div>`;
         }
 
         // Your tongues
-        html += '<div style="margin-top:6px;"><b>Your tongues</b></div>';
-        const known = Languages.known(player);
+        html += sectionHead('Your tongues');
         if (!known.length) html += `<div style="${NOTE}">None yet.</div>`;
         for (const k of known) {
             html += `<div style="margin:3px 0;">${bar(k.fluency, k.level.id)} <b>${esc(k.name)}</b> — ${esc(k.level.name)} (${k.fluency}/100)${k.native ? ` <span style="${NOTE}">· mother tongue</span>` : ''}</div>`;
         }
-        html += `<div style="${NOTE}; margin-top:4px;">You learn a tongue by living among its speakers and talking with them; a tutor's lessons go faster. Kindred tongues are partly understood.</div>`;
+        html += bullets([
+            'You learn a tongue by living among its speakers and talking with them; a tutor’s lessons go faster.',
+            'Kindred tongues are partly understood.',
+        ]);
 
         // Lessons
         if (s) {
             const T = (Cultures.data().learning || {}).tutor || {};
             const teach = Languages.teachable(world, s);
-            html += `<div style="${CARD}"><b>Tutors in ${esc(s.name)}</b> <span style="${NOTE}">(${T.cost || 18} gold a lesson, one a day)</span><br>`;
+            html += sectionHead(`Tutors in ${esc(s.name)}`);
+            html += `<div style="${CARD}"><span style="${NOTE}">${T.cost || 18} gold a lesson, one a day.</span><br>`;
             for (const l of teach) {
                 const f = Math.round(Languages.fluency(player, l));
                 html += act(`📖 ${esc(Cultures.languageName(l))} (${f})`, ['lesson', l], BTN_PLAIN, f < 100 && (player.gold || 0) >= (T.cost || 18), f >= 100 ? 'You speak it like a native.' : `Not enough gold (${T.cost || 18}g).`);
@@ -71,7 +78,8 @@ Object.assign(ActionMenu, {
         }
 
         // Interpreter
-        html += `<div style="${CARD}"><b>Interpreter</b><br>`;
+        html += sectionHead('Interpreter');
+        html += `<div style="${CARD}">`;
         const t = player.translator;
         if (t) {
             html += `${esc(t.name)}, in your service since day ${t.since}: ${t.tongues.map(x => esc(Cultures.languageName(x))).join(', ')} · ${t.wage} gold a day<br>`;

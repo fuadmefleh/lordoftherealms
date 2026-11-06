@@ -8,7 +8,7 @@
 import { ActionMenu } from './_ref.js';
 import { Estates } from '../../world/estates.js';
 import { LandMarket } from '../../systems/landMarket.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, lede, bullets, chips, purse, kv } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
@@ -46,20 +46,25 @@ function estateCard(game, e, live) {
     const L = C.rent.levels[e.rent] || C.rent.levels.customary;
     let html = `<div style="${CARD}${mine ? ' border-color: rgba(245,197,66,0.4);' : ''}"><b>${esc(e.name)}</b> <span style="${NOTE}">${HOLDER_ICON[kind] || '🌾'} ${esc(Estates.holderName(world, e.holder))}</span>`;
     if (x) html += ` <span style="color:#f5c542; font-size:11px;">· for sale ${x.price}g</span>`;
-    html += `<br><span style="${NOTE}">${Math.round(e.share * C.derive.estateShare * 100)}% of ${esc(live.name)}'s farmland · ${e.hh} tenant households · soil ${Math.round((e.soil || 1) * 100)}%${e.drained ? ' (drained)' : ''}${e.marl > 0 ? ' (marled)' : ''}${e.enclosed > 0 ? ' · <b>enclosed: sheep</b>' : ''}</span>`;
-    html += `<br>Crops: ${cropsLine(world, e, live)}`;
+    html += `<div style="${NOTE}">${Math.round(e.share * C.derive.estateShare * 100)}% of ${esc(live.name)}'s farmland · ${e.hh} tenant households · soil ${Math.round((e.soil || 1) * 100)}%${e.drained ? ' (drained)' : ''}${e.marl > 0 ? ' (marled)' : ''}${e.enclosed > 0 ? ' · <b>enclosed: sheep</b>' : ''}</div>`;
+    html += kv('Crops', cropsLine(world, e, live));
     const dueLine = e.lastDue != null ? `due ${Math.round(e.lastDue)}g / paid ${Math.round(e.lastPaid != null ? e.lastPaid : e.lastRent || 0)}g${e.lastBack > 0 ? ` (${e.lastBack}g of it arrears)` : ''} · ${Math.round(e.lastRent || 0)}g to the holder` : `${Math.round(e.lastRent || 0)}g`;
-    html += `<br>Rent: ${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${dueLine}${e.arrears > 0 ? ` <span style="color:#e67e22;">(${e.arrears}g in arrears)</span>` : ''} · tenants' loyalty <span style="color:${loyColor(e.loyalty)};">${e.loyalty}</span>`;
-    html += `<br>Worth <b>${value.toLocaleString()}g</b> <span style="${NOTE}">(${rent}g net rent a year at ${(LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null) * 100).toFixed(1)}%)</span>`;
-    if (e.works) html += `<br><span style="color:#7cc4e0;">${esc((C.works[e.works.kind] || {}).label || 'Works')} under way until day ${e.works.until}.</span>`;
+    html += kv('Rent', `${esc(L.label)} ${e.mode === 'kind' ? 'share of the crop' : 'in coin'} · last month ${dueLine}${e.arrears > 0 ? ` <span style="color:#e67e22;">(${e.arrears}g in arrears)</span>` : ''}`);
+    html += kv('Tenants\' loyalty', `<span style="color:${loyColor(e.loyalty)};">${e.loyalty}</span>`);
+    html += kv('Worth', `<b>${value.toLocaleString()}g</b> <span style="${NOTE}">(${rent}g net rent a year at ${(LandMarket.landRate(world, live.kingdom != null ? live.kingdom : null) * 100).toFixed(1)}%)</span>`);
+    if (e.works) html += `<div style="color:#7cc4e0;">${esc((C.works[e.works.kind] || {}).label || 'Works')} under way until day ${e.works.until}.</div>`;
     if (!mine) {
         const q = LandMarket.buyQuote(player, world, e.id);
-        html += '<br>';
+        html += '<div style="margin-top:4px;"></div>';
         if (q.ok) html += act(`${q.listed ? 'Buy' : 'Offer'} ${q.cost.toLocaleString()}g${q.duty ? ` (incl. ${q.duty}g duty)` : ''}`, ['buy', e.id], BTN_GOLD, player.gold >= q.cost, player.gold >= q.cost ? '' : 'You cannot afford it.');
         else html += `<span style="${NOTE}">${esc(q.reason)}</span>`;
     } else {
         const paid = e.paid || 0;
-        html += `<br><span style="${NOTE}">Paid ${paid.toLocaleString()}g${paid ? ` · ${(rent / paid * 100).toFixed(1)}% a year on it` : ''} · rents banked ${Math.round(e.earned || 0)}g${e.fled ? ` · ${e.fled} households fled` : ''}</span><br>`;
+        html += chips([
+            ['', 'Paid', `${paid.toLocaleString()}g${paid ? ` · ${(rent / paid * 100).toFixed(1)}% a year on it` : ''}`],
+            ['', 'Rents banked', `${Math.round(e.earned || 0)}g`, 'gold'],
+            e.fled ? ['', 'Households fled', e.fled] : null,
+        ]);
         for (const [id, lv] of Object.entries(C.rent.levels)) html += act(esc(lv.label), ['rent', e.id, id], e.rent === id ? BTN_GOLD : BTN_PLAIN);
         html += act('In coin', ['mode', e.id, 'coin'], e.mode === 'coin' ? BTN_GOLD : BTN_PLAIN, true, 'A fixed sum on the usual crop: the tenants carry a bad year');
         html += act('Share of the crop', ['mode', e.id, 'kind'], e.mode === 'kind' ? BTN_GOLD : BTN_PLAIN, true, 'Rent follows the harvest and its price; the tenants like it better');
@@ -115,7 +120,12 @@ function mineTab(game) {
         ]);
     }
     const s = LandMarket.summary(player, world);
-    let html = `<div style="${CARD}"><b>${s.n} estate(s)</b> worth ${s.value.toLocaleString()}g · ${s.rent.toLocaleString()}g net rent a year expected${s.yield != null ? ` (${(s.yield * 100).toFixed(1)}% on the ${s.paid.toLocaleString()}g paid)` : ''} · ${s.earned.toLocaleString()}g banked</div>`;
+    let html = chips([
+        ['🌾', 'Estates', s.n],
+        ['', 'Worth', `${s.value.toLocaleString()}g`],
+        ['', 'Net rent a year expected', `${s.rent.toLocaleString()}g${s.yield != null ? ` (${(s.yield * 100).toFixed(1)}% on the ${s.paid.toLocaleString()}g paid)` : ''}`],
+        ['', 'Banked', `${s.earned.toLocaleString()}g`, 'gold'],
+    ]);
     for (const e of mine) {
         const live = Estates._liveOfKey(world, e.town);
         if (live) html += estateCard(game, e, live);
@@ -128,7 +138,11 @@ function mineTab(game) {
 function marketTab(game) {
     const { player, world } = game;
     const list = LandMarket.listingsNear(world, player.q, player.r, 25);
-    let html = lede('Estates on the market within 25 hexes. A listing waits a week for a buyer before the merchant houses, burghers, nobles or the Church take it; unsold, its price falls each month.');
+    let html = lede('Estates on the market within 25 hexes.');
+    html += bullets([
+        'A listing waits a week for a buyer before the merchant houses, burghers, nobles or the Church take it.',
+        'Unsold, its price falls each month.',
+    ]);
     if (!list.length) return html + `<div style="${NOTE}">No land is for sale near you.</div>`;
     const WHY = { debts: 'its lord is in debt', crown: 'the crown needs money', player: 'yours', default: '' };
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Estate</th><th style="${TH}">Near</th><th style="${TH}">Seller</th><th style="${TH}">Price</th><th style="${TH}">Worth</th><th style="${TH}">Hexes</th><th style="${TH}"></th></tr>`;

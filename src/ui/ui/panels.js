@@ -10,6 +10,8 @@ import { Ledger } from '../../systems/ledger.js';
 import { Fame } from '../../systems/fame.js';
 import { Crafting } from '../../player/crafting.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
+import { SocialSkills } from '../../systems/socialSkills.js';
+import { TradeSkills } from '../../systems/tradeSkills.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
@@ -102,10 +104,14 @@ Object.assign(UI.prototype, {
         html += this._ailmentsSectionHtml(player);
         html += this._traitsSectionHtml(player);
 
-        // The old flat skills (0-10): a compact two-column grid of small bars
-        const flat = Object.entries(player.skills || {});
+        // Other knowledge: the old flat skills (0-10) that no practised skill
+        // has taken over (Commerce, Cartography, ...). Combat, Stealth,
+        // Diplomacy and Leadership, and the old craft numbers, are mirrors of
+        // practised skills (systems/combatSkills.js, socialSkills.js,
+        // tradeSkills.js) and show there; player.skills itself is untouched.
+        const flat = Object.entries(player.skills || {}).filter(([k]) => !this._mirroredFlatSkill(k));
         if (flat.length) {
-            html += '<div class="info-section-title">Skills</div><div class="cs-flat">';
+            html += '<div class="info-section-title">Other Knowledge</div><div class="cs-flat">';
             for (const [skill, level] of flat) {
                 const pct = Math.max(0, Math.min(100, (Number(level) || 0) * 10));
                 html += `<div class="cs-flat-row"><span class="cs-flat-name">${esc(skill.charAt(0).toUpperCase() + skill.slice(1))}</span><span class="cs-bar cs-bar--gold"><i style="width:${pct}%"></i></span><span class="cs-flat-val">${Math.round((Number(level) || 0) * 10) / 10}</span></div>`;
@@ -116,6 +122,41 @@ Object.assign(UI.prototype, {
         html += this._practiceSkillsHtml(player);
 
         this.showCustomPanel('👤 Character Sheet', `<div class="cs-sheet">${html}</div>`);
+        this._watchSheetFolds();
+    },
+
+    /** Is an old flat skill (player.skills key) now a mirror of a practised skill? */
+    _mirroredFlatSkill(key) {
+        if (key === 'combat') return true;   // blades / brawling / archery (systems/combatSkills.js)
+        try {
+            if (SocialSkills.config().legacy[key]) return true;   // stealth, diplomacy, leadership
+        } catch (e) { /* no social pack */ }
+        if (TradeSkills.forCraft(key)) return true;   // smithing, leatherwork, brewing, cooking ...
+        return !!PracticeSkills.def(key);   // the same name as a practised skill (farming ...)
+    },
+
+    /**
+     * The character sheet's folds (open skill rows, closed groups) live on the
+     * UI object, so a refresh after the day (or a remedy used) repaints them as
+     * the player left them.
+     */
+    _sheetFolds() {
+        if (!this._csFolds) this._csFolds = { open: new Set(), closed: new Set() };
+        return this._csFolds;
+    },
+
+    _watchSheetFolds() {
+        if (typeof document === 'undefined') return;
+        const body = document.querySelector('#customPanel .cs-sheet');
+        if (!body) return;
+        const folds = this._sheetFolds();
+        body.querySelectorAll('details[data-cs-fold]').forEach(d => {
+            d.addEventListener('toggle', () => {
+                const [kind, id] = String(d.dataset.csFold).split(':');
+                if (kind === 'skill') { if (d.open) folds.open.add(id); else folds.open.delete(id); }
+                else if (kind === 'group') { if (d.open) folds.closed.delete(id); else folds.closed.add(id); }
+            });
+        });
     },
 
     /**
@@ -141,11 +182,12 @@ Object.assign(UI.prototype, {
         buckets.set('other', { label: '✨ Other', rows: [] });
         for (const sk of list) buckets.get(groupOf[sk.id] || 'other').rows.push(sk);
 
+        const folds = this._sheetFolds();
         const row = (sk) => {
             const pct = Math.round(sk.share * 100);
             const nextText = sk.max ? 'The top of the craft.' : `Next: ${sk.next.join(', ') || 'a little more ease'}`;
             const age = sk.ageShift ? ` <span class="cs-age" style="color:${sk.ageShift < 0 ? '#e0a070' : '#9fd6a8'};" title="Your years: the perks are at level ${sk.effective}">(${sk.effective} with age)</span>` : '';
-            return `<details class="cs-skill" title="${esc(sk.desc || '')}">
+            return `<details class="cs-skill" data-cs-fold="skill:${esc(sk.id)}"${folds.open.has(sk.id) ? ' open' : ''} title="${esc(sk.desc || '')}">
                 <summary>
                     <span class="cs-skill-name">${sk.icon} ${esc(sk.name)}</span>
                     <span class="cs-skill-lv"><b>${sk.level}</b> ${esc(sk.levelName)}${age}</span>
@@ -162,17 +204,19 @@ Object.assign(UI.prototype, {
         };
 
         let html = '<div class="info-section-title">Practised Skills</div>';
-        const total = list.reduce((a, sk) => a + sk.level, 0);
-        const top = list.reduce((a, sk) => (sk.level > (a ? a.level : 0) ? sk : a), null);
-        html += `<div class="pk-chips"><span class="pk-chip">Skills <b>${list.length}</b></span><span class="pk-chip">Levels in all <b>${total}</b></span>${top ? `<span class="pk-chip gold">Best ${top.icon} <b>${esc(top.name)} ${top.level}</b></span>` : ''}</div>`;
+        // Summaries count the effective level (trained, shifted by age): what the perks read
+        const eff = (sk) => (typeof sk.effective === 'number' ? sk.effective : sk.level);
+        const total = list.reduce((a, sk) => a + eff(sk), 0);
+        const top = list.reduce((a, sk) => (eff(sk) > (a ? eff(a) : 0) ? sk : a), null);
+        html += `<div class="pk-chips"><span class="pk-chip">Skills <b>${list.length}</b></span><span class="pk-chip">Levels in all <b>${total}</b></span>${top ? `<span class="pk-chip gold">Best ${top.icon} <b>${esc(top.name)} ${eff(top)}</b></span>` : ''}</div>`;
         // Age shapes the skills (systems/practiceSkills.js ageSummary): one line
         const yrs = typeof PracticeSkills.ageSummary === 'function' ? PracticeSkills.ageSummary(player) : null;
         if (yrs) html += `<div class="cs-ageline">⏳ Your years (${yrs.age}): ${esc(yrs.lines.join(' · '))}</div>`;
         html += '<div class="cs-hint">Click a skill for what it gives now and next.</div>';
-        for (const { label, rows } of buckets.values()) {
+        for (const [key, { label, rows }] of buckets) {
             if (!rows.length) continue;
-            const best = Math.max(...rows.map(sk => sk.level));
-            html += `<details class="cs-group" open><summary>${label} <span class="cs-group-meta">${rows.length} · best ${best}</span></summary>${rows.map(row).join('')}</details>`;
+            const best = Math.max(...rows.map(eff));
+            html += `<details class="cs-group" data-cs-fold="group:${key}"${folds.closed.has(key) ? '' : ' open'}><summary>${label} <span class="cs-group-meta">${rows.length} · best ${best}</span></summary>${rows.map(row).join('')}</details>`;
         }
         return html;
     },

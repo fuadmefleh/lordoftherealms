@@ -2,6 +2,7 @@
 import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
 import { Pirates } from '../../systems/pirates.js';
+import { lede, bullets, chips, purse, sectionHead } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -18,7 +19,9 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="max-height:450px;overflow-y:auto;">';
         html += '<h4 style="margin-top:0;">🏠 Buy a House</h4>';
-        html += `<p style="font-size:12px;color:var(--text-secondary);">Purchase a home in ${settlement.name}. Owning property grants renown and local influence: better prices with this town's merchants and a stronger hand when negotiating with lords.</p>`;
+        html += chips([purse(player.gold), ['⭐', 'Renown', player.renown || 0]]);
+        html += lede(`Purchase a home in ${settlement.name}. Owning property grants renown and local influence:`);
+        html += bullets(['better prices with this town\'s merchants;', 'a stronger hand when negotiating with lords.']);
 
         // NPC-owned houses (flavor)
         if (npcHouses.length > 0) {
@@ -500,7 +503,7 @@ Object.assign(ActionMenu, {
             }
         }
 
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Ships._getCrewSettings().hireCostPerSailor}g each to sign on, ${Ships._getCrewSettings().wagePerSailorPerDay}g a day in wages).</div>`;
+        html += bullets([`👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Ships._getCrewSettings().hireCostPerSailor}g each to sign on, ${Ships._getCrewSettings().wagePerSailorPerDay}g a day in wages).`]);
         html += `<div id="buildTotalCost" style="font-size:13px;font-weight:bold;margin:10px 0 8px;padding:8px;border-radius:6px;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);">Total: ${baseCost}g</div>`;
         html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="width:100%;${btnPrimary}">🔨 Commission Ship</button>`;
         html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Shipyard</button>`;
@@ -890,7 +893,11 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="max-height:460px;overflow-y:auto;">';
         html += '<h4 style="margin:0;">👥 Hire Sailors</h4>';
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin:3px 0 10px;">Sailors sign on for ${crewCfg.hireCostPerSailor}g each and draw ${crewCfg.wagePerSailorPerDay}g a day in wages. A ship needs at least part of its crew to leave port; short-handed she sails slower and fights weaker.</div>`;
+        html += chips([purse(player.gold), ['', 'To sign on', `${crewCfg.hireCostPerSailor}g each`], ['', 'Wages', `${crewCfg.wagePerSailorPerDay}g a day`]]);
+        html += bullets([
+            `Sailors sign on for ${crewCfg.hireCostPerSailor}g each and draw ${crewCfg.wagePerSailorPerDay}g a day in wages.`,
+            'A ship needs at least part of its crew to leave port; short-handed she sails slower and fights weaker.',
+        ]);
         if (!rows.length) {
             html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">Every ship of yours docked here is fully crewed.</div>';
         }
@@ -1091,7 +1098,8 @@ Object.assign(ActionMenu, {
             }
             html += '</div>';
         }
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">💰 ${Math.floor(player.gold)}g · Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · Prices change in ${daysToDrift} day(s). Buy where a good is exported, sell where it is imported.</div>`;
+        html += chips([purse(player.gold), ['📦', 'Hold', `${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity}`], ['⏳', 'Prices change in', `${daysToDrift} day(s)`]]);
+        html += lede('Buy where a good is exported, sell where it is imported.');
         if (blockade) {
             const by = blockade.blockaders.map(k => k.name).join(' and ');
             html += blockade.closed
@@ -1177,8 +1185,8 @@ Object.assign(ActionMenu, {
         const btn = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;';
 
         let html = '<div style="max-height:430px;overflow-y:auto;">';
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">The ${ship.name} drops anchor here while you row ashore. ` +
-            `Without a dock or port, only ${Ships.LANDING_BOAT_CAPACITY} cargo fits in the boat.</div>`;
+        html += lede(`The ${ship.name} drops anchor here while you row ashore.`);
+        html += bullets([`Without a dock or port, only ${Ships.LANDING_BOAT_CAPACITY} cargo fits in the boat.`]);
         for (const t of targets) {
             const isPort = Ships.hasDock(game.world, t.q, t.r);
             const dockLabel = t.settlement ? '⚓ Port' : '⚓ Jetty';
@@ -1258,10 +1266,12 @@ Object.assign(ActionMenu, {
             }
             html += '</div>';
         }
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Hold: ${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity} · ` +
-            (allowance === Infinity ? '⚓ Port — no limit on transfers.' : `🚣 Boat trips left today: ${allowance} cargo (no dock here).`) + '</div>';
+        html += chips([
+            ['📦', 'Hold', `${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity}`],
+            allowance === Infinity ? '⚓ Port — no limit on transfers.' : `🚣 Boat trips left today: <b>${allowance}</b> cargo (no dock here).`,
+        ]);
 
-        html += `<h4 style="margin:6px 0;">⛵ In the ${ship.name}'s hold</h4>`;
+        html += sectionHead(`⛵ In the ${ship.name}'s hold`);
         const hold = Object.entries(ship.cargo || {}).filter(([, n]) => n > 0);
         if (hold.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">The hold is empty.</div>';
         for (const [id, n] of hold) {
@@ -1270,7 +1280,7 @@ Object.assign(ActionMenu, {
                 `<button onclick="window._shipHoldUnload('${esc(id)}', ${n})" style="${btn}">Unload all</button>`);
         }
 
-        html += '<h4 style="margin:10px 0 6px;">🎒 Your pack</h4>';
+        html += sectionHead('🎒 Your pack');
         const pack = Object.entries(player.inventory || {}).filter(([, n]) => n > 0);
         if (pack.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);">You carry nothing to load.</div>';
         for (const [id, n] of pack) {
@@ -1382,7 +1392,7 @@ Object.assign(ActionMenu, {
         }
         const escort = Ships.getEscortStrength(player);
         if (escort > 0) {
-            html += `<p style="font-size:11px;color:#4fc3f7;">⛵ ${Ships.getSquadron(player).length} war galley(s) escort your ships: +${escort} strength in every sea fight.</p>`;
+            html += chips([['⛵', 'War galleys escorting', Ships.getSquadron(player).length], ['⚔️', 'In every sea fight', `+${escort} strength`, 'gold']]);
         }
 
         for (const ship of allShips) {

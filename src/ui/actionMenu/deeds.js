@@ -8,6 +8,7 @@ import { Achievements } from '../../systems/achievements.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { Crafting } from '../../player/crafting.js';
+import { lede, more } from './uiKit.js';
 
 const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px 10px; margin: 6px 0;';
 const HEAD = 'font-size: 12px; font-weight: bold; color: var(--gold); margin-bottom: 3px;';
@@ -36,7 +37,7 @@ Object.assign(ActionMenu, {
         const counted = Deeds.reignBaseline(player) ? '' : ' (counted from the start of the House: this reign began before records were kept)';
 
         let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px; min-width: 340px;">';
-        html += `<div style="color:#aaa; font-size:11px; margin-bottom:6px;">Every deed the realm remembers. <b>House</b> is the lifetime total of your line; <b>Reign</b> is ${_esc(ruler)}'s share (generation ${gen})${counted}.</div>`;
+        html += lede(`Every deed the realm remembers. <b>House</b> is the lifetime total of your line; <b>Reign</b> is ${_esc(ruler)}'s share (generation ${gen})${counted}.`);
 
         const quiet = [];
         for (const sec of sections) {
@@ -80,7 +81,8 @@ Object.assign(ActionMenu, {
             }
             html += '</div>';
         }
-        if (quiet.length) html += `<div style="color:#777; font-size:11px; margin-top:6px;">No record yet: ${quiet.map(_esc).join(' · ')}</div>`;
+        // The empty ledgers fold away: a chip each, behind one line
+        if (quiet.length) html += more(`${quiet.length} kinds of deed with no record yet`, `<div class="pk-chips">${quiet.map(q => `<span class="pk-chip dim">${_esc(q)}</span>`).join('')}</div>`);
 
         // Achievements, by tier (systems/achievements.js)
         const ach = Achievements.listing(player);

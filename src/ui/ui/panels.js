@@ -89,7 +89,7 @@ Object.assign(UI.prototype, {
             ${(() => {
                 const fame = Fame.here(player, this.game && this.game.world);
                 return `<div class="info-row" title="${(fame.blurb || '').replace(/"/g, '&quot;')} (good ${fame.good} · ill ${fame.ill})">
-                <span class="info-label">${fame.icon || '🗣️'} Your Name Here</span>
+                <span class="info-label">${fame.icon || '🗣️'} Repute Here</span>
                 <span class="info-value" style="color:${fame.color || 'inherit'};">${fame.label}</span>
             </div>`;
             })()}

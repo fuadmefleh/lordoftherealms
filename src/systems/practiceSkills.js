@@ -43,7 +43,9 @@ let _cfg = null;
 let _src;
 
 function _fmt(tpl, vals) {
-    return String(tpl || '').replace(/\{(\w)\}/g, (m, k) => (vals[k] != null ? vals[k] : m));
+    // Numbers round to 2 decimals, trailing zeros dropped (no "0.2999999999999998s")
+    const show = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(Math.round(v * 100) / 100) : v);
+    return String(tpl || '').replace(/\{(\w)\}/g, (m, k) => (vals[k] != null ? show(vals[k]) : m));
 }
 
 export const PracticeSkills = {

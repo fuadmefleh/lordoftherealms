@@ -181,7 +181,40 @@ function _drawFind(ctx, f, x, y, ds, now) {
     }
 }
 
+/** The veil over all above the water, while diving. */
+const VEIL = 'rgba(3, 20, 28, 0.62)';
+
 Object.assign(InnerMapRenderer, {
+    /**
+     * A sprite cell as the veil would leave it (its colour under the veil's
+     * tint, its clear pixels still clear), for the parts of things above the
+     * water that reach out over it — a ship's mast and sail. Cached per cell.
+     */
+    _veiledSprite(img, sx, sy, sw, sh) {
+        if (typeof document === 'undefined') return null;
+        const cache = this._veiledCache || (this._veiledCache = new Map());
+        let byImg = cache.get(img);
+        if (!byImg) { byImg = new Map(); cache.set(img, byImg); }
+        const k = `${sx},${sy},${sw},${sh}`;
+        let c = byImg.get(k);
+        if (!c) {
+            c = document.createElement('canvas');
+            c.width = sw; c.height = sh;
+            const x = c.getContext('2d');
+            x.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+            x.globalCompositeOperation = 'source-atop';
+            x.fillStyle = VEIL;
+            x.fillRect(0, 0, sw, sh);
+            byImg.set(k, c);
+        }
+        return c;
+    },
+
+    /** Does the veil dim this tile (in the map, and not water to dive in)? */
+    _veiledTile(q, r) {
+        return q >= 0 && r >= 0 && q < InnerMap.width && r < InnerMap.height && !InnerMap.isDivable(q, r);
+    },
+
     /** The bottom: the murk, the rippling light and the finds (under the sprites). */
     _renderUnderwaterFloor(ctx, camera) {
         if (!InnerMap._underwater || !InnerMap.tiles || InnerMap._insideBuilding) return;
@@ -246,11 +279,11 @@ Object.assign(InnerMapRenderer, {
         const now = _now();
         ctx.save();
         // (one shape, so no seams where cells meet)
-        ctx.fillStyle = 'rgba(3, 20, 28, 0.62)';
+        ctx.fillStyle = VEIL;
         ctx.beginPath();
         for (let r = Math.max(0, range.rMin); r <= Math.min(InnerMap.height - 1, range.rMax); r++) {
             for (let q = Math.max(0, range.qMin); q <= Math.min(InnerMap.width - 1, range.qMax); q++) {
-                if (InnerMap.isDivable(q, r)) continue;
+                if (!this._veiledTile(q, r)) continue;
                 const s = camera.worldToScreenFast(q * T, r * T);
                 const x = Math.floor(s.x), y = Math.floor(s.y);
                 ctx.rect(x, y, Math.floor(s.x + ds) - x, Math.floor(s.y + ds) - y);

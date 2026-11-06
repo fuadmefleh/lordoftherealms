@@ -641,6 +641,11 @@ Object.assign(InnerMapRenderer, {
 
                             // Resolve tile set based on current health (supports damage stages)
                             const activeTiles = self._getActiveObjectTiles(def, customObjRef);
+                            // Diving: the veil (innerMapLayers/underwater.js) dims the world above the
+                            // water tile by tile, but an object reaching out over the water (a ship's
+                            // mast and sail, a tree leaning over the pond) stands on those dim tiles and
+                            // is above the water too — its parts over the water are dimmed here alike
+                            const uw = InnerMap._underwater && !InnerMap._insideBuilding;
                             for (const td of activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
@@ -648,7 +653,10 @@ Object.assign(InnerMapRenderer, {
                                 const tdy = Math.floor(ay + td.localRow * ds) + shakeY;
                                 if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
                                 if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
-                                ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, cs, cs);
+                                const veiled = uw && !self._veiledTile(oq + td.localCol, or2 + td.localRow)
+                                    ? self._veiledSprite(img, td.sx, td.sy, td.sw, td.sh) : null;
+                                if (veiled) ctx.drawImage(veiled, 0, 0, td.sw, td.sh, tdx, tdy, cs, cs);
+                                else ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, cs, cs);
                             }
 
                             if (isInteracting && alpha < 1.0) ctx.globalAlpha = 1.0;

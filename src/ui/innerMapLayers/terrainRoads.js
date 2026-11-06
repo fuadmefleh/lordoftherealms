@@ -8,6 +8,8 @@ import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
+import { sheetScale } from '../sheetScale.js';
+import { drawTilledSoil } from '../tilledSoil.js';
 
 Object.assign(InnerMapRenderer, {
     // ── Death animation state ──
@@ -59,6 +61,11 @@ Object.assign(InnerMapRenderer, {
     },
 
     // ── Viewport culling helper: compute visible tile range from camera ──
+    /** A sheet's cell scale (ui/sheetScale.js): 1, or more for a high-res sheet in the original layout. */
+    _sheetScale(img) {
+        return sheetScale(img);
+    },
+
     _getVisibleTileRange(camera) {
         const T = this.TILE_SIZE;
         const bounds = camera.getVisibleBounds();
@@ -136,9 +143,11 @@ Object.assign(InnerMapRenderer, {
                 const soil = tile._soilFill && this._soilShows(tile) ? tile._soilFill : null;
                 const soilImg = soil && this._getSheetByPath(soil.sheetPath);
                 if (soilImg) {
-                    ctx.drawImage(soilImg, soil.sx, soil.sy, 32, 32, dx, dy, sz, sz);
+                    const ks = this._sheetScale(soilImg);
+                    ctx.drawImage(soilImg, soil.sx * ks, soil.sy * ks, 32 * ks, 32 * ks, dx, dy, sz, sz);
                 } else if (terrainSheet && src.sx >= 0) {
-                    ctx.drawImage(terrainSheet, src.sx, src.sy, 32, 32, dx, dy, sz, sz);
+                    const k = this._sheetScale(terrainSheet);
+                    ctx.drawImage(terrainSheet, src.sx * k, src.sy * k, 32 * k, 32 * k, dx, dy, sz, sz);
                 } else {
                     ctx.fillStyle = src.fallbackColor || tile.subTerrain.color;
                     ctx.fillRect(dx, dy, sz, sz);
@@ -226,7 +235,7 @@ Object.assign(InnerMapRenderer, {
                 const ov = tile.terrainDetail || tile.grassOverlay || null;
                 const decor = tile.decor;
                 const crag = tile._crag;
-                if (!ov && !decor && !crag) continue;
+                if (!ov && !decor && !crag && !tile._fieldSoil) continue;
 
                 const dx = Math.floor(originX + (q - qMin) * ds);
                 const dy = dyFloor;
@@ -242,7 +251,8 @@ Object.assign(InnerMapRenderer, {
                         const sh = Number.isFinite(ov.sh) ? ov.sh : 32;
                         const sx = Number.isFinite(ov.sx) ? ov.sx : 0;
                         const sy = Number.isFinite(ov.sy) ? ov.sy : 0;
-                        ctx.drawImage(ovImg, sx, sy, sw, sh, dx, dy, sz, sz);
+                        const k = this._sheetScale(ovImg);
+                        ctx.drawImage(ovImg, sx * k, sy * k, sw * k, sh * k, dx, dy, sz, sz);
                     }
                 } else if (ov.fillCategory) {
                     // _terrainFills is keyed by category (grass, water, dirt, …)
@@ -250,8 +260,15 @@ Object.assign(InnerMapRenderer, {
                     if (terrainSheet && fills && fills.length > 0) {
                         const hash = (Math.abs((q * 83492791 ^ r * 29765729))) >>> 0;
                         const pick = fills[hash % fills.length];
-                        ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
+                        const k = this._sheetScale(terrainSheet);
+                        ctx.drawImage(terrainSheet, pick.col * 32 * k, pick.row * 32 * k, 32 * k, 32 * k, dx, dy, sz, sz);
                     }
+                }
+
+                // A town field's tilled soil (world/townProps.js), over the grass with ragged edges
+                // (never on water: a river or the sea laid after the town covers a field there)
+                if (tile._fieldSoil && !tile._wet) {
+                    drawTilledSoil(ctx, (dq, dr) => { const t = InnerMap.getTile(q + dq, r + dr); return !!(t && t._fieldSoil && !t._wet); }, q, r, dx, dy, ds);
                 }
 
                 // A crag's rim or rock face (world/innerMap/cliffs.js), from the season's cliff sheet
@@ -610,7 +627,8 @@ Object.assign(InnerMapRenderer, {
             if (terrainSheet && dirtFills && dirtFills.length > 0) {
                 const hash = (Math.abs((road.q * 73856093 ^ road.r * 19349663))) >>> 0;
                 const pick = dirtFills[hash % dirtFills.length];
-                ctx.drawImage(terrainSheet, pick.col * 32, pick.row * 32, 32, 32, dx, dy, sz, sz);
+                const k = this._sheetScale(terrainSheet);
+                ctx.drawImage(terrainSheet, pick.col * 32 * k, pick.row * 32 * k, 32 * k, 32 * k, dx, dy, sz, sz);
             } else {
                 ctx.fillStyle = '#8b7355';
                 ctx.fillRect(dx, dy, sz, sz);

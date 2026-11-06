@@ -16,6 +16,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { Crops } from '../systems/crops.js';
 import { InnerMapDigging } from './innerMapDigging.js';
 import { OddJobs } from '../player/oddJobs.js';
+import { sheetScale } from './sheetScale.js';
 
 const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -373,14 +374,14 @@ export const InnerMapFarming = {
             if (x < -ds * 2 || x > W + ds || y < -ds * 2 || y > H + ds * 2) continue;
             const status = Crops.status(cell);
             const art = this.artFor(status);
-            items.push({ sortY: r * T + T * 0.6, zLayer: 0, sortX: q, draw: () => this._drawCrop(ctx, status, art, x, y, ds) });
+            items.push({ sortY: r * T + T * 0.6, zLayer: 0, sortX: q, draw: () => this._drawCrop(ctx, status, art, x, y, ds, q, r) });
         }
     },
 
-    _drawCrop(ctx, status, art, x, y, ds) {
+    _drawCrop(ctx, status, art, x, y, ds, q = null, r = null) {
         ctx.save();
-        // Damp earth under a watered crop
-        if (status.watered && status.phase !== 'dead') {
+        // Damp earth under a watered crop: the tilled ground's own piece, from the damp sheet
+        if (status.watered && status.phase !== 'dead' && !(q != null && InnerMapDigging.drawTilled(ctx, q, r, x, y, ds, 'wet'))) {
             ctx.fillStyle = 'rgba(25, 18, 40, 0.28)';
             ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(ds) + 1, Math.ceil(ds) + 1);
         }
@@ -393,7 +394,9 @@ export const InnerMapFarming = {
             const smooth = ctx.imageSmoothingEnabled;
             ctx.imageSmoothingEnabled = false;
             const hh = art.h || 1;
-            ctx.drawImage(img, art.c * 32, (art.r - hh + 1) * 32, 32, 32 * hh,
+            const k = sheetScale(img);   // (wheat is a high-res sheet: ui/sheetScale.js)
+            ctx.imageSmoothingEnabled = k > 1;
+            ctx.drawImage(img, art.c * 32 * k, (art.r - hh + 1) * 32 * k, 32 * k, 32 * hh * k,
                 Math.round(x), Math.round(y - ds * (hh - 1)), Math.round(ds), Math.round(ds * hh));
             ctx.imageSmoothingEnabled = smooth;
         } else {

@@ -384,7 +384,7 @@ Object.assign(InnerMap, {
     _dirtBankShores(tiles) {
         const H = tiles.length, W = H ? tiles[0].length : 0;
         const bare = (t) => !!(t && !t._wet && !t.building && t.subTerrain && t.subTerrain.passable &&
-            (t.isRoad || t._townSoil || t._tilled || !t.terrainDetail));
+            (t.isRoad || t._townSoil || this.isBareDug(t) || !t.terrainDetail));
         let n = 0;
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {

@@ -13,7 +13,12 @@ import { InnerMap } from './_ref.js';
 export const TILLED_SOIL = { id: 'tilled_soil', name: 'Tilled Soil', icon: '🌾', color: '#8b7355', passable: true };
 
 Object.assign(InnerMap, {
-    /** Turn a tile into tilled soil (the grass stripped; call _refreshGrassLayer after). */
+    /**
+     * Turn a tile into tilled soil. The ground layer under it is kept (grass,
+     * snow): the soil is drawn over it with soft edges (ui/innerMapDigging.js
+     * drawTilled), so a tilled patch lies on the meadow rather than on a square
+     * of bare dirt.
+     */
     setTilled(tile) {
         if (!tile) return;
         tile.baseTerrain = 'dirt';
@@ -21,7 +26,13 @@ Object.assign(InnerMap, {
         tile._tilled = true;
         tile._cachedFill = null;
         tile._cachedOverlay = undefined;
-        tile.terrainDetail = null;
+    },
+
+    /** Bare earth the grass layer leaves off: a hole, a grave, turned spoil (not tilled soil, which keeps its ground). */
+    isBareDug(tile) {
+        if (!tile || !tile._tilled) return false;
+        if (tile.subTerrain && tile.subTerrain.id === 'tilled_soil') return false;
+        return !(tile._dug && tile._dug.kind === 'tilled');
     },
 
     /** Can this tile still carry the player's field? */

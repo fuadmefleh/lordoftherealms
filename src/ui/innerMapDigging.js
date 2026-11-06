@@ -23,6 +23,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapCombat } from './innerMapCombat.js';
+import { drawTilledSoil } from './tilledSoil.js';
 
 const DEFAULTS = {
     seconds: { dig: 5, fill: 3, bury: 4, exhume: 5 },
@@ -306,7 +307,8 @@ export const InnerMapDigging = {
         tile._tilled = true;
         tile._cachedFill = null;
         tile._cachedOverlay = undefined;
-        tile.terrainDetail = null;
+        // (tilled soil keeps the ground under it, the soil drawn over it soft-edged; a hole or grave is bare earth)
+        if (kind !== 'tilled') tile.terrainDetail = null;
         tile.subTerrain = { ...g, name: kind === 'grave' && extra.name ? `Grave of ${extra.name}` : g.name };
         if (InnerMap.tiles) InnerMap._refreshGrassLayer(InnerMap.tiles);
     },
@@ -383,6 +385,17 @@ export const InnerMapDigging = {
         }
     },
 
+    /** Is (q, r) tilled ground? */
+    isTilledAt(q, r) {
+        const t = InnerMap.getTile(q, r);
+        return !!(t && ((t._dug && t._dug.kind === 'tilled') || (t.subTerrain && t.subTerrain.id === 'tilled_soil')));
+    },
+
+    /** Draw tilled ground at (q, r) ('dry' | 'wet', for watered ground), ragged-edged over the ground (ui/tilledSoil.js). */
+    drawTilled(ctx, q, r, x, y, ds, which = 'dry') {
+        return drawTilledSoil(ctx, (dq, dr) => this.isTilledAt(q + dq, r + dr), q, r, x, y, ds, which);
+    },
+
     _drawFeature(ctx, kind, x, y, ds, q, r) {
         const cx = x + ds / 2, cy = y + ds / 2;
         const jitter = (((q * 7919) ^ (r * 104729)) >>> 0) % 7 / 7;
@@ -404,8 +417,10 @@ export const InnerMapDigging = {
             ctx.beginPath();
             ctx.ellipse(cx, cy + ds * 0.03, ds * 0.34, ds * 0.26, 0, 0, Math.PI * 2);
             ctx.fill();
+        } else if (kind === 'tilled' && this.drawTilled(ctx, q, r, x, y, ds)) {
+            // Ploughed ground, from the plowed-soil sheet, its edges by the ground tilled round it
         } else if (kind === 'tilled') {
-            // Ploughed ground: dark turned soil in furrows (tilling bare dirt shows too)
+            // (the sheet still loading) dark turned soil in furrows
             const sz = Math.ceil(ds) + 1;
             ctx.fillStyle = 'rgba(78, 52, 30, 0.55)';
             ctx.fillRect(x, y, sz, sz);

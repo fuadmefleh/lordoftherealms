@@ -299,7 +299,7 @@ Object.assign(InnerMap, {
         let stale = false;
         const mask = tiles.map(row => row.map(t => {
             const grass = isGrass(t);
-            const bare = !!(t && (t.isRoad || t._tilled || t._townSoil));
+            const bare = !!(t && (t.isRoad || this.isBareDug(t) || t._townSoil));
             if (grass && bare) stale = true;
             return grass && !bare;
         }));

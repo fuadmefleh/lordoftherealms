@@ -84,7 +84,8 @@ function _fieldDef(d, kind, w, h) {
                 const sheet = d.sheets[f.soil.sheet];
                 tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: (f.soil.x + _slot(c, w)) * T, sy: (f.soil.y + _slot(r, h)) * T, sw: T, sh: T });
             }
-            if (f.fill) {
+            // (plain soil is the ground's own, drawn under the field with ragged edges: no square of it here)
+            if (f.fill && !(f.tilled && f.fill.sheet === 'soil')) {
                 const sheet = d.sheets[f.fill.sheet];
                 const [fc, fr] = f.fill.cells[(c * 7 + r * 3) % f.fill.cells.length];
                 tiles.push({ localCol: c, localRow: lr, sheetPath: sheet, sx: fc * T, sy: fr * T, sw: T, sh: T });
@@ -289,13 +290,9 @@ export const TownProps = {
         for (const m of cells.values()) {
             const t = tiles[r + m.localRow][q + m.localCol];
             if (m.localCol !== 0 || m.localRow !== 0) t.customObjectPart = { anchorQ: q, anchorR: r };
-            // A tilled field lies on bare ground: the grass layer leaves it out and edges round it
-            if (def.tilled) {
-                t.baseTerrain = 'dirt';
-                t._townSoil = true;
-                t._cachedFill = null;
-                t.terrainDetail = null;
-            }
+            // A tilled field keeps the grass under it: its soil is laid over the grass with
+            // ragged edges (_fieldSoil, below; ui/tilledSoil.js), so no square of bare dirt shows
+            if (def.tilled) t._fieldGreen = true;
             if (m.impassable) t.subTerrain.passable = false;
         }
         if (def.tilled) {
@@ -307,15 +304,15 @@ export const TownProps = {
                     if (t && !t.isRoad && !t._townSoil && !t.customBuilding && !t.customBuildingPart) t._fieldGreen = true;
                 }
             }
-            const { sheetPath, cells: fill } = def.tilled;
+            // The field's own cells are tilled soil, laid over the grass with ragged edges
+            // (ui/tilledSoil.js, drawn by innerMapLayers/terrainRoads.js)
             const { minCol, maxCol, minRow } = def.bounds;
-            for (let rr = r + minRow - 1; rr <= r + 1; rr++) {
-                for (let qq = q + minCol - 1; qq <= q + maxCol + 1; qq++) {
+            for (let rr = r + minRow; rr <= r; rr++) {
+                for (let qq = q + minCol; qq <= q + maxCol; qq++) {
                     if (rr < 0 || qq < 0 || rr >= H || qq >= W) continue;
                     const t = tiles[rr][qq];
-                    if (!t || t.isRoad || t.customBuilding || t.customBuildingPart || t._soilFill) continue;
-                    const [fc, fr] = fill[((qq % fill.length) + fill.length) % fill.length];
-                    t._soilFill = { sheetPath, sx: fc * T, sy: fr * T };
+                    if (!t || t.isRoad || t.customBuilding || t.customBuildingPart) continue;
+                    t._fieldSoil = true;
                 }
             }
         }

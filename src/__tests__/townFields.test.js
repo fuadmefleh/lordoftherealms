@@ -28,14 +28,14 @@ describe('town fields', () => {
         expect(TownProps.fieldStage('veg', 70)).toBe('veg_ripe');
     });
 
-    it('lies on soil the grass leaves out, with a green margin round it', () => {
+    it('lies on the grass as tilled soil (ragged-edged, drawn over it), with a green margin round it', () => {
         const tiles = grid(20, 20);
         expect(TownProps.place(tiles, defOf(TownProps.fieldId('wheat', 4, 3)), 8, 10)).toBe(true);
-        expect(tiles[10][8]._townSoil).toBe(true);
-        expect(tiles[10][8].baseTerrain).toBe('dirt');
-        expect(tiles[11][8]._soilFill).toBeTruthy();     // the ring round it
+        expect(tiles[10][8]._fieldSoil).toBe(true);      // the field's own cells
+        expect(tiles[10][8]._townSoil).toBeUndefined();  // not bare ground: the grass stays under it
+        expect(tiles[10][8]._fieldGreen).toBe(true);
+        expect(tiles[11][8]._fieldSoil).toBeUndefined(); // the ring round it is grass
         expect(tiles[12][8]._fieldGreen).toBe(true);     // the margin
-        expect(tiles[10][8]._fieldGreen).toBeUndefined();
     });
 
     it('grows the placed fields to the day, keeping each field to its cycle; fallow land stays', () => {

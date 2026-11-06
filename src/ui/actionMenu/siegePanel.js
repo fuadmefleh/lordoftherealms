@@ -118,7 +118,7 @@ export function siegeResultHtml(result, extrasHtml, ongoing) {
     if (result.renownChange) html += `<div>⭐ Renown +${result.renownChange}</div>`;
     if (result.karmaChange) html += `<div style="color:#ff6666;">😈 Karma ${result.karmaChange}</div>`;
     if (result.casualties > 0) html += `<div style="color:#ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-    if (result.stormLosses > 0) html += `<div style="color:#ff9800;">🧗 Lost on the walls: ${result.stormLosses}</div>`;
+    if (result.stormLosses > 0) html += `<div style="color:#ff9800;">💀 Lost on the walls: ${result.stormLosses}</div>`;
     if (result.capitalCaptured) html += `<div style="color:#bb86fc;">👑 You hold their capital!${result.kingdomDestroyed ? ' The kingdom has fallen.' : ''}${result.throneClaim ? ` A claim on the throne (strength ${result.throneClaim}).` : ''}</div>`;
     if (result.captured) html += `<div style="color:#ff6666;">⛓️ You are captured into servitude for ${result.servitudeDays} days.</div>`;
     if (result.chance != null && result.accepted === false) html += `<div style="color:var(--text-secondary);">They refused (chance was ${Math.round(result.chance * 100)}%). Their spirits rise a little.</div>`;

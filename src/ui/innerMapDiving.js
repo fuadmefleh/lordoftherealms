@@ -390,7 +390,7 @@ export const InnerMapDiving = {
             if (InnerMap._underwater) InnerMap._underwater = false;
             // Getting your breath back on the surface
             if (game && game.player && Diving.recover(game.player, deltaTime)) {
-                _note(game, '🫁 Breath Back', 'Your chest eases. You can dive again.', 'info');
+                _note(game, '💨 Breath Back', 'Your chest eases. You can dive again.', 'info');
             }
             return;
         }

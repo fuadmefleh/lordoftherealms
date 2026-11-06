@@ -24,7 +24,7 @@ export const FOOD_ITEMS = {
     meat_pie:    { label: 'Meat Pie',      icon: '🥧', hunger: 35, energy: 10, comfort: 6 },
     honey_cake:  { label: 'Honey Cake',    icon: '🍰', hunger: 18, energy: 12, fun: 8 },
     sausage:     { label: 'Sausage',       icon: '🌭', hunger: 26, energy: 8 },
-    jam:         { label: 'Fruit Preserve', icon: '🫙', hunger: 12, energy: 10, fun: 6 },
+    jam:         { label: 'Fruit Preserve', icon: '🍓', hunger: 12, energy: 10, fun: 6 },
     pickles:     { label: 'Pickles',       icon: '🥒', hunger: 14, energy: 4 },
     vegetables:  { label: 'Vegetables',    icon: '🥬', hunger: 14, energy: 4 },
     // From the water's floor (player/diving.js)

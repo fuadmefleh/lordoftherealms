@@ -460,7 +460,7 @@ Answer with ONE JSON object and nothing else:
                     const n = Math.min(Math.max(0, Math.round(_num(a.amount, 0))), Math.floor(_num(player.gold)));
                     if (!(n > 0)) break;
                     player.gold -= n;
-                    notes.push({ text: `🪙 You give ${who.firstName} ${n} gold`, tone: 'info' });
+                    notes.push({ text: `💰 You give ${who.firstName} ${n} gold`, tone: 'info' });
                     break;
                 }
                 case 'give_gold': {
@@ -469,7 +469,7 @@ Answer with ONE JSON object and nothing else:
                     if (!(n > 0)) break;
                     player.gold = _num(player.gold) + n;
                     t.coin = _num(t.coin) + n;
-                    notes.push({ text: `🪙 ${who.firstName} gives you ${n} gold`, tone: 'good' });
+                    notes.push({ text: `💰 ${who.firstName} gives you ${n} gold`, tone: 'good' });
                     break;
                 }
                 case 'end_conversation': {

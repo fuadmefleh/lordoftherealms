@@ -40,7 +40,7 @@ const WATER_SUB = {
     lake: { id: 'lake_water', name: 'Lake', icon: '💧', color: '#2f6f9a', passable: false },
     river: { id: 'river_water', name: 'River', icon: '🌊', color: '#3a78a8', passable: false },
 };
-const FORD = { id: 'ford', name: 'Ford', icon: '🪨', color: '#5a8fb0', passable: true };
+const FORD = { id: 'ford', name: 'Ford', icon: '🌊', color: '#5a8fb0', passable: true };
 const BRIDGE_SUB = { id: 'bridge', name: 'Bridge', icon: '🌉', color: '#8b6a45', passable: true };
 const BRIDGE_SHEET = 'assets/lpc/Structure/Bridges/Wood Bridge A - No Rails.png';
 // Opaque plank cells of the bridge sheet: boards across a north–south crossing, and across an east–west one

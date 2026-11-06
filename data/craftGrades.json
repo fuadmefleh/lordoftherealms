@@ -12,7 +12,7 @@
     "_skills": "Craft skills: each recipe in data/crafting.json names its `skill` (or takes its station's). Levels 0-10 live on player.skills like the other skills and rise with crafting xp (OddJobs.gainXp, x xpScale). titles: the name of a level band (the highest `min` not above the level).",
     "skills": {
         "smithing": { "name": "Smithing", "icon": "⚒️", "desc": "Smelting, forging tools, blades and armour" },
-        "carpentry": { "name": "Carpentry", "icon": "🪚", "desc": "Planks, joinery, barrels, bows, shields and arrows" },
+        "carpentry": { "name": "Carpentry", "icon": "🪓", "desc": "Planks, joinery, barrels, bows, shields and arrows" },
         "tailoring": { "name": "Tailoring", "icon": "🧵", "desc": "Spinning, weaving and sewing clothes and cloaks" },
         "leatherwork": { "name": "Leatherwork", "icon": "🟫", "desc": "Tanning, leather armour, boots, saddles and bookbinding" },
         "cooking": { "name": "Cooking", "icon": "🍳", "desc": "Meals, baking and preserves" },

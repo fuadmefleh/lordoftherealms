@@ -653,10 +653,11 @@ Object.assign(InnerMapRenderer, {
                                 const tdy = Math.floor(ay + td.localRow * ds) + shakeY;
                                 if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
                                 if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
+                                const k = self._sheetScale(img);   // (a high-res sheet: ui/sheetScale.js)
                                 const veiled = uw && !self._veiledTile(oq + td.localCol, or2 + td.localRow)
-                                    ? self._veiledSprite(img, td.sx, td.sy, td.sw, td.sh) : null;
+                                    ? self._veiledSprite(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k) : null;
                                 if (veiled) ctx.drawImage(veiled, 0, 0, td.sw, td.sh, tdx, tdy, cs, cs);
-                                else ctx.drawImage(img, td.sx, td.sy, td.sw, td.sh, tdx, tdy, cs, cs);
+                                else ctx.drawImage(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k, tdx, tdy, cs, cs);
                             }
 
                             if (isInteracting && alpha < 1.0) ctx.globalAlpha = 1.0;

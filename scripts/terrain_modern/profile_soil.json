@@ -1,0 +1,7 @@
+{
+  "_doc": "Tilled soil (assets/lpc/ThatchedHouses/tilesets/plowed_soil.png layout): the soil only; the LPC sheet's grass is left out (transparent), so a tilled patch lies over whatever ground is there.",
+  "MAT": {"soil": [[116,74,51],[136,92,60],[90,52,40],[70,43,30],[98,53,28]]},
+  "BASE": {"soil": [116,74,51]},
+  "RIM": [[70,43,30]],
+  "TEX": {"soil": "tilled.png"}
+}

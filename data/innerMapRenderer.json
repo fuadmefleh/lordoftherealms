@@ -5,6 +5,12 @@
         "tileSize": 32
     },
 
+    "hiResSheets": {
+        "_doc": "Sheets repainted at more than 32px a cell, in the original layout: path -> the original's width in px (ui/sheetScale.js scales cell addresses by width / this). terrain_<season>.png sheets count as 512 without being listed.",
+        "ThatchedHouses/tilesets/plowed_soil.png": 96,
+        "ThatchedHouses/tilesets/plowed_soil_wet.png": 96,
+        "ThatchedHouses/tilesets/wheat.png": 96
+    },
     "sheetPaths": {
         "terrain_summer":      "assets/lpc/Terrain/terrain_summer.png",
         "terrain_spring":      "assets/lpc/Terrain/terrain_spring.png",

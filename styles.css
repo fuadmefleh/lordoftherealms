@@ -4929,6 +4929,86 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 #customPanel details.pk-more > summary:hover { color: var(--text-primary); }
 #customPanel details.pk-more > .pk-chips { margin-top: 6px; }
 
+/* Character sheet (ui/ui/panels.js showCharacterPanel), in the custom panel:
+   a header card, stat tiles, gold section heads, a compact grid of the old
+   skills and the practised skills as one-line rows that open, by kind */
+#customPanel .cs-sheet { min-width: min(560px, calc(86vw / var(--ui-zoom))); font-size: 12.5px; }
+#customPanel .cs-hero {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; margin: 0 0 4px;
+    border: 1px solid rgba(245, 197, 66, 0.18); border-radius: 8px;
+    background: linear-gradient(135deg, rgba(245, 197, 66, 0.07), rgba(255, 255, 255, 0.02));
+}
+#customPanel .cs-avatar {
+    width: 46px; height: 46px; flex-shrink: 0; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+    background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(245, 197, 66, 0.35);
+}
+#customPanel .cs-who { flex: 1; min-width: 0; }
+#customPanel .cs-name { font-family: var(--font-display); font-size: 18px; color: var(--gold); line-height: 1.2; }
+#customPanel .cs-title { font-size: 12px; color: var(--text-secondary); }
+#customPanel .cs-deeds {
+    flex-shrink: 0; font-size: 11.5px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+    border: 1px solid rgba(245, 197, 66, 0.4); background: rgba(245, 197, 66, 0.08); color: var(--gold);
+}
+#customPanel .cs-deeds:hover { background: rgba(245, 197, 66, 0.18); }
+#customPanel .cs-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; margin: 0 0 6px; }
+#customPanel .cs-tiles--five { grid-template-columns: repeat(5, 1fr); }
+#customPanel .cs-tile {
+    padding: 5px 8px; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07);
+}
+#customPanel .cs-tile-label { font-size: 10.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#customPanel .cs-tile-value { font-size: 14px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#customPanel .cs-marks { margin: 4px 0; }
+/* The older sections (condition, traits, office) keep their rows; their
+   headings read as the kit's gold section heads */
+#customPanel .cs-sheet .info-section-title {
+    margin: 14px 0 6px; padding-bottom: 3px;
+    font-family: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: 1px;
+    color: var(--gold); border-bottom: 1px solid rgba(245, 197, 66, 0.15);
+}
+#customPanel .cs-sheet .pk-head { border-bottom: 1px solid rgba(245, 197, 66, 0.15); padding-bottom: 3px; margin-top: 14px; }
+#customPanel .cs-bar { display: block; height: 5px; background: rgba(255, 255, 255, 0.09); border-radius: 3px; overflow: hidden; }
+#customPanel .cs-bar > i { display: block; height: 100%; background: #5fb8d4; border-radius: 3px; }
+#customPanel .cs-bar--gold > i { background: var(--gold); }
+#customPanel .cs-flat { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
+#customPanel .cs-flat-row { display: grid; grid-template-columns: 1fr 70px 28px; align-items: center; gap: 8px; padding: 2px 0; }
+#customPanel .cs-flat-name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#customPanel .cs-flat-val { text-align: right; font-weight: 600; color: var(--text-primary); }
+#customPanel .cs-ageline, #customPanel .cs-hint { font-size: 11px; color: var(--text-secondary); margin: 0 0 6px; }
+#customPanel .cs-hint { opacity: 0.75; }
+#customPanel details.cs-group { margin: 0 0 6px; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 7px; background: rgba(255, 255, 255, 0.015); }
+#customPanel details.cs-group > summary {
+    cursor: pointer; list-style: none; padding: 6px 10px;
+    font-weight: 700; font-size: 12px; color: var(--text-primary);
+}
+#customPanel details.cs-group > summary::-webkit-details-marker { display: none; }
+#customPanel details.cs-group > summary::before { content: '▸ '; color: var(--gold); }
+#customPanel details.cs-group[open] > summary::before { content: '▾ '; }
+#customPanel .cs-group-meta { float: right; font-weight: 400; font-size: 11px; color: var(--text-secondary); }
+#customPanel details.cs-skill { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+#customPanel details.cs-skill > summary {
+    cursor: pointer; list-style: none; padding: 5px 10px;
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) 70px 58px; align-items: center; gap: 2px 10px;
+}
+#customPanel details.cs-skill > summary::-webkit-details-marker { display: none; }
+#customPanel details.cs-skill > summary:hover { background: rgba(245, 197, 66, 0.06); }
+#customPanel .cs-skill-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
+#customPanel .cs-skill-lv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); font-size: 11.5px; }
+#customPanel .cs-skill-lv b { color: var(--gold); font-size: 13px; margin-right: 2px; }
+#customPanel .cs-skill-xp { text-align: right; font-size: 10.5px; color: var(--text-secondary); white-space: nowrap; }
+#customPanel .cs-skill-next {
+    grid-column: 1 / -1; font-size: 10.5px; color: #9fd6a8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#customPanel details.cs-skill[open] .cs-skill-next { display: none; }
+#customPanel .cs-skill-body { padding: 0 10px 8px 10px; font-size: 11.5px; line-height: 1.45; }
+#customPanel .cs-skill-desc { color: var(--text-secondary); font-style: italic; margin-bottom: 3px; }
+#customPanel .cs-skill-now { color: #c9bfae; margin-bottom: 3px; }
+#customPanel .cs-skill-now b { color: var(--text-primary); }
+#customPanel .cs-skill-more { color: #9fd6a8; }
+
 /* Many panels wrap their whole content in a fixed-height scroll box
    (max-height: 450–620px) inside the panel body, which scrolls too: two nested
    scrollbars and a dead band under the box. The body is the one scroller. */

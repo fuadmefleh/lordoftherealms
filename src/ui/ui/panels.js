@@ -17,190 +17,164 @@ import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, P
 
 Object.assign(UI.prototype, {
     /**
-     * Toggle character panel
+     * Toggle the character sheet (it opens in the shared custom panel)
      */
     toggleCharacterPanel() {
-        const panel = document.getElementById('characterPanel');
-        if (panel.classList.contains('hidden')) {
-            this.showCharacterPanel();
-        } else {
-            this.hidePanel('characterPanel');
-        }
+        const open = document.getElementById('customPanel');
+        const title = open && open.querySelector('.custom-panel-title');
+        if (title && title.textContent.trim() === 'Character Sheet') this.hideCustomPanel();
+        else this.showCharacterPanel();
     },
 
     /**
-     * Show character panel
+     * The character sheet: who you are, your vitals and attributes as tiles,
+     * then condition, traits, the old skills and the practised skills by kind.
+     * Painted in the shared custom panel (the same frame, header and kit as
+     * every other window); the legacy #characterPanel modal is only closed.
      */
     showCharacterPanel() {
         const player = this.game.player;
-        const body = document.getElementById('characterBody');
+        const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+        const legacy = document.getElementById('characterPanel');
+        if (legacy && !legacy.classList.contains('hidden')) this.hidePanel('characterPanel');
 
-        let skillsHtml = '';
-        for (const [skill, level] of Object.entries(player.skills)) {
-            const barWidth = (level / 10) * 100;
-            skillsHtml += `
-                <div class="info-row">
-                    <span class="info-label">${skill.charAt(0).toUpperCase() + skill.slice(1)}</span>
-                    <span class="info-value">
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <div style="width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
-                                <div style="width:${barWidth}%; height:100%; background:var(--gold); border-radius:3px;"></div>
-                            </div>
-                            <span>${level}</span>
-                        </div>
-                    </span>
+        const tile = (ic, label, value, opts = {}) => `<div class="cs-tile${opts.cls ? ' ' + opts.cls : ''}"${opts.title ? ` title="${esc(opts.title)}"` : ''}>
+                <div class="cs-tile-label">${ic} ${label}</div>
+                <div class="cs-tile-value"${opts.color ? ` style="color:${opts.color};"` : ''}>${value}</div>
+            </div>`;
+        const fame = Fame.here(player, this.game && this.game.world);
+        const ap = player.actionPoints != null ? player.actionPoints : 10;
+
+        let html = `<div class="cs-hero">
+                <div class="cs-avatar">👤</div>
+                <div class="cs-who">
+                    <div class="cs-name">${esc(player.name)}</div>
+                    <div class="cs-title">${esc(player.title || '')}</div>
                 </div>
-            `;
+                <button class="cs-deeds" data-ui-act="_openDeeds" data-ui-args='[]'>🏅 Deeds &amp; Records</button>
+            </div>`;
+
+        html += '<div class="pk-head">Vitals</div><div class="cs-tiles">';
+        html += tile('❤️', 'Health', `${player.health} / ${player.maxHealth}`, { color: player.health < player.maxHealth * 0.35 ? '#e57373' : '' });
+        html += tile('⚡', 'Stamina', `${Math.floor(player.movementRemaining || 0)} / ${player.maxStamina}`);
+        html += tile('🎯', 'Action Points', `${ap} / ${player.maxActionPoints || 10}`);
+        html += tile('💰', 'Gold', Utils.formatNumber(player.gold), { color: 'var(--gold)' });
+        html += tile('☯', 'Karma', player.karma, { color: player.karma > 0 ? '#9fd6a8' : player.karma < 0 ? '#e57373' : '' });
+        html += tile('⭐', 'Renown', player.renown);
+        html += tile(fame.icon || '🗣️', 'Repute Here', esc(fame.label), { color: fame.color || '', title: `${fame.blurb || ''} (good ${fame.good} · ill ${fame.ill})` });
+        html += '</div>';
+
+        html += '<div class="pk-head">Attributes</div><div class="cs-tiles cs-tiles--five">';
+        html += tile('💪', 'Strength', player.strength);
+        html += tile('💬', 'Charisma', player.charisma);
+        html += tile('🧠', 'Intelligence', player.intelligence);
+        html += tile('🙏', 'Faith', player.faith);
+        html += tile('🍀', 'Luck', player.luck);
+        html += '</div>';
+
+        // Marks against you: a sold soul, servitude, jail, a record
+        const marks = [];
+        if (player.soulSoldCount) marks.push(['🔥', 'Soul', `Sold ×${player.soulSoldCount}`, '#e74c3c']);
+        if (player.indenturedServitude) marks.push(['⛓️', 'Servitude', `${player.indenturedServitude.daysRemaining} days under ${esc(player.indenturedServitude.captor)}`, '#e67e22']);
+        if (player.jailState) marks.push(['🔒', 'Jail', `${player.jailState.daysRemaining} days (${esc(player.jailState.offense)} #${player.jailState.offenseNumber})`, '#e74c3c']);
+        const rec = player.criminalRecord;
+        if (rec && (rec.pickpocket > 0 || rec.smuggling > 0)) {
+            marks.push(['📋', 'Record', [rec.pickpocket > 0 ? `Pickpocket ×${rec.pickpocket}` : '', rec.smuggling > 0 ? `Smuggling ×${rec.smuggling}` : ''].filter(Boolean).join(', '), '#e67e22']);
+        }
+        if (marks.length) {
+            html += '<div class="cs-marks">' + marks.map(([ic, label, value, color]) => `<div class="info-row" style="color:${color};"><span class="info-label">${ic} ${label}</span><span class="info-value">${value}</span></div>`).join('') + '</div>';
         }
 
-        body.innerHTML = `
-            <div style="text-align:center; margin-bottom:16px;">
-                <div style="font-size:48px; margin-bottom:8px;">👤</div>
-                <div style="font-family:var(--font-display); font-size:20px; color:var(--gold);">${player.name}</div>
-                <div style="font-size:12px; color:var(--text-secondary);">${player.title}</div>
-                <button data-ui-act="_openDeeds" data-ui-args='[]' style="margin-top:6px; font-size:11px; padding:3px 10px; border-radius:4px; border:1px solid rgba(245,197,66,0.4); background:rgba(245,197,66,0.08); color:var(--gold); cursor:pointer;">🏅 Deeds &amp; Records</button>
-            </div>
+        if (player.currentTitle && typeof Titles !== 'undefined') {
+            const titleDef = Titles.getActiveTitle(player);
+            const dutyInfo = Titles.getDutyProgress(player);
+            if (titleDef) {
+                html += '<div class="info-section-title">Royal Office</div>';
+                html += `<div class="info-row"><span class="info-label">${titleDef.icon || '🏅'} Title</span><span class="info-value" style="color:#ffd700;">${titleDef.name}</span></div>`;
+                if (dutyInfo) {
+                    html += `<div class="info-row"><span class="info-label">📋 Duties</span><span class="info-value">${dutyInfo.progress}</span></div>`;
+                    html += `<div class="info-row"><span class="info-label">⏰ Deadline</span><span class="info-value" style="color:${dutyInfo.daysLeft <= 5 ? '#f44336' : '#aaa'};">${dutyInfo.daysLeft} days</span></div>`;
+                }
+                html += `<div class="info-row"><span class="info-label">💰 Salary</span><span class="info-value">${titleDef.salary} gold/day</span></div>`;
+            }
+        }
 
-            <div class="info-section-title">Vitals</div>
-            <div class="info-row">
-                <span class="info-label">❤️ Health</span>
-                <span class="info-value">${player.health} / ${player.maxHealth}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">⚡ Stamina</span>
-                <span class="info-value">${Math.floor(player.movementRemaining || 0)} / ${player.maxStamina}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">🎯 Action Points</span>
-                <span class="info-value">${player.actionPoints != null ? player.actionPoints : 10} / ${player.maxActionPoints || 10}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">💰 Gold</span>
-                <span class="info-value">${Utils.formatNumber(player.gold)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">☯ Karma</span>
-                <span class="info-value">${player.karma}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">⭐ Renown</span>
-                <span class="info-value">${player.renown}</span>
-            </div>
-            ${(() => {
-                const fame = Fame.here(player, this.game && this.game.world);
-                return `<div class="info-row" title="${(fame.blurb || '').replace(/"/g, '&quot;')} (good ${fame.good} · ill ${fame.ill})">
-                <span class="info-label">${fame.icon || '🗣️'} Repute Here</span>
-                <span class="info-value" style="color:${fame.color || 'inherit'};">${fame.label}</span>
-            </div>`;
-            })()}
+        html += this._ailmentsSectionHtml(player);
+        html += this._traitsSectionHtml(player);
 
-            <div class="info-section-title">Attributes</div>
-            <div class="info-row">
-                <span class="info-label">💪 Strength</span>
-                <span class="info-value">${player.strength}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">💬 Charisma</span>
-                <span class="info-value">${player.charisma}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">🧠 Intelligence</span>
-                <span class="info-value">${player.intelligence}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">🙏 Faith</span>
-                <span class="info-value">${player.faith}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">🍀 Luck</span>
-                <span class="info-value">${player.luck}</span>
-            </div>
-            ${player.soulSoldCount ? `
-            <div class="info-row" style="color: #e74c3c;">
-                <span class="info-label">🔥 Soul</span>
-                <span class="info-value">Sold ×${player.soulSoldCount}</span>
-            </div>` : ''}
-            ${player.indenturedServitude ? `
-            <div class="info-row" style="color: #e67e22;">
-                <span class="info-label">⛓️ Servitude</span>
-                <span class="info-value">${player.indenturedServitude.daysRemaining} days under ${player.indenturedServitude.captor}</span>
-            </div>` : ''}
-            ${player.jailState ? `
-            <div class="info-row" style="color: #e74c3c;">
-                <span class="info-label">🔒 Jail</span>
-                <span class="info-value">${player.jailState.daysRemaining} days (${player.jailState.offense} #${player.jailState.offenseNumber})</span>
-            </div>` : ''}
-            ${player.currentTitle && typeof Titles !== 'undefined' ? (() => {
-                const titleDef = Titles.getActiveTitle(player);
-                const dutyInfo = Titles.getDutyProgress(player);
-                if (!titleDef) return '';
-                return `
-                <div class="info-section-title">Royal Office</div>
-                <div class="info-row">
-                    <span class="info-label">${titleDef.icon || '🏅'} Title</span>
-                    <span class="info-value" style="color:#ffd700;">${titleDef.name}</span>
-                </div>
-                ${dutyInfo ? `<div class="info-row">
-                    <span class="info-label">📋 Duties</span>
-                    <span class="info-value">${dutyInfo.progress}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">⏰ Deadline</span>
-                    <span class="info-value" style="color:${dutyInfo.daysLeft <= 5 ? '#f44336' : '#aaa'};">${dutyInfo.daysLeft} days</span>
-                </div>` : ''}
-                <div class="info-row">
-                    <span class="info-label">💰 Salary</span>
-                    <span class="info-value">${titleDef.salary} gold/day</span>
-                </div>`;
-            })() : ''}
-            ${player.criminalRecord && (player.criminalRecord.pickpocket > 0 || player.criminalRecord.smuggling > 0) ? `
-            <div class="info-row" style="color: #e67e22;">
-                <span class="info-label">📋 Record</span>
-                <span class="info-value">${player.criminalRecord.pickpocket > 0 ? 'Pickpocket ×' + player.criminalRecord.pickpocket : ''}${player.criminalRecord.pickpocket > 0 && player.criminalRecord.smuggling > 0 ? ', ' : ''}${player.criminalRecord.smuggling > 0 ? 'Smuggling ×' + player.criminalRecord.smuggling : ''}</span>
-            </div>` : ''}
+        // The old flat skills (0-10): a compact two-column grid of small bars
+        const flat = Object.entries(player.skills || {});
+        if (flat.length) {
+            html += '<div class="info-section-title">Skills</div><div class="cs-flat">';
+            for (const [skill, level] of flat) {
+                const pct = Math.max(0, Math.min(100, (Number(level) || 0) * 10));
+                html += `<div class="cs-flat-row"><span class="cs-flat-name">${esc(skill.charAt(0).toUpperCase() + skill.slice(1))}</span><span class="cs-bar cs-bar--gold"><i style="width:${pct}%"></i></span><span class="cs-flat-val">${Math.round((Number(level) || 0) * 10) / 10}</span></div>`;
+            }
+            html += '</div>';
+        }
 
-            ${this._ailmentsSectionHtml(player)}
+        html += this._practiceSkillsHtml(player);
 
-            ${this._traitsSectionHtml(player)}
-
-            <div class="info-section-title">Skills</div>
-            ${skillsHtml}
-
-            ${this._practiceSkillsHtml(player)}
-        `;
-
-        this.showPanel('characterPanel');
+        this.showCustomPanel('👤 Character Sheet', `<div class="cs-sheet">${html}</div>`);
     },
 
     /**
-     * Character-panel section: the skills learned by doing (systems/practiceSkills.js) —
-     * level and its name, a bar to the next level, what each level gives now
-     * and what the next will add.
+     * Character-sheet section: the skills learned by doing (systems/practiceSkills.js),
+     * grouped by kind. Each is one scannable row — level and its name, a bar to
+     * the next level, the next perk — that opens to what each level gives now
+     * and the whole of what the next adds. Groups fold away.
      */
     _practiceSkillsHtml(player) {
         const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-        const rows = PracticeSkills.list(player).map((sk) => {
+        const list = PracticeSkills.list(player);
+        if (!list.length) return '';
+        const GROUPS = [
+            ['body', '🏃 Body', ['diving', 'swimming', 'climbing', 'endurance']],
+            ['arms', '⚔️ Arms & the Sea', ['blades', 'brawling', 'archery', 'sailing']],
+            ['crafts', '⚒️ Crafts', ['smithing', 'tanning', 'brewing', 'medicine', 'cooking']],
+            ['land', '🌾 Field, Forest & Water', ['farming', 'fishing', 'woodcutting', 'mining', 'foraging', 'hunting']],
+            ['social', '🗣️ Dealings & Shadows', ['haggling', 'persuasion', 'leadership', 'stealth', 'lockpicking']],
+        ];
+        const groupOf = {};
+        for (const [key, , ids] of GROUPS) for (const id of ids) groupOf[id] = key;
+        const buckets = new Map(GROUPS.map(([key, label]) => [key, { label, rows: [] }]));
+        buckets.set('other', { label: '✨ Other', rows: [] });
+        for (const sk of list) buckets.get(groupOf[sk.id] || 'other').rows.push(sk);
+
+        const row = (sk) => {
             const pct = Math.round(sk.share * 100);
-            const next = sk.max ? 'The top of the craft.' : `Next: ${sk.next.join(', ') || 'a little more ease'}`;
-            return `<div class="info-row" title="${esc(sk.desc)}" style="flex-direction:column;align-items:stretch;gap:3px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span class="info-label">${sk.icon} ${esc(sk.name)}</span>
-                    <span class="info-value">Lv ${sk.level} · ${esc(sk.levelName)}${sk.ageShift ? ` <span style="color:${sk.ageShift < 0 ? '#e0a070' : '#9fd6a8'};" title="Your years: the perks below are at level ${sk.effective}">(${sk.effective} with age)</span>` : ''}</span>
+            const nextText = sk.max ? 'The top of the craft.' : `Next: ${sk.next.join(', ') || 'a little more ease'}`;
+            const age = sk.ageShift ? ` <span class="cs-age" style="color:${sk.ageShift < 0 ? '#e0a070' : '#9fd6a8'};" title="Your years: the perks are at level ${sk.effective}">(${sk.effective} with age)</span>` : '';
+            return `<details class="cs-skill" title="${esc(sk.desc || '')}">
+                <summary>
+                    <span class="cs-skill-name">${sk.icon} ${esc(sk.name)}</span>
+                    <span class="cs-skill-lv"><b>${sk.level}</b> ${esc(sk.levelName)}${age}</span>
+                    <span class="cs-bar"><i style="width:${sk.max ? 100 : pct}%"></i></span>
+                    <span class="cs-skill-xp">${sk.max ? 'max' : `${Math.floor(sk.into)}/${sk.need}`}</span>
+                    <span class="cs-skill-next">${esc(nextText)}</span>
+                </summary>
+                <div class="cs-skill-body">
+                    ${sk.desc ? `<div class="cs-skill-desc">${esc(sk.desc)}</div>` : ''}
+                    ${sk.perks.length ? `<div class="cs-skill-now"><b>Now:</b> ${esc(sk.perks.join(' · '))}</div>` : ''}
+                    <div class="cs-skill-more">${esc(nextText)}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
-                        <div style="width:${pct}%;height:100%;background:#5fb8d4;border-radius:3px;"></div>
-                    </div>
-                    <span style="font-size:10px;color:var(--text-secondary);white-space:nowrap;">${sk.max ? 'max' : `${Math.floor(sk.into)} / ${sk.need} xp`}</span>
-                </div>
-                <div style="font-size:10px;color:var(--text-secondary);line-height:1.35;">${esc(sk.perks.join(' · '))}</div>
-                <div style="font-size:10px;color:#9fd6a8;line-height:1.35;">${esc(next)}</div>
-            </div>`;
-        }).join('');
+            </details>`;
+        };
+
+        let html = '<div class="info-section-title">Practised Skills</div>';
+        const total = list.reduce((a, sk) => a + sk.level, 0);
+        const top = list.reduce((a, sk) => (sk.level > (a ? a.level : 0) ? sk : a), null);
+        html += `<div class="pk-chips"><span class="pk-chip">Skills <b>${list.length}</b></span><span class="pk-chip">Levels in all <b>${total}</b></span>${top ? `<span class="pk-chip gold">Best ${top.icon} <b>${esc(top.name)} ${top.level}</b></span>` : ''}</div>`;
         // Age shapes the skills (systems/practiceSkills.js ageSummary): one line
-        const yrs = PracticeSkills.ageSummary(player);
-        const ageLine = yrs ? `<div style="font-size:10px;color:var(--text-secondary);padding:0 0 4px;">⏳ Your years (${yrs.age}): ${esc(yrs.lines.join(' · '))}</div>` : '';
-        return rows ? `<div class="info-section-title">Practised Skills</div>${ageLine}${rows}` : '';
+        const yrs = typeof PracticeSkills.ageSummary === 'function' ? PracticeSkills.ageSummary(player) : null;
+        if (yrs) html += `<div class="cs-ageline">⏳ Your years (${yrs.age}): ${esc(yrs.lines.join(' · '))}</div>`;
+        html += '<div class="cs-hint">Click a skill for what it gives now and next.</div>';
+        for (const { label, rows } of buckets.values()) {
+            if (!rows.length) continue;
+            const best = Math.max(...rows.map(sk => sk.level));
+            html += `<details class="cs-group" open><summary>${label} <span class="cs-group-meta">${rows.length} · best ${best}</span></summary>${rows.map(row).join('')}</details>`;
+        }
+        return html;
     },
 
     /**

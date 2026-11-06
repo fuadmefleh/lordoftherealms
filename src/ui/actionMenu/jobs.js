@@ -1033,14 +1033,13 @@ Object.assign(ActionMenu, {
 
         // Show active bounties first
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
-        html += '<h4 style="margin-top: 0;">📋 Notice Board</h4>';
         if (typeof BountyHunting !== 'undefined') {
             const rank = BountyHunting.getRankInfo(game.player);
             const payPct = Math.round(rank.payBonus * 100);
             const perks = (rank.captureBonus > 0 ? ` · +${rank.captureBonus} capture` : '') +
                 (payPct !== 0 ? ` · ${payPct > 0 ? '+' : ''}${payPct}% pay` : '') +
                 (rank.botchPenalty > 0 ? ` <span style="color:#e67e22;">(botched arrests: −${Math.round(rank.botchPenalty * 100)}%)</span>` : '');
-            html += `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">${rank.icon} ${rank.title} (rank ${rank.rank})${perks}</div>`;
+            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${rank.icon} <b style="color:var(--text-primary);">${rank.title}</b> (rank ${rank.rank})${perks}</div>`;
         }
 
         // Active bounties
@@ -1115,7 +1114,7 @@ Object.assign(ActionMenu, {
         }
 
         html += '</div>';
-        game.ui.showCustomPanel('Notice Board', html);
+        game.ui.showCustomPanel('📋 Notice Board', html);
 
         window._acceptBounty = (idx) => {
             if (!ActionMenu.commitPendingAP(game)) return;

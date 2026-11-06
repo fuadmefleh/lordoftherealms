@@ -103,6 +103,26 @@ for (const name of topLevel) {
     if (data !== null) { merged[name] = data; console.log(`  + ${name}.json`); }
 }
 
+// ── skillPacks/: more practised skills, each file deep-merged into practiceSkills ──
+// (a pack: { skills: {...}, npc: { base, roles, dailyXp, ... } }; objects merge, values replace)
+{
+    const deepMerge = (into, from) => {
+        for (const [k, v] of Object.entries(from || {})) {
+            if (k.startsWith('_')) continue;
+            if (v && typeof v === 'object' && !Array.isArray(v) && into[k] && typeof into[k] === 'object' && !Array.isArray(into[k])) deepMerge(into[k], v);
+            else into[k] = v;
+        }
+        return into;
+    };
+    const packDir = path.join(dataDir, 'skillPacks');
+    if (merged.practiceSkills && fs.existsSync(packDir)) {
+        for (const f of fs.readdirSync(packDir).filter(f => f.endsWith('.json')).sort()) {
+            const data = readJson(path.join(packDir, f));
+            if (data !== null) { deepMerge(merged.practiceSkills, data); console.log(`  + skillPacks/${f}`); }
+        }
+    }
+}
+
 // ── spritesheets/ ────────────────────────────────────────────────────
 merged.spritesheets = {};
 const ssDir = path.join(dataDir, 'spritesheets');

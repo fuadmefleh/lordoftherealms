@@ -25,6 +25,7 @@ import { Harvests } from '../world/harvests.js';
 import { PlayerInventory } from './inventory.js';
 import { Ailments } from '../systems/ailments.js';
 import { WildTasks } from '../systems/wildTasks.js';
+import { FoodSkills } from '../systems/foodSkills.js';
 
 const range = (pair, fallback) => (Array.isArray(pair) && pair.length === 2 ? pair : fallback);
 
@@ -166,12 +167,16 @@ export const SeasonalWork = {
         const [lo, hi] = range(cfg.fish, [2, 5]);
         // Fished in person on the inner map: at least what you landed there
         const items = { fish: Math.max(Utils.randInt(lo, hi), Math.floor(Number(opts.landed) || 0)) };
-        if (Utils.random() < (cfg.bigChance ?? 0.15)) items.large_fish = 1;
+        // A practised angler (systems/foodSkills.js) more often pulls up a big one
+        if (Utils.random() < (cfg.bigChance ?? 0.15) + FoodSkills.fishing(player).bigger) items.large_fish = 1;
         const { kept, lost } = SeasonalWork._bag(player, items);
         const got = SeasonalWork._describe(kept);
         let message = got ? `Through the ice you pull up ${got}.` : 'Nothing bites under the ice today.';
         if (Object.keys(lost).length) message += ` No room for ${SeasonalWork._describe(lost)}.`;
-        return { success: true, items: kept, lost, message };
+        const n = Object.values(kept).reduce((s, v) => s + (Number(v) || 0), 0);
+        const levelUp = FoodSkills.gain(player, 'fishing', n * (Number(FoodSkills.xpCfg('fishing').ice) || 1));
+        if (levelUp) message += ` ${levelUp.icon} ${levelUp.text}`;
+        return { success: true, items: kept, lost, message, levelUp };
     },
 
     // ── Trap lines (set once, checked on later days) ──────
@@ -406,7 +411,7 @@ export const SeasonalWork = {
             return { fell: true, healthLost: hurt, chill, items: {} };
         }
         const items = { fish: Utils.randInt(f.fish[0], f.fish[1]) * step };
-        if (Utils.random() < f.bigChance) items.large_fish = step;
+        if (Utils.random() < f.bigChance + FoodSkills.fishing(player).bigger) items.large_fish = step;
         return { fell: false, items };
     },
 

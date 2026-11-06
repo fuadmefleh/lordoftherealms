@@ -1,0 +1,111 @@
+{
+    "_doc": "Food skills (systems/foodSkills.js): farming, fishing and cooking, levelled 1-10 like diving (systems/practiceSkills.js). FARMING (systems/crops.js, ui/innerMapFarming.js): yield = % bigger harvests; dryDays = more dry days a crop bears before it wilts; frostDays = winter frost days a tender crop lives through (growing at the winter rate) before the frost takes it; speed = % quicker at tilling, sowing, watering and harvesting (the work and the clock both). xp: till / sow / water / harvest per cell, perUnit per unit brought in; legacy: an old save's player.skills.farming (0..10) becomes XP once. FISHING (ui/actionMenu/skills.js doFish, ui/mapTasks/wildTasks.js fish, player/seasonalWork.js iceFish): bites = more chance a cast gets a bite (percentage points); window = seconds more to strike; land = percentage points more to land a hooked fish; bigger = % chance a landed fish is the bigger kind (bigger: small fry -> common fish -> large cod); junk = % less weed and old boots; casts = more casts a day; deepReach (1) = casts reach deep water from any sea shore. catches: the fish by depth, each with minLevel (deep-water fish only for a practised angler); rarityWeights: the draw by rarity (luckRare / luckLegendary per point of luck). xp: perCast, by rarity per fish landed, snapped (a fish lost), quickShare of it on a quick trip, ice per fish through the ice. COOKING (player/crafting.js through trades.craftSkills, as systems/tradeSkills.js does for smithing: the Cook modal reads its level; the eat modal; player/core/needs.js): quality = craftsmanship added to the grade roll (finer dishes); waste = % of the makings lost when a dish spoils; minutes = time a dish takes; spare = % chance of an extra portion; hearty = % more hunger and energy from a cooked dish you eat; wellFed = after a cooked dish, hunger drains this % slower for wellFedHours. xp.craft: cooking XP per point of a recipe's xp; an old save's player.skills.cooking migrates. Inns: a keeper's own cooking level (seeded as an innkeeper) makes the meals there that much heartier (systems/hospitality.js). npc: levels by role and the daily XP of each trade.",
+    "skills": {
+        "farming": {
+            "name": "Farming",
+            "icon": "🌾",
+            "desc": "Tilling, sowing, tending and bringing in the harvest. Every patch tilled, row sown, crop watered and sheaf brought in teaches it.",
+            "order": 3,
+            "perks": {
+                "yield": { "levels": [0, 6, 12, 18, 25, 32, 40, 48, 56, 65], "text": "+{d}% to every harvest", "show": "+{v}% harvest" },
+                "dryDays": { "levels": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3], "text": "crops bear +{d} dry days before wilting", "show": "crops bear +{v} dry days" },
+                "frostDays": { "levels": [0, 0, 0, 1, 1, 2, 2, 3, 3, 4], "text": "tender crops live through +{d} frost days", "show": "tender crops survive {v} frost days" },
+                "speed": { "levels": [0, 5, 10, 15, 20, 25, 30, 35, 40, 45], "text": "{a}% quicker at the field work", "show": "{v}% quicker tilling, sowing and harvesting" }
+            },
+            "xp": { "till": 2, "sow": 1, "water": 0.5, "harvest": 2.5, "perUnit": 0.4 },
+            "legacy": true
+        },
+        "fishing": {
+            "name": "Fishing",
+            "icon": "🎣",
+            "desc": "Reading the water and landing what bites. Every cast teaches a little, every fish landed more, a rare one most of all.",
+            "order": 4,
+            "perks": {
+                "bites": { "levels": [0, 3, 6, 9, 12, 15, 18, 21, 24, 28], "text": "+{d}% chance of a bite", "show": "+{v}% bites" },
+                "window": { "levels": [0, 0, 0.2, 0.2, 0.4, 0.4, 0.6, 0.6, 0.8, 1], "text": "+{d}s to strike", "show": "+{v}s to strike" },
+                "land": { "levels": [0, 2, 4, 6, 8, 10, 12, 14, 16, 20], "text": "+{d}% to land a hooked fish", "show": "+{v}% to land a fish" },
+                "bigger": { "levels": [0, 4, 8, 12, 16, 20, 25, 30, 35, 40], "text": "{a}% more chance of a bigger fish", "show": "{v}% chance of a bigger fish" },
+                "junk": { "levels": [0, 10, 20, 30, 40, 45, 50, 55, 60, 70], "text": "{a}% less weed and old boots", "show": "{v}% less junk" },
+                "casts": { "levels": [0, 0, 0, 0, 1, 1, 1, 1, 2, 2], "text": "+{d} casts a day", "show": "+{v} casts a day" },
+                "deepReach": { "levels": [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], "text": "your line now reaches deep water from any sea shore", "show": "deep water from any sea shore" }
+            },
+            "bigger": { "small_fish": "fish", "fish": "large_fish", "crab": "lobster" },
+            "rarityWeights": { "junk": 15, "common": 40, "uncommon": 25, "rare": 10, "legendary": 2, "luckRare": 0.5, "luckLegendary": 0.4 },
+            "catches": {
+                "shallow": [
+                    { "name": "fish", "label": "Common Fish", "icon": "🐟", "value": 5, "rarity": "common", "color": "#aaa", "fight": 2 },
+                    { "name": "small_fish", "label": "Small Fry", "icon": "🐠", "value": 2, "rarity": "common", "color": "#aaa", "fight": 1 },
+                    { "name": "seaweed", "label": "Seaweed", "icon": "🌿", "value": 1, "rarity": "junk", "color": "#666", "fight": 0 },
+                    { "name": "boot", "label": "Old Boot", "icon": "👢", "value": 0, "rarity": "junk", "color": "#666", "fight": 0 },
+                    { "name": "crayfish", "label": "Crayfish", "icon": "🦐", "value": 4, "rarity": "uncommon", "color": "#3498db", "fight": 1, "minLevel": 3 },
+                    { "name": "large_fish", "label": "Large Cod", "icon": "🐟", "value": 8, "rarity": "uncommon", "color": "#3498db", "fight": 3, "minLevel": 5 },
+                    { "name": "golden_fish", "label": "Golden Fish", "icon": "✨🐟", "value": 50, "rarity": "legendary", "color": "#f5c542", "fight": 5 }
+                ],
+                "mid": [
+                    { "name": "fish", "label": "Common Fish", "icon": "🐟", "value": 5, "rarity": "common", "color": "#aaa", "fight": 2 },
+                    { "name": "large_fish", "label": "Large Cod", "icon": "🐟", "value": 8, "rarity": "uncommon", "color": "#3498db", "fight": 3 },
+                    { "name": "crab", "label": "Crab", "icon": "🦀", "value": 12, "rarity": "uncommon", "color": "#3498db", "fight": 3 },
+                    { "name": "seaweed", "label": "Seaweed", "icon": "🌿", "value": 1, "rarity": "junk", "color": "#666", "fight": 0 },
+                    { "name": "lobster", "label": "Lobster", "icon": "🦞", "value": 20, "rarity": "rare", "color": "#9b59b6", "fight": 5, "minLevel": 4 },
+                    { "name": "swordfish", "label": "Swordfish", "icon": "🗡️🐟", "value": 25, "rarity": "rare", "color": "#9b59b6", "fight": 6, "minLevel": 7 },
+                    { "name": "golden_fish", "label": "Golden Fish", "icon": "✨🐟", "value": 50, "rarity": "legendary", "color": "#f5c542", "fight": 6 }
+                ],
+                "deep": [
+                    { "name": "large_fish", "label": "Large Cod", "icon": "🐟", "value": 8, "rarity": "uncommon", "color": "#3498db", "fight": 3 },
+                    { "name": "crab", "label": "Crab", "icon": "🦀", "value": 12, "rarity": "uncommon", "color": "#3498db", "fight": 3 },
+                    { "name": "swordfish", "label": "Swordfish", "icon": "🗡️🐟", "value": 25, "rarity": "rare", "color": "#9b59b6", "fight": 6, "minLevel": 3 },
+                    { "name": "lobster", "label": "Lobster", "icon": "🦞", "value": 20, "rarity": "rare", "color": "#9b59b6", "fight": 5 },
+                    { "name": "oysters", "label": "Oysters", "icon": "🐚", "value": 9, "rarity": "rare", "color": "#9b59b6", "fight": 1, "minLevel": 6 },
+                    { "name": "golden_fish", "label": "Golden Fish", "icon": "✨🐟", "value": 50, "rarity": "legendary", "color": "#f5c542", "fight": 8 }
+                ]
+            },
+            "xp": { "perCast": 0.5, "junk": 0.5, "common": 2, "uncommon": 4, "rare": 8, "legendary": 20, "snapped": 1, "quickShare": 0.6, "ice": 1.5 },
+            "legacy": true
+        },
+        "cooking": {
+            "name": "Cooking",
+            "icon": "🍳",
+            "desc": "Meals, baking and preserves at the hearth. A practised cook spoils less, turns out finer dishes quicker, and gets more good from every meal.",
+            "order": 5,
+            "perks": {
+                "quality": { "levels": [0, 0.25, 0.5, 0.75, 1.0, 1.3, 1.6, 1.9, 2.25, 2.6], "text": "+{d} craftsmanship (finer dishes)", "show": "craftsmanship +{v}" },
+                "waste": { "levels": [50, 46, 42, 38, 34, 30, 26, 22, 18, 12], "text": "{a}% less wasted when a dish spoils", "show": "{v}% of the makings lost when a dish spoils" },
+                "minutes": { "levels": [60, 56, 52, 48, 44, 40, 36, 32, 28, 24], "text": "{a} minutes quicker a dish", "show": "{v} minutes a dish" },
+                "spare": { "levels": [0, 0, 4, 6, 8, 10, 12, 15, 18, 22], "text": "+{d}% chance of an extra portion", "show": "{v}% chance of an extra portion" },
+                "hearty": { "levels": [0, 4, 8, 12, 16, 20, 25, 30, 35, 40], "text": "cooked food fills you {a}% more", "show": "cooked food fills you +{v}%" },
+                "wellFed": { "levels": [0, 0, 0, 10, 10, 15, 20, 20, 25, 30], "text": "well fed: hunger comes back {a}% slower after a cooked meal", "show": "well fed: {v}% slower hunger after a cooked meal" }
+            },
+            "wellFedHours": 8,
+            "xp": { "craft": 1.6 },
+            "legacy": true
+        }
+    },
+    "trades": { "craftSkills": { "cooking": "cooking" } },
+    "npc": {
+        "base": { "farming": 1, "fishing": 1, "cooking": 1 },
+        "roles": {
+            "farmer": { "farming": 3, "cooking": 1 },
+            "fisher": { "fishing": 3, "cooking": 1 },
+            "sailor": { "fishing": 1 },
+            "pearl_diver": { "fishing": 2 },
+            "villager": { "farming": 1, "cooking": 1 },
+            "innkeeper": { "cooking": 4 },
+            "cook": { "cooking": 5 },
+            "baker": { "cooking": 3 },
+            "noble": {},
+            "guard": {}
+        },
+        "coastal": { "fishing": 1 },
+        "dailyXp": {
+            "farmer": { "farming": 1.2, "cooking": 0.15 },
+            "fisher": { "fishing": 1.2, "cooking": 0.15 },
+            "sailor": { "fishing": 0.25 },
+            "pearl_diver": { "fishing": 0.3 },
+            "villager": { "farming": 0.2, "cooking": 0.3 },
+            "innkeeper": { "cooking": 1.2 },
+            "cook": { "cooking": 1.5 },
+            "baker": { "cooking": 1 },
+            "coastal": { "fishing": 0.15 }
+        }
+    }
+}

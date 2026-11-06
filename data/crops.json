@@ -1,10 +1,9 @@
 {
-    "_doc": "Crops the player sows on land they tilled on the inner map (systems/crops.js; ui/innerMapFarming.js). Each crop: its seed good (a GOODS entry in playerEconomy.json, sold in markets of the listed settlement types at qtyMult x population), the product good and yield range per tile, the growth days of each stage after sowing (sown -> sprout -> growing -> ripe; their sum is the days to ripen on a well-watered day each), the seasons it may be sown in, hardy (survives winter frost, growing at winterGrowth), water need (low/medium/high -> dry days it bears before it wilts), and the art of each stage on an LPC sheet ([col, row] in 32px cells; h: 2 for a sprite two cells tall, its row the lower cell). A day of rain or a watering counts as a wet day (full growth); a dry day grows dryGrowth. A ripe crop keeps spoilDays before it rots in the ground. Yield: a roll in the range x care (wet days / days grown, floored at careFloor) x (1 + farming skill x skillBonus).",
+    "_doc": "Crops the player sows on land they tilled on the inner map (systems/crops.js; ui/innerMapFarming.js). Each crop: its seed good (a GOODS entry in playerEconomy.json, sold in markets of the listed settlement types at qtyMult x population), the product good and yield range per tile, the growth days of each stage after sowing (sown -> sprout -> growing -> ripe; their sum is the days to ripen on a well-watered day each), the seasons it may be sown in, hardy (survives winter frost, growing at winterGrowth), water need (low/medium/high -> dry days it bears before it wilts), and the art of each stage on an LPC sheet ([col, row] in 32px cells; h: 2 for a sprite two cells tall, its row the lower cell). A day of rain or a watering counts as a wet day (full growth); a dry day grows dryGrowth. A ripe crop keeps spoilDays before it rots in the ground. Yield: a roll in the range x care (wet days / days grown, floored at careFloor) x the farming level's yield (data/skillPacks/food.json: also more dry days borne, frost days lived through, quicker work).",
     "maxCellsPerHex": 60,
     "dryGrowth": 0.5,
     "winterGrowth": 0.5,
     "careFloor": 0.5,
-    "skillBonus": 0.08,
     "frostSeason": "Winter",
     "rainTypes": ["rain", "storm", "snow"],
     "dryTolerance": { "low": 6, "medium": 4, "high": 3 },
@@ -14,7 +13,6 @@
     "seconds": { "till": 3, "plant": 1.5, "water": 1, "harvest": 1.5, "clear": 1 },
     "waterReach": 30,
     "townRoadBuffer": 4,
-    "xpPerHarvest": 0.6,
     "sheets": {
         "crops": "assets/lpc/crops.png",
         "wheat": "assets/lpc/ThatchedHouses/tilesets/wheat.png"

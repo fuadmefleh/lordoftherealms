@@ -41,6 +41,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Ledger } from './ledger.js';
 import { Fame } from './fame.js';
+import { FoodSkills } from './foodSkills.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -636,12 +637,16 @@ export const Hospitality = {
         // Washed clothes first, so the service's hygiene isn't capped by the dirty ones
         if (S.clothes && player.washClothes) player.washClothes(_num(S.clothes));
         const boost = 0.85 + 0.06 * _num(v.stars, 2);
-        if (player.modifyNeed) for (const [need, amt] of Object.entries(S.needs || {})) player.modifyNeed(need, Math.round(amt * boost));
+        // A meal is as hearty as the cook: an NPC house's keeper's cooking level (systems/foodSkills.js)
+        const cook = S.needs && S.needs.hunger && v.owner === 'npc' ? FoodSkills.innCook(v) : null;
+        const fill = (need) => (cook && (need === 'hunger' || need === 'energy') ? cook.mult : 1);
+        if (player.modifyNeed) for (const [need, amt] of Object.entries(S.needs || {})) player.modifyNeed(need, Math.round(amt * boost * fill(need)));
         if (S.health) player.health = Math.min(_num(player.maxHealth, 100), _num(player.health, 100) + S.health);
         // A valet's grooming: charisma for the rest of the day (PlayerEffects.moodCharisma reads it;
         // processDay takes it away the next morning)
         if (S.charisma) player.valet = { day: _day(world), charisma: _num(S.charisma) };
-        return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${s.price} gold)` : ''}.`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
+        const cookNote = cook && cook.level >= 4 ? ` ${v.keeper || 'The keeper'} cooks like a ${cook.levelName.toLowerCase()} (🍳 ${cook.level}): it fills you ${Math.round((cook.mult - 1) * 100)}% more.` : '';
+        return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${s.price} gold)` : ''}.${cookNote}`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
     },
 
     /** The morning after a night in a house: comfort by tier and stars, breakfast, the horse, a light-fingered bunkmate. */

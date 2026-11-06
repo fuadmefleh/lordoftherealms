@@ -15,7 +15,7 @@
 import { InnerMap } from '../world/innerMap.js';
 import { Crops } from '../systems/crops.js';
 import { InnerMapDigging } from './innerMapDigging.js';
-import { OddJobs } from '../player/oddJobs.js';
+import { FoodSkills } from '../systems/foodSkills.js';
 import { sheetScale } from './sheetScale.js';
 import { loadSheetInto } from '../core/customSheets.js';
 import { DataLoader } from '../core/dataLoader.js';
@@ -24,6 +24,11 @@ const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 function _note(game, title, body, kind = 'info') {
     if (game && game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(title, body, kind);
+}
+
+/** A farming level-up, announced */
+function _skillUp(game, up) {
+    if (up) _note(game, `${up.icon} ${up.name} Improved`, up.text, 'success');
 }
 
 function _refresh(game) {
@@ -217,12 +222,14 @@ export const InnerMapFarming = {
     /** Walk beside (q, r) and work it a while; then `done(tile)`, and the clock moves on. */
     _work(game, kind, q, r, verb, done) {
         const C = Crops.config();
+        // A practised farmer works quicker (systems/foodSkills.js)
+        const quick = kind === 'clear' ? 1 : FoodSkills.farmWorkMult(game && game.player);
         const res = InnerMapDigging.start(game, kind, q, r, {
-            seconds: Number(C.seconds[kind]) || 1.5,
+            seconds: (Number(C.seconds[kind]) || 1.5) * quick,
             verb,
             needs: kind === 'till' ? { energy: -3, hygiene: -2 } : { energy: -1 },
             onDone: (g, tile) => {
-                this._spendMinutes(Number(C.minutes[kind]) || 10);
+                this._spendMinutes((Number(C.minutes[kind]) || 10) * quick);
                 done(tile);
             },
         });
@@ -248,6 +255,7 @@ export const InnerMapFarming = {
             InnerMap.setTilled(t);
             InnerMap._refreshGrassLayer(InnerMap.tiles);
             _note(game, '🌾 Till Land', 'You turn the soil. It is ready for seed.', 'success');
+            _skillUp(game, FoodSkills.farmWork(game.player, 'till'));
         });
     },
 
@@ -265,6 +273,7 @@ export const InnerMapFarming = {
         this._work(game, 'plant', q, r, 'Sowing', () => {
             const res = Crops.plant(player, game.world, h.q, h.r, q, r, cropId);
             if (!res.ok) { _note(game, '🌱 Plant', res.reason, 'warning'); return; }
+            _skillUp(game, FoodSkills.farmWork(player, 'sow'));
             _refresh(game);
             if (row) {
                 const next = this._field(game, q, r, (c, t) => this._emptyCell(c) && this._isTilled(t), 1)[0];
@@ -286,6 +295,7 @@ export const InnerMapFarming = {
             this._spendMinutes(extra);
             const res = Crops.water(game.player, h.q, h.r, q, r);
             if (!res.ok) { _note(game, '💧 Water', res.reason, 'info'); return; }
+            _skillUp(game, FoodSkills.farmWork(game.player, 'water'));
             if (all) {
                 const next = this._field(game, q, r, this._thirsty, 1)[0];
                 if (next) { this.water(game, next.q, next.r, true); return; }
@@ -305,17 +315,15 @@ export const InnerMapFarming = {
                 return;
             }
             got[res.good] = (got[res.good] || 0) + res.qty;
-            if (!game.player.skills) game.player.skills = {};
-            if (game.player.skills.farming == null) game.player.skills.farming = 0;
-            const gains = OddJobs.gainXp(game.player, { skills: { farming: 1 } }, Number(Crops.config().xpPerHarvest) || 0.5);
+            _skillUp(game, FoodSkills.farmWork(game.player, 'harvest', res.qty));
             _refresh(game);
             if (all) {
                 const next = this._field(game, q, r, this._ripe, 1)[0];
                 if (next) { this.harvest(game, next.q, next.r, true, got); return; }
             }
             const what = Object.entries(got).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ');
-            const up = gains.find(g => g.id === 'farming');
-            _note(game, '🧺 Harvest', `You bring in ${what}.${up ? ` Farming ${game.player.skills.farming}.` : ''}`, 'success');
+            const lv = FoodSkills.level(game.player, 'farming');
+            _note(game, '🧺 Harvest', `You bring in ${what}.${lv > 1 ? ` (🌾 Farming ${lv}: +${FoodSkills.perk(game.player, 'farming', 'yield')}% harvest)` : ''}`, 'success');
         });
     },
 

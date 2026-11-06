@@ -19,7 +19,9 @@
 // day), dryGrowth on a dry one; too many dry days in a row wilt it, winter
 // frost kills a crop that isn't hardy, a ripe crop left too long rots. Growth
 // goes on while the player is away. Yield at harvest: a roll in the crop's
-// range × the care it had (wet days ÷ days grown) × the farming skill.
+// range × the care it had (wet days ÷ days grown) × the farming skill. The
+// farming level (systems/foodSkills.js) also lets a crop bear more dry days
+// and live through a few frost days (cell.frostDays) before the frost takes it.
 //
 // Seed is sold in markets (world/economy.js marketGoods reads data/crops.json).
 // No randomness but the harvest roll (Utils); no domain globals.
@@ -28,13 +30,13 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Seasons } from '../world/seasons.js';
+import { FoodSkills } from './foodSkills.js';
 
 const DEFAULTS = {
     maxCellsPerHex: 60,
     dryGrowth: 0.5,
     winterGrowth: 0.5,
     careFloor: 0.5,
-    skillBonus: 0.08,
     frostSeason: 'Winter',
     rainTypes: ['rain', 'storm', 'snow'],
     dryTolerance: { low: 6, medium: 4, high: 3 },
@@ -43,7 +45,6 @@ const DEFAULTS = {
     seconds: { till: 3, plant: 1.5, water: 1, harvest: 1.5, clear: 1 },
     waterReach: 30,
     townRoadBuffer: 4,
-    xpPerHarvest: 0.6,
     sheets: {},
     sownArt: null,
     crops: {},
@@ -276,6 +277,8 @@ export const Crops = {
         const day = _num(world && world.day);
         const season = this.season(world);
         const frost = season === C.frostSeason;
+        const frostGrace = FoodSkills.farmFrostDays(player);
+        const dryGrace = FoodSkills.farmDryDays(player);
         for (const [hk, plot] of Object.entries(player.farmPlots)) {
             if (!plot || !plot.cells) continue;
             const [wq, wr] = hk.split(',').map(Number);
@@ -290,9 +293,13 @@ export const Crops = {
                 const wet = rained || !!cell.watered;
                 cell.watered = false;
                 if (frost && !crop.hardy) {
-                    cell.dead = 'frost';
-                    tally.frost[crop.name] = (tally.frost[crop.name] || 0) + 1;
-                    continue;
+                    // A practised farmer's tender crop lives through a few frosts
+                    cell.frostDays = _num(cell.frostDays) + 1;
+                    if (cell.frostDays > frostGrace) {
+                        cell.dead = 'frost';
+                        tally.frost[crop.name] = (tally.frost[crop.name] || 0) + 1;
+                        continue;
+                    }
                 }
                 const total = this.growDays(crop);
                 if (_num(cell.growth) >= total) {
@@ -311,7 +318,7 @@ export const Crops = {
                     cell.dry = 0;
                 } else {
                     cell.dry = _num(cell.dry) + 1;
-                    const tol = _num(C.dryTolerance[crop.water], 4);
+                    const tol = _num(C.dryTolerance[crop.water], 4) + dryGrace;
                     if (cell.dry > tol) {
                         cell.dead = 'wilted';
                         tally.wilted[crop.name] = (tally.wilted[crop.name] || 0) + 1;
@@ -341,7 +348,7 @@ export const Crops = {
         return `your fields (${wq}, ${wr})`;
     },
 
-    /** The harvest a ripe cell yields for this player (rolls Utils). */
+    /** The harvest a ripe cell yields for this player (rolls Utils): × the farming level's yield. */
     yieldFor(player, cell) {
         const C = this.config();
         const crop = this.crop(cell && cell.crop);
@@ -350,8 +357,7 @@ export const Crops = {
         const base = Utils.randInt(Math.round(lo), Math.round(hi));
         const days = Math.max(1, _num(cell.days));
         const care = Math.max(_num(C.careFloor, 0.5), Math.min(1, _num(cell.wetDays) / days));
-        const skill = _num(player && player.skills && player.skills.farming);
-        return Math.max(1, Math.round(base * care * (1 + skill * _num(C.skillBonus, 0.08))));
+        return Math.max(1, Math.round(base * care * FoodSkills.farmYieldMult(player)));
     },
 
     /** Harvest a ripe cell into the packs; the ground stays tilled. { ok, reason, good, qty, crop } */

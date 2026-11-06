@@ -35,6 +35,7 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { MapTasks } from '../../systems/mapTasks.js';
 import { WildTasks as Rules } from '../../systems/wildTasks.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
+import { FoodSkills } from '../../systems/foodSkills.js';
 import { drawMapMarker } from '../mapInk.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -192,10 +193,11 @@ function _rodPose(ctx, dt) {
     InnerMap._rod = { frame, toward, bobber, at: Date.now() };
 }
 
-function _castLine(ctx, spot, luck, onBite, onLeave) {
+function _castLine(ctx, spot, luck, onBite, onLeave, skill = null) {
     const c = Rules.cfg('fish');
     const mark = ctx.mark(spot, { glyph: c.glyph || 'fish', label: c.waiting, passive: true, line: true });
-    ctx.line = { spot, to: _castTo(ctx), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave };
+    // skill: the angler's edge (systems/foodSkills.js fishing): more bites, longer to strike
+    ctx.line = { spot, to: _castTo(ctx), mark, state: 'wait', t: _between(ctx.rng, c.wait || [1.5, 4], 2.5), luck, onBite, onLeave, skill };
 }
 
 function _endLine(ctx) {
@@ -218,9 +220,10 @@ function _lineTick(ctx, dt) {
     L.t -= dt;
     if (L.t > 0) return;
     if (L.state === 'wait') {
-        if (ctx.rng() < Rules.biteChance(L.luck, c)) {
+        const sk = L.skill || {};
+        if (ctx.rng() < Math.min(0.98, Rules.biteChance(L.luck, c) + _num(sk.bites))) {
             L.state = 'bite';
-            L.t = Rules.strikeWindow(L.luck, c);
+            L.t = Rules.strikeWindow(L.luck, c) + _num(sk.window);
             L.mark.glyph = c.biteGlyph || 'warning';
             L.mark.label = c.bite;
             ctx.note(c.bite);
@@ -538,15 +541,18 @@ export const WildTaskRunner = {
 
     /**
      * o: { player, casts, rollFish() → fish, waterDir? {x, y}, spots?, target? {q, r} (the water to cast into) }.
-     * onDone(catches) at the end (or on giving up, with what you have);
-     * onDone(null) when it couldn't start.
+     * onDone(catches, { casts, snapped }) at the end (or on giving up, with
+     * what you have); onDone(null) when it couldn't start. The fishing level
+     * (systems/foodSkills.js) gives more bites, longer to strike, more landed.
      */
     fish(game, o, onDone) {
         const c = Rules.cfg('fish');
         const player = o.player;
         const luck = _num(player.luck, 5);
         const str = _num(player.strength, 5);
+        const skill = FoodSkills.fishing(player);
         const catches = [];
+        const tally = { casts: 0, snapped: 0 };
         const custom = {
             setup(ctx) {
                 const w = _wild(ctx);
@@ -575,12 +581,14 @@ export const WildTaskRunner = {
                 _castLine(ctx, spot, luck, (bite) => {
                     ctx.done++;
                     ctx.here++;
+                    tally.casts++;
                     if (bite === true) {
                         const f = o.rollFish();
-                        if (f.rarity === 'junk' || ctx.rng() < Rules.landChance(f.fight, str)) {
+                        if (f.rarity === 'junk' || ctx.rng() < Math.min(0.98, Rules.landChance(f.fight, str) + skill.land)) {
                             catches.push(f);
-                            ctx.note(fmt(c.caught, { icon: f.icon, name: f.label }));
+                            ctx.note(fmt(c.caught, { icon: f.icon, name: f.bigger ? `${f.label} (a big one!)` : f.label }));
                         } else {
+                            tally.snapped++;
                             ctx.note(fmt(c.snapped, { name: f.label }));
                         }
                     }
@@ -590,7 +598,7 @@ export const WildTaskRunner = {
                         ctx.note(c.shy);
                     }
                     this._markSpot(ctx);
-                }, () => this._markSpot(ctx));
+                }, () => this._markSpot(ctx), skill);
             },
             tick(dt, ctx) { _lineTick(ctx, dt); _rodPose(ctx, dt); },
             buttons(ctx) { return _lineButtons(ctx); },
@@ -598,8 +606,8 @@ export const WildTaskRunner = {
         };
         return this.run(game, {
             title: c.title, icon: c.icon, say: c.say, plan: { parHours: c.parHours }, custom,
-            onComplete: () => { InnerMap._rod = null; onDone(catches); },
-            onAbandon: () => { InnerMap._rod = null; onDone(catches); },
+            onComplete: () => { InnerMap._rod = null; onDone(catches, tally); },
+            onAbandon: () => { InnerMap._rod = null; onDone(catches, tally); },
         }, () => onDone(null));
     },
 
@@ -792,7 +800,7 @@ export const WildTaskRunner = {
                     this._fish(ctx);
                 }, () => {
                     ctx.mark(ctx.hole, { glyph: c.glyph || 'snowflake', label: Rules.cfg('fish').cast, work: 0.5, onDone: () => this._fish(ctx) });
-                });
+                }, FoodSkills.fishing(o.player));
             },
             tick(dt, ctx) { _lineTick(ctx, dt); },
             buttons(ctx) { return _lineButtons(ctx); },

@@ -249,7 +249,7 @@ export function gameLoop(timestamp, loopId) {
                         }
                     }
                 }
-                if (playerStepResult.climbRefused) this.ui.showNotification('🧗 Can\'t Climb', InnerMapClimbing._refusal || 'That face is too much for you now.', 'warning');
+                if (playerStepResult.climbRefused) this.ui.showNotification('⛰️ Can\'t Climb', InnerMapClimbing._refusal || 'That face is too much for you now.', 'warning');
                 else this.ui.showNotification('Blocked', 'Path blocked — impassable terrain!', 'error');
             }
         }
@@ -281,7 +281,7 @@ export function gameLoop(timestamp, loopId) {
                 }
                 const pieces = InnerMap.scatterWreck(w, { cargo });
                 const name = lost ? `the ${lost.name}` : (w.object && w.object.label) || 'the ship';
-                this.ui.showNotification(lost ? '⚓ Your Ship Is Lost' : '🪵 Wrecked',
+                this.ui.showNotification(lost ? '⚓ Your Ship Is Lost' : '💥 Wrecked',
                     `${name.charAt(0).toUpperCase()}${name.slice(1)} breaks up.${pieces.length ? ` ${pieces.length} pieces of wreckage float free — swim out and haul them in.` : ''}`,
                     lost ? 'warning' : 'info');
                 if (lost) this.ui.updateStats(this.player, this.world);

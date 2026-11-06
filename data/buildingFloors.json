@@ -84,7 +84,7 @@
         ] }
     },
     "stairs": {
-        "up": { "type": "stairs", "icon": "🧗", "name": "Stairs Up" },
-        "down": { "type": "stairs_down", "icon": "🧗", "name": "Stairs Down" }
+        "up": { "type": "stairs", "icon": "🔼", "name": "Stairs Up" },
+        "down": { "type": "stairs_down", "icon": "🔽", "name": "Stairs Down" }
     }
 }

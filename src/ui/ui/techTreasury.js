@@ -370,10 +370,10 @@ Object.assign(UI.prototype, {
         `;
 
         for (const item of market) {
-            let trendIcon = '➡️';
+            let trendIcon = '→︎'; // plain text arrows: the emoji ones are blue boxes
             let trendColor = '#95a5a6';
-            if (item.trend === 'rising') { trendIcon = '↗️'; trendColor = '#2ecc71'; }
-            else if (item.trend === 'falling') { trendIcon = '↘️'; trendColor = '#e74c3c'; }
+            if (item.trend === 'rising') { trendIcon = '↗︎'; trendColor = '#2ecc71'; }
+            else if (item.trend === 'falling') { trendIcon = '↘︎'; trendColor = '#e74c3c'; }
 
             const priceColor = item.price > item.basePrice ? '#e74c3c' : (item.price < item.basePrice ? '#2ecc71' : 'var(--text-primary)');
 

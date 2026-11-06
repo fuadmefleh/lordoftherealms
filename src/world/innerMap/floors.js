@@ -23,7 +23,7 @@ const _cfg = () => {
     return {
         baseFloors: 2, techFloors: [], townCraft: { _default: 2 }, maxFloors: { _default: 1 }, minFloors: {},
         upperRooms: { _default: ['quarters'] }, rooms: {},
-        stairs: { up: { type: 'stairs', icon: '🧗', name: 'Stairs Up' }, down: { type: 'stairs_down', icon: '🧗', name: 'Stairs Down' } },
+        stairs: { up: { type: 'stairs', icon: '🔼', name: 'Stairs Up' }, down: { type: 'stairs_down', icon: '🔽', name: 'Stairs Down' } },
         ...d,
     };
 };

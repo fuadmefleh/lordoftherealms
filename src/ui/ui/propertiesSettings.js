@@ -338,7 +338,7 @@ Object.assign(UI.prototype, {
             if (Array.isArray(summary) && summary.length) {
                 let priceRows = '';
                 for (const data of summary) {
-                    const trendIcon = data.trend === 'rising' ? '📈' : data.trend === 'falling' ? '📉' : '➡️';
+                    const trendIcon = data.trend === 'rising' ? '↗︎' : data.trend === 'falling' ? '↘︎' : '→︎';
                     const trendColor = data.trend === 'rising' ? '#e74c3c' : data.trend === 'falling' ? '#27ae60' : 'var(--text-secondary)';
                     priceRows += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
                         <td style="padding:6px;">${data.icon || ''} ${data.name || data.id}${data.label ? ` <span style="color:${data.color};font-size:10px;">${data.label}</span>` : ''}</td>

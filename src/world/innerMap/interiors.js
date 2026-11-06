@@ -272,7 +272,7 @@ Object.assign(InnerMap, {
                 { type: 'bed', icon: '🛏️', name: 'Room Bed', q: 10, r: 4, passable: false },
                 { type: 'bed', icon: '🛏️', name: 'Room Bed', q: 10, r: 6, passable: false },
                 { type: 'bucket', icon: '🛁', name: 'Bath Tub', q: 1, r: 7, passable: false },
-                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 11, r: 8, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Stairs Up', q: 11, r: 8, passable: true },
             ]
         },
         hotel: {
@@ -290,7 +290,7 @@ Object.assign(InnerMap, {
                 { type: 'banner', icon: '🚩', name: 'House Banner', q: 9, r: 1, passable: true },
                 { type: 'candle', icon: '🕯️', name: 'Chandelier', q: 7, r: 5, passable: true },
                 { type: 'rug', icon: '🟥', name: 'Carpet', q: 7, r: 7, passable: true },
-                { type: 'stairs', icon: '🧗', name: 'Marble Stairs', q: 13, r: 10, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Marble Stairs', q: 13, r: 10, passable: true },
             ]
         },
         roadhouse: {
@@ -319,7 +319,7 @@ Object.assign(InnerMap, {
                 { type: 'barrel', icon: '🛢️', name: 'Wine Barrel', q: 2, r: 1, passable: false },
                 { type: 'shelf', icon: '🍶', name: 'Bottle Shelf', q: 4, r: 1, passable: false },
                 { type: 'fireplace', icon: '🔥', name: 'Fireplace', q: 9, r: 1, passable: false },
-                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 10, r: 8, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Stairs Up', q: 10, r: 8, passable: true },
             ]
         },
         blacksmith: {
@@ -410,7 +410,7 @@ Object.assign(InnerMap, {
                 { type: 'chest', icon: '📦', name: 'Treasury Chest', q: 12, r: 10, passable: false },
                 { type: 'banner', icon: '🚩', name: 'Family Banner', q: 6, r: 1, passable: true },
                 { type: 'rug', icon: '🟥', name: 'Carpet', q: 6, r: 7, passable: true },
-                { type: 'stairs', icon: '🧗', name: 'Staircase', q: 1, r: 10, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Staircase', q: 1, r: 10, passable: true },
             ]
         },
         granary: {
@@ -476,7 +476,7 @@ Object.assign(InnerMap, {
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 1, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Shield Rack', q: 4, r: 1, passable: false },
                 { type: 'table', icon: '🪑', name: 'Watch Table', q: 2, r: 3, passable: false },
-                { type: 'stairs', icon: '🧗', name: 'Stairs Up', q: 4, r: 6, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Stairs Up', q: 4, r: 6, passable: true },
             ]
         },
         farm: {
@@ -602,7 +602,7 @@ Object.assign(InnerMap, {
                 { type: 'sack', icon: '🌾', name: 'Grain Sacks', q: 7, r: 2, passable: false },
                 { type: 'scales', icon: '⚖️', name: 'Miller\'s Scales', q: 2, r: 4, passable: true },
                 { type: 'crate', icon: '📦', name: 'Bins', q: 7, r: 5, passable: false },
-                { type: 'stairs', icon: '🧗', name: 'Ladder to the Stones', q: 1, r: 6, passable: true },
+                { type: 'stairs', icon: '🔼', name: 'Ladder to the Stones', q: 1, r: 6, passable: true },
             ]
         },
         jail: {

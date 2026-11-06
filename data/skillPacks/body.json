@@ -3,7 +3,7 @@
     "skills": {
         "climbing": {
             "name": "Climbing",
-            "icon": "🧗",
+            "icon": "⛰️",
             "desc": "Up and down the rock faces of the crags instead of walking round. Taller faces need more skill; winter and snow make every face harder. Climb near your limit to learn fastest — and risk a fall.",
             "order": 3,
             "perks": {

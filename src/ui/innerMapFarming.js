@@ -191,7 +191,7 @@ export const InnerMapFarming = {
             if (d == null) items.push({ type: 'disabled', label: `💧 Water — no water within reach. ${line}` });
             else {
                 items.push({ type: 'action', action: 'farm_water', label: 'Water', icon: '💧', desc: `${line} · water ${_plural(d, 'step', 'steps')} away` });
-                if (this._field(game, q, r, this._thirsty, 1).length) items.push({ type: 'action', action: 'farm_water_all', label: 'Water the Field', icon: '🪣', desc: 'Every dry crop that joins this patch' });
+                if (this._field(game, q, r, this._thirsty, 1).length) items.push({ type: 'action', action: 'farm_water_all', label: 'Water the Field', icon: '💧', desc: 'Every dry crop that joins this patch' });
             }
         } else {
             items.push({ type: 'disabled', label: `💧 ${line}` });

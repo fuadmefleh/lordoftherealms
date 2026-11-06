@@ -139,7 +139,7 @@ Object.assign(InnerMap, {
     _markCrag(t, cell, name) {
         if (!t) return;
         this._cragLevelOf(t, name);
-        t.subTerrain = { id: 'cliff', name, icon: '🧗', color: '#6b5440', passable: false };
+        t.subTerrain = { id: 'cliff', name, icon: '⛰️', color: '#6b5440', passable: false };
         t._crag = cell ? { c: cell[0], r: cell[1] } : null;
         t._cragTop = name === 'Crag';
     },
@@ -182,7 +182,7 @@ Object.assign(InnerMap, {
         const mark = (t, cell, name) => {
             if (!t) return;
             this._cragLevelOf(t, name);
-            t.subTerrain = { id: 'cliff', name, icon: '🧗', color: '#6b5440', passable: false };
+            t.subTerrain = { id: 'cliff', name, icon: '⛰️', color: '#6b5440', passable: false };
             t._crag = cell ? { c: cell[0], r: cell[1] } : null;
             t._cragTop = name === 'Crag';
         };

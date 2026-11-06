@@ -514,6 +514,8 @@ Object.assign(InnerMapRenderer, {
             else if (currentCat) { currentCat.items.push(item); }
             else { currentCat = { label: '', items: [item] }; categories.push(currentCat); }
         }
+        // A heading with nothing under it (the road you stand on, before the lot's own heading) is dropped
+        for (let i = categories.length - 1; i >= 0; i--) if (!categories[i].items.length) categories.splice(i, 1);
 
         const personItems = [];
         const liveItems = []; // greyed-out entries whose text counts down (a diver's breath coming back)
@@ -527,7 +529,11 @@ Object.assign(InnerMapRenderer, {
                     bodyHTML += this._personCardHTML(item, personItems.length, game);
                     personItems.push(item);
                 } else if (item.type === 'disabled') {
-                    bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.3);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">🚫</span><span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;"${typeof item.live === 'function' ? ` data-live="${liveItems.push(item) - 1}"` : ''}>${item.label}</span></div>`;
+                    // The label's own leading emoji is the row's icon (not a 🚫 beside a 📜); a reason, when given, shows under it
+                    const lead = typeof item.live === 'function' ? null : /^(\p{Extended_Pictographic}[️‍\p{Extended_Pictographic}]*)\s+/u.exec(String(item.label || ''));
+                    const dIcon = item.icon || (lead ? lead[1] : '🚫');
+                    const dLabel = lead ? String(item.label).slice(lead[0].length) : item.label;
+                    bodyHTML += `<div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.015);border:1px solid rgba(255,255,255,0.04);padding:6px 8px;border-radius:5px;color:rgba(255,255,255,0.38);font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;opacity:0.6;">${dIcon}</span><div style="flex:1;min-width:0;"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;"${typeof item.live === 'function' ? ` data-live="${liveItems.push(item) - 1}"` : ''}>${dLabel}</div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.32);margin-top:2px;white-space:normal;line-height:1.35;">${item.desc}</div>` : ''}</div></div>`;
                 } else {
                     bodyHTML += `<button class="inner-ctx-btn" data-action="${item.action||''}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.05);padding:6px 8px;border-radius:5px;color:var(--text-primary,#e0e0e0);cursor:pointer;text-align:left;transition:background 0.12s,border-color 0.12s;font-family:var(--font-body,'Inter',sans-serif);white-space:nowrap;min-width:0;width:100%;" onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'"><span style="font-size:16px;width:22px;text-align:center;flex-shrink:0;">${pictureIcon(item.icon||'📋')}</span><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:#e0e0e0;overflow:hidden;text-overflow:ellipsis;">${item.label}</span></div>${item.desc ? `<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.desc}</div>` : ''}</div></button>`;
                 }

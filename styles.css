@@ -5284,6 +5284,20 @@ body #customPanel:has(.tech-tab-content) { height: var(--panel-max-h); }
 }
 
 /* ── Toast stack: newest on top, three at most, the rest folded into a chip ── */
+/* The stack stands just left of the right info rail (#hudRightRail), below
+   the top bar, so it never sits on the First Steps card or the objective.
+   Widths are the rail's own (306 / 264 / 232px); all in zoomed px, so no
+   division by --ui-zoom is needed here. */
+:root { --hud-rail-w: 306px; }
+@media (max-width: 1320px) { :root { --hud-rail-w: 264px; } }
+@media (max-width: 1080px) { :root { --hud-rail-w: 232px; } }
+#notificationArea {
+    top: 64px;
+    right: calc(12px + var(--hud-rail-w) + 14px);
+    width: 300px;
+}
+/* No rail on screen (title, editors): back to the corner */
+#app-root:not(:has(#hudRightRail > *)) #notificationArea { right: 16px; }
 .notification .notif-msg {
     display: -webkit-box;
     -webkit-line-clamp: 2;

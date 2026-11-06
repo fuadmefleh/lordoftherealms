@@ -660,7 +660,7 @@ export const InnerMapAnimals = {
                 const chk = this.canCarry(game, a);
                 const words = cfg.words || {};
                 if (chk.ok) {
-                    out.push({ type: 'action', action: 'animal_carry', label: `${chk.how === 'shoulder' ? 'Carry' : 'Drag'} the ${lower}`, icon: chk.how === 'shoulder' ? '🎒' : '🪢',
+                    out.push({ type: 'action', action: 'animal_carry', label: `${chk.how === 'shoulder' ? 'Carry' : 'Drag'} the ${lower}`, icon: chk.how === 'shoulder' ? '🎒' : '✋',
                         desc: `${chk.kg} kg: ${chk.speed >= 0.9 ? 'it hardly slows you' : `you walk at ${Math.round(chk.speed * 100)}% pace`}`, animal: a });
                 } else if (chk.reason === 'too heavy') {
                     out.push({ type: 'disabled', label: `Carry the ${lower}: ${_fmt(words.tooHeavy || 'too heavy ({kg} kg)', { kg: chk.kg, name: lower })}` });

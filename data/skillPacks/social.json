@@ -3,7 +3,7 @@
     "skills": {
         "stealth": {
             "name": "Stealth",
-            "icon": "🥷",
+            "icon": "👤",
             "desc": "Moving unseen and taking what isn't yours: every theft, purse and escape teaches it, a clean one most.",
             "order": 20,
             "perks": {

@@ -590,7 +590,7 @@ const MAP_GLYPHS = {
     '🏗': 'hammer', '🔨': 'hammer', '❔': 'help', '❓': 'help', '👤': 'person', '💀': 'skull', '⚓': 'anchor', '🛶': 'boat',
     '🗡': 'dagger', '🕯': 'candle', '🐺': 'paw', '🏘': 'house', '🏠': 'house', '🏰': 'castle', '🐪': 'wagon', '🐫': 'wagon',
     // Inner maps: the furniture of a room, the trades of a town, its people
-    '🪑': 'chair', '🛏': 'bed', '📦': 'crate', '🧗': 'stairs', '🏪': 'stall', '🍲': 'bowl', '🧺': 'bucket', '💧': 'droplet',
+    '🪑': 'chair', '🛏': 'bed', '📦': 'crate', '🧗': 'stairs', '🔼': 'stairs', '🔽': 'stairs', '🏪': 'stall', '🍲': 'bowl', '🧺': 'bucket', '💧': 'droplet',
     '💤': 'moon', '🕌': 'temple', '⚒': 'anvil', '🗼': 'tower', '🍻': 'tankard', '🍺': 'tankard', '🗺': 'map', '🚪': 'house',
     '💂': 'helm', '🤴': 'crown', '👸': 'crown', '👦': 'person', '👧': 'person', '🧒': 'person', '🧑': 'person', '👨': 'person',
     '👩': 'person', '🧎': 'person', '🧳': 'satchel', '🧙': 'orb', '🛡': 'shield', '⚔': 'swords',

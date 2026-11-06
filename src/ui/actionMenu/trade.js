@@ -857,10 +857,10 @@ Object.assign(ActionMenu, {
                 const basePrice = MarketDynamics.getPrice(good.id, s.q, s.r, game.world);
                 const trend = MarketDynamics.getPriceTrend(good.id, s.q, s.r, game.world);
 
-                let trendIcon = '➡️';
+                let trendIcon = '→︎'; // plain text arrows: the emoji ones are blue boxes
                 let trendColor = '#999';
-                if (trend === 'rising') { trendIcon = '↗️'; trendColor = '#2ecc71'; }
-                else if (trend === 'falling') { trendIcon = '↘️'; trendColor = '#e74c3c'; }
+                if (trend === 'rising') { trendIcon = '↗︎'; trendColor = '#2ecc71'; }
+                else if (trend === 'falling') { trendIcon = '↘︎'; trendColor = '#e74c3c'; }
 
                 // Estimate value (base calculation + commerce skill)
                 const commerceBonus = 1 + (game.player.skills.commerce * 0.05);

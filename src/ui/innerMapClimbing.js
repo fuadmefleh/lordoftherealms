@@ -67,7 +67,7 @@ export const InnerMapClimbing = {
         const can = Climbing.canClimb(player, link.rows, ctx);
         if (!can.ok) {
             InnerMap.cancelPlayerWalk();
-            _note(game, '🧗 Can\'t Climb', can.reason, 'warning');
+            _note(game, '⛰️ Can\'t Climb', can.reason, 'warning');
             return false;
         }
         const plan = Climbing.plan(player, { rows: link.rows, down: !link.up, ...ctx });
@@ -75,7 +75,7 @@ export const InnerMapClimbing = {
         InnerMapRenderer._playerFacing = InnerMapCharacters.DIR_UP;
         if (!player._climbedBefore) {
             Object.defineProperty(player, '_climbedBefore', { value: true, configurable: true, enumerable: false, writable: true });
-            _note(game, '🧗 Climbing', `You find a hold and ${link.up ? 'start up' : 'lower yourself down'} the face — ${link.rows} rows of rock. Taller faces, and winter, take more skill; tired or laden, you won't try.`, 'info');
+            _note(game, '⛰️ Climbing', `You find a hold and ${link.up ? 'start up' : 'lower yourself down'} the face — ${link.rows} rows of rock. Taller faces, and winter, take more skill; tired or laden, you won't try.`, 'info');
         }
         return true;
     },
@@ -146,10 +146,10 @@ export const InnerMapClimbing = {
         const label = up ? 'Climb Up' : 'Climb Down';
         const ctx = _ctx(game);
         const can = Climbing.canClimb(game.player, rows, ctx);
-        if (!can.ok) return [{ type: 'disabled', label: `🧗 ${label} — ${can.reason}` }];
+        if (!can.ok) return [{ type: 'disabled', label: `⛰️ ${label} — ${can.reason}` }];
         const chance = Math.round(Climbing.slipChance(game.player, rows, ctx.world, ctx.worldTile) * 100);
         return [{
-            type: 'action', action: 'climb_face', icon: '🧗', label,
+            type: 'action', action: 'climb_face', icon: '⛰️', label,
             desc: `${rows} rows of rock${chance > 0 ? ` · ${chance}% chance to slip` : ''}`,
         }];
     },
@@ -159,7 +159,7 @@ export const InnerMapClimbing = {
         if (!item || item.action !== 'climb_face') return false;
         InnerMap.cancelPlayerWalk();
         const walk = InnerMap.movePlayerTo(q, r);
-        if (!walk || !walk.started) _note(game, '🧗 No Way Up', this._refusal || 'You can\'t find a way to that face from here.', 'warning');
+        if (!walk || !walk.started) _note(game, '⛰️ No Way Up', this._refusal || 'You can\'t find a way to that face from here.', 'warning');
         return true;
     },
 };

@@ -58,6 +58,8 @@ Object.assign(InnerMap, {
         const lv = this.standLevel(tile), mine = this.playerLevel();
         if (lv !== 0 || mine !== 0) return lv === mine;
         if (tile.subTerrain && tile.subTerrain.passable) return true;
+        // A shut gate: walking into it opens it (world/innerMap/gates.js)
+        if (this._isShutGateTile && this._isShutGateTile(tile)) return true;
         return !!(this._swimAllowed && this.isSwimmable(q, r));
     },
 

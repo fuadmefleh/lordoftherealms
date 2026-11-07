@@ -98,10 +98,10 @@ describe('town fields', () => {
         expect(at(4, 4)).toBe('tp_fence_gr');   // the run carries the gate's post
         expect(at(5, 3)).toBe('tp_fence_nes');  // the spur makes a T
         expect(at(7, 3)).toBe('tp_fence_w');    // and ends in a post
-        // Every joined piece is a registered def; fences block, the gate does not
+        // Every joined piece is a registered def; fences block, and so does the gate while it is shut (gates.test.js)
         for (const row of tiles) for (const t of row) if (t.customObject) expect(defOf(t.customObject.defId)).toBeTruthy();
         expect(tiles[2][2].subTerrain.passable).toBe(false);
-        expect(tiles[4][3].subTerrain.passable).toBe(true);
+        expect(tiles[4][3].subTerrain.passable).toBe(false);
         // Joining again changes nothing
         expect(TownProps.joinFences(tiles)).toBe(0);
     });

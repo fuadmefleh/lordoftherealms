@@ -114,7 +114,8 @@
         "name": "Fence",
         "h": { "sheet": "fence", "left": [0, 0], "mid": [1, 0], "right": [2, 0] },
         "v": { "sheet": "pfence", "top": [3, 0], "mid": [3, 1], "bottom": [3, 2] },
-        "gate": { "sheet": "fence", "cell": [1, 5] },
+        "gate": { "sheet": "fence", "cell": [1, 5], "open": [1, 6] },
+        "_gateDoc": "A gate opens and shuts (world/townProps.js setGate; world/innerMap/gates.js): shut (cell) it blocks like the fence, open (the open cell: the leaf swung back against its left post) it is walked through. Gates stand shut; the player opens one from its menu or by walking into it, and it stays as they leave it (world.gates, saved); townsfolk open a shut gate as they pass and shut it behind them.",
         "_joinDoc": "Fence pieces joined by their neighbours (world/townProps.js joinFences): the ThatchedHouses fence sheet is a full set — each key names the sides (n, e, s, w) a cell has fence on, and its cell carries the rails out to just those sides, so corners, T-joins, crossings and run ends meet. gateLeft/gateRight are the run pieces either side of a gate, with its gateposts. The legacy h/v pieces above stay registered so old saves still draw until the town is entered.",
         "join": {
             "sheet": "fence",

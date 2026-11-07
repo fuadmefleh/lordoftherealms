@@ -3,6 +3,9 @@ import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily } from './_imports.js';
 import { stepBlockedBySides } from '../../core/tileSides.js';
 
+// A step through a shut gate counts this much on a path (world/innerMap/gates.js)
+const GATE_PATH_COST = 2;
+
 Object.assign(InnerMap, {
     /**
      * Move player within the inner map
@@ -27,6 +30,9 @@ Object.assign(InnerMap, {
         if (!this._playerMayEnter(tile, newQ, newR) || this._stepBlocked(this.playerInnerQ, this.playerInnerR, newQ, newR)) {
             return { moved: false, encounter: null, outOfBounds: false };
         }
+
+        // A shut gate: the player opens it as they go through (world/innerMap/gates.js)
+        this._playerOpensGate(newQ, newR);
 
         // Move
         this.playerInnerQ = newQ;
@@ -428,7 +434,7 @@ Object.assign(InnerMap, {
             return null;
         }
         const nextTile = next && this.tiles[next.r] && this.tiles[next.r][next.q];
-        const inWater = (nextTile && !nextTile.subTerrain.passable) || this.isPlayerSwimming();
+        const inWater = (nextTile && !nextTile.subTerrain.passable && !this._isShutGateTile(nextTile)) || this.isPlayerSwimming();
         const under = this._underwater ? (this._underwaterSpeed || 0.75) : 1; // (slower again under the surface)
         this._playerMoveProgress += deltaTime * this._playerSpeed * (inWater ? this.swimConfig().speed * (this._swimSpeedBonus || 1) * under : 1);
 
@@ -444,6 +450,9 @@ Object.assign(InnerMap, {
                 this.cancelPlayerWalk();
                 return { moved: false, encounter: null, blocked: true };
             }
+
+            // A shut gate on the way: opened on reaching it, and left open (world/innerMap/gates.js)
+            this._playerOpensGate(step.q, step.r);
 
             this._playerPrevQ = this.playerInnerQ;
             this._playerPrevR = this.playerInnerR;
@@ -640,6 +649,9 @@ Object.assign(InnerMap, {
                 }
                 if (high) {
                     // across a crag's top
+                } else if (!tile.subTerrain.passable && tile.customObject && this._isShutGateTile(tile)) {
+                    // A shut gate: people open it to pass, so a walk round is taken when it isn't much longer
+                    ng = gScore[ci] + GATE_PATH_COST;
                 } else if (!tile.subTerrain.passable) {
                     if (!swim || !this.isSwimmable(nq, nr)) continue;
                     ng = gScore[ci] + swimCost;

@@ -720,9 +720,15 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         } else {
             for (let r = r0; r < r0 + fh; r++) for (let q = q0; q < q0 + fw; q++) tiles[r][q]._reserved = true;
             const bales = 1 + Math.floor(rng() * 2);
+            // (never across the way in from the gate: it would bar the pasture)
+            const gateQ = q0 + Math.floor(fw / 2);
             for (let i = 0; i < bales; i++) {
                 const id = rng() < 0.5 ? 'tp_hay_green' : 'tp_hay_gold';
-                TownProps.place(tiles, propDef(id), q0 + 1 + Math.floor(rng() * Math.max(1, fw - 3)), r0 + fh - 1, { ignoreReserved: true });
+                const def = propDef(id);
+                let bq = q0 + 1 + Math.floor(rng() * Math.max(1, fw - 3));
+                const bw = def ? def.bounds.maxCol - def.bounds.minCol + 1 : 1;
+                if (gateQ >= bq && gateQ < bq + bw) bq = gateQ + 1 + bw <= q0 + fw ? gateQ + 1 : gateQ - bw;
+                if (bq >= q0) TownProps.place(tiles, def, bq, r0 + fh - 1, { ignoreReserved: true });
             }
         }
         if (fenced) {

@@ -100,4 +100,23 @@ describe('town planner', () => {
         const c = survey(town('town', 5, 4)).buildings.map(x => `${x.def.id}@${x.q},${x.r}`);
         expect(c).not.toEqual(a);
     });
+    it('a fenced field gate stands shut, and nothing in the pen bars the way in behind it', async () => {
+        const { TownProps } = await import('../world/townProps.js');
+        let gates = 0;
+        for (const [type, q, r] of [['village', 9, 14], ['village', 3, 7], ['town', 12, 5], ['village', 21, 30], ['town', 30, 8]]) {
+            const tiles = town(type, q, r);
+            for (const g of TownProps.gates(tiles)) {
+                gates++;
+                expect(g.open).toBe(false);
+                expect(tiles[g.r][g.q].subTerrain.passable).toBe(false);
+                // The gate is in the bottom run: behind it (north) lies open ground or the field itself, never a bale
+                const behind = tiles[g.r - 1][g.q];
+                const part = behind.customObjectPart;
+                const anchor = part ? tiles[part.anchorR][part.anchorQ].customObject : behind.customObject;
+                if (anchor) expect(TownProps.parseFieldId(anchor.defId), `${type} ${q},${r} gate ${g.q},${g.r}`).toBeTruthy();
+                else expect(behind.subTerrain.passable).toBe(true);
+            }
+        }
+        expect(gates).toBeGreaterThan(0);
+    });
 });

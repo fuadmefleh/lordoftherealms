@@ -227,7 +227,7 @@ Object.assign(InnerMap, {
         npc.moveProgress = 0;
         const step = npc.path[npc.pathIndex];
         const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
-        if (!stepTile || !stepTile.subTerrain.passable) { npc.path = null; return true; }
+        if (!stepTile || (!stepTile.subTerrain.passable && !this._npcPassGate(npc, stepTile, step.q, step.r))) { npc.path = null; return true; }
         npc.prevQ = npc.q;
         npc.prevR = npc.r;
         npc.q = step.q;

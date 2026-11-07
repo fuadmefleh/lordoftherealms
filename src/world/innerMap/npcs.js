@@ -446,7 +446,10 @@ Object.assign(InnerMap, {
      * Update all NPCs — called every frame with deltaTime (seconds)
      */
     updateNPCs(deltaTime) {
-        if (!this.active || this.npcs.length === 0) return;
+        if (!this.active) return;
+        // Gates townsfolk opened to pass, shut behind them once the gateway is clear (world/innerMap/gates.js)
+        if (!this._insideBuilding && this._closeGatesBehind) this._closeGatesBehind();
+        if (this.npcs.length === 0) return;
 
         for (const npc of this.npcs) {
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
@@ -500,7 +503,8 @@ Object.assign(InnerMap, {
 
                             // Defensive: never step onto impassable tile
                             const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];
-                            if (!stepTile || !stepTile.subTerrain.passable) {
+                            // (a shut gate they open to pass, and shut behind them: world/innerMap/gates.js)
+                            if (!stepTile || (!stepTile.subTerrain.passable && !this._npcPassGate(npc, stepTile, step.q, step.r))) {
                                 npc.path = null;
                                 npc.state = 'idle';
                                 npc.idleTimer = 1 + Utils.random() * 3;

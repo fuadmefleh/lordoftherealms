@@ -216,6 +216,8 @@ export const SaveLoad = {
             estates: Estates.serialize(world),
             // Deer killed per hex, until their herds grow back (world/innerMap/animals.js)
             wildlife: world.wildlife ? JSON.parse(JSON.stringify(world.wildlife)) : null,
+            // The gates the player left open on the towns' maps (world/innerMap/gates.js)
+            gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -762,6 +764,8 @@ export const SaveLoad = {
         Estates.restore(saveData.estates, world);
         // The deer killed (older saves: none — every herd whole)
         world.wildlife = saveData.wildlife && typeof saveData.wildlife === 'object' ? saveData.wildlife : {};
+        // The gates left open (older saves: none — every gate stands shut)
+        world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

@@ -33,6 +33,7 @@ import { InnerMapFurnish } from './innerMapFurnish.js';
 import { InnerMapFarming } from './innerMapFarming.js';
 import { InnerMapFields } from './innerMapFields.js';
 import { InnerMapGranary } from './innerMapGranary.js';
+import { InnerMapGates } from './innerMapGates.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
@@ -317,6 +318,8 @@ Object.assign(InnerMapRenderer, {
             menuItems.push(...InnerMapDiving.shipItems(game, q, r));
             // A town field: bring in its crop, or help yourself (ui/innerMapFields.js)
             if ((customObjDef.tags || []).includes('field')) menuItems.push(...InnerMapFields.menuItems(game, objAnchorQ, objAnchorR));
+            // A gate in a fence: open it or shut it (ui/innerMapGates.js)
+            if ((customObjDef.tags || []).includes('gate')) menuItems.push(...InnerMapGates.menuItems(game, objAnchorQ, objAnchorR));
             if (customObjDef.resource) {
                 const resName = (customObjDef.resource.type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 menuItems.push({ type: 'action', action: 'harvest_object', label: `Harvest ${resName}`, icon: '⛏️', desc: `Gather resources from this ${customObjDef.name || 'object'}`, customObjDef, objAnchorQ, objAnchorR });
@@ -819,6 +822,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
         if (/^granary_/.test(action) && InnerMapGranary.handle(game, item)) return;
+        if (/^gate_/.test(action) && InnerMapGates.handle(game, item)) return;
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;

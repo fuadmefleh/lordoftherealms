@@ -29,6 +29,10 @@ const _year = (day) => Math.floor((Math.max(1, Math.floor(day || 1)) - 1) / 120)
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
+/** A gate's two pieces: shut (blocks) and open (walked through). */
+const GATE_SHUT = 'tp_fence_gate';
+const GATE_OPEN = 'tp_fence_gate_open';
+
 function _def(id, name, tiles, solidRows, opts = {}) {
     let minC = 0, maxC = 0, minR = 0;
     for (const t of tiles) {
@@ -140,8 +144,10 @@ export const TownProps = {
             out.push(one('tp_fence_v_t', fence.v.sheet, fence.v.top));
             out.push(one('tp_fence_v_m', fence.v.sheet, fence.v.mid));
             out.push(one('tp_fence_v_b', fence.v.sheet, fence.v.bottom));
-            const gate = _def('tp_fence_gate', 'Gate', [{ localCol: 0, localRow: 0, sheetPath: d.sheets[fence.gate.sheet], sx: fence.gate.cell[0] * T, sy: fence.gate.cell[1] * T, sw: T, sh: T }], 0, { tags: ['fence'] });
-            out.push(gate);
+            // A gate: shut it blocks like the fence; open (its leaf swung back) it is walked through (setGate)
+            const gateCell = (id, [c, r], solid) => _def(id, 'Gate', [{ localCol: 0, localRow: 0, sheetPath: d.sheets[fence.gate.sheet], sx: c * T, sy: r * T, sw: T, sh: T }], solid, { tags: ['fence', 'gate'] });
+            out.push(gateCell(GATE_SHUT, fence.gate.cell, 1));
+            out.push(gateCell(GATE_OPEN, fence.gate.open || fence.gate.cell, 0));
             // The joined pieces (joinFences): one per set of sides with fence, and the gateposts
             const join = fence.join;
             if (join) {
@@ -278,6 +284,73 @@ export const TownProps = {
         return typeof id === 'string' && id.startsWith('tp_fence_');
     },
 
+    /** Is this object id a gate (shut or open)? */
+    isGate(id) {
+        return id === GATE_SHUT || id === GATE_OPEN;
+    },
+
+    /** Is the gate object open? */
+    isGateOpen(obj) {
+        return !!obj && obj.defId === GATE_OPEN;
+    },
+
+    /**
+     * Open or shut the gate at (q, r): the piece drawn and whether the cell
+     * can be walked. Returns true when it changed, false when it already was
+     * so, null when there is no gate there.
+     */
+    setGate(tiles, q, r, open) {
+        const t = tiles && tiles[r] && tiles[r][q];
+        const obj = t && t.customObject;
+        if (!obj || !TownProps.isGate(obj.defId)) return null;
+        const id = open ? GATE_OPEN : GATE_SHUT;
+        const changed = obj.defId !== id;
+        obj.defId = id;
+        if (t.subTerrain) t.subTerrain.passable = !!open;
+        return changed;
+    },
+
+    /** Every gate on the map: [{ q, r, open }]. */
+    gates(tiles) {
+        const out = [];
+        for (let r = 0; r < (tiles ? tiles.length : 0); r++) {
+            const row = tiles[r];
+            for (let q = 0; q < (row ? row.length : 0); q++) {
+                const o = row[q] && row[q].customObject;
+                if (o && TownProps.isGate(o.defId)) out.push({ q, r, open: o.defId === GATE_OPEN });
+            }
+        }
+        return out;
+    },
+
+    /**
+     * The gates the player left open on a hex's map, kept on the world (and
+     * saved with it): world.gates[hexKey] = { 'q,r': true }. create: make the
+     * record when there is none.
+     */
+    gateRecord(world, hexKey, create = false) {
+        if (!world) return null;
+        if (!world.gates || typeof world.gates !== 'object') {
+            if (!create) return null;
+            world.gates = {};
+        }
+        if (!world.gates[hexKey] && create) world.gates[hexKey] = {};
+        return world.gates[hexKey] || null;
+    },
+
+    /**
+     * Set every gate on the map as the record has it: open where the player
+     * left it open, shut everywhere else (a gate stands shut). Returns how
+     * many changed.
+     */
+    applyGates(tiles, record) {
+        let changed = 0;
+        for (const g of TownProps.gates(tiles)) {
+            if (TownProps.setGate(tiles, g.q, g.r, !!(record && record[`${g.q},${g.r}`]))) changed++;
+        }
+        return changed;
+    },
+
     /**
      * Join every fence on the map to its neighbours: each piece becomes the one
      * whose rails run out to exactly the sides that have fence (or a gate) —
@@ -292,12 +365,12 @@ export const TownProps = {
         const H = tiles.length, W = tiles[0].length;
         const objAt = (q, r) => (q >= 0 && r >= 0 && q < W && r < H && tiles[r][q] && tiles[r][q].customObject) || null;
         const fenceAt = (q, r) => { const o = objAt(q, r); return !!o && TownProps.isFence(o.defId); };
-        const gateAt = (q, r) => { const o = objAt(q, r); return !!o && o.defId === 'tp_fence_gate'; };
+        const gateAt = (q, r) => { const o = objAt(q, r); return !!o && TownProps.isGate(o.defId); };
         let changed = 0;
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < W; q++) {
                 const obj = objAt(q, r);
-                if (!obj || !TownProps.isFence(obj.defId) || obj.defId === 'tp_fence_gate') continue;
+                if (!obj || !TownProps.isFence(obj.defId) || TownProps.isGate(obj.defId)) continue;
                 const mask = (fenceAt(q, r - 1) ? 'n' : '') + (fenceAt(q + 1, r) ? 'e' : '') + (fenceAt(q, r + 1) ? 's' : '') + (fenceAt(q - 1, r) ? 'w' : '');
                 let key = mask || 'post';
                 if (mask === 'ew' && gateAt(q + 1, r) && join.gateLeft) key = 'gl';

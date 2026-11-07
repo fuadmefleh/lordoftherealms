@@ -26,7 +26,9 @@ describe('groundName', () => {
             .toBe(InnerMap._isRolledSub({ id: 'sand', name: 'Sand Dunes' }) ? 'Sand' : 'Sand Dunes');
         // In winter the grass lies under snow
         InnerMap.season = 'Winter';
-        expect(InnerMap.groundName(rolled('snow', 'Snow', { terrainDetail: { layer: 'grass' } })).name).toBe('Snowy Grass');
+        expect(InnerMap.groundName(rolled('trees', 'Forest', { parentTerrain: 'woodland', terrainDetail: { layer: 'grass' } })).name).toBe('Snowy Grass');
+        // and on a snowfield it is just snow
+        expect(InnerMap.groundName(rolled('snow', 'Snow', { terrainDetail: { layer: 'grass' } })).name).toBe('Snow');
         InnerMap.season = 'Spring';
     });
 

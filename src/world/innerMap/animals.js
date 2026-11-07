@@ -26,7 +26,7 @@
 // the scavengers have it (data: carcass). It can be carried (canCarryAnimal,
 // by its weight) and is only butchered by hand (butcherAnimal).
 import { InnerMap } from './_ref.js';
-import { Utils, DataLoader } from './_imports.js';
+import { Utils, DataLoader, TownProps } from './_imports.js';
 
 /** A well-mixed 32-bit hash of the parts (as encounters.js). */
 function _hash(...parts) {
@@ -122,7 +122,8 @@ Object.assign(InnerMap, {
     /** Open ground an animal can stand on: no water, wall, house, tree or street-front. */
     _animalGround(t) {
         return !!(t && t.subTerrain && t.subTerrain.passable && !t.building && !t.customBuilding && !t.customBuildingPart
-            && !t.customObjectPart && !t._doorMarker && !t.playerPropertyBuilding && !t._isInterior);
+            && !t.customObjectPart && !t._doorMarker && !t.playerPropertyBuilding && !t._isInterior
+            && !t._fieldSoil); // (a town field's crops: folk walk them, beasts are kept off)
     },
 
     /** A terrain's herd groups: [{ herd, chance, herds, minTemp?, maxTemp? }] (one object or a list). */
@@ -183,8 +184,26 @@ Object.assign(InnerMap, {
         const out = [];
         const homes = [];
         const taken = new Set();
+        // A village's pastures hold its flocks: each fenced pen a herd of the land's
+        // livestock (sheep where the land names none), and none then graze loose
+        const pens = o.settlementType ? (o.pens || this.findPens(tiles)) : [];
+        if (pens.length) {
+            let kinds = groups.filter(g => cfg.herds[g.herd].livestock).map(g => g.herd);
+            if (!kinds.length) kinds = Object.keys(cfg.herds || {}).filter(h => cfg.herds[h].livestock).slice(0, 1);
+            pens.forEach((pen, i) => {
+                if (!kinds.length) return;
+                const herd = kinds[_hash(s, 'penHerd', worldQ, worldR, i) % kinds.length];
+                const cells = new Set(pen.cells);
+                const [hq, hr] = pen.cells[_hash(s, 'penHome', worldQ, worldR, i) % pen.cells.length].split(',').map(Number);
+                const before = out.length;
+                this._placeHerd(out, cfg.herds[herd], `${worldQ},${worldR}:pen${i}`, { q: hq, r: hr },
+                    (q, r) => cells.has(`${q},${r}`), { s, cfg, culled, taken, season: o.season });
+                for (let k = before; k < out.length; k++) out[k].penned = true;
+            });
+        }
         groups.forEach((group, gi) => {
             const herdDef = cfg.herds[group.herd];
+            if (pens.length && herdDef.livestock) return;
             const chance = this._groupChance(cfg, group, herdDef, o);
             // The first deer group keeps the hashes (and ids) the deer have always had
             const legacy = group.herd === 'deer' && groups.findIndex(g => g.herd === 'deer') === gi;
@@ -284,6 +303,7 @@ Object.assign(InnerMap, {
     _spawnAnimals(game, worldTile, worldQ, worldR) {
         this.animals = [];
         this._animalBuiltDist = null;
+        this._penCells = null;
         if (!worldTile || !Array.isArray(this.tiles) || !this.tiles.length) return;
         const cfg = this.animalConfig();
         const world = game && game.world;
@@ -313,8 +333,10 @@ Object.assign(InnerMap, {
         }
         const builtDist = this._builtDistance(this.tiles);
         this._animalBuiltDist = worldTile.settlement ? builtDist : null;
+        const pens = worldTile.settlement ? this.findPens(this.tiles) : [];
+        this._penCells = new Set(pens.flatMap(p => p.cells));
         const plan = this.planHerds(this.tiles, terrainId, worldQ, worldR, seed, {
-            cfg, builtDist,
+            cfg, builtDist, pens,
             settlementType: worldTile.settlement ? (worldTile.settlement.type || 'village') : null,
             nearTown: !!near,
             temperature: typeof worldTile.temperature === 'number' ? worldTile.temperature : null,
@@ -336,6 +358,52 @@ Object.assign(InnerMap, {
         this._restoreCarcasses(world, worldQ, worldR, cfg);
     },
 
+    /**
+     * The fenced pens of a map: the ground shut in behind each gate (flood-filled
+     * from the gate's sides) that holds no crop. [{ gateQ, gateR, cells: ['q,r'] }].
+     * A field is fenced too, but its cells are soil (_fieldSoil): no beasts in the wheat.
+     */
+    findPens(tiles, maxCells = 160) {
+        const H = tiles.length, W = H ? tiles[0].length : 0;
+        const pens = [];
+        const seen = new Set();
+        const isGateTile = (t) => !!(t && t.customObject && TownProps.isGate(t.customObject.defId));
+        const SIDES = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        for (let r = 1; r < H - 1; r++) {
+            for (let q = 1; q < W - 1; q++) {
+                if (!isGateTile(tiles[r][q])) continue;
+                for (const [dq, dr] of SIDES) {
+                    const sq = q + dq, sr = r + dr;
+                    if (seen.has(`${sq},${sr}`) || !this._animalGround(tiles[sr] && tiles[sr][sq])) continue;
+                    const cells = [];
+                    const inPen = new Set([`${sq},${sr}`]);
+                    const stack = [[sq, sr]];
+                    let open = false, crops = false;
+                    while (stack.length) {
+                        const [cq, cr] = stack.pop();
+                        cells.push(`${cq},${cr}`);
+                        if (tiles[cr][cq]._fieldSoil) crops = true;
+                        if (cells.length > maxCells || cq <= 0 || cr <= 0 || cq >= W - 1 || cr >= H - 1) { open = true; break; }
+                        for (const [ex, ey] of SIDES) {
+                            const nq = cq + ex, nr = cr + ey, k = `${nq},${nr}`;
+                            if (inPen.has(k)) continue;
+                            const t = tiles[nr] && tiles[nr][nq];
+                            // the gate (open or shut) is the pen's edge, not its ground
+                            if (t && t._fieldSoil) crops = true;
+                            if (!t || isGateTile(t) || !this._animalGround(t)) continue;
+                            inPen.add(k);
+                            stack.push([nq, nr]);
+                        }
+                    }
+                    if (open || crops || cells.length < 4) continue;
+                    for (const c of cells) seen.add(c);
+                    pens.push({ gateQ: q, gateR: r, cells });
+                }
+            }
+        }
+        return pens;
+    },
+
     /** Can an animal step from (q, r) onto (nq, nr)? */
     _animalCanStep(q, r, nq, nr) {
         if (nq < 1 || nr < 1 || nq >= this.width - 1 || nr >= this.height - 1) return false;
@@ -343,7 +411,9 @@ Object.assign(InnerMap, {
         if (!this._animalGround(t)) return false;
         // In a settlement's hex they keep clear of its streets and houses
         const bd = this._animalBuiltDist;
-        if (bd && bd[nr * this.width + nq] < 5 && bd[nr * this.width + nq] <= bd[r * this.width + q]) return false;
+        // (not in its pen: the fence keeps it there, however near the houses the pen lies)
+        if (bd && !(this._penCells && this._penCells.has(`${nq},${nr}`))
+            && bd[nr * this.width + nq] < 5 && bd[nr * this.width + nq] <= bd[r * this.width + q]) return false;
         if (this._stepBlocked && this._stepBlocked(q, r, nq, nr)) return false;
         // Not onto another animal's tile (or where it is stepping)
         for (const o of this.animals) {

@@ -297,7 +297,9 @@ Object.assign(InnerMapRenderer, {
             const typeIcons = { rock: '⛰️', tree: '🌲', plant: '🌿', decoration: '✨', furniture: '💺', building: '🏠', other: '📦' };
             const objIcon = typeIcons[customObjDef.objectType] || '📦';
             menuItems.push({ type: 'header', label: `${objIcon} ${customObjDef.name || customObjDef.id}` });
-            menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });
+            // (a gate has its own Open/Close below, and nothing to strike)
+            const _isGate = (customObjDef.tags || []).includes('gate');
+            if (!_isGate) menuItems.push({ type: 'action', action: 'interact_object', label: 'Interact', icon: '🤚', desc: `Interact with ${customObjDef.name || 'this object'}`, customObjDef, objAnchorQ, objAnchorR });
             // ── Editor-defined object actions (sleep, cook, craft, etc.) ──
             let objActionItems = ObjectActions.buildMenuItems(game, customObjDef, objAnchorQ, objAnchorR);
             // Objects without editor-assigned actions are still usable when
@@ -330,7 +332,7 @@ Object.assign(InnerMapRenderer, {
             const _objHpTile = (objAnchorQ != null) ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
             const _objHp = (_objHpTile && _objHpTile.customObject && _objHpTile.customObject.currentHealthPct != null) ? _objHpTile.customObject.currentHealthPct : 100;
             // (not a field: there is nothing there to strike)
-            if (!(customObjDef.tags || []).includes('field')) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
+            if (!(customObjDef.tags || []).includes('field') && !_isGate) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
         }
 
         // Built-in overlay interactions removed (editor-authored objects only)

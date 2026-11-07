@@ -214,3 +214,39 @@ describe('gates kept with the save', () => {
         expect(InnerMap.gateAt(5, 6).open).toBe(false);
     });
 });
+
+describe('beasts kept in their pens', () => {
+    it('a fenced pen behind a gate is found (a fenced field is not), and a village keeps its flock in it', () => {
+        const tiles = lay();
+        const pens = InnerMap.findPens(tiles);
+        expect(pens.length).toBe(1);
+        expect(pens[0].cells.length).toBe(12); // q 4..7, r 3..5
+        // A village's flock stands in the pen, and none graze loose
+        for (let i = 0; i < 6; i++) {
+            const plan = InnerMap.planHerds(tiles, 'grassland', i, 2, 'pen', { settlementType: 'village' });
+            const flock = plan.filter(a => a.livestock);
+            expect(flock.length).toBeGreaterThan(0);
+            for (const a of flock) {
+                expect(a.penned).toBe(true);
+                expect(pens[0].cells).toContain(`${a.q},${a.r}`);
+            }
+        }
+        // Crops in the pen make it a field: beasts are kept off them
+        tiles[4][5]._fieldSoil = true;
+        expect(InnerMap.findPens(tiles)).toEqual([]);
+    });
+
+    it('the shut gate keeps them in; left open, they can step out', () => {
+        lay();
+        InnerMap.animals = [];
+        InnerMap._animalBuiltDist = null;
+        expect(InnerMap._animalCanStep(5, 5, 5, 6)).toBe(false);
+        InnerMap.setGateOpen(5, 6, true);
+        expect(InnerMap._animalCanStep(5, 5, 5, 6)).toBe(true);
+    });
+
+    it('a town field is walked into (dearer than open ground on a path)', () => {
+        const field = TownProps.defs().find(d => /^tp_field_wheat_/.test(d.id));
+        expect(field.meta.every(m => !m.impassable)).toBe(true);
+    });
+});

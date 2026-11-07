@@ -104,7 +104,8 @@ function _fieldDef(d, kind, w, h) {
             }
         }
     }
-    const def = _def(TownProps.fieldId(kind, w, h), f.name, tiles, h, { allSolid: true, tags: ['field', kind] });
+    // Walked into through its gate, or across (dearer on a path: world/innerMap/movement.js)
+    const def = _def(TownProps.fieldId(kind, w, h), f.name, tiles, 0, { tags: ['field', kind] });
     const ground = f.tilled && (typeof f.tilled === 'object' ? f.tilled : f.fill);
     if (ground) {
         // The soil the ground layer draws under the field and the ring round it (the grass fringe lies over it)

@@ -5,6 +5,8 @@ import { stepBlockedBySides } from '../../core/tileSides.js';
 
 // A step through a shut gate counts this much on a path (world/innerMap/gates.js)
 const GATE_PATH_COST = 2;
+// A step through standing crops counts this much: folk keep to the lanes unless the field is where they go
+const FIELD_PATH_COST = 3;
 
 Object.assign(InnerMap, {
     /**
@@ -658,6 +660,7 @@ Object.assign(InnerMap, {
                 } else if (swim && this._underwater) {
                     continue; // under the water: no land, no shallows (world/innerMap/swimming.js)
                 }
+                if (tile._fieldSoil && !high) ng += FIELD_PATH_COST - 1;
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

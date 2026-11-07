@@ -22,7 +22,9 @@ Object.assign(InnerMap, {
 
         // Season must be set before generation — the 9-tile brushes pick
         // their seasonal tiles from it while stamping.
-        this.season = game.world ? game.world.season : 'Spring';
+        // Snowfields and ice stay white the year round (the season is only the map's look)
+        const coldId = worldTile.terrain ? worldTile.terrain.id : null;
+        this.season = ['snow', 'ice', 'snow_peak'].includes(coldId) ? 'Winter' : (game.world ? game.world.season : 'Spring');
 
         // Generate/retrieve inner map
         this.tiles = this.getOrGenerate(worldTile, worldQ, worldR, game);

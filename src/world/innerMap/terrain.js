@@ -3,7 +3,56 @@ import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures } from './_imports.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
+// What the bare fill under the grass layer reads as, by base terrain (groundName)
+const FILL_NAMES = {
+    grass: ['Bare Earth', '👣'], dirt: ['Bare Earth', '👣'], dry_dirt: ['Dry Earth', '🏜️'],
+    sand: ['Sand', '🏜️'], stone: ['Stony Ground', '⛰️'], dark_stone: ['Rock', '⛰️'],
+    snow: ['Snow', '❄️'], ice: ['Ice', '❄️'],
+};
+
 Object.assign(InnerMap, {
+    /** Does this sub-terrain still hold the generation roll (a name off the hex's list, not what is drawn)? */
+    _isRolledSub(sub) {
+        if (!sub) return false;
+        if (!this._rolledSubs) {
+            const set = new Set();
+            const lists = (this.CONFIG && this.CONFIG.subTerrains) || {};
+            for (const l of Object.values(lists)) for (const e of (l && l.primary) || []) set.add(`${e.id}|${e.name}`);
+            for (const [k, d] of Object.entries((Terrain && Terrain.TYPES) || {})) {
+                const id = (d && d.id) || k.toLowerCase();
+                set.add(`${id}|${d.name}`);
+                set.add(`${id}_var|${d.name} (varied)`);
+            }
+            // (kept once the map config is in: before that only the hex names are known)
+            if (this.CONFIG && this.CONFIG.subTerrains) this._rolledSubs = set;
+            return set.has(`${sub.id}|${sub.name}`);
+        }
+        return this._rolledSubs.has(`${sub.id}|${sub.name}`);
+    },
+
+    /**
+     * The ground a tile shows, for menus: { name, icon }. A sub-terrain laid on
+     * purpose (water, a bridge, a floor, tilled soil, a cliff) names itself; the
+     * generation roll ("Snow", "Forest", "Rocky Hill"…) is not what is drawn, so
+     * the drawn ground is named instead: a road, a field, grass, or the bare fill.
+     */
+    groundName(tile) {
+        const sub = tile && tile.subTerrain;
+        if (!sub) return { name: 'Ground', icon: '👣' };
+        // (a tree or a prop on the tile marks it impassable: the roll is still not the ground)
+        const road = tile.isRoad && (sub.name === 'Road' || this._isRolledSub(sub));
+        if (road) return { name: this._currentWorldTileRef && this._currentWorldTileRef.settlement ? 'Street' : 'Road', icon: '👣' };
+        if (!this._isRolledSub(sub)) return { name: sub.name, icon: sub.icon };
+        if (tile._fieldSoil) return { name: 'Field', icon: '🌾' };
+        const layer = tile.terrainDetail ? (tile.terrainDetail.layer || 'grass') : null;
+        const winter = String(this.season || '').toLowerCase() === 'winter';
+        const snowfield = ['snow', 'ice', 'snow_peak'].includes(tile.parentTerrain);
+        if (layer === 'grass') return winter ? { name: snowfield ? 'Snow' : 'Snowy Grass', icon: '❄️' } : { name: 'Grass', icon: '🌿' };
+        if (layer) return { name: layer.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: '👣' };
+        const [name, icon] = FILL_NAMES[this._getBaseTerrain(tile.parentTerrain, null)] || FILL_NAMES.dirt;
+        return winter && name === 'Bare Earth' ? { name: 'Frozen Earth', icon: '❄️' } : { name, icon };
+    },
+
     /**
      * Get the base terrain fill category for a tile.
      * Sub-terrain can override the parent's default.

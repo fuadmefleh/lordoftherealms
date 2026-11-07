@@ -47,6 +47,11 @@ import { uiZoom } from './uiScale.js';
 const TOWN_SERVICES = new Set(['guildhall', 'bank', 'found_bank', 'underwriter', 'bourse', 'post_house', 'seek_physician',
     'cartography', 'odd_jobs', 'mint', 'treasury', 'public_works', 'estates']);
 
+/** The ground a tile shows ("🌿 Grass", "👣 Street"), not the generation roll it was made from. */
+const _groundLabel = (tile) => {
+    const g = InnerMap.groundName(tile);
+    return `${g.icon} ${g.name}`;
+};
 
 Object.assign(InnerMapRenderer, {
 
@@ -384,7 +389,7 @@ Object.assign(InnerMapRenderer, {
 
             // ── Interior-specific actions ──
             if (tile._isInterior) {
-                menuItems.push({ type: 'header', label: `${tile.subTerrain.icon} ${tile.subTerrain.name}` });
+                menuItems.push({ type: 'header', label: _groundLabel(tile) });
 
                 // Stairs: up or down to the next floor (world/innerMap/floors.js)
                 if (tile._stairs) {
@@ -425,7 +430,7 @@ Object.assign(InnerMapRenderer, {
                 }
             } else {
                 // Regular outdoor terrain
-                menuItems.push({ type: 'header', label: `${tile.subTerrain.icon} ${tile.subTerrain.name}` });
+                menuItems.push({ type: 'header', label: _groundLabel(tile) });
 
                 if (!isPlayerHere) {
                     // Water you can't stand in: swim there (world/innerMap/swimming.js, player/swimming.js)
@@ -506,7 +511,7 @@ Object.assign(InnerMapRenderer, {
         menu.id = 'innerMapContextMenu';
         menu.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(16,20,28,0.97);backdrop-filter:blur(14px);border:1px solid rgba(245,197,66,0.35);border-radius:12px;z-index:1300;box-shadow:0 12px 48px rgba(0,0,0,0.85),0 0 0 1px rgba(245,197,66,0.08);overflow:hidden;font-family:var(--font-body,'Inter',sans-serif);display:flex;flex-direction:column;max-width:calc(92vw / var(--ui-zoom));max-height:calc(90vh / var(--ui-zoom));min-width:280px;`;
 
-        const locationLabel = building ? `${building.icon} ${building.name}` : npcsHere.length > 0 ? `👥 People Here` : `${tile.subTerrain.icon} ${tile.subTerrain.name}`;
+        const locationLabel = building ? `${building.icon} ${building.name}` : npcsHere.length > 0 ? `👥 People Here` : _groundLabel(tile);
         const timeStr = InnerMap.getTimeString ? InnerMap.getTimeString() : '';
 
         let headerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(245,197,66,0.04);flex-shrink:0;"><div><div style="font-family:var(--font-display,'Inter',sans-serif);font-size:14px;color:var(--gold,#f5c542);letter-spacing:0.5px;">Actions</div><div style="font-size:11px;color:var(--text-secondary,rgba(255,255,255,0.5));margin-top:1px;">${locationLabel}</div></div><div style="display:flex;align-items:center;gap:12px;">${timeStr ? `<span style="font-size:11px;color:#f39c12;background:rgba(243,156,18,0.12);padding:2px 8px;border-radius:4px;">🕐 ${timeStr}</span>` : ''}<button id="closeInnerContextMenu" style="background:none;border:none;color:rgba(255,255,255,0.4);font-size:18px;cursor:pointer;padding:4px 6px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">✕</button></div></div>`;

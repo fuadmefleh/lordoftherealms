@@ -1,5 +1,5 @@
 /**
- * Trees block only at their trunk (the bottom row's middle cell), so the crown
+ * Trees, bushes and rocks block only where they stand (the bottom row's middle cell), so the crown
  * is walked behind; the new wild trees (data/townProps.json, sheet trees2)
  * grow out in the country and turn with the seasons.
  */
@@ -40,6 +40,43 @@ describe('tree blocking', () => {
             expect(Object.keys(d.seasonVariants).sort()).toEqual(['autumn', 'spring', 'summer', 'winter']);
             expect(d.seasonVariants.winter[0].sheetPath).toMatch(/trees2_winter\.png$/);
         }
+    });
+
+    it('a bush or rock blocks only where it stands too', () => {
+        const defs = TownProps.defs().filter(d => /^tp_(bush|rock)_[a-z]+$/.test(d.id) && d.objectType !== 'decoration');
+        expect(defs.length).toBe(32);
+        for (const d of defs) expect(solidCells(d), d.id).toEqual(['1,0']);
+    });
+
+    it('the new bushes grow wild, give what they bear, and turn with the seasons', () => {
+        const defs = TownProps.defs().filter(d => /^tp_bush_[a-z]+$/.test(d.id));
+        expect(defs.length).toBe(16);
+        for (const d of defs) {
+            expect(d.objectType).toBe('plant');
+            expect(d.terrainBindings).toContain('grass');
+            expect(d.spawnWeight).toBeGreaterThan(0);
+            expect(d.resource.amount).toBeGreaterThan(0);
+            expect(d.spawnAfter).toBeUndefined();
+            expect(d.seasonVariants.winter[0].sheetPath).toMatch(/bushes_winter\.png$/);
+        }
+        const give = (id) => defs.find(d => d.id === id).resource.type;
+        expect(give('tp_bush_blueberry')).toBe('berries');
+        expect(give('tp_bush_lavender')).toBe('herbs');
+        expect(give('tp_bush_hedge')).toBe('firewood');
+    });
+
+    it('the new rocks are broken for stone, common on bare rock and rare elsewhere', () => {
+        const defs = TownProps.defs().filter(d => /^tp_rock_[a-z]+$/.test(d.id));
+        expect(defs.length).toBe(16);
+        for (const d of defs) {
+            expect(d.objectType).toBe('rock');
+            expect(d.terrainBindings).toEqual(expect.arrayContaining(['rocks', 'grass']));
+            expect(d.spawnWeightBy.rocks).toBeGreaterThan(d.spawnWeight * 9);
+            expect(d.resistance).toBeGreaterThan(0);
+            expect(d.seasonVariants).toBeUndefined();
+        }
+        expect(defs.find(d => d.id === 'tp_rock_ore').resource.type).toBe('ore');
+        expect(defs.find(d => d.id === 'tp_rock_boulder').resource.type).toBe('stone');
     });
 
     it('a placed tree leaves its crown walkable', () => {

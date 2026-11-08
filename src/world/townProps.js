@@ -29,8 +29,17 @@ const _year = (day) => Math.floor((Math.max(1, Math.floor(day || 1)) - 1) / 120)
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
-/** The ground a wild tree grows on (the LPC oak's, data/objects.json large_tree_1). */
+/** The ground a wild tree or bush grows on (the LPC oak's, data/objects.json large_tree_1). */
 const WILD_GROUND = ['grass', 'tall_grass', 'dirt', 'dry_grass', 'trees', 'brush'];
+/** The ground a wild rock lies on: most of all bare rock, now and then where the trees grow (p.wild.elsewhere). */
+const ROCK_GROUND = ['rocks', ...WILD_GROUND];
+
+/** What a wild thing is out in the country, by its tag: the scatter's objectType and what it gives. */
+const WILD_KINDS = {
+    tree: { objectType: 'tree', give: 'wood', amount: 40, ground: WILD_GROUND },
+    bush: { objectType: 'plant', give: 'firewood', amount: 2, ground: WILD_GROUND },
+    rock: { objectType: 'rock', give: 'stone', amount: 5, ground: ROCK_GROUND },
+};
 
 /** A gate's two pieces: shut (blocks) and open (walked through). */
 const GATE_SHUT = 'tp_fence_gate';
@@ -48,7 +57,7 @@ function _def(id, name, tiles, solidRows, opts = {}) {
         const k = `${t.localCol},${t.localRow}`;
         if (seen.has(k)) continue;
         seen.add(k);
-        // A tree blocks only at its trunk (the bottom row's middle cell): its crown is walked behind
+        // A tree (bush, rock) blocks only where it stands (the bottom row's middle cell): its crown is walked behind
         const solid = opts.trunk
             ? t.localRow === 0 && t.localCol === Math.floor((minC + maxC) / 2)
             : opts.allSolid || t.localRow > -solidRows;
@@ -129,17 +138,30 @@ export const TownProps = {
         for (const p of d.props || []) {
             const sheet = d.sheets[p.sheet];
             if (!sheet) continue;
-            const isTree = (p.tags || []).includes('tree');
+            const tags = p.tags || [];
+            const kind = Object.keys(WILD_KINDS).find(k => tags.includes(k));
             const solid = p.solid == null ? 1 : p.solid;
-            const def = _def(p.id, p.name, _rectTiles(sheet, p.rect), solid, { tags: p.tags, trunk: isTree && solid > 0 });
-            // A wild tree also grows out in the country: the map's scatter plants it on
-            // grass (world/innerMap/terrain.js _scatterCustomObjects), and it is felled for wood
-            if (p.wild) {
-                def.objectType = 'tree';
-                def.terrainBindings = p.wild.terrain || WILD_GROUND;
-                def.spawnWeight = p.wild.weight == null ? 0.1 : p.wild.weight;
-                def.resource = { type: 'wood', amount: p.wild.wood == null ? 40 : p.wild.wood };
-                def.spawnAfter = p.wild.stump || 'stump_1';
+            const def = _def(p.id, p.name, _rectTiles(sheet, p.rect), solid, { tags: p.tags, trunk: !!kind && solid > 0 });
+            // A wild tree, bush or rock also grows out in the country: the map's scatter
+            // puts it down on its ground (world/innerMap/terrain.js _scatterCustomObjects),
+            // and it is felled, cut or broken for what it gives
+            if (p.wild && kind) {
+                const K = WILD_KINDS[kind];
+                const w = p.wild;
+                def.objectType = K.objectType;
+                def.terrainBindings = w.terrain || K.ground;
+                def.spawnWeight = w.weight == null ? 0.1 : w.weight;
+                // a rock is common on bare rock, rare on other ground
+                if (kind === 'rock') {
+                    def.spawnWeightBy = { rocks: def.spawnWeight };
+                    def.spawnWeight = w.elsewhere == null ? 0.01 : w.elsewhere;
+                    def.scatterChance = w.chance == null ? 0.35 : w.chance;
+                }
+                def.resource = { type: w.give || K.give, amount: w.amount == null ? (w.wood == null ? K.amount : w.wood) : w.amount };
+                if (w.resistance != null) def.resistance = w.resistance;
+                if (kind === 'tree') def.spawnAfter = w.stump || 'stump_1';
+                // a bush is undergrowth: rolled for on the ground the trees left (terrain.js)
+                if (kind === 'bush') def.undergrowth = true;
                 def.animation = 'combat_1h_halfslash';
             }
             // A prop from a seasonal sheet (trees_summer.png …) turns with the year:

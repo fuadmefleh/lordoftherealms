@@ -779,7 +779,13 @@ Object.assign(InnerMap, {
         const parentId = tiles[0] && tiles[0][0] && tiles[0][0].parentTerrain;
         const densities = (this.CONFIG && this.CONFIG.treeDensity) || {};
         const treeDensity = Number.isFinite(densities[parentId]) ? densities[parentId] : 1;
+        // The chance a cell the trees left grows a bush (data/innerMap.json undergrowth)
+        const undergrowth = Number.isFinite(this.CONFIG && this.CONFIG.undergrowth) ? this.CONFIG.undergrowth : 0.12;
+        const hasUndergrowth = CustomObjects.getAllDefs().some(d => d.undergrowth && canScatter(d));
 
+        // Two passes: the trees and rocks first, then the undergrowth (the wild bushes,
+        // world/townProps.js) on the ground they left, so it never thins the woods
+        for (let pass = 0; pass < (hasUndergrowth ? 2 : 1); pass++) {
         for (let r = 1; r < H - 1; r++) {
             for (let q = 1; q < W - 1; q++) {
                 const tile = tiles[r][q];
@@ -801,17 +807,27 @@ Object.assign(InnerMap, {
                     : terrainPool.length ? terrainPool : unboundPool;
                 const pool = rawPool.filter(canScatter);
                 if (!pool.length) continue;
+                let pickFrom;
+                if (pass === 0) {
+                    pickFrom = hasUndergrowth ? pool.filter(d => !d.undergrowth) : pool;
+                    if (!pickFrom.length) continue;
+                    // Per-tile spawn roll (~8% base for non-trees, ~20% for trees on grass)
+                    const spawnThreshold = (pickFrom.some(d => d.objectType === 'tree')) ? 0.20 : 0.08;
+                    if (rng() > spawnThreshold) continue;
+                } else {
+                    pickFrom = pool.filter(d => d.undergrowth);
+                    if (!pickFrom.length || rng() > undergrowth) continue;
+                }
 
-                // Per-tile spawn roll (~8% base for non-trees, ~20% for trees on grass)
-                const spawnThreshold = (pool.some(d => d.objectType === 'tree')) ? 0.20 : 0.08;
-                if (rng() > spawnThreshold) continue;
-
-                // Weighted-random pick from the combined pool
-                const total = pool.reduce((s, d) => s + (d.spawnWeight || 1), 0);
+                // Weighted-random pick from the pool (a def may weigh more on
+                // some ground: a wild rock on bare rock, world/townProps.js)
+                const sub = tile.subTerrain.id;
+                const weight = (d) => (d.spawnWeightBy && d.spawnWeightBy[sub] != null ? d.spawnWeightBy[sub] : (d.spawnWeight || 1));
+                const total = pickFrom.reduce((s, d) => s + weight(d), 0);
                 let roll = rng() * total;
-                let def = pool[pool.length - 1];
-                for (const d of pool) {
-                    roll -= (d.spawnWeight || 1);
+                let def = pickFrom[pickFrom.length - 1];
+                for (const d of pickFrom) {
+                    roll -= weight(d);
                     if (roll <= 0) { def = d; break; }
                 }
                 if (!def || !def.tiles || def.tiles.length === 0) continue;
@@ -883,6 +899,7 @@ Object.assign(InnerMap, {
                     }
                 }
             }
+        }
         }
     },
 

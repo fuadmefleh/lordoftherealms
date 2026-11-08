@@ -51,6 +51,8 @@
             "island": { "nearWater": 0, "chance": 0.05 }
         }
     },
+    "undergrowth": 0.12,
+    "_undergrowthNote": "The chance a cell the wild trees left grows a bush (the tp_bush_* props, data/townProps.json; world/innerMap/terrain.js scatter).",
     "treeDensity": {
         "_note": "Share of the usual wild trees a terrain's inner map grows (world/innerMap/terrain.js scatter; 1 = as on grassland).",
         "mountain": 0.2, "snow_peak": 0.1, "highlands": 0.4, "hills": 0.5, "swamp": 0.15

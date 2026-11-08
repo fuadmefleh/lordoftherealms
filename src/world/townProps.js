@@ -29,6 +29,9 @@ const _year = (day) => Math.floor((Math.max(1, Math.floor(day || 1)) - 1) / 120)
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 
+/** The ground a wild tree grows on (the LPC oak's, data/objects.json large_tree_1). */
+const WILD_GROUND = ['grass', 'tall_grass', 'dirt', 'dry_grass', 'trees', 'brush'];
+
 /** A gate's two pieces: shut (blocks) and open (walked through). */
 const GATE_SHUT = 'tp_fence_gate';
 const GATE_OPEN = 'tp_fence_gate_open';
@@ -45,7 +48,10 @@ function _def(id, name, tiles, solidRows, opts = {}) {
         const k = `${t.localCol},${t.localRow}`;
         if (seen.has(k)) continue;
         seen.add(k);
-        const solid = opts.allSolid || t.localRow > -solidRows;
+        // A tree blocks only at its trunk (the bottom row's middle cell): its crown is walked behind
+        const solid = opts.trunk
+            ? t.localRow === 0 && t.localCol === Math.floor((minC + maxC) / 2)
+            : opts.allSolid || t.localRow > -solidRows;
         meta.push({ localCol: t.localCol, localRow: t.localRow, impassable: !!solid && solidRows > 0, interactionPoint: t.localCol === 0 && t.localRow === 0 });
     }
     return {
@@ -123,7 +129,19 @@ export const TownProps = {
         for (const p of d.props || []) {
             const sheet = d.sheets[p.sheet];
             if (!sheet) continue;
-            const def = _def(p.id, p.name, _rectTiles(sheet, p.rect), p.solid == null ? 1 : p.solid, { tags: p.tags });
+            const isTree = (p.tags || []).includes('tree');
+            const solid = p.solid == null ? 1 : p.solid;
+            const def = _def(p.id, p.name, _rectTiles(sheet, p.rect), solid, { tags: p.tags, trunk: isTree && solid > 0 });
+            // A wild tree also grows out in the country: the map's scatter plants it on
+            // grass (world/innerMap/terrain.js _scatterCustomObjects), and it is felled for wood
+            if (p.wild) {
+                def.objectType = 'tree';
+                def.terrainBindings = p.wild.terrain || WILD_GROUND;
+                def.spawnWeight = p.wild.weight == null ? 0.1 : p.wild.weight;
+                def.resource = { type: 'wood', amount: p.wild.wood == null ? 40 : p.wild.wood };
+                def.spawnAfter = p.wild.stump || 'stump_1';
+                def.animation = 'combat_1h_halfslash';
+            }
             // A prop from a seasonal sheet (trees_summer.png …) turns with the year:
             // the same cells of each season's sheet
             const m = /_(spring|summer|autumn|winter)\.png$/.exec(sheet);

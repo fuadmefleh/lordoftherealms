@@ -40,8 +40,14 @@ describe('wild palms', () => {
         const n = InnerMap._plantPalms(tiles, { terrain: { id: 'desert' } }, 3, 4, 7);
         expect(n).toBeGreaterThan(0);
         const palms = palmsOf(tiles);
-        const nearWater = palms.filter(t => Math.hypot(t.q - 30, t.r - 30) <= 10).length;
-        expect(nearWater).toBeGreaterThan(palms.length / 2);
+        // (by the trunk, the middle of the palm's bottom row; the open sand is far bigger than
+        //  the oasis ring, so count how thick they stand, not how many)
+        const near = (t) => Math.hypot(t.q + 1 - 30, t.r - 30) <= 10;
+        const nearWater = palms.filter(near).length;
+        const ringArea = Math.PI * (10 * 10 - 4 * 4), sandArea = N * N - Math.PI * 10 * 10;
+        const thickNear = nearWater / ringArea, thickFar = (palms.length - nearWater) / sandArea;
+        expect(nearWater).toBeGreaterThan(0);
+        expect(thickNear).toBeGreaterThan(thickFar * 5);
         expect(palms.every(t => !t._wet)).toBe(true);
     });
 

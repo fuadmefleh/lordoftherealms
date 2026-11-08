@@ -24,7 +24,7 @@
       "maxCol": 1,
       "maxRow": 0
     },
-    "hasBlockedTiles": false,
+    "hasBlockedTiles": true,
     "hasInteraction": true,
     "tiles": [
       {
@@ -140,7 +140,8 @@
       {
         "localCol": 0,
         "localRow": 0,
-        "interactionPoint": true
+        "interactionPoint": true,
+        "impassable": true
       }
     ],
     "seasonVariants": {

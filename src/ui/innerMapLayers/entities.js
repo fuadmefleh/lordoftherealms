@@ -926,7 +926,8 @@ Object.assign(InnerMapRenderer, {
                         self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }
                     if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, sy, ds, camera.zoom);
-                    if (nRef.activity) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
+                    // (not over a woodcutter at work: the axe swung up over the head says it, and would be hidden)
+                    if (nRef.activity && chopP == null) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
                         const nHealth = InnerMapCombat.getNPCHealth(nRef.id);

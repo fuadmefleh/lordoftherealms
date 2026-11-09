@@ -122,26 +122,82 @@ export const InnerMapFelling = {
     },
 
     /**
+     * Facing us or away, the chop is overhead: how far the axe is lifted (0 at the
+     * blow, 1 drawn right back) by the side view's swing.
+     */
+    axeLift(p) {
+        const STRUCK = 18, BACK = -165;
+        return Math.max(0, Math.min(1, (STRUCK - this.axeAngle(p)) / (STRUCK - BACK)));
+    },
+
+    /**
+     * The overhead chop seen from in front (facing us, DIR_DOWN) or behind (DIR_UP):
+     * the axe swung in the up-down plane, so on the screen it only runs up or down
+     * from the hands, foreshortened as it points at us or away (the top-down view
+     * tilts a forward reach to half). Raised, the head is up over the head; at the
+     * blow it is out level with the waist, into the trunk. → { hx, hy, ang, len, front }:
+     * the hands, the handle's screen angle, its length as a share of the art's, and
+     * whether it is drawn over the body.
+     */
+    _overhead(dir, p, px, py, ds) {
+        const L = this.axeLift(p);
+        const toUs = dir === DIR_DOWN;
+        // the swing's angle from straight up: a little back over the head when raised, just past level at the blow
+        // (facing away it bites level, into the trunk ahead)
+        const phi = ((-20 + (toUs ? 135 : 110) * (1 - L)) * Math.PI) / 180;
+        // on the screen: up for up, and a reach forward is down the screen facing us, up it facing away
+        const vy = -Math.cos(phi) + (toUs ? 0.5 : -0.5) * Math.sin(phi);
+        const len = Math.max(0.3, Math.min(1, Math.abs(vy)));
+        // swung over the right shoulder, so it leans that way a little; raised, the hands are up
+        // over the head, the head of the axe clear above it
+        const lean = toUs ? 16 : 20;
+        return {
+            hx: px + ds * (toUs ? 0.08 : 0.16),
+            hy: py - ds * (toUs ? 0.5 + 0.8 * L : 0.7 + 0.6 * L),
+            ang: vy < 0 ? -90 + lean : 90 - lean,
+            len,
+            // facing us, drawn back over the head it is behind it; facing away, raised over the
+            // shoulder it is nearer us than the head, and buried in the trunk it is past the body
+            front: toUs ? L < 0.62 : L > 0.55,
+        };
+    },
+
+    /** Is the axe drawn over the body (else behind it) at this phase, facing dir? */
+    axeInFront(dir, p) {
+        if (dir === DIR_DOWN || dir === DIR_UP) return this._overhead(dir, p, 0, 0, 1).front;
+        return true;
+    },
+
+    /**
      * The axe in the hands of a body drawn round (px, py), `ds` px a tile,
      * facing dir, at swing phase p. Call with behind = true before the body and
-     * false after: facing away, the axe is behind you.
+     * false after: it draws on whichever call its place at that moment says.
      */
     drawAxe(ctx, px, py, ds, dir, p, behind) {
         if (p == null) return false;
-        if ((dir === DIR_UP) !== behind) return true;
+        if (this.axeInFront(dir, p) === behind) return true;
         const a = _axe();
         if (!a) return false;
         const [sx, sy, sw, sh] = a.rect;
         // the painted axe lies handle bottom-left to head top-right: its grip, and the handle's own angle
         const grip = [sx + sw * 0.15, sy + sh * 0.9];
         const own = -56;
-        let ang = this.axeAngle(p);
-        let flip = 1;
-        let squash = 1;
-        if (dir === DIR_LEFT) flip = -1;
-        if (dir === DIR_DOWN) { ang = ang * 0.7 + 25; squash = 0.85; }
-        if (dir === DIR_UP) { ang = ang * 0.6 - 40; squash = 0.75; }
         const k = ds * 0.7 / 128;   // the art is 128px a tile
+        if (dir === DIR_DOWN || dir === DIR_UP) {
+            const o = this._overhead(dir, p, px, py, ds);
+            ctx.save();
+            ctx.translate(o.hx, o.hy);
+            ctx.rotate((o.ang * Math.PI) / 180);
+            ctx.scale(o.len, 1);                       // (foreshortened along the handle)
+            ctx.rotate((-own * Math.PI) / 180);        // (the handle laid along the x axis first)
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(a.img, sx, sy, sw, sh, -(grip[0] - sx) * k, -(grip[1] - sy) * k, sw * k, sh * k);
+            ctx.restore();
+            return true;
+        }
+        const ang = this.axeAngle(p);
+        const flip = dir === DIR_LEFT ? -1 : 1;
+        const squash = 1;
         // the hands: up by the shoulder when raised, out at the trunk when it bites
         const reach = Math.max(0, Math.cos((ang * Math.PI) / 180));
         const side = dir === DIR_RIGHT ? 1 : dir === DIR_LEFT ? -1 : 0;

@@ -261,6 +261,14 @@ export const InnerMapFelling = {
         }
     },
 
+    /** A felling grew on while you watched (world/innerMap/felling.js _regrowLive): a little stir of leaves. */
+    onRegrow(q, r, defId) {
+        const def = CustomObjects.getDef(defId);
+        if (!def) return;
+        const tr = _trunk(def, q, r);
+        this._shedLeaves(def, tr, def.topples && !/sapling|young/.test(def.id) ? 10 : 4, 0.6);
+    },
+
     /** How far the object at (q, r) is thrown off by the last blow, for a cell at localRow: px on the screen. */
     shakeAt(q, r, localRow, ds) {
         const s = this._shakes.find(e => e.q === q && e.r === r);

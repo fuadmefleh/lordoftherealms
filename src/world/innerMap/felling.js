@@ -12,6 +12,10 @@
 //     again: on every entry (`_bindFelling`) the spot shows the stump for
 //     sproutDays, then a sapling, and treeDays after the felling the tree
 //     stands there again and the record is let go.
+//   • And live, while you are on the map: when the day turns (updateFelling,
+//     each frame, `_regrowLive`) the fellings move on to their next stage where
+//     they stand — a stump sprouts, a sapling grows into its tree — never under
+//     anyone's feet, nor one being chopped (tried again the next day).
 //   • A stump grubbed out (struck down in its turn) leaves the ground clear for
 //     good: the record keeps { grubbed: true } and nothing grows there again.
 //
@@ -109,9 +113,10 @@ Object.assign(InnerMap, {
         this._fellHex = hexKey;
         this._fellRec = Felling.record(world, hexKey);
         this._fallingTrees = [];
+        const d = Number.isFinite(day) ? day : this._fellDay();
+        this._fellSeenDay = d;
         if (!this._fellRec || !this.tiles) return 0;
         let changed = 0;
-        const d = Number.isFinite(day) ? day : this._fellDay();
         for (const k of Object.keys(this._fellRec)) {
             const rec = this._fellRec[k];
             const [q, r] = k.split(',').map(Number);
@@ -120,6 +125,54 @@ Object.assign(InnerMap, {
             if (stage === 'tree') delete this._fellRec[k];
         }
         return changed;
+    },
+
+    /**
+     * The day turned while on the map: each felling moves on to the stage the day
+     * gives it, where it stands (a stump sprouts, a sapling grows into its tree) —
+     * but not where someone stands, nor one being chopped or grubbed: it waits a day.
+     * Returns the spots that changed: [{ q, r, stage }].
+     */
+    _regrowLive(day = this._fellDay()) {
+        const out = [];
+        if (!this._fellRec || !this.tiles || this._insideBuilding) return out;
+        const sap = rec => Felling.saplingFor(rec);
+        for (const k of Object.keys(this._fellRec)) {
+            const rec = this._fellRec[k];
+            const [q, r] = k.split(',').map(Number);
+            const stage = Felling.stage(rec, day);
+            if (stage === 'clear' || stage === 'stump') continue;
+            const tile = this.getTile(q, r);
+            const want = stage === 'sapling' ? sap(rec) : rec.tree;
+            const here = tile && tile.customObject ? tile.customObject.defId : null;
+            if (here === want) { if (stage === 'tree') delete this._fellRec[k]; continue; }
+            if (this._fellingBusy(q, r, _def(want))) continue;
+            const had = here ? _def(here) : null;
+            if (!this._layFelled(q, r, rec, stage)) continue;
+            const now = this.getTile(q, r).customObject;
+            if (!now || now.defId !== want) {
+                // (it would not fit there now: put back what stood, and try another day)
+                if (!now && had) TownProps.place(this.tiles, had, q, r, { ignoreReserved: true });
+                continue;
+            }
+            out.push({ q, r, stage, defId: want });
+            if (stage === 'tree') delete this._fellRec[k];
+        }
+        return out;
+    },
+
+    /** Would laying `def` at (q, r) land on someone, or on a stump or tree someone is at? */
+    _fellingBusy(q, r, def) {
+        const ia = this._activeInteraction;
+        if (ia && !ia.done && ia.anchorQ === q && ia.anchorR === r) return true;
+        if ((this.npcs || []).some(n => n._chop && n._chop.q === q && n._chop.r === r)) return true;
+        const cells = new Set();
+        // (the cells it blocks: a tree's trunk, not its crown, which is walked under)
+        for (const m of (def && def.meta) || []) if (m.impassable) cells.add(`${q + m.localCol},${r + m.localRow}`);
+        if (!cells.size) cells.add(`${q},${r}`);
+        const at = (x, y) => cells.has(`${x},${y}`);
+        if (at(this.playerInnerQ, this.playerInnerR)) return true;
+        return (this.npcs || []).some(n => n.state !== 'inside_building' && at(n.q, n.r));
     },
 
     /** Make (q, r) show the stage of a felling: replaces the tree, stump or sapling of it found there. */
@@ -172,6 +225,13 @@ Object.assign(InnerMap, {
 
     /** Age the falling trees; a tree that has come down and lain a moment is let go. Returns those that hit the ground this frame. */
     updateFelling(dt) {
+        // A new day on the map: the fellings grow on where they stand
+        const day = this._fellDay();
+        if (this._fellRec && this._fellSeenDay != null && day !== this._fellSeenDay) {
+            this._fellSeenDay = day;
+            const grew = this._regrowLive(day);
+            if (grew.length) this._regrown = (this._regrown || []).concat(grew);
+        }
         const list = this._fallingTrees;
         if (!list || !list.length) return [];
         const C = _config();

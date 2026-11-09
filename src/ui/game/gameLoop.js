@@ -273,6 +273,11 @@ export function gameLoop(timestamp, loopId) {
             InnerMap._chopEvents.length = 0;
         }
         for (const landed of InnerMap.updateFelling(simDelta)) InnerMapFelling.onLanded(landed);
+        // stumps sprouting and saplings grown into trees as the day turns (world/innerMap/felling.js _regrowLive)
+        if (InnerMap._regrown && InnerMap._regrown.length) {
+            for (const g of InnerMap._regrown) InnerMapFelling.onRegrow(g.q, g.r, g.defId);
+            InnerMap._regrown.length = 0;
+        }
         if (interactionResult && interactionResult.hit && typeof InnerMapCombat !== 'undefined') {
             // Spawn floating damage number over object on each swing
             // (the felling blow ends the interaction: the result carries the object then)

@@ -233,3 +233,51 @@ describe('what a felled tree gives, and the axe', () => {
         expect(Gathering.skillFor(def('tp_stump_oak2'))).toBe('woodcutting');
     });
 });
+
+describe('the wood grows back while you are there', () => {
+    it('as the day turns, a stump sprouts and the sapling grows into its tree, with no new visit', () => {
+        meadow('tp_tree_birch');
+        const world = { day: 10 };
+        InnerMap._bindFelling(world, '6,6', 10);
+        chopDown();
+        InnerMap.updateFelling(5);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe('tp_stump_birch');
+        InnerMap._regrown = [];
+        const C = Felling.config();
+        // the same day: nothing yet
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe('tp_stump_birch');
+        world.day = 10 + C.sproutDays;
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe(C.sapling);
+        expect(InnerMap._regrown).toEqual([{ q: 4, r: 6, stage: 'sapling', defId: C.sapling }]);
+        world.day = 10 + C.treeDays;
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe('tp_tree_birch');
+        expect(world.felled['6,6']['4,6']).toBeUndefined();
+    });
+
+    it("never under anyone's feet nor while it is being grubbed: it waits a day", () => {
+        meadow('tp_tree_birch');
+        const world = { day: 10 };
+        InnerMap._bindFelling(world, '7,7', 10);
+        chopDown();
+        const C = Felling.config();
+        // standing on the trunk's cell (the stump's blocking cell, as if just stepped there)
+        InnerMap.playerInnerQ = 5;
+        world.day = 10 + C.sproutDays;
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe('tp_stump_birch');
+        // stepped off, the next day it sprouts
+        InnerMap.playerInnerQ = 3;
+        world.day += 1;
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe(C.sapling);
+        // a town woodcutter at it holds it too
+        world.day = 10 + C.treeDays;
+        InnerMap.npcs = [{ q: 3, r: 6, state: 'idle', _chop: { q: 4, r: 6 } }];
+        InnerMap.updateFelling(0.1);
+        expect(InnerMap.tiles[6][4].customObject.defId).toBe(C.sapling);
+        InnerMap.npcs = [];
+    });
+});

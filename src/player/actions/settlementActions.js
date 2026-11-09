@@ -31,6 +31,7 @@ import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
 import { Lots } from '../../systems/lots.js';
+import { Graveyards } from '../../systems/graveyards.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
@@ -196,6 +197,19 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}: build, let, put out, sell`,
             });
         }
+    }
+
+    // The churchyard, the bone trade, your burial grounds and your own dead (systems/graveyards.js)
+    if (tile.settlement) {
+        const kin = Graveyards.kinWaiting(player).length;
+        const sites = Graveyards.sitesView(world, player).length;
+        const work = Graveyards.digWork(world, tile.settlement);
+        actions.push({
+            type: 'graveyards',
+            label: 'Graveyards & the Dead',
+            icon: '🪦',
+            description: `The churchyard and the charnel house${work ? `, ${work} grave${work === 1 ? '' : 's'} to dig` : ''}${sites ? `, ${sites} work${sites === 1 ? '' : 's'} of yours` : ''}${kin ? `, ${kin} of yours awaiting burial` : ''}: plots, bones, burial grounds`,
+        });
     }
 
     // Tavern / Talk to Locals

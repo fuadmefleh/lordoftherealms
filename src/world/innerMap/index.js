@@ -16,6 +16,7 @@ import './townHerbalists.js';
 import './jail.js';
 import './seats.js';
 import './lots.js';
+import './graves.js';
 import './furnitureUse.js';
 import './furnishing.js';
 import './encounters.js';

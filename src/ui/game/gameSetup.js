@@ -399,8 +399,9 @@ export async function _doStartNewGame(settingsOverride) {
         seed: mapSeed,
         // Current terrain generator: 2 = peaks on land, rivers that reach the
         // sea; 3 = generated with the true hex distance (core/hex.js); 4 =
-        // towns built in their culture's own architecture (data/architecture.json)
-        terrainGen: 4,
+        // towns built in their culture's own architecture (data/architecture.json); 5 = towns
+        // with a churchyard planned beside the church (world/churchyard.js)
+        terrainGen: 5,
         continentCount,
         terrainFreq,
         riverCount,

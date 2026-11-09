@@ -44,6 +44,7 @@ import { CourierRiders } from '../systems/courierRiders.js';
 import { Hospitality } from '../systems/hospitality.js';
 import { OutlawLairs } from '../systems/outlawLairs.js';
 import { Lots } from '../systems/lots.js';
+import { Graveyards } from '../systems/graveyards.js';
 import { Discovery } from '../systems/discovery.js';
 import { Pirates } from '../systems/pirates.js';
 import { RealmWars } from '../systems/realmWars.js';
@@ -107,6 +108,7 @@ function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
 const WORLD_DAY = [
     (w) => Townsfolk.processDay(w, null),
     (w) => Lots.processDay(w, null),
+    (w) => Graveyards.processDay(w, null),
     (w) => Demands.processDay(w, null),
     (w) => Delves.processDay(w, null),
     (w) => Sagas.processDay(w, null),

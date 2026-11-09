@@ -148,6 +148,12 @@
             "languages": { "name": "Lessons & interpreters", "group": "household" },
             "townRent": { "name": "Rent on houses in town", "group": "household" },
             "townRentIncome": { "name": "Rents from your town houses", "group": "enterprise" },
+            "graveLeases": {"name": "Grave leases sold", "group": "enterprise"},
+            "graveFees": {"name": "Blessings & sexton's fees", "group": "enterprise"},
+            "graveWorks": {"name": "Bone mills, ossuaries & crypts built", "group": "capital", "kind": "cap"},
+            "boneTrade": {"name": "Bones & bone meal", "group": "trade"},
+            "ossuaryVisits": {"name": "Ossuary visitors", "group": "enterprise"},
+            "funerals": {"name": "Funerals of your own", "group": "household"},
             "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" },
             "livestock": { "name": "Livestock bought & sold", "group": "capital", "kind": "cap" },
             "livestockFeed": { "name": "Fodder for your beasts", "group": "household" }

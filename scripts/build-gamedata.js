@@ -93,7 +93,8 @@ const topLevel = [
     'furniture',
     'crops',
     'craftGrades',
-    'livestock'
+    'livestock',
+    'graves'
 ];
 
 const merged = {};
@@ -102,6 +103,17 @@ const merged = {};
 for (const name of topLevel) {
     const data = readJson(path.join(dataDir, `${name}.json`));
     if (data !== null) { merged[name] = data; console.log(`  + ${name}.json`); }
+}
+
+// ── The grave art's manifest (assets/lpc/new/graves/manifest.json, scripts/make_graves.py) → graves.art ──
+// (world/graveArt.js stands a marker on the map only once its sprite is listed here)
+if (merged.graves) {
+    const dir = merged.graves.artDir || 'assets/lpc/new/graves';
+    const man = path.join(__dirname, '..', dir, 'manifest.json');
+    if (fs.existsSync(man)) {
+        const art = readJson(man);
+        if (art) { merged.graves.art = art; console.log(`  + ${dir}/manifest.json → graves.art (${Object.keys(art).length} sprites)`); }
+    }
 }
 
 // ── skillPacks/: more practised skills, each file deep-merged into practiceSkills ──

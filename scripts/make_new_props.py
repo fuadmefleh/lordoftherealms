@@ -1,0 +1,151 @@
+"""
+Town props redrawn with ChatGPT, fitted into the 32px-cell layout of their LPC
+sheets so every prop and building that names a cell keeps working. Written over
+the 4x "modern" sheets (assets/modern/<path>, 128px a cell) that
+data/innerMapRenderer.json modernSheets points the game at.
+
+Each recipe names its source (a ChatGPT drawing of separate objects on a flat
+background, in reading order) and, for each object in turn, the cell rectangle
+[col, row, w, h] it fills. An object is scaled, keeping its shape, to fit the box
+the old sprite took up in that rectangle (so a bucket stays bucket-sized), and
+stood on that box's bottom, centred across it. The rectangles are cleared
+first; cells nothing names (unused by any prop or building) keep what they had.
+
+Run from the repo root: python scripts/make_new_props.py [name ...]
+"""
+import os
+import sys
+import numpy as np
+from PIL import Image
+from scipy import ndimage
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from make_new_windows import key_white  # noqa: E402
+
+C = 128
+NEW = 'assets/lpc/new'
+
+# the sheets (their path under assets/, and their size in cells)
+SHEETS = {
+    'planter':  ('lpc/Objects/Furniture/Planter.png', (5, 3)),
+    'barrel':   ('lpc/Objects/Furniture/Barrel.png', (5, 2)),
+    'crate':    ('lpc/Objects/Furniture/Crate.png', (3, 4)),
+    'sawhorse': ('lpc/Objects/Furniture/Sawhorse.png', (2, 3)),
+    'lumber':   ('lpc/Objects/Small Items/Lumber.png', (10, 3)),
+    'buckets':  ('lpc/Objects/Small Items/Buckets.png', (3, 2)),
+    'baskets':  ('lpc/Objects/Small Items/Baskets A.png', (3, 2)),
+    'lamp':     ('lpc/Objects/Furniture/Lighting, Outdoors.png', (2, 3)),
+    'hay':      ('lpc/Objects/Small Items/Hay & Straw.png', (4, 3)),
+    'fountain': ('lpc/Structure/Misc/Fountain A.png', (2, 3)),
+    'runestone': ('lpc/Objects/Furniture/Wolf Stone.png', (4, 4)),
+    'campfire': ('lpc/Objects/Small Items/Fire, Camp.png', (4, 2)),
+    'pillar':   ('lpc/Structure/Pillars/Stone Pillar A.png', (9, 12)),
+    'clan_tents': ('lpc/Objects/Camp/Clan Tents.png', (6, 3)),
+    'pool':     ('lpc/Structure/Misc/Pool A.png', (3, 3)),
+    'flowers':  ('lpc/Objects/Small Items/Flowers.png', (9, 4)),
+    'chimney':  ('lpc/Structure/Roofing/Brick Chimney A.png', (6, 6)),
+    'signs':    ('lpc/Structure/Signs/Sign Backgrounds A.png', (2, 2)),
+    'awnings':  ('lpc/Structure/Windows/Window Awnings A.png', (9, 6)),
+}
+
+# a source, and the sheet and cell rectangle each of its drawings fills, in reading order
+# (a third entry: more rectangles the same drawing fills, e.g. an animation's frames)
+RECIPES = {
+    # (an awning is used as the one cell 16px down from a cell's top: row 0.5 / 3.5)
+    'parts': ('parts_source.png', [('chimney', [c, r, 1, 2]) for c in (1, 4) for r in (0, 2, 4)]
+              + [('signs', [0, 0, 1, 1]), ('signs', [1, 0, 1, 1]), ('signs', [0, 1, 1, 1]), ('signs', [1, 1, 1, 1])]
+              + [('awnings', [c, r, 1, 1]) for r in (0.5, 3.5) for c in (2, 5, 8)]),
+    'flowers': ('flowers_source.png', [('flowers', [c, 1, 1, 1]) for c in (0, 1, 2, 3, 5, 7, 8)]
+                + [('flowers', [c, r, 1, 1]) for r in (2, 3) for c in (5, 6, 7, 8)]),
+    'props2': ('props2_source.png', [
+        ('lamp', [0, 0, 1, 3]), ('lamp', [1, 0, 1, 3]), ('hay', [0, 0, 2, 3]), ('hay', [2, 0, 2, 3]),
+        ('fountain', [0, 0, 2, 3]), ('runestone', [0, 0, 2, 2]), ('runestone', [2, 0, 2, 2]), ('campfire', [0, 0, 1, 1]),
+        ('campfire', [0, 1, 1, 1], [[1, 1, 1, 1], [2, 1, 1, 1], [3, 1, 1, 1]]),
+        ('pillar', [0, 0, 2, 3]), ('pillar', [3, 0, 2, 3]), ('pillar', [6, 0, 2, 3]), ('pillar', [2, 0, 1, 3]),
+        ('clan_tents', [0, 0, 3, 3]), ('clan_tents', [3, 0, 3, 3]), ('pool', [0, 0, 3, 3])]),
+    'props1': ('props1_source.png', [
+        ('barrel', [0, 0, 1, 2]), ('barrel', [1, 0, 1, 2]), ('barrel', [3, 0, 2, 2]), ('crate', [0, 0, 1, 2]),
+        ('crate', [1, 1, 1, 1]), ('crate', [2, 1, 1, 1]), ('sawhorse', [0, 0, 1, 2]), ('lumber', [0, 2, 2, 1]),
+        ('lumber', [2, 2, 2, 1]), ('buckets', [0, 0, 1, 1]), ('baskets', [2, 0, 1, 2])]),
+    'planter': ('planter_source.png', [
+        ('planter', [1, 0, 1, 3]), ('planter', [2, 0, 1, 3]), ('planter', [0, 1, 1, 2]), ('planter', [3, 1, 1, 2]),
+        ('planter', [4, 1, 1, 2]), ('planter', [3, 0, 1, 1]), ('planter', [4, 0, 1, 1])]),
+}
+
+
+def objects(im, min_frac=0.03):
+    """The separate drawings of a source, in reading order (rows by their middles)."""
+    a = np.array(im)
+    mask = a[..., 3] > 0
+    lab, k = ndimage.label(ndimage.binary_dilation(mask, iterations=4))
+    sizes = ndimage.sum(mask, lab, range(1, k + 1))
+    objs = ndimage.find_objects(lab)
+    found = []
+    for i in range(k):
+        if sizes[i] < sizes.max() * min_frac:
+            continue
+        b = objs[i]
+        sub = a[b].copy()
+        sub[lab[b] != i + 1] = 0
+        found.append(((b[0].start + b[0].stop) / 2, (b[1].start + b[1].stop) / 2, b[0].stop - b[0].start,
+                      Image.fromarray(sub, 'RGBA')))
+    # group into rows: a drawing joins a row if its middle lies within the row's first drawing
+    found.sort(key=lambda f: f[0])
+    rows = []
+    for f in found:
+        if rows and abs(f[0] - rows[-1][0][0]) < rows[-1][0][2] * 0.5:
+            rows[-1].append(f)
+        else:
+            rows.append([f])
+    return [f[3] for row in rows for f in sorted(row, key=lambda f: f[1])]
+
+
+def old_box(key, c, r, w, h):
+    """The old sprite's box inside the rectangle, at 4x (x0, y0, x1, y1, relative to the rectangle)."""
+    a = np.array(Image.open(os.path.join('assets', SHEETS[key][0])).convert('RGBA'))
+    sub = a[int(r * 32):int((r + h) * 32), int(c * 32):int((c + w) * 32), 3] > 0
+    ys, xs = np.where(sub)
+    if not len(ys):
+        return 0, 0, w * C, h * C
+    return xs.min() * 4, ys.min() * 4, (xs.max() + 1) * 4, (ys.max() + 1) * 4
+
+
+def fit(im, w, h, box):
+    x0, y0, x1, y1 = box
+    s = min((x1 - x0) / im.width, (y1 - y0) / im.height)
+    t = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    block = Image.new('RGBA', (w * C, h * C), (0, 0, 0, 0))
+    block.alpha_composite(t, ((x0 + x1 - t.width) // 2, y1 - t.height))
+    return block
+
+
+def build(name):
+    source, items = RECIPES[name]
+    objs = objects(key_white(Image.open(os.path.join(NEW, source))))
+    if len(objs) != len(items):
+        raise SystemExit(f'{name}: found {len(objs)} drawings, want {len(items)}')
+    sheets = {}
+    clear = Image.new('RGBA', (C, C), (0, 0, 0, 0))
+    flat = []
+    for im, item in zip(objs, items):
+        for rect in [item[1]] + (item[2] if len(item) > 2 else []):
+            flat.append((im, item[0], rect))
+    for im, key, (c, r, w, h) in flat:
+        if key not in sheets:
+            path, (cols, rows) = SHEETS[key]
+            sheets[key] = Image.open(os.path.join('assets/modern', path)).convert('RGBA')
+            assert sheets[key].size == (cols * C, rows * C), (key, sheets[key].size)
+        sheet = sheets[key]
+        for y in range(h):
+            for x in range(w):
+                sheet.paste(clear, (int((c + x) * C), int((r + y) * C)))
+        sheet.alpha_composite(fit(im, w, h, old_box(key, c, r, w, h)), (int(c * C), int(r * C)))
+    for key, sheet in sheets.items():
+        out = os.path.join('assets/modern', SHEETS[key][0])
+        sheet.save(out)
+        print('wrote', out, sheet.size)
+
+
+if __name__ == '__main__':
+    for n in sys.argv[1:] or list(RECIPES):
+        build(n)

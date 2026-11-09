@@ -82,6 +82,30 @@ function _tile(world, q, r) {
     return world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
 }
 
+/** The town's purse (settlement.economy.gold): what the dealers pay out of and into. null when it keeps none. */
+function _econ(s) {
+    return s && _obj(s.economy) ? s.economy : null;
+}
+
+/** Coin into (+) or out of (−) a town's purse. */
+function _purse(s, amount) {
+    const e = _econ(s);
+    if (e) e.gold = _r2(Math.max(0, _num(e.gold) + amount));
+}
+
+/** The settlement at (q, r), else the nearest one (the market a herd there buys its fodder from). */
+function _townNear(world, q, r) {
+    const t = _tile(world, q, r);
+    if (t && t.settlement) return t.settlement;
+    const list = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+    let best = null, bd = Infinity;
+    for (const s of list) {
+        const d = Hex.distance(q, r, s.q, s.r);
+        if (d < bd) { bd = d; best = s; }
+    }
+    return best;
+}
+
 function _season(world) {
     return (world && world.season) || Seasons.seasonOf(Seasons.today(world));
 }
@@ -384,7 +408,16 @@ export const Livestock = {
             const now = b.stock[id] == null ? target : _num(b.stock[id]);
             // Back toward the target: refilled when bought down, sold on when glutted
             const step = target * per * days;
+            // (bred by the town's own farmers, a head at a time, toward what the land carries)
             b.stock[id] = _r2(now < target ? Math.min(target, now + step) : Math.max(target, now - step));
+            // a glut goes to the town's butchers: its meat into the town's food
+            const culled = now > target ? now - b.stock[id] : 0;
+            const e = _econ(s);
+            if (culled > 0 && e && e.food != null) {
+                const meat = ((Livestock.species(id) || {}).slaughter || []).find(x => x && /meat|mutton|beef|pork/.test(String(x.good)));
+                const [lo, hi] = _pair(meat && meat.qty, 0);
+                e.food = _r2(_num(e.food) + culled * (lo + hi) / 2);
+            }
         }
         for (const id of Object.keys(b.stock)) if (offer[id] == null) delete b.stock[id];
         b.day = _day(world);
@@ -493,6 +526,8 @@ export const Livestock = {
         const fee = Livestock.droveFee(id, n, hexes);
         if (_num(player.gold) < cost + fee) return { success: false, reason: `${n} ${String(n === 1 ? sp.name : (sp.plural || sp.name)).toLowerCase()} cost ${cost}g${fee ? ` and ${fee}g to drive home` : ''}; you have ${Math.floor(_num(player.gold))}g.` };
         player.gold -= cost + fee;
+        // the dealer's price and the drover's wage stay in the town
+        _purse(s, cost + fee);
         Ledger.record(player, 'livestock', -cost);
         if (fee) Ledger.record(player, 'livestockFeed', -fee);
         book.stock[id] = _r2(_num(book.stock[id]) - n);
@@ -556,12 +591,23 @@ export const Livestock = {
         const { book, offer } = Livestock._book(world, s, o.tile);
         const target = offer[id] != null ? offer[id] : Math.max(2, Math.round(_num((_obj(sp.market) || {}).stock && sp.market.stock[0], 3)));
         let stock = _num(book.stock[id], offer[id] != null ? target : 0);
+        // paid out of the town's purse: no more than it holds
+        const econ = _econ(s);
+        const purse = econ ? Math.max(0, _num(econ.gold)) : Infinity;
         let earned = 0;
+        const sold = [];
         for (const a of picks) {
-            earned += Livestock.unitSellPrice(world, s, id, stock + 1, target, a, o.tile);
+            const p = Livestock.unitSellPrice(world, s, id, stock + 1, target, a, o.tile);
+            if (Math.round(earned + p) > purse) break;
+            earned += p;
             stock += 1;
+            sold.push(a);
         }
+        if (!sold.length) return { success: false, reason: `${s.name || 'The town'}'s dealers haven't the coin to buy today.` };
+        picks.length = 0;
+        picks.push(...sold);
         earned = Math.round(earned);
+        _purse(s, -earned);
         book.stock[id] = _r2(stock);
         herd.animals = herd.animals.filter(a => !picks.includes(a));
         player.gold = _num(player.gold) + earned;
@@ -801,9 +847,13 @@ export const Livestock = {
             const sp = Livestock.species(a.sp);
             value += Livestock.baseValue(a.sp) * _num(M.sellShare, 0.65) * (Livestock.isYoung(a, sp) ? _num(M.young, 0.5) : 1);
         }
-        value = Math.round(value);
         const n = herd.animals.length;
+        // bought by the nearest town's dealers, out of its purse
+        const town = n ? _townNear(world, herd.place && herd.place.q, herd.place && herd.place.r) : null;
+        const e = _econ(town);
+        value = Math.round(e ? Math.min(value, Math.max(0, _num(e.gold))) : value);
         if (n) {
+            _purse(town, -value);
             player.gold = _num(player.gold) + value;
             Ledger.record(player, 'livestock', value);
             notices.push({ icon: '🐾', title: 'Beasts Sold Off', text: `With nowhere left to keep them, your ${n} beast${n === 1 ? '' : 's'} were sold off for ${value}g.`, type: 'warning' });
@@ -823,13 +873,23 @@ export const Livestock = {
         const cost = Livestock.feedCost(world, herd, pl);
         if (cost > 0) {
             const whole = Math.ceil(cost * 100) / 100;
-            if (_num(player.gold) >= whole) {
+            // Fodder is real: hay and grain out of the nearest town's store, the coin into its purse
+            const town = _townNear(world, pl.q, pl.r);
+            const te = _econ(town);
+            const food = whole * _num((Livestock.config().fodder || {}).foodPerGold, 0.5);
+            const stocked = !te || te.food == null || _num(te.food) >= food;
+            if (_num(player.gold) >= whole && stocked) {
                 player.gold -= whole;
+                if (te) {
+                    _purse(town, whole);
+                    if (te.food != null) te.food = _r2(Math.max(0, _num(te.food) - food));
+                }
                 Ledger.record(player, 'livestockFeed', -whole);
                 herd.hungry = 0;
             } else {
                 herd.hungry = _num(herd.hungry) + 1;
-                if (herd.hungry === 1 || herd.hungry % 5 === 0) notices.push({ icon: '🌾', title: 'Hungry Beasts', text: `You cannot pay for fodder at ${name} (${whole}g a day): your beasts go hungry and give nothing.`, type: 'error' });
+                const why = stocked ? `You cannot pay for fodder at ${name} (${whole}g a day)` : `${town.name || 'The town'} has no fodder to spare for ${name}`;
+                if (herd.hungry === 1 || herd.hungry % 5 === 0) notices.push({ icon: '🌾', title: 'Hungry Beasts', text: `${why}: your beasts go hungry and give nothing.`, type: 'error' });
             }
         } else herd.hungry = 0;
         const hungry = herd.hungry > 0;

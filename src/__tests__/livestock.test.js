@@ -241,6 +241,40 @@ describe('the herd by the day', () => {
     });
 });
 
+describe('coin and fodder are real (the town’s purse and food store)', () => {
+    it('what you pay goes into the town’s purse; it pays you out of it, no more than it holds; fodder comes out of its food', () => {
+        const { world, settlement, at } = makeWorld({ season: 'Winter' });
+        world.getSettlementViews = () => [settlement];
+        settlement.economy = { gold: 200, food: 100 };
+        const p = makePlayer(world, at, ['farm']);
+        const res = Livestock.buy(world, p, settlement, 'chicken', 5, FARM);
+        expect(res.success).toBe(true);
+        expect(settlement.economy.gold).toBeCloseTo(200 + res.cost + res.fee, 2);
+        const total = p.gold + settlement.economy.gold;
+
+        // fodder: the bill leaves your purse for the town's, its food goes down
+        const herd = Livestock.herd(p, FARM);
+        const bill = Livestock.feedCost(world, herd, Livestock.placeOf(world, p, FARM));
+        expect(bill).toBeGreaterThan(0);
+        days(world, p, 1);
+        expect(p.gold + settlement.economy.gold).toBeCloseTo(total, 1);
+        expect(settlement.economy.food).toBeLessThan(100);
+        // a town with no food sells no fodder: they go hungry
+        settlement.economy.food = 0;
+        const notes = days(world, p, 1);
+        expect(herd.hungry).toBe(1);
+        expect(notes.some(n => /no fodder to spare/.test(n.text))).toBe(true);
+
+        // selling: paid out of the purse, the totals unchanged; a bare purse buys nothing
+        const t2 = p.gold + settlement.economy.gold;
+        const sold = Livestock.sell(world, p, settlement, FARM, 'chicken', 1);
+        expect(sold.success).toBe(true);
+        expect(p.gold + settlement.economy.gold).toBeCloseTo(t2, 1);
+        settlement.economy.gold = 0;
+        expect(Livestock.sell(world, p, settlement, FARM, 'chicken', 1).success).toBe(false);
+    });
+});
+
 describe('the working herds', () => {
     it('a Pasture gets its founding flock; its output follows the head kept there', () => {
         const { world, at } = makeWorld();

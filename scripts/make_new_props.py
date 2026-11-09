@@ -55,7 +55,7 @@ SHEETS = {
     'grocks':   ('lpc/Terrain/Rocks, Grasslands.png', (6, 12)),
     'crops':    ('lpc/crops.png', (32, 32)),
     'chest':    ('lpc/Objects/Furniture/Chest.png', (4, 3)),   # no repaint before
-    'harvest':  ('lpc/Objects/Small Items/Harvest.png', (4, 3)),   # new: the haystack and the sheaf
+    'harvest':  ('lpc/Objects/Small Items/Harvest.png', (6, 3)),   # new: the haystack, the sheaf, the town well
     **{f'plants_{x}': (f'lpc/Terrain/plants_{x}.png', (16, 5)) for x in ('spring', 'summer', 'autumn', 'winter')},   # no repaint before: started from the original at 4x
 }
 
@@ -82,7 +82,9 @@ PLANT_CELLS = [
 RECIPES = {
     # the haystack and the wheat sheaf (data/townProps.json, sheet "harvest"; they were cut from the
     # wheat field's tiles before); the 32px sheet is the 4x one scaled down
-    'harvest': ('harvest_source.png', [('harvest', [0, 0, 3, 3]), ('harvest', [3, 1, 1, 2])], 'downscale'),
+    'harvest': ('harvest_source.png', [('harvest', [0, 0, 3, 3, 0.7]), ('harvest', [3, 1, 1, 2, 0.85])], 'downscale'),
+    # the town well, 2x2 (it had one furniture cell before and stood smaller than a barrel)
+    'well': ('farm_source.png', [(None, None)] * 12 + [('harvest', [4, 1, 2, 2, 0.85])], 'downscale', 'holes'),
     # the chest sheet's small closed chest (a chest afloat): the furniture's treasure chest
     'chest': ('furniture_source.png', [(None, None)] * 3 + [('chest', [2, 0, 1, 1])] + [(None, None)] * 28),
     # the field crops (data/crops.json art: sprout, young, nearly grown, ripe; hemp's last two
@@ -113,9 +115,9 @@ RECIPES = {
     # twelve frames, three down each of four columns, drawn a row at a time (their openings keyed out)
     'frames': ('frames_source.png', [('frame', [3 * k, 2 * j, 3, 2]) for j in range(3) for k in range(4)], 'holes', 'stretch'),
     'farm': ('farm_source.png', [
-        ('farm', [5, 3, 3, 5]), ('farm', [0, 0, 1, 2]), ('farm', [3, 0, 2, 2]), ('farm', [6, 0, 1, 2]),
-        ('farm', [3, 2, 2, 2]), ('farm', [1, 2, 1, 2])]
-        + [('farm', [c, 10, 1, 1]) for c in (8, 9, 10, 12, 13, 14)] + [('kitfurn', [3, 7, 1, 1])], 'holes'),
+        ('farm', [5, 3, 3, 5, 0.68]), ('farm', [0, 0, 1, 2]), ('farm', [3, 0, 2, 2]), ('farm', [6, 0, 1, 2, 0.8]),
+        ('farm', [3, 2, 2, 2, 0.8]), ('farm', [1, 2, 1, 2, 0.75])]
+        + [('farm', [c, 10, 1, 1, 0.75]) for c in (8, 9, 10, 12, 13, 14)] + [('kitfurn', [3, 7, 1, 1])], 'holes'),
     # (an awning is used as the one cell 16px down from a cell's top: row 0.5 / 3.5)
     'parts': ('parts_source.png', [('chimney', [c, r, 1, 2]) for c in (1, 4) for r in (0, 2, 4)]
               + [('signs', [0, 0, 1, 1]), ('signs', [1, 0, 1, 1]), ('signs', [0, 1, 1, 1]), ('signs', [1, 1, 1, 1])]
@@ -129,12 +131,12 @@ RECIPES = {
         ('pillar', [0, 0, 2, 3]), ('pillar', [3, 0, 2, 3]), ('pillar', [6, 0, 2, 3]), ('pillar', [2, 0, 1, 3]),
         ('clan_tents', [0, 0, 3, 3]), ('clan_tents', [3, 0, 3, 3]), ('pool', [0, 0, 3, 3])]),
     'props1': ('props1_source.png', [
-        ('barrel', [0, 0, 1, 2]), ('barrel', [1, 0, 1, 2]), ('barrel', [3, 0, 2, 2]), ('crate', [0, 0, 1, 2]),
-        ('crate', [1, 1, 1, 1]), ('crate', [2, 1, 1, 1]), ('sawhorse', [0, 0, 1, 2]), ('lumber', [0, 2, 2, 1]),
-        ('lumber', [2, 2, 2, 1]), ('buckets', [0, 0, 1, 1]), ('baskets', [2, 0, 1, 2])]),
+        ('barrel', [0, 0, 1, 2, 0.8]), ('barrel', [1, 0, 1, 2, 0.8]), ('barrel', [3, 0, 2, 2, 0.8]), ('crate', [0, 0, 1, 2, 0.8]),
+        ('crate', [1, 1, 1, 1, 0.75]), ('crate', [2, 1, 1, 1]), ('sawhorse', [0, 0, 1, 2]), ('lumber', [0, 2, 2, 1]),
+        ('lumber', [2, 2, 2, 1]), ('buckets', [0, 0, 1, 1, 0.75]), ('baskets', [2, 0, 1, 2, 0.7])]),
     'planter': ('planter_source.png', [
-        ('planter', [1, 0, 1, 3]), ('planter', [2, 0, 1, 3]), ('planter', [0, 1, 1, 2]), ('planter', [3, 1, 1, 2]),
-        ('planter', [4, 1, 1, 2]), ('planter', [3, 0, 1, 1]), ('planter', [4, 0, 1, 1])]),
+        ('planter', [1, 0, 1, 3]), ('planter', [2, 0, 1, 3]), ('planter', [0, 1, 1, 2]), ('planter', [3, 1, 1, 2, 0.8]),
+        ('planter', [4, 1, 1, 2]), ('planter', [3, 0, 1, 1, 0.85]), ('planter', [4, 0, 1, 1])]),
 }
 
 
@@ -213,8 +215,9 @@ def build(name):
             flat.append((im, item[0], rect))
     for im, key, rect in flat:
         c, r, w, h = rect[:4]
-        if len(rect) > 4 and rect[4] == 'f':
+        if 'f' in rect[4:]:
             im = im.transpose(Image.FLIP_LEFT_RIGHT)
+        shrink = next((x for x in rect[4:] if isinstance(x, float)), 1.0)
         if key not in sheets:
             path, (cols, rows) = SHEETS[key]
             mod = os.path.join('assets/modern', path)
@@ -230,7 +233,13 @@ def build(name):
         for y in range(h):
             for x in range(w):
                 sheet.paste(clear, (int((c + x) * C), int((r + y) * C)))
-        sheet.alpha_composite(fit(im, w, h, old_box(key, c, r, w, h), 'stretch' in opts), (int(c * C), int(r * C)))
+        # (a sheet this script writes in full has no old sprite to measure: its whole rectangle)
+        box = (0, 0, w * C, h * C) if 'downscale' in opts else old_box(key, c, r, w, h)
+        if shrink != 1.0:   # smaller than the old sprite (the LPC one was out of scale with a person)
+            x0, y0, x1, y1 = box
+            bw, bh = (x1 - x0) * shrink, (y1 - y0) * shrink
+            box = (round((x0 + x1 - bw) / 2), round(y1 - bh), round((x0 + x1 + bw) / 2), y1)
+        sheet.alpha_composite(fit(im, w, h, box, 'stretch' in opts), (int(c * C), int(r * C)))
     for key, sheet in sheets.items():
         out = os.path.join('assets/modern', SHEETS[key][0])
         sheet.save(out)
@@ -241,6 +250,31 @@ def build(name):
             print('wrote', small)
 
 
+def door_awnings():
+    """The awnings over doors: a doorway with its frame is a tile and a half wide, so these are
+    48px across (Door Awnings.png, six in a row, white, yellow, orange, slate, blue, green), where a
+    window's awning is the one cell of Window Awnings A. The 32px sheet is the 4x one scaled down."""
+    objs = objects(key_white(Image.open(os.path.join(NEW, 'parts_source.png'))))[10:16]
+    W, H = 48 * 4, 32 * 4
+    sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
+    for i, im in enumerate(objs):
+        # the canopy across the whole width, its poles to the bottom, as the window awnings sit
+        sheet.alpha_composite(_fit_box(im, W, H, (0, 16, W, H)), (i * W, 0))
+    out = 'assets/modern/lpc/Structure/Windows/Door Awnings.png'
+    sheet.save(out)
+    small = 'assets/lpc/Structure/Windows/Door Awnings.png'
+    sheet.resize((sheet.width // 4, sheet.height // 4), Image.LANCZOS).save(small)
+    print('wrote', out, small)
+
+
+def _fit_box(im, W, H, box):
+    x0, y0, x1, y1 = box
+    t = im.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+    block = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    block.alpha_composite(t, (x0, y0))
+    return block
+
+
 if __name__ == '__main__':
-    for n in sys.argv[1:] or list(RECIPES):
-        build(n)
+    for n in sys.argv[1:] or list(RECIPES) + ['door_awnings']:
+        door_awnings() if n == 'door_awnings' else build(n)

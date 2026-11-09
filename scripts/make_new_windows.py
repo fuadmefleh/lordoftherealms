@@ -7,7 +7,8 @@ data/innerMapRenderer.json modernSheets points the game at.
 Sources (assets/lpc/Structure/Windows/new/):
   tall_source.png    3x3: rows arched / ornate crest / gothic lattice;
                      columns night / day / lit
-  small_source.png   3x3: rows small square / round / ogee; same columns
+  small_plain_source.png  3x3: rows small square / round / ogee, slim plain frames so the
+                          glass fills the tile (the first, ornate small_source.png read too small); same columns
 
 Sheet columns are the states (0 night, 1 day, 2 lit). A tall window is cut into
 a top, a middle and a bottom cell, and the arched one is also drawn as top +
@@ -160,7 +161,7 @@ def put(sheet, col, row, block):
 
 def main():
     tall = pieces(key_white(Image.open(os.path.join(SRC, 'tall_source.png'))))
-    small = pieces(key_white(Image.open(os.path.join(SRC, 'small_source.png'))))
+    small = pieces(key_white(Image.open(os.path.join(SRC, 'small_plain_source.png'))))
     sheets = {
         'Stone Windows A.png': (4, [('tall', 0, 0, 3), ('small', 0, 3, 1)]),
         'Ornamental Windows A.png': (5, [('tall', 1, 0, 3)]),

@@ -5153,7 +5153,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 960, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 144, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -5272,7 +5272,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 192, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -5723,7 +5723,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 }
       ]
@@ -6136,7 +6136,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 144, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -2.5, "r": -6, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": -2.5, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -6401,7 +6401,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 16, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 0, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -6732,7 +6732,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 256, "sy": 16, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 96, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -6867,7 +6867,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 16, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 0, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -9049,7 +9049,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 },
         { "q": 0.5, "r": -6, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 0.5, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -9361,7 +9361,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 192, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -2.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
@@ -9458,7 +9458,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -9774,7 +9774,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 960, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 144, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -2.5, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 64, "sw": 32, "sh": 32 },
         { "q": -2.5, "r": -4, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 96, "sw": 32, "sh": 32 }
       ]
@@ -9880,7 +9880,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -10527,7 +10527,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -11842,7 +11842,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 144, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": -6, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
         { "q": -1.5, "r": -5, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -11950,7 +11950,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 }
       ]
     },
@@ -12266,7 +12266,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 960, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -12364,7 +12364,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 192, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 64, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 0, "sy": 0, "sw": 48, "sh": 32 },
         { "q": 1.5, "r": -7, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": -6, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 32, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -12953,7 +12953,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 192, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 256, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 96, "sy": 0, "sw": 48, "sh": 32 },
         { "q": 0.5, "r": -7, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 0.5, "r": -6, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -13071,7 +13071,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 192, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 256, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 96, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 0.5, "r": -8, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 64, "sw": 32, "sh": 32 },
         { "q": 0.5, "r": -7, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 96, "sw": 32, "sh": 32 }
@@ -13767,7 +13767,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 960, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 192, "sy": 0, "sw": 48, "sh": 32 },
         { "q": 1.5, "r": -8, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": -7, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 32, "sw": 32, "sh": 32 }
       ]
@@ -48789,7 +48789,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 256, "sy": 112, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 240, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 }
       ]
@@ -48910,7 +48910,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": -1.5, "r": -9, "sheetPath": "assets/lpc/Structure/Roofing/Brick Chimney A.png", "sx": 128, "sy": 128, "sw": 32, "sh": 32 },
@@ -49411,7 +49411,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 224, "sy": 64, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 256, "sy": 112, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 240, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [
@@ -49630,7 +49630,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 },
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 },
         { "q": -1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 },
         { "q": 1.5, "r": 0, "sheetPath": "assets/lpc/Objects/Furniture/Planter.png", "sx": 128, "sy": 0, "sw": 32, "sh": 32 }
       ]
@@ -49726,7 +49726,7 @@
         { "q": 0, "r": 0, "sheetPath": "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png", "sx": 672, "sy": 320, "sw": 32, "sh": 32 }
       ],
       "overlay": [
-        { "q": 0, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Window Awnings A.png", "sx": 160, "sy": 16, "sw": 32, "sh": 32 }
+        { "q": -0.25, "r": -2, "sheetPath": "assets/lpc/Structure/Windows/Door Awnings.png", "sx": 48, "sy": 0, "sw": 48, "sh": 32 }
       ]
     },
     "meta": [

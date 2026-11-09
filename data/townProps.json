@@ -43,7 +43,7 @@
         { "id": "tp_runestone",     "name": "Rune-stone",       "sheet": "runestone", "rect": [0, 0, 2, 2], "solid": 1, "tags": ["monument"] },
         { "id": "tp_runestone_grey", "name": "Rune-stone",      "sheet": "runestone", "rect": [2, 0, 2, 2], "solid": 1, "tags": ["monument"] },
         { "id": "tp_pool",          "name": "Pool",             "sheet": "pool",     "rect": [0, 0, 3, 3], "solid": 3, "tags": ["square"] },
-        { "id": "tp_well",          "name": "Well",             "sheet": "kitfurn",  "rect": [3, 7, 1, 1], "solid": 1, "tags": ["square"] },
+        { "id": "tp_well",          "name": "Well",             "sheet": "harvest",  "rect": [4, 1, 2, 2], "solid": 1, "tags": ["square"] },
         { "id": "tp_oak",           "name": "Oak",              "sheet": "trees",    "rect": [4, 0, 3, 4], "solid": 1, "tags": ["tree"] },
         { "id": "tp_pine",          "name": "Pine",             "sheet": "trees",    "rect": [4, 12, 3, 4], "solid": 1, "tags": ["tree"] },
         { "id": "tp_tree_oak2", "name": "Oak", "sheet": "trees2", "rect": [0, 0, 3, 4], "solid": 1, "tags": ["tree"], "wild": { "weight": 0.14, "wood": 50 } },

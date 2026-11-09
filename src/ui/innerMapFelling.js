@@ -213,6 +213,49 @@ export const InnerMapFelling = {
         return true;
     },
 
+    /**
+     * The axe carried on the shoulder, walking out to a tree (a town woodcutter on
+     * the way, world/innerMap/townWoodcutters.js). Call with behind = true before
+     * the body and false after. Side on, it rides on the shoulder with its head out
+     * behind the back (drawn behind the body); facing us, held up by the shoulder,
+     * the head beside the head, never across the face; facing away, across the back,
+     * the head over the right shoulder. bob: px the step lifts it.
+     */
+    drawCarriedAxe(ctx, px, py, ds, dir, behind, bob = 0) {
+        const side = dir === DIR_RIGHT ? 1 : dir === DIR_LEFT ? -1 : 0;
+        if ((side !== 0) !== behind) return true;
+        const a = _axe();
+        if (!a) return false;
+        const [sx, sy, sw, sh] = a.rect;
+        const grip = [sx + sw * 0.15, sy + sh * 0.9];
+        const own = -56;
+        const k = ds * 0.7 / 128;
+        // the handle's screen angle from the hands (0 ahead to the right, -90 straight up), and the hands
+        let ang, hx, hy, flip = 1;
+        if (side) {
+            flip = side;
+            ang = -152;                                   // back over the shoulder, the head behind
+            hx = px + side * ds * 0.1;
+            hy = py - ds * 0.62;
+        } else if (dir === DIR_UP) {
+            ang = -62;                                    // across the back, the head over the right shoulder
+            hx = px - ds * 0.1;
+            hy = py - ds * 0.5;
+        } else {
+            ang = -100;                                   // held up by their right shoulder (our left)
+            hx = px - ds * 0.24;
+            hy = py - ds * 0.42;
+        }
+        ctx.save();
+        ctx.translate(hx, hy - bob);
+        ctx.scale(flip, 1);
+        ctx.rotate(((ang - own) * Math.PI) / 180);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(a.img, sx, sy, sw, sh, -(grip[0] - sx) * k, -(grip[1] - sy) * k, sw * k, sh * k);
+        ctx.restore();
+        return true;
+    },
+
     // ── The blows ──
 
     /** A blow landed on the object at (q, r): chips, leaves, the shudder and the knock. */

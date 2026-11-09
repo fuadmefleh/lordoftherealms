@@ -870,6 +870,7 @@ Object.assign(InnerMapRenderer, {
                 const chopRec = npc._chop;
                 const chopP = chopRec && !chopRec.going && npc.activity && npc.activity.type === 'chop' && anim === 'slash'
                     ? Math.max(0, Math.min(0.999, chopRec.timer / (chopRec.interval || 1))) : null;
+                const carryAxe = !!(chopRec && chopRec.going);
                 const nRef = npc, nAnim = anim, nDir = direction;
 
                 items.push({ sortY, zLayer: 2, draw() {
@@ -916,9 +917,13 @@ Object.assign(InnerMapRenderer, {
                         if (sackSheet && nDir === InnerMapCharacters.DIR_UP) drawSack();
                         if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, true);
+                        const stepBob = nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0;
+                        if (carryAxe) InnerMapFelling.drawCarriedAxe(ctx, sx, sy, ds, nDir, true, stepBob);
                         const bodyTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS) : npcTime;
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, bodyTime, cx, cy, cw, ch);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, false);
+                        // on the way out to the tree, the axe over the shoulder
+                        if (carryAxe) InnerMapFelling.drawCarriedAxe(ctx, sx, sy, ds, nDir, false, stepBob);
                         if (extra && nDir !== InnerMapCharacters.DIR_UP) drawTool();
                         if (sackSheet && nDir !== InnerMapCharacters.DIR_UP) drawSack();
                         if (logSheet) drawLogs();

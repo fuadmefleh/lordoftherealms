@@ -188,9 +188,9 @@ def main():
     # the tree sheet (starting from the tree's own scale, which ChatGPT drew them at)
     scales0 = tree_scales()
     bases = tree_bases()
-    plain = grid_cells(key_white(Image.open(os.path.join(NEW, 'stumps_source.png'))), N, N)
-    snowy = grid_cells(key_white(Image.open(os.path.join(NEW, 'stumps_winter_source.png'))), N, N)
-    palms = grid_cells(key_white(Image.open(os.path.join(NEW, 'palm_stumps_source.png'))), 4, 1)
+    plain = grid_cells(key_white(Image.open(os.path.join(NEW, 'stumps_source.png')), clean=True), N, N)
+    snowy = grid_cells(key_white(Image.open(os.path.join(NEW, 'stumps_winter_source.png')), clean=True), N, N)
+    palms = grid_cells(key_white(Image.open(os.path.join(NEW, 'palm_stumps_source.png')), holes=2, clean=True), 4, 1)
     # ChatGPT drew the palm stumps bigger than the palms: one scale for the four, the
     # tall palm's stump as wide as a tall palm's foot on the palm sheet
     palm0 = PALM_FOOT / (palms[0][1][2] - palms[0][1][0] + 1)

@@ -12,10 +12,9 @@ import { resetCanvasTransform } from './hiDpi.js';
 import { CustomSheets, loadSheetInto } from '../core/customSheets.js';
 import { sheetScale } from './sheetScale.js';
 
-// Map scatter sheets that load their painted repaint (data/innerMapRenderer.json
-// `modernSheets`, at 4x in the original layout) — every draw from them scales its
-// 32px cell addresses by sheetScale(). Other keyed sheets stay the originals.
-const MODERN_KEYS = /^(trees|plants)_|^rocks_grass$/;
+// Keyed sheets with a repaint (data/innerMapRenderer.json `modernSheets`, at 4x in
+// the original layout) load it — every draw from them scales its 32px cell
+// addresses by sheetScale().
 
 // ============================================
 // INNER MAP RENDERER — LPC (Liberated Pixel Cup) Style
@@ -113,8 +112,7 @@ export const InnerMapRenderer = {
                     img.onload = () => { this._sheets.set(key, img); resolve(); };
                     img.onerror = () => { console.warn(`LPC sheet missing: ${path}`); resolve(); };
                 });
-                if (MODERN_KEYS.test(key)) loadSheetInto(img, path, DataLoader._gamedata, img.onerror);
-                else img.src = path;
+                loadSheetInto(img, path, DataLoader._gamedata, img.onerror);   // (its repaint, if it has one)
                 promises.push(p);
             }
             // Also load the spritesheet terrain JSON for fill definitions

@@ -883,7 +883,8 @@ Object.assign(InnerMapRenderer, {
                             const s = ds * 0.6 * charScale;
                             const side = nDir === InnerMapCharacters.DIR_LEFT ? -1 : nDir === InnerMapCharacters.DIR_RIGHT ? 1 : 0;
                             const bob = nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0;
-                            ctx.drawImage(sackSheet, 32, 96, 32, 32, sx - s / 2 + side * cw * 0.22, cy + ch * 0.42 - s / 2 - bob, s, s);
+                            const k = self._sheetScale(sackSheet);   // (the grain sack, farming_fishing cell (1, 2-3))
+                            ctx.drawImage(sackSheet, 32 * k, 92 * k, 32 * k, 36 * k, sx - s / 2 + side * cw * 0.22, cy + ch * 0.42 - s / 2 - bob, s, s);
                         };
                         if (sackSheet && nDir === InnerMapCharacters.DIR_UP) drawSack();
                         if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
@@ -1117,11 +1118,14 @@ Object.assign(InnerMapRenderer, {
         const sz = cs * 0.8;
         if (sv.kind === 'planks' && sheet('lumber')) {
             // one of the first row's loose planks
-            ctx.drawImage(sheet('lumber'), (sv.frame % 10) * 32, 0, 32, 32, -sz / 2, -sz * 0.7, sz, sz);
+            const k = this._sheetScale(sheet('lumber'));
+            ctx.drawImage(sheet('lumber'), (sv.frame % 10) * 32 * k, 0, 32 * k, 32 * k, -sz / 2, -sz * 0.7, sz, sz);
         } else if (sv.kind === 'crate' && sheet('crate')) {
-            ctx.drawImage(sheet('crate'), 0, 32, 32, 32, -sz / 2, -sz * 0.75, sz, sz);
+            const k = this._sheetScale(sheet('crate'));
+            ctx.drawImage(sheet('crate'), 0, 32 * k, 32 * k, 32 * k, -sz / 2, -sz * 0.75, sz, sz);
         } else if (sv.kind === 'chest' && sheet('chest')) {
-            ctx.drawImage(sheet('chest'), 64, 0, 32, 32, -sz / 2, -sz * 0.75, sz, sz);
+            const k = this._sheetScale(sheet('chest'));
+            ctx.drawImage(sheet('chest'), 64 * k, 0, 32 * k, 32 * k, -sz / 2, -sz * 0.75, sz, sz);
         } else if (sv.kind === 'sail') {
             ctx.fillStyle = 'rgba(232,224,204,0.95)';
             ctx.beginPath();

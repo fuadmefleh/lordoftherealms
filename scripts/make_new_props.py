@@ -51,12 +51,38 @@ SHEETS = {
     'arched':   ('lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png', (8, 12)),
     'frame':    ('lpc/Structure/Doors/32x64px Doors/Doorframe A.png', (12, 6)),
     'farm':     ('lpc/ThatchedHouses/tilesets/farming_fishing.png', (20, 20)),
-    'kitfurn':  ('buildingKit/furniture.png', (4, 8)),   # no repaint before: started from the original at 4x
+    'kitfurn':  ('buildingKit/furniture.png', (4, 8)),
+    'grocks':   ('lpc/Terrain/Rocks, Grasslands.png', (6, 12)),
+    **{f'plants_{x}': (f'lpc/Terrain/plants_{x}.png', (16, 5)) for x in ('spring', 'summer', 'autumn', 'winter')},   # no repaint before: started from the original at 4x
 }
+
+# The ground plants (map scatter on brush and tall grass, water's-edge dressing): 24 drawings a
+# season, each filling one or more cells of the plants sheet; 'f' marks a mirrored copy.
+PLANT_CELLS = [
+    [(0, 0, 1, 1), (0, 1, 1, 1, 'f')], [(1, 0, 1, 1), (1, 1, 1, 1, 'f')],          # round bushes
+    [(2, 0, 1, 1), (2, 1, 1, 1, 'f')], [(3, 0, 1, 1), (3, 1, 1, 1, 'f')],          # rosettes
+    [(4, 0, 1, 1), (4, 1, 1, 1, 'f')], [(5, 0, 1, 1), (5, 1, 1, 1, 'f')],          # broad leaves
+    [(6, 0, 1, 1), (6, 1, 1, 1, 'f')], [(7, 0, 1, 1)],                             # dense shrubs
+    [(0, 2, 1, 2)], [(1, 2, 1, 2)], [(2, 2, 1, 2)],                                # conifer shrubs
+    [(3, 2, 2, 2)], [(5, 2, 3, 2)],                                                # fern, giant fern
+    [(8, 1, 1, 1), (10, 1, 1, 1, 'f')], [(9, 1, 1, 1)],                            # grass tufts
+    [(8, 2, 1, 2), (9, 2, 1, 2, 'f'), (10, 2, 1, 2)],                              # tall grass
+    [(11, 0, 1, 2), (12, 0, 1, 2, 'f'), (13, 0, 1, 2)],                            # tall reeds
+    [(12, 2, 1, 1), (12, 4, 1, 1, 'f')], [(12, 3, 1, 1), (13, 3, 1, 1, 'f')],      # lily pads
+    [(13, 2, 1, 1), (13, 4, 1, 1, 'f')],                                           # lily pad in flower
+    [(14, 0, 1, 1), (15, 0, 1, 1, 'f')], [(14, 1, 1, 1), (15, 1, 1, 1, 'f')],      # lily flowers
+    [(14, 2, 1, 1), (14, 3, 1, 1, 'f'), (14, 4, 1, 1)], [(15, 2, 1, 1), (15, 3, 1, 1, 'f'), (15, 4, 1, 1)],  # cattails
+]
 
 # a source, and the sheet and cell rectangle each of its drawings fills, in reading order
 # (a third entry: more rectangles the same drawing fills, e.g. an animation's frames)
 RECIPES = {
+    **{f'plants_{x}': (f'plants_{x}_source.png', [(f'plants_{x}', list(cs[0]), [list(c) for c in cs[1:]]) for cs in PLANT_CELLS], 'fresh')
+       for x in ('spring', 'summer', 'autumn', 'winter')},
+    # the grassland rocks (map fallback rocks, water's-edge stones): ten shapes, a colour band of four rows each
+    'grocks': ('grocks_source.png', [('grocks', [c, r + 4 * b, w, h]) for b in range(3) for c, r, w, h in (
+        (0, 0, 2, 3), (2, 0, 2, 2), (4, 0, 2, 2), (2, 2, 2, 1), (0, 3, 2, 1), (2, 3, 2, 1),
+        (4, 2, 1, 1), (5, 2, 1, 1), (5, 3, 1, 1), (4, 3, 1, 1))]),
     # the interior furniture, 4 a row (innerMapRenderer.json interiorArt); its 32nd, a well, is skipped:
     # that cell is the town well, drawn in 'farm'
     'furniture': ('furniture_source.png', [('kitfurn', [i % 4, i // 4, 1, 1]) for i in range(31)] + [(None, None)]),
@@ -122,7 +148,9 @@ def objects(im, min_frac=0.03):
 
 def old_box(key, c, r, w, h):
     """The old sprite's box inside the rectangle, at 4x (x0, y0, x1, y1, relative to the rectangle)."""
-    a = np.array(Image.open(os.path.join('assets', SHEETS[key][0])).convert('RGBA'))
+    # (every season's plants take the summer sheet's boxes: in winter the old leafy plants were stubs)
+    path = SHEETS['plants_summer' if key.startswith('plants_') else key][0]
+    a = np.array(Image.open(os.path.join('assets', path)).convert('RGBA'))
     sub = a[int(r * 32):int((r + h) * 32), int(c * 32):int((c + w) * 32), 3] > 0
     ys, xs = np.where(sub)
     if not len(ys):
@@ -155,7 +183,10 @@ def build(name):
             continue
         for rect in [item[1]] + (item[2] if len(item) > 2 else []):
             flat.append((im, item[0], rect))
-    for im, key, (c, r, w, h) in flat:
+    for im, key, rect in flat:
+        c, r, w, h = rect[:4]
+        if len(rect) > 4 and rect[4] == 'f':
+            im = im.transpose(Image.FLIP_LEFT_RIGHT)
         if key not in sheets:
             path, (cols, rows) = SHEETS[key]
             mod = os.path.join('assets/modern', path)
@@ -164,6 +195,8 @@ def build(name):
                 os.makedirs(os.path.dirname(mod), exist_ok=True)
                 o.resize((o.width * 4, o.height * 4), Image.NEAREST).save(mod)
             sheets[key] = Image.open(mod).convert('RGBA')
+            if 'fresh' in opts:   # nothing of the old sheet kept (the plant scatter takes any lone cell)
+                sheets[key] = Image.new('RGBA', sheets[key].size, (0, 0, 0, 0))
             assert sheets[key].size == (cols * C, rows * C), (key, sheets[key].size)
         sheet = sheets[key]
         for y in range(h):

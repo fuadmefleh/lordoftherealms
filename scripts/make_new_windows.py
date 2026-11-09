@@ -35,10 +35,71 @@ C = 128          # a cell at 4x
 WIDTH = 124      # a window's width in its cell
 
 
-def key_white(im, tol=28, holes=False):
+def defringe(im, bg, ring=2, reach=2, passes=2):
+    """Clean the rim a background key leaves: the drawing's edge pixels are its outline blended
+    with the background (a pale halo once set on grass). For each opaque pixel within `ring` px of
+    the cleared background, take the colour it was blended from: the neighbour (within `reach`
+    px) least like the background, often the dark outline. If the pixel lies on the line between
+    that colour and the background, it is that much background: half or more and it is cleared,
+    less and the background is un-mixed out of it, colour = (c - t*bg) / (1 - t). A pixel off that
+    line (snow lighter than a grey background, a coloured highlight) is its own colour and kept,
+    as is anything whose neighbours are all as pale as the background (no telling them apart).
+    Run before scaling down, so the resample has no white to blend back in."""
+    a = np.array(im.convert('RGBA')).astype(np.float32)
+    w = np.asarray(bg, np.float32)[:3]
+    H, W = a.shape[:2]
+    for _ in range(passes):
+        rgb, al = a[..., :3], a[..., 3]
+        solid = al > 0
+        rim = solid & (ndimage.distance_transform_edt(solid) <= ring)
+        if not rim.any():
+            break
+        # the most un-background-like opaque neighbour of each pixel, and its colour
+        score = np.where(solid, np.abs(rgb - w).max(axis=2), -1.0)
+        best = np.full((H, W), -1.0, np.float32)
+        f = np.zeros_like(rgb)
+        P = np.pad(score, reach, constant_values=-1.0)
+        C = np.pad(rgb, ((reach, reach), (reach, reach), (0, 0)))
+        for dy in range(-reach, reach + 1):
+            for dx in range(-reach, reach + 1):
+                if dy * dy + dx * dx > reach * reach + 1:
+                    continue
+                s = P[reach + dy:reach + dy + H, reach + dx:reach + dx + W]
+                better = s > best
+                best[better] = s[better]
+                f[better] = C[reach + dy:reach + dy + H, reach + dx:reach + dx + W][better]
+        fw = w - f
+        den = (fw ** 2).sum(axis=2)
+        t = ((rgb - f) * fw).sum(axis=2) / np.maximum(den, 1.0)
+        off = np.sqrt((((rgb - f) - t[..., None] * fw) ** 2).sum(axis=2) / 3.0)   # RMS off the line
+        mixed = rim & (best >= 60) & (t > 0.04) & (t <= 1.05) & (off <= 24)
+        # only the blend outside the outline: reached from the cleared background through
+        # other blended pixels (a pale chip's inside, walled by its outline, is its own colour)
+        mixed = ndimage.binary_propagation(mixed & ndimage.binary_dilation(~solid, np.ones((3, 3))),
+                                           structure=np.ones((3, 3)), mask=mixed)
+        drop = mixed & (t >= 0.5)
+        # un-mix only the new outermost pixels (deeper in, un-mixing a pale highlight would
+        # only over-saturate it)
+        left = solid & ~drop
+        fix = mixed & left & ndimage.binary_dilation(~left, np.ones((3, 3)))
+        tt = t[..., None]
+        un = (rgb - tt * w) / np.maximum(1.0 - tt, 1e-3)
+        rgb[fix] = np.clip(un[fix], 0, 255)
+        al[drop] = 0
+        rgb[drop] = 0
+        if not drop.any() and not fix.any():
+            break
+    return Image.fromarray(a.round().clip(0, 255).astype(np.uint8), 'RGBA')
+
+
+def key_white(im, tol=28, holes=False, clean=False):
     """Flood the flat background away from the borders (ChatGPT gives white, not alpha);
     holes: also any patch of background shut inside a drawing (a door frame's opening), of
-    more than 400 px, or of more than `holes` px when it is a number."""
+    more than 400 px, or of more than `holes` px when it is a number. clean: also strip the
+    pale halo the key leaves round the drawing (defringe)."""
+    if clean:
+        bg = np.array(im.convert('RGBA'))[0, 0, :3]
+        return defringe(key_white(im, tol, holes), bg)
     a = np.array(im.convert('RGBA')).astype(np.int16)
     bg = a[0, 0, :3]
     near = (np.abs(a[..., :3] - bg).max(axis=2) <= tol)

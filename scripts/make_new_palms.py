@@ -28,7 +28,7 @@ SCALE = 0.34   # as the drawn trees (scripts/make_tree_sheet.py)
 
 
 def main():
-    palms = objects(key_white(Image.open('assets/lpc/new/palms_source.png')))
+    palms = objects(key_white(Image.open('assets/lpc/new/palms_source.png'), holes=2, clean=True))
     if len(palms) != 18:
         raise SystemExit(f'found {len(palms)} palms, want 18')
     P.SCALE = min([SCALE] + [min((P.CELL_W - 2) / p.width, (P.CELL_H - 8) / p.height) for p in palms])

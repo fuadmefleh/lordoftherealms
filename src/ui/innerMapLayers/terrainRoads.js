@@ -304,22 +304,49 @@ Object.assign(InnerMapRenderer, {
         const kt = terrainSheet ? this._sheetScale(terrainSheet) : 1;
         const fillCell = f => ({ img: terrainSheet, sx: f.col * 32 * kt, sy: f.row * 32 * kt, sw: 32 * kt });
         const grass = terrainSheet && fills && fills.length ? fillCell(fills[0]) : null;   // (the tufts' texture)
+        const dirtFills = this._terrainFills && this._terrainFills.dirt;
+        const dirt = terrainSheet && dirtFills && dirtFills.length ? fillCell(dirtFills[0]) : null;
+        const paveOf = (q, r) => (dq, dr) => {
+            const n = InnerMap.getTile(q + dq, r + dr);
+            if (!n || !n._pave || !n.paving || !n.paving.sheetPath || n._wet) return null;
+            const img = this._getSheetByPath(n.paving.sheetPath);
+            if (!img) return null;
+            const k = this._sheetScale(img);
+            return { img, sx: n.paving.sx * k, sy: n.paving.sy * k, sw: 32 * k };
+        };
         const turf = t => {
             if (!t || t.isRoad || t.paving || t._wet || t.customBuildingPart || t._fieldSoil) return null;
             const ov = t.terrainDetail || t.grassOverlay;
-            if (!ov || (ov.layer || ov.fillCategory || 'grass') !== 'grass') return null;
+            if (!ov) return (t.baseTerrain || 'grass') === 'grass' ? { bare: true } : null;   // (bare grass ground)
+            if ((ov.layer || ov.fillCategory || 'grass') !== 'grass') return null;
             return ov;
         };
-        const cellOf = ov => {
-            if (ov.fillCategory) return grass && { ...grass, full: true };
+        // a cell's own ground, as drawn: a brush cell, a grass fill picked as the detail layer
+        // picks it, or the base ground picked as the terrain layer does
+        const cellOf = (ov, t) => {
+            if (ov.bare) {
+                const src = this._getTerrainFill(t);
+                return terrainSheet && src.sx >= 0 ? { ...fillCell({ col: src.sx / 32, row: src.sy / 32 }), full: true } : null;
+            }
+            if (ov.fillCategory) {
+                const fl = this._terrainFills && this._terrainFills[ov.fillCategory];
+                if (!terrainSheet || !fl || !fl.length) return null;
+                const hash = (Math.abs((t.q * 83492791 ^ t.r * 29765729))) >>> 0;
+                return { ...fillCell(fl[hash % fl.length]), full: true };
+            }
             const img = this._getSheetByPath(ov.sheetPath);
             if (!img) return null;
             const k = this._sheetScale(img);
             return { img, sx: (ov.sx || 0) * k, sy: (ov.sy || 0) * k, sw: 32 * k };
         };
         const grassy = (q, r) => (dq, dr) => {
-            const ov = turf(InnerMap.getTile(q + dq, r + dr));
-            return ov ? cellOf(ov) : null;
+            const t = InnerMap.getTile(q + dq, r + dr);
+            const ov = turf(t);
+            return ov ? cellOf(ov, t) : null;
+        };
+        const laneDirt = t => {
+            const src = this._getTerrainFill(t);
+            return terrainSheet && src.sx >= 0 ? fillCell({ col: src.sx / 32, row: src.sy / 32 }) : dirt;
         };
         for (const pass of [drawLaneGround, drawLaneTufts]) {
             for (let r = rMin; r <= rMax; r++) {
@@ -331,7 +358,7 @@ Object.assign(InnerMapRenderer, {
                     if (!isLane(tile)) continue;
                     const dx = Math.floor(originX + (q - qMin) * ds);
                     if (dx + ds * 1.5 < 0 || dx - ds * 0.5 > canvasW) continue;
-                    pass(ctx, grassy(q, r), q, r, dx, dy, ds, grass);
+                    pass(ctx, grassy(q, r), q, r, dx, dy, ds, grass, laneDirt(tile), paveOf(q, r));
                 }
             }
         }
@@ -351,6 +378,7 @@ Object.assign(InnerMapRenderer, {
                     const n = InnerMap.getTile(q + dq, r + dr);
                     if (!n || n.customBuildingPart || n._wet) return false;
                     if (n._pave) return plaza && n._pave !== 'plaza';   // (a square's own kerb where it meets a street)
+                    if (n.isRoad) return false;                            // (the road runs on as dirt: the cobbles fray out, ui/laneEdges.js)
                     return !n.paving;                                     // (not against a bridge or a quay)
                 }, q, r, dx, dy, ds);
             }

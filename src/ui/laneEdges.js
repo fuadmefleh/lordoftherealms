@@ -2,12 +2,15 @@
 // beyond a town's cobbles (world/townPlanner.js lays them: tile.isRoad with no
 // tile.paving), and the country roads between (world/innerMap/npcs.js).
 //
-// The grass brush meets a lane in a clean line along each tile, so a lane read
-// as cut out of the turf with a ruler. Here every side of a lane cell that meets
-// grass gets a ragged run of tufts spilling over the dirt (cut from the season's
-// own grass, so it is green in spring and snow in winter), a little shade under
-// them, and a darker, trodden verge just inside; and every lane cell gets some
-// wear on its dirt: paler packed patches, darker damp ones and a few pebbles.
+// The grass brush meets a lane in the same edge tile after tile (or, beside a
+// plain grass cell, in a dead straight line), so a lane read as cut out of the
+// turf with a ruler. Here every side of a lane cell that meets grass gets an edge
+// that wanders in and out along where the turf starts, dirt biting into the grass
+// and grass pushing onto the road, with a dark rim and tufts along it (cut from
+// the season's own grass); a darker, trodden verge just inside; wear on the dirt
+// (paler packed patches, darker damp ones, pebbles); and where a street's cobbles
+// give out onto the dirt road, the paving frays out into loose stones instead of
+// stopping at a kerb.
 //
 // Drawn from innerMapLayers/terrainRoads.js after the ground, so the tufts can lie
 // over the grass cell's own edge. Each piece is drawn once per size, side, variant
@@ -33,7 +36,7 @@ function _stream(seed) {
 
 function _remember(key, c) {
     _cache.set(key, c);
-    if (_cache.size > 160) _cache.delete(_cache.keys().next().value);
+    if (_cache.size > 600) _cache.delete(_cache.keys().next().value);
     return c;
 }
 
@@ -59,92 +62,174 @@ function _tone(grass) {
 
 const _rgba = (c, k, a) => `rgba(${Math.round(c[0] * k)}, ${Math.round(c[1] * k)}, ${Math.round(c[2] * k)}, ${a})`;
 
-/**
- * The tufts along one side of a lane cell. The canvas is the cell with a margin
- * M all round (the tufts start a little into the grass cell beyond the edge, to
- * hide its straight line); the shapes are laid out for the north side and turned,
- * the shade always falls down the screen.
- */
-function _tufts(S, side, variant, grass) {
-    const key = `t:${S}:${side}:${variant}:${grass.img.src}:${grass.sx},${grass.sy}`;
-    const hit = _cache.get(key);
-    if (hit) return hit;
+/** A cell of a sheet as a repeating pattern at S px a cell. */
+function _pattern(g, cell, S) {
+    const tex = document.createElement('canvas');
+    tex.width = tex.height = S;
+    tex.getContext('2d').drawImage(cell.img, cell.sx, cell.sy, cell.sw, cell.sw, 0, 0, S, S);
+    return g.createPattern(tex, 'repeat');
+}
+
+/** The piece canvas for one side: the cell with a margin all round, drawn in the north frame. */
+function _canvas(S, side) {
     const M = Math.round(S * 0.25);
     const c = document.createElement('canvas');
     c.width = c.height = S + 2 * M;
     const g = c.getContext('2d');
-    const rnd = _stream(variant * 7919 + SIDES.indexOf(side) * 104729 + 11);
-    const tone = _tone(grass);
-
-    // the grass texture, at the cell's size
-    const tex = document.createElement('canvas');
-    tex.width = tex.height = S;
-    tex.getContext('2d').drawImage(grass.img, grass.sx, grass.sy, grass.sw, grass.sw, 0, 0, S, S);
-    const pat = g.createPattern(tex, 'repeat');
-
-    // the run of clumps along the edge (north frame: the edge is y = 0, the lane is y > 0)
-    const clumps = [];
-    let x = -S * 0.5 + rnd() * S * 0.06;
-    while (x < S * 0.5 + S * 0.04) {
-        const rad = S * (0.035 + rnd() * 0.06);
-        clumps.push({ x, y: S * (-0.03 + rnd() * 0.08), rad });
-        x += rad * (1.1 + rnd() * 0.7);
-    }
-    // a few long blades poking further out
-    const blades = [];
-    const nb = 3 + Math.floor(rnd() * 4);
-    for (let i = 0; i < nb; i++) {
-        const bx = -S * 0.48 + rnd() * S * 0.96;
-        blades.push({ x: bx, len: S * (0.08 + rnd() * 0.1), lean: (rnd() - 0.5) * S * 0.08, w: S * (0.014 + rnd() * 0.012) });
-    }
-    const path = (ctx, grow = 0) => {
-        ctx.beginPath();
-        for (const k of clumps) {
-            ctx.moveTo(k.x + k.rad + grow, k.y);
-            ctx.arc(k.x, k.y, k.rad + grow, 0, Math.PI * 2);
-        }
-        for (const b of blades) {
-            ctx.moveTo(b.x - b.w - grow, 0);
-            ctx.quadraticCurveTo(b.x + b.lean * 0.4, b.len * 0.6, b.x + b.lean, b.len + grow);
-            ctx.quadraticCurveTo(b.x + b.lean * 0.4 + b.w, b.len * 0.5, b.x + b.w + grow, 0);
-            ctx.closePath();
-        }
-    };
     const rot = SIDES.indexOf(side) * Math.PI / 2;
-    const cx = M + S / 2, cy = M + S / 2;
-    const frame = (ctx, dx = 0, dy = 0) => {
-        ctx.setTransform(1, 0, 0, 1, cx + dx, cy + dy);
-        ctx.rotate(rot);
-        ctx.translate(0, -S / 2);
+    // the north frame: the edge along y = 0 from x = -S/2 to S/2, the lane at y > 0
+    const frame = (dx = 0, dy = 0) => {
+        g.setTransform(1, 0, 0, 1, M + S / 2 + dx, M + S / 2 + dy);
+        g.rotate(rot);
+        g.translate(0, -S / 2);
     };
+    return { c, g, frame };
+}
 
-    // the shade the tufts throw on the dirt, down the screen and a little soft
-    frame(g, 0, S * 0.03);
-    g.fillStyle = 'rgba(45, 30, 15, 0.16)';
-    path(g, S * 0.02); g.fill();
-    frame(g, 0, S * 0.018);
+/** Where a corner's edge line crosses it: one of three, shared by the cells either side. */
+export const RAGGED_KNOTS = [-0.11, 0, 0.07];
+
+/**
+ * A wandering edge along where a lane meets turf: the line between dirt and grass
+ * bends in and out along a profile that passes through each corner's shared
+ * height, so a long road's side wanders on unbroken. Returns the shapes, in the
+ * piece canvas's px (see _canvas): `grassPath`, the turf pushed onto the road (and
+ * a little way back over the grass cell, to cover its straight line), and
+ * `bitePath`, the dirt bitten into the grass; they are filled at draw time with the
+ * very grass and dirt cells either side, so the textures run on without a seam.
+ * And `overlay`: the shade under the turf, a dark rim along the line, and tufts of
+ * blades on it leaning out over the road.
+ */
+function _ragged(S, side, kA, kB, variant, grass) {
+    const key = `r:${S}:${side}:${kA}:${kB}:${variant}:${grass.img.src}:${grass.sx},${grass.sy}`;
+    const hit = _cache.get(key);
+    if (hit) return hit;
+    const { c, g, frame } = _canvas(S, side);
+    const M = Math.round(S * 0.25);
+    const rnd = _stream(variant * 6151 + SIDES.indexOf(side) * 3571 + kA * 97 + kB * 13 + 5);
+    const tone = _tone(grass);
+    const knots = [RAGGED_KNOTS[kA], (rnd() - 0.55) * 0.3, (rnd() - 0.55) * 0.3, (rnd() - 0.55) * 0.3, RAGGED_KNOTS[kB]];
+    const b = x => {             // the profile at x (-S/2 .. S/2), in px: < 0 into the grass, > 0 onto the road
+        const t = Math.max(0, Math.min(3.9999, (x / S + 0.5) * 4));
+        const i = Math.floor(t), f = t - i;
+        const e = (1 - Math.cos(f * Math.PI)) / 2;
+        return (knots[i] * (1 - e) + knots[i + 1] * e) * S;
+    };
+    const STEPS = 24;
+    const xs = Array.from({ length: STEPS + 1 }, (_, i) => -S / 2 + (i / STEPS) * S);
+    const BACK = -S * 0.06;
+
+    // the shapes, laid out in the north frame and turned into the piece's px
+    const m = new DOMMatrix().translate(M + S / 2, M + S / 2).rotate(SIDES.indexOf(side) * 90).translate(0, -S / 2);
+    const gp = new Path2D();
+    gp.moveTo(xs[0], BACK);
+    for (const x of xs) gp.lineTo(x, Math.max(BACK, b(x)));
+    gp.lineTo(xs[STEPS], BACK);
+    gp.closePath();
+    const bp = new Path2D();
+    bp.moveTo(xs[0], 0.5);
+    for (const x of xs) bp.lineTo(x, Math.min(0.5, b(x)));
+    bp.lineTo(xs[STEPS], 0.5);
+    bp.closePath();
+    const grassPath = new Path2D();
+    grassPath.addPath(gp, m);
+    const bitePath = new Path2D();
+    bitePath.addPath(bp, m);
+
+    // the shade the turf throws on the road
+    frame(0, S * 0.02);
     g.fillStyle = 'rgba(40, 26, 12, 0.22)';
-    path(g); g.fill();
-
-    // the tufts themselves, then a darker underside and a lit top on each clump
-    frame(g);
-    g.fillStyle = pat;
-    path(g); g.fill();
-    for (const k of clumps) {
-        const gr = g.createRadialGradient(k.x - k.rad * 0.3, k.y - k.rad * 0.4, k.rad * 0.1, k.x, k.y, k.rad);
-        gr.addColorStop(0, _rgba(tone, 1.15, 0.2));
-        gr.addColorStop(0.6, _rgba(tone, 1, 0));
-        gr.addColorStop(1, _rgba(tone, 0.6, 0.35));
-        g.fillStyle = gr;
-        g.beginPath(); g.arc(k.x, k.y, k.rad, 0, Math.PI * 2); g.fill();
-    }
-    g.strokeStyle = _rgba(tone, 0.5, 0.55);
-    g.lineWidth = Math.max(1, S / 96);
-    for (const b of blades) {
-        g.beginPath();
-        g.moveTo(b.x, b.len * 0.15);
-        g.quadraticCurveTo(b.x + b.lean * 0.4, b.len * 0.6, b.x + b.lean, b.len);
+    g.beginPath(); g.moveTo(xs[0], 0); for (const x of xs) g.lineTo(x, Math.max(0, b(x)) + S * 0.01); g.lineTo(xs[STEPS], 0); g.closePath(); g.fill();
+    // the dark rim along the line, on the dirt side
+    frame();
+    g.strokeStyle = 'rgba(45, 32, 16, 0.32)';
+    g.lineWidth = Math.max(1, S * 0.03);
+    g.beginPath(); g.moveTo(xs[0], b(xs[0]) + S * 0.015); for (const x of xs) g.lineTo(x, b(x) + S * 0.015); g.stroke();
+    // tufts along it: little fans of blades rooted on the line, leaning out over the road
+    const pat = _pattern(g, grass, S);
+    const blade = (bx, by, ang, len, w) => {
+        const ex = bx + Math.sin(ang) * len, ey = by + Math.cos(ang) * len;
+        const nx = Math.cos(ang) * w, ny = -Math.sin(ang) * w;
+        g.moveTo(bx - nx, by - ny);
+        g.quadraticCurveTo((bx + ex) / 2 - nx * 0.4, (by + ey) / 2 - ny * 0.4, ex, ey);
+        g.quadraticCurveTo((bx + ex) / 2 + nx * 0.4, (by + ey) / 2 + ny * 0.4, bx + nx, by + ny);
+        g.closePath();
+    };
+    let x = -S / 2 + rnd() * S * 0.06;
+    while (x < S / 2) {
+        const by = b(x) - S * 0.01;
+        const n = 4 + Math.floor(rnd() * 5);
+        const blades = [];
+        for (let k = 0; k < n; k++) {
+            blades.push([x + (rnd() - 0.5) * S * 0.05, by + rnd() * S * 0.01, (rnd() - 0.5) * 1.9, S * (0.04 + rnd() * 0.09), S * (0.008 + rnd() * 0.008)]);
+        }
+        frame(0, S * 0.016);                                        // their shade
+        g.fillStyle = 'rgba(40, 26, 12, 0.22)';
+        g.beginPath(); for (const bl of blades) blade(...bl); g.fill();
+        frame();
+        g.fillStyle = pat;
+        g.beginPath(); for (const bl of blades) blade(...bl); g.fill();
+        g.strokeStyle = _rgba(tone, 0.55, 0.5);
+        g.lineWidth = Math.max(0.6, S / 160);
         g.stroke();
+        g.fillStyle = _rgba(tone, 1.2, 0.18);                      // a lit tip or two
+        g.beginPath(); for (const bl of blades.slice(0, 2)) blade(bl[0], bl[1], bl[2], bl[3], bl[4] * 0.5); g.fill();
+        x += S * (0.05 + rnd() * 0.09);
+    }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    return _remember(key, { overlay: c, grassPath, bitePath });
+}
+
+/**
+ * Where a street's paving gives out onto a dirt road: the last stones worn and
+ * sunk into the dirt (dirt over the paving's edge), and loose stones scattered on
+ * the dirt beyond, thinning out, so the cobbles fray into the road instead of
+ * stopping at a kerb. Drawn on the dirt cell; the paving is north in the frame.
+ */
+function _paveEnd(S, side, variant, pave, dirt) {
+    const key = `p:${S}:${side}:${variant}:${pave.img.src}:${pave.sx},${pave.sy}:${dirt.sx},${dirt.sy}`;
+    const hit = _cache.get(key);
+    if (hit) return hit;
+    const { c, g, frame } = _canvas(S, side);
+    const rnd = _stream(variant * 92821 + SIDES.indexOf(side) * 68917 + 3);
+    frame();
+    // dirt worn over the paving's edge, ragged
+    g.fillStyle = _pattern(g, dirt, S);
+    g.beginPath();
+    for (let x = -S / 2; x < S / 2 + S * 0.05; x += S * (0.06 + rnd() * 0.06)) {
+        const rad = S * (0.05 + rnd() * 0.07);
+        const y = -S * (0.02 + rnd() * 0.1);
+        g.moveTo(x + rad, y); g.arc(x, y, rad, 0, Math.PI * 2);
+    }
+    g.rect(-S / 2, -S * 0.02, S, S * 0.03);
+    g.fill();
+    // loose stones on the dirt, fewer the further out
+    const pat = _pattern(g, pave, S);
+    const stones = [];
+    for (let row = 0; row < 3; row++) {
+        const y0 = -S * 0.08 + row * S * 0.19;
+        const keep = 0.85 - row * 0.3;
+        let x = -S / 2 + rnd() * S * 0.1;
+        while (x < S / 2) {
+            const w = S * (0.2 + rnd() * 0.1), h = S * (0.13 + rnd() * 0.06);
+            if (rnd() < keep) stones.push({ x: x + rnd() * S * 0.04, y: y0 + rnd() * S * 0.05, w, h, a: (rnd() - 0.5) * 0.4 });
+            x += w + S * (0.03 + rnd() * 0.1) + row * S * 0.08;
+        }
+    }
+    for (const st of stones) {
+        g.save();
+        g.translate(st.x + st.w / 2, st.y + st.h / 2);
+        g.rotate(st.a);
+        const r = Math.min(st.w, st.h) * 0.35;
+        g.fillStyle = 'rgba(35, 25, 15, 0.35)';                       // its shade on the dirt
+        g.beginPath(); g.roundRect(-st.w / 2 + S * 0.008, -st.h / 2 + S * 0.016, st.w, st.h, r); g.fill();
+        g.fillStyle = 'rgba(45, 38, 30, 0.75)';                       // the joint round it
+        g.beginPath(); g.roundRect(-st.w / 2, -st.h / 2, st.w, st.h, r); g.fill();
+        g.fillStyle = pat;
+        g.beginPath(); g.roundRect(-st.w / 2 + 1, -st.h / 2 + 1, st.w - 2, st.h - 2, r); g.fill();
+        g.fillStyle = 'rgba(255, 248, 230, 0.22)';                    // the lit top
+        g.beginPath(); g.roundRect(-st.w / 2 + 1, -st.h / 2 + 1, st.w - 2, (st.h - 2) * 0.35, r); g.fill();
+        g.restore();
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
     return _remember(key, c);
@@ -289,28 +374,59 @@ export function drawLaneGround(ctx, grassy, q, r, x, y, ds) {
     ctx.imageSmoothingEnabled = smooth;
 }
 
+/** The corners each side's edge runs between, in the north frame's order (see _canvas). */
+const _ENDS = { n: [[0, 0], [1, 0]], e: [[1, 0], [1, 1]], s: [[1, 1], [0, 1]], w: [[0, 1], [0, 0]] };
+
 /**
- * The grass tufts spilling over a lane cell's grassy sides, along where the grass
- * beside it actually starts. `grassy(dq, dr)` gives the neighbour's overlay cell
- * ({ img, sx, sy, sw }) when it is turf; `grass` is a plain cell of the same turf.
+ * The edges of a lane cell, drawn over the ground: a wandering edge along where
+ * the turf beside it starts, and the paving fraying out where a street's cobbles
+ * give out onto it. `grassy(dq, dr)` gives a turf neighbour's own ground cell
+ * ({ img, sx, sy, sw, full? }: full when it is plain turf to its edges);
+ * `grass` is a plain cell of the season's grass, `dirt` this lane cell's own
+ * dirt; `paveOf(dq, dr)` gives a paved neighbour's paving cell.
  */
-export function drawLaneTufts(ctx, grassy, q, r, x, y, ds, grass) {
+export function drawLaneTufts(ctx, grassy, q, r, x, y, ds, grass, dirt = null, paveOf = null) {
     if (typeof document === 'undefined' || !grass || !grass.img) return;
     const S = _size(ds);
     const f = ds / S;
     const M = Math.round(S * 0.25);
     const smooth = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = true;
+    const X0 = Math.floor(x) - M * f, Y0 = Math.floor(y) - M * f;
     for (const s of SIDES) {
         const [dq, dr] = _STEP[s];
+        const i = SIDES.indexOf(s);
+        const pave = paveOf && dirt && paveOf(dq, dr);
+        if (pave && pave.img) {
+            const piece = _paveEnd(S, s, _h(q, r, i + 7) % VARIANTS, pave, dirt);
+            ctx.drawImage(piece, X0, Y0, piece.width * f, piece.height * f);
+            continue;
+        }
         const cell = grassy(dq, dr);
-        if (!cell || !cell.img) continue;
+        if (!cell || !cell.img || !dirt) continue;
         const inset = _inset(cell, s);
         if (inset >= 0.6) continue;       // (no turf along that side: leave the brush's own edge)
-        const i = SIDES.indexOf(s);
-        const piece = _tufts(S, s, _h(q, r, i + 3) % VARIANTS, grass);
-        const ox = dq * inset * ds, oy = dr * inset * ds;
-        ctx.drawImage(piece, Math.floor(x) - M * f + ox, Math.floor(y) - M * f + oy, piece.width * f, piece.height * f);
+        const [[aq, ar], [bq, br]] = _ENDS[s];
+        const o = s === 'n' || s === 's' ? 1 : 2;
+        const kA = _h(q + aq, r + ar, o) % RAGGED_KNOTS.length, kB = _h(q + bq, r + br, o) % RAGGED_KNOTS.length;
+        const rg = _ragged(S, s, kA, kB, _h(q, r, i + 3) % VARIANTS, grass);
+        const ox = dq * inset * S, oy = dr * inset * S;            // (piece px: along where the turf starts)
+        // in the piece's px, this cell sits at (M, M) less the shift, its neighbour a cell over
+        const rx = M - ox, ry = M - oy, nx = rx + dq * S, ny = ry + dr * S;
+        const turf = cell.full ? cell : grass;
+        ctx.save();
+        ctx.translate(X0 + ox * f, Y0 + oy * f);
+        ctx.scale(f, f);
+        ctx.save();
+        ctx.clip(rg.grassPath);
+        ctx.drawImage(turf.img, turf.sx, turf.sy, turf.sw, turf.sw, nx, ny, S + 0.5, S + 0.5);
+        ctx.drawImage(turf.img, turf.sx, turf.sy, turf.sw, turf.sw, rx, ry, S + 0.5, S + 0.5);
+        ctx.restore();
+        ctx.clip(rg.bitePath);
+        ctx.drawImage(dirt.img, dirt.sx, dirt.sy, dirt.sw, dirt.sw, rx, ry, S + 0.5, S + 0.5);
+        ctx.drawImage(dirt.img, dirt.sx, dirt.sy, dirt.sw, dirt.sw, nx, ny, S + 0.5, S + 0.5);
+        ctx.restore();
+        ctx.drawImage(rg.overlay, X0 + ox * f, Y0 + oy * f, rg.overlay.width * f, rg.overlay.height * f);
     }
     ctx.imageSmoothingEnabled = smooth;
 }

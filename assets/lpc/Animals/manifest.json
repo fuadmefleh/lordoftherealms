@@ -1,5 +1,5 @@
 {
-  "_doc": "Animal sprite sheets generated with ChatGPT (OpenAI image generation) on 2026-11-04. Every sheet: 1254x1254, 4 rows x 4 columns of equal 313.5px cells (row order up, left, down, right), 4 frames per row. Where a *_clean.png exists, use it (the original had a solid/fake background). Wired into data/animals.json through the game sheets scripts/build-animal-sheets.py makes (<id>/<id>_<action>_sheet.png); the boar sheets and fox walk came in later from the same series.",
+  "_doc": "Animal sprite sheets generated with ChatGPT (OpenAI image generation) on 2026-11-04. Every sheet: 1254x1254, 4 rows x 4 columns of equal 313.5px cells (row order up, left, down, right), 4 frames per row. Where a *_clean.png exists, use it (the original had a solid/fake background). Wired into data/animals.json through the game sheets scripts/build-animal-sheets.py makes (<id>/<id>_<action>_sheet.png); the boar sheets and fox walk came in later from the same series. 2026-11-09: stag and doe walk redrawn in this series (the two retro pixel walk sheets at the folder's top are no longer used), arctic fox death redrawn, and the farm animals pig, chicken, goat, cow, horse and duck added.",
   "animals": {
     "arctic_fox": {
       "walk": {
@@ -65,8 +65,8 @@
         "notes": ""
       },
       "death": {
-        "file": "arctic_fox/arctic_fox_death.png",
-        "use": "arctic_fox/arctic_fox_death.png",
+        "file": "arctic_fox/arctic_fox_death_redo.png",
+        "use": "arctic_fox/arctic_fox_death_redo.png",
         "size": [
           1254,
           1254
@@ -75,14 +75,7 @@
           "rows": 4,
           "cols": 4,
           "cellW": 313.5,
-          "cellH": 313.5,
-          "detectedRowBands": 4,
-          "detectedSpritesPerRow": [
-            4,
-            4,
-            4,
-            4
-          ]
+          "cellH": 313.5
         },
         "directions": [
           "up",
@@ -93,8 +86,9 @@
         "framesPerRow": 4,
         "action": "death (ends lying down)",
         "transparent": true,
-        "notes": "Drawn larger and greyer than arctic_fox_walk/attack - scale mismatch."
-      }
+        "notes": "Drawn 2026-11-09 with ChatGPT from this series as the style reference (arctic_fox_attack.png): the first death sheet (arctic_fox_death.png, kept) was drawn bigger, greyer and without the outline."
+      },
+      "death_old": "arctic_fox/arctic_fox_death.png - superseded by arctic_fox_death_redo.png"
     },
     "bear": {
       "walk": {
@@ -191,6 +185,159 @@
         "notes": ""
       }
     },
+    "chicken": {
+      "walk": {
+        "file": "chicken/chicken_walk.png",
+        "use": "chicken/chicken_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into chicken_walk_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a russet-brown hen; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "chicken/chicken_attack.png",
+        "use": "chicken/chicken_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into chicken_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a russet-brown hen; walk, attack and death drawn in one ChatGPT conversation. Attack: flap and peck.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "chicken/chicken_death.png",
+        "use": "chicken/chicken_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into chicken_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a russet-brown hen; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      }
+    },
+    "cow": {
+      "walk": {
+        "file": "cow/cow_walk.png",
+        "use": "cow/cow_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": "Drawn 2026-11-09 with ChatGPT from this series as the style reference (highland_cow walk/attack/death): a brown-and-white patched dairy cow (not highland_cow); walk, attack and death drawn in one ChatGPT conversation."
+      },
+      "attack": {
+        "file": "cow/cow_attack.png",
+        "use": "cow/cow_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into cow_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (highland_cow walk/attack/death): a brown-and-white patched dairy cow (not highland_cow); walk, attack and death drawn in one ChatGPT conversation. Attack: head butt.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "cow/cow_death.png",
+        "use": "cow/cow_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into cow_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (highland_cow walk/attack/death): a brown-and-white patched dairy cow (not highland_cow); walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      }
+    },
     "doe": {
       "attack": {
         "file": "doe/doe_attack.png",
@@ -257,7 +404,107 @@
         "file": "doe/doe_attack_lunge.png",
         "notes": "First doe attack attempt (lunge); superseded by doe_attack.png."
       },
-      "walk_existing": "Existing walk sheet: Pixel Deer Walking Sprite Sheet.png / deer_doe.png"
+      "walk": {
+        "file": "doe/doe_walk.png",
+        "use": "doe/doe_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": "Drawn 2026-11-09 with ChatGPT from this series as the style reference (doe_death.png): replaces the retro pixel walk (Pixel Deer Walking Sprite Sheet.png). Also the fawn's, scaled."
+      }
+    },
+    "duck": {
+      "walk": {
+        "file": "duck/duck_walk.png",
+        "use": "duck/duck_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into duck_walk_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a mallard-type farm duck; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "duck/duck_attack.png",
+        "use": "duck/duck_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into duck_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a mallard-type farm duck; walk, attack and death drawn in one ChatGPT conversation. Attack: wings out, hiss and nip.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "duck/duck_death.png",
+        "use": "duck/duck_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into duck_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / sheep_death): a mallard-type farm duck; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      }
     },
     "elephant": {
       "walk": {
@@ -513,6 +760,83 @@
         "notes": ""
       }
     },
+    "goat": {
+      "walk": {
+        "file": "goat/goat_walk.png",
+        "use": "goat/goat_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into goat_walk_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (mountain_goat walk/attack/death): a brown-and-white domestic nanny goat (not mountain_goat); walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "goat/goat_attack.png",
+        "use": "goat/goat_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into goat_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (mountain_goat walk/attack/death): a brown-and-white domestic nanny goat (not mountain_goat); walk, attack and death drawn in one ChatGPT conversation. Attack: rear and head-butt.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "goat/goat_death.png",
+        "use": "goat/goat_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into goat_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (mountain_goat walk/attack/death): a brown-and-white domestic nanny goat (not mountain_goat); walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      }
+    },
     "highland_cow": {
       "walk": {
         "file": "highland_cow/highland_cow_walk.png",
@@ -606,6 +930,83 @@
         "action": "death (ends lying down)",
         "transparent": true,
         "notes": ""
+      }
+    },
+    "horse": {
+      "walk": {
+        "file": "horse/horse_walk.png",
+        "use": "horse/horse_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into horse_walk_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (elk_walk / doe_attack / elk_death): a bay horse, no tack; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "horse/horse_attack.png",
+        "use": "horse/horse_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into horse_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (elk_walk / doe_attack / elk_death): a bay horse, no tack; walk, attack and death drawn in one ChatGPT conversation. Attack: rear and strike with the forehooves.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "horse/horse_death.png",
+        "use": "horse/horse_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into horse_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (elk_walk / doe_attack / elk_death): a bay horse, no tack; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
       }
     },
     "lion": {
@@ -893,6 +1294,83 @@
         "action": "death (ends lying down)",
         "transparent": true,
         "notes": ""
+      }
+    },
+    "pig": {
+      "walk": {
+        "file": "pig/pig_walk.png",
+        "use": "pig/pig_walk_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into pig_walk_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / boar_death): a pink farm pig with dark patches; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
+      },
+      "attack": {
+        "file": "pig/pig_attack.png",
+        "use": "pig/pig_attack_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "attack",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into pig_attack_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / boar_death): a pink farm pig with dark patches; walk, attack and death drawn in one ChatGPT conversation. Attack: charge and snout butt.",
+        "cleanTransparent": true
+      },
+      "death": {
+        "file": "pig/pig_death.png",
+        "use": "pig/pig_death_clean.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "death (ends lying down)",
+        "transparent": false,
+        "notes": "Original has a solid/fake-checkerboard background; keyed (flood from the borders + defringe) into pig_death_clean.png. Drawn 2026-11-09 with ChatGPT from this series as the style reference (sheep_walk / sheep_attack / boar_death): a pink farm pig with dark patches; walk, attack and death drawn in one ChatGPT conversation.",
+        "cleanTransparent": true
       }
     },
     "polar_bear": {
@@ -1436,7 +1914,30 @@
         "notes": "Original has a solid white background (RGB); use stag_death_clean.png.",
         "cleanTransparent": true
       },
-      "walk_existing": "Existing walk sheet: Retro Stag Walking Sprite Sheet.png / deer_stag.png"
+      "walk": {
+        "file": "stag/stag_walk.png",
+        "use": "stag/stag_walk.png",
+        "size": [
+          1254,
+          1254
+        ],
+        "grid": {
+          "rows": 4,
+          "cols": 4,
+          "cellW": 313.5,
+          "cellH": 313.5
+        },
+        "directions": [
+          "up",
+          "left",
+          "down",
+          "right"
+        ],
+        "framesPerRow": 4,
+        "action": "walk cycle",
+        "transparent": true,
+        "notes": "Drawn 2026-11-09 with ChatGPT from this series as the style reference (stag_attack.png): replaces the retro pixel walk (Retro Stag Walking Sprite Sheet.png), which changed the stag's art style whenever it started or stopped moving."
+      }
     },
     "wolf": {
       "walk": {

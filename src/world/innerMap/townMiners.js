@@ -116,8 +116,7 @@ Object.assign(InnerMap, {
         if (!(C.stores || []).includes(bldg.type)) return false;
         npc._carry = null;
         const ref = this._currentWorldTileRef;
-        const econ = ref && ref.settlement && ref.settlement.economy;
-        if (econ) econ.goods = (Number(econ.goods) || 0) + c.qty * (Number(C.goodsPerStone) || 0);
+        this._yardToMarket(ref && ref.settlement, 'stone', c.qty, C.goodsPerStone);
         return true;
     },
 });

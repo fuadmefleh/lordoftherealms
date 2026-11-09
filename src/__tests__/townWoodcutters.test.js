@@ -5,6 +5,7 @@
  * (so it grows back) — then carry the logs into the town's goods; a few trees a day
  * at most.
  */
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 let InnerMap, DataLoader, Utils, CustomObjects, TownProps, PracticeSkills, Townsfolk;
@@ -132,15 +133,19 @@ describe('town woodcutters', () => {
         expect(InnerMap._isTownWoodcutter({ type: 'traveler' })).toBe(false);
     });
 
-    it('carry the logs into the town\'s goods at its yard', () => {
+    it('carry the logs to the town\'s market at its yard', () => {
         meadow(null);
+        // (the logs go on the town's market stalls, where the prices see them: 2026-11)
         const econ = { goods: 10, food: 5 };
-        InnerMap._currentWorldTileRef = { settlement: { economy: econ } };
+        const town = { type: 'town', population: 1000, economy: econ };
+        SettlementMarket.ensure(town);
+        const wood0 = SettlementMarket.stock(town, 'wood');
+        InnerMap._currentWorldTileRef = { settlement: town };
         const npc = cutter(5, 5);
         npc._carry = { good: 'wood', qty: 20 };
         InnerMap._townDelivered(npc, { type: 'warehouse', q: 5, r: 4 });
         expect(npc._carry).toBeNull();
-        expect(econ.goods).toBeCloseTo(10 + 20 * InnerMap.townWoodConfig().goodsPerWood);
+        expect(SettlementMarket.stock(town, 'wood')).toBeCloseTo(wood0 + 20, 2);
         expect(econ.food).toBe(5);
     });
 
@@ -166,12 +171,14 @@ describe('town woodcutters', () => {
         // and nothing grows back there
         InnerMap._bindFelling(InnerMap._fellWorld, '5,5', 50 + 400);
         expect(InnerMap.tiles[15][20].customObject).toBeFalsy();
-        // the firewood goes into the town's goods at the yard
-        const econ = { goods: 0 };
-        InnerMap._currentWorldTileRef = { settlement: { economy: econ } };
+        // the firewood goes to the town's market at the yard
+        const town = { type: 'town', population: 1000, economy: { goods: 0 } };
+        SettlementMarket.ensure(town);
+        const fw0 = SettlementMarket.stock(town, 'firewood');
+        InnerMap._currentWorldTileRef = { settlement: town };
         InnerMap._townDelivered(npc, { type: 'warehouse', q: 5, r: 4 });
         expect(npc._carry).toBeNull();
-        expect(econ.goods).toBeGreaterThan(0);
+        expect(SettlementMarket.stock(town, 'firewood')).toBeGreaterThan(fw0);
     });
 
     it('a stump the map was drawn with may go any time', () => {

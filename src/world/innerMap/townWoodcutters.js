@@ -23,7 +23,7 @@
 // Data: data/townLife.json "woodcutting". Draws only from Utils (seedable).
 
 import { InnerMap } from './_ref.js';
-import { Utils, CustomObjects, Townsfolk, PracticeSkills } from './_imports.js';
+import { Utils, CustomObjects, Townsfolk, PracticeSkills, SettlementMarket } from './_imports.js';
 
 const DEFAULTS = {
     share: 0.7,          // at work, the chance a woodcutter goes out to fell instead
@@ -263,9 +263,22 @@ Object.assign(InnerMap, {
         if (!(C.stores || []).includes(bldg.type)) return false;
         npc._carry = null;
         const ref = this._currentWorldTileRef;
-        const econ = ref && ref.settlement && ref.settlement.economy;
         const per = c.good === 'firewood' ? C.goodsPerFirewood : C.goodsPerWood;
-        if (econ) econ.goods = (Number(econ.goods) || 0) + c.qty * (Number(per) || 0);
+        this._yardToMarket(ref && ref.settlement, c.good, c.qty, per);
         return true;
+    },
+
+    /**
+     * A load carried in from the town's own land (a felled tree, a broken rock,
+     * a basket of herbs): the units go on the town's market stalls, where the
+     * prices see them (world/settlementMarket.js). A good the markets don't
+     * trade counts, as before, into the legacy goods tally at `legacyPer`.
+     */
+    _yardToMarket(settlement, good, qty, legacyPer = 0) {
+        if (!settlement || !(qty > 0)) return 0;
+        if (SettlementMarket.tracks(good)) return SettlementMarket.add(settlement, good, qty);
+        const econ = settlement.economy;
+        if (econ) econ.goods = (Number(econ.goods) || 0) + qty * (Number(legacyPer) || 0);
+        return 0;
     },
 });

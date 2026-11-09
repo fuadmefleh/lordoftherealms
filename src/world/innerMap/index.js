@@ -12,6 +12,7 @@ import './npcs.js';
 import './townLife.js';
 import './townWoodcutters.js';
 import './townMiners.js';
+import './townHerbalists.js';
 import './jail.js';
 import './seats.js';
 import './lots.js';

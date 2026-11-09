@@ -899,7 +899,9 @@ Object.assign(InnerMapRenderer, {
                         // A sack of the harvest carried to the granary (world/innerMap/townLife.js _carry),
                         // held before them: behind their back when they walk away from us
                         const logs = !!(nRef._carry && (nRef._carry.good === 'wood' || nRef._carry.good === 'firewood'));
-                        const sackSheet = nRef._carry && !logs && nRef._carry.good !== 'stone' && self._sheets && self._sheets.get('carry_sack');
+                        // a basket: a miner's stone, a herbalist's herbs, berries or flowers
+                        const basket = !!(nRef._carry && ['stone', 'herbs', 'berries', 'flowers'].includes(nRef._carry.good));
+                        const sackSheet = nRef._carry && !logs && !basket && self._sheets && self._sheets.get('carry_sack');
                         // logs a woodcutter felled (world/innerMap/townWoodcutters.js), on the shoulder
                         const logSheet = logs && self._sheets && self._sheets.get('lumber');
                         const drawLogs = () => {
@@ -916,7 +918,7 @@ Object.assign(InnerMapRenderer, {
                             ctx.drawImage(sackSheet, 32 * k, 92 * k, 32 * k, 36 * k, sx - s / 2 + side * cw * 0.22, cy + ch * 0.42 - s / 2 - bob, s, s);
                         };
                         if (sackSheet && nDir === InnerMapCharacters.DIR_UP) drawSack();
-                        if (nRef._carry && nRef._carry.good === 'stone' && nDir === InnerMapCharacters.DIR_UP) InnerMapFelling.drawCarriedStone(ctx, sx, sy, ds, nDir, nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0);
+                        if (basket && nDir === InnerMapCharacters.DIR_UP) InnerMapFelling.drawCarriedStone(ctx, sx, sy, ds, nDir, nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0, nRef._carry.good);
                         if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, true, chopTool);
                         const stepBob = nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0;
@@ -927,7 +929,7 @@ Object.assign(InnerMapRenderer, {
                         // on the way out to the tree, the axe over the shoulder
                         if (carryAxe) InnerMapFelling.drawCarriedAxe(ctx, sx, sy, ds, nDir, false, stepBob, chopTool);
                         // a miner's basket of stone (world/innerMap/townMiners.js), before the chest
-                        if (nRef._carry && nRef._carry.good === 'stone' && nDir !== InnerMapCharacters.DIR_UP) InnerMapFelling.drawCarriedStone(ctx, sx, sy, ds, nDir, stepBob);
+                        if (basket && nDir !== InnerMapCharacters.DIR_UP) InnerMapFelling.drawCarriedStone(ctx, sx, sy, ds, nDir, stepBob, nRef._carry.good);
                         if (extra && nDir !== InnerMapCharacters.DIR_UP) drawTool();
                         if (sackSheet && nDir !== InnerMapCharacters.DIR_UP) drawSack();
                         if (logSheet) drawLogs();

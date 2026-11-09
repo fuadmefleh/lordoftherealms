@@ -341,24 +341,38 @@ export const InnerMapFelling = {
         }
     },
 
-    /** A basket of broken stone, carried before the chest (a town miner walking it in). */
-    drawCarriedStone(ctx, px, py, ds, dir, bob = 0) {
+    /**
+     * A basket carried before the chest: a town miner's broken stone, or a herbalist's
+     * herbs, berries or flowers (world/innerMap/townHerbalists.js), heaped in it.
+     */
+    drawCarriedStone(ctx, px, py, ds, dir, bob = 0, good = 'stone') {
         const b = _item('basket');
         if (!b) return false;
         const [sx, sy, sw, sh] = b.rect;
         const w = ds * 0.62, h = w * sh / sw;
         const x = px - w / 2 + (dir === DIR_RIGHT ? ds * 0.12 : dir === DIR_LEFT ? -ds * 0.12 : 0);
-        const y = py - ds * 0.62 - bob;
+        // held at the waist before them; facing away, it rides higher on the back
+        const y = py - ds * (dir === DIR_UP ? 0.62 : 0.4) - bob;
         // the stones heaped in it
         const heap = [[0.25, 0.1, 0.13], [0.48, 0.02, 0.15], [0.7, 0.1, 0.12], [0.38, 0.16, 0.11], [0.6, 0.18, 0.1]];
+        // [shade, face] by what is heaped: grey stone, green herbs, red and blue berries, pink and white flowers
+        const tones = {
+            stone: [['#6f6c66', '#a19d96']],
+            herbs: [['#3f6b2a', '#6a9a3e'], ['#4c7a30', '#86b04c']],
+            berries: [['#7a1e24', '#c0343c'], ['#2b3570', '#4a5cb0'], ['#3f6b2a', '#6a9a3e']],
+            flowers: [['#a8506e', '#e48aa8'], ['#b9b39a', '#f4f0e0'], ['#3f6b2a', '#6a9a3e']],
+        }[good] || [['#6f6c66', '#a19d96']];
+        const small = good !== 'stone';
         ctx.save();
         ctx.imageSmoothingEnabled = true;
-        for (const [fx, fy, fr] of heap) {
-            ctx.fillStyle = '#6f6c66';
-            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy + w * 0.02, w * fr, w * fr * 0.75, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#a19d96';
-            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy, w * fr * 0.9, w * fr * 0.65, 0, 0, Math.PI * 2); ctx.fill();
-        }
+        heap.forEach(([fx, fy, fr], i) => {
+            const [shade, face] = tones[i % tones.length];
+            const rr = small ? fr * 0.8 : fr;
+            ctx.fillStyle = shade;
+            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy + w * 0.02, w * rr, w * rr * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = face;
+            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy, w * rr * 0.9, w * rr * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+        });
         ctx.drawImage(b.img, sx, sy + sh * 0.18, sw, sh * 0.82, x, y + h * 0.18, w, h * 0.82);
         ctx.restore();
         return true;

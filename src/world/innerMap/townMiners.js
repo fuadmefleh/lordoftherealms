@@ -91,22 +91,27 @@ Object.assign(InnerMap, {
 
     // ── What the woodcutters and miners carry in ──
 
-    /** Is this load for the town's yard (logs, firewood, stone)? */
+    /** Is this load the gatherers' (logs, firewood, stone; a herbalist's basket, townHerbalists.js)? */
     _isYardLoad(c) {
-        return !!(c && (c.good === 'wood' || c.good === 'firewood' || c.good === 'stone'));
+        if (!c) return false;
+        if (c.good === 'wood' || c.good === 'firewood' || c.good === 'stone') return true;
+        return !!(this.townForageConfig && this.townForageConfig().stores[c.good]);
     },
 
     /** Where a yard load is taken, in order of preference. */
     _yardStores(c) {
         if (!this._isYardLoad(c)) return null;
-        return c.good === 'stone' ? this.townMineConfig().stores : this.townWoodConfig().stores;
+        if (c.good === 'stone') return this.townMineConfig().stores;
+        if (c.good === 'wood' || c.good === 'firewood') return this.townWoodConfig().stores;
+        return this.townForageConfig().stores[c.good];
     },
 
     /** Gone indoors with a yard load: logs and firewood (townWoodcutters.js), stone into the town's goods. */
     _yardDelivered(npc, bldg) {
         const c = npc._carry;
         if (!c || !bldg) return false;
-        if (c.good !== 'stone') return this._townWoodDelivered(npc, bldg);
+        if (c.good === 'wood' || c.good === 'firewood') return this._townWoodDelivered(npc, bldg);
+        if (c.good !== 'stone') return this._townForageDelivered ? this._townForageDelivered(npc, bldg) : false;
         const C = this.townMineConfig();
         if (!(C.stores || []).includes(bldg.type)) return false;
         npc._carry = null;

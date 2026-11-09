@@ -358,6 +358,7 @@ Object.assign(InnerMap, {
         const rnd = Utils.random;
         npc._chatWith = null;
         if (npc._field) this._leaveField(npc);
+        if (npc._forage && this._leaveForage) this._leaveForage(npc);
         if (npc._chop && this._stopChopping) this._stopChopping(npc);
         // Carrying in what was cut: to the granary first
         if (npc._carry && this._goStore(npc)) return true;
@@ -390,6 +391,8 @@ Object.assign(InnerMap, {
                 if (this._isTownWoodcutter && this._isTownWoodcutter(npc) && rnd() < (Number(this.townWoodConfig().share) || 0) && this._goToTree(npc)) return true;
                 // A miner out to break stone (world/innerMap/townMiners.js)
                 if (this._isTownMiner && this._isTownMiner(npc) && rnd() < (Number(this.townMineConfig().share) || 0) && this._goToRock(npc)) return true;
+                // A herbalist out to gather herbs, berries or flowers (world/innerMap/townHerbalists.js)
+                if (this._isTownHerbalist && this._isTownHerbalist(npc) && rnd() < (Number(this.townForageConfig().share) || 0) && this._goToBush(npc)) return true;
                 // Out to the fields
                 if (rnd() < (Number(C.fieldWork[npc.type]) || 0) && this._goToField(npc)) return true;
                 if (!npc._work) return this._doActivity(npc, 'errand', period);
@@ -636,6 +639,7 @@ Object.assign(InnerMap, {
         if (act === 'chat') this._startChat(npc);
         if (act === 'field') this._startFieldWork(npc);
         if (act === 'chop' && this._startChopping) this._startChopping(npc);
+        if (act === 'forage' && this._startForaging) this._startForaging(npc);
         npc._activity = null;
         npc._face = null;
     },

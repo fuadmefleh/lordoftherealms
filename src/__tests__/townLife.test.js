@@ -80,7 +80,7 @@ describe('Town life', () => {
         expect(settled.filter(n => n._home).length / settled.length).toBeGreaterThan(0.9);
     });
 
-    it('through a day, no one wanders out of town (save the departing, and hands out in the fields)', () => {
+    it('through a day, no one wanders out of town (save the departing, hands out in the fields, and the gatherers)', () => {
         enter('town');
         const m = InnerMap.townArea().margin;
         for (let h = 7; h < 23; h++) {
@@ -89,7 +89,9 @@ describe('Town life', () => {
             for (const n of InnerMap.npcs) {
                 if (n.departing || n.state === 'inside_building') continue;
                 const end = n.path && n.path.length ? n.path[n.path.length - 1] : { q: n.q, r: n.r };
-                if (n._field || n._carry) {
+                // (hands out in the fields, and the woodcutters, miners and herbalists out at their trees,
+                //  rocks and bushes, keep to the map but not the town)
+                if (n._field || n._carry || n._chop || n._forage) {
                     expect(end.q >= m && end.r >= m && end.q < InnerMap.width - m && end.r < InnerMap.height - m).toBe(true);
                     continue;
                 }

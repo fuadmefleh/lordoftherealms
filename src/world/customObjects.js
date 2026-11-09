@@ -61,6 +61,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { ShipHulls } from './shipHulls.js';
 import { loadSheetInto } from '../core/customSheets.js';
 import { TownProps } from './townProps.js';
+import { GraveArt } from './graveArt.js';
 
 // id → full definition (includes sheetName, sheetPath, tileW/H merged in)
 const _defs       = new Map();
@@ -194,6 +195,8 @@ export const CustomObjects = {
             }
             // Town props — wells, stalls, fences, fields (world/townProps.js)
             for (const obj of TownProps.defs()) registerObj(obj);
+            // Grave markers, tombs, the crypt, the rail, ossuary and bone mill (world/graveArt.js)
+            for (const obj of GraveArt.defs()) registerObj(obj);
             // The LPC ships, as the artist composed them (world/shipHulls.js)
             for (const obj of ShipHulls.defs()) registerObj(obj);
 

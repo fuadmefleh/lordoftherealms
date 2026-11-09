@@ -351,6 +351,8 @@ export const Trading = {
         }
 
         if (!good) return { success: false, reason: 'Invalid good' };
+        // Goods no stall buys (bones, bone meal: their own buyers — systems/graveyards.js)
+        if (good.noMarket) return { success: false, reason: `No stall here buys ${String(good.name || goodId).toLowerCase()}. ${good.description || ''}`.trim() };
 
         const blocked = Trading.monopolyBlock(settlement, goodId, player);
         if (blocked) return { success: false, reason: blocked };

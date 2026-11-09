@@ -31,6 +31,7 @@ import { CustomBuildings } from './customBuildings.js';
 import { CustomObjects } from './customObjects.js';
 import { TownProps, FIELD_W, FIELD_H } from './townProps.js';
 import { LotBook } from './lotBook.js';
+import { planChurchyard } from './churchyard.js';
 import { Cultures } from './cultures.js';
 
 /** How each size of settlement is laid out. */
@@ -401,6 +402,10 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             if (done) break;
         }
     }
+
+    // 4a¼. The churchyard: beside the church or temple, or on a village's edge (world/churchyard.js);
+    // its graves are the town's dead, stood on entering (world/innerMap/graves.js). Draws no rng.
+    tiles._graveyard = planChurchyard({ tiles, W, H, type, settlement, placed, frontLines, reach, isRoad });
 
     // 4a½. Building lots: empty ground set aside along the streets, for sale to anyone (world/lotBook.js).
     // Many in a village, few in a city. Each fronts its street; tiles carry _lot = its id.

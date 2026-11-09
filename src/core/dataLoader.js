@@ -628,6 +628,13 @@ export const DataLoader = {
         // Wild goods found foraging and hunting (truffles, crabs, bear pelts…)
         // join the GOODS table after the exotic ones, so they sell like any good
         if (peData && peData.GOODS && earlyJobsData) DataLoader.registerWildGoods(peData.GOODS, earlyJobsData);
+        // The goods of death (bones, bone meal, grave goods: data/graves.json goods; systems/graveyards.js)
+        const gravesData = data['graves.json'];
+        if (peData && peData.GOODS && gravesData && gravesData.goods) {
+            for (const [key, g] of Object.entries(gravesData.goods)) {
+                if (!key.startsWith('_') && g && g.id && !peData.GOODS[key]) peData.GOODS[key] = { ...g };
+            }
+        }
 
         // ── Gossip / Rumor System ──
         const gossipData = data['gossip.json'];

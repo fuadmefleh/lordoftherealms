@@ -220,7 +220,10 @@ Object.assign(InnerMap, {
                     resource = { ...anchorTile.customObject.resource };
                 }
                 this._lastWreck = null;
+                const def = typeof CustomObjects !== 'undefined' ? CustomObjects.getDef(ia.defId) : null;
                 this._removeCustomObject(ia.anchorQ, ia.anchorR);
+                // A stump grubbed out: the ground stays clear (world/innerMap/felling.js)
+                if (def && def.objectType === 'stump' && this._noteGrubbed) this._noteGrubbed(ia.anchorQ, ia.anchorR);
                 const result = { completed: true, anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource, wreck: this._lastWreck };
                 this._lastWreck = null;
                 this._activeInteraction = null;
@@ -243,6 +246,10 @@ Object.assign(InnerMap, {
                 Math.max(0, anchorTile.customObject.currentHealthPct - dmg);
             const hp = anchorTile.customObject.currentHealthPct;
             if (hp <= 0) {
+                // A tree comes down at the blow: its stump is left standing and it topples
+                // away from you (world/innerMap/felling.js) — no fading out on the spot
+                const def = typeof CustomObjects !== 'undefined' ? CustomObjects.getDef(ia.defId) : null;
+                if (def && def.topples) return this._fellNow(ia, anchorTile, dmg);
                 ia.fading = true;
                 ia.swingTimer = 0;
             }
@@ -253,12 +260,32 @@ Object.assign(InnerMap, {
     },
 
     /**
+     * The killing blow on a tree: it is felled at once — its stump stands where
+     * it was, the toppling is recorded for the renderer and the felling for the
+     * map (world/innerMap/felling.js _noteFelled). Returns the completed result
+     * (with the hit's damage, for the float over it).
+     */
+    _fellNow(ia, anchorTile, dmg) {
+        const resource = anchorTile.customObject.resource ? { ...anchorTile.customObject.resource } : null;
+        const def = CustomObjects.getDef(ia.defId);
+        this._removeCustomObject(ia.anchorQ, ia.anchorR);
+        const after = anchorTile.customObject;
+        const stumpId = after && def && after.defId === def.spawnAfter ? after.defId : null;
+        if (this._noteFelled) this._noteFelled(ia.anchorQ, ia.anchorR, def, stumpId);
+        ia.done = true;
+        this._activeInteraction = null;
+        return { hit: true, completed: true, felled: true, damage: Math.round(dmg), healthPct: 0,
+            anchorQ: ia.anchorQ, anchorR: ia.anchorR, defId: ia.defId, resource, stumpId };
+    },
+
+    /**
      * Remove a custom object (anchor + all footprint tiles).
      * If the definition specifies a `spawnAfter` object ID, that object
      * is automatically placed at the origin tile after removal (e.g. a
-     * stump spawning after a tree is harvested).
+     * stump spawning after a tree is harvested) — unless opts.spawn is false
+     * (world/innerMap/felling.js laying a map's old fellings).
      */
-    _removeCustomObject(anchorQ, anchorR) {
+    _removeCustomObject(anchorQ, anchorR, opts = {}) {
         const anchorTile = this.getTile(anchorQ, anchorR);
         if (!anchorTile || !anchorTile.customObject) return;
 
@@ -274,20 +301,23 @@ Object.assign(InnerMap, {
 
         // Clear footprint tiles and restore passability for all tiles (including anchor)
         if (def && def.tiles) {
+            // (a town prop — a tree's trunk, a stump — keeps what blocks in its meta, not its tiles)
+            const metaBlocks = new Set((def.meta || []).filter(m => m.impassable).map(m => `${m.localCol},${m.localRow}`));
             for (const td of def.tiles) {
                 const fq = anchorQ + td.localCol;
                 const fr = anchorR + td.localRow;
                 const ft = this.getTile(fq, fr);
                 if (!ft) continue;
+                const blocks = td.impassable || metaBlocks.has(`${td.localCol},${td.localRow}`);
                 const isAnchor = td.localCol === 0 && td.localRow === 0;
                 if (isAnchor) {
                     // Anchor tile: restore passability if object made it impassable
-                    if (td.impassable) ft.subTerrain.passable = true;
+                    if (blocks) ft.subTerrain.passable = true;
                 } else if (ft.customObjectPart &&
                            ft.customObjectPart.anchorQ === anchorQ &&
                            ft.customObjectPart.anchorR === anchorR) {
                     delete ft.customObjectPart;
-                    if (td.impassable) ft.subTerrain.passable = true;
+                    if (blocks) ft.subTerrain.passable = true;
                 }
             }
         }
@@ -296,7 +326,7 @@ Object.assign(InnerMap, {
         delete anchorTile.customObject;
 
         // ── spawnAfter: place a replacement object at the origin tile ──
-        if (def && def.spawnAfter) {
+        if (def && def.spawnAfter && opts.spawn !== false) {
             const spawnDef = CustomObjects.getDef(def.spawnAfter);
             if (spawnDef && spawnDef.tiles && spawnDef.tiles.length > 0) {
                 // Verify the full footprint of the replacement is free
@@ -368,6 +398,21 @@ Object.assign(InnerMap, {
      * Returns { q, r } or null if none found.
      */
     findAdjacentToObject(anchorQ, anchorR, def) {
+        // A tree or a stump is chopped at its trunk: stand beside it (best to its side, so
+        // the axe swings across it and it falls away from you), else below it, else above
+        if (def && (def.topples || def.objectType === 'stump')) {
+            const t = this.trunkOf(anchorQ, anchorR, def);
+            const spots = [[-1, 0, 0], [1, 0, 0], [0, 1, 1.5], [0, -1, 3]];
+            let best = null;
+            for (const [dq, dr, cost] of spots) {
+                const nq = t.q + dq, nr = t.r + dr;
+                const nt = this.getTile(nq, nr);
+                if (!nt || !nt.subTerrain || !nt.subTerrain.passable) continue;
+                const dist = Math.abs(nq - this.playerInnerQ) + Math.abs(nr - this.playerInnerR) + cost;
+                if (!best || dist < best.dist) best = { q: nq, r: nr, dist };
+            }
+            if (best) return { q: best.q, r: best.r };
+        }
         // Collect all footprint tile coords
         const footprint = new Set();
         if (def && def.tiles) {
@@ -399,6 +444,18 @@ Object.assign(InnerMap, {
         // Pick closest to player
         candidates.sort((a, b) => a.dist - b.dist);
         return { q: candidates[0].q, r: candidates[0].r };
+    },
+
+    /** The cell a tree or stump stands on (its blocking cell, the bottom row's middle), else its anchor. */
+    trunkOf(anchorQ, anchorR, def) {
+        const m = def && Array.isArray(def.meta) ? def.meta.find(x => x.impassable) : null;
+        return m ? { q: anchorQ + m.localCol, r: anchorR + m.localRow } : { q: anchorQ, r: anchorR };
+    },
+
+    /** The way to face to strike the object anchored at (q, r): at its trunk for a tree or a stump. */
+    getDirectionTowardObject(anchorQ, anchorR, def) {
+        const t = def && (def.topples || def.objectType === 'stump') ? this.trunkOf(anchorQ, anchorR, def) : { q: anchorQ, r: anchorR };
+        return this.getDirectionToward(t.q, t.r);
     },
 
     /**

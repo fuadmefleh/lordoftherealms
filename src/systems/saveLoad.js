@@ -219,6 +219,8 @@ export const SaveLoad = {
             wildlife: world.wildlife ? JSON.parse(JSON.stringify(world.wildlife)) : null,
             // The gates the player left open on the towns' maps (world/innerMap/gates.js)
             gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
+            // The trees felled on the maps, their stumps and what grows back (world/innerMap/felling.js)
+            felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -771,6 +773,8 @@ export const SaveLoad = {
         world.wildlife = saveData.wildlife && typeof saveData.wildlife === 'object' ? saveData.wildlife : {};
         // The gates left open (older saves: none — every gate stands shut)
         world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
+        // The trees felled (older saves: none — the woods stand whole)
+        world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));

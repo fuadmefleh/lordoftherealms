@@ -12,6 +12,7 @@ import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
+import { InnerMapFelling } from '../innerMapFelling.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 
@@ -215,9 +216,10 @@ Object.assign(InnerMapRenderer, {
                 this._playerFacing = direction;
             } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
                 anim = InnerMap._activeInteraction.animKey || 'idle';
-                direction = InnerMap.getDirectionToward(
+                direction = InnerMap.getDirectionTowardObject(
                     InnerMap._activeInteraction.anchorQ,
-                    InnerMap._activeInteraction.anchorR
+                    InnerMap._activeInteraction.anchorR,
+                    CustomObjects.getDef(InnerMap._activeInteraction.defId)
                 );
                 this._playerFacing = direction;
             }
@@ -614,11 +616,14 @@ Object.assign(InnerMapRenderer, {
                         //  a bench and the like leave it still — they keep no swing timers, and the
                         //  shake would come out NaN and blank the object for the whole animation)
                         const isInteracting = ia && !ia.done && !ia.nonDestructive && ia.anchorQ === q && ia.anchorR === r;
+                        // A tree (or stump) being chopped shudders at each blow instead, its crown
+                        // swaying more than its trunk (ui/innerMapFelling.js)
+                        const chopped = InnerMapFelling.isChopped(def);
 
                         items.push({ sortY, zLayer: 1, sortH, sortX, draw() {
                             // Apply shake and fade if being interacted with
                             let shakeX = 0, shakeY = 0, alpha = 1.0;
-                            if (isInteracting) {
+                            if (isInteracting && !chopped) {
                                 if (ia.fading) {
                                     // Fade phase: shake intensifies + fade out
                                     const fadeProgress = Math.min(1, ia.swingTimer / ia.fadeDuration);
@@ -658,7 +663,7 @@ Object.assign(InnerMapRenderer, {
                             for (const td of activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
-                                const tdx = Math.floor(ax + td.localCol * ds) + shakeX;
+                                const tdx = Math.floor(ax + td.localCol * ds) + shakeX + (chopped ? InnerMapFelling.shakeAt(oq, or2, td.localRow, ds) : 0);
                                 const tdy = Math.floor(ay + td.localRow * ds) + shakeY;
                                 if (tdx + cs < 0 || tdx > ctx.canvas.width + cs) continue;
                                 if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
@@ -671,7 +676,7 @@ Object.assign(InnerMapRenderer, {
                             }
                             ctx.imageSmoothingEnabled = smooth0;
 
-                            if (isInteracting && alpha < 1.0) ctx.globalAlpha = 1.0;
+                            if (isInteracting && !chopped && alpha < 1.0) ctx.globalAlpha = 1.0;
                             // ── Object health bar (shown when object has taken damage) ──
                             if (typeof InnerMapCombat !== 'undefined' && customObjRef.currentHealthPct != null && customObjRef.currentHealthPct < 100) {
                                 InnerMapCombat.renderObjectHealthBar(ctx, camera, oq, or2, customObjRef.currentHealthPct);
@@ -711,6 +716,14 @@ Object.assign(InnerMapRenderer, {
                     }});
                 }
             }
+        }
+
+        // ── Trees coming down (world/innerMap/felling.js; drawn by ui/innerMapFelling.js):
+        //    sorted just in front of the stump they leave ──
+        for (const f of InnerMap._fallingTrees || []) {
+            if (f.r < rMin - 1 || f.r > rMax + 1) continue;
+            const ff = f;
+            items.push({ sortY: (f.r + 1) * T + 0.5, zLayer: 1, sortX: f.q, draw() { InnerMapFelling.drawFalling(ctx, camera, ff, self); } });
         }
 
         // ── Phase 2: Collect buildings (legacy + custom) ────────────────────────
@@ -946,14 +959,15 @@ Object.assign(InnerMapRenderer, {
                         const dr = ia.npc.r - InnerMap.playerInnerR;
                         direction = InnerMapCharacters.getDirection(dq, dr);
                     } else if (ia.targetType === 'object') {
-                        direction = InnerMap.getDirectionToward(ia.targetQ, ia.targetR);
+                        direction = InnerMap.getDirectionTowardObject(ia.targetQ, ia.targetR, CustomObjects.getDef(ia.defId));
                     }
                     this._playerFacing = direction;
                 } else if (InnerMap._activeInteraction && !InnerMap._activeInteraction.done) {
                     anim = InnerMap._activeInteraction.animKey || 'slash';
-                    direction = InnerMap.getDirectionToward(
+                    direction = InnerMap.getDirectionTowardObject(
                         InnerMap._activeInteraction.anchorQ,
-                        InnerMap._activeInteraction.anchorR
+                        InnerMap._activeInteraction.anchorR,
+                        CustomObjects.getDef(InnerMap._activeInteraction.defId)
                     );
                     this._playerFacing = direction;
                 }
@@ -967,9 +981,13 @@ Object.assign(InnerMapRenderer, {
                 if (pRod.toward) direction = InnerMap.getDirectionToward(pRod.toward.q, pRod.toward.r);
                 this._playerFacing = direction;
             }
+            // Chopping (ui/innerMapFelling.js): the slash frames timed to the blows, the axe in hand
+            const chopP = !deathState && !pos.walking && (anim === 'slash' || anim === 'halfslash') ? InnerMapFelling.swingPhase() : null;
+            if (chopP != null) anim = 'slash';
             const sortY = pos.y + T / 2;
             const px = screen.x, py = screen.y;
             const pAnim = anim, pDir = direction;
+            const pTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS) : null;
             const playerPreset = this._playerPreset || InnerMapCharacters.playerPreset || 'male_noble';
             const pDeathState = deathState; // capture for closure
             const pSwimming = !deathState && typeof InnerMap.isPlayerSwimming === 'function' && InnerMap.isPlayerSwimming();
@@ -1055,7 +1073,9 @@ Object.assign(InnerMapRenderer, {
                         if (rodSheet && pDir === InnerMapCharacters.DIR_UP) drawRod();
                         // A job's load or tool (ui/innerMapTasks.js): behind the body or in front, by facing
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, true);
-                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, now, cx, cy, charW, charH);
+                        if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, true);
+                        InnerMapCharacters.drawCharacter(ctx, playerPreset, pAnim, pDir, pTime != null ? pTime : now, cx, cy, charW, charH);
+                        if (chopP != null) InnerMapFelling.drawAxe(ctx, px, py, ds, pDir, chopP, false);
                         InnerMapTasks.drawCarried(ctx, px, py, ds, pDir, pAnim, now, false);
                         if (rodSheet && pDir !== InnerMapCharacters.DIR_UP) drawRod();
                     }
@@ -1086,6 +1106,8 @@ Object.assign(InnerMapRenderer, {
 
         // ── Phase 6: Combat overlays (hit flashes + floating damage numbers) ──
         // Always rendered on top of all sprites.
+        // The chips, leaves and dust of the felling, and the XP it earned (ui/innerMapFelling.js)
+        InnerMapFelling.drawParticles(ctx, camera);
         if (typeof InnerMapCombat !== 'undefined') {
             InnerMapCombat.render(ctx, camera);
         }

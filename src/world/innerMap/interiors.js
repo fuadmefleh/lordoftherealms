@@ -107,6 +107,8 @@ Object.assign(InnerMap, {
         if (hasSettlement) TownProps.joinFences(this.tiles);
         // ── Its gates as the player left them: shut, or open (world/innerMap/gates.js) ──
         this._bindGates(game.world, `${worldQ},${worldR}`);
+        // ── The trees felled here: their stumps, saplings, or the trees grown back (world/innerMap/felling.js) ──
+        if (this._bindFelling) this._bindFelling(game.world, `${worldQ},${worldR}`, this.worldDay);
         // ── Its granary stocked from the first day (world/economy.js), for the farmers to carry into and the keeper to sell from ──
         if (hasSettlement && worldTile && worldTile.settlement && !worldTile.settlement.economy) Economy.initSettlement(worldTile.settlement);
 

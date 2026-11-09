@@ -57,10 +57,15 @@
     },
     "gathering": {
         "_doc": "player/gathering.js: which skill a swing at an object trains (by objectType, or the resource it gives), the energy a swing costs before the skill's effort perk, the extra share of the resource the logs / stone perk adds, and the rarer finds a broken rock may give by the hex's terrain (weights; qty [min, max]).",
-        "byObjectType": { "tree": "woodcutting", "rock": "mining" },
+        "byObjectType": { "tree": "woodcutting", "stump": "woodcutting", "rock": "mining" },
         "byResource": { "wood": "woodcutting", "stone": "mining" },
         "energyPerSwing": 0.6,
         "extraShare": 0.4,
+        "_axesDoc": "The best edge in your packs makes every blow at a tree or a stump land harder (×mult; player/gathering.js toolFor/damageMult) and is named when the tree comes down. Tools (an iron axe among them) or steel tools; with neither, your knife and a borrowed hatchet. On rock the same goods are the pick (picks).",
+        "axes": [{ "item": "steel_tools", "mult": 1.4, "name": "steel axe" }, { "item": "tools", "mult": 1.2, "name": "iron axe" }],
+        "picks": [{ "item": "steel_tools", "mult": 1.4, "name": "steel pick" }, { "item": "tools", "mult": 1.2, "name": "iron pick" }],
+        "_xpDoc": "xpPerHardness: more Woodcutting / Mining XP for a harder tree or rock, per point of its hardness (resistance), on top of the skill's perFell / perBreak.",
+        "xpPerHardness": 0.2,
         "rareFinds": {
             "mountain": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 3] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gold_ore", "weight": 0.6, "qty": [1, 1] }, { "item": "gems", "weight": 0.4, "qty": [1, 1] }],
             "snow_peak": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gems", "weight": 0.6, "qty": [1, 1] }],

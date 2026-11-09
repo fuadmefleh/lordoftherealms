@@ -678,6 +678,11 @@ Object.assign(InnerMapRenderer, {
                                 ctx.drawImage(bare.canvas, 0, bare.canvas.height * (1 - keep), bare.canvas.width, bare.canvas.height * keep,
                                     Math.floor(ax + bare.minCol * ds) + shakeX, bottom - h * keep, w, h * keep);
                             }
+                            // A burning campfire plays the flame frames its sheet holds beside it (data/ambient.json `frames`)
+                            const anim = self._ambientAnim ? self._ambientAnim(def.id) : null;
+                            const afr = anim ? self._ambientFrameOf(anim, oq, or2) : 0;
+                            const fdx = anim ? afr * (anim.step ? anim.step[0] : 1) * 32 : 0;
+                            const fdy = anim ? afr * (anim.step ? anim.step[1] : 0) * 32 : 0;
                             for (const td of bare ? [] : activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
@@ -687,10 +692,10 @@ Object.assign(InnerMapRenderer, {
                                 if (tdy + cs < 0 || tdy > ctx.canvas.height + cs) continue;
                                 const k = self._sheetScale(img);   // (a high-res sheet: ui/sheetScale.js)
                                 const veiled = uw && !self._veiledTile(oq + td.localCol, or2 + td.localRow)
-                                    ? self._veiledSprite(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k) : null;
+                                    ? self._veiledSprite(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k) : null;
                                 ctx.imageSmoothingEnabled = k > 1;   // (a painted sheet draws smooth, pixel art crisp)
                                 if (veiled) ctx.drawImage(veiled, tdx, tdy, cs, cs);
-                                else ctx.drawImage(img, td.sx * k, td.sy * k, td.sw * k, td.sh * k, tdx, tdy, cs, cs);
+                                else ctx.drawImage(img, (td.sx + fdx) * k, (td.sy + fdy) * k, td.sw * k, td.sh * k, tdx, tdy, cs, cs);
                             }
                             ctx.imageSmoothingEnabled = smooth0;
 
@@ -738,6 +743,9 @@ Object.assign(InnerMapRenderer, {
 
         // ── Trees coming down (world/innerMap/felling.js; drawn by ui/innerMapFelling.js):
         //    sorted just in front of the stump they leave ──
+        // ── Moving parts — a waterwheel, sails, a pennant — from their art (innerMapLayers/ambient.js) ──
+        if (this._ambientSortItems) this._ambientSortItems(items, ctx, camera);
+
         for (const f of InnerMap._fallingTrees || []) {
             if (f.r < rMin - 1 || f.r > rMax + 1) continue;
             const ff = f;

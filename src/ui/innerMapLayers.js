@@ -5,3 +5,4 @@ import './innerMapLayers/objectsBuildings.js';
 import './innerMapLayers/entities.js';
 import './innerMapLayers/waterFx.js';
 import './innerMapLayers/underwater.js';
+import './innerMapLayers/ambient.js';

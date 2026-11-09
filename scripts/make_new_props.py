@@ -98,7 +98,7 @@ RECIPES = {
         (9, 11, 1), (9, 13, 1), (9, 15, 1), (9, 17, 1),          # herbs
         (20, 11, 1), (20, 19, 1), (20, 13, 1), (20, 17, 1),      # strawberry
         (0, 9, 1))], 'small', 'shadows', 'gaps'),                                   # sown
-    **{f'plants_{x}': (f'plants_{x}_source.png', [(f'plants_{x}', list(cs[0]), [list(c) for c in cs[1:]]) for cs in PLANT_CELLS], 'fresh')
+    **{f'plants_{x}': (f'plants_{x}_source.png', [(f'plants_{x}', list(cs[0]), [list(c) for c in cs[1:]]) for cs in PLANT_CELLS], 'fresh', 'shadows')
        for x in ('spring', 'summer', 'autumn', 'winter')},
     # the grassland rocks (map fallback rocks, water's-edge stones): ten shapes, a colour band of four rows each
     'grocks': ('grocks_source.png', [('grocks', [c, r + 4 * b, w, h]) for b in range(3) for c, r, w, h in (
@@ -143,9 +143,26 @@ RECIPES = {
 }
 
 
+def strip_ground_shadow(im):
+    """The pale, colourless grey a background remover leaves under a plant (its drawn ground
+    shadow): pixels of it reached from the transparent outside are cleared. Bright white (a
+    blossom, snow) and anything with colour stay; nothing inside a drawing is touched."""
+    a = np.array(im.convert('RGBA'))
+    rgb = a[..., :3].astype(np.int16)
+    hi, lo = rgb.max(axis=2), rgb.min(axis=2)
+    grey = (a[..., 3] > 0) & (hi - lo <= 22) & (lo >= 120) & (hi <= 236)
+    out = a[..., 3] == 0
+    lab, _ = ndimage.label(grey | out)
+    reach = set(np.unique(lab[out])) - {0}
+    a[np.isin(lab, list(reach)) & grey, 3] = 0
+    return Image.fromarray(a, 'RGBA')
+
+
 def objects(im, min_frac=0.03):
     """The separate drawings of a source, in reading order (rows by their middles)."""
     a = np.array(im)
+    # (a source drawn with real transparency carries a faint alpha haze: that isn't a drawing)
+    a[a[..., 3] <= 24] = 0
     mask = a[..., 3] > 0
     lab, k = ndimage.label(ndimage.binary_dilation(mask, iterations=4))
     sizes = ndimage.sum(mask, lab, range(1, k + 1))
@@ -206,6 +223,8 @@ def build(name):
     src = Image.open(os.path.join(NEW, source))
     if src.mode == 'RGBA' and np.array(src)[..., 3].min() < 16:
         keyed = src.convert('RGBA')   # drawn with real transparency: nothing to key
+        if 'shadows' in opts:          # ...but the pale grey ground shadow some leave under a plant
+            keyed = strip_ground_shadow(keyed)
     else:
         keyed = key_white(src, tol=70 if 'shadows' in opts else 28, holes=40 if 'gaps' in opts else 'holes' in opts)
     objs = objects(keyed, min_frac=0.004 if 'small' in opts else 0.03)

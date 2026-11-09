@@ -61,6 +61,7 @@ import { CourtLetters } from '../../systems/courtLetters.js';
 import { Couriers } from '../../systems/couriers.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Crops } from '../../systems/crops.js';
+import { Livestock } from '../../systems/livestock.js';
 import { Mail } from '../../systems/mail.js';
 import { Sieges } from '../../systems/sieges.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
@@ -352,6 +353,8 @@ function _endDay(game) {
     mark(game, 'Mail.processDay');
     Hospitality.processDay(world, player);
     mark(game, 'Hospitality.processDay');
+    Livestock.processDay(world, player);
+    mark(game, 'Livestock.processDay');
     Crops.processDay(world, player);
     mark(game, 'Crops.processDay');
     game.commissionsDay = Commissions.processDay(player, world);

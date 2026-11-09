@@ -21,6 +21,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [The Crown's Purse](#the-crowns-purse-taxes-wages--tax-farms) — every crown's budget: taxes out of its towns, wages back into them, arrears and desertion, tax levels, tax revolts, tax farms you can bid for, fiscal crises
     - [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system) — the estates about the towns, rents and tenants, land values, buying and selling land, drainage and enclosure; putting out wool and flax to the cottagers; flax and linen
 5. [Properties & Production](#5-properties--production)
+    - [Livestock: Buying, Keeping and Breeding Beasts](#livestock-buying-keeping-and-breeding-beasts) — the livestock market, where beasts can be kept, fodder, eggs, milk and wool, births, sickness and wolves, the herd behind a Pasture, Dairy or Ranch, riding your own horse
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
     - [Merchant Houses: the Trading Company](#merchant-houses-the-trading-company) — charters, factors and standing orders, supply contracts, rival houses, monopolies, shares and royal ventures
@@ -1548,6 +1549,64 @@ On any hex's local map you can farm a patch of your own (`data/crops.json`):
 | Strawberries | Spring, Summer | 12 | 3–6 berries | Thirsty |
 
 Winter frost kills every crop that isn't hardy; hardy ones grow at half pace through it. The yield is a roll in the crop's range, cut by neglect (the share of wet days, never below half) and raised by your **Farming** skill (+8% a point), which each harvest trains. Crops grow day by day whether you are there or not; the fields are kept with your save and laid back on the map when you return.
+
+### Livestock: Buying, Keeping and Breeding Beasts
+
+Beasts are yours by the head (`systems/livestock.js`, `data/livestock.json`). Each one is a single animal with a sex, an age and its health, kept at a place of yours, and the herd lives day by day.
+
+**Buying and selling.** In a settlement, open **Commerce → Livestock Market** (🐄). The pens show each kind for sale, how many are left and the price per head. Pick where they go under **Keep them at**, then buy a female, a male, or five (a pair for cattle and horses). Buying more than one with no male of that kind already in the herd puts a male among them. The market also buys back your beasts kept in its hex or the hex next door. The spare males go first, then the old and the sick, then the young. Prices change with:
+
+- **Town size**: villages are cheapest, capitals dearest.
+- **The land**: a kind is cheaper where the land suits it (pigs in woodland, goats and highland cattle in the hills, horses on grassland) and dearer where it doesn't. A **cattle** or **horses** resource nearby always brings them to market, cheaper.
+- **The season**: dear in spring, cheapest in the autumn cull.
+- **Stock**: each head bought makes the next dearer. The pens refill over about 20 days, and beasts you sell lower the price.
+
+A place away from town costs a **drover's fee** per head per hex, up to 12 hexes. Not every town sells every kind:
+
+| Beast | Sold | Price | Room | Fodder/day | Gives | Slaughtered |
+|-------|------|-------|------|-----------|-------|-------------|
+| 🐔 Chicken | nearly everywhere | 4g | 1 | 0.08g | eggs (hens), feathers | fowl, feathers |
+| 🦆 Duck | some towns, most by water | 5g | 1 | 0.07g | eggs, feathers | duck, feathers |
+| 🐖 Pig | nearly everywhere | 14g | 3 | 0.18g | muck for a farm's fields; big litters | 4–6 pork, a hide |
+| 🐐 Goat | some, most in hill and dry country | 12g | 2 | 0.10g | milk (nannies) | goat meat, hide |
+| 🐑 Sheep | grassland and hill towns | 22g | 2 | 0.12g | wool, shorn in spring | mutton, fleece, hide |
+| 🐄 Dairy Cow | towns and up | 60g | 6 | 0.30g | milk (cows), plenty | beef, hides |
+| 🐂 Highland Cow | hill, cold and northern country | 45g | 6 | 0.24g | a little milk; hardy in winter | beef, hides, sinew |
+| 🐎 Horse | towns and up, or horse country | 120g | 8 | 0.35g | pulls a farm's plough; ride it | horsemeat, hides |
+
+Milk (2g) and eggs (1g) are goods of their own. You can eat them, sell them in any town, or carry them on.
+
+**Where they live.** You can only buy beasts if you have somewhere to keep them. Without a suitable place with room, the market refuses the sale and tells you why.
+
+| Place | Room | Keeps |
+|-------|------|-------|
+| Pasture | 64 | sheep, goats, cattle, horses, pigs, poultry |
+| Dairy | 80 | cows, goats, pigs, poultry |
+| Cattle Ranch | 110 | cattle, horses, pigs, sheep, goats, chickens |
+| Horse Ranch | 72 | horses (and goats and hens) |
+| Farm / Irrigated Farm | 30 | poultry, pigs, goats, cows, horses, sheep |
+| Orchard | 16 | pigs, poultry, goats, sheep |
+| An estate you hold (Land, Estates) | about 48 | sheep, goats, cattle, horses, pigs, poultry |
+| A town lot | 10 | poultry, pigs, goats |
+| A house in town you own, or a home | 5 | poultry, goats (a home: a horse too) |
+| A rented house | 3 | a few hens or ducks |
+| Inn, roadhouse or tavern yard | 6–16 | poultry, pigs (an inn or roadhouse: horses) |
+
+Room is counted per head: a hen or duck takes 1, a goat or sheep 2, a pig 3, a cow 6 and a horse 8. Each level of a property adds a quarter more room. If you lose the place (sold, given up, taken), its beasts are sold off at the market's price.
+
+**By the day.**
+
+- **Fodder.** Beasts on a farm, pasture, ranch or estate graze for free in spring and summer. They need some fodder in autumn and full fodder in winter (highland cattle need less). Beasts in a town yard are fed all year, though hens, ducks and pigs scratch up part of their own. The bill comes out of your purse. If you can't pay, the herd goes **hungry**: it gives nothing, weakens, and in the end starves.
+- **Products.** Grown hens lay eggs (fewer in winter), nannies and cows give milk, sheep grow wool that is shorn mostly in spring, and poultry drop feathers. Everything goes into the herd's **store**, up to 80 goods; anything past that is lost. Collect it at the place with **Collect Goods** or from **Your Herds**.
+- **Births.** A female breeds in her season if a grown male of her kind is kept with her and there is room: hens in spring and summer; ducks, ewes, nannies and mares in spring; sows three seasons a year; cows in spring and summer. Chicks, piglets, lambs and kids grow up in 50 to 110 days, calves in about two seasons, foals in three. The young give nothing until grown and fetch half price.
+- **Sickness and age.** Now and then a beast falls sick, more often in an overcrowded yard. Sickness spreads, and a sick beast gives nothing and may die. Past its lifespan, a beast may die of old age.
+- **Wolves, foxes and bears.** Out of town, the hex's predators (the same ones you meet on its local map) sometimes take a beast, usually one of the young. Foxes take poultry; wolves and bears take sheep, goats and pigs.
+
+**The working herds.** The output of a **Pasture** (wool), **Dairy** (cheese), **Cattle Ranch** (meat) and **Horse Ranch** (horses) depends on the herd kept there. Each comes with a **founding herd**: 24 sheep, 10 dairy cows, 14 highland cattle or 6 horses, with a male to every eight. A property at its target head produces what it always did. Lose half the head and it produces half. Overstocked, it yields up to 140%. Young count half and the sick hardly at all. The property's upkeep feeds its working beasts up to the target, and anything above that needs fodder. The working beasts put nothing into the store, because their work goes into the property's output. Breed the herd up and sell the surplus at market. On a **farm**, each grown horse at the plough adds 5% to the harvest and each pig's muck 3%, up to +20%. The property's panel shows the herd and what share of its output it makes.
+
+**Your horse.** You can saddle a grown horse from any herd as your **mount** (**Your Herds → Ride one**). It counts like a stable-bought horse: +3 movement a day and more room in your packs. Where a market sells horses you can also **Buy one to ride** straight from the pens. **Turn your mount out** at a place of yours that keeps horses, and it joins the herd and can breed.
+
+**On the local map.** Up to ten of each herd graze at their place on the hex's local map: on your lot, in the pastures past the houses in town, or out in the open on your land. Right-click one to **Slaughter** it or **See to your herd**. Killing your own beast is not theft. Its carcass is yours to butcher, carry or drag like any kill, and it is gone from the herd. From **Your Herds** you can also slaughter one at the yard, which puts its meat and hide straight into your packs.
 
 ---
 

@@ -8,6 +8,7 @@ import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { Cartography } from '../../systems/cartography.js';
+import { InnerMapAnimals } from '../innerMapAnimals.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -65,6 +66,13 @@ export async function enterInnerMap(worldQ, worldR) {
             this.ui.showNotification('Error', 'Inner map data failed to generate.', 'error');
             InnerMap.exit(this);
             return;
+        }
+
+        // Your own beasts, at the places you keep them in this hex (systems/livestock.js)
+        try {
+            InnerMapAnimals.placeOwned(this, worldQ, worldR);
+        } catch (err) {
+            console.warn('[Game] Could not place your beasts on the inner map.', err);
         }
 
         // A hex you have charted you know end to end: its whole map lies open (systems/cartography.js)

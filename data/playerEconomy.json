@@ -722,6 +722,8 @@
         "TEA": { "id": "tea", "name": "Tea Leaves", "icon": "🍵", "basePrice": 35, "description": "Dried tea leaves, a costly import that a few great houses have taken to." },
         "WINE": { "id": "wine", "name": "Fine Wine", "icon": "🍷", "basePrice": 45, "description": "Good wine in casks, served at feasts and given as gifts between lords." },
         "CHEESE": { "id": "cheese", "name": "Aged Cheese", "icon": "🧀", "basePrice": 18, "description": "Aged hard cheese. Keeps for months and travels well." },
+        "MILK": { "id": "milk", "name": "Milk", "icon": "🥛", "basePrice": 2, "description": "Fresh milk from your cows and goats. Drink it, or sell it in town before it turns." },
+        "EGGS": { "id": "eggs", "name": "Eggs", "icon": "🥚", "basePrice": 1, "description": "Eggs from your hens and ducks. Cheap, filling, and every kitchen wants them." },
         "DRIED_MEAT": { "id": "dried_meat", "name": "Dried Meat", "icon": "🥓", "basePrice": 14, "description": "Salted and dried meat. Light and lasting: soldiers' and travellers' food." },
         "HONEY": { "id": "honey", "name": "Honey", "icon": "🍯", "basePrice": 20, "description": "Honey from the hives: sweetener, preserver, and the makings of mead." },
         "SALT": { "id": "salt", "name": "Salt", "icon": "🧂", "basePrice": 15, "description": "Salt from pans or mines. Without it no meat or fish keeps through the winter." },

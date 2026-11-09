@@ -24,6 +24,9 @@
 //     it rots (InnerMap.carcassYield).
 //     A village's sheep or cattle killed is theft from the village — fined
 //     if anyone saw it (systems/underworld.js, systems/laws.js).
+//   * stands the player's own beasts at their keeping place (placeOwned:
+//     systems/livestock.js mapEntries → InnerMap.addOwnedAnimals); one of
+//     them slaughtered is the player's to butcher, gone from its herd.
 
 import { InnerMap } from '../world/innerMap.js';
 import { InnerMapTasks } from './innerMapTasks.js';
@@ -39,6 +42,7 @@ import { Underworld } from '../systems/underworld.js';
 import { Laws } from '../systems/laws.js';
 import { Ledger } from '../systems/ledger.js';
 import { WildTasks } from '../systems/wildTasks.js';
+import { Livestock } from '../systems/livestock.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 
@@ -381,8 +385,31 @@ export const InnerMapAnimals = {
         const cfg = InnerMap.animalConfig();
         const sp = InnerMap.animalSpecies(a.species, cfg) || {};
         const name = String(sp.name || a.species).toLowerCase();
+        if (a.ownedBy === 'player') { this._ownKilled(game, a, sp); return; }
         if (a.livestock && a.owner) { this.livestockTheft(game, a, sp); return; }
         _notify(game, `${sp.icon || '🐾'} Killed`, _fmt((cfg.words || {}).killed || 'The {name} is dead.', { name }), 'success');
+    },
+
+    /** One of your own beasts killed: gone from its herd, its carcass yours to butcher. */
+    _ownKilled(game, a, sp = InnerMap.animalSpecies(a.species) || {}) {
+        if (game && game.player && a.ownedHerd) Livestock.removeHead(game.player, a.ownedHerd, a.ownedId);
+        a.ownedBy = null;
+        a.owner = null;
+        _notify(game, `${sp.icon || '🐾'} Slaughtered`, `You slaughter your ${String(sp.name || a.species).toLowerCase()}. Butcher it for its meat and hide.`, 'success');
+    },
+
+    /**
+     * Your own beasts on the map of hex (q, r), at their keeping places
+     * (after InnerMap.enter: ui/game/innerMap.js). Returns those placed.
+     */
+    placeOwned(game, q, r) {
+        const world = game && game.world;
+        const player = game && game.player;
+        if (!world || !player) return [];
+        const entries = Livestock.mapEntries(world, player, q, r);
+        if (!entries.length) return [];
+        const t = typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        return InnerMap.addOwnedAnimals(entries, { settlement: t && t.settlement, spread: (Livestock.config().map || {}).spread, ownerName: player.name || 'you' });
     },
 
     /**
@@ -671,6 +698,15 @@ export const InnerMapAnimals = {
             }
             const mood = { flee: 'running', alert: 'watching you', walk: 'ambling', threat: 'warning you off', stalk: 'stalking you', charge: 'charging!', attack: 'on you!' }[a.state]
                 || (a.livestock ? 'grazing in the pasture' : 'grazing');
+            if (a.ownedBy === 'player') {
+                // One of your own (systems/livestock.js): slaughter it here, or see to the herd
+                out.push({ type: 'header', label: `${sp.icon || '🐾'} Your ${lower}${a.young ? ' (young)' : ''}, ${a.placeName ? `at ${a.placeName}` : mood}` });
+                if (busy) { out.push({ type: 'disabled', label: 'Finish what you are doing first' }); continue; }
+                out.push({ type: 'action', action: 'animal_slaughter_own', label: `${fight.slaughter || 'Slaughter'} your ${lower}`, icon: '🔪',
+                    desc: 'One of your own: it is gone from the herd, its carcass yours to butcher', animal: a });
+                out.push({ type: 'action', action: 'herd_panel', label: 'See to your herd', icon: '🐑', desc: 'Your beasts here: fodder, births, the store of eggs, milk and wool' });
+                continue;
+            }
             out.push({ type: 'header', label: `${sp.icon || '🦌'} ${name}, ${mood}` });
             if (a.hunted || busy) {
                 out.push({ type: 'disabled', label: a.hunted ? 'You are stalking it' : 'Finish what you are doing first' });
@@ -696,6 +732,13 @@ export const InnerMapAnimals = {
     handle(game, item) {
         const a = item && item.animal;
         if (!a || !InnerMap.animals.includes(a)) return item && /^animal_/.test(item.action || '');
+        if (item.action === 'animal_slaughter_own') {
+            if (a.state === 'dead' || a.ownedBy !== 'player') return true;
+            const sp = InnerMap.animalSpecies(a.species) || {};
+            InnerMap.killAnimal(game && game.world, a);
+            this._ownKilled(game, a, sp);
+            return true;
+        }
         if (item.action === 'animal_fight') { this.startFight(game, a); return true; }
         if (item.action === 'animal_butcher') { this.butcher(game, a); return true; }
         if (item.action === 'animal_carry') {

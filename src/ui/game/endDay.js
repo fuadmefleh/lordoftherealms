@@ -22,6 +22,7 @@ import { HeirAgency } from '../../systems/heirAgency.js';
 import { Regency } from '../../systems/regency.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Lots } from '../../systems/lots.js';
+import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
 import { Devotion } from '../../systems/devotion.js';
@@ -633,6 +634,8 @@ export function endDay() {
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
+            for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)
             for (const n of Crops.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hired work finished in a town's mill, bakery, smithy… (systems/commissions.js)

@@ -400,6 +400,9 @@ export const SaveLoad = {
         'homeFurnishings', 'furnitureStore', 'furnitureSeq',
         // Tilled ground and crops on the hexes' inner maps (systems/crops.js; re-laid by world/innerMap/farmPlots.js)
         'farmPlots',
+        // Your beasts, head by head, at the places you keep them (systems/livestock.js;
+        // each town's livestock market travels with it: settlement.livestockMarket)
+        'livestock',
     ],
 
     _pickDefined(obj, keys) {

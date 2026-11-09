@@ -14,6 +14,9 @@ export const FOOD_ITEMS = {
     dried_meat:  { label: 'Dried Meat',    icon: '🥩', hunger: 30, energy: 10 },
     cheese:      { label: 'Cheese',        icon: '🧀', hunger: 22, energy: 5, fun: 5 },
     honey:       { label: 'Honey',         icon: '🍯', hunger: 10, energy: 15, fun: 5 },
+    // From your own hens and milkers (systems/livestock.js)
+    eggs:        { label: 'Eggs',          icon: '🥚', hunger: 8, energy: 4 },
+    milk:        { label: 'Milk',          icon: '🥛', hunger: 6, energy: 6, comfort: 3 },
     herbs:       { label: 'Herbs',         icon: '🌿', hunger: 5, energy: 3 },
     cooked_meal: { label: 'Cooked Meal',   icon: '🍲', hunger: 45, energy: 15, fun: 10, comfort: 8 },
     wine:        { label: 'Wine',          icon: '🍷', hunger: 5, fun: 15, social: 10, energy: -8 },

@@ -5,6 +5,7 @@ import { TownLabour } from '../../world/townLabour.js';
 import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { Livestock } from '../../systems/livestock.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -398,6 +399,11 @@ Object.assign(PlayerEconomy, {
             const resBonus = Economy.propertyResourceBonus(world, tile, property.type).bonus;
             const isRecipe = PlayerEconomy.isRecipeBuilding(property.type);
             if (resBonus > 0 && !isRecipe) amount *= 1 + resBonus;
+
+            // The beasts kept there (systems/livestock.js): a Pasture's flock, a
+            // Dairy's milkers, a Ranch's cattle, a Horse Ranch's mares make its
+            // output (1 at its target head); a farm's horses and pigs lift its harvest
+            amount *= Livestock.workFactor(world, player, tile, property) * Livestock.draftFactor(world, player, tile, property);
 
             // Level bonus (10% per level)
             amount *= (1 + (property.level - 1) * 0.1);

@@ -88,7 +88,37 @@ Object.assign(InnerMap, {
     },
 
     animalSpecies(id, cfg = this.animalConfig()) {
-        return (cfg.species && cfg.species[id]) || null;
+        return (cfg.species && cfg.species[id]) || this._livestockSpecies(id, cfg);
+    },
+
+    /**
+     * A farm beast of data/livestock.json that data/animals.json has no
+     * sheets for yet: drawn and fought as its fallback (a sheep for the
+     * small and middling, a highland cow for the big ones), scaled, with its
+     * own name, icon, worth and what butchering it gives. Cached per data.
+     */
+    _livestockSpecies(id, cfg = this.animalConfig()) {
+        const L = (DataLoader.get && DataLoader.get('livestock')) || null;
+        const ls = L && L.species && L.species[id];
+        if (!ls) return null;
+        if (!this._lsCache || this._lsCache.cfg !== cfg || this._lsCache.L !== L) this._lsCache = { cfg, L, by: {} };
+        if (this._lsCache.by[id]) return this._lsCache.by[id];
+        const fb = (cfg.species && cfg.species[ls.fallback || (ls.size === 'large' ? 'highland_cow' : 'sheep')]) || null;
+        if (!fb) return null;
+        const goods = ((DataLoader.get && DataLoader.get('playerEconomy')) || {}).GOODS || {};
+        const loot = (ls.slaughter || []).map(e => {
+            const g = goods[String(e.good).toUpperCase()] || {};
+            const q = Array.isArray(e.qty) ? e.qty : [1, 1];
+            return { name: e.name || g.name || e.good, item: e.good, icon: g.icon || '🍖', sellPrice: _num(g.basePrice, 4), chance: q[0] > 0 ? 1 : 0.5, qty: { min: Math.max(1, q[0]), max: Math.max(1, q[1]) } };
+        });
+        const sp = {
+            ...fb, name: ls.name || id, icon: ls.icon || fb.icon, kind: 'livestock', livestock: true, huntable: false,
+            scale: _num(ls.scale, 1) * _num(fb.scale, 1), hp: _num(ls.hp, fb.hp), weight: _num(ls.weight, fb.weight),
+            value: _num(ls.price, fb.value), loot, fallbackOf: fb === cfg.species.sheep ? 'sheep' : 'highland_cow',
+        };
+        if (ls.size === 'small') { sp.temper = 'skittish'; sp.fightChance = 0; sp.bite = [0, 1]; sp.notice = 'flee'; }
+        this._lsCache.by[id] = sp;
+        return sp;
     },
 
     /**
@@ -356,6 +386,88 @@ Object.assign(InnerMap, {
         }
         // The kills left lying here (and not yet rotted away)
         this._restoreCarcasses(world, worldQ, worldR, cfg);
+    },
+
+    /**
+     * The player's own beasts on the map just entered (systems/livestock.js
+     * mapEntries; the UI hands them in after enter()): each herd grazes
+     * about a spot of its place — within its lot's ground for a town lot, in
+     * the pastures beyond the houses for anything else in a town, on open
+     * ground off the map's centre in the wilds — hashed from its herd, so it
+     * stands in the same spot each visit. Each is livestock owned by the
+     * player (owner.player): slaughtering one is no theft.
+     * entries: [{ id, animalId, herdKey, species, place: { kind, ref? }, placeName }]
+     */
+    addOwnedAnimals(entries, o = {}) {
+        if (!Array.isArray(entries) || !entries.length || !Array.isArray(this.tiles) || !this.tiles.length) return [];
+        const cfg = this.animalConfig();
+        const tiles = this.tiles;
+        const H = tiles.length, W = H ? tiles[0].length : 0;
+        const bd = this._animalBuiltDist || (o.settlement ? this._builtDistance(tiles) : null);
+        const [nbLo, nbHi] = _pair((cfg.livestock || {}).nearBuilt, 6);
+        const taken = new Set((this.animals || []).map(a => `${a.q},${a.r}`));
+        const inside = (q, r) => q >= 1 && r >= 1 && q < W - 1 && r < H - 1 && tiles[r] && this._animalGround(tiles[r][q]);
+        const spread = Math.max(1, _num(o.spread, 3));
+        const added = [];
+        const byHerd = new Map();
+        for (const e of entries) {
+            if (!e || !this.animalSpecies(e.species, cfg)) continue;
+            (byHerd.get(e.herdKey) || byHerd.set(e.herdKey, []).get(e.herdKey)).push(e);
+        }
+        for (const [key, list] of byHerd) {
+            const place = list[0].place || {};
+            let ground;
+            let cells = null;
+            if (place.kind === 'lot' && o.settlement) {
+                cells = [];
+                for (let r = 0; r < H; r++) for (let q = 0; q < W; q++) if (tiles[r][q] && tiles[r][q]._lot === place.ref && inside(q, r)) cells.push([q, r]);
+            }
+            if (cells && cells.length) {
+                const set = new Set(cells.map(c => `${c[0]},${c[1]}`));
+                ground = (q, r) => set.has(`${q},${r}`);
+            } else if (o.settlement && bd) {
+                ground = (q, r) => inside(q, r) && bd[r * W + q] >= nbLo && bd[r * W + q] <= nbHi;
+            } else {
+                ground = (q, r) => inside(q, r) && !(bd && bd[r * W + q] < 8);
+            }
+            // The herd's home: the first spot of its ground the hash lands on
+            let home = null;
+            if (cells && cells.length) {
+                const c = cells[_hash('ownHome', key) % cells.length];
+                home = { q: c[0], r: c[1] };
+            }
+            const m = Math.min(10, Math.floor(W / 4));
+            for (let attempt = 0; attempt < 200 && !home; attempt++) {
+                const q = m + (_hash('ownQ', key, attempt) % Math.max(1, W - 2 * m));
+                const r = m + (_hash('ownR', key, attempt) % Math.max(1, H - 2 * m));
+                if (ground(q, r) && !taken.has(`${q},${r}`)) home = { q, r };
+            }
+            if (!home) continue;
+            list.forEach((e, i) => {
+                for (let attempt = 0; attempt < 40; attempt++) {
+                    const s = attempt < 20 ? spread : spread * 2;
+                    const q = home.q + (i === 0 && attempt === 0 ? 0 : (_hash('ownMq', e.id, attempt) % (2 * s + 1)) - s);
+                    const r = home.r + (i === 0 && attempt === 0 ? 0 : (_hash('ownMr', e.id, attempt) % (2 * s + 1)) - s);
+                    if (taken.has(`${q},${r}`) || !(ground(q, r) || (attempt >= 20 && inside(q, r)))) continue;
+                    taken.add(`${q},${r}`);
+                    const a = this._makeAnimal({ id: e.id, species: e.species, herd: `own:${key}`, q, r, homeQ: home.q, homeR: home.r, livestock: true,
+                        owner: { player: true, name: o.ownerName || 'you' } }, cfg);
+                    a.ownedBy = 'player';
+                    a.ownedId = e.animalId;
+                    a.ownedHerd = e.herdKey;
+                    a.placeName = e.placeName || null;
+                    if (e.young) a.young = true;
+                    if (this._animalRng) {
+                        const g = _pair((cfg.behaviour || {}).grazeSeconds, 5);
+                        a.timer = g[0] + this._animalRng() * (g[1] - g[0]);
+                    }
+                    this.animals.push(a);
+                    added.push(a);
+                    break;
+                }
+            });
+        }
+        return added;
     },
 
     /**
@@ -892,7 +1004,7 @@ Object.assign(InnerMap, {
 
     /** Note a kill on its hex: gone from the herd until it grows back. */
     _recordCull(world, a) {
-        if (!a || a.temporary || !world || !this.currentWorldTile) return;
+        if (!a || a.temporary || a.ownedBy || !world || !this.currentWorldTile) return;
         if (!world.wildlife || typeof world.wildlife !== 'object') world.wildlife = {};
         if (!world.wildlife.culled) world.wildlife.culled = {};
         const key = `${this.currentWorldTile.q},${this.currentWorldTile.r}`;

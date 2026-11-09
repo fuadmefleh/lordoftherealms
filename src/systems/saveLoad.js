@@ -387,6 +387,8 @@ export const SaveLoad = {
         'practiceSkills', 'swimPractice',
         // Winded after a deep dive: the seconds left getting your breath back (player/diving.js)
         'breathRecovery',
+        // The wear on the fishing spear in hand, fish speared, spears broken, the hint told (player/spearFishing.js)
+        'spearWear', 'fishSpeared', 'spearsBroken', 'spearHinted',
         // How you last left the cells (ui/innerMapJail.js)
         'lastJailRelease',
         // The furniture of the homes you own, and the pieces in store (systems/furnishing.js)

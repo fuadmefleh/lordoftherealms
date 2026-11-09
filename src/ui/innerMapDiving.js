@@ -19,12 +19,18 @@
 // ui/innerMapLayers/underwater.js): swim onto one, or right-click it and
 // Pick Up. What is taken stays taken until the next day.
 //
+// With a fishing spear in the packs the fish swimming about can be speared
+// (ui/innerMapSpearFishing.js: F at the fish under the cursor, or the
+// right-click entries; player/spearFishing.js the rules).
+//
 // Tables and numbers in data/diving.json.
 
 import { InnerMap } from '../world/innerMap.js';
 import { Diving } from '../player/diving.js';
 import { Swimming } from '../player/swimming.js';
 import { Hotbar } from './hotbar.js';
+import { InnerMapSpearFishing } from './innerMapSpearFishing.js';
+import { SpearFishing } from '../player/spearFishing.js';
 
 const BTN_ID = 'innerMapSurfaceBtn';
 
@@ -119,6 +125,7 @@ export const InnerMapDiving = {
             const items = [];
             const f = Diving.findAt(this._under.bed, q, r);
             if (f) items.push({ type: 'action', action: 'dive_pickup', label: `Pick Up ${f.name}${f.qty > 1 ? ` ×${f.qty}` : ''}`, icon: f.rare ? '✨' : f.icon, desc: here ? 'Off the bottom and into your packs' : 'Swim to it and take it' });
+            items.push(...InnerMapSpearFishing.menuItems(game, q, r));
             items.push({ type: 'action', action: 'dive_surface', label: 'Surface', icon: '⬆️', desc: 'Up for air where you are (V)' });
             return items;
         }
@@ -275,6 +282,7 @@ export const InnerMapDiving = {
             return true;
         }
         if (action === 'dive_climb') { this.climbAboard(game); return true; }
+        if (action === 'dive_spear') { if (this._under) InnerMapSpearFishing.handle(game, item); return true; }
         if (action === 'dive_pickup') {
             if (!this._under) return true;
             if (InnerMap.playerInnerQ === q && InnerMap.playerInnerR === r) { this._takeHere(game); return true; }
@@ -326,6 +334,10 @@ export const InnerMapDiving = {
         this._under = { game, tiles: InnerMap.tiles, key: _mapKey(), bed: this._bedHere(game) };
         this._takeHere(game);
         if (first) _note(game, '🐚 Under the Water', 'You fill your lungs and go under. Swim about the bottom and take what you find; watch your breath, and come up (V) before it runs out.');
+        if (SpearFishing.hasSpear(game.player) && !game.player.spearHinted) {
+            game.player.spearHinted = true;
+            _note(game, '🔱 Spear Fishing', 'Your fishing spear is in hand. Point at a fish and press F to strike (close) or throw (farther off). Each strike costs breath, a miss scares the fish off, and the spear wears with use.');
+        }
         this._syncButton(game);
         return true;
     },
@@ -413,6 +425,7 @@ export const InnerMapDiving = {
         // Swim onto a find: it's yours (a full pack is told once; leave and come back to try again)
         for (const f of u.bed.finds) if (f._full && (f.q !== InnerMap.playerInnerQ || f.r !== InnerMap.playerInnerR)) f._full = false;
         this._takeHere(game);
+        InnerMapSpearFishing.update(deltaTime, game);
         const res = Diving.tick(player, game.world, _worldTile(game), deltaTime);
         if (res.low) _note(game, '💨 Short of Breath', 'Your chest is tight. Make for the surface (V).', 'warning');
         if (res.outOfBreath) _note(game, '💨 Out of Breath', res.cold ? 'Your breath is gone, and the cold is crushing. Surface now!' : 'Your breath is gone. Surface now, before the dark takes you!', 'error');

@@ -1,15 +1,18 @@
 // Fish swimming about under the water, while diving (ui/innerMapDiving.js).
 //
-// Only seen, not caught: shoals of sprats and mackerel, bream in twos and
-// threes, a lone snapper or cod, now and then a dogfish, at sea; minnows,
-// perch, trout, carp and the odd pike in lakes, rivers and ponds. The species
-// and how many live where are data/diving.json `fish`.
+// Caught only with a fishing spear (ui/innerMapSpearFishing.js; a miss
+// scares the fish about it off for a moment: scare). Shoals of sprats and
+// mackerel, bream in twos and threes, a lone snapper or cod, now and then a
+// dogfish, at sea; minnows, perch, trout, carp and the odd pike in lakes,
+// rivers and ponds. The species and how many live where are data/diving.json
+// `fish`.
 //
 //   • They live in the divable water within `radius` tiles of the diver; one
 //     left behind past it is gone, and new ones are met at the edge.
 //   • Each wanders from point to point through water only; a shoal keeps
 //     together, each fish holding its place about the shoal's mark.
-//   • Within `shy` tiles of the diver a fish darts away.
+//   • Within `shy` tiles of the diver a fish darts away; one scared by a
+//     spear bolts from where it went past for a few seconds.
 //
 // Drawn by InnerMapRenderer._renderUnderwaterFloor (innerMapLayers/underwater.js),
 // over the bottom and its finds, under the diver. Little pixel sprites drawn
@@ -200,8 +203,15 @@ export const UnderwaterFish = {
             let gx = (f.shoal ? m.tx + f.ox : m.tx) - f.x, gy = (f.shoal ? m.ty + f.oy : m.ty) - f.y;
             let want = speed;
             const dd = Math.hypot(f.x - p.x, f.y - p.y);
-            f.flee = dd < C.shy;
-            if (f.flee) {
+            if (f.scared > 0) f.scared = Math.max(0, f.scared - dt);
+            f.flee = dd < C.shy || f.scared > 0;
+            if (f.scared > 0) {
+                // Bolting from where a spear went past (spear fishing: ui/innerMapSpearFishing.js)
+                const sd = Math.hypot(f.x - f.scareX, f.y - f.scareY);
+                gx = (f.x - f.scareX) / (sd || 1); gy = (f.y - f.scareY) / (sd || 1);
+                if (!sd) { gx = Math.cos(f.phase); gy = Math.sin(f.phase); }
+                want = speed * C.fleeSpeed;
+            } else if (f.flee) {
                 // Dart away from the diver
                 gx = (f.x - p.x) / (dd || 1); gy = (f.y - p.y) / (dd || 1);
                 want = speed * C.fleeSpeed;
@@ -222,6 +232,42 @@ export const UnderwaterFish = {
             }
             f.phase += dt * (1.5 + Math.hypot(f.vx, f.vy) * 4);
         }
+    },
+
+    // ── Spear fishing (ui/innerMapSpearFishing.js) ──
+
+    /** The fish nearest (x, y) within `radius` tiles, or null. */
+    nearest(x, y, radius) {
+        let best = null, bd = Infinity;
+        for (const f of this.fish) {
+            const d = Math.hypot(f.x - x, f.y - y);
+            if (d <= radius && d < bd) { bd = d; best = f; }
+        }
+        return best;
+    },
+
+    /** How fast a fish is swimming now, in tiles a second. */
+    speedOf(f) {
+        return f ? Math.hypot(f.vx, f.vy) : 0;
+    },
+
+    /** A speared fish is gone from the water. */
+    remove(f) {
+        const i = this.fish.indexOf(f);
+        if (i >= 0) this.fish.splice(i, 1);
+        if (f && f.shoal && !this.fish.some(o => o.shoal === f.shoal)) f.shoal = null;
+    },
+
+    /** A spear went past (x, y): the fish within `radius` bolt from it for `seconds`. → how many */
+    scare(x, y, radius, seconds) {
+        let n = 0;
+        for (const f of this.fish) {
+            if (Math.hypot(f.x - x, f.y - y) > radius) continue;
+            f.scared = Math.max(f.scared || 0, seconds);
+            f.scareX = x; f.scareY = y;
+            n++;
+        }
+        return n;
     },
 
     // ── Drawing ──

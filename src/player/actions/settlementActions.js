@@ -31,6 +31,7 @@ import { Mints } from '../../systems/mints.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { Estates } from '../../world/estates.js';
 import { Lots } from '../../systems/lots.js';
+import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
@@ -64,6 +65,31 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         icon: '⚖️',
         description: 'Buy and sell resources'
     });
+
+    // The livestock market: beasts by the head, kept at a place of yours (systems/livestock.js)
+    if (tile.settlement) {
+        const pens = Livestock.market(world, tile.settlement, tile);
+        if (pens.length) {
+            actions.push({
+                type: 'livestock_market',
+                label: 'Livestock Market',
+                icon: '🐄',
+                description: `${pens.map(m => m.icon).join('')} ${pens.length} kind${pens.length === 1 ? '' : 's'} of beast for sale: buy and sell by the head`,
+            });
+        }
+    }
+    {
+        const herds = Livestock.state(player).herds.filter(h => h.animals.length);
+        if (herds.length) {
+            const heads = herds.reduce((n, h) => n + h.animals.length, 0);
+            actions.push({
+                type: 'my_herds',
+                label: 'Your Herds',
+                icon: '🐑',
+                description: `${heads} head at ${herds.length} place${herds.length === 1 ? '' : 's'}: fodder, births, eggs, milk and wool`,
+            });
+        }
+    }
 
     // Recruit
     if (isCity || isVillage) {

@@ -15,6 +15,7 @@ import { whyIcon, priceWhy, sellWhy } from '../whyPopover.js';
 import { goodInfoIcon } from '../goodInfo.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
+import { Livestock } from '../../systems/livestock.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -165,6 +166,13 @@ Object.assign(ActionMenu, {
             parts.push(`${prop.storage} ${goodDef ? goodDef.name : good}`);
             prop.storage = 0;
         }
+        // ...and the eggs, milk, wool and feathers of your beasts kept here (systems/livestock.js)
+        const herd = Livestock.collectAt(game.world, game.player, tile.q, tile.r);
+        for (const [good, n] of Object.entries(herd.taken)) {
+            const goodDef = PlayerEconomy.GOODS[good.toUpperCase()];
+            parts.push(`${n} ${goodDef ? goodDef.name : good}`);
+        }
+        if (herd.full) full = true;
         if (full) game.ui.showNotification('🎒 Packs Full', `Some goods stay in storage. ${PlayerInventory.fullMessage(game.player)}`, 'warning');
         if (parts.length === 0) return;
 
@@ -308,6 +316,21 @@ Object.assign(ActionMenu, {
                 game.ui.hideCustomPanel();
             };
             return;
+        }
+
+        // The beasts kept here (systems/livestock.js): a livestock property's output rides on its herd
+        const herdCfg = Livestock.placeConfig({ kind: 'property', type: prop.type });
+        if (herdCfg) {
+            const herd = Livestock.herd(game.player, Livestock.placeKey({ kind: 'property', q: tile.q, r: tile.r, type: prop.type }));
+            const heads = herd ? herd.animals.length : 0;
+            const factor = herdCfg.works ? Livestock.workFactor(game.world, game.player, tile, prop) : null;
+            const draft = herdCfg.draft ? Livestock.draftFactor(game.world, game.player, tile, prop) : null;
+            const bits = [`${heads} head kept here (room for ${herdCfg.species.map(id => (Livestock.species(id) || {}).icon || '').join('')})`];
+            if (factor != null && prop.herdFounded) bits.push(`the herd makes <b style="color:${factor >= 1 ? '#9fd89f' : '#e0a080'};">${Math.round(factor * 100)}%</b> of its output (target ${herdCfg.works.target} head)`);
+            if (draft && draft > 1) bits.push(`horses and muck lift the harvest +${Math.round((draft - 1) * 100)}%`);
+            html += `<div style="margin-bottom:14px; padding:8px 10px; background:rgba(159,216,159,0.06); border:1px solid rgba(159,216,159,0.18); border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">`
+                + `<span>🐑 ${bits.join(' · ')}</span>`
+                + `<button data-am-act="showHerds" style="padding:4px 10px; background:var(--gold); color:#1a1a1a; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; flex-shrink:0;">Your Herds</button></div>`;
         }
 
         // ── Operational property management below ──

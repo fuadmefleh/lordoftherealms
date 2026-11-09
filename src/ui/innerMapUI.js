@@ -828,6 +828,7 @@ Object.assign(InnerMapRenderer, {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;
         }
+        if (item.action === 'herd_panel') { ActionMenu.showHerds(game); return; }
         if (/^animal_/.test(item.action || '') && InnerMapAnimals.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;

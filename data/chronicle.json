@@ -148,7 +148,9 @@
             "languages": { "name": "Lessons & interpreters", "group": "household" },
             "townRent": { "name": "Rent on houses in town", "group": "household" },
             "townRentIncome": { "name": "Rents from your town houses", "group": "enterprise" },
-            "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" }
+            "townLand": { "name": "Building lots & town houses bought", "group": "capital", "kind": "cap" },
+            "livestock": { "name": "Livestock bought & sold", "group": "capital", "kind": "cap" },
+            "livestockFeed": { "name": "Fodder for your beasts", "group": "household" }
         }
     },
 

@@ -19,6 +19,7 @@ import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { Livestock } from '../../systems/livestock.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { DawnBirth } from '../dawnBirth.js';
 
@@ -280,12 +281,22 @@ export function addWildernessActions(actions, player, tile, world) {
         });
 
         const collectable = PlayerEconomy.getPropertiesAt(tile).find(p => p.produces && p.produces !== 'gold' && p.storage > 0);
-        if (collectable) {
+        // ...and what your beasts kept here have laid, given and grown (systems/livestock.js)
+        const herdStore = Object.keys(Livestock.storeAt(player, tile.q, tile.r));
+        if (collectable || herdStore.length) {
             actions.push({
                 type: 'collect_goods',
                 label: 'Collect Goods',
                 icon: '📦',
-                description: `Collect stored ${collectable.produces}`
+                description: `Collect stored ${[collectable && collectable.produces, ...herdStore].filter(Boolean).join(', ')}`
+            });
+        }
+        if (!tile.settlement && Livestock.state(player).herds.some(h => h.animals.length && h.place.q === tile.q && h.place.r === tile.r)) {
+            actions.push({
+                type: 'my_herds',
+                label: 'Your Herds',
+                icon: '🐑',
+                description: 'Your beasts here and everywhere: fodder, births, eggs, milk and wool'
             });
         }
     }

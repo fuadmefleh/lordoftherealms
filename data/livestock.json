@@ -1,0 +1,171 @@
+{
+    "_doc": "The player's own beasts (systems/livestock.js; market and herds panels in ui/actionMenu/livestock.js; drawn on the inner map at their keeping place by ui/innerMapAnimals.js). Bought and sold by the head at a town's livestock market, kept at a place of yours that suits them (places), fed or grazed, bred, aged, shorn and milked by the day. Days: a year is 120 days (world/seasons.js), so ages and lifespans are in game days. space: room one head takes at a place. feed: gold a head a day when it cannot graze (grazing places: the share of feed still bought each season). products: per adult (femaleOnly: hens and milkers) a day, times the season; they go into the herd's store, collected like a property's goods. A livestock property (works) turns its working beasts into its own output instead (the Pasture's wool, the Dairy's cheese, the Ranch's meat, the Horse Ranch's horses): its output scales with the working head kept there against its target (a founding herd of that size comes with the property). slaughter: what butchering one yields (by hand on the inner map, or at the yard from the herds panel). breeding: daily chance for each adult female in its seasons (a male of her kind must be kept with her), young per birth, rest days before the next. market: who sells it (minType, chance by settlement type, likes: terrain where it is common and cheaper; resource: a map resource nearby that always brings it), stock heads by settlement type; price by type, season and how many are left (scarcity). fallback: the inner-map species drawn (and fought) until data/animals.json has one of the same id; scale shrinks it.",
+    "species": {
+        "chicken": {
+            "name": "Chicken", "plural": "Chickens", "icon": "🐔", "size": "small", "fallback": "sheep", "scale": 0.4,
+            "hp": 6, "weight": 2, "price": 4, "space": 1, "feed": 0.08, "scrounges": 0.5,
+            "maleName": "cockerel", "femaleName": "hen", "youngName": "chick",
+            "matureDays": 50, "lifespanDays": 700,
+            "products": [
+                { "good": "eggs", "perDay": 0.4, "femaleOnly": true, "seasons": { "Spring": 1.25, "Summer": 1.25, "Autumn": 0.95, "Winter": 0.55 } },
+                { "good": "feather", "perDay": 0.02 }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Fowl", "qty": [1, 1] }, { "good": "feather", "name": "Feather", "qty": [1, 3] } ],
+            "breeding": { "seasons": ["Spring", "Summer"], "chance": 0.02, "young": [3, 6], "restDays": 30, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.95, "town": 1, "city": 1, "capital": 1 }, "stock": [8, 20] }
+        },
+        "duck": {
+            "name": "Duck", "plural": "Ducks", "icon": "🦆", "size": "small", "fallback": "sheep", "scale": 0.42,
+            "hp": 7, "weight": 3, "price": 5, "space": 1, "feed": 0.07, "scrounges": 0.6,
+            "maleName": "drake", "femaleName": "duck", "youngName": "duckling",
+            "matureDays": 60, "lifespanDays": 800,
+            "products": [
+                { "good": "eggs", "perDay": 0.3, "femaleOnly": true, "seasons": { "Spring": 1.4, "Summer": 1.2, "Autumn": 0.9, "Winter": 0.5 } },
+                { "good": "feather", "perDay": 0.05 }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Duck", "qty": [1, 1] }, { "good": "feather", "name": "Feather", "qty": [2, 4] } ],
+            "breeding": { "seasons": ["Spring"], "chance": 0.04, "young": [4, 8], "restDays": 60, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.45, "town": 0.6, "city": 0.7, "capital": 0.8 }, "water": 0.5, "stock": [4, 12] }
+        },
+        "pig": {
+            "name": "Pig", "plural": "Pigs", "icon": "🐖", "size": "medium", "fallback": "sheep", "scale": 0.9,
+            "hp": 35, "weight": 90, "price": 14, "space": 3, "feed": 0.18, "scrounges": 0.5,
+            "maleName": "boar", "femaleName": "sow", "youngName": "piglet",
+            "matureDays": 80, "lifespanDays": 1200,
+            "products": [],
+            "manure": 0.03,
+            "slaughter": [ { "good": "meat", "name": "Pork", "qty": [4, 6] }, { "good": "hide", "name": "Hides", "qty": [0, 1] } ],
+            "breeding": { "seasons": ["Spring", "Summer", "Autumn"], "chance": 0.04, "young": [4, 9], "restDays": 55, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.9, "town": 0.95, "city": 1, "capital": 1 }, "likes": ["woodland", "seasonal_forest", "temperate_rainforest"], "shuns": ["desert"], "stock": [3, 10] }
+        },
+        "goat": {
+            "name": "Goat", "plural": "Goats", "icon": "🐐", "size": "medium", "fallback": "sheep", "scale": 0.85,
+            "hp": 25, "weight": 50, "price": 12, "space": 2, "feed": 0.1, "scrounges": 0.3,
+            "maleName": "billy", "femaleName": "nanny", "youngName": "kid",
+            "matureDays": 100, "lifespanDays": 1500,
+            "products": [
+                { "good": "milk", "perDay": 0.5, "femaleOnly": true, "seasons": { "Spring": 1.3, "Summer": 1.3, "Autumn": 0.9, "Winter": 0.5 } }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Goat meat", "qty": [1, 2] }, { "good": "hide", "name": "Hides", "qty": [1, 1] } ],
+            "breeding": { "seasons": ["Spring"], "chance": 0.06, "young": [1, 3], "restDays": 90, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.55, "town": 0.65, "city": 0.6, "capital": 0.6 }, "likes": ["hills", "mountain", "highlands", "savanna", "desert"], "stock": [3, 10] }
+        },
+        "sheep": {
+            "name": "Sheep", "plural": "Sheep", "icon": "🐑", "size": "medium",
+            "hp": 30, "weight": 60, "price": 22, "space": 2, "feed": 0.12,
+            "maleName": "ram", "femaleName": "ewe", "youngName": "lamb",
+            "matureDays": 110, "lifespanDays": 1300,
+            "products": [
+                { "good": "wool", "perDay": 0.06, "seasons": { "Spring": 3.0, "Summer": 0.8, "Autumn": 0.1, "Winter": 0.1 }, "verb": "shorn" }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Mutton", "qty": [2, 3] }, { "good": "wool", "name": "Fleece", "qty": [0, 2] }, { "good": "hide", "name": "Hides", "qty": [0, 1] } ],
+            "breeding": { "seasons": ["Spring"], "chance": 0.06, "young": [1, 2], "restDays": 90, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.7, "town": 0.8, "city": 0.7, "capital": 0.7 }, "likes": ["grassland", "plains", "hills", "highlands"], "shuns": ["desert", "tropical_rainforest"], "stock": [4, 12] }
+        },
+        "cow": {
+            "name": "Dairy Cow", "plural": "Dairy Cows", "icon": "🐄", "size": "large", "fallback": "highland_cow",
+            "hp": 70, "weight": 500, "price": 60, "space": 6, "feed": 0.3,
+            "maleName": "bull", "femaleName": "cow", "youngName": "calf",
+            "matureDays": 220, "lifespanDays": 2200,
+            "products": [
+                { "good": "milk", "perDay": 1.2, "femaleOnly": true, "seasons": { "Spring": 1.2, "Summer": 1.2, "Autumn": 1.0, "Winter": 0.6 } }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Beef", "qty": [4, 6] }, { "good": "hide", "name": "Hides", "qty": [1, 2] } ],
+            "breeding": { "seasons": ["Spring", "Summer"], "chance": 0.03, "young": [1, 1], "restDays": 110, "femaleShare": 0.5 },
+            "market": { "minType": "town", "chance": { "village": 0, "town": 0.7, "city": 0.85, "capital": 0.9 }, "likes": ["grassland", "plains", "woodland"], "resource": ["cattle"], "stock": [2, 6] }
+        },
+        "highland_cow": {
+            "name": "Highland Cow", "plural": "Highland Cattle", "icon": "🐂", "size": "large",
+            "hp": 80, "weight": 450, "price": 45, "space": 6, "feed": 0.24, "hardy": true,
+            "maleName": "bull", "femaleName": "cow", "youngName": "calf",
+            "matureDays": 240, "lifespanDays": 2400,
+            "products": [
+                { "good": "milk", "perDay": 0.4, "femaleOnly": true, "seasons": { "Spring": 1.2, "Summer": 1.2, "Autumn": 1.0, "Winter": 0.6 } }
+            ],
+            "slaughter": [ { "good": "meat", "name": "Beef", "qty": [3, 5] }, { "good": "hide", "name": "Hides", "qty": [1, 2] }, { "good": "sinew", "name": "Sinew", "qty": [0, 2] } ],
+            "breeding": { "seasons": ["Spring", "Summer"], "chance": 0.03, "young": [1, 1], "restDays": 110, "femaleShare": 0.5 },
+            "market": { "minType": "village", "chance": { "village": 0.45, "town": 0.6, "city": 0.5, "capital": 0.5 }, "likes": ["hills", "highlands", "mountain", "tundra", "boreal_forest"], "resource": ["cattle"], "stock": [2, 6] }
+        },
+        "horse": {
+            "name": "Horse", "plural": "Horses", "icon": "🐎", "size": "large", "fallback": "highland_cow",
+            "hp": 70, "weight": 450, "price": 120, "space": 8, "feed": 0.35,
+            "maleName": "stallion", "femaleName": "mare", "youngName": "foal",
+            "matureDays": 360, "lifespanDays": 3000,
+            "products": [],
+            "draft": 0.05,
+            "slaughter": [ { "good": "meat", "name": "Horsemeat", "qty": [4, 6] }, { "good": "hide", "name": "Hides", "qty": [1, 2] } ],
+            "breeding": { "seasons": ["Spring"], "chance": 0.03, "young": [1, 1], "restDays": 220, "femaleShare": 0.5 },
+            "market": { "minType": "town", "chance": { "village": 0, "town": 0.55, "city": 0.9, "capital": 1 }, "likes": ["grassland", "plains", "savanna"], "resource": ["horses"], "stock": [2, 5] }
+        }
+    },
+    "places": {
+        "_doc": "Where beasts can be kept. capacity: space units. species: who may be kept there. grazing: they find their own fodder outside winter (feedShare by season). works: a livestock property's working beasts (weight each) and its target head — the founding herd it starts with and the head at which it yields its old output; maxFactor: most an overstocked one gives. draft: a farm whose horses (and pigs' manure) lift its harvest, at most draftMax.",
+        "properties": {
+            "pasture": { "capacity": 64, "species": ["sheep", "goat", "highland_cow", "cow", "horse", "pig", "chicken", "duck"], "grazing": true, "works": { "species": { "sheep": 1 }, "target": 24, "found": "sheep" } },
+            "dairy": { "capacity": 80, "species": ["cow", "highland_cow", "goat", "pig", "chicken", "duck"], "grazing": true, "works": { "species": { "cow": 1, "highland_cow": 0.5, "goat": 0.3 }, "target": 10, "found": "cow" } },
+            "cattle_ranch": { "capacity": 110, "species": ["highland_cow", "cow", "horse", "pig", "sheep", "goat", "chicken"], "grazing": true, "works": { "species": { "highland_cow": 1, "cow": 0.8, "pig": 0.3 }, "target": 14, "found": "highland_cow" } },
+            "horse_ranch": { "capacity": 72, "species": ["horse", "goat", "chicken"], "grazing": true, "works": { "species": { "horse": 1 }, "target": 6, "found": "horse" } },
+            "farm": { "capacity": 30, "species": ["chicken", "duck", "pig", "goat", "cow", "horse", "sheep"], "grazing": true, "draft": true },
+            "irrigated_farm": { "capacity": 30, "species": ["chicken", "duck", "pig", "goat", "cow", "horse", "sheep"], "grazing": true, "draft": true },
+            "hemp_farm": { "capacity": 20, "species": ["chicken", "duck", "pig", "goat", "horse"], "grazing": true, "draft": true },
+            "orchard": { "capacity": 16, "species": ["pig", "chicken", "duck", "goat", "sheep"], "grazing": true },
+            "forager_hut": { "capacity": 8, "species": ["pig", "chicken", "goat"], "grazing": true },
+            "guest_house": { "capacity": 6, "species": ["chicken", "duck", "pig"] },
+            "inn": { "capacity": 10, "species": ["chicken", "duck", "pig", "horse"] },
+            "roadhouse": { "capacity": 16, "species": ["chicken", "duck", "pig", "goat", "horse"] },
+            "tavern": { "capacity": 6, "species": ["chicken", "duck", "pig"] }
+        },
+        "estate": { "capacity": 48, "species": ["sheep", "goat", "cow", "highland_cow", "horse", "pig", "chicken", "duck"], "grazing": true },
+        "lot": { "capacity": 10, "species": ["chicken", "duck", "pig", "goat"] },
+        "house": { "capacity": 5, "species": ["chicken", "duck", "goat"] },
+        "rent": { "capacity": 3, "species": ["chicken", "duck"] },
+        "home": { "capacity": 5, "species": ["chicken", "duck", "goat", "horse"] },
+        "draftMax": 0.2,
+        "feedShare": { "Spring": 0, "Summer": 0, "Autumn": 0.3, "Winter": 1 },
+        "hardyWinter": 0.6,
+        "storeCap": 80
+    },
+    "market": {
+        "_doc": "typeStock: stock multiplier by settlement type. typePrice: price multiplier. seasons: price by season (spring dear, autumn's cull cheap). liked: price where the land suits it; foreign: where it shuns it. scarcity: price = base x (1 + scarcity x (1 - stock/target)), within [scarcityMin, scarcityMax]. restockDays: days to refill from empty. sellShare: what the market pays you of its asking price; young / old / sick: further multipliers. droveFee: gold a head a hex to drive bought beasts to a place elsewhere (small, medium, large); droveMax: farthest hexes a drover goes.",
+        "typeStock": { "village": 1, "town": 1.6, "city": 2.2, "capital": 2.6 },
+        "typePrice": { "village": 0.9, "town": 1, "city": 1.12, "capital": 1.22 },
+        "seasons": { "Spring": 1.1, "Summer": 1.0, "Autumn": 0.85, "Winter": 1.05 },
+        "liked": 0.85,
+        "foreign": 1.25,
+        "scarcity": 0.6,
+        "scarcityMin": 0.75,
+        "scarcityMax": 1.6,
+        "restockDays": 20,
+        "sellShare": 0.65,
+        "young": 0.5,
+        "old": 0.6,
+        "sick": 0.3,
+        "droveFee": { "small": 0.1, "medium": 0.4, "large": 1 },
+        "droveMax": 12
+    },
+    "health": {
+        "_doc": "Daily: illness strikes a herd (chance x (1 + crowding x over capacity share)), spreads to another (spread), kills (deathPerDay) or passes in sickDays. Hunger: unfed beasts lose hungerLoss health a day and give nothing; at 0 they die. Old age: past the lifespan, oldDeath a day. Predators: a beast taken from a keeping place outside a settlement, by the hex's herds of data/animals.json terrain (that herd's chance x rate a day), of the sizes named.",
+        "illness": 0.004,
+        "crowding": 3,
+        "spread": 0.15,
+        "deathPerDay": 0.04,
+        "sickDays": [6, 12],
+        "hungerLoss": 12,
+        "recover": 5,
+        "oldDeath": 0.02,
+        "predators": [
+            { "herd": "wolves", "rate": 0.03, "takes": ["small", "medium"], "verb": "Wolves took" },
+            { "herd": "fox", "rate": 0.06, "takes": ["small"], "verb": "A fox took" },
+            { "herd": "bear", "rate": 0.02, "takes": ["medium"], "verb": "A bear took" },
+            { "herd": "lions", "rate": 0.03, "takes": ["small", "medium"], "verb": "Lions took" }
+        ]
+    },
+    "map": {
+        "_doc": "How many of a herd stand on the inner map at its place (the rest are out of sight), and how far apart.",
+        "maxShown": 10,
+        "spread": 3
+    },
+    "names": {
+        "horse": ["Bramble", "Ash", "Corrie", "Dun", "Ember", "Flint", "Gale", "Hazel", "Juniper", "Kestrel", "Larch", "Moss", "Nettle", "Oriel", "Pebble", "Rowan", "Sorrel", "Thistle", "Willow", "Wren"]
+    }
+}

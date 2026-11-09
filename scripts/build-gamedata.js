@@ -92,7 +92,8 @@ const topLevel = [
     'wrecks',
     'furniture',
     'crops',
-    'craftGrades'
+    'craftGrades',
+    'livestock'
 ];
 
 const merged = {};

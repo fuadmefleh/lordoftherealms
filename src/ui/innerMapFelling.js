@@ -63,14 +63,29 @@ function _trunk(def, q, r) {
     return { x: (q + col + 0.5) * T, y: (r + 1 - FOOT) * T, height: def && def.bounds ? (b.maxRow - b.minRow + 1) : 1 };
 }
 
-let _axeImg = null;
-function _axe() {
+// The tools in hand, from the painted job items (ui/jobItems.js): each lies handle
+// bottom-left to head top-right; where the hands hold it, and the handle's own angle
+const TOOLS = {
+    axe: { grip: [0.15, 0.9], own: -56 },
+    pickaxe: { grip: [0.2, 0.93], own: -63 },
+};
+let _itemImg = null;
+function _item(name) {
     const art = ((DataLoader.get && DataLoader.get('mapTasks')) || {}).itemArt;
-    const rect = art && art.items && art.items.axe;
+    const rect = art && art.items && art.items[name];
     if (!rect || typeof Image === 'undefined') return null;
-    if (!_axeImg) { _axeImg = new Image(); _axeImg.src = art.sheet; }
-    return _axeImg.complete && _axeImg.naturalWidth ? { img: _axeImg, rect } : null;
+    if (!_itemImg) { _itemImg = new Image(); _itemImg.src = art.sheet; }
+    return _itemImg.complete && _itemImg.naturalWidth ? { img: _itemImg, rect } : null;
 }
+/** A tool's art and how it is held → { img, rect, grip: [x, y] in the sheet, own } */
+function _axe(tool = 'axe') {
+    const t = TOOLS[tool] || TOOLS.axe;
+    const a = _item(TOOLS[tool] ? tool : 'axe');
+    if (!a) return null;
+    const [sx, sy, sw, sh] = a.rect;
+    return { ...a, grip: [sx + sw * t.grip[0], sy + sh * t.grip[1]], own: t.own };
+}
+const STONE = ['#8d8a84', '#a3a09a', '#76736d', '#b5b1aa'];
 
 export const InnerMapFelling = {
     _parts: [],      // chips, leaves, dust: { x, y, vx, vy, g, ground, life, age, size, color, kind, spin }
@@ -173,15 +188,13 @@ export const InnerMapFelling = {
      * facing dir, at swing phase p. Call with behind = true before the body and
      * false after: it draws on whichever call its place at that moment says.
      */
-    drawAxe(ctx, px, py, ds, dir, p, behind) {
+    drawAxe(ctx, px, py, ds, dir, p, behind, tool = 'axe') {
         if (p == null) return false;
         if (this.axeInFront(dir, p) === behind) return true;
-        const a = _axe();
+        const a = _axe(tool);
         if (!a) return false;
         const [sx, sy, sw, sh] = a.rect;
-        // the painted axe lies handle bottom-left to head top-right: its grip, and the handle's own angle
-        const grip = [sx + sw * 0.15, sy + sh * 0.9];
-        const own = -56;
+        const { grip, own } = a;
         const k = ds * 0.7 / 128;   // the art is 128px a tile
         if (dir === DIR_DOWN || dir === DIR_UP) {
             const o = this._overhead(dir, p, px, py, ds);
@@ -221,14 +234,13 @@ export const InnerMapFelling = {
      * the head beside the head, never across the face; facing away, across the back,
      * the head over the right shoulder. bob: px the step lifts it.
      */
-    drawCarriedAxe(ctx, px, py, ds, dir, behind, bob = 0) {
+    drawCarriedAxe(ctx, px, py, ds, dir, behind, bob = 0, tool = 'axe') {
         const side = dir === DIR_RIGHT ? 1 : dir === DIR_LEFT ? -1 : 0;
         if ((side !== 0) !== behind) return true;
-        const a = _axe();
+        const a = _axe(tool);
         if (!a) return false;
         const [sx, sy, sw, sh] = a.rect;
-        const grip = [sx + sw * 0.15, sy + sh * 0.9];
-        const own = -56;
+        const { grip, own } = a;
         const k = ds * 0.7 / 128;
         // the handle's screen angle from the hands (0 ahead to the right, -90 straight up), and the hands
         let ang, hx, hy, flip = 1;
@@ -260,6 +272,7 @@ export const InnerMapFelling = {
 
     /** A blow landed on the object at (q, r): chips, leaves, the shudder and the knock. */
     onHit(q, r, def, cutterQ, cutterR, quiet = false) {
+        if (def && def.objectType === 'rock') { this._stoneChips(def, q, r, cutterQ, quiet); return; }
         if (!this.isChopped(def)) return;
         if (!quiet) _sfx('chop');
         const tr = _trunk(def, q, r);
@@ -279,6 +292,76 @@ export const InnerMapFelling = {
         if (def.topples) this._shedLeaves(def, tr, 2 + Math.floor(Math.random() * 3), 0.6);
         this._shakes = this._shakes.filter(s => !(s.q === q && s.r === r));
         this._shakes.push({ q, r, age: 0 });
+    },
+
+    /** A pick at a rock: the clink, grey chips and a puff of grit (world/innerMap/townMiners.js, the player's own blows). */
+    _stoneChips(def, q, r, cutterQ, quiet) {
+        if (!quiet) _sfx('pick');
+        const tr = _trunk(def, q, r);
+        const toward = cutterQ != null && cutterQ * T + T / 2 < tr.x ? -1 : cutterQ != null && cutterQ * T + T / 2 > tr.x ? 1 : (Math.random() < 0.5 ? -1 : 1);
+        const n = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) {
+            this._parts.push({
+                kind: 'chip', x: tr.x + toward * T * 0.3, y: tr.y - T * 0.45,
+                vx: toward * (25 + Math.random() * 60) + (Math.random() - 0.5) * 30,
+                vy: -(50 + Math.random() * 70), g: 300, ground: tr.y + (Math.random() - 0.3) * T * 0.3,
+                life: 0.8 + Math.random() * 0.4, age: 0, size: 1.2 + Math.random() * 1.6,
+                color: STONE[Math.floor(Math.random() * STONE.length)], spin: Math.random() * 6,
+            });
+        }
+        for (let i = 0; i < 3; i++) {
+            this._parts.push({
+                kind: 'dust', x: tr.x + toward * T * 0.3, y: tr.y - T * 0.4, vx: toward * (6 + Math.random() * 14), vy: -(4 + Math.random() * 10),
+                g: 0, ground: Infinity, life: 0.5 + Math.random() * 0.4, age: 0, size: T * (0.05 + Math.random() * 0.05),
+                color: 'rgba(160,156,148,',
+            });
+        }
+    },
+
+    /** The rock gives: a crack, its stones tumbling, a cloud of grit. */
+    onBroken(q, r, defId, quiet = false) {
+        const def = CustomObjects.getDef(defId);
+        if (!def) return;
+        if (!quiet) _sfx('rock_break');
+        const tr = _trunk(def, q, r);
+        for (let i = 0; i < 16; i++) {
+            this._parts.push({
+                kind: 'chip', x: tr.x + (Math.random() - 0.5) * T * 1.4, y: tr.y - T * (0.2 + Math.random() * 0.6),
+                vx: (Math.random() - 0.5) * 80, vy: -(30 + Math.random() * 60), g: 300, ground: tr.y + (Math.random() - 0.3) * T * 0.5,
+                life: 1 + Math.random() * 0.5, age: 0, size: 1.6 + Math.random() * 2.2,
+                color: STONE[Math.floor(Math.random() * STONE.length)], spin: Math.random() * 6,
+            });
+        }
+        for (let i = 0; i < 14; i++) {
+            this._parts.push({
+                kind: 'dust', x: tr.x + (Math.random() - 0.5) * T * 1.4, y: tr.y - T * 0.3, vx: (Math.random() - 0.5) * 40, vy: -(6 + Math.random() * 18),
+                g: 0, ground: Infinity, life: 0.7 + Math.random() * 0.6, age: 0, size: T * (0.07 + Math.random() * 0.08),
+                color: 'rgba(150,146,138,',
+            });
+        }
+    },
+
+    /** A basket of broken stone, carried before the chest (a town miner walking it in). */
+    drawCarriedStone(ctx, px, py, ds, dir, bob = 0) {
+        const b = _item('basket');
+        if (!b) return false;
+        const [sx, sy, sw, sh] = b.rect;
+        const w = ds * 0.62, h = w * sh / sw;
+        const x = px - w / 2 + (dir === DIR_RIGHT ? ds * 0.12 : dir === DIR_LEFT ? -ds * 0.12 : 0);
+        const y = py - ds * 0.62 - bob;
+        // the stones heaped in it
+        const heap = [[0.25, 0.1, 0.13], [0.48, 0.02, 0.15], [0.7, 0.1, 0.12], [0.38, 0.16, 0.11], [0.6, 0.18, 0.1]];
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        for (const [fx, fy, fr] of heap) {
+            ctx.fillStyle = '#6f6c66';
+            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy + w * 0.02, w * fr, w * fr * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#a19d96';
+            ctx.beginPath(); ctx.ellipse(x + w * fx, y + h * fy, w * fr * 0.9, w * fr * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.drawImage(b.img, sx, sy + sh * 0.18, sw, sh * 0.82, x, y + h * 0.18, w, h * 0.82);
+        ctx.restore();
+        return true;
     },
 
     _leafColors(def) {

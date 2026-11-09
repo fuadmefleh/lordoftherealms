@@ -180,6 +180,8 @@ Object.assign(AudioManager.prototype, {
             case 'chop':          this._sfxChop(); break;
             case 'tree_creak':    this._sfxTreeCreak(); break;
             case 'tree_thud':     this._sfxTreeThud(); break;
+            case 'pick':          this._sfxPick(); break;
+            case 'rock_break':    this._sfxRockBreak(); break;
         }
     },
 
@@ -224,6 +226,19 @@ Object.assign(AudioManager.prototype, {
     _sfxChop() {
         this._noiseBurst(0.07, 'bandpass', 1400, 0.25);
         this._knock('triangle', 230, 120, 0.12, 0.22);
+    },
+
+    /** A pick on stone: a bright clink and a scatter of grit. */
+    _sfxPick() {
+        this._knock('triangle', 1250, 900, 0.09, 0.16);
+        this._noiseBurst(0.05, 'highpass', 3000, 0.16);
+    },
+
+    /** A rock gives: a crack and the stones tumbling down. */
+    _sfxRockBreak() {
+        this._noiseBurst(0.12, 'bandpass', 1800, 0.28);
+        this._knock('sine', 120, 60, 0.3, 0.25, 0.04);
+        this._noiseBurst(0.4, 'lowpass', 900, 0.14, 0.08);
     },
 
     /** The trunk gives: a low groaning creak. */

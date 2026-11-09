@@ -272,6 +272,7 @@ export function gameLoop(timestamp, loopId) {
                 const quiet = Math.max(Math.abs(ev.q - InnerMap.playerInnerQ), Math.abs(ev.r - InnerMap.playerInnerR)) > 16;
                 if (ev.kind === 'hit') InnerMapFelling.onHit(ev.q, ev.r, evDef, ev.cutterQ, ev.cutterR, quiet);
                 else if (ev.kind === 'felled') InnerMapFelling.onFelled(evDef, ev.q, ev.r, 0, null, quiet);
+                else if (ev.kind === 'broken') InnerMapFelling.onBroken(ev.q, ev.r, ev.defId, quiet);
             }
             InnerMap._chopEvents.length = 0;
         }

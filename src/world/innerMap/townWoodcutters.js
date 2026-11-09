@@ -91,11 +91,12 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * A tree to fell (kind 'tree') or an old stump to grub out ('stump'), out beyond
-     * the houses and near enough home: the anchor and def, or null.
+     * A tree to fell (kind 'tree'), an old stump to grub out ('stump') or a rock to
+     * break ('rock', townMiners.js), out beyond the houses and near enough home: the
+     * anchor and def, or null.
      */
     _pickTownTree(npc, kind = 'tree') {
-        const C = this.townWoodConfig();
+        const C = kind === 'rock' && this.townMineConfig ? this.townMineConfig() : this.townWoodConfig();
         const rnd = Utils.random;
         const base = npc._home || npc;
         const m = (this.townArea() || {}).margin || 8;
@@ -113,7 +114,10 @@ Object.assign(InnerMap, {
                 if (!obj || t._isInterior || claimed.has(_key(q, r))) continue;
                 const def = CustomObjects.getDef(obj.defId);
                 if (!def) continue;
-                if (kind === 'stump' ? (def.objectType !== 'stump' || !this._stumpIsOld(q, r)) : (!def.topples || /sapling/.test(def.id))) continue;
+                const fits = kind === 'rock' ? def.objectType === 'rock'
+                    : kind === 'stump' ? def.objectType === 'stump' && this._stumpIsOld(q, r)
+                        : def.topples && !/sapling/.test(def.id);
+                if (!fits) continue;
                 const trunk = this.trunkOf(q, r, def);
                 if (this._nearTown(trunk.q, trunk.r, C.townClear)) continue;
                 found.push({ q, r, def, trunk, d: Math.hypot(trunk.q - base.q, trunk.r - base.r) });
@@ -148,14 +152,7 @@ Object.assign(InnerMap, {
         }
         if (!tree) return false;
         const { trunk } = tree;
-        const busy = (q, r) => (this.npcs || []).some(o => o !== npc && o.q === q && o.r === r);
-        let spot = null;
-        for (const [dq, dr] of [[-1, 0], [1, 0], [0, 1]]) {
-            const t = this.getTile(trunk.q + dq, trunk.r + dr);
-            if (!t || !t.subTerrain || !t.subTerrain.passable || t.customObject || t.customObjectPart || t.building || t.isWater || busy(t.q, t.r)) continue;
-            spot = { q: trunk.q + dq, r: trunk.r + dr };
-            break;
-        }
+        const spot = this._standBy(npc, trunk);
         if (!spot) return false;
         const face = spot.q < trunk.q ? 3 : spot.q > trunk.q ? 1 : 0;
         npc._chop = { q: tree.q, r: tree.r, defId: tree.def.id, timer: 0, interval: C.interval, going: true };
@@ -164,7 +161,18 @@ Object.assign(InnerMap, {
         return false;
     },
 
-    /** At the trunk: to work, axe in hand. */
+    /** Where to stand to strike at the cell `at`: beside it, else below it (open ground nobody is on). */
+    _standBy(npc, at) {
+        const busy = (q, r) => (this.npcs || []).some(o => o !== npc && o.q === q && o.r === r);
+        for (const [dq, dr] of [[-1, 0], [1, 0], [0, 1]]) {
+            const t = this.getTile(at.q + dq, at.r + dr);
+            if (!t || !t.subTerrain || !t.subTerrain.passable || t.customObject || t.customObjectPart || t.building || t.isWater || busy(t.q, t.r)) continue;
+            return { q: at.q + dq, r: at.r + dr };
+        }
+        return null;
+    },
+
+    /** At the trunk (or the rock): to work, axe (or pick) in hand. */
     _startChopping(npc) {
         const ch = npc._chop;
         const t = ch && this.getTile(ch.q, ch.r);
@@ -172,9 +180,10 @@ Object.assign(InnerMap, {
         ch.going = false;
         ch.timer = 0;
         if (t.customObject.currentHealthPct == null) t.customObject.currentHealthPct = 100;
-        const grub = /stump/.test(ch.defId) || (CustomObjects.getDef(ch.defId) || {}).objectType === 'stump';
-        npc.activity = grub ? { type: 'chop', icon: '🌲', label: 'Grubbing out a stump', anim: 'slash' }
-            : { type: 'chop', icon: '🌲', label: 'Felling a tree', anim: 'slash' };
+        const kind = (CustomObjects.getDef(ch.defId) || {}).objectType;
+        npc.activity = kind === 'rock' ? { type: 'chop', icon: '⛏', label: 'Breaking stone', anim: 'slash' }
+            : kind === 'stump' || /stump/.test(ch.defId) ? { type: 'chop', icon: '🌲', label: 'Grubbing out a stump', anim: 'slash' }
+                : { type: 'chop', icon: '🌲', label: 'Felling a tree', anim: 'slash' };
         npc.idleTimer = 600;          // (till the tree is down: _updateTownChopping lets them go)
     },
 
@@ -199,11 +208,12 @@ Object.assign(InnerMap, {
             ch.timer -= ch.interval;
             const def = CustomObjects.getDef(ch.defId);
             const hard = Math.max(0, Math.min(90, Number(def && def.resistance) || 0));   // (its fell.hardness)
-            const dmg = C.blow * (1 - hard / 100) * (0.875 + Utils.random() * 0.25);
+            const dmg = (Number.isFinite(ch.blow) ? ch.blow : C.blow) * (1 - hard / 100) * (0.875 + Utils.random() * 0.25);
             obj.currentHealthPct = Math.max(0, (obj.currentHealthPct == null ? 100 : obj.currentHealthPct) - dmg);
             this._chopEvents.push({ kind: 'hit', q: ch.q, r: ch.r, defId: ch.defId, cutterQ: npc.q, cutterR: npc.r });
             if (obj.currentHealthPct > 0) continue;
-            if (def && def.objectType === 'stump') this._townGrub(npc, t, def);
+            if (def && def.objectType === 'rock' && this._townBreak) this._townBreak(npc, t, def);
+            else if (def && def.objectType === 'stump') this._townGrub(npc, t, def);
             else this._townFell(npc, t, def);
         }
     },

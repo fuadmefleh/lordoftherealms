@@ -388,6 +388,8 @@ Object.assign(InnerMap, {
             case 'work': {
                 // A woodcutter out to fell a tree (world/innerMap/townWoodcutters.js)
                 if (this._isTownWoodcutter && this._isTownWoodcutter(npc) && rnd() < (Number(this.townWoodConfig().share) || 0) && this._goToTree(npc)) return true;
+                // A miner out to break stone (world/innerMap/townMiners.js)
+                if (this._isTownMiner && this._isTownMiner(npc) && rnd() < (Number(this.townMineConfig().share) || 0) && this._goToRock(npc)) return true;
                 // Out to the fields
                 if (rnd() < (Number(C.fieldWork[npc.type]) || 0) && this._goToField(npc)) return true;
                 if (!npc._work) return this._doActivity(npc, 'errand', period);
@@ -513,8 +515,8 @@ Object.assign(InnerMap, {
 
     /** Off to the nearest granary (or barn, mill, warehouse…) with what they carry. */
     _goStore(npc) {
-        const types = this._isWoodLoad && this._isWoodLoad(npc._carry) && this.townWoodConfig
-            ? this.townWoodConfig().stores : (this.townLifeConfig().harvestStores || DEFAULTS.harvestStores);
+        // (logs, firewood and stone to the yard: world/innerMap/townMiners.js _yardStores)
+        const types = (this._yardStores && this._yardStores(npc._carry)) || this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
         const blds = (this.buildings || []).filter(b => b && !b.isPlayerProperty);
         for (const type of types) {
             const near = blds.filter(b => b.type === type).sort((a, b) => Math.hypot(a.q - npc.q, a.r - npc.r) - Math.hypot(b.q - npc.q, b.r - npc.r));
@@ -527,7 +529,7 @@ Object.assign(InnerMap, {
     _townDelivered(npc, bldg) {
         const c = npc._carry;
         if (!c || !bldg) return;
-        if (this._isWoodLoad && this._isWoodLoad(c)) { this._townWoodDelivered(npc, bldg); return; }
+        if (this._isYardLoad && this._isYardLoad(c)) { this._yardDelivered(npc, bldg); return; }
         const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
         if (!types.includes(bldg.type)) return;
         npc._carry = null;

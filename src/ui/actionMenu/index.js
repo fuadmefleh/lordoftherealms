@@ -43,6 +43,7 @@ import './letters.js';
 import './threats.js';
 import './lodging.js';
 import './townLots.js';
+import './graveyards.js';
 import './livestock.js';
 import './furnishing.js';
 import './courierRiders.js';

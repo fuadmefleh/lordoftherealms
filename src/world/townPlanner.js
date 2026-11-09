@@ -405,7 +405,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
 
     // 4a¼. The churchyard: beside the church or temple, or on a village's edge (world/churchyard.js);
     // its graves are the town's dead, stood on entering (world/innerMap/graves.js). Draws no rng.
-    tiles._graveyard = planChurchyard({ tiles, W, H, type, settlement, placed, frontLines, reach, isRoad });
+    // Worlds made since terrainGen 5 (planOpts.churchyard): an older save's towns keep their plan.
+    tiles._graveyard = planOpts && planOpts.churchyard ? planChurchyard({ tiles, W, H, type, settlement, placed, frontLines, reach, isRoad }) : null;
 
     // 4a½. Building lots: empty ground set aside along the streets, for sale to anyone (world/lotBook.js).
     // Many in a village, few in a city. Each fronts its street; tiles carry _lot = its id.

@@ -7,6 +7,7 @@ import { CustomInteriors } from '../../world/customInteriors.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapGraves } from '../innerMapGraves.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
@@ -796,6 +797,8 @@ Object.assign(InnerMapRenderer, {
 
         // ── Phase 2a: Dug ground (holes, turned earth, graves): flat, under every sprite ──
         InnerMapDigging.renderGround(ctx, camera, this._frameRange, T);
+        // ── Graves: a fresh grave's mound, a cleared grave's open pit (ui/innerMapGraves.js) ──
+        InnerMapGraves.renderGround(ctx, camera, this._frameRange, T);
 
         // ── Phase 2b: The dead, lying where they fell (under anyone standing on that row) ──
         for (const body of InnerMapCombat.corpsesHere()) {

@@ -26,6 +26,7 @@ import { DevotionPanel } from './actionMenu/devotion.js';
 import { NpcPortrait } from './npcPortrait.js';
 import { InnerMapJail } from './innerMapJail.js';
 import { InnerMapLots } from './innerMapLots.js';
+import { InnerMapGraves } from './innerMapGraves.js';
 import { InnerMapLocks } from './innerMapLocks.js';
 import { InnerMapDeck } from './innerMapDeck.js';
 import { InnerMapAnimals } from './innerMapAnimals.js';
@@ -351,6 +352,8 @@ Object.assign(InnerMapRenderer, {
 
         // ── Bodies, and the ground dug here (ui/innerMapDigging.js) ──
         if (!building) this._groundMenu(menuItems, tile, q, r);
+        // ── A grave, a plot, a bone mill or ossuary of yours (ui/innerMapGraves.js) ──
+        if (!building) menuItems.push(...InnerMapGraves.menuItems(game, tile, q, r));
 
         // ── Someone beaten senseless (ui/innerMapCombat.js, systems/knockout.js) ──
         for (const npc of npcsHere.filter(n => n.state === 'unconscious').slice(0, 2)) {
@@ -822,6 +825,7 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;
+        if (/^grave_/.test(item.action || '') && InnerMapGraves.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {

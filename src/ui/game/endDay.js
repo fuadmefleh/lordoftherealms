@@ -22,6 +22,7 @@ import { HeirAgency } from '../../systems/heirAgency.js';
 import { Regency } from '../../systems/regency.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Lots } from '../../systems/lots.js';
+import { Graveyards } from '../../systems/graveyards.js';
 import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
@@ -512,6 +513,8 @@ export function endDay() {
                 // The townsfolk live a season: births, deaths, weddings, comings and goings.
                 // Building lots and houses to let: rent day, and the town's other buyers (systems/lots.js)
                 for (const n of Lots.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The dead to the ground: burials, leases run out and renewed, bone mills, ossuaries, your own dead (systems/graveyards.js)
+                for (const n of Graveyards.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Word reaches the player of the people they have met.
                 const folkIcons = { died: '🕯️', wed: '💍', born: '👶', left: '🧳', arrived: '🏘️' };

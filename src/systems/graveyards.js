@@ -75,15 +75,17 @@ function _settlementAt(world, q, r) {
 }
 
 /** The town's purse: what its families pay from and the temple, the sexton and the farmers are paid into. */
+// (world/economy.js: a town pays out only what it holds — every caller checks _purseGold first)
 function _purse(s) {
     if (!s) return null;
     if (!_obj(s.economy)) Economy.initSettlement(s);
     return s.economy;
 }
-function _purseGold(s) { const e = _purse(s); return e ? Math.max(0, _num(e.gold)) : 0; }
+function _purseGold(s) { _purse(s); const g = Economy.townPurse(s); return g == null ? 0 : g; }
 function _toPurse(s, amount) {
-    const e = _purse(s);
-    if (e) e.gold = _r2(Math.max(0, _num(e.gold) + amount));
+    if (!s) return 0;
+    _purse(s);
+    return amount >= 0 ? Economy.payTown(s, amount) : -Economy.drawTown(s, -amount);
 }
 
 function _years(n) { return n * GraveBook.config().daysPerYear; }

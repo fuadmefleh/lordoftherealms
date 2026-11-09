@@ -63,6 +63,8 @@ Object.assign(InnerMap, {
         if (hasSettlement) {
             // Buildings the AI's holders have finished on their lots (world/innerMap/lots.js)
             if (this._raiseLotBuildings) this._raiseLotBuildings(worldTile.settlement, game.world ? game.world.day || 0 : 0);
+            // The churchyard's graves, and the player's grounds, crypts, bone mills and ossuaries (world/innerMap/graves.js)
+            if (this._layGraves) this._layGraves(worldTile.settlement, game.world);
             this._buildBuildingList();
             // Use pre-generated road data from SettlementGenerator if available
             if (this.tiles._settlementLayout && this.tiles._settlementLayout.roadTiles) {

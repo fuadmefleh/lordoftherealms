@@ -387,6 +387,8 @@ export const SaveLoad = {
         'lotHoldings',
         // The month's rents taken and paid, for the rent-day summary (systems/lots.js)
         'lotRentBook',
+        // Burial grounds, bone mills, ossuaries, your dead awaiting burial and the trade's book (systems/graveyards.js)
+        'graves',
         // Skills learned by doing — diving, swimming — as XP (systems/practiceSkills.js);
         // swimPractice is an old save's swimming practice, turned into XP on first touch
         'practiceSkills', 'swimPractice',

@@ -16,6 +16,7 @@ import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { Swimming } from '../../player/swimming.js';
 import { Gathering } from '../../player/gathering.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
+import { InnerMapFelling } from '../innerMapFelling.js';
 import { announceSkillUps } from '../skillUps.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
@@ -205,7 +206,7 @@ export function gameLoop(timestamp, loopId) {
                     InnerMap.startInteraction(pi.anchorQ, pi.anchorR, pi.defId,
                         InnerMap._computeObjectDamage(this.player, piDef));
                     // Face the object
-                    const dir = InnerMap.getDirectionToward(pi.anchorQ, pi.anchorR);
+                    const dir = InnerMap.getDirectionTowardObject(pi.anchorQ, pi.anchorR, piDef);
                     InnerMapRenderer._playerFacing = dir;
                 }
                 // ── Use the furniture / object the player walked over to ──
@@ -258,15 +259,22 @@ export function gameLoop(timestamp, loopId) {
 
         // ── Update active object interaction ──
         const interactionResult = InnerMap.updateInteraction(simDelta);
+        // The chips and leaves of the blows, the trees coming down (ui/innerMapFelling.js)
+        InnerMapFelling.update(simDelta);
+        for (const landed of InnerMap.updateFelling(simDelta)) InnerMapFelling.onLanded(landed);
         if (interactionResult && interactionResult.hit && typeof InnerMapCombat !== 'undefined') {
             // Spawn floating damage number over object on each swing
-            const ia = InnerMap._activeInteraction;
+            // (the felling blow ends the interaction: the result carries the object then)
+            const ia = InnerMap._activeInteraction || (interactionResult.felled ? interactionResult : null);
             if (ia) InnerMapCombat.onObjectHit(ia.anchorQ, ia.anchorR, interactionResult.damage, interactionResult.healthPct);
             // Smashing the town's things: the street sees, the watch comes (ui/innerMapReactions.js)
             if (ia) InnerMapReactions.onVandalism(this, ia.anchorQ, ia.anchorR, ia.defId);
             // A blow at a tree or a rock: tiring work, and Woodcutting / Mining practice (player/gathering.js)
-            const sw = ia && Gathering.swing(this.player, CustomObjects.getDef(ia.defId));
+            const hitDef = ia && CustomObjects.getDef(ia.defId);
+            const sw = hitDef && Gathering.swing(this.player, hitDef);
             if (sw && sw.levelUp) this.ui.showNotification(`${sw.levelUp.icon} ${sw.levelUp.name} Improved`, sw.levelUp.text, 'success');
+            // chips fly, the crown shudders and sheds, the axe knocks
+            if (ia) InnerMapFelling.onHit(ia.anchorQ, ia.anchorR, hitDef, InnerMap.playerInnerQ, InnerMap.playerInnerR);
         }
         if (interactionResult && interactionResult.completed) {
             if (interactionResult.nonDestructive) {
@@ -291,8 +299,11 @@ export function gameLoop(timestamp, loopId) {
                 const resType = interactionResult.resource.type;
                 // Felled or broken: extra logs or stone, a rarer find in the rock, and the practice (player/gathering.js)
                 const wt = InnerMap.currentWorldTile;
-                const got = Gathering.felled(this.player, CustomObjects.getDef(interactionResult.defId), interactionResult.resource,
-                    wt && wt.terrain ? wt.terrain.id : null);
+                const gotDef = CustomObjects.getDef(interactionResult.defId);
+                const got = Gathering.felled(this.player, gotDef, interactionResult.resource,
+                    wt && wt.terrain ? wt.terrain.id : null, InnerMap.season);
+                // the creak as it goes, the XP over the stump (ui/innerMapFelling.js)
+                if (got.skill === 'woodcutting') InnerMapFelling.onFelled(gotDef, interactionResult.anchorQ, interactionResult.anchorR, got.xp);
                 const resAmt = got.skill ? got.amount : (interactionResult.resource.amount || 1);
                 let gathered = true;
                 if (resType === 'gold') {
@@ -303,8 +314,18 @@ export function gameLoop(timestamp, loopId) {
                 // Format resource name for display
                 const displayName = resType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 const bonus = got.extra ? ` (${got.extra} more for a practised hand)` : '';
+                // What else came of it: the branches for firewood, resin, fruit in season, a bees' nest (fellGives)
+                const more = [];
+                for (const g of got.gives || []) {
+                    const ok = PlayerInventory.addItem(this.player, g.item, g.qty).success;
+                    const gName = g.item.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    more.push(ok ? `+${g.qty} ${gName}` : `${g.qty} ${gName} (no room)`);
+                }
+                const extras = more.length ? `, ${more.join(', ')}` : '';
+                const tool = got.tool ? ` Your ${got.tool.name} made short work of it.` : '';
+                const felledTitle = gotDef && gotDef.topples ? `🌲 ${gotDef.name || 'Tree'} Felled` : gotDef && gotDef.objectType === 'stump' ? '🌲 Stump Grubbed Out' : 'Gathered';
                 if (gathered) {
-                    this.ui.showNotification('Gathered', `+${resAmt} ${displayName}${bonus}`, 'success');
+                    this.ui.showNotification(felledTitle, `+${resAmt} ${displayName}${bonus}${extras}.${tool}`, 'success');
                 } else {
                     this.ui.showNotification('Packs Full', `${resAmt} ${displayName} left on the ground. ${PlayerInventory.fullMessage(this.player)}`, 'warning');
                 }
@@ -845,7 +866,7 @@ export function handleClick(screenX, screenY, button = 'left') {
                         InnerMap.startInteraction(objAnchorQ, objAnchorR, objDef.id,
                             InnerMap._computeObjectDamage(this.player, objDef));
                         // Face the object
-                        const dir = InnerMap.getDirectionToward(objAnchorQ, objAnchorR);
+                        const dir = InnerMap.getDirectionTowardObject(objAnchorQ, objAnchorR, objDef);
                         InnerMapRenderer._playerFacing = dir;
                     } else {
                         InnerMap._pendingInteraction = { anchorQ: objAnchorQ, anchorR: objAnchorR, defId: objDef.id };

@@ -28,5 +28,6 @@ import './cliffs.js';
 import './climbing.js';
 import './palms.js';
 import './gates.js';
+import './felling.js';
 
 export { InnerMap };

@@ -168,7 +168,7 @@ export const InnerMapCombat = {
         if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
             const dmg = InnerMap._computeObjectDamage(game.player, def);
             InnerMap.startInteraction(anchorQ, anchorR, defId, dmg);
-            const dir = InnerMap.getDirectionToward(anchorQ, anchorR);
+            const dir = InnerMap.getDirectionTowardObject(anchorQ, anchorR, def);
             InnerMapRenderer._playerFacing = dir;
             // Track that we're in object-combat so we can spawn float numbers
             this._attackState = {

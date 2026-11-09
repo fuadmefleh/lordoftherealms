@@ -39,6 +39,7 @@ import { InnerMapClimbing } from './innerMapClimbing.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
+import { Gathering } from '../player/gathering.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
@@ -327,7 +328,13 @@ Object.assign(InnerMapRenderer, {
             if ((customObjDef.tags || []).includes('field')) menuItems.push(...InnerMapFields.menuItems(game, objAnchorQ, objAnchorR));
             // A gate in a fence: open it or shut it (ui/innerMapGates.js)
             if ((customObjDef.tags || []).includes('gate')) menuItems.push(...InnerMapGates.menuItems(game, objAnchorQ, objAnchorR));
-            if (customObjDef.resource) {
+            // A tree to fell or a stump to grub out: one order, with how many blows it will
+            // take you and what it gives (player/gathering.js; world/innerMap/felling.js)
+            const _chopped = customObjDef.resource && (customObjDef.topples || customObjDef.objectType === 'stump');
+            if (_chopped) {
+                const it = this._fellingItem(game, customObjDef, objAnchorQ, objAnchorR);
+                if (it) menuItems.push(it);
+            } else if (customObjDef.resource) {
                 const resName = (customObjDef.resource.type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                 menuItems.push({ type: 'action', action: 'harvest_object', label: `Harvest ${resName}`, icon: '⛏️', desc: `Gather resources from this ${customObjDef.name || 'object'}`, customObjDef, objAnchorQ, objAnchorR });
             }
@@ -337,7 +344,7 @@ Object.assign(InnerMapRenderer, {
             const _objHpTile = (objAnchorQ != null) ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
             const _objHp = (_objHpTile && _objHpTile.customObject && _objHpTile.customObject.currentHealthPct != null) ? _objHpTile.customObject.currentHealthPct : 100;
             // (not a field: there is nothing there to strike)
-            if (!(customObjDef.tags || []).includes('field') && !_isGate) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
+            if (!(customObjDef.tags || []).includes('field') && !_isGate && !_chopped) menuItems.push({ type: 'action', action: 'attack_object', label: `${_attackVerb} ${customObjDef.name || 'Object'}`, icon: '🗡️', desc: `HP: ${Math.ceil(_objHp)}%`, customObjDef, objAnchorQ, objAnchorR });
         }
 
         // Built-in overlay interactions removed (editor-authored objects only)
@@ -687,6 +694,30 @@ Object.assign(InnerMapRenderer, {
         if (result === 'unreachable') {
             game.ui.showNotification('Blocked', `You can't reach the ${label}.`, 'error');
         }
+    },
+
+    /**
+     * The order to fell a tree or grub out a stump (a harvest_object action):
+     * about how many blows it will take you (its hardness, your Woodcutting and
+     * axe: InnerMap._computeObjectDamage) and what it gives.
+     */
+    _fellingItem(game, def, aq, ar) {
+        const tile = aq != null ? InnerMap.getTile(aq, ar) : null;
+        const hp = tile && tile.customObject && tile.customObject.currentHealthPct != null ? tile.customObject.currentHealthPct : 100;
+        const dmg = InnerMap._computeObjectDamage(game.player, def);
+        const blows = dmg > 0 ? Math.max(1, Math.ceil(hp / dmg)) : '?';
+        const nice = (id) => id.replace(/_/g, ' ');
+        const res = def.resource || {};
+        const gives = [`${res.amount || 1} ${nice(res.type || 'wood')}`];
+        for (const g of def.gives || []) {
+            const when = Array.isArray(g.seasons) ? ` in ${g.seasons.join(' or ')}` : g.chance != null && g.chance < 1 ? ' maybe' : '';
+            if (!gives.some(x => x.endsWith(nice(g.item)))) gives.push(`${nice(g.item)}${when}`);
+        }
+        const tool = Gathering.toolFor(game.player, def);
+        const stump = def.objectType === 'stump';
+        const label = stump ? `Grub Out the ${def.name || 'Stump'}` : `Fell the ${def.name || 'Tree'}`;
+        const desc = `About ${blows} blow${blows === 1 ? '' : 's'}${tool ? ` with your ${tool.name}` : ''} · ${gives.join(', ')}${stump ? ' · clears the ground' : ''}`;
+        return { type: 'action', action: 'harvest_object', label, icon: '🌲', desc, customObjDef: def, objAnchorQ: aq, objAnchorR: ar };
     },
 
     /** The menu entries for bodies on a tile and for a hole or grave dug there. */
@@ -1206,7 +1237,7 @@ Object.assign(InnerMapRenderer, {
                             if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
                                 InnerMap.startInteraction(aQ, aR, cDef.id,
                                     InnerMap._computeObjectDamage(game.player, cDef));
-                                const dir = InnerMap.getDirectionToward(aQ, aR);
+                                const dir = InnerMap.getDirectionTowardObject(aQ, aR, cDef);
                                 InnerMapRenderer._playerFacing = dir;
                             } else {
                                 InnerMap._pendingInteraction = { anchorQ: aQ, anchorR: aR, defId: cDef.id };
@@ -1221,7 +1252,7 @@ Object.assign(InnerMapRenderer, {
                         if (adj) {
                             if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
                                 InnerMap.startInteraction(aQ, aR, cDef.id, 0);
-                                const dir = InnerMap.getDirectionToward(aQ, aR);
+                                const dir = InnerMap.getDirectionTowardObject(aQ, aR, cDef);
                                 InnerMapRenderer._playerFacing = dir;
                             } else {
                                 InnerMap._pendingInteraction = { anchorQ: aQ, anchorR: aR, defId: cDef.id };
@@ -1246,7 +1277,7 @@ Object.assign(InnerMapRenderer, {
                         if (InnerMap.playerInnerQ === adj.q && InnerMap.playerInnerR === adj.r) {
                             InnerMap.startInteraction(hAQ, hAR, hDef.id,
                                 InnerMap._computeObjectDamage(game.player, hDef));
-                            const dir = InnerMap.getDirectionToward(hAQ, hAR);
+                            const dir = InnerMap.getDirectionTowardObject(hAQ, hAR, hDef);
                             InnerMapRenderer._playerFacing = dir;
                         } else {
                             InnerMap._pendingInteraction = { anchorQ: hAQ, anchorR: hAR, defId: hDef.id };

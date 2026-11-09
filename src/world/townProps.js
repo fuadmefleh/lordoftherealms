@@ -39,6 +39,8 @@ const WILD_KINDS = {
     tree: { objectType: 'tree', give: 'wood', amount: 40, ground: WILD_GROUND },
     bush: { objectType: 'plant', give: 'firewood', amount: 2, ground: WILD_GROUND },
     rock: { objectType: 'rock', give: 'stone', amount: 5, ground: ROCK_GROUND },
+    // what a felled tree leaves (world/innerMap/felling.js): grubbed out for a little firewood
+    stump: { objectType: 'stump', give: 'firewood', amount: 3, ground: [] },
 };
 
 /** A gate's two pieces: shut (blocks) and open (walked through). */
@@ -145,12 +147,18 @@ export const TownProps = {
             // A wild tree, bush or rock also grows out in the country: the map's scatter
             // puts it down on its ground (world/innerMap/terrain.js _scatterCustomObjects),
             // and it is felled, cut or broken for what it gives
-            if (p.wild && kind) {
+            // A tree with a fell block (a palm planted by world/innerMap/palms.js) is felled
+            // too, though the scatter doesn't put it down; a stump is grubbed out (its grub block)
+            const fell = kind === 'stump' ? p.grub : p.fell;
+            if (kind && (p.wild || fell)) {
                 const K = WILD_KINDS[kind];
-                const w = p.wild;
+                const w = p.wild || {};
+                const f = fell || {};
                 def.objectType = K.objectType;
-                def.terrainBindings = w.terrain || K.ground;
-                def.spawnWeight = w.weight == null ? 0.1 : w.weight;
+                if (p.wild) {
+                    def.terrainBindings = w.terrain || K.ground;
+                    def.spawnWeight = w.weight == null ? 0.1 : w.weight;
+                }
                 // a rock is common on bare rock, rare on other ground (so few beside the
                 // trees that the woods keep the mix they had with the LPC oak)
                 if (kind === 'rock') {
@@ -158,9 +166,20 @@ export const TownProps = {
                     def.spawnWeight = w.elsewhere == null ? 0.005 : w.elsewhere;
                     def.scatterChance = w.chance == null ? 0.35 : w.chance;
                 }
-                def.resource = { type: w.give || K.give, amount: w.amount == null ? (w.wood == null ? K.amount : w.wood) : w.amount };
+                const amount = w.amount != null ? w.amount : w.wood != null ? w.wood
+                    : f.wood != null ? f.wood : f.firewood != null ? f.firewood : K.amount;
+                def.resource = { type: w.give || K.give, amount };
                 if (w.resistance != null) def.resistance = w.resistance;
-                if (kind === 'tree') def.spawnAfter = w.stump || 'stump_1';
+                // how hard it is to fell or grub out (fewer swings for a birch than a great oak)
+                if (f.hardness != null) def.resistance = f.hardness;
+                // what else comes of it (player/gathering.js fellGives) and the stump it leaves
+                if (Array.isArray(f.gives)) def.gives = f.gives;
+                if (kind === 'tree') {
+                    def.spawnAfter = f.stump || w.stump || 'stump_1';
+                    // it topples when felled (world/innerMap/movement.js; drawn by ui/innerMapLayers/felling.js)
+                    def.topples = true;
+                    if (tags.includes('palm')) def.palm = true;
+                }
                 // a bush is undergrowth: rolled for on the ground the trees left (terrain.js)
                 if (kind === 'bush') def.undergrowth = true;
                 def.animation = 'combat_1h_halfslash';

@@ -176,7 +176,68 @@ Object.assign(AudioManager.prototype, {
             case 'sail':          this._sfxSail(); break;
             case 'forge_perfect': this._sfxForgePerfect(); break;
             case 'forge_charge':  this._sfxForgeCharge(); break;
+            // Felling a tree (ui/innerMapFelling.js): the axe biting, the trunk giving, the crash
+            case 'chop':          this._sfxChop(); break;
+            case 'tree_creak':    this._sfxTreeCreak(); break;
+            case 'tree_thud':     this._sfxTreeThud(); break;
         }
+    },
+
+    /** A short burst of noise through a filter: (seconds, 'lowpass'|'bandpass'|'highpass', Hz, gain, delay). */
+    _noiseBurst(dur, type, freq, gain, at = 0) {
+        const now = this.ctx.currentTime + at;
+        const n = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+        const buffer = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const f = this.ctx.createBiquadFilter();
+        f.type = type;
+        f.frequency.value = freq;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(gain, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        src.connect(f);
+        f.connect(g);
+        g.connect(this.sfxGain);
+        src.start(now);
+    },
+
+    /** A falling pitch: (wave, from Hz, to Hz, seconds, gain, delay). */
+    _knock(type, from, to, dur, gain, at = 0) {
+        const now = this.ctx.currentTime + at;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(from, now);
+        osc.frequency.exponentialRampToValueAtTime(to, now + dur);
+        g.gain.setValueAtTime(gain, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        osc.connect(g);
+        g.connect(this.sfxGain);
+        osc.start(now);
+        osc.stop(now + dur + 0.02);
+    },
+
+    /** The axe bites into wood: a dry crack over a hollow knock. */
+    _sfxChop() {
+        this._noiseBurst(0.07, 'bandpass', 1400, 0.25);
+        this._knock('triangle', 230, 120, 0.12, 0.22);
+    },
+
+    /** The trunk gives: a low groaning creak. */
+    _sfxTreeCreak() {
+        this._knock('sawtooth', 95, 55, 0.7, 0.05);
+        this._knock('sawtooth', 140, 80, 0.5, 0.03, 0.15);
+        this._noiseBurst(0.35, 'bandpass', 600, 0.05, 0.1);
+    },
+
+    /** The tree hits the ground: a deep thud, branches crashing. */
+    _sfxTreeThud() {
+        this._knock('sine', 80, 32, 0.5, 0.45);
+        this._noiseBurst(0.45, 'lowpass', 700, 0.3);
+        this._noiseBurst(0.3, 'highpass', 2500, 0.06, 0.05);
     },
 
     _sfxClick() {

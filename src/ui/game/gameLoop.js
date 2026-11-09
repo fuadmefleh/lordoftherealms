@@ -261,6 +261,17 @@ export function gameLoop(timestamp, loopId) {
         const interactionResult = InnerMap.updateInteraction(simDelta);
         // The chips and leaves of the blows, the trees coming down (ui/innerMapFelling.js)
         InnerMapFelling.update(simDelta);
+        // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js): the same chips,
+        // shudder and fall, heard only near enough
+        if (InnerMap._chopEvents && InnerMap._chopEvents.length) {
+            for (const ev of InnerMap._chopEvents) {
+                const evDef = CustomObjects.getDef(ev.defId);
+                const quiet = Math.max(Math.abs(ev.q - InnerMap.playerInnerQ), Math.abs(ev.r - InnerMap.playerInnerR)) > 16;
+                if (ev.kind === 'hit') InnerMapFelling.onHit(ev.q, ev.r, evDef, ev.cutterQ, ev.cutterR, quiet);
+                else if (ev.kind === 'felled') InnerMapFelling.onFelled(evDef, ev.q, ev.r, 0, null, quiet);
+            }
+            InnerMap._chopEvents.length = 0;
+        }
         for (const landed of InnerMap.updateFelling(simDelta)) InnerMapFelling.onLanded(landed);
         if (interactionResult && interactionResult.hit && typeof InnerMapCombat !== 'undefined') {
             // Spawn floating damage number over object on each swing

@@ -358,6 +358,7 @@ Object.assign(InnerMap, {
         const rnd = Utils.random;
         npc._chatWith = null;
         if (npc._field) this._leaveField(npc);
+        if (npc._chop && this._stopChopping) this._stopChopping(npc);
         // Carrying in what was cut: to the granary first
         if (npc._carry && this._goStore(npc)) return true;
         npc._carry = null;
@@ -385,6 +386,8 @@ Object.assign(InnerMap, {
         switch (act) {
             case 'home': return this._goHome(npc, period === 'night' ? 'sleep' : 'home');
             case 'work': {
+                // A woodcutter out to fell a tree (world/innerMap/townWoodcutters.js)
+                if (this._isTownWoodcutter && this._isTownWoodcutter(npc) && rnd() < (Number(this.townWoodConfig().share) || 0) && this._goToTree(npc)) return true;
                 // Out to the fields
                 if (rnd() < (Number(C.fieldWork[npc.type]) || 0) && this._goToField(npc)) return true;
                 if (!npc._work) return this._doActivity(npc, 'errand', period);
@@ -510,7 +513,8 @@ Object.assign(InnerMap, {
 
     /** Off to the nearest granary (or barn, mill, warehouse…) with what they carry. */
     _goStore(npc) {
-        const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
+        const types = npc._carry && npc._carry.good === 'wood' && this.townWoodConfig
+            ? this.townWoodConfig().stores : (this.townLifeConfig().harvestStores || DEFAULTS.harvestStores);
         const blds = (this.buildings || []).filter(b => b && !b.isPlayerProperty);
         for (const type of types) {
             const near = blds.filter(b => b.type === type).sort((a, b) => Math.hypot(a.q - npc.q, a.r - npc.r) - Math.hypot(b.q - npc.q, b.r - npc.r));
@@ -523,6 +527,7 @@ Object.assign(InnerMap, {
     _townDelivered(npc, bldg) {
         const c = npc._carry;
         if (!c || !bldg) return;
+        if (c.good === 'wood') { if (this._townWoodDelivered) this._townWoodDelivered(npc, bldg); return; }
         const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
         if (!types.includes(bldg.type)) return;
         npc._carry = null;
@@ -628,6 +633,7 @@ Object.assign(InnerMap, {
         if (npc._face != null) npc.facing = npc._face;
         if (act === 'chat') this._startChat(npc);
         if (act === 'field') this._startFieldWork(npc);
+        if (act === 'chop' && this._startChopping) this._startChopping(npc);
         npc._activity = null;
         npc._face = null;
     },

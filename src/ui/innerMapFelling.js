@@ -160,9 +160,9 @@ export const InnerMapFelling = {
     // ── The blows ──
 
     /** A blow landed on the object at (q, r): chips, leaves, the shudder and the knock. */
-    onHit(q, r, def, cutterQ, cutterR) {
+    onHit(q, r, def, cutterQ, cutterR, quiet = false) {
         if (!this.isChopped(def)) return;
-        _sfx('chop');
+        if (!quiet) _sfx('chop');
         const tr = _trunk(def, q, r);
         const toward = cutterQ != null && cutterQ * T + T / 2 < tr.x ? -1 : cutterQ != null && cutterQ * T + T / 2 > tr.x ? 1 : (Math.random() < 0.5 ? -1 : 1);
         const hitY = tr.y - T * (def.objectType === 'stump' ? 0.3 : 0.35);
@@ -216,9 +216,9 @@ export const InnerMapFelling = {
     // ── The felling ──
 
     /** It came down: the creak, a last flurry, and the XP the tree was worth over the stump. */
-    onFelled(def, q, r, xp, skillName) {
+    onFelled(def, q, r, xp, skillName, quiet = false) {
         if (!def) return;
-        _sfx('tree_creak');
+        if (!quiet) _sfx('tree_creak');
         const tr = _trunk(def, q, r);
         if (def.topples) this._shedLeaves(def, tr, 6, 1);
         if (xp > 0) this._xp.push({ x: tr.x, y: tr.y - T * 0.9, age: 0, text: `+${Math.round(xp)} ${skillName || 'Woodcutting'}` });

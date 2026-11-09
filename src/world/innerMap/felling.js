@@ -141,20 +141,24 @@ Object.assign(InnerMap, {
         return true;
     },
 
-    /** A tree just came down at (q, r): record it, and start it falling away from the cutter. */
-    _noteFelled(q, r, def, stumpId) {
+    /**
+     * A tree just came down at (q, r): record it, and start it falling away from the
+     * cutter (the player, else the column cutterQ given). by: 'town' when a town
+     * woodcutter felled it (world/innerMap/townWoodcutters.js counts the day's).
+     */
+    _noteFelled(q, r, def, stumpId, cutterQ = null, by = null) {
         const day = this._fellDay();
         const rec = this._fellRec || Felling.record(this._fellWorld, this._fellHex, true);
         if (rec) {
             const was = rec[_key(q, r)];
             // a sapling that grew from an old stump grows back into the tree that stood there first
             const tree = was && !was.grubbed && was.tree && def.id === Felling.saplingFor(was) ? was.tree : def.id;
-            rec[_key(q, r)] = { tree, stump: stumpId || null, day };
+            rec[_key(q, r)] = { tree, stump: stumpId || null, day, ...(by ? { by } : {}) };
             this._fellRec = rec;
         }
-        const cutterQ = Number.isFinite(this.playerInnerQ) ? this.playerInnerQ : q;
+        const cq = Number.isFinite(cutterQ) ? cutterQ : Number.isFinite(this.playerInnerQ) ? this.playerInnerQ : q;
         if (!this._fallingTrees) this._fallingTrees = [];
-        this._fallingTrees.push({ q, r, defId: def.id, dir: Felling.fallDir(def, q, r, cutterQ), t: 0 });
+        this._fallingTrees.push({ q, r, defId: def.id, dir: Felling.fallDir(def, q, r, cq), t: 0 });
     },
 
     /** A stump grubbed out at (q, r): the ground stays clear. */

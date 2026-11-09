@@ -450,6 +450,8 @@ Object.assign(InnerMap, {
         // Gates townsfolk opened to pass, shut behind them once the gateway is clear (world/innerMap/gates.js)
         if (!this._insideBuilding && this._closeGatesBehind) this._closeGatesBehind();
         if (this.npcs.length === 0) return;
+        // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js)
+        if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);
 
         for (const npc of this.npcs) {
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable

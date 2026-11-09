@@ -10,6 +10,7 @@ export { DataLoader } from '../../core/dataLoader.js';
 export { Terrain } from '../terrain.js';
 export { NpcFamily } from '../../systems/npcFamily.js';
 export { Townsfolk } from '../../systems/townsfolk.js';
+export { PracticeSkills } from '../../systems/practiceSkills.js';
 export { Hospitality } from '../../systems/hospitality.js';
 export { Cultures } from '../cultures.js';
 export { TownProps } from '../townProps.js';

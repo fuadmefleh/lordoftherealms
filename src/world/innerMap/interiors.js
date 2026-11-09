@@ -39,18 +39,13 @@ Object.assign(InnerMap, {
         // Make sure center and surroundings are explored
         this._revealAround(this.tiles, this.playerInnerQ, this.playerInnerR, 2);
 
-        // ── Restore or initialize time system ──
-        const timeKey = `${worldQ},${worldR}`;
-        const savedTime = this._timeCache[timeKey];
-        if (savedTime) {
-            this.timeOfDay = savedTime.timeOfDay;
-            this._timeAccumulator = savedTime._timeAccumulator;
-            this.dayEnded = savedTime.dayEnded || false;
-        } else {
+        // ── The day's clock runs on: one clock for the day, on every map and off them
+        // (ui/game/dayClock.js; the new day's reset is endDay's) ──
+        if (!Number.isFinite(this.timeOfDay)) {
             this.timeOfDay = 8;  // Start at 8 AM
             this._timeAccumulator = 0;
-            this.dayEnded = false;
         }
+        this.dayEnded = this.timeOfDay >= 24;
 
         // ── Snapshot weather / temperature from world ──
         if (game.world && game.world.weather) {

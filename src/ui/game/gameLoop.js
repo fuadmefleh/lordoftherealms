@@ -18,6 +18,7 @@ import { Gathering } from '../../player/gathering.js';
 import { InnerMapFurnish } from '../innerMapFurnish.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { announceSkillUps } from '../skillUps.js';
+import { DayClock } from './dayClock.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -41,6 +42,8 @@ export function gameLoop(timestamp, loopId) {
     this.lastTime = timestamp;
     // Practised-skill level-ups queued by the systems (ui/skillUps.js)
     announceSkillUps(this, timestamp);
+    // Action points spent pass the day's hours; the hours left cap the points (ui/game/dayClock.js)
+    DayClock.sync(this);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
 

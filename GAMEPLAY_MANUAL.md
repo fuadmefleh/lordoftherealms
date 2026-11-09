@@ -177,6 +177,8 @@ Time advances one day at a time. Each day you receive:
 - **10 Action Points (AP)** — Spent on actions (trading, recruiting, building, etc.)
 - **10 Stamina** — Spent on movement (each hex costs stamina equal to terrain difficulty)
 
+**Action points and the clock.** The day has one clock, shown in the top bar. You wake at 8 AM, and every action point you spend passes an hour and a half on it, whatever you spend it on: walking a hex, a market errand, a day's labour (4 AP, six hours), building (6 AP, nine hours). A full day's 10 AP takes you to about 11 PM. It works the other way too: time spent in person on a town or country map (walking about, work in a field, a fight, sleep) runs the same clock, and you can never hold more action points than the hours left before midnight allow. An afternoon spent wandering a town leaves fewer points for the evening. Ending the day sends you to bed and you wake at 8; staying up on a map until midnight carries you straight into the next day. The settings are in `data/innerMap.json` under `dayClock`.
+
 At the end of each day:
 1. Stamina and AP reset to maximum.
 2. One food item is consumed (bread, fish, grain, or preserved fish — in priority order).

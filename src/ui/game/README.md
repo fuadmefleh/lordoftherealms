@@ -12,6 +12,7 @@ This folder contains the `Game` class split into focused modules. The class is a
 | `gameLoop.js` | ~763 | Game loop tick, input handlers, `handleClick`, `handleDoubleClick`; a panel waiting on a map pick sets `game._hexPick = { onPick(q, r), onCancel }` and takes the next world-map click (Esc cancels) |
 | `innerMap.js` | ~642 | Enter/exit inner map, inner map UI, Tiled export/import |
 | `endDay.js` | ~643 | `onPlayerArrived`, full `endDay` turn processing |
+| `dayClock.js` | ~100 | The day's one clock and the action points as one budget: each frame `DayClock.sync` passes `hoursPerAP` hours for every point spent anywhere (it watches the points, so every spender counts) and caps the points by the hours left before midnight; `wake()` starts a new day at `wakeHour` (data/innerMap.json `dayClock`) |
 | `combat.js` | ~450 | Food purchase modal, hostile encounters (`_checkHostileEncounters` opens the encounter dialog, `ActionMenu.showEncounter`; headless it resolves automatically; `_settlePendingCombat` settles a dialog or battle walked away from), `_triggerDeath`, end-day confirm |
 | `autoChart.js` | ~90 | Walks a standing order to chart an area (`startAutoChart`, `_autoChartStep`, `stopAutoChart`): to the nearest uncharted tile, chart on arrival (`onPlayerArrived` calls back), rest when spent and go on in the morning (`endDay`); Escape or another move ends it. The order is `systems/cartography/charting.js`'s |
 | `index.js` | ~20 | Assembles all modules → exports `{ Game }` |

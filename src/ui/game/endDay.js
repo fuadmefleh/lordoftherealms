@@ -3,6 +3,7 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
+import { DayClock } from './dayClock.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Languages } from '../../systems/languages.js';
@@ -1285,16 +1286,16 @@ export function endDay() {
                 else setTimeout(() => ActionMenu.showReckoning(this, 'last'), 0);
             }
 
-            // The inner map's clock for the new day: the day ended at midnight runs
-            // straight on (12:01 AM); a day ended by going to bed (End Turn) wakes at 8
-            if (typeof InnerMap !== 'undefined' && (this.innerMapMode || this._midnightRollover)) {
+            // The day's clock for the new day (one clock, on the map or off it: ui/game/dayClock.js):
+            // the day ended at midnight runs straight on (12:01 AM); a day ended by going to bed
+            // (End Turn) wakes at 8
+            if (typeof InnerMap !== 'undefined') {
                 if (this._midnightRollover) {
                     InnerMap.timeOfDay = 0;
                     InnerMap._timeAccumulator = InnerMap.TIME_SCALE / 60; // one minute past
                     InnerMap._midnightDay = this.world.day;
                 } else {
-                    InnerMap.timeOfDay = 8;
-                    InnerMap._timeAccumulator = 0;
+                    DayClock.wake();
                 }
                 InnerMap.dayEnded = false;
                 this._innerMapDayEndShown = false;

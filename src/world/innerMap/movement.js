@@ -825,7 +825,9 @@ Object.assign(InnerMap, {
         return {
             cache: this._cache,
             discoveredEncounters: this._discoveredEncounters,
-            timeCache: this._timeCache
+            timeCache: this._timeCache,
+            // the day's one clock (ui/game/dayClock.js)
+            clock: { timeOfDay: this.timeOfDay, acc: this._timeAccumulator }
         };
     },
 
@@ -837,6 +839,11 @@ Object.assign(InnerMap, {
             this._cache = data.cache || {};
             this._discoveredEncounters = data.discoveredEncounters || {};
             this._timeCache = data.timeCache || {};
+            if (data.clock && Number.isFinite(data.clock.timeOfDay)) {
+                this.timeOfDay = Math.min(23, data.clock.timeOfDay);
+                this._timeAccumulator = Number(data.clock.acc) || 0;
+                this.dayEnded = false;
+            }
 
             // ── Migration: Fix stale baseTerrain on water/ice feature tiles ──
             // Old saves set baseTerrain='water' for brooks/streams/ponds etc.

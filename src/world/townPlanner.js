@@ -524,7 +524,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         }
         return false;
     };
-    const tree = propDef('large_tree_1');
+    // a fruit tree in the back garden (the drawn trees, world/townProps.js)
+    const fruitTrees = ['tp_tree_apple', 'tp_tree_pear', 'tp_tree_cherry'].map(propDef).filter(Boolean);
 
     // One-tile props that stand flush against a wall (a barrel, a woodpile, crates, a flower box)
     const wallProps = tag => TownProps.idsWithTag(tag).filter(id => {
@@ -554,8 +555,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         if (depth >= 3 && rng() < 0.85) {
             const fh = Math.min(depth - 2, 3);
             const fw = Math.min(w - 1, FIELD_W[FIELD_W.length - 1]);
-            if (depth >= 5 && rng() < 0.4 && tree && w >= 3) {
-                TownProps.place(tiles, tree, b.left + Math.floor(w / 2), b.top - 2);
+            if (depth >= 5 && rng() < 0.4 && fruitTrees.length && w >= 3) {
+                TownProps.place(tiles, fruitTrees[(b.left + b.top) % fruitTrees.length],b.left + Math.floor(w / 2), b.top - 2);
             } else if (fh >= 2 && FIELD_W.includes(fw)) {
                 const def = propDef(TownProps.fieldId(rng() < 0.75 ? 'veg' : 'greens', fw, fh));
                 if (def) TownProps.place(tiles, def, b.left, b.top - 2);

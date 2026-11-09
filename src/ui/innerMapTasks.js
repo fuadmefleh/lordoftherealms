@@ -77,7 +77,7 @@ function _placesFor(ctx, want) {
     if (!want) return out;
     if (want.doors) out = out.concat(MapTasks.doorsOf(s, want.doors));
     if (want.props) out = out.concat(MapTasks.propsOf(s, want.props));
-    if (want.trees) out = out.concat(s.props.filter(p => p.id === 'large_tree_1'));
+    if (want.trees) out = out.concat(s.props.filter(p => p.id === 'large_tree_1' || String(p.id).startsWith('tp_tree_')));
     if (want.roads) out = out.concat(s.roads);
     if (want.ground === 'town') out = out.concat(s.ground.filter(g => g.town));
     if (want.ground === 'edge') out = out.concat(s.ground.filter(g => g.edge));

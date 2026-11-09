@@ -773,6 +773,9 @@ Object.assign(InnerMap, {
             if (!_outdoorTypes.has(def.objectType)) return false;
             // Objects that only exist as spawnAfter replacements shouldn't scatter
             if (spawnAfterIds.has(def.id)) return false;
+            // Retired from the wild (the LPC oak and rocks, replaced by the drawn
+            // trees and rocks in world/townProps.js); kept so old maps still draw them
+            if (def.retired) return false;
             return true;
         }
 

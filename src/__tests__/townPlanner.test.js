@@ -39,7 +39,7 @@ function survey(tiles) {
         if (t.customBuilding) buildings.push({ q: t.q, r: t.r, def: CustomBuildings.getBuilding(t.customBuilding.defId) });
         if (t.customObject) {
             const id = t.customObject.defId;
-            if (id === 'large_tree_1' && t._townCore && !t.customObject.planted) trees++;
+            if ((id === 'large_tree_1' || String(id).startsWith('tp_tree_')) && t._townCore && !t.customObject.planted) trees++;
             if (id.startsWith('tp_')) props++;
             if (id === 'tp_fountain') fountain++;
             if (id === 'tp_stall') stalls++;

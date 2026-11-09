@@ -146,7 +146,7 @@
             "holy": "Find a quiet spot at this holy place and sit still a while."
         },
         "spots": [
-            { "props": ["large_tree_1", "tp_planter_tree", "tp_potted_tree"], "label": "Sit beneath the tree" },
+            { "props": ["tp_tree_", "tp_planter_tree", "tp_potted_tree"], "label": "Sit beneath the tree" },
             { "props": ["tp_flower_box", "tp_flowers_", "tp_fern_box"], "label": "Sit by the flowers" },
             { "doors": ["church", "temple", "chapel", "monastery", "shrine", "cathedral"], "label": "Sit on the temple steps" },
             { "props": ["tp_fountain"], "label": "Sit by the fountain" },

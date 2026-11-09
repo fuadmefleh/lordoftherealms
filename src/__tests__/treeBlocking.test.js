@@ -92,4 +92,13 @@ describe('tree blocking', () => {
         expect(tiles[6][4].subTerrain.passable).toBe(true);
         expect(tiles[4][3].subTerrain.passable).toBe(true);    // under the crown
     });
+
+    it('the old LPC oak and rocks no longer grow wild, nor stand in towns', () => {
+        const objs = DataLoader._gamedata.objects;
+        const old = ['large_tree_1', 'rock_boulder_grey', 'rock_low_grey', 'rock_small_grey',
+            'rock_boulder_granite', 'rock_low_granite', 'rock_small_granite'];
+        for (const id of old) expect(objs.find(o => o.id === id).retired).toBe(true);
+        const arch = JSON.stringify(DataLoader._gamedata.architecture);
+        for (const id of ['large_tree_1', 'tp_oak', 'tp_pine']) expect(arch).not.toContain(`"${id}"`);
+    });
 });

@@ -92,10 +92,10 @@
             "summary": "Black-and-white timber framing and golden thatch, flower boxes and porches; winding dirt lanes, cottages set apart in their gardens, oaks left standing in town and a village green with a great oak instead of a paved square.",
             "plan": {
                 "wind": 3, "laneGap": [12, 14], "alleyStep": [16, 26], "gap": [2, 4], "setback": [1, 2], "laneSpan": 0.8,
-                "plaza": { "kind": "green", "scale": [1.0, 1.2], "centre": "tp_oak", "corners": [], "stalls": 0.5 },
+                "plaza": { "kind": "green", "scale": [1.0, 1.2], "centre": "tp_tree_great_oak", "corners": [], "stalls": 0.5 },
                 "streets": null,
                 "lamps": "none",
-                "scatter": [{ "ids": ["tp_oak", "tp_oak", "large_tree_1"], "count": [5, 9] }]
+                "scatter": [{ "ids": ["tp_tree_oak2", "tp_tree_linden", "tp_tree_maple", "tp_tree_birch"], "count": [5, 9] }]
             },
             "mix": {
                 "core": { "timbered": 0.5, "shop": 0.3, "cottage": 0.2 },
@@ -122,7 +122,7 @@
                 "plaza": { "kind": "green", "scale": [0.8, 1.0], "centre": "tp_well", "corners": ["tp_campfire"], "stalls": 0.4 },
                 "streets": null,
                 "lamps": "none",
-                "scatter": [{ "ids": ["large_tree_1", "tp_oak"], "count": [6, 10] }, { "ids": ["tp_logs", "tp_water_barrel", "tp_basket"], "count": [4, 8] }]
+                "scatter": [{ "ids": ["tp_tree_oak2", "tp_tree_apple", "tp_tree_pear"], "count": [6, 10] }, { "ids": ["tp_logs", "tp_water_barrel", "tp_basket"], "count": [4, 8] }]
             },
             "mix": {
                 "core": { "hut": 0.5, "house": 0.3, "shop": 0.2 },
@@ -149,7 +149,7 @@
                 "streets": null,
                 "lamps": "none",
                 "streetProps": [{ "ids": ["tp_firewood_big", "tp_logs"], "step": [9, 14], "on": "lanes" }],
-                "scatter": [{ "ids": ["tp_pine"], "count": [8, 12] }]
+                "scatter": [{ "ids": ["tp_tree_spruce"], "count": [8, 12] }]
             },
             "mix": {
                 "core": { "longhouse": 0.5, "house": 0.3, "shop": 0.2 },

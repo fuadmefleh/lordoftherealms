@@ -585,7 +585,8 @@
           "sh": 32
         }
       ]
-    }
+    },
+    "retired": true
   },
   {
     "id": "stump_1",
@@ -740,7 +741,8 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   },
   {
     "id": "rock_low_grey",
@@ -786,7 +788,8 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   },
   {
     "id": "rock_small_grey",
@@ -822,7 +825,8 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   },
   {
     "id": "rock_boulder_granite",
@@ -888,7 +892,8 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   },
   {
     "id": "rock_low_granite",
@@ -934,7 +939,8 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   },
   {
     "id": "rock_small_granite",
@@ -970,6 +976,7 @@
         "sh": 32,
         "impassable": true
       }
-    ]
+    ],
+    "retired": true
   }
 ]

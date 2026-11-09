@@ -151,10 +151,11 @@ export const TownProps = {
                 def.objectType = K.objectType;
                 def.terrainBindings = w.terrain || K.ground;
                 def.spawnWeight = w.weight == null ? 0.1 : w.weight;
-                // a rock is common on bare rock, rare on other ground
+                // a rock is common on bare rock, rare on other ground (so few beside the
+                // trees that the woods keep the mix they had with the LPC oak)
                 if (kind === 'rock') {
                     def.spawnWeightBy = { rocks: def.spawnWeight };
-                    def.spawnWeight = w.elsewhere == null ? 0.01 : w.elsewhere;
+                    def.spawnWeight = w.elsewhere == null ? 0.005 : w.elsewhere;
                     def.scatterChance = w.chance == null ? 0.35 : w.chance;
                 }
                 def.resource = { type: w.give || K.give, amount: w.amount == null ? (w.wood == null ? K.amount : w.wood) : w.amount };

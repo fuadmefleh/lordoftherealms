@@ -125,11 +125,14 @@ RECIPES = {
     'flowers': ('flowers_source.png', [('flowers', [c, 1, 1, 1]) for c in (0, 1, 2, 3, 5, 7, 8)]
                 + [('flowers', [c, r, 1, 1]) for r in (2, 3) for c in (5, 6, 7, 8)]),
     'props2': ('props2_source.png', [
-        ('lamp', [0, 0, 1, 3]), ('lamp', [1, 0, 1, 3]), ('hay', [0, 0, 2, 3]), ('hay', [2, 0, 2, 3]),
+        ('lamp', [0, 0, 1, 3]), ('lamp', [1, 0, 1, 3]), (None, None), (None, None),   # (the hay: 'hay' below)
         ('fountain', [0, 0, 2, 3]), ('runestone', [0, 0, 2, 2]), ('runestone', [2, 0, 2, 2]), ('campfire', [0, 0, 1, 1]),
         ('campfire', [0, 1, 1, 1], [[1, 1, 1, 1], [2, 1, 1, 1], [3, 1, 1, 1]]),
         ('pillar', [0, 0, 2, 3]), ('pillar', [3, 0, 2, 3]), ('pillar', [6, 0, 2, 3]), ('pillar', [2, 0, 1, 3]),
         ('clan_tents', [0, 0, 3, 3]), ('clan_tents', [3, 0, 3, 3]), ('pool', [0, 0, 3, 3])]),
+    # the loose hay and straw, redrawn with real transparency (the white-keyed piles kept specks of
+    # the background caught between their strands)
+    'hay': ('hay_source.png', [('hay', [0, 0, 2, 3]), ('hay', [2, 0, 2, 3])]),
     'props1': ('props1_source.png', [
         ('barrel', [0, 0, 1, 2, 0.8]), ('barrel', [1, 0, 1, 2, 0.8]), ('barrel', [3, 0, 2, 2, 0.8]), ('crate', [0, 0, 1, 2, 0.8]),
         ('crate', [1, 1, 1, 1, 0.75]), ('crate', [2, 1, 1, 1]), ('sawhorse', [0, 0, 1, 2]), ('lumber', [0, 2, 2, 1]),
@@ -200,9 +203,12 @@ def build(name):
     source, items, *opts = RECIPES[name]
     # ('shadows': key wider from the edge in, taking the pale grey ground shadows drawn under plants;
     #  'gaps': key the little patches of background caught between leaves, but not a white petal)
-    objs = objects(key_white(Image.open(os.path.join(NEW, source)), tol=70 if 'shadows' in opts else 28,
-                             holes=40 if 'gaps' in opts else 'holes' in opts),
-                   min_frac=0.004 if 'small' in opts else 0.03)
+    src = Image.open(os.path.join(NEW, source))
+    if src.mode == 'RGBA' and np.array(src)[..., 3].min() < 16:
+        keyed = src.convert('RGBA')   # drawn with real transparency: nothing to key
+    else:
+        keyed = key_white(src, tol=70 if 'shadows' in opts else 28, holes=40 if 'gaps' in opts else 'holes' in opts)
+    objs = objects(keyed, min_frac=0.004 if 'small' in opts else 0.03)
     if len(objs) != len(items):
         raise SystemExit(f'{name}: found {len(objs)} drawings, want {len(items)}')
     sheets = {}

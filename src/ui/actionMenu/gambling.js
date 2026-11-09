@@ -2,6 +2,7 @@
 import { ActionMenu } from './_ref.js';
 import { Traits } from '../../systems/traits.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
+import { OddJobs } from '../../player/oddJobs.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
 
 /** Busk an act in person on the street map; the crowd's score goes to the busking reward. */
@@ -1135,9 +1136,9 @@ Object.assign(ActionMenu, {
         const statVal = ActionMenu._getPlayerStat(player, perf.stat);
         const basePay = perf.basePay.min + Math.floor(Math.random() * (perf.basePay.max - perf.basePay.min + 1));
         const qualityMult = 0.2 + (scorePercent / 100) * 1.3;
-        const actualPay = Math.max(1, Math.floor(basePay * crowdMultiplier * qualityMult * (1 + statVal * 0.08)));
-
-        player.gold += actualPay;
+        // The crowd's coins come out of the town's purse: a broke town tosses little
+        const earned = Math.max(1, Math.floor(basePay * crowdMultiplier * qualityMult * (1 + statVal * 0.08)));
+        const actualPay = OddJobs.payFromTown(player, tile && tile.settlement, earned);
         if (scorePercent >= 40) player.renown += 1;
 
         if (perf.bonusKarma && scorePercent >= 25) {

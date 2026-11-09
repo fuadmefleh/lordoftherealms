@@ -6,7 +6,7 @@ import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
-import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize } from './_imports.js';
+import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -174,6 +174,8 @@ Object.assign(PlayerEconomy, {
         const buildCost = PlayerEconomy.getBuildCost(player, prop, tile, world);
         player.gold -= buildCost;
         Ledger.record(player, 'propertyBought', -buildCost);
+        // (the builders and the timber merchants are the nearest town's: its purse is paid)
+        Economy.payTown(PlayerEconomy.propertyTown(world, tile, { hire: PlayerEconomy._nearTown(world, tile) }), buildCost);
 
         // Determine what this property produces
         let produces = prop.produces;
@@ -270,6 +272,33 @@ Object.assign(PlayerEconomy, {
         return Math.round(TownLabour.wageUpkeep(base, property.hire) * PlayerEconomy.getAdministrationMultiplier(player));
     },
 
+    /**
+     * The town a property trades with: the settlement on its tile, else the
+     * town it hires its hands from (property.hire, systems/labour.js). Its
+     * purse pays the property's takings and gets the goods it sells.
+     */
+    propertyTown(world, tile, property) {
+        if (tile && tile.settlement) return tile.settlement;
+        const h = property && property.hire;
+        if (h && Number.isFinite(h.q) && world && typeof world.getTile === 'function') {
+            const t = world.getTile(h.q, h.r);
+            if (t && t.settlement) return t.settlement;
+        }
+        return null;
+    },
+
+    /** The nearest settlement within 6 hexes of a tile, as { q, r }, or null. */
+    _nearTown(world, tile) {
+        if (!world || !tile || typeof world.getSettlementViews !== 'function') return null;
+        let best = null, bd = 7;
+        for (const s of world.getSettlementViews()) {
+            if (Math.abs(s.r - tile.r) > 6) continue;
+            const d = Hex.wrappingDistance(s.q, s.r, tile.q, tile.r, world.width);
+            if (d < bd) { bd = d; best = s; }
+        }
+        return best ? { q: best.q, r: best.r } : null;
+    },
+
     /** Base goods a property can hold per level, before technology. */
     STORAGE_PER_LEVEL: 100,
 
@@ -326,6 +355,7 @@ Object.assign(PlayerEconomy, {
                 const upkeepCost = PlayerEconomy.getPropertyUpkeep(player, property);
                 if (player.gold >= upkeepCost) {
                     player.gold -= upkeepCost;
+                    Economy.payTown(PlayerEconomy.propertyTown(world, tile, property), upkeepCost); // (the staff's wages)
                     // Calculate tavern income based on settlement size
                     let baseIncome = 14;
                     if (tile.settlement) {
@@ -361,6 +391,11 @@ Object.assign(PlayerEconomy, {
                     baseIncome = Math.floor(baseIncome * TownLabour.staffing(property.hire));
                     // Prosperity miracle and a House Steward
                     baseIncome = Math.floor(baseIncome * PlayerEffects.propertyIncomeMultiplier(player));
+                    // The drinkers pay out of the town's coin: a broke town drinks on tick
+                    const town = PlayerEconomy.propertyTown(world, tile, property);
+                    const can = Economy.townPurse(town);
+                    if (can != null) baseIncome = Math.min(baseIncome, Math.floor(can));
+                    Economy.drawTown(town, baseIncome);
                     player.gold += baseIncome;
                     Ledger.record(player, 'properties', baseIncome);
                     property.storage = (property.storage || 0) + baseIncome; // Track total earnings in storage
@@ -471,6 +506,8 @@ Object.assign(PlayerEconomy, {
                 continue;
             }
             player.gold -= upkeepCost;
+            // (the hands' wages and the repairs go to the town they come from)
+            Economy.payTown(PlayerEconomy.propertyTown(world, tile, property), upkeepCost);
 
             let producedAmount = amount;
             let producedGood = property.produces;
@@ -551,12 +588,20 @@ Object.assign(PlayerEconomy, {
                 const goodType = producedGood.toUpperCase();
                 const good = PlayerEconomy.GOODS[goodType];
                 if (good) {
-                    // Auto-selling into the harvest glut fetches harvest prices
-                    const income = Math.floor(sellAmount * good.basePrice * 0.5
-                        * Seasons.priceMultiplier(good.id, Seasons.today(world)));
-                    player.gold += income;
-                    Ledger.record(player, 'properties', income);
-                    property.storage = 0;
+                    // Auto-selling into the harvest glut fetches harvest prices; the
+                    // goods go to the town's market and its purse pays (as far as it can)
+                    const town = PlayerEconomy.propertyTown(world, tile, property);
+                    const unit = good.basePrice * 0.5 * Seasons.priceMultiplier(good.id, Seasons.today(world));
+                    const can = Economy.townPurse(town);
+                    const n = can == null || !(unit > 0) ? sellAmount : Math.min(sellAmount, Math.floor(can / unit));
+                    const income = Math.floor(n * unit);
+                    if (n > 0) {
+                        Economy.drawTown(town, income);
+                        if (town && SettlementMarket.tracks(good.id)) SettlementMarket.add(town, good.id, n);
+                        player.gold += income;
+                        Ledger.record(player, 'properties', income);
+                        property.storage = Math.max(0, property.storage - n);
+                    }
                 }
             }
         }

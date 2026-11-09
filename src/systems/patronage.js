@@ -41,6 +41,7 @@
 // Content: data/patronage.json (DataLoader.patronage).
 
 import { DataLoader } from '../core/dataLoader.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { Hex } from '../core/hex.js';
 import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
@@ -1099,6 +1100,7 @@ export const Patronage = {
             const cost = _num(def.npc && def.npc.cost) / Math.max(1, n.days);
             if (_num(k.treasury) < cost) continue;
             k.treasury = _num(k.treasury) - cost;
+            CrownBooks.spendAtCapital(world, k, cost);
             n.paid = _num(n.paid) + cost;
             let speed = 1;
             if (Seasons.seasonOf(day) === 'Winter') speed *= _num(N.winterSpeed, 0.5);

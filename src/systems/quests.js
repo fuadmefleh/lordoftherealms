@@ -9,6 +9,7 @@ import { Traits } from './traits.js';
 import { Deeds } from './deeds.js';
 import { Ships } from './ships.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
+import { Economy } from '../world/economy.js';
 import { NpcTasks } from './npcTasks.js';
 
 
@@ -339,6 +340,7 @@ export const Quests = {
             status: 'active',
             startedAt: world ? world.day : 0,
         };
+        Quests._notePayer(quest, player, world);
         // Made concrete: a real place, band or person, and back to the giver (systems/npcTasks.js)
         const taskId = NpcTasks.taskFor(hook);
         if (taskId && world && tile) {
@@ -552,6 +554,7 @@ export const Quests = {
         delete quest.postedDay; // a taken quest no longer comes down with the board
         delete quest.expiresDay;
         quest.startedAt = world ? world.day : 0;
+        Quests._notePayer(quest, player, world);
         // Targets named on taking the quest (a tomb, a lair, a town), or the general objective
         Quests._resolveSpecs(quest, player, world);
         // "Since" objectives count only what is done from now on
@@ -802,7 +805,7 @@ export const Quests = {
                 // Hand over the goods the giver asked for
                 Quests._handOver(player, quest);
                 // Grant rewards
-                Quests.grantRewards(player, quest);
+                Quests.grantRewards(player, quest, world);
                 Traits.recordDeed(player, 'honesty', 2); // a promise kept
             }
         }
@@ -857,11 +860,29 @@ export const Quests = {
     /**
      * Grant quest rewards
      */
-    grantRewards(player, quest) {
+    /** The town a quest was taken in pays its gold reward (quest.payer: { q, r }). */
+    _notePayer(quest, player, world) {
+        if (!quest || quest.payer || !world || typeof world.getTile !== 'function' || !player) return;
+        const t = world.getTile(player.q, player.r);
+        if (t && t.settlement) quest.payer = { q: t.q != null ? t.q : player.q, r: t.r != null ? t.r : player.r };
+    },
+
+    /**
+     * Grant quest rewards. The gold comes out of the purse of the town the
+     * quest was taken in (quest.payer), as much as it holds; a quest taken in
+     * the wilds (or before towns kept purses) pays in full.
+     */
+    grantRewards(player, quest, world = null) {
         const rewards = quest.rewards;
 
         if (rewards.gold) {
-            player.gold += rewards.gold;
+            const t = quest.payer && world && typeof world.getTile === 'function' ? world.getTile(quest.payer.q, quest.payer.r) : null;
+            const town = t && t.settlement;
+            const purse = Economy.townPurse(town);
+            const pay = purse == null ? rewards.gold : Math.min(rewards.gold, Math.floor(purse));
+            if (purse != null) Economy.drawTown(town, pay);
+            if (pay < rewards.gold) quest.rewardShort = rewards.gold - pay;
+            player.gold += pay;
         }
 
         if (rewards.karma) {
@@ -1094,7 +1115,7 @@ export const Quests = {
         if (!ret) {
             // Nobody to go back to: done here
             Quests._complete(player, world, quest, 'done');
-            Quests.grantRewards(player, quest);
+            Quests.grantRewards(player, quest, world);
         }
         return { success: true, quest, line, cost, carrying: quest.carrying, done: !ret };
     },
@@ -1123,7 +1144,7 @@ export const Quests = {
         quest.handedIn = true;
         Quests._complete(player, world, quest, 'returned');
         Quests._handOver(player, quest);
-        Quests.grantRewards(player, quest);
+        Quests.grantRewards(player, quest, world);
         Traits.recordDeed(player, 'honesty', 2); // a promise kept
         if (quest.person) NpcTasks.settleKid(world, quest.person, true);
         if (quest.giver && quest.giver.uid) NpcTasks.remember(world, quest.giver.uid, 'favour', quest.title);

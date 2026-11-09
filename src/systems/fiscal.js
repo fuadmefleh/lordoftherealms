@@ -217,10 +217,15 @@ export const Fiscal = {
         const n = Math.max(1, days);
         const prodG = Math.max(0, _num(e.fyProd));
         const trade = Math.max(0, _num(e.fyTrade));
-        if (consume && s.economy) { s.economy.fyProd = 0; s.economy.fyTrade = 0; }
+        // (the coin the town took for the goods it sold away: world/settlementMarket.js flows)
+        const sales = Math.max(0, _num(e.fySales));
+        if (consume && s.economy) { s.economy.fyProd = 0; s.economy.fyTrade = 0; s.economy.fySales = 0; }
         const harvest = _clamp(_num(Harvests.foodFactor(world, s), 1), 0.5, 1.5);
         const rt = f.rates;
-        const land = _num(R.land) * CrownBooks.levelMult(rt.land) * (landInc * n * harvest + prodG * _num(R.landProd, 0.5));
+        const land = _num(R.land) * CrownBooks.levelMult(rt.land) * (landInc * n * harvest + prodG * _num(R.landProd, 0.5))
+            + _num(R.sales) * CrownBooks.levelMult(rt.land) * sales
+            // (and the coin a town sits on past its reserve: the assessors find it — rates.hoard a day)
+            + _num(R.hoard) * CrownBooks.levelMult(rt.land) * n * Math.max(0, _num(e.gold) - _num(R.hoardReserve, 2) * pop);
         const poll = _num(R.poll) * CrownBooks.levelMult(rt.poll) * heads * n;
         const excise = _num(R.excise) * CrownBooks.levelMult(rt.excise) * (craftInc * n + trade);
         const levy = (land + poll + excise) * Fiscal._levyShare(k, day);
@@ -385,7 +390,7 @@ export const Fiscal = {
         page.army += paidA;
         page.court += paidC;
         // Wages go back into the towns' purses: soldiers and clerks spend where they live
-        Fiscal._spendBack(paidTo.length ? paidTo : towns, cap, paidA, paidC);
+        Fiscal._spendBack(paidTo.length ? paidTo : towns, cap, paidA, paidC, towns);
         const wasArrears = f.arrearsDays;
         if (f.arrears.army > 0.5) f.arrearsDays++;
         else f.arrearsDays = Math.max(0, f.arrearsDays - 3);
@@ -410,18 +415,26 @@ export const Fiscal = {
         return v % every;
     },
 
-    /** Wages back into the purses (the towns the collectors visited today): the army's by people, the court's to the capital. */
-    _spendBack(towns, cap, army, court) {
+    /**
+     * Wages back into the purses (the towns the collectors visited today): the
+     * army's by people × where the garrisons lie (army.spendWeights: the soldiers
+     * are quartered in the capital and the towns more than the villages), the
+     * court's to the capital.
+     */
+    _spendBack(towns, cap, army, court, all = towns) {
         if (!towns.length) return;
+        const W = _obj(Fiscal.config().army.spendWeights) || {};
+        const wt = (t) => Math.max(0, _num(t.s.population)) * _num(W[t.key === cap ? 'capital' : t.s.type], 1);
         let capTown = null, pop = 0;
-        for (const t of towns) pop += Math.max(0, _num(t.s.population));
+        for (const t of towns) pop += wt(t);
         for (const t of towns) {
             if (!t.s.economy) continue;
             if (t.key === cap) capTown = t;
-            const share = pop > 0 ? Math.max(0, _num(t.s.population)) / pop : 1 / towns.length;
+            const share = pop > 0 ? wt(t) / pop : 1 / towns.length;
             t.s.economy.gold = _r2(_num(t.s.economy.gold) + army * share);
         }
-        const to = capTown || towns.find(t => t.s.economy);
+        // (the court sits in the capital whether or not the collectors called there today)
+        const to = capTown || (all || []).find(t => t.key === cap && t.s.economy) || towns.find(t => t.s.economy);
         if (to) to.s.economy.gold = _r2(_num(to.s.economy.gold) + court);
     },
 

@@ -41,6 +41,7 @@ import { Knockout } from '../systems/knockout.js';
 import { Underworld } from '../systems/underworld.js';
 import { Laws } from '../systems/laws.js';
 import { Ledger } from '../systems/ledger.js';
+import { Economy } from '../world/economy.js';
 import { WildTasks } from '../systems/wildTasks.js';
 import { Livestock } from '../systems/livestock.js';
 import { DataLoader } from '../core/dataLoader.js';
@@ -435,6 +436,8 @@ export const InnerMapAnimals = {
             const law = Laws.punishment(world, kingdom);
             const fine = Math.min(_num(player.gold), Math.max(5, Math.round(value * _num(L.fineMult, 2) * _num(law.fine, 1))));
             player.gold = _num(player.gold) - fine;
+            // the fine makes the owners whole: it goes into the town's purse
+            if (fine && wt.settlement) Economy.payTown(wt.settlement, fine);
             if (fine) Ledger.record(player, 'fines', -fine);
             if (kingdom != null && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(L.reputation, 3);
             Underworld.recordCrime(player, world, 'theft', {

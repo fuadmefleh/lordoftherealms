@@ -184,7 +184,8 @@ describe('kingdom economy reads event effects', () => {
         const tile = world.getTile(3, 3);
         Economy.produceDaily(healthy, tile, world, {}, {});
         Economy.produceDaily(damaged, tile, world, {}, { damage: 0.5 });
-        expect(damaged.economy.gold).toBeLessThan(healthy.economy.gold);
+        // (production gold is what the crown assesses, not coin minted: 2026-11)
+        expect(damaged.economy.production.gold).toBeLessThan(healthy.economy.production.gold);
 
         KingdomAI.updateEconomy(world.k1, world);
         expect(world.s1.damage).toBeLessThan(0.25);

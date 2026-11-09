@@ -261,10 +261,14 @@ export const LandMarket = {
                     }
                 }
             } else if (Estates.kindOf(e.holder) !== 'crown') {
+                // ...out of the tenants' coin (the town's purse), as the player's rent is
                 const h = Estates.ensureHolder(world, e.holder);
-                h.purse = _num(h.purse) + net;
-                h.inc = _num(h.inc) + net;
-                e.lastRent = Math.round(net);
+                const econ = live.economy;
+                const take = econ && Number.isFinite(econ.gold) ? Math.min(net, Math.max(0, econ.gold)) : net;
+                if (econ && Number.isFinite(econ.gold)) econ.gold = Math.round((econ.gold - take) * 100) / 100;
+                h.purse = _num(h.purse) + take;
+                h.inc = _num(h.inc) + take;
+                e.lastRent = Math.round(take);
             } else {
                 e.lastRent = Math.round(net);
             }
@@ -355,6 +359,22 @@ export const LandMarket = {
         st.sales = st.sales.filter(x => x.id !== e.id);
     },
 
+    /** A holder's spending reaches a town's purse: its own town, else its realm's capital. → the town or null */
+    _spendAtSeat(world, h, gold) {
+        if (!(gold > 0) || !h) return null;
+        let live = null;
+        if (h.kind === 'town') {
+            const [, q, r] = String(h.id).split(':');
+            live = Estates._live(world, Number(q), Number(r));
+        } else {
+            const k = Estates.kingdom(world, h.kid);
+            if (k && k.capital) live = Estates._live(world, k.capital.q, k.capital.r);
+        }
+        if (!live || !live.economy || !Number.isFinite(live.economy.gold)) return null;
+        live.economy.gold = Math.round((live.economy.gold + gold) * 100) / 100;
+        return live;
+    },
+
     /** A holder's month: its rents spent (nobles by their extravagance and the war levies), debts, distress sales. */
     _holderMonth(world, player, h, day, out) {
         const N = Estates.config().npc;
@@ -370,9 +390,14 @@ export const LandMarket = {
         h.inc = 0;
         if (h.kind === 'house') h.purse += _num(N.houseIncome, 4) * 30;
         if (h.kind === 'town') {
+            // (the town's corporation puts by from the town's own coin)
             const [, q, r] = String(h.id).split(':');
             const live = Estates._live(world, Number(q), Number(r));
-            if (live) h.purse += _num(N.townIncome, 0.002) * _num(live.population) * 30;
+            if (live && live.economy && Number.isFinite(live.economy.gold)) {
+                const put = Math.min(Math.max(0, live.economy.gold), _num(N.townIncome, 0.002) * _num(live.population) * 30);
+                live.economy.gold = Math.round((live.economy.gold - put) * 100) / 100;
+                h.purse += put;
+            }
         }
         let spend = inc * _num((N.spend || {})[h.kind], 0.85);
         if (h.kind === 'noble') {
@@ -381,13 +406,18 @@ export const LandMarket = {
             if (k && Array.isArray(k.wars) && k.wars.length) spend += inc * _num(N.warLevy, 0.15);
         }
         h.purse -= spend;
+        // What the holder spends (and pays its creditors) goes to the town it lives in:
+        // a noble's or the church's household in the realm's capital, a town's in itself
+        let paidOut = Math.max(0, spend - Math.max(0, -h.purse));
         if (h.debt > 0) {
             h.debt *= 1 + _num(N.debtRate, 0.01);
             const pay = Math.min(Math.max(0, h.purse), h.debt);
             h.purse -= pay;
             h.debt -= pay;
+            paidOut += pay;
         }
         if (h.purse < 0) { h.debt = _num(h.debt) - h.purse; h.purse = 0; }
+        LandMarket._spendAtSeat(world, h, paidOut);
         h.purse = Math.round(h.purse);
         h.debt = Math.round(h.debt);
         // Deep in debt: the cheapest estate goes on the market

@@ -1163,7 +1163,7 @@ Object.assign(ActionMenu, {
 
             // For instant bounties, resolve immediately with a skill check (player/oddJobs.js)
             if (bounty.type === 'instant') {
-                const res = OddJobs.resolveInstantBounty(game.player, bounty);
+                const res = OddJobs.resolveInstantBounty(game.player, bounty, tile.settlement);
                 if (res.success) {
                     game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${res.pay} gold!`, 'success');
                 } else {
@@ -1175,7 +1175,8 @@ Object.assign(ActionMenu, {
                 return;
             }
 
-            // For other bounties, add to active list
+            // For other bounties, add to active list (the posting town pays on completion)
+            if (tile && tile.settlement) { bounty.townQ = tile.q; bounty.townR = tile.r; }
             game.player.activeBounties.push(bounty);
             game.ui.showNotification('Bounty Accepted!', `${bounty.name} — ${bounty.daysLimit} days to complete.`, 'success');
             game.ui.hideCustomPanel();
@@ -1239,7 +1240,11 @@ Object.assign(ActionMenu, {
             const bounty = game.player.activeBounties[idx];
             if (!bounty) return;
 
-            game.player.gold += bounty.actualPay;
+            // The posting town pays out of its purse (as much as it holds)
+            const postT = Number.isFinite(bounty.townQ) ? game.world.getTile(bounty.townQ, bounty.townR) : tile;
+            const paid = OddJobs.payFromTown(game.player, postT && postT.settlement, bounty.actualPay);
+            const owed = Math.max(0, Math.floor(bounty.actualPay || 0));
+            bounty.actualPay = paid;
             game.player.renown += 3;
             if (!game.player.bountiesCompleted) game.player.bountiesCompleted = 0;
             game.player.bountiesCompleted++;
@@ -1249,7 +1254,7 @@ Object.assign(ActionMenu, {
             }
 
             game.player.activeBounties.splice(idx, 1);
-            game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${bounty.actualPay} gold!`, 'success');
+            game.ui.showNotification('Bounty Complete!', `${bounty.name} — earned ${paid} gold${paid < owed ? ` (the town's coffers held no more of the ${owed} posted)` : ''}!`, 'success');
             game.ui.updateStats(game.player, game.world);
             game.ui.hideCustomPanel();
         };

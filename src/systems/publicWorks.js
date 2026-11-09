@@ -324,6 +324,7 @@ export const PublicWorks = {
             if (_num(k.treasury) - amount < _num(Transport.config().upkeep.floor, 400)) return false;
             k.treasury = _num(k.treasury) - amount;
             CrownBooks.note(k, 'works', amount);
+            CrownBooks.spendAtCapital(world, k, amount);
         }
         w.spent = _r2(_num(w.spent) + amount);
         return true;
@@ -574,12 +575,15 @@ export const PublicWorks = {
             }
             if (!l.tolls || !(l.toll > 0) || l.embody === true) continue;
             let due = val * l.toll;
-            const ia = _num(l.a.economy && l.a.economy.tradeIncome), ib = _num(l.b.economy && l.b.economy.tradeIncome);
-            due = Math.min(due, ia + ib);
+            // The merchants pay the toll out of the towns' coin (their margin is
+            // assessed lower by as much: economy.tradeIncome)
+            const ga = Math.max(0, _num(l.a.economy && l.a.economy.gold)), gb = Math.max(0, _num(l.b.economy && l.b.economy.gold));
+            due = Math.min(due, ga + gb);
             if (!(due > 0.01)) continue;
-            const fa = ia + ib > 0 ? ia / (ia + ib) : 0.5;
-            if (l.a.economy) l.a.economy.tradeIncome = _r2(ia - due * fa);
-            if (l.b.economy) l.b.economy.tradeIncome = _r2(ib - due * (1 - fa));
+            const ia = _num(l.a.economy && l.a.economy.tradeIncome), ib = _num(l.b.economy && l.b.economy.tradeIncome);
+            const fa = ga + gb > 0 ? ga / (ga + gb) : 0.5;
+            if (l.a.economy) { l.a.economy.gold = _r2(ga - due * fa); l.a.economy.tradeIncome = _r2(Math.max(0, ia - due * fa)); }
+            if (l.b.economy) { l.b.economy.gold = _r2(gb - due * (1 - fa)); l.b.economy.tradeIncome = _r2(Math.max(0, ib - due * (1 - fa))); }
             for (const id of l.tolls) {
                 const w = st.works.find(x => x && x.id === id);
                 if (!w) continue;

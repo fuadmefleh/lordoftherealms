@@ -180,7 +180,7 @@ export const KingdomNavy = {
         // Upkeep — an unpaid fleet rots at its moorings
         const upkeep = Math.ceil(n.strength * CONFIG.upkeep);
         if (upkeep > 0) {
-            if ((kingdom.treasury || 0) >= upkeep) { kingdom.treasury -= upkeep; CrownBooks.note(kingdom, 'army', upkeep); }
+            if ((kingdom.treasury || 0) >= upkeep) { kingdom.treasury -= upkeep; CrownBooks.note(kingdom, 'army', upkeep); CrownBooks.spendAtCapital(world, kingdom, upkeep); }
             else n.strength = Math.floor(n.strength * (1 - CONFIG.unpaidDecay));
         }
 
@@ -192,6 +192,7 @@ export const KingdomNavy = {
             const cost = want * CONFIG.buildCost;
             if ((kingdom.treasury || 0) >= cost) {
                 kingdom.treasury -= cost;
+                CrownBooks.spendAtCapital(world, kingdom, cost); // (the shipwrights are paid)
                 n.strength += want;
             }
         }

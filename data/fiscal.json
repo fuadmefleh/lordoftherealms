@@ -11,7 +11,8 @@
     },
 
     "_rates": "Base rates at the standard level: land (share of the peasants' earnings and of landProd x the town's production gold), poll (gold per taxable head a day), excise (share of the artisans' earnings and the merchants' trade income).",
-    "rates": { "land": 0.06, "poll": 0.0025, "excise": 0.035, "landProd": 0.5 },
+    "_sales": "rates.sales: the land tax's share of the coin a town took for the goods it sold to other towns (economy.fySales, world/settlementMarket.js flows and the caravans), x the land tax's level; rates.hoard: a day's share of the coin a town holds past hoardReserve a head (the assessors find what the town sits on), x the land tax's level. 2026-11, when the towns' coin became real: the countryside sells the capitals their food, and the crown's tax on those sales is what brings the coin back to the capital (in the soldiers' and clerks' pay).",
+    "rates": { "land": 0.06, "poll": 0.0025, "excise": 0.035, "landProd": 0.5, "sales": 0.5, "hoard": 0.01, "hoardReserve": 2 },
     "_collectEvery": "The collectors come round each town once every collectEvery days (staggered by town) and take every day's dues since.",
     "collectEvery": 7,
     "pollWeights": { "peasants": 1, "artisans": 1, "merchants": 1.5, "clergy": 0, "nobles": 0 },
@@ -24,6 +25,8 @@
     "_army": "Wages: pay a day per soldier (x warPay while at war, x the realm's upkeep bonuses and military-spending events), bounty per new recruit. Pay levels for a ruler (NPC crowns pay full, half when broke): mult on the wages, cap on the army the realm keeps, stability. Unpaid soldiers desert after desert.afterDays: the army the realm can keep falls capPerDay a day (never below capMin) until they are paid.",
     "army": {
         "pay": 0.16, "warPay": 1.6, "bounty": 1.0,
+        "_spendWeights": "Where the army's wages are spent (systems/fiscal.js _spendBack): the towns the collectors visited, by their people x this weight for their kind (the capital's garrison and the towns' quarter more men than the villages). 2026-11: added when the towns' coin became real; by people alone the villages took the soldiers' pay and the capitals, which buy the villages' food, ran dry.",
+        "spendWeights": { "capital": 3, "city": 2, "town": 1.5, "village": 0.4 },
         "levels": {
             "half":     { "label": "Half pay", "mult": 0.6,  "cap": 0.88, "stability": -2, "blurb": "Cheap, and the men drift home." },
             "full":     { "label": "Full pay", "mult": 1.0,  "cap": 1.0,  "stability": 0,  "blurb": "The soldiers' due." },

@@ -347,6 +347,8 @@ export const DataLoader = {
         if (econData.resourceGoods) Economy.RESOURCE_GOODS = econData.resourceGoods;
         if (econData.resourceEffects) Economy.RESOURCE_EFFECTS = econData.resourceEffects;
         if (econData.propertyResourceBonuses) Economy.PROPERTY_RESOURCE_BONUSES = econData.propertyResourceBonuses;
+        // The towns' purses: what they start with, and whether production mints coin
+        if (econData.townPurse) Economy.TOWN_PURSE = { ...Economy.TOWN_PURSE, ...econData.townPurse };
         // The agricultural year: harvest curves, seasonal prices, lean season
         if (econData.seasons) Seasons.configure(econData.seasons);
 

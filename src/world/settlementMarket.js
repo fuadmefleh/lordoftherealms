@@ -126,6 +126,18 @@ function buildConfig(src) {
             }
         }
     }
+    // The craftsmen's goods (data/markets.json supply) that a trade makes from inputs:
+    // for each good, the first recipe that makes it (or -1). The craftsmen work the
+    // same inputs (craftInputs.share of their output must be made from them)
+    const craftRc = new Int32Array(n).fill(-1), craftOut = new Float64Array(n);
+    for (const rc of recipesI) {
+        for (let j = 0; j < rc.outIdx.length; j++) {
+            const i = rc.outIdx[j];
+            if (craftRc[i] >= 0 || !(d.supply && d.supply[goodIds[i]])) continue;
+            craftRc[i] = rc.ix;
+            craftOut[i] = rc.outPer[j];
+        }
+    }
     // Scratch buffers for the daily tick (reused: allocating typed arrays is slow)
     const buf = {
         st: new Float64Array(n), prod: new Float64Array(n), needs: new Float64Array(n), unmet: new Float64Array(n),
@@ -177,6 +189,10 @@ function buildConfig(src) {
         // Works the player built or funded (market.works; systems/merchantPrince.js)
         works: { fill: 2, keep: 0.75, minMargin: 0.1, steps: 4, lootDamage: 0.6, capture: 0, ...(d.works || {}) },
         recipeById: Object.fromEntries(recipesI.map(r => [r.id, r])),
+        craftRc,
+        craftOut,
+        craftInputs: { share: 0, ...(d.craftInputs || {}) },
+        wealth: { ref: 2, elasticity: 0, min: 1, max: 1, step: 0.05, ...(d.wealth || {}) },
         labels: Array.isArray(d.labels) && d.labels.length ? d.labels : [{ max: 99, label: 'Steady', color: '#aaa' }],
         tickDays: Number.isInteger(d.tickDays) && d.tickDays >= 1 ? d.tickDays : 1,
         // Identifies the goods list a market's tables were laid out for
@@ -220,22 +236,25 @@ export const SettlementMarket = {
         // Needs follow the population in steps of 25 people (so the table holds for days)
         const pop = Math.round(Math.max(0, _num(settlement.population)) / 25) * 25;
         const type = settlement.type;
+        // ...and the coin in its purse: a town with money to spend buys more, a
+        // broke one does without (data/markets.json wealth; in steps, so the table holds)
+        const wm = SettlementMarket.wealthMult(settlement);
         let sh = _shapes.get(settlement);
         // (the same labour record at the same mix key gives the same class demand:
         // skip asking for it — this is read hundreds of times a day)
         const lab = settlement.labour;
         const lcfg = TownLabour.config();
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm
             && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) return sh;
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm) {
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm) {
             sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined; sh.fk = lab ? lab.fk : undefined;
             return sh;
         }
         const n = C.goodIds.length;
         sh = {
-            pop, type, cfg: C, dm, used: {}, need: {}, target: {},
+            pop, type, cfg: C, dm, wm, used: {}, need: {}, target: {},
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
             lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
         };
@@ -245,7 +264,7 @@ export const SettlementMarket = {
             const g = C.goods[id];
             const minRank = Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0;
             const used = g.perCapita > 0 && rank >= minRank;
-            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) : 0;
+            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) * wm : 0;
             // (a town keeps at least the good's minStock of what its people use)
             const target = Math.max(Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days, used ? g.minStock : 0);
             sh.used[id] = used;
@@ -257,6 +276,23 @@ export const SettlementMarket = {
         });
         _shapes.set(settlement, sh);
         return sh;
+    },
+
+    /**
+     * How much more (or less) a town's people buy for the coin they hold:
+     * (coin per head / wealth.ref) ^ elasticity, clamped to [min, max] and
+     * rounded to `step`. 1 for a town without a purse (data/markets.json wealth).
+     */
+    wealthMult(settlement) {
+        const W = SettlementMarket.config().wealth;
+        if (!(W.elasticity > 0)) return 1;
+        const e = settlement && settlement.economy;
+        const pop = _num(settlement && settlement.population);
+        if (!e || !Number.isFinite(e.gold) || !(pop > 0)) return 1;
+        const perHead = Math.max(0, e.gold) / pop;
+        const raw = perHead > 0 ? Math.pow(perHead / Math.max(0.01, W.ref), W.elasticity) : W.min;
+        const step = W.step > 0 ? W.step : 0.05;
+        return Math.round(_clamp(raw, W.min, W.max) / step) * step;
     },
 
     /**
@@ -769,6 +805,17 @@ export const SettlementMarket = {
         return m && m.short ? _clamp(_num(m.short.food), 0, 1) : 0;
     },
 
+    /**
+     * Share of its people's food the market met lately (the moving average of
+     * the day's cover, 0..1; 1 for a town without a market yet).
+     */
+    foodCover(settlement) {
+        const m = settlement && settlement.market;
+        if (!m) return 1;
+        if (m.met && Number.isFinite(m.met.food)) return _clamp(m.met.food, 0, 1);
+        return 1 - SettlementMarket.foodShortage(settlement);
+    },
+
     /** Is the town in dearth (a sustained food shortage)? */
     inDearth(settlement) {
         return SettlementMarket.foodShortage(settlement) >= SettlementMarket.config().shortage.dearth;
@@ -1040,8 +1087,26 @@ export const SettlementMarket = {
                 for (let j = 0; j < rc.outIdx.length; j++) prodA[rc.outIdx[j]] = 0;
             }
         }
+        // (the craftsmen's goods that a trade makes from inputs are made from them:
+        // craftInputs.share of the output needs the recipe's inputs, from the stock
+        // above the town's own need — no iron, no tools)
+        const cShare = _clamp(_num(C.craftInputs.share), 0, 1);
         for (let i = 0; i < n; i++) {
-            if (prodA[i] > 0) st[i] += prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : craftMask[i] ? craftMult : landMult);
+            if (!(prodA[i] > 0)) continue;
+            let amt = prodA[i] * (A.food[i] ? foodMult : A.mined[i] ? minedMult : craftMask[i] ? craftMult : landMult);
+            const ri = cShare > 0 ? C.craftRc[i] : -1;
+            if (ri >= 0) {
+                const rc = C.recipesI[ri];
+                let runs = amt * cShare / C.craftOut[i];
+                for (let j = 0; j < rc.inIdx.length; j++) {
+                    const x = rc.inIdx[j];
+                    runs = Math.min(runs, Math.max(0, st[x] - needOf[x] * k) / rc.inPer[j]);
+                }
+                if (!(runs > 0)) runs = 0;
+                for (let j = 0; j < rc.inIdx.length; j++) st[rc.inIdx[j]] = Math.max(0, st[rc.inIdx[j]] - runs * rc.inPer[j]);
+                amt = amt * (1 - cShare) + runs * C.craftOut[i];
+            }
+            st[i] += amt;
         }
 
         // Local industry: only where the output runs below target
@@ -1250,6 +1315,22 @@ export const SettlementMarket = {
             return x;
         };
         const income = (s, g) => { if (s.economy) s.economy.tradeIncome = _num(s.economy.tradeIncome) + g; };
+        // The goods are paid for: the importing town's purse pays the exporter the
+        // price between the two markets (the merchants buy at one and sell at the
+        // other; the margin is theirs, split between the towns). A town can import
+        // no more than its purse pays for. Without a purse (a bare test town) the
+        // goods move unpaid, as before. (payMid: share of the gap the importer pays)
+        const payMid = _clamp(_num(T.payMid, 0.5), 0, 1);
+        const purse = (s) => (s.economy && Number.isFinite(s.economy.gold) ? Math.max(0, s.economy.gold) : Infinity);
+        const pay = (from, to, g) => {
+            if (!(g > 0)) return;
+            if (from.economy && Number.isFinite(from.economy.gold)) from.economy.gold = _round2(from.economy.gold - g);
+            if (to.economy && Number.isFinite(to.economy.gold)) {
+                to.economy.gold = _round2(to.economy.gold + g);
+                // (what the town took for its goods: the crown's land tax reads it, systems/fiscal.js)
+                to.economy.fySales = _round2(_num(to.economy.fySales) + g);
+            }
+        };
         for (const link of links) {
             link.val = 0;
             if (!(link.factor > 0)) continue;
@@ -1270,7 +1351,7 @@ export const SettlementMarket = {
             const frR = Math.pow(fr, 1 / P.elasticity);
             let movedA = 0, movedB = 0, goldLink = 0;
             const emb = link.embody === true;
-            let cAB = null, cBA = null, gAB = 0, gBA = 0;
+            let cAB = null, cBA = null, gAB = 0, gBA = 0, payAB = 0, payBA = 0;
             // Crown tariffs and export bans (systems/tradePolicy.js): extra friction on
             // a→b / b→a goods (Infinity = banned); the duty paid is left on the link
             const dAB = link.dutyAB || null, dBA = link.dutyBA || null;
@@ -1306,8 +1387,18 @@ export const SettlementMarket = {
                 if (!(room > 0)) continue;
                 const gap = (si - se * (fr + dut)) / si;
                 let qty = Math.min(surplus * shareR, room * 0.5 * gap * rate + 0.05, budget / (base * se));
+                // (the importer pays the price between the markets, and the crown's duty on top)
+                const imp = aExports ? b : a, exp = aExports ? a : b;
+                const duty = dut - (pm !== null && pm[i] === 1 ? per : 0);
+                const unitPay = base * (se + (si - se) * payMid), unitDuty = duty > 0 && !emb ? base * se * duty : 0;
+                const cash = purse(imp);
+                if (cash < qty * (unitPay + unitDuty)) qty = cash / (unitPay + unitDuty);
                 if (!(qty >= 0.05)) continue;
-                qty = Math.round(qty * 100) / 100;
+                qty = Math.floor(qty * 100) / 100;
+                // (an embodied lot is paid for when its caravan arrives: link.payAB / payBA)
+                if (!emb) pay(imp, exp, qty * unitPay);
+                else if (aExports) payAB += qty * unitPay; else payBA += qty * unitPay;
+                if (unitDuty > 0 && imp.economy && Number.isFinite(imp.economy.gold)) imp.economy.gold = _round2(imp.economy.gold - qty * unitDuty);
                 xe[i] -= qty;
                 if (!emb) xi[i] += pm !== null && pm[i] === 1 ? Math.round(qty * (1 - lossP) * 100) / 100 : qty;
                 else if (aExports) (cAB || (cAB = new Float64Array(n)))[i] += qty;
@@ -1317,7 +1408,6 @@ export const SettlementMarket = {
                 goldLink += g;
                 if (aExports) { movedA += qty; gAB += g; valAB += qty * base * se; } else { movedB += qty; gBA += g; valBA += qty * base * se; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
-                const duty = dut - (pm !== null && pm[i] === 1 ? per : 0);
                 if (duty > 0 && !emb) { if (aExports) paidAB += qty * base * se * duty; else paidBA += qty * base * se * duty; }
                 valLink += qty * base * se;
                 out.moved += qty;
@@ -1325,7 +1415,7 @@ export const SettlementMarket = {
             }
             // What moved, for the tolls and the roads' traffic (systems/publicWorks.js)
             link.val = valLink;
-            if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; }
+            if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; link.payAB = _round2(payAB); link.payBA = _round2(payBA); }
             if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
             // What crossed each way, for the specie the realms settle in (world/moneySupply.js collectTrade)
             if (valAB > 0 || valBA > 0) { link.valAB = _num(link.valAB) + valAB; link.valBA = _num(link.valBA) + valBA; }

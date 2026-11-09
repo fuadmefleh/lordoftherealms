@@ -200,14 +200,15 @@ describe('NPC trade flows', () => {
     const pair = () => {
         const a = town({ name: 'Glut' }), b = town({ name: 'Dearth' });
         SettlementMarket.ensure(a); SettlementMarket.ensure(b);
-        a.economy = { gold: 0 }; b.economy = { gold: 0 };
+        // (the importer pays for what it takes, out of its purse: 2026-11)
+        a.economy = { gold: 4000 }; b.economy = { gold: 4000 };
         a.market.stock.grain = SettlementMarket.target(a, 'grain') * 4;
         b.market.stock.grain = SettlementMarket.target(b, 'grain') * 0.1;
         return { a, b };
     };
     const link = (a, b, extra = {}) => ({ a, b, dist: 3, sea: false, road: false, routes: 1, friction: 0.1, base: 200, capacity: 200, factor: 1, ...extra });
 
-    it('move goods from glut to dearth until the prices meet, and pay both towns the margin', () => {
+    it('move goods from glut to dearth until the prices meet, paid for by the importer; the margin is assessed, not minted', () => {
         const { a, b } = pair();
         const gap0 = SettlementMarket.scarcity(b, 'grain') / SettlementMarket.scarcity(a, 'grain');
         let gold = 0;
@@ -217,10 +218,14 @@ describe('NPC trade flows', () => {
         expect(gap1).toBeLessThan(gap0 / 2);
         expect(gold).toBeGreaterThan(0);
         expect(a.economy.tradeIncome).toBeGreaterThan(0);
-        // The settlement banks it through Economy.processTrade
-        const credited = Economy.processTrade(b);
-        expect(credited).toBeGreaterThan(0);
-        expect(b.economy.gold).toBe(credited);
+        // The coin went from the importer to the exporter; none was made
+        expect(a.economy.gold).toBeGreaterThan(4000);
+        expect(a.economy.gold + b.economy.gold).toBeCloseTo(8000, 1);
+        // Economy.processTrade reads the margin for the crown's excise and clears it, minting nothing
+        const goldB = b.economy.gold;
+        const assessed = Economy.processTrade(b);
+        expect(assessed).toBeGreaterThan(0);
+        expect(b.economy.gold).toBe(goldB);
         expect(b.economy.tradeIncome).toBe(0);
     });
 
@@ -311,7 +316,8 @@ describe('shortages matter', () => {
         Economy.produceDaily(s, t1, world);
         Economy.produceDaily(ok, t2, world);
         expect(s.economy.production.goods).toBeLessThanOrEqual(ok.economy.production.goods);
-        expect(s.economy.gold).toBeLessThan(ok.economy.gold);
+        // (production gold is the crown's assessment, not coin: 2026-11)
+        expect(s.economy.production.gold).toBeLessThan(ok.economy.production.gold);
     });
 
     it('a cold winter without fuel sours the mood, and it comes back when the fuel does', () => {

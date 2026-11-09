@@ -1279,6 +1279,96 @@ A new game in the dev server (small map, 200 days, every economy panel and trade
 - Holding estates does not yet count toward noble titles.
 - The fiscal pass's tax farming could treat crown estates as part of the crown's revenue.
 
+## Real numbers: closing the economy's leaks (2026-11)
+
+The aim: every good and every coin in the world economy is a real quantity that comes from somewhere and goes somewhere, and prices follow supply and demand. Tests: `src/__tests__/economyConservation.test.js`. The world survey probe: `ECONSIM=1 npx vitest run src/__tests__/economy.survey.test.js` (`ESEEDS`, `EDAYS`, `SAMPLE`; `EGOODS=1` lists the dearest and cheapest goods; `ECON_BOT=1` lets the bot play).
+
+### The flow map
+
+| Holder | Goods in | Goods out | Coin in | Coin out |
+|---|---|---|---|---|
+| A town's market (`settlement.market.stock`) | Its land, waters and craftsmen (`production`); its trades' recipes; finite hinterland sites; NPC imports and caravans; the player's sales and auto-sales; its gatherers' loads | Its people's use; recipe inputs; spoilage and the storage cap; exports; the player's purchases; raids and sacks | — | — |
+| A town's purse (`economy.gold`) | — | — | Other towns buying its goods; the player's purchases, fees, builds and upkeep; army pay (by garrison) and court pay (the capital); the crown's other spending (the capital); the mint buying its ore; nobles' and bankers' spending (their seat) | Its imports; the player's sales, wages, bounties, rewards, tavern and caravan takings; taxes (including on its sales and its hoard); its landlords' rents; merchants' road money and tolls |
+| A crown (`kingdom.treasury`) | — | — | Taxes from the towns' purses; customs and duty (paid by the importer); seigniorage; loans | Army and court pay and its other spending, into the towns; debt service to the banks |
+| A caravan (`unit`) | Its cargo, taken out of the exporter at dispatch | Lands in the importer, or goes to robbers or a seizing realm | Road money from its home town | Tolls, escort pay, the rest back home. The importer pays the exporter for the cargo on arrival |
+
+### Leaks found, and what was done
+
+**Fixed.**
+
+| Leak | Size before | Fix |
+|---|---|---|
+| NPC trade credited both towns 6 × the value gap of what moved (`goldScale`) as new coin. The importer paid nothing | About **15,000 g a day** world-wide (seed 101, days 240–300) | The importer's purse pays the exporter the midpoint price (`trade.payMid`) and the crown's duty. A broke town imports nothing. The margin is only the excise's assessment (`processTrade` mints nothing). Road tolls come out of the towns' coin |
+| Production gold (`baseGold × popMod`) minted into every town every day | About 600 g a day | It is only the crown's tax assessment (`townPurse.productionCoin` 0). With the crown's books off, the old minting stays |
+| A town short of food bought it at 0.5 g a unit from nowhere: the gold vanished and the food appeared | About 100–200 g a day | The people buy the rest at their own market, as far as it fed them (`SettlementMarket.foodCover`). The coin stays in town. A market in dearth now starves the town, however rich it is |
+| Caravans' road money was created at spawn and deleted on arrival. Escort pay was minted | 30% of each cargo's value | Drawn from the home town's purse and returned home on arrival; the escort is paid from it. The cargo is paid for on arrival (`unit.due`, `_settle`) |
+| The player's market purchases paid no one. Sales, wages, bounties, busking, quest gold, tavern takings, auto-sales and caravan takings came from nothing | Tens to hundreds of g a day for the bot | All go through the town's purse. A sale the town can't afford is refused (`Trading.saleOutlay`, `affordableSale`); wages and rewards pay what the purse holds. Property builds, upkeep and town services pay the town |
+| Property spill: 25% of every player property's output was added to each town within 3 hexes, on top of the player keeping all of it | Goods made 2–4 times | `propertySpill.share` 0. Auto-sell lands the goods in the property's town and is paid from its purse |
+| Crown spending vanished: fleets, temples, cartographers, road wardens, road upkeep, public works, edicts, laws, culture, lair expeditions, patronage | 250–300 g a day | `CrownBooks.spendAtCapital`: paid into the capital's purse, where the shipwrights and masons live |
+| The famine dole bought grain at 0.6 g from nowhere and put it in both the granary and the market | — | Bought from the capital's grain dealers (their stock above a fifth of target), paid into the capital's purse, given once (to the granary) |
+| NPC estate holders' rents came from no purse, and their spending vanished | — | Rents come out of the town's coin; spending and debt payments go to their seat (the capital, or the town) |
+| Court pay went to the first town the collectors visited that day, usually a village, on 6 days of 7 | About 1,000 g a day misdirected | Always the capital |
+| Army pay was spent by population, so the villages took most of it while the capitals, which buy the villages' food, ran dry | — | `army.spendWeights` (capital 3, city 2, town 1.5, village 0.4) |
+| Bank capital compounded at 7% a year from nothing up to 6× its founding capital, and crown interest and tax-farm takings piled up in it | Banks held 200,000 g, a third of all coin | The yield only rebuilds a house up to its founding capital (`yieldUpTo`). The partners spend 2% a day of the excess in the bank's city (`payoutAbove`, `payoutRate`) |
+| The mint took ore from town markets without paying | — | It pays the town the struck coin, less seigniorage |
+| Town woodcutters, miners and herbalists delivered into `economy.goods`, a tally nothing reads | — | Logs, firewood and stone go on the town's market stalls |
+
+**Coin circulation.** Once the mints were gone, coin pooled in the villages that sell the capitals their food. The capitals ran dry, and 40–60% of the crowns' dues could not be collected. Three changes close the loop:
+- **Demand follows the purse** (`markets.json` wealth): a town's demand × (coin per head ÷ 2)^0.25, clamped to 0.8–1.5. Rich towns eat more of their own produce and sell less; broke towns go without.
+- **A land tax on sales** (`fiscal.json` `rates.sales` 0.5 × the level) on the coin a town took for its exports (`economy.fySales`).
+- **A tax on idle coin** (`rates.hoard`: 1% a day of the coin past 2 g a head).
+
+**Left, with reasons.**
+- **The craftsmen's goods made from nothing** (`markets.json` `supply`: tools 0.8, clothes 1.0, weapons 0.85 and so on, as a share of need). This is the largest goods leak left. `craftInputs.share` makes the craftsmen work the recipe's inputs. At 0.5, the median scarcity rose from 1.15 to 1.42 by day 240, with wool, cloth, leather and tools pinned at the 2.2 cap: the wool→cloth→clothes chain is too thin to carry it. The knob ships at 0, ready for a pass that rebalances the fibre and leather supply. Goods no recipe makes (candles, pottery, rope and so on) stay the craftsmen's.
+- **Mined goods** (gems, gold ore and others) still have a base supply in every town, and map resources produce forever alongside the finite hinterland deposits on the same tiles.
+- **Market fairs** add a share of target from nowhere. **Pirates' merchant prey** carries a rolled cargo.
+- **The granary model** (`economy.food`, the population's growth) is still filled by the town's own production figure. It now buys its shortfall from the market's cover instead of from nowhere.
+- **NPC purses that open into nothing:** rival adventurers' rewards (delves, bounties, quests); rival Houses' estate income and upkeep; guild dues; merchant houses' returns and dividends; `houseIncome`; worldEvents' lump grants and cuts to treasuries; NPC lords' goal income; temple income; crown office and land sales. Each is small next to the trade and production mints, and each needs its own owner pass.
+- **The player's remaining faucets:** battle spoils, raid and conquest plunder (should come out of the beaten town or army); title salaries and perks (should come from the treasury); mercenary contracts (the treasury is debited but clamped at 0 while the player is paid in full); the underworld's black market and fence (the goods reach no market); auctions (an abstract house: bids paid to no one, lots from nowhere); NPC shop sales in conversation; tamed-horse sales; `PlayerInventory.addOrSell` overflow. Treasure finds (delves, diving, wilds) count as finds from nature.
+- **The livestock market and the Pasture, Dairy and Cattle Ranch** belong to the livestock pass. A fine in `ui/innerMapAnimals.js` goes to no purse.
+- **The banks' founding capital and the estate holders' starting purses** are endowments made at world creation: about 200,000 g and 130,000 g on seed 101. They now circulate through spending, but they are large.
+
+### Measured
+
+**Three seeds, 720 days, the player kept fed and idle** (`economy.survey.test.js`, seeds 101 / 202 / 303):
+
+| | Before | After |
+|---|---|---|
+| All towns' coin, day 121 | 1.17 / 1.52 / 1.47 M | 87 / 102 / 90 k |
+| All towns' coin, day 721 | **10.6 / 9.7 / 11.7 M** (76–82 g a head, still rising by about 16,000 g a day) | **65 / 104 / 91 k** (0.5–0.9 g a head, flat from day 120) |
+| Richest town, day 721 | 853 / 796 / 654 k | 19 / 43 / 21 k |
+| Towns with under 20 g, day 721 | 0 | 9–16 of 69–82 (they move: poor exporting villages between sales) |
+| Treasuries, day 721 | 207 / 117 / 215 k | 69 / 55 / 140 k |
+| Median scarcity (the price level), day 121 → 721 | 1.15 → 1.35, 1.18 → 1.41, 1.16 → 1.39 (rising) | 1.18 → 1.13, 1.17 → 1.29, 1.15 → 1.25 (flat) |
+| Food scarcity, median (p95), day 721 | 1.17 (1.42), 1.21 (1.82), 1.18 (1.46) | 1.14 (1.57), 1.23 (1.92), 1.23 (1.47) |
+| Towns in dearth, day 721 | 0 / 2 / 0 | 0 / 0 / 0 |
+| People, day 721 | 140 / 119 / 143 k | 122 / 118 / 131 k |
+
+**Kingdom survival** (seeds 7–11, 1,080 days, the same probe, against a copy of the code before this pass):
+
+| | Seed 7 | 8 | 9 | 10 | 11 | Total |
+|---|---|---|---|---|---|---|
+| Realms alive, before | 9 | 8 | 10 | 8 | 10 | 45 |
+| Realms alive, after | 10 | 8 | 9 | 8 | 10 | **45** |
+| People at day 1,080, before / after (k) | 156 / 165 | 132 / 130 | 170 / 175 | 143 / 125 | 138 / 147 | 739 / 742 |
+| All towns' coin at day 1,080, before / after | 17.7 M / 129 k | 17.7 M / 75 k | 16.4 M / 139 k | 18.3 M / 59 k | 14.6 M / 156 k | |
+| Median scarcity at day 1,080, before / after | 1.40 / 1.19 | 1.51 / 1.26 | 1.45 / 1.26 | 1.42 / 1.25 | 1.37 / 1.33 | |
+
+On seed 8, 9 towns were in dearth at day 1,080 before, and 6 after.
+
+**The poor start** (`BALANCE=1 balance.startPurse`, 250 g, seeds 101 / 202 / 303, 180 days). Gold at days 30 / 60 / 120:
+- Before: 690 / 642 / 514, 535 / 549 / 666, 618 / 612 / 1,568.
+- After: 625 / 626 / 546, 580 / 575 / 1,975, 604 / 602 / 587.
+
+No broke days, starvation or deaths either way. Odd jobs still pay: a town short of coin pays less, but the bot's towns could pay.
+
+**Where the coin sits** (seed 101, days 150–210, every purse): towns about 60,000 g, treasuries about 110,000, banks about 210,000, estate holders about 133,000, guilds about 38,000. The total moved by +73 g a day, against about +16,000 before.
+
+**Open.**
+- Town purses settle low: a median town holds 120–400 g, so a big lot sells only in the capitals and the richest towns. `townPurse.perHead` sets the starting stock, but where the coin settles (treasuries, banks, holders) sets the level. Spending the holders' and banks' endowments down faster would raise it.
+- The craftsmen's goods and the other faucets listed above.
+- The tick cost was not re-measured. The trade pass adds a few arithmetic steps per lot.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

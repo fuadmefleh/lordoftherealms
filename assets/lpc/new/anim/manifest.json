@@ -1,0 +1,26 @@
+{
+  "waterwheel": {
+    "file": "waterwheel.png",
+    "w": 384,
+    "h": 384,
+    "tilesW": 3,
+    "tilesH": 3,
+    "frames": 1,
+    "pivot": [
+      0.5,
+      0.5
+    ]
+  },
+  "windmill_sails": {
+    "file": "windmill_sails.png",
+    "w": 512,
+    "h": 512,
+    "tilesW": 4,
+    "tilesH": 4,
+    "frames": 1,
+    "pivot": [
+      0.5,
+      0.5
+    ]
+  }
+}

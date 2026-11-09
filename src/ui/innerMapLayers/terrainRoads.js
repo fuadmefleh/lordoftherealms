@@ -9,6 +9,7 @@ import { InnerMapCombat } from '../innerMapCombat.js';
 import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
+import { drawKerbs } from '../pavingEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
 
 Object.assign(InnerMapRenderer, {
@@ -292,6 +293,26 @@ Object.assign(InnerMapRenderer, {
                         ctx.imageSmoothingEnabled = smooth;
                     }
                 }
+            }
+        }
+        // Kerbs along the paved streets' sides (ui/pavingEdges.js), after the ground so their
+        // worn fringe lies over the dirt and grass beside them
+        for (let r = rMin; r <= rMax; r++) {
+            const row = InnerMap.tiles[r];
+            const dy = Math.floor(originY + (r - rMin) * ds);
+            if (dy + ds * 1.5 < 0 || dy - ds * 0.5 > canvasH) continue;
+            for (let q = qMin; q <= qMax; q++) {
+                const tile = row[q];
+                if (!tile || !tile._pave || !tile.paving || !tile.explored || tile._isInterior) continue;
+                const dx = Math.floor(originX + (q - qMin) * ds);
+                if (dx + ds * 1.5 < 0 || dx - ds * 0.5 > canvasW) continue;
+                const plaza = tile._pave === 'plaza';
+                drawKerbs(ctx, (dq, dr) => {
+                    const n = InnerMap.getTile(q + dq, r + dr);
+                    if (!n || n.customBuildingPart || n._wet) return false;
+                    if (n._pave) return plaza && n._pave !== 'plaza';   // (a square's own kerb where it meets a street)
+                    return !n.paving;                                     // (not against a bridge or a quay)
+                }, q, r, dx, dy, ds);
             }
         }
     },

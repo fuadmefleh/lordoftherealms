@@ -10,6 +10,7 @@ import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
 import { drawKerbs } from '../pavingEdges.js';
+import { drawLaneGround, drawLaneTufts } from '../laneEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
 
 Object.assign(InnerMapRenderer, {
@@ -292,6 +293,45 @@ Object.assign(InnerMapRenderer, {
                         ctx.drawImage(img, d.sx * kd, d.sy * kd, 32 * kd, 32 * h * kd, dx, dy - (h - 1) * (sz - 1), sz, sz + (h - 1) * (sz - 1));
                         ctx.imageSmoothingEnabled = smooth;
                     }
+                }
+            }
+        }
+        // The dirt lanes' wear and the grass tufts over their edges (ui/laneEdges.js), after the
+        // ground so the tufts lie over the grass cell's own straight edge
+        const isLane = t => !!(t && t.isRoad && !t.paving && !t._wet && t.explored && !t._isInterior);
+        // The turf beside a lane: a grass brush cell (an edge, painted with its dirt) or a plain fill
+        const fills = this._terrainFills && this._terrainFills.grass;
+        const kt = terrainSheet ? this._sheetScale(terrainSheet) : 1;
+        const fillCell = f => ({ img: terrainSheet, sx: f.col * 32 * kt, sy: f.row * 32 * kt, sw: 32 * kt });
+        const grass = terrainSheet && fills && fills.length ? fillCell(fills[0]) : null;   // (the tufts' texture)
+        const turf = t => {
+            if (!t || t.isRoad || t.paving || t._wet || t.customBuildingPart || t._fieldSoil) return null;
+            const ov = t.terrainDetail || t.grassOverlay;
+            if (!ov || (ov.layer || ov.fillCategory || 'grass') !== 'grass') return null;
+            return ov;
+        };
+        const cellOf = ov => {
+            if (ov.fillCategory) return grass && { ...grass, full: true };
+            const img = this._getSheetByPath(ov.sheetPath);
+            if (!img) return null;
+            const k = this._sheetScale(img);
+            return { img, sx: (ov.sx || 0) * k, sy: (ov.sy || 0) * k, sw: 32 * k };
+        };
+        const grassy = (q, r) => (dq, dr) => {
+            const ov = turf(InnerMap.getTile(q + dq, r + dr));
+            return ov ? cellOf(ov) : null;
+        };
+        for (const pass of [drawLaneGround, drawLaneTufts]) {
+            for (let r = rMin; r <= rMax; r++) {
+                const row = InnerMap.tiles[r];
+                const dy = Math.floor(originY + (r - rMin) * ds);
+                if (dy + ds * 1.5 < 0 || dy - ds * 0.5 > canvasH) continue;
+                for (let q = qMin; q <= qMax; q++) {
+                    const tile = row[q];
+                    if (!isLane(tile)) continue;
+                    const dx = Math.floor(originX + (q - qMin) * ds);
+                    if (dx + ds * 1.5 < 0 || dx - ds * 0.5 > canvasW) continue;
+                    pass(ctx, grassy(q, r), q, r, dx, dy, ds, grass);
                 }
             }
         }

@@ -1,5 +1,5 @@
 {
-    "_doc": "Diving under the water of an inner map (player/diving.js: breath, costs and the finds on the bottom; ui/innerMapDiving.js: going under, moving, picking up and surfacing; ui/innerMapLayers/underwater.js: the view below). Dive Under on water you can swim in (or the V key while swimming): you swim about under the surface by clicking, through water only, at underwaterSpeed of a swim. Breath: seconds by the Diving skill's level (systems/practiceSkills.js, data/practiceSkills.json skills.diving: perks breath, coldResist against cold.breathMult, speed under the water; XP for each dive at surfacing); it drains drainPerSecond a second (cold.breathMult in cold water). After surfacing the breath must come back before the next dive (recovery): a dive that left windedShare of the breath or less leaves you winded for the skill's winded seconds (blackoutMult times that after a blackout); an easier one takes catchBreath seconds plus a share of the difference by how much breath was spent (to the power curve). Out of breath, each second costs overHealthPerSecond health (cold.mult in cold water) and risks a blackout (blackout.perSecond, plus perOverSecond for every second past, plus cold.blackout): you come up, take blackout.health hurt and lose everything picked up on this dive. Health gone under the water is drowning. Each second under costs energyPerSecond (less for a good swimmer: practiceEnergyCut at the top Swimming level). Going under washes you a little (hygiene) and chills you (comfort; cold.comfort more). The bottom of each map is scattered once a day (bed): a share of its divable water cells (perTile, at most max finds) each get a find from tables[kind][depth] (a 'nothing' draw leaves the cell bare) or, rarely, treasure (treasure.chance by kind and depth, by luck, times wreckMult within wreckRange tiles of a wreck); seeded by the world, the map and the day; what is taken stays taken until the next day. bed.looks: how a find is drawn on the floor.",
+    "_doc": "Diving under the water of an inner map (player/diving.js: breath, costs and the finds on the bottom; ui/innerMapDiving.js: going under, moving, picking up and surfacing; ui/innerMapLayers/underwater.js: the view below). Dive Under on water you can swim in (or the V key while swimming): you swim about under the surface by clicking, through water only, at underwaterSpeed of a swim. Breath: seconds by the Diving skill's level (systems/practiceSkills.js, data/practiceSkills.json skills.diving: perks breath, coldResist against cold.breathMult, speed under the water; XP for each dive at surfacing); it drains drainPerSecond a second (cold.breathMult in cold water). After surfacing the breath must come back before the next dive (recovery): a dive that left windedShare of the breath or less leaves you winded for the skill's winded seconds (blackoutMult times that after a blackout); an easier one takes catchBreath seconds plus a share of the difference by how much breath was spent (to the power curve). Out of breath, each second costs overHealthPerSecond health (cold.mult in cold water) and risks a blackout (blackout.perSecond, plus perOverSecond for every second past, plus cold.blackout): you come up, take blackout.health hurt and lose everything picked up on this dive. Health gone under the water is drowning. Each second under costs energyPerSecond (less for a good swimmer: practiceEnergyCut at the top Swimming level). Going under washes you a little (hygiene) and chills you (comfort; cold.comfort more). The bottom of each map is scattered once a day (bed): a share of its divable water cells (perTile, at most max finds) each get a find from tables[kind][depth] (a 'nothing' draw leaves the cell bare) or, rarely, treasure (treasure.chance by kind and depth, by luck, times wreckMult within wreckRange tiles of a wreck); seeded by the world, the map and the day; what is taken stays taken until the next day. bed.looks: how a find is drawn on the floor. spear: spear fishing for the fish below, with a fishing spear (its own _doc).",
     "drainPerSecond": 1,
     "underwaterSpeed": 0.75,
     "energyPerSecond": 0.12,
@@ -122,7 +122,7 @@
         }
     },
     "fish": {
-        "_doc": "Fish swimming about under the water while diving (ui/innerMapLayers/underwaterFish.js; only seen, not caught). Each species: colours (back, belly, fin, mark), pattern (bars|spots|stripe|none), length in tiles, height (of its length), speed in tiles a second, school [min, max] (a shoal keeps together), weight (how often it is the one met) and the waters it lives in. perCell: fish to each divable cell near the diver (by water kind), up to max; they live within radius tiles of the diver and are met anew past it. Within shy tiles of the diver a fish darts away at fleeSpeed times its speed. dorsal: extra pixels of back fin (a shark's).",
+        "_doc": "Fish swimming about under the water while diving (ui/innerMapLayers/underwaterFish.js; caught only with a fishing spear: spear below). Each species: colours (back, belly, fin, mark), pattern (bars|spots|stripe|none), length in tiles, height (of its length), speed in tiles a second, school [min, max] (a shoal keeps together), weight (how often it is the one met) and the waters it lives in. perCell: fish to each divable cell near the diver (by water kind), up to max; they live within radius tiles of the diver and are met anew past it. Within shy tiles of the diver a fish darts away at fleeSpeed times its speed. dorsal: extra pixels of back fin (a shark's).",
         "radius": 13,
         "max": 34,
         "shy": 2.2,
@@ -142,5 +142,37 @@
             { "id": "carp", "back": "#a3803a", "belly": "#e2c98a", "fin": "#8a6a2e", "pattern": "none", "length": 0.9, "height": 0.42, "speed": 0.45, "school": [1, 3], "weight": 3, "waters": ["lake", "pond"] },
             { "id": "pike", "back": "#5a6b36", "belly": "#d6d6a8", "fin": "#6b7a3c", "mark": "#c9c88a", "pattern": "spots", "length": 1.25, "height": 0.22, "speed": 0.6, "school": [1, 1], "weight": 1, "waters": ["lake", "river"] }
         ]
+    },
+    "spear": {
+        "_doc": "Spear fishing under the water (player/spearFishing.js: the odds, the catch, the spear's wear; ui/innerMapSpearFishing.js: aiming, the F key, the right-click entries, the reticle and the flight of the spear). Needs a fishing spear (good id item) in the packs; without one the player is told so. Under the water, point at a fish and press F (or right-click it): a fish within the strike reach is thrust at, one farther off but within the throw reach has the spear thrown at it on its line; past that it is out of reach. aimRadius: tiles from the cursor a fish may be to be the one aimed at. modes.strike / modes.throw: reach (tiles), base (the chance at point-blank), near (tiles before distance starts to tell), perTile (chance lost each tile past near), breath (seconds of breath it costs), cooldown (seconds before the next strike: the arm back, the line hauled in), wear (wear on the spear for the strike). hit: speedPer = chance lost per tile a second the fish is moving (a darting fish is quick: underwaterFish fleeSpeed), sizePer = chance gained per tile of the fish's length over sizeRef (a big fish is an easier mark), levelPer = chance gained per Fishing level over 1 (the Fishing skill of the rod: data/skillPacks/food.json, systems/foodSkills.js), gradePer = chance gained per point of the spear's grade effect over 1 (core/grades.js: Poor 0.8 … Masterwork 1.65), min / max the bounds. wear: durability = wear a Common spear takes before it breaks, times its grade's effect to the power gradePow (a finer spear lasts longer); hitWear = more wear when a fish is struck (it fights on the point); snapPerLength = the chance a struck fish snaps the shaft, per tile of its length, divided by the grade's effect. The wear is kept on the player (player.spearWear: { grade, wear }) for the best spear held, which is the one used; a broken spear is gone from the packs. A miss scares the fish within scare.radius tiles of where the spear went off for scare.seconds (they bolt from it at underwaterFish fleeSpeed). catches: the good a species becomes when speared ({ item, rarity }: rarity sets the Fishing XP from the fishing skill's xp table); a species not listed goes by its length (bySize: up to each max length, that item). The Fishing skill's bigger perk may make it the bigger kind (its bigger map). xp: Fishing XP for each strike (perStrike), plus the rarity's XP for a catch; a catch also counts as a find on the dive (Diving XP), and is lost with the rest of the haul in a blackout.",
+        "item": "fishing_spear",
+        "aimRadius": 0.9,
+        "modes": {
+            "strike": { "reach": 1.6, "base": 0.72, "near": 0.8, "perTile": 0.15, "breath": 1.5, "cooldown": 0.8, "wear": 1 },
+            "throw": { "reach": 5, "base": 0.58, "near": 1.5, "perTile": 0.09, "breath": 3, "cooldown": 2, "wear": 1.5 }
+        },
+        "hit": { "speedPer": 0.12, "sizePer": 0.35, "sizeRef": 0.6, "levelPer": 0.03, "gradePer": 0.5, "min": 0.03, "max": 0.95 },
+        "wear": { "durability": 40, "gradePow": 1.5, "hitWear": 1, "snapPerLength": 0.01 },
+        "scare": { "radius": 3, "seconds": 2.5 },
+        "catches": {
+            "sprat": { "item": "small_fish", "rarity": "common" },
+            "mackerel": { "item": "fish", "rarity": "common" },
+            "bream": { "item": "fish", "rarity": "common" },
+            "snapper": { "item": "fish", "rarity": "uncommon" },
+            "wrasse": { "item": "fish", "rarity": "common" },
+            "cod": { "item": "large_fish", "rarity": "uncommon" },
+            "dogfish": { "item": "large_fish", "rarity": "rare" },
+            "minnow": { "item": "small_fish", "rarity": "common" },
+            "perch": { "item": "fish", "rarity": "common" },
+            "trout": { "item": "fish", "rarity": "uncommon" },
+            "carp": { "item": "large_fish", "rarity": "uncommon" },
+            "pike": { "item": "large_fish", "rarity": "rare" }
+        },
+        "bySize": [
+            { "max": 0.4, "item": "small_fish", "rarity": "common" },
+            { "max": 0.85, "item": "fish", "rarity": "common" },
+            { "max": null, "item": "large_fish", "rarity": "uncommon" }
+        ],
+        "xp": { "perStrike": 0.5 }
     }
 }

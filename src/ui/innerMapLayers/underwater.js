@@ -6,7 +6,9 @@
 //     cells sunk in a blue-green murk, light rippling across the bottom in
 //     moving bands, and the finds lying there (Diving.bedFor: shells, weed,
 //     shellfish, wood, junk; treasure glinting, a chest).
-//     Then the fish swimming about (innerMapLayers/underwaterFish.js).
+//     Then the fish swimming about (innerMapLayers/underwaterFish.js), and
+//     with a fishing spear the aim at the one under the cursor
+//     (ui/innerMapSpearFishing.js).
 //   • _renderUnderwaterVeil (over the sprites): everything not under the water
 //     — the land, the shallows, the folk on the shore — dimmed to a dark blur,
 //     with shafts of light slanting down and motes drifting.
@@ -17,6 +19,7 @@ import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { UnderwaterFish } from './underwaterFish.js';
+import { InnerMapSpearFishing } from '../innerMapSpearFishing.js';
 
 function _now() {
     return (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
@@ -281,6 +284,8 @@ Object.assign(InnerMapRenderer, {
         UnderwaterFish.update(now - (this._fishLast || now));
         this._fishLast = now;
         UnderwaterFish.draw(ctx, camera, T, ds, now);
+        // The aim at the fish under the cursor, and the spear in flight (ui/innerMapSpearFishing.js)
+        InnerMapSpearFishing.draw(ctx, camera, ds, now);
     },
 
     /** Above the water, dimmed; shafts of light and drifting motes (over the sprites). */

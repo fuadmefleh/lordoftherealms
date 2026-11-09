@@ -36,7 +36,8 @@ WIDTH = 124      # a window's width in its cell
 
 def key_white(im, tol=28, holes=False):
     """Flood the flat background away from the borders (ChatGPT gives white, not alpha);
-    holes: also any big patch of background shut inside a drawing (a door frame's opening)."""
+    holes: also any patch of background shut inside a drawing (a door frame's opening), of
+    more than 400 px, or of more than `holes` px when it is a number."""
     a = np.array(im.convert('RGBA')).astype(np.int16)
     bg = a[0, 0, :3]
     near = (np.abs(a[..., :3] - bg).max(axis=2) <= tol)
@@ -46,7 +47,7 @@ def key_white(im, tol=28, holes=False):
         flat = np.abs(a[..., :3] - bg).max(axis=2) <= 16
         hl, _ = ndimage.label(flat)
         sizes = ndimage.sum(flat, hl, range(1, hl.max() + 1))
-        big = [i + 1 for i, n in enumerate(sizes) if n > 400]
+        big = [i + 1 for i, n in enumerate(sizes) if n > (holes if holes is not True else 400)]
         a2 = a.astype(np.uint8)
         a2[np.isin(lab, list(border)) | np.isin(hl, big), 3] = 0
         return Image.fromarray(a2, 'RGBA')

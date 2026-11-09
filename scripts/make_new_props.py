@@ -53,6 +53,9 @@ SHEETS = {
     'farm':     ('lpc/ThatchedHouses/tilesets/farming_fishing.png', (20, 20)),
     'kitfurn':  ('buildingKit/furniture.png', (4, 8)),
     'grocks':   ('lpc/Terrain/Rocks, Grasslands.png', (6, 12)),
+    'crops':    ('lpc/crops.png', (32, 32)),
+    'chest':    ('lpc/Objects/Furniture/Chest.png', (4, 3)),   # no repaint before
+    'harvest':  ('lpc/Objects/Small Items/Harvest.png', (4, 3)),   # new: the haystack and the sheaf
     **{f'plants_{x}': (f'lpc/Terrain/plants_{x}.png', (16, 5)) for x in ('spring', 'summer', 'autumn', 'winter')},   # no repaint before: started from the original at 4x
 }
 
@@ -77,6 +80,22 @@ PLANT_CELLS = [
 # a source, and the sheet and cell rectangle each of its drawings fills, in reading order
 # (a third entry: more rectangles the same drawing fills, e.g. an animation's frames)
 RECIPES = {
+    # the haystack and the wheat sheaf (data/townProps.json, sheet "harvest"; they were cut from the
+    # wheat field's tiles before); the 32px sheet is the 4x one scaled down
+    'harvest': ('harvest_source.png', [('harvest', [0, 0, 3, 3]), ('harvest', [3, 1, 1, 2])], 'downscale'),
+    # the chest sheet's small closed chest (a chest afloat): the furniture's treasure chest
+    'chest': ('furniture_source.png', [(None, None)] * 3 + [('chest', [2, 0, 1, 1])] + [(None, None)] * 28),
+    # the field crops (data/crops.json art: sprout, young, nearly grown, ripe; hemp's last two
+    # stages two cells tall), then the sown mound
+    'crops': ('crops_source.png', [('crops', [c, r, 1, h]) for c, r, h in (
+        (6, 11, 1), (6, 13, 1), (6, 15, 1), (6, 17, 1),          # cabbage
+        (10, 1, 1), (10, 3, 1), (10, 5, 1), (10, 7, 1),          # turnip
+        (0, 1, 1), (0, 3, 1), (0, 5, 1), (0, 7, 1),              # carrot
+        (12, 1, 1), (12, 3, 1), (12, 5, 1), (16, 5, 1),          # flax
+        (30, 1, 1), (30, 2, 2), (30, 4, 2), (30, 8, 2),          # hemp
+        (9, 11, 1), (9, 13, 1), (9, 15, 1), (9, 17, 1),          # herbs
+        (20, 11, 1), (20, 19, 1), (20, 13, 1), (20, 17, 1),      # strawberry
+        (0, 9, 1))], 'small', 'shadows', 'gaps'),                                   # sown
     **{f'plants_{x}': (f'plants_{x}_source.png', [(f'plants_{x}', list(cs[0]), [list(c) for c in cs[1:]]) for cs in PLANT_CELLS], 'fresh')
        for x in ('spring', 'summer', 'autumn', 'winter')},
     # the grassland rocks (map fallback rocks, water's-edge stones): ten shapes, a colour band of four rows each
@@ -135,14 +154,19 @@ def objects(im, min_frac=0.03):
         sub[lab[b] != i + 1] = 0
         found.append(((b[0].start + b[0].stop) / 2, (b[1].start + b[1].stop) / 2, b[0].stop - b[0].start,
                       Image.fromarray(sub, 'RGBA')))
-    # group into rows: a drawing joins a row if its middle lies within the row's first drawing
-    found.sort(key=lambda f: f[0])
+    # group into rows: a drawing joins a row when its height span overlaps the row's
+    # (so a sprout beside a tall stalk stays in its row)
+    found.sort(key=lambda f: f[0] - f[2] / 2)
     rows = []
     for f in found:
-        if rows and abs(f[0] - rows[-1][0][0]) < rows[-1][0][2] * 0.5:
-            rows[-1].append(f)
+        top, bot = f[0] - f[2] / 2, f[0] + f[2] / 2
+        if rows and top < rows[-1][1] - min(f[2], rows[-1][2]) * 0.3:
+            rows[-1][0].append(f)
+            rows[-1][1] = max(rows[-1][1], bot)
+            rows[-1][2] = min(rows[-1][2], f[2])
         else:
-            rows.append([f])
+            rows.append([[f], bot, f[2]])
+    rows = [r[0] for r in rows]
     return [f[3] for row in rows for f in sorted(row, key=lambda f: f[1])]
 
 
@@ -172,7 +196,11 @@ def fit(im, w, h, box, stretch=False):
 
 def build(name):
     source, items, *opts = RECIPES[name]
-    objs = objects(key_white(Image.open(os.path.join(NEW, source)), holes='holes' in opts))
+    # ('shadows': key wider from the edge in, taking the pale grey ground shadows drawn under plants;
+    #  'gaps': key the little patches of background caught between leaves, but not a white petal)
+    objs = objects(key_white(Image.open(os.path.join(NEW, source)), tol=70 if 'shadows' in opts else 28,
+                             holes=40 if 'gaps' in opts else 'holes' in opts),
+                   min_frac=0.004 if 'small' in opts else 0.03)
     if len(objs) != len(items):
         raise SystemExit(f'{name}: found {len(objs)} drawings, want {len(items)}')
     sheets = {}
@@ -207,6 +235,10 @@ def build(name):
         out = os.path.join('assets/modern', SHEETS[key][0])
         sheet.save(out)
         print('wrote', out, sheet.size)
+        if 'downscale' in opts:
+            small = os.path.join('assets', SHEETS[key][0])
+            sheet.resize((sheet.width // 4, sheet.height // 4), Image.LANCZOS).save(small)
+            print('wrote', small)
 
 
 if __name__ == '__main__':

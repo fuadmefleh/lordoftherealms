@@ -62,7 +62,7 @@ def main():
     shaft = post.crop((0, int(post.height * 0.35), post.width, int(post.height * 0.9)))
     bar = shaft.resize((BAR[1] - BAR[0], C), Image.LANCZOS)
 
-    def cell(mask, gatepost=None):
+    def cell(mask, gatepost=None, post=True):
         im = Image.new('RGBA', (C, C), (0, 0, 0, 0))
         cx = (px0 + px1) // 2
         if 'n' in mask:
@@ -79,7 +79,8 @@ def main():
         if gatepost == 'left':
             im.alpha_composite(tile_x(rails, cx, rh), (0, RAILS[0]))
             im.alpha_composite(post_img, (0, py0))
-        im.alpha_composite(post_img, (px0, py0))
+        if post:
+            im.alpha_composite(post_img, (px0, py0))
         return im
 
     join = {'post': (0, 1), 'e': (0, 0), 'ew': (1, 0), 'w': (2, 0), 'n': (0, 1), 'ns': (1, 1), 's': (2, 1),
@@ -98,6 +99,20 @@ def main():
     sheet.alpha_composite(gate_open.resize((36, C - 16), Image.LANCZOS), (C, 6 * C + 8))
     sheet.save(OUT)
     print('wrote', OUT, sheet.size)
+
+    # The plain fence (Structure/Fences/Plain Fence A: the old vertical fence pieces kept for
+    # old saves, the posts at a building lot's corners, a corral's fallback picture), laid out
+    # as it was: a 3x3 block of joined pieces, a north-south run, a run piece, a short section
+    # and two lone posts
+    plain = Image.new('RGBA', (5 * C, 4 * C), (0, 0, 0, 0))
+    for (c, r), mask in {(0, 0): 'es', (1, 0): 'esw', (2, 0): 'sw', (0, 1): 'nes', (1, 1): 'nesw', (2, 1): 'nsw',
+                         (0, 2): 'ne', (1, 2): 'new', (2, 2): 'nw', (3, 0): 's', (3, 1): 'ns', (3, 2): 'n',
+                         (4, 2): 'ew', (0, 3): 'e', (2, 3): 'w', (3, 3): '', (4, 3): ''}.items():
+        plain.alpha_composite(cell(mask), (c * C, r * C))
+    plain.alpha_composite(cell('ew', post=False), (C, 3 * C))
+    out2 = 'assets/modern/lpc/Structure/Fences/Plain Fence A.png'
+    plain.save(out2)
+    print('wrote', out2, plain.size)
 
 
 if __name__ == '__main__':

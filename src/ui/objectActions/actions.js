@@ -247,11 +247,11 @@ export const OBJECT_ACTIONS = {
     tan: {
         label: 'Tan & Weave',
         icon: '👞',
-        desc: 'Tan hides into leather, weave flax and wool into cloth',
+        desc: 'Tan hides into leather, cure furs, weave flax and wool into cloth',
         category: 'production',
         modal: 'tan',
         condition: (game) => _canWorkStation(game, 'tan'),
-        conditionFail: 'You need hides and salt, flax or wool.',
+        conditionFail: 'You need hides and salt, pelts and salt, flax, wool or hemp.',
     },
     // ──────────── GATHERING ────────────
     fish: {

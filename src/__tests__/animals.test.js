@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import { DataLoader } from '../core/dataLoader.js';
 import { WildTasks } from '../systems/wildTasks.js';
+import { Utils } from '../core/utils.js';
 
 let InnerMap, InnerMapTasks, WildTaskRunner, SaveLoad, InnerMapAnimals, InnerMapCombat;
 
@@ -288,10 +289,10 @@ describe('the hunt', () => {
     it('a living deer\'s loot is the hunting table\'s own entries, venison first', () => {
         const tables = DataLoader.get('earlyJobs').hunting.loot_table;
         const stag = WildTasks.animalLoot(cfg().species.stag, tables);
-        expect(stag.map(e => e.name)).toEqual(['Venison', 'Antlers', 'Hides']);
+        expect(stag.map(e => e.name)).toEqual(['Venison', 'Antlers', 'Hides', 'Sinew']);
         expect(stag[0].item).toBe('game_meat');
         expect(stag[0].chance).toBe(1);
-        expect(WildTasks.animalLoot(cfg().species.doe, tables).map(e => e.name)).toEqual(['Venison', 'Hides']);
+        expect(WildTasks.animalLoot(cfg().species.doe, tables).map(e => e.name)).toEqual(['Venison', 'Hides', 'Sinew']);
         // the tables themselves are untouched
         expect(tables.forest[0].chance).toBe(0.35);
     });
@@ -303,7 +304,7 @@ describe('the hunt', () => {
         InnerMap.currentWorldTile = { q: h.q, r: h.r };
         InnerMap._spawnAnimals({ world }, { terrain: { id: 'woodland' } }, h.q, h.r);
         const deer = InnerMap.animals[0];
-        const g = { world, player: { name: 'T', luck: 5, skills: { stealth: 3 }, q: 0, r: 0 }, ui: { hideCustomPanel() {}, showCustomPanel() {} } };
+        const g = { world, player: { name: 'T', luck: 5, skills: { stealth: 3 }, q: 0, r: 0, inventory: { bow: 1, arrows: 5 } }, ui: { hideCustomPanel() {}, showCustomPanel() {} } };
         let out;
         await WildTaskRunner.hunt(g, { player: g.player, prey: { name: 'Stag' }, animal: deer }, (o) => { out = o; });
         const ctx = InnerMapTasks.active;
@@ -319,8 +320,12 @@ describe('the hunt', () => {
         InnerMapTasks.update(0.1, g);
         const shoot = ctx.tpl.buttons(ctx).find(b => b.label === WildTasks.cfg('hunt').shoot);
         expect(shoot).toBeTruthy();
-        shoot.act();
+        // (every roll the luckiest: the arrow strikes and kills — player/huntingBow.js)
+        const spy = vi.spyOn(Utils, 'random').mockReturnValue(0);
+        try { shoot.act(); } finally { spy.mockRestore(); }
         expect(out && out.result).toBe('shot');
+        expect(out.killed).toBe(true);
+        expect(out.shots).toBe(1);
         expect(out.animal).toBe(deer);
         // the kill: off the map, and missing from the herd on the next visit until it grows back
         InnerMap.cullAnimal(world, deer);
@@ -331,6 +336,38 @@ describe('the hunt', () => {
         expect(next.length).toBe(h.plan.length - 1);
         world.day += cfg().respawnDays;
         expect(InnerMap.culledAnimals(world, h.q, h.r)).toEqual([]);
+    });
+
+    it('a miss spooks the deer and may leave the arrow on the ground; two misses and it is gone', async () => {
+        openMap(openTiles(), { q: 64, r: 64 });
+        const deer = InnerMap._makeAnimal({ id: 'm', species: 'doe', q: 68, r: 64 }, cfg());
+        InnerMap.animals = [deer];
+        const g = { world: { day: 1 }, player: { name: 'T', luck: 5, skills: {}, q: 0, r: 0, inventory: { bow: 1, arrows: 4 } }, ui: { hideCustomPanel() {}, showCustomPanel() {} } };
+        let out;
+        await WildTaskRunner.hunt(g, { player: g.player, prey: { name: 'Venison' }, animal: deer }, (o) => { out = o; });
+        const ctx = InnerMapTasks.active;
+        InnerMap.playerInnerQ = deer.q - 2; InnerMap.playerInnerR = deer.r;
+        InnerMapTasks.update(0.1, g);
+        // a miss (0.99), its arrow landing whole (0.0), no slip (0.99), the bow's wear (0.5)
+        const rolls = [0.99, 0.0, 0.99, 0.5];
+        let i = 0;
+        const spy = vi.spyOn(Utils, 'random').mockImplementation(() => rolls[i++ % rolls.length]);
+        try { ctx.tpl._shoot(ctx); } finally { spy.mockRestore(); }
+        expect(out).toBeUndefined();
+        expect(ctx.phase).toBe('bolting');
+        expect(g.player.inventory.arrows).toBe(3);
+        let lying = 0;
+        for (let r = 0; r < InnerMap.height; r++) for (let q = 0; q < InnerMap.width; q++) {
+            const t = InnerMap.getTile(q, r);
+            if (t && t.groundItem && t.groundItem.itemId === 'arrows') lying += t.groundItem.quantity;
+        }
+        expect(lying).toBe(1);
+        // the second miss: it is gone for good
+        i = 0;
+        const spy2 = vi.spyOn(Utils, 'random').mockImplementation(() => rolls[i++ % rolls.length]);
+        try { ctx.tpl._shoot(ctx); } finally { spy2.mockRestore(); }
+        expect(out && out.result).toBe('missed');
+        expect(out.shots).toBe(2);
     });
 
     it('a deer that lives goes back to its own life, running from you', () => {
@@ -756,19 +793,27 @@ describe('carcasses', () => {
     it('a hunt\'s kill falls and lies unbutchered: nothing in the packs until you butcher it', async () => {
         const { g, a } = scene('doe', { q: 66, r: 64 });
         g.player.skills.combat = 10;
-        g.player.strength = 30; // every shot lands
+        g.player.strength = 30;
         g.world.getTile = () => ({ terrain: { id: 'woodland' } });
+        // no bow, no hunt: it says so
+        ActionMenu.huntAnimal(g, a);
+        expect(InnerMapTasks.active).toBeFalsy();
+        expect(g.notes.some(n => /bow/i.test(n.b))).toBe(true);
+        g.player.inventory = { bow: 1, arrows: 3 };
         ActionMenu.huntAnimal(g, a);
         for (let i = 0; i < 20 && !InnerMapTasks.active; i++) await new Promise(res => setTimeout(res, 0));
         const ctx = InnerMapTasks.active;
         expect(ctx && ctx.animal).toBe(a);
         InnerMap.playerInnerQ = a.q - 2; InnerMap.playerInnerR = a.r;
         InnerMapTasks.update(0.1, g);
-        ctx.tpl.buttons(ctx).find(b => b.label === WildTasks.cfg('hunt').shoot).act();
+        // (every roll the luckiest: the arrow strikes, kills and comes back whole)
+        const spy = vi.spyOn(Utils, 'random').mockReturnValue(0);
+        try { ctx.tpl.buttons(ctx).find(b => b.label === WildTasks.cfg('hunt').shoot).act(); } finally { spy.mockRestore(); }
         for (let i = 0; i < 20 && a.state !== 'dead'; i++) await new Promise(res => setTimeout(res, 0));
         expect(a.state).toBe('dead');
         expect(a.butchered).toBe(false);
-        expect(Object.values(g.player.inventory).reduce((s, n) => s + n, 0)).toBe(0);
+        // nothing of the beast in the packs yet: only the bow and the arrows (that one pulled back out)
+        expect(g.player.inventory).toEqual({ bow: 1, arrows: 3 });
         expect(g.notes.some(n => /Clean Kill/.test(n.t))).toBe(true);
         // culled from the herd, and kept on the books where it lies
         expect(g.world.wildlife.culled['5,7'].map(c => c.id)).toEqual([a.id]);

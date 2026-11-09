@@ -22,6 +22,7 @@ import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Throne } from './throne.js';
 import { Difficulty } from '../core/difficulty.js';
+import { PlayerInventory } from '../core/inventory.js';
 import { Kingship } from './kingship.js';
 import { Holdings } from './holdings.js';
 import { Rivals } from './rivals.js';
@@ -364,6 +365,8 @@ export const SaveLoad = {
         // craftQuality is an old save's averaged record, converted on first touch),
         // trained stats' progress (player/oddJobs.js), sellsword standing (player/mercContracts.js)
         'crafting', 'craftGrades', 'craftQuality', 'attrXp', 'skillXp', 'mercRep',
+        // How worn each bow carried is (player/huntingBow.js)
+        'bowWear',
         // Winter trap lines left set in the snow (player/seasonalWork.js)
         'trapLines',
         // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)
@@ -818,6 +821,9 @@ export const SaveLoad = {
             player.firstName = parts[0] || 'Wanderer';
             player.lastName = parts.slice(1).join(' ') || '';
         }
+
+        // The hunt's old 'hides' / 'feathers' / 'antlers' are the market's hide, feather and antler now
+        PlayerInventory.renameLegacy(player);
 
         // Ship crews and naval units (backfills crews for saves from before them)
         Ships.restoreFromSave(player);

@@ -1,8 +1,7 @@
 {
   "wildGoodDescriptions": {
-      "_note": "What the foraging and hunting finds the market's goods table lacks are (core/dataLoader.js registerWildGoods), shown on their info card (ui/goodInfo.js)",
+      "_note": "What the foraging and hunting finds the market's goods table lacks are (hides, feathers and antlers are the goods hide, feather and antler) (core/dataLoader.js registerWildGoods), shown on their info card (ui/goodInfo.js)",
       "truffles": "Black truffles nosed out from under the oaks. A cook's treasure, sold by the ounce.",
-      "feathers": "Goose and wild-fowl feathers for fletching, quills and stuffing pillows.",
       "ore_scraps": "Rusty lumps and scraps of ore picked from old diggings. A smith will take them for little.",
       "fossils": "Stone shells and bones from the cliffs. Scholars and collectors pay for the curious ones.",
       "shells": "Seashells from the strand, for buttons, inlay and trinkets, or burnt for lime.",
@@ -14,9 +13,7 @@
       "peat": "Cut turf from the bog, dried for fuel where no wood grows.",
       "rare_frog": "A brightly coloured marsh frog. Alchemists and collectors of curiosities pay well.",
       "game_meat": "Venison, boar or goat from the hunt. Cook it, or dry it before it turns.",
-      "antlers": "Shed or taken antlers, carved into handles, combs and buttons.",
       "bear_pelt": "A whole bear's pelt, thick and heavy: a lord's bed-cover or a great cloak.",
-      "hides": "Raw animal skins from the hunt. The tannery turns them into leather.",
       "eagle_feathers": "Great flight feathers of an eagle, prized by fletchers and for crests.",
       "crabs": "Shore crabs from the rock pools. Boiled, they make a cheap supper."
   },
@@ -83,7 +80,7 @@
         { "item": "herbs", "name": "Prairie Herbs", "icon": "🌿", "chance": 0.35, "qty": { "min": 1, "max": 3 }, "sellPrice": 5 },
         { "item": "berries", "name": "Wild Berries", "icon": "🍇", "chance": 0.25, "qty": { "min": 1, "max": 3 }, "sellPrice": 3 },
         { "item": "flax", "name": "Wild Flax", "icon": "🌾", "chance": 0.20, "qty": { "min": 1, "max": 3 }, "sellPrice": 6 },
-        { "item": "feathers", "name": "Feathers", "icon": "🦅", "chance": 0.15, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
+        { "item": "feather", "name": "Feathers", "icon": "🦅", "chance": 0.15, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
         { "item": "flax_seed", "name": "Wild Linseed", "icon": "🌿", "chance": 0.06, "qty": { "min": 2, "max": 4 }, "sellPrice": 2 },
         { "item": "wheat_seed", "name": "Wild Grass Seed", "icon": "🌾", "chance": 0.05, "qty": { "min": 2, "max": 5 }, "sellPrice": 2 }
       ],
@@ -130,13 +127,15 @@
       "forest": [
         { "item": "game_meat", "name": "Venison", "icon": "🥩", "chance": 0.35, "qty": { "min": 1, "max": 3 }, "sellPrice": 8 },
         { "item": "pelts", "name": "Fur Pelts", "icon": "🦊", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 12 },
-        { "item": "antlers", "name": "Antlers", "icon": "🦌", "chance": 0.15, "qty": { "min": 1, "max": 1 }, "sellPrice": 15 },
+        { "item": "antler", "name": "Antlers", "icon": "🦌", "chance": 0.15, "qty": { "min": 1, "max": 1 }, "sellPrice": 15 },
+        { "item": "sinew", "name": "Sinew", "icon": "🧵", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 3 },
         { "item": "bear_pelt", "name": "Bear Pelt", "icon": "🐻", "chance": 0.05, "qty": { "min": 1, "max": 1 }, "sellPrice": 40 }
       ],
       "plains": [
         { "item": "game_meat", "name": "Game Meat", "icon": "🥩", "chance": 0.40, "qty": { "min": 1, "max": 4 }, "sellPrice": 6 },
-        { "item": "hides", "name": "Hides", "icon": "🐾", "chance": 0.35, "qty": { "min": 1, "max": 2 }, "sellPrice": 8 },
-        { "item": "feathers", "name": "Feathers", "icon": "🦅", "chance": 0.25, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
+        { "item": "hide", "name": "Hides", "icon": "🐾", "chance": 0.35, "qty": { "min": 1, "max": 2 }, "sellPrice": 8 },
+        { "item": "feather", "name": "Feathers", "icon": "🦅", "chance": 0.25, "qty": { "min": 2, "max": 5 }, "sellPrice": 4 },
+        { "item": "sinew", "name": "Sinew", "icon": "🧵", "chance": 0.30, "qty": { "min": 1, "max": 2 }, "sellPrice": 3 },
         { "item": "ivory", "name": "Ivory", "icon": "🐘", "chance": 0.03, "qty": { "min": 1, "max": 1 }, "sellPrice": 45 }
       ],
       "hills": [

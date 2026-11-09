@@ -257,7 +257,7 @@ Object.assign(InnerMap, {
     _NPC_SHOP_POOLS: {
         merchant: {
             common: ['grain','bread','cheese','dried_meat','salt','candles','rope','honey','beer','tools','wood','wool','textiles','pottery','dyes','flour','tea'],
-            uncommon: ['wine','spices','exotic_spices','silk','perfume','clothes','firewood','iron','healing_salve','incense','lantern','arrows'],
+            uncommon: ['wine','spices','exotic_spices','silk','perfume','clothes','firewood','iron','healing_salve','incense','lantern','arrows','bow'],
             rare: ['luxuries','gems','potion','amulet','rare_book'],
             counts: { common: [5,8], uncommon: [3,5], rare: [0,2] },
             qtyRange: { common: [3,12], uncommon: [1,6], rare: [1,2] },
@@ -271,7 +271,7 @@ Object.assign(InnerMap, {
         },
         blacksmith_npc: {
             common: ['tools','iron','arrows','rope','lantern'],
-            uncommon: ['weapons','shield','bow','leather_armor','ore'],
+            uncommon: ['weapons','shield','bow','leather_armor','ore','fishing_spear'],
             rare: ['military_parts'],
             counts: { common: [3,4], uncommon: [2,3], rare: [0,1] },
             qtyRange: { common: [2,8], uncommon: [1,4], rare: [1,2] },

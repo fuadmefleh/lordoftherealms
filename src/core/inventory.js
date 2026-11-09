@@ -139,6 +139,23 @@ export const PlayerInventory = {
         return { added: res.added, sold: res.dropped, gold };
     },
 
+    /**
+     * Old ids of goods that are now one market good (the hunt once gave
+     * 'hides', 'feathers' and 'antlers' beside the market's hide, feather
+     * and antler). Folds an old save's stacks into the good, once.
+     */
+    LEGACY_IDS: { hides: 'hide', feathers: 'feather', antlers: 'antler' },
+
+    renameLegacy(player) {
+        const inv = player && player.inventory;
+        if (!inv) return;
+        for (const [old, now] of Object.entries(PlayerInventory.LEGACY_IDS)) {
+            if (!(inv[old] > 0)) { if (old in inv) delete inv[old]; continue; }
+            inv[now] = (inv[now] || 0) + inv[old];
+            delete inv[old];
+        }
+    },
+
     /** "3 iron, 2 weapons" */
     describe(items) {
         return Object.entries(items || {}).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ');

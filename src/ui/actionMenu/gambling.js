@@ -1258,7 +1258,7 @@ Object.assign(ActionMenu, {
                     { item: 'herbs', name: 'Prairie Herbs', icon: '🌿', chance: 0.35, qty: { min: 1, max: 3 }, sellPrice: 5 },
                     { item: 'berries', name: 'Wild Berries', icon: '🍇', chance: 0.25, qty: { min: 1, max: 3 }, sellPrice: 3 },
                     { item: 'flax', name: 'Wild Flax', icon: '🌾', chance: 0.20, qty: { min: 1, max: 3 }, sellPrice: 6 },
-                    { item: 'feathers', name: 'Feathers', icon: '🦅', chance: 0.15, qty: { min: 2, max: 5 }, sellPrice: 4 },
+                    { item: 'feather', name: 'Feathers', icon: '🦅', chance: 0.15, qty: { min: 2, max: 5 }, sellPrice: 4 },
                 ],
                 hills: [
                     { item: 'herbs', name: 'Mountain Herbs', icon: '🌿', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 7 },
@@ -1297,13 +1297,13 @@ Object.assign(ActionMenu, {
                 forest: [
                     { item: 'game_meat', name: 'Venison', icon: '🥩', chance: 0.35, qty: { min: 1, max: 3 }, sellPrice: 8 },
                     { item: 'pelts', name: 'Fur Pelts', icon: '🦊', chance: 0.30, qty: { min: 1, max: 2 }, sellPrice: 12 },
-                    { item: 'antlers', name: 'Antlers', icon: '🦌', chance: 0.15, qty: { min: 1, max: 1 }, sellPrice: 15 },
+                    { item: 'antler', name: 'Antlers', icon: '🦌', chance: 0.15, qty: { min: 1, max: 1 }, sellPrice: 15 },
                     { item: 'bear_pelt', name: 'Bear Pelt', icon: '🐻', chance: 0.05, qty: { min: 1, max: 1 }, sellPrice: 40 },
                 ],
                 plains: [
                     { item: 'game_meat', name: 'Game Meat', icon: '🥩', chance: 0.40, qty: { min: 1, max: 4 }, sellPrice: 6 },
-                    { item: 'hides', name: 'Hides', icon: '🐾', chance: 0.35, qty: { min: 1, max: 2 }, sellPrice: 8 },
-                    { item: 'feathers', name: 'Feathers', icon: '🦅', chance: 0.25, qty: { min: 2, max: 5 }, sellPrice: 4 },
+                    { item: 'hide', name: 'Hides', icon: '🐾', chance: 0.35, qty: { min: 1, max: 2 }, sellPrice: 8 },
+                    { item: 'feather', name: 'Feathers', icon: '🦅', chance: 0.25, qty: { min: 2, max: 5 }, sellPrice: 4 },
                     { item: 'ivory', name: 'Ivory', icon: '🐘', chance: 0.03, qty: { min: 1, max: 1 }, sellPrice: 45 },
                 ],
                 hills: [

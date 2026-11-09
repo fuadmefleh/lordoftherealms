@@ -32,7 +32,7 @@
             "fleeBelow": 0.5,
             "maxBites": 2,
             "beast": "stag",
-            "loot": [{"name": "Venison", "chance": 1}, {"name": "Antlers", "chance": 0.85}, {"name": "Hides", "chance": 0.6}]
+            "loot": [{"name": "Venison", "chance": 1}, {"name": "Antlers", "chance": 0.85}, {"name": "Hides", "chance": 0.6}, {"name": "Sinew", "chance": 0.6, "qty": {"min": 1, "max": 2}}]
         },
         "doe": {
             "name": "Doe",
@@ -65,7 +65,7 @@
             "fleeBelow": 0.6,
             "maxBites": 1,
             "beast": "deer",
-            "loot": [{"name": "Venison", "chance": 1}, {"name": "Hides", "chance": 0.55}]
+            "loot": [{"name": "Venison", "chance": 1}, {"name": "Hides", "chance": 0.55}, {"name": "Sinew", "chance": 0.5, "qty": {"min": 1, "max": 2}}]
         },
         "fawn": {
             "name": "Fawn",
@@ -131,7 +131,7 @@
             "fleeBelow": 0.45,
             "maxBites": 2,
             "beast": "elk",
-            "loot": [{"name": "Venison", "chance": 1, "qty": {"min": 2, "max": 4}}, {"name": "Antlers", "chance": 0.7}, {"name": "Hides", "chance": 0.75}]
+            "loot": [{"name": "Venison", "chance": 1, "qty": {"min": 2, "max": 4}}, {"name": "Antlers", "chance": 0.7}, {"name": "Hides", "chance": 0.75}, {"name": "Sinew", "chance": 0.7, "qty": {"min": 1, "max": 2}}]
         },
         "reindeer": {
             "name": "Reindeer",
@@ -164,7 +164,7 @@
             "fleeBelow": 0.55,
             "maxBites": 1,
             "beast": "reindeer",
-            "loot": [{"name": "Venison", "chance": 1, "qty": {"min": 1, "max": 3}}, {"name": "Antlers", "chance": 0.6}, {"name": "Fur Pelts", "chance": 0.5}]
+            "loot": [{"name": "Venison", "chance": 1, "qty": {"min": 1, "max": 3}}, {"name": "Antlers", "chance": 0.6}, {"name": "Fur Pelts", "chance": 0.5}, {"name": "Sinew", "chance": 0.5, "qty": {"min": 1, "max": 2}}]
         },
         "mountain_goat": {
             "name": "Mountain Goat",
@@ -333,7 +333,7 @@
             "livestock": true,
             "value": 45,
             "huntable": false,
-            "loot": [{"name": "Beef", "item": "meat", "icon": "🥩", "sellPrice": 6, "chance": 1, "qty": {"min": 3, "max": 5}}, {"name": "Hides", "chance": 1, "qty": {"min": 1, "max": 2}}]
+            "loot": [{"name": "Beef", "item": "meat", "icon": "🥩", "sellPrice": 6, "chance": 1, "qty": {"min": 3, "max": 5}}, {"name": "Hides", "chance": 1, "qty": {"min": 1, "max": 2}}, {"name": "Sinew", "chance": 0.6, "qty": {"min": 1, "max": 2}}]
         },
         "boar": {
             "name": "Wild Boar",
@@ -368,7 +368,7 @@
             "fleeBelow": 0.3,
             "maxBites": 3,
             "beast": "wild boar",
-            "loot": [{"name": "Game Meat", "chance": 1, "qty": {"min": 2, "max": 4}}, {"name": "Hides", "chance": 0.7}]
+            "loot": [{"name": "Game Meat", "chance": 1, "qty": {"min": 2, "max": 4}}, {"name": "Hides", "chance": 0.7}, {"name": "Sinew", "chance": 0.5, "qty": {"min": 1, "max": 2}}]
         },
         "fox": {
             "name": "Fox",
@@ -505,7 +505,7 @@
             "fleeBelow": 0.3,
             "maxBites": 3,
             "beast": "bear",
-            "loot": [{"name": "Bear Pelt", "chance": 1, "qty": {"min": 1, "max": 1}}, {"name": "Game Meat", "chance": 1, "qty": {"min": 3, "max": 5}}]
+            "loot": [{"name": "Bear Pelt", "chance": 1, "qty": {"min": 1, "max": 1}}, {"name": "Game Meat", "chance": 1, "qty": {"min": 3, "max": 5}}, {"name": "Sinew", "chance": 0.6, "qty": {"min": 1, "max": 2}}]
         },
         "polar_bear": {
             "name": "Polar Bear",
@@ -646,7 +646,7 @@
             "fleeBelow": 0.2,
             "maxBites": 2,
             "beast": "elephant",
-            "loot": [{"name": "Ivory", "chance": 1, "qty": {"min": 1, "max": 2}}, {"name": "Game Meat", "chance": 1, "qty": {"min": 5, "max": 8}}, {"name": "Hides", "chance": 1, "qty": {"min": 2, "max": 3}}]
+            "loot": [{"name": "Ivory", "chance": 1, "qty": {"min": 1, "max": 2}}, {"name": "Game Meat", "chance": 1, "qty": {"min": 5, "max": 8}}, {"name": "Hides", "chance": 1, "qty": {"min": 2, "max": 3}}, {"name": "Sinew", "chance": 0.8, "qty": {"min": 1, "max": 2}}]
         }
     },
     "herds": {

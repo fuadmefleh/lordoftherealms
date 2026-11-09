@@ -42,7 +42,45 @@
         "bolted": "The {name} bolts! It runs a way off and stops, ears up.",
         "gone": "The {name} bolts into cover and is gone.",
         "states": ["Calm", "Wary", "Alarmed"],
-        "status": "{name}: {state} · {dist} paces"
+        "status": "{name}: {state} · {dist} paces · {arrows} arrows",
+        "bow": {
+            "_doc": "Shooting game with a bow (player/huntingBow.js; the stalk in ui/mapTasks/wildTasks.js, the quick hunt in ui/actionMenu/jobs.js). Hunting at range needs a weapon of `weapons` (the best grade held is the one in hand: data/craftGrades.json) and at least one of `ammo`; every shot uses one. hit chance = base - max(0, dist - freeTiles) x perTile - alert x alert + clamp(log10(kg / sizeRef) x perSizeDecade, sizeMin, sizeMax) - (fleeSpeed - speedRef) x perSpeed x (0.5 + alert) + the Hunting & Butchering rank (0..4) x perRank + steadiness x perSteady (steadiness: 35 - Hunting.hitThreshold, i.e. combat x 2 + strength + the better of the Hunting and Archery aim; Archery's steady perk counts half) + (the bow's grade effect - 1) x perGradeEffect + the weapon's aim + (the arrow's grade effect - 1) x perArrowEffect (+ wounded when the beast is already hurt), clamped to [min, max]. A hit kills outright on the kill chance (base + rank x perRank + (grade effect - 1) x perGradeEffect - log10(kg / sizeRef) x perSizeDecade + close within closeTiles + wounded on a beast already hit), else the beast is wounded and runs (boltSeconds x woundedBolt) and must be shot again. A miss spooks it (it bolts), unless Archery's second arrow lets you loose again first; after missesBeforeGone misses it is gone. recover: the share of missed arrows that land whole (laid on the ground where they fell, to pick up; the quick hunt fetches them for you) and of arrows pulled whole from a kill (each one in it). wear: each shot adds perShot x the weapon's wear / the grade's effect x (0.5 + a roll) to the bow's wear (out of 100, kept on player.bowWear by bow and grade); at 100 it breaks, and past 100 - snapBelow each shot has snapChance to snap early. fumble: a miss's chance of a slip that hurts you (damage hp). quick: the quick hunt's shots at most, at dist and alert (alert rises by alertPerMiss). Species weight (kg) and fleeSpeed come from data/animals.json species (a quarry with none: defaultKg, defaultSpeed).",
+            "weapons": { "bow": { "aim": 0, "wear": 1 }, "crossbow": { "aim": 0.06, "wear": 0.7 } },
+            "ammo": "arrows",
+            "hit": {
+                "base": 0.8, "freeTiles": 1, "perTile": 0.07, "alert": 0.3,
+                "sizeRef": 60, "perSizeDecade": 0.12, "sizeMin": -0.25, "sizeMax": 0.12,
+                "speedRef": 4.8, "perSpeed": 0.05,
+                "perRank": 0.03, "perSteady": 0.008, "perGradeEffect": 0.3, "perArrowEffect": 0.1,
+                "wounded": 0.06, "min": 0.05, "max": 0.95
+            },
+            "kill": {
+                "base": 0.55, "perRank": 0.04, "perGradeEffect": 0.25, "sizeRef": 60, "perSizeDecade": 0.25,
+                "closeTiles": 2, "close": 0.1, "wounded": 0.45, "min": 0.08, "max": 0.97
+            },
+            "woundedBolt": 0.7,
+            "missesBeforeGone": 2,
+            "recover": { "miss": 0.45, "carcass": 0.55 },
+            "wear": { "perShot": 4, "snapBelow": 20, "snapChance": 0.08 },
+            "fumble": { "chance": 0.03, "damage": [5, 16] },
+            "quick": { "shots": 4, "dist": 3, "alert": 0.25, "alertPerMiss": 0.25 },
+            "defaultKg": 30, "defaultSpeed": 5,
+            "words": {
+                "noBow": "You need a bow to hunt game at range: make one at a workbench (wood and sinew or cord) or buy one from a bowyer or blacksmith. Snares and traps need no bow.",
+                "noArrows": "You have a bow but no arrows. Fletch some at a workbench (wood, feathers and a stone or iron head) or buy a sheaf at market.",
+                "hit": "The arrow strikes home: the {name} is down.",
+                "wounded": "The arrow strikes the {name}, but it runs on, hurt. Follow it and loose again.",
+                "miss": "Your arrow flies wide. The {name} bolts.",
+                "secondArrow": "Your first goes wide, but you nock again before the {name} can run.",
+                "gone": "The {name} is gone, and your arrows with it.",
+                "escaped": "The wounded {name} got away.",
+                "outOfArrows": "That was your last arrow.",
+                "broke": "Your {bow} snaps in your hands!",
+                "worn": "Your {bow} is badly worn: it may not last much longer.",
+                "arrowLies": "Your arrow lies in the grass where it fell: pick it up.",
+                "recovered": "You pull {n} arrow(s) whole from the carcass."
+            }
+        }
     },
     "fish": {
         "title": "Fishing", "icon": "🎣", "parHours": 3,

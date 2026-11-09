@@ -379,10 +379,14 @@ export const Hunting = {
         return { ...res, renown: 0, xp, rankUp };
     },
 
-    /** The quick hunt: one quarry, in its qty range. Same shape as Foraging.quickForage. */
-    quickHunt(player, table) {
+    /**
+     * The quick hunt's quarry taken: one, in its qty range (the shooting —
+     * bow, arrows, misses — is player/huntingBow.js quickShots; `entry` the
+     * quarry it brought down, else one is picked). Same shape as Foraging.quickForage.
+     */
+    quickHunt(player, table, entry = null) {
         if (!Array.isArray(table) || !table.length) return { success: false, reason: 'There is nothing to hunt in this terrain.' };
-        const entry = Hunting.pickPrey(table, player) || table[0];
+        entry = entry || Hunting.pickPrey(table, player) || table[0];
         const qty = Hunting.rollQty(entry, player);
         const trip = Hunting.finishTrip(player, [{ entry, qty }]);
         const lost = trip.lost[0];

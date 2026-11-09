@@ -12,7 +12,10 @@
 //               nearest one); wits and craft show more patches at the start
 //   hunt        follow a trail of sign to the beast, creep up on it (walking
 //               inside its alert ring alarms it, the longer you keep walking
-//               the faster; standing still calms it), loose when close
+//               the faster; standing still calms it), loose when close — a
+//               bow and arrows (player/huntingBow.js): every shot an arrow;
+//               a hit kills or wounds (it runs: follow and shoot again), a
+//               miss spooks it, and a missed arrow may lie where it fell
 //   fish        walk to the water's edge, cast, wait by the line, strike in
 //               time when it bites; a few casts and the fish move along
 //   trap        paw prints mark the game runs: set snares where you like
@@ -35,6 +38,7 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { MapTasks } from '../../systems/mapTasks.js';
 import { WildTasks as Rules } from '../../systems/wildTasks.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
+import { HuntingBow } from '../../player/huntingBow.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
 import { drawMapMarker } from '../mapInk.js';
 
@@ -96,6 +100,26 @@ function _arc(ctx2d, camera, T, q, r, frac, color) {
     ctx2d.ellipse(s.x, s.y + ds * 0.25, ds * 0.45, ds * 0.2, 0, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * Math.PI * 2);
     ctx2d.stroke();
     ctx2d.restore();
+}
+
+/**
+ * A missed arrow that landed whole: laid on the ground a tile or two beyond
+ * the beast (as the shot flew from `from`), stacked with any arrows there,
+ * to be picked up. Returns the tile, or null when there was nowhere to lay it.
+ */
+function _dropArrow(at, from, item = 'arrows') {
+    if (!at || !InnerMap.getTile) return null;
+    const dq = Math.sign(at.q - from.q), dr = Math.sign(at.r - from.r);
+    const tries = [[dq * 2, dr * 2], [dq, dr], [0, 0], [dq * 2 + 1, dr * 2], [dq * 2, dr * 2 + 1], [dq - 1, dr], [dq, dr - 1]];
+    for (const [a, b] of tries) {
+        const t = InnerMap.getTile(Math.round(at.q) + a, Math.round(at.r) + b);
+        if (!t || !t.subTerrain || !t.subTerrain.passable || t._wet || t._sea || t.customObject || t.customBuilding) continue;
+        if (t.groundItem && t.groundItem.itemId !== item) continue;
+        if (t.groundItem) t.groundItem.quantity = (t.groundItem.quantity || 0) + 1;
+        else t.groundItem = { itemId: item, name: 'Arrows', icon: '🏹', quantity: 1, placedBy: 'hunt' };
+        return t;
+    }
+    return null;
 }
 
 /** Send a task's own NPC off the map (or drop it). */
@@ -382,8 +406,10 @@ export const WildTaskRunner = {
     },
 
     /**
-     * o: { player, prey, animal? }. onDone(outcome): { result: 'shot', accuracy, dist }
-     * | { result: 'fled' } | { result: 'abandoned' }, each with `animal` — the
+     * o: { player, prey, animal? }. onDone(outcome): { result: 'shot' (the
+     * kill), dist, recovered } | { result: 'missed' (out of arrows or chances),
+     * fumble? } | { result: 'fled', wounded? } | { result: 'abandoned' }, each
+     * with `shots` (arrows loosed), `broke` (the bow) and `animal` — the
      * living beast hunted (InnerMap.animals) when there was one: a deer the
      * player picked out (o.animal: no trail, straight to the stalk), the
      * nearest of the beast's kind grazing on the map (the trail leads to it),
@@ -401,6 +427,9 @@ export const WildTaskRunner = {
         let target = o.animal || null;
         let beast = null; // the animal on the map the stalk is of (target, or one put there for the hunt)
         let outcome = null;
+        const B = HuntingBow.cfg();
+        // The shooting so far (player/huntingBow.js): arrows loosed, misses, a wound, arrows back
+        const shooting = { shots: 0, misses: 0, wounded: false, embedded: 0, recovered: 0, broke: false };
         const custom = {
             setup(ctx) {
                 const me = _me();
@@ -474,7 +503,7 @@ export const WildTaskRunner = {
                     if (ctx.boltT <= 0) {
                         ctx.phase = 'stalk';
                         ctx.home = { q: b.q, r: b.r };
-                        ctx.st = { alert: 0.3, pace: 0 };
+                        ctx.st = { alert: Math.max(0.3, Math.min(0.6, ctx.st.alert)), pace: 0 };
                     }
                     return;
                 }
@@ -484,7 +513,7 @@ export const WildTaskRunner = {
                 if (ctx.st.bolt) {
                     ctx.bolts++;
                     if (ctx.bolts > _num(c.bolts, 1)) {
-                        outcome = { result: 'fled', animal: ctx.animal };
+                        outcome = { result: 'fled', animal: ctx.animal, wounded: shooting.wounded, shots: shooting.shots, recovered: shooting.recovered, broke: shooting.broke };
                         ctx.note(fmt(c.gone, { name }));
                         b.hidden = true;
                         if (ctx.animal && ctx.animal.temporary) InnerMap.removeAnimal(ctx.animal);
@@ -499,10 +528,62 @@ export const WildTaskRunner = {
                 }
                 ctx.wander(b, dt, 2.5, ctx.home, 3);
             },
+            /** Loose an arrow (player/huntingBow.js): kill, wound (it runs: shoot again) or miss (it bolts). */
             _shoot(ctx) {
-                const d = Rules.dist(ctx.beast, _me());
-                outcome = { result: 'shot', accuracy: Rules.shotAccuracy(d, ctx.st.alert, ctx.rng()), dist: d, animal: ctx.animal };
-                ctx.done = ctx.total;
+                const me = _me();
+                const d = Rules.dist(ctx.beast, me);
+                const sp = (ctx.animal && ctx.animal.species) || species || name;
+                const r = HuntingBow.loose(player, { dist: d, alert: ctx.st.alert, species: sp, wounded: shooting.wounded, embedded: shooting.embedded });
+                if (!r.ok) { ctx.note(r.reason); return; }
+                shooting.shots++;
+                if (r.levelUp) ctx.note(`${r.levelUp.icon || '🏹'} ${r.levelUp.name || 'Archery'}: ${r.levelUp.text || 'improved'}`);
+                if (r.broke) { shooting.broke = true; ctx.note(HuntingBow.say('broke', { bow: HuntingBow.weaponLabel(r.weapon) }, B)); }
+                else if (r.worn) ctx.note(HuntingBow.say('worn', { bow: HuntingBow.weaponLabel(r.weapon) }, B));
+                const base = { dist: d, animal: ctx.animal, shots: shooting.shots, broke: shooting.broke };
+                if (r.killed) {
+                    shooting.recovered += r.recovered;
+                    ctx.note(fmt(B.words.hit, { name }));
+                    if (r.recovered) ctx.note(fmt(B.words.recovered, { n: r.recovered }));
+                    outcome = { ...base, result: 'shot', hit: true, killed: true, accuracy: 100, recovered: shooting.recovered };
+                    ctx.done = ctx.total;
+                    ctx.finish();
+                    return;
+                }
+                if (r.wounded) {
+                    shooting.wounded = true;
+                    shooting.embedded++;
+                    ctx.note(fmt(B.words.wounded, { name }));
+                    this._spook(ctx, _num(B.woundedBolt, 0.7), 0.5);
+                } else {
+                    shooting.misses++;
+                    if (r.missArrow && _dropArrow(ctx.beast, me, B.ammo)) ctx.note(B.words.arrowLies);
+                    if (r.fumble) shooting.fumble = r.fumble;
+                    if (shooting.misses >= _num(B.missesBeforeGone, 2) && !r.secondArrow) {
+                        ctx.note(fmt(shooting.wounded ? B.words.escaped : B.words.gone, { name }));
+                        this._lose(ctx, shooting.wounded ? 'fled' : 'missed');
+                        return;
+                    }
+                    if (r.secondArrow) ctx.note(fmt(B.words.secondArrow, { name }));
+                    else { ctx.note(fmt(B.words.miss, { name })); this._spook(ctx, 1, 0.3); }
+                }
+                // Nothing left to shoot with: the hunt is over
+                if (!HuntingBow.gear(player, B).ok) {
+                    if (!r.broke) ctx.note(B.words.outOfArrows);
+                    this._lose(ctx, shooting.wounded ? 'fled' : 'missed');
+                }
+            },
+            /** The beast runs from the shot (a wounded one less far) and stops, warier. */
+            _spook(ctx, mult, alertAfter) {
+                ctx.phase = 'bolting';
+                ctx.boltT = _num(c.boltSeconds, 3) * mult;
+                ctx.st = { alert: Math.max(ctx.st.alert, alertAfter), pace: 0 };
+            },
+            /** The hunt ends without a kill: the beast makes off. */
+            _lose(ctx, result) {
+                outcome = { result, animal: ctx.animal, wounded: shooting.wounded, shots: shooting.shots, recovered: shooting.recovered, broke: shooting.broke, fumble: shooting.fumble || null };
+                if (ctx.beast) ctx.beast.hidden = true;
+                if (ctx.animal && ctx.animal.temporary) InnerMap.removeAnimal(ctx.animal);
+                if (ctx.beast) ctx.beast.animal = null;
                 ctx.finish();
             },
             buttons(ctx) {
@@ -521,13 +602,13 @@ export const WildTaskRunner = {
             status(ctx) {
                 if (ctx.phase === 'track') return `${ctx.done}/${ctx.total}`;
                 const states = c.states || ['Calm', 'Wary', 'Alarmed'];
-                return fmt(c.status, { name, state: states[Rules.alertLevel(ctx.st.alert)], dist: ctx.beast ? Rules.dist(ctx.beast, _me()) : '?' });
+                return fmt(c.status, { name, state: states[Rules.alertLevel(ctx.st.alert)], dist: ctx.beast ? Rules.dist(ctx.beast, _me()) : '?', arrows: HuntingBow.arrows(player, B) });
             },
         };
         return this.run(game, {
             title: `${c.title} — ${name}`, icon: c.icon, say: fmt(c.say, { name }), plan: { parHours: c.parHours }, custom,
-            onComplete: () => onDone(outcome || { result: 'fled', animal: beast || target }),
-            onAbandon: () => onDone({ result: 'abandoned', animal: beast || target }),
+            onComplete: () => onDone(outcome || { result: 'fled', animal: beast || target, wounded: shooting.wounded, shots: shooting.shots, recovered: shooting.recovered, broke: shooting.broke }),
+            onAbandon: () => onDone({ result: 'abandoned', animal: beast || target, wounded: shooting.wounded, shots: shooting.shots, recovered: shooting.recovered, broke: shooting.broke }),
         }, () => { if (target && InnerMap.releaseAnimal) InnerMap.releaseAnimal(target); onDone(null); });
     },
 

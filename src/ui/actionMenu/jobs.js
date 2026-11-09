@@ -5,7 +5,7 @@ import { InnerMap, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, U
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
-import { CombatSkills } from '../../systems/combatSkills.js';
+import { HuntingBow } from '../../player/huntingBow.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
@@ -883,6 +883,8 @@ Object.assign(ActionMenu, {
         }
 
         const player = game.player;
+        // Game is shot at range: no bow or no arrows, no hunt (snares and traps need neither)
+        if (!_huntGearOk(game, player)) return;
         const combatSkill = player.skills?.combat || 1;
         const strStat = player.strength || 5;
         const luckStat = player.luck || 5;
@@ -893,8 +895,8 @@ Object.assign(ActionMenu, {
         WildTaskRunner.choose(game, {
             title: '🏹 Hunting',
             icon: '🏹',
-            description: 'Track and hunt wild game in this area.',
-            baseText: '1 quarry (its usual yield)',
+            description: `Track and hunt wild game in this area. ${_gearLine(player)}`,
+            baseText: 'A few arrows at a quarry: its usual yield if one strikes home',
             onQuick: quick,
             onGo: () => {
                 // Pick a prey animal from the loot table (luck favours the rare beasts)
@@ -908,8 +910,8 @@ Object.assign(ActionMenu, {
 
     /**
      * Hunt in person on the inner map (ui/mapTasks/wildTasks.js): follow the
-     * sign, creep up on the beast and loose. The shot's accuracy meets
-     * Hunting.hitThreshold exactly as the old strike did.
+     * sign, creep up on the beast and loose: each shot is judged by
+     * the bow (player/huntingBow.js: every arrow loosed, hit, wound or miss).
      */
     _doHuntMinigame(game, tile, player, combatSkill, strStat, luckStat, lootTable, prey, preyName, preyIcon) {
         const category = (ActionMenu._getForageData().terrain_mapping || {})[tile.terrain.id] || tile.terrain.id;
@@ -923,7 +925,7 @@ Object.assign(ActionMenu, {
     /**
      * Hunt a deer you can see (the inner map's context menu, ui/innerMapAnimals.js):
      * no trail to follow — creep up on that very animal and loose, judged by
-     * the same rules (Hunting.hitThreshold); a kill lies where it fell, to be
+     * the same bow rules (player/huntingBow.js); a kill lies where it fell, to be
      * butchered by hand for its own loot (data/animals.json species.loot, the
      * hunting table's entries), and leaves its herd one the less
      * (InnerMap.killAnimal → world.wildlife).
@@ -931,6 +933,7 @@ Object.assign(ActionMenu, {
     huntAnimal(game, animal) {
         const player = game.player;
         if (!player || !animal) return;
+        if (!_huntGearOk(game, player)) return;
         const sp = InnerMap.animalSpecies(animal.species) || {};
         const tables = ActionMenu._getHuntData().loot_table || {};
         const lootTable = WildRules.animalLoot(sp, tables);
@@ -1396,13 +1399,57 @@ function _forageResult(game, found, trip) {
     game.ui.showCustomPanel('🌿 Foraging', html);
 }
 
-/** The quick hunt: one quarry (player/foraging.js → Hunting). Takes the day. */
+/** Can the player shoot (a bow and arrows: player/huntingBow.js)? Says plainly what is missing when not. */
+function _huntGearOk(game, player) {
+    const g = HuntingBow.gear(player);
+    if (g.ok) return true;
+    if (game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification('🏹 Hunting', g.reason, 'warning');
+    return false;
+}
+
+/** "With your fine bow (82% sound) and 14 arrows." */
+function _gearLine(player) {
+    const w = HuntingBow.weapon(player);
+    if (!w) return '';
+    return `With your ${HuntingBow.weaponLabel(w)} (${HuntingBow.condition(player, w)}% sound) and ${HuntingBow.arrows(player)} arrows.`;
+}
+
+/** What the bow did on a quick hunt (broke, Archery level-ups) as notifications. */
+function _bowNotes(game, r) {
+    const ui = game && game.ui;
+    if (!ui || typeof ui.showNotification !== 'function' || !r) return;
+    for (const ev of r.levelUps || []) if (ev) ui.showNotification(`${ev.icon} ${ev.name} Improved`, ev.text, 'success');
+    if (r.broke) ui.showNotification('🏹 Broken Bow', HuntingBow.say('broke', { bow: 'bow' }), 'warning');
+}
+
+/** The quick hunt: a few arrows at one quarry (player/huntingBow.js), its yield on a kill (player/foraging.js → Hunting). Takes the day. */
 function _huntQuick(game, player, lootTable) {
-    const res = Hunting.quickHunt(player, lootTable);
+    const prey = Hunting.pickPrey(lootTable, player) || lootTable[0];
+    const shots = HuntingBow.quickShots(player, prey);
+    if (!shots.ok) {
+        game.ui.showNotification('🏹 Hunting', shots.reason, 'warning');
+        return;
+    }
+    _bowNotes(game, shots);
+    const arrowsLine = `${shots.shots} arrow${shots.shots === 1 ? '' : 's'} loosed${shots.recovered ? `, ${shots.recovered} recovered` : ''}.`;
+    if (shots.fumble) {
+        player.health = Math.max(1, (player.health || 1) - shots.fumble.damage);
+        game.ui.showNotification('🤕 Hunting Mishap', `The string slipped and lashed your arm. -${shots.fumble.damage} HP`, 'warning');
+    }
+    if (!shots.killed) {
+        Hunting.finishTrip(player, []); // a day in the field is still experience
+        const name = String(prey.name || 'quarry').toLowerCase();
+        game.ui.showNotification('🏹 Hunting', `${shots.wounded ? `You wounded the ${name}, but it got away.` : `The ${name} got away.`} ${arrowsLine}`, 'info');
+        game.ui.hideCustomPanel();
+        game.ui.updateStats(player, game.world);
+        game.endDay();
+        return;
+    }
+    const res = Hunting.quickHunt(player, lootTable, prey);
     const entry = res.entry;
     const label = `${entry.icon || '🥩'} ${entry.name || entry.item} x${res.qty}`;
     if (res.added) {
-        game.ui.showNotification('🏹 Hunting', `Quick hunt — took ${label}.`, 'success');
+        game.ui.showNotification('🏹 Hunting', `Quick hunt — took ${label}. ${arrowsLine}`, 'success');
     } else {
         game.ui.showNotification('🏹 Hunting', `You took ${label} but had no room to carry it. ${res.reason}`, 'warning');
     }
@@ -1424,95 +1471,68 @@ function _huntAnimalAfter(game, out, kind) {
     if (!a) return;
     if (kind === 'success') { InnerMap.killAnimal(game.world, a); return; }
     const me = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
-    const provoked = out.result === 'shot' ? 'shot' : out.result === 'fled' ? 'near' : null;
+    const provoked = (out.result === 'shot' || out.result === 'missed' || out.wounded) ? 'shot' : out.result === 'fled' ? 'near' : null;
     InnerMap.releaseAnimal(a, out.result === 'abandoned' ? null : me, { provoked });
 }
 
 /**
- * The bow in your hands (systems/combatSkills.js Archery): your aim added to
- * the shot; a near miss within your Steady still strikes; a miss may be
- * followed by a second arrow (the gap half closed). Archery XP for the shot,
- * more if it struck; a level-up announced. → { accuracy, secondArrow }
- */
-function _archeryShot(game, player, accuracy) {
-    if (!CombatSkills.has('archery')) return { accuracy };
-    const need = Hunting.hitThreshold(player);
-    // Archery's aim and Hunting's don't stack: the better governs (Hunting.bowAim)
-    let acc = Math.min(100, Number(accuracy || 0) + Hunting.bowAim(player, CombatSkills.perk(player, 'archery', 'aim')));
-    const steady = CombatSkills.perk(player, 'archery', 'steady');
-    if (acc < need && steady > 0 && acc >= need - steady) acc = need;
-    let second = false;
-    if (acc < need) {
-        const ch = CombatSkills.chance(player, 'archery', 'secondArrow');
-        if (ch > 0 && Utils.random() < ch) {
-            second = true;
-            acc = Math.round(acc + (need - acc) / 2 + Utils.random() * 25);
-        }
-    }
-    const hit = acc >= need;
-    const xp = CombatSkills.xpFor('archery', 'shot', second ? 2 : 1) + (hit ? CombatSkills.xpFor('archery', 'hit') : 0);
-    const ev = CombatSkills.train(player, 'archery', xp);
-    const ui = game && game.ui;
-    if (ui && typeof ui.showNotification === 'function') {
-        if (second) ui.showNotification('🏹 Second Arrow', hit ? 'The first went wide; you nock again and the second flies true.' : 'You nock and loose again, but the second goes wide too.', hit ? 'success' : 'info');
-        if (ev) ui.showNotification(`${ev.icon} ${ev.name} Improved`, ev.text, 'success');
-    }
-    return { accuracy: acc, secondArrow: second };
-}
-
-/**
- * How a hunt ended. out: { result: 'shot', accuracy, animal? } | { result: 'fled' |
- * 'abandoned' }. A shot is judged against Hunting.hitThreshold as before. A
- * hit on a beast on the map leaves its carcass to butcher by hand (no loot
- * now, and the day goes on); a hit on a quarry with no body on the map banks
- * Hunting.strikeLoot. A wild miss may injure. Continue ends the day.
+ * How a hunt ended (the arrows were loosed on the map: player/huntingBow.js).
+ * out: { result: 'shot' (the kill), animal?, shots, recovered } | { result:
+ * 'missed', shots, fumble? } | { result: 'fled', wounded? } | { result:
+ * 'abandoned' }. A kill of a beast on the map leaves its carcass to butcher
+ * by hand (no loot now, and the day goes on); a kill of a quarry with no
+ * body on the map banks Hunting.strikeLoot. A slip on a miss may injure.
+ * Continue ends the day.
  */
 function _huntOutcome(game, player, lootTable, out, p) {
     let kind = 'fled';
     let statusMsg = '';
     let totalLoot = [];
     let totalValue = 0;
-    if (out && out.result === 'shot') out = { ...out, ..._archeryShot(game, player, out.accuracy) };
-    if (out.result === 'shot' && out.animal && out.accuracy >= Hunting.hitThreshold(player)) {
+    out = out || { result: 'fled' };
+    const arrowsLine = out.shots ? ` ${out.shots} arrow${out.shots === 1 ? '' : 's'} loosed${out.recovered ? `, ${out.recovered} pulled back whole` : ''}.` : '';
+    if (out.result === 'shot' && out.animal) {
         // The beast falls where it stood: butcher it, or carry it off (ui/innerMapAnimals.js)
         if (player.skills && Utils.random() < 0.25) player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
         const words = (InnerMap.animalConfig ? InnerMap.animalConfig().words : null) || {};
-        const line = String(words.huntKill || 'The {name} is down. Butcher it where it lies, or carry it off.').replace('{name}', p.preyName);
+        const line = String(words.huntKill || 'The {name} is down. Butcher it where it lies, or carry it off.').replace('{name}', p.preyName) + arrowsLine;
         if (game.ui && typeof game.ui.showNotification === 'function') game.ui.showNotification(`${p.preyIcon || '🏹'} A Clean Kill`, line, 'success');
         if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(player, game.world);
         return 'success';
     }
     if (out.result === 'shot') {
-        const accuracy = out.accuracy;
-        if (accuracy >= Hunting.hitThreshold(player)) {
-            const trip = Hunting.finishTrip(player, Hunting.strikeLoot(lootTable, player));
-            totalLoot = trip.kept.map(f => ({ ...f.entry, foundQty: f.qty }));
-            totalValue = trip.value;
-            if (trip.lost.length) statusMsg += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')} — left behind.`;
-            if (trip.rankUp) statusMsg += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
-            if (player.skills && Utils.random() < 0.25) {
-                player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
-                statusMsg += ' Combat skill improved!';
-            }
-            kind = 'success';
-        } else if (accuracy < 15 && Utils.random() < 0.2) {
-            const dmg = Math.floor(Utils.random() * 12) + 5;
-            player.health = Math.max(1, player.health - dmg);
-            kind = 'injured';
-            statusMsg = `Your arrow ricocheted! -${dmg} HP`;
-            const wound = Ailments.maybeWound(player, game.world, 'hunt');
-            if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
-            Hunting.finishTrip(player, []); // a hard lesson is still experience
-        } else {
-            kind = 'missed';
-            statusMsg = `Your arrow flew wide. The ${p.preyName} fled.`;
-            Hunting.finishTrip(player, []);
+        const trip = Hunting.finishTrip(player, Hunting.strikeLoot(lootTable, player));
+        totalLoot = trip.kept.map(f => ({ ...f.entry, foundQty: f.qty }));
+        totalValue = trip.value;
+        if (trip.lost.length) statusMsg += ` No room for ${trip.lost.map(f => `${f.entry.name} x${f.qty}`).join(', ')} — left behind.`;
+        if (trip.rankUp) statusMsg += ` Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}.`;
+        if (player.skills && Utils.random() < 0.25) {
+            player.skills.combat = Math.min(10, (player.skills.combat || 1) + 0.1);
+            statusMsg += ' Combat skill improved!';
         }
+        statusMsg += arrowsLine;
+        kind = 'success';
+    } else if (out.result === 'missed' && out.fumble) {
+        const dmg = out.fumble.damage;
+        player.health = Math.max(1, player.health - dmg);
+        kind = 'injured';
+        statusMsg = `The string slipped and lashed your arm! -${dmg} HP.${arrowsLine}`;
+        const wound = Ailments.maybeWound(player, game.world, 'hunt');
+        if (wound) statusMsg += ` ${wound.icon} ${wound.name}.`;
+        Hunting.finishTrip(player, []); // a hard lesson is still experience
+    } else if (out.result === 'missed') {
+        kind = 'missed';
+        statusMsg = `Your arrows flew wide. The ${p.preyName} fled.${arrowsLine}`;
+        Hunting.finishTrip(player, []);
     } else if (out.result === 'abandoned') {
-        statusMsg = 'You gave up the hunt and headed back.';
+        statusMsg = `You gave up the hunt and headed back.${arrowsLine}`;
+    } else if (out.wounded) {
+        statusMsg = `The wounded ${p.preyName} got away into the ${p.category}.${arrowsLine}`;
+        Hunting.finishTrip(player, []);
     } else {
-        statusMsg = `The ${p.preyName} got wind of you and bolted into the ${p.category}!`;
+        statusMsg = `The ${p.preyName} got wind of you and bolted into the ${p.category}!${arrowsLine}`;
     }
+    if (out.broke) statusMsg += ' Your bow broke.';
 
     let html = '<div style="max-width: 500px; text-align: center;">';
     if (kind === 'success') {

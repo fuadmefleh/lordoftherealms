@@ -70,7 +70,10 @@
         "chainmail": { "perCapita": 0.00002, "days": 90, "spoil": 0.0, "cap": 3, "minType": "city" },
         "silver_jewellery": { "perCapita": 0.00002, "days": 90, "spoil": 0.0, "cap": 3, "minType": "city" },
         "resin":    { "perCapita": 0.0001, "days": 40, "spoil": 0.0, "cap": 4 },
-        "tallow":   { "perCapita": 0.0002, "days": 30, "spoil": 0.002, "cap": 4 }
+        "tallow":   { "perCapita": 0.0002, "days": 30, "spoil": 0.002, "cap": 4 },
+        "bow":      { "perCapita": 0.00006, "days": 60, "spoil": 0.0, "cap": 3 },
+        "arrows":   { "perCapita": 0.0015, "days": 30, "spoil": 0.0, "cap": 4 },
+        "fishing_spear": { "perCapita": 0.00005, "days": 60, "spoil": 0.0, "cap": 3 }
     },
     "noNeedRef": 0.25,
     "_terrain": "Terrain classes of the seven hexes a settlement stands on and beside: their shares drive what the land yields.",
@@ -151,7 +154,10 @@
         "chainmail": { "base": 0.6 },
         "silver_jewellery": { "base": 0.8 },
         "resin": { "base": 0.3, "forest": 1.5 },
-        "tallow": { "base": 0.6, "pasture": 0.5 }
+        "tallow": { "base": 0.6, "pasture": 0.5 },
+        "bow": { "base": 0.6, "forest": 0.8 },
+        "arrows": { "base": 0.7, "forest": 0.6 },
+        "fishing_spear": { "base": 0.4, "water": 1.2 }
     },
     "resourceScale": 0.35,
     "itemGoods": {
@@ -163,6 +169,7 @@
     "extraResources": { "salt": { "salt": 3 } },
     "craftScale": 0.04,
     "propertySpill": { "radius": 3, "share": 0.25 },
+    "_hunting2026_11": "Bows, arrows and fishing spears (player/huntingBow.js, player/diving.js): made by the townsfolk at home (supply base; more by the woods for bows and arrows, by the water for spears), so a market keeps a few on the stalls for hunters and fishers to buy.",
     "_recipes2026_11": "Crafts added with the quality grades (data/craftGrades.json): the sawyer (wood to planks), joiner (planks to joinery), cobbler (leather to boots), butcher (meat and salt to sausages), steelworks (iron and coal to steel) and mailer (steel to chainmail). Their goods and the other new stall goods (candles, soap, rope, pottery, glassware, cloaks, mead, cider, parchment, ink, books, silver jewellery) are mostly made by the townsfolk at home (supply base), so towns hold them near their target and trade the rest.",
     "_recipes": "Local industry (grain → flour at the mill → bread at the bakery: a trade short of an input an earlier trade makes has that trade grind for it with its spare runs), run when the output is below its target and the inputs are in store: per 1000 people a day at most `cap` runs, each turning `in` into `out` (units). minType: smallest settlement with the trade. fill: the trade works ahead of need while its inputs are in glut, up to fill x the output's target when the inputs stand at twice theirs (brewers brew the harvest's cheap grain: the after-harvest beer that lifts the mood).",
     "recipes": [

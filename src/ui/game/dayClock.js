@@ -27,6 +27,8 @@ const DEFAULTS = { hoursPerAP: 1.5, wakeHour: 8 };
 export const DayClock = {
     _seenAP: null,
     _seenDay: null,
+    /** Points the hour has taken today (not spent): the top bar's dark pips (ui/apChip.js). */
+    lostToday: 0,
 
     config() {
         const d = (DataLoader._gamedata && DataLoader._gamedata.innerMap && DataLoader._gamedata.innerMap.dayClock) || {};
@@ -61,6 +63,7 @@ export const DayClock = {
         const day = world.day;
         if (this._seenDay !== day || this._seenAP == null || p.actionPoints > this._seenAP) {
             // a new day, a fresh start, or points given back: nothing spent
+            if (this._seenDay !== day) this.lostToday = 0;
             this._seenDay = day;
             this._seenAP = p.actionPoints;
         } else if (p.actionPoints < this._seenAP) {
@@ -70,6 +73,7 @@ export const DayClock = {
         }
         const cap = this.pointsTimeAllows();
         if (p.actionPoints > cap) {
+            this.lostToday += p.actionPoints - cap;
             p.actionPoints = cap;
             this._seenAP = cap;
             if (game.ui && game.ui.updateStats && !this._capRefresh) {
@@ -86,5 +90,6 @@ export const DayClock = {
         InnerMap._timeAccumulator = 0;
         InnerMap.dayEnded = false;
         this._seenAP = null;
+        this.lostToday = 0;
     },
 };

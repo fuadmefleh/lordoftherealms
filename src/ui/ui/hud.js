@@ -12,6 +12,7 @@ import { updateFirstStepsCard } from '../firstStepsCard.js';
 import { uiZoom } from '../uiScale.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { updatePrestigeChip } from '../prestigeChip.js';
+import { updateAPChip } from '../apChip.js';
 import { Calendar } from '../../systems/calendar.js';
 
 Object.assign(UI.prototype, {
@@ -340,6 +341,8 @@ Object.assign(UI.prototype, {
 
     updateStats(player, world) {
         this._markDaySpent(player);
+        // The day's action points beside the clock (ui/apChip.js; the game loop keeps it live too)
+        updateAPChip(player);
         // Character traits gained or lost since the last refresh
         for (const n of Traits.drainNotices(player)) {
             this.showNotification(n.title, n.text, n.kind === 'gained' ? 'success' : 'warning');

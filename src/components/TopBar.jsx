@@ -210,6 +210,13 @@ export default function TopBar() {
         <span id="gameTitle">Lord of the Realms</span>
         {/* The date: opens the Calendar (bound in ui/ui/hud.js; text kept by HUD._topBarDate) */}
         <button type="button" id="turnDisplay" title="Open the Calendar">Day {turn.day} — {turn.season}, Year {turn.year}</button>
+        {/* The day's action points, a plaque hung under the clock: count, pips, why in the
+            tooltip (filled imperatively by ui/apChip.js updateAPChip, from the game loop) */}
+        <span className="tb-ap" id="tbAP" role="status" style={{display:'none'}}>
+          <span className="tb-ap-icon" aria-hidden="true">⚡</span>
+          <span className="tb-ap-val" id="tbAPVal"></span>
+          <span className="tb-ap-pips" id="tbAPPips" aria-hidden="true"></span>
+        </span>
       </div>
 
       <div id="topBarRight">

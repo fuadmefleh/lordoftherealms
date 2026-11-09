@@ -1,0 +1,86 @@
+{
+  "cross_wood": {
+    "w": 76,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "board_wood": {
+    "w": 73,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "headstone_plain": {
+    "w": 81,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "headstone_round": {
+    "w": 82,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "headstone_carved": {
+    "w": 84,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "headstone_old": {
+    "w": 92,
+    "h": 110,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "headstone_broken": {
+    "w": 110,
+    "h": 89,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "grave_mound": {
+    "w": 167,
+    "h": 110,
+    "tilesW": 2,
+    "tilesH": 1
+  },
+  "grave_open": {
+    "w": 188,
+    "h": 110,
+    "tilesW": 2,
+    "tilesH": 1
+  },
+  "tomb": {
+    "w": 169,
+    "h": 110,
+    "tilesW": 2,
+    "tilesH": 1
+  },
+  "crypt": {
+    "w": 248,
+    "h": 330,
+    "tilesW": 3,
+    "tilesH": 3
+  },
+  "grave_fence": {
+    "w": 128,
+    "h": 88,
+    "tilesW": 1,
+    "tilesH": 1
+  },
+  "ossuary": {
+    "w": 220,
+    "h": 165,
+    "tilesW": 2,
+    "tilesH": 2
+  },
+  "bone_mill": {
+    "w": 330,
+    "h": 295,
+    "tilesW": 3,
+    "tilesH": 3
+  }
+}

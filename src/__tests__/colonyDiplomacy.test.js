@@ -44,8 +44,9 @@ describe('colony policy', () => {
         Economy.produceDaily(plain, tile, world, {}, {});
         Utils.setSeed(5);
         Economy.produceDaily(exploited, tile, world, {}, { production: 0.3 });
-        expect(plain.economy.gold).toBeGreaterThan(0);
-        expect(exploited.economy.gold).toBeGreaterThan(plain.economy.gold);
+        // (production gold is the crown's assessment, not coin minted: 2026-11)
+        expect(plain.economy.production.gold).toBeGreaterThan(0);
+        expect(exploited.economy.production.gold).toBeGreaterThan(plain.economy.production.gold);
     });
 
     it('loyalty drifts by the colony policy, not the kingdom policy', () => {

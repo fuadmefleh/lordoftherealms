@@ -146,6 +146,24 @@ export const CrownBooks = {
         return a;
     },
 
+    /**
+     * The crown's coin spent in its realm reaches someone: the shipwrights,
+     * masons, mercenary captains and grain dealers paid live in the realm's
+     * capital, so `amount` goes into the capital's purse (settlement.economy.gold).
+     * Call it beside the treasury's own deduction. → the gold paid in (0 when
+     * the realm holds no capital town with a purse).
+     */
+    spendAtCapital(world, kingdom, amount) {
+        const a = _num(amount);
+        if (!(a > 0) || !kingdom || !world || typeof world.getTile !== 'function') return 0;
+        const cap = kingdom.capital;
+        const t = cap ? world.getTile(cap.q, cap.r) : null;
+        const s = t && t.settlement;
+        if (!s || !s.economy || !Number.isFinite(s.economy.gold)) return 0;
+        s.economy.gold = _r2(s.economy.gold + a);
+        return a;
+    },
+
     /** Today's books so far, or yesterday's closed ones. */
     lines(kingdom, which = 'last') {
         const f = kingdom && _obj(kingdom.fisc);

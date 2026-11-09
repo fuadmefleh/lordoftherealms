@@ -835,6 +835,7 @@ export const Transport = {
             if (cost > 0 && Transport._canPay(live, cost)) {
                 live.treasury = _num(live.treasury) - cost;
                 CrownBooks.note(live, 'works', cost);
+                CrownBooks.spendAtCapital(world, live, cost);
                 st.stats.upkeep = _r2(_num(st.stats.upkeep) + cost);
                 const ks = String(live.id);
                 st.realms[ks] = _r2(_num(st.realms[ks]) + cost);

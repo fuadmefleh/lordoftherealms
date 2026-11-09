@@ -177,11 +177,13 @@ describe('rents, values and the tenants', () => {
         const e = giveEstate(g, s);
         s.economy.gold = 100000;
         const rec = Estates.town(w, s.q, s.r);
-        const gold0 = g.player.gold, town0 = s.economy.gold;
+        const holders = () => Object.values((w.estates && w.estates.holders) || {}).reduce((n, h) => n + ((h && h.purse) || 0), 0);
+        const gold0 = g.player.gold, town0 = s.economy.gold, held0 = holders();
         LandMarket._townMonth(w, g.player, rec, w.day, { notices: [] });
         const got = g.player.gold - gold0;
         expect(got).toBeGreaterThan(0);
-        expect(town0 - s.economy.gold).toBe(got);
+        // The town pays the player's rent and (since 2026-11) its other landlords' too, all out of its coin
+        expect(town0 - s.economy.gold).toBeCloseTo(got + holders() - held0, 1);
         expect(Ledger.today(g.player).income.estateRents).toBe(got);
         // ...and never more than the crop's worth: a month's rent is a share of its gross
         const gross = Estates.output(w, e, s).gross * 30;

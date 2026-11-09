@@ -23,6 +23,7 @@
 // so the daily world simulation's random stream is unchanged.
 
 import { Utils } from '../core/utils.js';
+import { CrownBooks } from './crownBooks.js';
 import { KingdomBonuses } from './kingdomState.js';
 
 /** Tuning; overridden from data/cartography.json → kingdomAtlas. */
@@ -211,6 +212,7 @@ export const KingdomAtlas = {
             if ((kingdom.treasury || 0) >= CONFIG.hireTreasury) {
                 c.cartographerHired = true;
                 kingdom.treasury -= CONFIG.hireCost;
+                CrownBooks.spendAtCapital(world, kingdom, CONFIG.hireCost);
                 if (world && Array.isArray(world.events)) {
                     world.events.push({ text: `🧭 ${kingdom.name} appoints a royal cartographer.`, type: 'cartography', category: 'POLITICAL' });
                 }
@@ -222,6 +224,7 @@ export const KingdomAtlas = {
             return null;
         }
         kingdom.treasury -= CONFIG.upkeep;
+        CrownBooks.spendAtCapital(world, kingdom, CONFIG.upkeep);
         const day = (world && world.day) || 0;
         if ((day + hashId(kingdom.id)) % KingdomAtlas.drawInterval(kingdom) !== 0) return null;
         return KingdomAtlas.drawMap(kingdom, world);

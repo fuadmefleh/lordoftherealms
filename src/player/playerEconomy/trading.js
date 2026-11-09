@@ -298,9 +298,13 @@ export const Trading = {
         // The crown's markup on a monopoly good is owed to the royal treasury
         // (swept in by Kingship.syncCrownMonopolies)
         const mono = settlement && settlement.monopolies && settlement.monopolies[good.id];
+        let crownCut = 0;
         if (mono && mono.holder === 'crown' && mono.markup > 0) {
-            mono.revenue = (mono.revenue || 0) + totalCost * mono.markup / (1 + mono.markup);
+            crownCut = totalCost * mono.markup / (1 + mono.markup);
+            mono.revenue = (mono.revenue || 0) + crownCut;
         }
+        // The rest is the town's: its stallholders' takings go into its purse
+        if (settlement) Economy.payTown(settlement, totalCost - crownCut);
 
         // Add to player inventory (at the grade bought)
         PlayerInventory.addItem(player, good.id, quantity);
@@ -327,6 +331,44 @@ export const Trading = {
         PriceKnowledge.recordBuy(player, settlement, good.id, quantity, totalCost);
 
         return { success: true, spent: totalCost, grade: gradeId };
+    },
+
+    /** The guild's toll inside a sale's price (what Guilds.onSale books to the guildhall). */
+    _guildToll(player, settlement, goodId, earned) {
+        if (!settlement || !settlement.guilds || !(earned > 0)) return 0;
+        const f = Guilds.saleFactor(player, settlement, goodId);
+        return f > 0 && f < 1 ? Math.round(earned * (1 - f) / f) : 0;
+    },
+
+    /**
+     * What a sale costs the town's purse: the price paid to the player, plus
+     * the crown's duty and the guild's toll taken inside it.
+     */
+    saleOutlay(player, settlement, goodId, earned, policy = null) {
+        if (!(earned > 0)) return 0;
+        const rate = policy && policy.held > 0 && policy.rate > 0 && settlement && settlement.kingdom != null ? policy.rate : 0;
+        const duty = rate > 0 ? Math.round(earned * rate / Math.max(0.1, 1 - rate)) : 0;
+        return earned + duty + Trading._guildToll(player, settlement, goodId, earned);
+    },
+
+    /**
+     * How many of `qty` units the town's purse can pay for (whole units, by the
+     * same price curve the sale walks) — `qty` when it keeps no purse.
+     */
+    affordableSale(player, goodId, qty, settlement, world = null) {
+        const purse = Economy.townPurse(settlement);
+        const n = Math.max(0, Math.floor(qty));
+        if (purse == null || n === 0) return n;
+        const good = Object.values(PlayerEconomy.GOODS).find(g => g.id === goodId);
+        if (!good) return n;
+        const cost = (k) => Trading.saleOutlay(player, settlement, goodId, Math.floor(Trading.saleUnitPrice(player, good, settlement, world, 1, k) * k));
+        if (cost(n) <= purse) return n;
+        let lo = 0, hi = n;
+        while (lo < hi) {
+            const mid = Math.ceil((lo + hi) / 2);
+            if (cost(mid) <= purse) lo = mid; else hi = mid - 1;
+        }
+        return lo;
     },
 
     /**
@@ -372,6 +414,13 @@ export const Trading = {
         // (core/grades.js; a sale that names no grade sells the Common units first)
         const qualityMult = Crafting.saleMult(player, goodId, quantity, grade);
         const totalEarned = Math.floor(Trading.saleUnitPrice(player, good, settlement, world, legality.priceMult * policy.mult, quantity) * quantity * qualityMult);
+        // The town pays out of its purse: the price, and the crown's duty and the
+        // guild's toll inside it. A town without the coin can't buy
+        const outlay = Trading.saleOutlay(player, settlement, goodId, totalEarned, policy);
+        const purse = Economy.townPurse(settlement);
+        if (purse != null && outlay > purse) {
+            return { success: false, reason: `The merchants of ${settlement.name || 'this town'} have only ${Math.floor(purse)} gold to spend.`, townPurse: Math.floor(purse) };
+        }
         const duty = TradePolicy.onSale(player, world, settlement, goodId, quantity, totalEarned, policy);
 
         const drawn = Grades.take(player, goodId, quantity, grade ? { grade } : { order: 'sale' }).drawn;
@@ -384,6 +433,7 @@ export const Trading = {
         }
         player.inventory[goodId] -= quantity;
         player.gold += totalEarned;
+        if (settlement) Economy.drawTown(settlement, totalEarned + duty.duty + Trading._guildToll(player, settlement, goodId, totalEarned));
         Quests.track(player, 'trade_profit', totalEarned);
 
         // The goods join the town's store (the price falls); the guild takes its toll

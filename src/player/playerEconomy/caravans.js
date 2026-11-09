@@ -514,6 +514,17 @@ Object.assign(PlayerEconomy, {
                         finalProfit = kept;
                     }
                     if (duties) for (const [, qty, check] of duties.checks) TradePolicy.breachHeat(player, world, qty, check);
+                    // The destination's merchants pay out of the town's purse (the duty too):
+                    // a town without the coin pays what it holds, and owes the rest to no one
+                    {
+                        const purse = Economy.townPurse(destTown);
+                        if (purse != null) {
+                            const pay = Math.max(0, Math.min(finalProfit, Math.floor(purse - duty)));
+                            Economy.drawTown(destTown, pay + Math.min(duty, Math.max(0, purse)));
+                            if (pay < finalProfit) caravan.unpaid = finalProfit - pay;
+                            finalProfit = pay;
+                        }
+                    }
                     player.gold += finalProfit;
                     if (finalProfit > 0) Quests.track(player, 'trade_profit', finalProfit);
                     completed.push({

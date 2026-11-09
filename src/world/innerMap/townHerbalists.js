@@ -169,8 +169,7 @@ Object.assign(InnerMap, {
         const ref = this._currentWorldTileRef;
         const settlement = ref && ref.settlement;
         if (c.good === 'berries') { TownProps.storeHarvest(settlement, 'berries', c.qty); return true; }
-        const econ = settlement && settlement.economy;
-        if (econ) econ.goods = (Number(econ.goods) || 0) + c.qty * (Number(C.goodsPer[c.good]) || 0);
+        this._yardToMarket(settlement, c.good, c.qty, C.goodsPer[c.good]);
         return true;
     },
 });

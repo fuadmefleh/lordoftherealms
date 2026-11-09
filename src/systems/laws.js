@@ -15,6 +15,7 @@
 // ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 const DEFAULTS = {
     changeCost: { treasury: 150, stability: 2 },
@@ -168,6 +169,7 @@ export const Laws = {
         k.laws[lawId] = optionId;
         k.laws.changed[lawId] = day;
         k.treasury = _num(k.treasury) - can.cost;
+        CrownBooks.spendAtCapital(world, k, can.cost);
         k.stability = Math.max(0, Math.min(100, _num(k.stability, 50) - can.stability));
         if (!Array.isArray(k.laws.history)) k.laws.history = [];
         k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId });

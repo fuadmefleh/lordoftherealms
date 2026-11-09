@@ -4,6 +4,7 @@
  * does; the rock is gone, and they carry the stone to the town's mason or yard, into
  * its goods; a few rocks a day at most.
  */
+import { SettlementMarket } from '../world/settlementMarket.js';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 
 let InnerMap, DataLoader, Utils, CustomObjects, TownProps, PracticeSkills, Townsfolk;
@@ -72,11 +73,15 @@ describe('town miners', () => {
         expect(InnerMap._chopEvents.some(e => e.kind === 'broken')).toBe(true);
         expect(npc._carry).toMatchObject({ good: 'stone' });
         expect(InnerMap._townRocksToday()).toBe(1);
+        // (the stone goes on the town's market stalls, where the prices see it: 2026-11)
         const econ = { goods: 0, food: 3 };
-        InnerMap._currentWorldTileRef = { settlement: { economy: econ } };
+        const town = { type: 'town', population: 1000, economy: econ };
+        SettlementMarket.ensure(town);
+        const stone0 = SettlementMarket.stock(town, 'stone');
+        InnerMap._currentWorldTileRef = { settlement: town };
         InnerMap._townDelivered(npc, { type: 'warehouse', q: 5, r: 4 });
         expect(npc._carry).toBeNull();
-        expect(econ.goods).toBeCloseTo(8 * InnerMap.townMineConfig().goodsPerStone);
+        expect(SettlementMarket.stock(town, 'stone')).toBeCloseTo(stone0 + 8, 2);
         expect(econ.food).toBe(3);
     });
 

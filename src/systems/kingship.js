@@ -1442,15 +1442,22 @@ export const Kingship = {
             want = Math.min(want, _num(D.maxPerTown) || 60);
             if (!(want > 0)) continue;
             const afford = Math.floor(_num(k.treasury) / price);
-            const grain = Math.max(0, Math.min(want, afford));
-            if (want > afford) res.short = true;
+            // The grain is real: bought from the grain dealers of the realm's capital,
+            // what they hold past a fifth of their own town's stores
+            const capT = k.capital && world && world.getTile ? world.getTile(k.capital.q, k.capital.r) : null;
+            const capS = capT && capT.settlement && capT.settlement.market ? capT.settlement : null;
+            const spare = capS ? Math.floor(Math.max(0, SettlementMarket.stock(capS, 'grain') - SettlementMarket.target(capS, 'grain') * 0.2)) : want;
+            const grain = Math.max(0, Math.min(want, afford, spare));
+            if (want > Math.min(afford, spare)) res.short = true;
             if (grain > 0) {
                 const cost = Math.ceil(grain * price);
                 k.treasury = _num(k.treasury) - cost;
                 CrownBooks.note(k, 'dole', cost);
+                CrownBooks.spendAtCapital(world, k, cost);
+                if (capS) SettlementMarket.take(capS, 'grain', grain);
+                // ...and handed out to the hungry, into the town's stores (once: it is
+                // not also put on the market's stalls, as it was before 2026-11)
                 s.economy.food = _num(s.economy.food) + grain;
-                // The dole's grain reaches the market too, easing a dearth
-                SettlementMarket.add(s, 'grain', grain);
                 res.grain += grain;
                 res.gold += cost;
             }
@@ -1510,6 +1517,7 @@ export const Kingship = {
             if (_num(k.treasury) >= cost) {
                 k.treasury -= cost;
                 CrownBooks.note(k, 'court', cost);
+                CrownBooks.spendAtCapital(world, k, cost);
             } else {
                 Kingship.revokeEdict(player, world, id, { lapse: true });
                 Kingship._note(out, def.icon, 'Edict Lapses', `The royal treasury cannot pay for ${def.label}; it lapses.`, 'warning');

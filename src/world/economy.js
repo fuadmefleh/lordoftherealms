@@ -10,6 +10,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { Coinage } from './coinage.js';
 import { Harvests } from './harvests.js';
+import { CrownBooks } from './crownBooks.js';
 
 export const Economy = {
     /**
@@ -416,6 +417,42 @@ export const Economy = {
         return best;
     },
 
+    // ── The town's purse (settlement.economy.gold) ─────────
+
+    /** Coin in a town's purse, or null when it keeps no purse (no economy record). */
+    townPurse(settlement) {
+        const e = settlement && settlement.economy;
+        return e && Number.isFinite(e.gold) ? Math.max(0, e.gold) : null;
+    },
+
+    /**
+     * Pay `amount` into a town's purse (the player or an outsider buying its
+     * goods or services). → what was paid (0 without a town).
+     */
+    payTown(settlement, amount) {
+        const g = Number(amount);
+        if (!settlement || typeof settlement !== 'object' || !(g > 0)) return 0;
+        if (!settlement.economy) Economy.initSettlement(settlement);
+        settlement.economy.gold = Math.round(((Number(settlement.economy.gold) || 0) + g) * 100) / 100;
+        return g;
+    },
+
+    /**
+     * Draw up to `amount` out of a town's purse (the town paying wages, a
+     * reward, the price of goods it buys). → what it could pay. A town that
+     * keeps no purse (a bare record without an economy) pays in full, so old
+     * call sites and test towns keep working.
+     */
+    drawTown(settlement, amount) {
+        const g = Number(amount);
+        if (!(g > 0)) return 0;
+        const have = Economy.townPurse(settlement);
+        if (have == null) return g;
+        const paid = Math.min(have, g);
+        settlement.economy.gold = Math.round((settlement.economy.gold - paid) * 100) / 100;
+        return paid;
+    },
+
     /**
      * Initialize economy data for a settlement
      */
@@ -432,7 +469,8 @@ export const Economy = {
             const rates = Economy.PRODUCTION_RATES[settlement.type] || Economy.PRODUCTION_RATES.village;
             const popMod = 1 + ((Number(settlement.population) || 0) / 10000) * 0.5;
             settlement.economy = {
-                gold: fresh ? 0 : Math.round(rates.baseGold * popMod * Economy.START_GOLD_DAYS),
+                gold: fresh ? 0 : Math.round(rates.baseGold * popMod * Economy.START_GOLD_DAYS
+                    + Math.max(0, Number(settlement.population) || 0) * Math.max(0, Number(Economy.TOWN_PURSE.perHead) || 0)),
                 food: fresh ? 0 : Math.round(Math.max(0, Number(settlement.population) || 0) * F.perCapita * F.startDays),
                 goods: 0,
                 production: { gold: 0, food: 0, goods: 0 },
@@ -589,11 +627,22 @@ export const Economy = {
      */
     START_GOLD_DAYS: 20,             // an established town's coffers at the start: this many days' base takings
 
+    /**
+     * The towns' purses (data/economy.json townPurse). A town's coin is real:
+     * it comes in when others buy its goods (NPC trade, the player, a
+     * caravan), when the crown pays its soldiers and clerks, and when the mint
+     * buys its ore; it goes out on what it buys and its taxes.
+     *   perHead         coin an established town starts with, per head (on top
+     *                   of START_GOLD_DAYS of its base takings)
+     *   productionCoin  share of the day's production gold (an assessment the
+     *                   crown taxes) also credited as coin — 0: none is minted
+     */
+    TOWN_PURSE: { perHead: 2, productionCoin: 0 },
+
     FOOD: {
         perCapita: 0.1,                // food eaten per person per day
         selfSufficiency: { village: 1.0, town: 0.92, city: 0.82, capital: 0.75 },
         capacity: { village: 1500, town: 5000, city: 15000, capital: 30000 },
-        importPrice: 0.5,              // gold per unit of food bought in
         maxGrowth: 0.0003,             // per day, before the capacity taper
         starvation: 0.003,             // daily loss at a 100% shortfall
         stockDays: 10,                 // granary holds this many days' needs
@@ -612,12 +661,17 @@ export const Economy = {
         const needed = pop * F.perCapita * Math.max(0, 1 + (mods.consumption || 0));
         let available = econ.food + pop * F.perCapita * F.selfSufficiency[type];
 
-        // Short? Buy food in with the settlement's own gold
-        if (available < needed && econ.gold > 0) {
-            const buy = Math.min(needed - available, Math.floor(econ.gold / F.importPrice));
+        // Short? The people buy the rest at the town's market — as far as the
+        // market fed them (SettlementMarket: the food it sold against its
+        // people's need, a moving average). The market already took that food
+        // out of its stalls and the coin stays in town, so nothing is made or
+        // lost here; a market in dearth leaves the town hungry
+        if (available < needed) {
+            const live = mods.live || settlement;
+            const cover = SettlementMarket.foodCover(live);
+            const buy = (needed - available) * cover;
             if (buy > 0) {
-                econ.gold -= Math.ceil(buy * F.importPrice);
-                econ.foodImported = (econ.foodImported || 0) + buy;
+                econ.foodImported = Math.round(((econ.foodImported || 0) + buy) * 100) / 100;
                 available += buy;
             }
         }
@@ -668,7 +722,13 @@ export const Economy = {
         const workshops = Economy.holdingFx(settlement, 'goods');
         if (workshops) prod.goods = Math.round(prod.goods * (1 + workshops));
 
-        settlement.economy.gold += prod.gold;
+        // Production gold is what the crown assesses (KingdomAI.updateEconomy →
+        // economy.fyProd), not coin: the goods themselves reach the market, and
+        // the coin comes when someone buys them (TOWN_PURSE.productionCoin)
+        // (with the crown's books switched off, data/fiscal.json enabled: false, the old
+        // model stands: the treasury lives on the towns' growing purses, so production mints)
+        const coinShare = CrownBooks.enabled() ? Math.max(0, Math.min(1, Number(Economy.TOWN_PURSE.productionCoin) || 0)) : 1;
+        if (coinShare > 0) settlement.economy.gold += prod.gold * coinShare;
         // The agricultural year: little comes to market at planting time and
         // in winter, a glut at harvest (yearly mean 1 — world/seasons.js); the
         // year's harvest sets how big (world/harvests.js: 1 in a normal year)
@@ -760,7 +820,7 @@ export const Economy = {
     },
 
     /**
-     * Credit a settlement's trade income: its share of the margin on the
+     * A settlement's assessed trade income: its share of the margin on the
      * goods NPC traders moved through it (world/settlementMarket.js flows,
      * banked in economy.tradeIncome), worked harder by mercantile peoples
      * and by gems, spices and the like nearby. Routes (createTradeRoute)
@@ -780,7 +840,10 @@ export const Economy = {
         if (tradeMult !== 1 && totalProfit > 0) totalProfit = Math.round(totalProfit * tradeMult);
         totalProfit = Math.round(totalProfit);
 
-        settlement.economy.gold += totalProfit;
+        // No coin is made here: the goods were paid for in coin as they moved
+        // (world/settlementMarket.js flows, the importer's purse to the
+        // exporter's). This is the merchants' margin as the crown assesses it,
+        // the excise's base (KingdomAI.updateEconomy → economy.fyTrade)
         return totalProfit;
     },
 

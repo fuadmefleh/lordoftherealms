@@ -53,6 +53,7 @@ import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { WorldUnit } from '../world/units.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { OutlawLairs } from './outlawLairs.js';
 import { Underworld } from './underworld.js';
@@ -413,7 +414,7 @@ export const MerchantCaravans = {
         let spawned = 0;
         for (const l of links) {
             if (!l || !l.embody) continue;
-            for (const [arr, from, to, gold] of [[l.cargoAB, l.a, l.b, l.goldAB], [l.cargoBA, l.b, l.a, l.goldBA]]) {
+            for (const [arr, from, to, gold, owed] of [[l.cargoAB, l.a, l.b, l.goldAB, l.payAB], [l.cargoBA, l.b, l.a, l.goldBA, l.payBA]]) {
                 if (!arr) continue;
                 const margin = Math.max(0, _num(gold));
                 let value = 0;
@@ -428,13 +429,14 @@ export const MerchantCaravans = {
                     ? MerchantCaravans.route(world, from, to, !!l.sea) : null;
                 if (!route) {
                     for (const [id, q] of Object.entries(cargo)) SettlementMarket.add(to, id, q);
+                    MerchantCaravans._settle(to, from, owed);
                     MerchantCaravans.state(world).stats.landedAtOnce++;
                     MerchantCaravans._credit(from, margin / 2);
                     MerchantCaravans._credit(to, margin / 2);
                     continue;
                 }
                 const unit = MerchantCaravans._spawn(world, l, from, to, cargo, value, route, bases, day, player);
-                if (unit) unit.margin = _round2(margin);
+                if (unit) { unit.margin = _round2(margin); unit.due = _round2(Math.max(0, _num(owed))); }
                 active++;
                 spawned++;
             }
@@ -443,8 +445,27 @@ export const MerchantCaravans = {
             l.cargoBA = null;
             l.goldAB = 0;
             l.goldBA = 0;
+            l.payAB = 0;
+            l.payBA = 0;
         }
         return spawned;
+    },
+
+    /**
+     * The importing town pays for a delivered lot: up to `due` gold (what the
+     * goods cost between the two markets, world/settlementMarket.js flows)
+     * from its purse into the exporting town's. → gold paid.
+     */
+    _settle(to, from, due) {
+        const owed = Math.max(0, _num(due));
+        if (!(owed > 0) || !to || !to.economy || !Number.isFinite(to.economy.gold)) return 0;
+        const paid = Math.min(owed, Math.max(0, to.economy.gold));
+        to.economy.gold = _round2(to.economy.gold - paid);
+        if (from && from.economy && Number.isFinite(from.economy.gold)) {
+            from.economy.gold = _round2(from.economy.gold + paid);
+            from.economy.fySales = _round2(_num(from.economy.fySales) + paid);
+        }
+        return paid;
     },
 
     /** Bank trade income (economy.tradeIncome, paid out by Economy.processTrade) in a town. */
@@ -498,7 +519,13 @@ export const MerchantCaravans = {
             ];
         }
         const guards = Math.min(_num(D.maxGuards, 26), Math.round(_num(D.guards, 4) + value * _num(D.perValue, 0.012)));
-        const purse = Math.max(_num(C.purse.min, 25), Math.round(value * _num(C.purse.share, 0.3)));
+        // The merchants' road money comes out of their home town's purse (it goes
+        // back there when they arrive; robbers keep what they take)
+        let purse = Math.max(_num(C.purse.min, 25), Math.round(value * _num(C.purse.share, 0.3)));
+        if (from.economy && Number.isFinite(from.economy.gold)) {
+            purse = Math.min(purse, Math.max(0, Math.floor(from.economy.gold)));
+            from.economy.gold = _round2(from.economy.gold - purse);
+        }
         const E = C.escort;
         const escortPay = Math.max(_num(E.min, 15), Math.min(_num(E.max, 300), Math.round(value * _num(E.share, 0.07))));
         // Is the way dangerous (an outlaw lair the player knows of near it)?
@@ -844,9 +871,16 @@ export const MerchantCaravans = {
     _arrive(world, player, st, u, out) {
         const t = world.getTile(u.targetQ, u.targetR);
         const s = t && t.settlement;
+        const ft0 = world.getTile(u.sourceQ, u.sourceR);
+        const home = ft0 && ft0.settlement;
         if (s) {
             for (const [id, q] of Object.entries(u.cargo || {})) SettlementMarket.add(s, id, q);
             st.stats.delivered++;
+            // The town pays for the goods; the merchants carry the coin (and their road money) home
+            MerchantCaravans._settle(s, home || null, u.due);
+        }
+        u.due = 0;
+        if (s) {
             // The trade's margin is earned on arrival, half to either town
             const m = Math.max(0, _num(u.margin));
             if (m > 0) {
@@ -860,7 +894,16 @@ export const MerchantCaravans = {
         u.margin = 0;
         if (u.escort && u.escort.by === 'player' && player) {
             const E = MerchantCaravans.config().escort;
-            const pay = Math.round(_num(u.escort.pay, u.escortPay));
+            let pay = Math.round(_num(u.escort.pay, u.escortPay));
+            // (out of the merchants' road money, the rest from their home town's purse)
+            const fromPurse = Math.min(pay, Math.max(0, Math.floor(_num(u.purse))));
+            u.purse = _num(u.purse) - fromPurse;
+            const rest = pay - fromPurse;
+            if (rest > 0 && home && home.economy && Number.isFinite(home.economy.gold)) {
+                const got = Math.min(rest, Math.max(0, Math.floor(home.economy.gold)));
+                home.economy.gold = _round2(home.economy.gold - got);
+                pay = fromPurse + got;
+            }
             player.gold = _num(player.gold) + pay;
             Ledger.record(player, 'escorts', pay);
             player.renown = _num(player.renown) + _num(E.renown, 1);
@@ -872,6 +915,12 @@ export const MerchantCaravans = {
             st.stats.escorts++;
             st.stats.escortPay += pay;
             out.notices.push({ icon: '💰', title: 'Escort Paid', text: `The ${u.name} reached ${u.toName} safe. ${(u.house && u.house.name) || 'The merchants'} paid you ${pay} gold.`, type: 'success' });
+        }
+        // The merchants' road money that is left goes home with them
+        if (_num(u.purse) > 0) {
+            const back = home || s;
+            if (back && back.economy && Number.isFinite(back.economy.gold)) back.economy.gold = _round2(back.economy.gold + _num(u.purse));
+            u.purse = 0;
         }
         u.cargo = {};
         u.inventory = {};
@@ -997,6 +1046,7 @@ export const MerchantCaravans = {
             const [lo, hi] = Array.isArray(P.strength) ? P.strength : [16, 30];
             const strength = Utils.randInt(_num(lo, 16), _num(hi, lo));
             k.treasury = _num(k.treasury) - _num(P.cost, 80);
+            CrownBooks.spendAtCapital(world, k, _num(P.cost, 80)); // (the wardens' pay)
             st.seq++;
             const unit = Object.assign(Object.create(WorldUnit.prototype), {
                 type: 'road_patrol', id: `wardens_${st.seq}`,

@@ -339,6 +339,7 @@ export const KingdomAI = {
             // Never spend more than a third of the treasury on stone and bells
             if ((kingdom.treasury || 0) < def.cost * 3) continue;
             kingdom.treasury -= def.cost;
+            CrownBooks.spendAtCapital(world, kingdom, def.cost); // (the masons are paid)
             const town = towns.length ? towns[temples.length % towns.length] : null;
             const temple = { type, day: KingdomAI._day(world), at: town ? town.settlement.name : null };
             temples.push(temple);

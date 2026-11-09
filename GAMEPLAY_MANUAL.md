@@ -651,7 +651,7 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 
 **Market day.** Each market takes its turn **every 4 days**. Markets are staggered by place, so a few towns hold market every day, and each one works four days at once. On its day a town:
 
-- **Produces.** Food comes from the land around it. Farmland grows grain (fertility by terrain, a river helps), the waters give fish, and pastures give meat. Villages grow about twice what they eat, towns a little more than their own needs, and cities and capitals about their own. The food follows the agricultural year (much of the harvest comes in autumn), so grain is cheap after the harvest and dear before the next. Droughts and blights cut it. Forests give wood and firewood, hills give stone, and pastures give wool, hides and horses. Map resources add their goods: iron, coal, gems, gold ore, spices, rock oil, salt, timber, hides and horses. Craftsmen add a share of cloth, clothes, tools and weapons. A player property within 3 hexes adds a quarter of its output. A holding's Workshop Quarter raises the town's goods, and storm or quake damage lowers them.
+- **Produces.** Food comes from the land around it. Farmland grows grain (fertility by terrain, a river helps), the waters give fish, and pastures give meat. Villages grow about twice what they eat, towns a little more than their own needs, and cities and capitals about their own. The food follows the agricultural year (much of the harvest comes in autumn), so grain is cheap after the harvest and dear before the next. Droughts and blights cut it. Forests give wood and firewood, hills give stone, and pastures give wool, hides and horses. Map resources add their goods: iron, coal, gems, gold ore, spices, rock oil, salt, timber, hides and horses. Craftsmen add a share of cloth, clothes, tools and weapons. Your properties' goods reach a market only when they are sold there: by hand, by caravan, or by a property's auto-sell. A holding's Workshop Quarter raises the town's goods, and storm or quake damage lowers them.
 - **Works up goods.** Wherever the output runs short, its trades turn goods into others:
   - Every settlement mills grain into flour, bakes it into bread, brews beer and burns charcoal.
   - Every settlement also tans hides into leather.
@@ -662,7 +662,27 @@ Every settlement keeps one store of goods: about thirty staples from grain, brea
 
 **Scarcity sets the price.** A good's scarcity is (stock ÷ (daily need × target days)) ^ −0.45. It is clamped between 0.6× (a glut) and 2.2× (a dearth). A good the town doesn't use is never dearer than its base. A town newly founded, or one from an older save, starts with its stores full and its prices at base.
 
-**NPC trade.** Merchants move goods along the kingdoms' **trade routes** and between near neighbours: up to 4 partners each, by land within the same region (up to 7 hexes) or port to port by sea (up to 14). A good travels from the town where it's cheap to the one where it's dear, as long as the price gap beats the haul. The haul costs 3.5% a hex, 40% less along a road and half by sea. Each link carries a few hundred gold of goods each market day. More routes and bigger towns carry more. Prices even out along busy roads. Each town keeps half of the value gap of what moved as **trade income**, which is what kingdom trade routes earn now (there is no flat payment per route). Goods that travel as a caravan or trading ship (below) earn their towns this income only **when they arrive**: a robbed cargo earns neither town anything, and a seized one earns the seizing realm's market. Peoples' commerce and gems, spices and the like nearby still raise it.
+**Demand follows the purse.** A town's need of every good it uses moves with the coin its people hold: (coin per head ÷ 2) ^ 0.25, between 0.8× and 1.5×. A town flush with coin buys more and eats more of its own harvest, so it sells less. A broke town goes without, and its prices fall.
+
+**The coin is real.** Every town keeps a purse: the coin its people hold. An established town starts with about 2 gold a head. Coin is never made out of nothing. It moves:
+
+| Into a town's purse | Out of it |
+|---|---|
+| Other towns buying its goods (NPC trade and caravans) | Buying other towns' goods |
+| You buying from its stalls, its services, your properties' wages and builders | Paying you for what you sell, your wages, bounties and quest rewards |
+| The crown's soldiers and clerks spending their pay; the crown's builders, shipwrights and grain dealers (in the capital) | The crown's taxes and its land tax on what the town sold |
+| The mint buying its ore | Its landlords' rents (the nobles spend them in the capital) |
+| Bankers spending their profits in their city | Merchants' road money and tolls |
+
+What follows for you:
+
+- **A town can only pay what it holds.** Selling a big lot to a village may be refused: "The merchants of Brindle have only 140 gold to spend." Sell less, or carry the goods to a richer town.
+- **Wages, bounties, busking and quest rewards** come from the town's purse. A broke town pays what it has. A quest's gold comes from the town where you took the quest.
+- **Your purchases** pay the town, so a town where you spend grows richer and buys more.
+
+Before 2026-11 the towns' production and both sides of every trade minted coin. Town purses grew without limit, to 10–12 million gold by the sixth year.
+
+**NPC trade.** Merchants move goods along the kingdoms' **trade routes** and between near neighbours: up to 4 partners each, by land within the same region (up to 7 hexes) or port to port by sea (up to 14). A good travels from the town where it's cheap to the one where it's dear, as long as the price gap beats the haul. The haul costs 3.5% a hex, 40% less along a road and half by sea. Each link carries a few hundred gold of goods each market day. More routes and bigger towns carry more. Prices even out along busy roads. **The importer pays.** The importing town pays the exporter a price halfway between the two markets, and the crown's duty on top. A town without the coin imports nothing. The exporter's takings are taxed (the land tax on sales). The merchants' margin, half the value gap of what moved, is the **trade income** the crown's excise assesses. It is not extra coin. Goods that travel as a caravan or trading ship (below) are paid for **when they arrive**: a robbed cargo costs the importer nothing and earns the exporter nothing.
 
 **Disruption.**
 
@@ -684,7 +704,7 @@ A raid that reaches a town burns half the share of its stores that it burns of t
 
 | Shortage | Effect |
 |---|---|
-| **Food** | Once a town goes without about a quarter of its food for weeks, it is in **dearth**. Its people eat harder into the granary (more consumption in the food model, so less growth and more hunger), and the crown sees it as hunger. Your famine dole ships it grain even outside the lean weeks, and the dole's grain reaches the market too. Tavern talk and townsfolk mention it. |
+| **Food** | Once a town goes without about a quarter of its food for weeks, it is in **dearth**. Its people eat harder into the granary (more consumption in the food model, so less growth and more hunger), and the crown sees it as hunger. Your famine dole ships it grain even outside the lean weeks. The dole's grain is bought from your capital's grain dealers, so it runs short when they do. A town buys the food it doesn't grow at its own market, so the people go hungry as far as the market fails them, however rich the town is. Tavern talk and townsfolk mention it. |
 | **Tools** | Up to a quarter of the town's goods and gold output is lost, and its trades slow down. |
 | **Fuel in cold weather** | Up to 6 happiness points are lost. |
 | **Plenty of beer, wine and fine things** | When every want is met and the stores run well past target, happiness rises by up to 2.5 points. Brewers brew ahead of need while grain is in glut, so beer runs past its target after the harvest: the mood lifts in about a quarter of town-days, mostly in autumn and winter. |
@@ -699,7 +719,7 @@ Some of that NPC trade travels the map as real units: 🐫 **caravans** on land,
 
 There are never more traders on the map than a quarter of the towns (at least 4, at most 24), and never two on the same link. A lot worth less than 50 gold at base price lands at once.
 
-Each trader belongs to a merchant house (one that deals in its main good). It has guards (4, plus more for a richer cargo) and a purse, and moves 3 hexes a day, or 4 along a road the whole way. A ship moves 6. The hex info shows its house, cargo, route and tolls.
+Each trader belongs to a merchant house (one that deals in its main good). It has guards (4, plus more for a richer cargo) and a purse of road money from its home town (it goes home again when the trader arrives, less any escort's pay), and moves 3 hexes a day, or 4 along a road the whole way. A ship moves 6. The hex info shows its house, cargo, route and tolls.
 
 **Dangers on the road.**
 
@@ -1178,10 +1198,10 @@ The crown's taxes follow the coin a little: a realm drained of coin collects up 
 
 ### The Crown's Purse: Taxes, Wages & Tax Farms
 
-Every crown keeps real books. Its gold is not conjured from its towns' prosperity: it is **taxed out of the towns' purses** (where their production and trade income lands), and its wages and upkeep **go back into them**. The treasury is what is left over.
+Every crown keeps real books. Its gold is not conjured from its towns' prosperity: it is **taxed out of the towns' purses** (the coin their people hold: see *Town Markets → The coin is real*), and its wages and upkeep **go back into them**. The treasury is what is left over. A town with an empty purse pays nothing, whatever it owes.
 
 **Revenue.** Each town's collectors come round once a week and take every day's dues since:
-- **Land tax**: a share of the peasants' earnings (more in a bumper year, less in a failed one) and of the town's production gold.
+- **Land tax**: a share of the peasants' earnings (more in a bumper year, less in a failed one) and of the town's production gold (an assessment of what it makes, not coin), half of the coin the town took for the goods it sold to other towns, and 1% a day of the coin it holds past 2 gold a head.
 - **Hearth tax**: so much for every working head. Clergy and nobles are exempt; merchants pay half as much again.
 - **Excise**: a share of the artisans' earnings and the merchants' trade income.
 - **The demesne**: the crown's own estates, a share of the land's gold (the capital's counts double), and the crown's monopolies.
@@ -1189,10 +1209,10 @@ Every crown keeps real books. Its gold is not conjured from its towns' prosperit
 - How much reaches the chests depends on the steward, the realm's stability, blockades, events and the coin about, less what **corrupt officials** keep.
 
 **Spending.**
-- **Army wages**: every soldier is paid daily, at 1.6× in the field, plus a bounty for each recruit.
-- **Court and administration**: a base, more per town and per head.
+- **Army wages**: every soldier is paid daily, at 1.6× in the field, plus a bounty for each recruit. The soldiers spend their pay where they are quartered: by people, weighted 3× in the capital, 2× in a city, 1.5× in a town and 0.4× in a village.
+- **Court and administration**: a base, more per town and per head. The clerks spend it in the capital.
 - **Roads and works**, **debt service**, the **famine dole and granaries**, and the **ruler's purse** (the royal levy).
-- Whatever else moves the treasury (events, tribute, temples, the fleet) shows as **Other**, so the books always balance.
+- Whatever else moves the treasury (events, tribute, temples, the fleet) shows as **Other**, so the books always balance. The crown's builders, shipwrights, wardens, cartographers and grain dealers are paid in the capital: the coin goes into its purse.
 
 **Arrears.** What the chests can't pay is owed. Soldiers unpaid for more than a week desert: the army the realm can keep shrinks by about 1% a day, to 60% at worst. Each unpaid day also costs stability, and after three weeks the heralds cry a mutiny. Unpaid clerks raise **corruption**, which leaks taxes and weighs on the people. Back pay is paid first when money returns, and deserters return within days.
 

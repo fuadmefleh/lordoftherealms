@@ -105,18 +105,24 @@ describe('settlement food model', () => {
         expect(v.population).toBeLessThan(Economy.FOOD.capacity.village);
     });
 
-    it('a solvent city buys in food and holds steady', () => {
-        const c = { type: 'city', population: 5000, _marketFood: 40 };
+    // (2026-11: a town buys the food it doesn't grow at its own market — what
+    // the market fed its people, SettlementMarket.foodCover — not from nowhere
+    // at a fixed price; its coin stays in town)
+    it('a city its market feeds buys in its food and holds steady', () => {
+        const c = { type: 'city', population: 5000, _marketFood: 40, market: { met: { food: 1 } } };
         Economy.initSettlement(c, { fresh: true }); // an empty granary: living on what it buys in
         c.economy.gold = 100000;
         feed(c, 365);
         expect(c.population).toBe(5000);
         expect(c.economy.foodImported).toBeGreaterThan(0);
-        expect(c.economy.gold).toBeLessThan(100000);
+        expect(c.economy.gold).toBe(100000);
     });
 
-    it('a broke city goes hungry and shrinks', () => {
-        const c = feed({ type: 'capital', population: 10000, _marketFood: 0 }, 100);
+    it('a city whose market is in dearth goes hungry and shrinks, however rich', () => {
+        const c = { type: 'capital', population: 10000, _marketFood: 0, market: { met: { food: 0 } } };
+        Economy.initSettlement(c);
+        c.economy.gold = 100000;
+        feed(c, 100);
         expect(c.population).toBeLessThan(10000);
         expect(c.population).toBeGreaterThan(9000); // gradual, not a collapse
     });

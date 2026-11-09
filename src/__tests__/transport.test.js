@@ -386,12 +386,13 @@ describe('public works: goods, labour, tolls', () => {
         expect(l.toll).toBeCloseTo(0.08, 6);
         expect(l.friction).toBeCloseTo(l.fr0 * Transport.tier('road').friction / 0.6 + 0.08, 6);
         l.val = 500;
-        g.A.economy.tradeIncome = 30; g.B.economy.tradeIncome = 30;
-        const money0 = player.gold + g.A.economy.tradeIncome + g.B.economy.tradeIncome + g.kingdom.treasury;
+        // (the merchants pay the toll out of the towns' purses: 2026-11)
+        g.A.economy.gold = 30; g.B.economy.gold = 30;
+        const money0 = player.gold + g.A.economy.gold + g.B.economy.gold + g.kingdom.treasury;
         PublicWorks.afterFlows(g.world, [l], player, 40);
         expect(player.gold).toBeCloseTo(40, 6);
         expect(Ledger.today(player).income.roadTolls).toBeCloseTo(40, 6);
-        const money1 = player.gold + g.A.economy.tradeIncome + g.B.economy.tradeIncome + g.kingdom.treasury;
+        const money1 = player.gold + g.A.economy.gold + g.B.economy.gold + g.kingdom.treasury;
         expect(money1).toBeCloseTo(money0, 6);
     });
 

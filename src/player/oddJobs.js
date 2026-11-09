@@ -32,6 +32,7 @@ import { TownLabour } from '../world/townLabour.js';
 import { Harvests } from '../world/harvests.js';
 import { Seasons } from '../world/seasons.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Economy } from '../world/economy.js';
 import { Ledger } from '../systems/ledger.js';
 import { TradeSkills } from '../systems/tradeSkills.js';
 import { Foraging, Hunting } from './foraging.js';
@@ -180,8 +181,14 @@ export const OddJobs = {
      */
     complete(player, world, settlement, job, scorePercent) {
         const factors = OddJobs.payFor(player, world, settlement, job, scorePercent);
+        // The town's employers pay out of its purse: a broke town pays what it can
+        const owed = factors.pay;
+        const can = Economy.townPurse(settlement);
+        factors.pay = can == null ? owed : Math.min(owed, Math.floor(can));
+        Economy.drawTown(settlement, factors.pay);
+        if (factors.pay < owed) factors.short = owed - factors.pay;
         player.gold = _num(player.gold) + factors.pay;
-        Ledger.record(player, 'jobs', factors.pay);
+        if (factors.pay > 0) Ledger.record(player, 'jobs', factors.pay);
         const renown = scorePercent >= 40 ? 1 : 0;
         player.renown = _num(player.renown) + renown;
         player.jobsCompleted = _num(player.jobsCompleted) + 1;
@@ -191,17 +198,39 @@ export const OddJobs = {
     },
 
     /**
+     * What a town can pay of `amount` (whole gold): its purse, or all of it
+     * when the place keeps no purse.
+     */
+    townCanPay(settlement, amount) {
+        const want = Math.max(0, Math.floor(_num(amount)));
+        const can = Economy.townPurse(settlement);
+        return can == null ? want : Math.min(want, Math.floor(can));
+    },
+
+    /**
+     * A town pays the player (a bounty, a busker's hat, a reward): out of its
+     * purse, as much as it holds. → the gold paid.
+     */
+    payFromTown(player, settlement, amount) {
+        const pay = OddJobs.townCanPay(settlement, amount);
+        if (!(pay > 0)) return 0;
+        Economy.drawTown(settlement, pay);
+        player.gold = _num(player.gold) + pay;
+        return pay;
+    },
+
+    /**
      * An instant notice (pests in the granary…): a roll of d10 under the
      * stat + 3. Success pays (Ledger 'bounties') and +2 renown; failure
      * costs 5–14 health. Returns { success, pay, damage, statVal }.
      */
-    resolveInstantBounty(player, bounty) {
+    resolveInstantBounty(player, bounty, settlement = null) {
         const stat = (bounty && bounty.stat) || 'combat';
         const statVal = OddJobs.statValue(player, stat);
         const success = Utils.random() * 10 < statVal + 3;
         if (success) {
-            const pay = Math.max(0, Math.floor(_num(bounty.actualPay)));
-            player.gold = _num(player.gold) + pay;
+            // (the town that posted the notice pays, out of its purse)
+            const pay = OddJobs.payFromTown(player, settlement, Math.max(0, Math.floor(_num(bounty.actualPay))));
             player.renown = _num(player.renown) + 2;
             Ledger.record(player, 'bounties', pay);
             OddJobs.gainXp(player, JOB_TRAINING[stat] || JOB_TRAINING.combat, 1);

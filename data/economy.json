@@ -5,6 +5,8 @@
         "town": { "baseGold": 15, "baseFood": 30, "baseGoods": 10 },
         "village": { "baseGold": 5, "baseFood": 15, "baseGoods": 3 }
     },
+    "_townPurse": "The towns' coin (settlement.economy.gold, world/economy.js TOWN_PURSE). It is real: it comes in when another town, the player or a caravan buys the town's goods, when the crown pays its soldiers and clerks, when the mint buys its ore; it goes out on what the town buys, its taxes and the wages it pays. perHead: coin an established town starts with per head (the realms' coin in circulation is seeded at the same rate, world/moneySupply.js). productionCoin: share of the day's production gold (the crown's tax assessment) also credited as coin; 0 mints none. Before 2026-11 production gold and both towns' trade margin (x6) were minted daily, and town purses grew without limit (10-12 million by year 6).",
+    "townPurse": { "perHead": 2, "productionCoin": 0 },
     "resourceBonuses": {
         "iron": { "goods": 1.3, "military": 1.2 },
         "gold_ore": { "gold": 1.5 },

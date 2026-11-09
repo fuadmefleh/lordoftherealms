@@ -49,8 +49,8 @@ function strip(opts = {}) {
         { id: 'k2', name: 'Eastreach', isAlive: true, wars: [], treasury: 1000 },
     ];
     const realmOf = (q) => (opts.oneRealm || q < 8 ? 'k1' : 'k2');
-    const a = { name: 'Glut', type: 'town', population: 2000, kingdom: 'k1', economy: { gold: 0 } };
-    const b = { name: 'Dearth', type: 'town', population: 2000, kingdom: realmOf(13), economy: { gold: 0 } };
+    const a = { name: 'Glut', type: 'town', population: 2000, kingdom: 'k1', economy: { gold: 20000 } };
+    const b = { name: 'Dearth', type: 'town', population: 2000, kingdom: realmOf(13), economy: { gold: 20000 } };
     SettlementMarket.ensure(a);
     SettlementMarket.ensure(b);
     a.market.stock.grain = SettlementMarket.target(a, 'grain') * 4;

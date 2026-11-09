@@ -5,6 +5,7 @@
 import { Utils } from '../core/utils.js';
 import { Technology } from './technology.js';
 import { KingdomCulture } from '../world/kingdomState.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 
 export const Culture = {
@@ -237,6 +238,7 @@ export const Culture = {
                 const evt = Utils.randPick(Culture.CULTURAL_EVENTS);
                 if (kingdom.treasury >= evt.cost) {
                     kingdom.treasury -= evt.cost;
+                    CrownBooks.spendAtCapital(world, kingdom, evt.cost);
                     cd.events.push({ ...evt, daysLeft: Utils.randInt(3, 7) });
                     world.events.push({
                         category: 'cultural',
@@ -313,6 +315,7 @@ export const Culture = {
         const type = Utils.randPick(options);
 
         kingdom.treasury = treasury - type.cost;
+        CrownBooks.spendAtCapital(world, kingdom, type.cost); // (the builders are paid)
         const days = type.constructionDays || 0;
         const building = {
             q: site.q,

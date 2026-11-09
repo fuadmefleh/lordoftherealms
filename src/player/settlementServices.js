@@ -11,6 +11,7 @@ import { Utils } from '../core/utils.js';
 import { PlayerEffects } from './playerEffects.js';
 import { Gossip } from '../systems/gossip.js';
 import { TradeSkills } from '../systems/tradeSkills.js';
+import { Economy } from '../world/economy.js';
 
 /** Price multiplier by settlement size — bigger towns charge more. */
 const SIZE_PRICE = { village: 0.85, town: 1.0, city: 1.15, capital: 1.3 };
@@ -27,8 +28,10 @@ function _priceFactor(settlement) {
     return (settlement && SIZE_PRICE[settlement.type]) || 1.0;
 }
 
-function _spend(player, amount, category) {
+/** The player pays for a service; the coin goes to the town that gave it (its purse), when there is one. */
+function _spend(player, amount, category, settlement = null) {
     player.gold -= amount;
+    if (settlement) Economy.payTown(settlement, amount);
     if (player.financeToday) {
         player.financeToday.expenses = player.financeToday.expenses || {};
         player.financeToday.expenses[category] = (player.financeToday.expenses[category] || 0) + amount;
@@ -77,7 +80,7 @@ export const SettlementServices = {
         }
         const cost = this.honeArmsCost(player, settlement);
         if (player.gold < cost) return { success: false, reason: `The smith wants ${cost} gold.` };
-        _spend(player, cost, 'smithing');
+        _spend(player, cost, 'smithing', settlement);
         const { days, smith } = this.honeArmsDays(settlement, world);
         _grantBlessing(player, cfg.key, days);
         return {
@@ -97,7 +100,7 @@ export const SettlementServices = {
         const cfg = SERVICE_CONFIG.blessing;
         const cost = this.blessingCost(settlement);
         if (player.gold < cost) return { success: false, reason: `The customary offering is ${cost} gold.` };
-        _spend(player, cost, 'offerings');
+        _spend(player, cost, 'offerings', settlement);
         _grantBlessing(player, cfg.key, cfg.days);
         player.karma = (player.karma || 0) + 1;
         return {
@@ -117,7 +120,7 @@ export const SettlementServices = {
         if (player.mount) return { success: false, reason: `You already ride ${player.mount.name}.` };
         const price = this.mountPrice(settlement);
         if (player.gold < price) return { success: false, reason: `A riding horse costs ${price} gold.` };
-        _spend(player, price, 'horses');
+        _spend(player, price, 'horses', settlement);
         player.mount = { name: this._horseName(), price, acquiredDay: day || 0 };
         return {
             success: true, cost: price,
@@ -204,7 +207,7 @@ export const SettlementServices = {
         }
         const fine = this.fineAmount(player, settlement) + bounty + (warrant ? SERVICE_CONFIG.fines.warrantFee : 0);
         if (player.gold < fine) return { success: false, reason: `Your fines and bounties come to ${fine} gold.` };
-        _spend(player, fine, 'fines');
+        _spend(player, fine, 'fines', settlement);
         player.criminalRecord = {};
         const kingdomId = settlement && settlement.kingdom;
         const bountiesCleared = kingdomId ? Gossip.settleWithKingdom(player, kingdomId) : 0;
@@ -234,7 +237,7 @@ export const SettlementServices = {
         player.reputation = player.reputation || {};
         const before = player.reputation[kingdomId] || 0;
         if (before >= cfg.maxReputation) return { success: false, reason: 'The crown already holds you in the highest regard.' };
-        _spend(player, amount, 'tribute');
+        _spend(player, amount, 'tribute', settlement); // (the town hall banks it; the crown's collectors take their share)
         const gain = PlayerEffects.scaleReputationGain(player, Math.max(1, Math.floor(amount / cfg.goldPerReputation)));
         player.reputation[kingdomId] = Math.min(cfg.maxReputation, before + gain);
         return {

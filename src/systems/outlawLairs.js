@@ -44,6 +44,7 @@
 // Content in data/outlawLairs.json.
 
 import { DataLoader } from '../core/dataLoader.js';
+import { CrownBooks } from '../world/crownBooks.js';
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
@@ -883,6 +884,7 @@ export const OutlawLairs = {
         if (!from) return;
         kingdom.military = _num(kingdom.military) - strength * menPer;
         kingdom.treasury = _num(kingdom.treasury) - _num(E.cost, 150);
+        CrownBooks.spendAtCapital(world, kingdom, _num(E.cost, 150));
         const unit = new WorldUnit('lair_expedition', from.q, from.r);
         unit.name = `${kingdom.name}'s Wardens`;
         unit.icon = '🛡️';

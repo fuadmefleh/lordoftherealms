@@ -398,6 +398,11 @@ export const MoneySupply = {
                 m.stock[g] = _r2(stock - take);
                 fine += take * per;
                 room -= take * per;
+                // The mint pays the town for its ore in the new coin (less the seigniorage):
+                // the struck coin enters circulation through the towns' purses
+                if (s.economy && Number.isFinite(s.economy.gold)) {
+                    s.economy.gold = _r2(s.economy.gold + take * per / purity * (1 - _num(pol.seigniorage)));
+                }
             }
         }
         const struck = fine > 0 ? _r2(fine / purity) : 0;

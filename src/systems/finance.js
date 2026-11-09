@@ -1100,8 +1100,23 @@ export const Finance = {
                 // Its yield is ploughed back until the house is capitalCapMult × its
                 // founding capital; past that its partners take the yield out (a
                 // bank compounding 7% a year for centuries ran to astronomical sums)
-                const cap = _num(bank.baseCapital, bank.capital) * _num(B.capitalCapMult, 6);
+                // (yieldUpTo: the merchants' lending is the house's own trade, abstract — it
+                // only rebuilds a house below that multiple of its founding capital)
+                const cap = _num(bank.baseCapital, bank.capital) * Math.min(_num(B.capitalCapMult, 6), _num(B.yieldUpTo, _num(B.capitalCapMult, 6)));
                 if (bank.capital < cap) bank.capital = _round2(Math.min(cap, bank.capital * (1 + _num(B.yield, 0.07) / yd)));
+                // The partners draw what the house holds past `payoutAbove` × its founding
+                // capital (the crown's interest, the tax farms' takings) and spend it in
+                // the bank's city: the coin goes back into circulation (2026-11)
+                const above = _num(B.payoutAbove, 0) > 0 ? bank.capital - _num(bank.baseCapital, bank.capital) * _num(B.payoutAbove) : 0;
+                if (above > 1 && _num(B.payoutRate) > 0 && world && typeof world.getTile === 'function') {
+                    const t = world.getTile(bank.q, bank.r);
+                    const town = t && t.settlement;
+                    if (town && town.economy && Number.isFinite(town.economy.gold)) {
+                        const out = _round2(above * _num(B.payoutRate));
+                        bank.capital = _round2(bank.capital - out);
+                        town.economy.gold = _round2(town.economy.gold + out);
+                    }
+                }
             }
             if (bank.status !== 'open') continue;
             if (bank.panic && _num(bank.panic.until) < day) Finance._endPanic(world, player, st, bank, out);

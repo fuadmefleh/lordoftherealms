@@ -241,6 +241,8 @@ describe('the ledger', () => {
         const res = Trading.buyGoods(player, entry, 10, towns[0]);
         expect(res.success).toBe(true);
         towns[2].market.stock.wool = 0.5; // a dearth of wool there
+        // (the buying towns pay out of their purses: give them the coin)
+        for (const t of [towns[1], towns[2]]) t.economy = { ...(t.economy || {}), gold: 100000 };
         const sale = Trading.sellGoods(player, 'wool', 10, towns[2], world);
         expect(sale.success).toBe(true);
         const p = PriceKnowledge.pnl(player);

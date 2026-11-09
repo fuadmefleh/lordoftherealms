@@ -22,6 +22,7 @@ beforeEach(() => {
     InnerMap.dayEnded = false;
     DayClock._seenAP = null;
     DayClock._seenDay = null;
+    DayClock.lostToday = 0;
 });
 
 describe('the day clock', () => {
@@ -53,6 +54,7 @@ describe('the day clock', () => {
         DayClock.sync(g);
         expect(DayClock.now()).toBe(14);
         expect(g.player.actionPoints).toBe(Math.floor(10 / DayClock.config().hoursPerAP));
+        expect(DayClock.lostToday).toBe(10 - g.player.actionPoints);   // (the top bar's dark pips)
         // and that cut isn't counted as points spent (the clock doesn't jump again)
         DayClock.sync(g);
         expect(DayClock.now()).toBe(14);
@@ -74,6 +76,7 @@ describe('the day clock', () => {
         DayClock.sync(g);
         expect(DayClock.now()).toBe(8);
         expect(g.player.actionPoints).toBe(10);
+        expect(DayClock.lostToday).toBe(0);
     });
 
     it('stands still while the day is being turned', () => {

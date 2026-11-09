@@ -46,11 +46,31 @@ SHEETS = {
     'chimney':  ('lpc/Structure/Roofing/Brick Chimney A.png', (6, 6)),
     'signs':    ('lpc/Structure/Signs/Sign Backgrounds A.png', (2, 2)),
     'awnings':  ('lpc/Structure/Windows/Window Awnings A.png', (9, 6)),
+    'emblems':  ('buildingKit/emblems.png', (5, 4)),
+    'door':     ('lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png', (28, 32)),
+    'arched':   ('lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png', (8, 12)),
+    'frame':    ('lpc/Structure/Doors/32x64px Doors/Doorframe A.png', (12, 6)),
+    'farm':     ('lpc/ThatchedHouses/tilesets/farming_fishing.png', (20, 20)),
+    'kitfurn':  ('buildingKit/furniture.png', (4, 8)),   # no repaint before: started from the original at 4x
 }
 
 # a source, and the sheet and cell rectangle each of its drawings fills, in reading order
 # (a third entry: more rectangles the same drawing fills, e.g. an animation's frames)
 RECIPES = {
+    # the interior furniture, 4 a row (innerMapRenderer.json interiorArt); its 32nd, a well, is skipped:
+    # that cell is the town well, drawn in 'farm'
+    'furniture': ('furniture_source.png', [('kitfurn', [i % 4, i // 4, 1, 1]) for i in range(31)] + [(None, None)]),
+    'emblems': ('emblems_source.png', [('emblems', [c, r, 1, 1]) for r in range(4) for c in range(5)]),
+    # oak, walnut, dark, red, blue, green, gold, navy panel doors; oak, dark, walnut, olive arched doors
+    'doors': ('doors_source.png', [('door', [c, r, 1, 2]) for c, r in
+                                   ((7, 1), (7, 9), (7, 29), (21, 1), (21, 5), (21, 9), (21, 13), (21, 29))]
+              + [('arched', [0, r, 2, 2]) for r in (1, 4, 7, 10)], 'stretch'),
+    # twelve frames, three down each of four columns, drawn a row at a time (their openings keyed out)
+    'frames': ('frames_source.png', [('frame', [3 * k, 2 * j, 3, 2]) for j in range(3) for k in range(4)], 'holes', 'stretch'),
+    'farm': ('farm_source.png', [
+        ('farm', [5, 3, 3, 5]), ('farm', [0, 0, 1, 2]), ('farm', [3, 0, 2, 2]), ('farm', [6, 0, 1, 2]),
+        ('farm', [3, 2, 2, 2]), ('farm', [1, 2, 1, 2])]
+        + [('farm', [c, 10, 1, 1]) for c in (8, 9, 10, 12, 13, 14)] + [('kitfurn', [3, 7, 1, 1])], 'holes'),
     # (an awning is used as the one cell 16px down from a cell's top: row 0.5 / 3.5)
     'parts': ('parts_source.png', [('chimney', [c, r, 1, 2]) for c in (1, 4) for r in (0, 2, 4)]
               + [('signs', [0, 0, 1, 1]), ('signs', [1, 0, 1, 1]), ('signs', [0, 1, 1, 1]), ('signs', [1, 1, 1, 1])]
@@ -110,36 +130,46 @@ def old_box(key, c, r, w, h):
     return xs.min() * 4, ys.min() * 4, (xs.max() + 1) * 4, (ys.max() + 1) * 4
 
 
-def fit(im, w, h, box):
+def fit(im, w, h, box, stretch=False):
     x0, y0, x1, y1 = box
-    s = min((x1 - x0) / im.width, (y1 - y0) / im.height)
-    t = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    if stretch:   # fill the box exactly (a door in its doorway)
+        t = im.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+    else:
+        s = min((x1 - x0) / im.width, (y1 - y0) / im.height)
+        t = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
     block = Image.new('RGBA', (w * C, h * C), (0, 0, 0, 0))
     block.alpha_composite(t, ((x0 + x1 - t.width) // 2, y1 - t.height))
     return block
 
 
 def build(name):
-    source, items = RECIPES[name]
-    objs = objects(key_white(Image.open(os.path.join(NEW, source))))
+    source, items, *opts = RECIPES[name]
+    objs = objects(key_white(Image.open(os.path.join(NEW, source)), holes='holes' in opts))
     if len(objs) != len(items):
         raise SystemExit(f'{name}: found {len(objs)} drawings, want {len(items)}')
     sheets = {}
     clear = Image.new('RGBA', (C, C), (0, 0, 0, 0))
     flat = []
     for im, item in zip(objs, items):
+        if item[0] is None:
+            continue
         for rect in [item[1]] + (item[2] if len(item) > 2 else []):
             flat.append((im, item[0], rect))
     for im, key, (c, r, w, h) in flat:
         if key not in sheets:
             path, (cols, rows) = SHEETS[key]
-            sheets[key] = Image.open(os.path.join('assets/modern', path)).convert('RGBA')
+            mod = os.path.join('assets/modern', path)
+            if not os.path.exists(mod):   # no repaint yet: the original at 4x, cell for cell
+                o = Image.open(os.path.join('assets', path)).convert('RGBA')
+                os.makedirs(os.path.dirname(mod), exist_ok=True)
+                o.resize((o.width * 4, o.height * 4), Image.NEAREST).save(mod)
+            sheets[key] = Image.open(mod).convert('RGBA')
             assert sheets[key].size == (cols * C, rows * C), (key, sheets[key].size)
         sheet = sheets[key]
         for y in range(h):
             for x in range(w):
                 sheet.paste(clear, (int((c + x) * C), int((r + y) * C)))
-        sheet.alpha_composite(fit(im, w, h, old_box(key, c, r, w, h)), (int(c * C), int(r * C)))
+        sheet.alpha_composite(fit(im, w, h, old_box(key, c, r, w, h), 'stretch' in opts), (int(c * C), int(r * C)))
     for key, sheet in sheets.items():
         out = os.path.join('assets/modern', SHEETS[key][0])
         sheet.save(out)

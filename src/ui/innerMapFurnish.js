@@ -22,6 +22,7 @@ import { InnerMapRenderer } from './innerMapRenderer.js';
 import { FurnitureCatalogue } from '../world/furnitureCatalogue.js';
 import { Furnishing } from '../systems/furnishing.js';
 import { furnitureGlyph, drawGlyph } from './icons.js';
+import { sheetScale } from './sheetScale.js';
 
 const PANEL_ID = 'furnishPanel';
 
@@ -326,7 +327,8 @@ export const InnerMapFurnish = {
                 const x = Math.floor(s.x), y = Math.floor(s.y);
                 ctx.globalAlpha = 0.65;
                 if (img) {
-                    ctx.drawImage(img, art.sx, art.sy, 32, 32, x, y, ds, ds);
+                    const k = sheetScale(img);
+                    ctx.drawImage(img, art.sx * k, art.sy * k, 32 * k, 32 * k, x, y, ds, ds);
                 } else {
                     const g = furnitureGlyph(v);
                     if (g) drawGlyph(ctx, g, x + ds / 2, y + ds / 2, ds * 0.6, '#f0e0b0');

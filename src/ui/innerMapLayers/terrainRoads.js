@@ -419,7 +419,8 @@ Object.assign(InnerMapRenderer, {
         const furnImg = furnArt ? pick(furnArt) : null;
         if (furnArt && !furnImg) return false; // wait for the sheet rather than flash a box
 
-        ctx.drawImage(base.img, base.c.sx, base.c.sy, 32, 32, dx, dy, sz, sz);
+        const kb = this._sheetScale(base.img);
+        ctx.drawImage(base.img, base.c.sx * kb, base.c.sy * kb, 32 * kb, 32 * kb, dx, dy, sz, sz);
         if (isWall) {
             // The back wall shows its face; the side and front walls are seen from above
             if (tile.r !== 0) {
@@ -433,7 +434,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (tile._isDoor) {
             const door = pick(art.door);
-            if (door) ctx.drawImage(door.img, door.c.sx, door.c.sy, 32, 32, dx, dy, sz, sz);
+            if (door) { const kd = this._sheetScale(door.img); ctx.drawImage(door.img, door.c.sx * kd, door.c.sy * kd, 32 * kd, 32 * kd, dx, dy, sz, sz); }
             return true;
         }
         if (furnImg) {
@@ -441,7 +442,8 @@ Object.assign(InnerMapRenderer, {
             ctx.beginPath();
             ctx.ellipse(dx + sz / 2, dy + sz * 0.9, sz * 0.38, sz * 0.09, 0, 0, Math.PI * 2);
             ctx.fill();
-            ctx.drawImage(furnImg.img, furnImg.c.sx, furnImg.c.sy, 32, 32, dx, dy, sz, sz);
+            const kf = this._sheetScale(furnImg.img);
+            ctx.drawImage(furnImg.img, furnImg.c.sx * kf, furnImg.c.sy * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
         } else if (furniture) {
             // A piece with no sprite yet: its glyph cut into a dark plate
             const pad = sz * 0.14;
@@ -496,7 +498,8 @@ Object.assign(InnerMapRenderer, {
             const fa = this._interiorArt.furniture[furniture.type];
             const fImg = fa && this._getSheetByPath(fa.sheet);
             if (fImg) {
-                ctx.drawImage(fImg, fa.sx, fa.sy, 32, 32, dx, dy, sz, sz);
+                const kf = this._sheetScale(fImg);
+                ctx.drawImage(fImg, fa.sx * kf, fa.sy * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
                 return;
             }
         }
@@ -561,11 +564,12 @@ Object.assign(InnerMapRenderer, {
             const boards = this._sheets && this._sheets.get('signs');
             ctx.save();
             ctx.imageSmoothingEnabled = false;
+            const kf = this._sheetScale(fence), kb = this._sheetScale(boards);
             const stake = ds * 0.55;
             for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
                 const sx0 = px + (px === x ? ds * 0.15 : -ds * 0.15) - stake / 2;
                 const sy0 = py + (py === y ? ds * 0.35 : -ds * 0.05) - stake;
-                if (fence) ctx.drawImage(fence, 96, 96, 32, 32, Math.round(sx0), Math.round(sy0), Math.round(stake), Math.round(stake));
+                if (fence) ctx.drawImage(fence, 96 * kf, 96 * kf, 32 * kf, 32 * kf, Math.round(sx0), Math.round(sy0), Math.round(stake), Math.round(stake));
                 else { ctx.fillStyle = '#6b4a2b'; ctx.fillRect(sx0 + stake * 0.4, sy0, stake * 0.2, stake); }
             }
             // The sign at the lot's gate (the street side: its front, or its top when it
@@ -573,11 +577,11 @@ Object.assign(InnerMapRenderer, {
             // with the map, like everything on it) — the LPC fence post and sign board
             const bw = ds * 1.1;                                   // the board, a tile and a bit
             const gx = x + ds * 0.35, gy = lot.gate === 'north' ? y + ds * 1.2 : y + h - ds * 0.2;
-            if (fence) ctx.drawImage(fence, 96, 96, 32, 32, Math.round(gx + bw / 2 - ds * 0.5), Math.round(gy - ds), Math.round(ds), Math.round(ds));
+            if (fence) ctx.drawImage(fence, 96 * kf, 96 * kf, 32 * kf, 32 * kf, Math.round(gx + bw / 2 - ds * 0.5), Math.round(gy - ds), Math.round(ds), Math.round(ds));
             // light board for sale, gold-edged for yours, dark for sold
             const [bsx, bsy] = at.forSale ? [0, 32] : at.mine ? [0, 0] : [32, 32];
             const by = gy - ds * 1.45;
-            if (boards) ctx.drawImage(boards, bsx, bsy, 32, 32, Math.round(gx), Math.round(by), Math.round(bw), Math.round(bw * 0.8));
+            if (boards) ctx.drawImage(boards, bsx * kb, bsy * kb, 32 * kb, 32 * kb, Math.round(gx), Math.round(by), Math.round(bw), Math.round(bw * 0.8));
             ctx.restore();
             // The words on the board, sized with it (hidden when too small to read)
             if (ds >= 26) {

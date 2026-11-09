@@ -143,4 +143,42 @@ describe('town woodcutters', () => {
         expect(econ.goods).toBeCloseTo(10 + 20 * InnerMap.townWoodConfig().goodsPerWood);
         expect(econ.food).toBe(5);
     });
+
+    it('grub out an old stump: the ground clear for good, its firewood on their back', () => {
+        meadow();
+        const def = CustomObjects.getDef('tp_tree_birch');
+        fell(cutter(19, 15));
+        expect(InnerMap.tiles[15][20].customObject.defId).toBe('tp_stump_birch');
+        const npc = cutter(19, 15);
+        InnerMap.npcs = [npc];
+        // a fresh stump is left a while; an old one is fair game
+        expect(InnerMap._pickTownTree(npc, 'stump')).toBeNull();
+        InnerMap._fellWorld.day = 50 + InnerMap.townWoodConfig().grubAfterDays;
+        expect(InnerMap._pickTownTree(npc, 'stump')).toMatchObject({ q: 20, r: 15 });
+        npc._chop = { q: 20, r: 15, defId: def.spawnAfter, timer: 0, interval: 0.8, going: true };
+        InnerMap._startChopping(npc);
+        expect(npc.activity.label).toMatch(/stump/i);
+        for (let i = 0; i < 400 && npc._chop; i++) InnerMap._updateTownChopping(0.8);
+        expect(InnerMap.tiles[15][20].customObject).toBeFalsy();
+        expect(InnerMap._fellRec['20,15']).toMatchObject({ grubbed: true, grubbedBy: 'town' });
+        expect(InnerMap._townGrubbedToday()).toBe(1);
+        expect(npc._carry).toMatchObject({ good: 'firewood' });
+        // and nothing grows back there
+        InnerMap._bindFelling(InnerMap._fellWorld, '5,5', 50 + 400);
+        expect(InnerMap.tiles[15][20].customObject).toBeFalsy();
+        // the firewood goes into the town's goods at the yard
+        const econ = { goods: 0 };
+        InnerMap._currentWorldTileRef = { settlement: { economy: econ } };
+        InnerMap._townDelivered(npc, { type: 'warehouse', q: 5, r: 4 });
+        expect(npc._carry).toBeNull();
+        expect(econ.goods).toBeGreaterThan(0);
+    });
+
+    it('a stump the map was drawn with may go any time', () => {
+        meadow(null);
+        expect(TownProps.place(InnerMap.tiles, CustomObjects.getDef('tp_stump_oak2'), 20, 15)).toBe(true);
+        InnerMap.npcs = [];
+        expect(InnerMap._pickTownTree(cutter(15, 15), 'stump')).toMatchObject({ q: 20, r: 15 });
+        expect(InnerMap._pickTownTree(cutter(15, 15), 'tree')).toBeNull();
+    });
 });

@@ -896,7 +896,7 @@ Object.assign(InnerMapRenderer, {
                         };
                         // A sack of the harvest carried to the granary (world/innerMap/townLife.js _carry),
                         // held before them: behind their back when they walk away from us
-                        const logs = !!(nRef._carry && nRef._carry.good === 'wood');
+                        const logs = !!(nRef._carry && (nRef._carry.good === 'wood' || nRef._carry.good === 'firewood'));
                         const sackSheet = nRef._carry && !logs && self._sheets && self._sheets.get('carry_sack');
                         // logs a woodcutter felled (world/innerMap/townWoodcutters.js), on the shoulder
                         const logSheet = logs && self._sheets && self._sheets.get('lumber');

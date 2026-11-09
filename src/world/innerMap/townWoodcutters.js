@@ -12,6 +12,10 @@
 // cutter shoulders the logs and carries them to the town's yard (a warehouse,
 // a sawmill, the market…), where they go into the town's goods.
 //
+// Old stumps they grub out too: a stump left standing grubAfterDays (or one
+// the map was drawn with) may be dug out instead, for its firewood, and the
+// ground is clear for good (felling.js _noteGrubbed: nothing grows back there).
+//
 // The renderer reads npc._chop for the swing (its phase: timer / interval) and
 // InnerMap._chopEvents for each blow and felling (chips, the shudder, the knock:
 // ui/innerMapFelling.js), and empties it.
@@ -30,6 +34,10 @@ const DEFAULTS = {
     interval: 0.8,       // seconds between blows
     carryMax: 20,        // logs carried in at once
     goodsPerWood: 0.1,   // town goods a log brings
+    goodsPerFirewood: 0.05,
+    grubShare: 0.35,     // the chance a cutter sees to an old stump first (when there is one)
+    grubAfterDays: 20,   // a stump this old is grubbed out (one the map was drawn with, any time)
+    maxGrubPerDay: 3,    // stumps the town's cutters grub out on one map in a day
     stores: ['sawmill', 'carpenter', 'warehouse', 'lumber_yard', 'marketplace', 'blacksmith', 'barn'],
 };
 
@@ -66,8 +74,27 @@ Object.assign(InnerMap, {
         return Object.values(rec).filter(f => f && f.by === 'town' && f.day === day && !f.grubbed).length;
     },
 
-    /** A tree to fell, out beyond the houses and near enough home: the anchor and def, or null. */
-    _pickTownTree(npc) {
+    /** Stumps the town's cutters have grubbed out on this map today. */
+    _townGrubbedToday() {
+        const rec = this._fellRec;
+        if (!rec) return 0;
+        const day = this._fellDay();
+        return Object.values(rec).filter(f => f && f.grubbedBy === 'town' && f.grubDay === day).length;
+    },
+
+    /** Is the stump at (q, r) old enough to grub out? (its felling grubAfterDays gone, or none kept: the map's own) */
+    _stumpIsOld(q, r) {
+        const f = this._fellRec && this._fellRec[_key(q, r)];
+        if (!f) return true;
+        if (f.grubbed) return false;
+        return this._fellDay() - (f.day || 0) >= (Number(this.townWoodConfig().grubAfterDays) || 0);
+    },
+
+    /**
+     * A tree to fell (kind 'tree') or an old stump to grub out ('stump'), out beyond
+     * the houses and near enough home: the anchor and def, or null.
+     */
+    _pickTownTree(npc, kind = 'tree') {
         const C = this.townWoodConfig();
         const rnd = Utils.random;
         const base = npc._home || npc;
@@ -85,7 +112,8 @@ Object.assign(InnerMap, {
                 const obj = t && t.customObject;
                 if (!obj || t._isInterior || claimed.has(_key(q, r))) continue;
                 const def = CustomObjects.getDef(obj.defId);
-                if (!def || !def.topples || /sapling/.test(def.id)) continue;
+                if (!def) continue;
+                if (kind === 'stump' ? (def.objectType !== 'stump' || !this._stumpIsOld(q, r)) : (!def.topples || /sapling/.test(def.id))) continue;
                 const trunk = this.trunkOf(q, r, def);
                 if (this._nearTown(trunk.q, trunk.r, C.townClear)) continue;
                 found.push({ q, r, def, trunk, d: Math.hypot(trunk.q - base.q, trunk.r - base.r) });
@@ -103,11 +131,21 @@ Object.assign(InnerMap, {
         return false;
     },
 
-    /** Off to fell a tree: stand at its trunk's side (else below it), facing it. False if none will do. */
+    /**
+     * Off to fell a tree, or now and then to grub out an old stump first: stand at its
+     * trunk's side (else below it), facing it. False if none will do.
+     */
     _goToTree(npc) {
         const C = this.townWoodConfig();
-        if (this._townFelledToday() >= C.maxPerDay) return false;
-        const tree = this._pickTownTree(npc);
+        const canFell = this._townFelledToday() < C.maxPerDay;
+        const canGrub = this._townGrubbedToday() < C.maxGrubPerDay;
+        const order = canGrub && (!canFell || Utils.random() < (Number(C.grubShare) || 0)) ? ['stump', 'tree'] : ['tree', 'stump'];
+        let tree = null;
+        for (const kind of order) {
+            if (kind === 'tree' ? !canFell : !canGrub) continue;
+            tree = this._pickTownTree(npc, kind);
+            if (tree) break;
+        }
         if (!tree) return false;
         const { trunk } = tree;
         const busy = (q, r) => (this.npcs || []).some(o => o !== npc && o.q === q && o.r === r);
@@ -134,7 +172,9 @@ Object.assign(InnerMap, {
         ch.going = false;
         ch.timer = 0;
         if (t.customObject.currentHealthPct == null) t.customObject.currentHealthPct = 100;
-        npc.activity = { type: 'chop', icon: '🌲', label: 'Felling a tree', anim: 'slash' };
+        const grub = /stump/.test(ch.defId) || (CustomObjects.getDef(ch.defId) || {}).objectType === 'stump';
+        npc.activity = grub ? { type: 'chop', icon: '🌲', label: 'Grubbing out a stump', anim: 'slash' }
+            : { type: 'chop', icon: '🌲', label: 'Felling a tree', anim: 'slash' };
         npc.idleTimer = 600;          // (till the tree is down: _updateTownChopping lets them go)
     },
 
@@ -163,7 +203,8 @@ Object.assign(InnerMap, {
             obj.currentHealthPct = Math.max(0, (obj.currentHealthPct == null ? 100 : obj.currentHealthPct) - dmg);
             this._chopEvents.push({ kind: 'hit', q: ch.q, r: ch.r, defId: ch.defId, cutterQ: npc.q, cutterR: npc.r });
             if (obj.currentHealthPct > 0) continue;
-            this._townFell(npc, t, def);
+            if (def && def.objectType === 'stump') this._townGrub(npc, t, def);
+            else this._townFell(npc, t, def);
         }
     },
 
@@ -183,16 +224,38 @@ Object.assign(InnerMap, {
         npc.idleTimer = 1.5;          // (they watch it fall, then shoulder the logs)
     },
 
-    /** Gone indoors at the yard with logs: they go into the town's goods. */
+    /** The stump is out: the ground is clear for good, and its firewood goes on their back. */
+    _townGrub(npc, tile, def) {
+        const ch = npc._chop;
+        const res = tile.customObject.resource || (def && def.resource) || null;
+        this._removeCustomObject(ch.q, ch.r, { spawn: false });
+        if (this._noteGrubbed) this._noteGrubbed(ch.q, ch.r);
+        const f = this._fellRec && this._fellRec[_key(ch.q, ch.r)];
+        if (f) { f.grubbedBy = 'town'; f.grubDay = this._fellDay(); }
+        this._chopEvents.push({ kind: 'grubbed', q: ch.q, r: ch.r, defId: ch.defId, cutterQ: npc.q, cutterR: npc.r });
+        const C = this.townWoodConfig();
+        const n = Math.min(C.carryMax, Math.max(1, Math.round((res && res.amount) || 3)));
+        npc._carry = { good: (res && res.type) === 'wood' ? 'wood' : 'firewood', qty: n };
+        this._stopChopping(npc);
+        npc.idleTimer = 1;
+    },
+
+    /** Is this load the woodcutters' (logs or firewood, for the yard)? */
+    _isWoodLoad(c) {
+        return !!(c && (c.good === 'wood' || c.good === 'firewood'));
+    },
+
+    /** Gone indoors at the yard with logs or firewood: they go into the town's goods. */
     _townWoodDelivered(npc, bldg) {
         const c = npc._carry;
-        if (!c || c.good !== 'wood' || !bldg) return false;
+        if (!this._isWoodLoad(c) || !bldg) return false;
         const C = this.townWoodConfig();
         if (!(C.stores || []).includes(bldg.type)) return false;
         npc._carry = null;
         const ref = this._currentWorldTileRef;
         const econ = ref && ref.settlement && ref.settlement.economy;
-        if (econ) econ.goods = (Number(econ.goods) || 0) + c.qty * (Number(C.goodsPerWood) || 0);
+        const per = c.good === 'firewood' ? C.goodsPerFirewood : C.goodsPerWood;
+        if (econ) econ.goods = (Number(econ.goods) || 0) + c.qty * (Number(per) || 0);
         return true;
     },
 });

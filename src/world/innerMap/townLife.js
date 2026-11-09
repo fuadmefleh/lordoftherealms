@@ -513,7 +513,7 @@ Object.assign(InnerMap, {
 
     /** Off to the nearest granary (or barn, mill, warehouse…) with what they carry. */
     _goStore(npc) {
-        const types = npc._carry && npc._carry.good === 'wood' && this.townWoodConfig
+        const types = this._isWoodLoad && this._isWoodLoad(npc._carry) && this.townWoodConfig
             ? this.townWoodConfig().stores : (this.townLifeConfig().harvestStores || DEFAULTS.harvestStores);
         const blds = (this.buildings || []).filter(b => b && !b.isPlayerProperty);
         for (const type of types) {
@@ -527,7 +527,7 @@ Object.assign(InnerMap, {
     _townDelivered(npc, bldg) {
         const c = npc._carry;
         if (!c || !bldg) return;
-        if (c.good === 'wood') { if (this._townWoodDelivered) this._townWoodDelivered(npc, bldg); return; }
+        if (this._isWoodLoad && this._isWoodLoad(c)) { this._townWoodDelivered(npc, bldg); return; }
         const types = this.townLifeConfig().harvestStores || DEFAULTS.harvestStores;
         if (!types.includes(bldg.type)) return;
         npc._carry = null;

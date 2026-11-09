@@ -15,6 +15,7 @@ import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
+import { BareBushes } from '../bareBushes.js';
 
 // Where the rod's tip is in its line-out frame (frame 3 of
 // assets/lpc/Tools/fishing_pole_cast_128.png, by scripts/make_rod_noline.py),
@@ -660,7 +661,23 @@ Object.assign(InnerMapRenderer, {
                             // is above the water too — its parts over the water are dimmed here alike
                             const uw = InnerMap._underwater && !InnerMap._insideBuilding;
                             const smooth0 = ctx.imageSmoothingEnabled;
-                            for (const td of activeTiles) {
+                            // A bush picked bare by a town herbalist (world/innerMap/townHerbalists.js), till it
+                            // grows back: its berries and blossoms gone, an herb cut back (ui/bareBushes.js)
+                            const bare = def.objectType === 'plant' && customObjRef.pickedDay != null && InnerMap._bushReady && !InnerMap._bushReady(customObjRef)
+                                ? BareBushes.get(`${def.id}|${InnerMap.season || ''}`, activeTiles, 96,
+                                    td => (td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg), im => self._sheetScale(im))
+                                : null;
+                            if (bare) {
+                                // (an herb cut back: the plant itself kept to `cut` of its height, its top taken off)
+                                const cut = BareBushes.cutTo(def.resource && def.resource.type);
+                                const keep = 1 - (1 - bare.top) * (1 - cut);   // share of the cell kept, from the bottom
+                                const w = bare.cols * ds, h = bare.rows * ds;
+                                const bottom = Math.floor(ay + (bare.minRow + bare.rows) * ds) + shakeY;
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.drawImage(bare.canvas, 0, bare.canvas.height * (1 - keep), bare.canvas.width, bare.canvas.height * keep,
+                                    Math.floor(ax + bare.minCol * ds) + shakeX, bottom - h * keep, w, h * keep);
+                            }
+                            for (const td of bare ? [] : activeTiles) {
                                 const img = td.sheetPath ? CustomObjects.getImage(td.sheetPath) : singleImg;
                                 if (!img || !img.complete) continue;
                                 const tdx = Math.floor(ax + td.localCol * ds) + shakeX + (chopped ? InnerMapFelling.shakeAt(oq, or2, td.localRow, ds) : 0);

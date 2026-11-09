@@ -36,7 +36,7 @@ SHEETS = {
     'baskets':  ('lpc/Objects/Small Items/Baskets A.png', (3, 2)),
     'lamp':     ('lpc/Objects/Furniture/Lighting, Outdoors.png', (2, 3)),
     'hay':      ('lpc/Objects/Small Items/Hay & Straw.png', (4, 3)),
-    'fountain': ('lpc/Structure/Misc/Fountain A.png', (2, 3)),
+    'fountain': ('lpc/Structure/Misc/Fountain A.png', (8, 3)),   # four frames side by side (make_fountain.py)
     'runestone': ('lpc/Objects/Furniture/Wolf Stone.png', (4, 4)),
     'campfire': ('lpc/Objects/Small Items/Fire, Camp.png', (4, 2)),
     'pillar':   ('lpc/Structure/Pillars/Stone Pillar A.png', (9, 12)),
@@ -126,7 +126,8 @@ RECIPES = {
                 + [('flowers', [c, r, 1, 1]) for r in (2, 3) for c in (5, 6, 7, 8)]),
     'props2': ('props2_source.png', [
         ('lamp', [0, 0, 1, 3]), ('lamp', [1, 0, 1, 3]), (None, None), (None, None),   # (the hay: 'hay' below)
-        ('fountain', [0, 0, 2, 3]), ('runestone', [0, 0, 2, 2]), ('runestone', [2, 0, 2, 2]), ('campfire', [0, 0, 1, 1]),
+        (None, None), ('runestone', [0, 0, 2, 2]),   # (the fountain: scripts/make_fountain.py, animated)
+        ('runestone', [2, 0, 2, 2]), ('campfire', [0, 0, 1, 1]),
         ('campfire', [0, 1, 1, 1], [[1, 1, 1, 1], [2, 1, 1, 1], [3, 1, 1, 1]]),
         ('pillar', [0, 0, 2, 3]), ('pillar', [3, 0, 2, 3]), ('pillar', [6, 0, 2, 3]), ('pillar', [2, 0, 1, 3]),
         ('clan_tents', [0, 0, 3, 3]), ('clan_tents', [3, 0, 3, 3]), ('pool', [0, 0, 3, 3])]),

@@ -4744,7 +4744,7 @@ The NPC houses compete too. Each week they raise prices when full and cut them w
 
 ## Graveyards & the Trade in Death
 
-Every town buries its own (`data/graves.json`; `systems/graveyards.js`). In a world made with the current generator, each town's street map has a **churchyard** beside its church, temple or chapel. A village's churchyard lies on its edge. An iron railing runs along the street with a gate in the middle. Graves lie in pairs of rows with a walk between, each two tiles wide: the marker at the head and the mound beside it. Older saves keep their towns' old plans, so their dead lie in the churchyard's ledger but not on the map.
+Every town buries its own (`data/graves.json`; `systems/graveyards.js`). In a world made with the current generator, each town's street map has a **churchyard** beside its church, temple or chapel. A village's churchyard lies on its edge. An iron railing runs along the street with a gate in the middle. Graves lie in rows with a path between them and a walk after each row. Each is one tile wide and two deep, laid as a grave is on a top-down map: the marker at the head and the mound (or the open pit) on the tile below it. Older saves keep their towns' old plans, so their dead lie in the churchyard's ledger but not on the map.
 
 **The graves are real.** A townsperson who dies (see *Living townsfolk*) is buried with their name, birth and death years, and cause of death. The marker suits their station:
 

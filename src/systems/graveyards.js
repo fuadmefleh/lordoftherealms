@@ -797,7 +797,7 @@ export const Graveyards = {
         const back = (ground.front || 'south') === 'south';
         const q0 = Math.floor((w - cw) / 2), q1 = q0 + cw - 1, r0 = back ? 0 : h - ch, r1 = r0 + ch - 1;
         const out = [];
-        plots.forEach((p, i) => { if (p.r >= r0 && p.r <= r1 && p.q + 1 >= q0 && p.q <= q1) out.push(i); });
+        plots.forEach((p, i) => { if (p.r + 1 >= r0 && p.r <= r1 && p.q >= q0 && p.q <= q1) out.push(i); });
         return out;
     },
 

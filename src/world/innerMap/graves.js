@@ -117,7 +117,7 @@ Object.assign(InnerMap, {
         for (let i = 0; i < cells.length && i < ground.cap; i++) {
             const c = cells[i];
             if (!c) continue;
-            const head = this.getTile(c.q, c.r), foot = this.getTile(c.q + 1, c.r);
+            const head = this.getTile(c.q, c.r), foot = this.getTile(c.q, c.r + 1);
             if (!head || !foot) continue;
             this._unstandGrave(head);
             this._unstandGrave(foot);

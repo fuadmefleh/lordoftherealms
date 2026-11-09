@@ -87,7 +87,7 @@ export function planChurchyard(c) {
             plots.forEach((p, i) => {
                 tiles[p.r][p.q]._plot = i;
                 tiles[p.r][p.q]._plotHead = true;
-                tiles[p.r][p.q + 1]._plot = i;
+                tiles[p.r + 1][p.q]._plot = i;
             });
             const frontR = front === 'south' ? k.r1 : k.r0;
             return { q0: k.q0, q1: k.q1, r0: k.r0, r1: k.r1, w, h, front, gate: { q: mid, r: frontR }, plots, church: church ? church.type : null };

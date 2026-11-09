@@ -28,7 +28,7 @@ import { DataLoader } from '../core/dataLoader.js';
 const DEFAULTS = {
     enabled: true,
     daysPerYear: 120,
-    yard: { village: [11, 5], town: [13, 6], city: [15, 7], capital: [17, 7] },
+    yard: { village: [11, 6], town: [13, 9], city: [15, 9], capital: [19, 9] },
     artDir: 'assets/lpc/new/graves',
     artTile: 128,
     freshYears: 3,
@@ -133,35 +133,49 @@ export const GraveBook = {
 
     // ── The layout ─────────────────────────────────
 
-    /** Which rows (counted in from the front) of an h-deep ground hold graves: pairs, a walk between. */
+    /**
+     * Which rows (counted in from the back, the ground's far side from its
+     * street front) hold the head of a grave: a grave is two rows deep (its
+     * marker at the head, its mound the row in front of it, toward the
+     * viewer), a walk after each row of graves; the front row (on the street)
+     * is kept for the railing and gate. h-deep ground: the heads' offsets from
+     * the back row.
+     */
     graveRows(h) {
         const out = [];
-        for (let k = 1; k < h; k++) if (k % 3 !== 0) out.push(k);
+        // rows 0..h-2 hold graves (h-1 is the street front); blocks of 3: head, foot, walk
+        for (let k = 0; k + 1 <= h - 2; k += 3) out.push(k);
         return out;
     },
 
     /**
-     * The plots of a w × h ground at (q0, r0): a grave is two tiles wide (its
-     * marker at the head, `q`, its mound at q + 1); rows of graves in pairs
-     * with a walk between, its front row (on the street, `front` 'south' or
-     * 'north') kept for the railing and gate, a tile of path down each side.
-     * Front rows first, west to east.
+     * The plots of a w × h ground at (q0, r0): a grave is one tile wide and
+     * two deep, its marker at the head (`q`, `r`) and its mound on the tile
+     * below (r + 1), as a grave is laid on a top-down map; a path between the
+     * columns and down each side, a walk between the rows, the front row (on
+     * the street, `front` 'south' or 'north') kept for the railing and gate.
+     * Back rows first, west to east.
      */
     yardPlots(q0, r0, w, h, front = 'south') {
         const out = [];
-        const r1 = r0 + h - 1;
-        const per = Math.max(0, Math.floor((w - 2) / 2));
-        const start = q0 + 1 + Math.floor((w - 2 - per * 2) / 2);
+        const per = GraveBook._perRow(w);
+        const start = q0 + 1 + Math.floor((w - 2 - (per * 2 - 1)) / 2);
         for (const k of GraveBook.graveRows(h)) {
-            const r = front === 'north' ? r0 + k : r1 - k;
+            // the street front is south: graves from the top; north: shifted down past it
+            const r = front === 'north' ? r0 + 1 + k : r0 + k;
             for (let i = 0; i < per; i++) out.push({ q: start + i * 2, r });
         }
         return out;
     },
 
+    /** Graves across a w-wide ground: one a tile, a path between, a tile of path down each side. */
+    _perRow(w) {
+        return Math.max(0, Math.floor((w - 1) / 2));
+    },
+
     /** How many plots a w × h ground holds. */
     plotCount(w, h) {
-        return Math.max(0, Math.floor((w - 2) / 2)) * GraveBook.graveRows(Math.max(0, h)).length;
+        return GraveBook._perRow(w) * GraveBook.graveRows(Math.max(0, h)).length;
     },
 
     /** The churchyard's size [w, h] for a place of this type. */

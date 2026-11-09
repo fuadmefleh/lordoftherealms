@@ -103,6 +103,27 @@ describe('The churchyard on the map', () => {
         expect(CustomObjects.getDef(GraveArt.defId('headstone_round'))).toBeTruthy();
     });
 
+    it('a grave runs down the map: its marker at the head, its mound on the tile below; a path between, the street row kept', () => {
+        for (const front of ['south', 'north']) {
+            const plots = GraveBook.yardPlots(0, 0, 13, 9, front);
+            expect(plots.length).toBe(GraveBook.plotCount(13, 9));
+            const cells = new Set();
+            for (const p of plots) {
+                for (const c of [`${p.q},${p.r}`, `${p.q},${p.r + 1}`]) {
+                    expect(cells.has(c)).toBe(false);
+                    cells.add(c);
+                }
+                expect(p.q).toBeGreaterThan(0);
+                expect(p.q).toBeLessThan(12);
+                // the street row (the railing and gate) is left clear
+                expect(front === 'south' ? p.r + 1 < 8 : p.r > 0).toBe(true);
+            }
+            // a path between graves side by side
+            const row = plots.filter(p => p.r === plots[0].r).map(p => p.q);
+            for (let i = 1; i < row.length; i++) expect(row[i] - row[i - 1]).toBe(2);
+        }
+    });
+
     it('the same town lays the same churchyard every visit', () => {
         enter(setup('village'));
         const a = JSON.stringify(InnerMap.townYard());

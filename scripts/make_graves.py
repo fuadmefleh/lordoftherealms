@@ -3,7 +3,8 @@ Graveyard props drawn with ChatGPT (the town props' painted series, props1_sourc
 style reference), cut into one keyed PNG each under assets/lpc/new/graves/<id>.png, with
 assets/lpc/new/graves/manifest.json: { id: { w, h, tilesW, tilesH } }.
 
-Sources (assets/lpc/new/graves/source/), drawings of separate objects on flat white:
+Sources (assets/lpc/new/graves/source/), drawings of separate objects (on flat white, or with real
+transparency, taken as it is):
   graves_a_source.png  3x3: cross_wood, board_wood, headstone_plain / headstone_round,
                        headstone_carved, headstone_old / headstone_broken, grave_mound, grave_open
   graves_b_source.png  2x2: tomb, crypt / grave_fence, ossuary
@@ -30,30 +31,39 @@ from make_new_windows import key_white  # noqa: E402
 
 TILE = 128
 FILL = 0.86
+# The ground art (a grave's length running down the screen, on the tile below its marker):
+# the box it is fitted into, in tiles (wider than tall would be wrong), and its fill
+FIT = {'grave_mound': (1, 1.4, 0.95), 'grave_open': (1, 1.4, 0.95)}
 OUT = 'assets/lpc/new/graves'
 SRC = os.path.join(OUT, 'source')
 
 # source: (grid cols, rows, [ids in reading order])
+# (None: a cell left unused). graves_c / bone_mill_c were redrawn straight front-on (the game's
+# top-down three-quarter view, the furniture sheet as the reference) with real transparency;
+# only the railing is still taken from graves_b.
 SOURCES = {
-    'graves_a_source.png': (3, 3, ['cross_wood', 'board_wood', 'headstone_plain',
-                                   'headstone_round', 'headstone_carved', 'headstone_old',
-                                   'headstone_broken', 'grave_mound', 'grave_open']),
-    'graves_b_source.png': (2, 2, ['tomb', 'crypt', 'grave_fence', 'ossuary']),
-    'bone_mill_source.png': (1, 1, ['bone_mill']),
+    'graves_c_source.png': (4, 3, ['headstone_plain', 'headstone_round', 'headstone_carved', 'headstone_old',
+                                   'headstone_broken', 'grave_mound', 'grave_open', 'tomb',
+                                   'crypt', 'ossuary', 'cross_wood', 'board_wood']),
+    'graves_b_source.png': (2, 2, [None, None, 'grave_fence', None]),
+    'bone_mill_c_source.png': (1, 1, ['bone_mill']),
 }
 # id: (tilesW, tilesH) - the box the sprite is fitted into
 TILES = {
     'cross_wood': (1, 1), 'board_wood': (1, 1), 'headstone_plain': (1, 1), 'headstone_round': (1, 1),
     'headstone_carved': (1, 1), 'headstone_old': (1, 1), 'headstone_broken': (1, 1),
-    'grave_mound': (2, 1), 'grave_open': (2, 1), 'tomb': (2, 1), 'crypt': (3, 3),
+    'grave_mound': (1, 1), 'grave_open': (1, 1), 'tomb': (2, 1), 'crypt': (3, 3),
     'grave_fence': (1, 1), 'ossuary': (2, 2), 'bone_mill': (3, 3),
 }
 
 
 def cut(path, cols, rows):
     """The grid's objects, each cropped to itself, in reading order."""
-    im = Image.open(path).convert('RGB')
-    keyed = np.array(key_white(im, holes=12, clean=True))
+    src = Image.open(path)
+    if src.mode == 'RGBA' and np.array(src)[..., 3].min() < 16:
+        keyed = np.array(src.convert('RGBA'))         # real transparency: taken as it is
+    else:
+        keyed = np.array(key_white(src.convert('RGB'), holes=12, clean=True))
     alpha = keyed[..., 3] > 24
     lab, n = ndimage.label(alpha, structure=np.ones((3, 3)))
     sizes = ndimage.sum(alpha, lab, range(1, n + 1))
@@ -85,6 +95,8 @@ def main():
             print(f'  no source {name}')
             continue
         for sid, sprite in zip(ids, cut(path, cols, rows)):
+            if sid is None:
+                continue
             tw, th = TILES[sid]
             if sid == 'grave_fence':
                 # drawn with a post at each end: cut the right one off, so sections laid end to
@@ -98,12 +110,15 @@ def main():
                     x -= 1
                 sprite = sprite.crop((0, 0, x, sprite.height))
                 s = tw * TILE / sprite.width
+            elif sid in FIT:
+                fw, fh, fill = FIT[sid]
+                s = min(fw * TILE * fill / sprite.width, fh * TILE * fill / sprite.height)
             else:
                 s = min(tw * TILE * FILL / sprite.width, th * TILE * FILL / sprite.height)
             w, h = max(1, round(sprite.width * s)), max(1, round(sprite.height * s))
             small = sprite.resize((w, h), Image.LANCZOS)
             small.save(os.path.join(OUT, f'{sid}.png'), optimize=True)
-            manifest[sid] = {'w': w, 'h': h, 'tilesW': tw, 'tilesH': max(th, -(-h // TILE))}
+            manifest[sid] = {'w': w, 'h': h, 'tilesW': tw, 'tilesH': th if sid in FIT else max(th, -(-h // TILE))}
             print(f'{sid}: {w}x{h} ({tw}x{manifest[sid]["tilesH"]} tiles)')
     with open(os.path.join(OUT, 'manifest.json'), 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=2)

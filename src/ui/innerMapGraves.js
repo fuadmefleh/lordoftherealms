@@ -162,13 +162,13 @@ export const InnerMapGraves = {
         return img && img.complete && img.naturalWidth ? img : null;
     },
 
-    /** A ground sprite (the mound, the open pit) across a plot's two tiles, stood on their bottom. */
+    /** A ground sprite (the mound, the open pit) on the tile below the head (the grave's length toward the viewer), centred on it. */
     _drawFlat(ctx, img, x, y, ds) {
         const P = Number(GraveBook.config().artTile) || 128;
         const w = img.naturalWidth * ds / P, h = img.naturalHeight * ds / P;
         const smooth = ctx.imageSmoothingEnabled;
         ctx.imageSmoothingEnabled = true;
-        ctx.drawImage(img, Math.floor(x + (2 * ds - w) / 2), Math.floor(y + ds - h), w, h);
+        ctx.drawImage(img, Math.floor(x + (ds - w) / 2), Math.floor(y + ds + (ds - h) / 2), w, h);
         ctx.imageSmoothingEnabled = smooth;
     },
 
@@ -176,7 +176,7 @@ export const InnerMapGraves = {
         if (!InnerMap.tiles || InnerMap._insideBuilding) return;
         const ds = T * camera.zoom;
         const { qMin, qMax, rMin, rMax } = range;
-        for (let r = Math.max(0, rMin); r <= Math.min(InnerMap.height - 1, rMax); r++) {
+        for (let r = Math.max(0, rMin - 1); r <= Math.min(InnerMap.height - 1, rMax); r++) {
             const row = InnerMap.tiles[r];
             if (!row) continue;
             for (let q = Math.max(0, qMin - 1); q <= Math.min(InnerMap.width - 1, qMax); q++) {
@@ -188,13 +188,13 @@ export const InnerMapGraves = {
                 if (show.open) {
                     const img = this._img('grave_open');
                     if (img) this._drawFlat(ctx, img, x, y, ds);
-                    else InnerMapDigging._drawFeature(ctx, 'hole', x + ds / 2, y, ds, q, r);
+                    else InnerMapDigging._drawFeature(ctx, 'hole', x, y + ds, ds, q, r + 1);
                     continue;
                 }
                 if (show.fresh) {
                     const img = this._img('grave_mound');
                     if (img) this._drawFlat(ctx, img, x, y, ds);
-                    else InnerMapDigging._drawFeature(ctx, 'filled', x + ds / 2, y, ds, q, r);
+                    else InnerMapDigging._drawFeature(ctx, 'filled', x, y + ds, ds, q, r + 1);
                 }
                 // A marker whose art hasn't landed: the old dug-grave mound and cross, until it does
                 if (show.marker && !show.art && show.marker !== 'grave_mound') InnerMapDigging._drawFeature(ctx, 'grave', x, y, ds, q, r);

@@ -650,6 +650,8 @@ export const InnerMapRenderer = {
 
         // Cache visible tile range once per frame for all layers
         this._frameRange = this._getVisibleTileRange(camera);
+        // Ambient life on screen: fires, chimney smoke, steam, moving parts (innerMapLayers/ambient.js)
+        if (this._ambCollect) this._ambCollect(camera);
 
         // ── Layer 0: Terrain (ground) ──
         this._renderTerrainLayer(ctx, camera);
@@ -674,6 +676,8 @@ export const InnerMapRenderer = {
         // Y-sorted pass so characters correctly walk behind / in front
         // of tall scenery (trees, buildings, rocks) based on screen Y.
         this._renderDepthSortedSprites(ctx, camera, deltaTime);
+        // ── Layer 2.2: Smoke and steam rising over the roofs (innerMapLayers/ambient.js) ──
+        if (this._renderAmbient) this._renderAmbient(ctx, camera);
         // ── Layer 2.5: Under the water — all above it dimmed (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterVeil) this._renderUnderwaterVeil(ctx, camera);
 
@@ -755,6 +759,11 @@ export const InnerMapRenderer = {
                 const tempColor = InnerMap.getTemperatureOverlay();
                 if (tempColor) { ctx.fillStyle = tempColor; ctx.fillRect(0, 0, w, h); }
             }
+        }
+
+        // ── Layer 9.5: Fire glow, embers and sparks — shining through the night (innerMapLayers/ambient.js) ──
+        if (this._renderAmbientGlow) {
+            try { this._renderAmbientGlow(ctx, camera); } catch (err) { console.warn('[InnerMapRenderer] ambient glow:', err); }
         }
 
         // ── Layer 10: Weather particles (always rendered) ──

@@ -94,7 +94,8 @@ const topLevel = [
     'crops',
     'craftGrades',
     'livestock',
-    'graves'
+    'graves',
+    'ambient'
 ];
 
 const merged = {};
@@ -113,6 +114,17 @@ if (merged.graves) {
     if (fs.existsSync(man)) {
         const art = readJson(man);
         if (art) { merged.graves.art = art; console.log(`  + ${dir}/manifest.json → graves.art (${Object.keys(art).length} sprites)`); }
+    }
+}
+
+// ── The ambient art's manifest (assets/lpc/new/anim/manifest.json) → ambient.art ──
+// (ui/innerMapLayers/ambient.js draws a moving part — a waterwheel, sails — only once its art is listed here)
+if (merged.ambient) {
+    const dir = merged.ambient.artDir || 'assets/lpc/new/anim';
+    const man = path.join(__dirname, '..', dir, 'manifest.json');
+    if (fs.existsSync(man)) {
+        const art = readJson(man);
+        if (art) { merged.ambient.art = art; console.log(`  + ${dir}/manifest.json → ambient.art (${Object.keys(art).length} pieces)`); }
     }
 }
 

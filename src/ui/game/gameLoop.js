@@ -62,6 +62,9 @@ export function gameLoop(timestamp, loopId) {
         // speed 0 = paused, 1 = normal, 2 = fast (2×), 3 = ultra (4×)
         const innerSpeed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
         const simDelta = deltaTime * (innerSpeed === 3 ? 4 : innerSpeed);
+        // The fires, smoke and turning wheels run at their own pace while time runs, and stop when paused
+        // (ui/innerMapLayers/ambient.js)
+        InnerMapRenderer.tickAmbient(deltaTime, innerSpeed);
 
         // Update inner map hover
         const hasMouse = this.mouseX !== null && this.mouseY !== null;

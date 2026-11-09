@@ -4742,6 +4742,55 @@ Levelling the property adds rooms and stars. Reputation drifts toward the stars.
 
 The NPC houses compete too. Each week they raise prices when full and cut them when empty, and their stars drift with their takings.
 
+## Graveyards & the Trade in Death
+
+Every town buries its own (`data/graves.json`; `systems/graveyards.js`). In a world made with the current generator, each town's street map has a **churchyard** beside its church, temple or chapel. A village's churchyard lies on its edge. An iron railing runs along the street with a gate in the middle. Graves lie in pairs of rows with a walk between, each two tiles wide: the marker at the head and the mound beside it. Older saves keep their towns' old plans, so their dead lie in the churchyard's ledger but not on the map.
+
+**The graves are real.** A townsperson who dies (see *Living townsfolk*) is buried with their name, birth and death years, and cause of death. The marker suits their station:
+
+| Station | From | Marker | Coffin | Lease the family wants |
+|---------|------|--------|--------|------------------------|
+| Pauper | beggars | bare mound or wooden cross | a shroud | 10 years |
+| Common folk | villagers, farmers, guards, children | wooden cross or grave board, sometimes a plain headstone | 1 plank | 25 years |
+| Tradesman's family | merchants, smiths, priests | plain or rounded headstone | 2 planks | 50 years |
+| Gentry | nobles | carved headstone or stone tomb | 3 planks | in perpetuity |
+
+- The undertaker takes the coffin's planks out of the town's market stock. The marker takes its wood or stone. A town with no stone raises a wooden cross, and one with no wood leaves a bare mound.
+- Markers age. Wood rots to a bare mound after about 30 years, and after 60 the grave is unmarked. Stone weathers after 60 years and breaks after 130.
+- Right-click a grave to **read** it or **pay your respects**. A grave dug in the last three years shows its fresh mound. A grave just cleared stands open for a season.
+- A churchyard fills up. The sexton clears graves whose leases ran out more than a year ago, and their bones go to the **charnel house**. A full town clears an expired grave the day it needs room. If it is still full after two years and its purse can pay, the town buys new ground from the realm. Until then, the dead with nowhere to lie go into the common pit.
+
+**Prices follow supply and demand.** A ten-year plot costs the town's base price × scarcity, where scarcity is the town's free plots (in every ground) measured against its deaths a year. A 25-year lease costs 2.1 × that, 50 years 3.6 ×, and perpetuity 8 ×. The parish charges 85% of the going rate.
+
+### Your burial ground
+
+Buy a building lot in town, then open **Graveyards & the Dead** from the town's action menu (Commerce). Choose **Consecrate as a Burial Ground**. The priest's blessing is a fee into the town's purse: 40g in a village up to 220g in a capital. The priest refuses anyone whose standing in the realm is below −20. The lot's plots are laid out in rows, and the ground opens the next day.
+
+- **Leases.** When a townsperson dies, their family takes the longest lease it can afford, from the cheaper ground, and the parish wins ties. Families pay from the **town's purse**, so a poor town leases nothing from you and its dead go to the churchyard. Set your price to *cheap* (70% of the going rate, which undercuts the parish), *fair*, or *dear* (140%). When the churchyard is full, families come to you at any price they can pay.
+- **Run-out leases.** When a lease ends, kin still living in town may renew it, depending on station (gentry 85%, paupers 5%) and on whether the purse can pay. Otherwise the grave **lapses**. Clear a lapsed grave yourself: right-click it on the map and choose **Dig Up the Lapsed Grave**. Or hire the sexton for 3–6g from the panel. The plot is free again, and the **bones** and any **grave goods** are yours.
+- **Family crypt.** For about 20 stone plus the mason's fee, raise a crypt at the back of your ground. It holds eight of your own dead.
+
+### Bones, bone meal and the ossuary
+
+- **Bones** come only from cleared graves. No market stall buys them.
+  - The **charnel house** of any town takes them for nothing, and your standing rises a little.
+  - The sexton **sells** charnel bones at 4g a set.
+  - A city's or capital's **bone-grinder** buys them for about 5g a set, from the town's purse. Each set you sell lowers his price, and the glut eases over the following days. He grinds them for the town's farms.
+- **Bone mill.** Build one on a lot of yours. It costs about 140–300g in wages plus 8 wood and 4 stone bought from the town's market. Tip bones into the hopper and the mill grinds 6 sets a day into 2 **bone meal** each.
+- **Bone meal** sells to the town's farmers for about 3g each, from the purse. Farm towns pay more and cities less, and the price falls as their fields fill. Every unit raises the town's soil, up to the harvest's maximum, so its next harvest is bigger.
+- **Ossuary shrine.** Build one on a lot. It costs gold and 10 stone, and you need 12 sets of bones to found it. The town's people pay 1–2g a visit to pray for their dead. Each day brings up to one visitor for every 8 sets of bones, capped by town size, and the fees come from the purse.
+
+### Your own dead
+
+When one of your children dies, or your spouse, or the head of your House before you, they appear under **Your Dead, Awaiting Burial**. Lay them in your ground, in your crypt, or in the churchyard, which charges a perpetual plot at the parish fee. Choose the marker: a cross, a plain, rounded or carved headstone, or a stone tomb. You buy the coffin and the marker's wood or stone from the town at market price and pay the mason. Your own dead lie forever and can't be cleared. You can also leave them to the parish.
+
+### The sexton's work and grave robbing
+
+- **Dig graves for the sexton.** Every burial and every clearing leaves a grave to dig. When graves are waiting, the panel offers a day with the spade. You dig up to four graves for 3–6g each, from the town's purse, once a day. It costs energy and builds strength. The town's own sexton digs one a day when you don't.
+- **Rob a grave.** Right-click someone else's grave and choose **Rob the Grave**. You dig at the spot, then it plays out as a theft. Witnesses, guards and daylight raise your odds of being caught. If you're caught, you pay a fine, lose standing, get a criminal record and can end up in the cells, the same as any theft. On top of that you lose another 6 standing. If you get away, you have the grave goods (and the bones), but they are **hot**, and the grave lies open.
+
+Every coin is entered in the Ledger: *Grave leases sold*, *Blessings & sexton's fees*, *Bone mills, ossuaries & crypts built*, *Bones & bone meal*, *Ossuary visitors* and *Funerals of your own*.
+
 ## Sagas
 
 Beyond single events, the world tells **sagas**: storylines in 3–5 chapters that unfold over two to four months whether or not you take part. Each one is staged on the game's own systems. Its chapters start real timed events, plagues and famines, put monsters and fleets on the map, open delve sites, raise heresies and succession crises, bring petitioners to your court and post quests. Each saga ends in one of several ways, and every ending leaves the world changed.

@@ -416,7 +416,7 @@ export const Chatter = {
             const court = player.petitions && player.petitions.court;
             if (court) ctx.court = COURT_AXES.filter(a => _num(court[a]) >= cfg.courtThreshold);
             ctx.titles = Chatter._titles(world, player, kid);
-            ctx.titleLabel = player.kingdomTitle || (player.title && player.title !== 'Nobody' ? player.title : '') || 'traveller';
+            ctx.titleLabel = (player.kingdomTitle === 'king' && player.rulerTitle) || player.kingdomTitle || (player.title && player.title !== 'Nobody' ? player.title : '') || 'traveller';
             // The player's name in this realm, and a rival House that holds it (systems/fame.js)
             ctx.fame = [Fame.stageIn(player, kid).id];
             const rh = Fame.rivalHouse(player, kid);

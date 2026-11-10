@@ -44,7 +44,7 @@ Object.assign(UI.prototype, {
                         <span>👥 ${Utils.formatNumber(player.religion.followers)} followers</span>
                         <span>📿 ${player.religion.influence} influence</span>
                         <span>🏛️ ${(player.religion.buildings || []).length} buildings</span>
-                        <span>💰 +${PlayerReligion.getFaithIncome(player)}/day</span>
+                        <span title="Offerings owed by your followers a day; their towns give what their purses can spare">💰 +${PlayerReligion.getFaithIncome(player)}/day owed${player.religion.lastOffering ? ` · ${Math.floor(player.religion.lastOffering.paid)} given yesterday` : ''}</span>
                     </div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;" title="Influence = followers / 100, with diminishing returns">
                         Influence: +${Math.round(inf.conversionBonus * 100)}% conversion · +${Math.round(inf.incomeBonus * 100)}% tithes ·

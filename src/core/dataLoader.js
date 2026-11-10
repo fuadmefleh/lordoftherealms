@@ -327,6 +327,7 @@ export const DataLoader = {
         Kingdom.DEFAULTS = kingdomData.defaults;
         Kingdom._cityNames = kingdomData.cityNames;
         Kingdom._rulerTitles = kingdomData.rulerTitles;
+        Kingdom._realmStyles = kingdomData.realmStyles || null;
         Kingdom._rulerNames = kingdomData.rulerNames;
         Kingdom._epithets = kingdomData.epithets;
         // What each kingdom trait does (read by KingdomBonuses.get)

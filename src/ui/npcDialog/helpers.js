@@ -104,7 +104,9 @@ export function _getSkillTotal(skillName) {
 
 export function _getPlayerTitle() {
     if (!dialogState._game?.player) return '';
-    if (dialogState._game.player.kingdomTitle) return dialogState._game.player.kingdomTitle;
+    const pl = dialogState._game.player;
+    if (pl.kingdomTitle === 'king' && pl.rulerTitle) return pl.rulerTitle;
+    if (pl.kingdomTitle) return pl.kingdomTitle;
     if (dialogState._game.player.title && dialogState._game.player.title !== 'Nobody') return dialogState._game.player.title;
     return '';
 }

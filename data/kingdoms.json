@@ -158,6 +158,47 @@
         "Nordic": ["Jarl", "High King", "Shield-Maiden", "Stormcaller"],
         "Desert": ["Sultan", "Sultana", "Emir", "Vizier"]
     },
+    "realmStyles": {
+        "_doc": "How a realm's ruler is styled (Kingdom.rulerStyle: the player's crowned title, a player ruler's display name). The realm's type is read off its name ('Khanate of Kharzun', 'the Kharzun Khanate'); its ruler takes the type's title for their gender, or, for a type with none (Dominion, Realm, ...) or a name with no type, the culture's. 'of': 'land' styles the ruler of the land ('King of Valdoria'); 'realm' of the realm itself ('Khan of the Kharzun Khanate').",
+        "types": {
+            "Kingdom": { "male": "King", "female": "Queen", "of": "land" },
+            "Realm": { "of": "land" },
+            "Dominion": { "of": "land" },
+            "Empire": { "male": "Emperor", "female": "Empress", "of": "land" },
+            "Grand Duchy": { "male": "Grand Duke", "female": "Grand Duchess", "of": "land" },
+            "Duchy": { "male": "Duke", "female": "Duchess", "of": "land" },
+            "Principality": { "male": "Prince", "female": "Princess", "of": "land" },
+            "Khanate": { "male": "Khan", "female": "Khatun", "of": "realm" },
+            "Sultanate": { "male": "Sultan", "female": "Sultana", "of": "land" },
+            "Caliphate": { "male": "Caliph", "female": "Caliph", "of": "realm" },
+            "Theocracy": { "male": "High Priest", "female": "High Priestess", "of": "realm" },
+            "Republic": { "male": "Consul", "female": "Consul", "of": "realm" },
+            "Free City": { "male": "Lord Mayor", "female": "Lady Mayor", "of": "land" },
+            "Confederation": { "male": "High Chancellor", "female": "High Chancellor", "of": "realm" },
+            "Confederacy": { "male": "High Chancellor", "female": "High Chancellor", "of": "realm" },
+            "Conclave": { "male": "Archmage", "female": "Archmage", "of": "realm" },
+            "Holds": { "male": "Thane", "female": "Thane", "of": "land" },
+            "Jarldom": { "male": "Jarl", "female": "Jarl", "of": "land" },
+            "Chiefdom": { "male": "Chieftain", "female": "Chieftainess", "of": "land" },
+            "Tribal Lands": { "male": "Chieftain", "female": "Chieftainess", "of": "land" },
+            "Kinlands": { "male": "Chieftain", "female": "Chieftainess", "of": "land" },
+            "Clanholds": { "male": "Clan Chief", "female": "Clan Chief", "of": "land" },
+            "High Seat": { "male": "High Chief", "female": "High Chief", "of": "land" }
+        },
+        "cultures": {
+            "Imperial": { "male": "King", "female": "Queen" },
+            "Woodland": { "male": "King", "female": "Queen" },
+            "Nomadic": { "male": "Khan", "female": "Khatun" },
+            "Religious": { "male": "High Priest", "female": "High Priestess" },
+            "Maritime": { "male": "Consul", "female": "Consul" },
+            "Mountain": { "male": "Thane", "female": "Thane" },
+            "Swamp": { "male": "Witch-King", "female": "Witch-Queen" },
+            "Arcane": { "male": "Archmage", "female": "Archmage" },
+            "Nordic": { "male": "Jarl", "female": "Jarl" },
+            "Desert": { "male": "Sultan", "female": "Sultana" }
+        },
+        "fallback": { "male": "King", "female": "Queen" }
+    },
     "rulerNames": {
         "Imperial": ["Aldric", "Cedric", "Edmund", "Roland", "Theron", "Victor", "Helena", "Isabella", "Morgana", "Rowena", "Vivienne"],
         "Woodland": ["Elara", "Sylvan", "Thalia", "Rowan", "Faelan", "Arden", "Lyra", "Elowen", "Briar", "Cypress", "Willow"],

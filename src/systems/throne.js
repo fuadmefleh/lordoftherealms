@@ -689,7 +689,7 @@ export const Throne = {
             if (player.currentTitle) Titles.resign(player, world);
             player.allegiance = null;
             player.kingdomTitle = null;
-            player.title = `Pretender to ${k.name}`;
+            player.title = `Pretender to ${Kingdom.rulerStyle(k, player.gender).realm}`;
         }
 
         const sides = {};
@@ -893,9 +893,13 @@ export const Throne = {
             spouseId: null, childrenIds: [], parentId: null, siblingIds: [],
             maxLifespan: 999, opinions: {}, birthDay: 0,
         };
-        const last = (player.house && player.house.name ? player.house.name.replace(/^House\s+/i, '') : '') || player.lastName || '';
         ruler.firstName = player.firstName || player.name || 'Pretender';
-        ruler.dynasty = last;
+        // The House's name, unless it is only the player's own first name (a
+        // player without a surname heads "House Wanderer": never "Khan Wanderer Wanderer")
+        const house = player.house && player.house.name ? player.house.name.replace(/^House\s+/i, '').trim() : '';
+        const last = String(player.lastName || '').trim();
+        const dynasty = last || house;
+        ruler.dynasty = dynasty && dynasty.toLowerCase() !== String(ruler.firstName).trim().toLowerCase() ? dynasty : '';
         ruler.gender = player.gender === 'female' ? 'female' : 'male';
         ruler.age = player.age || 30;
         ruler.culture = kingdom.culture;
@@ -913,6 +917,18 @@ export const Throne = {
         return ruler;
     },
 
+    /**
+     * The crowned player's title from the realm's own style (Kingdom.rulerStyle):
+     * "King of Valdoria", "Khatun of the Kharzun Khanate" — never "King of
+     * Khanate of …". player.rulerTitle is the bare title (Khatun) for the HUD and dialogue.
+     */
+    _styleRuler(player, kingdom, ruler) {
+        const style = Kingdom.rulerStyle(kingdom, (ruler && ruler.gender) || player.gender);
+        player.title = style.full;
+        player.rulerTitle = style.title;
+        return style;
+    },
+
     _rulerName(player, kingdom) {
         const r = Throne._playerRuler(player, kingdom);
         return Characters.getDisplayName(r, kingdom);
@@ -927,7 +943,7 @@ export const Throne = {
         const ruler = Throne._playerRuler(player, kingdom);
         if (!kingdom.characterData) {
             kingdom.characterData = {
-                dynasty: { id: `dyn_${kingdom.id}`, name: ruler.dynasty, culture: kingdom.culture, kingdomId: kingdom.id, foundedDay: world.day, members: [], prestige: 10, bloodline: [] },
+                dynasty: { id: `dyn_${kingdom.id}`, name: ruler.dynasty || (player.house && player.house.name ? player.house.name.replace(/^House\s+/i, '') : ruler.firstName), culture: kingdom.culture, kingdomId: kingdom.id, foundedDay: world.day, members: [], prestige: 10, bloodline: [] },
                 ruler: null, spouse: null, children: [], advisors: Characters.generateAdvisors(kingdom),
             };
         }
@@ -946,7 +962,7 @@ export const Throne = {
         st.crises = st.crises.filter(c => c.kingdomId !== kingdom.id);
         player.allegiance = kingdom.id;
         player.kingdomTitle = 'king';
-        player.title = `${ruler.gender === 'female' ? 'Queen' : 'King'} of ${kingdom.name}`;
+        Throne._styleRuler(player, kingdom, ruler);
         // Every crown won — taken in a civil war or founded — counts for the House's legacy
         if (player.house) {
             player.house.stats = player.house.stats || {};
@@ -1218,7 +1234,7 @@ export const Throne = {
         });
         Throne._installRuler(world, k, heir);
         player.kingdomTitle = 'citizen';
-        player.title = `Citizen of ${k.name}`;
+        player.title = `Citizen of ${Kingdom.rulerStyle(k, player.gender).realm}`;
         Throne.syncCrowns(player, world);
         Throne._log(player, world, `👑 ${player.name || 'You'} sets down the crown of ${k.name}. ${k.ruler} rules now.`);
         return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${k.name}.` };
@@ -1290,7 +1306,7 @@ export const Throne = {
         if (k.characterData) k.characterData.ruler = ruler;
         k.ruler = Characters.getDisplayName(ruler, k);
         if (k.lord) k.lord.name = k.ruler;
-        player.title = `${ruler.gender === 'female' ? 'Queen' : 'King'} of ${k.name}`;
+        Throne._styleRuler(player, k, ruler);
 
         // The royal levy: a share of what the treasury gained since yesterday
         const treasury = k.treasury || 0;

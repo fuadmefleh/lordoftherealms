@@ -431,6 +431,54 @@ export const Kingdom = {
         return `${title} ${name} ${epithet}`;
     },
 
+    /** kingdoms.json realmStyles (with a built-in minimum for bare test data). */
+    _styles() {
+        const s = Kingdom._realmStyles || {};
+        return {
+            types: s.types || { Kingdom: { male: 'King', female: 'Queen', of: 'land' }, Khanate: { male: 'Khan', female: 'Khatun', of: 'realm' } },
+            cultures: s.cultures || { Nomadic: { male: 'Khan', female: 'Khatun' } },
+            fallback: s.fallback || { male: 'King', female: 'Queen' },
+        };
+    },
+
+    /**
+     * Read a realm's name: its type and its proper name. 'Khanate of Kharzun'
+     * and 'The Kharzun Khanate' → { type: 'Khanate', proper: 'Kharzun' };
+     * 'Westmarch' → { type: null, proper: 'Westmarch' }.
+     */
+    parseRealmName(name) {
+        const raw = String(name || '').trim().replace(/\s+/g, ' ');
+        const types = Object.keys(Kingdom._styles().types).sort((a, b) => b.length - a.length);
+        const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        for (const t of types) {
+            const pre = new RegExp(`^(?:the )?${esc(t)} of (?:the )?(.+)$`, 'i').exec(raw);
+            if (pre) return { type: t, proper: pre[1] };
+            const post = new RegExp(`^(?:the )?(.+?) ${esc(t)}$`, 'i').exec(raw);
+            if (post) return { type: t, proper: post[1] };
+        }
+        return { type: null, proper: raw.replace(/^the /i, '') || raw };
+    },
+
+    /**
+     * How the ruler of `kingdom` is styled, for `gender`: the realm type's
+     * title (or the culture's), and what they rule.
+     * 'Kingdom of Valdoria' → { title: 'King', realm: 'Valdoria', full: 'King of Valdoria' };
+     * 'Khanate of Kharzun', female → { title: 'Khatun', realm: 'the Kharzun Khanate',
+     * full: 'Khatun of the Kharzun Khanate' }.
+     */
+    rulerStyle(kingdom, gender = 'male') {
+        const S = Kingdom._styles();
+        const g = gender === 'female' ? 'female' : 'male';
+        const { type, proper } = Kingdom.parseRealmName(kingdom && kingdom.name);
+        const def = type ? S.types[type] || {} : {};
+        const culture = (kingdom && S.cultures[kingdom.culture]) || {};
+        const title = def[g] || culture[g] || S.fallback[g] || (g === 'female' ? 'Queen' : 'King');
+        let realm;
+        if (!type) realm = /^the /i.test(String(kingdom && kingdom.name || '')) ? `the ${proper}` : proper;
+        else realm = def.of === 'realm' ? `the ${proper} ${type}` : proper;
+        return { title, realm, full: `${title} of ${realm}` };
+    },
+
     /**
      * Initialize diplomatic relations between kingdoms
      */

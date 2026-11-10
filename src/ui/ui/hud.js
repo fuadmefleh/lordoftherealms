@@ -1052,7 +1052,8 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
 
 /** Alignment label: "Unaligned" when the player owes no allegiance. */
 function hudAlignment(player) {
-    return player.allegiance == null ? 'Unaligned' : (player.kingdomTitle || 'Citizen');
+    return player.allegiance == null ? 'Unaligned'
+        : (player.kingdomTitle === 'king' && player.rulerTitle) || player.kingdomTitle || 'Citizen';
 }
 
 /** Moral stance derived from karma. */

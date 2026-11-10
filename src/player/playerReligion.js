@@ -15,6 +15,7 @@ import { House } from '../systems/house.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { TownLabour } from '../world/townLabour.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Economy } from '../world/economy.js';
 
 /** Fallback preaching tuning (data/religion.json → preaching overrides). */
 const PREACH_DEFAULTS = {
@@ -468,14 +469,23 @@ export const PlayerReligion = {
             if (b.underConstruction) continue;
             const level = b.level || 1;
             if (b.incomeBonus) {
+                // The pilgrims pay out of their own towns' purses, near the hospice
                 const pilgrimMult = 1 + Math.min(2, (b.followers || 0) / 500);
-                out.gold += Math.floor(b.incomeBonus * 0.1 * level * pilgrimMult);
+                const due = Math.floor(b.incomeBonus * 0.1 * level * pilgrimMult);
+                const towns = [];
+                for (const h of Hex.hexesInRange(ref.q, ref.r, b.influenceRadius || 0)) {
+                    const t = world.getTile(h.q, h.r);
+                    const s = t && t.settlement;
+                    if (s && s.population > 0 && !towns.some(e => e.settlement === s)) towns.push({ settlement: s, weight: s.population });
+                }
+                out.gold += Economy.drawTowns(towns, due, PlayerReligion.offeringsConfig().hospiceMaxPurseShare, { init: true }).paid;
             }
             if (b.renownPerDay) out.renown += b.renownPerDay * level;
             if (b.scholarshipBonus) scholarship += b.scholarshipBonus * level;
         }
 
-        if (out.gold) player.gold = (player.gold || 0) + out.gold;
+        out.gold = Math.round(out.gold * 100) / 100;
+        if (out.gold) player.gold = Math.round(((player.gold || 0) + out.gold) * 100) / 100;
         if (out.renown) player.renown = (player.renown || 0) + out.renown;
 
         if (scholarship > 0) {
@@ -993,7 +1003,12 @@ export const PlayerReligion = {
         Traits.recordDeeds(player, { zeal: 2, piety: 1 });
 
         // The faithful put coins in the bowl
-        const alms = Math.floor(followersGained * C.alms.perFollower * (1 + (player.charisma || 0) * C.alms.perCharisma));
+        // (out of the town's own purse: a poor town has little to give)
+        const asked = Math.floor(followersGained * C.alms.perFollower * (1 + (player.charisma || 0) * C.alms.perCharisma));
+        if (settlement && !settlement.economy && settlement.population > 0) Economy.initSettlement(settlement);
+        const purse = Economy.townPurse(settlement);
+        const alms = Math.floor(Math.min(asked, purse == null ? asked : purse));
+        if (alms > 0) Economy.drawTown(settlement, alms);
         if (alms > 0) {
             player.gold = (player.gold || 0) + alms;
             Ledger.record(player, 'faith', alms);
@@ -1114,12 +1129,65 @@ export const PlayerReligion = {
         return income;
     },
 
+    /** data/religion.json offerings: how much of a town's coin its faithful give a day. */
+    offeringsConfig() {
+        return Religion.offeringsConfig();
+    },
+
     /**
-     * Collect faith income
+     * Where the faith's followers live: each town the faith has reached gives
+     * by its faithful (presence share × people). With no presence recorded
+     * (an old save), the towns around the faith's buildings. [{ settlement, weight }]
      */
-    collectFaithIncome(player) {
-        const income = PlayerReligion.getFaithIncome(player);
-        player.gold += income;
+    offeringTowns(player, world) {
+        const religion = player && player.religion;
+        if (!religion || !world || typeof world.getTile !== 'function') return [];
+        const out = [];
+        for (const [key, share] of Object.entries(religion.presence || {})) {
+            if (!(share > 0)) continue;
+            const [q, r] = key.split(',').map(Number);
+            const t = world.getTile(q, r);
+            const s = t && t.settlement;
+            if (s && s.population > 0) out.push({ settlement: s, weight: share * s.population });
+        }
+        if (out.length) return out;
+        const seen = new Set();
+        for (const ref of religion.buildings || []) {
+            const bt = world.getTile(ref.q, ref.r);
+            const radius = (bt && bt.religiousBuilding && bt.religiousBuilding.influenceRadius) || 0;
+            for (const h of Hex.hexesInRange(ref.q, ref.r, radius)) {
+                const t = world.getTile(h.q, h.r);
+                const s = t && t.settlement;
+                if (!s || !(s.population > 0) || seen.has(s)) continue;
+                seen.add(s);
+                out.push({ settlement: s, weight: s.population });
+            }
+        }
+        return out;
+    },
+
+    /**
+     * Collect the day's offerings: what the followers owe (getFaithIncome) is
+     * given out of the purses of the towns they live in, each town giving its
+     * share by its faithful and at most offerings.maxPurseShare of its coin.
+     * Real coin: the towns are poorer by exactly what the faith takes.
+     * → the gold taken (whole coins and hundredths, like the towns' purses).
+     */
+    collectFaithIncome(player, world) {
+        const owed = PlayerReligion.getFaithIncome(player);
+        if (!(owed > 0) || !world) return 0;
+        const cfg = PlayerReligion.offeringsConfig();
+        const towns = PlayerReligion.offeringTowns(player, world);
+        // Only the faithful who live in those towns give: the follower count
+        // (every soul ever converted) can run past the towns' people
+        const faithful = towns.reduce((s, e) => s + e.weight, 0);
+        const followers = Math.max(1, player.religion.followers || 0);
+        const due = Math.floor(owed * Math.min(1, faithful / followers) * 100) / 100;
+        const res = Economy.drawTowns(towns, due, cfg.maxPurseShare, { init: true });
+        const income = res.paid;
+        player.religion.lastOffering = { owed, due, paid: income, towns: res.towns.length };
+        // (the day's finance row takes it from the turn's results: ui/game/endDay.js)
+        if (income > 0) player.gold = Math.round(((player.gold || 0) + income) * 100) / 100;
         return income;
     },
 

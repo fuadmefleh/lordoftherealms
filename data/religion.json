@@ -234,6 +234,13 @@
       "reputationLoss": 3, "banAfter": 3, "banChancePerStrike": 0.25, "banDays": 30, "strikeDecayDays": 60
     }
   },
+  "offerings": {
+    "_doc": "Faith income is real coin. The player's followers give out of the purses of the towns they live in, by the faithful there (presence share x people; the follower count past the towns' faithful gives nothing: PlayerReligion.collectFaithIncome); a hospice's pilgrims pay out of the towns around it (applyBuildingYields); a sermon's alms come from the town preached in; a realm's holy-site pilgrims (Religion.processTurn) and its temples' offerings (KingdomAI.updateInstitutions) come out of its own towns, by people. Each town gives its share, at most this share of the coin it holds that day, so a poor town gives less and none is emptied.",
+    "maxPurseShare": 0.01,
+    "hospiceMaxPurseShare": 0.01,
+    "pilgrimMaxPurseShare": 0.01,
+    "templeMaxPurseShare": 0.005
+  },
   "playerInfluence": {
     "scale": 100,
     "conversionBonus": 0.5,

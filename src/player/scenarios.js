@@ -68,6 +68,7 @@ import { Religion } from '../systems/religion.js';
 import { Devotion } from '../systems/devotion.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { Estates } from '../world/estates.js';
+import { Kingdom } from '../world/kingdom.js';
 
 const FALLBACK = {
     wanderer: {
@@ -275,7 +276,7 @@ export const Scenarios = {
         if (home) Scenarios._moveTo(player, world, home.q, home.r);
         Scenarios._train(player, o);
         if (o.gold != null) player.gold = _num(o.gold);
-        player.title = `${o.title || 'Exiled Monarch'} of ${k.name}`;
+        player.title = `${o.title || 'Exiled Monarch'} of ${Kingdom.rulerStyle(k, player.gender).realm}`;
         player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
         if (player.house) House.award(player.house, _num(o.prestige), 'a crown, lost', _day(world));
         const men = Scenarios._army(player, o);

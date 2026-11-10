@@ -39,6 +39,7 @@ import { Traits } from '../systems/traits.js';
 import { Hex } from '../core/hex.js';
 import { WorldUnit } from '../world/units.js';
 import { SocialSkills } from '../systems/socialSkills.js';
+import { Economy } from '../world/economy.js';
 
 const DEFAULTS = {
     cellmates: { count: [2, 3], firstNames: ['Odo'], epithets: ['the Grey'] },
@@ -172,6 +173,27 @@ export const Prison = {
         return jail.prison;
     },
 
+    /**
+     * Gold paid inside the jail (bribes, bail, a smuggler's errand) reaches
+     * the town: the guards and the court spend it there. Into the purse of
+     * the town that passed the sentence (Economy.payTown).
+     */
+    _payJail(player, world, amount) {
+        const jail = player && player.jailState;
+        if (!jail || !(amount > 0) || !world) return 0;
+        let s = null;
+        if (jail.q != null && jail.r != null && typeof world.getTile === 'function') {
+            const t = world.getTile(jail.q, jail.r);
+            s = t && t.settlement;
+        }
+        if (!s) {
+            const v = Prison._sentencedAt(player, world);
+            const t = v && v.q != null && typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+            s = (t && t.settlement) || null;
+        }
+        return s ? Economy.payTown(s, amount) : 0;
+    },
+
     _log(pr, text) {
         pr.log.push(text);
         if (pr.log.length > 12) pr.log.splice(0, pr.log.length - 12);
@@ -238,6 +260,7 @@ export const Prison = {
         if (_num(player.gold) < cost) return { success: false, reason: `It will cost ${cost} gold.` };
         player.gold -= cost;
         Ledger.record(player, 'bribes', -cost);
+        Prison._payJail(player, world, cost);
         pr.toolsDueDay = _day(world) + 1;
         const text = `${m.name} takes your ${cost} gold: "Tomorrow, in the bread."`;
         Prison._log(pr, text);
@@ -275,6 +298,7 @@ export const Prison = {
         if (kind === 'lookaway' && pr.lookAwayDay === day) return { success: false, reason: 'A guard already owes you tonight.' };
         player.gold -= cost;
         Ledger.record(player, 'bribes', -cost);
+        Prison._payJail(player, world, cost);
         const ok = Utils.random() < Prison.bribeChance(player, world);
         SocialSkills.trainBy(player, 'persuasion', 'bribe');
         if (!ok) {
@@ -452,6 +476,7 @@ export const Prison = {
         if (_num(player.gold) < bail) return { success: false, reason: `You need ${bail} gold (have ${Math.floor(_num(player.gold))}).` };
         player.gold -= bail;
         Ledger.record(player, 'bail', -bail);
+        Prison._payJail(player, world, bail);
         const settlement = jail.settlement;
         const rel = Prison.release(player, world, 'bail');
         return { success: true, bail, text: `You paid ${bail} gold and were released from jail in ${settlement}.${rel.text ? ` ${rel.text}` : ''}` };

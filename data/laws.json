@@ -1,5 +1,5 @@
 {
-    "_doc": "The laws of each realm (systems/laws.js; the Laws panel ui/actionMenu/laws.js). Each law has options; a realm's law is set on kingdom.laws (saved with the realm). Until a ruler sets one, a realm keeps its old custom: share[option] of realms hold each (a hash of the realm, the same all game). Only the ruler of a realm may change its law: each change costs changeCost.treasury from the crown's treasury and changeCost.stability of the realm's stability (folk dislike upheaval), plus the option's own stability (adopting a hard law costs more), and a law may be changed again only after cooldownDays. Every law is read by the game: privatePrisons by systems/knockout.js (a private citizen may drag the beaten off to their prison camp only where it's allowed); foreignLand by systems/lots.js (where only subjects may hold land, a stranger can't buy a lot or a house, nor rent one); punishment by systems/streetCrime.js (the watch's fines and days in the cells, × fine and × jail) and by systems/knockout.js (× deter: the chance that whoever downs you finishes you or goes through your purse, and that one who hates you sets on you at home).",
+    "_doc": "The laws of each realm (systems/laws.js; the Laws panel ui/actionMenu/laws.js). Each law has options; a realm's law is set on kingdom.laws (saved with the realm). Until a ruler sets one, a realm keeps its old custom: share[option] of realms hold each (a hash of the realm, the same all game). Only the ruler of a realm may change its law: each change costs changeCost.treasury from the crown's treasury and changeCost.stability of the realm's stability (folk dislike upheaval), plus the option's own stability (adopting a hard law costs more), and a law may be changed again only after cooldownDays. Every law is read by the game: privatePrisons by systems/knockout.js (a private citizen may drag the beaten off to their prison camp only where it's allowed); foreignLand by systems/lots.js (where only subjects may hold land, a stranger can't buy a lot or a house, nor rent one); punishment by systems/streetCrime.js and systems/underworld.js (arrests: fines and days in the cells) (the watch's fines and days in the cells, × fine and × jail) and by systems/knockout.js (× deter: the chance that whoever downs you finishes you or goes through your purse, and that one who hates you sets on you at home); vice by systems/gangs.js (what the gangs' gambling dens take, the crackdown they draw, and the licence the crown takes).",
     "changeCost": { "treasury": 150, "stability": 2 },
     "cooldownDays": 30,
     "laws": {
@@ -26,6 +26,15 @@
                 "lenient": { "label": "Lenient", "desc": "Lighter fines, shorter stays in the cells. Those who would rob or kill a fallen man fear the law less.", "share": 0.25, "stability": -1, "fine": 0.6, "jail": 0.6, "deter": 1.3 },
                 "standard": { "label": "Customary", "desc": "The fines and sentences of long custom.", "share": 0.5, "stability": 0, "fine": 1, "jail": 1, "deter": 1 },
                 "harsh": { "label": "Harsh", "desc": "Heavy fines and long sentences. The streets are quieter; the people grumble.", "share": 0.25, "stability": -2, "fine": 1.6, "jail": 1.6, "deter": 0.6 }
+            }
+        },
+        "vice": {
+            "name": "Gaming & Vice", "icon": "🎲",
+            "desc": "Dice dens, card tables and back rooms: does the crown hunt them, wink at them, or license them?",
+            "options": {
+                "forbidden": { "label": "Forbidden", "desc": "Dens are hunted. They take less and the watch's crackdown runs hotter wherever they open.", "share": 0.3, "stability": -1 },
+                "tolerated": { "label": "Tolerated", "desc": "The watch looks the other way, so long as nobody is killed in one.", "share": 0.5, "stability": 0 },
+                "licensed": { "label": "Licensed", "desc": "Dens may trade openly for a licence: they take more, the crackdown eases, and a fifth of their take goes to the crown's treasury.", "share": 0.2, "stability": 0 }
             }
         }
     }

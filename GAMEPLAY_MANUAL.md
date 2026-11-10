@@ -34,6 +34,7 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
     - [Roads, Canals & Logistics](#roads-canals--logistics) — road tiers and repair, upkeep, washouts and snowbound passes, haulage and spoilage, public works, canals, harbours and tolls
 14. [Espionage](#14-espionage)
     - [The Underworld](#the-underworld) — heat, the thieves' guild, contraband, fences
+    - [Gangs & the Town Watch](#gangs--the-town-watch) — the towns' gangs, rackets, crackdowns, bought captains and magistrates, wars, betrayals; dirty coin and laundering
 15. [Ships & Naval](#15-ships--naval)
     - [Landing Parties](#landing-parties) — raids from the sea, beach runs past the customs, landfall colonies, sea reavers
 16. [Kingdoms & Diplomacy](#16-kingdoms--diplomacy)
@@ -114,6 +115,7 @@ The new-game screen's **Origin & Challenge** box sets who you start as, how hard
 | ⛪ **The High Priest(ess)** | You head the faith of the nearest realm with two or more towns, seated at the **Great Temple** in its capital (a temple of your faith: the realm's cathedral, if it had raised one, passes to the see). The capital is devoted to the faith (45%), and the realm's other towns follow it in part. The clergy know you (standing 60 with the faith), every realm of the faith gives +25 reputation, and the three nearest church estates in the realm are yours (rents from the town's coin). Each day the faithful realms **tithe** to your see: 15% of their pilgrims' gold and 3% of the crown's daily revenue, taken out of their treasuries. All the Religion panel's actions work for your faith: preaching (your own clergy never punish you for it), shrines and temples, miracles, denouncing heresy. 700 gold, +3 faith, +1 charisma, +2 diplomacy, +1 leadership, 40 karma, 50 Prestige. | A heresy is loose in the see's realm (strength 28; at 50 it splits the realm), and the realm of the most militant other faith is your House's rival (feud 35, −15 reputation). | 🕯️ Faith Ascendant: 10 settlements devoted to your faith |
 | 🏰 **The Great Lord** | Duke or Duchess of the largest non-capital town of the nearest realm: every estate of the realm's greatest noble house passes to you (their rents come in monthly), 2 household soldiers and a knight drawn out of the realm's host, sworn to the realm (+30 reputation), a cadet **blood claim** of 20 on its throne, 1,200 gold, 45 Prestige. | The crown fears an overmighty subject: the ruling house is your House's rival (feud 30). | 👑 Wear a Crown |
 | ⚖️ **The Guildmaster** | Elected master of the richest guild in a great town near you (capital or city first). You hold its seat, its guild rates and stipend, and the guildmaster's powers (calling off strikes, lobbying). The entry fee goes into the hall as anyone's would. 12 of the guild's goods, 1,200 gold, +4 commerce, +1 diplomacy, +1 intelligence, 25 Prestige. | The masters vote again in 45 days and a challenger is canvassing. Keep your standing up. | ⚖️ Monopolist |
+| 🗝️ **The Crime Lord** | Boss of the biggest gang in one of the five largest cities (the nearest of them). The old boss is dead and the gang is yours: at least 12 crew, three named lieutenants, protection on 60% of the streets, a dice den, a smuggling line over the border, and its hidden stash (700 gold in the gang's purse and contraband goods, all of it taken out of the town's own coffers and market). The watch captain is on your payroll. You are a Master Thief of the guild, known as one, and you carry 350 gold, all of it dirty. +3 stealth, +2 combat, +2 leadership, +1 intelligence, +1 strength. | The magistrate is honest, the realm's watch has heat 30 on you and the town's crackdown stands at 35. One lieutenant is ambitious and not very loyal. A rival gang (10 crew or more, more on harder settings) is at war with you from the first day. | 🗝️ Kingpin: boss in 4 towns |
 
 As the Monarch, the realm's own AI stops acting for it. It sends no envoys of its own, signs no alliances you did not make, and declares war only under an aggressive war stance. The old lord's goals (tribute, temples, pioneers, peace) no longer run. Its economy, armies and fleet still work as the realm's machinery, steered by your policies, council and edicts. When you die, an heir who takes up the mantle keeps the crown, and a child heir reigns under a regent. If the line ends, or you start a new life instead, the crown goes back to the realm: the eldest grown child of the old line still at court takes it, or else a kinsman of its dynasty.
 
@@ -143,6 +145,7 @@ The difficulty stays with the game: an heir keeps it, and so does a new life aft
 | 🏰 Conqueror | you hold 8 settlements in your own name |
 | 🗺️ Empire | the realm you rule has 10 settlements |
 | 🕯️ Faith Ascendant | 10 settlements are devoted to your faith (your own founded faith, or the one you head) |
+| 🗝️ Kingpin | you are boss of a gang in 4 towns at once (a crew you founded, or one you took; see [Gangs & the Town Watch](#gangs--the-town-watch)) |
 
 An heir carries the goal on. A new life keeps the goal but must win it again; past wins are listed in the panel. Games saved before this feature load as the Wanderer on Normal with no goal. Tuning is in `data/scenarios.json`.
 
@@ -2578,7 +2581,7 @@ A criminal path through the realms, alongside the honest one. Everything here is
 
 - **Raised by crimes:** pickpocketing (+3), burglary (+8), protection rackets (+6, then +3 a week), heists (+25), black-market deals (+2, scaled by how illegal the goods are), smuggling — by hand, by route or in a beach run past the customs house (+2 to +4; see [Landing Parties](#landing-parties)), piracy (+12 with the realm whose waters it was) and robbing caravans. Being caught raises it far more (+10 to +35).
 - **Cools** by 1 a day everywhere. **Lie low** in a realm (from the panel) and it cools by 4 a day there for 3 days — but you take no jobs in that realm meanwhile.
-- **Bribe the watch** (1 AP): pay to knock up to 30 heat off. The price scales with the heat and the town's guard strength; guild rank discounts it (5% per rank). About 1 in 10 sergeants takes the gold and reports you anyway (more in *orderly* realms, fewer if you are charming).
+- **Bribe the watch** (1 AP): pay to knock up to 30 heat off. The price scales with the heat and the town's guard strength; guild rank discounts it (5% per rank), and it costs half where your gang has bought the watch captain. About 1 in 10 sergeants takes the gold and reports you anyway (more in *orderly* realms, fewer if you are charming). The gold goes into the watch captain's purse, and he spends it in town.
 - Answering to the guards at the guard tower (settling your bounties) also cools heat to 20.
 
 | Heat | Level | What happens |
@@ -2588,7 +2591,9 @@ A criminal path through the realms, alongside the honest one. Everything here is
 | 60+ | **Arrest risk** | A search can end in arrest |
 | 80+ | **Warrant** | A kingdom-wide warrant: merchants, taverns and recruiters there refuse you until you settle with the guards |
 
-**Guard searches.** Entering a settlement in a realm where you are watched, guards may search you — the higher the heat and the bigger the garrison, the likelier. Never at the gate of your own holding: your watch answers to you. But a watchtower or walls and the troops you station there make every job, burglary and black-market deal *in* that town harder, as if its guard were stronger. They **confiscate** goods banned there and any **hot** goods, fine you (more for what they find), and may **arrest** you into the town jail (2+ days, bail available). A clean search cools your heat by 3.
+**Guard searches.** Entering a settlement in a realm where you are watched, guards may search you — the higher the heat and the bigger the garrison, the likelier. The town's **crackdown** makes a search likelier (+0.6% per point), and a watch captain on your gang's payroll makes it far less likely (×0.3). Never at the gate of your own holding: your watch answers to you. But a watchtower or walls and the troops you station there make every job, burglary and black-market deal *in* that town harder, as if its guard were stronger. They **confiscate** goods banned there (burned) and any **hot** goods (sold on the town's market by the magistrate), take half of any **dirty coin** you carry, fine you (more for what they find), and may **arrest** you into the town jail (2+ days, bail available). A clean search cools your heat by 3. Fines, seized coin, bail and the bribes you pay a gaoler go into the town's purse.
+
+**Arrests and the law.** The realm's law on **Punishment** (see Laws) scales your days in a cell and every fine: Lenient ×0.6, Customary ×1, Harsh ×1.6. An arrest also takes 70% of your dirty coin. If your gang has bought the town's **magistrate**, an arrest there is dismissed after a single night.
 
 **Guard strength** is village 1, town 2, city 3, capital 4, adjusted by the realm's character (*orderly* +0.75, *militaristic* and *defensive* +0.5, *secretive* −0.5, *mercantile* −0.25…).
 
@@ -2605,20 +2610,20 @@ In any **town, city or capital** tavern, *ask the barkeep about "special work"* 
 | Prowler | 55 | Protection rackets; you are now **known** as a guild man |
 | Shadow | 110 | Heists |
 | Master Thief | 190 | — |
-| Guildmaster | 300 | A **weekly cut**: 150g + 25g per racket you run |
+| Guildmaster | 300 | A **weekly tithe** from the gangs of every town: up to 150g + 25g per racket you run, drawn out of their purses (at most 5% of each) |
 
-**Jobs** (from the Underworld panel, in towns and cities):
+**Jobs** (from the Underworld panel's 🗝️ Guild tab, in towns and cities). Every coin they take is the town's own, out of its purse: a poor town has less in its pockets.
 
 | Job | AP | Reward |
 |-----|----|--------|
 | Work the Crowd | 2 | 6–28g, more in well-guarded towns |
-| Burgle a Merchant's House | 4 | 30–90g plus goods — **hot** |
-| Protection Racket | 3 | A weekly payment from the town (4% of its population, 20–160g); one racket per rank. Heat 70+ in that realm risks the watch breaking it up |
-| Heist | 6 | Hundreds of gold and rare loot (hot) — see below |
+| Burgle a Merchant's House | 4 | 30–90g plus goods out of the town market's stock (luxuries, spices, gems, candles, wine, silver jewellery, glassware, books, clothes or soap: whatever it holds) — **hot** |
+| Protection Racket | 3 | A weekly payment from the town's shopkeepers (4% of its population, 20–160g, out of its purse: a poor town pays what it can); one racket per rank. Heat 70+ in that realm risks the watch breaking it up. Where a town gang holds a big share of the streets and you run with none of them, it may run you off |
+| Heist | 6 | Hundreds of gold and loot (hot) — see below |
 
-**Odds** = the job's base + 4% per Stealth point + the job's stat (Luck, Intelligence or Strength) + 2% per guild rank + **traits** (Cunning +8%, Deceitful +6%, Brave +2%, Honest −5%, Craven −3%) − 6% per point of guard strength − local heat. A failed job either comes away empty-handed or gets you **caught**: a fine, heat, a theft rumour that spreads like any other, and possibly jail.
+**Odds** = the job's base + 4% per Stealth point + the job's stat (Luck, Intelligence or Strength) + 2% per guild rank + **traits** (Cunning +8%, Deceitful +6%, Brave +2%, Honest −5%, Craven −3%) − 6% per point of guard strength − local heat − 0.2% per point of the town's **crackdown**, +6% where your gang owns the watch captain. A failed job either comes away empty-handed or gets you **caught**: a fine, heat, a theft rumour that spreads like any other, and possibly jail.
 
-**Heists** are planned before they are struck. Pick a mark — the Counting House or a Noble's Manor (towns), the Temple Vault (cities; costs karma), the Royal Treasury (capitals) — then take planning steps in that town within 14 days: **case the target** (+12%), **lockpicks & rope** (80g, +8%), **a crew** (140g, +14%), **an inside man** (180g, +16%), **the getaway** (60g, +5%, halves the arrest chance if it goes wrong). Then strike.
+**Heists** are planned before they are struck. Pick a mark — the Counting House or a Noble's Manor (towns), the Temple Vault (cities; costs karma), the Royal Treasury (capitals) — then take planning steps in that town within 14 days: **case the target** (+12%), **lockpicks & rope** (80g, +8%), **a crew** (140g, +14%), **an inside man** (180g, +16%), **the getaway** (60g, +5%, halves the arrest chance if it goes wrong). Then strike. The Counting House gives up at most 12% of the town's purse, the Manor 8%, the Temple Vault 6%, and the Royal Treasury 5% of the **crown's treasury** (each within its gold range). The loot comes out of the town's market stock.
 
 ### Contraband & the Black Market
 
@@ -2631,13 +2636,88 @@ Each kingdom bans or tariffs goods according to its **culture and faith**:
 
 The legal market **refuses** banned goods and pays **25% less** for tariffed ones (the crown's cut). The panel lists what is banned and tariffed in the realm you are in.
 
-The **black market** (open once you have a guild contact) buys anything you carry that isn't hot, at a premium: ×1.05 for legal goods, ×1.35 tariffed, ×1.9 banned. A **blockaded** realm pays +0.5 more (+0.75 more again where its port is sealed by enemy fleets); in the **lean season** food fetches +0.35 and contraband +0.15. Each deal costs 1 AP and risks a raid — likelier with bigger garrisons, higher heat and under blockade, less likely with Stealth and a cunning character. Under blockade, deals raise twice the heat.
+The **black market** (open once you have a guild contact) buys anything you carry that isn't hot, at a premium: ×1.05 for legal goods, ×1.35 tariffed, ×1.9 banned. A **blockaded** realm pays +0.5 more (+0.75 more again where its port is sealed by enemy fleets); in the **lean season** food fetches +0.35 and contraband +0.15. On top of that, **supply and demand**: the price is multiplied by how scarce the good is on the town's black market, the town gangs' stash of it against what the town wants (×0.6 when the stash is glutted, up to ×2.6 when there is none). Each deal costs 1 AP and risks a raid — likelier with bigger garrisons, higher heat and under blockade, less likely with Stealth and a cunning character. Under blockade, deals raise twice the heat.
+
+The buyer is one of the **town's gangs** (the richest; your own last): it pays out of its purse, and your goods go into its stash, which the townsfolk then buy from week by week. A gang with an empty purse can't pay, so the black market of a town whose gangs have been raided or broken may turn you away.
 
 **Smuggling by hand** (Smuggle in a town, Stealth 2+) sells one unit per deal for 2 AP at 1.3× the black-market price, but never more than half what the goods cost on open sale here or next door. The odds are 50% + 6% per Stealth point, at most 90%. Getting caught costs the goods, a fine of half the price and jail that grows with each offence.
 
 ### Hot Goods & Fences
 
-Goods you steal are **hot** for 10 days. The legal market and the black market won't touch them; only a **fence** will — at 50% of their worth (+4% per guild rank), no questions asked. Guards who search you seize hot goods. Loot still respects your carrying capacity: what doesn't fit is left behind.
+Goods you steal are **hot** for 10 days. The legal market and the black market won't touch them; only a **fence** will — at 50% of their worth (+4% per guild rank), no questions asked. Guards who search you seize hot goods. Loot still respects your carrying capacity: what doesn't fit is left behind (and stays in the market it came from).
+
+The fence, too, is a town gang: it pays from its purse and keeps the goods until they are cold (10 days). Then legal goods go back into the town's market stock (the town paying the gang 80% of their worth for them) and contraband joins the gang's stash for the black market.
+
+### Gangs & the Town Watch
+
+Every town, city and capital has its own underworld: one gang in a town, one or two in a city, two or three in a capital. Each gang has a **boss**, a **crew**, two or three named **lieutenants** (each with a role, a skill, loyalty and ambition), a **purse**, a **stash** of goods, a share of the town's streets (**turf**), perhaps **dice dens**, and perhaps a **smuggling line**. Open the town's **🗝️ Underworld** (a guild contact first) and its **🔪 Streets** tab shows who runs which streets, the town watch, and your place in it all. Tuned in `data/underworld.json` → `gangs`; the logic is `systems/gangs.js`.
+
+**Where a gang's coin comes from and goes.** Nothing is made from nothing. Each week (on the day after the week turns over, day 3 of every 7):
+
+| In | Out |
+|---|---|
+| **Protection** from the town's purse: about 1.2% of the purse plus 0.03g a head (at most 400g), times its turf, less as the crackdown rises | **Wages** to its crew (3g a man) and lieutenants (22g each), spent in the town (into its purse). Unpaid, 15% of the crew walks and the lieutenants sour |
+| **Dens**: 0.012g a head per den (at most 160g each), out of the town's purse, scaled by the realm's **Gaming & Vice** law | **The watch** it has bought: the captain's and magistrate's weekly retainers. They spend a quarter of their purses in town each week |
+| **The black market**: the town's people buy contraband from its stash at supply-and-demand prices (paid out of the town's purse; the goods are used up) | **Smuggling**: a run over the border buys 3–6 units of a good banned or tariffed here from the nearest foreign town (within 14 hexes) where it is legal and in stock: that market's stock falls and its purse is paid the asking price |
+| **Fenced goods**, once cold: legal goods go back into the town's market stock and the town pays 80% of their worth | **Recruits** (25g a head) and a **new den** (220g), paid into the town |
+| A broken rival's purse, stash and streets, or a beaten one's tribute | A **raid** by the watch: 30% of the purse to the town's coffers, half the stash burned, a fifth of the crew taken |
+
+A gang's first purse and stash, when the world first sees it, were taken out of its town's purse and market in the same way. A gang not run by you keeps a war chest (eight weeks' wages and the price of a den) and its boss and men spend 30% of anything above it in town each week, so the town's coin keeps moving. Left to themselves, bosses sign men when the purse is fat, open dens, buy the captain when the crackdown passes 40, and make war on weaker rivals.
+
+**The watch.** Each town keeps a watch captain and a magistrate (named), and a **crackdown** from 0 to 100. Crime raises it: every crime you commit in town (0.8 per point of heat it brings), gang wars (+6 a week), dens (+2 a week each, more where vice is forbidden, less where it is licensed), betrayals to the watch (+25). It cools by 4 a week (3 where punishment is harsh, 5 where it is lenient). From 35, the watch **raids** gangs: the higher the crackdown, the likelier (×the realm's fine multiplier); a gang that has bought the captain is raided a quarter as often. The crackdown also makes searches at the gate likelier and your jobs harder.
+
+**The realm's laws** (📜 Laws panel) bear on all of it. **Punishment** scales fines, cells and raids (see above). **🎲 Gaming & Vice** is a law of its own: *Forbidden* (dens take 30% less and draw +2 crackdown a week each), *Tolerated* (as described), or *Licensed* (dens take 25% more, draw 1 less crackdown, and a fifth of their take goes to the crown's treasury as the licence). A ruler can change it like any law.
+
+A gang can put the **captain** on its payroll (18g a week per point of the town's guard strength, two weeks up front; four weeks to turn him from a rival gang, who will take it ill): no raids on it, fewer searches of its members at the gate (×0.3), cheaper bribes (half price) and +6% on their jobs in town. The **magistrate** (14g per guard point a week): an arrest of one of its members in that town is dismissed after one night. A gang that can't pay the retainer loses its man.
+
+**Running with a crew.** With a guild contact you can ask any gang to take you on (one crew per town; you can run with crews in several towns). You start as a **Hanger-on** and rise with standing earned on its errands (and 1 a week for being on the books):
+
+| Rank | Standing | Weekly pay (from the gang's purse) |
+|---|---|---|
+| 🪶 Hanger-on | 0 | 4g |
+| 🗡️ Soldier | 15 | 8g |
+| 👊 Enforcer | 40 | 14g |
+| 🎖️ Lieutenant | 80 | 22g |
+| 👑 Boss | — | the boss's cut |
+
+| Errand | Rank | AP | What happens |
+|---|---|---|---|
+| 🪙 Make the collection rounds | Hanger-on | 2 | Collect from the gang's streets (0.4% of the town's purse, more with more turf); you keep a fifth, the gang the rest |
+| 📜 Forge papers | Soldier | 3 | 1 parchment + 1 ink from your packs become 1 **forged documents** (contraband everywhere) |
+| 👊 Lean on a holdout | Soldier | 3 | +5% turf for the gang; cruelty and dread |
+| 📦 Run a cargo | Soldier | 4 | A smuggling run with the gang's coin (as above); your cut is 15% of what the load is worth on the black market here. Fail and the load is lost at the border |
+| 🔪 Hit a rival crew | Enforcer | 4 | Only in a gang war: 2–4 of their crew down, 8% of their turf to you; a crew brought to 3 men is finished |
+| 🎭 Snatch a merchant's child | Enforcer | 5 | A ransom of up to 4% of the town's purse (at most 450g); you keep 30%. Karma −6, heavy heat, crackdown +18 |
+
+Odds for errands work like the guild's jobs, plus 3% per gang rank. Failing can get you caught: a fine to the town (scaled by the law) and perhaps a cell.
+
+A **Lieutenant** can **move against the boss** (4 AP): the odds grow with your combat, leadership and standing, and with each lieutenant who is tired of the boss (loyalty under 40), and fall with the boss's might. Win and the gang is yours (the old boss goes in the river: karma and heat). Lose and you are beaten (−25 health), thrown out, and the gang will never take you back.
+
+With the guild's rank of **Prowler** or above you can **found a crew of your own** in a town: 200g for its purse and 25g a head to sign 4 men (paid into the town), one lieutenant, 15% of the streets. The biggest crew in town takes it ill.
+
+**The boss's hand** (when the gang is yours):
+
+- **The cut**: 10%, 25% or 40% of the week's take is paid to you (dirty coin). More than 25% sours every lieutenant each week.
+- **The purse**: take coin out (dirty; emptying more than two weeks' wages sours the lieutenants) or put your own in.
+- **Crew**: sign men at 25g a head (into the town), up to 1% of the town's people.
+- **Lieutenants**: pay a 50g **bonus** (+15 loyalty) or **purge** one (karma, dread, crackdown +10, the others' loyalty −6).
+- **Buy the watch**: the captain and the magistrate, as above. Stop paying any time.
+- **Rackets**: open a **dice den** (220g; one in a town, two in a city, three in a capital) and turn the weekly **border runs** on or off.
+- **War and truce**: go to war with another gang, or buy a truce (30% of your purse as tribute) that lasts 60 days.
+
+**Wars.** Each week at war, the two crews clash: each loses men in proportion to the other's strength (crew, lieutenants' skill, the boss's might, or your combat and leadership), the stronger takes 8% of the weaker's streets, and the crackdown rises. A gang brought down to 3 men is finished: its streets, purse, stash and half its men go to the victor. A beaten gang with half its rival's crew may buy a truce. Gangs also start wars among themselves when one is a third stronger than another (likelier if they have a feud).
+
+**Lieutenants betray.** A lieutenant below 30 loyalty may, each week: **inform** the watch (crackdown +25; heat +15 on you if you are the boss), **split** off with 30% of the crew and a quarter of the purse into a new gang at war with yours, or, if ambitious, **move against the boss**. Against you the odds weigh his skill and the disloyal lieutenants against your combat, leadership and the loyal ones: lose, and the gang is his and you are out with −20 health. Loyalty rises 2 a week when wages are paid, falls 6 when they are not, and moves with the cut and with wars won and lost.
+
+When you die and start a new life (or nobody takes up your mantle), a gang you bossed passes to its ablest lieutenant.
+
+### Dirty Coin & Laundering
+
+Gold from crime is **dirty**: jobs, the fence, the black market, smuggling, rackets, ransoms, the Guildmaster's tithe, a gang's pay, the boss's cut and anything taken from a gang's purse. The **🧼 Coin** tab shows how much of your purse is dirty. When you spend, the dirty coin is spent first.
+
+- A **guard search** takes half your dirty coin, an **arrest** 70%, into the town's coffers.
+- Carrying 1,500g or more of dirty coin, tongues wag: each week you gain heat in the realm you are in (3, up to 9 for a very dirty purse).
+- **Launder** it through a **front** you own in the town: a tavern (160g a week), inn (220g), grand hotel (320g), trading post (200g), guest house (120g), roadhouse (140g), brewery (120g), bakery (80g), any other property (60g), and, if you are the boss, your gang's dens (150g each). Laundering costs a 15% fee, paid out to the town as the books' false trade.
 
 ### Consequences
 

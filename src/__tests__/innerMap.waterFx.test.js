@@ -77,7 +77,7 @@ describe('the water that moves', () => {
         expect(F.strength[5 * F.Wd + 10]).toBe(1);
     });
 
-    it('the river runs the way the world river flows (else along its run), and has no surf', () => {
+    it('the river runs the way the world river flows (else along its run), and has no breaking surf', () => {
         lay({ river: 6 });
         InnerMap._currentWorldTileRef = { riverDir: 3 }; // out by the west side
         const cells = [...InnerMapRenderer._waterFxCells().values()].flat();
@@ -133,6 +133,50 @@ describe('the water that moves', () => {
         expect(() => InnerMapRenderer._drawWake(ctx, camera, 1, wx, cfg, { L, flow: 1, underway: true })).not.toThrow();
         expect(calls.length).toBe(0);
         expect(() => InnerMapRenderer._drawSwell(ctx, { x: 0, y: 0 }, 32, InnerMapRenderer._frameRange, 1, wx, cfg, { L, flow: 1, underway: false })).not.toThrow();
+    });
+
+    it('reads the waterline off a sheet painted at 4× (the painted terrain), not the 32px spot of it', () => {
+        // A 256×128 sheet at 4×: the 32px cell (32, 0) is pixels 128–255 across, all water (blue);
+        // the same address unscaled (pixels 32–63) is grass, which once made every sea sample "land"
+        const sw = 256, sh = 128;
+        const data = new Uint8ClampedArray(sw * sh * 4);
+        for (let y = 0; y < sh; y++) {
+            for (let x = 0; x < sw; x++) {
+                const o = (y * sw + x) * 4;
+                if (x >= 128) { data[o] = 40; data[o + 1] = 110; data[o + 2] = 170; } else { data[o] = 80; data[o + 1] = 145; data[o + 2] = 16; }
+                data[o + 3] = 255;
+            }
+        }
+        const path = 'assets/lpc/Terrain/terrain_test.png';
+        InnerMapRenderer._waterFxSheets = new Map([[path, { data, w: sw, h: sh, k: 4 }]]);
+        const tiles = lay();
+        for (const row of tiles) for (const t of row) if (t._wet) t.terrainDetail = { layer: 'water', sheetPath: path, sx: 32, sy: 0 };
+        const F = InnerMapRenderer._waterFxField();
+        const at = (q, r) => F.dist[(r * F.SUB + (F.SUB >> 1)) * F.w + q * F.SUB + (F.SUB >> 1)];
+        expect(at(10, 5)).toBeCloseTo(0.5, 1);
+        expect(at(12, 5)).toBeCloseTo(2.5, 1);
+        expect(F.edge.get(5 * F.Wd + 10)).toBeTruthy();
+        InnerMapRenderer._waterFxSheets = null;
+    });
+
+    it('river banks lap gently in the surf, and the river still runs', () => {
+        lay({ river: 6 });
+        const F = InnerMapRenderer._waterFxField();
+        const cfg = InnerMapRenderer._waterFxCfg();
+        const river = F.strength[6 * F.Wd + 4];
+        expect(river).toBeGreaterThan(0);
+        expect(river).toBeLessThan(F.strength[6 * F.Wd + 10]);
+        expect(river).toBeLessThan(cfg.surf.kinds.lake);
+        expect([...InnerMapRenderer._waterFxCells().values()].flat().some(c => c.river)).toBe(true);
+    });
+
+    it('the waves keep the ambient clock: on while the game runs, still while it is paused', () => {
+        const R = InnerMapRenderer;
+        const t0 = R._waterFxNow();
+        R.tickAmbient(0.05, 0);            // paused
+        expect(R._waterFxNow()).toBe(t0);
+        R.tickAmbient(0.05, 1);            // running
+        expect(R._waterFxNow()).toBeCloseTo(t0 + 0.05, 6);
     });
 
     it('no water, nothing to do; drawing with no canvas to hand is harmless', () => {

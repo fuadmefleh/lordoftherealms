@@ -9,13 +9,13 @@ import '../ui/innerMapLayers.js';
 import { InnerMap } from '../world/innerMap.js';
 
 /** A map: land to the west of column `coast`, sea from it east; a river row if asked */
-function lay({ W = 24, H = 12, coast = 10, river = null } = {}) {
+function lay({ W = 24, H = 12, coast = 10, river = null, wide = 1 } = {}) {
     const tiles = [];
     for (let r = 0; r < H; r++) {
         const row = [];
         for (let q = 0; q < W; q++) {
             const sea = q >= coast;
-            const riv = river != null && r === river && q < coast;
+            const riv = river != null && r >= river && r < river + wide && q < coast;
             row.push({
                 q, r, explored: true, visible: true,
                 subTerrain: { id: sea ? 'sea_water' : riv ? 'river_water' : 'grass', passable: !(sea || riv) },
@@ -78,7 +78,7 @@ describe('the water that moves', () => {
     });
 
     it('the river runs the way the world river flows (else along its run), and has no breaking surf', () => {
-        lay({ river: 6 });
+        lay({ river: 5, wide: 3 });
         InnerMap._currentWorldTileRef = { riverDir: 3 }; // out by the west side
         const cells = [...InnerMapRenderer._waterFxCells().values()].flat();
         const river = cells.filter(c => c.river);
@@ -159,15 +159,25 @@ describe('the water that moves', () => {
         InnerMapRenderer._waterFxSheets = null;
     });
 
-    it('river banks lap gently in the surf, and the river still runs', () => {
-        lay({ river: 6 });
+    it('river banks lap in the surf, and the river still runs', () => {
+        lay({ river: 5, wide: 3 });
         const F = InnerMapRenderer._waterFxField();
         const cfg = InnerMapRenderer._waterFxCfg();
-        const river = F.strength[6 * F.Wd + 4];
+        const river = F.strength[5 * F.Wd + 4];
         expect(river).toBeGreaterThan(0);
         expect(river).toBeLessThan(F.strength[6 * F.Wd + 10]);
         expect(river).toBeLessThan(cfg.surf.kinds.lake);
         expect([...InnerMapRenderer._waterFxCells().values()].flat().some(c => c.river)).toBe(true);
+    });
+
+    it("a river's sparkles drift only where there is water all round, never off over the bank", () => {
+        lay({ river: 6 });                  // one cell wide: every cell has a bank
+        expect([...InnerMapRenderer._waterFxCells().values()].flat().some(c => c.river)).toBe(false);
+        InnerMapRenderer._waterFxCache = null;
+        lay({ river: 4, wide: 5 });
+        const river = [...InnerMapRenderer._waterFxCells().values()].flat().filter(c => c.river);
+        expect(river.length).toBeGreaterThan(0);
+        for (const c of river) expect(c.r > 4 && c.r < 8).toBe(true);
     });
 
     it('the waves keep the ambient clock: on while the game runs, still while it is paused', () => {

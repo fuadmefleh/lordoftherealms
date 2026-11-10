@@ -5,6 +5,8 @@
 import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
+import { DataLoader } from '../core/dataLoader.js';
+import { Economy } from '../world/economy.js';
 
 
 export const Religion = {
@@ -350,6 +352,27 @@ export const Religion = {
     // DAILY PROCESSING (called from world.advanceDay)
     // ─────────────────────────────────────────────
 
+    /** data/religion.json offerings (what share of its coin a town gives a day). */
+    offeringsConfig() {
+        const gd = DataLoader._gamedata;
+        const d = (gd && gd.religion && gd.religion.offerings) || {};
+        return { maxPurseShare: 0.01, hospiceMaxPurseShare: 0.01, pilgrimMaxPurseShare: 0.01, templeMaxPurseShare: 0.005, ...d };
+    },
+
+    /**
+     * Real coin for a realm's faith: `amount` (pilgrims' spending, temple
+     * offerings) is given out of the realm's own towns' purses, by their
+     * people, each town at most offerings[shareKey] of its coin. → what was paid.
+     */
+    offeringsFromRealm(kingdom, world, amount, shareKey = 'pilgrimMaxPurseShare') {
+        if (!(amount > 0)) return 0;
+        const towns = Economy.realmTowns(kingdom, world)
+            .filter(t => t.settlement.population > 0)
+            .map(t => ({ settlement: t.settlement, weight: t.settlement.population }));
+        if (!towns.length) return 0;
+        return Economy.drawTowns(towns, amount, Religion.offeringsConfig()[shareKey], { init: true }).paid;
+    },
+
     processTurn(world) {
         for (const kingdom of world.kingdoms) {
             if (!kingdom.isAlive || !kingdom.religion) continue;
@@ -379,8 +402,11 @@ export const Religion = {
                     pilgrimIncome += siteIncome;
                 }
             }
+            // (assessed here; the pilgrims pay it out of the realm's own towns' purses)
             kingdom.religion.pilgrimIncome = Math.floor(pilgrimIncome);
-            kingdom.treasury += kingdom.religion.pilgrimIncome;
+            const pilgrimPaid = Religion.offeringsFromRealm(kingdom, world, kingdom.religion.pilgrimIncome, 'pilgrimMaxPurseShare');
+            kingdom.religion.pilgrimPaid = pilgrimPaid;
+            kingdom.treasury += pilgrimPaid;
             kingdom.religion.contestedSites = contestedSites;
 
             // 2. Piety drift (each contested holy site breeds unrest)

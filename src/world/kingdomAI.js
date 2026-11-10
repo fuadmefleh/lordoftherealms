@@ -262,7 +262,11 @@ export const KingdomAI = {
         if (kingdom.religion && typeof kingdom.religion.piety === 'number') {
             // Temples a pious lord funded keep filling the pews and the coffers
             const temples = KingdomAI.templeEffects(kingdom);
-            if (temples.income) kingdom.treasury = (kingdom.treasury || 0) + temples.income;
+            // (the offerings come out of the realm's own towns' purses: real coin)
+            if (temples.income) {
+                kingdom.treasury = (kingdom.treasury || 0)
+                    + Religion.offeringsFromRealm(kingdom, world, temples.income, 'templeMaxPurseShare');
+            }
             if (temples.scholarship && kingdom.cultureData && typeof kingdom.cultureData.scholarship === 'number') {
                 kingdom.cultureData.scholarship = Math.min(100, kingdom.cultureData.scholarship + temples.scholarship);
             }

@@ -396,7 +396,7 @@ export const PlayerActions = {
         results.production = PlayerEconomy.produceGoods(player, world);
 
         // Collect faith income
-        results.faithIncome = PlayerReligion.collectFaithIncome(player);
+        results.faithIncome = PlayerReligion.collectFaithIncome(player, world);
 
         // Pay army upkeep
         const upkeep = PlayerMilitary.payUpkeep(player, world);

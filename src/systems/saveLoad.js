@@ -483,6 +483,7 @@ export const SaveLoad = {
             starvationDays: player.starvationDays || 0,
             allegiance: player.allegiance || null,
             kingdomTitle: player.kingdomTitle || null,
+            rulerTitle: player.rulerTitle || null,
             currentTitle: player.currentTitle || null,
             titleProgress: (typeof Titles !== 'undefined') ? Titles.serializeProgress(player.titleProgress) : (player.titleProgress || {}),
             titleHistory: player.titleHistory || [],

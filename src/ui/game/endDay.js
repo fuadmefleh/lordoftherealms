@@ -964,7 +964,7 @@ export function endDay() {
             }
 
             if (playerResults.faithIncome > 0) {
-                this.ui.showNotification('Faith Income', `+${playerResults.faithIncome} gold from followers`, 'success');
+                this.ui.showNotification('Faith Income', `+${Math.floor(playerResults.faithIncome)} gold from followers`, 'success');
             }
 
             // Chance for traveling merchants
@@ -1034,7 +1034,7 @@ export function endDay() {
             const ry = playerResults.religiousYields;
             if (ry && (ry.gold || ry.renown || ry.researchDays)) {
                 const parts = [];
-                if (ry.gold) parts.push(`+${ry.gold} pilgrim gold`);
+                if (ry.gold) parts.push(`+${Math.floor(ry.gold)} pilgrim gold`);
                 if (ry.renown) parts.push(`+${ry.renown} renown`);
                 if (ry.researchDays) parts.push(`oracles advance research by ${ry.researchDays} day${ry.researchDays > 1 ? 's' : ''}`);
                 this.ui.showNotification('Sacred Buildings', parts.join(', '), 'info');

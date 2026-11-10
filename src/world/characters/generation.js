@@ -2,6 +2,7 @@
 import { Characters } from './_ref.js';
 import { Cultures } from '../cultures.js';
 import { Utils } from './_imports.js';
+import { Kingdom } from '../kingdom.js';
 
 Object.assign(Characters, {
     // ── Name pools by culture ──────────────────────────────────────────
@@ -185,7 +186,11 @@ Object.assign(Characters, {
      */
     getFullName(character) {
         if (!character) return 'Unknown';
-        return `${character.firstName} ${character.dynasty}`;
+        const first = String(character.firstName || '').trim();
+        const dyn = String(character.dynasty || '').trim();
+        // (a player without a surname: never "Wanderer Wanderer")
+        if (!dyn || dyn.toLowerCase() === first.toLowerCase()) return first || dyn || 'Unknown';
+        return first ? `${first} ${dyn}` : dyn;
     },
 
     /**
@@ -201,8 +206,12 @@ Object.assign(Characters, {
             Maritime: { male: 'Consul', female: 'Consul' },
         };
         const cultureTitles = titles[character.culture] || titles.Imperial;
-        const title = character.isRuler ? (cultureTitles[character.gender] || 'Ruler') : '';
-        return title ? `${title} ${character.firstName} ${character.dynasty}` : `${character.firstName} ${character.dynasty}`;
+        // A player on the throne takes the realm's own style (Khatun of a Khanate)
+        const title = !character.isRuler ? ''
+            : character.isPlayer && kingdom ? Kingdom.rulerStyle(kingdom, character.gender).title
+                : (cultureTitles[character.gender] || 'Ruler');
+        const name = Characters.getFullName(character);
+        return title ? `${title} ${name}` : name;
     },
 
     // ────────────────────────────────────────────────────────────────────

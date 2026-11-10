@@ -454,6 +454,52 @@ export const Economy = {
     },
 
     /**
+     * Draw up to `amount` out of several towns' purses at once (the faithful's
+     * offerings, pilgrims' spending): each town owes its share of `amount` by
+     * `weight`, and gives at most `maxShare` of the coin it holds, so a poor
+     * town gives less and none is emptied. `entries`: [{ settlement, weight }].
+     * A town that keeps no purse (a bare test record) pays its share in full,
+     * unless `opts.init`: then a real town not yet given its economy record
+     * gets it first (initSettlement: its starting purse, as its first day would).
+     * → { paid, towns: [{ settlement, paid }] }.
+     */
+    drawTowns(entries, amount, maxShare = 1, opts = {}) {
+        const out = { paid: 0, towns: [] };
+        const want = Number(amount);
+        if (!(want > 0) || !Array.isArray(entries)) return out;
+        const list = entries.filter(e => e && e.settlement && e.weight > 0);
+        const total = list.reduce((s, e) => s + e.weight, 0);
+        if (!(total > 0)) return out;
+        const cap = Math.max(0, Math.min(1, Number(maxShare)));
+        for (const e of list) {
+            if (opts.init && !e.settlement.economy && e.settlement.population > 0) Economy.initSettlement(e.settlement);
+            let due = want * e.weight / total;
+            const have = Economy.townPurse(e.settlement);
+            if (have != null) due = Math.min(due, have * cap);
+            due = Math.floor(due * 100) / 100;
+            if (!(due > 0)) continue;
+            const paid = Economy.drawTown(e.settlement, due);
+            if (paid > 0) {
+                out.paid += paid;
+                out.towns.push({ settlement: e.settlement, paid });
+            }
+        }
+        out.paid = Math.round(out.paid * 100) / 100;
+        return out;
+    },
+
+    /** A realm's own towns, with their tiles: [{ q, r, settlement }]. */
+    realmTowns(kingdom, world) {
+        const out = [];
+        if (!kingdom || !world || typeof world.getTile !== 'function' || !Array.isArray(kingdom.territory)) return out;
+        for (const t of kingdom.territory) {
+            const tile = world.getTile(t.q, t.r);
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id) out.push({ q: t.q, r: t.r, settlement: tile.settlement });
+        }
+        return out;
+    },
+
+    /**
      * Initialize economy data for a settlement
      */
     /**

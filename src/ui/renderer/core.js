@@ -3,6 +3,14 @@
 import { Hex, Religion, Economy, Infrastructure } from './_imports.js';
 import { installHiDpi } from '../hiDpi.js';
 
+/**
+ * How far (in hex radii) the visual centre of a terrain tile's top face sits
+ * below its grid point. The 256x384 tile art is bottom-anchored at
+ * centre + 1 radius, so the face runs from -0.732 to +1.0 radii and centres
+ * at 1 - sqrt(3)/2 ≈ 0.134. Anything meant to sit "in the middle of the hex"
+ * (place markers, icons, frame sprites) centres on this, not the grid point.
+ */
+export const HEX_FACE_DY = 1 - Math.sqrt(3) / 2;
 
 
 export class Renderer {

@@ -10,15 +10,21 @@ import { ActionMenu } from './_ref.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
 import { PriceKnowledge } from '../../systems/priceKnowledge.js';
 import { EconomyIndex } from '../../world/economyIndex.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, closedBooks, lede, bullets, sectionHead, chips, kv, card, rowList } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
 /** The crown's own figures (treasury, debt) are for those whose books are open (systems/realmIntel.js). */
 const BOOKS_SERIES = new Set(['treasury', 'debt']);
 
-const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
-const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
+// The action menu's voice (uiKit): muted notes, quiet tables — a head in the
+// section-head style and hairline gold row rules; the palette's colours
+const NOTE = 'font-size: 11px; color: #9d937c;';
+const TH = 'text-align:left; padding:3px 6px; font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:#9d937c; border-bottom:1px solid rgba(245,197,66,0.14);';
+const TD = 'padding:3px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
+const GOOD = '#8fd18a';
+const WARN = '#f0b35a';
+const BAD = '#e0846a';
+const COOL = '#7cc4e0';
 const TABS = [['realms', '🏛️ Realms'], ['charts', '📈 Charts'], ['markets', '🏪 Shortages & Gluts'], ['fashions', '👗 Fashions'], ['worth', '💰 Your Worth']];
 const SERIES = [['food', '🍞 Food'], ['goods', '🧺 Cost of living'], ['trade', '🐫 Trade'], ['short', '⚠️ Shortages'], ['idle', '✊ Idle hands'], ['welfare', '😊 Welfare'], ['treasury', '👑 Treasury'], ['debt', '📜 Debt ratio'], ['level', '💰 Price level (coin)'], ['coin', '💰 Coin about']];
 
@@ -34,11 +40,11 @@ function act(label, args, style = BTN_PLAIN) {
 
 const idx = (v) => (v == null ? '—' : `${Math.round(v * 100)}`);
 const pct = (v) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v * 100)}%`);
-const hot = (v, warm = 1.15, cold = 0.85) => (v == null ? 'var(--text-secondary)' : v >= warm ? '#e67e22' : v <= cold ? '#5dade2' : 'var(--text-primary)');
-const updown = (v) => (v == null ? 'var(--text-secondary)' : v > 0.05 ? '#e67e22' : v < -0.05 ? '#2ecc71' : 'var(--text-secondary)');
+const hot = (v, warm = 1.15, cold = 0.85) => (v == null ? '#9d937c' : v >= warm ? WARN : v <= cold ? COOL : '#ece2c8');
+const updown = (v) => (v == null ? '#9d937c' : v > 0.05 ? WARN : v < -0.05 ? GOOD : '#9d937c');
 
 /** A small line chart of { x, y } points (oldest first). */
-function sparkline(points, { w = 260, h = 54, color = '#f5c542', fmt = (v) => String(Math.round(v)) } = {}) {
+function sparkline(points, { w = 260, h = 54, color = '#ffcf6a', fmt = (v) => String(Math.round(v)) } = {}) {
     if (points.length < 2) return `<span style="${NOTE}">${points.length ? `${fmt(points[0].y)} on day ${points[0].x}` : 'not enough gazettes yet'}</span>`;
     const xs = points.map(p => p.x), ys = points.map(p => p.y);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
@@ -46,10 +52,10 @@ function sparkline(points, { w = 260, h = 54, color = '#f5c542', fmt = (v) => St
     const sy = (y) => h - 6 - (y1 > y0 ? (y - y0) / (y1 - y0) : 0.5) * (h - 14);
     const path = points.map(p => `${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
     const last = points[points.length - 1];
-    return `<svg width="${w}" height="${h}" style="vertical-align:middle; background:rgba(255,255,255,0.03); border-radius:4px;">`
+    return `<svg width="${w}" height="${h}" style="vertical-align:middle; background:rgba(0,0,0,0.25); border:1px solid rgba(245,197,66,0.1); border-radius:6px;">`
         + `<polyline points="${path}" fill="none" stroke="${color}" stroke-width="2"/>`
         + `<circle cx="${sx(last.x).toFixed(1)}" cy="${sy(last.y).toFixed(1)}" r="3" fill="${color}"/>`
-        + `<text x="4" y="10" font-size="9" fill="#aaa">${esc(fmt(y1))}</text><text x="4" y="${h - 1}" font-size="9" fill="#aaa">${esc(fmt(y0))}</text>`
+        + `<text x="4" y="10" font-size="9" fill="#9d937c">${esc(fmt(y1))}</text><text x="4" y="${h - 1}" font-size="9" fill="#9d937c">${esc(fmt(y0))}</text>`
         + '</svg>'
         + ` <span style="${NOTE}">days ${x0}–${x1}, last ${esc(fmt(last.y))}</span>`;
 }
@@ -93,11 +99,11 @@ function realmsTab(game) {
             + `<td style="${TD}">${n.short} / ${n.dearth} <span style="${NOTE}">of ${n.towns}</span></td>`
             + `<td style="${TD}">${Math.round(n.idle * 100)}%</td>`
             + `<td style="${TD}">${treasury}</td>`
-            + `<td style="${TD}">${debt}${n.purity != null && n.purity < 1 ? ` · <span style="color:#e67e22;">${Math.round(n.purity * 100)}% silver</span>` : ''}${n.level != null && Math.abs(n.level - 1) >= 0.02 ? ` · <span style="color:${n.level > 1 ? '#e8a040' : '#7cc4e0'};" title="Price level from the coin about (100 = the world's norm)">coin ${Math.round(n.level * 100)}</span>` : ''}</td>`
+            + `<td style="${TD}">${debt}${n.purity != null && n.purity < 1 ? ` · <span style="color:${WARN};">${Math.round(n.purity * 100)}% silver</span>` : ''}${n.level != null && Math.abs(n.level - 1) >= 0.02 ? ` · <span style="color:${n.level > 1 ? WARN : COOL};" title="Price level from the coin about (100 = the world's norm)">coin ${Math.round(n.level * 100)}</span>` : ''}</td>`
             + `<td style="${TD}">day ${x.asOf}</td></tr>`;
     };
     for (const r of g.realms) html += row(r.name, r, act(`${esc(r.name)}${r.alive ? '' : ' †'}`, ['realm', r.id], view.realm === r.id ? BTN_GOLD : BTN_PLAIN), r.id);
-    if (g.world && g.world.now) html += row('The world', g.world, '<b>🌍 The world</b>');
+    if (g.world && g.world.now) html += row('The world', g.world, '<b style="color:#ece2c8;">🌍 The world</b>');
     return html + '</table>';
 }
 
@@ -106,22 +112,22 @@ function realmsTab(game) {
 function chartsTab(game) {
     const g = EconomyChronicle.gazette(game.player, game.world);
     const list = [...g.realms.map(r => ({ id: r.id, name: r.name, history: r.history })), ...(g.world ? [{ id: '*', name: 'The world', history: g.world.history }] : [])];
-    if (!list.length) return `<div style="${NOTE}">No gazette read yet.</div>`;
+    if (!list.length) return lede('No gazette read yet.');
     if (!list.some(x => x.id === view.realm)) view.realm = list[0].id;
-    let html = `<div style="margin:6px 0;">${list.map(x => act(esc(x.name), ['realm', x.id], x.id === view.realm ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
-    html += `<div style="margin:6px 0;">${SERIES.map(([id, label]) => act(label, ['series', id], id === view.series ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+    let html = `<div style="margin:6px 0;"><span style="${NOTE}">Realm</span> ${list.map(x => act(esc(x.name), ['realm', x.id], x.id === view.realm ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+    html += `<div style="margin:6px 0;"><span style="${NOTE}">Index</span> ${SERIES.map(([id, label]) => act(label, ['series', id], id === view.series ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     const sel = list.find(x => x.id === view.realm);
     const fmt = SERIES_FMT[view.series] || ((v) => String(Math.round(v)));
-    html += `<div style="padding:6px 0;"><b>${esc(sel.name)}</b> — ${esc((SERIES.find(s => s[0] === view.series) || [])[1] || view.series)}<br>`;
+    html += `<div class="pk-card"><div class="pk-card-head"><span class="pk-card-title">${esc(sel.name)} — ${esc((SERIES.find(s => s[0] === view.series) || [])[1] || view.series)}</span></div>`;
     if (BOOKS_SERIES.has(view.series) && !(sel.id !== '*' && RealmIntel.can(game.player, game.world, sel.id, 'books'))) {
         html += closedBooks(`${sel.name === 'The world' ? 'The crowns\'' : `${sel.name}'s`} ${view.series === 'debt' ? 'debts' : 'treasury'}`) + '</div>';
     } else {
         html += sparkline(sel.history.filter(r => r[view.series] != null).map(r => ({ x: r.day, y: r[view.series] })), { fmt }) + '</div>';
     }
     // Every known realm's food index side by side
-    html += '<h5 style="margin:10px 0 4px;">Food in every realm you have news of</h5>';
+    html += sectionHead('Food in every realm you have news of');
     for (const x of list) {
-        html += `<div style="padding:2px 0;"><span style="display:inline-block; width:120px;">${esc(x.name)}</span>${sparkline(x.history.map(r => ({ x: r.day, y: r.food })), { w: 200, h: 34, fmt: SERIES_FMT.food })}</div>`;
+        html += `<div style="padding:4px 0; border-bottom:1px solid rgba(245,197,66,0.07);"><span style="display:inline-block; width:120px; color:#ece2c8; font-weight:600;">${esc(x.name)}</span>${sparkline(x.history.map(r => ({ x: r.day, y: r.food })), { w: 200, h: 34, fmt: SERIES_FMT.food })}</div>`;
     }
     return html;
 }
@@ -133,7 +139,7 @@ function marketsTab(game) {
     const sig = EconomyChronicle.marketSignals(player, world, { limit: 10 });
     let html = lede('The sharpest shortages and gluts in your price book: only towns you visited, your factors and stewards report, merchants you met or tavern talk told of. Old news may be wrong.');
     const table = (title, list, color) => {
-        let t = `<h5 style="margin:10px 0 4px;">${title}</h5>`;
+        let t = sectionHead(title);
         if (!list.length) return t + `<div style="${NOTE}">None that you know of.</div>`;
         t += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Town</th><th style="${TH}">Stock</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">News</th></tr>`;
         for (const x of list) {
@@ -142,8 +148,8 @@ function marketsTab(game) {
         }
         return t + '</table>';
     };
-    html += table('⚠️ Short (dear)', sig.short, '#e67e22');
-    html += table('📦 Glutted (cheap)', sig.glut, '#5dade2');
+    html += table('⚠️ Short (dear)', sig.short, WARN);
+    html += table('📦 Glutted (cheap)', sig.glut, COOL);
     return html;
 }
 
@@ -160,14 +166,18 @@ function fashionsTab(game) {
         'A patron with standing at a court can set one (Patronage → Fashion at Court).',
     ]);
     if (!list.length) return html + `<div style="${NOTE} margin-top:6px;">You have heard of no fashion yet.</div>`;
-    for (const x of list) {
+    html += rowList(list.map(x => {
         const d = x.def || {};
         const goods = x.goods.map(g => `${g.icon} ${esc(g.name)} ${g.mult >= 1 ? `+${Math.round((g.mult - 1) * 100)}%` : `${Math.round((g.mult - 1) * 100)}%`}`).join(' · ');
-        html += `<div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">`;
-        html += `<b>${d.icon || '👗'} ${esc(d.name || x.fashion.id)}</b> <span style="${NOTE}">from ${esc(x.fashion.place)}${x.fashion.by === 'player' ? ' (set by you)' : ''} · day ${x.fashion.start}</span><br>`;
-        html += `<span style="font-size:11px;">${esc(d.text || '')}</span><br><span style="font-size:11px;">${goods}</span><br>`;
-        html += `<span style="${NOTE}">${x.running ? `${esc(x.stage)} · ${x.daysLeft} days left` : `over (day ${x.fashion.end})`}</span></div>`;
-    }
+        return {
+            icon: d.icon || '👗',
+            name: `${esc(d.name || x.fashion.id)} <span style="${NOTE} font-weight:400;">from ${esc(x.fashion.place)}${x.fashion.by === 'player' ? ' (set by you)' : ''} · day ${x.fashion.start}</span>`,
+            desc: esc(d.text || ''),
+            note: `<span style="color:#cbbf9f;">${goods}</span>`,
+            side: x.running ? `${esc(x.stage)} · ${x.daysLeft} days left` : `over (day ${x.fashion.end})`,
+            tone: x.running ? 'gold' : '',
+        };
+    }), 'Fashions you have heard of');
     return html;
 }
 
@@ -177,17 +187,16 @@ function worthTab(game) {
     const { player, world } = game;
     const nw = EconomyChronicle.netWorth(player, world);
     const A = nw.assets, D = nw.debts;
-    const line = (label, v, neg = false) => (v ? `<tr><td style="${TD}">${label}</td><td style="${TD} text-align:right; color:${neg ? '#e74c3c' : 'var(--text-primary)'};">${neg ? '−' : ''}${Math.round(v).toLocaleString()}g</td></tr>` : '');
-    let html = `<div style="margin:6px 0; font-size:13px;">Net worth: <b style="color:${nw.total >= 0 ? '#2ecc71' : '#e74c3c'};">${Math.round(nw.total).toLocaleString()}g</b></div>`;
-    html += `<table style="border-collapse:collapse; font-size:12px; min-width:280px;">`;
+    const line = (label, v, neg = false) => (v ? kv(label, `<span style="color:${neg ? BAD : '#ece2c8'};">${neg ? '−' : ''}${Math.round(v).toLocaleString()}g</span>`) : '');
+    let html = chips([{ icon: '💰', label: 'Net worth', value: `<span style="color:${nw.total >= 0 ? GOOD : BAD};">${Math.round(nw.total).toLocaleString()}g</span>` }]);
+    html += sectionHead('What you own, and owe');
     html += line('💰 Gold in hand', A.gold) + line('🏦 Bank deposits', A.deposits) + line('📜 Royal bonds', A.bonds)
         + line('📦 Goods (at the best price you know the stalls pay)', A.goods) + line('🏠 Properties (book value)', A.properties)
         + line('🏭 Works (what you put in, as they stand)', A.works) + line('⛵ Ships', A.ships) + line('⚖️ Trading company', A.company) + line('🏛️ Your banking house (equity)', A.bank)
         + line('Loans owed', D.loans, true) + line('Guild loans', D.guildLoans, true) + line('Rent in arrears', D.arrears, true);
-    html += '</table>';
-    html += '<h5 style="margin:10px 0 4px;">Week by week</h5>';
-    html += sparkline(EconomyChronicle.worthHistory(player).map(p => ({ x: p.day, y: p.worth })), { fmt: (v) => `${Math.round(v).toLocaleString()}g` });
-    html += `<div style="margin-top:8px;">${act('📒 Income statement (Merchant\'s Ledger)', ['ledger'], BTN_GOLD)}</div>`;
+    html += sectionHead('Week by week');
+    html += card(sparkline(EconomyChronicle.worthHistory(player).map(p => ({ x: p.day, y: p.worth })), { fmt: (v) => `${Math.round(v).toLocaleString()}g` }));
+    html += rowList([{ icon: '📒', name: 'Income statement (Merchant\'s Ledger)', desc: 'Every gold flow you had, by source', act: 'economyAct', args: ['ledger'], side: '›', tone: 'gold' }]);
     return html;
 }
 

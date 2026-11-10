@@ -44,6 +44,7 @@ import { Utils } from '../core/utils.js';
 import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { drawMapText, labelZoom, textPx } from './mapInk.js';
+import { ParentsGuard } from './parentsGuard.js';
 
 function _nowMs() {
     return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -128,6 +129,8 @@ export const InnerMapCombat = {
      * If the player is too far away, queues a _pendingCombat walk-then-attack.
      */
     startAttackNPC(game, npc) {
+        // Setting on someone is crime to a child's parents (a job's bout is not: ui/parentsGuard.js)
+        if (npc && !npc._taskFoe && !ParentsGuard.ok(game, 'assault', null, { each: true })) return;
         // Cancel whatever was happening before
         if (this._attackState) this.cancelAttack();
         InnerMap._activeInteraction = null;
@@ -515,6 +518,7 @@ export const InnerMapCombat = {
     /** Kill a knocked-out NPC where they lie: a murder, seen or unseen. */
     finishOff(npc, game) {
         if (!npc || npc.state !== 'unconscious') return false;
+        if (!ParentsGuard.ok(game, 'assault', null, { each: true })) return false;
         npc.state = 'idle';
         npc._ko = null;
         this._killNPC(npc, game);
@@ -524,6 +528,7 @@ export const InnerMapCombat = {
     /** Go through a knocked-out NPC's pockets (once). */
     robKnockedOut(npc, game) {
         if (!npc || npc.state !== 'unconscious' || npc._koSearched) return null;
+        if (!ParentsGuard.ok(game, 'theft', null, { each: true })) return null;
         npc._koSearched = true;
         const { gold, items } = this._takeSpoils(npc, game);
         const parts = [];

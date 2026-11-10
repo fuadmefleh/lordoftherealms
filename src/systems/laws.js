@@ -13,8 +13,10 @@
 // systems/lots.js, punishment by systems/streetCrime.js (fines, cells) and
 // systems/knockout.js (deter), and by systems/underworld.js and
 // systems/gangs.js (arrests' fines and cells, the watch's raids); vice by
-// systems/gangs.js (the gangs' dens and the crown's licence). The panel is
-// ui/actionMenu/laws.js.
+// systems/gangs.js (the gangs' dens and the crown's licence) and, with a
+// town's own ban (localVice), by Laws.gambling: where gaming is forbidden no
+// gaming house opens and dice go underground, behind a front
+// (systems/backRooms.js). The panel is ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { CrownBooks } from '../world/crownBooks.js';
@@ -127,6 +129,40 @@ export const Laws = {
     punishment(world, kingdomId) {
         const o = kingdomId != null ? Laws.option(world, kingdomId, 'punishment') : null;
         return { fine: _num(o && o.fine, 1), jail: _num(o && o.jail, 1), deter: Math.max(0, _num(o && o.deter, 1)) };
+    },
+
+    /**
+     * A town's own ordinance on gaming (settlement.ordinances.vice, set by
+     * whoever holds the town; else its old custom, a hash of the town: a
+     * share of towns ban dice whatever the realm allows). 'forbidden' or null
+     * (null: the town follows the realm). A town may be stricter than its
+     * realm, never laxer: it can't make legal what the crown forbids.
+     */
+    localVice(settlement) {
+        if (!settlement) return null;
+        const set = settlement.ordinances && settlement.ordinances.vice;
+        if (set === 'forbidden' || set === 'follow') return set === 'forbidden' ? 'forbidden' : null;
+        const L = _obj(Laws.config().local) || {};
+        const share = _num((L.vice || {}).banShare, 0.2);
+        return _hash01(`${settlement.name || ''}|${settlement.q},${settlement.r}|vice`) < share ? 'forbidden' : null;
+    },
+
+    /**
+     * May dice and cards be played openly in this town? → { legal, realm,
+     * local, forbiddenBy: 'realm'|'town'|null, why }. Tolerated and licensed
+     * realms allow gaming houses; forbidden ones (or a town's own ban) leave
+     * only back rooms behind a legitimate front (systems/backRooms.js).
+     */
+    gambling(world, settlement) {
+        const realm = settlement && settlement.kingdom != null ? (Laws.value(world, settlement.kingdom, 'vice') || 'tolerated') : 'tolerated';
+        const local = Laws.localVice(settlement);
+        const forbiddenBy = realm === 'forbidden' ? 'realm' : (local === 'forbidden' ? 'town' : null);
+        const k = settlement && settlement.kingdom != null ? _kingdom(world, settlement.kingdom) : null;
+        const name = (settlement && settlement.name) || 'this town';
+        const why = forbiddenBy === 'realm'
+            ? `Gaming is forbidden by the law of ${(k && k.name) || 'the realm'}.`
+            : forbiddenBy === 'town' ? `${name} bans dice and cards by its own ordinance, whatever the crown allows.` : '';
+        return { legal: !forbiddenBy, realm, local, forbiddenBy, why };
     },
 
     // ──────────── THE RULER'S HAND ────────────

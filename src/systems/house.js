@@ -18,6 +18,7 @@
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Ledger } from './ledger.js';
+import { Court } from './court.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -313,6 +314,8 @@ export const House = {
             history: [],            // { day, generation, text, tags[] } chronicle
             stats: {},              // durable deed counters (ambition predicates read these)
             roleLoyalty: {},        // { memberId: loyalty } for appointed relatives
+            court: [],              // courtiers not of the blood (systems/court.js)
+            regentDesignate: null,  // who rules for a minor heir if the head dies (systems/regency.js)
         };
     },
 
@@ -693,25 +696,48 @@ export const House = {
         return out;
     },
 
-    /** Find an assignable family member (a living child) by id. */
+    /** Find an assignable office holder by id: a child of the House, or a courtier (systems/court.js). */
     _findMember(player, memberId) {
-        if (!memberId) return null;
+        if (!memberId || !player) return null;
         for (const c of (player.children || [])) {
             if (c.id === memberId) return c;
         }
-        return null;
+        return Court.member(player, memberId);
     },
 
-    /** Assign a living child to a role. A member holds at most one role. */
+    /** Is this office holder a courtier rather than one of the blood? */
+    isCourtier(player, memberId) {
+        if (!memberId || !player) return false;
+        if ((player.children || []).some(c => c && c.id === memberId)) return false;
+        return Court.isMember(player, memberId);
+    },
+
+    /** An office holder's loyalty: a child's role loyalty, a courtier's loyalty at court. */
+    officerLoyalty(player, memberId) {
+        const house = player && player.house;
+        if (!house || !memberId) return null;
+        if (House.isCourtier(player, memberId)) {
+            const e = Court.entry(player, memberId);
+            return e ? e.loyalty : null;
+        }
+        const v = house.roleLoyalty && house.roleLoyalty[memberId];
+        return v == null ? null : v;
+    },
+
+    /** Assign a living child or a courtier to a role. A member holds at most one role; the heir must be of the blood. */
     assignRole(player, roleId, memberId) {
         const house = player && player.house;
         if (!house || !ROLE_DEFS[roleId]) return { success: false, reason: 'Invalid role' };
         const member = House._findMember(player, memberId);
-        if (!member) return { success: false, reason: 'Not a family member' };
+        if (!member) return { success: false, reason: 'Not of your family or your court' };
         if (member.isAlive === false) return { success: false, reason: 'They have passed away' };
-        // Offices are for grown children at home (systems/upbringing.js); the
-        // heir may be named at any age — a regency heir inherits young.
-        if (roleId !== 'heir') {
+        const courtier = House.isCourtier(player, memberId);
+        if (courtier) {
+            if (roleId === 'heir') return { success: false, reason: 'The heir must be of the blood.' };
+            if ((member.age || 0) < 16) return { success: false, reason: `${member.firstName || 'They'} is too young to hold an office` };
+        } else if (roleId !== 'heir') {
+            // Offices are for grown children at home (systems/upbringing.js); the
+            // heir may be named at any age — a regency heir inherits young.
             const up = member.upbringing;
             const grown = up ? !!up.comeOfAge : (member.age || 0) >= 16;
             if (!grown) return { success: false, reason: `${member.firstName || 'They'} must come of age (16) to hold an office` };
@@ -727,7 +753,11 @@ export const House = {
         }
         house.roles[roleId] = memberId;
         house.roleLoyalty = house.roleLoyalty || {};
-        if (house.roleLoyalty[memberId] == null) {
+        if (courtier) {
+            // A courtier's loyalty is their loyalty at court (systems/court.js)
+            const e = Court.entry(player, memberId);
+            if (e) e.officeSince = null;
+        } else if (house.roleLoyalty[memberId] == null) {
             house.roleLoyalty[memberId] = House._getConfig().roleBaseLoyalty;
         }
         // Keep the legacy heir field in sync so the death screen still works.
@@ -754,7 +784,7 @@ export const House = {
             const m = House._findMember(player, memberId);
             if (!m) return 0;
             const raw = (m.skills && m.skills[skill]) || 0;
-            const loyalty = (house.roleLoyalty && house.roleLoyalty[memberId]);
+            const loyalty = House.officerLoyalty(player, memberId);
             const factor = loyalty == null ? 1 : Utils.clamp(loyalty / 100, 0, 1);
             return raw * factor;
         };
@@ -787,6 +817,8 @@ export const House = {
         let claimant = null;
         for (const memberId of Object.keys(house.roleLoyalty)) {
             const stillAssigned = ROLE_IDS.some(rid => house.roles[rid] === memberId);
+            // Courtiers' loyalty drifts at court (systems/court.js), and they press no claim
+            if (House.isCourtier(player, memberId)) continue;
             const m = House._findMember(player, memberId);
             if (!m || m.isAlive === false || !stillAssigned) continue;
 
@@ -1028,6 +1060,9 @@ export const House = {
         }
         const roleDrift = House._driftRoleLoyalty(player, world);
         if (roleDrift.claimant) results.claimant = roleDrift.claimant;
+        // The court: stipends, loyalty, comings and goings (systems/court.js)
+        const court = Court.processDay(player, world);
+        if (court.notices.length) results.court = court;
         const rivalAction = House._processRivals(player, world);
         if (rivalAction) results.rival = rivalAction;
         return results;
@@ -1091,6 +1126,7 @@ export const House = {
             sigil: { ...blank.sigil, ...(data.sigil || {}) },
             roles: { ...blank.roles, ...(data.roles || {}) },
         };
+        Court.loadState(player);
         House.migrateLegacyPrestige(player);
         return player.house;
     },

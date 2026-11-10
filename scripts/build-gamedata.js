@@ -83,6 +83,7 @@ const topLevel = [
     'performTasks',
     'wildTasks',
     'dawn',
+    'birth',
     'cultures',
     'architecture',
     'shipHulls',

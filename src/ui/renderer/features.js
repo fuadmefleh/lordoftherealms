@@ -1,14 +1,39 @@
 // Renderer — features methods.
-import { Renderer } from './core.js';
+import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, Hinterland, Estates } from './_imports.js';
 import { drawIcon } from '../icons.js';
 
-// Vertical nudge (as a fraction of a hex's on-screen size) applied to building
-// sprites so their base sits down on the hex tile instead of floating above it.
-// Increase to push buildings lower, decrease to raise them. Scales with zoom.
-const BUILDING_BASE_NUDGE = 0.14;
+// A hex's on-screen width in hex radii. Place art (towns, ruins, farms, rural
+// sites) is scaled so a full 256-wide hex-tile frame spans exactly one hex,
+// like the terrain beneath it — it used to be drawn 2.3 radii wide, a third
+// wider than the hex, and spilled onto its neighbours.
+const HEX_W = Math.sqrt(3);
+// Loose building sprites (not a full hex-tile frame) are drawn at this many
+// radii wide at most, centred on the hex face.
+const LOOSE_PLACE_W = 1.4;
 
 Object.assign(Renderer.prototype, {
+    /**
+     * Draw a place's sprite on the hex whose grid point is on screen at
+     * (sx, sy). A full 256x384 hex-tile frame (the pop_center_images art) is
+     * laid exactly over the terrain tile — one hex wide, its face on the
+     * hex's face — times `scale`; any other sprite is fitted within
+     * LOOSE_PLACE_W radii and centred on the hex face.
+     */
+    drawPlaceSprite(ctx, sprite, sx, sy, rs, scale = 1) {
+        const faceY = sy + HEX_FACE_DY * rs;
+        if (sprite.height >= 300) {
+            const w = rs * HEX_W * scale;
+            const h = w * (sprite.height / sprite.width);
+            // The frame's face centre is two-thirds of the way down the image
+            ctx.drawImage(sprite, sx - w / 2, faceY - h * (2 / 3), w, h);
+            return;
+        }
+        const k = Math.min(rs * LOOSE_PLACE_W * scale / sprite.width, rs * LOOSE_PLACE_W * scale / sprite.height);
+        const w = sprite.width * k, h = sprite.height * k;
+        ctx.drawImage(sprite, sx - w / 2, faceY - h / 2, w, h);
+    },
+
     /**
      * Render territory border lines between different kingdoms
      */
@@ -164,14 +189,14 @@ Object.assign(Renderer.prototype, {
                 // Draw Sprite
                 const sprite = this.tileSprites.get(imageName);
                 if (sprite) {
-                    const imgW = renderSize * 2.3;
-                    const imgH = imgW * (sprite.height / sprite.width);
+                    // One hex wide, laid on the hex like its terrain tile; the
+                    // tiers keep their relative size from the art itself
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH / 2 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
+                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
                 } else {
                     // Fallback to a glyph if the sprite failed to load
                     this.drawMapMarker(ctx, settlement.type === 'capital' ? 'castle' : 'house',
-                        screen.x, screen.y - renderSize * 0.15, Math.max(11, renderSize * 0.42));
+                        screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.42));
                 }
 
                 // Draw name label
@@ -256,14 +281,12 @@ Object.assign(Renderer.prototype, {
                 // Draw Sprite
                 const sprite = this.tileSprites.get(imageName);
                 if (sprite) {
-                    const imgW = renderSize * 1.8;
-                    const imgH = imgW * (sprite.height / sprite.width);
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7, imgW, imgH);
+                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
                 } else {
                     // Fallback to a glyph marker
                     ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, poi.icon || poi.type, screen.x, screen.y, Math.max(10, renderSize * 0.36));
+                    this.drawMapMarker(ctx, poi.icon || poi.type, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
                 }
 
                 // Draw name label for POIs
@@ -351,17 +374,21 @@ Object.assign(Renderer.prototype, {
      */
     drawSpriteVariant(ctx, variant, sx, sy, rs) {
         const layers = Array.isArray(variant) ? variant : [variant];
-        const unit = rs * 2.3 / 256;
+        // The settlements' scale: a 256-wide hex-tile frame spans one hex
+        const unit = rs * HEX_W / 256;
         for (const raw of layers) {
             const L = typeof raw === 'string' ? { img: raw } : raw;
             const sprite = L && L.img ? this.lazySprite(L.img) : null;
             if (!sprite) continue;
+            if (sprite.height >= 300 && L.y == null) {
+                // A full hex-tile frame: laid on the hex like a town
+                this.drawPlaceSprite(ctx, sprite, sx + (L.x || 0) * rs, sy, rs, (L.s || 1) * sprite.width / 256);
+                continue;
+            }
             const sc = unit * (L.s || 1);
             const w = sprite.width * sc, h = sprite.height * sc;
             const x = sx + (L.x || 0) * rs - w / 2;
-            const y = sprite.height >= 300 && L.y == null
-                ? sy - h / 2 + rs * BUILDING_BASE_NUDGE
-                : sy + (L.y != null ? L.y : 0.5) * rs - h;
+            const y = sy + (L.y != null ? L.y : 0.5) * rs - h;
             ctx.drawImage(sprite, x, y, w, h);
         }
     },
@@ -408,14 +435,14 @@ Object.assign(Renderer.prototype, {
                     ctx.shadowBlur = renderSize * 0.6;
                     ctx.globalAlpha = 0.6;
                     ctx.beginPath();
-                    ctx.arc(screen.x, screen.y, renderSize * 0.4, 0, Math.PI * 2);
+                    ctx.arc(screen.x, screen.y + renderSize * HEX_FACE_DY, renderSize * 0.4, 0, Math.PI * 2);
                     ctx.fillStyle = '#f5c542';
                     ctx.fill();
                     ctx.restore();
 
                     // The site's glyph on a gold-rimmed plate
                     ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, site.icon, screen.x, screen.y, Math.max(11, renderSize * 0.4),
+                    this.drawMapMarker(ctx, site.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(11, renderSize * 0.4),
                         { rim: '#f5c542', color: '#ffe08a' });
 
                     // Label
@@ -443,7 +470,7 @@ Object.assign(Renderer.prototype, {
                 if (hasCultural) {
                     const building = tile.culturalBuilding;
                     ctx.globalAlpha = 1.0;
-                    this.drawMapMarker(ctx, building.icon, screen.x, screen.y, Math.max(10, renderSize * 0.34));
+                    this.drawMapMarker(ctx, building.icon, screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.34));
 
                     if (this.camera.zoom > 0.7) {
                         const fsize = Math.max(8, 9 * this.camera.zoom);
@@ -541,6 +568,9 @@ Object.assign(Renderer.prototype, {
 
                 const infra = tile.infrastructure;
                 const isUnderConstruction = infra.underConstruction;
+                // A finished road is a real road hex: the world's road/bridge
+                // sprites draw it (renderer/assets.js), like every other road
+                if (!isUnderConstruction && tile.hasRoad && (infra.id === 'dirt_road' || infra.id === 'stone_road')) continue;
 
                 // Dim infrastructure that is still under construction
                 if (isUnderConstruction) {
@@ -740,13 +770,11 @@ Object.assign(Renderer.prototype, {
 
                 const sprite = this.tileSprites.get(imageName);
                 if (sprite) {
-                    const imgW = renderSize * 1.9;
-                    const imgH = imgW * (sprite.height / sprite.width);
                     ctx.globalAlpha = 1.0;
-                    ctx.drawImage(sprite, screen.x - imgW / 2, screen.y - imgH * 0.7 + renderSize * BUILDING_BASE_NUDGE, imgW, imgH);
+                    this.drawPlaceSprite(ctx, sprite, screen.x, screen.y, renderSize);
                 } else {
                     // Fallback glyph marker
-                    this.drawMapMarker(ctx, structure.icon || 'house', screen.x, screen.y - renderSize * 0.1, Math.max(10, renderSize * 0.36));
+                    this.drawMapMarker(ctx, structure.icon || 'house', screen.x, screen.y + renderSize * HEX_FACE_DY, Math.max(10, renderSize * 0.36));
                 }
 
                 // Draw name label
@@ -781,6 +809,10 @@ Object.assign(Renderer.prototype, {
 
         const world = this.world;
         const size = this.hexSize;
+        // Hexes already showing a building of their own (rural sites, estate farms)
+        const built = new Set();
+        for (const s of Hinterland.sites(world)) built.add(`${s.q},${s.r}`);
+        if (Estates.enabled()) for (const f of Estates.fieldHexes(world)) built.add(`${f.q},${f.r}`);
 
         for (let r = 0; r < world.height; r++) {
             for (let q = 0; q < world.width; q++) {
@@ -794,8 +826,13 @@ Object.assign(Renderer.prototype, {
                 if (screen.x < -50 || screen.x > this.canvas.width + 50) continue;
                 if (screen.y < -50 || screen.y > this.canvas.height + 50) continue;
 
-                // The resource's glyph on a small struck plate in the corner of the hex
-                const px = screen.x + renderSize * 0.35, py = screen.y + renderSize * 0.35;
+                // The resource's glyph on a small struck plate, in the middle of
+                // the hex's face — or down in its corner when a town, site or
+                // building already stands there, so it doesn't cover it
+                const occupied = tile.settlement || tile.improvement || tile.playerProperty || tile.religiousBuilding
+                    || tile.holySite || tile.culturalBuilding || built.has(`${q},${r}`);
+                const px = screen.x + (occupied ? renderSize * 0.35 : 0);
+                const py = screen.y + renderSize * (occupied ? 0.35 : HEX_FACE_DY);
                 this.drawMapMarker(ctx, tile.resource.icon || 'satchel', px, py, Math.max(10, renderSize * 0.27));
             }
         }

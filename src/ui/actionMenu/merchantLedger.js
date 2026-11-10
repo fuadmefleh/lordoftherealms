@@ -16,11 +16,16 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
-import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead, kv, rowList } from './uiKit.js';
 
-const NOTE = 'font-size: 11px; color: var(--text-secondary);';
-const TH = 'text-align:left; padding:3px 6px; color:var(--gold); font-weight:normal; border-bottom:1px solid rgba(255,255,255,0.12);';
-const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
+// The action menu's voice (uiKit): muted notes, quiet tables — a head in the
+// section-head style and hairline gold row rules
+const NOTE = 'font-size: 11px; color: #9d937c;';
+const TH = 'text-align:left; padding:3px 6px; font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:#9d937c; border-bottom:1px solid rgba(245,197,66,0.14);';
+const TD = 'padding:3px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
+const GOOD = '#8fd18a';
+const BAD = '#e0846a';
+const WARN = '#f0b35a';
 const TABS = [['book', '📖 Price Book'], ['spreads', '⚖️ Best Spreads'], ['history', '📈 Price History'], ['pnl', '💹 Profit & Loss']];
 const RANGES = [3, 5, 8, 12];
 
@@ -45,7 +50,7 @@ function act(label, args, style = BTN_PLAIN) {
 function ageCell(k) {
     const src = PriceKnowledge.sourceInfo(k.src);
     const C = PriceKnowledge.config();
-    const color = k.age <= C.freshDays ? '#2ecc71' : k.age > C.staleDays ? '#e67e22' : 'var(--text-secondary)';
+    const color = k.age <= C.freshDays ? GOOD : k.age > C.staleDays ? WARN : '#9d937c';
     return `<span title="${esc(src.name)}">${src.icon}</span> <span style="color:${color};">${PriceKnowledge.ageText(k.age)}</span>`;
 }
 
@@ -69,7 +74,7 @@ function bookTab(game) {
     let html = goodPicker(goods);
     const list = PriceKnowledge.known(player, world, view.good);
     html += lede(`What ${esc(goodDef(view.good).name.toLowerCase())} cost and fetched when you last had news of each town. Asking prices from hearsay are estimated from what the good was said to be worth.`);
-    html += `<div style="margin:0 0 6px;">${act('🗺️ Show on the trade map', ['map', view.good], BTN_GOLD)}</div>`;
+    html += rowList([{ icon: '🗺️', name: 'Show on the trade map', desc: `Every known price of ${esc(goodDef(view.good).name.toLowerCase())}, coloured on the map`, act: 'merchantLedgerAct', args: ['map', view.good], side: '›', tone: 'gold' }]);
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Town</th><th style="${TH}">Asks</th><th style="${TH}">Pays</th><th style="${TH}">Stock</th><th style="${TH}">Hexes</th><th style="${TH}">News</th></tr>`;
     for (const k of list) {
         const l = SettlementMarket.label(k.scarcity);
@@ -86,7 +91,7 @@ function spreadsTab(game) {
     const C = PriceKnowledge.config();
     let html = lede(`The best margins your news shows between two towns within reach (about ${C.hexesPerDay} hexes a day): buy at the cheapest known asking price, sell where the stalls are known to pay most.`);
     html += bullets(['Old news may be wrong.', 'A big lot moves the price against you.']);
-    html += `<div style="margin:6px 0;">Within ${RANGES.map(d => act(`${d} days`, ['days', d], d === view.days ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+    html += `<div style="margin:6px 0;"><span style="${NOTE}">Within</span> ${RANGES.map(d => act(`${d} days`, ['days', d], d === view.days ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     const list = PriceKnowledge.spreads(player, world, { days: view.days, limit: 15 });
     if (!list.length) return html + `<div style="${NOTE}">Your news shows no margin within ${view.days} days. Learn more markets.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Buy at</th><th style="${TH}">Sell at</th><th style="${TH}">Margin</th><th style="${TH}">Oldest news</th></tr>`;
@@ -94,7 +99,7 @@ function spreadsTab(game) {
         html += `<tr><td style="${TD}">${gname(x.good)}</td>`;
         html += `<td style="${TD}">${esc(x.buy.name)} ${x.buy.ask}g<br><span style="${NOTE}">${ageCell(x.buy)}</span></td>`;
         html += `<td style="${TD}">${esc(x.sell.name)} ${x.sell.bid}g<br><span style="${NOTE}">${ageCell(x.sell)}</span></td>`;
-        html += `<td style="${TD} color:#2ecc71;">+${x.margin}g (${Math.round(x.pct * 100)}%)<br><span style="${NOTE}">${x.dist} hexes apart</span></td>`;
+        html += `<td style="${TD} color:${GOOD};">+${x.margin}g (${Math.round(x.pct * 100)}%)<br><span style="${NOTE}">${x.dist} hexes apart</span></td>`;
         html += `<td style="${TD}">${PriceKnowledge.ageText(x.age)} ${act('🗺️', ['map', x.good])}</td></tr>`;
     }
     return html + '</table>';
@@ -110,10 +115,10 @@ function sparkline(points, w = 220, h = 46) {
     const sy = (y) => h - 6 - (y1 > y0 ? (y - y0) / (y1 - y0) : 0.5) * (h - 14);
     const path = points.map(p => `${sx(p.day).toFixed(1)},${sy(p.price).toFixed(1)}`).join(' ');
     const last = points[points.length - 1];
-    return `<svg width="${w}" height="${h}" style="vertical-align:middle; background:rgba(255,255,255,0.03); border-radius:4px;">`
-        + `<polyline points="${path}" fill="none" stroke="#f5c542" stroke-width="2"/>`
-        + `<circle cx="${sx(last.day).toFixed(1)}" cy="${sy(last.price).toFixed(1)}" r="3" fill="#f5c542"/>`
-        + `<text x="4" y="10" font-size="9" fill="#aaa">${y1}g</text><text x="4" y="${h - 1}" font-size="9" fill="#aaa">${y0}g</text>`
+    return `<svg width="${w}" height="${h}" style="vertical-align:middle; background:rgba(0,0,0,0.25); border:1px solid rgba(245,197,66,0.1); border-radius:6px;">`
+        + `<polyline points="${path}" fill="none" stroke="#ffcf6a" stroke-width="2"/>`
+        + `<circle cx="${sx(last.day).toFixed(1)}" cy="${sy(last.price).toFixed(1)}" r="3" fill="#ffcf6a"/>`
+        + `<text x="4" y="10" font-size="9" fill="#9d937c">${y1}g</text><text x="4" y="${h - 1}" font-size="9" fill="#9d937c">${y0}g</text>`
         + '</svg>'
         + ` <span style="${NOTE}">days ${x0}–${x1}, last ${last.price}g</span>`;
 }
@@ -121,20 +126,21 @@ function sparkline(points, w = 220, h = 46) {
 function historyTab(game) {
     const { player } = game;
     const towns = PriceKnowledge.historyTowns(player);
-    if (!towns.length) return `<div style="${NOTE}">You keep the prices of the markets you visit. Visit a few and their history shows here.</div>`;
+    if (!towns.length) return lede('You keep the prices of the markets you visit. Visit a few and their history shows here.');
     const goods = PriceKnowledge.knownGoods(player);
     if (!goods.includes(view.good)) view.good = goods.includes('grain') ? 'grain' : goods[0];
-    let html = `<div style="${NOTE}">Asking prices you saw in the ${towns.length} markets you visited last (a sample every few days).</div>`;
+    let html = lede(`Asking prices you saw in the ${towns.length} markets you visited last (a sample every few days).`);
     html += goodPicker(goods);
+    html += sectionHead(`${gname(view.good)} by market`);
     for (const t of towns) {
-        html += `<div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><b>${esc(t.name)}</b><br>${sparkline(PriceKnowledge.history(player, t.q, t.r, view.good))}</div>`;
+        html += `<div style="padding:6px 2px; border-bottom:1px solid rgba(245,197,66,0.07);"><div style="font-weight:600; color:#ece2c8; margin-bottom:3px;">${esc(t.name)}</div>${sparkline(PriceKnowledge.history(player, t.q, t.r, view.good))}</div>`;
     }
     return html;
 }
 
 // ── Profit and loss ─────────────────────────────────────
 
-const col = (n) => `<span style="color:${n >= 0 ? '#2ecc71' : '#e74c3c'};">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString()}g</span>`;
+const col = (n) => `<span style="color:${n >= 0 ? GOOD : BAD};">${n >= 0 ? '+' : ''}${Math.round(n).toLocaleString()}g</span>`;
 
 /** The income statement over the chosen period, by group and category, and the net worth. */
 function statementHtml(game) {
@@ -142,11 +148,11 @@ function statementHtml(game) {
     const periods = Ledger.config().periods || [30, 120];
     if (!periods.includes(view.period)) view.period = periods[0];
     const st = Ledger.statement(player, world, view.period);
-    let html = `<div style="margin:6px 0;">Over the last ${periods.map(d => act(d === 30 ? '30 days (a season)' : d === 120 ? '120 days (a year)' : `${d} days`, ['period', d], d === view.period ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
+    let html = `<div style="margin:6px 0;"><span style="${NOTE}">Over the last</span> ${periods.map(d => act(d === 30 ? '30 days (a season)' : d === 120 ? '120 days (a year)' : `${d} days`, ['period', d], d === view.period ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     html += lede(`Every gold flow you had, by source.${st.from != null ? ` Days ${st.from}–${st.to}.` : ''}`);
     html += bullets(['Trading lines are margins: each sale against the average cost of what you bought (the cash for the goods is under capital and stock).']);
     if (!st.op.income.length && !st.op.expenses.length && !st.cap.length) return html + `<div style="${NOTE}">Nothing on the books yet: the ledger fills as the days pass.</div>`;
-    html += `<div style="margin:6px 0; font-size:13px;">Net income: <b>${col(st.op.net)}</b></div>`;
+    html += kv('Net income', col(st.op.net));
     if (st.groups.length) html += chips(st.groups.map(g => [g.icon, esc(g.name), col(g.net)]));
     const lines = (list) => list.map(l => `<tr${l.desc ? ` title="${esc(l.desc)}"` : ''}><td style="${TD}">${esc(l.name)} <span style="${NOTE}">${esc(Ledger.group(l.group).icon)}</span></td><td style="${TD} text-align:right;">${col(l.amount)}</td></tr>`).join('');
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Income</th><th style="${TH} text-align:right;"></th></tr>${lines(st.op.income)}`;
@@ -175,7 +181,7 @@ function pnlTab(game) {
         'Each sale is set against the average cost of what you bought of that good (goods found, looted or made count as free).',
         'Routes run from where you last bought the good to where you sold it.',
     ]);
-    html += `<div style="margin:6px 0; font-size:13px;">Trading profit so far: <b>${col(p.total)}</b></div>`;
+    html += kv('Trading profit so far', col(p.total));
     if (!p.goods.length) return html + `<div style="${NOTE}">No trades yet.</div>`;
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Good</th><th style="${TH}">Bought</th><th style="${TH}">Sold</th><th style="${TH}">Profit</th></tr>`;
     for (const g of p.goods) {
@@ -200,7 +206,7 @@ Object.assign(ActionMenu, {
         if (tab) view.tab = tab;
         const { player } = game;
         let html = '<div style="font-size:12px;">';
-        html += `<div style="display:flex; align-items:flex-start; gap:6px; flex-wrap:wrap;">${chips([purse(player.gold), ['📰', 'News of', `${PriceKnowledge.towns(player).length} towns`]])}${act('📰 Economic Chronicle', ['economy'])}</div>`;
+        html += `<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:6px; flex-wrap:wrap;">${chips([purse(player.gold), ['📰', 'News of', `${PriceKnowledge.towns(player).length} towns`]])}${act('📰 Economic Chronicle', ['economy'])}</div>`;
         html += panelTabs(game, {
             id: 'ledger', title: "📒 Merchant's Ledger", tabs: TABS, active: view.tab,
             go: (k) => { ActionMenu.showMerchantLedger(game, k); },

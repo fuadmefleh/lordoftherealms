@@ -7,6 +7,8 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 import { Wilds } from '../../player/wilds.js';
 import { InnerMapLots } from '../innerMapLots.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_OFF, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
 Object.assign(ActionMenu, {
     /**
@@ -145,21 +147,25 @@ Object.assign(ActionMenu, {
 
         let html = '<div class="bp-menu">';
         // Search, tabs and filter stay pinned while the list scrolls with the panel
-        html += '<div style="position: sticky; top: 0; z-index: 2; background: rgb(20, 24, 32); padding-bottom: 4px;">';
-        html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">💰 ${Math.floor(player.gold)}g · ${buildableCount} of ${rows.length} can be built here${tile.hasRiver ? ' · 🌊 river tile (mills +50%)' : ''}</div>`;
-        if (constructionHint) html += `<div style="font-size: 11px; color: #81c784; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${constructionHint}</div>`;
-        html += `<input id="bpSearch" type="text" placeholder="Search by name or product… (e.g. flour, wool, forest)" value="${esc(state.query)}" oninput="window._bpFilter()" style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color, rgba(255,255,255,0.15)); border-radius: 6px; color: var(--text-primary); font-size: 13px;">`;
-        html += '<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">';
+        html += '<div style="position: sticky; top: 0; z-index: 2; background: rgb(17, 18, 24); padding-bottom: 2px;">';
+        html += chips([
+            purse(player.gold),
+            { icon: '🏗️', label: 'Can build here', value: `${buildableCount} of ${rows.length}`, cls: buildableCount ? 'gold' : 'dim' },
+            tile.hasRiver ? ['🌊', 'River tile', '(mills +50%)'] : null,
+        ]);
+        if (constructionHint) html += `<div style="font-size: 11px; color: #8fd18a; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${constructionHint}</div>`;
+        html += `<input id="bpSearch" type="text" placeholder="Search by name or product… (e.g. flour, wool, forest)" value="${esc(state.query)}" oninput="window._bpFilter()" style="width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(245,197,66,0.22); border-radius: 6px; color: #ece2c8; font-size: 13px;">`;
+        html += '<div class="panel-subtabs">';
         for (const c of ActionMenu.BUILD_CATEGORIES) {
             const n = c.id === 'all' ? rows.length : rows.filter(r => r.category === c.id).length;
             if (n === 0) continue;
-            html += `<button class="bp-tab" data-cat="${c.id}" onclick="window._bpTab('${c.id}')" style="padding: 4px 9px; border-radius: 999px; font-size: 11px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); color: var(--text-primary);">${c.icon} ${c.label} <span style="opacity: 0.6;">${n}</span></button>`;
+            html += `<button class="panel-subtab bp-tab${state.cat === c.id ? ' active' : ''}" data-cat="${c.id}" onclick="window._bpTab('${c.id}')">${c.icon} ${c.label} <span style="opacity: 0.6;">${n}</span></button>`;
         }
         html += '</div>';
-        html += `<label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; cursor: pointer;"><input id="bpOnlyBuildable" type="checkbox" ${state.onlyBuildable ? 'checked' : ''} onchange="window._bpFilter()"> Only show what I can build here</label>`;
+        html += `<label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #9d937c; margin-bottom: 6px; cursor: pointer;"><input id="bpOnlyBuildable" type="checkbox" ${state.onlyBuildable ? 'checked' : ''} onchange="window._bpFilter()"> Only show what I can build here</label>`;
         html += '</div>';
 
-        html += '<div id="bpList" style="display: flex; flex-direction: column; gap: 4px;">';
+        html += '<div id="bpList" class="pk-rows">';
         for (const r of rows) {
             const { prop, check } = r;
             const cost = PlayerEconomy.getBuildCost(player, prop, tile, game.world);
@@ -167,22 +173,22 @@ Object.assign(ActionMenu, {
             const output = ActionMenu._buildOutputText(prop, tile);
             const haystack = `${prop.name} ${output} ${prop.description || ''} ${(prop.requiredTerrain || []).join(' ')}`.toLowerCase();
             const action = r.tech ? `window.buildTechBuilding('${r.key}')` : `window.buildProperty('${r.key}')`;
-            let riverHint = prop.riverBonus && tile.hasRiver ? ' <span style="color: #6ec6ff;">🌊 +50% here</span>' : '';
+            let riverHint = prop.riverBonus && tile.hasRiver ? ' <span style="color: #6ec6ff; font-weight: 400; font-size: 11px;">🌊 +50% here</span>' : '';
             // Coal-fired forges, herds for ranches, oil for chandlers
             const resBonus = Economy.propertyResourceBonus(game.world, tile, prop.id);
-            if (resBonus.bonus > 0) riverHint += ` <span style="color: #81c784;" title="${esc(resBonus.label)}">${(Terrain.RESOURCES[resBonus.resource.toUpperCase()] || {}).icon || ''} +${Math.round(resBonus.bonus * 100)}% here</span>`;
-            html += `<div class="bp-row" data-cat="${r.category}" data-ok="${check.canBuild ? 1 : 0}" data-text="${esc(haystack)}" title="${esc(prop.description || '')}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,${check.canBuild ? '0.05' : '0.02'}); ${check.canBuild ? '' : 'opacity: 0.55;'}">`;
-            html += `<span style="font-size: 20px; width: 26px; text-align: center; flex-shrink: 0;">${prop.icon}</span>`;
-            html += '<div style="flex: 1; min-width: 0;">';
-            html += `<div style="font-size: 13px; font-weight: 600;">${prop.name}${r.tech ? ' <span style="font-size: 9px; color: #ce93d8;">TECH</span>' : ''}${riverHint}</div>`;
-            html += `<div style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${output}</div>`;
-            if (!check.canBuild) html += `<div style="font-size: 10px; color: #e57373;">${esc(check.reason || '')}</div>`;
-            html += '</div>';
-            html += `<div style="text-align: right; font-size: 10px; color: var(--text-muted); flex-shrink: 0;">🏗️ ${buildDays}d<br>🔧 ${prop.upkeep || 0}g/d</div>`;
-            html += `<button onclick="${action}" ${check.canBuild ? '' : 'disabled'} style="flex-shrink: 0; min-width: 64px; padding: 5px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: ${check.canBuild ? 'pointer' : 'not-allowed'}; border: ${check.canBuild ? 'none' : '1px solid rgba(255,255,255,0.1)'}; background: ${check.canBuild ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; color: ${check.canBuild ? '#1a1207' : 'var(--text-muted)'};">${cost}g</button>`;
-            html += '</div>';
+            if (resBonus.bonus > 0) riverHint += ` <span style="color: #8fd18a; font-weight: 400; font-size: 11px;" title="${esc(resBonus.label)}">${(Terrain.RESOURCES[resBonus.resource.toUpperCase()] || {}).icon || ''} +${Math.round(resBonus.bonus * 100)}% here</span>`;
+            // One action-menu row a property; the filter reads its data-* (window._bpFilter)
+            html += actRow({
+                icon: prop.icon,
+                name: `${prop.name}${r.tech ? ' <span style="font-size: 9.5px; letter-spacing: 1px; color: #ce93d8;">TECH</span>' : ''}${riverHint}`,
+                desc: output, note: check.canBuild ? '' : output,
+                off: !check.canBuild, why: esc(check.reason || ''),
+                attrs: `onclick="${action}"`,
+                title: prop.description || '',
+                side: `${price(cost, player.gold >= cost)}<br><small style="color:#9d937c;">🏗️ ${buildDays}d · 🔧 ${prop.upkeep || 0}g/d</small>`,
+            }).replace('class="pk-row', `data-cat="${r.category}" data-ok="${check.canBuild ? 1 : 0}" data-text="${esc(haystack)}" class="bp-row pk-row`);
         }
-        html += '<div id="bpEmpty" style="display: none; padding: 16px; text-align: center; font-size: 12px; color: var(--text-secondary);"></div>';
+        html += '<div id="bpEmpty" style="display: none; padding: 16px; text-align: center; font-size: 12px; color: #9d937c;"></div>';
         html += '</div></div>';
         game.ui.showCustomPanel('Build Property', html);
 
@@ -203,13 +209,11 @@ Object.assign(ActionMenu, {
                 const hideUnbuildable = state.onlyBuildable && !q;
                 const visible = catOk && textOk && (okHere || !hideUnbuildable);
                 if (catOk && textOk && !okHere && hideUnbuildable) hiddenUnbuildable++;
-                row.style.display = visible ? 'flex' : 'none';
+                row.style.display = visible ? '' : 'none';
                 if (visible) shown++;
             }
             for (const tab of document.querySelectorAll('.bp-menu .bp-tab')) {
-                const active = tab.dataset.cat === state.cat;
-                tab.style.background = active ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.04)';
-                tab.style.borderColor = active ? 'rgba(245,197,66,0.7)' : 'rgba(255,255,255,0.15)';
+                tab.classList.toggle('active', tab.dataset.cat === state.cat);
             }
             const empty = document.getElementById('bpEmpty');
             if (empty) {
@@ -310,59 +314,44 @@ Object.assign(ActionMenu, {
         const available = Infrastructure.getAvailableTypes(game.player, tile, game.world);
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Build Infrastructure</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Improve the land with roads, bridges, irrigation and jetties.</p>';
+        html += lede('Improve the land with roads, bridges, irrigation and jetties.');
+        html += chips([purse(game.player.gold)]);
         const infraHint = ActionMenu._constructionHint(game.world, tile);
-        if (infraHint) html += `<div style="font-size: 11px; color: #81c784; margin: -6px 0 10px;" title="Stone and timber within 2 hexes">${infraHint}</div>`;
+        if (infraHint) html += `<div style="font-size: 11px; color: #8fd18a; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${infraHint}</div>`;
 
         if (tile.infrastructure) {
             const constructionNote = tile.infrastructure.underConstruction
-                ? ` <span style="color: #e0a040; font-size: 11px;">🔨 Under construction (${tile.infrastructure.constructionDaysLeft} day${tile.infrastructure.constructionDaysLeft > 1 ? 's' : ''} left)</span>`
+                ? `🔨 Under construction (${tile.infrastructure.constructionDaysLeft} day${tile.infrastructure.constructionDaysLeft > 1 ? 's' : ''} left)`
                 : '';
-            html += `<div style="padding: 8px; margin-bottom: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; border-left: 3px solid var(--gold);">
-                <span style="font-size: 16px;">${tile.infrastructure.icon}</span> Current: <strong>${tile.infrastructure.name}</strong>${constructionNote}
-            </div>`;
+            html += rowList([{ icon: tile.infrastructure.icon, name: `Current: ${tile.infrastructure.name}`, desc: constructionNote || 'Standing on this tile', side: constructionNote ? '🔨' : '✓', tone: constructionNote ? 'warn' : 'good' }]);
         }
 
         if (available.length === 0) {
-            html += '<p style="color: var(--text-secondary);">No infrastructure can be built here. Research more technologies or try a different terrain.</p>';
+            html += '<p style="color: #9d937c;">No infrastructure can be built here. Research more technologies or try a different terrain.</p>';
         }
 
+        const rows = [];
         for (const infra of available) {
             const isUpgrade = infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom;
             const buildDays = infra.actualDays != null ? infra.actualDays : (infra.buildTime || 0);
-            const buildTimeLabel = buildDays > 0 ? `<span style="font-size: 11px; color: #e0a040;">⏱ ${buildDays} day${buildDays > 1 ? 's' : ''}</span>` : '<span style="font-size: 11px; color: #4CAF50;">⚡ Instant</span>';
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${infra.icon}</span> <strong>${infra.name}</strong>${isUpgrade ? ' <span style="color: var(--gold); font-size: 11px;">⬆ UPGRADE</span>' : ''} ${buildTimeLabel}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${infra.description}</div>
-                        </div>
-                        <button onclick="window.buildInfra('${infra.id.toUpperCase()}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">${infra.actualCost} gold</button>
-                    </div>
-                </div>
-            `;
+            const buildTimeLabel = buildDays > 0 ? `<span style="color: #f0b35a;">⏱ ${buildDays} day${buildDays > 1 ? 's' : ''}</span>` : '<span style="color: #8fd18a;">⚡ Instant</span>';
+            rows.push({
+                icon: infra.icon, name: `${infra.name}${isUpgrade ? ' <span style="color: #ffcf6a; font-size: 10px; letter-spacing: 1px;">⬆ UPGRADE</span>' : ''}`,
+                desc: infra.description,
+                attrs: `onclick="window.buildInfra('${infra.id.toUpperCase()}')"`,
+                side: `${price(infra.actualCost, game.player.gold >= infra.actualCost)}<br><small>${buildTimeLabel}</small>`,
+            });
         }
+        html += rowList(rows, 'Build Infrastructure');
 
         // Show all locked types for awareness
+        const locked = [];
         for (const [key, infra] of Object.entries(Infrastructure.TYPES)) {
             if (available.find(a => a.id === infra.id)) continue;
             const check = Infrastructure.canBuild(game.player, key, tile, game.world);
-            if (!check.can) {
-                html += `
-                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; opacity: 0.4;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div><span style="font-size: 20px;">${infra.icon}</span> <strong>${infra.name}</strong> 🔒</div>
-                                <div style="font-size: 11px; color: #e74c3c;">${check.reason}</div>
-                            </div>
-                            <span style="color: var(--text-secondary); font-size: 12px;">${infra.cost} gold</span>
-                        </div>
-                    </div>
-                `;
-            }
+            if (!check.can) locked.push({ icon: infra.icon, name: `${infra.name} 🔒`, off: true, why: check.reason, side: `${infra.cost} gold` });
         }
+        html += rowList(locked, 'Not here');
 
         html += '</div>';
         game.ui.showCustomPanel('Build Infrastructure', html);
@@ -395,7 +384,7 @@ Object.assign(ActionMenu, {
     demolishInfrastructure(game, tile) {
         if (typeof Infrastructure === 'undefined') return;
 
-        const result = Infrastructure.demolish(game.player, tile);
+        const result = Infrastructure.demolish(game.player, tile, game.world);
         if (result.success) {
             game.ui.showNotification('Demolished', `${result.name} removed. Refund: ${result.refund} gold`, 'default');
             game.ui.updateStats(game.player, game.world);
@@ -420,90 +409,52 @@ Object.assign(ActionMenu, {
 
         const render = () => {
             let html = '<div style="max-width: 500px; text-align: left;">';
-            html += '<h4 style="margin: 0 0 6px; text-align: center;">⛪ Found a Religion</h4>';
-            html += `<p style="font-size: 12px; color: var(--text-secondary); text-align: center; margin-bottom: 16px;">
-                        Establish a new faith and spread it across the land.<br>
-                        <span style="color: var(--gold);">Requires: 10 karma (you have ${karma})</span>
-                     </p>`;
+            html += lede('⛪ <b>Found a Religion.</b> Establish a new faith and spread it across the land.');
+            html += chips([['☯️', 'Requires', '10 karma'], { icon: '', label: 'You have', value: karma, cls: karma >= 10 ? 'gold' : '' }]);
 
             if (karma < 10) {
-                html += `<div style="text-align: center; padding: 24px; color: var(--text-muted);">
-                    <div style="font-size: 36px; margin-bottom: 8px;">🙏</div>
-                    <div style="font-size: 14px; color: #e74c3c;">You need at least 10 karma to found a religion.</div>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Current karma: ${karma}</div>
-                    <button data-am-act="closePanel"
-                        style="margin-top: 16px; padding: 8px 24px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                               border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Close</button>
-                </div></div>`;
+                html += card(`<div style="text-align: center; padding: 10px 0;">
+                    <div style="font-size: 32px; margin-bottom: 6px;">🙏</div>
+                    <div style="font-size: 13px; color: #e0846a;">You need at least 10 karma to found a religion.</div>
+                    <div style="font-size: 12px; color: #9d937c; margin-top: 4px;">Current karma: ${karma}</div>
+                    <button data-am-act="closePanel" style="${BTN_PLAIN} margin-top: 12px;">Close</button>
+                </div>`);
+                html += '</div>';
                 return html;
             }
 
             // Name input
-            html += `<div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Religion Name</label>
-                <input id="frNameInput" type="text" maxlength="30" placeholder="e.g. The Order of Light"
+            html += sectionHead('Religion Name');
+            html += `<input id="frNameInput" type="text" maxlength="30" placeholder="e.g. The Order of Light"
                     value="${religionName.replace(/"/g, '&quot;')}"
                     oninput="window._frUpdateName(this.value)"
-                    style="width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-                           border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: var(--font-display);
-                           outline: none; box-sizing: border-box; transition: border-color 0.2s;"
-                    onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
-            </div>`;
+                    style="width: 100%; padding: 9px 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(245,197,66,0.22);
+                           border-radius: 6px; color: #ece2c8; font-size: 14px; font-family: var(--font-display);
+                           outline: none; box-sizing: border-box; transition: border-color 0.2s; margin-bottom: 4px;"
+                    onfocus="this.style.borderColor='rgba(245,197,66,0.6)'" onblur="this.style.borderColor='rgba(245,197,66,0.22)'">`;
 
             // Tenets selection
-            html += `<div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 6px;">
-                    Choose 3 Tenets <span style="color: var(--text-muted);">(${selectedTenets.length}/3 selected)</span>
-                </label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">`;
-
-            for (const tenet of allTenets) {
+            html += rowList(allTenets.map(tenet => {
                 const isSelected = selectedTenets.includes(tenet.id);
-                const borderCol = isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.08)';
-                const bgCol = isSelected ? 'rgba(245,197,66,0.1)' : 'rgba(255,255,255,0.03)';
-                const checkmark = isSelected ? '✓ ' : '';
-                html += `<button onclick="window._frToggleTenet('${tenet.id}')" title="${tenet.desc}${tenet.summary ? ` — ${tenet.summary}` : ''}"
-                    style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left;
-                           background: ${bgCol}; border: 1px solid ${borderCol}; border-radius: 8px;
-                           cursor: pointer; color: var(--text-primary); transition: all 0.15s;"
-                    onmouseenter="this.style.background='rgba(255,255,255,0.07)'" onmouseleave="this.style.background='${bgCol}'">
-                    <span style="font-size: 18px; flex-shrink: 0;">${tenet.icon}</span>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 12px; font-weight: 600; color: ${isSelected ? 'var(--gold)' : 'var(--text-primary)'};">${checkmark}${tenet.id}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${tenet.desc}</div>
-                        ${tenet.summary ? `<div style="font-size: 10px; color: #8fd18f;">${tenet.summary}</div>` : ''}
-                    </div>
-                </button>`;
-            }
-
-            html += '</div></div>';
+                return {
+                    icon: tenet.icon, name: `${isSelected ? '✓ ' : ''}${tenet.id}`, desc: tenet.desc, note: tenet.summary || '',
+                    attrs: `onclick="window._frToggleTenet('${tenet.id}')"`,
+                    title: `${tenet.desc}${tenet.summary ? ` — ${tenet.summary}` : ''}`,
+                    side: isSelected ? 'chosen' : '', tone: isSelected ? 'gold' : '',
+                };
+            }), `Choose 3 Tenets <span style="color: #9d937c; letter-spacing: 0; text-transform: none;">(${selectedTenets.length}/3 selected)</span>`);
 
             // Preview
             if (religionName.trim()) {
                 const tenetList = selectedTenets.length > 0 ? selectedTenets.join(', ') : 'None';
-                html += `<div style="padding: 10px 12px; background: rgba(245,197,66,0.05); border: 1px solid rgba(245,197,66,0.15); border-radius: 8px; margin-bottom: 16px;">
-                    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Preview</div>
-                    <div style="font-size: 15px; font-family: var(--font-display); color: var(--gold);">⛪ ${religionName.trim()}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Tenets: ${tenetList}</div>
-                </div>`;
+                html += card(`<div style="font-size: 11px; color: #9d937c;">Tenets: ${tenetList}</div>`, { icon: '⛪', title: religionName.trim(), side: 'Preview' });
             }
 
             // Action buttons
             const canFound = religionName.trim().length > 0 && selectedTenets.length === 3;
-            html += `<div style="display: flex; gap: 10px; justify-content: center;">
-                <button data-am-act="closePanel"
-                    style="padding: 10px 24px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                           border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 13px;">
-                    Cancel
-                </button>
-                <button onclick="window._frConfirm()" ${canFound ? '' : 'disabled'}
-                    style="padding: 10px 28px; background: ${canFound ? 'linear-gradient(135deg, var(--gold), #d4a030)' : 'rgba(255,255,255,0.05)'};
-                           color: ${canFound ? '#1a1a2e' : 'var(--text-muted)'}; border: none; border-radius: 6px;
-                           cursor: ${canFound ? 'pointer' : 'not-allowed'}; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;
-                           transition: all 0.15s;"
-                    ${canFound ? 'onmouseenter="this.style.transform=\'scale(1.03)\'" onmouseleave="this.style.transform=\'scale(1)\'"' : ''}>
-                    ⛪ Found Religion
-                </button>
+            html += `<div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                <button data-am-act="closePanel" style="${BTN_PLAIN}">Cancel</button>
+                <button onclick="window._frConfirm()" ${canFound ? '' : 'disabled'} style="${canFound ? BTN_GOLD : BTN_OFF}">⛪ Found Religion</button>
             </div>`;
 
             html += '</div>';
@@ -566,30 +517,25 @@ Object.assign(ActionMenu, {
         }
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Build Religious Building</h4>';
-
+        html += lede(`Raise a house of <b>${game.player.religion.name || 'your faith'}</b>: it wins followers in the land around it.`);
+        html += chips([purse(game.player.gold)]);
+        const rows = [];
         for (const [key, building] of Object.entries(PlayerReligion.BUILDING_TYPES)) {
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${building.icon}</span> <strong>${building.name}</strong></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${building.description}</div>
-                            <div style="font-size: 12px;">Faith: +${building.faithGain} followers/day, ×${PlayerReligion.faithMultiplier(building).toFixed(2)} conversion | Radius: ${building.influenceRadius}</div>
-                            ${building.karmaBonus || building.incomeBonus || building.renownPerDay || building.scholarshipBonus ? `<div style="font-size: 12px; color: var(--text-secondary);">${[
-                                building.karmaBonus ? `+${building.karmaBonus} karma/day` : '',
-                                building.incomeBonus ? `~${Math.floor(building.incomeBonus * 0.1)}–${Math.floor(building.incomeBonus * 0.3)} pilgrim gold/day` : '',
-                                building.renownPerDay ? `+${building.renownPerDay} renown/day` : '',
-                                building.scholarshipBonus ? `+${building.scholarshipBonus * 2}% research speed` : '',
-                            ].filter(Boolean).join(' | ')}</div>` : ''}
-                            <div style="font-size: 11px; color: var(--gold);">🏗️ Build time: ${building.constructionDays || 0} days</div>
-                        </div>
-                        <button onclick="window.buildTemple('${key}')" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${building.cost} gold</button>
-                    </div>
-                </div>
-            `;
+            const extras = [
+                building.karmaBonus ? `+${building.karmaBonus} karma/day` : '',
+                building.incomeBonus ? `~${Math.floor(building.incomeBonus * 0.1)}–${Math.floor(building.incomeBonus * 0.3)} pilgrim gold/day` : '',
+                building.renownPerDay ? `+${building.renownPerDay} renown/day` : '',
+                building.scholarshipBonus ? `+${building.scholarshipBonus * 2}% research speed` : '',
+            ].filter(Boolean).join(' | ');
+            rows.push({
+                icon: building.icon, name: building.name, desc: building.description,
+                note: `Faith: +${building.faithGain} followers/day, ×${PlayerReligion.faithMultiplier(building).toFixed(2)} conversion | Radius: ${building.influenceRadius}${extras ? `<br>${extras}` : ''}`,
+                attrs: `onclick="window.buildTemple('${key}')"`,
+                side: `${price(building.cost, game.player.gold >= building.cost)}<br><small style="color:#9d937c;">🏗️ ${building.constructionDays || 0} days</small>`,
+                title: `Build time: ${building.constructionDays || 0} days`,
+            });
         }
-
+        html += rowList(rows, 'Build Religious Building');
         html += '</div>';
         game.ui.showCustomPanel('Build Temple', html);
 
@@ -615,9 +561,9 @@ Object.assign(ActionMenu, {
      */
     showMiracleMenu(game) {
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Perform Miracle</h4>';
-        html += `<p style="color: var(--text-secondary); font-size: 12px;">Your karma: ${game.player.karma}</p>`;
-
+        html += lede('Call on heaven: each miracle spends your karma.');
+        html += chips([{ icon: '☯️', label: 'Your karma', value: game.player.karma, cls: 'gold' }]);
+        const rows = [];
         for (const [key, miracle] of Object.entries(PlayerReligion.MIRACLES)) {
             // Targeted miracles say what they would strike, or why they can't
             const check = PlayerReligion.checkMiracleTarget(game.player, miracle.id, game.world);
@@ -625,31 +571,25 @@ Object.assign(ActionMenu, {
             const canPerform = game.player.karma >= cost && check.ok;
             let targetLine = '';
             if (!check.ok) {
-                targetLine = `<div style="font-size: 12px; color: #ff9800;">${check.reason}</div>`;
+                // the reason shows in place of the description
             } else if (miracle.id === 'smite') {
-                targetLine = `<div style="font-size: 12px; color: var(--gold);">Target: ${check.target.icon || ''} ${check.target.name} (strength ${check.target.strength})</div>`;
+                targetLine = `Target: ${check.target.icon || ''} ${check.target.name} (strength ${check.target.strength})`;
             } else if (miracle.id === 'plague') {
-                targetLine = `<div style="font-size: 12px; color: var(--gold);">Target: ${check.target.settlement.name} (pop. ${check.target.settlement.population})</div>`;
+                targetLine = `Target: ${check.target.settlement.name} (pop. ${check.target.settlement.population})`;
             } else if (miracle.id === 'resurrection') {
-                targetLine = `<div style="font-size: 12px; color: var(--gold);">Returns: ${check.target.icon || ''} ${check.target.name} (${game.player.fallenUnits.length} fallen remembered)</div>`;
+                targetLine = `Returns: ${check.target.icon || ''} ${check.target.name} (${game.player.fallenUnits.length} fallen remembered)`;
             } else if (miracle.id === 'sanctuary' && game.player.sanctuary) {
-                targetLine = `<div style="font-size: 12px; color: var(--gold);">Current sanctuary: ${game.player.sanctuary.days} days left (recasting moves it here)</div>`;
+                targetLine = `Current sanctuary: ${game.player.sanctuary.days} days left (recasting moves it here)`;
             }
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canPerform ? 'opacity: 0.5;' : ''}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${miracle.icon}</span> <strong>${miracle.name}</strong></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${miracle.description}</div>
-                            <div style="font-size: 12px;">Effect: ${miracle.effect}</div>
-                            ${targetLine}
-                        </div>
-                        <button onclick="window.performMiracle('${key}')" ${!canPerform ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${cost} karma${cost !== miracle.karmaCost ? ` <s style="opacity:0.6;">${miracle.karmaCost}</s>` : ''}</button>
-                    </div>
-                </div>
-            `;
+            rows.push({
+                icon: miracle.icon, name: miracle.name, desc: miracle.description,
+                note: `Effect: ${miracle.effect}${targetLine ? `<br><span style="color:#ffcf6a;">${targetLine}</span>` : ''}`,
+                attrs: `onclick="window.performMiracle('${key}')"`, off: !canPerform,
+                why: !check.ok ? check.reason : `Not enough karma · ${miracle.description}`,
+                side: `<span style="color:${game.player.karma >= cost ? '#ffcf6a' : '#c0533a'}; font-weight:700;">${cost} karma</span>${cost !== miracle.karmaCost ? ` <s style="opacity:0.6;">${miracle.karmaCost}</s>` : ''}`,
+            });
         }
-
+        html += rowList(rows, 'Perform Miracle');
         html += '</div>';
         game.ui.showCustomPanel('Miracles', html);
 
@@ -1112,45 +1052,22 @@ Object.assign(ActionMenu, {
         const stoneYield = 8 + Math.floor(Math.random() * 5);
 
         let html = '<div style="max-width: 420px;">';
-        html += `
-            <div style="text-align: center; margin-bottom: 16px;">
-                <div style="font-size: 48px; margin-bottom: 8px;">⛰️ → 🌿</div>
-                <div style="font-size: 14px; color: var(--text-secondary);">Flatten <strong style="color: white;">${terrainName}</strong> into <strong style="color: #88aa55;">Grassland</strong></div>
-            </div>
-
-            <div style="background: rgba(255,255,255,0.05); padding: 14px; border-radius: 6px; margin-bottom: 12px;">
-                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Your workers will level the terrain, removing rocky outcrops and evening the land for farming or building.</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
-                        <div style="font-size: 11px; color: var(--text-muted);">COST</div>
-                        <div style="font-size: 16px; font-weight: bold; color: ${canAfford ? 'var(--gold)' : '#e74c3c'};">${cost}g</div>
-                        <div style="font-size: 10px; color: var(--text-muted);">You have: ${Math.floor(game.player.gold)}g</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px;">
-                        <div style="font-size: 11px; color: var(--text-muted);">AP COST</div>
-                        <div style="font-size: 16px; font-weight: bold; color: ${hasAP ? '#3498db' : '#e74c3c'};">${apCost} AP</div>
-                        <div style="font-size: 10px; color: var(--text-muted);">You have: ${game.player.actionPoints || 0} AP</div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="background: rgba(46,204,113,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px; border: 1px solid rgba(46,204,113,0.2);">
-                <div style="font-size: 12px; color: #2ecc71;">📦 You'll recover ~${stoneYield} stone from the excavation</div>
-            </div>
-
-            ${hasResource ? `<div style="background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px; margin-bottom: 12px; border: 1px solid rgba(231,76,60,0.2);">
-                <div style="font-size: 12px; color: #e74c3c;">${resourceWarning}</div>
-            </div>` : ''}
-
-            <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 12px;">Mountains and highlands cannot be terraformed.</div>
-
-            <button id="terraformBtn" onclick="window.doTerraform(${stoneYield})" ${!canTerraform ? 'disabled' : ''}
-                style="width: 100%; padding: 12px; background: ${canTerraform ? 'var(--gold)' : '#555'}; border: none; border-radius: 6px; 
-                       cursor: ${canTerraform ? 'pointer' : 'not-allowed'}; font-weight: bold; font-size: 14px; 
-                       color: ${canTerraform ? 'black' : '#888'};">
-                ${!canAfford ? 'Not Enough Gold' : !hasAP ? 'Not Enough AP' : '⛏️ Terraform — Flatten Hills'}
-            </button>
-        `;
+        html += lede(`⛰️ → 🌿 Flatten <strong>${terrainName}</strong> into <strong style="color: #8fd18a;">Grassland</strong>. Your workers will level the terrain, removing rocky outcrops and evening the land for farming or building.`);
+        html += chips([
+            { icon: '💰', label: 'Cost', value: `<span style="color:${canAfford ? '#ffcf6a' : '#e0846a'};">${cost}g</span>` },
+            { icon: '⏳', label: 'AP cost', value: `<span style="color:${hasAP ? '#9fc4f0' : '#e0846a'};">${apCost} AP</span>` },
+            ['📦', 'Stone', `~${stoneYield}`],
+        ]);
+        html += kv('You have', `${Math.floor(game.player.gold)}g · ${game.player.actionPoints || 0} AP`);
+        html += `<div style="font-size: 12px; color: #8fd18a; margin: 6px 0;">📦 You'll recover ~${stoneYield} stone from the excavation</div>`;
+        if (hasResource) html += `<div style="font-size: 12px; color: #e0846a; margin: 6px 0;">${resourceWarning}</div>`;
+        html += '<div style="font-size: 11px; color: #9d937c; margin: 6px 0 10px;">Mountains and highlands cannot be terraformed.</div>';
+        html += rowList([{
+            icon: '⛏️', name: 'Terraform — Flatten Hills', desc: `${cost}g and ${apCost} AP · ends the day`,
+            attrs: `id="terraformBtn" onclick="window.doTerraform(${stoneYield})"`,
+            off: !canTerraform, why: !canAfford ? 'Not Enough Gold' : 'Not Enough AP',
+            side: price(cost, canAfford), tone: 'gold',
+        }]);
         html += '</div>';
         game.ui.showCustomPanel('⛏️ Terraform Land', html);
 
@@ -1200,6 +1117,8 @@ Object.assign(ActionMenu, {
      * Show tavern menu — full options in a city tavern
      */
     showTavernMenu(game, tile) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'tavern', tile)) return;
         // One visit per tavern per day counts toward tavern quests
         const visitKey = `${game.world.day}:${tile.q},${tile.r}`;
         if (game.player._lastTavernVisit !== visitKey) {

@@ -2,6 +2,8 @@
 import { ActionMenu } from './_ref.js';
 import { pictureIcon } from '../icons.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Parentage } from '../../player/parentage.js';
+import { ParentsGuard } from '../parentsGuard.js';
 import { Endurance } from '../../player/endurance.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
@@ -179,7 +181,7 @@ Object.assign(ActionMenu, {
             rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', commissions: 'commerce',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', your_parents: 'social', commissions: 'commerce',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
@@ -611,6 +613,7 @@ Object.assign(ActionMenu, {
         rest: 0,
         eat_meal: 0,
         arms_armour: 0,
+        your_parents: 0,
         disembark: 0,
         explore_inner_map: 0,
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
@@ -773,6 +776,12 @@ Object.assign(ActionMenu, {
         ActionMenu.close();
 
         if (ActionMenu.OUTLAW_REFUSED_ACTIONS.has(actionType) && ActionMenu.refuseIfOutlawed(game, tile)) return;
+
+        // Your parents' rules (player/parentage.js): grounded is refused; a forbidden thing
+        // done anyway is defiance, and they may hear of it
+        // (ui/parentsGuard.js: the same check every other door to these things makes, so
+        // the panel this opens doesn't ask again the same day)
+        if (!ParentsGuard.ok(game, actionType, tile)) return;
 
         // Holy Sanctuary is a no-combat zone — for the player too
         if ((actionType === 'attack_unit' || actionType === 'attack_settlement') &&
@@ -1195,6 +1204,11 @@ Object.assign(ActionMenu, {
                 break;
             case 'arms_armour':
                 ActionMenu.showArms(game);
+                break;
+            case 'your_parents':
+                // Under your parents' roof (player/parentage.js; ui/actionMenu/parents.js)
+                if (Parentage.state(game.player) && Parentage.state(game.player).pending) ActionMenu.showParentPicker(game);
+                else ActionMenu.showParents(game);
                 break;
             case 'dawn_settle': {
                 // The Dawn of Man: the clan makes camp for good (player/dawnBirth.js)

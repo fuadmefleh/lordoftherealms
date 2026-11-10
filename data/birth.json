@@ -1,0 +1,175 @@
+{
+    "_doc": "Born to a Family (player/parentage.js): the New Game origin 'born' makes the player the child of a real couple of the world (townsfolk on settlement.folk, a noble pair of a city, a ruler and consort). Until they come of age their parents set the rules of their days (rules below; bitten in PlayerActions.getAvailableActions, ActionMenu.handleAction, the overworld move and the end of the day). `ties` seeds every other origin's first people (family, friends, a rival, a court).",
+    "startAge": 14,
+    "ageChoices": [12, 13, 14, 15],
+    "comeOfAge": 16,
+    "choices": 9,
+    "motherAgeAtBirth": { "min": 18, "max": 34 },
+    "fatherAgeAtBirth": { "min": 19, "max": 44 },
+    "siblings": { "min": 1, "max": 3, "spreadYears": 9 },
+    "grandparents": { "chance": 0.6, "max": 2, "maxAge": 79 },
+    "auntsUncles": { "min": 0, "max": 2 },
+    "regard": { "father": 55, "mother": 62, "brother": 35, "sister": 38, "grandfather": 60, "grandmother": 66, "uncle": 25, "aunt": 28 },
+    "trust": { "start": 30, "max": 100, "perObedientDay": 0.5, "perChore": 2, "perLessons": 2, "perChurch": 1.5 },
+    "temper": {
+        "strict": { "label": "strict", "traits": ["stern", "stubborn", "cautious"], "penalty": 1.4, "trust": 0.7, "grant": 0.8 },
+        "lenient": { "label": "easy-going", "traits": ["kind", "jovial", "generous"], "penalty": 0.7, "trust": 1.3, "grant": 1.25 },
+        "fair": { "label": "fair", "penalty": 1, "trust": 1, "grant": 1 }
+    },
+    "stations": {
+        "farmer": {
+            "name": "A farmer's family", "icon": "🌾", "roles": ["farmer"], "towns": ["village", "town"],
+            "savings": 60, "purse": 6, "allowance": 2, "wage": 4, "chore": "farm",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "church"],
+            "roam": 3, "stats": { "strength": 1 }, "skills": {},
+            "means": "Up before the sun. The fields feed you and the family's coin is thin, but it is honest and they will teach you the land."
+        },
+        "labourer": {
+            "name": "A labourer's family", "icon": "🔨", "roles": ["villager"], "towns": ["village", "town", "city"],
+            "savings": 30, "purse": 4, "allowance": 1, "wage": 3, "chore": "labour",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores"],
+            "roam": 3, "stats": { "strength": 1 }, "skills": {},
+            "means": "Poor folk who work for others: odd days, hard hands. Little is forbidden that costs nothing, and little is given."
+        },
+        "smith": {
+            "name": "A smith's family", "icon": "⚒️", "roles": ["blacksmith_npc"], "towns": ["town", "city", "capital"],
+            "savings": 140, "purse": 10, "allowance": 3, "wage": 6, "chore": "forge",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores"],
+            "roam": 3, "stats": { "strength": 1 }, "skills": { "combat": 1 },
+            "means": "The forge's heat and the hammer's ring. A trade to learn at your father's anvil, and a decent table."
+        },
+        "merchant": {
+            "name": "A merchant's family", "icon": "⚖️", "roles": ["merchant"], "towns": ["town", "city", "capital"],
+            "savings": 400, "purse": 25, "allowance": 6, "wage": 9, "chore": "shop", "lessons": "letters",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "lessons"],
+            "roam": 4, "stats": { "intelligence": 1 }, "skills": { "commerce": 2 },
+            "means": "Ledgers, scales and the market's noise. Comfortable, watchful with coin, and set on you learning your numbers."
+        },
+        "guard": {
+            "name": "A guardsman's family", "icon": "🛡️", "roles": ["guard"], "towns": ["town", "city", "capital"],
+            "savings": 90, "purse": 8, "allowance": 2, "wage": 5, "chore": "watch",
+            "rules": ["curfew", "roam", "tavern", "gambling", "crime", "marry", "chores"],
+            "roam": 3, "stats": { "strength": 1 }, "skills": { "combat": 1 },
+            "means": "A parent in the town watch: discipline, a curfew kept to the bell, and no patience at all for thieving."
+        },
+        "priest": {
+            "name": "A priest's family", "icon": "⛪", "roles": ["priest"], "towns": ["village", "town", "city", "capital"],
+            "savings": 70, "purse": 5, "allowance": 1, "wage": 4, "chore": "parish", "lessons": "scripture",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "lessons", "church"],
+            "roam": 3, "stats": { "faith": 2 }, "skills": { "diplomacy": 1 },
+            "means": "Raised in the shadow of the church. Learning and prayer, a strict house, and a parish that watches you."
+        },
+        "guildmaster": {
+            "name": "A guildmaster's family", "icon": "🏛️", "roles": ["merchant", "blacksmith_npc", "villager"], "towns": ["town", "city", "capital"], "guild": true,
+            "savings": 900, "purse": 40, "allowance": 10, "wage": 14, "chore": "workshop", "lessons": "letters",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "lessons"],
+            "roam": 5, "stats": { "intelligence": 1 }, "skills": { "commerce": 2, "diplomacy": 1 },
+            "means": "A parent heads the town's guild. Money, standing, a workshop to learn in, and a name the masters know."
+        },
+        "noble": {
+            "name": "A noble family", "icon": "🏰", "roles": ["noble"], "towns": ["city", "capital", "town"], "estates": true,
+            "savings": 2500, "purse": 80, "allowance": 25, "wage": 30, "chore": "estate", "lessons": "tutor",
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "lessons", "church"],
+            "roam": 6, "stats": { "charisma": 1 }, "skills": { "leadership": 1, "diplomacy": 1 }, "prestige": 15, "reputation": 10,
+            "means": "Lords of land and tenants. Fine clothes and a tutor, an inheritance if you are first in line, and a marriage they mean to choose for you."
+        },
+        "royal": {
+            "name": "The royal family", "icon": "👑", "royal": true,
+            "purse": 150, "allowance": 50, "chore": "court", "lessons": "tutor", "claim": 55, "claimPerElder": 12, "claimMin": 15,
+            "rules": ["curfew", "roam", "tavern", "gambling", "army", "crime", "marry", "chores", "lessons", "church"],
+            "roam": 4, "stats": { "charisma": 1, "intelligence": 1 }, "skills": { "leadership": 2, "diplomacy": 2 }, "prestige": 40, "reputation": 25,
+            "means": "A prince or princess of the realm, in the line of succession. Everything is given you except your freedom."
+        }
+    },
+    "chores": {
+        "farm": { "label": "Work the fields", "icon": "🌾", "desc": "A day behind the plough and among the sheaves with your family.", "ap": 4, "pay": 5, "trains": { "attrs": { "strength": 1 } } },
+        "labour": { "label": "Help with the day's labour", "icon": "🔨", "desc": "Carry, haul and dig beside your parents for whoever hires them today.", "ap": 4, "pay": 4, "trains": { "attrs": { "strength": 1 } } },
+        "forge": { "label": "Work the bellows at the forge", "icon": "⚒️", "desc": "Pump the bellows, quench, sweep the scale, and learn a little of the hammer.", "ap": 4, "pay": 7, "trains": { "attrs": { "strength": 0.6 }, "skills": { "combat": 0.4 } } },
+        "shop": { "label": "Mind the stall", "icon": "⚖️", "desc": "Weigh, haggle and keep the ledger while your parents buy in.", "ap": 3, "pay": 8, "trains": { "skills": { "commerce": 1 } } },
+        "watch": { "label": "Run errands for the watch", "icon": "🛡️", "desc": "Carry messages, clean the armour, stand where you are told.", "ap": 3, "pay": 4, "trains": { "skills": { "combat": 0.6, "leadership": 0.2 } } },
+        "parish": { "label": "Serve in the parish", "icon": "⛪", "desc": "Sweep the nave, ring the bell, sit with the sick.", "ap": 3, "pay": 3, "trains": { "attrs": { "faith": 0.7 }, "skills": { "diplomacy": 0.3 } } },
+        "workshop": { "label": "Work in the guild workshop", "icon": "🏛️", "desc": "Fetch, sort and learn the trade's marks under the masters' eyes.", "ap": 4, "pay": 12, "trains": { "skills": { "commerce": 0.7, "diplomacy": 0.3 } } },
+        "estate": { "label": "Ride the estates with your parent", "icon": "🏰", "desc": "Hear the tenants, see the rents counted, learn what land is worth.", "ap": 3, "pay": 0, "trains": { "skills": { "leadership": 0.6, "commerce": 0.4 } } },
+        "court": { "label": "Attend court", "icon": "👑", "desc": "Stand beside the throne through a day of petitions and ceremony.", "ap": 3, "pay": 0, "trains": { "attrs": { "charisma": 0.5 }, "skills": { "diplomacy": 0.5 } } }
+    },
+    "lessons": {
+        "letters": { "label": "Lessons in letters and numbers", "icon": "📖", "desc": "Reading, sums and the keeping of accounts.", "ap": 3, "trains": { "attrs": { "intelligence": 1 }, "skills": { "commerce": 0.3 } } },
+        "scripture": { "label": "Lessons in scripture", "icon": "📜", "desc": "The holy texts, read aloud and learned by heart.", "ap": 3, "trains": { "attrs": { "intelligence": 0.5, "faith": 0.7 } } },
+        "tutor": { "label": "Lessons with your tutor", "icon": "🎓", "desc": "History, rhetoric, arms and the manners of the great.", "ap": 3, "trains": { "attrs": { "intelligence": 0.6, "charisma": 0.4 }, "skills": { "diplomacy": 0.4, "combat": 0.3 } } }
+    },
+    "church": { "label": "Go to church with the family", "icon": "🙏", "desc": "Sit through the service beside your parents, where the town can see you.", "ap": 2, "trains": { "attrs": { "faith": 0.5 } } },
+    "rules": {
+        "curfew": { "kind": "curfew", "name": "Home by nightfall", "icon": "🌙", "desc": "End every day under your parents' roof.", "lift": 75, "breach": { "regard": -4, "trust": -6, "strike": 1 }, "text": "You were not home by nightfall. {parents} sat up waiting." },
+        "roam": { "kind": "roam", "name": "Stay near home", "icon": "🧭", "desc": "No further than {radius} leagues from home without leave.", "widen": [[40, 2], [60, 5], [80, 10]], "every": 3, "breach": { "regard": -6, "trust": -10, "strike": 1 }, "text": "You went off beyond where you may go, without leave. Word has reached {parents}." },
+        "tavern": { "kind": "forbid", "name": "No taverns", "icon": "🍺", "desc": "Taverns and alehouses are no place for you.", "actions": ["tavern"], "lift": 60, "breach": { "regard": -5, "trust": -8, "strike": 1 }, "text": "You were seen in the tavern. {parents} heard of it before you were home." },
+        "gambling": { "kind": "forbid", "name": "No gambling", "icon": "🎲", "desc": "Not a coin on dice or cards.", "actions": ["gambling"], "lift": 90, "breach": { "regard": -8, "trust": -10, "strike": 1 }, "text": "You were gambling, and {parents} found out." },
+        "army": { "kind": "forbid", "name": "No soldiering", "icon": "⚔️", "desc": "No raising men, no sellsword's contracts, no army, without their leave.", "actions": ["recruit", "contract", "army_command", "household_guard", "realm_wars"], "permission": "army", "breach": { "regard": -12, "trust": -15, "strike": 2 }, "text": "You went for a soldier without their leave. {parents} are beside themselves." },
+        "crime": { "kind": "forbid", "name": "No thieving or brawling", "icon": "🚫", "desc": "No theft, smuggling, the underworld, or picking fights.", "actions": ["pickpocket", "theft", "assault", "smuggle", "underworld", "attack_unit", "attack_settlement", "commit_piracy", "raid_haven"], "breach": { "regard": -15, "trust": -20, "strike": 2 }, "text": "Word of what you did reached {parents}. They are ashamed of you." },
+        "marry": { "kind": "consent", "name": "No marrying without consent", "icon": "💍", "desc": "You may not court or wed without their blessing.", "permission": "court", "breach": { "regard": -25, "trust": -30, "strike": 3 }, "text": "You married without their blessing. {parents} will not speak your spouse's name." },
+        "chores": { "kind": "duty", "duty": "chore", "name": "Do your share", "icon": "🏠", "desc": "Help in the family's work at least every {every} days.", "every": 3, "lift": 95, "breach": { "regard": -3, "trust": -5, "strike": 1 }, "text": "You shirked your share of the work again. {parents} noticed." },
+        "lessons": { "kind": "duty", "duty": "lessons", "name": "Your lessons", "icon": "📖", "desc": "Sit your lessons at least every {every} days.", "every": 6, "breach": { "regard": -3, "trust": -4, "strike": 1 }, "text": "You skipped your lessons. {parents} heard from your teacher." },
+        "church": { "kind": "duty", "duty": "church", "name": "Church with the family", "icon": "🙏", "desc": "Go to church with them at least every {every} days.", "every": 7, "lift": 85, "breach": { "regard": -3, "trust": -4, "strike": 1 }, "text": "Your place in the pew was empty again. {parents} were asked where you were." }
+    },
+    "escalation": {
+        "_doc": "Strikes count within `window` days. Each step applies once when the count reaches it.",
+        "window": 30,
+        "steps": [
+            { "strikes": 2, "ground": 3, "text": "You are grounded for {days} days: home, and nowhere else." },
+            { "strikes": 3, "cut": 14, "text": "Your allowance is stopped for {days} days." },
+            { "strikes": 4, "ground": 7, "text": "Grounded again, for {days} days, and the chores doubled." },
+            { "strikes": 5, "sendAway": true, "text": "Enough. You are sent to live with {relative} in {town}, under their roof and their rules." },
+            { "strikes": 7, "disinherit": true, "trustBelow": 10, "text": "{parents} disown you. You are no child of theirs, and you will inherit nothing." }
+        ]
+    },
+    "grounded": {
+        "actions": ["tavern", "gambling", "meet_people", "busking", "odd_jobs", "bounty_board", "talk_locals", "lodging", "explore_inner_map", "delve", "hunt", "fish", "forage"],
+        "text": "You are grounded for {days} more days."
+    },
+    "caught": { "home": 1, "near": 0.6, "far": 0.3 },
+    "allowanceEvery": 7,
+    "household": { "upkeepShare": 0.95 },
+    "partingGift": 0.15,
+    "permissions": {
+        "travel": { "name": "Ask leave to travel", "icon": "🎒", "desc": "Ten days' leave to go further afield.", "need": 35, "days": 10, "radius": 14, "cooldown": 5 },
+        "army": { "name": "Ask leave to take up arms", "icon": "⚔️", "desc": "Their blessing to soldier: recruit, take contracts, ride with an army.", "need": 60, "minAge": 15, "cooldown": 10 },
+        "court": { "name": "Ask leave to court", "icon": "💍", "desc": "Their blessing to court someone, and wed them.", "need": 50, "minAge": 15, "cooldown": 10 },
+        "apprentice": { "name": "Ask to go out into the world", "icon": "🎒", "desc": "Their blessing to leave home now: apprenticed, in service, or on your own road. Their rule over you ends.", "need": 65, "minAge": 14, "cooldown": 15 }
+    },
+    "runAway": { "regard": -40, "disinherit": true, "text": "You slip out before dawn with what you can carry. You are your own now, and {parents} will not forget it." },
+    "lines": {
+        "welcome": "You are {name}, {age} years old, {childWord} of {father} and {mother}, {station} of {town}{realm}. {siblingsLine}{means} Your parents set your rules until you are {comeOfAge}: see Your Parents.",
+        "welcomePending": "You are about to be born. Choose your parents (or let fate choose).",
+        "comeOfAge": "You are {age}: of age. {parents} let you go with their blessing{gift}.",
+        "orphaned": "With your parents gone, no one rules your days now.",
+        "granted": "{parents} agree. {what}",
+        "refused": "{parents} refuse. {why}",
+        "allowance": "{parents} give you your allowance: {gold} gold.",
+        "allowanceShort": "There is nothing to spare this week: no allowance.",
+        "defy": "Your parents forbid this. Doing it anyway risks: {consequence}",
+        "inherit": "You inherit {what}.",
+        "crowned": "Your parent is dead, and you are first in line: you are crowned in {kingdom}.",
+        "crownAwaits": "Your parent is dead. You are first in line, but under age: the realm is held for you until you are {comeOfAge}.",
+        "lineLost": "Your parent is dead, and the crown passes to {heir}, ahead of you in the line."
+    },
+    "ties": {
+        "_doc": "Every origin's first people (Parentage.seedTies): parents living (0-2), siblings, where the family lives ('home' = the start town, 'away' = another town), friends, acquaintances, a rival in the start town, and a court of retainers for landed, noble, royal and guild origins (Court.join, free).",
+        "regard": { "father": 45, "mother": 52, "brother": 30, "sister": 32, "friend": 40, "acquaintance": 12, "rival": -35, "retainer": 30 },
+        "court": { "stipend": 3, "loyalty": 60 },
+        "origins": {
+            "_default": { "parents": 1, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 2, "rival": 1, "court": 0 },
+            "wanderer": { "parents": 1, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 2, "rival": 0, "court": 0 },
+            "disinherited": { "parents": 1, "siblings": [0, 1], "family": "home", "friends": 1, "acquaintances": 2, "rival": 0, "court": 0 },
+            "apprentice": { "parents": 2, "siblings": [1, 2], "family": "away", "friends": 2, "acquaintances": 2, "rival": 1, "court": 0 },
+            "exiled_monarch": { "parents": 0, "siblings": [0, 1], "family": "away", "friends": 1, "acquaintances": 1, "rival": 0, "court": 3, "stipend": 6 },
+            "pirate_widow": { "parents": 1, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 2, "rival": 1, "court": 0 },
+            "sellsword": { "parents": 0, "siblings": [0, 1], "family": "away", "friends": 2, "acquaintances": 1, "rival": 1, "court": 0 },
+            "monarch": { "parents": 0, "siblings": [1, 2], "family": "home", "friends": 1, "acquaintances": 1, "rival": 1, "court": 4, "stipend": 8, "loyalty": 65 },
+            "high_priest": { "parents": 0, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 2, "rival": 1, "court": 3, "stipend": 5 },
+            "great_lord": { "parents": 1, "siblings": [1, 2], "family": "home", "friends": 1, "acquaintances": 2, "rival": 1, "court": 4, "stipend": 6, "loyalty": 62 },
+            "guildmaster": { "parents": 1, "siblings": [0, 2], "family": "home", "friends": 2, "acquaintances": 2, "rival": 1, "court": 2, "stipend": 4 },
+            "general": { "parents": 1, "siblings": [0, 2], "family": "away", "friends": 1, "acquaintances": 1, "rival": 1, "court": 2, "stipend": 5 },
+            "crime_lord": { "parents": 0, "siblings": [0, 2], "family": "home", "friends": 1, "acquaintances": 2, "rival": 1, "court": 2, "stipend": 4 },
+            "born": { "parents": 0, "siblings": [0, 0], "friends": 2, "acquaintances": 1, "rival": 1, "court": 0, "youth": true }
+        }
+    }
+}

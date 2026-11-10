@@ -22,6 +22,9 @@ function _rng(seedA, seedB, salt) {
     };
 }
 
+// A colony founded in play is a camp of tents until it has this many souls
+const CAMP_OUTGROWN = 150;
+
 const _hashStr = (str) => {
     let h = 0;
     for (let i = 0; i < str.length; i++) h = (Math.imul(h, 31) + str.charCodeAt(i)) | 0;
@@ -343,7 +346,17 @@ Object.assign(InnerMap, {
     },
 
     /** Is this a village still in its dawn (tents, not streets)? */
+    // (also a colony freshly founded in play: its settlers make camp first —
+    // no streets, no churchyard — and it's laid out as a village once it has
+    // grown to CAMP_OUTGROWN souls; once outgrown it never goes back to tents)
     _isDawnVillage(settlement) {
-        return !!(settlement && settlement.dawnBorn && settlement.type === 'village');
+        if (!settlement || settlement.type !== 'village') return false;
+        if (settlement.dawnBorn) return true;
+        if (!settlement.colony || settlement.campOutgrown) return false;
+        if ((Number(settlement.population) || 0) >= CAMP_OUTGROWN) {
+            settlement.campOutgrown = true;
+            return false;
+        }
+        return true;
     },
 });

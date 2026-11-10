@@ -76,6 +76,7 @@ import { Labour } from './labour.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Harvests } from '../world/harvests.js';
 import { Transport } from '../world/transport.js';
+import { Infrastructure } from './infrastructure.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
 
@@ -387,6 +388,9 @@ export const SaveLoad = {
         'annalsPast',
         // Origin, difficulty and victory goal (player/scenarios.js, core/difficulty.js)
         'scenario',
+        // Born to a family: the parents' rules, trust, duties, allowance, grounding, leave;
+        // and the first people every origin begins among (player/parentage.js)
+        'parentage', 'ties',
         // A seat's own library and the books written for it (systems/library.js; player/startKnowledge.js)
         'library',
         // A commission in a realm's army, and the ones laid down (player/generalship.js)
@@ -774,6 +778,8 @@ export const SaveLoad = {
         Harvests.restore(saveData.harvests, world);
         // The grain dealers (older saves: none)
         Engrossing.restore(saveData.engrossing, world);
+        // The roads the player built: real road hexes again in the regenerated world
+        Infrastructure.restoreRoads(world);
         // The roads (older saves: none — their state is derived from the roads on first use)
         Transport.restore(saveData.transport, world);
         // The economic indices and the fashions (older saves: none yet — measured on the next week)

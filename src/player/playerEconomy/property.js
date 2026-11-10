@@ -6,6 +6,7 @@ import { Harvests } from '../../world/harvests.js';
 import { Ledger } from '../../systems/ledger.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
+import { BackRooms } from '../../systems/backRooms.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -383,8 +384,9 @@ Object.assign(PlayerEconomy, {
                         baseIncome = Math.floor(baseIncome * 1.2);
                         property.liquorStock = Math.max(0, liquorStock - 1); // Consume 1 liquor/day
                     }
-                    // Gambling tables bonus
-                    if (property.gamblingTables) {
+                    // Gambling tables bonus: where gaming is forbidden they stand idle
+                    // unless a back room hides them (systems/backRooms.js)
+                    if (property.gamblingTables && BackRooms.tablesRun(world, tile, property).open) {
                         baseIncome = Math.floor(baseIncome * (1 + property.gamblingTables * 0.15));
                     }
                     // A town short of hands can't staff the taproom (world/townLabour.js)

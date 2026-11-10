@@ -38,6 +38,7 @@ import { Livestock } from '../../systems/livestock.js';
 import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
+import { BackRooms } from '../../systems/backRooms.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -371,8 +372,21 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         description: 'Perform in the streets for tips and coin'
     });
 
-    // Gambling (taverns in cities, informal in villages)
-    if (isCity) {
+    // Gambling (taverns in cities, informal in villages), where the law allows
+    // it: where the realm or the town forbids gaming no gaming house opens, and
+    // only a back room behind a legitimate front is left (systems/backRooms.js)
+    const gaming = (isCity || isVillage) ? BackRooms.status(world, tile.settlement) : null;
+    if (gaming && !gaming.legal) {
+        const hidden = BackRooms.games(world, tile);
+        if (hidden.length) {
+            actions.push({
+                type: 'gambling',
+                label: 'Back-Room Game',
+                icon: '🎲',
+                description: `${gaming.why} A game runs behind ${hidden[0].front}, if you can get in.`
+            });
+        }
+    } else if (isCity) {
         actions.push({
             type: 'gambling',
             label: 'Gambling Den',

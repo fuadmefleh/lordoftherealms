@@ -2,8 +2,30 @@
 import { ActionMenu } from './_ref.js';
 import { beginVoyage } from './voyage.js';
 import { Pirates } from '../../systems/pirates.js';
-import { lede, bullets, chips, purse, sectionHead } from './uiKit.js';
+import { lede, bullets, chips, purse, sectionHead, kv, card, actRow, rowList, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_RED } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMap, KingdomNavy, Discovery } from './_imports.js';
+
+// The action menu's voice (ui/actionMenu/uiKit.js): muted notes, the one
+// full-width button a panel ends on, small stat tags inside a row, a thin bar
+const MUTED = 'font-size:11px; color:#9d937c;';
+const WIDE = 'display:block; width:100%; padding:8px 12px; margin:10px 0 0; font-size:13px;';
+
+/** Small stat tags ([label, value] pairs), in spans so they can sit inside a row. */
+function pills(items) {
+    return `<span style="display:flex; flex-wrap:wrap; gap:4px; margin:3px 0;">${items.map(([label, value]) =>
+        `<span class="pk-chip" style="font-size:10.5px; padding:0 7px;">${label} <b>${value}</b></span>`).join('')}</span>`;
+}
+
+/** A ship's condition as a thin bar. */
+function condBar(pct, color) {
+    return `<div style="height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; margin:2px 0 6px;"><div style="width:${pct}%; height:100%; background:${color};"></div></div>`;
+}
+
+/** Which of your ships a hold/market panel shows: a small toggle each, the shown one lit. */
+function shipPicker(ships, ship, call) {
+    return `<div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">${ships.map(s =>
+        `<button onclick="${call(s)}" style="${s.id === ship.id ? BTN_GOLD : BTN_DARK}">⛵ ${s.name}</button>`).join('')}</div>`;
+}
 
 Object.assign(ActionMenu, {
     // ══════════════════════════════════════════════════════════
@@ -17,16 +39,13 @@ Object.assign(ActionMenu, {
         const available = Housing.getAvailableHouses(settlement.type);
         const npcHouses = Housing.getNpcHouses(tile);
 
-        let html = '<div style="max-height:450px;overflow-y:auto;">';
-        html += '<h4 style="margin-top:0;">🏠 Buy a House</h4>';
-        html += chips([purse(player.gold), ['⭐', 'Renown', player.renown || 0]]);
+        let html = chips([purse(player.gold), ['⭐', 'Renown', player.renown || 0]]);
         html += lede(`Purchase a home in ${settlement.name}. Owning property grants renown and local influence:`);
         html += bullets(['better prices with this town\'s merchants;', 'a stronger hand when negotiating with lords.']);
 
         // NPC-owned houses (flavor)
         if (npcHouses.length > 0) {
-            html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:4px;">';
-            html += `<em>Notable residents: `;
+            html += `<div style="${MUTED} margin-bottom:8px;"><em>Notable residents: `;
             html += npcHouses.map(h => {
                 const ht = Housing.getHouseType(h.typeId);
                 return `${h.owner} (${ht ? ht.name : 'house'})`;
@@ -34,38 +53,25 @@ Object.assign(ActionMenu, {
             html += '</em></div>';
         }
 
-        // Available house types
-        for (const ht of available) {
+        // Available house types: one row each, the price at the right
+        html += rowList(available.map(ht => {
             const cost = Housing._getSettlementPrice(ht.baseCost, settlement);
             const canAfford = player.gold >= cost;
             const meetsRenown = (player.renown || 0) >= ht.requiredRenown;
             const canBuy = canAfford && meetsRenown;
-
-            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px;background:rgba(255,255,255,0.02);">`;
-            html += `<div style="font-weight:bold;margin-bottom:4px;">${ht.icon} ${ht.name}</div>`;
-            html += `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${ht.description}</div>`;
-            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">';
-            html += `<span>💰 ${cost}g</span>`;
-            html += `<span>🏆 +${ht.renownBonus} renown</span>`;
-            html += `<span>🤝 +${ht.reputationBonus} rep</span>`;
-            if (ht.staminaBonus) html += `<span>⚡ +${ht.staminaBonus} stamina</span>`;
-            html += `<span>❤️ +${ht.healthRegenBonus} health/day</span>`;
-            html += `<span>🔧 ${ht.maxUpgradeSlots} upgrade slots</span>`;
-            if (ht.requiredRenown > 0) html += `<span>📜 Requires ${ht.requiredRenown} renown</span>`;
-            html += `<span>💰 ${ht.maintenanceCost}g/day upkeep</span>`;
-            html += '</div>';
-
-            if (!meetsRenown) {
-                html += `<div style="font-size:11px;color:#e74c3c;">Need ${ht.requiredRenown} renown (you have ${player.renown || 0})</div>`;
-            } else if (!canAfford) {
-                html += `<div style="font-size:11px;color:#e74c3c;">Not enough gold (need ${cost}g)</div>`;
-            } else {
-                html += `<button onclick="window._buyHouse('${ht.id}', ${cost})" style="width:100%;margin-top:4px;">Buy for ${cost}g</button>`;
-            }
-            html += '</div>';
-        }
-
-        html += '</div>';
+            const facts = [`🏆 +${ht.renownBonus} renown`, `🤝 +${ht.reputationBonus} rep`];
+            if (ht.staminaBonus) facts.push(`⚡ +${ht.staminaBonus} stamina`);
+            facts.push(`❤️ +${ht.healthRegenBonus} health/day`, `🔧 ${ht.maxUpgradeSlots} upgrade slots`);
+            if (ht.requiredRenown > 0) facts.push(`📜 Requires ${ht.requiredRenown} renown`);
+            facts.push(`💰 ${ht.maintenanceCost}g/day upkeep`);
+            const why = !meetsRenown ? `Need ${ht.requiredRenown} renown (you have ${player.renown || 0})` : `Not enough gold (need ${cost}g)`;
+            return {
+                icon: ht.icon, name: ht.name, desc: ht.description,
+                note: `<span style="color:#9d937c;">${facts.join(' · ')}</span>${canBuy ? '' : `<br><span style="color:#c98a6a;">${why}</span>`}`,
+                off: !canBuy, attrs: `onclick="window._buyHouse('${ht.id}', ${cost})"`,
+                side: price(cost, canAfford), title: canBuy ? `Buy for ${cost}g` : '',
+            };
+        }), '🏠 Buy a House');
         game.ui.showCustomPanel('Real Estate', html);
 
         window._buyHouse = (typeId, cost) => {
@@ -107,40 +113,30 @@ Object.assign(ActionMenu, {
         const salePrice = Math.floor(value * Housing._getSellPenalty());
         const influence = Housing.getInfluence(player);
 
-        let html = '<div style="max-height:450px;overflow-y:auto;">';
-        html += `<h4 style="margin-top:0;">${ht.icon} ${ht.name} — ${house.settlementName}</h4>`;
+        let html = lede(`${ht.icon} <b>${ht.name}</b> — ${house.settlementName}`);
 
-        // Status bar
-        html += '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;margin-bottom:10px;padding:6px;background:rgba(255,255,255,0.03);border-radius:4px;">';
-        html += `<span>🔧 Condition: ${house.condition}%</span>`;
-        html += `<span>💰 Value: ~${value}g</span>`;
-        html += `<span>💰 Upkeep: ${ht.maintenanceCost}g/day</span>`;
-        html += `<span title="Better prices here (+${(Housing.getLocalTradeBonus(player, { q: tile.q, r: tile.r, name: house.settlementName }) * 100).toFixed(1)}%) and +${(Housing.getNegotiationBonus(player) * 100).toFixed(0)}% when negotiating with lords">👑 Influence: ${influence}</span>`;
-        html += `<span>📦 Upgrades: ${house.upgrades.length}/${ht.maxUpgradeSlots}</span>`;
-        html += '</div>';
+        // Status chips
+        html += chips([
+            { icon: '🔧', label: 'Condition:', value: `${house.condition}%`, cls: house.condition < 50 ? '' : 'gold' },
+            ['💰', 'Value:', `~${value}g`],
+            ['💰', 'Upkeep:', `${ht.maintenanceCost}g/day`],
+            `<span title="Better prices here (+${(Housing.getLocalTradeBonus(player, { q: tile.q, r: tile.r, name: house.settlementName }) * 100).toFixed(1)}%) and +${(Housing.getNegotiationBonus(player) * 100).toFixed(0)}% when negotiating with lords">👑 Influence: <b>${influence}</b></span>`,
+            ['📦', 'Upgrades:', `${house.upgrades.length}/${ht.maxUpgradeSlots}`],
+        ]);
 
         // Installed upgrades
         if (house.upgrades.length > 0) {
-            html += '<div style="margin-bottom:10px;">';
-            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Installed Upgrades</div>';
-            for (const uid of house.upgrades) {
+            html += rowList(house.upgrades.map(uid => {
                 const u = Housing.getUpgrade(uid);
-                if (!u) continue;
-                html += `<div style="font-size:11px;padding:2px 0;">${u.icon} ${u.name} — <span style="color:var(--text-secondary)">${u.description}</span></div>`;
-            }
-            html += '</div>';
+                return u ? { icon: u.icon, name: u.name, desc: u.description, side: '✓', tone: 'good' } : null;
+            }), 'Installed Upgrades');
         }
 
         // Available upgrades
         const availUpgrades = Housing.getAvailableUpgrades(house.typeId, house.upgrades);
         if (availUpgrades.length > 0 && house.upgrades.length < ht.maxUpgradeSlots) {
-            html += '<div style="margin-bottom:10px;">';
-            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Available Upgrades</div>';
-            for (const u of availUpgrades) {
+            html += rowList(availUpgrades.map(u => {
                 const canAfford = player.gold >= u.cost;
-                html += `<div style="border:1px solid var(--border);border-radius:4px;padding:6px;margin-bottom:4px;background:rgba(255,255,255,0.02);">`;
-                html += `<div style="font-size:12px;font-weight:bold;">${u.icon} ${u.name} — ${u.cost}g</div>`;
-                html += `<div style="font-size:11px;color:var(--text-secondary);margin:2px 0 4px;">${u.description}</div>`;
                 // Show effects
                 const effects = u.effects || {};
                 const effectParts = [];
@@ -161,30 +157,25 @@ Object.assign(ActionMenu, {
                 if (effects.defenseBonus) effectParts.push(`+${effects.defenseBonus} defense`);
                 if (effects.karmaPerDay) effectParts.push(`+${effects.karmaPerDay} karma/day`);
                 if (effects.maintenanceReduction) effectParts.push(`-${Math.round(effects.maintenanceReduction * 100)}% upkeep`);
-                if (effectParts.length > 0) {
-                    html += `<div style="font-size:10px;color:#27ae60;margin-bottom:4px;">${effectParts.join(' · ')}</div>`;
-                }
-                if (canAfford) {
-                    html += `<button onclick="window._installUpgrade('${u.id}')" style="width:100%;font-size:11px;">Install — ${u.cost}g</button>`;
-                } else {
-                    html += `<div style="font-size:11px;color:#e74c3c;">Need ${u.cost}g</div>`;
-                }
-                html += '</div>';
-            }
-            html += '</div>';
+                return {
+                    icon: u.icon, name: u.name, desc: u.description,
+                    note: [effectParts.join(' · '), canAfford ? '' : `<span style="color:#c98a6a;">Need ${u.cost}g</span>`].filter(Boolean).join('<br>'),
+                    off: !canAfford, attrs: `onclick="window._installUpgrade('${u.id}')"`,
+                    side: price(u.cost, canAfford), title: canAfford ? `Install — ${u.cost}g` : '',
+                };
+            }), 'Available Upgrades');
         }
 
-        // Actions row
-        html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+        // Actions
+        const acts = [];
         if (house.condition < 100) {
             const ht2 = Housing.getHouseType(house.typeId);
             const damagePercent = (100 - house.condition) / 100;
             const repairCost = Math.max(5, Math.floor((ht2 ? ht2.baseCost : 200) * 0.1 * damagePercent));
-            html += `<button onclick="window._repairHouse()" style="flex:1;">🔧 Repair (${repairCost}g)</button>`;
+            acts.push({ icon: '🔧', name: 'Repair', desc: `Mend the house to full condition (${house.condition}% now)`, attrs: 'onclick="window._repairHouse()"', side: price(repairCost, player.gold >= repairCost) });
         }
-        html += `<button onclick="window._sellHouseConfirm()" style="flex:1;background:#8b0000;">🏷️ Sell (~${salePrice}g)</button>`;
-        html += '</div>';
-        html += '</div>';
+        acts.push({ icon: '🏷️', name: 'Sell', desc: `Put the ${ht.name} up for sale`, attrs: 'onclick="window._sellHouseConfirm()"', side: `~${salePrice}g`, tone: 'bad' });
+        html += rowList(acts, 'The house');
 
         game.ui.showCustomPanel(`${ht.icon} Your ${ht.name}`, html);
 
@@ -211,13 +202,12 @@ Object.assign(ActionMenu, {
         };
 
         window._sellHouseConfirm = () => {
-            let confirmHtml = '<div>';
-            confirmHtml += `<p>Are you sure you want to sell your ${ht.name} in ${house.settlementName}?</p>`;
-            confirmHtml += `<p style="font-size:12px;color:var(--text-secondary);">You'll receive approximately <strong>${salePrice}g</strong> (${Math.round(Housing._getSellPenalty() * 100)}% of value).</p>`;
+            let confirmHtml = lede(`Are you sure you want to sell your ${ht.name} in ${house.settlementName}?`);
+            confirmHtml += `<div style="font-size:12px; color:#cbbf9f;">You'll receive approximately <strong style="color:#ffcf6a;">${salePrice}g</strong> (${Math.round(Housing._getSellPenalty() * 100)}% of value).</div>`;
             confirmHtml += '<div style="display:flex;gap:6px;margin-top:10px;">';
-            confirmHtml += `<button onclick="window._doSellHouse()" style="flex:1;background:#8b0000;">Confirm Sale</button>`;
-            confirmHtml += `<button onclick="ActionMenu.showManageHouseMenu(window._game, window._tile)" style="flex:1;">Cancel</button>`;
-            confirmHtml += '</div></div>';
+            confirmHtml += `<button onclick="window._doSellHouse()" style="${BTN_RED} flex:1; margin:0;">Confirm Sale</button>`;
+            confirmHtml += `<button onclick="ActionMenu.showManageHouseMenu(window._game, window._tile)" style="${BTN_PLAIN} flex:1; margin:0;">Cancel</button>`;
+            confirmHtml += '</div>';
             game.ui.showCustomPanel('Sell Property', confirmHtml);
         };
         window._game = game;
@@ -247,26 +237,15 @@ Object.assign(ActionMenu, {
         const buildable = Ships._getShipTypes();
         const playerShipsHere = Ships.getShipsAt(player, tile.q, tile.r);
 
-        const statPill = (label, value) =>
-            `<span style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">${label} ${value}</span>`;
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-        const btnDanger = `${btnBase}border:1px solid rgba(255,120,120,0.4);background:linear-gradient(180deg,#7f1d1d,#5c1212);color:#ffd6d6;`;
-        const btnTab = `${btnSecondary}padding:6px 8px;`;
+        const btnTab = BTN_PLAIN;
 
-        let html = '<div style="max-height:520px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">⚓ ${settlement.name} Shipyard</h4>`;
-        html += `<p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0;">Buy a used vessel, commission a new ship, or manage your docked fleet.</p></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
-        html += `</div>`;
-
-        html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">`;
-        html += statPill('🏷️ Used', usedShips.length);
-        html += statPill('🔨 Build Types', buildable.length);
-        html += statPill('⚓ Docked', playerShipsHere.length);
-        html += `</div>`;
+        let html = lede(`<b>${settlement.name} Shipyard</b>. Buy a used vessel, commission a new ship, or manage your docked fleet.`);
+        html += chips([
+            purse(player.gold),
+            ['🏷️', 'Used', usedShips.length],
+            ['🔨', 'Build Types', buildable.length],
+            ['⚓', 'Docked', playerShipsHere.length],
+        ]);
 
         // Used / Build / My Ships are the window's tab bar; the tab shown survives re-renders
         const shipTabs = [['used', '🏷️ Used Ships'], ['build', '🔨 Build New']];
@@ -282,105 +261,75 @@ Object.assign(ActionMenu, {
 
         html += '<div id="shipTabUsed">';
         if (usedShips.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No used ships available here today.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No used ships available here today.</div>`;
         }
+        const usedRows = [];
         for (let i = 0; i < usedShips.length; i++) {
             const s = usedShips[i];
             const st = Ships.getShipType(s.typeId);
             if (!st) continue;
             const canAfford = player.gold >= s.price;
-            const conditionColor = s.condition >= 70 ? '#5cb85c' : s.condition >= 40 ? '#f0ad4e' : '#d9534f';
-            html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
-            html += `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">`;
-            html += `<div style="font-weight:bold;">${st.icon} ${s.name}<div style="font-size:11px;color:var(--text-secondary);font-weight:normal;">${st.name}</div></div>`;
-            html += `<div style="font-size:12px;font-weight:bold;color:${canAfford ? 'var(--gold)' : '#ff8a80'};">${s.price}g</div>`;
-            html += '</div>';
-            html += `<div style="font-size:11px;color:var(--text-secondary);margin:4px 0 6px;">"${s.description}"</div>`;
-            html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;">`;
-            html += statPill('🔧', `<span style="color:${conditionColor}">${s.condition}%</span>`);
-            html += statPill('⚓', st.speed);
-            html += statPill('📦', st.cargoCapacity);
-            html += statPill('⚔️', st.combatStrength);
-            html += statPill('👥', `${st.crewRequired} crew needed`);
-            html += '</div>';
-            if (canAfford) {
-                html += `<button onclick="window._buyUsedShip(${i})" style="width:100%;${btnPrimary}">Buy Used Ship</button>`;
-            } else {
-                html += `<div style="font-size:11px;color:#e74c3c;">Not enough gold</div>`;
-            }
-            html += '</div>';
+            const conditionColor = s.condition >= 70 ? '#8fd18a' : s.condition >= 40 ? '#f0b35a' : '#e0846a';
+            usedRows.push({
+                icon: st.icon, name: `${s.name} <span style="font-size:11px; font-weight:400; color:#9d937c;">${st.name}</span>`,
+                desc: `"${s.description}"`,
+                note: pills([['🔧', `<span style="color:${conditionColor}">${s.condition}%</span>`], ['⚓', st.speed], ['📦', st.cargoCapacity], ['⚔️', st.combatStrength], ['👥', `${st.crewRequired} crew needed`]])
+                    + (canAfford ? '' : '<span style="color:#c98a6a;">Not enough gold</span>'),
+                off: !canAfford, attrs: `onclick="window._buyUsedShip(${i})"`,
+                side: price(s.price, canAfford), title: canAfford ? 'Buy Used Ship' : '',
+            });
         }
+        html += rowList(usedRows);
         html += '</div>';
 
         html += '<div id="shipTabBuild" style="display:none;">';
+        const buildRows = [];
         for (const st of buildable) {
             const buildCost = Ships._getSettlementBuildCost(st.baseCost, settlement);
             // The shipwrights must know the craft (world/shipcraft.js), or you must
             const craft = Ships.canBuild(player, game.world, settlement, st);
             const canAfford = player.gold >= buildCost && craft.ok;
-            html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
-            html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">`;
-            html += `<div style="font-weight:bold;">${st.icon} ${st.name}</div>`;
-            html += `<div style="font-size:12px;font-weight:bold;color:${canAfford ? 'var(--gold)' : '#ff8a80'};">${buildCost}g</div>`;
-            html += '</div>';
-            html += `<div style="font-size:11px;color:var(--text-secondary);margin:4px 0 6px;">${st.description}</div>`;
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;">';
-            html += statPill('⚓', st.speed);
-            html += statPill('📦', st.cargoCapacity);
-            html += statPill('⚔️', st.combatStrength);
-            html += statPill('👥', `${st.crewRequired} crew (${st.crewRequired * Ships._getCrewSettings().wagePerSailorPerDay}g/day wages)`);
-            html += statPill('💰/day', `${st.dailyUpkeep}g`);
-            html += statPill('🏗️ Days', st.buildDays);
-            if (st.customizations && st.customizations.length > 0) {
-                html += statPill('🔧 Mods', st.customizations.length);
-            }
-            html += '</div>';
-            if (!craft.ok) {
-                html += `<div style="font-size:11px;color:#e8a040;">🔒 The shipwrights here don't know how: needs ${craft.names}. Research it yourself (Technology), or find a realm whose shipwrights do.</div>`;
-            } else if (canAfford) {
-                html += `<button onclick="window._showBuildOptions('${st.id}', ${buildCost})" style="width:100%;${btnPrimary}">Commission Build</button>`;
-            } else {
-                html += `<div style="font-size:11px;color:#e74c3c;">Need ${buildCost}g</div>`;
-            }
-            html += '</div>';
+            const p = [['⚓', st.speed], ['📦', st.cargoCapacity], ['⚔️', st.combatStrength],
+                ['👥', `${st.crewRequired} crew (${st.crewRequired * Ships._getCrewSettings().wagePerSailorPerDay}g/day wages)`],
+                ['💰/day', `${st.dailyUpkeep}g`], ['🏗️ Days', st.buildDays]];
+            if (st.customizations && st.customizations.length > 0) p.push(['🔧 Mods', st.customizations.length]);
+            const why = !craft.ok
+                ? `🔒 The shipwrights here don't know how: needs ${craft.names}. Research it yourself (Technology), or find a realm whose shipwrights do.`
+                : `Need ${buildCost}g`;
+            buildRows.push({
+                icon: st.icon, name: st.name, desc: st.description,
+                note: pills(p) + (canAfford ? '' : `<span style="color:#c98a6a;">${why}</span>`),
+                off: !canAfford, attrs: `onclick="window._showBuildOptions('${st.id}', ${buildCost})"`,
+                side: price(buildCost, player.gold >= buildCost), title: canAfford ? 'Commission Build' : '',
+            });
         }
+        html += rowList(buildRows);
         html += '</div>';
 
         html += '<div id="shipTabDocked" style="display:none;">';
         if (playerShipsHere.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No ships docked here.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No ships docked here.</div>`;
         }
         for (const ship of playerShipsHere) {
             const st = Ships.getShipType(ship.typeId);
             if (!st) continue;
             const eff = Ships.getShipEffectiveStats(ship);
             const condition = Math.max(0, Math.min(100, Number(ship.condition || 0)));
-            const conditionColor = condition >= 70 ? '#5cb85c' : condition >= 40 ? '#f0ad4e' : '#d9534f';
-            html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
-            html += `<div style="font-weight:bold;">${st.icon} ${ship.name}</div>`;
-            html += `<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin:6px 0 8px;">`;
-            html += `<div style="width:${condition}%;height:100%;background:${conditionColor};"></div>`;
-            html += '</div>';
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;font-size:11px;">';
-            html += statPill('🔧', `${condition}%`);
-            html += statPill('⚓', eff.speed);
-            html += statPill('📦', eff.cargoCapacity);
-            if (ship.customizations && ship.customizations.length > 0) {
-                html += statPill('🔧 Mods', ship.customizations.length);
-            }
+            const conditionColor = condition >= 70 ? '#8fd18a' : condition >= 40 ? '#f0b35a' : '#e0846a';
             const crewHere = Ships.getCrew(ship);
-            html += statPill('👥', `<span style="color:${crewHere >= eff.crewRequired ? '#5cb85c' : crewHere >= Ships.getMinCrew(ship) ? '#f0ad4e' : '#d9534f'}">${crewHere}/${eff.crewRequired} crew</span>`);
-            html += '</div>';
-            html += '<div style="display:flex;gap:6px;">';
+            const p = [['🔧', `${condition}%`], ['⚓', eff.speed], ['📦', eff.cargoCapacity]];
+            if (ship.customizations && ship.customizations.length > 0) p.push(['🔧 Mods', ship.customizations.length]);
+            p.push(['👥', `<span style="color:${crewHere >= eff.crewRequired ? '#8fd18a' : crewHere >= Ships.getMinCrew(ship) ? '#f0b35a' : '#e0846a'}">${crewHere}/${eff.crewRequired} crew</span>`]);
+            let body = condBar(condition, conditionColor) + pills(p);
+            body += '<div style="margin-top:6px;">';
             if (crewHere < eff.crewRequired && Ships.isPortTile(game.world, ship.q, ship.r)) {
-                html += `<button onclick="window._hireSailorsHere()" style="flex:1;${btnPrimary}">👥 Hire Sailors</button>`;
+                body += `<button onclick="window._hireSailorsHere()" style="${BTN_GOLD}">👥 Hire Sailors</button>`;
             }
-            html += `<button onclick="window._manageShip('${ship.id}')" style="flex:1;${btnSecondary}">⚙️ Manage</button>`;
-            html += `<button onclick="window._moveShipMenu('${ship.id}')" style="flex:1;${btnSecondary}">🧭 Move</button>`;
-            html += '</div></div>';
+            body += `<button onclick="window._manageShip('${ship.id}')" style="${BTN_PLAIN}">⚙️ Manage</button>`;
+            body += `<button onclick="window._moveShipMenu('${ship.id}')" style="${BTN_PLAIN}">🧭 Move</button>`;
+            body += '</div>';
+            html += card(body, { icon: st.icon, title: ship.name, side: st.name });
         }
-        html += '</div>';
-
         html += '</div>';
         game.ui.showCustomPanel('⚓ Shipyard', html);
 
@@ -451,41 +400,25 @@ Object.assign(ActionMenu, {
         if (!st) return;
 
         const availCustom = Ships.getAvailableCustomizations(typeId);
-        const statPill = (label, value) =>
-            `<span style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">${label} ${value}</span>`;
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">🔨 Commission ${st.icon} ${st.name}</h4>`;
-        html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Configure the vessel before starting construction.</div></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
-        html += '</div>';
-
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
-        html += statPill('Base', `${baseCost}g`);
-        html += statPill('Build', `${st.buildDays}d`);
-        html += statPill('Upkeep', `${st.dailyUpkeep}g/day`);
-        html += statPill('⚓', st.speed);
-        html += statPill('📦', st.cargoCapacity);
-        html += '</div>';
+        let html = lede(`🔨 Commission ${st.icon} <b>${st.name}</b>. Configure the vessel before starting construction.`);
+        html += chips([
+            purse(player.gold),
+            ['', 'Base', `${baseCost}g`],
+            ['', 'Build', `${st.buildDays}d`],
+            ['', 'Upkeep', `${st.dailyUpkeep}g/day`],
+            ['⚓', '', st.speed],
+            ['📦', '', st.cargoCapacity],
+        ]);
 
         html += '<div style="margin-bottom:10px;">';
-        html += '<label style="font-size:11px;display:block;margin-bottom:4px;"><b>Ship Name</b></label>';
-        html += `<input id="shipNameInput" type="text" value="${Ships._generateShipName()}" style="width:100%;box-sizing:border-box;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;" />`;
+        html += sectionHead('Ship Name');
+        html += `<input id="shipNameInput" type="text" value="${Ships._generateShipName()}" style="width:100%;box-sizing:border-box;padding:6px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(245,197,66,0.2);color:#ece2c8;border-radius:6px;" />`;
         html += '</div>';
 
         if (availCustom.length > 0) {
-            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:6px;">Optional Customizations</div>';
+            html += sectionHead('Optional Customizations');
+            html += '<div class="pk-rows">';
             for (const c of availCustom) {
-                html += `<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
-                html += `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">`;
-                html += `<input type="checkbox" class="shipCustomCheck" value="${c.id}" data-cost="${c.cost}" />`;
-                html += `<span style="font-size:12px;"><b>${c.icon} ${c.name}</b> <span style="color:var(--gold);">(+${c.cost}g)</span></span>`;
-                html += '</label>';
-                html += `<div style="font-size:10px;color:var(--text-secondary);margin-left:22px;margin-top:2px;">${c.description}</div>`;
                 const efParts = [];
                 if (c.effects.speedBonus) efParts.push(`+${c.effects.speedBonus} speed`);
                 if (c.effects.cargoBonus) efParts.push(`+${c.effects.cargoBonus} cargo`);
@@ -498,16 +431,20 @@ Object.assign(ActionMenu, {
                 if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
                 if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
                 if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
-                if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
-                html += '</div>';
+                // A row that is a label: the whole row ticks its box
+                html += `<label class="pk-row pk-row--act" style="cursor:pointer;">`
+                    + `<span class="pk-row-ico"><input type="checkbox" class="shipCustomCheck" value="${c.id}" data-cost="${c.cost}" /></span>`
+                    + `<span class="pk-row-txt"><span class="pk-row-name">${c.icon} ${c.name}</span><span class="pk-row-desc">${c.description}</span>${efParts.length ? `<span class="pk-row-note">${efParts.join(' · ')}</span>` : ''}</span>`
+                    + `<span class="pk-row-side"><span class="pk-price">+${c.cost}<small>g</small></span></span>`
+                    + '</label>';
             }
+            html += '</div>';
         }
 
         html += bullets([`👥 New ships come without a crew: hire ${st.crewRequired} sailors at a port (${Ships._getCrewSettings().hireCostPerSailor}g each to sign on, ${Ships._getCrewSettings().wagePerSailorPerDay}g a day in wages).`]);
-        html += `<div id="buildTotalCost" style="font-size:13px;font-weight:bold;margin:10px 0 8px;padding:8px;border-radius:6px;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);">Total: ${baseCost}g</div>`;
-        html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="width:100%;${btnPrimary}">🔨 Commission Ship</button>`;
-        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Shipyard</button>`;
-        html += '</div>';
+        html += `<div id="buildTotalCost" class="pk-card" style="font-size:13px; font-weight:600; color:#ffcf6a;">Total: ${baseCost}g</div>`;
+        html += `<button onclick="window._commissionShip('${typeId}', ${baseCost})" style="${BTN_GOLD}${WIDE}">🔨 Commission Ship</button>`;
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
         game.ui.showCustomPanel('Commission Ship', html);
         window._game = game;
         window._tile = tile;
@@ -554,103 +491,82 @@ Object.assign(ActionMenu, {
         const value = Ships.getShipValue(ship);
         const salePrice = Math.floor(value * 0.5);
 
-        const statPill = (label, value) =>
-            `<span style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">${label} ${value}</span>`;
         const condition = Math.max(0, Math.min(100, Number(ship.condition || 0)));
-        const conditionColor = condition >= 70 ? '#5cb85c' : condition >= 40 ? '#f0ad4e' : '#d9534f';
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-        const btnDanger = `${btnBase}border:1px solid rgba(255,120,120,0.4);background:linear-gradient(180deg,#7f1d1d,#5c1212);color:#ffd6d6;`;
+        const conditionColor = condition >= 70 ? '#8fd18a' : condition >= 40 ? '#f0b35a' : '#e0846a';
 
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">${st.icon} ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">${st.name}</div></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">≈ ${salePrice}g sale</div>`;
-        html += '</div>';
-
-        html += `<div style="height:7px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin:0 0 8px;">`;
-        html += `<div style="width:${condition}%;height:100%;background:${conditionColor};"></div>`;
-        html += '</div>';
-        html += `<div style="font-size:11px;color:${conditionColor};margin-bottom:8px;">Condition: ${condition}%</div>`;
-
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
-        html += statPill('⚓ Speed', eff.speed);
-        html += statPill('📦 Cargo', eff.cargoCapacity);
-        html += statPill('⚔️ Str', eff.combatStrength);
+        let html = lede(`${st.icon} <b>${ship.name}</b> · ${st.name}`);
         const crew = Ships.getCrew(ship);
-        const crewColor = crew >= eff.crewRequired ? '#5cb85c' : crew >= Ships.getMinCrew(ship) ? '#f0ad4e' : '#d9534f';
+        const crewColor = crew >= eff.crewRequired ? '#8fd18a' : crew >= Ships.getMinCrew(ship) ? '#f0b35a' : '#e0846a';
         const morale = Ships.getMorale(ship);
-        html += statPill('👥 Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`);
-        html += statPill('🙂 Morale', morale);
-        html += statPill('💰/day', `${st.dailyUpkeep}g + ${Ships.getDailyWages(ship)}g wages`);
         const foodDays = Ships.getProvisionDays(ship);
-        html += statPill('🍞 Provisions', foodDays === Infinity ? '—' : `${foodDays} days`);
-        if (ship.status === 'building') html += statPill('🏗️', `${ship.buildDaysLeft}d left`);
-        if (ship.status === 'moving') html += statPill('🧭', ship.destinationName || 'en route');
-        html += '</div>';
+        html += chips([
+            { icon: '', label: '≈', value: `${salePrice}g sale`, cls: 'gold' },
+            ['⚓', 'Speed', eff.speed],
+            ['📦', 'Cargo', eff.cargoCapacity],
+            ['⚔️', 'Str', eff.combatStrength],
+            ['👥', 'Crew', `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>`],
+            ['🙂', 'Morale', morale],
+            ['💰/day', '', `${st.dailyUpkeep}g + ${Ships.getDailyWages(ship)}g wages`],
+            ['🍞', 'Provisions', foodDays === Infinity ? '—' : `${foodDays} days`],
+            ship.status === 'building' ? ['🏗️', '', `${ship.buildDaysLeft}d left`] : null,
+            ship.status === 'moving' ? ['🧭', '', ship.destinationName || 'en route'] : null,
+        ]);
+        html += condBar(condition, conditionColor);
+        html += `<div style="font-size:11px;color:${conditionColor};margin-bottom:8px;">Condition: ${condition}%</div>`;
 
         // Customizations installed
         if (ship.customizations && ship.customizations.length > 0) {
-            html += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);">';
-            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Customizations</div>';
-            for (const cid of ship.customizations) {
+            html += rowList(ship.customizations.map(cid => {
                 const c = Ships.getCustomization(cid);
-                if (!c) continue;
-                html += `<div style="font-size:11px;padding:1px 0;">${c.icon} ${c.name}</div>`;
-            }
-            html += '</div>';
+                return c ? { icon: c.icon, name: c.name, side: '✓', tone: 'good' } : null;
+            }), 'Customizations');
         }
 
         if (ship.cargo && Object.keys(ship.cargo).length > 0) {
-            html += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);">';
-            html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">Cargo</div>';
-            for (const [item, qty] of Object.entries(ship.cargo)) {
-                html += `<div style="font-size:11px;padding:1px 0;">${item}: ${qty}</div>`;
-            }
-            html += '</div>';
+            html += sectionHead('Cargo');
+            for (const [item, qty] of Object.entries(ship.cargo)) html += kv(item, qty);
         }
 
         // Crew: what a short-handed ship loses, and hiring at this port
         const crewOpen = Math.max(0, eff.crewRequired - crew);
-        html += '<div style="margin-bottom:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);font-size:11px;">';
-        html += '<div style="font-size:12px;font-weight:bold;margin-bottom:4px;">👥 Crew</div>';
+        let crewBody = '';
         if (crew < Ships.getMinCrew(ship)) {
-            html += `<div style="color:#e57373;">Needs at least ${Ships.getMinCrew(ship)} sailors to leave port.</div>`;
+            crewBody += `<div style="color:#e0846a;">Needs at least ${Ships.getMinCrew(ship)} sailors to leave port.</div>`;
         }
         if (crewOpen > 0) {
-            html += `<div style="color:var(--text-secondary);">Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
+            crewBody += `<div>Short-handed: ${Math.round(Ships.getCrewSpeedFactor(ship) * 100)}% speed, ${Math.round(Ships.getCrewCombatFactor(ship) * 100)}% fighting strength, fewer fish in the nets.</div>`;
         }
-        html += `<div style="color:var(--text-secondary);">Wages ${Ships._getCrewSettings().wagePerSailorPerDay}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
-        html += `<div style="color:var(--text-secondary);">Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
-        html += '</div>';
+        crewBody += `<div>Wages ${Ships._getCrewSettings().wagePerSailorPerDay}g per sailor a day. Storms, defeats and missed wages sap morale; below ${Ships._getCrewSettings().desertionMorale} sailors desert.</div>`;
+        crewBody += `<div>Away from port the crew eats from the hold: ${Math.round(Ships.getDailyRations(ship) * 10) / 10} provisions a day. A hungry crew loses heart, then scurvy comes aboard.</div>`;
+        html += card(`<div style="font-size:11px; color:#cbbf9f;">${crewBody}</div>`, { icon: '👥', title: 'Crew', side: `<span style="color:${crewColor}">${crew}/${eff.crewRequired}</span>` });
 
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+        // What can be done with her: one row an action
+        const acts = [];
         if (ship.status === 'docked' && crewOpen > 0 && Ships.isPortTile(game.world, ship.q, ship.r)) {
-            html += `<button onclick="window._hireCrew('${ship.id}')" style="flex:1;${btnPrimary}">👥 Hire ${crewOpen} sailors (${Ships.getHireCost(crewOpen)}g)</button>`;
+            const hire = Ships.getHireCost(crewOpen);
+            acts.push({ icon: '👥', name: `Hire ${crewOpen} sailors`, desc: 'Fill her empty berths', attrs: `onclick="window._hireCrew('${ship.id}')"`, side: price(hire, player.gold >= hire) });
         }
         if (ship.status === 'docked' && crew > 0) {
-            html += `<button onclick="window._dismissCrew('${ship.id}')" style="flex:1;${btnSecondary}">👋 Pay off 1 sailor</button>`;
+            acts.push({ icon: '👋', name: 'Pay off 1 sailor', desc: 'One fewer mouth and wage', attrs: `onclick="window._dismissCrew('${ship.id}')"` });
         }
         const victual = ship.status === 'docked' && Ships.isPortTile(game.world, ship.q, ship.r) ? Ships.provisionsNeeded(ship, 10, { player }) : 0;
         if (victual > 0) {
-            const price = Ships.provisionPrice(game.world, ship.q, ship.r);
-            html += `<button onclick="window._provisionShip('${ship.id}', ${victual})" style="flex:1;${btnPrimary}">🍞 Provision for 10 days (${victual} × ${price}g)</button>`;
+            const unit = Ships.provisionPrice(game.world, ship.q, ship.r);
+            acts.push({ icon: '🍞', name: 'Provision for 10 days', desc: `${victual} × ${unit}g`, attrs: `onclick="window._provisionShip('${ship.id}', ${victual})"`, side: price(victual * unit, player.gold >= victual * unit) });
         }
         if (ship.condition < 100 && ship.status === 'docked') {
             const repCost = Ships.getRepairCost(ship);
-            html += `<button onclick="window._repairShip('${ship.id}')" style="flex:1;${btnPrimary}">🔧 Repair (${repCost}g)</button>`;
+            acts.push({ icon: '🔧', name: 'Repair', desc: `Mend her hull (${condition}% now)`, attrs: `onclick="window._repairShip('${ship.id}')"`, side: price(repCost, player.gold >= repCost) });
         }
         if (ship.status === 'docked') {
             if (availableUpgrades.length > 0) {
-                html += `<button onclick="window._upgradeShipMenu('${ship.id}')" style="flex:1;${btnPrimary}">⬆️ Upgrade (${availableUpgrades.length})</button>`;
+                acts.push({ icon: '⬆️', name: 'Upgrade', desc: 'Install additional upgrades while docked', attrs: `onclick="window._upgradeShipMenu('${ship.id}')"`, side: `${availableUpgrades.length}`, tone: 'gold' });
             }
-            html += `<button onclick="window._renameShip('${ship.id}')" style="flex:1;${btnSecondary}">✏️ Rename</button>`;
-            html += `<button onclick="window._sellShipConfirm('${ship.id}', ${salePrice})" style="flex:1;${btnDanger}">🏷️ Sell (~${salePrice}g)</button>`;
+            acts.push({ icon: '✏️', name: 'Rename', desc: 'Give her a new name', attrs: `onclick="window._renameShip('${ship.id}')"` });
+            acts.push({ icon: '🏷️', name: 'Sell', desc: 'Sell her at the yard', attrs: `onclick="window._sellShipConfirm('${ship.id}', ${salePrice})"`, side: `~${salePrice}g`, tone: 'bad' });
         }
-        html += '</div>';
-        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Shipyard</button>`;
-        html += '</div>';
+        html += rowList(acts, 'Orders');
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
 
         game.ui.showCustomPanel(`${st.icon} ${ship.name}`, html);
         window._game = game;
@@ -692,13 +608,10 @@ Object.assign(ActionMenu, {
         };
 
         window._renameShip = (sid) => {
-            const renameBtnPrimary = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;';
-            let renameHtml = '<div>';
-            renameHtml += '<h4 style="margin-top:0;margin-bottom:8px;">✏️ Rename Ship</h4>';
-            renameHtml += '<label style="font-size:12px;">New name:</label>';
-            renameHtml += `<input id="renameShipInput" type="text" value="${ship.name}" style="width:100%;box-sizing:border-box;padding:6px 8px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:6px;margin:6px 0;" />`;
-            renameHtml += `<button onclick="window._doRenameShip('${sid}')" style="width:100%;${renameBtnPrimary}">Confirm Rename</button>`;
-            renameHtml += '</div>';
+            let renameHtml = sectionHead('✏️ Rename Ship');
+            renameHtml += '<label style="font-size:12px; color:#cbbf9f;">New name:</label>';
+            renameHtml += `<input id="renameShipInput" type="text" value="${ship.name}" style="width:100%;box-sizing:border-box;padding:6px 8px;background:rgba(0,0,0,0.3);border:1px solid rgba(245,197,66,0.2);color:#ece2c8;border-radius:6px;margin:6px 0;" />`;
+            renameHtml += `<button onclick="window._doRenameShip('${sid}')" style="${BTN_GOLD}${WIDE}">Confirm Rename</button>`;
             game.ui.showCustomPanel('Rename Ship', renameHtml);
         };
 
@@ -716,15 +629,12 @@ Object.assign(ActionMenu, {
         };
 
         window._sellShipConfirm = (sid, price) => {
-            const sellBtnDanger = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;border:1px solid rgba(255,120,120,0.4);background:linear-gradient(180deg,#7f1d1d,#5c1212);color:#ffd6d6;';
-            const sellBtnSecondary = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
-            let cHtml = '<div>';
-            cHtml += `<h4 style="margin-top:0;margin-bottom:8px;">🏷️ Sell Ship</h4>`;
-            cHtml += `<p style="font-size:12px;color:var(--text-secondary);">Sell <b>${ship.name}</b> for approximately <b>${price}g</b>?</p>`;
+            let cHtml = sectionHead('🏷️ Sell Ship');
+            cHtml += lede(`Sell <b>${ship.name}</b> for approximately <b>${price}g</b>?`);
             cHtml += '<div style="display:flex;gap:6px;margin-top:10px;">';
-            cHtml += `<button onclick="window._doSellShip('${sid}')" style="flex:1;${sellBtnDanger}">Confirm</button>`;
-            cHtml += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${sid}')" style="flex:1;${sellBtnSecondary}">Cancel</button>`;
-            cHtml += '</div></div>';
+            cHtml += `<button onclick="window._doSellShip('${sid}')" style="${BTN_RED} flex:1; margin:0;">Confirm</button>`;
+            cHtml += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${sid}')" style="${BTN_PLAIN} flex:1; margin:0;">Cancel</button>`;
+            cHtml += '</div>';
             game.ui.showCustomPanel('Sell Ship', cHtml);
         };
 
@@ -748,26 +658,14 @@ Object.assign(ActionMenu, {
         if (!st) return;
 
         const upgrades = Ships.getUpgradeableCustomizations(ship);
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">⬆️ Upgrade ${st.icon} ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Install additional upgrades while docked.</div></div>`;
-        html += `<div style="font-size:12px;color:var(--gold);white-space:nowrap;background:rgba(245,197,66,0.12);padding:4px 8px;border-radius:6px;">💰 ${Math.floor(player.gold)}g</div>`;
-        html += '</div>';
+        let html = lede(`⬆️ Upgrade ${st.icon} <b>${ship.name}</b>. Install additional upgrades while docked.`);
+        html += chips([purse(player.gold)]);
 
         if (upgrades.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No upgrades available for this ship.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No upgrades available for this ship.</div>`;
         } else {
+            html += '<div class="pk-rows">';
             for (const c of upgrades) {
-                html += `<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
-                html += `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;">`;
-                html += `<input type="checkbox" class="shipUpgradeCheck" value="${c.id}" data-cost="${c.cost}" />`;
-                html += `<span style="font-size:12px;"><b>${c.icon} ${c.name}</b> <span style="color:var(--gold);">(+${c.cost}g)</span></span>`;
-                html += '</label>';
-                html += `<div style="font-size:10px;color:var(--text-secondary);margin-left:22px;margin-top:2px;">${c.description}</div>`;
                 const efParts = [];
                 if (c.effects.speedBonus) efParts.push(`+${c.effects.speedBonus} speed`);
                 if (c.effects.cargoBonus) efParts.push(`+${c.effects.cargoBonus} cargo`);
@@ -780,15 +678,19 @@ Object.assign(ActionMenu, {
                 if (c.effects.fishingBonus) efParts.push(`+${c.effects.fishingBonus} fishing casts`);
                 if (c.effects.renownBonus) efParts.push(`+${c.effects.renownBonus} renown`);
                 if (c.effects.charismaBonus) efParts.push(`+${c.effects.charismaBonus} charisma`);
-                if (efParts.length) html += `<div style="font-size:10px;color:#5cb85c;margin-left:22px;margin-top:2px;">${efParts.join(' · ')}</div>`;
-                html += '</div>';
+                // A row that is a label: the whole row ticks its box
+                html += `<label class="pk-row pk-row--act" style="cursor:pointer;">`
+                    + `<span class="pk-row-ico"><input type="checkbox" class="shipUpgradeCheck" value="${c.id}" data-cost="${c.cost}" /></span>`
+                    + `<span class="pk-row-txt"><span class="pk-row-name">${c.icon} ${c.name}</span><span class="pk-row-desc">${c.description}</span>${efParts.length ? `<span class="pk-row-note">${efParts.join(' · ')}</span>` : ''}</span>`
+                    + `<span class="pk-row-side"><span class="pk-price">+${c.cost}<small>g</small></span></span>`
+                    + '</label>';
             }
+            html += '</div>';
         }
 
-        html += `<div id="shipUpgradeTotal" style="font-size:13px;font-weight:bold;margin:10px 0 8px;padding:8px;border-radius:6px;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);">Total: 0g</div>`;
-        html += `<button onclick="window._confirmShipUpgrade('${ship.id}')" style="width:100%;${btnPrimary}">Install Upgrades</button>`;
-        html += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${ship.id}')" style="width:100%;margin-top:6px;${btnSecondary}">← Back to Ship</button>`;
-        html += '</div>';
+        html += `<div id="shipUpgradeTotal" class="pk-card" style="font-size:13px; font-weight:600; color:#ffcf6a;">Total: 0g</div>`;
+        html += `<button onclick="window._confirmShipUpgrade('${ship.id}')" style="${BTN_GOLD}${WIDE}">Install Upgrades</button>`;
+        html += `<button onclick="ActionMenu._showShipManagePanel(window._game, window._tile, '${ship.id}')" style="${BTN_PLAIN}${WIDE}">← Back to Ship</button>`;
 
         game.ui.showCustomPanel('Ship Upgrades', html);
         window._game = game;
@@ -827,9 +729,7 @@ Object.assign(ActionMenu, {
         if (!ship) return;
         const st = Ships.getShipType(ship.typeId);
         const sailSpeed = Ships.getSailingSpeed(game.player, ship);
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
+
 
         // Find coastal settlements the ship can move to
         const allSettlements = game.world.getAllSettlements();
@@ -841,27 +741,23 @@ Object.assign(ActionMenu, {
             });
         });
 
-        let html = '<div style="max-height:430px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">🧭 Move ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Choose a destination port; travel time depends on ship speed.</div></div>`;
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Speed ${sailSpeed}</div>`;
-        html += '</div>';
+        let html = lede(`🧭 Move <b>${ship.name}</b>. Choose a destination port; travel time depends on ship speed.`);
+        html += chips([['⚓', 'Speed', sailSpeed]]);
 
         if (coastalDests.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No reachable ports found.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No reachable ports found.</div>`;
         }
-        for (const dest of coastalDests) {
+        html += rowList(coastalDests.map(dest => {
             const dist = Hex.distance(tile.q, tile.r, dest.q, dest.r);
             const travelDays = Math.max(1, Math.ceil(dist / sailSpeed));
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
-            html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} (${dest.type})</div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">${dist} hexes · ~${travelDays} days</div></div>`;
-            html += `<button onclick="window._sendShipTo('${ship.id}', ${dest.q}, ${dest.r}, '${dest.name.replace(/'/g, "\\'")}')" style="${btnPrimary}">Send Ship</button>`;
-            html += '</div>';
-        }
+            return {
+                icon: '⚓', name: `${dest.name} (${dest.type})`, desc: `${dist} hexes · ~${travelDays} days`,
+                attrs: `onclick="window._sendShipTo('${ship.id}', ${dest.q}, ${dest.r}, '${dest.name.replace(/'/g, "\\'")}')"`,
+                side: 'Send Ship', tone: 'gold',
+            };
+        }), 'Ports');
 
-        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:8px;${btnSecondary}">← Back to Shipyard</button>`;
-        html += '</div>';
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
         game.ui.showCustomPanel('Move Ship', html);
         window._game = game;
         window._tile = tile;
@@ -887,41 +783,37 @@ Object.assign(ActionMenu, {
         const crewCfg = Ships._getCrewSettings();
         const rows = Ships.shortHandedAt(player, game.world, tile.q, tile.r);
 
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        html += '<h4 style="margin:0;">👥 Hire Sailors</h4>';
-        html += chips([purse(player.gold), ['', 'To sign on', `${crewCfg.hireCostPerSailor}g each`], ['', 'Wages', `${crewCfg.wagePerSailorPerDay}g a day`]]);
+        let html = chips([purse(player.gold), ['', 'To sign on', `${crewCfg.hireCostPerSailor}g each`], ['', 'Wages', `${crewCfg.wagePerSailorPerDay}g a day`]]);
         html += bullets([
             `Sailors sign on for ${crewCfg.hireCostPerSailor}g each and draw ${crewCfg.wagePerSailorPerDay}g a day in wages.`,
             'A ship needs at least part of its crew to leave port; short-handed she sails slower and fights weaker.',
         ]);
         if (!rows.length) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">Every ship of yours docked here is fully crewed.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">Every ship of yours docked here is fully crewed.</div>`;
         }
+        const shipRows = [];
         for (const { ship, open, cost } of rows) {
             const st = Ships.getShipType(ship.typeId) || {};
             const need = Ships.getShipEffectiveStats(ship).crewRequired;
             const crew = Ships.getCrew(ship);
             const canSail = crew >= Ships.getMinCrew(ship);
             const affordable = Math.min(open, Math.floor((player.gold || 0) / Math.max(1, crewCfg.hireCostPerSailor)));
-            html += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">';
-            html += `<div style="display:flex;justify-content:space-between;gap:8px;"><strong>${st.icon || '⛵'} ${ship.name}</strong><span style="font-size:12px;color:${canSail ? '#f0ad4e' : '#d9534f'};">${crew}/${need} crew</span></div>`;
-            html += `<div style="font-size:11px;color:var(--text-secondary);margin:4px 0 8px;">${canSail ? 'Can sail, but short-handed.' : `Needs ${Ships.getMinCrew(ship)} to leave port.`} ${open} berth${open === 1 ? '' : 's'} empty · wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day</div>`;
-            html += '<div style="display:flex;gap:6px;">';
+            let hire;
             if (affordable >= open) {
-                html += `<button onclick="window._hireSailors('${ship.id}')" style="flex:1;${btnPrimary}">Hire ${open} sailors (${cost}g)</button>`;
+                hire = `<button onclick="window._hireSailors('${ship.id}')" style="${BTN_GOLD}">Hire ${open} sailors (${cost}g)</button>`;
             } else if (affordable > 0) {
-                html += `<button onclick="window._hireSailors('${ship.id}')" style="flex:1;${btnPrimary}">Hire ${affordable} of ${open} (${Ships.getHireCost(affordable)}g, all you can afford)</button>`;
+                hire = `<button onclick="window._hireSailors('${ship.id}')" style="${BTN_GOLD}">Hire ${affordable} of ${open} (${Ships.getHireCost(affordable)}g, all you can afford)</button>`;
             } else {
-                html += `<div style="flex:1;font-size:11px;color:#e74c3c;">Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.</div>`;
+                hire = `<span style="font-size:11px; color:#c98a6a; margin-right:6px;">Not enough gold: ${crewCfg.hireCostPerSailor}g per sailor.</span>`;
             }
-            html += `<button onclick="window._hireSailorsManage('${ship.id}')" style="${btnSecondary}">⚙️ Ship</button>`;
-            html += '</div></div>';
+            shipRows.push(actRow({
+                icon: st.icon || '⛵', name: ship.name,
+                desc: `${canSail ? 'Can sail, but short-handed.' : `Needs ${Ships.getMinCrew(ship)} to leave port.`} ${open} berth${open === 1 ? '' : 's'} empty · wages afterwards ${need * crewCfg.wagePerSailorPerDay}g/day`,
+                note: `<span style="display:block; margin-top:3px;">${hire}<button onclick="window._hireSailorsManage('${ship.id}')" style="${BTN_PLAIN}">⚙️ Ship</button></span>`,
+                side: `<span style="color:${canSail ? '#f0b35a' : '#e0846a'};">${crew}/${need} crew</span>`,
+            }));
         }
-        html += '</div>';
+        html += rowList(shipRows, '👥 Hire Sailors');
         game.ui.showCustomPanel('👥 Hire Sailors', html);
 
         window._hireSailors = (sid) => {
@@ -939,18 +831,8 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const dockedShips = Ships.getShipsAt(player, tile.q, tile.r);
 
-        const statPill = (label, value) =>
-            `<span style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">${label} ${value}</span>`;
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
-
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">';
-        html += '<div><h4 style="margin:0;">🚢 Board a Ship</h4>';
-        html += '<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Board a ship to sail across the waters.</div></div>';
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);">⚓ Docked ${dockedShips.filter(s => s.status === 'docked').length}</div>`;
-        html += '</div>';
+        let html = lede('🚢 Board a ship to sail across the waters.');
+        html += chips([['⚓', 'Docked', dockedShips.filter(s => s.status === 'docked').length]]);
 
         let shown = 0;
         for (const ship of dockedShips) {
@@ -960,46 +842,30 @@ Object.assign(ActionMenu, {
             const eff = Ships.getShipEffectiveStats(ship);
             shown++;
             const condition = Math.max(0, Math.min(100, Number(ship.condition || 0)));
-            const conditionColor = condition >= 70 ? '#5cb85c' : condition >= 40 ? '#f0ad4e' : '#d9534f';
-            html += `<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(255,255,255,0.02);">`;
-            html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">`;
-            html += `<div style="font-weight:bold;">${st.icon} ${ship.name}</div>`;
-            html += `<div style="font-size:11px;color:${conditionColor};">${condition}%</div>`;
-            html += '</div>';
-            html += `<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;margin:6px 0 8px;">`;
-            html += `<div style="width:${condition}%;height:100%;background:${conditionColor};"></div>`;
-            html += '</div>';
-            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;">';
-            html += statPill('⚓', eff.speed);
-            html += statPill('⚔️', eff.combatStrength);
-            html += statPill('📦', eff.cargoCapacity);
-            html += statPill('👥', `${Ships.getCrew(ship)}/${eff.crewRequired}`);
-            html += statPill('🙂', Ships.getMorale(ship));
+            const conditionColor = condition >= 70 ? '#8fd18a' : condition >= 40 ? '#f0b35a' : '#e0846a';
             const boardFood = Ships.getProvisionDays(ship);
-            html += statPill('🍞', boardFood === Infinity ? '—' : `${boardFood}d`);
-            html += '</div>';
+            let body = condBar(condition, conditionColor);
+            body += pills([['⚓', eff.speed], ['⚔️', eff.combatStrength], ['📦', eff.cargoCapacity], ['👥', `${Ships.getCrew(ship)}/${eff.crewRequired}`], ['🙂', Ships.getMorale(ship)], ['🍞', boardFood === Infinity ? '—' : `${boardFood}d`]]);
             const noCrew = Ships.crewSailReason(ship);
-            html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">';
             if (noCrew) {
-                html += `<div style="font-size:11px;color:#e57373;">${noCrew}</div>`;
+                body += `<div style="font-size:11px;color:#c98a6a;margin-top:4px;">${noCrew}</div>`;
             } else {
                 if (Ships.getCrewRatio(ship) < 1) {
-                    html += `<div style="font-size:11px;color:#f0ad4e;width:100%;">Short-handed: sails slower and fights worse.</div>`;
+                    body += `<div style="font-size:11px;color:#f0b35a;margin-top:4px;">Short-handed: sails slower and fights worse.</div>`;
                 }
-                html += `<button onclick="ActionMenu._showSailToMenu(window._game, window._tile, '${ship.id}')" style="flex:1;${btnPrimary}">🧭 Voyage to a Port</button>`;
-                html += `<button onclick="window._boardShip('${ship.id}')" style="flex:1;${btnSecondary}">⛵ Board & Take the Helm</button>`;
+                body += rowList([
+                    { icon: '🧭', name: 'Voyage to a Port', desc: 'Set a course; the days at sea pass on the way', attrs: `onclick="ActionMenu._showSailToMenu(window._game, window._tile, '${ship.id}')"`, side: '›', tone: 'gold' },
+                    { icon: '⛵', name: 'Board & Take the Helm', desc: 'Sail her yourself, hex by hex', attrs: `onclick="window._boardShip('${ship.id}')"`, side: '›', tone: 'gold' },
+                ]);
             }
-            html += '</div>';
-            html += '</div>';
+            html += card(body, { icon: st.icon, title: ship.name, side: `<span style="color:${conditionColor};">${condition}%</span>` });
         }
 
         if (shown === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No docked ships are ready to board at this port.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No docked ships are ready to board at this port.</div>`;
         }
 
-        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="width:100%;margin-top:8px;${btnSecondary}">← Back to Shipyard</button>`;
-
-        html += '</div>';
+        html += `<button onclick="ActionMenu.showShipyardMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Shipyard</button>`;
         game.ui.showCustomPanel('🚢 Board Ship', html);
         window._game = game;
         window._tile = tile;
@@ -1082,44 +948,37 @@ Object.assign(ActionMenu, {
         const blockade = Ships.getPortBlockade(world, player.q, player.r);
         const daysToDrift = Ships.PORT_PRICE_PERIOD - ((world.day || 0) % Ships.PORT_PRICE_PERIOD);
         const esc = (id) => String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const btn = 'padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
+        const btn = BTN_DARK;
         const roleTag = {
-            export: '<span style="color:#7bd88f;">exports — cheap</span>',
-            import: '<span style="color:#f5c542;">imports — pays well</span>',
-            local: '<span style="color:var(--text-secondary);">local market</span>',
+            export: '<span style="color:#8fd18a;">exports — cheap</span>',
+            import: '<span style="color:#ffcf6a;">imports — pays well</span>',
+            local: '<span style="color:#9d937c;">local market</span>',
         };
 
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        if (ships.length > 1) {
-            html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">';
-            for (const s of ships) {
-                const active = s.id === ship.id ? 'border-color:rgba(245,197,66,0.7);' : '';
-                html += `<button onclick="ActionMenu.showPortMarketMenu(window._game, '${esc(s.id)}')" style="${btn}${active}">⛵ ${s.name}</button>`;
-            }
-            html += '</div>';
-        }
+        let html = '';
+        if (ships.length > 1) html += shipPicker(ships, ship, s => `ActionMenu.showPortMarketMenu(window._game, '${esc(s.id)}')`);
         html += chips([purse(player.gold), ['📦', 'Hold', `${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity}`], ['⏳', 'Prices change in', `${daysToDrift} day(s)`]]);
         html += lede('Buy where a good is exported, sell where it is imported.');
         if (blockade) {
             const by = blockade.blockaders.map(k => k.name).join(' and ');
             html += blockade.closed
-                ? `<div style="font-size:12px;color:#e67e22;margin-bottom:8px;">⚓ The harbour is closed: ${by} blockades the ports of ${blockade.kingdom.name}. No merchant will trade until the blockade is broken.</div>`
-                : `<div style="font-size:11px;color:#e67e22;margin-bottom:8px;">⚓ ${by} blockades the ports of ${blockade.kingdom.name}: goods are dear and buyers pay little.</div>`;
+                ? `<div style="font-size:12px;color:#f0b35a;margin-bottom:8px;">⚓ The harbour is closed: ${by} blockades the ports of ${blockade.kingdom.name}. No merchant will trade until the blockade is broken.</div>`
+                : `<div style="font-size:11px;color:#f0b35a;margin-bottom:8px;">⚓ ${by} blockades the ports of ${blockade.kingdom.name}: goods are dear and buyers pay little.</div>`;
         }
-        for (const e of market) {
+        html += rowList(market.map(e => {
             const held = (ship.cargo && ship.cargo[e.id]) || 0;
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:4px;">';
-            html += `<div><div style="font-size:12px;font-weight:600;">${e.icon} ${e.name} <span style="font-size:10px;font-weight:400;">${roleTag[e.role]}</span></div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">${e.buy !== null ? `Buy ${e.buy}g · ` : ''}Sell ${e.sell}g · In hold: ${held}</div></div>`;
-            html += '<div style="display:flex;gap:4px;">';
+            let buttons = '';
             if (e.buy !== null) {
-                html += `<button onclick="window._portBuy('${esc(e.id)}', 1)" style="${btn}">Buy 1</button>`;
-                html += `<button onclick="window._portBuy('${esc(e.id)}', 9999)" style="${btn}">Fill</button>`;
+                buttons += `<button onclick="window._portBuy('${esc(e.id)}', 1)" style="${btn}">Buy 1</button>`;
+                buttons += `<button onclick="window._portBuy('${esc(e.id)}', 9999)" style="${btn}">Fill</button>`;
             }
-            if (held > 0) html += `<button onclick="window._portSell('${esc(e.id)}', ${held})" style="${btn}">Sell all</button>`;
-            html += '</div></div>';
-        }
-        html += '</div>';
+            if (held > 0) buttons += `<button onclick="window._portSell('${esc(e.id)}', ${held})" style="${BTN_GOLD}">Sell all</button>`;
+            return actRow({
+                icon: e.icon, name: `${e.name} <span style="font-size:10px;font-weight:400;">${roleTag[e.role]}</span>`,
+                desc: `${e.buy !== null ? `Buy ${e.buy}g · ` : ''}Sell ${e.sell}g · In hold: ${held}`,
+                side: buttons,
+            });
+        }), 'Goods');
         game.ui.showCustomPanel('⚓ Port Market', html);
         window._game = game;
 
@@ -1182,22 +1041,18 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('No Shore', 'There is no walkable land next to your ship.', 'error');
             return;
         }
-        const btn = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;';
-
-        let html = '<div style="max-height:430px;overflow-y:auto;">';
-        html += lede(`The ${ship.name} drops anchor here while you row ashore.`);
+        let html = lede(`The ${ship.name} drops anchor here while you row ashore.`);
         html += bullets([`Without a dock or port, only ${Ships.LANDING_BOAT_CAPACITY} cargo fits in the boat.`]);
-        for (const t of targets) {
+        html += rowList(targets.map(t => {
             const isPort = Ships.hasDock(game.world, t.q, t.r);
             const dockLabel = t.settlement ? '⚓ Port' : '⚓ Jetty';
             const name = t.settlement ? t.settlement.name : (t.terrain.name || t.terrain.id);
-            html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">';
-            html += `<div><div style="font-size:12px;font-weight:bold;">${t.terrain.icon || ''} ${name}</div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">(${t.q}, ${t.r}) · ${isPort ? `${dockLabel} — unload everything` : 'Open shore — boat-load only'}</div></div>`;
-            html += `<button onclick="window._rowAshore(${t.q}, ${t.r})" style="${btn}">Row</button>`;
-            html += '</div>';
-        }
-        html += '</div>';
+            return {
+                icon: t.terrain.icon || '🏝️', name,
+                desc: `(${t.q}, ${t.r}) · ${isPort ? `${dockLabel} — unload everything` : 'Open shore — boat-load only'}`,
+                attrs: `onclick="window._rowAshore(${t.q}, ${t.r})"`, side: 'Row', tone: 'gold',
+            };
+        }), 'Landings');
         game.ui.showCustomPanel('🚣 Row Ashore', html);
 
         window._rowAshore = (q, r) => {
@@ -1252,43 +1107,32 @@ Object.assign(ActionMenu, {
             return g ? `${g.icon || ''} ${g.name}` : id.replace(/_/g, ' ');
         };
         const esc = (id) => String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const btn = 'padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);';
-        const row = (label, qty, buttons) =>
-            '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:4px;">' +
-            `<div style="font-size:12px;">${label} <span style="color:var(--text-secondary);">×${qty}</span></div><div style="display:flex;gap:4px;">${buttons}</div></div>`;
+        const btn = BTN_DARK;
+        const row = (label, qty, buttons) => actRow({
+            name: `${label} <span style="color:#9d937c; font-weight:400;">×${qty}</span>`,
+            side: buttons,
+        });
 
-        let html = '<div style="max-height:460px;overflow-y:auto;">';
-        if (ships.length > 1) {
-            html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">';
-            for (const s of ships) {
-                const active = s.id === ship.id ? 'border-color:rgba(245,197,66,0.7);' : '';
-                html += `<button onclick="ActionMenu.showShipHoldMenu(window._game, '${esc(s.id)}')" style="${btn}${active}">⛵ ${s.name}</button>`;
-            }
-            html += '</div>';
-        }
+        let html = '';
+        if (ships.length > 1) html += shipPicker(ships, ship, s => `ActionMenu.showShipHoldMenu(window._game, '${esc(s.id)}')`);
         html += chips([
             ['📦', 'Hold', `${Ships.getCargoUsed(ship)} / ${stats.cargoCapacity}`],
             allowance === Infinity ? '⚓ Port — no limit on transfers.' : `🚣 Boat trips left today: <b>${allowance}</b> cargo (no dock here).`,
         ]);
 
-        html += sectionHead(`⛵ In the ${ship.name}'s hold`);
         const hold = Object.entries(ship.cargo || {}).filter(([, n]) => n > 0);
-        if (hold.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">The hold is empty.</div>';
-        for (const [id, n] of hold) {
-            html += row(goodName(id), n,
-                `<button onclick="window._shipHoldUnload('${esc(id)}', 1)" style="${btn}">Unload 1</button>` +
-                `<button onclick="window._shipHoldUnload('${esc(id)}', ${n})" style="${btn}">Unload all</button>`);
-        }
+        html += sectionHead(`⛵ In the ${ship.name}'s hold`);
+        if (hold.length === 0) html += `<div style="${MUTED} margin-bottom:6px;">The hold is empty.</div>`;
+        html += rowList(hold.map(([id, n]) => row(goodName(id), n,
+            `<button onclick="window._shipHoldUnload('${esc(id)}', 1)" style="${btn}">Unload 1</button>` +
+            `<button onclick="window._shipHoldUnload('${esc(id)}', ${n})" style="${btn}">Unload all</button>`)));
 
-        html += sectionHead('🎒 Your pack');
         const pack = Object.entries(player.inventory || {}).filter(([, n]) => n > 0);
-        if (pack.length === 0) html += '<div style="font-size:11px;color:var(--text-secondary);">You carry nothing to load.</div>';
-        for (const [id, n] of pack) {
-            html += row(goodName(id), n,
-                `<button onclick="window._shipHoldLoad('${esc(id)}', 1)" style="${btn}">Load 1</button>` +
-                `<button onclick="window._shipHoldLoad('${esc(id)}', ${n})" style="${btn}">Load all</button>`);
-        }
-        html += '</div>';
+        html += sectionHead('🎒 Your pack');
+        if (pack.length === 0) html += `<div style="${MUTED}">You carry nothing to load.</div>`;
+        html += rowList(pack.map(([id, n]) => row(goodName(id), n,
+            `<button onclick="window._shipHoldLoad('${esc(id)}', 1)" style="${btn}">Load 1</button>` +
+            `<button onclick="window._shipHoldLoad('${esc(id)}', ${n})" style="${btn}">Load all</button>`)));
         game.ui.showCustomPanel("📦 Ship's Hold", html);
         window._game = game;
 
@@ -1306,9 +1150,7 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const ship = Ships.getShipById(player, shipId);
         if (!ship) return;
-        const btnBase = 'padding:7px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.12s;';
-        const btnPrimary = `${btnBase}border:1px solid rgba(245,197,66,0.55);background:linear-gradient(180deg,#f6cf57,#d9a92a);color:#1a1a1a;`;
-        const btnSecondary = `${btnBase}border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.05);color:var(--text-primary);`;
+
 
         // Ports this ship can reach by sea, nearest first (from the helm: where you are now)
         const atHelm = player.boardedShip === ship.id;
@@ -1322,50 +1164,55 @@ Object.assign(ActionMenu, {
         const st = Ships.getShipType(ship.typeId);
         const costPerDay = (st ? st.dailyUpkeep : 5) + Ships.getDailyWages(ship);
 
-        let html = '<div style="max-height:430px;overflow-y:auto;">';
-        html += `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">`;
-        html += `<div><h4 style="margin:0;">🧭 Voyage in ${ship.name}</h4><div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Each day at sea is a day: ${costPerDay}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.</div></div>`;
-        html += `<div style="font-size:11px;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);white-space:nowrap;">⚓ ${speed}/day · 🍞 ${food === Infinity ? '—' : `${food}d`}</div>`;
-        html += '</div>';
+        let html = lede(`🧭 Voyage in <b>${ship.name}</b>. Each day at sea is a day: ${costPerDay}g upkeep and wages, ${Math.round(perDay * 10) / 10} provisions eaten, and whatever the sea sends.`);
+        html += chips([['⚓', '', `${speed}/day`], ['🍞', '', food === Infinity ? '—' : `${food}d`]]);
 
         if (routes.length === 0) {
-            html += '<div style="padding:14px;border:1px dashed var(--border);border-radius:8px;text-align:center;font-size:12px;color:var(--text-secondary);">No port can be reached by sea from here.</div>';
+            html += `<div style="${MUTED} padding:8px 0;">No port can be reached by sea from here.</div>`;
         }
 
         // Expeditions: into open sea, or after a rumour or a chart (systems/discovery.js)
         const expeditions = Discovery.expeditionTargets(player, game.world, ship);
         const spare = Discovery.config().expedition.victualDays;
         if (expeditions.length) {
-            html += '<div style="font-size:11px;font-weight:bold;margin:4px 0;">🗺️ Expeditions — end at sea, you at the helm</div>';
-            for (const ex of expeditions) {
+            html += rowList(expeditions.map(ex => {
                 const days = Ships.voyageDays(player, ship, ex.leagues);
                 const need = Ships.provisionsNeeded(ship, days * 2 + spare, { player });
-                html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid rgba(79,195,247,0.35);border-radius:8px;background:rgba(79,195,247,0.04);margin-bottom:6px;">`;
-                html += `<div><div style="font-size:12px;font-weight:bold;">Toward ${ex.name}</div><div style="font-size:10px;color:var(--text-secondary);">${ex.leagues} leagues · ~${days} day${days === 1 ? '' : 's'} out, as many back</div></div>`;
-                html += `<button onclick="window._doExpedition('${ship.id}', '${ex.id}', ${need > 0 ? days * 2 + spare : 0})" style="${btnPrimary}">${need > 0 ? `🍞 Victual & Sail (${need * price}g)` : 'Sail'}</button>`;
-                html += '</div>';
-            }
+                return {
+                    icon: '🗺️', name: `Toward ${ex.name}`,
+                    desc: `${ex.leagues} leagues · ~${days} day${days === 1 ? '' : 's'} out, as many back`,
+                    attrs: `onclick="window._doExpedition('${ship.id}', '${ex.id}', ${need > 0 ? days * 2 + spare : 0})"`,
+                    side: need > 0 ? `🍞 Victual & Sail (${need * price}g)` : 'Sail', tone: 'gold',
+                };
+            }), '🗺️ Expeditions — end at sea, you at the helm');
         }
 
+        const routeRows = [];
         for (const dest of routes) {
             const days = Ships.voyageDays(player, ship, dest.distance);
             const short = food !== Infinity && food < days + 1;
             const need = Ships.provisionsNeeded(ship, days + 2, { player });
             const safeName = dest.name.replace(/'/g, "\\'");
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:6px;">`;
-            html += `<div><div style="font-size:12px;font-weight:bold;">${dest.name} <span style="font-weight:normal;color:var(--text-secondary);">(${dest.type})</span></div>`;
-            html += `<div style="font-size:10px;color:var(--text-secondary);">${dest.distance} leagues by sea · ~${days} day${days === 1 ? '' : 's'} · ~${days * costPerDay}g on the way</div>`;
-            if (short) html += `<div style="font-size:10px;color:#e57373;">Provisions for ${food} day${food === 1 ? '' : 's'} — victual first or the crew goes hungry.</div>`;
-            html += '</div><div style="display:flex;gap:4px;">';
+            const o = {
+                icon: '⚓', name: `${dest.name} <span style="font-weight:400;color:#9d937c;">(${dest.type})</span>`,
+                desc: `${dest.distance} leagues by sea · ~${days} day${days === 1 ? '' : 's'} · ~${days * costPerDay}g on the way`,
+                note: short ? `<span style="color:#c98a6a;">Provisions for ${food} day${food === 1 ? '' : 's'} — victual first or the crew goes hungry.</span>` : '',
+            };
+            const sail = `window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', 0)`;
             if (short && need > 0) {
-                html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', ${days + 2})" style="${btnPrimary}" title="${need} provisions at ${price}g">🍞 Victual & Sail (${need * price}g)</button>`;
+                // Two ways to go: buttons at the right, the row itself not clickable
+                o.side = `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', ${days + 2})" style="${BTN_GOLD}" title="${need} provisions at ${price}g">🍞 Victual & Sail (${need * price}g)</button>`
+                    + `<button onclick="${sail}" style="${BTN_PLAIN}">Sail</button>`;
+            } else {
+                o.attrs = `onclick="${sail}"`;
+                o.side = 'Sail';
+                o.tone = 'gold';
             }
-            html += `<button onclick="window._doSailTo('${ship.id}', ${dest.q}, ${dest.r}, '${safeName}', 0)" style="${short ? btnSecondary : btnPrimary}">Sail</button>`;
-            html += '</div></div>';
+            routeRows.push(o);
         }
+        html += rowList(routeRows, 'Ports');
 
-        html += `<button onclick="ActionMenu.showBoardShipMenu(window._game, window._tile)" style="width:100%;margin-top:8px;${btnSecondary}">← Back to Board Ship</button>`;
-        html += '</div>';
+        html += `<button onclick="ActionMenu.showBoardShipMenu(window._game, window._tile)" style="${BTN_PLAIN}${WIDE}">← Back to Board Ship</button>`;
         game.ui.showCustomPanel('Set Sail', html);
         window._game = game;
         window._tile = tile;
@@ -1384,38 +1231,33 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const allShips = player.ships || [];
 
-        let html = '<div style="max-height:450px;overflow-y:auto;">';
-        html += '<h4 style="margin-top:0;">⚓ Your Fleet</h4>';
+        let html = '';
 
         if (allShips.length === 0) {
-            html += '<p style="font-size:12px;color:var(--text-secondary);text-align:center;">You do not own any ships.</p>';
+            html += lede('You do not own any ships.');
         }
         const escort = Ships.getEscortStrength(player);
         if (escort > 0) {
             html += chips([['⛵', 'War galleys escorting', Ships.getSquadron(player).length], ['⚔️', 'In every sea fight', `+${escort} strength`, 'gold']]);
         }
 
-        for (const ship of allShips) {
+        html += rowList(allShips.map(ship => {
             const st = Ships.getShipType(ship.typeId);
-            if (!st) continue;
+            if (!st) return null;
             const statusIcon = ship.status === 'docked' ? '⚓' : ship.status === 'building' ? '🏗️' : ship.status === 'moving' ? '🧭' : '⚓';
-            html += `<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;background:rgba(255,255,255,0.02);">`;
-            html += `<div style="font-weight:bold;">${st.icon} ${ship.name} <span style="font-size:10px;color:var(--text-secondary);">${statusIcon} ${ship.status}</span></div>`;
-            html += '<div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
-            html += `<span>📍 ${ship.dockedAt || ship.destinationName || 'Unknown'}</span>`;
-            html += `<span>🔧 ${ship.condition}%</span>`;
-            html += `<span>👥 ${Ships.getCrew(ship)}/${Ships.getShipEffectiveStats(ship).crewRequired}</span>`;
-            html += `<span>🙂 ${Ships.getMorale(ship)}</span>`;
             const fleetFood = Ships.getProvisionDays(ship);
-            html += `<span>🍞 ${fleetFood === Infinity ? '—' : `${fleetFood}d`}</span>`;
-            if (ship.voyage) html += `<span>🧭 → ${ship.voyage.destName}</span>`;
-            if (ship.status === 'building') html += `<span>🏗️ ${ship.buildDaysLeft} days left</span>`;
-            if (ship.status === 'moving') html += `<span>🧭 ${ship.travelDaysLeft || '?'} days ETA</span>`;
-            html += '</div>';
-            html += '</div>';
-        }
-
-        html += '</div>';
+            const facts = [
+                `📍 ${ship.dockedAt || ship.destinationName || 'Unknown'}`,
+                `🔧 ${ship.condition}%`,
+                `👥 ${Ships.getCrew(ship)}/${Ships.getShipEffectiveStats(ship).crewRequired}`,
+                `🙂 ${Ships.getMorale(ship)}`,
+                `🍞 ${fleetFood === Infinity ? '—' : `${fleetFood}d`}`,
+            ];
+            if (ship.voyage) facts.push(`🧭 → ${ship.voyage.destName}`);
+            if (ship.status === 'building') facts.push(`🏗️ ${ship.buildDaysLeft} days left`);
+            if (ship.status === 'moving') facts.push(`🧭 ${ship.travelDaysLeft || '?'} days ETA`);
+            return { icon: st.icon, name: ship.name, desc: facts.join(' · '), side: `${statusIcon} ${ship.status}` };
+        }), '⚓ Your Fleet');
         game.ui.showCustomPanel('⚓ Fleet Overview', html);
     },
 });

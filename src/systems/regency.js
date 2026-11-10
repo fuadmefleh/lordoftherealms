@@ -8,7 +8,9 @@
 // throne; the regent governs in their name until majority.
 //
 //   The regent: the late ruler's spouse (the heir's parent), a grown sibling,
-//   or a lord of the regency council. Each has loyalty and ambition (0–100),
+//   a courtier of the House (systems/court.js), or a lord of the regency
+//   council. The head may name a regent-designate in advance (designate):
+//   they head the list at the death screen and are used when none is chosen. Each has loyalty and ambition (0–100),
 //   drifting every week toward what the House can command (Prestige, favours
 //   given). A disloyal regent skims the treasury (Ledger 'regency'); a
 //   disloyal and ambitious one plots — rumours first, then a coup that
@@ -34,10 +36,11 @@ import { House } from './house.js';
 import { Ledger } from './ledger.js';
 import { Relationships } from './relationships.js';
 import { Upbringing } from './upbringing.js';
+import { Court } from './court.js';
 
 const DEFAULTS = {
     majorityAge: 16, earlyMajorityYears: 2, earlyMajorityPrestige: 12,
-    cadence: 7, baseLoyalty: { spouse: 72, sibling: 58, council: 55 }, baseAmbition: { spouse: 25, sibling: 55, council: 40 },
+    cadence: 7, baseLoyalty: { spouse: 72, sibling: 58, courtier: 60, council: 55 }, baseAmbition: { spouse: 25, sibling: 55, courtier: 45, council: 40 },
     ambitionSpread: 30, drift: 3, prestigeLoyalty: 0.05, favourDecayDays: 60,
     embezzleBelow: 45, embezzleRate: 0.03, embezzleMax: 120,
     plotBelow: 25, plotAmbition: 50, plotRumourAt: 50, coupGoldShare: 0.25, coupPrestige: 10,
@@ -63,7 +66,7 @@ function _hash01(key) {
     return ((Utils.hashStr(String(key)) >>> 0) % 10000) / 10000;
 }
 
-const KIND_LABEL = { spouse: 'the late ruler\'s widow(er)', sibling: 'an elder sibling', council: 'a lord of the regency council' };
+const KIND_LABEL = { spouse: 'the late ruler\'s widow(er)', sibling: 'an elder sibling', courtier: 'a courtier of the House', council: 'a lord of the regency council' };
 
 export const Regency = {
     config() {
@@ -136,11 +139,55 @@ export const Regency = {
                 ambition: Regency._ambition('sibling', c.id, traits),
             });
         }
+        // Courtiers of the House (systems/court.js): their loyalty at court counts
+        for (const npc of Court.members(player)) {
+            if (!npc || npc.id === heirId || (player.spouse && npc.id === player.spouse)) continue;
+            const e = Court.entry(player, npc.id);
+            out.push({
+                kind: 'courtier', id: npc.id, name: `${npc.firstName}${npc.dynasty ? ` ${npc.dynasty}` : ''}`,
+                loyalty: Math.round((_num(e && e.loyalty, cfg.baseLoyalty.courtier) + _num(cfg.baseLoyalty.courtier, 60)) / 2),
+                ambition: Regency._ambition('courtier', npc.id, npc.traits),
+            });
+        }
         const names = Array.isArray(cfg.councilNames) && cfg.councilNames.length ? cfg.councilNames : DEFAULTS.councilNames;
         const name = names[(Utils.hashStr(`${_seed(world)}|council|${_day(world)}|${heirId}`) >>> 0) % names.length];
         out.push({ kind: 'council', id: `council:${name}`, name, loyalty: cfg.baseLoyalty.council, ambition: Regency._ambition('council', name, []) });
         for (const c of out) c.blurb = KIND_LABEL[c.kind] || c.kind;
+        // The regent-designate heads the list (and is the default pick)
+        const des = house && house.regentDesignate;
+        const at = des ? out.findIndex(c => c.id === des) : -1;
+        if (at >= 0) {
+            const [d] = out.splice(at, 1);
+            d.designate = true;
+            d.blurb = `${d.blurb}, your named regent`;
+            out.unshift(d);
+        }
         return out;
+    },
+
+    /**
+     * Who may be named regent-designate now, for a minor heir: the spouse,
+     * grown children other than the heir, courtiers (no council lord).
+     */
+    designateOptions(player, world) {
+        const roles = player && player.house && player.house.roles;
+        const heirId = (player && player.heir) || (roles && roles.heir) || null;
+        return Regency.candidates(player, world, heirId).filter(c => c.kind !== 'council');
+    },
+
+    /** Name (or with null, clear) the regent-designate. */
+    designate(player, world, id) {
+        const house = player && player.house;
+        if (!house) return { success: false, reason: 'No House.' };
+        if (!id) {
+            house.regentDesignate = null;
+            return { success: true, text: 'No one is named to rule for a child heir; the choice will be made at your death.' };
+        }
+        const c = Regency.designateOptions(player, world).find(x => x.id === id);
+        if (!c) return { success: false, reason: 'They cannot be named regent: your spouse, a grown child or a courtier may.' };
+        house.regentDesignate = id;
+        House._chronicle(house, world, `${c.name} is named to rule as regent should ${house.name} pass to a child.`, ['regency', 'court']);
+        return { success: true, text: `${c.name} is named regent-designate: should you die leaving a child heir, they will rule in the child's name.`, candidate: c };
     },
 
     /** The regent picked by kind/id (or the first candidate). */
@@ -237,7 +284,15 @@ export const Regency = {
             const c = ((player && player.children) || []).find(x => x && x.id === r.id);
             return !!(c && c.isAlive !== false);
         }
+        if (r.kind === 'courtier') return !!Court.member(player, r.id);
         return true;
+    },
+
+    /** The regent's own purse, where what they skim goes (a spouse or courtier NPC), or null. */
+    _regentPurse(player, r) {
+        if (!r || (r.kind !== 'courtier' && r.kind !== 'spouse')) return null;
+        const npc = Relationships.getNPC(r.id);
+        return npc && npc.isAlive !== false ? npc : null;
     },
 
     _council(player, world, st) {
@@ -270,6 +325,8 @@ export const Regency = {
             if (amt > 0) {
                 player.gold -= amt;
                 Ledger.record(player, 'regency', -amt);
+                const into = Regency._regentPurse(player, r);
+                if (into) into.purse = _num(into.purse) + amt;
                 st.embezzled += amt;
                 st.skimMonth += amt;
             }
@@ -341,8 +398,19 @@ export const Regency = {
         return { success: false, reason: 'Unknown favour.' };
     },
 
-    /** Put the regent aside for a council lord. Cheap if their plot is exposed. */
-    replace(player, world) {
+    /** Who could take over from the sitting regent (a grown sibling, a courtier, a council lord). */
+    replacements(player, world) {
+        const st = player && player.regency;
+        if (!Regency.active(player)) return [];
+        const cur = st.regent && st.regent.id;
+        return Regency.candidates(player, world, player.id || null).filter(c => c.id !== cur && c.kind !== 'spouse');
+    },
+
+    /**
+     * Put the regent aside: for a council lord, or for `choice` (an id from
+     * replacements(): a grown sibling or a courtier). Cheap if their plot is exposed.
+     */
+    replace(player, world, choice = null) {
         const cfg = Regency.config();
         const st = player && player.regency;
         if (!Regency.active(player)) return { success: false, reason: 'No regent rules in your name.' };
@@ -364,7 +432,18 @@ export const Regency = {
         // A sibling put aside without cause nurses a claim (House._disputeChance)
         if (r.kind === 'sibling' && !exposed && player.house) player.house._pendingClaim = true;
         if (player.house) House._chronicle(player.house, world, `${r.name} is put aside as regent${exposed ? ', their plot exposed' : ''}.`, ['regency', 'heirs']);
-        Regency._council(player, world, st);
+        const pickId = choice && (typeof choice === 'string' ? choice : choice.id);
+        const next = pickId && !String(pickId).startsWith('council') ? Regency.replacements(player, world).find(c => c.id === pickId) : null;
+        if (next) {
+            st.regent = { kind: next.kind, id: next.id, name: next.name, loyalty: Math.round(next.loyalty), ambition: Math.round(next.ambition) };
+            st.regents = _num(st.regents, 1) + 1;
+            st.plot = 0;
+            st.rumoured = false;
+            st.favour = 0;
+            if (player.house) House._chronicle(player.house, world, `${next.name}, ${KIND_LABEL[next.kind] || 'regent'}, becomes regent.`, ['regency', 'heirs']);
+        } else {
+            Regency._council(player, world, st);
+        }
         return { success: true, text: `${r.name} is put aside${exposed ? `; the plot exposed, ${recovered} gold is recovered` : ''}. ${st.regent.name} becomes regent.`, recovered, cost };
     },
 
@@ -449,6 +528,8 @@ export const Regency = {
             if (house) {
                 House.award(house, cfg.rewardPrestige, `${r.name} rewarded`, day);
                 for (const id of Object.keys(house.roleLoyalty || {})) house.roleLoyalty[id] = Utils.clamp(_num(house.roleLoyalty[id]) + cfg.rewardRoleLoyalty, 0, 100);
+                // ...and the courtiers in office (systems/court.js)
+                for (const e of house.court || []) if (e && Court.officeOf(player, e.npcId)) e.loyalty = Utils.clamp(_num(e.loyalty) + cfg.rewardRoleLoyalty, 0, 100);
             }
             text = `You reward ${r.name} with lands and gold for keeping your seat warm. The House's servants take note (+${cfg.rewardPrestige} Prestige).`;
         } else {

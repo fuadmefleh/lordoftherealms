@@ -13,14 +13,19 @@
 
 import { glyphLabel } from '../icons.js';
 
-/** Base button: inline style strings, so panels can keep `style="${BTN_GOLD}"`. */
-export const BTN = 'padding: 5px 10px; margin: 3px 4px 0 0; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; font-family: var(--font-body); line-height: 1.3;';
-export const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-export const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.12); color: var(--text-primary);';
-export const BTN_DARK = BTN + 'background: #444; color: #eee;';
-export const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-export const BTN_OFF = BTN + 'background: #333; color: #777; cursor: not-allowed;';
-export const BTN_RED = BTN + 'background: #7a3030; color: #eee;';
+/**
+ * Base button: inline style strings, so panels can keep `style="${BTN_GOLD}"`.
+ * The action menu's voice (styles.css "PANEL REVAMP"): hairline gold on dark
+ * rather than solid slabs; the primary action a gold-lit outline. Hover and
+ * press states come from the stylesheet (#customPanel button rules).
+ */
+export const BTN = 'padding: 5px 12px; margin: 3px 4px 0 0; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; font-family: var(--font-body); line-height: 1.3; letter-spacing: 0.2px;';
+export const BTN_GOLD = BTN + 'background: linear-gradient(180deg, rgba(245,197,66,0.22), rgba(245,197,66,0.12)); border-color: rgba(245,197,66,0.6); color: #ffe08a;';
+export const BTN_PLAIN = BTN + 'background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #ece2c8;';
+export const BTN_DARK = BTN + 'background: rgba(0,0,0,0.3); border-color: rgba(245,197,66,0.16); color: #d8ccaf;';
+export const BTN_DIM = BTN + 'background: transparent; border-color: rgba(255,255,255,0.07); color: #8f8a7e; cursor: default;';
+export const BTN_OFF = BTN + 'background: transparent; border-color: rgba(255,255,255,0.06); color: #6f6a5e; cursor: not-allowed;';
+export const BTN_RED = BTN + 'background: rgba(192,83,58,0.16); border-color: rgba(192,83,58,0.6); color: #f0b4a2;';
 /** "🔓 as treasurer" — why the player may read a realm's own numbers (systems/realmIntel.js). */
 export function intelBadge(why) {
     return why ? `<span style="font-size:10px; color:#9fd89f;" title="You read this because of ${esc(why)}">🔓 ${esc(why)}</span>` : '';
@@ -78,7 +83,59 @@ export function more(summary, bodyHtml) {
     return bodyHtml ? `<details class="pk-more"><summary>${summary}</summary>${bodyHtml}</details>` : '';
 }
 
-export const CARD ='background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin: 8px 0;';
+export const CARD = 'background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)); border: 1px solid rgba(245,197,66,0.12); border-radius: 8px; padding: 9px 12px; margin: 8px 0;';
+
+// ── Rows in the action menu's voice ──────────────────────────────────────
+// The action menu's list (styles.css .amx-row) is the house style: an icon,
+// a name over a one-line description, the cost or state at the right, a
+// gold bar at the left on hover. These build the same rows for any panel.
+
+/**
+ * One row. o = {
+ *   icon, name, desc,           — trusted HTML (callers escape interpolations)
+ *   side,                       — the right column: a price, a state, a count (HTML)
+ *   act, args,                  — data-am-act routing: ActionMenu[act](game, ...args)
+ *   attrs,                      — or raw attributes for another router (data-ui-act…)
+ *   off, why,                   — greyed and not clickable; `why` shown in place of desc
+ *   tone,                       — 'gold' | 'good' | 'warn' | 'bad': tints the side column
+ *   title, note                 — tooltip; a small line under the description
+ * }
+ * Without act/attrs it is a plain, unclickable row (a listing).
+ */
+export function actRow(o = {}) {
+    const route = o.off ? '' : o.act
+        ? ` data-am-act="${esc(o.act)}"${o.args ? ` data-am-args="${esc(JSON.stringify(o.args))}"` : ''}`
+        : (o.attrs ? ' ' + o.attrs : '');
+    const live = !!route;
+    const tag = live ? 'button' : 'div';
+    const cls = `pk-row${live ? ' pk-row--act' : ''}${o.off ? ' pk-row--off' : ''}${o.tone ? ' pk-tone-' + o.tone : ''}`;
+    const desc = o.off && o.why ? `<span class="pk-row-why">${o.why}</span>` : (o.desc ? `<span class="pk-row-desc">${o.desc}</span>` : '');
+    const note = o.note ? `<span class="pk-row-note">${o.note}</span>` : '';
+    return `<${tag} class="${cls}"${route}${o.title ? ` title="${esc(o.title)}"` : ''}${live ? ' type="button"' : ''}>`
+        + `<span class="pk-row-ico">${o.icon || ''}</span>`
+        + `<span class="pk-row-txt"><span class="pk-row-name">${o.name || ''}</span>${desc}${note}</span>`
+        + `<span class="pk-row-side">${o.side == null ? '' : o.side}</span>`
+        + `</${tag}>`;
+}
+
+/** A list of actRows under an optional section head. */
+export function rowList(rows, head = '') {
+    const body = (rows || []).filter(Boolean).map(r => (typeof r === 'string' ? r : actRow(r))).join('');
+    if (!body) return '';
+    return `${head ? sectionHead(head) : ''}<div class="pk-rows">${body}</div>`;
+}
+
+/** A card: a soft framed block. o = { title, icon, side, tone } (all optional). */
+export function card(bodyHtml, o = {}) {
+    const head = o.title ? `<div class="pk-card-head">${o.icon ? `<span class="pk-card-ico">${o.icon}</span>` : ''}<span class="pk-card-title">${o.title}</span>${o.side ? `<span class="pk-card-side">${o.side}</span>` : ''}</div>` : '';
+    return `<div class="pk-card${o.tone ? ' pk-tone-' + o.tone : ''}">${head}${bodyHtml || ''}</div>`;
+}
+
+/** A price for a row's side column: "41g", red when the purse can't meet it. */
+export function price(n, canPay = true) {
+    const v = Math.round(Number(n) || 0).toLocaleString('en-US');
+    return `<span class="pk-price${canPay ? '' : ' pk-price--short'}">${v}<small>g</small></span>`;
+}
 
 /**
  * True once the player has closed the custom panel. A minigame whose loop

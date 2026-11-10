@@ -159,6 +159,53 @@
             "reward": { "prestige": 50, "renown": 40, "reputation": 6, "honour": { "id": "house_eternal", "name": "The House Eternal", "fame": 20 } }
         }
     ],
+    "court": {
+        "_doc": "systems/court.js — courtiers not of the blood. Seats: baseSeats + Prestige / prestigePerSeat + title rank × seatsPerTitleRank (+ rulerSeats on a throne), at most maxSeats. An invitation's odds: baseChance + friendship × scoreWeight + (their loyalty − 50) × loyaltyWeight + Prestige × prestigeWeight (capped) + rank + the stipend against what they think fair (occupationStipend, × greedyStipend / ambitiousStipend) + traitChance; a refusal holds for refuseCooldown days unless you offer more. Joining costs a welcome purse of joinDays × the stipend (paid into their purse). Loyalty settles weekly (cadence) by `drift` toward baseLoyalty + Prestige + stipend + friendship + office + traitLoyalty; an ambitious courtier without an office for passedOverDays sours. Each unpaid day costs unpaidLoyalty; unpaidLeaveDays unpaid and they go. An officer below embezzleBelow skims; below leaveBelow they may leave (leaveChance a week), below offerBelow a better offer may lure them (offerChance). Skills (0..skillCap): occupationSkills + traitSkills + a hashed jitter in [jitterMin, jitterMax], +1 leadership from age 35.",
+        "baseSeats": 2, "prestigePerSeat": 40, "seatsPerTitleRank": 1, "rulerSeats": 3, "maxSeats": 12,
+        "minAge": 16, "minScore": 0, "refuseCooldown": 30, "joinDays": 7,
+        "baseChance": 0.15, "scoreWeight": 0.006, "loyaltyWeight": 0.005,
+        "prestigeWeight": 0.002, "prestigeChanceCap": 0.25, "titleRankWeight": 0.04, "rulerChance": 0.15,
+        "stipendWeight": 0.35, "stipendChanceMin": -0.45, "stipendChanceMax": 0.3, "minChance": 0.03, "maxChance": 0.95,
+        "traitChance": { "loyal": 0.08, "adventurous": 0.05, "ambitious": 0.06, "homebody": -0.15, "fickle": -0.05, "serious": 0.02 },
+        "occupationStipend": {
+            "default": 3, "vagrant": 1, "farmer": 2, "shepherd": 2, "woodcutter": 2, "miller": 2, "weaver": 2, "baker": 2, "fisher": 2,
+            "herbalist": 3, "hunter": 3, "guard": 3, "soldier": 3, "artisan": 3, "carpenter": 3, "tailor": 3, "tavern keeper": 3, "innkeeper": 3,
+            "blacksmith": 4, "healer": 4, "priest": 4, "scholar": 4, "merchant": 5,
+            "court scholar": 6, "diplomat": 7, "knight": 7, "spymaster": 7, "noble": 8, "general": 9, "merchant prince": 10
+        },
+        "greedyStipend": 1.3, "ambitiousStipend": 1.15,
+        "baseLoyalty": 55, "cadence": 7, "drift": 3, "prestigeLoyalty": 0.05, "prestigeLoyaltyCap": 20,
+        "stipendLoyalty": 20, "scoreLoyalty": 0.15, "officeLoyalty": 6, "passedOverDays": 90, "passedOverLoyalty": -10,
+        "traitLoyalty": { "loyal": 8, "fickle": -6, "ambitious": -4, "honest": 2, "greedy": -2 },
+        "unpaidLoyalty": 3, "unpaidLeaveDays": 10,
+        "leaveBelow": 15, "leaveChance": 0.35, "offerBelow": 40, "offerChance": 0.04,
+        "embezzleBelow": 30, "embezzleRate": 0.02, "embezzleMax": 60,
+        "raiseLoyaltyPerGold": 3, "raiseLoyaltyCap": 15, "cutLoyaltyPerGold": 5, "dismissScore": -5,
+        "skillCap": 8, "jitterMin": -1, "jitterMax": 2,
+        "occupationSkills": {
+            "default": { "commerce": 1, "diplomacy": 1 },
+            "vagrant": { "stealth": 2 },
+            "farmer": { "commerce": 1, "leadership": 1 }, "shepherd": { "combat": 1, "stealth": 1 },
+            "woodcutter": { "combat": 2 }, "miller": { "commerce": 2 }, "weaver": { "commerce": 2 }, "baker": { "commerce": 2 },
+            "fisher": { "commerce": 1, "stealth": 1 }, "herbalist": { "diplomacy": 1, "stealth": 2 },
+            "hunter": { "stealth": 3, "combat": 2 }, "guard": { "combat": 4, "leadership": 1 }, "soldier": { "combat": 4, "leadership": 2 },
+            "artisan": { "commerce": 3 }, "carpenter": { "commerce": 2, "combat": 1 }, "tailor": { "commerce": 3 },
+            "tavern keeper": { "commerce": 3, "diplomacy": 2 }, "innkeeper": { "commerce": 3, "diplomacy": 2 },
+            "blacksmith": { "combat": 3, "commerce": 2 }, "healer": { "diplomacy": 3 }, "priest": { "diplomacy": 4, "leadership": 1 },
+            "scholar": { "diplomacy": 3, "commerce": 2 }, "merchant": { "commerce": 5, "diplomacy": 2 },
+            "court scholar": { "diplomacy": 4, "commerce": 2, "stealth": 1 }, "diplomat": { "diplomacy": 6, "stealth": 1 },
+            "knight": { "combat": 5, "leadership": 3 }, "spymaster": { "stealth": 6, "diplomacy": 2 },
+            "noble": { "diplomacy": 4, "leadership": 3, "commerce": 1 }, "general": { "combat": 5, "leadership": 5 },
+            "merchant prince": { "commerce": 7, "diplomacy": 3 }
+        },
+        "traitSkills": {
+            "cunning": { "stealth": 2 }, "brave": { "combat": 1, "leadership": 1 }, "martial": { "combat": 2 },
+            "scholarly": { "diplomacy": 1 }, "practical": { "commerce": 1 }, "greedy": { "commerce": 1 },
+            "honest": { "diplomacy": 1 }, "generous": { "diplomacy": 1 }, "cautious": { "stealth": 1 },
+            "serious": { "leadership": 1 }, "humorous": { "diplomacy": 1 }, "adventurous": { "combat": 1 },
+            "ambitious": { "leadership": 1 }
+        }
+    },
     "demands": {
         "enabled": true,
         "_doc": "Pressure on a rich, uncrowned House (systems/demands.js). Checked every `every` days, at most one open demand at a time; each kind has a cooldown. Unanswered demands count as refused when they lapse.",

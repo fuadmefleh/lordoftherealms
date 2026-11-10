@@ -970,6 +970,157 @@
         return null;
     }
 
+    // ── relief (a view of the map's shape; never written back) ──
+    // A saved world keeps only terrain ids, so the height is read back from
+    // them: each terrain has a band [base, lowest, highest] on a -1..1 scale
+    // with sea level at 0. Distance from the shore, a little noise and a
+    // light smoothing turn the steps between bands into slopes.
+    var RELIEF_BAND = {
+        deep_ocean: [-0.8, -1, -0.45], ocean: [-0.45, -0.78, -0.15], sea: [-0.4, -0.7, -0.12],
+        coast: [-0.12, -0.3, -0.02], lake: [-0.1, -0.35, -0.02],
+        beach: [0.02, 0.005, 0.06], swamp: [0.02, 0.005, 0.06], island: [0.05, 0.01, 0.15],
+        hills: [0.3, 0.2, 0.42], highlands: [0.45, 0.32, 0.58],
+        mountain: [0.68, 0.52, 0.86], snow_peak: [0.9, 0.78, 1],
+    };
+    var RELIEF_LOWLAND = [0.1, 0.03, 0.22];
+
+    // Neighbour indices, 6 per hex in Hex.neighbors order, -1 off the map
+    function neighborTable(W, H, wrap) {
+        var t = new Int32Array(W * H * 6).fill(-1);
+        for (var r = 0; r < H; r++) {
+            var dirs = r % 2 === 0 ? DIRS_EVEN : DIRS_ODD;
+            for (var q = 0; q < W; q++) {
+                for (var i = 0; i < 6; i++) {
+                    var nq = q + dirs[i][0], nr = r + dirs[i][1];
+                    if (nr < 0 || nr >= H) continue;
+                    if (wrap) nq = wrapQ(nq, W);
+                    else if (nq < 0 || nq >= W) continue;
+                    t[(r * W + q) * 6 + i] = nr * W + nq;
+                }
+            }
+        }
+        return t;
+    }
+    function hash01(q, r) {
+        var h = Math.imul(q, 374761393) ^ Math.imul(r, 668265263);
+        h = Math.imul(h ^ (h >>> 13), 1274126177);
+        return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+    }
+
+    /**
+     * Heights for a terrain map, -1 (deepest sea) .. 1 (highest peak), sea
+     * level 0. opts: { wrap (default true), nb (a neighborTable to reuse) }.
+     */
+    function reliefField(tiles, W, H, opts) {
+        opts = opts || {};
+        var n = W * H, k, i;
+        var nb = opts.nb || neighborTable(W, H, opts.wrap !== false);
+        var h = new Float32Array(n), lo = new Float32Array(n), hi = new Float32Array(n);
+        var water = new Uint8Array(n), dist = new Int16Array(n).fill(-1), queue = new Int32Array(n), qt = 0;
+        for (k = 0; k < n; k++) {
+            var band = RELIEF_BAND[tiles[k]] || RELIEF_LOWLAND;
+            h[k] = band[0]; lo[k] = band[1]; hi[k] = band[2];
+            water[k] = WATER[tiles[k]] ? 1 : 0;
+        }
+        // Steps from the shore, on each side of it
+        for (k = 0; k < n; k++) {
+            for (i = 0; i < 6; i++) {
+                var j = nb[k * 6 + i];
+                if (j >= 0 && water[j] !== water[k]) { dist[k] = 1; queue[qt++] = k; break; }
+            }
+        }
+        for (var qh = 0; qh < qt; qh++) {
+            var c = queue[qh];
+            if (dist[c] >= 8) continue;
+            for (i = 0; i < 6; i++) {
+                var m = nb[c * 6 + i];
+                if (m >= 0 && dist[m] < 0 && water[m] === water[c]) { dist[m] = dist[c] + 1; queue[qt++] = m; }
+            }
+        }
+        for (k = 0; k < n; k++) {
+            var d = dist[k] < 0 ? 8 : dist[k];
+            var noise = hash01(k % W, (k / W) | 0) - 0.5;
+            if (water[k]) h[k] -= 0.06 * Math.min(d - 1, 6) - noise * 0.02;
+            else h[k] += 0.016 * Math.min(d - 1, 6) + noise * 0.05;
+        }
+        // Soften the steps between bands, keeping each terrain in its band
+        var tmp = new Float32Array(n);
+        for (var pass = 0; pass < 2; pass++) {
+            for (k = 0; k < n; k++) {
+                var sum = h[k] * 2, wsum = 2;
+                for (i = 0; i < 6; i++) {
+                    var e = nb[k * 6 + i];
+                    if (e >= 0) { sum += h[e]; wsum++; }
+                }
+                var v = h[k] * 0.5 + (sum / wsum) * 0.5;
+                tmp[k] = v < lo[k] ? lo[k] : v > hi[k] ? hi[k] : v;
+            }
+            h.set(tmp);
+        }
+        return h;
+    }
+
+    // Unit steps toward each neighbour on the page (y down), E NE NW W SW SE
+    var DIR_UX = [1, 0.5, -0.5, -1, -0.5, 0.5];
+    var DIR_UY = [0, -0.866, -0.866, 0, 0.866, 0.866];
+
+    /**
+     * Hillshade: the light each hex catches from a sun in the north-west.
+     * 0.5 is flat ground; brighter faces the sun, darker faces away.
+     * opts: { nb, wrap, z (height exaggeration, default 3), altitude (deg,
+     * default 45), azimuth (deg clockwise from north, default 315) }.
+     */
+    function hillshade(elev, W, H, opts) {
+        opts = opts || {};
+        var n = W * H;
+        var nb = opts.nb || neighborTable(W, H, opts.wrap !== false);
+        var z = opts.z != null ? opts.z : 3;
+        var alt = (opts.altitude != null ? opts.altitude : 45) * Math.PI / 180;
+        var az = (opts.azimuth != null ? opts.azimuth : 315) * Math.PI / 180;
+        var lx = Math.sin(az) * Math.cos(alt), ly = -Math.cos(az) * Math.cos(alt), lz = Math.sin(alt);
+        var out = new Float32Array(n);
+        for (var k = 0; k < n; k++) {
+            var gx = 0, gy = 0;
+            for (var i = 0; i < 6; i++) {
+                var j = nb[k * 6 + i];
+                var dh = j >= 0 ? elev[j] - elev[k] : 0;
+                gx += dh * DIR_UX[i]; gy += dh * DIR_UY[i];
+            }
+            gx = gx / 3 * z; gy = gy / 3 * z;
+            var lam = (-gx * lx - gy * ly + lz) / Math.sqrt(gx * gx + gy * gy + 1);
+            if (lam < 0) lam = 0;
+            var v = 0.5 + (lam - lz) * 1.15;
+            out[k] = v < 0 ? 0 : v > 1 ? 1 : v;
+        }
+        return out;
+    }
+
+    // Hypsometric tint: depth in blues, then lowland greens, upland tans,
+    // highland browns and white peaks
+    var TINT_STOPS = [
+        [-1, [14, 38, 84]], [-0.5, [34, 86, 152]], [-0.15, [72, 140, 196]], [-0.001, [140, 198, 226]],
+        [0, [86, 140, 80]], [0.12, [132, 174, 94]], [0.25, [200, 190, 124]], [0.4, [186, 146, 92]],
+        [0.55, [146, 104, 70]], [0.72, [118, 94, 82]], [0.85, [196, 190, 186]], [1, [255, 255, 255]],
+    ];
+    // Ice and snow lie at land height but read as ice, not lowland green
+    var ICE_TINT = { ice: [226, 236, 244], snow: [236, 240, 244] };
+    function reliefColor(v, terrainId) {
+        if (terrainId && ICE_TINT[terrainId]) return ICE_TINT[terrainId].slice();
+        if (v <= TINT_STOPS[0][0]) return TINT_STOPS[0][1].slice();
+        for (var i = 1; i < TINT_STOPS.length; i++) {
+            var b = TINT_STOPS[i];
+            if (v <= b[0]) {
+                var a = TINT_STOPS[i - 1], t = (v - a[0]) / (b[0] - a[0] || 1);
+                return [0, 1, 2].map(function (c) { return Math.round(a[1][c] + (b[1][c] - a[1][c]) * t); });
+            }
+        }
+        return TINT_STOPS[TINT_STOPS.length - 1][1].slice();
+    }
+    // Which contour band a height falls in (a contour runs between bands)
+    function contourBand(v, step) {
+        return v < 0 ? -1 - Math.floor(-v / step) : Math.floor(v / step);
+    }
+
     // ── the map check ───────────────────────────────────────
     var SETTLEMENT_TYPES = { village: 1, town: 1, city: 1, capital: 1, outpost: 1, port: 1 };
 
@@ -1080,6 +1231,8 @@
         smooth: smooth, shapeCoast: shapeCoast, distanceToLand: distanceToLand,
         mulberry32: mulberry32, fbm: fbm, generate: generate, traceRiver: traceRiver, poolBasins: poolBasins,
         validate: validate, encode: encode, decode: decode, rle: rle, unrle: unrle,
+        neighborTable: neighborTable, reliefField: reliefField, hillshade: hillshade,
+        reliefColor: reliefColor, contourBand: contourBand, TINT_STOPS: TINT_STOPS,
     };
     g.WorldTools = api;
     if (typeof window !== 'undefined') window.WorldTools = api;

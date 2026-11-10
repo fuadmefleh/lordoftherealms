@@ -102,6 +102,12 @@ const EXPECTED_KEYS = [
     'showArmyCommand', 'armyAct',
     // The household guard a realm keeps for you (ui/actionMenu/realmEscort.js): +2
     'showHouseholdGuard', 'guardAct',
+    // The House's court: courtiers, offices for them, the regent-designate (ui/actionMenu/social.js): +1
+    'showHouseCourt',
+    // Back rooms where gaming is forbidden: the door and the way in (ui/actionMenu/gambling.js): +2
+    'showBackRoomDoor', 'backRoomEnter',
+    // Born to a family: your parents' rules and the parents picker (ui/actionMenu/parents.js): +3
+    'showParents', 'showParentPicker', 'parentsAct',
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
@@ -165,8 +171,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 382 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(382);
+    it('has 388 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(388);
     });
 
     it('every member except the known data props is a function', () => {

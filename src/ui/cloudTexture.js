@@ -76,8 +76,29 @@ export function cloudTexture({ size = 256, seed = 1, rgb = '230,236,244', lo = 0
     return canvas;
 }
 
+// One repeating pattern per texture per context, made once and re-aimed each frame
+const patterns = new WeakMap();
+
+function patternFor(ctx, tex) {
+    if (typeof ctx.createPattern !== 'function' || typeof DOMMatrix === 'undefined') return null;
+    let byCtx = patterns.get(tex);
+    if (!byCtx) { byCtx = new WeakMap(); patterns.set(tex, byCtx); }
+    let pat = byCtx.get(ctx);
+    if (pat === undefined) {
+        try { pat = ctx.createPattern(tex, 'repeat'); } catch { pat = null; }
+        if (pat && typeof pat.setTransform !== 'function') pat = null;
+        byCtx.set(ctx, pat);
+    }
+    return pat;
+}
+
 /**
  * Fill the whole canvas with a scrolling, scaled cloud layer.
+ * Drawn as one repeating pattern placed with an exact (sub-pixel) transform,
+ * so a zoom that changes `scale` a little each frame scales the clouds
+ * smoothly about the same anchor instead of snapping to whole-pixel tile
+ * sizes (which, multiplied by the many tiles between the anchor and the
+ * screen, made the layer jump by whole pixels per zoom step).
  * @param {CanvasRenderingContext2D} ctx
  * @param {HTMLCanvasElement} tex   from cloudTexture()
  * @param {number} ox  scroll offset x (screen px)
@@ -87,8 +108,24 @@ export function cloudTexture({ size = 256, seed = 1, rgb = '230,236,244', lo = 0
  */
 export function drawCloudLayer(ctx, tex, ox, oy, scale, alpha) {
     const w = ctx.canvas.width, h = ctx.canvas.height;
-    // Whole-pixel tiles and offsets, so neighbouring copies meet without a hairline seam
-    const tile = Math.max(1, Math.round(tex.width * scale));
+    const tileF = tex.width * scale;
+    if (!(tileF > 0)) return;
+    const pat = patternFor(ctx, tex);
+    if (pat) {
+        // Keep the offset within one tile so the float stays small and exact
+        const px = ((ox % tileF) + tileF) % tileF;
+        const py = ((oy % tileF) + tileF) % tileF;
+        pat.setTransform(new DOMMatrix([scale, 0, 0, scale, px, py]));
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.imageSmoothingEnabled = true;
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, w, h);
+        ctx.restore();
+        return;
+    }
+    // No pattern support: whole-pixel tiles and offsets, so neighbouring copies meet without a hairline seam
+    const tile = Math.max(1, Math.round(tileF));
     const sx = Math.round(((ox % tile) + tile) % tile) - tile;
     const sy = Math.round(((oy % tile) + tile) % tile) - tile;
     ctx.save();

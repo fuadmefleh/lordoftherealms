@@ -11,7 +11,7 @@
 <script src="editor-ui.js"></script>
 <script src="editor-core.js"></script>
 <!-- (the version tag makes browsers fetch a changed copy instead of a cached one) -->
-<script src="world-editor-tools.js?v=20261103b"></script>
+<script src="world-editor-tools.js?v=20261110b"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 /* Design tokens live in the shared editor-ui.css (:root:root). */
@@ -44,6 +44,21 @@ input[type="checkbox"]{accent-color:var(--gold)}
 .menu-pop button:hover{background:var(--hover);color:var(--gold)}
 .menu-pop hr{border:none;border-top:1px solid var(--border);margin:4px 0}
 .kbd{font-family:monospace;font-size:10px;color:var(--text-dim)}
+/* Relief overlay: toggle + settings drop-down, and the height legend */
+.relief-menu{display:flex;align-items:center}
+.relief-menu > button.icon:first-child{border-radius:5px 0 0 5px}
+.relief-menu > button.relief-more{border-radius:0 5px 5px 0;border-left:none;min-width:0;padding:4px 4px;font-size:9px}
+.relief-pop{min-width:236px;padding:8px 10px}
+.relief-pop .row label{min-width:62px}
+.relief-pop input[type="range"]{flex:1;min-width:0}
+#relief-legend{position:absolute;left:12px;bottom:12px;width:260px;padding:7px 9px 6px;pointer-events:none;display:none;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+#relief-legend.show{display:block}
+#relief-legend .rl-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);margin-bottom:5px}
+#relief-legend .rl-bar{height:10px;border-radius:2px;border:1px solid var(--border2)}
+#relief-legend .rl-ticks{position:relative;height:13px;font-size:9.5px;color:var(--text-dim)}
+#relief-legend .rl-ticks span{position:absolute;top:2px;transform:translateX(-50%);white-space:nowrap}
+#relief-legend .rl-ticks span:first-child{transform:none}
+#relief-legend .rl-ticks span:last-child{transform:translateX(-100%)}
 
 /* ── Main layout ── */
 #main{display:flex;flex:1;overflow:hidden}
@@ -194,6 +209,23 @@ input[type="checkbox"]{accent-color:var(--gold)}
     <button class="icon" id="btn-grid" onclick="toggleView('grid')" title="Hex grid (H)">#</button>
     <button class="icon active" id="btn-sprites" onclick="toggleView('sprites')" title="Tile art">🎨</button>
     <button class="icon" id="btn-wrap" onclick="toggleView('wrap')" title="Show the east-west wrap — the game's world is round (W)">🔁</button>
+    <div class="menu relief-menu" id="relief-menu">
+      <button class="icon" id="btn-relief" onclick="toggleRelief()" title="Relief: shade the land's shape — ridges, valleys, slopes and sea depths (T)">🗻</button><button class="icon relief-more" onclick="toggleMenu('relief-menu')" title="Relief settings">▾</button>
+      <div class="menu-pop relief-pop">
+        <div class="row"><label><input type="checkbox" id="relief-on" onchange="setRelief({ on: this.checked })"> Show relief</label><span class="kbd" style="flex:0">T</span></div>
+        <div class="row"><label>Style</label><select id="relief-mode" onchange="setRelief({ mode: this.value })">
+          <option value="shade">Hillshade over the art</option>
+          <option value="tint">Height colours + hillshade</option>
+        </select></div>
+        <div class="row"><label>Opacity</label><input type="range" id="relief-opacity" min="10" max="100" step="5" oninput="setRelief({ opacity: this.value / 100 })"><span class="tb-val" id="relief-opacity-val" style="flex:0">70%</span></div>
+        <div class="row"><label><input type="checkbox" id="relief-contours" onchange="setRelief({ contours: this.checked })"> Contours</label><select id="relief-step" onchange="setRelief({ step: +this.value })" title="Height between contour lines">
+          <option value="0.05">every 0.05</option>
+          <option value="0.1">every 0.1</option>
+          <option value="0.2">every 0.2</option>
+        </select></div>
+        <div class="pal-note">A view only — it reads the height from the terrain (sea → shore → land → hills → highlands → mountains → peaks) and never changes the map. Full opacity with height colours shows the relief alone.</div>
+      </div>
+    </div>
     <button class="icon" onclick="zoomCanvas(-1)" title="Zoom out">−</button>
     <span class="tb-val" id="zoom-badge" style="cursor:pointer;min-width:40px" onclick="setZoom(1)" title="Reset to 100%">100%</span>
     <button class="icon" onclick="zoomCanvas(1)" title="Zoom in">+</button>
@@ -236,6 +268,7 @@ input[type="checkbox"]{accent-color:var(--gold)}
     <canvas id="base-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
     <div id="drop-hint">Drop a world .json to open it</div>
+    <div id="relief-legend" class="eui-panel"></div>
   </div>
 
   <div id="props">
@@ -486,6 +519,10 @@ let selectedHex = null;
 let recentTerrain = ['grassland', 'ocean', 'woodland', 'hills', 'mountain', 'desert'];
 let brushRadius = 0, brushDensity = 1, symmetryMode = 'none';
 const view = { grid: false, sprites: true, wrap: false };
+// Relief overlay settings (a view only — remembered per browser)
+const RELIEF_KEY = 'lotr-world-editor-relief';
+const relief = { on: false, mode: 'shade', opacity: 0.7, contours: false, step: 0.1 };
+try { Object.assign(relief, JSON.parse(localStorage.getItem(RELIEF_KEY)) || {}); } catch (e) { /* defaults */ }
 
 let camX = 0, camY = 0, camZoom = 1;
 const HEX_SIZE = 18;
@@ -602,6 +639,7 @@ function init() {
     buildTerrainPalette();
     buildPlacesPalette();
     buildRealmPanel();
+    syncReliefUi();
     bindInput();
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
@@ -1214,8 +1252,147 @@ function rebuildColorCanvas() {
     c.putImageData(img, 0, 0);
 }
 
+// ── Relief overlay: hillshade, height colours, contours ─────────
+// Heights come from the terrain (WT.reliefField), worked out once per map
+// change and cached per tile; drawing only reads the cache.
+let reliefCache = null, reliefDirty = true, reliefLayerCanvas = null;
+function getRelief() {
+    const n = mapW * mapH;
+    let R = reliefCache;
+    if (!R || R.w !== mapW || R.h !== mapH) {
+        R = reliefCache = { w: mapW, h: mapH, nb: WT.neighborTable(mapW, mapH, true) };
+        reliefDirty = true;
+    }
+    if (reliefDirty || R.tiles !== tiles) {
+        R.tiles = tiles;
+        R.elev = WT.reliefField(tiles, mapW, mapH, { nb: R.nb });
+        const light = WT.hillshade(R.elev, mapW, mapH, { nb: R.nb });
+        R.tint = new Uint8ClampedArray(n * 3);
+        R.shade = new Uint8ClampedArray(n);
+        for (let k = 0; k < n; k++) {
+            // Sea floors take a softer light than the land
+            const l = R.elev[k] < 0 ? 0.5 + (light[k] - 0.5) * 0.35 : light[k];
+            const f = 0.35 + 1.3 * l, col = WT.reliefColor(R.elev[k], tiles[k]);
+            R.tint[k * 3] = col[0] * f; R.tint[k * 3 + 1] = col[1] * f; R.tint[k * 3 + 2] = col[2] * f;
+            R.shade[k] = l * 255;
+        }
+        R.bandStep = 0; R.small = null;
+        reliefDirty = false;
+    }
+    if (R.bandStep !== relief.step) {
+        R.band = new Int16Array(n);
+        for (let k = 0; k < n; k++) R.band[k] = WT.contourBand(R.elev[k], relief.step);
+        R.bandStep = relief.step;
+    }
+    return R;
+}
+function reliefStyle(R, k, tint) {
+    if (tint) return `rgb(${R.tint[k * 3]},${R.tint[k * 3 + 1]},${R.tint[k * 3 + 2]})`;
+    const s = R.shade[k];
+    return `rgb(${s},${s},${s})`;
+}
+// The zoomed-out picture, laid out like colorCanvas (two pixels per hex)
+function reliefSmall(R, tint) {
+    if (R.small && R.smallTint === tint) return R.small;
+    const w = mapW * 2 + 1, cv = R.small || document.createElement('canvas');
+    cv.width = w; cv.height = mapH;
+    const c = cv.getContext('2d'), img = c.createImageData(w, mapH);
+    for (let r = 0; r < mapH; r++) for (let q = 0; q < mapW; q++) {
+        const k = r * mapW + q;
+        for (let s = 0; s < 2; s++) {
+            const i = (r * w + q * 2 + (r % 2 === 0 ? 1 : 0) + s) * 4;
+            if (tint) { img.data[i] = R.tint[k * 3]; img.data[i + 1] = R.tint[k * 3 + 1]; img.data[i + 2] = R.tint[k * 3 + 2]; }
+            else img.data[i] = img.data[i + 1] = img.data[i + 2] = R.shade[k];
+            img.data[i + 3] = 255;
+        }
+    }
+    c.putImageData(img, 0, 0);
+    R.small = cv; R.smallTint = tint;
+    return cv;
+}
+// Hillshade alone is blended 'overlay' (mid-grey leaves the art as it is);
+// height colours are painted over the art
+function reliefBlend(c) {
+    c.globalAlpha = relief.opacity;
+    c.globalCompositeOperation = relief.mode === 'tint' ? 'source-over' : 'overlay';
+}
+// Hexes go on a scratch layer first, so the seams between them don't show
+// through when the whole layer is laid over the map half-transparent
+function drawReliefHexes(c, each) {
+    const R = getRelief(), tint = relief.mode === 'tint';
+    const w = c.canvas.width, h = c.canvas.height;
+    if (!reliefLayerCanvas) reliefLayerCanvas = document.createElement('canvas');
+    if (reliefLayerCanvas.width !== w || reliefLayerCanvas.height !== h) { reliefLayerCanvas.width = w; reliefLayerCanvas.height = h; }
+    const oc = reliefLayerCanvas.getContext('2d');
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.clearRect(0, 0, w, h);
+    oc.setTransform(c.getTransform());
+    each((q, r, p) => { oc.globalAlpha = c.globalAlpha; hexPath(oc, p.x, p.y, 1.03); oc.fillStyle = reliefStyle(R, r * mapW + q, tint); oc.fill(); });
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    reliefBlend(c);
+    c.drawImage(reliefLayerCanvas, 0, 0);
+    c.restore();
+}
+// Contour lines along the hex edges where the height crosses a level; every
+// fifth land level is drawn heavier. Each edge is drawn by its higher side.
+function drawReliefContours(c, each, zoom) {
+    const R = getRelief();
+    const minor = new Path2D(), major = new Path2D(), sea = new Path2D();
+    each((q, r, p) => {
+        const k = r * mapW + q, a = R.band[k];
+        for (let i = 0; i < 6; i++) {
+            const j = R.nb[k * 6 + i];
+            if (j < 0) continue;
+            const b = R.band[j];
+            if (b >= a || (a === 0 && b === -1)) continue;  // lower side, or the shoreline
+            const path = a < 0 ? sea : a % 5 === 0 ? major : minor;
+            const [ca, cb] = EDGE[i];
+            path.moveTo(p.x + HEX_CORNERS[ca][0], p.y + HEX_CORNERS[ca][1]);
+            path.lineTo(p.x + HEX_CORNERS[cb][0], p.y + HEX_CORNERS[cb][1]);
+        }
+    });
+    c.save();
+    c.globalAlpha = Math.min(1, 0.35 + relief.opacity);
+    c.lineCap = 'round';
+    c.lineWidth = 1.1 / zoom; c.strokeStyle = 'rgba(14,40,74,0.6)'; c.stroke(sea);
+    c.strokeStyle = 'rgba(58,36,18,0.7)'; c.stroke(minor);
+    c.lineWidth = 2 / zoom; c.strokeStyle = 'rgba(52,30,14,0.9)'; c.stroke(major);
+    c.restore();
+}
+function toggleRelief() { setRelief({ on: !relief.on }); }
+function setRelief(patch) {
+    Object.assign(relief, patch);
+    try { localStorage.setItem(RELIEF_KEY, JSON.stringify(relief)); } catch (e) { /* not remembered */ }
+    syncReliefUi();
+    requestRender();
+}
+function syncReliefUi() {
+    if (relief.mode !== 'tint') relief.mode = 'shade';
+    if (![0.05, 0.1, 0.2].includes(relief.step)) relief.step = 0.1;
+    relief.opacity = Math.max(0.1, Math.min(1, +relief.opacity || 0.7));
+    document.getElementById('btn-relief').classList.toggle('active', !!relief.on);
+    document.getElementById('relief-on').checked = !!relief.on;
+    document.getElementById('relief-mode').value = relief.mode;
+    document.getElementById('relief-opacity').value = Math.round(relief.opacity * 100);
+    document.getElementById('relief-opacity-val').textContent = Math.round(relief.opacity * 100) + '%';
+    document.getElementById('relief-contours').checked = !!relief.contours;
+    document.getElementById('relief-step').value = String(relief.step);
+    const lg = document.getElementById('relief-legend');
+    lg.classList.toggle('show', !!relief.on && relief.mode === 'tint');
+    if (!lg.dataset.built) {
+        // -1..1 → 0..100% along the bar
+        const stops = WT.TINT_STOPS.map(([v, c]) => `rgb(${c.join(',')}) ${((v + 1) * 50).toFixed(2)}%`).join(',');
+        const tick = (v, text) => `<span style="left:${(v + 1) * 50}%">${text}</span>`;
+        lg.innerHTML = '<div class="rl-title">Height</div>' +
+            `<div class="rl-bar" style="background:linear-gradient(to right,${stops})"></div>` +
+            `<div class="rl-ticks">${tick(-1, 'Deep sea')}${tick(0, 'Sea level')}${tick(0.3, 'Hills')}${tick(1, 'Peaks')}</div>`;
+        lg.dataset.built = '1';
+    }
+}
+
 function render() {
-    if (minimapDirty) rebuildColorCanvas();
+    if (minimapDirty) { rebuildColorCanvas(); reliefDirty = true; }
     const dpr = window.devicePixelRatio || 1;
     drawWorld(ctx, { x: camX, y: camY, zoom: camZoom, w: viewW(), h: viewH(), dpr });
     if (minimapDirty) { renderMinimap(); minimapDirty = false; } else renderMinimapFrame();
@@ -1247,6 +1424,17 @@ function drawWorld(c, v, opts = {}) {
             c.globalAlpha = k === 0 ? 1 : 0.45;
             c.drawImage(colorCanvas, k * span, HEX_SIZE - ROW_H / 2, (mapW * 2 + 1) * HEX_W / 2, mapH * ROW_H);
         }
+        if (relief.on) {
+            const small = reliefSmall(getRelief(), relief.mode === 'tint');
+            c.save();
+            reliefBlend(c);
+            const alpha = c.globalAlpha;
+            for (const k of copies) {
+                c.globalAlpha = alpha * (k === 0 ? 1 : 0.45);
+                c.drawImage(small, k * span, HEX_SIZE - ROW_H / 2, (mapW * 2 + 1) * HEX_W / 2, mapH * ROW_H);
+            }
+            c.restore();
+        }
         c.globalAlpha = 1;
         c.imageSmoothingEnabled = true;
     } else {
@@ -1273,6 +1461,11 @@ function drawWorld(c, v, opts = {}) {
             if (sprite) drawSpriteHex(c, p.x, p.y, sprite);
             else { hexPath(c, p.x, p.y, 1.02); c.fillStyle = TERRAIN_TYPES[id].color; c.fill(); }
         });
+        // Relief (a view of the land's shape), then its contour lines
+        if (relief.on) {
+            drawReliefHexes(c, each);
+            if (relief.contours && hexPx > 6) drawReliefContours(c, each, v.zoom);
+        }
         // Rivers, then roads (sprites, or lines without art)
         each((q, r, p) => {
             const k = key(q, r);
@@ -1652,6 +1845,10 @@ function showHover(h) {
     if (rivers[k]) bits.push('river');
     const rm = territory[k] && realmById(territory[k]);
     if (rm) bits.push(rm.name);
+    if (relief.on && inBounds(h.q, h.r)) {
+        const e = getRelief().elev[h.r * mapW + h.q];
+        bits.push(e < 0 ? `depth ${(-e).toFixed(2)}` : `height ${e.toFixed(2)}`);
+    }
     document.getElementById('st-extra').textContent = bits.join(' · ');
 }
 
@@ -1679,6 +1876,7 @@ function onKey(e) {
     if (k === '3') return setLayer('realms');
     if (k === 'h') return toggleView('grid');
     if (k === 'w') return toggleView('wrap');
+    if (k === 't') return toggleRelief();
     if (k === '0' || e.key === 'Home') return fitCanvas();
     if (e.key === '+' || e.key === '=') return zoomCanvas(1);
     if (e.key === '-') return zoomCanvas(-1);
@@ -1709,6 +1907,7 @@ function showHelp() {
         ['Wheel · + − · 0', 'Zoom · fit'],
         ['Arrows', 'Pan'],
         ['H · W', 'Grid · show the east-west wrap'],
+        ['T', 'Relief: hillshade, height colours, contours (▾ beside 🗻 for settings)'],
         ['Ctrl+Z · Ctrl+Y', 'Undo · redo'],
         ['Ctrl+S', 'Save (in the game) / export'], ['Ctrl+Shift+S', 'Export .json'],
         ['Delete', 'Remove the selected place'],

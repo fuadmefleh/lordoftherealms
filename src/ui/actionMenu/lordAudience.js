@@ -631,94 +631,102 @@ function _askRealm(game, state, { kingdom, lord }) {
     }, 700);
 }
 
+// The realm's tales, in the panels' voice (styles.css "PANEL REVAMP"): soft cards
+// with a hairline gold edge, letter-spaced gold heads, chips for the numbers.
+// Inline, since the scene's card is not a custom panel.
+const TALE_CARD = 'background:linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015)); border:1px solid rgba(245,197,66,0.12); border-radius:8px; padding:9px 12px; margin-bottom:8px;';
+const TALE_HEAD = 'font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:rgba(245,197,66,0.85); margin-bottom:6px;';
+const TALE_CHIP = 'background:rgba(0,0,0,0.28); border:1px solid rgba(245,197,66,0.16); border-radius:999px; padding:2px 9px;';
+const TALE_ROW = 'padding:5px 2px; border-bottom:1px solid rgba(245,197,66,0.07);';
+
 /** The lord's account of their realm: peoples, faith, strength, neighbours and old tales. */
 function realmTalesHtml(game, kingdom, detailLevel) {
     const player = game.player;
     const world = game.world;
     let html = '';
     // ── 1. The Peoples ──
-    html += `<div style="background:#1a1a2e; padding:10px; border-radius:6px; margin-bottom:10px; border-left:3px solid #4fc3f7;">`;
-    html += `<div style="color:#4fc3f7; font-weight:bold; margin-bottom:6px;">🏛️ The Peoples of ${kingdom.name}</div>`;
+    html += `<div style="${TALE_CARD}">`;
+    html += `<div style="${TALE_HEAD}">🏛️ The Peoples of ${kingdom.name}</div>`;
 
     if (typeof Peoples !== 'undefined') {
         const tribes = Peoples.getTribesForCulture(kingdom.culture);
         if (tribes.length > 0) {
-            html += `<div style="color:#aaa; font-size:12px; margin-bottom:6px;">"Our realm was founded by the union of ancient peoples..."</div>`;
+            html += `<div style="color:#cbbf9f; font-size:12px; margin-bottom:6px;">"Our realm was founded by the union of ancient peoples..."</div>`;
             for (const tribe of tribes) {
-                html += `<div style="background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:4px; margin-bottom:4px;">`;
-                html += `<div style="color:#fff; font-size:13px;">${tribe.icon} <strong>${tribe.name}</strong></div>`;
-                html += `<div style="color:#888; font-size:11px;">Origin: ${tribe.origin} | Traits: ${tribe.traits.join(', ')}</div>`;
+                html += `<div style="${TALE_ROW}">`;
+                html += `<div style="color:#ece2c8; font-size:13px;">${tribe.icon} <strong>${tribe.name}</strong></div>`;
+                html += `<div style="color:#9d937c; font-size:11px;">Origin: ${tribe.origin} | Traits: ${tribe.traits.join(', ')}</div>`;
                 if (detailLevel !== 'basic') {
-                    html += `<div style="color:#aaa; font-size:11px; font-style:italic; margin-top:2px;">"${tribe.proverb}"</div>`;
+                    html += `<div style="color:#cbbf9f; font-size:11px; font-style:italic; margin-top:2px;">"${tribe.proverb}"</div>`;
                 }
                 if (detailLevel === 'full') {
-                    html += `<div style="color:#ffd700; font-size:10px; margin-top:2px;">🎨 ${tribe.artForms.join(', ')} | 🍲 ${tribe.cuisine.slice(0, 2).join(', ')}</div>`;
+                    html += `<div style="color:#ffcf6a; font-size:10px; margin-top:2px;">🎨 ${tribe.artForms.join(', ')} | 🍲 ${tribe.cuisine.slice(0, 2).join(', ')}</div>`;
                 }
                 html += `</div>`;
             }
         } else {
-            html += `<div style="color:#aaa; font-size:12px;">"Our people are of the <strong>${kingdom.culture}</strong> tradition."</div>`;
+            html += `<div style="color:#cbbf9f; font-size:12px;">"Our people are of the <strong>${kingdom.culture}</strong> tradition."</div>`;
         }
     } else {
-        html += `<div style="color:#aaa; font-size:12px;">"We are a proud <strong>${kingdom.culture}</strong> people."</div>`;
+        html += `<div style="color:#cbbf9f; font-size:12px;">"We are a proud <strong>${kingdom.culture}</strong> people."</div>`;
     }
     html += `</div>`;
 
     // ── 2. Religion ──
-    html += `<div style="background:#1a1a2e; padding:10px; border-radius:6px; margin-bottom:10px; border-left:3px solid #e6c84c;">`;
-    html += `<div style="color:#e6c84c; font-weight:bold; margin-bottom:6px;">🙏 Faith of the Realm</div>`;
+    html += `<div style="${TALE_CARD}">`;
+    html += `<div style="${TALE_HEAD}">🙏 Faith of the Realm</div>`;
 
     if (kingdom.religion && typeof Religion !== 'undefined') {
         const faith = Religion.FAITHS ? Religion.FAITHS[kingdom.religion.faithId] : null;
         const faithIcon = faith ? faith.icon : '🙏';
-        html += `<div style="color:#aaa; font-size:12px;">"We follow the ways of <span style='color:#ffd700;'>${faithIcon} ${kingdom.religion.name}</span>."</div>`;
-        html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; font-size:11px;">`;
-        html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">🕊️ Piety: ${Math.floor(kingdom.religion.piety)}/100</div>`;
-        html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">⚖️ Unity: ${Math.floor(kingdom.religion.unity)}/100</div>`;
+        html += `<div style="color:#cbbf9f; font-size:12px;">"We follow the ways of <span style='color:#ffcf6a;'>${faithIcon} ${kingdom.religion.name}</span>."</div>`;
+        html += `<div style="display:flex; flex-wrap:wrap; gap:4px 6px; margin-top:6px; font-size:11px;">`;
+        html += `<div style="${TALE_CHIP} color:#cbbf9f;">🕊️ Piety: ${Math.floor(kingdom.religion.piety)}/100</div>`;
+        html += `<div style="${TALE_CHIP} color:#cbbf9f;">⚖️ Unity: ${Math.floor(kingdom.religion.unity)}/100</div>`;
         html += `</div>`;
         if (detailLevel !== 'basic') {
             const holySiteCount = kingdom.religion.holySites ? kingdom.religion.holySites.length : 0;
-            html += `<div style="color:#888; font-size:11px; margin-top:4px;">⛪ ${holySiteCount} holy site${holySiteCount !== 1 ? 's' : ''} under our protection.</div>`;
+            html += `<div style="color:#9d937c; font-size:11px; margin-top:4px;">⛪ ${holySiteCount} holy site${holySiteCount !== 1 ? 's' : ''} under our protection.</div>`;
             const templeUnity = Religion.templeUnity(kingdom);
             if (templeUnity > 0) {
-                html += `<div style="color:#888; font-size:11px; margin-top:2px;">🏛️ Our ${kingdom.temples.length} temple${kingdom.temples.length !== 1 ? 's' : ''} bind the faithful together (+${Math.round(templeUnity * 10) / 10} unity).</div>`;
+                html += `<div style="color:#9d937c; font-size:11px; margin-top:2px;">🏛️ Our ${kingdom.temples.length} temple${kingdom.temples.length !== 1 ? 's' : ''} bind the faithful together (+${Math.round(templeUnity * 10) / 10} unity).</div>`;
             }
             if (kingdom.playerFaith && kingdom.playerFaith.devoted > 0 && game.player.religion) {
                 html += `<div style="color:#b39ddb; font-size:11px; margin-top:2px;">🙏 ${kingdom.playerFaith.devoted} of our towns follow your ${game.player.religion.name}${kingdom.playerFaith.stability > 0 ? ` (+${kingdom.playerFaith.stability} stability)` : ''}.</div>`;
             }
         }
         if (detailLevel === 'full' && kingdom.religion.heresies && kingdom.religion.heresies.length > 0) {
-            html += `<div style="color:#e74c3c; font-size:11px; margin-top:4px;">⚠️ Heresies trouble the realm: ${kingdom.religion.heresies.map(h => h.name).join(', ')}</div>`;
+            html += `<div style="color:#e0846a; font-size:11px; margin-top:4px;">⚠️ Heresies trouble the realm: ${kingdom.religion.heresies.map(h => h.name).join(', ')}</div>`;
         }
     } else {
-        html += `<div style="color:#aaa; font-size:12px;">"Our people follow the old traditions, without a formal church."</div>`;
+        html += `<div style="color:#cbbf9f; font-size:12px;">"Our people follow the old traditions, without a formal church."</div>`;
     }
     html += `</div>`;
 
     // ── 3. Kingdom Strength ──
-    html += `<div style="background:#1a1a2e; padding:10px; border-radius:6px; margin-bottom:10px; border-left:3px solid #4caf50;">`;
-    html += `<div style="color:#4caf50; font-weight:bold; margin-bottom:6px;">⚔️ Strength of the Realm</div>`;
+    html += `<div style="${TALE_CARD}">`;
+    html += `<div style="${TALE_HEAD}">⚔️ Strength of the Realm</div>`;
 
     const settlements = world.getAllSettlements().filter(s => s.kingdom === kingdom.id);
     const totalPop = settlements.reduce((sum, s) => sum + s.population, 0);
-    html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:11px;">`;
-    html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">🏘️ Settlements: ${settlements.length}</div>`;
-    html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">👥 Population: ${Utils.formatNumber(totalPop)}</div>`;
+    html += `<div style="display:flex; flex-wrap:wrap; gap:4px 6px; font-size:11px;">`;
+    html += `<div style="${TALE_CHIP} color:#cbbf9f;">🏘️ Settlements: ${settlements.length}</div>`;
+    html += `<div style="${TALE_CHIP} color:#cbbf9f;">👥 Population: ${Utils.formatNumber(totalPop)}</div>`;
     if (detailLevel !== 'basic') {
-        html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">🗺️ Territory: ${kingdom.territory ? kingdom.territory.length : 0} tiles</div>`;
-        html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">🛡️ Military: ${kingdom.military || 0}</div>`;
+        html += `<div style="${TALE_CHIP} color:#cbbf9f;">🗺️ Territory: ${kingdom.territory ? kingdom.territory.length : 0} tiles</div>`;
+        html += `<div style="${TALE_CHIP} color:#cbbf9f;">🛡️ Military: ${kingdom.military || 0}</div>`;
     }
     if (detailLevel === 'full') {
-        html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#aaa;">💰 Treasury: ~${Utils.formatNumber(Math.round((kingdom.treasury || 0) / 100) * 100)}</div>`;
+        html += `<div style="${TALE_CHIP} color:#cbbf9f;">💰 Treasury: ~${Utils.formatNumber(Math.round((kingdom.treasury || 0) / 100) * 100)}</div>`;
         const wars = kingdom.wars || [];
         const allies = kingdom.allies || [];
         if (wars.length > 0) {
             const warNames = wars.map(wId => world.getKingdom(wId)?.name || 'Unknown').join(', ');
-            html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#e74c3c;">⚔️ At war with: ${warNames}</div>`;
+            html += `<div style="${TALE_CHIP} color:#e0846a;">⚔️ At war with: ${warNames}</div>`;
         }
         if (allies.length > 0) {
             const allyNames = allies.map(aId => world.getKingdom(aId)?.name || 'Unknown').join(', ');
-            html += `<div style="background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:4px; color:#4caf50;">🤝 Allies: ${allyNames}</div>`;
+            html += `<div style="${TALE_CHIP} color:#8fd18a;">🤝 Allies: ${allyNames}</div>`;
         }
     }
     html += `</div></div>`;
@@ -727,20 +735,20 @@ function realmTalesHtml(game, kingdom, detailLevel) {
     if (detailLevel !== 'basic') {
         const otherKingdoms = world.kingdoms.filter(k => k.id !== kingdom.id && k.isAlive);
         if (otherKingdoms.length > 0) {
-            html += `<div style="background:#1a1a2e; padding:10px; border-radius:6px; margin-bottom:10px; border-left:3px solid #9c27b0;">`;
-            html += `<div style="color:#9c27b0; font-weight:bold; margin-bottom:6px;">🌍 Relations with Neighbors</div>`;
+            html += `<div style="${TALE_CARD}">`;
+            html += `<div style="${TALE_HEAD}">🌍 Relations with Neighbors</div>`;
             for (const other of otherKingdoms) {
                 const rel = kingdom.relations[other.id] || 0;
                 const atWar = kingdom.wars && kingdom.wars.includes(other.id);
                 let relText, relColor;
-                if (atWar) { relText = '⚔️ At War'; relColor = '#e74c3c'; }
-                else if (rel > 50) { relText = '🤝 Allied'; relColor = '#4caf50'; }
-                else if (rel > 0) { relText = '😐 Neutral'; relColor = '#95a5a6'; }
-                else if (rel > -50) { relText = '😠 Tense'; relColor = '#e67e22'; }
-                else { relText = '💢 Hostile'; relColor = '#e74c3c'; }
+                if (atWar) { relText = '⚔️ At War'; relColor = '#e0846a'; }
+                else if (rel > 50) { relText = '🤝 Allied'; relColor = '#8fd18a'; }
+                else if (rel > 0) { relText = '😐 Neutral'; relColor = '#b9ae94'; }
+                else if (rel > -50) { relText = '😠 Tense'; relColor = '#f0b35a'; }
+                else { relText = '💢 Hostile'; relColor = '#e0846a'; }
 
-                html += `<div style="display:flex; justify-content:space-between; padding:2px 0; font-size:11px;">`;
-                html += `<span style="color:#aaa;"><span style="color:${other.color};">●</span> ${other.name}</span>`;
+                html += `<div style="display:flex; justify-content:space-between; padding:3px 0; font-size:11px; border-bottom:1px solid rgba(245,197,66,0.07);">`;
+                html += `<span style="color:#cbbf9f;"><span style="color:${other.color};">●</span> ${other.name}</span>`;
                 html += `<span style="color:${relColor};">${relText}</span>`;
                 html += `</div>`;
             }
@@ -760,16 +768,16 @@ function realmTalesHtml(game, kingdom, detailLevel) {
     }
 
     if (discoveredEntries.length > 0) {
-        html += `<div style="background:#1a1a2e; padding:10px; border-radius:6px; margin-bottom:10px; border-left:3px solid #ff9800;">`;
-        html += `<div style="color:#ff9800; font-weight:bold; margin-bottom:6px;">📖 Histories Revealed (${discoveredEntries.length})</div>`;
-        html += `<div style="color:#888; font-size:11px; margin-bottom:6px;">"Let me share some tales of our past..."</div>`;
+        html += `<div style="${TALE_CARD}">`;
+        html += `<div style="${TALE_HEAD}">📖 Histories Revealed (${discoveredEntries.length})</div>`;
+        html += `<div style="color:#9d937c; font-size:11px; margin-bottom:6px;">"Let me share some tales of our past..."</div>`;
         for (const entry of discoveredEntries) {
-            html += `<div style="background:rgba(0,0,0,0.3); padding:6px 8px; border-radius:4px; margin-bottom:4px;">`;
-            html += `<div style="color:#ffd700; font-size:10px;">Year ${entry.year}</div>`;
-            html += `<div style="color:#ddd; font-size:12px; line-height:1.4;">${entry.text}</div>`;
+            html += `<div style="${TALE_ROW}">`;
+            html += `<div style="color:#ffcf6a; font-size:10px;">Year ${entry.year}</div>`;
+            html += `<div style="color:#ece2c8; font-size:12px; line-height:1.4;">${entry.text}</div>`;
             html += `</div>`;
         }
-        html += `<div style="color:#666; font-size:10px; font-style:italic; margin-top:4px;">View all in 📜 World History panel</div>`;
+        html += `<div style="color:#8a826e; font-size:10px; font-style:italic; margin-top:4px;">View all in 📜 World History panel</div>`;
         html += `</div>`;
     }
 

@@ -15,5 +15,10 @@
   "refill": { "days": 30 },
   "ask": { "reputation": 8, "minReputation": 10, "reserveBase": 300, "reserveDays": 30, "cooldownDays": 20 },
   "sendHome": { "days": 60 },
-  "deter": { "schemeFoil": { "theft": 0.5, "assassin": 0.3 } }
+  "deter": { "schemeFoil": { "theft": 0.5, "assassin": 0.3 } },
+  "fight": {
+    "_doc": "On the street map the guard fights at your side (ui/innerMapEscort.js): the beast you fight or that is charging or attacking you, and whoever is fighting you (never an arena bout or a job duel, and never the law: the town watch, the gaoler or a castle guard, it stands aside). Each figure closes in and strikes every swingEvery seconds (a little off the beat of the others) for its company type's damage; joinRange: how many tiles from you a foe may be for them to go to it; reach: tiles from the foe a blow lands.",
+    "swingEvery": 1.1, "reach": 1.4, "joinRange": 8,
+    "damage": { "knight": 12, "soldier": 8, "archer": 6, "_default": 8 }
+  }
 }

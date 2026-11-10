@@ -9,35 +9,47 @@
 //   🗝️ Guild    — heat per realm, guild rank, jobs and heists (systems/underworld.js).
 //   🧺 Market   — the fence, the black market, contraband here.
 //   🧼 Coin     — dirty coin and laundering it through your fronts.
-// Logic lives in the systems; this panel presents it.
+// Logic lives in the systems; this panel presents it, in the action menu's
+// voice (ui/actionMenu/uiKit.js): cards for status, one row a thing to do.
 import { ActionMenu } from './_ref.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Gangs } from '../../systems/gangs.js';
-import { BTN_GOLD, BTN_DIM, BTN_RED, CARD, panelTabs, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_DIM, BTN_DARK, BTN_RED, panelTabs, esc, lede, chips, sectionHead, kv, card, actRow, rowList } from './uiKit.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
-const LEVEL_COLOR = { clear: '#7fd07f', watched: '#e0b040', poster: '#e08040', warrant: '#e05050' };
+const LEVEL_COLOR = { clear: '#8fd18a', watched: '#f0b35a', poster: '#e0a060', warrant: '#e0846a' };
 const LEVEL_LABEL = { clear: 'Clear', watched: 'Watched', poster: 'Wanted posters', warrant: 'Warrant' };
-const STATUS_COLOR = { illegal: '#e05050', tariff: '#e0b040', legal: '#7fd07f' };
-const NOTE = 'font-size:11px; color:#aaa;';
+const LEVEL_TONE = { clear: 'good', watched: 'warn', poster: 'warn', warrant: 'bad' };
+const STATUS_COLOR = { illegal: '#e0846a', tariff: '#f0b35a', legal: '#8fd18a' };
+const NOTE = 'font-size:11px; color:#9d937c; margin:2px 0;';
+/** A small inline button inside a row's side column (the row itself is not a button). */
+const SMALL = 'padding:3px 9px; margin:0 0 0 4px; font-size:11px;';
 
 const pct = v => `${Math.round(v * 100)}%`;
 const label = id => String(id).replace(/_/g, ' ');
 
+function bar(width, color) {
+    return `<div style="background:rgba(255,255,255,0.06); border-radius:3px; height:5px; overflow:hidden; margin:4px 0 2px;">
+        <div style="width:${Math.min(100, width)}%; height:100%; background:${color};"></div></div>`;
+}
+
 function heatBar(heat, level) {
-    return `<div style="background:rgba(255,255,255,0.06); border-radius:3px; height:6px; overflow:hidden; margin-top:2px;">
-        <div style="width:${Math.min(100, heat)}%; height:100%; background:${LEVEL_COLOR[level]};"></div></div>`;
+    return bar(heat, LEVEL_COLOR[level]);
 }
 
 function crackBar(v) {
-    const c = v >= 60 ? '#e05050' : v >= 35 ? '#e0b040' : '#7fd07f';
-    return `<div style="background:rgba(255,255,255,0.06); border-radius:3px; height:6px; overflow:hidden; margin-top:2px;">
-        <div style="width:${Math.min(100, v)}%; height:100%; background:${c};"></div></div>`;
+    return bar(v, v >= 60 ? '#e0846a' : v >= 35 ? '#f0b35a' : '#8fd18a');
 }
 
 function btn(on, call, text, style = BTN_GOLD, title = '') {
     return on
         ? `<button onclick="${call}" style="${style}"${title ? ` title="${esc(title)}"` : ''}>${text}</button>`
         : `<button disabled style="${BTN_DIM}"${title ? ` title="${esc(title)}"` : ''}>${text}</button>`;
+}
+
+/** One action-menu row that runs `call` (an inline onclick) when `on`; greyed with `why` when not. */
+function row(on, call, o) {
+    return actRow({ ...o, off: !on, attrs: on ? `onclick="${call}"` : '' });
 }
 
 // ── 🔪 Streets ──────────────────────────────────────────
@@ -52,18 +64,20 @@ function booksHtml(b) {
     // (the weekly average is of its trade: its first purse is not a week's take)
     const firstPurse = Number((b.all.in || {}).founding) || 0;
     let html = `<div style="${NOTE}">📒 Last week took ${g0(last.took)}, paid out ${g0(last.paid)} · all time${b.weeks ? ` (${b.weeks} wk)` : ''} took ${g0(b.all.took)} (≈${g0((b.all.took - firstPurse) / weeks)}/wk${firstPurse ? ` besides its first purse` : ''}), paid ${g0(b.all.paid)} (≈${g0(b.all.paid / weeks)}/wk)</div>`;
+    const TD = 'padding:3px 0; border-top:1px solid rgba(245,197,66,0.07);';
     const rows = (dir) => {
         const labels = Gangs.BOOK_LABELS[dir];
         const kinds = Object.keys({ ...b.all[dir], ...((b.cur || {})[dir] || {}) }).sort((x, y) => (b.all[dir][y] || 0) - (b.all[dir][x] || 0));
-        return kinds.map(k => `<tr><td>${esc(labels[k] || label(k))}</td><td style="text-align:right;">${g0(last[dir][k])}</td><td style="text-align:right;">${g0(b.all[dir][k])}</td></tr>`).join('');
+        return kinds.map(k => `<tr><td style="${TD}">${esc(labels[k] || label(k))}</td><td style="${TD} text-align:right;">${g0(last[dir][k])}</td><td style="${TD} text-align:right;">${g0(b.all[dir][k])}</td></tr>`).join('');
     };
-    const head = (t) => `<tr style="color:#ccc;"><th style="text-align:left;">${t}</th><th style="text-align:right;">last wk</th><th style="text-align:right;">all time</th></tr>`;
+    const TH = 'padding:6px 0 3px; font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:rgba(245,197,66,0.75);';
+    const head = (t) => `<tr><th style="${TH} text-align:left;">${t}</th><th style="${TH} text-align:right;">last wk</th><th style="${TH} text-align:right;">all time</th></tr>`;
     const ins = rows('in');
     const outs = rows('out');
     if (ins || outs) {
-        html += `<details style="font-size:11px; color:#bbb;"><summary style="cursor:pointer;">The books</summary><table style="width:100%; border-collapse:collapse;">`
+        html += `<details class="pk-more" style="font-size:11px; color:#cbbf9f;"><summary style="cursor:pointer;">The books</summary><table style="width:100%; border-collapse:collapse;">`
             + `${ins ? head('Taken') + ins : ''}${outs ? head('Paid out') + outs : ''}</table>`
-            + `${b.cur && (b.cur.took || b.cur.paid) ? `<div>This week so far: took ${g0(b.cur.took)}, paid ${g0(b.cur.paid)}.</div>` : ''}</details>`;
+            + `${b.cur && (b.cur.took || b.cur.paid) ? `<div style="${NOTE}">This week so far: took ${g0(b.cur.took)}, paid ${g0(b.cur.paid)}.</div>` : ''}</details>`;
     }
     return html;
 }
@@ -72,7 +86,7 @@ function streetsTab(game, tile) {
     const player = game.player;
     const world = game.world;
     const v = Gangs.view(player, world, tile);
-    if (!v) return `<div style="${NOTE}">No gang works a place this small. The underworld lives in towns and cities.</div>`;
+    if (!v) return lede('No gang works a place this small. The underworld lives in towns and cities.');
     const sum = Underworld.summary(player, world);
     let html = '';
 
@@ -80,70 +94,84 @@ function streetsTab(game, tile) {
     const w = v.watch;
     const own = (who) => {
         const g = v.gangs.find(x => x.id === w[who].bribedBy);
-        return g ? `<span style="color:#e0b040;">on ${esc(g.name)}'s payroll</span>` : '<span style="color:#7fd07f;">honest, for now</span>';
+        return g ? `<span style="color:#f0b35a;">on ${esc(g.name)}'s payroll</span>` : '<span style="color:#8fd18a;">honest, for now</span>';
     };
-    html += `<div style="${CARD}"><div style="display:flex; justify-content:space-between;"><strong>🛡️ The watch</strong><span>Crackdown ${v.crackdown}</span></div>${crackBar(v.crackdown)}`;
-    html += `<div style="${NOTE}">${esc(w.captain.name)}: ${own('captain')}. ${esc(w.magistrate.name)}: ${own('magistrate')}.</div>`;
-    html += `<div style="${NOTE}">Crime here stirs the crackdown: it raids gangs that haven't bought the captain, searches harder at the gate and spoils your jobs. It cools week by week.</div></div>`;
+    html += card(crackBar(v.crackdown)
+        + `<div style="font-size:12px; color:#cbbf9f; margin:4px 0 2px;">${esc(w.captain.name)}: ${own('captain')}. ${esc(w.magistrate.name)}: ${own('magistrate')}.</div>`
+        + `<div style="${NOTE}">Crime here stirs the crackdown: it raids gangs that haven't bought the captain, searches harder at the gate and spoils your jobs. It cools week by week.</div>`,
+    { icon: '🛡️', title: 'The watch', side: `Crackdown ${v.crackdown}`, tone: v.crackdown >= 60 ? 'bad' : v.crackdown >= 35 ? 'warn' : 'good' });
 
     // The gangs
-    html += '<h5 style="margin:10px 0 4px;">🔪 Who runs the streets</h5>';
+    html += sectionHead('🔪 Who runs the streets');
     for (const g of v.gangs) {
         const mine = v.gang && v.gang.id === g.id;
-        html += `<div style="${CARD}${mine ? ' border-color: var(--gold);' : ''}"><div style="display:flex; justify-content:space-between; gap:6px;"><strong>${esc(g.name)}</strong><span style="color:#ccc;">${pct(g.turf)} of the streets</span></div>`;
-        const tags = [`boss ${g.bossIsYou ? '<span style="color:var(--gold);">you</span>' : esc(g.boss)}`, `${g.crew} crew`, `strength ${g.strength}`];
+        const tags = [`boss ${g.bossIsYou ? '<span style="color:#ffcf6a;">you</span>' : esc(g.boss)}`, `${g.crew} crew`, `strength ${g.strength}`];
         if (g.dens) tags.push(`${g.dens} den${g.dens === 1 ? '' : 's'}`);
         if (g.smuggling) tags.push('runs contraband');
-        if (g.wars) tags.push(`<span style="color:#e05050;">at war</span>`);
+        if (g.wars) tags.push(`<span style="color:#e0846a;">at war</span>`);
         if (g.ownsCaptain) tags.push('owns the captain');
         if (g.ownsMagistrate) tags.push('owns the magistrate');
         if (g.raids) tags.push(`raided ${g.raids}×`);
-        html += `<div style="${NOTE}">${tags.join(' · ')}</div>`;
-        html += booksHtml(g.books);
+        let body = `<div style="${NOTE}">${tags.join(' · ')}</div>`;
+        body += booksHtml(g.books);
+        const acts = [];
         if (!v.membership && !g.banned && !g.bossIsYou) {
             const can = sum.contactMet || sum.member;
-            html += btn(can, `window._uw.gang('join','${g.id}')`, `Ask to run with them`, BTN_GOLD, can ? '' : 'Find a guild contact first (a barkeep, "special work")');
+            acts.push(row(can, `window._uw.gang('join','${g.id}')`, { icon: '🤝', name: 'Ask to run with them', why: 'Find a guild contact first (a barkeep, "special work")' }));
         }
-        if (g.banned) html += `<div style="font-size:11px; color:#e05050;">They will kill you on sight.</div>`;
+        if (g.banned) body += `<div style="font-size:11px; color:#e0846a; margin-top:2px;">They will kill you on sight.</div>`;
         if (v.boss && !mine) {
-            if (g.atWarWithYou) html += btn(true, `window._uw.gang('truce','${g.id}')`, '🕊️ Offer a truce (tribute)');
-            else if (g.truceUntil > (world.day || 0)) html += `<span style="${NOTE}">Truce until day ${g.truceUntil}.</span>`;
-            else html += btn(true, `window._uw.gang('war','${g.id}')`, '⚔️ Go to war', BTN_RED);
+            if (g.atWarWithYou) acts.push(row(true, `window._uw.gang('truce','${g.id}')`, { icon: '🕊️', name: 'Offer a truce (tribute)', side: 'tribute', tone: 'gold' }));
+            else if (g.truceUntil > (world.day || 0)) body += `<div style="${NOTE}">Truce until day ${g.truceUntil}.</div>`;
+            else acts.push(row(true, `window._uw.gang('war','${g.id}')`, { icon: '⚔️', name: 'Go to war', side: 'war', tone: 'bad' }));
         }
-        html += '</div>';
+        if (acts.length) body += rowList(acts);
+        html += card(body, { title: esc(g.name) + (mine ? ' <span style="font-size:10px; color:#ffcf6a; letter-spacing:1px;">YOURS</span>' : ''), side: `${pct(g.turf)} of the streets`, tone: mine ? 'gold' : null });
     }
     if (!v.membership) {
         const F = Gangs.c('found', {});
         const fee = (Gangs.cfg().recruitFee || 25) * (F.crew || 4) + (F.seed || 200);
-        html += `<div style="${CARD}"><strong>👥 A crew of your own</strong><div style="${NOTE}">Prowler or above in the guild: ${fee}g buys a purse and ${F.crew || 4} men. The biggest crew in town won't like it.</div>`;
-        html += btn((player.gold || 0) >= fee, 'window._uw.gang(\'found\')', `Found a crew here (${fee}g)`) + '</div>';
+        const can = (player.gold || 0) >= fee;
+        html += rowList([row(can, 'window._uw.gang(\'found\')', {
+            icon: '👥', name: 'Found a crew here',
+            desc: `A crew of your own. Prowler or above in the guild: ${fee}g buys a purse and ${F.crew || 4} men. The biggest crew in town won't like it.`,
+            why: `A crew of your own costs ${fee}g: a purse and ${F.crew || 4} men. Prowler or above in the guild.`,
+            side: `${fee}g`, tone: can ? 'gold' : 'bad',
+        })], '👥 A crew of your own');
     }
 
     // Your place in it
     if (v.gang) {
         const g = v.gang;
-        html += `<h5 style="margin:10px 0 4px;">${v.rank.icon} You: ${v.rank.name} of ${esc(g.name)}</h5>`;
+        html += sectionHead(`${v.rank.icon} You: ${v.rank.name} of ${esc(g.name)}`);
         if (!v.boss) {
             const nx = v.next ? `${v.membership.standing}/${v.next.standing} standing to ${v.next.icon} ${v.next.name}` : 'as high as a man gets under the boss';
-            html += `<div style="${NOTE}">${nx}. Pay: ${Gangs.rankDef(v.membership.rank).weeklyPay}g a week from the purse (dirty coin).</div>`;
+            html += lede(`${nx}. Pay: ${Gangs.rankDef(v.membership.rank).weeklyPay}g a week from the purse (dirty coin).`);
         }
         // Errands
-        html += '<div style="margin-top:4px;">';
+        const errands = [];
         for (const e of Gangs.errands(player, world, tile)) {
             const can = !e.locked && (player.actionPoints || 0) >= e.ap;
-            html += `<div style="${CARD}"><div style="display:flex; justify-content:space-between; gap:6px;"><strong>${e.icon} ${esc(e.name)}</strong><span style="color:#ccc; white-space:nowrap;">${pct(e.odds)} · ${e.ap} AP</span></div>`;
-            html += `<div style="${NOTE}">${esc(e.description)}</div>`;
-            html += can ? btn(true, `window._uw.errand('${e.id}')`, 'Do it', BTN_RED) : `<span style="font-size:11px; color:#999;">${esc(e.locked || 'Not enough action points')}</span>`;
-            html += '</div>';
+            errands.push(row(can, `window._uw.errand('${e.id}')`, {
+                icon: e.icon, name: esc(e.name), desc: esc(e.description),
+                why: `${esc(e.description)} — ${esc(e.locked || 'Not enough action points')}`,
+                side: `${pct(e.odds)} · ${e.ap} AP`, tone: 'bad',
+            }));
         }
-        html += '</div>';
+        html += rowList(errands, 'Errands');
         if (!v.boss) {
             const top = v.membership.rank >= Gangs.BOSS_RANK() - 1;
             const odds = Gangs.challengeOdds(player, world, tile);
-            html += `<div style="${CARD}"><strong>👑 Move against ${esc(g.boss.name)}</strong><div style="${NOTE}">A lieutenant may try for the gang: your fighting, your leadership, your standing and the lieutenants who are tired of the boss count. Fail, and you're bleeding in the gutter and hunted.</div>`;
-            html += top ? btn((player.actionPoints || 0) >= 4, 'window._uw.gang(\'challenge\')', `Take the gang: ${pct(odds)} (4 AP)`, BTN_RED) : `<span style="${NOTE}">Only a lieutenant can.</span>`;
-            html += '</div>';
-            html += btn(true, 'window._uw.gang(\'leave\')', 'Walk away from the crew', BTN_DIM + ' cursor:pointer;');
+            const ap = (player.actionPoints || 0) >= 4;
+            const desc = 'A lieutenant may try for the gang: your fighting, your leadership, your standing and the lieutenants who are tired of the boss count. Fail, and you\'re bleeding in the gutter and hunted.';
+            html += rowList([
+                row(top && ap, 'window._uw.gang(\'challenge\')', {
+                    icon: '👑', name: `Move against ${esc(g.boss.name)}`, desc,
+                    why: top ? `${desc} Not enough action points.` : `${desc} Only a lieutenant can.`,
+                    side: top ? `Take the gang: ${pct(odds)} (4 AP)` : '—', tone: 'bad',
+                }),
+                row(true, 'window._uw.gang(\'leave\')', { icon: '🚶', name: 'Walk away from the crew' }),
+            ]);
         }
     }
 
@@ -151,9 +179,8 @@ function streetsTab(game, tile) {
     if (v.boss) html += bossSection(game, tile, v);
 
     if (v.log.length) {
-        html += '<h5 style="margin:10px 0 4px;">📓 On the street</h5><div style="font-size:11px; color:#bbb;">';
-        for (const e of v.log) html += `<div>Day ${e.day}: ${esc(e.text)}</div>`;
-        html += '</div>';
+        html += sectionHead('📓 On the street');
+        html += `<div style="font-size:11px; color:#cbbf9f;">${v.log.map(e => `<div style="padding:2px 0;"><span style="color:#9d937c;">Day ${e.day}:</span> ${esc(e.text)}</div>`).join('')}</div>`;
     }
     if (v.bossTowns.length) html += `<div style="${NOTE} margin-top:6px;">You are boss in: ${v.bossTowns.map(esc).join(', ')}.</div>`;
     return html;
@@ -163,60 +190,76 @@ function bossSection(game, tile, v) {
     const g = v.gang;
     const w = v.watch;
     const wk = g.week || {};
-    let html = '<h5 style="margin:10px 0 4px;">👑 The boss\'s hand</h5>';
-    html += `<div style="${CARD}"><div style="display:flex; justify-content:space-between;"><strong>💰 The purse</strong><span style="color:var(--gold);">${Math.floor(g.purse)}g</span></div>`;
+    let html = sectionHead('👑 The boss\'s hand');
+    let purseBody = '';
     if (wk.protection != null) {
         const parts = [`protection ${Math.floor(wk.protection)}g`, `dens ${Math.floor(wk.dens || 0)}g`, `black market ${Math.floor(wk.sales || 0)}g`, `resale ${Math.floor(wk.resale || 0)}g`, `wages −${Math.floor(wk.wages || 0)}g`];
         if (wk.bossCut != null) parts.push(`your cut ${wk.bossCut}g`);
         if (wk.smuggled) parts.push(`ran ${wk.smuggled.units} ${label(wk.smuggled.good)} in from ${esc(wk.smuggled.from)}`);
-        if (wk.raided) parts.push(`<span style="color:#e05050;">raided: −${wk.raided}g</span>`);
-        html += `<div style="${NOTE}">Last week: ${parts.join(' · ')}.</div>`;
+        if (wk.raided) parts.push(`<span style="color:#e0846a;">raided: −${wk.raided}g</span>`);
+        purseBody += `<div style="${NOTE}">Last week: ${parts.join(' · ')}.</div>`;
     }
-    html += `<div style="${NOTE}">Wages ${v.wages}g a week (${g.crew} crew and ${g.lieutenants.length} lieutenants). Unpaid men walk, and lieutenants sour.</div>`;
-    html += btn(g.purse >= 1, 'window._uw.gang(\'withdraw\',100)', 'Take 100g') + btn(g.purse >= 1, `window._uw.gang('withdraw',${Math.floor(g.purse)})`, 'Take it all');
-    html += btn((game.player.gold || 0) >= 100, 'window._uw.gang(\'deposit\',100)', 'Put in 100g') + '</div>';
+    purseBody += `<div style="${NOTE}">Wages ${v.wages}g a week (${g.crew} crew and ${g.lieutenants.length} lieutenants). Unpaid men walk, and lieutenants sour.</div>`;
+    purseBody += `<div style="margin-top:4px;">${btn(g.purse >= 1, 'window._uw.gang(\'withdraw\',100)', 'Take 100g')}${btn(g.purse >= 1, `window._uw.gang('withdraw',${Math.floor(g.purse)})`, 'Take it all')}`;
+    purseBody += `${btn((game.player.gold || 0) >= 100, 'window._uw.gang(\'deposit\',100)', 'Put in 100g', BTN_DARK)}</div>`;
+    html += card(purseBody, { icon: '💰', title: 'The purse', side: `${Math.floor(g.purse)}g`, tone: 'gold' });
 
     // The cut
     const cuts = Gangs.c('cuts', [0.1, 0.25, 0.4]);
-    html += `<div style="${CARD}"><strong>✂️ Your cut of the week's take</strong> <span style="${NOTE}">(more than ${pct(Gangs.c('lieutenants', {}).fairCut || 0.25)} sours the lieutenants)</span><div>`;
+    let cutBody = `<div style="${NOTE}">More than ${pct(Gangs.c('lieutenants', {}).fairCut || 0.25)} sours the lieutenants.</div><div>`;
     cuts.forEach((c, i) => {
-        html += `<button onclick="window._uw.gang('cut',${i})" style="${Math.abs(g.cut - c) < 0.001 ? BTN_GOLD : BTN_DIM + ' cursor:pointer;'}">${pct(c)}</button>`;
+        cutBody += `<button onclick="window._uw.gang('cut',${i})" style="${Math.abs(g.cut - c) < 0.001 ? BTN_GOLD : BTN_DARK}">${pct(c)}</button>`;
     });
-    html += '</div></div>';
+    cutBody += '</div>';
+    html += card(cutBody, { icon: '✂️', title: 'Your cut of the week\'s take', side: pct(g.cut || 0), tone: 'gold' });
 
     // Crew & lieutenants
     const fee = Gangs.cfg().recruitFee || 25;
-    html += `<div style="${CARD}"><strong>👥 Crew ${g.crew}/${v.crewCap}</strong> ${btn(g.purse >= fee * 2 && g.crew < v.crewCap, 'window._uw.gang(\'hire\',2)', `Sign 2 men (${fee * 2}g)`)}`;
     const L = Gangs.c('lieutenants', {});
-    for (const lt of g.lieutenants) {
-        const col = lt.loyalty >= 60 ? '#7fd07f' : lt.loyalty >= 30 ? '#e0b040' : '#e05050';
-        html += `<div style="display:flex; justify-content:space-between; align-items:center; gap:6px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">`;
-        html += `<span>🎖️ ${esc(lt.name)} <span style="${NOTE}">${esc(lt.role)}, skill ${lt.skill}${lt.ambition > 0.6 ? ', ambitious' : ''}</span> <span style="color:${col};">loyalty ${Math.round(lt.loyalty)}</span></span>`;
-        html += `<span>${btn(g.purse >= (L.bonusCost || 50), `window._uw.gang('bonus','${lt.id}')`, `Bonus ${L.bonusCost || 50}g`)}${btn(true, `window._uw.gang('purge','${lt.id}')`, 'Purge', BTN_RED)}</span></div>`;
-    }
-    html += `<div style="${NOTE}">A lieutenant below ${L.betrayBelow || 30} loyalty may inform, split off with men and coin, or move against you.</div></div>`;
+    const lts = g.lieutenants.map(lt => {
+        const col = lt.loyalty >= 60 ? '#8fd18a' : lt.loyalty >= 30 ? '#f0b35a' : '#e0846a';
+        return actRow({
+            icon: '🎖️', name: esc(lt.name),
+            desc: `${esc(lt.role)}, skill ${lt.skill}${lt.ambition > 0.6 ? ', ambitious' : ''} · <span style="color:${col};">loyalty ${Math.round(lt.loyalty)}</span>`,
+            side: btn(g.purse >= (L.bonusCost || 50), `window._uw.gang('bonus','${lt.id}')`, `Bonus ${L.bonusCost || 50}g`, BTN_GOLD + SMALL)
+                + btn(true, `window._uw.gang('purge','${lt.id}')`, 'Purge', BTN_RED + SMALL),
+        });
+    });
+    const canHire = g.purse >= fee * 2 && g.crew < v.crewCap;
+    html += rowList([
+        row(canHire, 'window._uw.gang(\'hire\',2)', {
+            icon: '👥', name: `Crew ${g.crew}/${v.crewCap}`, desc: `Sign 2 men (${fee * 2}g)`,
+            why: g.crew >= v.crewCap ? `Sign 2 men (${fee * 2}g) — the crew is full` : `Sign 2 men (${fee * 2}g) — the purse is short`,
+            side: `${fee * 2}g`, tone: 'gold',
+        }),
+        ...lts,
+    ], '👥 Crew & lieutenants');
+    html += `<div style="${NOTE}">A lieutenant below ${L.betrayBelow || 30} loyalty may inform, split off with men and coin, or move against you.</div>`;
 
     // The watch
-    html += `<div style="${CARD}"><strong>🛡️ Buy the watch</strong>`;
-    for (const who of ['captain', 'magistrate']) {
+    const watchRows = ['captain', 'magistrate'].map(who => {
         const ours = w[who].bribedBy === g.id;
         const fee2 = v.retainer[who];
         const what = who === 'captain' ? 'fewer searches, no raids on you, cheaper bribes, better odds on jobs' : 'an arrest in this town is dismissed after a night';
-        html += `<div style="display:flex; justify-content:space-between; align-items:center; gap:6px;"><span>${esc(w[who].name)} <span style="${NOTE}">${fee2}g/week: ${what}</span></span>`;
-        html += ours ? btn(true, `window._uw.gang('${who}')`, 'Stop paying', BTN_DIM + ' cursor:pointer;') : btn(g.purse >= fee2 * 2, `window._uw.gang('${who}')`, w[who].bribedBy ? `Turn him (${fee2 * 4}g)` : `Buy him (${fee2 * 2}g)`);
-        html += '</div>';
-    }
-    html += '</div>';
+        const desc = `${fee2}g/week: ${what}`;
+        if (ours) return row(true, `window._uw.gang('${who}')`, { icon: '🛡️', name: esc(w[who].name), desc, side: 'Stop paying', tone: 'good' });
+        const cost = w[who].bribedBy ? fee2 * 4 : fee2 * 2;
+        const verb = w[who].bribedBy ? `Turn him (${cost}g)` : `Buy him (${cost}g)`;
+        return row(g.purse >= fee2 * 2, `window._uw.gang('${who}')`, { icon: who === 'captain' ? '🛡️' : '⚖️', name: esc(w[who].name), desc, why: `${desc} — the purse is short`, side: verb, tone: 'gold' });
+    });
+    html += rowList(watchRows, '🛡️ Buy the watch');
 
     // Rackets
     const D = Gangs.c('dens', {});
-    html += `<div style="${CARD}"><strong>🎲 Rackets</strong><div style="${NOTE}">Protection on ${pct(g.turf)} of the streets. ${g.dens} den${g.dens === 1 ? '' : 's'}; the realm's law on vice decides what dens take and draw.</div>`;
-    html += btn(g.purse >= (D.openCost || 220), 'window._uw.gang(\'den\')', `🎲 Open a dice den (${D.openCost || 220}g)`);
-    html += btn(true, 'window._uw.gang(\'smuggle\')', g.smuggling ? '📦 Stop the border runs' : '📦 Run contraband over the border weekly');
+    html += sectionHead('🎲 Rackets');
+    html += `<div style="${NOTE}">Protection on ${pct(g.turf)} of the streets. ${g.dens} den${g.dens === 1 ? '' : 's'}; the realm's law on vice decides what dens take and draw.</div>`;
+    html += rowList([
+        row(g.purse >= (D.openCost || 220), 'window._uw.gang(\'den\')', { icon: '🎲', name: 'Open a dice den', why: 'The purse is short', side: `${D.openCost || 220}g`, tone: 'gold' }),
+        row(true, 'window._uw.gang(\'smuggle\')', { icon: '📦', name: g.smuggling ? 'Stop the border runs' : 'Run contraband over the border weekly', side: g.smuggling ? 'running' : '', tone: 'good' }),
+    ]);
     const stash = Object.entries(g.stash || {}).filter(([, n]) => n >= 1);
     if (stash.length) html += `<div style="${NOTE}">Stash: ${stash.map(([id, n]) => `${Math.floor(n)} ${label(id)}`).join(', ')}.</div>`;
     if ((g.fenced || []).length) html += `<div style="${NOTE}">Cooling at the fence: ${g.fenced.map(f => `${f.qty} ${label(f.good)}`).join(', ')}.</div>`;
-    html += '</div>';
     return html;
 }
 
@@ -232,105 +275,104 @@ function guildTab(game, tile) {
     const guildHere = Underworld.hasGuildPresence(settlement);
     let html = '';
 
-    html += `<div style="${CARD}">`;
     if (sum.member) {
         const next = sum.next ? ` — ${sum.standing}/${sum.next.standing} to ${sum.next.icon} ${sum.next.name}` : ' — the top of the guild';
-        html += `<strong style="color:var(--gold);">${sum.rank.icon} ${sum.rank.name}</strong> of ${sum.guildName}<span style="color:#999;">${next}</span>`;
-        if (sum.known) html += '<div style="font-size:11px; color:#e0b040;">Known as a guild man: guards and priests are cool to you, honorable lords frown, cunning ones smile.</div>';
-        if (Underworld.isGuildmaster(player)) html += '<div style="font-size:11px; color:#7fd07f;">As Guildmaster the gangs of the realms pay you a weekly tithe out of their purses.</div>';
+        html += lede(`<strong style="color:#ffcf6a;">${sum.rank.icon} ${sum.rank.name}</strong> of ${sum.guildName}<span style="color:#9d937c;">${next}</span>`);
+        if (sum.known) html += '<div style="font-size:11px; color:#f0b35a; margin:2px 0;">Known as a guild man: guards and priests are cool to you, honorable lords frown, cunning ones smile.</div>';
+        if (Underworld.isGuildmaster(player)) html += '<div style="font-size:11px; color:#8fd18a; margin:2px 0;">As Guildmaster the gangs of the realms pay you a weekly tithe out of their purses.</div>';
     } else if (sum.contactMet) {
         const fee = Underworld.cfg('guild').joinFee;
-        html += `You have a contact in ${sum.guildName}, but you are not one of them.`;
+        html += lede(`You have a contact in ${sum.guildName}, but you are not one of them.`);
         html += guildHere
-            ? `<div><button onclick="window._uw.join()" style="${(player.gold || 0) >= fee ? BTN_GOLD : BTN_DIM}">Swear the oath (${fee}g)</button></div>`
-            : '<div style="color:#999;">The guild meets in towns and cities.</div>';
+            ? rowList([actRow({ icon: '🗝️', name: 'Swear the oath', desc: `Join ${sum.guildName}`, side: `${fee}g`, tone: (player.gold || 0) >= fee ? 'gold' : 'bad', attrs: 'onclick="window._uw.join()"' })])
+            : `<div style="${NOTE}">The guild meets in towns and cities.</div>`;
     } else {
-        html += `<span style="color:#999;">You have no friends in ${sum.guildName}. Ask a barkeep in a town or city tavern about "special work".</span>`;
+        html += lede(`You have no friends in ${sum.guildName}. Ask a barkeep in a town or city tavern about "special work".`);
     }
-    html += '</div>';
 
     // Heat
     const lvl = Underworld.heatLevel(localHeat);
-    html += '<h5 style="margin:10px 0 4px;">🔥 Heat</h5>';
-    html += `<div style="${CARD}"><div style="display:flex; justify-content:space-between;"><span>${kingdom ? kingdom.name : 'Here'}</span>`;
-    html += `<span style="color:${LEVEL_COLOR[lvl]};">${Math.round(localHeat)} · ${LEVEL_LABEL[lvl]}</span></div>${heatBar(localHeat, lvl)}`;
+    html += sectionHead('🔥 Heat');
+    html += card(heatBar(localHeat, lvl), { title: kingdom ? kingdom.name : 'Here', side: `${Math.round(localHeat)} · ${LEVEL_LABEL[lvl]}`, tone: LEVEL_TONE[lvl] });
+    const heatRows = [];
     const quote = Underworld.bribeCost(player, world, tile);
     if (quote) {
-        html += `<button onclick="window._uw.bribe()" style="${(player.gold || 0) >= quote.gold ? BTN_GOLD : BTN_DIM}">💰 Bribe the watch: ${quote.gold}g (-${Math.round(quote.relief)} heat, ${pct(quote.fail)} it backfires)</button>`;
+        heatRows.push(actRow({
+            icon: '💰', name: 'Bribe the watch', desc: `-${Math.round(quote.relief)} heat, ${pct(quote.fail)} it backfires`,
+            side: `${quote.gold}g`, tone: (player.gold || 0) >= quote.gold ? 'gold' : 'bad', attrs: 'onclick="window._uw.bribe()"',
+        }));
     }
     if (localHeat > 0) {
         const low = sum.lyingLow && sum.lyingLow.kingdom === settlement.kingdom;
-        html += low
-            ? `<div style="font-size:11px; color:#7fd07f;">Lying low until day ${sum.lyingLow.untilDay} — heat cools fast, no jobs here.</div>`
-            : `<button onclick="window._uw.lieLow()" style="${BTN_GOLD}">🕯️ Lie low (${Underworld.cfg('heat').lieLowDays} days)</button>`;
+        heatRows.push(low
+            ? actRow({ icon: '🕯️', name: 'Lying low', desc: `<span style="color:#8fd18a;">Lying low until day ${sum.lyingLow.untilDay} — heat cools fast, no jobs here.</span>`, side: `day ${sum.lyingLow.untilDay}`, tone: 'good' })
+            : actRow({ icon: '🕯️', name: `Lie low (${Underworld.cfg('heat').lieLowDays} days)`, side: `${Underworld.cfg('heat').lieLowDays} days`, attrs: 'onclick="window._uw.lieLow()"' }));
     }
-    html += '</div>';
+    html += rowList(heatRows);
     const others = sum.heat.filter(h => h.kingdomId !== settlement.kingdom);
     if (others.length) {
-        html += '<div style="font-size:11px;">';
-        for (const h of others) {
-            html += `<div style="display:flex; justify-content:space-between;"><span>${h.name}</span><span style="color:${LEVEL_COLOR[h.level]};">${h.heat} · ${LEVEL_LABEL[h.level]}</span></div>${heatBar(h.heat, h.level)}`;
-        }
-        html += '</div>';
+        html += `<div style="font-size:11px; margin-bottom:8px;">${others.map(h => kv(h.name, `<span style="color:${LEVEL_COLOR[h.level]};">${h.heat} · ${LEVEL_LABEL[h.level]}</span>`) + heatBar(h.heat, h.level)).join('')}</div>`;
     }
 
     // Jobs
     if (sum.member && guildHere) {
-        html += '<h5 style="margin:10px 0 4px;">🗝️ Jobs</h5>';
+        const jobs = [];
         for (const job of Underworld.availableJobs(player, world, tile)) {
             if (job.id === 'heist') continue;
             const can = !job.locked && (player.actionPoints || 0) >= job.ap;
-            html += `<div style="${CARD}"><div style="display:flex; justify-content:space-between; gap:6px;"><strong>${job.icon} ${job.name}</strong>`;
-            html += `<span style="color:#ccc; white-space:nowrap;">${pct(job.odds)} · ${job.ap} AP</span></div>`;
-            html += `<div style="color:#aaa; font-size:11px;">${job.description}</div>`;
-            html += can
-                ? `<button onclick="window._uw.job('${job.id}')" style="${BTN_RED}">Do it</button>`
-                : `<span style="font-size:11px; color:#999;">${job.locked || 'Not enough action points'}</span>`;
-            html += '</div>';
+            jobs.push(row(can, `window._uw.job('${job.id}')`, {
+                icon: job.icon, name: job.name, desc: job.description,
+                why: `${job.description} — ${job.locked || 'Not enough action points'}`,
+                side: `${pct(job.odds)} · ${job.ap} AP`, tone: 'bad',
+            }));
         }
+        html += rowList(jobs, '🗝️ Jobs');
 
         // Heist
         const heistJob = Underworld.availableJobs(player, world, tile).find(j => j.id === 'heist');
         if (heistJob) {
-            html += `<h5 style="margin:10px 0 4px;">${heistJob.icon} Heist</h5><div style="${CARD}">`;
+            html += sectionHead(`${heistJob.icon} Heist`);
             const plan = sum.heist;
             if (plan) {
                 const here = plan.key === `${tile.q},${tile.r}`;
-                html += `<strong>${plan.name}</strong> <span style="color:#999;">(planned day ${plan.startedDay})</span>`;
-                html += `<div style="font-size:11px; color:#aaa;">Done: ${plan.steps.length ? plan.steps.map(label).join(', ') : 'nothing yet'} · +${pct(plan.bonus)} odds</div>`;
+                html += card(`<div style="${NOTE}">Done: ${plan.steps.length ? plan.steps.map(label).join(', ') : 'nothing yet'} · +${pct(plan.bonus)} odds</div>`
+                    + (here ? '' : '<div style="font-size:11px; color:#f0b35a;">Travel back to the target to keep planning or strike.</div>'),
+                { icon: heistJob.icon, title: plan.name, side: `planned day ${plan.startedDay}` });
+                const steps = [];
                 if (here) {
                     for (const s of plan.open) {
                         const ok = (player.gold || 0) >= (s.gold || 0) && (player.actionPoints || 0) >= s.ap;
-                        html += `<button ${ok ? `onclick="window._uw.step('${s.id}')"` : 'disabled'} style="${ok ? BTN_GOLD : BTN_DIM}" title="${s.description}">${s.icon} ${s.name} (${s.gold ? `${s.gold}g, ` : ''}${s.ap} AP, +${pct(s.bonus)})</button>`;
+                        steps.push(row(ok, `window._uw.step('${s.id}')`, {
+                            icon: s.icon, name: s.name, desc: s.description, title: s.description,
+                            why: `${s.description} — ${(player.gold || 0) >= (s.gold || 0) ? 'Not enough action points' : 'Not enough gold'}`,
+                            side: `${s.gold ? `${s.gold}g, ` : ''}${s.ap} AP, +${pct(s.bonus)}`, tone: 'gold',
+                        }));
                     }
                     const odds = Underworld.heistOdds(player, world, tile);
-                    html += `<div style="margin-top:6px;"><button onclick="window._uw.strike()" style="${BTN_RED}">Strike now — ${pct(odds)} (${heistJob.ap} AP)</button>`;
-                } else {
-                    html += '<div style="font-size:11px; color:#e0b040;">Travel back to the target to keep planning or strike.</div><div>';
+                    steps.push(row(true, 'window._uw.strike()', { icon: '💎', name: 'Strike now', side: `${pct(odds)} (${heistJob.ap} AP)`, tone: 'bad' }));
                 }
-                html += `<button onclick="window._uw.abandon()" style="${BTN_DIM} cursor:pointer;">Call it off</button></div>`;
+                steps.push(row(true, 'window._uw.abandon()', { icon: '🚫', name: 'Call it off' }));
+                html += rowList(steps);
             } else if (heistJob.locked) {
-                html += `<span style="color:#999;">${heistJob.locked}</span>`;
+                html += `<div style="${NOTE}">${heistJob.locked}</div>`;
             } else {
-                html += '<div style="color:#aaa; font-size:11px;">Pick a mark, then plan: case it, buy tools, hire a crew, bribe an inside man, plan the getaway. Each step raises the odds. The gold is the town\'s (or the crown\'s): a poor town has less to take.</div>';
-                for (const t of Underworld.heistTargets(settlement)) {
-                    html += `<button onclick="window._uw.heist('${t.id}')" style="${BTN_GOLD}">${t.icon} ${t.name} (${t.gold[0]}–${t.gold[1]}g)</button>`;
-                }
+                html += `<div style="${NOTE}">Pick a mark, then plan: case it, buy tools, hire a crew, bribe an inside man, plan the getaway. Each step raises the odds. The gold is the town's (or the crown's): a poor town has less to take.</div>`;
+                html += rowList(Underworld.heistTargets(settlement).map(t => row(true, `window._uw.heist('${t.id}')`, {
+                    icon: t.icon, name: t.name, side: `${t.gold[0]}–${t.gold[1]}g`, tone: 'gold',
+                })));
             }
-            html += '</div>';
         }
     }
 
     if (sum.rackets.length) {
-        html += '<h5 style="margin:10px 0 4px;">🗡️ Your own rackets</h5><div style="font-size:11px;">';
-        for (const rk of sum.rackets) html += `<div>${rk.name}: up to ${rk.weekly}g / week (from the shopkeepers' purse)</div>`;
-        html += '<div style="color:#aaa;">A town\'s gangs run a freelancer off their streets unless you run with one of them.</div></div>';
+        html += sectionHead('🗡️ Your own rackets');
+        html += `<div style="font-size:11px;">${sum.rackets.map(rk => kv(rk.name, `up to ${rk.weekly}g / week`)).join('')}</div>`;
+        html += `<div style="${NOTE}">(from the shopkeepers' purse) A town's gangs run a freelancer off their streets unless you run with one of them.</div>`;
     }
 
     if (sum.log.length) {
-        html += '<h5 style="margin:10px 0 4px;">📓 Lately</h5><div style="font-size:11px; color:#bbb;">';
-        for (const e of sum.log) html += `<div>Day ${e.day}: ${e.text}</div>`;
-        html += '</div>';
+        html += sectionHead('📓 Lately');
+        html += `<div style="font-size:11px; color:#cbbf9f;">${sum.log.map(e => `<div style="padding:2px 0;"><span style="color:#9d937c;">Day ${e.day}:</span> ${e.text}</div>`).join('')}</div>`;
     }
     return html;
 }
@@ -345,47 +387,49 @@ function marketTab(game, tile) {
     const kingdom = settlement.kingdom && world.getKingdom ? world.getKingdom(settlement.kingdom) : null;
     const fenceHere = Underworld.canUseFence(player, settlement);
     let html = '';
-    if (!fenceHere) html += `<div style="${NOTE}">You know no fence here. A guild contact opens the fence and the black market to you.</div>`;
+    if (!fenceHere) html += lede('You know no fence here. A guild contact opens the fence and the black market to you.');
     const buyer = fenceHere ? Gangs.buyer(player, world, tile) : null;
-    if (buyer) html += `<div style="${NOTE}">The buyer here is ${esc(buyer.name)}: they pay from a purse of ${Math.floor(buyer.purse)}g.</div>`;
+    if (buyer) html += lede(`The buyer here is ${esc(buyer.name)}: they pay from a purse of ${Math.floor(buyer.purse)}g.`);
 
     if (fenceHere) {
-        html += '<h5 style="margin:10px 0 4px;">🧺 The Fence</h5>';
+        html += sectionHead('🧺 The Fence');
         html += `<div style="${NOTE}">Takes anything, hot or not, at ${pct(Underworld.fenceRate(player))} of its worth. The goods go back onto the market once they're cold.</div>`;
         const hotIds = new Set(sum.hot.map(h => h.item));
         const goods = Object.entries(player.inventory || {}).filter(([id, q]) => id !== 'gold' && q > 0)
             .sort((a, b) => (hotIds.has(b[0]) ? 1 : 0) - (hotIds.has(a[0]) ? 1 : 0));
-        if (!goods.length) html += '<div style="color:#999;">You carry nothing to sell.</div>';
-        for (const [id, qty] of goods.slice(0, 14)) {
+        if (!goods.length) html += `<div style="${NOTE}">You carry nothing to sell.</div>`;
+        html += rowList(goods.slice(0, 14).map(([id, qty]) => {
             const hot = sum.hot.find(h => h.item === id);
             const price = Underworld.fencePrice(player, id, world, tile);
-            html += '<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += `<span>${label(id)} ×${qty}${hot ? ` <span style="color:#e08040;">🔥 hot ${hot.qty} (${hot.daysLeft}d)</span>` : ''}</span>`;
-            html += `<span><span style="color:var(--gold);">${price}g</span> <button onclick="window._uw.fence('${id}', 1)" style="${BTN_GOLD}">1</button>`;
-            if (qty > 1) html += `<button onclick="window._uw.fence('${id}', ${qty})" style="${BTN_GOLD}">All</button>`;
-            html += '</span></div>';
-        }
+            return actRow({
+                icon: hot ? '🔥' : '📦', name: `${label(id)} ×${qty}`,
+                desc: hot ? `<span style="color:#e0a060;">hot ${hot.qty} (${hot.daysLeft}d)</span>` : '',
+                side: `<span class="pk-price">${price}<small>g</small></span> <button onclick="window._uw.fence('${id}', 1)" style="${BTN_GOLD}${SMALL}">1</button>`
+                    + (qty > 1 ? `<button onclick="window._uw.fence('${id}', ${qty})" style="${BTN_GOLD}${SMALL}">All</button>` : ''),
+            });
+        }));
 
         const b = Underworld.blockadeAt(world, tile);
-        html += '<h5 style="margin:10px 0 4px;">🏴‍☠️ The Black Market</h5>';
+        html += sectionHead('🏴‍☠️ The Black Market');
         const notes = ['Prices follow the gangs\' stash in town against what the town wants: scarce goods sell dear, a glut cheap'];
         if (b.blockaded) notes.push(b.closedPort ? 'The port is sealed by enemy fleets — anything that slips through sells dear, and the watch is everywhere' : 'The realm is blockaded — prices and patrols are up');
         if (sum.leanSeason) notes.push('Lean season — food and contraband fetch more');
-        html += `<div style="font-size:11px; color:#e0b040;">${notes.join('. ')}.</div>`;
+        html += `<div style="font-size:11px; color:#f0b35a; margin:2px 0;">${notes.join('. ')}.</div>`;
         const offers = Underworld.blackMarketOffers(player, world, tile);
-        if (!offers.length) html += '<div style="color:#999;">Nothing to offer them (hot goods go to the fence).</div>';
-        for (const o of offers.slice(0, 14)) {
-            html += '<div style="display:flex; align-items:center; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += `<span>${label(o.item)} ×${o.qty} <span style="color:${STATUS_COLOR[o.status]}; font-size:10px;">${o.status}</span></span>`;
-            html += `<span><span style="color:var(--gold);">${o.price}g</span> <span style="color:#999; font-size:10px;">${pct(o.risk)} risk</span> <button onclick="window._uw.bm('${o.item}', 1)" style="${BTN_RED}">Sell 1</button></span></div>`;
-        }
+        if (!offers.length) html += `<div style="${NOTE}">Nothing to offer them (hot goods go to the fence).</div>`;
+        html += rowList(offers.slice(0, 14).map(o => actRow({
+            icon: '🏴‍☠️', name: `${label(o.item)} ×${o.qty}`,
+            desc: `<span style="color:${STATUS_COLOR[o.status]};">${o.status}</span> · ${pct(o.risk)} risk`,
+            side: `<span class="pk-price">${o.price}<small>g</small></span> <button onclick="window._uw.bm('${o.item}', 1)" style="${BTN_RED}${SMALL}">Sell 1</button>`,
+        })));
     }
 
     const list = Underworld.contrabandList(kingdom);
     if (list.illegal.length || list.tariff.length) {
-        html += `<h5 style="margin:10px 0 4px;">📜 Contraband in ${kingdom ? kingdom.name : 'these lands'}</h5><div style="font-size:11px;">`;
-        if (list.illegal.length) html += `<div><span style="color:${STATUS_COLOR.illegal};">Banned:</span> ${list.illegal.map(label).join(', ')}</div>`;
-        if (list.tariff.length) html += `<div><span style="color:${STATUS_COLOR.tariff};">Tariffed:</span> ${list.tariff.map(label).join(', ')}</div>`;
+        html += sectionHead(`📜 Contraband in ${kingdom ? kingdom.name : 'these lands'}`);
+        html += '<div style="font-size:11px;">';
+        if (list.illegal.length) html += kv(`<span style="color:${STATUS_COLOR.illegal};">Banned</span>`, list.illegal.map(label).join(', '));
+        if (list.tariff.length) html += kv(`<span style="color:${STATUS_COLOR.tariff};">Tariffed</span>`, list.tariff.map(label).join(', '));
         html += '</div>';
     }
     return html;
@@ -399,17 +443,24 @@ function coinTab(game, tile) {
     const dirty = Gangs.dirty(player);
     const cap = Gangs.launderCapacity(player, world, tile);
     const D = Gangs.c('dirty', {});
-    let html = `<div style="${CARD}"><div style="display:flex; justify-content:space-between;"><strong>🧼 Dirty coin</strong><span style="color:${dirty > 0 ? '#e0b040' : '#7fd07f'};">${Math.floor(dirty)}g of ${Math.floor(player.gold || 0)}g</span></div>`;
-    html += `<div style="${NOTE}">Every coin from crime is dirty until it's washed. A guard search takes ${pct(D.seizeOnSearch || 0.5)} of it and an arrest ${pct(D.seizeOnArrest || 0.7)}; from ${D.unexplainedFrom || 1500}g the talk about your money brings heat every week. Spending spends the dirty coin first.</div></div>`;
-    html += `<div style="${CARD}"><strong>🏠 Fronts here</strong>`;
+    let html = lede(`Every coin from crime is dirty until it's washed. A guard search takes ${pct(D.seizeOnSearch || 0.5)} of it and an arrest ${pct(D.seizeOnArrest || 0.7)}; from ${D.unexplainedFrom || 1500}g the talk about your money brings heat every week. Spending spends the dirty coin first.`);
+    html += chips([
+        { icon: '🧼', label: 'Dirty coin', value: `${Math.floor(dirty)}g of ${Math.floor(player.gold || 0)}g`, cls: dirty > 0 ? 'gold' : '' },
+        cap.fronts.length ? ['🏠', 'Fronts', cap.fronts.length] : null,
+        cap.fronts.length ? ['⚖️', 'Room this week', `${cap.left}g`] : null,
+    ]);
     if (!cap.fronts.length) {
+        html += sectionHead('🏠 Fronts here');
         html += `<div style="${NOTE}">You own no front in this town. A tavern, inn, guest house, trading post, brewery or any shop you own washes coin through its books; so do your gang's dice dens if you're the boss.</div>`;
     } else {
-        html += `<div style="${NOTE}">${cap.fronts.map(f => `${esc(f.name)} (${f.cap}g a week)`).join(', ')}. ${cap.left}g more can go through this week. The fee, ${pct(cap.fee)}, goes out to the town as the books' false trade.</div>`;
+        html += rowList(cap.fronts.map(f => actRow({ icon: '🏠', name: esc(f.name), side: `${f.cap}g a week` })), '🏠 Fronts here');
+        html += `<div style="${NOTE}">${cap.left}g more can go through this week. The fee, ${pct(cap.fee)}, goes out to the town as the books' false trade.</div>`;
         const amt = Math.min(Math.floor(dirty), cap.left);
-        html += btn(amt > 0, `window._uw.launder(${amt})`, `Launder ${amt}g (fee ${Math.ceil(amt * cap.fee)}g)`);
+        html += rowList([row(amt > 0, `window._uw.launder(${amt})`, {
+            icon: '🧼', name: `Launder ${amt}g`, desc: `fee ${Math.ceil(amt * cap.fee)}g`, why: `fee ${Math.ceil(amt * cap.fee)}g — nothing to wash`,
+            side: `${amt}g`, tone: 'gold',
+        })]);
     }
-    html += '</div>';
     return html;
 }
 
@@ -418,6 +469,8 @@ const TABS = [['streets', '🔪 Streets'], ['guild', '🗝️ Guild'], ['market'
 Object.assign(ActionMenu, {
     /** The Underworld panel for the settlement on `tile`; `tab` is streets / guild / market / coin. */
     showUnderworldPanel(game, tile, tab = null) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'underworld', tile)) return;
         const player = game.player;
         const world = game.world;
         const settlement = tile && tile.settlement;

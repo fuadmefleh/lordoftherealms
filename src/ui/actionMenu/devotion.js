@@ -8,14 +8,20 @@ import { Religion } from './_imports.js';
 import { Devotion } from '../../systems/devotion.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF, CARD, esc, chips } from './uiKit.js';
+import { BTN_GOLD, esc, chips, lede, sectionHead, card, actRow, rowList, price, purse } from './uiKit.js';
 
-// The panel kit's section heading (styles.css .pk-head), inline so the temple card can share it
-const HEAD = 'font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 6px; color: var(--gold);';
-const NOTE = 'font-size: 11px; color: var(--text-secondary); margin: 2px 0;';
+// In the action menu's voice (ui/actionMenu/uiKit.js): cards for what happened,
+// one row a thing to do, greyed with its reason when it can't be done
+const NOTE = 'font-size: 11px; color: #9d937c; margin: 2px 0;';
 
-function _btn(ok, label, call, style = BTN_GOLD, why = '') {
-    return ok ? `<button onclick="${call}" style="${style}">${label}</button>` : `<button disabled title="${esc(why)}" style="${BTN_OFF}">${label}</button>`;
+/** A row that runs `call` (an inline onclick) when `ok`; greyed with `why` when not. */
+function _row(ok, call, o) {
+    return actRow({ ...o, off: !ok, attrs: ok ? `onclick="${call}"` : '' });
+}
+
+/** The panel's closing button (the one real button left: it ends the view). */
+function _continue(act) {
+    return `<button data-am-act="${act}" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 8px;">Continue</button>`;
 }
 
 function _signed(n) {
@@ -40,29 +46,34 @@ export const DevotionPanel = {
 
     /** The outcome of one prayer/meditation as HTML (for the meditation result and the furniture panels). */
     resultHtml(res) {
-        let h = '<div style="text-align: left; padding: 8px 12px; background: rgba(255,255,255,0.04); border-radius: 6px; margin-bottom: 8px;">';
-        if (res.heal) h += `<div>❤️ Healed: <span style="color: #2ecc71;">+${res.heal} HP</span></div>`;
-        h += `<div>☯️ Karma: <span style="color: #3498db;">${res.karma ? `+${res.karma}` : 'none'}</span>${res.karma ? '' : ' <span style="font-size: 11px; color: var(--text-muted);">(no more today)</span>'}</div>`;
-        if (res.faith) h += `<div style="color: #f5c542;">🙏 Your faith deepened (+${res.faith}).</div>`;
-        if (res.intelligence) h += `<div style="color: #f5c542;">🧠 Your mind feels sharper (+${res.intelligence}).</div>`;
-        if (res.standing) h += `<div style="${NOTE}">The clergy's regard for you grows (+${res.standing}).</div>`;
-        if (res.fine) h += `<div style="color: #e07070;">💰 Fined ${res.fine} gold.</div>`;
-        if (res.harm) h += `<div style="color: #e07070;">🔴 −${res.harm} health.</div>`;
-        for (const n of res.notes || []) h += `<div style="${NOTE}">${esc(n)}</div>`;
-        h += '</div>';
-        if (res.omen) h += `<div style="${CARD} border-color: rgba(155,89,182,0.5);"><strong>${res.omen.icon} An omen</strong><div style="font-size: 12px; font-style: italic; margin-top: 4px;">${esc(res.omen.text)}</div>${res.omen.q != null ? '<div style="font-size: 10px; color: var(--text-muted);">The place is marked on your map.</div>' : ''}</div>`;
+        let h = chips([
+            res.heal ? { icon: '❤️', label: 'Healed', value: `<span style="color: #8fd18a;">+${res.heal} HP</span>` } : null,
+            { icon: '☯️', label: 'Karma', value: res.karma ? `+${res.karma}` : 'none', cls: res.karma ? 'gold' : 'dim' },
+        ]);
+        if (!res.karma) h += `<div style="${NOTE}">(no more today)</div>`;
+        const lines = [];
+        if (res.faith) lines.push(`<div style="color: #ffcf6a;">🙏 Your faith deepened (+${res.faith}).</div>`);
+        if (res.intelligence) lines.push(`<div style="color: #ffcf6a;">🧠 Your mind feels sharper (+${res.intelligence}).</div>`);
+        if (res.standing) lines.push(`<div style="${NOTE}">The clergy's regard for you grows (+${res.standing}).</div>`);
+        if (res.fine) lines.push(`<div style="color: #e0846a;">💰 Fined ${res.fine} gold.</div>`);
+        if (res.harm) lines.push(`<div style="color: #e0846a;">🔴 −${res.harm} health.</div>`);
+        for (const n of res.notes || []) lines.push(`<div style="${NOTE}">${esc(n)}</div>`);
+        if (lines.length) h += `<div style="font-size: 12px; margin: 4px 0 8px;">${lines.join('')}</div>`;
+        if (res.omen) {
+            h += card(`<div style="font-size: 12px; font-style: italic; color: #cbbf9f;">${esc(res.omen.text)}</div>${res.omen.q != null ? `<div style="${NOTE}">The place is marked on your map.</div>` : ''}`,
+                { icon: res.omen.icon, title: 'An omen' });
+        }
         if (res.vowOffers && res.vowOffers.length) h += DevotionPanel._vowOfferHtml(res.vowOffers);
         return h;
     },
 
     _vowOfferHtml(offers) {
-        let h = `<div style="${CARD} border-color: rgba(245,197,66,0.4);"><strong>🙏 You feel moved to swear a vow</strong>`;
-        h += '<div style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 4px;">Kept, a vow is rewarded. Broken, it is not forgotten. You may take one today.</div>';
-        for (const v of offers) {
-            h += `<div style="margin-top: 4px; font-size: 12px;">${v.icon} <strong>${esc(v.name)}</strong> — ${esc(v.text)}</div>`;
-            h += `<button onclick="window._devo.vow('${v.id}')" style="${BTN_PLAIN}">Swear it</button>`;
-        }
-        return h + '</div>';
+        let h = sectionHead('🙏 You feel moved to swear a vow');
+        h += `<div style="${NOTE}">Kept, a vow is rewarded. Broken, it is not forgotten. You may take one today.</div>`;
+        return h + rowList(offers.map(v => actRow({
+            icon: v.icon, name: esc(v.name), desc: esc(v.text), side: 'Swear it', tone: 'gold',
+            attrs: `onclick="window._devo.vow('${v.id}')"`,
+        })));
     },
 
     _bind(game, tile) {
@@ -82,7 +93,7 @@ export const DevotionPanel = {
             },
             swear: (q, r) => {
                 const res = Devotion.declarePilgrimage(game.player, game.world, q, r);
-                game.ui.showNotification('🥾 Pilgrimage', res.success ? `You swear to walk to ${res.target.name} within ${res.vow.days} days.` : res.reason, res.success ? 'success' : 'error');
+                game.ui.showNotification('👣 Pilgrimage', res.success ? `You swear to walk to ${res.target.name} within ${res.vow.days} days.` : res.reason, res.success ? 'success' : 'error');
                 reopenJournal();
             },
         });
@@ -117,10 +128,8 @@ export const DevotionPanel = {
     showResult(game, tile, res, { kind = 'pray', endDay = false, title = null } = {}) {
         let h = '<div>';
         h += DevotionPanel.resultHtml(res);
-        h += `<button onclick="window._devo.journal()" style="${BTN_PLAIN}">📿 Your devotions</button>`;
-        h += endDay
-            ? `<button data-am-act="closePanelAndEndDay" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 8px;">Continue</button>`
-            : `<button data-am-act="closePanel" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 8px;">Continue</button>`;
+        h += rowList([{ icon: '📿', name: 'Your devotions', desc: 'Creed, vows, pilgrimage, omens', attrs: 'onclick="window._devo.journal()"' }]);
+        h += _continue(endDay ? 'closePanelAndEndDay' : 'closePanel');
         h += '</div>';
         game.ui.showCustomPanel(title || (kind === 'meditate' ? '🧘 Meditation' : '🙏 Prayer'), h);
         DevotionPanel._bind(game, tile);
@@ -136,8 +145,7 @@ export const DevotionPanel = {
         const st = Devotion.state(player);
         const creed = Devotion.creed(player);
         let h = '<div>';
-        h += `<div style="${CARD}"><strong>${creed ? `${creed.icon} ${esc(creed.name)}` : '— No creed —'}</strong>`;
-        h += `<div style="${NOTE}">${creed ? (creed.own ? 'The faith you founded.' : 'The faith you keep. Its temples and shrines answer you best.') : 'You keep no faith. Prayers count for less, everywhere.'}</div>`;
+        h += lede(`<strong style="color: #ffcf6a;">${creed ? `${creed.icon} ${esc(creed.name)}` : '— No creed —'}</strong> · ${creed ? (creed.own ? 'The faith you founded.' : 'The faith you keep. Its temples and shrines answer you best.') : 'You keep no faith. Prayers count for less, everywhere.'}`);
         // Adopt the local faith
         const s = tile && tile.settlement;
         const k = s && s.kingdom && world.getKingdom ? world.getKingdom(s.kingdom) : null;
@@ -145,44 +153,50 @@ export const DevotionPanel = {
         if (localFaith && (!creed || creed.id !== localFaith) && !player.religion) {
             const f = Religion.FAITHS[localFaith];
             const chk = Devotion.canAdopt(player, world, localFaith);
-            if (f) h += _btn(chk.can, `${f.icon} Take up ${esc(f.name)}`, `window._devo.adopt('${localFaith}')`, BTN_PLAIN, chk.reason);
+            if (f) h += rowList([_row(chk.can, `window._devo.adopt('${localFaith}')`, { icon: f.icon, name: `Take up ${esc(f.name)}`, desc: 'The faith kept here', why: esc(chk.reason || '') })]);
         }
-        h += '</div>';
 
         // Vows
-        h += `<div style="${HEAD}">Vows</div>`;
+        h += sectionHead('Vows');
         const vows = Devotion.vows(player, world);
         if (!vows.length) h += `<div style="${NOTE}">You are bound by no vow.</div>`;
-        for (const v of vows) {
-            h += `<div style="${CARD}">${v.icon} <strong>${esc(v.name)}</strong> — ${esc(v.text)}<div style="${NOTE}">${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left${v.id === 'alms' ? ` · given ${v.progress}/${v.gold} gold` : ''}</div></div>`;
-        }
+        h += rowList(vows.map(v => actRow({
+            icon: v.icon, name: esc(v.name), desc: esc(v.text),
+            side: `${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left`, tone: v.daysLeft <= 3 ? 'warn' : null,
+            note: v.id === 'alms' ? `given ${v.progress}/${v.gold} gold` : '',
+        })));
         const offers = Devotion.offeredVows(player, world);
         if (offers.length) h += DevotionPanel._vowOfferHtml(offers);
 
         // Pilgrimage
-        h += `<div style="${HEAD}">Pilgrimage</div>`;
+        h += sectionHead('Pilgrimage');
         const pil = Devotion.pilgrimage(player);
         if (pil) h += `<div style="${NOTE}">You are sworn to walk to ${esc(pil.site.name)} — ${Math.max(0, pil.until - world.day)} days left.</div>`;
         else {
             const targets = Devotion.pilgrimageTargets(player, world, 6);
             if (!targets.length) h += `<div style="${NOTE}">You know of no holy site to walk to.</div>`;
-            for (const t of targets) {
-                const tag = t.match === 'same' ? '<span style="color: #7fd07f;">your faith</span>' : t.faith ? esc(t.faith) : 'no faith';
-                const risk = t.hostile ? ' · <span style="color: #e07070;">held by enemies</span>' : t.contested ? ' · <span style="color: #e0a040;">contested</span>' : '';
-                h += `<div style="font-size: 12px; margin-top: 4px;">${t.icon} <strong>${esc(t.name)}</strong> · ${t.dist} hexes · ${tag}${risk}${t.visits ? ` · visited ${t.visits}×` : ''}</div>`;
-                h += _btn(st.vows.length < (Devotion.config().maxVows || 2), `🥾 Swear to walk there (${t.days} days)`, `window._devo.swear(${t.q}, ${t.r})`, BTN_PLAIN, 'You are bound by as many vows as you can keep.');
-            }
+            const canVow = st.vows.length < (Devotion.config().maxVows || 2);
+            h += rowList(targets.map(t => {
+                const tag = t.match === 'same' ? '<span style="color: #8fd18a;">your faith</span>' : t.faith ? esc(t.faith) : 'no faith';
+                const risk = t.hostile ? ' · <span style="color: #e0846a;">held by enemies</span>' : t.contested ? ' · <span style="color: #f0b35a;">contested</span>' : '';
+                const where = `${t.dist} hexes · ${tag}${risk}${t.visits ? ` · visited ${t.visits}×` : ''}`;
+                return _row(canVow, `window._devo.swear(${t.q}, ${t.r})`, {
+                    icon: t.icon, name: esc(t.name), desc: `${where} · 👣 Swear to walk there`,
+                    why: `${where} · You are bound by as many vows as you can keep.`,
+                    side: `${t.days} days`, tone: 'gold',
+                });
+            }));
         }
 
         // Omens
         if (st.omens.length) {
-            h += `<div style="${HEAD}">Omens</div>`;
+            h += sectionHead('Omens');
             for (const o of st.omens.slice(0, 5)) h += `<div style="${NOTE}">${o.icon} Day ${o.day}: ${esc(o.text)}</div>`;
         }
         // Standing
         const stand = Object.entries(st.standing).filter(([, v]) => Math.abs(v) >= 1);
         if (stand.length) {
-            h += `<div style="${HEAD}">Clergy standing</div>`;
+            h += sectionHead('Clergy standing');
             h += chips(stand.map(([fid, v]) => {
                 const f = Religion.FAITHS[fid];
                 return f ? [f.icon, esc(f.name), Math.round(v)] : null;
@@ -191,10 +205,10 @@ export const DevotionPanel = {
         // The soul
         const pact = SoulPact.state(player);
         if (SoulPact.isSold(player)) {
-            h += `<div style="${HEAD}">Your soul</div><div style="${NOTE} color: #e07070;">${esc(pact.buyer)} holds it${pact.state === 'cursed' ? ' — and you are cursed' : ''}. A temple can buy it back; so can a pilgrimage kept at a shrine of your own faith.</div>`;
+            h += `${sectionHead('Your soul')}<div style="${NOTE} color: #e0846a;">${esc(pact.buyer)} holds it${pact.state === 'cursed' ? ' — and you are cursed' : ''}. A temple can buy it back; so can a pilgrimage kept at a shrine of your own faith.</div>`;
         }
         const rec = (icon, label, n) => [icon, label, n, n ? '' : 'dim'];
-        h += `<div style="${HEAD}">Record</div>` + chips([
+        h += sectionHead('Record') + chips([
             rec('🙏', 'Prayers', st.stats.prayers), rec('🕯️', 'Meditations', st.stats.meditations), ['💰', 'Alms', `${st.stats.almsGiven}g`, st.stats.almsGiven ? '' : 'dim'],
             rec('📜', 'Vows kept', st.stats.vowsKept), rec('💔', 'Broken', st.stats.vowsBroken), rec('⛪', 'Pilgrimages', st.stats.pilgrimages),
         ]);
@@ -218,20 +232,24 @@ export const DevotionPanel = {
         const factor = Devotion.donationFactor(player, world, tile);
         const maxGive = Math.max(0, Math.min(Math.floor(player.gold || 0), 500));
         let h = '<div>';
-        h += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">Give gold in ${esc(s.name)}. Who receives it decides what it does.</p>`;
-        if (factor < 0.95) h += `<div style="${NOTE} color: #e0a040;">You have given a great deal here lately: a gift counts for ${Math.round(factor * 100)}% of its worth.</div>`;
-        for (const o of opts) {
+        h += lede(`Give gold in ${esc(s.name)}. Who receives it decides what it does.`);
+        h += chips([purse(player.gold)]);
+        if (factor < 0.95) h += `<div style="${NOTE} color: #f0b35a;">You have given a great deal here lately: a gift counts for ${Math.round(factor * 100)}% of its worth.</div>`;
+        h += rowList(opts.map(o => {
             const on = chosen && o.id === chosen.id;
-            h += `<div style="${CARD}${on ? ' border-color: var(--gold);' : ''}">${o.icon} <strong>${esc(o.label)}</strong><div style="${NOTE}">${esc(o.detail || '')}</div>`;
-            if (!on) h += _btn(o.available, 'Choose', `window._devo.pick('${o.id}')`, BTN_PLAIN, o.reason || '');
-            h += '</div>';
-        }
+            if (on) return actRow({ icon: o.icon, name: esc(o.label), desc: esc(o.detail || ''), side: '✓ Chosen', tone: 'gold' });
+            return _row(o.available, `window._devo.pick('${o.id}')`, {
+                icon: o.icon, name: esc(o.label), desc: esc(o.detail || ''),
+                why: `${esc(o.detail || '')}${o.reason ? ` — ${esc(o.reason)}` : ''}`, side: 'Choose',
+            });
+        }), 'Who receives it');
         if (maxGive >= 5 && chosen) {
             const v = Math.min(50, maxGive);
-            h += `<div style="margin: 10px 0;"><label style="font-size: 12px;">Amount for ${esc(chosen.label)}:</label><br>`;
-            h += `<input type="range" id="devoAmount" min="5" max="${maxGive}" value="${v}" oninput="document.getElementById('devoLabel').textContent = this.value" style="width: 100%;">`;
-            h += `<span id="devoLabel" style="color: var(--gold); font-weight: bold;">${v}</span> gold</div>`;
-            h += `<button onclick="window._devo.give('${chosen.id}')" style="${BTN_GOLD} width: 100%; padding: 9px;">Give</button>`;
+            let form = `<label style="font-size: 12px; color: #cbbf9f;">Amount for ${esc(chosen.label)}:</label>`;
+            form += `<input type="range" id="devoAmount" min="5" max="${maxGive}" value="${v}" oninput="document.getElementById('devoLabel').textContent = this.value" style="width: 100%; margin: 6px 0 2px; accent-color: #f5c542;">`;
+            form += `<div><span id="devoLabel" style="color: #ffcf6a; font-weight: bold;">${v}</span> gold</div>`;
+            form += `<button onclick="window._devo.give('${chosen.id}')" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 8px;">Give</button>`;
+            h += card(form, { icon: chosen.icon, title: 'The gift' });
         } else {
             h += `<div style="${NOTE}">You have nothing to give.</div>`;
         }
@@ -266,21 +284,28 @@ export const DevotionPanel = {
         const site = pre.site;
         const faith = site.faithId ? Religion.FAITHS[site.faithId] : null;
         let h = '<div>';
-        h += `<div style="text-align: center; padding: 8px 0;"><div style="font-size: 40px;">${site.icon || '⛲'}</div><h3 style="margin: 6px 0; color: var(--gold);">${esc(site.name)}</h3>`;
-        h += `<p style="font-size: 12px; color: var(--text-secondary);">${esc(site.description || '')}</p>`;
-        if (faith) h += `<div style="font-size: 12px;">${faith.icon} ${esc(faith.name)} — ${pre.match === 'same' ? '<span style="color: #7fd07f;">your faith</span>' : pre.match === 'none' ? 'you keep no faith' : 'not your faith'}</div>`;
-        h += `<div style="font-size: 12px;">${pre.risk.holder ? `Held by <strong>${esc(pre.risk.holder.name)}</strong>` : 'Unclaimed'}</div></div>`;
-        if (pre.vowed) h += `<div style="${NOTE} color: #7fd07f;">🥾 You swore to come here. Kneel, and the vow is kept.</div>`;
+        h += `<div style="text-align: center; padding: 4px 0 2px;"><div style="font-size: 40px;">${site.icon || '⛲'}</div><div style="margin: 4px 0; font-family: var(--font-display); font-size: 16px; color: #ffe9a8;">${esc(site.name)}</div></div>`;
+        h += lede(esc(site.description || ''));
+        h += chips([
+            faith ? { icon: faith.icon, label: esc(faith.name), value: pre.match === 'same' ? '<span style="color: #8fd18a;">your faith</span>' : pre.match === 'none' ? 'you keep no faith' : 'not your faith' } : null,
+            pre.risk.holder ? { icon: '🏰', label: 'Held by', value: esc(pre.risk.holder.name) } : { icon: '🏰', label: 'Unclaimed' },
+            pre.visits ? ['🙏', 'Visits', pre.visits] : null,
+        ]);
+        if (pre.vowed) h += `<div style="${NOTE} color: #8fd18a;">👣 You swore to come here. Kneel, and the vow is kept.</div>`;
         if (pre.visits) h += `<div style="${NOTE}">You have knelt here ${pre.visits} time${pre.visits === 1 ? '' : 's'} before; the shrine gives less to the familiar.</div>`;
         if (!pre.blessingReady) h += `<div style="${NOTE}">The shrine's great blessing is not given twice in a season.</div>`;
-        if (pre.risk.hostile) h += `<div style="${NOTE} color: #e07070;">⚠️ Its holders are hostile to you: their wardens may fine or beat a pilgrim they recognise.</div>`;
-        if (pre.risk.contested) h += `<div style="${NOTE} color: #e0a040;">⚔️ Contested: the crowds are tense. Braving it is talked of.</div>`;
+        if (pre.risk.hostile) h += `<div style="${NOTE} color: #e0846a;">⚠️ Its holders are hostile to you: their wardens may fine or beat a pilgrim they recognise.</div>`;
+        if (pre.risk.contested) h += `<div style="${NOTE} color: #f0b35a;">⚔️ Contested: the crowds are tense. Braving it is talked of.</div>`;
         if (pre.risk.desecrated) h += `<div style="${NOTE}">The shrine is held by another faith and has soured.</div>`;
-        if (pre.soul === 'sold' || pre.soul === 'due' || pre.soul === 'cursed') h += `<div style="${NOTE} color: #e07070;">Your soul is not your own. ${pre.vowed && pre.match === 'same' ? 'Keeping your vow at a shrine of your faith may win it back.' : 'Only a vowed pilgrimage to a shrine of your own faith could win it back.'}</div>`;
-        h += `<div style="${HEAD}">Kneel and make an offering</div>`;
-        for (const o of pre.offerings) h += _btn(o.can, `${esc(o.label)} (${o.gold}g)`, `window._devo.kneel('${o.id}')`, BTN_GOLD, `Costs ${o.gold} gold`);
-        h += `<div style="margin-top: 8px;"><button onclick="window._devo.prayHere()" style="${BTN_PLAIN}">🙏 Pray here</button>`;
-        h += `<button onclick="window._devo.journal()" style="${BTN_PLAIN}">📿 Your devotions</button></div>`;
+        if (pre.soul === 'sold' || pre.soul === 'due' || pre.soul === 'cursed') h += `<div style="${NOTE} color: #e0846a;">Your soul is not your own. ${pre.vowed && pre.match === 'same' ? 'Keeping your vow at a shrine of your faith may win it back.' : 'Only a vowed pilgrimage to a shrine of your own faith could win it back.'}</div>`;
+        h += rowList(pre.offerings.map(o => _row(o.can, `window._devo.kneel('${o.id}')`, {
+            icon: '🕯️', name: esc(o.label), why: `Costs ${o.gold} gold`,
+            side: price(o.gold, (player.gold || 0) >= o.gold),
+        })), 'Kneel and make an offering');
+        h += rowList([
+            { icon: '🙏', name: 'Pray here', desc: 'A rite at the shrine', attrs: 'onclick="window._devo.prayHere()"' },
+            { icon: '📿', name: 'Your devotions', desc: 'Creed, vows, pilgrimage, omens', attrs: 'onclick="window._devo.journal()"' },
+        ]);
         h += '</div>';
         game.ui.showCustomPanel('⛲ Holy Site', h);
         DevotionPanel._bind(game, tile);
@@ -298,15 +323,19 @@ export const DevotionPanel = {
 
     _pilgrimResult(game, tile, r) {
         let h = '<div>';
-        h += `<div style="${CARD}"><strong>🙏 ${esc(r.siteName)}</strong>`;
-        h += `<div style="font-size: 12px; margin-top: 4px;">${r.offering ? `You leave ${r.offering} gold at the shrine. ` : ''}☯️ ${_signed(r.karma)} karma · ⭐ ${_signed(r.renown)} renown${r.faith ? ` · 🙏 faith +${r.faith}` : ''}</div>`;
-        if (r.blessing) h += `<div style="font-size: 12px; color: #c9a0ff; margin-top: 4px;">✨ ${esc(r.blessing.text)}${r.blessing.effects.length ? ` (${esc(r.blessing.effects.join(', '))})` : ''}</div>`;
-        if (r.vowKept) h += `<div style="font-size: 12px; color: #7fd07f; margin-top: 4px;">🥾 ${esc(r.vowKept)}</div>`;
-        for (const n of r.notes) h += `<div style="${NOTE}">${esc(n)}</div>`;
-        h += '</div>';
+        let body = r.offering ? `<div style="${NOTE}">You leave ${r.offering} gold at the shrine.</div>` : '';
+        body += chips([
+            ['☯️', 'Karma', _signed(r.karma)],
+            ['⭐', 'Renown', _signed(r.renown)],
+            r.faith ? ['🙏', 'Faith', `+${r.faith}`, 'gold'] : null,
+        ]);
+        if (r.blessing) body += `<div style="font-size: 12px; color: #c9a0ff; margin-top: 4px;">✨ ${esc(r.blessing.text)}${r.blessing.effects.length ? ` (${esc(r.blessing.effects.join(', '))})` : ''}</div>`;
+        if (r.vowKept) body += `<div style="font-size: 12px; color: #8fd18a; margin-top: 4px;">👣 ${esc(r.vowKept)}</div>`;
+        for (const n of r.notes) body += `<div style="${NOTE}">${esc(n)}</div>`;
+        h += card(body, { icon: '🙏', title: esc(r.siteName) });
         const omen = r.blessing && r.blessing.omen;
-        if (omen) h += `<div style="${CARD}"><strong>${omen.icon} A vision</strong><div style="font-size: 12px; font-style: italic;">${esc(omen.text)}</div></div>`;
-        h += `<button data-am-act="closePanel" style="${BTN_GOLD} width: 100%; padding: 9px;">Continue</button></div>`;
+        if (omen) h += card(`<div style="font-size: 12px; font-style: italic; color: #cbbf9f;">${esc(omen.text)}</div>`, { icon: omen.icon, title: 'A vision' });
+        h += `${_continue('closePanel')}</div>`;
         game.ui.showCustomPanel('⛲ Pilgrimage', h);
         game.ui.updateStats(game.player, game.world);
     },
@@ -319,17 +348,23 @@ export const DevotionPanel = {
         const s = tile && tile.settlement;
         const k = s && s.kingdom && game.world.getKingdom ? game.world.getKingdom(s.kingdom) : null;
         const fid = k && k.religion && k.religion.faithId;
-        let h = `<div style="${CARD}"><div style="font-weight: bold;">🕯️ Devotions</div>`;
+        let h = sectionHead('🕯️ Devotions');
         h += `<div style="${NOTE}">Pray in the temple, give alms, swear vows, or walk a pilgrim's road.</div>`;
-        h += `<button onclick="window._devo.templePray()" style="${BTN_PLAIN}">🙏 Pray</button>`;
-        h += `<button onclick="window._devo.templeAlms()" style="${BTN_PLAIN}">💰 Alms</button>`;
-        h += `<button onclick="window._devo.journal()" style="${BTN_PLAIN}">📿 Your devotions</button>`;
+        const rows = [
+            { icon: '🙏', name: 'Pray', desc: 'A rite in the temple', attrs: 'onclick="window._devo.templePray()"' },
+            { icon: '💰', name: 'Alms', desc: 'Give gold; who receives it decides what it does', attrs: 'onclick="window._devo.templeAlms()"' },
+            { icon: '📿', name: 'Your devotions', desc: 'Creed, vows, pilgrimage, omens', attrs: 'onclick="window._devo.journal()"' },
+        ];
         if (SoulPact.isSold(player)) {
             const cost = SoulPact.redeemCost(player, Devotion.templeDiscount(player, fid));
-            h += `<div style="margin-top: 6px; font-size: 12px; color: #e07070;">${esc(SoulPact.state(player).buyer)} holds your soul. The priests know a rite of redemption.</div>`;
-            h += _btn((player.gold || 0) >= cost, `✝️ Redeem your soul (${cost}g)`, 'window._devo.redeem()', BTN_RED, `The rite takes ${cost} gold in offerings`);
+            const holds = `${esc(SoulPact.state(player).buyer)} holds your soul. The priests know a rite of redemption.`;
+            rows.push(_row((player.gold || 0) >= cost, 'window._devo.redeem()', {
+                icon: '✝️', name: 'Redeem your soul', desc: `<span style="color: #e0846a;">${holds}</span>`,
+                why: `${holds} The rite takes ${cost} gold in offerings.`,
+                side: price(cost, (player.gold || 0) >= cost),
+            }));
         }
-        return h + '</div>';
+        return h + rowList(rows);
     },
 
     bindTemple(game, tile) {
@@ -361,28 +396,34 @@ export const DevotionPanel = {
         const o = SoulPact.offer(player, world, tile);
         let h = '<div>';
         if (st.state === 'none' || st.state === 'redeemed') {
-            h += `<p style="font-size: 12px; font-style: italic;">In the corner sits ${esc(o.look)}. This is ${esc(o.name)}, and ${esc(o.name)} is very interested in you.</p>`;
-            h += `<div style="${CARD}">"Your soul, friend. Not all at once — I'll come for the rest in time. <strong>${o.price} gold</strong>, here, tonight."`;
-            h += `<div style="${NOTE}">Karma and renown fall at once. In a few weeks the debt comes due, and ${esc(o.name)} will want something. Refuse, and you will be cursed.</div></div>`;
+            h += lede(`<i>In the corner sits ${esc(o.look)}. This is ${esc(o.name)}, and ${esc(o.name)} is very interested in you.</i>`);
+            h += card(`<div style="font-size: 12px; font-style: italic; color: #cbbf9f;">"Your soul, friend. Not all at once — I'll come for the rest in time. <strong style="color: #ffcf6a;">${o.price} gold</strong>, here, tonight."</div>`
+                + `<div style="${NOTE}">Karma and renown fall at once. In a few weeks the debt comes due, and ${esc(o.name)} will want something. Refuse, and you will be cursed.</div>`,
+            { icon: '🔥', title: esc(o.name) });
             if (st.state === 'redeemed') h += `<div style="${NOTE}">You bought your soul back once. ${esc(o.name)} doesn't seem to mind.</div>`;
-            h += `<button onclick="window._pact.sell()" style="${BTN_RED}">🔥 Shake the cold hand (${o.price}g)</button>`;
-            h += `<button data-am-act="closePanel" style="${BTN_PLAIN}">Walk away</button>`;
+            h += rowList([
+                { icon: '🔥', name: 'Shake the cold hand', desc: 'Sell your soul', side: `${o.price}g`, tone: 'bad', attrs: 'onclick="window._pact.sell()"' },
+                { icon: '🚶', name: 'Walk away', act: 'closePanel' },
+            ]);
         } else if (st.state === 'sold') {
-            h += `<p style="font-size: 12px;">${esc(st.buyer)} raises a cup to you from the corner. "Not yet. Soon."</p>`;
+            h += lede(`${esc(st.buyer)} raises a cup to you from the corner. "Not yet. Soon."`);
             h += `<div style="${NOTE}">Your soul is held. A temple can buy it back; so can a pilgrimage kept at a shrine of your faith.</div>`;
         } else if (st.state === 'due') {
             const d = SoulPact.demand(player, world);
-            h += `<div style="${CARD}"><strong>${d.icon} ${esc(st.buyer)} wants payment: ${esc(d.label)}</strong><div style="font-size: 12px; font-style: italic; margin: 4px 0;">${esc(d.text)}</div>`;
-            h += `<div style="${NOTE}">${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} to answer.${d.deed ? ` Done so far: ${d.progress >= d.amount ? 'yes' : 'not yet'}.` : ''}</div></div>`;
-            const gold = SoulPact.payCost(player);
-            h += _btn((player.gold || 0) >= Math.round(gold), `💰 Pay ${Math.round(gold)} gold`, "window._pact.answer('pay')", BTN_GOLD, `You need ${Math.round(gold)} gold`);
-            h += `<button onclick="window._pact.answer('refuse')" style="${BTN_RED}">✋ Refuse</button>`;
+            h += card(`<div style="font-size: 12px; font-style: italic; margin: 0 0 4px; color: #cbbf9f;">${esc(d.text)}</div>`
+                + `<div style="${NOTE}">${d.daysLeft} day${d.daysLeft === 1 ? '' : 's'} to answer.${d.deed ? ` Done so far: ${d.progress >= d.amount ? 'yes' : 'not yet'}.` : ''}</div>`,
+            { icon: d.icon, title: `${esc(st.buyer)} wants payment: ${esc(d.label)}`, side: `${d.daysLeft}d`, tone: d.daysLeft <= 2 ? 'bad' : 'warn' });
+            const gold = Math.round(SoulPact.payCost(player));
+            h += rowList([
+                _row((player.gold || 0) >= gold, "window._pact.answer('pay')", { icon: '💰', name: `Pay ${gold} gold`, why: `You need ${gold} gold`, side: price(gold, (player.gold || 0) >= gold) }),
+                { icon: '✋', name: 'Refuse', desc: 'And be cursed', side: 'refuse', tone: 'bad', attrs: 'onclick="window._pact.answer(\'refuse\')"' },
+            ]);
             if (d.deed) h += `<div style="${NOTE}">Or do what is asked before the days run out.</div>`;
         } else if (st.state === 'cursed') {
-            h += `<p style="font-size: 12px; color: #e07070;">${esc(st.buyer)} is gone, and so is your luck. The curse holds until your soul is redeemed at a temple, or won back on a pilgrimage.</p>`;
+            h += lede(`<span style="color: #e0846a;">${esc(st.buyer)} is gone, and so is your luck. The curse holds until your soul is redeemed at a temple, or won back on a pilgrimage.</span>`);
         }
         if (st.history.length) {
-            h += `<div style="${HEAD}">The bargain</div>`;
+            h += sectionHead('The bargain');
             for (const e of st.history.slice(0, 4)) h += `<div style="${NOTE}">Day ${e.d}: ${esc(e.text)}</div>`;
         }
         h += '</div>';

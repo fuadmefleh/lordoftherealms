@@ -6336,3 +6336,276 @@ body:has(#customPanel) #hexInfoPanel { visibility: hidden !important; }
 .minimap-filter input { accent-color: var(--gold); }
 /* Let the filter list and hover labels show outside the minimap's frame */
 #minimapContainer { overflow: visible; }
+
+/* ════════════════════════════════════════════════════════════════════
+   PANEL REVAMP — every custom panel (ui/ui/panels.js showCustomPanel) in
+   the action menu's voice (#actionMenu.amx above): a soft dark card with a
+   hairline gold edge, a quiet header band, a caption-strip tab bar,
+   letter-spaced gold section heads, and rows that light with a gold bar at
+   the left instead of rows of solid gold slabs. The kit that builds the
+   rows and cards is ui/actionMenu/uiKit.js (actRow, rowList, card, price).
+   ════════════════════════════════════════════════════════════════════ */
+
+/* The frame */
+#customPanel {
+    background:
+        radial-gradient(120% 50% at 50% 0%, rgba(245, 197, 66, 0.05), transparent 60%),
+        linear-gradient(180deg, rgba(20, 22, 28, 0.985), rgba(14, 15, 20, 0.985));
+    border: 1px solid rgba(245, 197, 66, 0.35);
+    border-radius: 12px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(245, 197, 66, 0.08);
+    font-family: var(--font-body);
+    color: var(--text-primary, #e8e0cc);
+}
+#customPanel::before, #customPanel::after { display: none; }
+body #customPanel.custom-panel--hub { width: min(760px, calc(94vw / var(--ui-zoom))); }
+
+/* The header band: a wax-seal crest, the title in the display face, a round close */
+#customPanel .cp-head {
+    gap: 12px;
+    padding: 12px 12px 12px 16px;
+    background:
+        radial-gradient(ellipse 55% 160% at 0% 50%, rgba(245, 197, 66, 0.08), transparent 70%),
+        linear-gradient(120deg, rgba(26, 35, 51, 0.55), rgba(14, 19, 29, 0.2));
+    border-bottom: 1px solid rgba(245, 197, 66, 0.22);
+}
+#customPanel .cp-head::before, #customPanel .cp-head::after { display: none; }
+#customPanel .cp-crest {
+    width: 38px;
+    height: 38px;
+    font-size: 19px;
+    color: #2a1a04;
+    /* hand-poured: never quite round, like the action menu's seals */
+    border-radius: 47% 53% 50% 46% / 52% 46% 54% 48%;
+    background: radial-gradient(circle at 34% 30%, #fff0b8 0%, #e2b23e 42%, #8a6414 100%);
+    box-shadow:
+        inset 0 0 0 3px rgba(0, 0, 0, 0.16),
+        inset 0 0 0 5px rgba(255, 230, 190, 0.1),
+        0 2px 5px rgba(0, 0, 0, 0.6);
+}
+#customPanel .custom-panel-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #ffe9a8;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    filter: none;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+#customPanel .cp-close {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(10, 13, 20, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+#customPanel .cp-close:hover {
+    color: #fff;
+    border-color: var(--gold);
+    background: rgba(245, 197, 66, 0.15);
+    transform: none;
+}
+
+/* The tab bar: the action menu's caption strip */
+#customPanel .custom-panel-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    flex: 0 0 auto;
+    padding: 0 12px;
+    background: rgba(0, 0, 0, 0.18);
+    border-bottom: 1px solid rgba(245, 197, 66, 0.16);
+}
+#customPanel .panel-nav-tab {
+    position: relative;
+    padding: 10px 10px 9px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: #a99f88;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    cursor: pointer;
+    transition: color 0.12s;
+}
+#customPanel .panel-nav-tab::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 0.12s, box-shadow 0.12s;
+}
+#customPanel .panel-nav-tab:hover { color: #d8ccaf; background: none; }
+#customPanel .panel-nav-tab.active { color: var(--gold-light, #ffe08a); background: none; }
+#customPanel .panel-nav-tab.active::after { background: var(--gold); box-shadow: 0 0 10px rgba(245, 197, 66, 0.45); }
+#customPanel .panel-nav-tab:focus-visible { outline: 1px solid rgba(245, 197, 66, 0.5); outline-offset: -3px; }
+#customPanel .panel-nav-more {
+    flex-basis: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    padding: 2px 0 4px;
+    border-top: 1px solid rgba(245, 197, 66, 0.08);
+}
+#customPanel .panel-nav-more .panel-nav-tab { font-size: 10.5px; padding: 7px 9px; }
+
+/* Sub-tabs: pills on the dark */
+#customPanel .panel-subtabs {
+    gap: 4px;
+    padding: 3px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(245, 197, 66, 0.12);
+    border-radius: 999px;
+}
+#customPanel .panel-subtab { border-radius: 999px; padding: 4px 12px; color: #a99f88; }
+#customPanel .panel-subtab:hover { color: #d8ccaf; background: rgba(245, 197, 66, 0.06); }
+#customPanel .panel-subtab.active { color: #ffe08a; background: rgba(245, 197, 66, 0.14); border-color: rgba(245, 197, 66, 0.45); }
+
+/* The body */
+#customPanel .custom-panel-body { padding: 12px 16px 16px; color: #ddd3bb; }
+
+/* Section heads: the action menu's — letter-spaced capitals, gold, no rule */
+#customPanel .pk-head,
+#customPanel .custom-panel-body > h3,
+#customPanel .custom-panel-body > h4,
+#customPanel .custom-panel-body > div > h3,
+#customPanel .custom-panel-body > div > h4 {
+    margin: 14px 0 6px;
+    padding: 0 2px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(245, 197, 66, 0.85);
+    border: 0;
+    background: none;
+}
+#customPanel .custom-panel-body > .pk-head:first-child,
+#customPanel .custom-panel-body > h3:first-child,
+#customPanel .custom-panel-body > h4:first-child { margin-top: 2px; }
+
+/* The lede and chips: the action menu's note voice */
+#customPanel .pk-lede { color: #cbbf9f; border-left-color: rgba(245, 197, 66, 0.5); }
+#customPanel .pk-chip {
+    background: rgba(0, 0, 0, 0.28);
+    border-color: rgba(245, 197, 66, 0.16);
+    border-radius: 999px;
+    color: #b9ae94;
+}
+#customPanel .pk-chip b { color: #ece2c8; }
+#customPanel .pk-chip.gold b { color: #ffcf6a; }
+#customPanel .pk-kv { border-bottom-color: rgba(245, 197, 66, 0.07); }
+#customPanel .pk-kv > :first-child { color: #9d937c; }
+#customPanel .pk-kv > :last-child { color: #ece2c8; }
+
+/* Buttons (the kit's BTN_* are inline, ui/actionMenu/uiKit.js): their states */
+#customPanel .custom-panel-body button {
+    transition: filter 0.12s, background-color 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+#customPanel .custom-panel-body button:not(:disabled):not(.pk-row):hover { filter: brightness(1.18); }
+#customPanel .custom-panel-body button:not(:disabled):not(.pk-row):active { transform: translateY(1px); }
+#customPanel .custom-panel-body button:focus-visible { outline: 1px solid rgba(245, 197, 66, 0.6); outline-offset: 1px; }
+/* Hand-rolled solid-gold buttons (background: var(--gold)) take the kit's lit outline */
+#customPanel .custom-panel-body button[style*="background: var(--gold)"],
+#customPanel .custom-panel-body button[style*="background:var(--gold)"] {
+    background: linear-gradient(180deg, rgba(245, 197, 66, 0.22), rgba(245, 197, 66, 0.12)) !important;
+    border: 1px solid rgba(245, 197, 66, 0.6) !important;
+    color: #ffe08a !important;
+    border-radius: 6px !important;
+}
+#customPanel .custom-panel-body button[style*="background:#444"],
+#customPanel .custom-panel-body button[style*="background: #444"],
+#customPanel .custom-panel-body button[style*="background:#555"],
+#customPanel .custom-panel-body button[style*="background: #555"],
+#customPanel .custom-panel-body button[style*="background:#333"],
+#customPanel .custom-panel-body button[style*="background: #333"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(245, 197, 66, 0.16) !important;
+    color: #d8ccaf !important;
+    border-radius: 6px !important;
+}
+/* Hand-rolled grey cards take the kit card's hairline */
+#customPanel .custom-panel-body div[style*="background:#2a2a2a"],
+#customPanel .custom-panel-body div[style*="background: #2a2a2a"],
+#customPanel .custom-panel-body div[style*="background:#222"],
+#customPanel .custom-panel-body div[style*="background:#1a1a2e"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015)) !important;
+    border: 1px solid rgba(245, 197, 66, 0.12) !important;
+    border-radius: 8px !important;
+}
+
+/* Rows (uiKit actRow / rowList): the action menu's .amx-row */
+#customPanel .pk-rows { margin: 0 -6px 10px; }
+#customPanel .pk-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 7px 10px 7px 8px;
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    color: inherit;
+    text-align: left;
+    font-family: var(--font-body);
+    font-size: 12px;
+    line-height: 1.35;
+}
+#customPanel .pk-row + .pk-row { box-shadow: 0 -1px 0 rgba(245, 197, 66, 0.06); }
+#customPanel .pk-row--act { cursor: pointer; transition: background 0.12s, box-shadow 0.12s; }
+#customPanel .pk-row--act:hover, #customPanel .pk-row--act:focus-visible {
+    background: rgba(245, 197, 66, 0.08);
+    box-shadow: inset 3px 0 0 var(--gold);
+    outline: none;
+}
+#customPanel .pk-row-ico { width: 30px; text-align: center; font-size: 19px; line-height: 1; }
+#customPanel .pk-row-txt { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+#customPanel .pk-row-name { font-size: 13px; font-weight: 600; color: #ece2c8; }
+#customPanel .pk-row-desc { font-size: 11px; color: rgba(220, 210, 190, 0.55); }
+#customPanel .pk-row-why { font-size: 11px; color: #c98a6a; }
+#customPanel .pk-row-note { font-size: 10.5px; color: #8fb98a; }
+#customPanel .pk-row-side { padding-left: 6px; white-space: nowrap; text-align: right; font-size: 12px; color: #cbbf9f; }
+#customPanel .pk-row--off { cursor: not-allowed; }
+#customPanel .pk-row--off .pk-row-name { color: #8f8a7e; }
+#customPanel .pk-row--off .pk-row-ico { filter: grayscale(1); opacity: 0.6; }
+#customPanel .pk-tone-gold .pk-row-side, #customPanel .pk-tone-gold .pk-card-side { color: #ffcf6a; }
+#customPanel .pk-tone-good .pk-row-side, #customPanel .pk-tone-good .pk-card-side { color: #8fd18a; }
+#customPanel .pk-tone-warn .pk-row-side, #customPanel .pk-tone-warn .pk-card-side { color: #f0b35a; }
+#customPanel .pk-tone-bad .pk-row-side, #customPanel .pk-tone-bad .pk-card-side { color: #e0846a; }
+#customPanel .pk-price { font-weight: 700; color: #ffcf6a; font-size: 12.5px; }
+#customPanel .pk-price small { font-size: 10px; font-weight: 600; margin-left: 1px; opacity: 0.75; }
+#customPanel .pk-price--short { color: #c0533a; }
+
+/* Cards (uiKit card) */
+#customPanel .pk-card {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+    border: 1px solid rgba(245, 197, 66, 0.12);
+    border-radius: 8px;
+}
+#customPanel .pk-card-head { display: flex; align-items: center; gap: 8px; margin: -1px 0 6px; }
+#customPanel .pk-card-ico { font-size: 17px; line-height: 1; }
+#customPanel .pk-card-title { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 13.5px; font-weight: 600; letter-spacing: 0.5px; color: #ffe9a8; }
+#customPanel .pk-card-side { font-size: 12px; color: #cbbf9f; white-space: nowrap; }
+
+/* The character sheet's hero card in the same light */
+#customPanel .cs-hero { border-color: rgba(245, 197, 66, 0.2); border-radius: 10px; background: linear-gradient(120deg, rgba(26, 35, 51, 0.6), rgba(255, 255, 255, 0.02)); }
+#customPanel .cs-name { color: #ffe9a8; }
+
+/* A lede inside a centred block (the gambling tables) drops its left rule: centred text beside a rule at the far left read as a stray bar */
+#customPanel [style*="text-align:center"] .pk-lede,
+#customPanel [style*="text-align: center"] .pk-lede { border-left: 0; padding-left: 0; }

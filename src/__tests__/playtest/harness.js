@@ -13,6 +13,7 @@ import { DawnBirth } from '../../player/dawnBirth.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Lots } from '../../systems/lots.js';
+import { Infrastructure } from '../../systems/infrastructure.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Utils } from '../../core/utils.js';
@@ -291,7 +292,7 @@ function _endDay(game) {
             }
             iTile.infrastructure.constructionDaysLeft--;
             if (iTile.infrastructure.constructionDaysLeft <= 0) {
-                iTile.infrastructure.underConstruction = false;
+                Infrastructure.finishConstruction(world, iTile);
                 player.infrastructureUnderConstruction.splice(i, 1);
             }
         }

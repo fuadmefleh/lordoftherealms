@@ -9,6 +9,7 @@ import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Whispers } from '../../systems/whispers.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { Fame } from '../../systems/fame.js';
+import { BackRooms } from '../../systems/backRooms.js';
 import { Utils, Hex, PlayerEconomy, MarketDynamics, Characters, Cartography, Religion, Gossip, Quests, Peoples, Sagas } from './_imports.js';
 
 Object.assign(Tavern, {
@@ -158,15 +159,32 @@ Object.assign(Tavern, {
             available: player.gold >= innCost,
         });
 
-        // Dice and cards with the locals: the gambling den's tables (ui/actionMenu/gambling.js)
-        options.push({
-            id: 'play_dice',
-            label: 'Join the dice and card tables',
-            icon: '🎲',
-            cost: 0,
-            description: 'Crown & Anchor, Dragon’s Flip, High-Low and poker with the locals. Stakes are yours to set.',
-            available: (player.gold || 0) >= 1,
-        });
+        // Dice and cards with the locals: the gambling den's tables (ui/actionMenu/gambling.js).
+        // Where the law forbids gaming the taproom has none: the barkeep may
+        // point you to a back room behind some other front (systems/backRooms.js)
+        const gaming = BackRooms.status(world, tile.settlement);
+        if (gaming.legal) {
+            options.push({
+                id: 'play_dice',
+                label: 'Join the dice and card tables',
+                icon: '🎲',
+                cost: 0,
+                description: 'Crown & Anchor, Dragon’s Flip, High-Low and poker with the locals. Stakes are yours to set.',
+                available: (player.gold || 0) >= 1,
+            });
+        } else {
+            const hidden = BackRooms.games(world, tile);
+            options.push({
+                id: 'play_dice',
+                label: hidden.length ? 'Ask the barkeep about a back-room game' : 'Ask after a game of dice',
+                icon: '🎲',
+                cost: 0,
+                description: hidden.length
+                    ? `${gaming.why} No dice in the taproom, but the barkeep knows a game behind ${hidden[0].front}.`
+                    : `${gaming.why} No dice in the taproom, and nobody here will own to a game.`,
+                available: hidden.length > 0 && (player.gold || 0) >= 1,
+            });
+        }
 
         // 6. Check rumor board (free)
         options.push({

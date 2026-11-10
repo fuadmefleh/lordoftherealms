@@ -7,16 +7,19 @@ import { ActionMenu } from './_ref.js';
 import { Generalship } from '../../player/generalship.js';
 import { RealmEscort } from '../../player/realmEscort.js';
 import { NPCLords } from '../../world/npcLords.js';
-import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc, bullets } from './uiKit.js';
+import { BTN_GOLD, BTN_DARK, BTN_OFF, esc, bullets, lede, chips, sectionHead, card, actRow, rowList, kv } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--gold);';
+// In the action menu's voice (ui/actionMenu/uiKit.js): cards for the commission's
+// state, one row an order to give, greyed with its reason when it can't be given
+const NOTE = 'font-size:11px; color:#9d937c; margin:2px 0;';
 const AP = { battle: 2, assault: 2, besiege: 1, raid: 2, address: 1, expose: 1 };
 const HOW = { resigned: 'resigned', dismissed: 'dismissed in disgrace', crowned: 'crowned', traitor: 'turned traitor', lapsed: 'lapsed', fallen: 'the realm fell' };
 
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, Math.round((value / Math.max(1, max)) * 100)));
-    return `<div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:3px 0;"><div style="width:${pct}%;height:100%;background:${color};"></div></div>`;
+    return `<div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin:3px 0 5px;"><div style="width:${pct}%;height:100%;background:${color};"></div></div>`;
 }
 
 function _btn(label, action, args, style, ok = true, title = '') {
@@ -26,44 +29,53 @@ function _btn(label, action, args, style, ok = true, title = '') {
         : `<button style="${BTN_OFF}" disabled title="${esc(title)}">${label}</button>`;
 }
 
+/** One order as an action-menu row: data-am-act="armyAct" data-am-args=[action, ...args]. */
+function _row(o, action, args = [], ok = true) {
+    return actRow({ ...o, act: 'armyAct', args: [action, ...args], off: !ok });
+}
+
 function _pastHtml(past) {
     if (!past || !past.length) return '';
-    let html = `<div style="${HEAD}">Past commissions</div>`;
-    for (const p of past.slice(0, 5)) {
+    return rowList(past.slice(0, 5).map(p => {
         const r = p.record || {};
-        html += `<div style="font-size:11px;color:#bbb;padding:2px 0;">🎖️ ${esc(p.rank)} of ${esc(p.kingdomName)}, day ${p.since}–${p.ended}: ${HOW[p.how] || esc(p.how)} · ${r.battlesWon || 0} battles won, ${r.townsTaken || 0} towns taken, ${r.ordersDone || 0} orders carried out</div>`;
-    }
-    return html;
+        return actRow({
+            icon: '🎖️', name: `${esc(p.rank)} of ${esc(p.kingdomName)}`,
+            desc: `${r.battlesWon || 0} battles won, ${r.townsTaken || 0} towns taken, ${r.ordersDone || 0} orders carried out`,
+            side: `day ${p.since}–${p.ended}: ${HOW[p.how] || esc(p.how)}`,
+        });
+    }), 'Past commissions');
 }
 
 Object.assign(ActionMenu, {
     /** Army Command (Dynasty menu, Wars of the Realm, a capital's actions). */
     showArmyCommand(game, message = null) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'army_command', null)) return;
         const player = game.player;
         const world = game.world;
         if (!player || !world) return;
         const v = Generalship.view(player, world);
         const c = v.commission;
         let html = '<div style="font-size:12px; max-height:540px; overflow-y:auto;">';
-        if (message) html += `<div style="${CARD} border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
+        if (message) html += `<div class="pk-card" style="border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#ece2c8;">${message.html}</div>`;
         // The realm's household guard riding with you: not the host, not your own (ui/actionMenu/realmEscort.js)
         const hg = RealmEscort.hudLine(player);
-        if (hg) html += `<button data-am-act="showHouseholdGuard" style="${BTN_DARK} display:block; width:100%; text-align:left; margin-bottom:8px;">🛡️ ${esc(hg)}</button>`;
+        if (hg) html += rowList([{ icon: '🛡️', name: esc(hg), desc: 'The realm\'s household guard riding with you', act: 'showHouseholdGuard' }]);
 
         if (!c) {
             const tile = world.getTile(player.q, player.r);
             const can = Generalship.canSeek(player, world, tile);
-            html += `<div style="${CARD}">`;
-            html += '<div style="font-weight:bold;color:var(--gold);">🎖️ A commission in a realm\'s army</div>';
-            html += bullets([
+            html += card(bullets([
                 'Granted at a realm\'s capital to a known soldier (combat and leadership, some renown, the crown\'s trust). You swear to the crown.',
                 'You command a share of the realm\'s own army: Captain 5%, Commander 10%, General 18%, Marshal 28%. Its dead are the realm\'s dead.',
                 'Wages come weekly from the crown\'s treasury, if it has the coin. At war the host eats grain from the realm\'s granaries, the crown paying the towns.',
                 'Victories and orders carried out earn merit and favour, and promotion; defeats, failed orders and a rival\'s whispers cost them. A crown can come to fear its general.',
-            ]);
-            if (can.kingdom && can.ok) html += _btn(`🎖️ Seek a commission in the army of ${esc(can.kingdom.name)}`, 'seek', [], BTN_GOLD);
-            else html += `<div style="color:#e8a0a0;margin-top:6px;">${esc(can.reason || 'Seek a commission at a realm\'s capital.')}</div>`;
-            html += '</div>';
+            ]), { icon: '🎖️', title: 'A commission in a realm\'s army' });
+            const ok = !!(can.kingdom && can.ok);
+            html += rowList([_row({
+                icon: '🎖️', name: ok ? `Seek a commission in the army of ${esc(can.kingdom.name)}` : 'Seek a commission',
+                why: esc(can.reason || 'Seek a commission at a realm\'s capital.'), tone: 'gold',
+            }, 'seek', [], ok)]);
             html += _pastHtml(v.past);
             html += '</div>';
             game.ui.showCustomPanel('🎖️ Army Command', html);
@@ -74,116 +86,162 @@ Object.assign(ActionMenu, {
         const rd = v.rank;
         const gold = player.gold || 0;
         // ── The commission ──
-        html += `<div style="${CARD}">`;
-        html += `<div style="display:flex;justify-content:space-between;"><b>${rd.icon || '🎖️'} ${esc(rd.name)} of ${esc(c.kingdomName)}</b><span style="color:#aaa;">since day ${c.since}</span></div>`;
-        html += `<div style="font-size:11px;color:#bbb;">Merit ${Math.round(c.merit)}${v.next ? ` / ${v.next.merit} for ${esc(v.next.name)} (favour ${v.next.minFavour} needed)` : ' · the highest rank'}</div>`;
-        html += _bar(c.merit, v.next ? v.next.merit : c.merit, '#c9a54a');
-        const fc = c.favour >= 50 ? '#7fd07f' : c.favour >= 25 ? '#f5c542' : '#e06060';
-        html += `<div style="font-size:11px;">The crown's favour <span style="color:${fc};font-weight:bold;">${Math.round(c.favour)}</span> · its fear of you <span style="color:${v.fear >= 70 ? '#e06060' : '#bbb'};">${v.fear}</span></div>`;
-        html += _bar(c.favour, 100, fc);
-        html += `<div style="font-size:11px;color:#bbb;">Wage ${rd.wage}g a day from ${esc(c.kingdomName)}'s treasury (${Math.round(k && k.treasury || 0)}g)${c.owed > 0 ? ` · owed ${Math.round(c.owed)}g` : ''} · paid weekly</div>`;
-        html += '</div>';
+        const fc = c.favour >= 50 ? '#8fd18a' : c.favour >= 25 ? '#ffcf6a' : '#e0846a';
+        let com = `<div style="${NOTE}">Merit ${Math.round(c.merit)}${v.next ? ` / ${v.next.merit} for ${esc(v.next.name)} (favour ${v.next.minFavour} needed)` : ' · the highest rank'}</div>`;
+        com += _bar(c.merit, v.next ? v.next.merit : c.merit, '#c9a54a');
+        com += `<div style="font-size:11px; color:#cbbf9f;">The crown's favour <span style="color:${fc};font-weight:bold;">${Math.round(c.favour)}</span> · its fear of you <span style="color:${v.fear >= 70 ? '#e0846a' : '#cbbf9f'};">${v.fear}</span></div>`;
+        com += _bar(c.favour, 100, fc);
+        com += `<div style="${NOTE}">Wage ${rd.wage}g a day from ${esc(c.kingdomName)}'s treasury (${Math.round(k && k.treasury || 0)}g)${c.owed > 0 ? ` · owed ${Math.round(c.owed)}g` : ''} · paid weekly</div>`;
+        html += card(com, { icon: rd.icon || '🎖️', title: `${esc(rd.name)} of ${esc(c.kingdomName)}`, side: `since day ${c.since}` });
 
         // ── The host ──
-        html += `<div style="${HEAD}">The host</div><div style="${CARD}">`;
-        html += `<div><b>${c.men}</b> of the realm's ${Math.round(k && k.military || 0)} soldiers${(player.army || []).length ? `, and your own retinue of ${player.army.length}` : ''} · quality ×${v.quality} · power ${v.power}</div>`;
-        const mc = c.morale >= 60 ? '#7fd07f' : c.morale >= 35 ? '#f5c542' : '#e06060';
-        html += `<div style="font-size:11px;">Morale <span style="color:${mc};">${Math.round(c.morale)}</span> · veterancy ${Math.round(c.veterancy * 100)}% · supplies ${v.supplyDays} days${v.consuming ? '' : ' (in garrison: fed by the realm)'}</div>`;
+        html += sectionHead('The host');
+        const mc = c.morale >= 60 ? '#8fd18a' : c.morale >= 35 ? '#ffcf6a' : '#e0846a';
+        html += lede(`<b>${c.men}</b> of the realm's ${Math.round(k && k.military || 0)} soldiers${(player.army || []).length ? `, and your own retinue of ${player.army.length}` : ''} · quality ×${v.quality} · power ${v.power}`);
+        html += chips([
+            { icon: '🔥', label: 'Morale', value: `<span style="color:${mc};">${Math.round(c.morale)}</span>` },
+            ['🎖️', 'Veterancy', `${Math.round(c.veterancy * 100)}%`],
+            ['🌾', 'Supplies', `${v.supplyDays} days`],
+        ]);
         html += _bar(c.morale, 100, mc);
-        if (v.mult > 1) html += `<div style="font-size:11px;color:#8fd88f;">At the front: the realm's armies fight ×${v.mult} with you there.</div>`;
-        html += _btn(`📣 Address the men (${AP.address} AP)`, 'address', [], BTN_DARK);
-        for (const amt of [50, 200]) html += _btn(`💰 Share ${amt}g`, 'spoils', [amt], BTN_DARK, gold >= amt, 'Coin from your purse to the men: they spend it in the realm\'s towns.');
-        if (v.supplyTown) {
-            html += _btn(`🌾 Requisition from ${esc(v.supplyTown.name)} (the crown pays)`, 'supply', [false], BTN_GOLD);
-            html += _btn('🌾 …pay yourself', 'supply', [true], BTN_DARK);
-        } else if (v.consuming) {
-            html += `<div style="font-size:11px;color:#e8a0a0;">No town of ${esc(c.kingdomName)} within reach of your wagons.</div>`;
+        if (!v.consuming) html += `<div style="${NOTE}">(in garrison: fed by the realm)</div>`;
+        if (v.mult > 1) html += `<div style="font-size:11px;color:#8fd18a;">At the front: the realm's armies fight ×${v.mult} with you there.</div>`;
+        const hostRows = [_row({ icon: '📣', name: 'Address the men', side: `${AP.address} AP` }, 'address')];
+        for (const amt of [50, 200]) {
+            hostRows.push(_row({
+                icon: '💰', name: `Share ${amt}g`, desc: 'Coin from your purse to the men: they spend it in the realm\'s towns.',
+                title: 'Coin from your purse to the men: they spend it in the realm\'s towns.',
+                why: 'Coin from your purse to the men — your purse is short', side: `${amt}g`, tone: gold >= amt ? 'gold' : 'bad',
+            }, 'spoils', [amt], gold >= amt));
         }
-        html += '</div>';
+        html += rowList(hostRows);
+        if (v.supplyTown) {
+            // Two ways to pay for one requisition: a row for it, the payer as its buttons
+            html += rowList([actRow({
+                icon: '🌾', name: `Requisition from ${esc(v.supplyTown.name)}`, desc: 'Grain for the wagons',
+                side: _btn('the crown pays', 'supply', [false], BTN_GOLD) + _btn('…pay yourself', 'supply', [true], BTN_DARK),
+            })]);
+        } else if (v.consuming) {
+            html += `<div style="font-size:11px;color:#c98a6a;">No town of ${esc(c.kingdomName)} within reach of your wagons.</div>`;
+        }
 
         // ── Lieutenants ──
         const T = (Generalship.config().lieutenants || {}).traits || {};
-        html += `<div style="${HEAD}">Lieutenants (${c.lieutenants.length}/${rd.lieutenants})</div>`;
-        for (const lt of c.lieutenants) {
-            const lc = lt.loyalty >= 60 ? '#7fd07f' : lt.loyalty >= 40 ? '#f5c542' : '#e06060';
-            html += `<div style="padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06);">${esc(lt.name)} — skill ${lt.skill}, ${esc((T[lt.trait] || {}).label || lt.trait)}, loyalty <span style="color:${lc};">${Math.round(lt.loyalty)}</span> ${_btn('Dismiss', 'dismissLt', [lt.id], BTN_DARK)}</div>`;
-        }
-        if (c.lieutenants.length < rd.lieutenants) html += _btn('⬆️ Raise an officer from the ranks', 'appoint', [], BTN_DARK);
+        const ltRows = c.lieutenants.map(lt => {
+            const lc = lt.loyalty >= 60 ? '#8fd18a' : lt.loyalty >= 40 ? '#ffcf6a' : '#e0846a';
+            return actRow({
+                icon: '🎖️', name: esc(lt.name),
+                desc: `skill ${lt.skill}, ${esc((T[lt.trait] || {}).label || lt.trait)}, loyalty <span style="color:${lc};">${Math.round(lt.loyalty)}</span>`,
+                side: _btn('Dismiss', 'dismissLt', [lt.id], BTN_DARK),
+            });
+        });
+        if (c.lieutenants.length < rd.lieutenants) ltRows.push(_row({ icon: '⬆️', name: 'Raise an officer from the ranks' }, 'appoint'));
+        html += rowList(ltRows, `Lieutenants (${c.lieutenants.length}/${rd.lieutenants})`) || sectionHead(`Lieutenants (${c.lieutenants.length}/${rd.lieutenants})`);
 
         // ── Orders ──
-        html += `<div style="${HEAD}">The crown's orders</div><div style="${CARD}">`;
+        html += sectionHead('The crown\'s orders');
         if (c.order) {
             const o = c.order;
-            html += `<div>📜 ${esc(o.text)}</div><div style="font-size:11px;color:#bbb;">Progress ${o.progress || 0}/${o.need} · due day ${o.due} (${Math.max(0, o.due - (world.day || 0))} days)</div>`;
+            const left = Math.max(0, o.due - (world.day || 0));
+            html += rowList([actRow({
+                icon: '📜', name: esc(o.text), desc: `Progress ${o.progress || 0}/${o.need} · due day ${o.due} (${left} days)`,
+                side: `${o.progress || 0}/${o.need}`, tone: left <= 3 ? 'warn' : 'gold',
+            })]);
         } else {
-            html += `<div style="color:#bbb;">No orders. The crown will send more by day ${c.nextOrderDay}.</div>`;
+            html += `<div style="${NOTE}">No orders. The crown will send more by day ${c.nextOrderDay}.</div>`;
         }
-        html += '</div>';
 
         // ── War ──
-        html += `<div style="${HEAD}">War</div><div style="${CARD}">`;
+        html += sectionHead('War');
         if (!v.enemies.length) {
-            html += `<div style="color:#bbb;">${esc(c.kingdomName)} is at peace. The host keeps the marches.</div>`;
+            html += `<div style="${NOTE}">${esc(c.kingdomName)} is at peace. The host keeps the marches.</div>`;
         } else {
-            html += `<div>At war with ${v.enemies.map(e => `<b>${esc(e.name)}</b>`).join(', ')}.</div>`;
+            html += lede(`At war with ${v.enemies.map(e => `<b>${esc(e.name)}</b>`).join(', ')}.`);
             if (c.siege) {
                 const sg = c.siege;
-                html += `<div style="margin-top:6px;">🏰 Besieging <b>${esc(sg.name)}</b> (${esc(sg.kingdomName)}): ${sg.garrison} defenders · day ${(world.day || 0) - sg.since} of the siege</div>`;
-                html += _bar(sg.progress, 100, '#c96a4a');
-                html += _btn(`⚔️ Storm the walls (${AP.assault} AP)`, 'assault', [], BTN_RED);
-                html += _btn(c.siegePolicy === 'sack' ? '🔥 Will sack it (change to spare)' : '🕊️ Will spare it (change to sack)', 'policy', [c.siegePolicy === 'sack' ? 'spare' : 'sack'], BTN_DARK);
-                html += _btn('Lift the siege', 'lift', [], BTN_DARK);
+                html += card(_bar(sg.progress, 100, '#c96a4a'), {
+                    icon: '🏰', title: `Besieging ${esc(sg.name)} (${esc(sg.kingdomName)})`,
+                    side: `${sg.garrison} defenders · day ${(world.day || 0) - sg.since} of the siege`,
+                });
+                html += rowList([
+                    _row({ icon: '⚔️', name: 'Storm the walls', side: `${AP.assault} AP`, tone: 'bad' }, 'assault'),
+                    _row({ icon: c.siegePolicy === 'sack' ? '🔥' : '🕊️', name: c.siegePolicy === 'sack' ? 'Will sack it' : 'Will spare it', desc: c.siegePolicy === 'sack' ? 'change to spare' : 'change to sack', side: c.siegePolicy }, 'policy', [c.siegePolicy === 'sack' ? 'spare' : 'sack']),
+                    _row({ icon: '🏳️', name: 'Lift the siege' }, 'lift'),
+                ]);
             } else {
-                for (const f of v.front) {
-                    html += _btn(`⚔️ Give battle to ${esc(f.name)}'s army (≈${f.force} men, ${Math.round(f.odds * 100)}%, ${AP.battle} AP)`, 'battle', [f.id], BTN_GOLD);
-                }
-                if (!v.front.length) html += '<div style="font-size:11px;color:#bbb;">March within 3 hexes of the enemy\'s land to give battle.</div>';
+                const warRows = v.front.map(f => _row({
+                    icon: '⚔️', name: `Give battle to ${esc(f.name)}'s army`, desc: `≈${f.force} men`,
+                    side: `${Math.round(f.odds * 100)}% · ${AP.battle} AP`, tone: f.odds >= 0.5 ? 'good' : 'warn',
+                }, 'battle', [f.id]));
                 if (v.nearTown) {
-                    html += _btn(`🏰 Besiege ${esc(v.nearTown.name)} and spare it (${AP.besiege} AP)`, 'besiege', ['spare'], BTN_GOLD);
-                    html += _btn(`🔥 Besiege ${esc(v.nearTown.name)} to sack it`, 'besiege', ['sack'], BTN_RED);
-                    html += _btn(`🔥 Raid ${esc(v.nearTown.name)} (${AP.raid} AP)`, 'raid', [], BTN_RED);
+                    const n = esc(v.nearTown.name);
+                    warRows.push(_row({ icon: '🏰', name: `Besiege ${n} and spare it`, side: `${AP.besiege} AP`, tone: 'gold' }, 'besiege', ['spare']));
+                    warRows.push(_row({ icon: '🔥', name: `Besiege ${n} to sack it`, side: `${AP.besiege} AP`, tone: 'bad' }, 'besiege', ['sack']));
+                    warRows.push(_row({ icon: '🔥', name: `Raid ${n}`, side: `${AP.raid} AP`, tone: 'bad' }, 'raid'));
                 }
+                html += rowList(warRows);
+                if (!v.front.length) html += `<div style="${NOTE}">March within 3 hexes of the enemy's land to give battle.</div>`;
             }
         }
-        html += '</div>';
 
         // ── The court ──
-        html += `<div style="${HEAD}">The court</div><div style="${CARD}">`;
+        html += sectionHead('The court');
+        const courtRows = [];
         if (c.rival) {
             const rv = c.rival;
             const traits = (rv.traits || []).map(t => t && t.name).filter(Boolean).join(', ');
             const opinion = Array.isArray(rv.traits) ? Math.round(NPCLords.getLordOpinion(rv, player, world)) : null;
-            html += `<div>🗣️ <b>${esc(rv.name)}</b>${rv.house ? ` of ${esc(rv.house)}${rv.estates ? ` (${rv.estates} estate${rv.estates > 1 ? 's' : ''})` : ''}` : ''} — your rival at court, influence ${Math.round(rv.influence)}.</div>`;
             const of = (t) => Generalship.ofRival(rv, t);
-            html += `<div style="font-size:11px;color:#bbb;">${traits ? `${esc(traits)}. ` : ''}${rv.persona ? of(`He ${esc(rv.persona.words)}.`) : ''}${opinion != null ? of(` His opinion of you: ${opinion}.`) : ''}${rv.foiled ? of(` You have foiled him ${rv.foiled} time${rv.foiled > 1 ? 's' : ''}.`) : ''}</div>`;
+            let rb = `<div style="${NOTE}">${traits ? `${esc(traits)}. ` : ''}${rv.persona ? of(`He ${esc(rv.persona.words)}.`) : ''}${opinion != null ? of(` His opinion of you: ${opinion}.`) : ''}${rv.foiled ? of(` You have foiled him ${rv.foiled} time${rv.foiled > 1 ? 's' : ''}.`) : ''}</div>`;
             const sc = rv.scheme;
             if (sc) {
                 const left = Math.max(0, (sc.due || 0) - (world.day || 0));
-                html += `<div style="margin-top:4px;color:#e8c070;">🕵️ ${of('He')} ${esc(sc.text)} It bites in ${left} day${left === 1 ? '' : 's'} (day ${sc.due})${sc.blunted ? ', blunted by your friends at court' : ''}.</div>`;
+                rb += `<div style="margin-top:4px;color:#f0b35a;">🕵️ ${of('He')} ${esc(sc.text)} It bites in ${left} day${left === 1 ? '' : 's'} (day ${sc.due})${sc.blunted ? ', blunted by your friends at court' : ''}.</div>`;
             } else if ((rv.quietUntil || -1) > (world.day || 0)) {
-                html += `<div style="font-size:11px;color:#9fd89f;">${of('He holds his tongue')} (bought) until day ${rv.quietUntil}.</div>`;
+                rb += `<div style="font-size:11px;color:#8fd18a;">${of('He holds his tongue')} (bought) until day ${rv.quietUntil}.</div>`;
             }
+            html += card(rb, {
+                icon: '🗣️', title: `${esc(rv.name)}${rv.house ? ` of ${esc(rv.house)}${rv.estates ? ` (${rv.estates} estate${rv.estates > 1 ? 's' : ''})` : ''}` : ''}`,
+                side: `your rival at court, influence ${Math.round(rv.influence)}`, tone: sc ? 'warn' : null,
+            });
             const cost = (Generalship.config().court || {}).answerGold || 80;
-            html += _btn(`🎁 Answer at court (${cost}g to the courtiers)`, 'answer', [], BTN_DARK, gold >= cost);
-            if (sc) html += _btn(`🔎 ${of('Expose his scheme')} (${Math.round(Generalship.exposeOdds(player, c) * 100)}%, ${AP.expose} AP)`, 'expose', [], BTN_GOLD, true, 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.');
+            courtRows.push(_row({ icon: '🎁', name: 'Answer at court', desc: `${cost}g to the courtiers`, why: `${cost}g to the courtiers — your purse is short`, side: `${cost}g`, tone: gold >= cost ? 'gold' : 'bad' }, 'answer', [], gold >= cost));
+            if (sc) {
+                const t = 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.';
+                courtRows.push(_row({ icon: '🔎', name: of('Expose his scheme'), desc: t, title: t, side: `${Math.round(Generalship.exposeOdds(player, c) * 100)}% · ${AP.expose} AP`, tone: 'gold' }, 'expose'));
+            }
             const price = Generalship.buyOffPrice(c);
-            if (price != null) html += _btn(`💰 ${of(`Buy his silence (${price}g to his House)`)}`, 'buyOff', [], BTN_DARK, gold >= price, of('He drops his scheme and keeps quiet for a month.'));
-            else html += `<div style="font-size:11px;color:#999;">${of(rv.persona && rv.persona.manner === 'proud' ? 'He is too proud to be bought.' : 'He is too honourable to be bought.')}</div>`;
+            if (price != null) {
+                const t = of('He drops his scheme and keeps quiet for a month.');
+                courtRows.push(_row({ icon: '💰', name: of('Buy his silence'), desc: `${price}g to his House. ${t}`, why: `${price}g to his House — your purse is short`, title: t, side: `${price}g`, tone: gold >= price ? 'gold' : 'bad' }, 'buyOff', [], gold >= price));
+            } else {
+                courtRows.push(actRow({ icon: '💰', name: of('Buy his silence'), off: true, why: of(rv.persona && rv.persona.manner === 'proud' ? 'He is too proud to be bought.' : 'He is too honourable to be bought.') }));
+            }
         }
         const co = v.coup;
         if (co && co.ok) {
-            html += `<div style="margin-top:6px;color:#e8a0a0;">👑 Your men would follow you against ${esc(k && k.ruler || 'the crown')}: about ${Math.round(co.chance * 100)}% (${co.rebels} against ${co.loyalists}).${co.betrayers.length ? ` ${co.betrayers.map(esc).join(', ')} might betray you.` : ''}</div>`;
-            html += _btn('👑 Turn the host on the crown', 'coup', [], BTN_RED, true, 'Crowned if it works; exiled and hunted if it fails.');
+            courtRows.push(_row({
+                icon: '👑', name: 'Turn the host on the crown',
+                desc: `<span style="color:#e0846a;">Your men would follow you against ${esc(k && k.ruler || 'the crown')}: about ${Math.round(co.chance * 100)}% (${co.rebels} against ${co.loyalists}).${co.betrayers.length ? ` ${co.betrayers.map(esc).join(', ')} might betray you.` : ''}</span>`,
+                title: 'Crowned if it works; exiled and hunted if it fails.', side: `${Math.round(co.chance * 100)}%`, tone: 'bad',
+            }, 'coup'));
         } else if (co && c.rank >= 2) {
-            html += `<div style="font-size:11px;color:#999;margin-top:4px;">A coup: ${esc(co.reason)}</div>`;
+            courtRows.push(actRow({ icon: '👑', name: 'A coup', off: true, why: esc(co.reason) }));
         }
-        html += _btn('Resign your commission', 'resign', [], BTN_DARK);
-        html += '</div>';
+        courtRows.push(_row({ icon: '📜', name: 'Resign your commission' }, 'resign'));
+        html += rowList(courtRows);
 
         // ── Record ──
         const r = c.record;
-        html += `<div style="font-size:11px;color:#999;">Battles won ${r.battlesWon}, lost ${r.battlesLost} · towns taken ${r.townsTaken} · raids ${r.raids} · orders ${r.ordersDone} done, ${r.ordersFailed} failed · the realm's battles with you at the front ${r.realmWon} won, ${r.realmLost} lost · wages ${Math.round(r.wages)}g, plunder ${Math.round(r.plunder)}g</div>`;
-        if (c.log && c.log.length) html += `<div style="font-size:11px;color:#888;margin-top:4px;">${c.log.slice(0, 6).map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
+        html += sectionHead('Record');
+        html += `<div style="font-size:11px;">${[
+            kv('Battles', `won ${r.battlesWon}, lost ${r.battlesLost}`),
+            kv('Towns taken · raids', `${r.townsTaken} · ${r.raids}`),
+            kv('Orders', `${r.ordersDone} done, ${r.ordersFailed} failed`),
+            kv('The realm\'s battles with you at the front', `${r.realmWon} won, ${r.realmLost} lost`),
+            kv('Wages · plunder', `${Math.round(r.wages)}g · ${Math.round(r.plunder)}g`),
+        ].join('')}</div>`;
+        if (c.log && c.log.length) html += `<div style="font-size:11px;color:#9d937c;margin-top:6px;">${c.log.slice(0, 6).map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
         html += _pastHtml(v.past);
         html += '</div>';
         game.ui.showCustomPanel('🎖️ Army Command', html);
@@ -210,23 +268,24 @@ Object.assign(ActionMenu, {
             coup: ['👑 Turn the Host on the Crown?', () => {
                 const co = Generalship.view(player, world).coup || {};
                 return `About ${Math.round((co.chance || 0) * 100)}% that the men follow you and the crown falls. If it fails, half your host is cut down, you are exiled from ${esc((Generalship.state(player) || {}).kingdomName || 'the realm')} and it declares war on you.`;
-            }, '👑 Give the word', BTN_RED],
-            resign: ['Resign Your Commission?', () => 'You give up your rank, your host and your wages. Reputation −3 with the realm.', 'Resign', BTN_RED],
+            }, '👑 Give the word'],
+            resign: ['Resign Your Commission?', () => 'You give up your rank, your host and your wages. Reputation −3 with the realm.', 'Resign'],
         };
         if (STAKES[action] && args[args.length - 1] !== 'sure') {
-            const [title, text, yes, style] = STAKES[action];
-            game.ui.showCustomPanel(title, `<div style="padding:4px 2px;font-size:12px;"><div style="margin-bottom:10px;">${text()}</div>
-                ${_btn(yes, action, [...args, 'sure'], style)} <button data-am-act="showArmyCommand" style="${BTN_DARK}">Not now</button></div>`);
+            const [title, text, yes] = STAKES[action];
+            game.ui.showCustomPanel(title, `<div style="font-size:12px;">${lede(text())}${rowList([
+                _row({ icon: action === 'coup' ? '👑' : '📜', name: yes.replace(/^👑 /, ''), side: 'no going back', tone: 'bad' }, action, [...args, 'sure']),
+                { icon: '↩️', name: 'Not now', act: 'showArmyCommand' },
+            ])}</div>`);
             return;
         }
         if (args[args.length - 1] === 'sure') args = args.slice(0, -1);
         if (CHOICE[action] && args[args.length - 1] !== 'captains') {
             const [title, blurb] = CHOICE[action];
-            game.ui.showCustomPanel(title, `<div style="padding:4px 2px;">
-                ${_btn('⚔️ Take the field — command the host yourself', 'field', [action, ...args], BTN_GOLD + 'display:block;width:100%;text-align:left;padding:9px 10px;')}
-                <div style="font-size:11px;color:#999;margin:2px 0 8px;">${blurb}</div>
-                ${_btn('🎲 Let the captains fight it', action, [...args, 'captains'], BTN_DARK + 'display:block;width:100%;text-align:left;padding:8px 10px;')}
-                <div style="font-size:11px;color:#999;margin-top:2px;">Settled at once on the odds.</div></div>`);
+            game.ui.showCustomPanel(title, rowList([
+                _row({ icon: '⚔️', name: 'Take the field — command the host yourself', desc: blurb, tone: 'gold' }, 'field', [action, ...args]),
+                _row({ icon: '🎲', name: 'Let the captains fight it', desc: 'Settled at once on the odds.' }, action, [...args, 'captains']),
+            ]));
             return;
         }
         if (action === 'field') {

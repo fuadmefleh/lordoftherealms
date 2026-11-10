@@ -546,43 +546,30 @@ Object.assign(UI.prototype, {
         panel.id = 'customPanel';
         panel.className = 'modal-panel' + (navHtml ? ' custom-panel--hub' : '');
         panel._locked = locked;
+        // The frame's look (the action menu's: styles.css "PANEL REVAMP") is the
+        // stylesheet's; only the placement is set here
         panel.style.cssText = `
             position: fixed;
             top: calc(7.5vh / var(--ui-zoom));
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(20, 24, 32, 0.98);
-            backdrop-filter: blur(10px);
-            border: 2px solid var(--gold);
-            border-radius: 8px;
             padding: 0;
             width: min(720px, calc(94vw / var(--ui-zoom)));
             max-height: var(--panel-max-h);
             z-index: 1000;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             overflow: hidden;
             display: flex;
             flex-direction: column;
         `;
 
         panel.innerHTML = `
-            <style>
-                #customPanel.custom-panel--hub { height: var(--panel-max-h); width: min(760px, calc(94vw / var(--ui-zoom))) !important; }
-                #customPanel .custom-panel-nav { display:flex; flex-wrap:wrap; gap:2px 4px; padding:6px 12px 0; border-bottom:2px solid rgba(245,197,66,0.15); flex:0 0 auto; }
-                #customPanel .panel-nav-tab { padding:7px 10px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.55); background:none; border:none; border-radius:4px 4px 0 0;
-                    border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; font-family:var(--font-body); white-space:nowrap; transition:color .12s, border-color .12s, background .12s; }
-                #customPanel .panel-nav-tab:hover { color:rgba(255,255,255,0.9); background:rgba(255,255,255,0.04); }
-                #customPanel .panel-nav-tab.active { color:var(--gold); border-bottom-color:var(--gold); background:rgba(245,197,66,0.08); }
-                #customPanel .panel-nav-more { flex-basis:100%; display:flex; flex-wrap:wrap; gap:2px 4px; padding:4px 0 6px; border-top:1px solid rgba(255,255,255,0.06); }
-                #customPanel .panel-nav-more .panel-nav-tab { font-size:12px; padding:5px 9px; border-radius:4px; border-bottom:none; margin-bottom:0; }
-            </style>
             <div class="cp-head">
                 <span class="cp-crest" data-crest="${crest.glyph || crest.emoji}">${crestHtml}</span>
                 <h3 class="custom-panel-title">${crest.text}</h3>
                 <button id="closeCustomPanel" class="cp-close" title="Close (Esc)"${locked ? ' style="display:none;"' : ''}>${icon('close')}</button>
             </div>
             <div class="custom-panel-nav" style="${navHtml ? '' : 'display:none;'}">${navHtml}</div>
-            <div class="custom-panel-body" style="padding: 16px; overflow-y: auto; flex: 1 1 auto; min-height: 0;">
+            <div class="custom-panel-body" style="overflow-y: auto; flex: 1 1 auto; min-height: 0;">
                 ${htmlContent}
             </div>
         `;

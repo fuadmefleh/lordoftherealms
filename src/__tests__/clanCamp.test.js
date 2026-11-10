@@ -140,3 +140,31 @@ describe('a dawn village on the inner map', () => {
         expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBe(0);
     });
 });
+
+describe('a colony freshly founded in play', () => {
+    const colony = (population) => ({ name: 'Newhope', type: 'village', population, q: 5, r: 6, kingdom: null, founded: 40, colony: { foundedDay: 40, isPlayerColony: true } });
+
+    it('is a camp of tents — no streets, no churchyard — not a full village on day one', () => {
+        const game = makeGame();
+        game.clan.destroyed = true;
+        game.worldTile.settlement = colony(0);
+        InnerMap.enter(game, 5, 6);
+        expect(objectsOf('tp_tent_hide').length + objectsOf('tp_tent_fell').length).toBeGreaterThanOrEqual(4);
+        expect(InnerMap.tiles.some(row => row.some(t => t.customBuilding))).toBe(false);
+        expect(InnerMap.tiles._graveyard || null).toBe(null);
+    });
+
+    it('grown past its camp, it is laid out as a village and stays one', () => {
+        const game = makeGame();
+        game.clan.destroyed = true;
+        game.worldTile.settlement = colony(40);
+        InnerMap.enter(game, 5, 6);
+        game.worldTile.settlement.population = 200;
+        InnerMap.enter(game, 5, 6);
+        expect(InnerMap.tiles.some(row => row.some(t => t.customBuilding))).toBe(true);
+        expect(game.worldTile.settlement.campOutgrown).toBe(true);
+        // a lean year doesn't send it back to tents
+        game.worldTile.settlement.population = 100;
+        expect(InnerMap._isDawnVillage(game.worldTile.settlement)).toBe(false);
+    });
+});

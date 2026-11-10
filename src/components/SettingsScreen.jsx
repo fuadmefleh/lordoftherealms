@@ -4,6 +4,7 @@ import CharacterForge from './CharacterForge';
 import { buildForGender, defaultAppearance } from '../ui/playerAppearance';
 import scenariosData from '../../data/scenarios.json';
 import dawnData from '../../data/dawn.json';
+import birthData from '../../data/birth.json';
 
 // Origin & Challenge choices (data/scenarios.json; applied by player/scenarios.js)
 const _entries = (o) => Object.entries(o || {}).filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object');
@@ -15,6 +16,9 @@ const VICTORIES = _entries(scenariosData.victory).map(([id, v]) => [id, {
 // Start years before this begin at the Dawn of Man (world/dawn.js)
 const DAWN_YEAR = dawnData.dawnYear || 200;
 const _find = (list, id) => (list.find(([k]) => k === id) || [])[1] || null;
+// Born to a Family (player/parentage.js): whose child, and how old
+const BIRTH_STATIONS = _entries(birthData.stations);
+const BIRTH_AGES = Array.isArray(birthData.ageChoices) && birthData.ageChoices.length ? birthData.ageChoices : [12, 13, 14, 15];
 
 const MAP_PRESETS = {
   tiny:   { width: 60,  height: 40,  kingdoms: 3  },
@@ -76,6 +80,8 @@ export default function SettingsScreen() {
     charAppearance: defaultAppearance('male'),
     guidedStart: true,
     origin: 'wanderer',
+    parents: 'choose',
+    birthAge: birthData.startAge || 14,
     difficulty: 'normal',
     victory: 'none',
     worldWidth: 120,
@@ -284,6 +290,22 @@ export default function SettingsScreen() {
               )}
               {(_find(ORIGINS, settings.origin) || {}).blurb}
             </div>
+            {settings.origin === 'born' && (
+              <>
+                <SelectInput {...bind} id="parents" label="Parents:" field="parents"
+                  options={[['choose', 'Choose after the world is made'], ['random', "🎲 Random: whoever's child"],
+                    ...BIRTH_STATIONS.map(([id, st]) => [id, `${st.icon || ''} ${st.name || id}`.trim()])]} />
+                <SelectInput {...bind} id="birthAge" label="Your age:" field="birthAge"
+                  options={BIRTH_AGES.map(a => [String(a), `${a} years old`])} />
+                <div className="settings-hint" style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 8px' }}>
+                  {settings.parents === 'choose'
+                    ? "Once the world is made you pick from real couples of it: a farmer's, a smith's, a merchant's, a priest's, a guildmaster's, a lord's, a king's. "
+                    : settings.parents === 'random' ? 'Fate picks your parents (most people are born to farmers and labourers). '
+                      : `${(_find(BIRTH_STATIONS, settings.parents) || {}).means || ''} `}
+                  {`Your parents rule your days until you are ${birthData.comeOfAge || 16}.`}
+                </div>
+              </>
+            )}
             <div className="origin-cards" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '0 0 8px' }}>
               {ORIGINS.filter(([, o]) => o.group === 'advanced').map(([id, o]) => (
                 <button key={id} type="button" title={o.blurb} onClick={() => handleOrigin(id)}

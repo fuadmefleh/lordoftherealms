@@ -140,6 +140,7 @@
             "army": "Soldiers' daily pay and recruits' bounties, the fleet's upkeep, field costs, and wages the crown pays its commissioned officers (you, when you serve).",
             "arms": "Weapons, shields, helms, harness and arrows the crown buys from its towns' markets to arm its soldiers.",
             "court": "The household, officers and clerks (by the realm's size), and the upkeep of royal edicts.",
+            "guard": "The household guard the crown keeps riding with its lords: each company's wage, paid daily from the treasury.",
             "works": "Building and keeping up roads, bridges, canals and other public works.",
             "debt": "Interest and repayments on the crown's loans from the banking houses.",
             "dole": "Famine relief: grain bought for the hungry and to stock the granaries.",

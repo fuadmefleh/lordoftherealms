@@ -2,7 +2,7 @@
 // drifting on the wind (drawn beneath the map), and the edge of what you know
 // dissolves into banks of cloud (drawn over the frontier hexes) rather than
 // ending on hard hex edges. Presentation only.
-import { Renderer } from './core.js';
+import { Renderer, HEX_FACE_DY } from './core.js';
 import { cloudTexture, drawCloudLayer } from '../cloudTexture.js';
 
 const PUFF_VARIANTS = 4;
@@ -53,10 +53,16 @@ Object.assign(Renderer.prototype, {
         const originY = this.canvas.height / 2 - cam.y * zoom;
         const t = this.time;
 
+        // The wind's drift, in world pixels and wrapped to one tile: the
+        // texture repeats, so this is seamless, and it keeps the offset small —
+        // an ever-growing t * speed scaled by a changing zoom would swing the
+        // whole layer about as you zoom
+        const drift = (speed, tile) => (t * speed) % tile;
+
         const deepTile = fit(1400);
-        drawCloudLayer(ctx, this._fogTex.deep, originX + t * 6 * zoom, originY + t * 2 * zoom, (deepTile * zoom) / 256, 0.95);
+        drawCloudLayer(ctx, this._fogTex.deep, originX + drift(6, deepTile) * zoom, originY + drift(2, deepTile) * zoom, (deepTile * zoom) / 256, 0.95);
         const wispTile = fit(900);
-        drawCloudLayer(ctx, this._fogTex.wisp, originX + t * 14 * zoom, originY + t * 5 * zoom, (wispTile * zoom) / 256, 0.4);
+        drawCloudLayer(ctx, this._fogTex.wisp, originX + drift(14, wispTile) * zoom, originY + drift(5, wispTile) * zoom, (wispTile * zoom) / 256, 0.4);
     },
 
     /** Mark an unexplored hex as frontier if any neighbour is explored (called from renderHexGrid). */
@@ -92,7 +98,7 @@ Object.assign(Renderer.prototype, {
             const R = 1.55 * s * breathe;
             const x = f[i] + Math.sin(t * 0.25 + h * 20) * 0.08 * s;
             // Sprite hexes are drawn with their visual centre slightly below the grid point
-            const y = f[i + 1] + 0.13 * s + Math.cos(t * 0.2 + h * 30) * 0.05 * s;
+            const y = f[i + 1] + HEX_FACE_DY * s + Math.cos(t * 0.2 + h * 30) * 0.05 * s;
             ctx.globalAlpha = 0.72 + 0.18 * h;
             ctx.drawImage(puff, x - R, y - R, R * 2, R * 2);
         }

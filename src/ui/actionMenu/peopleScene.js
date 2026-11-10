@@ -8,8 +8,9 @@ import { Relationships } from './_imports.js';
 import { PlayerEffects } from '../../player/playerEffects.js';
 import { npcVoice } from '../npcVoice.js';
 import { NpcChat } from '../../systems/npcChat.js';
+import { Court } from '../../systems/court.js';
 
-const GROUPS = { matter: 'On their mind', talk: 'Friendship', romance: 'Romance', party: 'The road', hostile: 'Hostility' };
+const GROUPS = { matter: 'On their mind', talk: 'Friendship', romance: 'Romance', party: 'The road', court: 'Your court', hostile: 'Hostility' };
 
 // What you say for each act (systems data has only labels)
 const SAYS = {
@@ -75,6 +76,7 @@ function _facts(game, npc, rel) {
     const tags = [];
     if (isSpouse) tags.push('<div class="npc-dialog-rel-badge" style="color:#ff80ab">💍 Your spouse</div>');
     if (Relationships.isInTravelParty(player, npc.id)) tags.push('<div class="npc-dialog-rel-badge" style="color:#81d4fa">🧭 Travels with you</div>');
+    if (Court.isMember(player, npc.id)) tags.push('<div class="npc-dialog-rel-badge" style="color:#ffd27a">🏰 Serves at your court</div>');
     const matter = Relationships.matterView(player, npc.id);
     if (matter) tags.push(`<div class="npc-dialog-rel-badge" style="color:#ffcc80">${matter.icon} ${matter.title}</div>`);
     if (rel.debt) tags.push(`<div class="npc-dialog-rel-badge" style="color:#c5b358">💰 Owes you ${rel.debt.amount}g</div>`);
@@ -175,6 +177,21 @@ function _choices(game) {
             disabled: !!o.disabled, disabledReason: o.reason || 'not possible',
             onPick: () => _matter(game, npc.id, o),
         })));
+    }
+
+    // The House's court (systems/court.js): a place there for a stipend
+    if (player.house && !Court.isMember(player, npc.id) && player.spouse !== npc.id) {
+        const odds = Court.inviteOdds(player, game.world, npc.id);
+        const afford = (player.gold || 0) >= odds.joinCost;
+        list.push({
+            icon: '🏰', label: `Join my court (${odds.stipend}g a day).`, group: 'court',
+            extra: odds.ok ? `<span class="npc-dialog-price">${odds.joinCost}g</span>` : '',
+            chance: odds.ok ? Math.round(odds.chance * 100) : null,
+            skillTag: odds.chance >= 0.6 ? 'likely' : 'risky',
+            tooltip: `Offer ${npc.firstName} a place at your court for ${odds.stipend} gold a day, with a welcome purse of ${odds.joinCost} gold. Other stipends: House → The Court → Invite.`,
+            disabled: !odds.ok || !afford, disabledReason: !odds.ok ? odds.reason : `the welcome purse is ${odds.joinCost}g`,
+            onPick: () => _court(game, npc.id, odds.stipend),
+        });
     }
 
     if (Relationships.isInTravelParty(player, npc.id)) {
@@ -382,6 +399,28 @@ function _party(game, npcId, join) {
             scene.note('🧭 They join your travel party', 'good');
         } else {
             scene.npc(`*shakes their head* ${r.reason}`, { topic: 'travel', asked: join ? 'Come travel with me.' : 'Time we parted ways.' });
+        }
+        _refresh(game, before);
+    }, 700);
+}
+
+function _court(game, npcId, stipend) {
+    const st = _cur;
+    const scene = st.scene;
+    const player = game.player;
+    const before = Relationships.getRelationship(player, npcId).score || 0;
+    const r = Court.invite(player, game.world, npcId, { stipend });
+    const how = { topic: 'court', asked: 'Join my court.' };
+    scene.exchange(`Come and live at my court. ${stipend} gold a day, and a place in the House's affairs.`, () => {
+        if (!r.success) {
+            scene.note(r.reason, 'bad');
+        } else if (r.accepted) {
+            scene.seal('Court', 'Joined', true);
+            scene.npc('*bows* I will serve your House as best I can.', how);
+            scene.note('🏰 They join your court (House → The Court)', 'good');
+        } else {
+            scene.npc(`*hesitates* ${r.reason.replace(/^\S+ declines\. /, '')}`, how);
+            scene.note('🙅 They decline, for now', 'bad');
         }
         _refresh(game, before);
     }, 700);

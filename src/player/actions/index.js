@@ -37,6 +37,7 @@ import { RealmEscort } from '../realmEscort.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Prison } from '../prison.js';
 import { Arms } from '../../systems/arms.js';
+import { Parentage } from '../parentage.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
 
@@ -345,6 +346,10 @@ export const PlayerActions = {
 
         // ── Wilderness & Anywhere Actions ──
         addWildernessActions(actions, player, tile, world);
+
+        // Under your parents' roof (player/parentage.js): what they forbid is
+        // flagged, what grounding keeps you from is refused, their panel on top
+        Parentage.gate(player, world, tile, actions);
 
         return actions;
     },

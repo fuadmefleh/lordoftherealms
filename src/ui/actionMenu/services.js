@@ -6,11 +6,11 @@ import { DevotionPanel } from './devotion.js';
 import { PlayerActions, SettlementServices, SERVICE_CONFIG, Relationships } from './_imports.js';
 import { Ailments } from '../../systems/ailments.js';
 import { TradeSkills } from '../../systems/tradeSkills.js';
+import { lede, chips, purse, sectionHead, card, actRow, rowList, price } from './uiKit.js';
 
-const BTN = 'width: 100%; padding: 9px; margin-top: 6px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;';
-const BTN_GOLD = BTN + 'background: var(--gold); color: #1a1a1a;';
-const BTN_DIM = BTN + 'background: rgba(255,255,255,0.08); color: var(--text-secondary); cursor: default;';
-const CARD = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px 12px; margin: 10px 0;';
+// In the action menu's voice (ui/actionMenu/uiKit.js): a lede, then one row a
+// service, its price at the right, greyed with its reason when out of reach
+const NOTE = 'font-size: 11px; color: #9d937c; margin: 2px 0;';
 
 /** Court actions an audience with the lord can lead to (all existing world actions). */
 const AUDIENCE_ACTIONS = [
@@ -19,10 +19,9 @@ const AUDIENCE_ACTIONS = [
     'host_feast', 'hold_tournament', 'host_festival', 'manage_house',
 ];
 
-function _button(label, handler, enabled = true) {
-    return enabled
-        ? `<button onclick="window._svc.${handler}()" style="${BTN_GOLD}">${label}</button>`
-        : `<button disabled style="${BTN_DIM}">${label}</button>`;
+/** One service as a row running window._svc[handler](); greyed (with o.why) when not enabled. */
+function _row(o, handler, enabled = true) {
+    return actRow({ ...o, off: !enabled, attrs: enabled ? `onclick="window._svc.${handler}()"` : '' });
 }
 
 function _days(player, key) {
@@ -54,16 +53,22 @@ Object.assign(ActionMenu, {
 
         let html = '<div>';
         const hone = SettlementServices.honeArmsDays(settlement, game.world);
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The forge roars. ${hone.smith ? `${hone.smith.name}, the best hand at the anvil here (Smithing ${hone.smith.level}, ${hone.smith.levelName}),` : 'The smith'} eyes your gear with a professional frown.</p>`;
-        html += `<div style="${CARD}">`;
-        html += `<div style="font-weight: bold;">⚔️ Hone Your Company's Arms</div>`;
-        html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">Sharpen blades and mend armour for every soldier: army strength +${Math.round(cfg.strengthBonus * 100)}% for ${hone.days} days.</div>`;
-        if (active > 0) html += `<div style="font-size: 12px; color: #5ddb6a;">Your arms are honed — ${active} day${active > 1 ? 's' : ''} left.</div>`;
-        html += units > 0
-            ? _button(`Hone ${units} soldier${units > 1 ? 's' : ''}' arms (${cost}g)`, 'hone', player.gold >= cost)
-            : _button('You have no soldiers', 'hone', false);
-        html += '</div>';
-        html += _button('🛒 Browse weapons and tools', 'shop');
+        html += lede(`The forge roars. ${hone.smith ? `${hone.smith.name}, the best hand at the anvil here (Smithing ${hone.smith.level}, ${hone.smith.levelName}),` : 'The smith'} eyes your gear with a professional frown.`);
+        html += chips([
+            purse(player.gold),
+            ['⚔️', 'Soldiers', units],
+            active > 0 ? { icon: '⚔️', label: 'Honed', value: `${active} day${active > 1 ? 's' : ''} left` } : null,
+        ]);
+        const desc = `Sharpen blades and mend armour for every soldier: army strength +${Math.round(cfg.strengthBonus * 100)}% for ${hone.days} days.`;
+        html += rowList([
+            _row({
+                icon: '⚔️', name: units > 0 ? `Hone ${units} soldier${units > 1 ? 's' : ''}' arms` : 'Hone Your Company\'s Arms',
+                desc, why: units > 0 ? `${desc} Your purse is short.` : 'You have no soldiers',
+                note: active > 0 ? `Your arms are honed — ${active} day${active > 1 ? 's' : ''} left.` : '',
+                side: units > 0 ? price(cost, player.gold >= cost) : '',
+            }, 'hone', units > 0 && player.gold >= cost),
+            _row({ icon: '🛒', name: 'Browse weapons and tools', desc: 'The smith\'s wares' }, 'shop'),
+        ], 'The forge');
         html += '</div>';
 
         game.ui.showCustomPanel('⚒️ Blacksmith', html);
@@ -83,23 +88,28 @@ Object.assign(ActionMenu, {
         const active = _days(player, cfg.key);
 
         let html = '<div>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">Incense hangs in the air. A priest offers to bless travellers for a modest offering.</p>`;
-        html += `<div style="${CARD}">`;
-        html += `<div style="font-weight: bold;">✨ Blessing for the Road</div>`;
-        html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">+${cfg.movementBonus} movement and +${cfg.healthRegen} healing each day for ${cfg.days} days, and +1 karma.</div>`;
-        if (active > 0) html += `<div style="font-size: 12px; color: #5ddb6a;">You are blessed — ${active} day${active > 1 ? 's' : ''} left.</div>`;
-        html += _button(`Make an offering (${cost}g)`, 'bless', player.gold >= cost);
-        html += '</div>';
+        html += lede('Incense hangs in the air. A priest offers to bless travellers for a modest offering.');
+        html += chips([
+            purse(player.gold),
+            active > 0 ? { icon: '✨', label: 'Blessed', value: `${active} day${active > 1 ? 's' : ''} left` } : null,
+        ]);
+        const rows = [_row({
+            icon: '✨', name: 'Blessing for the Road',
+            desc: `+${cfg.movementBonus} movement and +${cfg.healthRegen} healing each day for ${cfg.days} days, and +1 karma. Make an offering.`,
+            why: `Make an offering of ${cost}g — your purse is short.`,
+            note: active > 0 ? `You are blessed — ${active} day${active > 1 ? 's' : ''} left.` : '',
+            side: price(cost, player.gold >= cost),
+        }, 'bless', player.gold >= cost)];
         // Healing rites for the sick (systems/ailments.js) — the priests tend fevers, not wounds
         const rites = Ailments.treatmentOptions(player, game.world, settlement, true).filter(o => o.kind === 'disease');
+        html += rowList(rows, 'The priests');
         if (rites.length) {
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-weight: bold;">🕯️ Healing Rites</div>`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">The priests pray over the sick and dose them with temple remedies. Your faith counts (${Math.round(Ailments.templeQuality(player) * 100)}% care). +1 karma.</div>`;
-            rites.forEach((o, i) => {
-                html += _button(`${o.icon} Tend your ${o.name.toLowerCase()} (${o.cost}g)`, `rite${i}`, o.can);
-            });
-            html += '</div>';
+            html += sectionHead('🕯️ Healing Rites');
+            html += `<div style="${NOTE}">The priests pray over the sick and dose them with temple remedies. Your faith counts (${Math.round(Ailments.templeQuality(player) * 100)}% care). +1 karma.</div>`;
+            html += rowList(rites.map((o, i) => _row({
+                icon: o.icon, name: `Tend your ${o.name.toLowerCase()}`, why: o.reason || 'Out of reach',
+                side: price(o.cost, (player.gold || 0) >= o.cost),
+            }, `rite${i}`, o.can)));
         }
         // Prayer, alms, vows and pilgrimages, the soul's redemption (ui/actionMenu/devotion.js)
         html += DevotionPanel.templeCardHtml(game, tile);
@@ -137,35 +147,41 @@ Object.assign(ActionMenu, {
         const sickParty = Ailments.sickCompanions(player);
 
         let html = '<div>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">${who === 'herbalist'
+        html += lede(who === 'herbalist'
             ? 'The village herbalist clears a bench among drying bundles of herbs.'
-            : `The ${settlement.type}'s physician washes his hands and looks you over.`}</p>`;
+            : `The ${settlement.type}'s physician washes his hands and looks you over.`);
         // Who treats here, and how good they are (Medicine, systems/tradeSkills.js)
         const doc = TradeSkills.physician(settlement, game.world);
-        html += `<div style="font-size: 11px; color: #9fd6a8; margin-bottom: 6px;">⚕️ ${doc.name ? `${doc.name}, ${doc.role}` : `The ${who}`} — Medicine ${doc.level} (${doc.levelName})${doc.level > doc.typical ? ', better than most here' : doc.level < doc.typical ? ', not the best of healers' : ''}. Watching them work teaches you a little.</div>`;
+        html += chips([
+            { icon: '⚕️', label: doc.name ? `${doc.name}, ${doc.role}` : `The ${who}`, value: `Medicine ${doc.level} (${doc.levelName})` },
+            purse(player.gold),
+        ]);
+        html += `<div style="font-size: 11px; color: #8fb98a; margin-bottom: 6px;">${doc.level > doc.typical ? 'Better than most here. ' : doc.level < doc.typical ? 'Not the best of healers. ' : ''}Watching them work teaches you a little.</div>`;
         if (!options.length && !sickParty.length) {
-            html += `<div style="${CARD} font-size: 12px; color: var(--text-secondary);">"You're as sound as a bell. Come back when something hurts."</div>`;
+            html += card(`<div style="font-size: 12px; color: #cbbf9f; font-style: italic;">"You're as sound as a bell. Come back when something hurts."</div>`);
         }
-        options.forEach((o, i) => {
+        html += rowList(options.map((o, i) => {
             const d = info.find(x => x.key === o.key) || {};
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-weight: bold;">${o.icon} ${o.name}</div>`;
-            if (d.effects) html += `<div style="font-size: 12px; color: #e57373; margin: 2px 0;">${d.effects}</div>`;
-            html += `<div style="font-size: 11px; color: var(--text-secondary);">${d.timeText || ''}${d.note ? ` — ${d.note}` : ''}</div>`;
-            html += `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Treatment quality here: ${Math.round(o.quality * 100)}%</div>`;
-            html += _button(o.can ? `Treat (${o.cost}g)` : o.reason, `t${i}`, o.can);
-            html += '</div>';
-        });
-        sickParty.forEach((s, i) => {
+            const when = `${d.timeText || ''}${d.note ? ` — ${d.note}` : ''}`;
+            const desc = `${d.effects ? `<span style="color: #e0846a;">${d.effects}</span> · ` : ''}${when}`;
+            return _row({
+                icon: o.icon, name: o.name, desc,
+                why: `${desc}${desc ? ' — ' : ''}${o.reason || ''}`,
+                note: `Treatment quality here: ${Math.round(o.quality * 100)}%`,
+                side: o.can ? `Treat ${price(o.cost, true)}` : price(o.cost, false),
+            }, `t${i}`, o.can);
+        }), options.length ? 'What ails you' : '');
+        html += rowList(sickParty.map((s, i) => {
             let name = 'A companion';
             try { const npc = Relationships.getNPC(s.npcId); if (npc) name = npc.firstName; } catch (e) { /* unknown */ }
             const cost = Ailments.companionTreatmentCost(player, settlement, s.npcId);
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-weight: bold;">🤒 ${name} — ${s.disease}</div>`;
-            html += _button(`Have ${name} nursed back to health (${cost}g)`, `c${i}`, (player.gold || 0) >= cost);
-            html += '</div>';
-        });
-        html += `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">Resting at an inn or in your own house, a healer in your party and remedies from your pack (herbs, salves, potions, holy water — use them from the Character panel) all help you mend.</div>`;
+            const ok = (player.gold || 0) >= cost;
+            return _row({
+                icon: '🤒', name: `${name} — ${s.disease}`, desc: `Have ${name} nursed back to health`,
+                why: `Have ${name} nursed back to health — your purse is short`, side: price(cost, ok),
+            }, `c${i}`, ok);
+        }), sickParty.length ? 'Your party' : '');
+        html += `<div style="${NOTE} margin-top: 6px;">Resting at an inn or in your own house, a healer in your party and remedies from your pack (herbs, salves, potions, holy water — use them from the Character panel) all help you mend.</div>`;
         html += '</div>';
 
         game.ui.showCustomPanel(who === 'herbalist' ? '🌿 Herbalist' : '⚕️ Physician', html);
@@ -185,30 +201,34 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const settlement = tile.settlement;
         const cfg = SERVICE_CONFIG.mount;
-        const price = SettlementServices.mountPrice(settlement);
+        const cost = SettlementServices.mountPrice(settlement);
         const tamed = (player.inventory && player.inventory.horse) || 0;
         const reopen = () => ActionMenu.showStableMenu(game, tile);
 
         let html = '<div>';
-        html += `<div style="${CARD}">`;
+        html += chips([
+            purse(player.gold),
+            player.mount ? { icon: '🐴', label: 'Your mount', value: player.mount.name } : null,
+            tamed > 0 ? ['🐎', 'Tamed horses', tamed] : null,
+        ]);
+        const rows = [];
         if (player.mount) {
             const resale = Math.round((player.mount.price || cfg.price) * cfg.resaleRate);
-            html += `<div style="font-weight: bold;">🐴 Your mount: ${player.mount.name}</div>`;
-            html += `<div style="font-size: 12px; color: #5ddb6a; margin: 4px 0;">+${cfg.movementBonus} movement each day.</div>`;
-            html += _button(`Sell ${player.mount.name} (${resale}g)`, 'sellMount');
+            rows.push(actRow({ icon: '🐴', name: `Your mount: ${player.mount.name}`, desc: `<span style="color: #8fd18a;">+${cfg.movementBonus} movement each day.</span>` }));
+            rows.push(_row({ icon: '💰', name: `Sell ${player.mount.name}`, side: `+${resale}g`, tone: 'good' }, 'sellMount'));
         } else {
-            html += `<div style="font-weight: bold;">🐎 Riding Horse</div>`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">A mount carries you +${cfg.movementBonus} hexes further every day. You can ride one horse at a time.</div>`;
-            html += _button(`Buy a riding horse (${price}g)`, 'buy', player.gold >= price);
-            if (tamed > 0) html += _button(`Saddle a tamed horse (${cfg.saddleCost}g tack)`, 'saddle', player.gold >= cfg.saddleCost);
+            const desc = `A mount carries you +${cfg.movementBonus} hexes further every day. You can ride one horse at a time.`;
+            rows.push(_row({ icon: '🐎', name: 'Buy a riding horse', desc, why: `${desc} Your purse is short.`, side: price(cost, player.gold >= cost) }, 'buy', player.gold >= cost));
+            if (tamed > 0) rows.push(_row({ icon: '🏇', name: 'Saddle a tamed horse', desc: `${cfg.saddleCost}g tack`, why: `${cfg.saddleCost}g tack — your purse is short`, side: price(cfg.saddleCost, player.gold >= cfg.saddleCost) }, 'saddle', player.gold >= cfg.saddleCost));
         }
-        html += '</div>';
         if (tamed > 0) {
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary);">The stable master will buy tamed horses for ${cfg.tamedHorseSale}g each.</div>`;
-            html += _button(`Sell ${tamed} tamed horse${tamed > 1 ? 's' : ''} (${tamed * cfg.tamedHorseSale}g)`, 'sellTamed');
-            html += '</div>';
+            rows.push(_row({
+                icon: '🐎', name: `Sell ${tamed} tamed horse${tamed > 1 ? 's' : ''}`,
+                desc: `The stable master will buy tamed horses for ${cfg.tamedHorseSale}g each.`,
+                side: `+${tamed * cfg.tamedHorseSale}g`, tone: 'good',
+            }, 'sellTamed'));
         }
+        html += rowList(rows, player.mount ? 'Your mount' : 'Riding Horse');
         html += '</div>';
 
         game.ui.showCustomPanel('🐴 Stable', html);
@@ -232,21 +252,19 @@ Object.assign(ActionMenu, {
 
         let html = '<div>';
         if (offenses === 0 && bounty === 0 && !warrant) {
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The guard captain checks the ledger and grunts. "Nothing on you. Keep it that way."</p>`;
-            html += _button('📜 Check the bounty board', 'bounties');
+            html += lede('The guard captain checks the ledger and grunts. "Nothing on you. Keep it that way."');
+            html += rowList([_row({ icon: '📜', name: 'Check the bounty board', desc: 'Work for those who keep the peace' }, 'bounties')]);
         } else {
             const rec = player.criminalRecord || {};
             const lines = Object.entries(rec).filter(([, n]) => n > 0)
                 .map(([crime, n]) => `${crime.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase())} ×${n}`);
             if (bounty) lines.push(`Bounty on your head: ${bounty}g`);
             if (warrant) lines.push(`Royal warrant for your arrest (+${SERVICE_CONFIG.fines.warrantFee}g)`);
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The captain taps the ledger. "${warrant ? "There's a warrant out for you. Pay up, or hang." : "You've a record, friend."}"</p>`;
-            html += `<div style="${CARD}">`;
-            html += `<div style="font-weight: bold;">🗂️ Your record</div>`;
-            html += `<div style="font-size: 12px; color: #e86a6a; margin: 4px 0;">${lines.join(', ')}</div>`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary);">Settling wipes your record, pays off this crown's bounties and lifts its warrant, so merchants will deal with you again and the guards stand down.</div>`;
-            html += _button(`Settle everything (${fine}g)`, 'pay', player.gold >= fine);
-            html += '</div>';
+            html += lede(`The captain taps the ledger. "${warrant ? "There's a warrant out for you. Pay up, or hang." : "You've a record, friend."}"`);
+            html += chips([purse(player.gold), { icon: '⚖️', label: 'Owed', value: `<span style="color: #e0846a;">${fine}g</span>` }]);
+            html += card(`<div style="font-size: 12px; color: #e0846a;">${lines.join(', ')}</div>`, { icon: '🗂️', title: 'Your record', tone: 'bad' });
+            const desc = 'Settling wipes your record, pays off this crown\'s bounties and lifts its warrant, so merchants will deal with you again and the guards stand down.';
+            html += rowList([_row({ icon: '⚖️', name: 'Settle everything', desc, why: `${desc} Your purse is short.`, side: price(fine, player.gold >= fine) }, 'pay', player.gold >= fine)]);
         }
         html += '</div>';
 
@@ -268,14 +286,17 @@ Object.assign(ActionMenu, {
 
         let html = '<div>';
         if (!kingdom) {
-            html += `<p style="font-size: 12px; color: var(--text-secondary);">This settlement answers to no crown. There is no one to pay.</p>`;
+            html += lede('This settlement answers to no crown. There is no one to pay.');
         } else {
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">The tax clerk of ${kingdom.name} looks up hopefully. A voluntary contribution to the crown is always remembered.</p>`;
-            html += `<div style="font-size: 12px; margin-bottom: 6px;">Your standing with ${kingdom.name}: <strong>${rep}</strong></div>`;
-            tiers.forEach((amount, i) => {
+            html += lede(`The tax clerk of ${kingdom.name} looks up hopefully. A voluntary contribution to the crown is always remembered.`);
+            html += chips([{ icon: '👑', label: `Your standing with ${kingdom.name}`, value: rep, cls: 'gold' }, purse(player.gold)]);
+            html += rowList(tiers.map((amount, i) => {
                 const gain = Math.floor(amount / SERVICE_CONFIG.tribute.goldPerReputation);
-                html += _button(`Pay ${amount}g tribute (+${gain} reputation)`, `t${i}`, player.gold >= amount);
-            });
+                return _row({
+                    icon: '💰', name: `Pay ${amount}g tribute`, desc: `+${gain} reputation`,
+                    why: `+${gain} reputation — your purse is short`, side: price(amount, player.gold >= amount),
+                }, `t${i}`, player.gold >= amount);
+            }), 'Tribute');
         }
         html += '</div>';
 
@@ -298,18 +319,15 @@ Object.assign(ActionMenu, {
 
         let html = '<div>';
         const ruler = kingdom && kingdom.ruler ? (kingdom.ruler.name || kingdom.ruler) : null;
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">`;
-        html += kingdom
+        html += lede(kingdom
             ? `You are shown into the hall${ruler ? ` where the steward of ${ruler}` : ''} hears petitions on behalf of ${kingdom.name}.`
-            : 'The hall is quiet. The local elders hear you out.';
-        html += '</p>';
+            : 'The hall is quiet. The local elders hear you out.');
         if (available.length === 0) {
-            html += `<div style="${CARD} font-size: 12px; color: var(--text-secondary);">There is nothing for you to petition here yet. Earn standing with the realm, and pledge yourself to it, to open the doors of office.</div>`;
+            html += card('<div style="font-size: 12px; color: #cbbf9f;">There is nothing for you to petition here yet. Earn standing with the realm, and pledge yourself to it, to open the doors of office.</div>');
         }
-        available.forEach((a, i) => {
-            html += `<button onclick="window._svc.a${i}()" style="${BTN} text-align: left; background: rgba(255,255,255,0.05); color: var(--text-primary, #e6e1d6); border: 1px solid rgba(245,197,66,0.25);">${a.icon || '•'} ${a.label}<div style="font-size: 11px; font-weight: normal; color: var(--text-secondary);">${a.description || ''}</div></button>`;
-        });
-        html += _button('💰 Pay tribute to the crown', 'tribute', !!kingdom);
+        const rows = available.map((a, i) => _row({ icon: a.icon || '•', name: a.label, desc: a.description || '' }, `a${i}`));
+        rows.push(_row({ icon: '💰', name: 'Pay tribute to the crown', why: 'This settlement answers to no crown.' }, 'tribute', !!kingdom));
+        html += rowList(rows, 'Petitions');
         html += '</div>';
 
         game.ui.showCustomPanel('🏛️ Audience', html);

@@ -7,6 +7,7 @@ import { Hex } from '../core/hex.js';
 import { Quests } from './quests.js';
 import { Economy } from '../world/economy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
+import { Transport } from '../world/transport.js';
 
 
 export const Infrastructure = {
@@ -200,6 +201,8 @@ export const Infrastructure = {
         tile.infrastructure._tileR = tile.r;
 
         if (infra.id === 'dirt_road' || infra.id === 'stone_road') Quests.track(player, 'roads_built');
+        // Built instantly (no build time): it joins the road network now
+        if (!tile.infrastructure.underConstruction) Infrastructure.joinRoadNetwork(world, tile);
 
         return { success: true, infrastructure: tile.infrastructure, cost, buildDays };
     },
@@ -207,7 +210,7 @@ export const Infrastructure = {
     /**
      * Remove infrastructure from a tile (refund 25%)
      */
-    demolish(player, tile) {
+    demolish(player, tile, world = null) {
         if (!tile.infrastructure) return { success: false, reason: 'No infrastructure here' };
 
         const infra = Infrastructure.TYPES[tile.infrastructure.id.toUpperCase()] ||
@@ -217,8 +220,75 @@ export const Infrastructure = {
         player.gold += refund;
         const name = tile.infrastructure.name;
         tile.infrastructure = null;
+        if (world) Infrastructure.leaveRoadNetwork(world, tile);
 
         return { success: true, refund, name };
+    },
+
+    // ── Built roads join the world's road network ──
+    // A finished dirt/stone road becomes a real road hex (tile.hasRoad +
+    // roadLinks), exactly like the generated ones: the map draws it with the
+    // same road/bridge sprites, and the transport network (segments, trade
+    // friction, caravans) re-derives to include it. tile.builtRoad marks the
+    // hexes the player made, so demolishing takes back only those, and a load
+    // (the world regenerates from the seed) can lay them again.
+
+    /** Is this a finished player road that should be part of the network? */
+    isFinishedRoad(tile) {
+        const infra = tile && tile.infrastructure;
+        return !!(infra && !infra.underConstruction && (infra.id === 'dirt_road' || infra.id === 'stone_road'));
+    },
+
+    /** Make a finished built road a real road hex, linked to the roads and towns beside it. */
+    joinRoadNetwork(world, tile, rederive = true) {
+        if (!world || !tile || !Infrastructure.isFinishedRoad(tile)) return false;
+        if (!tile.hasRoad) tile.builtRoad = true;
+        tile.hasRoad = true;
+        if (!Number.isInteger(tile.roadLinks)) tile.roadLinks = 0;
+        const ns = Hex.neighbors(tile.q, tile.r);
+        for (let i = 0; i < 6; i++) {
+            if (ns[i].r < 0 || ns[i].r >= world.height) continue;
+            const n = world.getTile(Hex.wrapQ(ns[i].q, world.width), ns[i].r);
+            if (!n || !(n.hasRoad || n.settlement)) continue;
+            tile.roadLinks |= 1 << i;
+            if (n.hasRoad) n.roadLinks = (Number.isInteger(n.roadLinks) ? n.roadLinks : 0) | (1 << ((i + 3) % 6));
+        }
+        if (rederive) Transport.derive(world);
+        return true;
+    },
+
+    /** Take a demolished built road back out of the network (generated roads stay). */
+    leaveRoadNetwork(world, tile) {
+        if (!world || !tile || !tile.builtRoad) return;
+        delete tile.builtRoad;
+        tile.hasRoad = false;
+        tile.roadLinks = 0;
+        for (const k of ['roadSeg', 'roadMove', 'roadExtra', 'roadBand', 'roadTier', 'roadCross', 'roadCrossMove', 'tollGate']) delete tile[k];
+        const ns = Hex.neighbors(tile.q, tile.r);
+        for (let i = 0; i < 6; i++) {
+            if (ns[i].r < 0 || ns[i].r >= world.height) continue;
+            const n = world.getTile(Hex.wrapQ(ns[i].q, world.width), ns[i].r);
+            if (n && Number.isInteger(n.roadLinks)) n.roadLinks &= ~(1 << ((i + 3) % 6));
+        }
+        Transport.derive(world);
+    },
+
+    /** A road's construction is done: it opens and joins the network. */
+    finishConstruction(world, tile) {
+        if (!tile || !tile.infrastructure) return;
+        tile.infrastructure.underConstruction = false;
+        tile.infrastructure.constructionDaysLeft = 0;
+        Infrastructure.joinRoadNetwork(world, tile);
+    },
+
+    /** After a load: lay the player's finished roads into the regenerated world again. */
+    restoreRoads(world) {
+        if (!world || !Array.isArray(world.tiles)) return;
+        // No re-derive here: the caller restores the transport state next,
+        // which drops the memoised network so it derives with these roads.
+        for (const row of world.tiles) {
+            for (const t of row) if (Infrastructure.isFinishedRoad(t)) Infrastructure.joinRoadNetwork(world, t, false);
+        }
     },
 
     /** Water terrains a jetty can reach out into. */

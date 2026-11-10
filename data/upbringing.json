@@ -367,8 +367,8 @@
     "regency": {
         "_comment": "systems/regency.js — a minor heir's reign under a regent.",
         "majorityAge": 16, "earlyMajorityYears": 2, "earlyMajorityPrestige": 12,
-        "cadence": 7, "baseLoyalty": { "spouse": 72, "sibling": 58, "council": 55 },
-        "baseAmbition": { "spouse": 25, "sibling": 55, "council": 40 },
+        "cadence": 7, "baseLoyalty": { "spouse": 72, "sibling": 58, "courtier": 60, "council": 55 },
+        "baseAmbition": { "spouse": 25, "sibling": 55, "courtier": 45, "council": 40 },
         "ambitionSpread": 30, "drift": 3, "prestigeLoyalty": 0.05, "favourDecayDays": 60,
         "embezzleBelow": 45, "embezzleRate": 0.03, "embezzleMax": 120,
         "plotBelow": 25, "plotAmbition": 50, "plotRumourAt": 50, "coupGoldShare": 0.25, "coupPrestige": 10,

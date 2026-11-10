@@ -4,7 +4,7 @@ import { Duels } from '../../systems/duels.js';
 import { DuelPanel } from './duel.js';
 import { DevotionPanel } from './devotion.js';
 import { FeastPanel } from './feast.js';
-import { BTN_GOLD, BTN_DARK, esc } from './uiKit.js';
+import { BTN_GOLD, BTN_PLAIN, esc, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { Throne, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Festivals, PlayerEffects, Rivals } from './_imports.js';
 
 const BOUT_NAMES = ['Opening bout', 'Semi-final', 'The final'];
@@ -44,25 +44,30 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
     const finish = () => {
         const out = Duels.settleTournament(player, { prizePool, bouts, armour, world });
         let h = '<div>';
-        h += '<h4 style="margin-top: 0;">⚔️ Tournament Results</h4>';
-        bouts.forEach((b, i) => {
+        const renown = baseRenown + out.renown;
+        if (out.champion) {
+            h += lede(`<b style="color:#ffcf6a;">🏆 GRAND CHAMPION! Won ${out.gold} gold! +${renown} total renown!</b>`);
+        } else if (out.finalist) {
+            h += lede(`🥈 <b>Runner-up!</b> Won ${out.gold} gold. +${renown} renown.`);
+        } else {
+            h += lede(`Eliminated${out.wins ? ' in the semi-final' : ' in the opening bout'}. +${renown} renown for competing.`);
+        }
+        h += chips([
+            { icon: '💰', label: 'Prize', value: `${out.gold}g`, cls: 'gold' },
+            ['⭐', 'Renown', `+${renown}`],
+            out.harm > 0 ? ['🤕', 'Hurt', `<span style="color:#e0846a;">-${out.harm} HP</span>`] : null,
+        ]);
+        h += rowList(bouts.map((b, i) => {
             const r = b.result;
             const how = r.yielded === 'b' ? ' (they yielded)' : r.yielded === 'a' ? ' (you yielded)' : '';
-            h += r.playerWon
-                ? `<div style="color: #8f8;">✓ ${BOUT_NAMES[i]}: defeated ${esc(b.opponent.name)}${how}</div>`
-                : `<div style="color: #f88;">✗ ${BOUT_NAMES[i]}: lost to ${esc(b.opponent.name)}${how}</div>`;
-        });
-        for (const w of out.wounds) h += `<div style="color: #e57373; margin-left: 12px;">${w.icon} ${esc(w.name)} (${esc(w.text)})</div>`;
-        if (out.champion) {
-            h += `<div style="color: var(--gold); font-weight: bold; margin-top: 8px;">🏆 GRAND CHAMPION! Won ${out.gold} gold! +${baseRenown + out.renown} total renown!</div>`;
-        } else if (out.finalist) {
-            h += `<div style="color: #ccc; margin-top: 8px;">🥈 Runner-up! Won ${out.gold} gold. +${baseRenown + out.renown} renown.</div>`;
-        } else {
-            h += `<div style="color: #888; margin-top: 8px;">Eliminated${out.wins ? ' in the semi-final' : ' in the opening bout'}. +${baseRenown + out.renown} renown for competing.</div>`;
-        }
-        if (out.skillUp) h += '<div style="color: #88f; margin-top: 4px;">Combat skill improved!</div>';
-        if (out.harm > 0) h += `<div style="color: #f88; margin-top: 4px;">Bruises and cuts: -${out.harm} HP</div>`;
-        h += `<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+            return r.playerWon
+                ? { icon: '✓', name: BOUT_NAMES[i], desc: `defeated ${esc(b.opponent.name)}${how}`, side: 'won', tone: 'good' }
+                : { icon: '✗', name: BOUT_NAMES[i], desc: `lost to ${esc(b.opponent.name)}${how}`, side: 'lost', tone: 'bad' };
+        }), '⚔️ Tournament Results');
+        for (const w of out.wounds) h += `<div style="color: #e0846a; margin-left: 12px;">${w.icon} ${esc(w.name)} (${esc(w.text)})</div>`;
+        if (out.skillUp) h += '<div style="color: #9fb4f0; margin-top: 4px;">Combat skill improved!</div>';
+        if (out.harm > 0) h += `<div style="color: #e0846a; margin-top: 4px;">Bruises and cuts: -${out.harm} HP</div>`;
+        h += `<div style="margin-top: 10px;">${actRow({ icon: '➡️', name: 'Continue', desc: 'Leave the lists', act: 'closePanelAndEndDay', tone: 'gold' })}</div>`;
         h += '</div>';
         game.ui.showCustomPanel('Tournament Results', h);
         game.ui.updateStats(player, world);
@@ -101,20 +106,25 @@ function _runTournament(game, tile, settlement, prizePool, baseRenown) {
     const interlude = () => {
         const i = bouts.length;
         let h = '<div>';
-        h += `<h4 style="margin-top: 0;">🏟️ The Lists at ${esc(settlement.name)}</h4>`;
-        if (i > 0) {
-            const last = bouts[i - 1];
-            h += `<div style="color: #8f8; margin-bottom: 6px;">✓ You beat ${esc(last.opponent.name)}.</div>`;
-        }
-        h += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">The bracket:</div>`;
-        field.forEach((o, k) => {
+        h += lede(`🏟️ <b>The Lists at ${esc(settlement.name)}</b>${i > 0 ? ` · <span style="color:#8fd18a;">✓ You beat ${esc(bouts[i - 1].opponent.name)}.</span>` : ''}`);
+        h += chips([
+            { icon: '🏆', label: 'Champion takes', value: `${prizePool}g`, cls: 'gold' },
+            ['🥈', 'Runner-up', `${Math.floor(prizePool * (T.runnerUpShare || 0.4))}g`],
+        ]);
+        h += rowList(field.map((o, k) => {
             const T2 = Duels.temperament(o.temperament);
             const mark = k < i ? '✓' : k === i ? '▶' : '·';
-            h += `<div style="font-size: 12px; ${k === i ? 'color: var(--gold);' : k < i ? 'color: #8f8;' : 'color: #ccc;'}">${mark} ${BOUT_NAMES[k]}: ${o.icon} ${esc(o.name)} <span style="color: var(--text-muted); font-size: 10px;">${esc(o.title || '')} · ${T2.icon || ''} ${esc(T2.label || '')}</span></div>`;
-        });
-        h += `<div style="font-size: 11px; color: var(--text-muted); margin: 6px 0;">🏆 Champion takes ${prizePool} gold; the runner-up ${Math.floor(prizePool * (T.runnerUpShare || 0.4))}.</div>`;
-        h += `<button onclick="window._tourney.fight()" style="${BTN_GOLD} width: 100%; padding: 9px;">⚔️ Fight the ${BOUT_NAMES[i].toLowerCase()}</button>`;
-        h += `<button onclick="window._tourney.auto()" style="${BTN_DARK} width: 100%; padding: 7px;">⚡ Fight the rest on instinct</button>`;
+            return {
+                icon: o.icon, name: `${mark} ${BOUT_NAMES[k]}: ${esc(o.name)}`,
+                desc: `${esc(o.title || '')} · ${T2.icon || ''} ${esc(T2.label || '')}`,
+                side: k < i ? 'won' : k === i ? 'next' : '', tone: k < i ? 'good' : k === i ? 'gold' : '',
+            };
+        }), 'The bracket:');
+        h += `<div style="font-size: 11px; color: #9d937c; margin: -4px 0 6px;">🏆 Champion takes ${prizePool} gold; the runner-up ${Math.floor(prizePool * (T.runnerUpShare || 0.4))}.</div>`;
+        h += rowList([
+            { icon: '⚔️', name: `Fight the ${BOUT_NAMES[i].toLowerCase()}`, desc: 'Blunted steel, in the duel panel', attrs: 'onclick="window._tourney.fight()"', tone: 'gold', side: '›' },
+            { icon: '⚡', name: 'Fight the rest on instinct', desc: 'Settled at once', attrs: 'onclick="window._tourney.auto()"', side: '›' },
+        ]);
         h += '</div>';
         game.ui.showCustomPanel('Tournament', h);
     };
@@ -243,30 +253,23 @@ Object.assign(ActionMenu, {
         const suggestedName = `Kingdom of ${activeSettlement?.settlement?.name || 'New Dawn'}`;
 
         const status = Throne.foundingStatus(player, world);
-        const blocked = status.ok ? '' : `<p style="font-size: 12px; color: #ff6666; margin: 0 0 10px;">${status.reasons.join(' ')}</p>`;
-        let html = `
-            <div>
-                <h4 style="margin: 0 0 10px;">👑 Proclaim a New Kingdom</h4>
-                ${blocked}
-                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px;">Costs ${status.cost} Prestige. You will rule it: set its taxes, war stance and faith, and conduct its diplomacy from Claims & Crowns.</p>
-                <p style="font-size: 12px; color: var(--text-secondary); margin: 0 0 10px;">
-                    You will unite <b>${controlledSettlements.length}</b> settlements under a new crown.
-                </p>
-                <p style="font-size: 12px; margin: 0 0 6px;"><b>Kingdom Name</b></p>
+        const blocked = status.ok ? '' : `<p style="font-size: 12px; color: #c98a6a; margin: 0 0 10px;">${status.reasons.join(' ')}</p>`;
+        let html = '<div>';
+        html += lede(`👑 <b>Proclaim a New Kingdom.</b> You will rule it: set its taxes, war stance and faith, and conduct its diplomacy from Claims & Crowns.`);
+        html += chips([
+            { icon: '✨', label: 'Costs', value: `${status.cost} Prestige`, cls: 'gold' },
+            ['🏘️', 'Settlements', controlledSettlements.length],
+        ]);
+        html += blocked;
+        html += `<p style="font-size: 12px; color: #9d937c; margin: 0 0 10px;">You will unite <b style="color:#ece2c8;">${controlledSettlements.length}</b> settlements under a new crown.</p>`;
+        html += card(`
                 <input id="newKingdomNameInput" type="text" maxlength="48" value="${suggestedName.replace(/"/g, '&quot;')}"
-                    style="width: 100%; box-sizing: border-box; padding: 8px; border-radius: 6px; border: 1px solid #555; background: #222; color: #fff; margin-bottom: 10px;" />
-                <div style="display:flex; gap:8px;">
-                    <button onclick="window._confirmFormKingdom()"
-                        style="flex:1; padding: 10px; background: #c89b3c; border: none; border-radius: 6px; color: #111; font-weight: 700; cursor: pointer;">
-                        Found Kingdom
-                    </button>
-                    <button data-am-act="closePanel"
-                        style="padding: 10px 12px; background: #444; border: none; border-radius: 6px; color: #ddd; cursor: pointer;">
-                        Cancel
-                    </button>
-                </div>
-            </div>
-        `;
+                    style="width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(245,197,66,0.22); background: rgba(0,0,0,0.3); color: #ece2c8; font-size: 13px; margin-bottom: 10px;" />
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                    <button data-am-act="closePanel" style="${BTN_PLAIN}">Cancel</button>
+                    <button onclick="window._confirmFormKingdom()" style="${BTN_GOLD}">👑 Found Kingdom</button>
+                </div>`, { title: 'Kingdom Name' });
+        html += '</div>';
 
         game.ui.showCustomPanel('Form Kingdom', html);
 
@@ -316,24 +319,25 @@ Object.assign(ActionMenu, {
         const cooling = sinceLast < TOURNAMENT_COOLDOWN ? TOURNAMENT_COOLDOWN - sinceLast : 0;
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">⚔️ Hold a Tournament</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">Organize a fighting tournament in ${settlement.name}! Champions from across the land will compete.</p>`;
-        html += `<div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; margin: 8px 0; font-size: 12px;">`;
-        html += `<div>💰 Entry/Organization cost: <span style="color: var(--gold);">${entryFee} gold</span></div>`;
-        html += `<div>🏆 Prize pool: <span style="color: var(--gold);">${prizePool} gold</span></div>`;
-        html += `<div>⚔️ Your combat skill: ${Math.round((player.skills?.combat || 1) * 10) / 10} | Strength: ${Math.round((player.strength || 5) * 10) / 10}</div>`;
-        html += `<div>⏰ Takes the rest of the day</div>`;
-        html += `</div>`;
-        html += `<p style="font-size: 11px; color: #aaa;">You may compete yourself, or simply host and watch.</p>`;
-
-        if (cooling > 0) {
-            html += `<p style="color: #ff6666; font-size: 12px;">The knights are still mending from your last tournament. Call the lists again in ${cooling} day${cooling === 1 ? '' : 's'}.</p>`;
-        } else if (player.gold >= entryFee) {
-            html += `<button onclick="window._doTournament(true)" style="width: 100%; padding: 10px; background: #c97d32; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 6px;">Compete (${entryFee}g)</button>`;
-            html += `<button onclick="window._doTournament(false)" style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Just Host & Spectate (${Math.floor(entryFee * 0.6)}g)</button>`;
-        } else {
-            html += `<p style="color: #ff6666; font-size: 12px;">You need ${entryFee} gold to organize a tournament.</p>`;
-        }
+        html += lede(`⚔️ <b>Hold a Tournament.</b> Organize a fighting tournament in ${settlement.name}! Champions from across the land will compete.`);
+        html += chips([
+            { icon: '🏆', label: 'Prize pool', value: `${prizePool}g`, cls: 'gold' },
+            ['⚔️', 'Combat', Math.round((player.skills?.combat || 1) * 10) / 10],
+            ['💪', 'Strength', Math.round((player.strength || 5) * 10) / 10],
+            purse(player.gold),
+        ]);
+        html += kv('💰 Entry/Organization cost', `<span style="color:#ffcf6a;">${entryFee} gold</span>`);
+        html += kv('⏰ Time', 'Takes the rest of the day');
+        html += sectionHead('You may compete yourself, or simply host and watch');
+        const hostFee = Math.floor(entryFee * 0.6);
+        const why = cooling > 0
+            ? `The knights are still mending from your last tournament. Call the lists again in ${cooling} day${cooling === 1 ? '' : 's'}.`
+            : `You need ${entryFee} gold to organize a tournament.`;
+        const open = cooling <= 0 && player.gold >= entryFee;
+        html += rowList([
+            { icon: '⚔️', name: 'Compete', desc: 'Ride in the lists yourself: three bouts for the prize', attrs: 'onclick="window._doTournament(true)"', off: !open, why, side: price(entryFee, player.gold >= entryFee) },
+            { icon: '🏟️', name: 'Just Host & Spectate', desc: 'Pay for the lists and watch from the stands', attrs: 'onclick="window._doTournament(false)"', off: !open, why, side: price(hostFee, player.gold >= hostFee) },
+        ]);
         html += '</div>';
 
         game.ui.showCustomPanel('Tournament', html);
@@ -363,18 +367,17 @@ Object.assign(ActionMenu, {
                 return;
             } else {
                 // Just hosting
-                resultHtml += '<h4 style="margin-top: 0;">🏟️ Tournament Hosted</h4>';
-                resultHtml += `<div>The tournament was a great success! The crowd cheered and the fighters put on a great show.</div>`;
-                resultHtml += `<div style="color: var(--gold); margin-top: 8px;">+${renownGain} renown for hosting.</div>`;
+                resultHtml += lede('🏟️ <b>Tournament Hosted.</b> The tournament was a great success! The crowd cheered and the fighters put on a great show.');
+                resultHtml += `<div style="color: #ffcf6a; margin-top: 4px;">+${renownGain} renown for hosting.</div>`;
 
                 // Hosting chance for diplomacy
                 if (Math.random() < 0.25 && player.skills) {
                     player.skills.diplomacy = Math.min((player.skills.diplomacy || 1) + 1, 10);
-                    resultHtml += `<div style="color: #88f; margin-top: 4px;">Diplomacy improved from managing the event!</div>`;
+                    resultHtml += `<div style="color: #9fb4f0; margin-top: 4px;">Diplomacy improved from managing the event!</div>`;
                 }
             }
 
-            resultHtml += `<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+            resultHtml += `<div style="margin-top: 10px;">${actRow({ icon: '➡️', name: 'Continue', desc: 'Leave the stands', act: 'closePanelAndEndDay', tone: 'gold' })}</div>`;
             resultHtml += '</div>';
 
             game.ui.showCustomPanel('Tournament Results', resultHtml);
@@ -410,8 +413,7 @@ Object.assign(ActionMenu, {
             const canAfford = (player.gold || 0) >= currentTier.cost;
 
             let html = '<div style="max-width: 580px;">';
-            html += `<h4 style="margin-top: 0;">${theme.icon} ${theme.name}</h4>`;
-            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">${game.world.season} festival season in ${settlement.name}. Recommended contest: <strong>${Festivals.CONTESTS[theme.recommendedContest].label}</strong>.</div>`;
+            html += lede(`${theme.icon} <b>${theme.name}.</b> ${game.world.season} festival season in ${settlement.name}. Recommended contest: <strong>${Festivals.CONTESTS[theme.recommendedContest].label}</strong>.`);
             {
                 const fame = Festivals.getReputation(player);
                 const fs = player.festivals;
@@ -422,47 +424,49 @@ Object.assign(ActionMenu, {
                 if (fame.contestVeteran) perks.push(`+${fame.contestVeteran.toFixed(1)} contest power`);
                 if (fame.vigilance) perks.push(`−${Math.round(fame.vigilance * 100)}% sabotage`);
                 if (fame.envoyGoodwill) perks.push(`+${fame.envoyGoodwill} envoy goodwill`);
-                html += `<div style="font-size: 11px; color: #c9b27a; margin-bottom: 10px;">🎪 Record: ${fs.hosted} hosted · ${fs.successfulContests} podiums · ${fs.diplomacyEvents} envoys feted${perks.length ? ` — ${perks.join(', ')}` : ''}${novelty < 1 ? `<br><span style="color:#e67e22;">${settlement.name} has seen your festivals lately: renown ×${novelty.toFixed(1)}. Try another town.</span>` : ''}</div>`;
+                html += chips([
+                    ['🎪', 'Hosted', fs.hosted],
+                    ['🏅', 'Podiums', fs.successfulContests],
+                    ['🤝', 'Envoys feted', fs.diplomacyEvents],
+                    purse(player.gold),
+                ]);
+                if (perks.length) html += `<div style="font-size: 11px; color: #c9b27a; margin: -4px 0 8px;">🎪 Record: ${fs.hosted} hosted · ${fs.successfulContests} podiums · ${fs.diplomacyEvents} envoys feted — ${perks.join(', ')}</div>`;
+                if (novelty < 1) html += `<div style="font-size: 11px; color: #f0b35a; margin: -4px 0 8px;">${settlement.name} has seen your festivals lately: renown ×${novelty.toFixed(1)}. Try another town.</div>`;
             }
 
-            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin-bottom: 6px;">Festival Scale</div>';
-            for (const option of options) {
+            // A chosen option: the gold bar and a check, the side column lit
+            const pick = (on) => (on ? '<span style="color:#ffcf6a;">✓ chosen</span>' : '');
+            html += rowList(options.map(option => {
                 const active = selectedTier === option.id;
-                html += `
-                    <button onclick="window._setFestivalTier('${option.id}')" style="width: 100%; text-align: left; margin-bottom: 6px; padding: 9px; border-radius: 6px; border: 1px solid ${active ? 'rgba(245,197,66,0.65)' : 'rgba(255,255,255,0.12)'}; background: ${active ? 'rgba(245,197,66,0.12)' : 'rgba(255,255,255,0.04)'}; color: #ddd; cursor: pointer;">
-                        <div style="display:flex; justify-content: space-between;"><strong>${option.label}</strong><span style="color: var(--gold);">${option.cost}g</span></div>
-                        <div style="font-size: 11px; color:#aaa; margin-top: 3px;">+${option.renown} base renown · +${Math.round(option.morale * 100)}% morale for ${option.moraleDays} days</div>
-                    </button>
-                `;
-            }
+                return {
+                    icon: active ? '✅' : '🎪', name: option.label,
+                    desc: `+${option.renown} base renown · +${Math.round(option.morale * 100)}% morale for ${option.moraleDays} days`,
+                    attrs: `onclick="window._setFestivalTier('${option.id}')"`,
+                    side: `${active ? pick(true) + ' ' : ''}${price(option.cost, (player.gold || 0) >= option.cost)}`,
+                };
+            }), 'Festival Scale');
 
-            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 6px;">Guest Policy</div>';
-            const diplomaticActive = selectedStance === 'diplomatic';
-            const securityActive = selectedStance === 'security';
-            html += `
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
-                    <button onclick="window._setFestivalStance('diplomatic')" style="padding: 8px; border-radius: 6px; border: 1px solid ${diplomaticActive ? 'rgba(52,152,219,0.7)' : 'rgba(255,255,255,0.12)'}; background: ${diplomaticActive ? 'rgba(52,152,219,0.2)' : 'rgba(255,255,255,0.04)'}; color:#dce8f5; cursor:pointer;">
-                        🤝 Diplomatic Reception
-                    </button>
-                    <button onclick="window._setFestivalStance('security')" style="padding: 8px; border-radius: 6px; border: 1px solid ${securityActive ? 'rgba(231,76,60,0.7)' : 'rgba(255,255,255,0.12)'}; background: ${securityActive ? 'rgba(231,76,60,0.2)' : 'rgba(255,255,255,0.04)'}; color:#f5dfdf; cursor:pointer;">
-                        🛡️ Tight Security
-                    </button>
-                </div>
-            `;
+            html += rowList([
+                { icon: '🤝', name: 'Diplomatic Reception', desc: 'More goodwill from envoys; saboteurs slip in more easily', attrs: 'onclick="window._setFestivalStance(\'diplomatic\')"', side: pick(selectedStance === 'diplomatic') },
+                { icon: '🛡️', name: 'Tight Security', desc: 'Fewer saboteurs, and some caught; envoys less warmed', attrs: 'onclick="window._setFestivalStance(\'security\')"', side: pick(selectedStance === 'security') },
+            ], 'Guest Policy');
 
-            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 6px;">Seasonal Contest</div>';
-            for (const contest of Object.values(Festivals.CONTESTS)) {
+            html += rowList(Object.values(Festivals.CONTESTS).map(contest => {
                 const active = selectedContest === contest.id;
                 const recommended = theme.recommendedContest === contest.id;
-                html += `
-                    <button onclick="window._setFestivalContest('${contest.id}')" style="width: 100%; text-align: left; margin-bottom: 6px; padding: 8px; border-radius: 6px; border: 1px solid ${active ? 'rgba(46,204,113,0.65)' : 'rgba(255,255,255,0.12)'}; background: ${active ? 'rgba(46,204,113,0.16)' : 'rgba(255,255,255,0.04)'}; color:#ddd; cursor:pointer;">
-                        ${contest.icon} <strong>${contest.label}</strong> ${recommended ? '<span style="font-size:10px; color:#2ecc71;">(Season Favored)</span>' : ''}
-                    </button>
-                `;
-            }
+                return {
+                    icon: contest.icon, name: `${contest.label}${recommended ? ' <span style="font-size:10px; color:#8fd18a; font-weight:400;">(Season Favored)</span>' : ''}`,
+                    attrs: `onclick="window._setFestivalContest('${contest.id}')"`,
+                    side: pick(active),
+                };
+            }), 'Seasonal Contest');
 
-            html += `<div style="font-size: 12px; color: ${canAfford ? '#bbb' : '#ff7878'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Math.floor(player.gold)}</div>`;
-            html += `<button onclick="window._beginFestival()" ${!canAfford ? 'disabled' : ''} style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Begin Festival</button>`;
+            html += `<div style="font-size: 12px; color: ${canAfford ? '#9d937c' : '#e0846a'}; margin: 8px 0;">Cost: ${currentTier.cost} gold · Your gold: ${Math.floor(player.gold)}</div>`;
+            html += rowList([{
+                icon: currentTier.icon || theme.icon, name: 'Begin Festival', desc: `${currentTier.label} · takes the day`,
+                attrs: 'onclick="window._beginFestival()"', off: !canAfford, why: `You need ${currentTier.cost} gold to host this festival.`,
+                side: price(currentTier.cost, canAfford), tone: 'gold',
+            }]);
             html += '</div>';
 
             game.ui.showCustomPanel('Festival Planning', html);
@@ -496,43 +500,40 @@ Object.assign(ActionMenu, {
             }
 
             let summary = '<div style="max-width: 560px;">';
-            summary += `<h4 style="margin-top: 0;">${result.seasonTheme.icon} Festival Completed</h4>`;
-            summary += `<div style="margin-bottom: 8px;">${result.contestResult.text}</div>`;
-            summary += `<div style="font-size: 12px; color: #ddd; margin-bottom: 8px;">+${result.renownGain} renown · Morale boost ${Math.round(result.moraleBoost * 100)}% for ${result.moraleDays} days</div>`;
-            summary += `<div style="font-size: 11px; color: #aaa; margin-bottom: 10px;">Contest prize: ${result.contestPrize}g</div>`;
+            summary += lede(`${result.seasonTheme.icon} <b>Festival Completed.</b> ${result.contestResult.text}`);
+            summary += chips([
+                { icon: '⭐', label: 'Renown', value: `+${result.renownGain}`, cls: 'gold' },
+                ['🎉', 'Morale boost', `${Math.round(result.moraleBoost * 100)}% for ${result.moraleDays} days`],
+                ['🏅', 'Contest prize', `${result.contestPrize}g`],
+            ]);
             const lc = result.localCustoms;
             if (lc && (lc.custom || lc.sentimentGain)) {
-                summary += `<div style="font-size: 12px; color: #c5e1a5; margin-bottom: 10px;">🎊 ${lc.custom ? `The locals fold in their ${lc.custom}` : 'The local peoples join in'}${lc.renownBonus ? ` (+${lc.renownBonus} renown)` : ''} · every people here +${lc.sentimentGain} mood</div>`;
+                summary += `<div style="font-size: 12px; color: #8fd18a; margin-bottom: 10px;">🎊 ${lc.custom ? `The locals fold in their ${lc.custom}` : 'The local peoples join in'}${lc.renownBonus ? ` (+${lc.renownBonus} renown)` : ''} · every people here +${lc.sentimentGain} mood</div>`;
             }
 
             // Rival adventurers nearby enter the contest by name (systems/rivals.js)
             const rivalRows = Rivals.festivalContest(player, game.world, tile, result.contestResult.tier, result.contest && result.contest.id);
             if (rivalRows.length > 0) {
-                summary += '<div style="font-size: 11px; text-transform: uppercase; color: var(--gold); letter-spacing: 1px; margin-bottom: 4px;">Rival Contestants</div>';
-                for (const row of rivalRows) {
-                    summary += row.beatPlayer
-                        ? `<div style="font-size: 12px; color:#f0b7aa;">${row.icon} ${row.name} outshone you in the ${row.contest}.</div>`
-                        : `<div style="font-size: 12px; color:#c5e1a5;">${row.icon} You bested ${row.name} in the ${row.contest} (+1 renown).</div>`;
-                }
+                summary += rowList(rivalRows.map(row => (row.beatPlayer
+                    ? { icon: row.icon, name: row.name, desc: `${row.name} outshone you in the ${row.contest}.`, side: 'lost', tone: 'bad' }
+                    : { icon: row.icon, name: row.name, desc: `You bested ${row.name} in the ${row.contest} (+1 renown).`, side: '+1 renown', tone: 'good' })), 'Rival Contestants');
             }
 
             if (result.reputations.length > 0) {
-                summary += '<div style="font-size: 11px; text-transform: uppercase; color: #3498db; letter-spacing: 1px; margin-bottom: 4px;">Diplomatic Outcomes</div>';
-                for (const row of result.reputations) {
-                    summary += `<div style="font-size: 12px; color:#b8d9f5;">🤝 ${row.rival}: +${row.repGain} reputation${row.relationGain ? `, +${row.relationGain} relations with your realm` : ''}</div>`;
-                }
+                summary += rowList(result.reputations.map(row => ({
+                    icon: '🤝', name: row.rival,
+                    desc: `+${row.repGain} reputation${row.relationGain ? `, +${row.relationGain} relations with your realm` : ''}`,
+                    side: `+${row.repGain}`, tone: 'good',
+                })), 'Diplomatic Outcomes');
             }
 
             if (result.sabotage.length > 0) {
-                summary += '<div style="font-size: 11px; text-transform: uppercase; color: #e67e22; letter-spacing: 1px; margin: 8px 0 4px;">Sabotage Attempts</div>';
-                for (const row of result.sabotage) {
-                    summary += row.caught
-                        ? `<div style="font-size: 12px; color:#f3c998;">🛡️ Agents from ${row.rival} were caught before causing damage.</div>`
-                        : `<div style="font-size: 12px; color:#f0b7aa;">⚠️ Operatives from ${row.rival} caused losses: -${row.goldLost}g.</div>`;
-                }
+                summary += rowList(result.sabotage.map(row => (row.caught
+                    ? { icon: '🛡️', name: row.rival, desc: `Agents from ${row.rival} were caught before causing damage.`, side: 'caught', tone: 'good' }
+                    : { icon: '⚠️', name: row.rival, desc: `Operatives from ${row.rival} caused losses: -${row.goldLost}g.`, side: `-${row.goldLost}g`, tone: 'bad' })), 'Sabotage Attempts');
             }
 
-            summary += '<button data-am-act="closePanelAndEndDay" style="width: 100%; margin-top: 10px; padding: 10px; background: var(--gold); border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Continue</button>';
+            summary += `<div style="margin-top: 10px;">${actRow({ icon: '➡️', name: 'Continue', desc: 'The revels end', act: 'closePanelAndEndDay', tone: 'gold' })}</div>`;
             summary += '</div>';
 
             game.ui.showCustomPanel('Festival Results', summary);
@@ -565,21 +566,20 @@ Object.assign(ActionMenu, {
 
         const showSequence = () => {
             let html = '<div style="max-width: 460px;">';
-            html += '<h4 style="margin-top: 0;">🐎 Jousting Lists</h4>';
-            html += '<div style="font-size: 12px; color:#bbb; margin-bottom: 8px;">Memorize the charge pattern, then repeat it correctly.</div>';
-            html += `<div style="font-size: 28px; letter-spacing: 8px; text-align:center; margin: 12px 0;">${sequence.map(s => icons[s]).join('')}</div>`;
-            html += '<button onclick="window._startJoustInput()" style="width:100%; padding:10px; background:#c97d32; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">I Memorized It</button>';
+            html += lede('🐎 <b>Jousting Lists.</b> Memorize the charge pattern, then repeat it correctly.');
+            html += card(`<div style="font-size: 28px; letter-spacing: 8px; text-align:center; margin: 6px 0;">${sequence.map(s => icons[s]).join('')}</div>`);
+            html += rowList([{ icon: '💭', name: 'I Memorized It', desc: 'Hide the pattern and ride', attrs: 'onclick="window._startJoustInput()"', tone: 'gold', side: '›' }]);
             html += '</div>';
             game.ui.showCustomPanel('Jousting Contest', html);
         };
 
         const showInput = () => {
             let html = '<div style="max-width: 460px;">';
-            html += '<h4 style="margin-top: 0;">🐎 Repeat the Pattern</h4>';
-            html += `<div style="font-size: 12px; color:#bbb; margin-bottom: 8px;">Step ${picks.length + 1}/3</div>`;
+            html += lede('🐎 <b>Repeat the Pattern.</b>');
+            html += chips([['🎯', 'Step', `${picks.length + 1}/3`]]);
             html += '<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">';
             for (const lane of lanes) {
-                html += `<button onclick="window._pickJoustLane('${lane}')" style="padding: 10px; border-radius: 6px; border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#ddd; cursor:pointer;">${icons[lane]} ${lane}</button>`;
+                html += `<button onclick="window._pickJoustLane('${lane}')" style="${BTN_PLAIN} margin:0; padding: 10px;">${icons[lane]} ${lane}</button>`;
             }
             html += '</div>';
             html += '</div>';
@@ -614,13 +614,13 @@ Object.assign(ActionMenu, {
 
         const render = () => {
             let html = '<div style="max-width: 460px;">';
-            html += '<h4 style="margin-top: 0;">🏹 Archery Contest</h4>';
-            html += `<div style="font-size: 12px; color:#bbb; margin-bottom: 8px;">Shot ${shot + 1}/3 — compensate for wind.</div>`;
-            html += `<div style="font-size: 18px; margin: 8px 0; text-align:center;">${windIcon(drifts[shot])} ${windLabel(drifts[shot])}</div>`;
+            html += lede(`🏹 <b>Archery Contest.</b> Shot ${shot + 1}/3 — compensate for wind.`);
+            html += card(`<div style="font-size: 18px; margin: 2px 0; text-align:center;">${windIcon(drifts[shot])} ${windLabel(drifts[shot])}</div>`);
+            const aim = `${BTN_PLAIN} margin:0; padding: 10px;`;
             html += '<div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">';
-            html += '<button onclick="window._pickArchery(-1)" style="padding: 10px; border-radius: 6px; border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#ddd; cursor:pointer;">Aim Left</button>';
-            html += '<button onclick="window._pickArchery(0)" style="padding: 10px; border-radius: 6px; border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#ddd; cursor:pointer;">Aim Center</button>';
-            html += '<button onclick="window._pickArchery(1)" style="padding: 10px; border-radius: 6px; border:1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color:#ddd; cursor:pointer;">Aim Right</button>';
+            html += `<button onclick="window._pickArchery(-1)" style="${aim}">Aim Left</button>`;
+            html += `<button onclick="window._pickArchery(0)" style="${aim}">Aim Center</button>`;
+            html += `<button onclick="window._pickArchery(1)" style="${aim}">Aim Right</button>`;
             html += '</div>';
             html += '</div>';
             game.ui.showCustomPanel('Archery Contest', html);

@@ -20,6 +20,8 @@
         "categories": {
             "family": { "name": "Family & heirs", "group": "household" },
             "regency": { "name": "The regency", "group": "state", "desc": "What a regency cost you, or returned, while an heir was too young to rule." },
+            "courtStipends": { "name": "Court stipends", "group": "state", "desc": "The daily stipends paid to the courtiers who serve your House." },
+            "courtEmbezzled": { "name": "Skimmed by your officers", "group": "state", "desc": "What a disloyal courtier in office kept back from the House." },
             "stalls": { "name": "Market stalls", "group": "trade" },
             "portTrade": { "name": "Port trade", "group": "trade" },
             "storeRooms": { "name": "Store-room sales", "group": "trade" },

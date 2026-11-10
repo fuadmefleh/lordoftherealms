@@ -81,6 +81,10 @@ Object.assign(Renderer.prototype, {
         // The season's light over the land; units, labels and marks stay true-coloured (renderer/atmosphere.js)
         this.renderSeasonGrade(ctx);
 
+        // Mines, quarries, sheep runs around the towns and their deposits (world/hinterland.js) —
+        // under the route and the player, since the site's badge sits mid-hex
+        this.renderHinterland(ctx);
+
         // Render path preview
         if (this.player && this.player.path) {
             this.renderPath(ctx, this.player.path);
@@ -126,8 +130,6 @@ Object.assign(Renderer.prototype, {
         this.renderRoadhouses(ctx);
         // Where your quests send you next (systems/npcTasks.js)
         this.renderQuestMarkers(ctx);
-        // Mines, quarries, sheep runs around the towns and their deposits (world/hinterland.js)
-        this.renderHinterland(ctx);
         // Your holdings under siege (systems/holdingSieges.js)
         this.renderHoldingSieges(ctx);
 
@@ -386,6 +388,8 @@ Object.assign(Renderer.prototype, {
         const minR = Math.max(0, startRow);
         const maxR = Math.min(world.height - 1, endRow);
         this._frontier = [];
+        // Faces of explored hexes out of sight: darkened in one pass after all the terrain
+        this._fogFaces = [];
 
         for (let r = minR; r <= maxR; r++) {
             // Apply Even-row offset (C# logic: y % 2 == 0 -> offset)
@@ -470,6 +474,35 @@ Object.assign(Renderer.prototype, {
                 }
             }
         }
+        this.renderFogFaces(ctx);
+    },
+
+    /**
+     * Fog of war (explored but out of sight), as one pass over the finished
+     * terrain: the faces of the unseen hexes filled together as a single
+     * path. The tile art is taller than its face (trees and peaks rise into
+     * the row behind), so darkening per tile, either as a fill clipped to the
+     * face as each tile was drawn (the next row then painted bright art over
+     * it) or by darkening each tile's whole sprite (its dark peaks poking into
+     * the lit row behind), left a stepped, hex-shaped zigzag along the edge.
+     * Done after all of it, whatever art lies inside an unseen face is dark
+     * and nothing in a seen one is, so the edge runs on the hex lines. One
+     * path, one fill: neighbouring faces share edges and never double up.
+     */
+    renderFogFaces(ctx) {
+        const faces = this._fogFaces;
+        if (!faces || !faces.length) return;
+        ctx.save();
+        ctx.beginPath();
+        for (const c of faces) {
+            ctx.moveTo(c[0].x, c[0].y);
+            for (let i = 1; i < 6; i++) ctx.lineTo(c[i].x, c[i].y);
+            ctx.closePath();
+        }
+        ctx.fillStyle = 'rgba(10, 14, 23, 0.55)'; // dark blue-black
+        ctx.fill('nonzero');
+        ctx.restore();
+        this._fogFaces = [];
     },
 
     /**
@@ -525,15 +558,17 @@ Object.assign(Renderer.prototype, {
      * Render a hex with a PNG sprite (clipped to hex shape)
      */
     renderSpriteHex(ctx, cx, cy, size, sprite, tile, overlaySprite = null, roadSprite = null) {
-        // Use sprite-derived isometric corners (measured from 256×384 tile pixel data)
+        // The tile's top face: a pointy hex √3·size wide and tall (rows are
+        // 0.75·√3·size apart), bottom point at cy + size. Exact, so neighbouring
+        // faces share edges and translucent overlays neither overlap nor gap.
         const sX = 0.866 * size;
         const corners = [
             { x: cx,       y: cy - 0.732 * size },
-            { x: cx + sX,  y: cy - 0.305 * size },
+            { x: cx + sX,  y: cy - 0.299 * size },
             { x: cx + sX,  y: cy + 0.567 * size },
             { x: cx,       y: cy + 1.000 * size },
             { x: cx - sX,  y: cy + 0.567 * size },
-            { x: cx - sX,  y: cy - 0.305 * size },
+            { x: cx - sX,  y: cy - 0.299 * size },
         ];
 
         ctx.save();
@@ -562,6 +597,9 @@ Object.assign(Renderer.prototype, {
         const drawX = cx - targetWidth / 2;
         const drawY = bottomY - targetHeight;
 
+        // Fog of war: this face is darkened with the others after all the terrain (renderFogFaces)
+        if (!tile.visible && this._fogFaces) this._fogFaces.push(corners);
+
         if (sprite) {
             ctx.drawImage(sprite, drawX, drawY, targetWidth, targetHeight);
         }
@@ -585,12 +623,6 @@ Object.assign(Renderer.prototype, {
         }
         ctx.closePath();
         ctx.clip();
-
-        // Fog dimming (dark overlay if not visible)
-        if (!tile.visible) {
-            ctx.fillStyle = 'rgba(10, 14, 23, 0.55)'; // Dark blue-black tint
-            ctx.fill();
-        }
 
         // Kingdom tint (overlay if visible and territory)
         if (this.showTerritories && tile.kingdom && tile.visible && this.mapMode === 'normal') {

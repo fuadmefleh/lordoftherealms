@@ -11,6 +11,14 @@
       "suggestedVictory": "none",
       "welcome": "You are a wanderer in a {mapDesc} world of {kingdoms} kingdoms. Click on the map to move, explore settlements, and forge your destiny."
     },
+    "born": {
+      "name": "Born to a Family",
+      "icon": "🏡",
+      "blurb": "Born the child of a real couple of the world: a farmer's, a smith's, a merchant's, a priest's, a lord's or a king's. You begin young, at home, with brothers and sisters and a family name, and your parents rule your days until you come of age.",
+      "guidedStart": false,
+      "suggestedVictory": "none",
+      "welcome": "{birthLine}"
+    },
     "disinherited": {
       "name": "The Disinherited",
       "icon": "🥀",

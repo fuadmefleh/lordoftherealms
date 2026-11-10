@@ -10,9 +10,10 @@ import { Legacy } from '../../systems/legacy.js';
 import { Companions } from '../../systems/companions.js';
 import { Traits } from '../../systems/traits.js';
 import { Throne } from '../../systems/throne.js';
-import { BTN_GOLD, BTN_DARK, BTN_OFF, CARD } from './uiKit.js';
+import { BTN_DARK, BTN_RED, sectionHead, lede, chips, card, actRow, rowList, price } from './uiKit.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 4px;';
+const MUTED = 'color:#9d937c; font-size:11px;';
+const SEL = 'width:100%; padding:5px 6px; background:rgba(0,0,0,0.35); color:#ece2c8; border:1px solid rgba(245,197,66,0.18); border-radius:6px; font-family:var(--font-body); font-size:12px;';
 
 const STAT_ICONS = { strength: '💪', charisma: '✨', intelligence: '🧠', faith: '🙏', luck: '🍀' };
 const SKILL_ICONS = { combat: '⚔️', commerce: '💰', leadership: '👑', diplomacy: '🤝', stealth: '🕵️', cartography: '🗺️' };
@@ -22,21 +23,37 @@ function _esc(s) {
 }
 
 function _traitChips(list) {
-    if (!list || !list.length) return '<span style="color:#888;">none yet</span>';
+    if (!list || !list.length) return '<span style="color:#9d937c;">none yet</span>';
     return list.map(t => `<span title="${_esc((Traits.TRAITS[t.id] || {}).description || '')}">${t.icon} ${_esc(t.name)}</span>`).join(', ');
+}
+
+/** A stat chip with a tooltip: "💪 6". */
+function _statChip(icon, value, title, dim = false) {
+    return `<span class="pk-chip${dim ? ' dim' : ''}" title="${_esc(title)}">${icon} <b>${value}</b></span>`;
 }
 
 /** Compact one-card profile, reused by the death screen. */
 function _profileBlock(p) {
-    let h = `<div style="display:flex; gap:8px; flex-wrap:wrap; font-size:11px; color:#bbb;">`;
-    for (const [k, v] of Object.entries(p.stats)) h += `<span title="${k}">${STAT_ICONS[k] || k} ${v}</span>`;
-    h += `<span title="max health">❤️ ${p.maxHealth}</span></div>`;
-    h += `<div style="display:flex; gap:8px; flex-wrap:wrap; font-size:11px; color:#999; margin-top:2px;">`;
-    for (const [k, v] of Object.entries(p.skills)) h += `<span title="${k}">${SKILL_ICONS[k] || k} ${v}</span>`;
+    let h = '<div class="pk-chips" style="margin:6px 0 4px;">';
+    for (const [k, v] of Object.entries(p.stats)) h += _statChip(STAT_ICONS[k] || k, v, k);
+    h += _statChip('❤️', p.maxHealth, 'max health');
+    for (const [k, v] of Object.entries(p.skills)) h += _statChip(SKILL_ICONS[k] || k, v, k, true);
     h += '</div>';
-    h += `<div style="font-size:11px; margin-top:3px;">${p.comeOfAge ? 'Traits' : 'Childhood traits'}: ${_traitChips(p.traits)}</div>`;
+    h += `<div style="font-size:11px; color:#cbbf9f;">${p.comeOfAge ? 'Traits' : 'Childhood traits'}: ${_traitChips(p.traits)}</div>`;
     return h;
 }
+
+/** A House's crest block: sigil, name, motto, a line under. */
+function _crest(icon, name, motto, sub) {
+    let h = '<div style="text-align:center; margin:2px 0 10px;">';
+    h += `<div style="font-size:28px; line-height:1.2;">${icon || '🛡️'}</div>`;
+    h += `<div style="font-family:var(--font-display); font-weight:600; letter-spacing:0.5px; color:#ffe9a8; font-size:16px;">${name}</div>`;
+    if (motto) h += `<div style="font-style:italic; color:#cbbf9f; font-size:12px;">&ldquo;${motto}&rdquo;</div>`;
+    if (sub) h += `<div style="margin-top:6px; display:flex; justify-content:center;">${sub}</div>`;
+    return h + '</div>';
+}
+
+const BACK_TO_DYNASTY = { icon: '←', name: 'Back to Dynasty', act: 'openTileMenu', args: ['showDynastyMenu'] };
 
 Object.assign(ActionMenu, {
     /** Heir profile HTML (used by the death screen's heir cards). */
@@ -55,70 +72,85 @@ Object.assign(ActionMenu, {
         if (!child) return;
         const p = Upbringing.profile(player, child);
         const cfg = Upbringing.config();
-        let html = '<div style="max-height: 540px; overflow-y: auto; font-size: 12px;">';
-        if (message) html += `<div style="${CARD} border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
+        let html = '<div style="font-size: 12px;">';
+        if (message) html += `<div class="pk-card" style="border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#ece2c8;">${message.html}</div>`;
 
-        html += `<div style="${CARD}">`;
-        html += `<div style="display:flex; justify-content:space-between;"><b style="font-size:14px;">${_esc(p.name)}</b><span>${p.gender === 'female' ? '♀️' : '♂️'} Age ${p.age}${p.alive ? '' : ' · ⚰️ dead'}</span></div>`;
+        // Who they are
         const stageText = p.stage === 'infant' ? `An infant — education begins at ${cfg.startAge}.` : p.stage === 'child' ? `Coming of age at ${cfg.comeOfAgeAge}.` : 'Of age.';
-        html += `<div style="color:#999; font-size:11px;">${stageText}${p.role ? ` · 🏰 ${_esc((House.roleDefs()[p.role] || {}).label || p.role)}` : ''}${player.heir === p.id ? ' · 👑 Designated heir' : ''}</div>`;
-        if (p.birthTraits.length) html += `<div style="font-size:11px; margin-top:2px;">Born: ${p.birthTraits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
-        html += _profileBlock(p);
-        if (p.leanings.length) html += `<div style="font-size:11px; color:#999;">Leaning toward: ${p.leanings.map(l => `${l.icon} ${_esc(l.name)} (${l.pct}%)`).join(', ')}</div>`;
-        if (p.spouse) html += `<div style="font-size:11px; color:#ff9ad5; margin-top:2px;">💍 Wed to ${_esc(p.spouse.name)}${p.spouse.kind === 'royal' ? ' (royal)' : (p.spouse.kind === 'local' ? ` (of ${_esc(p.spouse.townName || 'town')})` : '')}</div>`;
+        let who = `<div style="${MUTED}">${stageText}${p.role ? ` · 🏰 ${_esc((House.roleDefs()[p.role] || {}).label || p.role)}` : ''}${player.heir === p.id ? ' · <span style="color:#ffcf6a;">👑 Designated heir</span>' : ''}</div>`;
+        if (p.birthTraits.length) who += `<div style="font-size:11px; margin-top:2px;">Born: ${p.birthTraits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
+        who += _profileBlock(p);
+        if (p.leanings.length) who += `<div style="${MUTED}">Leaning toward: ${p.leanings.map(l => `${l.icon} ${_esc(l.name)} (${l.pct}%)`).join(', ')}</div>`;
+        if (p.spouse) who += `<div style="font-size:11px; color:#ff9ad5; margin-top:2px;">💍 Wed to ${_esc(p.spouse.name)}${p.spouse.kind === 'royal' ? ' (royal)' : (p.spouse.kind === 'local' ? ` (of ${_esc(p.spouse.townName || 'town')})` : '')}</div>`;
         if (p.placement && p.placement.kind === 'ward') {
-            html += `<div style="font-size:11px; color:#9cc8ff; margin-top:2px;">🏰 ${p.away ? `Fostering at the court of ${_esc(p.placement.lordName)} until day ${p.placement.until}` : `Fostered at the court of ${_esc(p.placement.lordName)}`}</div>`;
+            who += `<div style="font-size:11px; color:#9cc8ff; margin-top:2px;">🏰 ${p.away ? `Fostering at the court of ${_esc(p.placement.lordName)} until day ${p.placement.until}` : `Fostered at the court of ${_esc(p.placement.lordName)}`}</div>`;
         }
-        html += '</div>';
+        html += card(who, {
+            icon: p.gender === 'female' ? '👧' : '👦', title: _esc(p.name),
+            side: `${p.gender === 'female' ? '♀️' : '♂️'} Age ${p.age}${p.alive ? '' : ' · ⚰️ dead'}`,
+        });
 
         // A dilemma waiting for the parent
         if (p.pending) {
             const ev = p.pending;
-            html += `<div style="${CARD} border-color: rgba(245,197,66,0.5);">`;
-            html += `<div style="font-weight:bold;">${ev.icon} ${_esc(ev.title)} <span style="color:#999; font-weight:normal; font-size:11px;">(decide by day ${ev.expires})</span></div>`;
-            html += `<div style="color:#ddd; margin:4px 0;">${_esc(ev.text)}</div>`;
-            for (const c of ev.choices) {
-                const label = `${_esc(c.label)}${c.cost ? ` (${c.cost}g)` : ''}${c.risky ? ' ⚠️' : ''}`;
-                html += c.affordable
-                    ? `<button onclick="window._heirsUI.choose('${child.id}','${c.id}')" style="${c.isDefault ? BTN_DARK : BTN_GOLD} display:block; width:100%; text-align:left;">${label}</button>`
-                    : `<button disabled style="${BTN_OFF} display:block; width:100%; text-align:left;">${label}</button>`;
-            }
-            html += '</div>';
+            html += sectionHead(`${ev.icon} ${_esc(ev.title)}`);
+            html += lede(`${_esc(ev.text)} <span style="color:#9d937c;">(decide by day ${ev.expires})</span>`);
+            html += rowList(ev.choices.map(c => ({
+                icon: c.isDefault ? '·' : '✦',
+                name: `${_esc(c.label)}${c.risky ? ' ⚠️' : ''}`,
+                off: !c.affordable, why: 'Not enough gold',
+                attrs: `onclick="window._heirsUI.choose('${child.id}','${c.id}')"`,
+                side: c.cost ? price(c.cost, c.affordable) : '',
+                tone: c.isDefault ? '' : 'gold',
+            })));
         }
 
         if (p.alive && !p.comeOfAge) {
             // Education focus
-            html += `<div style="${HEAD}">Education</div>`;
-            html += `<div style="color:#bbb;">${p.focus ? `${p.focus.icon} <b>${_esc(p.focus.name)}</b> — ${_esc((Upbringing.focus(p.focus.id) || {}).blurb || '')}` : 'No focus: a little of everything, slowly, and no particular character.'}</div>`;
-            html += '<div>';
-            for (const [id, f] of Object.entries(Upbringing.focuses())) {
+            html += sectionHead('Education');
+            html += lede(p.focus ? `${p.focus.icon} <b>${_esc(p.focus.name)}</b> — ${_esc((Upbringing.focus(p.focus.id) || {}).blurb || '')}` : 'No focus: a little of everything, slowly, and no particular character.');
+            html += rowList(Object.entries(Upbringing.focuses()).map(([id, f]) => {
                 const on = p.focus && p.focus.id === id;
-                html += `<button onclick="window._heirsUI.focus('${child.id}','${id}')" title="${_esc(f.blurb)}" style="${on ? BTN_GOLD : BTN_DARK}">${f.icon} ${_esc(f.name)}</button>`;
-            }
-            html += '</div>';
+                return {
+                    icon: f.icon, name: _esc(f.name), desc: _esc(f.blurb), title: f.blurb,
+                    attrs: `onclick="window._heirsUI.focus('${child.id}','${id}')"`,
+                    side: on ? '✓ chosen' : '', tone: on ? 'gold' : '',
+                };
+            }));
 
             // Tutor
-            html += `<div style="${HEAD}">Tutor</div>`;
+            html += sectionHead('Tutor');
             if (p.tutor) {
                 const t = p.tutor;
-                html += `<div>${t.icon} <b>${_esc(t.name)}</b> — ${t.focus ? `teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'teaches a little of everything'}, learning ×${t.multiplier.toFixed(2)}${t.wage ? `, ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}.`;
-                html += ` <button onclick="window._heirsUI.dismiss('${child.id}')" style="${BTN_DARK}">Dismiss</button></div>`;
+                html += card(`${t.icon} <b>${_esc(t.name)}</b> — ${t.focus ? `teaches ${_esc((Upbringing.focus(t.focus) || {}).name || t.focus)}` : 'teaches a little of everything'}, learning ×${t.multiplier.toFixed(2)}${t.wage ? `, ${t.wage}g a month` : ''}${t.kind === 'companion' ? ' (while they travel with you)' : ''}.`
+                    + ` <button onclick="window._heirsUI.dismiss('${child.id}')" style="${BTN_DARK}">Dismiss</button>`);
             } else {
-                html += '<div style="color:#999;">No tutor. A tutor whose subject matches the focus speeds learning greatly.</div>';
+                html += `<div style="${MUTED} margin:0 2px 6px;">No tutor. A tutor whose subject matches the focus speeds learning greatly.</div>`;
             }
-            if (p.away) html += '<div style="color:#9cc8ff;">Abroad, the host’s court teaches; tutors wait for the child’s return.</div>';
+            if (p.away) html += `<div style="color:#9cc8ff; margin:0 2px 6px;">Abroad, the host’s court teaches; tutors wait for the child’s return.</div>`;
+            const tutorRows = [];
             for (const t of (p.away ? [] : Upbringing.tutors())) {
                 const ok = (player.gold || 0) >= (t.hireCost || 0);
                 const subj = t.focus ? (Upbringing.focus(t.focus) || {}).name || t.focus : 'All subjects';
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>${t.icon} ${_esc(t.name)} <span style="color:#888;">${_esc(subj)} · ×${t.quality} · ${t.wage}g/month</span></span>`;
-                html += `<button ${ok ? `onclick="window._heirsUI.hire('${child.id}','${t.id}')"` : 'disabled'} style="${ok ? BTN_GOLD : BTN_OFF}">Hire ${t.hireCost}g</button></div>`;
+                tutorRows.push({
+                    icon: t.icon, name: `Hire the ${_esc(t.name)}`,
+                    desc: `${_esc(subj)} · ×${t.quality} · ${t.wage}g/month`,
+                    off: !ok, why: `Not enough gold · ${_esc(subj)} · ×${t.quality} · ${t.wage}g/month`,
+                    attrs: `onclick="window._heirsUI.hire('${child.id}','${t.id}')"`,
+                    side: price(t.hireCost, ok),
+                });
             }
             const occ = Upbringing.data().companionOccupations || {};
             for (const npc of (p.away ? [] : Companions.members(player, world))) {
                 const subj = occ[npc.occupation] ? (Upbringing.focus(occ[npc.occupation]) || {}).name : 'All subjects';
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>🧭 ${_esc(npc.firstName)} <span style="color:#888;">companion, ${_esc(npc.occupation || 'traveller')} · ${_esc(subj)}</span></span>`;
-                html += `<button onclick="window._heirsUI.companion('${child.id}','${npc.id}')" style="${BTN_DARK}">Ask to tutor</button></div>`;
+                tutorRows.push({
+                    icon: '🧭', name: _esc(npc.firstName),
+                    desc: `companion, ${_esc(npc.occupation || 'traveller')} · ${_esc(subj)}`,
+                    attrs: `onclick="window._heirsUI.companion('${child.id}','${npc.id}')"`,
+                    side: 'Ask to tutor',
+                });
             }
+            html += rowList(tutorRows);
         }
 
         if (p.alive && p.comeOfAge) {
@@ -129,38 +161,55 @@ Object.assign(ActionMenu, {
             }).join('');
             const pl = Heirs.config();
             const tcfg = Throne.config();
-            html += `<div style="${HEAD}">A Place in the World</div>`;
-            html += '<div style="color:#bbb;">Offices are granted from the House panel; skills decide how well they serve.</div>';
-            html += '<div>';
-            for (const r of House.ROLE_IDS) {
+            html += sectionHead('A Place in the World');
+            html += lede('Offices are granted from the House panel; skills decide how well they serve.');
+            html += rowList(House.ROLE_IDS.map(r => {
                 const def = House.roleDefs()[r];
-                html += `<button onclick="window._heirsUI.role('${child.id}','${r}')" title="${_esc(def.blurb)}" style="${p.role === r ? BTN_GOLD : BTN_DARK}">${_esc(def.label)} (${_esc(def.skill)} ${p.skills[def.skill] || 0})</button>`;
-            }
-            html += '</div>';
+                const on = p.role === r;
+                return {
+                    icon: '🏰', name: _esc(def.label), desc: _esc(def.blurb), title: def.blurb,
+                    attrs: `onclick="window._heirsUI.role('${child.id}','${r}')"`,
+                    side: `${on ? '✓ ' : ''}${_esc(def.skill)} ${p.skills[def.skill] || 0}`, tone: on ? 'gold' : '',
+                };
+            }));
             if (!p.away && kingdoms.length) {
-                html += `<div style="margin-top:6px;"><select id="heirKingdomSel" style="width:100%; padding:4px; background:#222; color:#eee; border:1px solid #555; border-radius:4px;">${opts}</select></div>`;
-                html += '<div>';
+                html += `<div style="margin:2px 0 4px;"><select id="heirKingdomSel" style="${SEL}">${opts}</select></div>`;
+                const placeRows = [];
                 if (!p.spouse) {
-                    html += `<button onclick="window._heirsUI.place('${child.id}','alliance')" style="${BTN_DARK}">💍 Alliance match (${pl.allianceDowry}g, +${pl.allianceReputation} rep)</button>`;
-                    html += `<button onclick="window._heirsUI.place('${child.id}','royal')" style="${BTN_GOLD}">👑 Royal match (${tcfg.royalMatchGold}g, ⭐${tcfg.royalMatchPrestige}, claim)</button>`;
+                    placeRows.push({
+                        icon: '💍', name: 'Alliance match', desc: `+${pl.allianceReputation} rep with the chosen realm`,
+                        attrs: `onclick="window._heirsUI.place('${child.id}','alliance')"`,
+                        side: price(pl.allianceDowry, (player.gold || 0) >= pl.allianceDowry),
+                    });
+                    placeRows.push({
+                        icon: '👑', name: 'Royal match', desc: `⭐${tcfg.royalMatchPrestige}, and a claim on the throne`,
+                        attrs: `onclick="window._heirsUI.place('${child.id}','royal')"`,
+                        side: price(tcfg.royalMatchGold, (player.gold || 0) >= tcfg.royalMatchGold), tone: 'gold',
+                    });
                 }
                 if (!(Upbringing.ensure(child).fostered)) {
-                    html += `<button onclick="window._heirsUI.place('${child.id}','ward')" style="${BTN_DARK}">🏰 Send as ward (${pl.wardDays} days)</button>`;
+                    placeRows.push({
+                        icon: '🏰', name: 'Send as ward', desc: 'To be fostered at the chosen court',
+                        attrs: `onclick="window._heirsUI.place('${child.id}','ward')"`,
+                        side: `${pl.wardDays} days`,
+                    });
                 }
-                html += '</div>';
+                html += rowList(placeRows);
             }
             // A match in town: one of the townsfolk (systems/townsfolk.js)
             if (!p.away && !p.spouse) {
                 const local = Heirs.localMatches(player, world, child.id).slice(0, 6);
-                html += `<div style="${HEAD}">A Match in Town</div>`;
+                html += sectionHead('A Match in Town');
                 if (!local.length) {
-                    html += '<div style="color:#999;">No one of the right age in the towns whose people you know. Walk among the townsfolk to meet more.</div>';
+                    html += `<div style="${MUTED} margin:0 2px 6px;">No one of the right age in the towns whose people you know. Walk among the townsfolk to meet more.</div>`;
                 } else {
-                    html += `<div style="color:#bbb;">No dowry. ${pl.localPrestige < 0 ? `Costs ⭐${-pl.localPrestige} Prestige (a noble or merchant family adds ⭐${pl.localPrestigeGentle}),` : ''} +${pl.localReputation} standing with the town's realm, and their kin warm to you.</div>`;
-                    for (const m of local) {
-                        html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:2px 0;"><span>${m.person.gender === 'female' ? '👩' : '👨'} <b>${_esc(m.name)}</b> <span style="color:#888;">${_esc(m.role)}, ${m.age} · ${_esc(m.town)}${m.known ? ' · you know them' : ''}${m.gentle ? ' · good family' : ''}</span></span>`;
-                        html += `<button onclick="window._heirsUI.local('${child.id}',${m.folk.q},${m.folk.r},${m.person.id})" style="${BTN_DARK}">💍 Wed</button></div>`;
-                    }
+                    html += lede(`No dowry. ${pl.localPrestige < 0 ? `Costs ⭐${-pl.localPrestige} Prestige (a noble or merchant family adds ⭐${pl.localPrestigeGentle}),` : ''} +${pl.localReputation} standing with the town's realm, and their kin warm to you.`);
+                    html += rowList(local.map(m => ({
+                        icon: m.person.gender === 'female' ? '👩' : '👨', name: _esc(m.name),
+                        desc: `${_esc(m.role)}, ${m.age} · ${_esc(m.town)}${m.known ? ' · you know them' : ''}${m.gentle ? ' · good family' : ''}`,
+                        attrs: `onclick="window._heirsUI.local('${child.id}',${m.folk.q},${m.folk.r},${m.person.id})"`,
+                        side: '💍 Wed',
+                    })));
                 }
             }
         }
@@ -169,12 +218,12 @@ Object.assign(ActionMenu, {
         if (p.alive) html += ActionMenu._familyAgencyHtml(game, child);
 
         if (p.events.length) {
-            html += `<div style="${HEAD}">Childhood</div>`;
-            for (const e of p.events) {
-                html += `<div style="padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.05);"><span style="color:#888; font-size:10px;">Age ${e.age}</span> ${e.icon} <b>${_esc(e.title)}</b> — <i>${_esc(e.choice)}</i><div style="color:#bbb;">${_esc(e.text)}</div></div>`;
-            }
+            html += rowList(p.events.map(e => ({
+                icon: e.icon, name: `${_esc(e.title)} — <i style="font-weight:400;">${_esc(e.choice)}</i>`,
+                desc: _esc(e.text), side: `Age ${e.age}`,
+            })), 'Childhood');
         }
-        html += `<button data-am-act="openTileMenu" data-am-args='["showDynastyMenu"]' style="${BTN_DARK} width:100%; margin-top:8px;">← Back to Dynasty</button>`;
+        html += rowList([BACK_TO_DYNASTY]);
         html += '</div>';
 
         const refresh = (msg) => {
@@ -246,12 +295,16 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('House', 'Your House has not yet been founded.', 'info');
             return;
         }
-        let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px;">';
-        html += `<div style="text-align:center;"><div style="font-size:26px;">${d.sigil.icon || '🛡️'}</div><div style="font-weight:bold; color:var(--gold); font-size:15px;">${_esc(d.houseName)}</div>`;
-        if (d.motto) html += `<div style="font-style:italic; color:#bbb;">&ldquo;${_esc(d.motto)}&rdquo;</div>`;
-        html += `<div style="color:#aaa; font-size:11px;">Generation ${d.generation} · ⭐ ${d.prestige} Prestige · Legacy ${d.score} — ${d.rank.icon} ${_esc(d.rank.label)}</div></div>`;
+        let html = '<div style="font-size: 12px;">';
+        html += _crest(d.sigil.icon, _esc(d.houseName), d.motto ? _esc(d.motto) : '', chips([
+            ['🧬', 'Generation', d.generation],
+            { icon: '⭐', label: 'Prestige', value: d.prestige, cls: 'gold' },
+            ['📜', 'Legacy', d.score],
+            [d.rank.icon, _esc(d.rank.label), ''],
+        ]));
+        html += sectionHead('Reigns');
         html += ActionMenu._reignsHtml(d.reigns);
-        html += `<button data-am-act="openTileMenu" data-am-args='["showDynastyMenu"]' style="${BTN_DARK} width:100%; margin-top:8px;">← Back to Dynasty</button>`;
+        html += rowList([BACK_TO_DYNASTY]);
         html += '</div>';
         game.ui.showCustomPanel('📜 House Chronicle', html);
     },
@@ -260,12 +313,10 @@ Object.assign(ActionMenu, {
     _reignsHtml(reigns) {
         let html = '';
         for (const r of reigns) {
-            html += `<div style="${CARD}${r.live ? ' border-color: rgba(245,197,66,0.45);' : ''}">`;
-            html += `<div style="display:flex; justify-content:space-between;"><b>${_esc(r.name)}${r.epithet ? ` <i style="color:#c9b27a;">${_esc(r.epithet)}</i>` : ''}</b><span style="color:#999;">Gen ${r.generation}${r.live ? ' · reigning' : ''}</span></div>`;
-            html += `<div style="color:#999; font-size:11px;">Day ${r.startDay}–${r.live ? 'now' : r.endDay} · ${r.years} years · age ${r.startAge}–${r.endAge}${r.cause ? ` · died of ${_esc(r.cause)}` : ''} · ${r.score} legacy</div>`;
+            let body = `<div style="${MUTED}">Day ${r.startDay}–${r.live ? 'now' : r.endDay} · ${r.years} years · age ${r.startAge}–${r.endAge}${r.cause ? ` · died of ${_esc(r.cause)}` : ''} · ${r.score} legacy</div>`;
             const traits = (r.traits || []).map(id => Traits.TRAITS[id]).filter(Boolean);
-            if (traits.length) html += `<div style="font-size:11px;">${traits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
-            if (r.title || r.crown) html += `<div style="font-size:11px; color:var(--gold);">${r.crown ? `👑 Ruler of ${_esc(r.crown)}` : ''}${r.crown && r.title ? ' · ' : ''}${r.title ? `📜 ${_esc(r.title)}` : ''}</div>`;
+            if (traits.length) body += `<div style="font-size:11px;">${traits.map(t => `${t.icon} ${_esc(t.name)}`).join(', ')}</div>`;
+            if (r.title || r.crown) body += `<div style="font-size:11px; color:#ffcf6a;">${r.crown ? `👑 Ruler of ${_esc(r.crown)}` : ''}${r.crown && r.title ? ' · ' : ''}${r.title ? `📜 ${_esc(r.title)}` : ''}</div>`;
             const deeds = [
                 ['👑', r.crownsWon, 'crowns won'], ['🏰', r.settlements, 'settlements taken'], ['⚔️', r.battles, 'battles won'],
                 ['🔥', r.wars, 'wars'], ['📜', r.quests, 'quests'], ['🎖️', r.titles, 'titles gained'],
@@ -274,7 +325,7 @@ Object.assign(ActionMenu, {
                 ['🏗️', r.holdingProjects, 'holding projects built'], ['🛡️', r.raidsRepelled, 'raids repelled'],
                 ['🔥', r.rebellionsCrushed, 'rebellions crushed'], ['🏚️', r.holdingsLost, 'holdings lost'],
             ].filter(x => x[1] > 0);
-            if (deeds.length) html += `<div style="font-size:11px; color:#bbb; margin-top:2px;">${deeds.map(([i, v, l]) => `<span title="${l}">${i} ${v} ${l}</span>`).join(' · ')}</div>`;
+            if (deeds.length) body += `<div style="font-size:11px; color:#cbbf9f; margin-top:2px;">${deeds.map(([i, v, l]) => `<span title="${l}">${i} ${v} ${l}</span>`).join(' · ')}</div>`;
             // The royal court this ruler kept, and crowns lost in the reign
             const c = r.court || {};
             const court = [
@@ -282,12 +333,14 @@ Object.assign(ActionMenu, {
                 ['👑', c.revoltsCrushed, 'revolts crushed'], ['🥀', c.revoltsConceded, 'revolts conceded'], ['⛓️', c.lordsBroken, 'lords broken'],
                 ['💎', c.monopolyRevenue, 'g from crown monopolies'], ['🍞', c.doleGrain, 'grain given in the dole'],
             ].filter(x => x[1] > 0);
-            if (court.length) html += `<div style="font-size:11px; color:#c9b27a;">🏛️ ${court.map(([i, v, l]) => `${i} ${v} ${l}`).join(' · ')}</div>`;
-            for (const lost of r.crownsLost || []) html += `<div style="font-size:11px; color:#c88;">👑 The crown of ${_esc(lost.kingdomName)} ${lost.how === 'abdicated' ? 'set down' : 'lost'} after ${lost.days} days</div>`;
-            if (r.prestigeGained) html += `<div style="font-size:11px; color:#bbb;">⭐ ${r.prestigeGained > 0 ? '+' : ''}${r.prestigeGained} Prestige</div>`;
-            for (const n of r.notableRulings || []) html += `<div style="font-size:11px; color:#aab;">⚖️ ${_esc(n.text)}</div>`;
-            for (const h of r.highlights || []) html += `<div style="font-size:11px; color:#999;">· ${_esc(h.text)}</div>`;
-            html += '</div>';
+            if (court.length) body += `<div style="font-size:11px; color:#c9b27a;">🏛️ ${court.map(([i, v, l]) => `${i} ${v} ${l}`).join(' · ')}</div>`;
+            for (const lost of r.crownsLost || []) body += `<div style="font-size:11px; color:#e0846a;">👑 The crown of ${_esc(lost.kingdomName)} ${lost.how === 'abdicated' ? 'set down' : 'lost'} after ${lost.days} days</div>`;
+            if (r.prestigeGained) body += `<div style="font-size:11px; color:#cbbf9f;">⭐ ${r.prestigeGained > 0 ? '+' : ''}${r.prestigeGained} Prestige</div>`;
+            for (const n of r.notableRulings || []) body += `<div style="font-size:11px; color:#b8b4c8;">⚖️ ${_esc(n.text)}</div>`;
+            for (const h of r.highlights || []) body += `<div style="font-size:11px; color:#9d937c;">· ${_esc(h.text)}</div>`;
+            const title = `${_esc(r.name)}${r.epithet ? ` <i style="color:#c9b27a; font-weight:400;">${_esc(r.epithet)}</i>` : ''}`;
+            const block = card(body, { title, side: `Gen ${r.generation}${r.live ? ' · reigning' : ''}`, tone: r.live ? 'gold' : '' });
+            html += r.live ? block.replace('class="pk-card', 'style="border-color: rgba(245,197,66,0.45);" class="pk-card') : block;
         }
         return html;
     },
@@ -296,20 +349,25 @@ Object.assign(ActionMenu, {
     showEpitaph(game, cause = null) {
         const player = game.player;
         const e = Legacy.endDynasty(player, game.world, cause);
-        let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px; text-align:center;">';
+        let html = '<div style="font-size: 12px;">';
         if (!e) {
-            html += '<p>Without an heir, your story ends here.</p>';
+            html += lede('Without an heir, your story ends here.');
         } else {
-            html += `<div style="font-size:30px;">${e.sigil.icon || '🛡️'}</div>`;
-            html += `<div style="font-weight:bold; color:var(--gold); font-size:16px;">${_esc(e.houseName)}</div>`;
-            if (e.motto) html += `<div style="font-style:italic; color:#bbb;">&ldquo;${_esc(e.motto)}&rdquo;</div>`;
-            html += `<div style="color:#ccc; margin:6px 0;">${e.generations} generation${e.generations === 1 ? '' : 's'} · ${e.years} years · ⭐ ${e.prestige} Prestige${e.crowns ? ` · 👑 ${e.crowns} crown${e.crowns === 1 ? '' : 's'}` : ''}</div>`;
-            html += `<div style="font-size:22px; margin-top:6px;">${e.rank.icon}</div><div style="color:var(--gold); font-size:15px; font-weight:bold;">${_esc(e.rank.label)}</div>`;
-            html += `<div style="color:#aaa;">Legacy score ${e.score}</div>`;
+            html += _crest(e.sigil.icon, _esc(e.houseName), e.motto ? _esc(e.motto) : '', chips([
+                ['🧬', `${e.generations} generation${e.generations === 1 ? '' : 's'}`, ''],
+                ['⏳', `${e.years} years`, ''],
+                { icon: '⭐', label: 'Prestige', value: e.prestige, cls: 'gold' },
+                e.crowns ? ['👑', `${e.crowns} crown${e.crowns === 1 ? '' : 's'}`, ''] : null,
+            ]));
+            html += '<div style="text-align:center; margin:0 0 10px;">';
+            html += `<div style="font-size:22px;">${e.rank.icon}</div><div style="font-family:var(--font-display); color:#ffe9a8; font-size:15px; font-weight:600;">${_esc(e.rank.label)}</div>`;
+            html += `<div style="color:#9d937c;">Legacy score ${e.score}</div>`;
             if (e.line) html += `<div style="color:#c9b27a; font-style:italic; margin-top:4px;">${_esc(e.line)}</div>`;
-            html += `<div style="text-align:left;">${ActionMenu._reignsHtml(e.reigns)}</div>`;
+            html += '</div>';
+            html += sectionHead('Reigns');
+            html += ActionMenu._reignsHtml(e.reigns);
         }
-        html += '<button onclick="location.reload();" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">Start New Game</button>';
+        html += `<button onclick="location.reload();" style="${BTN_RED} display:block; width:100%; margin-top:10px; padding:10px;">Start New Game</button>`;
         html += '</div>';
         game.ui.showCustomPanel('🕯️ The Line Ends', html, { locked: true });
     },

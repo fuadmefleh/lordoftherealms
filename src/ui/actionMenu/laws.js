@@ -36,6 +36,18 @@ function forYou(game, k, lawId, option) {
         return Laws.isSubject(player, k.id) ? 'You are sworn to the realm: you may hold land here.' : 'You are not sworn to this realm: you may not buy or rent land or houses here.';
     }
     if (lawId === 'privatePrisons' && option.id === 'allowed') return 'Anyone who sets on you and wins may take you for their prison camp.';
+    if (lawId === 'vice') {
+        // The town's own ordinance on top of the realm's (Laws.gambling)
+        const tile = world.getTile(player.q, player.r);
+        const s = tile && tile.settlement;
+        if (s) {
+            const g = Laws.gambling(world, s);
+            if (g.forbiddenBy === 'town') return `${s.name} bans dice and cards by its own ordinance: no gaming house here, only back rooms behind some honest front.`;
+            if (g.forbiddenBy === 'realm') return 'No gaming house may open: dice and cards go on in back rooms, behind some honest front, and the watch raids them.';
+            return `In ${s.name} the tables may stand in the open.`;
+        }
+        return option.id === 'forbidden' ? 'No gaming house may open in this realm: only back rooms behind some honest front.' : '';
+    }
     if (lawId === 'punishment') {
         const p = Laws.punishment(world, k.id);
         if (p.fine === 1 && p.jail === 1 && p.deter === 1) return 'The watch fines and jails by long custom.';

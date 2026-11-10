@@ -18,6 +18,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Containers } from '../systems/containers.js';
 import { Hotbar } from './hotbar.js';
 import { containerContext, theftScene, theftAftermath } from './objectActions/contents.js';
+import { ParentsGuard } from './parentsGuard.js';
 
 const _cfg = () => {
     const d = (DataLoader.get && DataLoader.get('townProps')) || (DataLoader._gamedata && DataLoader._gamedata.townProps) || {};
@@ -98,6 +99,7 @@ export const InnerMapFields = {
             InnerMap.passHours(hours);
             game.ui.showNotification('🌾 Harvest In', `${hours} hours in the field, cutting and carrying it to the granary. The farmer pays you ${share} ${g.name}.`, 'success');
         } else {
+            if (!ParentsGuard.ok(game, 'theft', null, { each: true })) return;
             const n = Math.min(crop.left, Math.max(1, Math.floor(item.qty || 1)));
             const ctx = containerContext(game, 'field', q, r);
             const scene = theftScene(game, ctx);

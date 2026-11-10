@@ -6,7 +6,12 @@
 // the normal world, player, House, Titles and Councils setup and shapes the
 // Player through the systems' own APIs, so every part of an origin is state
 // the game already plays with:
-//   - The Wanderer: nothing changes (the classic start).
+//   - The Wanderer: the classic start (a light purse).
+//   - Born to a Family: the child of a real couple of the world, under their
+//     rule until of age (player/parentage.js: Parentage.startBorn).
+// Every origin also begins among people (Parentage.seedTies, data/birth.json
+// ties): family as the backstory allows, friends, a rival, and for landed,
+// noble, royal and guild origins a court of retainers (systems/court.js).
 //   - The Disinherited: a 'blood' claim on a throne (Throne.grantClaim), House
 //     Prestige (House.award), an elder sibling as a feuding rival
 //     (house.rivals, read by RealmWars hostility and the rival schemes), little gold.
@@ -82,6 +87,7 @@ import { Kingdom } from '../world/kingdom.js';
 import { Generalship } from './generalship.js';
 import { Gangs } from '../systems/gangs.js';
 import { StartKnowledge } from './startKnowledge.js';
+import { Parentage } from './parentage.js';
 
 const FALLBACK = {
     wanderer: {
@@ -876,6 +882,15 @@ export const Scenarios = {
             shape(player, world, origin, vars);
             if (origin.group === 'advanced') knows = StartKnowledge.grant(player, world, origin.id);
             if (typeof player.updateVisibility === 'function') player.updateVisibility(world, 4);
+        }
+        // Born to a Family (player/parentage.js): the child of a real couple, or the
+        // parents chosen once the world is up (player.parentage.pending)
+        if (origin.id === 'born' && world) {
+            const born = Parentage.startBorn(player, world, { parents: opts.parents, age: opts.birthAge });
+            vars.birthLine = born.line || 'You are born into the world. Click on the map to move and find your way.';
+        } else if (world) {
+            // Nobody starts alone: family, friends, a rival, a court as the origin allows
+            Parentage.seedTies(player, world, origin.id);
         }
         // The difficulty's purse (Normal: untouched)
         const gm = Difficulty.mult(player, 'startGold');

@@ -2,6 +2,18 @@
     "_doc": "The laws of each realm (systems/laws.js; the Laws panel ui/actionMenu/laws.js). Each law has options; a realm's law is set on kingdom.laws (saved with the realm). Until a ruler sets one, a realm keeps its old custom: share[option] of realms hold each (a hash of the realm, the same all game). Only the ruler of a realm may change its law: each change costs changeCost.treasury from the crown's treasury and changeCost.stability of the realm's stability (folk dislike upheaval), plus the option's own stability (adopting a hard law costs more), and a law may be changed again only after cooldownDays. Every law is read by the game: privatePrisons by systems/knockout.js (a private citizen may drag the beaten off to their prison camp only where it's allowed); foreignLand by systems/lots.js (where only subjects may hold land, a stranger can't buy a lot or a house, nor rent one); punishment by systems/streetCrime.js and systems/underworld.js (arrests: fines and days in the cells) (the watch's fines and days in the cells, × fine and × jail) and by systems/knockout.js (× deter: the chance that whoever downs you finishes you or goes through your purse, and that one who hates you sets on you at home); vice by systems/gangs.js (what the gangs' gambling dens take, the crackdown they draw, and the licence the crown takes).",
     "changeCost": { "treasury": 150, "stability": 2 },
     "cooldownDays": 30,
+    "local": {
+        "_doc": "A town's own ordinances (Laws.localVice): settlement.ordinances.vice = 'forbidden' | 'follow', set by whoever holds the town; until then a town keeps its old custom, a hash of the town (banShare of towns ban dice and cards whatever the realm allows). A town may be stricter than its realm, never laxer.",
+        "vice": { "banShare": 0.2 }
+    },
+    "backRooms": {
+        "_doc": "Where gaming is forbidden (the realm's vice law, or the town's own ban: Laws.gambling) no gaming house opens: the tavern's tables, the town's Gambling Den and a tavern of yours can't run dice openly. Dice go underground, behind a legitimate front (systems/backRooms.js): a gang's den runs in the back of a real business in town (fronts), and a tavern of yours can be fitted with a hidden back room (fitCost) where its tables earn as before. Getting in: one of the gang, or a guild hand, walks in; anyone else pays the doorman (doorFee, x strangerFee for a stranger with no contact), the fee into the gang's purse. Each day you sit down there the watch may raid (raidBase + raidPerCrackdown x the town's crackdown, x boughtCaptain if the gang has bought the captain): the stakes on the table are lost, a fine (fine x the realm's punishment law) to the town's purse, and heat. A back room in your own tavern risks a raid each night (tavernRaid, the same scaling): a fine, its tables seized (seizeShare), heat.",
+        "fronts": ["a chandler's", "the bathhouse", "a cooper's yard", "a cookshop", "a pawnbroker's", "a tannery", "a dyer's", "the old granary", "a wine cellar", "a smithy"],
+        "doorFee": 10, "strangerFee": 3,
+        "raidBase": 0.04, "raidPerCrackdown": 0.0025, "boughtCaptain": 0.35,
+        "fine": 40, "heat": 2,
+        "fitCost": 250, "tavernRaid": 0.02, "seizeShare": 1, "tavernFine": 80, "tavernHeat": 3
+    },
     "laws": {
         "privatePrisons": {
             "name": "Private Prisons", "icon": "⛓️",

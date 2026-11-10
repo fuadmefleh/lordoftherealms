@@ -46,6 +46,7 @@ import { WildTasks } from '../systems/wildTasks.js';
 import { Livestock } from '../systems/livestock.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
+import { ParentsGuard } from './parentsGuard.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _fmt = (s, v) => String(s == null ? '' : s).replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? m : String(v[k])));
@@ -103,6 +104,31 @@ export const InnerMapAnimals = {
     },
 
     /**
+     * How far (sheet px) a frame's lowest painted row sits above `ay` (0 when
+     * at or below it). Measured once per frame cell and cached.
+     */
+    _frameGap(img, f, fw, fh, ay) {
+        const key = `${img.src}|${f.row}|${f.col}`;
+        const cache = this._gaps || (this._gaps = new Map());
+        if (cache.has(key)) return cache.get(key);
+        let gap = 0;
+        try {
+            const c = document.createElement('canvas');
+            c.width = fw; c.height = fh;
+            const g = c.getContext('2d', { willReadFrequently: true });
+            g.drawImage(img, f.col * fw, f.row * fh, fw, fh, 0, 0, fw, fh);
+            const px = g.getImageData(0, 0, fw, fh).data;
+            let bottom = -1;
+            for (let y = fh - 1; y >= 0 && bottom < 0; y--) {
+                for (let x = 0; x < fw; x++) if (px[(y * fw + x) * 4 + 3] > 40) { bottom = y + 1; break; }
+            }
+            if (bottom > 0) gap = Math.max(0, ay - bottom);
+        } catch (e) { gap = 0; }
+        cache.set(key, gap);
+        return gap;
+    },
+
+    /**
      * Draw one animal with its feet at (fx, fy) on screen; `ds` is a tile's
      * size on screen. False when the sheet is not loaded yet.
      */
@@ -113,7 +139,12 @@ export const InnerMapAnimals = {
         const fw = _num(sp.frameW, 112), fh = _num(sp.frameH, 112);
         const scale = _num(sp.scale, 1) * _num(o.scale, 1);
         const k = (_num(sp.drawTiles, 2) * scale * ds) / fw;
-        const [ax, ay] = Array.isArray(sp.anchor) ? sp.anchor : [fw / 2, fh];
+        const [ax, ay0] = Array.isArray(sp.anchor) ? sp.anchor : [fw / 2, fh];
+        // A carcass rests on the ground: the death sheets' lying poses end a
+        // few to ~14px above the standing feet line, so (anchored like the
+        // walk) the body hovered over its shadow. Ground the frame's lowest
+        // painted row on the anchor instead.
+        const ay = a.state === 'dead' ? ay0 - this._frameGap(img, f, fw, fh, ay0) : ay0;
         const bcfg = InnerMap.animalConfig().behaviour || {};
         const fade = a.state === 'dead' && a.butchered ? Math.max(0, 1 - _num(a.fadeT) / Math.max(1, _num(bcfg.butcheredSeconds, 20))) : 1;
         const big = _num(sp.drawTiles, 2) * scale / 2;
@@ -314,6 +345,8 @@ export const InnerMapAnimals = {
     /** Close with the beast and fight it hand to hand. */
     startFight(game, a, o = {}) {
         if (!a || a.state === 'dead' || !InnerMap.animals.includes(a)) return false;
+        // Another's beast is theft to a child's parents (not when it set on you: o.auto) (ui/parentsGuard.js)
+        if (!o.auto && a.livestock && a.owner && a.ownedBy !== 'player' && !ParentsGuard.ok(game, 'theft', null, { each: true })) return false;
         if (InnerMapCombat._attackState && InnerMapCombat.cancelAttack) InnerMapCombat.cancelAttack();
         // a fight wants both hands: what you carry goes down
         if (this._carry) this.drop(game);

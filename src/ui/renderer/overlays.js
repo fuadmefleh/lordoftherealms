@@ -1,5 +1,5 @@
 // Renderer — overlays methods.
-import { Renderer } from './core.js';
+import { Renderer, HEX_FACE_DY } from './core.js';
 import { Hex, Religion, Economy, Infrastructure, WorldUnit, Hinterland } from './_imports.js';
 import { drawGlyph, drawIcon } from '../icons.js';
 import { NpcPortrait } from '../npcPortrait.js';
@@ -623,7 +623,10 @@ Object.assign(Renderer.prototype, {
             if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
             const k = Hinterland.kind(site.kind);
             if (!k) continue;
-            const x = s.x + size * 0.38, y = s.y - size * 0.38;
+            // In the middle of the hex's face, over the site's own building —
+            // up in the corner only where it shares the hex with a town
+            const x = s.x + (tile.settlement ? size * 0.38 : 0);
+            const y = s.y + (tile.settlement ? -size * 0.38 : size * HEX_FACE_DY);
             ctx.globalAlpha = site.st === 'exhausted' ? 0.5 : 1;
             this.drawMapMarker(ctx, k.icon, x, y, Math.max(9, size * 0.22));
             if (mine.has(site.id)) {

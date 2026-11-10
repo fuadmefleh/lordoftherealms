@@ -5,7 +5,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
 import { siegePanelHtml, siegeResultHtml } from './siegePanel.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
-import { fieldChoiceHtml } from './uiKit.js';
+import { fieldChoiceHtml, BTN_GOLD, lede, chips, card, bullets, rowList } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { Arms } from '../../systems/arms.js';
 import { openLordAudience, lordAudienceAct } from './lordAudience.js';
@@ -15,24 +15,44 @@ import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Bank
 function battleExtrasHtml(result) {
     let html = '';
     if (result.wounded > 0) {
-        html += `<div style="color: #81c784;">💊 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
+        html += `<div style="color: #8fd18a;">💊 Wounded but saved by your surgeons: ${result.wounded} (half strength for ${PlayerMilitary.WOUNDED_DAYS} days)</div>`;
     }
     if (result.navalSupport > 0) {
         html += result.theatre === 'sea'
-            ? `<div style="color: #4fc3f7;">⛵ Your war galleys fought at sea (+${result.navalSupport} strength)</div>`
-            : `<div style="color: #4fc3f7;">⛵ Your war galleys blockaded the harbour (+${result.navalSupport} strength)</div>`;
+            ? `<div style="color: #7cc7e8;">⛵ Your war galleys fought at sea (+${result.navalSupport} strength)</div>`
+            : `<div style="color: #7cc7e8;">⛵ Your war galleys blockaded the harbour (+${result.navalSupport} strength)</div>`;
     }
     if (result.shipSupport > 0) {
-        html += `<div style="color: #4fc3f7;">🚢 Your ship joined the fight (+${result.shipSupport} strength)</div>`;
+        html += `<div style="color: #7cc7e8;">🚢 Your ship joined the fight (+${result.shipSupport} strength)</div>`;
     }
     if (result.commanderSlain) {
         html += `<div style="color: #ce93d8;">🗡️ Your assassins slew the enemy commander — their ranks broke!</div>`;
     }
     if (result.personalWound) {
         const w = result.personalWound;
-        html += `<div style="color: #e57373;">${w.icon} You were wounded in the fighting: ${w.name}${w.text ? ` (${w.text})` : ''}. See a physician.</div>`;
+        html += `<div style="color: #e0846a;">${w.icon} You were wounded in the fighting: ${w.name}${w.text ? ` (${w.text})` : ''}. See a physician.</div>`;
     }
     return html;
+}
+
+/** A result screen's head: a big glyph and the outcome in the display face. */
+function _resultHead(icon, title, color, line) {
+    return `<div style="text-align: center; margin: 2px 0 8px;"><div style="font-size: 44px; line-height: 1.1;">${icon}</div>`
+        + `<div style="font-family: var(--font-display); font-size: 18px; color: ${color}; margin: 4px 0 2px;">${title}</div>`
+        + `${line ? `<div style="font-size: 12px; color: #9d937c;">${line}</div>` : ''}</div>`;
+}
+
+/** The result screen's one button. */
+function _continue(act) {
+    return `<button data-am-act="${act}" style="${BTN_GOLD} width: 100%; padding: 9px; margin-top: 10px;">Continue</button>`;
+}
+
+/** A battle's tactics footnote. */
+function _tacticsHtml(t, broke) {
+    const terrain = t.terrainId || 'mixed ground';
+    let h = `📐 Tactical: counters x${t.playerCounterMult} • terrain x${t.playerTerrainMult} (${terrain}) • morale ${t.playerMorale}`;
+    if (broke) h += `<br>${broke}`;
+    return `<div style="margin-top: 8px; font-size: 11px; color: #9d937c;">${h}</div>`;
 }
 
 /** The estimated odds of a phased battle against `unit` (default stances; draws nothing). */
@@ -40,7 +60,7 @@ function _attackOddsHtml(game, unit) {
     const { enemy, ctx } = FieldBattle.unitEnemy(game.player, unit, game.world);
     const est = FieldBattle.preview(game.player, enemy, game.world, ctx);
     if (!est) return '';
-    return `<div style="font-size:12px; color:#ccc;">Estimated: win ~${Math.round(est.win * 100)}% · ~${Math.round(est.loss * 100)}% of your force lost (default stances; you choose a stance each phase)</div>`;
+    return `Estimated: win ~${Math.round(est.win * 100)}% · ~${Math.round(est.loss * 100)}% of your force lost (default stances; you choose a stance each phase)`;
 }
 
 /** You fought in the line yourself: maybe a wound (systems/ailments.js). */
@@ -75,103 +95,60 @@ Object.assign(ActionMenu, {
 
         // Odds assessment
         let oddsLabel, oddsColor;
-        if (ratio >= 2.0) { oddsLabel = 'Overwhelming Advantage'; oddsColor = '#2ecc71'; }
-        else if (ratio >= 1.3) { oddsLabel = 'Favorable Odds'; oddsColor = '#27ae60'; }
-        else if (ratio >= 0.8) { oddsLabel = 'Even Fight'; oddsColor = '#f1c40f'; }
-        else if (ratio >= 0.5) { oddsLabel = 'Risky — Outmatched'; oddsColor = '#e67e22'; }
-        else { oddsLabel = 'Suicidal — Heavily Outmatched'; oddsColor = '#e74c3c'; }
+        if (ratio >= 2.0) { oddsLabel = 'Overwhelming Advantage'; oddsColor = '#8fd18a'; }
+        else if (ratio >= 1.3) { oddsLabel = 'Favorable Odds'; oddsColor = '#8fd18a'; }
+        else if (ratio >= 0.8) { oddsLabel = 'Even Fight'; oddsColor = '#ffcf6a'; }
+        else if (ratio >= 0.5) { oddsLabel = 'Risky — Outmatched'; oddsColor = '#f0b35a'; }
+        else { oddsLabel = 'Suicidal — Heavily Outmatched'; oddsColor = '#e0846a'; }
 
         const kingdom = settlement.kingdom ? game.world.getKingdom(settlement.kingdom) : null;
         const typeIcon = settlement.type === 'capital' ? '🏰' : settlement.type === 'city' ? '🏙️' : settlement.type === 'town' ? '🏘️' : '🏠';
 
+        const typeName = settlement.type.charAt(0).toUpperCase() + settlement.type.slice(1);
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
 
-        // Settlement info
-        html += `
-            <div style="text-align: center; margin-bottom: 16px;">
-                <div style="font-size: 48px; margin-bottom: 8px;">${typeIcon}</div>
-                <h3 style="color: var(--gold); margin: 4px 0;">${settlement.name}</h3>
-                <div style="color: var(--text-secondary); font-size: 12px;">
-                    ${settlement.type.charAt(0).toUpperCase() + settlement.type.slice(1)}
-                    ${kingdom ? ` — ${kingdom.name}` : ' — Independent'}
-                </div>
-            </div>
-        `;
-
-        // Strength comparison
-        html += `
-            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <div style="text-align: center; flex: 1;">
-                        <div style="color: #4fc3f7; font-size: 11px; margin-bottom: 4px;">YOUR ARMY</div>
-                        <div style="font-size: 24px; font-weight: bold; color: #4fc3f7;">${playerStrength}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">${game.player.army.length} units</div>
-                        ${strengthParts.naval > 0 ? `<div style="font-size: 11px; color: #4fc3f7;">⛵ incl. ${strengthParts.naval} from galleys blockading the harbour</div>` : ''}
-                        ${theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0 ? '<div style="font-size: 11px; color: var(--text-secondary);">⛵ Inland — your galleys cannot join</div>' : ''}
-                    </div>
-                    <div style="display: flex; align-items: center; color: var(--text-secondary); font-size: 24px;">⚔️</div>
-                    <div style="text-align: center; flex: 1;">
-                        <div style="color: #e74c3c; font-size: 11px; margin-bottom: 4px;">GARRISON</div>
-                        <div style="font-size: 24px; font-weight: bold; color: #e74c3c;">${garrisonStrength}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Pop: ${Utils.formatNumber(settlement.population)}</div>
-                    </div>
-                </div>
-                <div style="text-align: center; padding: 6px; background: rgba(0,0,0,0.3); border-radius: 4px;">
-                    <span style="color: ${oddsColor}; font-weight: bold; font-size: 13px;">${oddsLabel}</span>
-                </div>
-            </div>
-        `;
+        // The place and the two sides
+        html += lede(`${typeIcon} <b>${settlement.name}</b>, ${typeName}${kingdom ? ` — ${kingdom.name}` : ' — Independent'}. Pop: ${Utils.formatNumber(settlement.population)}.`);
+        html += chips([
+            { icon: '⚔️', label: 'Your army', value: `<span style="color: #7cc7e8;">${playerStrength}</span>` },
+            ['⚔️', 'Units', game.player.army.length],
+            { icon: '🛡️', label: 'Garrison', value: `<span style="color: #e0846a;">${garrisonStrength}</span>` },
+            { icon: '⚖️', label: '', value: `<span style="color: ${oddsColor};">${oddsLabel}</span>` },
+        ]);
+        if (strengthParts.naval > 0) html += `<div style="font-size: 11px; color: #7cc7e8; margin: 2px 0;">⛵ incl. ${strengthParts.naval} from galleys blockading the harbour</div>`;
+        if (theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0) html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0;">⛵ Inland — your galleys cannot join</div>';
 
         // Warnings
-        html += `<div style="padding: 10px; background: rgba(231,76,60,0.1); border-left: 3px solid #e74c3c; border-radius: 0 4px 4px 0; margin-bottom: 12px; font-size: 12px;">`;
-        html += `<div style="color: #e74c3c; font-weight: bold; margin-bottom: 4px;">⚠️ Consequences of a Siege</div>`;
-        html += `<div style="color: var(--text-secondary); line-height: 1.5;">`;
-        html += `• Your army camps before the walls: starve the town, build engines, dig mines, storm it or offer terms — day by day<br>`;
-        html += `• The camp eats ${Math.ceil(PlayerMilitary.getArmyStrength(game.player) > 0 ? game.player.army.length / Sieges.config().camp.rationsPerUnits : 0)} food a day beyond what it forages; it may sicken and desert<br>`;
-        html += `• ${kingdom ? kingdom.name : 'The owner'} may send a relief army<br>`;
-        html += `• Investing: reputation ${Sieges.config().investReputation} with ${kingdom ? kingdom.name : 'the defenders'}, karma ${Sieges.config().investKarma}. Taking it by storm:<br>`;
-        html += `• Massive karma penalty (-10)<br>`;
-        html += `• Reputation with <strong>ALL</strong> kingdoms drops<br>`;
-        if (settlement.kingdom) {
-            html += `• Reputation with ${kingdom ? kingdom.name : 'defender'} drops by -50<br>`;
-        }
-        html += `• Settlement population suffers (-30%)<br>`;
-        if (settlement.type === 'capital') {
-            html += `• <span style="color: #e74c3c; font-weight: bold;">This is a CAPITAL — expect maximum resistance!</span><br>`;
-        }
-        html += `</div></div>`;
+        const C = Sieges.config();
+        const warn = [
+            'Your army camps before the walls: starve the town, build engines, dig mines, storm it or offer terms — day by day',
+            `The camp eats ${Math.ceil(PlayerMilitary.getArmyStrength(game.player) > 0 ? game.player.army.length / C.camp.rationsPerUnits : 0)} food a day beyond what it forages; it may sicken and desert`,
+            `${kingdom ? kingdom.name : 'The owner'} may send a relief army`,
+            `Investing: reputation ${C.investReputation} with ${kingdom ? kingdom.name : 'the defenders'}, karma ${C.investKarma}. Taking it by storm:`,
+            'Massive karma penalty (-10)',
+            'Reputation with <strong>ALL</strong> kingdoms drops',
+            settlement.kingdom ? `Reputation with ${kingdom ? kingdom.name : 'defender'} drops by -50` : null,
+            'Settlement population suffers (-30%)',
+            settlement.type === 'capital' ? '<span style="color: #e0846a; font-weight: bold;">This is a CAPITAL — expect maximum resistance!</span>' : null,
+        ];
+        html += card(`<div style="font-size: 12px; color: #cbbf9f;">${bullets(warn)}</div>`, { icon: '⚠️', title: 'Consequences of a Siege', tone: 'bad' });
 
         // Raid option: hit and run instead of a full siege
         const raidStrength = Math.max(1, Math.floor(garrisonStrength * PlayerMilitary.RAID_DEFENSE_SHARE));
         const raidedAgo = settlement.lastRaidedDay != null ? (game.world.day || 0) - settlement.lastRaidedDay : null;
         const raidReady = raidedAgo === null || raidedAgo >= PlayerMilitary.RAID_COOLDOWN_DAYS;
-        html += `<div style="padding: 10px; background: rgba(230,126,34,0.1); border-left: 3px solid #e67e22; border-radius: 0 4px 4px 0; margin-bottom: 12px; font-size: 12px;">`;
-        html += `<div style="color: #e67e22; font-weight: bold; margin-bottom: 4px;">🔥 Or raid it</div>`;
-        html += `<div style="color: var(--text-secondary); line-height: 1.5;">Plunder and withdraw — only part of the garrison (${raidStrength}) turns out. `;
-        html += `No conquest. Karma -5, reputation with ${kingdom ? kingdom.name : 'the defenders'} -20 (-30 if it fails), population -10%.`;
-        if (!raidReady) html += `<br><span style="color: #e57373;">Raided ${raidedAgo} day(s) ago — nothing worth taking for ${PlayerMilitary.RAID_COOLDOWN_DAYS - raidedAgo} more.</span>`;
-        html += `</div></div>`;
+        const raidDesc = `Plunder and withdraw — only part of the garrison (${raidStrength}) turns out. No conquest. Karma -5, reputation with ${kingdom ? kingdom.name : 'the defenders'} -20 (-30 if it fails), population -10%.`;
 
-        // Buttons
-        html += `
-            <div style="display: flex; gap: 8px;">
-                <button data-am-act="closePanel" style="
-                    flex: 1; padding: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-                    border-radius: 6px; cursor: pointer; color: white; font-family: var(--font-body); font-size: 13px;">
-                    Retreat
-                </button>
-                <button data-am-act="performRaid" ${raidReady ? '' : 'disabled'} style="
-                    flex: 1; padding: 10px; background: rgba(230,126,34,0.25); border: 1px solid rgba(230,126,34,0.6);
-                    border-radius: 6px; cursor: ${raidReady ? 'pointer' : 'not-allowed'}; color: #ffb74d; font-weight: bold; font-family: var(--font-body); font-size: 13px; ${raidReady ? '' : 'opacity: 0.5;'}">
-                    🔥 RAID
-                </button>
-                <button data-am-act="performSiege" style="
-                    flex: 1; padding: 10px; background: rgba(231,76,60,0.3); border: 1px solid rgba(231,76,60,0.6);
-                    border-radius: 6px; cursor: pointer; color: #ff6666; font-weight: bold; font-family: var(--font-body); font-size: 13px;">
-                    🏰 LAY SIEGE
-                </button>
-            </div>
-        `;
+        // The choice
+        html += rowList([
+            { icon: '🏰', name: 'Lay siege', desc: 'Invest the town and camp before its walls', side: `vs ${garrisonStrength}`, tone: 'bad', act: 'performSiege' },
+            {
+                icon: '🔥', name: 'Or raid it', desc: raidDesc, side: `vs ${raidStrength}`, tone: 'warn', act: 'performRaid',
+                off: !raidReady,
+                why: raidReady ? '' : `${raidDesc} Raided ${raidedAgo} day(s) ago — nothing worth taking for ${PlayerMilitary.RAID_COOLDOWN_DAYS - raidedAgo} more.`,
+            },
+            { icon: '🏳️', name: 'Retreat', desc: 'Leave the walls in peace', act: 'closePanel' },
+        ], 'Your orders');
 
         html += '</div>';
         game.ui.showCustomPanel(`🏰 Siege — ${settlement.name}`, html);
@@ -197,21 +174,18 @@ Object.assign(ActionMenu, {
         }
         _rollBattleWound(game, result);
 
-        let html = '<div style="padding: 10px; text-align: center;">';
-        if (result.victory) {
-            html += `<span style="font-size: 48px;">🔥</span><h3 style="color: #ffb74d; margin: 5px 0;">Raid Successful</h3>`;
-            html += `<p style="color: #aaa;">Your soldiers sack ${settlement.name} and ride off before help arrives.</p>`;
-            html += `<div style="font-size: 13px; line-height: 1.6; text-align: left; background: rgba(230,126,34,0.1); padding: 10px; border-radius: 6px;">`;
-            html += `<div>💰 Plunder: <strong style="color: #ffd700;">${result.plunder}</strong></div>`;
-        } else {
-            html += `<span style="font-size: 48px;">💀</span><h3 style="color: #ff6666; margin: 5px 0;">Raid Repelled</h3>`;
-            html += `<p style="color: #aaa;">The defenders of ${settlement.name} drive you off.</p>`;
-            html += `<div style="font-size: 13px; line-height: 1.6; text-align: left; background: rgba(231,76,60,0.1); padding: 10px; border-radius: 6px;">`;
-        }
-        if (result.casualties > 0) html += `<div style="color: #ff9800;">⚠️ Soldiers lost: ${result.casualties}</div>`;
-        html += battleExtrasHtml(result);
-        html += `<div style="color: #ff6666;">😈 Karma and reputation with ${settlement.name}'s kingdom suffer.</div>`;
-        html += `</div><button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 10px; margin-top: 10px; background: #444; border: 1px solid #666; border-radius: 6px; color: #eee; cursor: pointer; font-size: 14px;">Continue</button></div>`;
+        let html = '<div>';
+        html += result.victory
+            ? _resultHead('🔥', 'Raid Successful', '#f0b35a', `Your soldiers sack ${settlement.name} and ride off before help arrives.`)
+            : _resultHead('💀', 'Raid Repelled', '#e0846a', `The defenders of ${settlement.name} drive you off.`);
+        html += chips([
+            result.victory ? { icon: '💰', label: 'Plunder', value: result.plunder, cls: 'gold' } : null,
+            result.casualties > 0 ? { icon: '⚠️', label: 'Soldiers lost', value: `<span style="color: #f0b35a;">${result.casualties}</span>` } : null,
+        ]);
+        let body = battleExtrasHtml(result);
+        body += `<div style="color: #e0846a;">😈 Karma and reputation with ${settlement.name}'s kingdom suffer.</div>`;
+        html += card(`<div style="font-size: 12px; line-height: 1.6;">${body}</div>`, { tone: result.victory ? 'warn' : 'bad' });
+        html += `${_continue('closePanelAndRefresh')}</div>`;
 
         game.ui.showCustomPanel(result.victory ? '🔥 Raid' : '⚔️ Defeat', html);
         game.ui.updateStats(game.player, game.world);
@@ -365,35 +339,31 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        let html = '<div style="padding:10px;">';
-        html += '<p style="margin-bottom:10px;color:#ccc;">Choose a target to engage in combat:</p>';
-
         // On the water your galleys (and the ship you're aboard) fight; ashore only soldiers
         const hereTile = game.world.getTile(game.player.q, game.player.r);
         const theatre = PlayerMilitary.tileTheatre(hereTile);
         const playerStr = PlayerMilitary.getTheatreStrength(game.player, theatre);
-        for (const unit of unitsOnTile) {
-            const dangerColor = unit.strength > playerStr ? '#ff6666' : '#66ff66';
-            html += `<button data-am-act="performAttack" data-am-args='["${unit.id}"]' style="
-                display:flex; align-items:center; gap:10px; width:100%; padding:10px;
-                margin-bottom:8px; background:#2a2a2a; border:1px solid #555;
-                border-radius:6px; cursor:pointer; color:#eee; text-align:left;
-            ">
-                <span style="font-size:28px;">${unit.icon}</span>
-                <div style="flex:1;">
-                    <div style="font-weight:bold;">${unit.name}</div>
-                    <div style="font-size:12px; color:#aaa;">Population: ${unit.population} | Strength: <span style="color:${dangerColor}">${unit.strength}</span></div>
-                    ${_attackOddsHtml(game, unit)}
-                    <div style="font-size:11px; color:#888;">${unit.type === 'caravan' || unit.type === 'ship' || unit.type === 'fishing_boat' ? '⚠️ Attacking traders hurts your karma' : unit.type === 'patrol' ? '⚠️ Attacking patrols angers kingdoms' : '💀 Hostile unit'}</div>
-                </div>
-            </button>`;
-        }
 
-        html += `<div style="margin-top:8px; padding:8px; background:#1a1a2e; border-radius:4px; font-size:12px; color:#aaa;">
-            Your ${theatre === 'sea' ? 'strength at sea' : 'army strength'}: <strong style="color:#4fc3f7;">${playerStr}</strong> (${game.player.army.length} units)
-            ${theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0 ? '<br>⛵ Your war galleys cannot fight on land.' : ''}
-            ${theatre === 'sea' ? '<br>⛵ At sea your galleys fight at full strength, soldiers from the decks at half.' : ''}
-        </div>`;
+        let html = '<div>';
+        html += lede('Choose a target to engage in combat:');
+        html += chips([
+            { icon: '⚔️', label: `Your ${theatre === 'sea' ? 'strength at sea' : 'army strength'}`, value: playerStr, cls: 'gold' },
+            ['⚔️', 'Units', game.player.army.length],
+        ]);
+        if (theatre === 'land' && PlayerMilitary.getNavalStrength(game.player) > 0) html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0;">⛵ Your war galleys cannot fight on land.</div>';
+        if (theatre === 'sea') html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0;">⛵ At sea your galleys fight at full strength, soldiers from the decks at half.</div>';
+
+        html += rowList(unitsOnTile.map(unit => {
+            const stronger = unit.strength > playerStr;
+            const warn = unit.type === 'caravan' || unit.type === 'ship' || unit.type === 'fishing_boat' ? '⚠️ Attacking traders hurts your karma' : unit.type === 'patrol' ? '⚠️ Attacking patrols angers kingdoms' : '💀 Hostile unit';
+            return {
+                icon: unit.icon, name: unit.name,
+                desc: `Population: ${unit.population} · ${_attackOddsHtml(game, unit) || 'Strength ' + unit.strength}`,
+                note: `<span style="color: #c98a6a;">${warn}</span>`,
+                side: `Strength ${unit.strength}`, tone: stronger ? 'bad' : 'good',
+                act: 'performAttack', args: [unit.id],
+            };
+        }), 'Targets');
         html += '</div>';
 
         game.ui.showCustomPanel('⚔️ Attack Unit', html);
@@ -429,80 +399,50 @@ Object.assign(ActionMenu, {
         const result = PlayerMilitary.attackUnit(game.player, unit, game.world);
         _rollBattleWound(game, result);
 
-        let html = '<div style="padding:10px;">';
+        let html = '<div>';
 
         if (result.noArmy) {
-            html += `<p style="color:#ff6666;">${result.reason || 'You have no army to fight with! Recruit soldiers first.'}</p>`;
+            html += lede(`<span style="color: #e0846a;">${result.reason || 'You have no army to fight with! Recruit soldiers first.'}</span>`);
         } else if (result.victory) {
-            html += `<div style="text-align:center; margin-bottom:10px;">
-                <span style="font-size:48px;">🏆</span>
-                <h3 style="color:#66ff66; margin:5px 0;">Victory!</h3>
-                <p style="color:#aaa;">You defeated the ${result.enemyName}!</p>
-            </div>`;
-            html += `<div style="background:#1a2e1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
-            html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${result.loot}</strong></div>`;
-            if (result.armsTaken) html += `<div style="margin-top:4px;">⚔️ Arms stripped from the fallen: ${Object.entries(result.armsTaken).map(([k, v]) => { const nm = Arms.nameOf(k).toLowerCase(); return `${v} ${nm}${v > 1 && !/s$/.test(nm) ? 's' : ''}`; }).join(', ')}</div>`;
-            if (Arms.quiverNote(result.quivers)) html += `<div style="margin-top:4px;">${Arms.quiverNote(result.quivers)}</div>`;
+            html += _resultHead('🏆', 'Victory!', '#8fd18a', `You defeated the ${result.enemyName}!`);
+            html += chips([
+                { icon: '💰', label: 'Gold looted', value: result.loot, cls: 'gold' },
+                result.casualties > 0 ? { icon: '⚠️', label: 'Soldiers lost', value: `<span style="color: #f0b35a;">${result.casualties}</span>` } : null,
+                result.karmaChange < 0 ? { icon: '😈', label: 'Karma', value: `<span style="color: #e0846a;">${result.karmaChange}</span>` } : null,
+                result.renownChange > 0 ? { icon: '⭐', label: 'Renown', value: `+${result.renownChange}` } : null,
+            ]);
+            let spoils = '';
+            if (result.armsTaken) spoils += `<div>⚔️ Arms stripped from the fallen: ${Object.entries(result.armsTaken).map(([k, v]) => { const nm = Arms.nameOf(k).toLowerCase(); return `${v} ${nm}${v > 1 && !/s$/.test(nm) ? 's' : ''}`; }).join(', ')}</div>`;
+            if (Arms.quiverNote(result.quivers)) spoils += `<div style="margin-top: 4px;">${Arms.quiverNote(result.quivers)}</div>`;
             if (result.inventoryLoot && Object.keys(result.inventoryLoot).length > 0) {
-                html += `<div style="margin-top:4px;">📦 Supplies captured:</div>`;
+                spoils += '<div style="margin-top: 4px;">📦 Supplies captured:</div>';
                 for (const [item, qty] of Object.entries(result.inventoryLoot)) {
                     const good = PlayerEconomy.GOODS[item.toUpperCase()];
                     const label = item === 'gold' ? '💰 Coin' : good ? `${good.icon} ${good.name}` : item.replace(/_/g, ' ');
-                    const hint = Treasures.info(item) ? ' <span style="color:#ce93d8; font-size:11px;">(treasure — see Inventory)</span>' : '';
-                    html += `<div style="margin-left:12px; color:#aaa;">• ${label}: ${qty}${hint}</div>`;
+                    const hint = Treasures.info(item) ? ' <span style="color: #ce93d8; font-size: 11px;">(treasure — see Inventory)</span>' : '';
+                    spoils += `<div style="margin-left: 12px; color: #cbbf9f;">• ${label}: ${qty}${hint}</div>`;
                 }
             }
             if (result.lootLeftBehind && Object.keys(result.lootLeftBehind).length > 0) {
-                html += `<div style="margin-top:4px; color:#ff9800;">🎒 Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}</div>`;
+                spoils += `<div style="margin-top: 4px; color: #f0b35a;">🎒 Packs full — left behind: ${Object.entries(result.lootLeftBehind).map(([k, v]) => `${v} ${k}`).join(', ')}</div>`;
             }
-            html += `</div>`;
-            if (result.casualties > 0) {
-                html += `<div style="color:#ff9800;">⚠️ You lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''} in the battle.</div>`;
-            }
-            html += battleExtrasHtml(result);
-            if (result.karmaChange < 0) {
-                html += `<div style="color:#ff6666;">😈 Karma: ${result.karmaChange}</div>`;
-            }
-            if (result.renownChange > 0) {
-                html += `<div style="color:#4fc3f7;">⭐ Renown +${result.renownChange}</div>`;
-            }
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'enemy') html += `<br>😨 Enemy morale broke and they fled.`;
-                html += `</div>`;
-            }
+            if (result.casualties > 0) spoils += `<div style="color: #f0b35a; margin-top: 4px;">⚠️ You lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''} in the battle.</div>`;
+            spoils += battleExtrasHtml(result);
+            if (spoils) html += card(`<div style="font-size: 12px; line-height: 1.6;">${spoils}</div>`, { icon: '🎖️', title: 'The spoils', tone: 'good' });
+            if (result.tactics) html += _tacticsHtml(result.tactics, result.tactics.moraleBreak === 'enemy' ? '😨 Enemy morale broke and they fled.' : '');
         } else {
-            html += `<div style="text-align:center; margin-bottom:10px;">
-                <span style="font-size:48px;">💀</span>
-                <h3 style="color:#ff6666;">Defeat!</h3>
-                <p style="color:#aaa;">The ${result.enemyName} overpowered you!</p>
-            </div>`;
-            html += `<div style="background:#2e1a1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
-            html += `<div style="color:#ff9800;">Lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''}.</div>`;
+            html += _resultHead('💀', 'Defeat!', '#e0846a', `The ${result.enemyName} overpowered you!`);
+            let body = `<div style="color: #f0b35a;">Lost ${result.casualties} soldier${result.casualties > 1 ? 's' : ''}.</div>`;
             if (result.captured) {
-                html += `<div style="color:#ff6666; margin-top:4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
-                html += `<div style="color:#ffd700;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
+                body += `<div style="color: #e0846a; margin-top: 4px;">⛓️ You have been captured into indentured servitude for ${result.servitudeDays} days!</div>`;
+                body += `<div style="color: #ffcf6a;">💰 ${result.goldConfiscated} gold confiscated.</div>`;
             }
-            html += battleExtrasHtml(result);
-            html += `</div>`;
-
-            if (result.tactics) {
-                const terrain = result.tactics.terrainId || 'mixed ground';
-                html += `<div style="margin-top:8px; font-size:11px; color:var(--text-secondary); padding:6px; background:rgba(79,195,247,0.08); border-radius:4px;">`;
-                html += `📐 Tactical: counters x${result.tactics.playerCounterMult} • terrain x${result.tactics.playerTerrainMult} (${terrain}) • morale ${result.tactics.playerMorale}`;
-                if (result.tactics.moraleBreak === 'player') html += `<br>😨 Your force broke and fled.`;
-                html += `</div>`;
-            }
+            body += battleExtrasHtml(result);
+            html += card(`<div style="font-size: 12px; line-height: 1.6;">${body}</div>`, { tone: 'bad' });
+            if (result.tactics) html += _tacticsHtml(result.tactics, result.tactics.moraleBreak === 'player' ? '😨 Your force broke and fled.' : '');
         }
 
-        html += `<button data-am-act="closePanelAndRefresh" style="
-            width:100%; padding:10px; margin-top:10px;
-            background:#444; border:1px solid #666; border-radius:6px;
-            color:#eee; cursor:pointer; font-size:14px;
-        ">Continue</button></div>`;
+        html += `${_continue('closePanelAndRefresh')}</div>`;
 
         game.ui.showCustomPanel(result.victory ? '⚔️ Victory!' : '⚔️ Defeat', html);
         game.ui.updateStats(game.player, game.world);

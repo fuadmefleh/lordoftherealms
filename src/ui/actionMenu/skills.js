@@ -1,6 +1,6 @@
 // ActionMenu — skills methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { panelClosed } from './uiKit.js';
+import { panelClosed, lede, chips, sectionHead, rowList, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF } from './uiKit.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Duels } from '../../systems/duels.js';
@@ -15,6 +15,27 @@ import { SocialSkills } from '../../systems/socialSkills.js';
 import { Gangs } from '../../systems/gangs.js';
 import { Ledger } from '../../systems/ledger.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
+
+/** A result panel's head: a big icon over a title in its colour (the action menu's result voice). */
+function _resultHead(icon, color, title) {
+    return `<div style="text-align: center;"><div style="font-size: 44px; margin: 10px 0 6px;">${icon}</div>`
+        + `<div style="font-family: var(--font-display); font-size: 17px; color: ${color}; font-weight: bold; margin-bottom: 8px;">${title}</div></div>`;
+}
+
+/** The full-width Continue at the foot of a result panel; attrs route the click. */
+function _continueBtn(attrs, label = 'Continue') {
+    return `<button ${attrs} style="${BTN_GOLD} display: block; width: 100%; margin: 12px 0 0; padding: 9px; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;">${label}</button>`;
+}
+
+/** A quiet meter: a label (and its value) over a thin bar. */
+function _meter(label, pct, color, value = '') {
+    return `<div style="flex: 1;">
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #9d937c; margin-bottom: 2px;"><span>${label}</span>${value ? `<span style="color: ${color}; font-weight: 600;">${value}</span>` : ''}</div>
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(245,197,66,0.12); border-radius: 4px; height: 10px; overflow: hidden;">
+            <div style="width: ${pct}%; height: 100%; background: ${color}; border-radius: 3px; transition: width 0.3s;"></div>
+        </div>
+    </div>`;
+}
 
 Object.assign(ActionMenu, {
     /**
@@ -54,36 +75,22 @@ Object.assign(ActionMenu, {
             const t = copy.splice(idx, 1)[0];
             const goldAmount = t.gold[0] + Math.floor(Math.random() * (t.gold[1] - t.gold[0] + 1));
             const diff = t.awareness < 0.3 ? 'Easy' : t.awareness < 0.5 ? 'Medium' : t.awareness < 0.7 ? 'Hard' : 'Risky';
-            const diffColor = t.awareness < 0.3 ? '#2ecc71' : t.awareness < 0.5 ? '#f39c12' : t.awareness < 0.7 ? '#e67e22' : '#e74c3c';
+            const diffColor = t.awareness < 0.3 ? '#8fd18a' : t.awareness < 0.5 ? '#f0b35a' : t.awareness < 0.7 ? '#e8a060' : '#e0846a';
             targets.push({ ...t, goldAmount, diff, diffColor });
         }
 
-        let html = '<div style="max-width: 520px; text-align: center;">';
-        html += '<h4 style="margin: 0 0 4px;">👛 Pickpocket</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Stealth: ${stealthSkill} | Luck: ${luckStat} | ${settlement.name} (${tier})</p>`;
-        html += '<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Choose your mark from the crowd:</div>';
-        for (let i = 0; i < targets.length; i++) {
-            const t = targets[i];
-            const watch = t.awareness < 0.3 ? 'Dozy — rarely looks round' : t.awareness < 0.5 ? 'Glances about now and then' : t.awareness < 0.7 ? 'Watchful' : 'Sharp-eyed and quick to turn';
-            html += `<button onclick="window._ppSelectTarget(${i})"
-                style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; margin-bottom: 8px;
-                       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid ${t.diffColor};
-                       border-radius: 8px; cursor: pointer; text-align: left; color: var(--text-primary); transition: all 0.15s;"
-                onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                <span style="font-size: 28px;">${t.icon}</span>
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; font-size: 13px;">${t.name}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${watch}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 12px; color: ${t.diffColor}; font-weight: bold;">${t.diff}</div>
-                    <div style="font-size: 10px; color: var(--text-muted);">~${t.goldAmount}g</div>
-                </div>
-            </button>`;
-        }
-        html += `<button data-am-act="closePanel"
-            style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                   border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Nevermind</button>`;
+        // The action menu's voice (ui/actionMenu/uiKit.js): chips for the thief, one row a mark
+        let html = '<div style="max-width: 520px;">';
+        html += lede(`Work the crowd in ${settlement.name} (${tier}). The richer the mark, the sharper their eyes.`);
+        html += chips([['🕵️', 'Stealth', stealthSkill], ['🍀', 'Luck', luckStat]]);
+        html += rowList(targets.map((t, i) => ({
+            icon: t.icon,
+            name: t.name,
+            desc: t.awareness < 0.3 ? 'Dozy — rarely looks round' : t.awareness < 0.5 ? 'Glances about now and then' : t.awareness < 0.7 ? 'Watchful' : 'Sharp-eyed and quick to turn',
+            attrs: `onclick="window._ppSelectTarget(${i})"`,
+            side: `<div style="color: ${t.diffColor}; font-weight: 700;">${t.diff}</div><div style="font-size: 10px; color: #9d937c;">~${t.goldAmount}g</div>`,
+        })), 'Choose your mark from the crowd');
+        html += `<button data-am-act="closePanel" style="${BTN_PLAIN}">Nevermind</button>`;
         html += '</div>';
         game.ui.showCustomPanel('👛 Pickpocket', html);
 
@@ -186,19 +193,23 @@ Object.assign(ActionMenu, {
 
         // Step 1: Choose item to smuggle
         let html = '<div style="max-width: 420px;">';
-        html += '<h4 style="margin-top: 0;">🏴‍☠️ Black Market Smuggling</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">Sell goods at a premium through shady channels in ${settlement.name}. Carry them to the fence past the watch.</p>`;
-        html += `<p style="font-size: 11px; color: #aaa;">Stealth: ${player.skills?.stealth || 1} | AP: ${player.actionPoints || 0} (costs 2 per deal)</p>`;
+        html += sectionHead('🏴‍☠️ Black Market Smuggling');
+        html += lede(`Sell goods at a premium through shady channels in ${settlement.name}. Carry them to the fence past the watch.`);
+        html += chips([['🕵️', 'Stealth', player.skills?.stealth || 1], { icon: '⚡', label: 'AP', value: `${player.actionPoints || 0} (costs 2 per deal)` }]);
 
+        const goodsRows = [];
         for (const g of goods) {
             const smugglePrice = smugglePriceOf(g.item);
             if (!(smugglePrice > 1)) continue;
-            html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">`;
-            html += `<span>${g.item} (x${g.qty})</span>`;
-            html += `<span style="color: var(--gold);">${smugglePrice}g each</span>`;
-            html += `<button onclick="window._startSmuggleRun('${g.item}', ${smugglePrice})" style="padding: 4px 10px; background: #8b0000; border: none; border-radius: 3px; cursor: pointer; color: #fff; font-size: 11px;">Smuggle 1</button>`;
-            html += `</div>`;
+            goodsRows.push({
+                icon: '📦',
+                name: `${g.item} (x${g.qty})`,
+                desc: 'Smuggle 1',
+                attrs: `onclick="window._startSmuggleRun('${g.item}', ${smugglePrice})"`,
+                side: `<span class="pk-price">${smugglePrice}<small>g</small></span> <span style="font-size: 10px; color: #9d937c;">each</span>`,
+            });
         }
+        html += rowList(goodsRows);
 
         html += '</div>';
         game.ui.showCustomPanel('Smuggling', html);
@@ -248,22 +259,16 @@ Object.assign(ActionMenu, {
         WildTaskRunner.smuggle(game, { player, settlement, item: itemName }, (ok) => {
             if (ok === null) { if (quick) quick(); return; }
             const res = _smuggleSettle(game, tile, player, settlement, itemName, price, ok);
-            let h = '<div style="max-width: 440px; text-align: center;">';
+            let h = '<div style="max-width: 440px;">';
             if (ok) {
-                h += `<div style="font-size: 48px; margin: 12px 0;">🏴‍☠️</div>`;
-                h += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Deal Complete!</div>`;
-                h += `<div style="padding: 8px 12px; background: rgba(245,197,66,0.1); border-radius: 4px; margin-bottom: 8px;">
-                    <span style="color: var(--gold); font-size: 16px; font-weight: bold;">+${price}g</span>
-                    <span style="color: var(--text-secondary); font-size: 12px;"> for ${itemName}</span>
-                </div>`;
-                h += `<div style="font-size: 12px; color: var(--text-secondary);">The fence counts out the coin. Nobody saw a thing.</div>`;
+                h += _resultHead('🏴‍☠️', '#8fd18a', 'Deal Complete!');
+                h += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${price}g`, cls: 'gold' }, `for ${itemName}`])}</div>`;
+                h += lede('The fence counts out the coin. Nobody saw a thing.');
             } else {
-                h += `<div style="font-size: 48px; margin: 12px 0;">🚔</div>`;
-                h += `<div style="font-size: 16px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">Caught!</div>`;
-                h += `<div style="color: var(--text-secondary); font-size: 12px;">${res.text}</div>`;
+                h += _resultHead('🚔', '#e0846a', 'Caught!');
+                h += lede(res.text);
             }
-            h += `<button onclick="window._smuggleDone()"
-                style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+            h += _continueBtn('onclick="window._smuggleDone()"');
             h += '</div>';
             game.ui.showCustomPanel('🏴‍☠️ Smuggling', h);
             game.ui.updateStats(player, game.world);
@@ -373,11 +378,10 @@ Object.assign(ActionMenu, {
 
                 const verdict = won ? '🏆 You won the bout' : tied ? '🤝 An even bout' : '😤 The trainer had the better of you';
                 let html = '<div style="max-width: 440px; text-align: center;">';
-                html += `<div style="font-size: 16px; font-weight: bold; margin: 6px 0;">${verdict}</div>`;
-                html += `<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">You landed ${r.dealt}, took ${r.taken} with ${me.weapon}.</div>`;
-                html += `<div style="font-size: 12px; white-space: pre-line; margin-bottom: 8px;">${msgs.join('\n')}</div>`;
-                html += `<button data-am-act="closePanelAndEndDay"
-                    style="width: 100%; margin-top: 8px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+                html += `<div style="font-family: var(--font-display); font-size: 17px; font-weight: bold; color: ${won ? '#8fd18a' : tied ? '#ffcf6a' : '#e0846a'}; margin: 6px 0;">${verdict}</div>`;
+                html += `<div style="font-size: 11px; color: #9d937c; margin-bottom: 8px;">You landed ${r.dealt}, took ${r.taken} with ${me.weapon}.</div>`;
+                html += `<div style="font-size: 12px; color: #ece2c8; white-space: pre-line; margin-bottom: 8px;">${msgs.join('\n')}</div>`;
+                html += _continueBtn('data-am-act="closePanelAndEndDay"');
                 html += '</div>';
                 game.ui.showCustomPanel('⚔️ Combat Training', html);
                 game.ui.updateStats(player, game.world);
@@ -463,26 +467,17 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        let html = '<div style="max-width: 500px; text-align: center;">';
-        html += '<h4 style="margin: 0 0 4px;">🎣 Fishing</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Choose where to cast your line.</p>';
-        for (const d of depths) {
-            html += `<button onclick="window._fishPickDepth('${d.id}')"
-                style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; margin-bottom: 8px;
-                       background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid ${d.color};
-                       border-radius: 8px; cursor: pointer; text-align: left; color: var(--text-primary); transition: all 0.15s;"
-                onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                <span style="font-size: 24px;">${d.label.split(' ')[0]}</span>
-                <div style="flex: 1;">
-                    <div style="font-weight: 600; font-size: 13px;">${d.label}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary);">${d.desc}</div>
-                </div>
-                <div style="font-size: 12px; color: ${d.color}; font-weight: 600;">▶</div>
-            </button>`;
-        }
-        html += `<button data-am-act="closePanel"
-            style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                   border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">Cancel</button>`;
+        let html = '<div style="max-width: 500px;">';
+        html += lede('Choose where to cast your line.');
+        html += rowList(depths.map(d => ({
+            icon: d.label.split(' ')[0],
+            name: d.label.split(' ').slice(1).join(' '),
+            desc: d.desc,
+            attrs: `onclick="window._fishPickDepth('${d.id}')"`,
+            side: '▶ Cast',
+            tone: 'gold',
+        })), '🎣 Fishing');
+        html += `<button data-am-act="closePanel" style="${BTN_PLAIN}">Cancel</button>`;
         html += '</div>';
         game.ui.showCustomPanel('🎣 Fishing', html);
 
@@ -549,11 +544,11 @@ Object.assign(ActionMenu, {
      * Render final fishing results and add to inventory
      */
     _renderFishingResults(catches, player, levelUp = null) {
-        let html = '<div style="text-align: left; padding: 8px;">';
-        html += '<h4 style="margin: 0 0 12px; text-align: center;">🎣 Day\'s Catch</h4>';
+        let html = '<div style="text-align: left; padding: 4px 2px;">';
+        html += sectionHead('🎣 Day\'s Catch');
 
         if (catches.length === 0) {
-            html += '<p style="color: var(--text-muted); text-align: center;">Nothing caught today. The fish outsmarted you!</p>';
+            html += lede('Nothing caught today. The fish outsmarted you!');
         } else {
             // Consolidate
             const totals = {};
@@ -563,39 +558,37 @@ Object.assign(ActionMenu, {
             }
 
             let totalValue = 0;
+            const rows = [];
             for (const [key, item] of Object.entries(totals)) {
                 if (!PlayerInventory.addItem(player, key, item.qty).success) {
-                    html += `<div style="padding: 6px 8px; margin-bottom: 4px; color: #ff9800;">🎒 Packs full — released ${item.icon} ${item.label} ×${item.qty}</div>`;
+                    rows.push({ icon: '🎒', name: `<span style="color: #f0b35a;">Packs full — released ${item.icon} ${item.label} ×${item.qty}</span>` });
                     continue;
                 }
                 totalValue += item.value * item.qty;
                 const rarityLabel = item.rarity === 'legendary' ? ' ★' : item.rarity === 'rare' ? ' ◆' : '';
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 4px; background: rgba(255,255,255,0.03); border-radius: 4px; border-left: 3px solid ${item.color};">
-                            <span>${item.icon} ${item.label}${rarityLabel} <span style="color: var(--text-muted);">×${item.qty}</span></span>
-                            <span style="color: var(--gold); font-weight: bold;">${item.value > 0 ? `${item.value * item.qty}g` : '—'}</span>
-                         </div>`;
+                const fancy = item.rarity === 'legendary' || item.rarity === 'rare';
+                rows.push({
+                    icon: item.icon,
+                    name: `${fancy ? `<span style="color: ${item.color};">${item.label}${rarityLabel}</span>` : item.label} <span style="color: #9d937c; font-weight: 400;">×${item.qty}</span>`,
+                    side: item.value > 0 ? `<span class="pk-price">${item.value * item.qty}<small>g</small></span>` : '—',
+                });
             }
+            html += rowList(rows);
 
-            html += `<div style="text-align: center; margin-top: 12px; padding: 8px; background: rgba(245,197,66,0.08); border-radius: 6px; border: 1px solid rgba(245,197,66,0.15);">
-                        <span style="color: var(--gold); font-size: 14px; font-weight: bold;">Total value: ${totalValue} gold</span>
-                     </div>`;
+            html += chips([{ icon: '💰', label: 'Total value:', value: `${totalValue} gold`, cls: 'gold' }]);
         }
 
         // Luck chance
         if (Math.random() < 0.08) {
             player.luck = (player.luck || 5) + 1;
-            html += '<div style="color: #88f; margin-top: 8px; text-align: center; font-size: 12px;">🍀 Your patience improved your luck!</div>';
+            html += '<div style="color: #8fd18a; margin-top: 8px; text-align: center; font-size: 12px;">🍀 Your patience improved your luck!</div>';
         }
         // The fishing level (systems/foodSkills.js)
         const fp = PracticeSkills.progress(player, 'fishing');
-        html += `<div style="color: #6ab8db; margin-top: 8px; text-align: center; font-size: 12px;">${fp.icon} ${fp.name} ${fp.level} (${fp.levelName})${fp.max ? '' : ` · ${Math.floor(fp.into)}/${fp.need} xp`}</div>`;
-        if (levelUp) html += `<div style="color: #5ddb6a; margin-top: 4px; text-align: center; font-size: 12px;">${levelUp.icon} ${levelUp.text}</div>`;
+        html += `<div style="color: #7db4ff; margin-top: 8px; text-align: center; font-size: 12px;">${fp.icon} ${fp.name} ${fp.level} (${fp.levelName})${fp.max ? '' : ` · ${Math.floor(fp.into)}/${fp.need} xp`}</div>`;
+        if (levelUp) html += `<div style="color: #8fd18a; margin-top: 4px; text-align: center; font-size: 12px;">${levelUp.icon} ${levelUp.text}</div>`;
 
-        html += `<button data-am-act="closePanelAndEndDay"
-                    style="width: 100%; margin-top: 14px; padding: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none; border-radius: 6px; cursor: pointer;
-                           font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
-                    Done Fishing
-                 </button>`;
+        html += _continueBtn('data-am-act="closePanelAndEndDay"', 'Done Fishing');
         html += '</div>';
         return html;
     },
@@ -698,30 +691,20 @@ Object.assign(ActionMenu, {
 
         const render = () => {
             let html = '<div style="max-width: 440px; text-align: center;">';
-            html += '<h4 style="margin: 0 0 4px;">⛏️ Prospecting</h4>';
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Terrain: ${terrainId} (x${difficultyMod}) | Str: ${strengthStat} | Luck: ${luckStat}</p>`;
+            html += sectionHead('⛏️ Prospecting');
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0 0 8px;">Terrain: ${terrainId} (x${difficultyMod}) | Str: ${strengthStat} | Luck: ${luckStat}</p>`;
 
             if (phase === 'drilling') {
                 // Status bars
                 html += `<div style="display: flex; gap: 12px; margin-bottom: 10px;">
-                    <div style="flex: 1;">
-                        <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">⛏️ Drill HP</div>
-                        <div style="background: rgba(255,255,255,0.06); border-radius: 4px; height: 10px; overflow: hidden;">
-                            <div style="width: ${drillHP}%; height: 100%; background: ${drillHP > 30 ? '#3498db' : '#e74c3c'}; border-radius: 3px; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
-                    <div style="flex: 1;">
-                        <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">💪 Stamina</div>
-                        <div style="background: rgba(255,255,255,0.06); border-radius: 4px; height: 10px; overflow: hidden;">
-                            <div style="width: ${stamina}%; height: 100%; background: ${stamina > 30 ? '#2ecc71' : '#e74c3c'}; border-radius: 3px; transition: width 0.3s;"></div>
-                        </div>
-                    </div>
+                    ${_meter('⛏️ Drill HP', drillHP, drillHP > 30 ? '#7db4ff' : '#e0846a')}
+                    ${_meter('💪 Stamina', stamina, stamina > 30 ? '#8fd18a' : '#e0846a')}
                 </div>`;
 
-                html += `<div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 8px;">
-                    <span>💰 Found: <span style="color: var(--gold);">${totalValue}g</span></span>
-                    <span>🔍 Scans: ${scansLeft}</span>
-                </div>`;
+                html += `<div style="display: flex; justify-content: center;">${chips([
+                    { icon: '💰', label: 'Found:', value: `${totalValue}g`, cls: 'gold' },
+                    ['🔍', 'Scans:', scansLeft],
+                ])}</div>`;
 
                 // Depth column — vertical drill shaft
                 html += '<div style="display: flex; gap: 6px; align-items: stretch;">';
@@ -729,7 +712,7 @@ Object.assign(ActionMenu, {
                 // Depth labels
                 html += '<div style="display: flex; flex-direction: column; gap: 2px; margin-right: 2px;">';
                 for (let d = 0; d < maxDepth; d++) {
-                    html += `<div style="height: 42px; display: flex; align-items: center; font-size: 9px; color: var(--text-muted);">
+                    html += `<div style="height: 42px; display: flex; align-items: center; font-size: 9px; color: #9d937c;">
                         ${d + 1}m
                     </div>`;
                 }
@@ -745,17 +728,17 @@ Object.assign(ActionMenu, {
 
                     if (isPast) {
                         // Already drilled through
-                        const col = layer.extracted ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.02)';
+                        const col = layer.extracted ? 'rgba(143,209,138,0.1)' : 'rgba(255,255,255,0.02)';
                         html += `<div style="height: 42px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-                            background: ${col}; border: 1px solid rgba(255,255,255,0.04); font-size: 12px; color: var(--text-muted);">
+                            background: ${col}; border: 1px solid rgba(245,197,66,0.06); font-size: 12px; color: #9d937c;">
                             ${layer.extracted ? (itemData[layer.type]?.icon || '✓') : '▪️'} ${layer.extracted ? itemData[layer.type]?.label || '' : 'empty'}
                         </div>`;
                     } else if (isCurrent) {
                         // Current depth — drill head
                         html += `<div style="height: 42px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-                            background: rgba(243,156,18,0.15); border: 2px solid var(--gold); font-size: 18px;
-                            box-shadow: 0 0 12px rgba(243,156,18,0.2);">
-                            ⛏️ <span style="font-size: 11px; margin-left: 6px; color: var(--gold);">DRILL HERE</span>
+                            background: rgba(245,197,66,0.12); border: 1px solid rgba(245,197,66,0.7); font-size: 18px;
+                            box-shadow: 0 0 12px rgba(245,197,66,0.18);">
+                            ⛏️ <span style="font-size: 11px; margin-left: 6px; color: #ffcf6a; letter-spacing: 1px; font-weight: 600;">DRILL HERE</span>
                         </div>`;
                     } else {
                         // Future depth — hidden
@@ -780,7 +763,7 @@ Object.assign(ActionMenu, {
                         </div>`;
                     } else {
                         html += `<div style="height: 42px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
-                            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); font-size: 9px; color: var(--text-muted);">
+                            background: rgba(255,255,255,0.02); border: 1px solid rgba(245,197,66,0.06); font-size: 9px; color: #9d937c;">
                             ?
                         </div>`;
                     }
@@ -790,61 +773,50 @@ Object.assign(ActionMenu, {
                 html += '</div>';
 
                 if (statusMsg) html += `<div style="margin-top: 8px; font-size: 12px;">${statusMsg}</div>`;
-                if (scanResult) html += `<div style="margin-top: 4px; font-size: 11px; color: var(--text-muted);">${scanResult}</div>`;
+                if (scanResult) html += `<div style="margin-top: 4px; font-size: 11px; color: #9d937c;">${scanResult}</div>`;
 
                 // Action buttons
                 html += `<div style="display: flex; gap: 8px; justify-content: center; margin-top: 10px;">
-                    <button onclick="window._prospectDrill()"
-                        style="padding: 10px 24px; background: rgba(243,156,18,0.15); border: 2px solid var(--gold);
-                               border-radius: 8px; cursor: pointer; color: var(--gold); font-size: 13px; font-weight: bold; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(243,156,18,0.25)'" onmouseleave="this.style.background='rgba(243,156,18,0.15)'">
+                    <button onclick="window._prospectDrill()" style="${BTN_GOLD} margin: 0; padding: 9px 22px; font-size: 13px;">
                         ⛏️ Drill Down
                     </button>
                     <button onclick="window._prospectScan()" ${scansLeft <= 0 ? 'disabled' : ''}
-                        style="padding: 10px 20px; background: rgba(52,152,219,0.15); border: 2px solid #3498db;
-                               border-radius: 8px; cursor: pointer; color: #3498db; font-size: 13px; font-weight: bold; transition: all 0.15s;
-                               ${scansLeft <= 0 ? 'opacity: 0.4; cursor: default;' : ''}"
-                        onmouseenter="this.style.background='rgba(52,152,219,0.25)'" onmouseleave="this.style.background='rgba(52,152,219,0.15)'">
+                        style="${scansLeft <= 0 ? BTN_OFF : BTN_PLAIN} margin: 0; padding: 9px 18px; font-size: 13px;">
                         🔍 Scan (${scansLeft})
                     </button>
-                    <button onclick="window._prospectStop()"
-                        style="padding: 10px 16px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                               border-radius: 8px; cursor: pointer; color: var(--text-muted); font-size: 12px;">
+                    <button onclick="window._prospectStop()" style="${BTN_DARK} margin: 0; padding: 9px 14px;">
                         Stop
                     </button>
                 </div>`;
-                html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Drill deeper for rare minerals! Scan to see what's ahead.</div>`;
+                html += `<div style="font-size: 10px; color: #9d937c; margin-top: 6px;">Drill deeper for rare minerals! Scan to see what's ahead.</div>`;
 
             } else {
                 // Results
-                html += `<div style="font-size: 48px; margin: 8px 0;">⛏️</div>`;
                 if (finds.length > 0) {
-                    html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Prospecting Haul</div>`;
+                    html += _resultHead('⛏️', '#8fd18a', 'Prospecting Haul');
                     const totals = {};
                     for (const f of finds) {
                         if (!totals[f.type]) totals[f.type] = { ...itemData[f.type], qty: 0 };
                         totals[f.type].qty++;
                     }
+                    const rows = [];
                     for (const [key, item] of Object.entries(totals)) {
                         if (!PlayerInventory.addItem(player, key, item.qty).success) {
-                            html += `<div style="padding: 6px 12px; margin-bottom: 4px; color: #ff9800;">🎒 Packs full — left behind ${item.icon} ${item.label} x${item.qty}</div>`;
+                            rows.push({ icon: '🎒', name: `<span style="color: #f0b35a;">Packs full — left behind ${item.icon} ${item.label} x${item.qty}</span>` });
                             continue;
                         }
-                        html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
-                            <div>${item.icon} ${item.label} x${item.qty}</div>
-                            <div style="color: var(--gold);">${item.value * item.qty}g</div>
-                        </div>`;
+                        rows.push({ icon: item.icon, name: `${item.label} x${item.qty}`, side: `<span class="pk-price">${item.value * item.qty}<small>g</small></span>` });
                     }
-                    html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Total Value: ~${totalValue} gold</div>`;
+                    html += '<div style="text-align: left;">' + rowList(rows) + '</div>';
+                    html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: 'Total Value:', value: `~${totalValue} gold`, cls: 'gold' }])}</div>`;
                 } else {
-                    html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
-                    html += `<div style="color: var(--text-secondary);">Nothing valuable found.</div>`;
+                    html += _resultHead('⛏️', '#f0b35a', 'Slim Pickings');
+                    html += `<div style="color: #cbbf9f;">Nothing valuable found.</div>`;
                 }
-                html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Reached depth: ${currentDepth}m</div>`;
-                if (healthCost > 0) html += `<div style="color: #f88; margin-top: 4px;">Hard work cost ${healthCost} HP.</div>`;
-                if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${statusMsg}</div>`;
-                html += `<button data-am-act="closePanelAndEndDay"
-                    style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+                html += `<div style="font-size: 12px; color: #9d937c; margin-top: 4px;">Reached depth: ${currentDepth}m</div>`;
+                if (healthCost > 0) html += `<div style="color: #e0846a; margin-top: 4px;">Hard work cost ${healthCost} HP.</div>`;
+                if (statusMsg) html += `<div style="font-size: 12px; color: #cbbf9f; margin-top: 4px;">${statusMsg}</div>`;
+                html += _continueBtn('data-am-act="closePanelAndEndDay"');
             }
 
             html += '</div>';
@@ -874,16 +846,16 @@ Object.assign(ActionMenu, {
                 const data = itemData[layer.type];
                 finds.push({ type: layer.type });
                 totalValue += data.value;
-                statusMsg = `<span style="color: #2ecc71;">Found ${data.icon} ${data.label}!</span>`;
+                statusMsg = `<span style="color: #8fd18a;">Found ${data.icon} ${data.label}!</span>`;
             } else {
-                statusMsg = `<span style="color: var(--text-muted);">Just rock...</span>`;
+                statusMsg = `<span style="color: #9d937c;">Just rock...</span>`;
             }
 
             if (layer.hasHazard) {
                 const extraDmg = Math.floor(Math.random() * 6) + 3;
                 healthCost += extraDmg;
                 player.health = Math.max(1, player.health - extraDmg);
-                statusMsg += ` <span style="color: #e74c3c;">⚠️ Cave-in! -${extraDmg} HP</span>`;
+                statusMsg += ` <span style="color: #e0846a;">⚠️ Cave-in! -${extraDmg} HP</span>`;
             }
 
             currentDepth++;
@@ -988,30 +960,30 @@ Object.assign(ActionMenu, {
 
         const render = () => {
             let html = '<div style="max-width: 440px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">🐴 Taming a Wild Horse</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Strength: ${strengthStat} | Luck: ${luckStat}</p>`;
+            html += sectionHead('🐴 Taming a Wild Horse');
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0 0 10px;">Strength: ${strengthStat} | Luck: ${luckStat}</p>`;
 
             if (phase === 'taming') {
                 // Horse visual
                 const horseAnim = horseMood === 'panicked' ? '🐎💨' : horseMood === 'calm' ? '🐴✨' : '🐴';
                 html += `<div style="font-size: 48px; margin: 8px 0; transition: all 0.3s;">${horseAnim}</div>`;
-                if (horseAction) html += `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">${horseAction}</div>`;
+                if (horseAction) html += `<div style="font-size: 11px; color: #9d937c; margin-bottom: 8px;">${horseAction}</div>`;
 
                 // Calmness meter with sweet-spot zone
-                const calmnessColor = (calmness >= 40 && calmness <= 70) ? '#2ecc71' : calmness > 85 ? '#3498db' : '#e74c3c';
+                const calmnessColor = (calmness >= 40 && calmness <= 70) ? '#8fd18a' : calmness > 85 ? '#7db4ff' : '#e0846a';
                 const moodLabel = horseMood === 'panicked' ? '😱 Panicking!' : horseMood === 'calm' ? '😌 Calm' : '😰 Nervous';
                 html += `<div style="margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
-                        <span style="color: var(--text-muted);">Horse Calmness</span>
+                        <span style="color: #9d937c;">Horse Calmness</span>
                         <span style="color: ${calmnessColor}; font-weight: 600;">${moodLabel}</span>
                     </div>
-                    <div style="position: relative; height: 22px; background: rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="position: relative; height: 22px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">
                         <!-- Sweet zone -->
                         <div style="position: absolute; left: 40%; width: 30%; height: 100%; background: rgba(46,204,113,0.12); border-left: 2px dashed rgba(46,204,113,0.4); border-right: 2px dashed rgba(46,204,113,0.4);"></div>
                         <!-- Calmness marker -->
                         <div style="position: absolute; left: ${calmness}%; top: 2px; bottom: 2px; width: 8px; background: ${calmnessColor}; border-radius: 4px; transform: translateX(-50%); box-shadow: 0 0 8px ${calmnessColor}; transition: left 0.15s;"></div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); margin-top: 2px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9d937c; margin-top: 2px;">
                         <span>Wild</span>
                         <span style="color: rgba(46,204,113,0.6);">Sweet spot</span>
                         <span>Sleepy</span>
@@ -1022,56 +994,48 @@ Object.assign(ActionMenu, {
                 const holdPct = Math.min(100, (holdTimer / holdTarget) * 100);
                 html += `<div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px;">
-                        <span style="color: var(--text-muted);">Trust (hold in sweet spot)</span>
-                        <span style="color: var(--gold);">${holdPct.toFixed(0)}%</span>
+                        <span style="color: #9d937c;">Trust (hold in sweet spot)</span>
+                        <span style="color: #ffcf6a; font-weight: 600;">${holdPct.toFixed(0)}%</span>
                     </div>
-                    <div style="background: rgba(255,255,255,0.06); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="width: ${holdPct}%; height: 100%; background: var(--gold); transition: width 0.2s; border-radius: 5px;"></div>
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">
+                        <div style="width: ${holdPct}%; height: 100%; background: #ffcf6a; transition: width 0.2s; border-radius: 5px;"></div>
                     </div>
                 </div>`;
 
                 // Control buttons
                 html += `<div style="display: flex; gap: 10px; justify-content: center;">
                     <button onmousedown="window._tameCalm()" ontouchstart="window._tameCalm()"
-                        style="padding: 14px 24px; background: rgba(46,204,113,0.15); border: 2px solid #2ecc71;
-                               border-radius: 10px; cursor: pointer; color: #2ecc71; font-size: 14px; font-weight: bold; user-select: none; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(46,204,113,0.25)'" onmouseleave="this.style.background='rgba(46,204,113,0.15)'">
+                        style="${BTN_GOLD} margin: 0; padding: 12px 20px; font-size: 14px; user-select: none;">
                         🤲 Soothe
                     </button>
                     <button onmousedown="window._tameFeed()" ontouchstart="window._tameFeed()"
-                        style="padding: 14px 24px; background: rgba(243,156,18,0.15); border: 2px solid #f39c12;
-                               border-radius: 10px; cursor: pointer; color: #f39c12; font-size: 14px; font-weight: bold; user-select: none; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(243,156,18,0.25)'" onmouseleave="this.style.background='rgba(243,156,18,0.15)'">
+                        style="${BTN_PLAIN} margin: 0; padding: 12px 20px; font-size: 14px; user-select: none;">
                         🥕 Offer Food
                     </button>
                     <button onmousedown="window._tameGrip()" ontouchstart="window._tameGrip()"
-                        style="padding: 14px 24px; background: rgba(155,89,182,0.15); border: 2px solid #9b59b6;
-                               border-radius: 10px; cursor: pointer; color: #9b59b6; font-size: 14px; font-weight: bold; user-select: none; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(155,89,182,0.25)'" onmouseleave="this.style.background='rgba(155,89,182,0.15)'">
+                        style="${BTN_DARK} margin: 0; padding: 12px 20px; font-size: 14px; user-select: none;">
                         ✊ Firm Grip
                     </button>
                 </div>`;
-                html += `<div style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Keep the horse in the green sweet spot and build trust!</div>`;
+                html += `<div style="font-size: 10px; color: #9d937c; margin-top: 8px;">Keep the horse in the green sweet spot and build trust!</div>`;
 
             } else {
                 // Results
                 if (tameResult === 'success') {
-                    html += `<div style="font-size: 56px; margin: 12px 0;">🐴✨</div>`;
-                    html += `<div style="font-size: 18px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Horse Tamed!</div>`;
-                    html += `<div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 6px;">🐴 +1 Horse added to inventory</div>`;
-                    html += `<div style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">⚡ +2 Max Stamina (mount bonus)</div>`;
-                    if (statusMsg) html += `<div style="font-size: 12px; color: #88f; margin-top: 6px;">${statusMsg}</div>`;
+                    html += _resultHead('🐴✨', '#8fd18a', 'Horse Tamed!');
+                    html += '<div style="text-align: left;">' + rowList([
+                        { icon: '🐴', name: '+1 Horse added to inventory' },
+                        { icon: '⚡', name: '+2 Max Stamina (mount bonus)' },
+                    ]) + '</div>';
+                    if (statusMsg) html += `<div style="font-size: 12px; color: #8fd18a; margin-top: 6px;">${statusMsg}</div>`;
                 } else if (tameResult === 'bolted') {
-                    html += `<div style="font-size: 56px; margin: 12px 0;">🐎💨</div>`;
-                    html += `<div style="font-size: 18px; color: #f39c12; font-weight: bold; margin-bottom: 8px;">The Horse Bolted!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg || 'It broke free and disappeared into the wild.'}</div>`;
+                    html += _resultHead('🐎💨', '#f0b35a', 'The Horse Bolted!');
+                    html += `<div style="font-size: 13px; color: #cbbf9f;">${statusMsg || 'It broke free and disappeared into the wild.'}</div>`;
                 } else if (tameResult === 'kicked') {
-                    html += `<div style="font-size: 56px; margin: 12px 0;">🦵💥</div>`;
-                    html += `<div style="font-size: 18px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">Kicked!</div>`;
-                    html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
+                    html += _resultHead('🦵💥', '#e0846a', 'Kicked!');
+                    html += `<div style="font-size: 13px; color: #cbbf9f;">${statusMsg}</div>`;
                 }
-                html += `<button data-am-act="closePanelAndEndDay"
-                    style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+                html += _continueBtn('data-am-act="closePanelAndEndDay"');
             }
 
             html += '</div>';
@@ -1278,19 +1242,15 @@ function _ppInPerson(game, tile, player, settlement, target, quick) {
         let html = '<div style="max-width: 440px; text-align: center;">';
         if (res === 'lifted') {
             const got = _ppLift(game, player, settlement, target);
-            html += `<div style="font-size: 48px; margin: 16px 0;">💰</div>`;
-            html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Success!</div>`;
-            html += `<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Deftly lifted the purse from the ${target.name} and melted into the crowd. -1 karma.${got.skillUp ? ' Your stealth skill improved!' : ''}</div>`;
-            html += `<div style="font-size: 20px; color: var(--gold); font-weight: bold; margin: 8px 0;">+${got.gold} gold</div>`;
+            html += _resultHead('💰', '#8fd18a', 'Success!');
+            html += `<div style="font-size: 13px; color: #cbbf9f; margin-bottom: 4px;">Deftly lifted the purse from the ${target.name} and melted into the crowd. -1 karma.${got.skillUp ? ' Your stealth skill improved!' : ''}</div>`;
+            html += `<div style="display: flex; justify-content: center;">${chips([{ icon: '💰', label: '', value: `+${got.gold} gold`, cls: 'gold' }])}</div>`;
         } else {
             ActionMenu._ppDoCaught(game, tile, player, settlement, target);
-            html += `<div style="font-size: 48px; margin: 16px 0;">🚔</div>`;
-            html += `<div style="font-size: 16px; color: #e74c3c; font-weight: bold; margin-bottom: 8px;">CAUGHT!</div>`;
-            html += `<div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">The ${target.name} grabbed your wrist and shouted for the watch!</div>`;
+            html += _resultHead('🚔', '#e0846a', 'CAUGHT!');
+            html += `<div style="font-size: 13px; color: #cbbf9f; margin-bottom: 8px;">The ${target.name} grabbed your wrist and shouted for the watch!</div>`;
         }
-        html += `<button data-am-act="closePanel"
-            style="padding: 10px 32px; margin-top: 12px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
-                   border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">Continue</button>`;
+        html += _continueBtn('data-am-act="closePanel"');
         html += '</div>';
         game.ui.showCustomPanel('👛 Pickpocket', html);
         game.ui.updateStats(player, game.world);

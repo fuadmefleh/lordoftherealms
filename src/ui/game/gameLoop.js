@@ -4,6 +4,7 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, PlayerInventory } from './_gameImports.js';
 import { Afterlife } from '../../player/afterlife.js';
+import { Parentage } from '../../player/parentage.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
@@ -989,6 +990,14 @@ export function handleClick(screenX, screenY, button = 'left') {
                 return;
             }
 
+            // Under your parents' roof (player/parentage.js): grounded keeps you home;
+            // beyond where they let you go is defiance, and you are told so
+            const parents = Parentage.travelCheck(this.player, this.world, hex.q, hex.r);
+            if (parents && parents.refused) {
+                this.ui.showNotification('🔒 Grounded', parents.text, 'error');
+                return;
+            }
+            if (parents && parents.warn) this.ui.showNotification('🧭 Your Parents', parents.text, 'warning');
             // An order to go elsewhere ends a survey in hand (ui/game/autoChart.js)
             this.stopAutoChart('You leave off charting to go elsewhere.');
             const success = this.player.moveTo(hex.q, hex.r, this.world);

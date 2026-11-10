@@ -1,6 +1,6 @@
 // ActionMenu — jobs methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { panelClosed } from './uiKit.js';
+import { panelClosed, lede, chips, sectionHead, actRow, rowList, price, BTN_GOLD, BTN_PLAIN } from './uiKit.js';
 import { InnerMap, PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, Seasons, SeasonalWork, OutlawLairs } from './_imports.js';
 import { MinigameHost, startForge } from '../minigames/index.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -39,45 +39,30 @@ Object.assign(ActionMenu, {
         const shuffled = [...allJobs].sort(() => Math.random() - 0.5);
         const todayJobs = [...seasonalJobs, ...shuffled.slice(0, 3)];
 
-        const diffColors = { 2: '#2ecc71', 3: '#2ecc71', 4: '#f39c12', 5: '#e67e22', 6: '#e74c3c', 7: '#e74c3c' };
+        const diffColors = { 2: '#8fd18a', 3: '#8fd18a', 4: '#f0b35a', 5: '#f0b35a', 6: '#e0846a', 7: '#e0846a' };
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">🔨 Available Work</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Day labor available in ${settlement.name}. Complete the work task to earn your pay.</p>`;
+        // The action menu's voice (ui/actionMenu/uiKit.js): one row a job, the
+        // pay and difficulty at the right
+        let html = sectionHead('🔨 Available Work');
+        html += lede(`Day labor available in ${settlement.name}. Complete the work task to earn your pay.`);
 
-        for (let i = 0; i < todayJobs.length; i++) {
-            const job = todayJobs[i];
+        const jobRows = todayJobs.map((job, i) => {
             const statVal = ActionMenu._getPlayerStat(game.player, job.stat);
             const payMult = Math.round(OddJobs.wageFactor(settlement, job.sector) * OddJobs.seasonFactor(game.world, settlement, job) * 100) / 100;
             const statLabel = job.stat.charAt(0).toUpperCase() + job.stat.slice(1);
-            const dColor = diffColors[job.difficulty] || '#f39c12';
+            const dColor = diffColors[job.difficulty] || '#f0b35a';
+            return {
+                icon: job.icon,
+                name: `${job.name}${job.seasonal ? ` <span style="font-size:10px; color:#8fd18a; font-weight:400;">${Seasons.ICONS[Seasons.seasonOf(game.world.day)] || ''} seasonal</span>` : ''}`,
+                desc: job.description,
+                note: `<span style="color:#9d937c;">${statLabel}: ${statVal} · Pay: ${Math.floor(job.pay.min * payMult)}-${Math.floor(job.pay.max * payMult)}g${payMult !== 1 ? ` (local wages ×${payMult})` : ''}</span>`,
+                attrs: `onclick="window._startLabor(${i})"`,
+                side: `<div style="color:#ffcf6a; font-weight:600;">▶ Work</div><div style="font-size:10px; color:${dColor}; margin-top:2px;">Diff: ${job.difficulty}/7</div>`,
+            };
+        });
+        html += rowList(jobRows);
 
-            html += `
-                <button onclick="window._startLabor(${i})"
-                    style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; margin-bottom: 8px;
-                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid var(--gold);
-                           border-radius: 8px; cursor: pointer; text-align: left; color: var(--text-primary); transition: all 0.15s;"
-                    onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                    <span style="font-size: 28px;">${job.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 13px;">${job.name}${job.seasonal ? ` <span style="font-size:10px; color:#2ecc71; font-weight:400;">${Seasons.ICONS[Seasons.seasonOf(game.world.day)] || ''} seasonal</span>` : ''}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${job.description}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${statLabel}: ${statVal} · Pay: ${Math.floor(job.pay.min * payMult)}-${Math.floor(job.pay.max * payMult)}g${payMult !== 1 ? ` (local wages ×${payMult})` : ''}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 12px; color: #e67e22; font-weight: 600;">▶ Work</div>
-                        <div style="font-size: 10px; color: ${dColor}; margin-top: 2px;">Diff: ${job.difficulty}/7</div>
-                    </div>
-                </button>
-            `;
-        }
-
-        html += `<button onclick="window._oddJobsCancel()"
-            style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                   border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">
-            Cancel
-        </button>`;
-        html += '</div>';
+        html += `<button onclick="window._oddJobsCancel()" style="${BTN_PLAIN}">Cancel</button>`;
         game.ui.showCustomPanel('Day Labor', html);
 
         window._oddJobsCancel = () => game.ui.hideCustomPanel();
@@ -155,36 +140,37 @@ Object.assign(ActionMenu, {
         for (let i = 0; i < 5; i++) starsHtml += i < stars ? '⭐' : '☆';
 
         let html = '<div style="max-width: 450px; text-align: center;">';
-        html += `<div style="font-size: 48px; margin: 16px 0;">${job.icon}</div>`;
-        html += `<div style="font-size: 18px; color: ${ratingColor}; font-weight: bold; margin-bottom: 6px;">${rating}</div>`;
-        html += `<div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">${job.name}</div>`;
-        html += `<div style="margin-bottom: 12px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
-        html += `<div style="font-size: 24px; color: var(--gold); font-weight: bold; margin: 8px 0;">+${actualPay} gold</div>`;
-        if (scorePercent >= 40) html += `<div style="font-size: 12px; color: #9b59b6;">+1 Renown</div>`;
+        html += `<div style="font-size: 44px; margin: 10px 0 6px;">${job.icon}</div>`;
+        html += `<div style="font-family: var(--font-display); font-size: 18px; color: ${ratingColor}; font-weight: bold; margin-bottom: 4px;">${rating}</div>`;
+        html += `<div class="pk-head" style="text-align:center; margin-top:0;">${job.name}</div>`;
+        html += `<div style="margin-bottom: 10px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
+        html += `<div style="display:flex; justify-content:center;">${chips([
+            { icon: '💰', label: 'Earned', value: `+${actualPay} gold`, cls: 'gold' },
+            scorePercent >= 40 ? { icon: '⭐', label: '', value: '<span style="color:#ce93d8;">+1 Renown</span>' } : null,
+        ])}</div>`;
         const f = res.factors;
         const notes = [];
         if (f.wage !== 1) notes.push(`${f.wage > 1 ? 'hands are scarce' : 'hands are plentiful'} here (wages ×${f.wage})`);
         if (f.season !== 1) notes.push(`${f.season > 1 ? 'a bumper harvest' : 'a thin harvest'} (×${f.season})`);
-        if (notes.length) html += `<div style="font-size: 11px; color: var(--text-secondary);">${notes.join(' · ')}</div>`;
+        if (notes.length) html += `<div style="font-size: 11px; color: #9d937c;">${notes.join(' · ')}</div>`;
         for (const g of res.gains) {
             if (g.kind === 'practice') {
                 // a practised skill: XP, and a level-up announced (systems/practiceSkills.js)
                 const d = PracticeSkills.def(g.id) || {};
-                html += `<div style="font-size: 12px; color: #2ecc71;">${d.icon || ''} ${d.name || g.id} +${g.by} xp</div>`;
+                html += `<div style="font-size: 12px; color: #8fd18a;">${d.icon || ''} ${d.name || g.id} +${g.by} xp</div>`;
                 if (g.event) {
-                    html += `<div style="font-size: 12px; color: #f5c542;">${g.event.text}</div>`;
+                    html += `<div style="font-size: 12px; color: #ffcf6a;">${g.event.text}</div>`;
                     game.ui.showNotification(`${g.event.icon} ${g.event.name} Improved`, g.event.text, 'success');
                 }
                 continue;
             }
             const name = g.id.charAt(0).toUpperCase() + g.id.slice(1);
-            html += `<div style="font-size: 12px; color: #2ecc71;">${name} +${g.by}</div>`;
+            html += `<div style="font-size: 12px; color: #8fd18a;">${name} +${g.by}</div>`;
         }
         if (res.contribution) html += `<div style="font-size: 11px; color: #7db4ff;">The town was short of hands: your work brought ${res.contribution.qty} ${res.contribution.good} to its market.</div>`;
 
         html += `<button onclick="window._laborContinue()"
-            style="padding: 10px 32px; margin-top: 16px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
-                   border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+            style="${BTN_GOLD} margin: 12px 0 0; padding: 9px 32px; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;">
             Continue
         </button>`;
         html += '</div>';
@@ -227,9 +213,9 @@ Object.assign(ActionMenu, {
 
         const render = (highlightIdx = -1, msg = '') => {
             let html = '<div style="max-width: 480px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Memorize the sequence, then repeat it in order!</p>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted);">Round ${round + 1}/${maxRounds} · Sequence length: ${sequence.length}</p>`;
+            html += `<div class="pk-head" style="text-align:center;">${job.icon} ${job.name}</div>`;
+            html += `<p style="font-size: 12px; color: #cbbf9f; margin: 0 0 4px;">Memorize the sequence, then repeat it in order!</p>`;
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0;">Round ${round + 1}/${maxRounds} · Sequence length: ${sequence.length}</p>`;
 
             if (msg) {
                 html += `<div style="font-size: 13px; margin: 14px 0; min-height: 22px;">${msg}</div>`;
@@ -243,13 +229,13 @@ Object.assign(ActionMenu, {
                 const lit = highlightIdx === i;
                 const disabled = showingSeq || gameOver;
                 html += `<button onclick="window._laborMemPick(${i})"
-                    style="width: 64px; height: 64px; border-radius: 10px; border: 2px solid ${lit ? 'var(--gold)' : 'rgba(255,255,255,0.1)'};
-                           background: ${lit ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.04)'}; cursor: ${disabled ? 'default' : 'pointer'};
+                    style="width: 64px; height: 64px; border-radius: 10px; border: 1px solid ${lit ? 'rgba(245,197,66,0.8)' : 'rgba(245,197,66,0.14)'};
+                           background: ${lit ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.03)'}; cursor: ${disabled ? 'default' : 'pointer'};
                            font-size: 24px; opacity: ${disabled && !lit ? 0.4 : 1}; transition: all 0.15s;
                            box-shadow: ${lit ? '0 0 15px rgba(245,197,66,0.3)' : 'none'}; margin: 0 auto;"
                     ${disabled ? 'disabled' : ''}
-                    onmouseenter="if(!this.disabled)this.style.background='rgba(255,255,255,0.08)'"
-                    onmouseleave="if(!this.disabled)this.style.background='rgba(255,255,255,0.04)'">${symbols[i]}</button>`;
+                    onmouseenter="if(!this.disabled)this.style.background='rgba(245,197,66,0.08)'"
+                    onmouseleave="if(!this.disabled)this.style.background='rgba(255,255,255,0.03)'">${symbols[i]}</button>`;
             }
             html += '</div>';
 
@@ -258,7 +244,7 @@ Object.assign(ActionMenu, {
                 html += '<div style="display: flex; justify-content: center; gap: 6px; margin-top: 6px;">';
                 for (let i = 0; i < sequence.length; i++) {
                     const done = i < playerInput.length;
-                    html += `<div style="width: 10px; height: 10px; border-radius: 50%; background: ${done ? '#2ecc71' : 'rgba(255,255,255,0.15)'}; border: 1px solid ${done ? '#2ecc71' : 'rgba(255,255,255,0.2)'};"></div>`;
+                    html += `<div style="width: 10px; height: 10px; border-radius: 50%; background: ${done ? '#8fd18a' : 'rgba(255,255,255,0.12)'}; border: 1px solid ${done ? '#8fd18a' : 'rgba(245,197,66,0.2)'};"></div>`;
                 }
                 html += '</div>';
             }
@@ -269,19 +255,19 @@ Object.assign(ActionMenu, {
 
         const playSequence = () => {
             showingSeq = true;
-            game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: var(--gold);">👀 Watch the sequence...</span>'));
+            game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #ffcf6a;">👀 Watch the sequence...</span>'));
 
             let idx = 0;
             const playNext = () => {
                 if (idx >= sequence.length) {
                     showingSeq = false;
-                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #2ecc71;">🖊️ Your turn! Repeat the sequence.</span>'));
+                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #8fd18a;">🖊️ Your turn! Repeat the sequence.</span>'));
                     return;
                 }
-                game.ui.showCustomPanel(`📋 ${job.name}`, render(sequence[idx], '<span style="color: var(--gold);">👀 Watch...</span>'));
+                game.ui.showCustomPanel(`📋 ${job.name}`, render(sequence[idx], '<span style="color: #ffcf6a;">👀 Watch...</span>'));
                 idx++;
                 setTimeout(() => {
-                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: var(--gold);">👀 Watch...</span>'));
+                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #ffcf6a;">👀 Watch...</span>'));
                     setTimeout(playNext, 200);
                 }, viewTime);
             };
@@ -304,13 +290,13 @@ Object.assign(ActionMenu, {
             playerInput.push(symbolIdx);
             const pos = playerInput.length - 1;
 
-            game.ui.showCustomPanel(`📋 ${job.name}`, render(symbolIdx, '<span style="color: var(--text-muted);">...</span>'));
+            game.ui.showCustomPanel(`📋 ${job.name}`, render(symbolIdx, '<span style="color: #9d937c;">...</span>'));
 
             if (playerInput[pos] !== sequence[pos]) {
                 gameOver = true;
                 const pct = Math.round((round / maxRounds) * 100);
                 setTimeout(() => {
-                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #e74c3c;">❌ Wrong! You made an error.</span>'));
+                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #e0846a;">❌ Wrong! You made an error.</span>'));
                     setTimeout(() => ActionMenu._laborReward(game, tile, job, Math.min(100, pct)), 1400);
                 }, 350);
                 return;
@@ -321,18 +307,18 @@ Object.assign(ActionMenu, {
                 if (round >= maxRounds) {
                     gameOver = true;
                     setTimeout(() => {
-                        game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #2ecc71;">✨ Flawless! Every detail perfect!</span>'));
+                        game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #8fd18a;">✨ Flawless! Every detail perfect!</span>'));
                         setTimeout(() => ActionMenu._laborReward(game, tile, job, 100), 1400);
                     }, 350);
                     return;
                 }
                 setTimeout(() => {
-                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #2ecc71;">✅ Correct! Getting harder...</span>'));
+                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #8fd18a;">✅ Correct! Getting harder...</span>'));
                     setTimeout(() => startRound(), 1100);
                 }, 350);
             } else {
                 setTimeout(() => {
-                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #2ecc71;">Keep going...</span>'));
+                    game.ui.showCustomPanel(`📋 ${job.name}`, render(-1, '<span style="color: #8fd18a;">Keep going...</span>'));
                 }, 200);
             }
         };
@@ -365,21 +351,21 @@ Object.assign(ActionMenu, {
             const timeLimit = Math.max(800, 2200 - round * 150 + combat * 50);
 
             let html = '<div style="max-width: 480px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">React to attacks! Click the correct defense!</p>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted);">Round ${round + 1}/${totalRounds} · Score: ${score}/${round}</p>`;
+            html += `<div class="pk-head" style="text-align:center;">${job.icon} ${job.name}</div>`;
+            html += `<p style="font-size: 12px; color: #cbbf9f; margin: 0 0 4px;">React to attacks! Click the correct defense!</p>`;
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0;">Round ${round + 1}/${totalRounds} · Score: ${score}/${round}</p>`;
 
             // Timer bar
             html += `<div style="margin: 10px 0;">
-                <div style="background: rgba(255,255,255,0.08); border-radius: 6px; height: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                    <div id="laborTimer" style="width: 100%; height: 100%; background: #2ecc71; transition: width ${timeLimit}ms linear; border-radius: 5px;"></div>
+                <div style="background: rgba(0,0,0,0.3); border-radius: 6px; height: 8px; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">
+                    <div id="laborTimer" style="width: 100%; height: 100%; background: #8fd18a; transition: width ${timeLimit}ms linear; border-radius: 5px;"></div>
                 </div>
             </div>`;
 
             // Attack display
-            html += `<div style="background: rgba(231,76,60,0.1); border: 2px solid rgba(231,76,60,0.4); border-radius: 12px; padding: 16px; margin: 12px 0;">
+            html += `<div class="pk-card pk-tone-bad" style="padding: 14px; margin: 12px 0; border-color: rgba(224,132,106,0.45);">
                 <div style="font-size: 40px; margin-bottom: 6px;">${currentThreat.icon}</div>
-                <div style="font-size: 15px; color: #e74c3c; font-weight: bold;">${currentThreat.attack}</div>
+                <div style="font-size: 15px; color: #e0846a; font-weight: bold;">${currentThreat.attack}</div>
             </div>`;
 
             // Defense buttons (2x2 grid)
@@ -387,11 +373,7 @@ Object.assign(ActionMenu, {
             for (const t of threats) {
                 const isCorrect = t.dir === currentThreat.dir;
                 html += `<button onclick="window._laborBlock('${t.dir}')"
-                    style="padding: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
-                           border-radius: 8px; cursor: pointer; color: var(--text-primary); font-size: 13px; font-weight: 500;
-                           transition: all 0.1s;"
-                    onmouseenter="this.style.background='rgba(255,255,255,0.1)'"
-                    onmouseleave="this.style.background='rgba(255,255,255,0.04)'"
+                    style="${BTN_PLAIN} margin: 0; padding: 11px; font-size: 13px; transition: all 0.1s;"
                     onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
                     ${t.icon} ${t.block}
                 </button>`;
@@ -417,12 +399,12 @@ Object.assign(ActionMenu, {
 
         const showRoundResult = (correct, text) => {
             if (correct) score++;
-            const color = correct ? '#2ecc71' : '#e74c3c';
+            const color = correct ? '#8fd18a' : '#e0846a';
 
             let html = '<div style="max-width: 480px; text-align: center;">';
             html += `<div style="font-size: 48px; margin: 24px 0;">${correct ? '🛡️' : '💥'}</div>`;
             html += `<div style="font-size: 20px; font-weight: bold; color: ${color}; margin-bottom: 6px;">${text}</div>`;
-            html += `<div style="font-size: 13px; color: var(--text-secondary);">Score: ${score}/${round + 1}</div>`;
+            html += `<div style="font-size: 13px; color: #9d937c;">Score: ${score}/${round + 1}</div>`;
             html += '</div>';
             game.ui.showCustomPanel(`⚔️ ${job.name}`, html);
 
@@ -466,9 +448,9 @@ Object.assign(ActionMenu, {
 
         const render = (msg = '') => {
             let html = '<div style="max-width: 420px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Click the target before it escapes!</p>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted);">Caught: ${caught} · Missed: ${missed} · Remaining: ${totalTargets - spawned}</p>`;
+            html += `<div class="pk-head" style="text-align:center;">${job.icon} ${job.name}</div>`;
+            html += `<p style="font-size: 12px; color: #cbbf9f; margin: 0 0 4px;">Click the target before it escapes!</p>`;
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0;">Caught: ${caught} · Missed: ${missed} · Remaining: ${totalTargets - spawned}</p>`;
 
             if (msg) {
                 html += `<div style="font-size: 13px; margin: 8px 0; min-height: 20px;">${msg}</div>`;
@@ -480,8 +462,8 @@ Object.assign(ActionMenu, {
                 const isActive = i === activeCell;
                 html += `<button onclick="window._laborCatch(${i})"
                     style="width: 88px; height: 88px; border-radius: 12px; margin: 0 auto;
-                           background: ${isActive ? 'rgba(231,76,60,0.15)' : 'rgba(255,255,255,0.03)'};
-                           border: 2px solid ${isActive ? '#e74c3c' : 'rgba(255,255,255,0.06)'};
+                           background: ${isActive ? 'rgba(245,197,66,0.14)' : 'rgba(255,255,255,0.03)'};
+                           border: 1px solid ${isActive ? 'rgba(245,197,66,0.8)' : 'rgba(245,197,66,0.1)'};
                            cursor: ${isActive ? 'pointer' : 'default'}; font-size: ${isActive ? '36px' : '20px'};
                            transition: all 0.15s; display: flex; align-items: center; justify-content: center;
                            ${isActive ? 'animation: hlBob 0.5s ease-in-out infinite alternate;' : ''}"
@@ -508,7 +490,7 @@ Object.assign(ActionMenu, {
                     missed++;
                     activeCell = -1;
                     spawned++;
-                    game.ui.showCustomPanel(`🔍 ${job.name}`, render('<span style="color: #e74c3c;">💨 It got away!</span>'));
+                    game.ui.showCustomPanel(`🔍 ${job.name}`, render('<span style="color: #e0846a;">💨 It got away!</span>'));
 
                     if (spawned >= totalTargets) {
                         finishGame();
@@ -533,7 +515,7 @@ Object.assign(ActionMenu, {
             caught++;
             spawned++;
             activeCell = -1;
-            game.ui.showCustomPanel(`🔍 ${job.name}`, render('<span style="color: #2ecc71;">✅ Got it!</span>'));
+            game.ui.showCustomPanel(`🔍 ${job.name}`, render('<span style="color: #8fd18a;">✅ Got it!</span>'));
 
             if (spawned >= totalTargets) {
                 finishGame();
@@ -568,12 +550,12 @@ Object.assign(ActionMenu, {
             const pct = Math.round((ticksInZone / totalTicks) * 100);
 
             let html = '<div style="max-width: 450px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Keep your pace in the <span style="color: #2ecc71;">green zone</span>! Use the buttons to adjust.</p>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted);">Progress: ${ticksDone}/${totalTicks} · In-zone: ${ticksInZone}</p>`;
+            html += `<div class="pk-head" style="text-align:center;">${job.icon} ${job.name}</div>`;
+            html += `<p style="font-size: 12px; color: #cbbf9f; margin: 0 0 4px;">Keep your pace in the <span style="color: #8fd18a;">green zone</span>! Use the buttons to adjust.</p>`;
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0;">Progress: ${ticksDone}/${totalTicks} · In-zone: ${ticksInZone}</p>`;
 
             // Speed gauge (vertical-style bar rendered horizontally)
-            html += `<div style="position: relative; height: 32px; background: rgba(255,255,255,0.06); border-radius: 16px; margin: 14px 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">`;
+            html += `<div style="position: relative; height: 32px; background: rgba(0,0,0,0.3); border-radius: 16px; margin: 14px 0; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">`;
             // Red zones
             html += `<div style="position: absolute; left: 0; width: ${idealMin}%; height: 100%; background: rgba(231,76,60,0.12);"></div>`;
             html += `<div style="position: absolute; right: 0; width: ${100 - idealMax}%; height: 100%; background: rgba(231,76,60,0.12);"></div>`;
@@ -592,14 +574,12 @@ Object.assign(ActionMenu, {
             // Buttons
             html += `<div style="display: flex; gap: 12px; justify-content: center; margin-top: 12px;">
                 <button onclick="window._laborSlowDown()"
-                    style="padding: 12px 28px; background: rgba(52,152,219,0.15); border: 1px solid #3498db;
-                           border-radius: 8px; cursor: pointer; color: #3498db; font-size: 14px; font-weight: bold; transition: all 0.1s;"
+                    style="${BTN_PLAIN} margin: 0; padding: 10px 28px; font-size: 14px; transition: all 0.1s;"
                     onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
                     🐢 Slow Down
                 </button>
                 <button onclick="window._laborSpeedUp()"
-                    style="padding: 12px 28px; background: rgba(231,76,60,0.15); border: 1px solid #e74c3c;
-                           border-radius: 8px; cursor: pointer; color: #e74c3c; font-size: 14px; font-weight: bold; transition: all 0.1s;"
+                    style="${BTN_GOLD} margin: 0; padding: 10px 28px; font-size: 14px; transition: all 0.1s;"
                     onmousedown="this.style.transform='scale(0.95)'" onmouseup="this.style.transform='scale(1)'">
                     🐇 Speed Up
                 </button>
@@ -607,8 +587,8 @@ Object.assign(ActionMenu, {
 
             // Overall progress bar
             html += `<div style="margin-top: 14px;">
-                <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 3px;">Delivery progress</div>
-                <div style="background: rgba(255,255,255,0.08); border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                <div class="pk-head" style="text-align:center; margin-top:0;">Delivery progress</div>
+                <div style="background: rgba(0,0,0,0.3); border-radius: 6px; height: 10px; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">
                     <div style="width: ${(ticksDone / totalTicks) * 100}%; height: 100%; background: var(--gold); transition: width 0.3s; border-radius: 5px;"></div>
                 </div>
             </div>`;
@@ -711,41 +691,35 @@ Object.assign(ActionMenu, {
 
         const render = (feedbackMsg = '') => {
             const sc = scenarios[round];
-            const moodColor = crowdMood >= 70 ? '#2ecc71' : crowdMood >= 45 ? '#f39c12' : '#e74c3c';
+            const moodColor = crowdMood >= 70 ? '#8fd18a' : crowdMood >= 45 ? '#f0b35a' : '#e0846a';
 
             let html = '<div style="max-width: 500px; text-align: center;">';
-            html += `<h4 style="margin: 0 0 4px;">${job.icon} ${job.name}</h4>`;
-            html += `<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Round ${round + 1}/${scenarios.length}</p>`;
+            html += `<div class="pk-head" style="text-align:center;">${job.icon} ${job.name}</div>`;
+            html += `<p style="font-size: 11px; color: #9d937c; margin: 0 0 10px;">Round ${round + 1}/${scenarios.length}</p>`;
 
             // Crowd mood bar
             html += `<div style="margin-bottom: 12px;">
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Crowd Approval: <span style="color: ${moodColor};">${crowdMood}%</span></div>
-                <div style="background: rgba(255,255,255,0.08); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 11px; color: #9d937c; margin-bottom: 4px;">Crowd Approval: <span style="color: ${moodColor}; font-weight: 600;">${crowdMood}%</span></div>
+                <div style="background: rgba(0,0,0,0.3); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(245,197,66,0.14);">
                     <div style="width: ${crowdMood}%; height: 100%; background: ${moodColor}; transition: width 0.4s; border-radius: 5px;"></div>
                 </div>
             </div>`;
 
             html += `<div style="font-size: 20px; margin: 8px 0; opacity: 0.5; letter-spacing: 4px;">${sc.crowd}</div>`;
-            html += `<div style="font-size: 13px; color: var(--text-primary); margin: 12px 0; font-style: italic;">"${sc.prompt}"</div>`;
+            html += `<div style="font-size: 13px; color: #ece2c8; margin: 12px 0; font-style: italic;">"${sc.prompt}"</div>`;
 
             if (feedbackMsg) {
                 html += `<div style="font-size: 13px; margin: 10px 0; min-height: 20px;">${feedbackMsg}</div>`;
             }
 
             if (!locked) {
-                for (let i = 0; i < sc.options.length; i++) {
-                    const opt = sc.options[i];
-                    const isBest = opt.mood >= 18;
-                    const hintBorder = showHint && isBest ? 'border-left: 3px solid rgba(46,204,113,0.4);' : 'border-left: 3px solid transparent;';
-                    html += `<button onclick="window._laborSpeakChoice(${i})"
-                        style="display: block; width: 100%; padding: 10px 14px; margin-bottom: 6px;
-                               background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); ${hintBorder}
-                               border-radius: 6px; cursor: pointer; text-align: left; color: var(--text-primary);
-                               font-size: 13px; transition: all 0.15s;"
-                        onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                        ${opt.text}
-                    </button>`;
-                }
+                // The choices as action-menu rows; a silver tongue (charisma 7+) sees the best ones marked
+                html += '<div style="text-align: left;">' + rowList(sc.options.map((opt, i) => ({
+                    name: opt.text,
+                    attrs: `onclick="window._laborSpeakChoice(${i})"`,
+                    side: showHint && opt.mood >= 18 ? '✦' : '',
+                    tone: 'good',
+                }))) + '</div>';
             }
 
             html += '</div>';
@@ -767,10 +741,10 @@ Object.assign(ActionMenu, {
             if (opt.max && Math.random() < 0.5) change = Math.floor(Math.random() * (opt.max - opt.mood + 1)) + opt.mood;
             crowdMood = Math.max(0, Math.min(100, crowdMood + change));
 
-            const fb = change >= 18 ? '<span style="color: #2ecc71;">🎉 The crowd cheers!</span>'
-                     : change >= 10 ? '<span style="color: #3498db;">👏 Nods of approval.</span>'
-                     : change >= 0 ? '<span style="color: #f39c12;">😐 A tepid response...</span>'
-                     : '<span style="color: #e74c3c;">😒 Groans from the crowd...</span>';
+            const fb = change >= 18 ? '<span style="color: #8fd18a;">🎉 The crowd cheers!</span>'
+                     : change >= 10 ? '<span style="color: #7db4ff;">👏 Nods of approval.</span>'
+                     : change >= 0 ? '<span style="color: #f0b35a;">😐 A tepid response...</span>'
+                     : '<span style="color: #e0846a;">😒 Groans from the crowd...</span>';
 
             game.ui.showCustomPanel(`📯 ${job.name}`, render(fb));
 
@@ -1034,23 +1008,22 @@ Object.assign(ActionMenu, {
             ? BountyHunting.generateBoardOffers(game.player, game.world, tile, basicBounties)
             : basicBounties;
 
-        // Show active bounties first
+        // Show active bounties first. The action menu's voice (ui/actionMenu/uiKit.js):
+        // the hunter's standing as the lede, then one row a bounty, its pay at the right
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
         if (typeof BountyHunting !== 'undefined') {
             const rank = BountyHunting.getRankInfo(game.player);
             const payPct = Math.round(rank.payBonus * 100);
             const perks = (rank.captureBonus > 0 ? ` · +${rank.captureBonus} capture` : '') +
                 (payPct !== 0 ? ` · ${payPct > 0 ? '+' : ''}${payPct}% pay` : '') +
-                (rank.botchPenalty > 0 ? ` <span style="color:#e67e22;">(botched arrests: −${Math.round(rank.botchPenalty * 100)}%)</span>` : '');
-            html += `<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">${rank.icon} <b style="color:var(--text-primary);">${rank.title}</b> (rank ${rank.rank})${perks}</div>`;
+                (rank.botchPenalty > 0 ? ` <span style="color:#f0b35a;">(botched arrests: −${Math.round(rank.botchPenalty * 100)}%)</span>` : '');
+            html += lede(`${rank.icon} <b style="color:#ece2c8;">${rank.title}</b> (rank ${rank.rank})${perks}`);
         }
 
-        // Active bounties
+        // Active bounties: a listing row each, its controls at the right
         if (game.player.activeBounties.length > 0) {
-            html += '<div style="margin-bottom: 12px; padding: 8px; background: rgba(46,204,113,0.08); border: 1px solid rgba(46,204,113,0.3); border-radius: 6px;">';
-            html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #2ecc71; margin-bottom: 6px;">Active Bounties</div>';
-            for (let i = 0; i < game.player.activeBounties.length; i++) {
-                const b = game.player.activeBounties[i];
+            const S = 'margin: 4px 0 0 4px; padding: 3px 10px; font-size: 11px;';
+            const activeRows = game.player.activeBounties.map((b, i) => {
                 const daysLeft = b.daysLimit - (b.daysElapsed || 0);
                 const isDeliveryComplete = b.type === 'delivery' && game.player.q === b.destQ && game.player.r === b.destR;
                 const isInstantComplete = b.type === 'instant' && game.player.q === b.fromQ && game.player.r === b.fromR;
@@ -1062,59 +1035,53 @@ Object.assign(ActionMenu, {
 
                 let controls = '';
                 if (isDeliveryComplete || isInstantComplete) {
-                    controls = `<button onclick="window._completeBounty(${i})" style="margin-top: 4px; padding: 4px 12px; background: #2ecc71; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">✓ Complete</button>`;
+                    controls = `<button onclick="window._completeBounty(${i})" style="${BTN_GOLD} ${S}">✓ Complete</button>`;
                 } else if (onCriminalTarget) {
-                    controls = `<button onclick="window._attemptCriminalCapture(${i})" style="margin-top: 4px; padding: 4px 12px; background: #e67e22; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">⚔️ Capture</button>`;
+                    controls = `<button onclick="window._attemptCriminalCapture(${i})" style="${BTN_GOLD} ${S}">⚔️ Capture</button>`;
                 } else if (awaitingDecision) {
-                    controls = `
-                        <div style="display:flex; gap:6px; margin-top:6px;">
-                            <button onclick="window._resolveCapturedBounty(${i}, 'turn_in')" style="padding: 4px 10px; background: #2ecc71; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Turn In</button>
-                            <button onclick="window._resolveCapturedBounty(${i}, 'recruit')" style="padding: 4px 10px; background: #9b59b6; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#fff;">Recruit</button>
-                        </div>
-                    `;
+                    controls = `<button onclick="window._resolveCapturedBounty(${i}, 'turn_in')" style="${BTN_GOLD} ${S}">Turn In</button>`
+                        + `<button onclick="window._resolveCapturedBounty(${i}, 'recruit')" style="${BTN_PLAIN} ${S}">Recruit</button>`;
                 }
 
-                html += `
-                    <div style="padding: 8px; margin-bottom: 4px; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                        <div><span style="font-size: 14px;">${b.icon}</span> <strong>${b.name}</strong> — <span style="color: var(--gold);">${b.actualPay}g</span></div>
-                        <div style="font-size: 11px; color: #aaa;">${b.description}</div>
-                        ${locationHint ? `<div style="font-size: 11px; color: #7db4ff;">📍 ${locationHint}</div>` : ''}
-                        <div style="font-size: 11px; color: ${daysLeft <= 2 ? '#e74c3c' : '#aaa'};">⏳ ${daysLeft} days remaining</div>
-                        ${controls}
-                    </div>
-                `;
-            }
-            html += '</div>';
+                return actRow({
+                    icon: b.icon,
+                    name: b.name,
+                    desc: b.description,
+                    note: [
+                        locationHint ? `<span style="color:#7db4ff;">📍 ${locationHint}</span>` : '',
+                        Number.isFinite(daysLeft) ? `<span style="color:${daysLeft <= 2 ? '#e0846a' : '#9d937c'};">⏳ ${daysLeft} days remaining</span>` : '',
+                    ].filter(Boolean).join(' · '),
+                    side: `<div>${price(b.actualPay)}</div>${controls ? `<div>${controls}</div>` : ''}`,
+                });
+            });
+            html += rowList(activeRows, 'Active Bounties');
         }
 
         // Available bounties
-        html += '<div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin-bottom: 8px;">Available Bounties</div>';
-
-        for (let i = 0; i < bounties.length; i++) {
-            const b = bounties[i];
-            const maxBounties = 3;
+        const maxBounties = 3;
+        const offerRows = bounties.map((b, i) => {
             const alreadyAccepted = game.player.activeBounties.some(active => active.id && b.id && active.id === b.id);
             const canAccept = game.player.activeBounties.length < maxBounties && !alreadyAccepted;
             const difficultyLabel = typeof b.difficulty === 'number' ? `Lv ${b.difficulty}` : b.difficulty;
             const isHighDanger = (typeof b.difficulty === 'number' ? b.difficulty >= 7 : b.difficulty === 'medium');
-
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 6px; border-left: 3px solid ${isHighDanger ? '#f39c12' : '#3498db'}; ${!canAccept ? 'opacity: 0.5;' : ''}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="flex: 1;">
-                            <div><span style="font-size: 16px;">${b.icon}</span> <strong>${b.name}</strong> <span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${isHighDanger ? 'rgba(243,156,18,0.2)' : 'rgba(52,152,219,0.2)'}; color: ${isHighDanger ? '#f39c12' : '#3498db'};">${difficultyLabel}</span></div>
-                            <div style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">${b.description}</div>
-                            ${b.targetBackstory ? `<div style="font-size: 11px; color: #b9b9d6;">📖 ${b.targetBackstory}</div>` : ''}
-                            <div style="font-size: 11px; color: #aaa;">⏳ ${b.daysLimit} day limit</div>
-                        </div>
-                        <button onclick="window._acceptBounty(${i})" ${!canAccept ? 'disabled' : ''}
-                                style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; min-width: 80px;">
-                            ${alreadyAccepted ? 'Taken' : `${b.actualPay}g`}
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
+            const dCol = isHighDanger ? '#f0b35a' : '#7db4ff';
+            return {
+                icon: b.icon,
+                name: `${b.name} <span style="font-size:9.5px; letter-spacing:0.5px; padding:1px 6px; border-radius:3px; border:1px solid ${dCol}55; color:${dCol}; font-weight:600;">${difficultyLabel}</span>`,
+                desc: b.description,
+                note: [
+                    b.targetBackstory ? `<span style="color:#b9b9d6;">📖 ${b.targetBackstory}</span>` : '',
+                    // (an instant job, done on the spot, has no limit to show)
+                    Number.isFinite(b.daysLimit) ? `<span style="color:#9d937c;">⏳ ${b.daysLimit} day limit</span>` : '',
+                    canAccept ? '' : `<span style="color:#c98a6a;">${alreadyAccepted ? 'Already taken' : `You can only have ${maxBounties} active bounties`}</span>`,
+                ].filter(Boolean).join(' · '),
+                attrs: `onclick="window._acceptBounty(${i})"`,
+                off: !canAccept,
+                side: alreadyAccepted ? 'Taken' : price(b.actualPay),
+                tone: 'gold',
+            };
+        });
+        html += rowList(offerRows, 'Available Bounties');
 
         html += '</div>';
         game.ui.showCustomPanel('📋 Notice Board', html);
@@ -1178,7 +1145,7 @@ Object.assign(ActionMenu, {
             // For other bounties, add to active list (the posting town pays on completion)
             if (tile && tile.settlement) { bounty.townQ = tile.q; bounty.townR = tile.r; }
             game.player.activeBounties.push(bounty);
-            game.ui.showNotification('Bounty Accepted!', `${bounty.name} — ${bounty.daysLimit} days to complete.`, 'success');
+            game.ui.showNotification('Bounty Accepted!', Number.isFinite(bounty.daysLimit) ? `${bounty.name} — ${bounty.daysLimit} days to complete.` : `${bounty.name} — see it done here.`, 'success');
             game.ui.hideCustomPanel();
             ActionMenu.showBountyBoardMenu(game, tile); // Refresh
         };
@@ -1297,28 +1264,28 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        const html = `
-            <div style="max-width: 520px;">
-                <h3 style="margin-top: 0; color: #f5c542;">${bounty.icon || '⛓️'} Captured: ${bounty.targetName}</h3>
-                <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">Crime: ${bounty.crime || 'Unknown offenses'}</div>
-                <div style="font-size: 12px; color: #b9b9d6; margin-bottom: 12px;">${bounty.targetBackstory || ''}</div>
-
-                <div style="padding: 10px; background: rgba(46, 204, 113, 0.08); border: 1px solid rgba(46, 204, 113, 0.35); border-radius: 6px; margin-bottom: 10px;">
-                    <strong>Turn In</strong>
-                    <div style="font-size: 12px; color: #bfc9d4; margin-top: 4px;">Receive ${bounty.actualPay}g and renown for delivering the criminal.</div>
-                </div>
-
-                <div style="padding: 10px; background: rgba(155, 89, 182, 0.1); border: 1px solid rgba(155, 89, 182, 0.35); border-radius: 6px; margin-bottom: 12px;">
-                    <strong>Recruit</strong>
-                    <div style="font-size: 12px; color: #d7c8e4; margin-top: 4px;">Gain a unique recruit (${bounty.recruitedUnit?.strength || '?'} strength) but take a minor karma penalty.</div>
-                </div>
-
-                <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                    <button onclick="window._resolveCapturedTarget('turn_in')" style="padding: 8px 14px; border: none; border-radius: 5px; background: #2ecc71; font-weight: bold; cursor: pointer;">Turn In</button>
-                    <button onclick="window._resolveCapturedTarget('recruit')" style="padding: 8px 14px; border: none; border-radius: 5px; background: #9b59b6; color:#fff; font-weight: bold; cursor: pointer;">Recruit</button>
-                </div>
-            </div>
-        `;
+        let html = '<div style="max-width: 520px;">';
+        html += sectionHead(`${bounty.icon || '⛓️'} Captured: ${bounty.targetName}`);
+        html += lede(`Crime: ${bounty.crime || 'Unknown offenses'}`);
+        if (bounty.targetBackstory) html += `<div style="font-size: 12px; color: #b9b9d6; margin-bottom: 10px;">${bounty.targetBackstory}</div>`;
+        html += rowList([
+            {
+                icon: '⚖️',
+                name: 'Turn In',
+                desc: `Receive ${bounty.actualPay}g and renown for delivering the criminal.`,
+                attrs: `onclick="window._resolveCapturedTarget('turn_in')"`,
+                side: price(bounty.actualPay),
+                tone: 'gold',
+            },
+            {
+                icon: '🗡️',
+                name: 'Recruit',
+                desc: `Gain a unique recruit (${bounty.recruitedUnit?.strength || '?'} strength) but take a minor karma penalty.`,
+                attrs: `onclick="window._resolveCapturedTarget('recruit')"`,
+                side: '<span style="color:#ce93d8;">Recruit</span>',
+            },
+        ], 'Decide their fate');
+        html += '</div>';
 
         game.ui.showCustomPanel('Captured Criminal', html);
 
@@ -1379,27 +1346,25 @@ function _forageResult(game, found, trip) {
         }
         return Object.values(totals);
     };
-    let html = '<div style="max-width: 440px; text-align: center;">';
-    html += '<div style="font-size: 48px; margin: 8px 0;">🌿</div>';
+    let html = '<div style="max-width: 440px;">';
+    html += '<div style="font-size: 44px; margin: 8px 0; text-align: center;">🌿</div>';
     if (found.length > 0) {
-        html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">${c.resultTitle || 'Foraging Haul'}</div>`;
-        for (const item of consolidate(trip.kept)) {
-            html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between;">
-                <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
-            </div>`;
-        }
+        html += rowList(consolidate(trip.kept).map(item => ({
+            icon: item.icon,
+            name: `${item.name} x${item.foundQty}`,
+            side: `~${item.foundQty * (item.sellPrice || 0)}g`,
+        })), c.resultTitle || 'Foraging Haul');
         if (trip.lost.length) {
-            html += `<div style="font-size: 11px; color: #e67e22; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
+            html += `<div style="font-size: 11px; color: #f0b35a; margin-top: 4px;">Left behind (packs full): ${consolidate(trip.lost).map(i => `${i.icon} ${i.name} x${i.foundQty}`).join(', ')}</div>`;
         }
-        html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${trip.value} gold at market</div>`;
+        html += chips([{ icon: '🎒', label: 'Into your packs — worth', value: `~${trip.value} gold at market`, cls: 'gold' }]);
     } else {
-        html += `<div style="font-size: 16px; color: #f39c12; margin-bottom: 8px;">Slim Pickings</div>`;
-        html += `<div style="color: var(--text-secondary);">${c.empty || 'You searched but found nothing of value today.'}</div>`;
+        html += `<div style="font-family: var(--font-display); font-size: 16px; color: #f0b35a; margin-bottom: 8px; text-align: center;">Slim Pickings</div>`;
+        html += lede(c.empty || 'You searched but found nothing of value today.');
     }
-    if (trip.rankUp) html += `<div style="margin-top: 6px; color: #2ecc71;">Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}</div>`;
+    if (trip.rankUp) html += `<div style="margin-top: 6px; color: #8fd18a;">Your craft grows: ${trip.rankUp.icon} ${trip.rankUp.name}</div>`;
     html += `<button data-am-act="closePanelAndEndDay"
-        style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        style="${BTN_GOLD} display: block; width: 100%; margin: 12px 0 0; padding: 9px;">Continue</button>`;
     html += '</div>';
     game.ui.showCustomPanel('🌿 Foraging', html);
 }
@@ -1539,26 +1504,27 @@ function _huntOutcome(game, player, lootTable, out, p) {
     }
     if (out.broke) statusMsg += ' Your bow broke.';
 
-    let html = '<div style="max-width: 500px; text-align: center;">';
+    let html = '<div style="max-width: 500px;">';
     if (kind === 'success') {
-        html += `<div style="font-size: 48px; margin: 12px 0;">${p.preyIcon}</div>`;
-        html += `<div style="font-size: 16px; color: #2ecc71; font-weight: bold; margin-bottom: 8px;">Successful Hunt!</div>`;
-        for (const item of totalLoot) {
-            html += `<div style="padding: 6px 12px; margin-bottom: 4px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>${item.icon} ${item.name} x${item.foundQty}</div>
-                <div style="color: var(--text-secondary);">~${item.foundQty * (item.sellPrice || 0)}g</div>
-            </div>`;
-        }
-        html += `<div style="margin-top: 8px; padding: 8px; background: rgba(245,197,66,0.1); border-radius: 4px; font-weight: bold; color: var(--gold);">Into your packs — worth ~${totalValue} gold at market</div>`;
-        if (statusMsg) html += `<div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">${statusMsg}</div>`;
+        html += `<div style="font-size: 44px; margin: 10px 0; text-align: center;">${p.preyIcon}</div>`;
+        html += rowList(totalLoot.map(item => ({
+            icon: item.icon,
+            name: `${item.name} x${item.foundQty}`,
+            side: `~${item.foundQty * (item.sellPrice || 0)}g`,
+        })), '<span style="color:#8fd18a;">Successful Hunt!</span>');
+        if (!totalLoot.length) html += sectionHead('<span style="color:#8fd18a;">Successful Hunt!</span>');
+        html += chips([{ icon: '🎒', label: 'Into your packs — worth', value: `~${totalValue} gold at market`, cls: 'gold' }]);
+        if (statusMsg) html += `<div style="font-size: 12px; color: #9d937c; margin-top: 6px;">${statusMsg}</div>`;
     } else {
-        const head = { fled: [`💨`, '#f39c12', `The ${p.preyName} escaped!`], injured: ['🤕', '#e74c3c', 'Hunting Mishap!'], missed: ['🏹', 'var(--text-secondary)', 'Missed!'] }[kind];
-        html += `<div style="font-size: 48px; margin: 12px 0;">${head[0]}</div>`;
-        html += `<div style="font-size: 16px; color: ${head[1]}; font-weight: bold; margin-bottom: 8px;">${head[2]}</div>`;
-        html += `<div style="font-size: 13px; color: var(--text-secondary);">${statusMsg}</div>`;
+        const head = { fled: [`💨`, '#f0b35a', `The ${p.preyName} escaped!`], injured: ['🤕', '#e0846a', 'Hunting Mishap!'], missed: ['🏹', '#cbbf9f', 'Missed!'] }[kind];
+        html += `<div style="text-align: center;">`;
+        html += `<div style="font-size: 44px; margin: 10px 0;">${head[0]}</div>`;
+        html += `<div style="font-family: var(--font-display); font-size: 16px; color: ${head[1]}; font-weight: bold; margin-bottom: 8px;">${head[2]}</div>`;
+        html += `</div>`;
+        html += lede(statusMsg);
     }
     html += `<button data-am-act="closePanelAndEndDay"
-        style="width: 100%; margin-top: 12px; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>`;
+        style="${BTN_GOLD} display: block; width: 100%; margin: 12px 0 0; padding: 9px;">Continue</button>`;
     html += '</div>';
     game.ui.showCustomPanel('🏹 Hunting', html);
     game.ui.updateStats(player, game.world);

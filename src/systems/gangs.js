@@ -1251,7 +1251,9 @@ export const Gangs = {
         const P = Gangs.c('protection', {});
         const D = Gangs.c('dens', {});
         const B = Gangs.c('blackMarket', {});
-        const viceId = s.kingdom != null ? (Laws.value(world, s.kingdom, 'vice') || 'tolerated') : 'tolerated';
+        // (a town's own ban on dice hunts its dens as a realm's would: Laws.gambling)
+        const gaming = Laws.gambling(world, s);
+        const viceId = gaming.forbiddenBy ? 'forbidden' : gaming.realm;
         const vice = { den: 1, crackdown: 0, licence: 0, ...((Gangs.c('vice', {}))[viceId] || {}) };
         const pun = Laws.punishment(world, s.kingdom);
         const pop = _num(s.population, 1000);

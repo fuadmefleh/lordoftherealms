@@ -3,11 +3,15 @@
 // investments. Logic lives in systems/merchantHouses.js; this presents it.
 import { ActionMenu } from './_ref.js';
 import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
-import { BTN_GOLD, BTN_DARK, BTN_RED, CARD, panelTabs } from './uiKit.js';
+import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, card, rowList, price } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 
-const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); margin: 10px 0 4px;';
-const INPUT = 'width: 56px; background:#222; color:#eee; border:1px solid #555; border-radius:3px; padding:2px 4px; font-size:11px;';
+// The action menu's voice (uiKit): section heads, rows, soft cards; inputs dark with a hairline gold edge
+const INPUT = 'width: 56px; background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.2); border-radius:5px; padding:3px 5px; font-size:11px;';
+const MUTED = 'color:#9d937c;';
+const GOOD = '#8fd18a';
+const BAD = '#e0846a';
+const WARN = '#f0b35a';
 const TABS = [
     ['overview', '📒 Ledger'], ['posts', '🏪 Posts'], ['contracts', '📜 Contracts'], ['rivals', '⚖️ Rivals'], ['investments', '💰 Investments'],
 ];
@@ -24,8 +28,8 @@ const _label = (id) => MerchantHouses.goodName(id);
 
 function _pnlRows(by) {
     return Object.entries(by || {}).sort((a, b) => b[1] - a[1])
-        .map(([k, v]) => `<div style="display:flex; justify-content:space-between;"><span style="color:#bbb;">${_esc(k)}</span><span>${_g(v)}</span></div>`).join('')
-        || '<div style="color:#777;">—</div>';
+        .map(([k, v]) => kv(_esc(k), _g(v))).join('')
+        || `<div style="${MUTED}">—</div>`;
 }
 
 Object.assign(ActionMenu, {
@@ -35,13 +39,17 @@ Object.assign(ActionMenu, {
         const world = game.world;
         const c = MerchantHouses.company(player);
         let html = '<div style="font-size: 12px;">';
-        if (message) html += `<div style="${CARD} border-color: ${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
+        if (message) html += `<div class="pk-card" style="border-color: ${message.color || 'rgba(245,197,66,0.4)'}; color:#ece2c8;">${message.html}</div>`;
 
         if (!c) {
             html += _companyFoundingHtml(player, world, tile);
         } else {
-            html += `<div style="display:flex; justify-content:space-between; align-items:baseline;"><div><b style="font-size:14px;">${_esc(c.name)}</b> <span style="color:#999;">since day ${c.foundedDay}</span></div>`;
-            html += `<div>💰 ${_g(c.capital)} · ⭐ ${Math.round(c.reputation)} rep · worth ${_g(MerchantHouses.companyValue(player))}</div></div>`;
+            html += lede(`<b>${_esc(c.name)}</b>, trading since day ${c.foundedDay}.`);
+            html += chips([
+                { icon: '💰', label: 'Capital', value: _g(c.capital), cls: 'gold' },
+                ['⭐', 'Rep', Math.round(c.reputation)],
+                ['⚖️', 'Worth', _g(MerchantHouses.companyValue(player))],
+            ]);
             html += panelTabs(game, {
                 id: 'tradingCompany', title: '⚖️ Trading Company', tabs: TABS, active: tab,
                 go: (id) => { ActionMenu.showTradingCompany(game, tile, id); },
@@ -108,34 +116,41 @@ Object.assign(ActionMenu, {
     },
 });
 
+// Quiet tables: a muted head in the section-head voice, hairline row rules
+const TABLE = 'width:100%; font-size:11px; border-collapse:collapse; margin-top:4px;';
+const THEAD = 'color:#9d937c; font-size:10px; text-transform:uppercase; letter-spacing:1px;';
+const TR = 'border-top:1px solid rgba(245,197,66,0.07);';
+
 function _companyFoundingHtml(player, world, tile) {
-    let html = `<div style="${CARD}">Trade is personal until you found a company: a chartered house with its own capital, ledger and reputation, factors running posts in towns, supply contracts from the realms, and rival houses to beat.</div>`;
+    let html = lede('Trade is personal until you found a company: a chartered house with its own capital, ledger and reputation, factors running posts in towns, supply contracts from the realms, and rival houses to beat.');
     const charters = (player.merchant && player.merchant.charters) || [];
-    html += `<div style="${HEAD}">Charters</div>`;
+    html += sectionHead('Charters');
+    const rows = [];
     if (charters.length) {
         for (const ch of charters) {
             const k = ch.kingdomId && world.getKingdom(ch.kingdomId);
-            html += `<div>📜 ${_esc(k ? k.name : 'Your House')} — ${_esc(ch.source)} (day ${ch.day})</div>`;
+            rows.push({ icon: '📜', name: _esc(k ? k.name : 'Your House'), desc: _esc(ch.source), side: `day ${ch.day}` });
         }
     } else if (MerchantHouses.officeCharter(player)) {
-        html += '<div>🏅 Your royal office carries the right to charter a company.</div>';
+        rows.push({ icon: '🏅', name: 'Your royal office carries the right to charter a company.' });
     } else {
-        html += '<div style="color:#aaa;">You hold no charter. Buy one from a crown, earn one at court (merchant venturers petition your holdings), or hold a royal office.</div>';
+        html += `<div style="${MUTED} font-size:12px; margin-bottom:6px;">You hold no charter. Buy one from a crown, earn one at court (merchant venturers petition your holdings), or hold a royal office.</div>`;
     }
     const can = MerchantHouses.canBuyCharter(player, world, tile);
-    if (can.ok) html += `<button onclick="window._company.buyCharter()" style="${BTN_GOLD}">📜 Buy a charter from ${_esc(can.kingdom.name)} (${_g(can.cost)})</button>`;
-    else if (can.cost) html += `<div style="color:#999; font-size:11px;">${_esc(can.reason)}</div>`;
+    if (can.ok) rows.push({ icon: '📜', name: `Buy a charter from ${_esc(can.kingdom.name)}`, desc: 'The crown seals your right to found a company', side: price(can.cost, (player.gold || 0) >= can.cost), attrs: 'onclick="window._company.buyCharter()"' });
+    else if (can.cost) rows.push({ icon: '📜', name: 'Buy a charter', off: true, why: _esc(can.reason), side: _g(can.cost) });
+    html += rowList(rows);
     const min = MerchantHouses.config().found.minCapital;
-    html += `<div style="${HEAD}">Found the Company</div>`;
-    html += `<div>Name <input id="mhName" style="${INPUT} width:200px;" value="${_esc(MerchantHouses.defaultName(player))}"></div>`;
-    html += `<div style="margin-top:4px;">Capital <input id="mhCapital" type="number" style="${INPUT} width:80px;" value="${Math.max(min, Math.min(3000, Math.floor((player.gold || 0) / 2)))}"> gold (at least ${min})</div>`;
+    html += sectionHead('Found the Company');
+    let form = `<div>Name <input id="mhName" style="${INPUT} width:200px;" value="${_esc(MerchantHouses.defaultName(player))}"></div>`;
+    form += `<div style="margin-top:6px;">Capital <input id="mhCapital" type="number" style="${INPUT} width:80px;" value="${Math.max(min, Math.min(3000, Math.floor((player.gold || 0) / 2)))}"> gold <span style="${MUTED}">(at least ${min})</span></div>`;
     const f = MerchantHouses.canFound(player, world, min);
-    html += f.ok ? `<button onclick="window._company.found()" style="${BTN_GOLD}">⚖️ Found the company</button>`
-        : `<div style="color:#999; font-size:11px; margin-top:4px;">${_esc(f.reason)}</div>`;
+    form += f.ok ? `<div style="margin-top:6px;"><button onclick="window._company.found()" style="${BTN_GOLD}">⚖️ Found the company</button></div>`
+        : `<div class="pk-row-why" style="margin-top:6px;">${_esc(f.reason)}</div>`;
+    html += card(form);
     const rivals = MerchantHouses.ensureRivals(player, world);
     if (rivals.length) {
-        html += `<div style="${HEAD}">The Great Houses</div>`;
-        for (const r of rivals) html += `<div>${r.icon} <b>${_esc(r.name)}</b> <span style="color:#999;">— ${_esc(r.seat ? r.seat.name : '')}, ${_esc(r.specialty.join(', '))}</span></div>`;
+        html += rowList(rivals.map(r => ({ icon: r.icon, name: _esc(r.name), desc: `${_esc(r.seat ? r.seat.name : '')}, ${_esc(r.specialty.join(', '))}` })), 'The Great Houses');
     }
     return html;
 }
@@ -143,31 +158,30 @@ function _companyFoundingHtml(player, world, tile) {
 function _companyLedgerHtml(player, world) {
     const c = MerchantHouses.company(player);
     const pnl = MerchantHouses.profitAndLoss(player);
-    let html = `<div style="${CARD}">`;
-    html += `<div>Move gold <input id="mhMove" type="number" style="${INPUT}" value="500"> `;
-    html += `<button onclick="window._company.deposit()" style="${BTN_DARK}">⬆️ Pay in</button><button onclick="window._company.withdraw()" style="${BTN_DARK}">⬇️ Draw out</button></div>`;
-    html += `<div style="font-size:11px; color:#999;">Purse ${_g(player.gold || 0)} · paid in ${_g(c.flows.paidIn || 0)} · drawn ${_g(c.flows.drawn || 0)} · factors keep ${_g(MerchantHouses.reserve(player))} back for wages</div></div>`;
-    html += `<div style="${HEAD}">Profit &amp; Loss — net <span style="color:${pnl.net >= 0 ? '#7fd07f' : '#e08080'};">${_g(pnl.net)}</span></div>`;
-    html += `<div style="display:flex; gap:16px;"><div style="flex:1;"><b>Income ${_g(pnl.income)}</b>${_pnlRows(pnl.incomeBy)}</div><div style="flex:1;"><b>Expenses ${_g(pnl.expenses)}</b>${_pnlRows(pnl.expensesBy)}</div></div>`;
+    let body = `<div>Move gold <input id="mhMove" type="number" style="${INPUT}" value="500"> `;
+    body += `<button onclick="window._company.deposit()" style="${BTN_DARK}">⬆️ Pay in</button><button onclick="window._company.withdraw()" style="${BTN_DARK}">⬇️ Draw out</button></div>`;
+    body += `<div style="font-size:11px; ${MUTED} margin-top:4px;">Purse ${_g(player.gold || 0)} · paid in ${_g(c.flows.paidIn || 0)} · drawn ${_g(c.flows.drawn || 0)} · factors keep ${_g(MerchantHouses.reserve(player))} back for wages</div>`;
+    let html = card(body, { icon: '💱', title: 'The Company Purse' });
+    html += sectionHead(`Profit &amp; Loss — net <span style="color:${pnl.net >= 0 ? GOOD : BAD};">${_g(pnl.net)}</span>`);
+    html += `<div style="display:flex; gap:16px;"><div style="flex:1;"><div style="font-weight:600; color:${GOOD}; margin-bottom:2px;">Income ${_g(pnl.income)}</div>${_pnlRows(pnl.incomeBy)}</div><div style="flex:1;"><div style="font-weight:600; color:${BAD}; margin-bottom:2px;">Expenses ${_g(pnl.expenses)}</div>${_pnlRows(pnl.expensesBy)}</div></div>`;
     if (c.weeks.length) {
-        html += `<div style="${HEAD}">Recent Weeks</div><table style="width:100%; font-size:11px;">`;
-        html += '<tr style="color:#999;"><td>Day</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td><td style="text-align:right;">Capital</td></tr>';
+        html += `${sectionHead('Recent Weeks')}<table style="${TABLE}">`;
+        html += `<tr style="${THEAD}"><td>Day</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td><td style="text-align:right;">Capital</td></tr>`;
         for (const w of c.weeks.slice(0, 8)) {
-            html += `<tr><td>${w.day}</td><td style="text-align:right; color:#7fd07f;">${_g(w.income)}</td><td style="text-align:right; color:#e08080;">${_g(w.expenses)}</td><td style="text-align:right;">${_g(w.capital)}</td></tr>`;
+            html += `<tr style="${TR}"><td>${w.day}</td><td style="text-align:right; color:${GOOD};">${_g(w.income)}</td><td style="text-align:right; color:${BAD};">${_g(w.expenses)}</td><td style="text-align:right;">${_g(w.capital)}</td></tr>`;
         }
         html += '</table>';
     }
     const st = c.stats;
-    html += `<div style="font-size:11px; color:#999; margin-top:6px;">Contracts ${st.contractsDone} done, ${st.contractsFailed} broken · robberies ${st.robberies} · convoys lost ${st.convoysLost}</div>`;
+    html += `<div style="font-size:11px; ${MUTED} margin-top:6px;">Contracts ${st.contractsDone} done, ${st.contractsFailed} broken · robberies ${st.robberies} · convoys lost ${st.convoysLost}</div>`;
     const news = (player.merchant.news || []).slice(0, 10);
     if (news.length) {
-        html += `<div style="${HEAD}">News of the Trade</div>`;
-        for (const n of news) html += `<div style="color:#ccc;"><span style="color:#888; font-size:10px;">Day ${n.day}</span> ${n.icon} ${_esc(n.text)}</div>`;
+        html += rowList(news.map(n => ({ icon: n.icon, name: `<span style="font-weight:400; font-size:12px;">${_esc(n.text)}</span>`, side: `<span style="${MUTED} font-size:10.5px;">Day ${n.day}</span>` })), 'News of the Trade');
     }
-    html += `<div style="${HEAD}">Ledger</div>`;
+    html += sectionHead('Ledger');
     for (const e of c.ledger.slice(0, 20)) {
-        const color = e.kind === 'income' ? '#7fd07f' : '#e08080';
-        html += `<div style="display:flex; justify-content:space-between; font-size:11px;"><span><span style="color:#888;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${e.kind === 'income' ? '+' : '−'}${_g(e.amount)}</span></div>`;
+        const color = e.kind === 'income' ? GOOD : BAD;
+        html += `<div class="pk-kv" style="font-size:11px;"><span><span style="color:#7d7564;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${e.kind === 'income' ? '+' : '−'}${_g(e.amount)}</span></div>`;
     }
     return html;
 }
@@ -179,159 +193,185 @@ function _companyPostsHtml(player, world, tile) {
     const here = tile && tile.settlement ? MerchantHouses.postAt(player, tile.q, tile.r) : null;
     if (tile && tile.settlement && !here) {
         const can = MerchantHouses.canOpenPost(player, world, tile);
-        html += `<div style="${CARD}"><b>Open a post at ${_esc(tile.settlement.name)}</b>`;
-        if (!can.ok) html += `<div style="color:#999;">${_esc(can.reason)}</div>`;
+        html += sectionHead(`Open a post at ${_esc(tile.settlement.name)}`);
+        if (!can.ok) html += `<div class="pk-row-why" style="margin-bottom:6px;">${_esc(can.reason)}</div>`;
         else {
-            html += ` <span style="color:#999;">(${_g(can.cost)}${can.foreign ? ', foreign licence' : ''})</span>`;
-            MerchantHouses.candidates(player, world, tile).forEach((f, i) => {
+            html += `<div style="${MUTED} font-size:11px;">${_g(can.cost)}${can.foreign ? ', foreign licence' : ''}</div>`;
+            html += rowList(MerchantHouses.candidates(player, world, tile).map((f, i) => {
                 const ref = MerchantHouses.reference(f);
-                html += `<div style="margin-top:4px;">👤 <b>${_esc(f.name)}</b> — skill ${f.skill}, <span style="color:${ref.color};">${ref.label}</span>, ${f.wage}g/week `;
-                html += `<button onclick="window._company.openPost(${i})" style="${BTN_GOLD}">Hire &amp; open</button></div>`;
-            });
+                return {
+                    icon: '👤',
+                    name: _esc(f.name),
+                    desc: `skill ${f.skill}, <span style="color:${ref.color};">${ref.label}</span>, ${f.wage}g/week`,
+                    attrs: `onclick="window._company.openPost(${i})"`,
+                    side: 'Hire &amp; open ›',
+                    tone: 'gold',
+                };
+            }));
         }
-        html += '</div>';
     }
-    if (!c.posts.length) html += '<div style="color:#aaa;">No posts yet. Visit a town to open one.</div>';
+    if (!c.posts.length) html += `<div style="${MUTED} font-size:12px;">No posts yet. Visit a town to open one.</div>`;
     const goods = Object.values(PlayerEconomy.GOODS || {}).filter(g => g && g.basePrice > 0);
+    if (c.posts.length) html += sectionHead('Your Posts');
     for (const post of c.posts) {
         const atPost = player.q === post.q && player.r === post.r;
         const ptile = world.getTile(post.q, post.r);
-        html += `<div style="${CARD}">`;
-        html += `<div style="display:flex; justify-content:space-between;"><b>🏪 ${_esc(post.name)}</b><span style="color:#999;">stock ${MerchantHouses.stockTotal(post)}/${cfg.post.capacity}</span></div>`;
+        let body = '';
         if (post.factor) {
             const ref = MerchantHouses.reference(post.factor);
-            html += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${MerchantHouses.factorWage(post.factor)}g/week${post.factor.unpaid ? ` <span style="color:#e08080;">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
+            body += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${MerchantHouses.factorWage(post.factor)}g/week${post.factor.unpaid ? ` <span style="color:${BAD};">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
         } else {
-            html += '<div style="color:#e08080;">No factor — the post is idle.</div>';
+            body += `<div style="color:${BAD};">No factor — the post is idle.</div>`;
         }
-        if (post.suspicion >= cfg.factor.suspicionShown) html += '<div style="color:#e0b060;">🧾 The accounts don\'t add up.</div>';
+        if (post.suspicion >= cfg.factor.suspicionShown) body += `<div style="color:${WARN};">🧾 The accounts don't add up.</div>`;
         const rivals = MerchantHouses.rivalsAt(player, post.q, post.r);
-        if (rivals.length) html += `<div style="color:#e0b060; font-size:11px;">⚖️ Competing here: ${rivals.map(r => `${r.icon} ${_esc(r.name)}`).join(', ')}</div>`;
+        if (rivals.length) body += `<div style="color:${WARN}; font-size:11px;">⚖️ Competing here: ${rivals.map(r => `${r.icon} ${_esc(r.name)}`).join(', ')}</div>`;
         const monos = Object.entries((ptile && ptile.settlement && ptile.settlement.monopolies) || {});
-        if (monos.length) html += `<div style="font-size:11px; color:#bbb;">👑 ${monos.map(([g, m]) => `${_label(g)}: ${_esc(m.holderName || m.holder)}`).join(' · ')}</div>`;
+        if (monos.length) body += `<div style="font-size:11px; color:#b9ae94;">👑 ${monos.map(([g, m]) => `${_label(g)}: ${_esc(m.holderName || m.holder)}`).join(' · ')}</div>`;
         const stock = Object.entries(post.stock);
-        html += `<div style="font-size:11px; margin-top:3px;">📦 ${stock.length ? stock.map(([g, q]) => `${_label(g)} ×${q}${atPost ? ` <a href="#" onclick="window._company.take('${post.id}','${g}');return false;" style="color:var(--gold);">take</a>` : ''}`).join(' · ') : 'empty'}</div>`;
+        body += `<div style="font-size:11px; margin-top:3px;">📦 ${stock.length ? stock.map(([g, q]) => `${_label(g)} ×${q}${atPost ? ` <a href="#" onclick="window._company.take('${post.id}','${g}');return false;" style="color:var(--gold);">take</a>` : ''}`).join(' · ') : 'empty'}</div>`;
         if (post.lastWeek && !post.lastWeek.idle) {
-            html += `<div style="font-size:11px; color:#999;">Last week: sold ${_g(post.lastWeek.sales)}, bought ${_g(post.lastWeek.purchases)}${(post.lastWeek.blocked || []).length ? ` · barred by monopoly: ${post.lastWeek.blocked.map(_label).join(', ')}` : ''}</div>`;
+            body += `<div style="font-size:11px; ${MUTED}">Last week: sold ${_g(post.lastWeek.sales)}, bought ${_g(post.lastWeek.purchases)}${(post.lastWeek.blocked || []).length ? ` · barred by monopoly: ${post.lastWeek.blocked.map(_label).join(', ')}` : ''}</div>`;
         }
         // Standing orders
-        html += '<table style="width:100%; font-size:11px; margin-top:4px;"><tr style="color:#999;"><td>Good</td><td>Buy ≤</td><td>×/wk</td><td>Sell ≥</td><td>×/wk</td><td>Keep</td><td>Now buy/sell</td><td></td></tr>';
+        body += `<table style="${TABLE} margin-top:6px;"><tr style="${THEAD}"><td>Good</td><td>Buy ≤</td><td>×/wk</td><td>Sell ≥</td><td>×/wk</td><td>Keep</td><td>Now buy/sell</td><td></td></tr>`;
         for (const o of post.orders) {
             const buy = ptile ? MerchantHouses.factorBuyUnit(player, world, ptile, o.good) : null;
             const sell = ptile ? MerchantHouses.factorSaleUnit(player, world, ptile, o.good) : 0;
-            html += `<tr><td>${_label(o.good)}</td><td>${o.buyBelow}</td><td>${o.buyQty}</td><td>${o.sellAbove}</td><td>${o.sellQty}</td><td>${o.keep}</td><td style="color:#bbb;">${buy == null ? '—' : buy} / ${sell ? Math.round(sell * 10) / 10 : '—'}</td>`;
-            html += `<td><a href="#" onclick="window._company.removeOrder('${post.id}','${o.good}');return false;" style="color:#e08080;">✕</a>`;
-            html += ` <a href="#" title="Lobby for a monopoly" onclick="window._company.lobby('${post.id}','${o.good}');return false;" style="color:var(--gold);">👑</a></td></tr>`;
+            body += `<tr style="${TR}"><td>${_label(o.good)}</td><td>${o.buyBelow}</td><td>${o.buyQty}</td><td>${o.sellAbove}</td><td>${o.sellQty}</td><td>${o.keep}</td><td style="color:#b9ae94;">${buy == null ? '—' : buy} / ${sell ? Math.round(sell * 10) / 10 : '—'}</td>`;
+            body += `<td><a href="#" onclick="window._company.removeOrder('${post.id}','${o.good}');return false;" style="color:${BAD};">✕</a>`;
+            body += ` <a href="#" title="Lobby for a monopoly" onclick="window._company.lobby('${post.id}','${o.good}');return false;" style="color:var(--gold);">👑</a></td></tr>`;
         }
-        html += '</table>';
+        body += '</table>';
         if (post.orders.length < cfg.post.maxOrders) {
             const sold = new Set(ptile && ptile.settlement ? Trading.getAvailableGoods(ptile.settlement, ptile, world).map(g => g.id) : []);
             const opts = goods.filter(g => sold.has(g.id) || post.stock[g.id]).map(g => `<option value="${g.id}">${_esc(`${g.icon || ''} ${g.name}`)}${sold.has(g.id) ? '' : ' (stock)'}</option>`).join('');
             const inp = (k, v) => `<input id="mh_${k}_${post.id}" type="number" min="0" style="${INPUT}" value="${v}">`;
-            html += `<div style="margin-top:4px; font-size:11px;">New order: <select id="mh_good_${post.id}" style="${INPUT} width:120px;">${opts}</select> buy ≤ ${inp('buyBelow', 10)} ×${inp('buyQty', 20)} sell ≥ ${inp('sellAbove', 15)} ×${inp('sellQty', 20)} keep ${inp('keep', 0)} `;
-            html += `<button onclick="window._company.setOrder('${post.id}')" style="${BTN_GOLD}">Set</button></div>`;
+            body += `<div style="margin-top:6px; font-size:11px;"><span style="${MUTED}">New order:</span> <select id="mh_good_${post.id}" style="${INPUT} width:120px;">${opts}</select> buy ≤ ${inp('buyBelow', 10)} ×${inp('buyQty', 20)} sell ≥ ${inp('sellAbove', 15)} ×${inp('sellQty', 20)} keep ${inp('keep', 0)} `;
+            body += `<button onclick="window._company.setOrder('${post.id}')" style="${BTN_GOLD}">Set</button></div>`;
         }
         // Convoys
         if (stock.length) {
             const targets = c.posts.filter(p => p !== post).map(p => `<option value="post:${p.id}">🏪 ${_esc(p.name)}</option>`)
                 .concat(c.contracts.map(ct => `<option value="contract:${ct.id}">📜 ${_esc(ct.town)} (${_esc(ct.good)})</option>`)).join('');
             if (targets) {
-                html += `<div style="margin-top:4px; font-size:11px;">Send <select id="mh_cvGood_${post.id}" style="${INPUT} width:110px;">${stock.map(([g]) => `<option value="${g}">${_esc(_label(g))}</option>`).join('')}</select>`;
-                html += ` ×<input id="mh_cvQty_${post.id}" type="number" style="${INPUT}" value="20"> to <select id="mh_cvTo_${post.id}" style="${INPUT} width:130px;">${targets}</select>`;
-                html += ` <button onclick="window._company.convoy('${post.id}')" style="${BTN_DARK}">🐫 Dispatch</button></div>`;
+                body += `<div style="margin-top:4px; font-size:11px;"><span style="${MUTED}">Send</span> <select id="mh_cvGood_${post.id}" style="${INPUT} width:110px;">${stock.map(([g]) => `<option value="${g}">${_esc(_label(g))}</option>`).join('')}</select>`;
+                body += ` ×<input id="mh_cvQty_${post.id}" type="number" style="${INPUT}" value="20"> to <select id="mh_cvTo_${post.id}" style="${INPUT} width:130px;">${targets}</select>`;
+                body += ` <button onclick="window._company.convoy('${post.id}')" style="${BTN_DARK}">🐫 Dispatch</button></div>`;
             }
         }
-        html += '<div style="margin-top:4px;">';
+        body += '<div style="margin-top:6px;">';
         if (atPost) {
             const inv = Object.entries(player.inventory || {}).filter(([id, q]) => q > 0 && MerchantHouses._good(id));
             if (inv.length) {
-                html += `<select id="mh_store_${post.id}" style="${INPUT} width:110px;">${inv.map(([id, q]) => `<option value="${id}">${_esc(_label(id))} (${q})</option>`).join('')}</select>`;
-                html += ` ×<input id="mh_storeQty_${post.id}" type="number" style="${INPUT}" value="10"> <button onclick="window._company.store('${post.id}')" style="${BTN_DARK}">📥 Store</button>`;
+                body += `<select id="mh_store_${post.id}" style="${INPUT} width:110px;">${inv.map(([id, q]) => `<option value="${id}">${_esc(_label(id))} (${q})</option>`).join('')}</select>`;
+                body += ` ×<input id="mh_storeQty_${post.id}" type="number" style="${INPUT}" value="10"> <button onclick="window._company.store('${post.id}')" style="${BTN_DARK}">📥 Store</button>`;
             }
-            html += `<input id="mh_take_${post.id}" type="hidden" value="9999">`;
+            body += `<input id="mh_take_${post.id}" type="hidden" value="9999">`;
             MerchantHouses.candidates(player, world, ptile).forEach((f, i) => {
-                html += `<button onclick="window._company.replaceFactor('${post.id}', ${i})" style="${BTN_DARK}" title="skill ${f.skill}, ${MerchantHouses.reference(f).label}">👤 Hire ${_esc(f.name)} (skill ${f.skill})</button>`;
+                body += `<button onclick="window._company.replaceFactor('${post.id}', ${i})" style="${BTN_DARK}" title="skill ${f.skill}, ${MerchantHouses.reference(f).label}">👤 Hire ${_esc(f.name)} (skill ${f.skill})</button>`;
             });
         }
-        html += `<button onclick="window._company.audit('${post.id}')" style="${BTN_DARK}">🧾 Audit (${cfg.factor.auditCost}g)</button>`;
-        html += `<button onclick="window._company.closePost('${post.id}')" style="${BTN_RED}">Close post</button></div>`;
-        html += '</div>';
+        body += `<button onclick="window._company.audit('${post.id}')" style="${BTN_DARK}">🧾 Audit (${cfg.factor.auditCost}g)</button>`;
+        body += `<button onclick="window._company.closePost('${post.id}')" style="${BTN_RED}">Close post</button></div>`;
+        html += card(body, { icon: '🏪', title: _esc(post.name), side: `stock ${MerchantHouses.stockTotal(post)}/${cfg.post.capacity}` });
     }
-    for (const v of c.convoys) {
-        html += `<div style="font-size:11px; color:#bbb;">${v.mode === 'ship' ? '⛵' : '🐫'} ${v.qty} ${_esc(_label(v.good))}: ${_esc(v.from)} → ${_esc(v.to)}, due day ${v.arriveDay}</div>`;
+    if (c.convoys.length) {
+        html += rowList(c.convoys.map(v => ({
+            icon: v.mode === 'ship' ? '⛵' : '🐫',
+            name: `${v.qty} ${_esc(_label(v.good))}`,
+            desc: `${_esc(v.from)} → ${_esc(v.to)}`,
+            side: `due day ${v.arriveDay}`,
+        })), 'On the Road');
     }
     return html;
 }
 
 function _companyContractsHtml(player, world) {
     const c = MerchantHouses.company(player);
-    let html = `<div style="${HEAD}">Your Contracts</div>`;
-    if (!c.contracts.length) html += '<div style="color:#888;">None in hand.</div>';
+    let html = sectionHead('Your Contracts');
+    if (!c.contracts.length) html += `<div style="${MUTED} font-size:12px;">None in hand.</div>`;
     for (const ct of c.contracts) {
         const left = ct.deadline - world.day;
-        html += `<div style="${CARD}">${ct.icon} <b>${_esc(ct.title)}</b> <span style="color:#999;">for ${_esc(ct.issuer)}</span>`;
-        html += `<div>${ct.delivered}/${ct.qty} ${_esc(_label(ct.good))} to <b>${_esc(ct.town)}</b> (${ct.q}, ${ct.r}) · ${MerchantHouses.contractUnitPay(world, ct)}g each · <span style="color:${left < 5 ? '#e08080' : '#ccc'};">${left} days left</span></div>`;
-        for (const o of MerchantHouses.deliveryOptions(player, world, ct.id)) {
-            html += `<button onclick="window._company.deliver('${ct.id}','${o.from}','${o.shipId || ''}')" style="${BTN_GOLD}">Deliver ${Math.min(o.qty, ct.qty - ct.delivered)} ${_esc(o.label)}</button>`;
+        let body = `<div style="${MUTED} font-size:11px;">for ${_esc(ct.issuer)}</div>`;
+        body += `<div>${ct.delivered}/${ct.qty} ${_esc(_label(ct.good))} to <b>${_esc(ct.town)}</b> (${ct.q}, ${ct.r}) · ${MerchantHouses.contractUnitPay(world, ct)}g each</div>`;
+        const opts = MerchantHouses.deliveryOptions(player, world, ct.id);
+        if (opts.length) {
+            body += '<div style="margin-top:4px;">';
+            for (const o of opts) {
+                body += `<button onclick="window._company.deliver('${ct.id}','${o.from}','${o.shipId || ''}')" style="${BTN_GOLD}">Deliver ${Math.min(o.qty, ct.qty - ct.delivered)} ${_esc(o.label)}</button>`;
+            }
+            body += '</div>';
         }
-        html += '</div>';
+        html += card(body, { icon: ct.icon, title: _esc(ct.title), side: `<span style="color:${left < 5 ? BAD : '#cbbf9f'};">${left} days left</span>` });
     }
-    html += `<div style="${HEAD}">The Board</div>`;
     const board = MerchantHouses.board(player);
-    if (!board.length) html += '<div style="color:#888;">No contracts posted this week.</div>';
-    for (const ct of board) {
-        html += `<div style="${CARD}">${ct.icon} <b>${_esc(ct.title)}</b> <span style="color:#999;">— ${_esc(ct.text)}</span>`;
-        html += `<div>${ct.qty} ${_esc(_label(ct.good))} to ${_esc(ct.town)} by day ${ct.deadline} · ${ct.pay}g each (${_g(ct.pay * ct.qty)}) · +${ct.reputation} rep</div>`;
+    html += sectionHead('The Board');
+    if (!board.length) html += `<div style="${MUTED} font-size:12px;">No contracts posted this week.</div>`;
+    html += rowList(board.map(ct => {
         const can = MerchantHouses.canAcceptContract(player, ct);
-        html += can.ok ? `<button onclick="window._company.accept('${ct.id}')" style="${BTN_GOLD}">Take the contract</button>` : `<div style="color:#999;">${_esc(can.reason)}</div>`;
-        html += '</div>';
-    }
+        return {
+            icon: ct.icon,
+            name: _esc(ct.title),
+            desc: _esc(ct.text),
+            why: _esc(can.reason),
+            note: `<span style="color:#b9ae94;">${ct.qty} ${_esc(_label(ct.good))} to ${_esc(ct.town)} by day ${ct.deadline} · ${ct.pay}g each (${_g(ct.pay * ct.qty)}) · +${ct.reputation} rep</span>`,
+            off: !can.ok,
+            attrs: `onclick="window._company.accept('${ct.id}')" title="Take the contract"`,
+            side: _g(ct.pay * ct.qty),
+            tone: 'gold',
+        };
+    }));
     return html;
 }
 
 function _companyRivalsHtml(player, world) {
-    let html = '';
+    let html = sectionHead('Rival Houses');
     for (const r of MerchantHouses.rivals(player)) {
         const active = r.status === 'active';
-        html += `<div style="${CARD}${active ? '' : ' opacity:0.55;'}">`;
-        html += `<div style="display:flex; justify-content:space-between;"><div>${r.icon} <b>${_esc(r.name)}</b> <span style="color:#999;">(${_esc(r.temperament)})</span></div>`;
         // A rival house's books are for its shareholders; the rest know its name and its posts
         const holder = (r.shares && r.shares.player) > 0;
-        html += `<div>${active ? `💰 ${holder ? _g(r.capital) : _esc(RealmIntel.band('capital', r.capital))} · ⭐ ${Math.round(r.reputation)}` : `<span style="color:#e08080;">${r.status}</span>`}</div></div>`;
-        if (!active) { html += '</div>'; continue; }
-        html += `<div style="font-size:11px; color:#bbb;">Trades ${_esc(r.specialty.join(', '))} · posts: ${_esc(r.posts.map(p => p.name).join(', '))}${holder ? ` · last week ${r.lastProfit >= 0 ? '+' : ''}${_g(r.lastProfit)}` : ''}</div>`;
-        html += `<div style="font-size:11px;">Rivalry <span style="color:${r.rivalry >= 50 ? '#e08080' : '#ccc'};">${Math.round(r.rivalry)}</span> · share ${Math.round(MerchantHouses.sharePrice(r))}g · you hold <b>${r.shares.player}</b>/100</div>`;
-        html += `<button onclick="window._company.buyShares('${r.id}', 5)" style="${BTN_DARK}">Buy 5 shares</button>`;
-        html += `<button onclick="window._company.buyShares('${r.id}', 20)" style="${BTN_DARK}">Buy 20</button>`;
-        if (r.shares.player > 0) html += `<button onclick="window._company.sellShares('${r.id}', ${r.shares.player})" style="${BTN_DARK}">Sell all</button>`;
-        if (r.shares.player >= 51) html += `<button onclick="window._company.buyOut('${r.id}')" style="${BTN_GOLD}">Buy out (${_g(MerchantHouses.buyOutCost(player, r))})</button>`;
-        html += ` <input id="mh_war_${r.id}" type="number" style="${INPUT}" value="${MerchantHouses.config().rivals.priceWar.minSpend}"><button onclick="window._company.priceWar('${r.id}')" style="${BTN_RED}">⚔️ Price war</button>`;
-        html += '</div>';
+        const side = active ? `💰 ${holder ? _g(r.capital) : _esc(RealmIntel.band('capital', r.capital))} · ⭐ ${Math.round(r.reputation)}` : `<span style="color:${BAD};">${r.status}</span>`;
+        const title = `${_esc(r.name)} <span style="${MUTED} font-weight:400; font-size:12px;">(${_esc(r.temperament)})</span>`;
+        if (!active) {
+            html += `<div style="opacity:0.55;">${card('', { icon: r.icon, title, side })}</div>`;
+            continue;
+        }
+        let body = `<div style="font-size:11px; color:#b9ae94;">Trades ${_esc(r.specialty.join(', '))} · posts: ${_esc(r.posts.map(p => p.name).join(', '))}${holder ? ` · last week ${r.lastProfit >= 0 ? '+' : ''}${_g(r.lastProfit)}` : ''}</div>`;
+        body += `<div style="font-size:11px;">Rivalry <span style="color:${r.rivalry >= 50 ? BAD : '#cbbf9f'};">${Math.round(r.rivalry)}</span> · share ${Math.round(MerchantHouses.sharePrice(r))}g · you hold <b>${r.shares.player}</b>/100</div>`;
+        body += '<div style="margin-top:4px;">';
+        body += `<button onclick="window._company.buyShares('${r.id}', 5)" style="${BTN_DARK}">Buy 5 shares</button>`;
+        body += `<button onclick="window._company.buyShares('${r.id}', 20)" style="${BTN_DARK}">Buy 20</button>`;
+        if (r.shares.player > 0) body += `<button onclick="window._company.sellShares('${r.id}', ${r.shares.player})" style="${BTN_DARK}">Sell all</button>`;
+        if (r.shares.player >= 51) body += `<button onclick="window._company.buyOut('${r.id}')" style="${BTN_GOLD}">Buy out (${_g(MerchantHouses.buyOutCost(player, r))})</button>`;
+        body += ` <input id="mh_war_${r.id}" type="number" style="${INPUT}" value="${MerchantHouses.config().rivals.priceWar.minSpend}"><button onclick="window._company.priceWar('${r.id}')" style="${BTN_RED}">⚔️ Price war</button>`;
+        body += '</div>';
+        html += card(body, { icon: r.icon, title, side });
     }
     const monos = [];
     for (const s of world.getSettlementViews ? world.getSettlementViews() : []) {
         for (const [g, m] of Object.entries(s.monopolies || {})) monos.push(`${_esc(s.name)}: ${_esc(_label(g))} — ${_esc(m.holderName || m.holder)}${m.untilDay ? ` (to day ${m.untilDay})` : ''}`);
     }
-    if (monos.length) html += `<div style="${HEAD}">Monopolies</div><div style="font-size:11px; color:#bbb;">${monos.join('<br>')}</div>`;
+    if (monos.length) html += `${sectionHead('Monopolies')}<div style="font-size:11px; color:#b9ae94;">${monos.join('<br>')}</div>`;
     return html;
 }
 
 function _companyInvestmentsHtml(player, world) {
     const c = MerchantHouses.company(player);
     const m = MerchantHouses.state(player);
-    let html = `<div style="${HEAD}">Royal Ventures</div>`;
-    if (!m.ventures.length) html += '<div style="color:#888;">No crown is selling shares in a venture just now.</div>';
+    let html = sectionHead('Royal Ventures');
+    if (!m.ventures.length) html += `<div style="${MUTED} font-size:12px;">No crown is selling shares in a venture just now.</div>`;
     for (const v of m.ventures) {
-        html += `<div style="${CARD}">${v.icon} <b>${_esc(v.name)}</b> <span style="color:#999;">— ${_esc(v.kingdom)}, offers close day ${v.openUntil}</span>`;
-        html += `<div style="font-size:11px; color:#bbb;">${_esc(v.text)} About ${v.days} days; ${Math.round(v.success * 100)}% odds; ×${v.returnMult[0]}–${v.returnMult[1]} if it comes home. Up to ${_g(v.maxStake)}.</div>`;
-        html += `<input id="mh_stake_${v.id}" type="number" style="${INPUT}" value="${MerchantHouses.config().ventures.minStake}"> <button onclick="window._company.invest('${v.id}')" style="${BTN_GOLD}">Stake</button></div>`;
+        let body = `<div style="font-size:11px; color:#b9ae94;">${_esc(v.text)} About ${v.days} days; ${Math.round(v.success * 100)}% odds; ×${v.returnMult[0]}–${v.returnMult[1]} if it comes home. Up to ${_g(v.maxStake)}.</div>`;
+        body += `<div style="margin-top:4px;"><input id="mh_stake_${v.id}" type="number" style="${INPUT}" value="${MerchantHouses.config().ventures.minStake}"> <button onclick="window._company.invest('${v.id}')" style="${BTN_GOLD}">Stake</button></div>`;
+        html += card(body, { icon: v.icon, title: _esc(v.name), side: `${_esc(v.kingdom)}, offers close day ${v.openUntil}` });
     }
-    html += `<div style="${HEAD}">Your Stakes</div>`;
-    if (!c.investments.ventures.length) html += '<div style="color:#888;">None.</div>';
-    for (const s of c.investments.ventures) html += `<div>${s.icon} ${_esc(s.name)} — ${_g(s.stake)}, due home about day ${s.resolveDay}</div>`;
+    html += sectionHead('Your Stakes');
+    if (!c.investments.ventures.length) html += `<div style="${MUTED} font-size:12px;">None.</div>`;
+    html += rowList(c.investments.ventures.map(s => ({ icon: s.icon, name: _esc(s.name), desc: `due home about day ${s.resolveDay}`, side: _g(s.stake), tone: 'gold' })));
     const held = MerchantHouses.activeRivals(player).filter(r => r.shares.player > 0);
-    html += `<div style="${HEAD}">Shares in Other Houses</div>`;
-    if (!held.length) html += '<div style="color:#888;">None (buy them on the Rivals tab).</div>';
-    for (const r of held) html += `<div>${r.icon} ${_esc(r.name)}: ${r.shares.player} shares ≈ ${_g(r.shares.player * MerchantHouses.sharePrice(r))}</div>`;
+    html += sectionHead('Shares in Other Houses');
+    if (!held.length) html += `<div style="${MUTED} font-size:12px;">None (buy them on the Rivals tab).</div>`;
+    html += rowList(held.map(r => ({ icon: r.icon, name: _esc(r.name), desc: `${r.shares.player} shares`, side: `≈ ${_g(r.shares.player * MerchantHouses.sharePrice(r))}`, tone: 'gold' })));
     return html;
 }

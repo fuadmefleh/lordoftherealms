@@ -38,15 +38,19 @@ function aMarket(world) {
 }
 
 describe('the Wanderer on Normal', () => {
-    it('sets only the light purse and draws no randomness', () => {
+    it('sets only the light purse and its first people, and draws no randomness', () => {
         const a = newGame(41);
         const b = newGame(41);
         const report = Scenarios.apply(b.player, b.world, {});
         expect(report.origin).toBe('wanderer');
         expect(Utils.random()).toBeTypeOf('number');
+        // ...and the people a wanderer begins among (player/parentage.js seedTies): kin away, a friend, faces in town
+        expect(b.player.ties.origin).toBe('wanderer');
+        expect(Object.keys(b.player.relationships).length).toBeGreaterThan(0);
         const sa = SaveLoad.serializePlayer(a.player);
         const sb = SaveLoad.serializePlayer(b.player);
         delete sb.scenario;
+        for (const k of ['ties', 'relationships', '_relationshipNpcs', '_relationshipNextId']) { delete sa[k]; delete sb[k]; }
         // A few coins and the open road (data/scenarios.json), whatever the player was made with
         expect(sb.gold).toBe(250);
         delete sa.gold;

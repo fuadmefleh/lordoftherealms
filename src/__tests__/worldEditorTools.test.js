@@ -297,3 +297,55 @@ describe('WorldTools — snapshots', () => {
         expect(WT.unrle(WT.rle(t))).toEqual(t);
     });
 });
+
+describe('WorldTools — relief view', () => {
+    it('the neighbour table matches neighbors(), wrapping east-west', () => {
+        const W = 9, H = 7, nb = WT.neighborTable(W, H, true);
+        for (const [q, r] of [[0, 0], [8, 3], [4, 6], [3, 4]]) {
+            const want = new Map(WT.neighbors(q, r, W, H, true).map(n => [n.dir, n.r * W + n.q]));
+            for (let i = 0; i < 6; i++) expect(nb[(r * W + q) * 6 + i]).toBe(want.has(i) ? want.get(i) : -1);
+        }
+    });
+
+    it('heights keep sea below 0, land above, and the terrain ladder in order', () => {
+        const W = 24, H = 16, t = fill(W, H, 'deep_ocean');
+        for (let r = 3; r < 13; r++) for (let q = 4; q < 20; q++) t[r * W + q] = 'grassland';
+        t[8 * W + 12] = 'snow_peak';
+        for (const [q, r] of [[11, 8], [13, 8], [12, 7], [11, 7], [12, 9], [11, 9]]) t[r * W + q] = 'mountain';
+        t[5 * W + 6] = 'hills';
+        const before = t.slice();
+        const e = WT.reliefField(t, W, H);
+        expect(t).toEqual(before);  // a view only
+        for (let k = 0; k < W * H; k++) {
+            if (WT.isWater(t[k])) expect(e[k]).toBeLessThan(0);
+            else expect(e[k]).toBeGreaterThan(0);
+            expect(Math.abs(e[k])).toBeLessThanOrEqual(1);
+        }
+        expect(e[8 * W + 12]).toBeGreaterThan(e[8 * W + 11]);
+        expect(e[8 * W + 11]).toBeGreaterThan(e[5 * W + 6]);
+        expect(e[5 * W + 6]).toBeGreaterThan(e[10 * W + 16]);
+        expect(e[0]).toBeLessThan(e[2 * W + 4]);  // far out is deeper than offshore
+    });
+
+    it('hillshade lights slopes facing the north-west sun, flat ground is 0.5', () => {
+        const W = 20, H = 12;
+        expect(Array.from(WT.hillshade(new Float32Array(W * H), W, H)).every(v => Math.abs(v - 0.5) < 1e-6)).toBe(true);
+        // Ground rising to the east faces west, toward the sun: brighter
+        const rampE = new Float32Array(W * H).map((_, k) => (k % W) * 0.05);
+        const rampW = new Float32Array(W * H).map((_, k) => (W - k % W) * 0.05);
+        const k = 6 * W + 10;
+        expect(WT.hillshade(rampE, W, H, { wrap: false })[k]).toBeGreaterThan(0.5);
+        expect(WT.hillshade(rampW, W, H, { wrap: false })[k]).toBeLessThan(0.5);
+    });
+
+    it('tints run blue under the sea and white on the peaks; contour bands split at sea level', () => {
+        const deep = WT.reliefColor(-1), peak = WT.reliefColor(1), low = WT.reliefColor(0.05);
+        expect(deep[2]).toBeGreaterThan(deep[0]);
+        expect(peak).toEqual([255, 255, 255]);
+        expect(low[1]).toBeGreaterThan(low[2]);
+        expect(WT.contourBand(0.05, 0.1)).toBe(0);
+        expect(WT.contourBand(-0.05, 0.1)).toBe(-1);
+        expect(WT.contourBand(0.25, 0.1)).toBe(2);
+        expect(WT.contourBand(-0.25, 0.1)).toBe(-3);
+    });
+});

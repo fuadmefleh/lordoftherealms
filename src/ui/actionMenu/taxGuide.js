@@ -9,9 +9,14 @@
 // from the rules.
 import { CrownBooks } from '../../world/crownBooks.js';
 import { DataLoader } from '../../core/dataLoader.js';
-import { CARD, more, bullets, esc } from './uiKit.js';
+import { more, bullets, esc, card, sectionHead } from './uiKit.js';
 
-const NOTE = 'font-size: 11px; color: var(--text-secondary);';
+const NOTE = 'font-size: 11px; color: #9d937c;';
+// A quiet table: a muted head in the section-head voice, hairline rules
+const TH = 'text-align:left; padding:2px 8px 3px 0; font-size:9.5px; letter-spacing:1.2px; text-transform:uppercase; color:rgba(245,197,66,0.7); font-weight:600; border-bottom:1px solid rgba(245,197,66,0.12);';
+const TD = 'padding:2px 8px 2px 0; border-bottom:1px solid rgba(245,197,66,0.07);';
+/** A card that carries a hover. */
+const tipCard = (body, o, tip) => card(body, o).replace('<div class="pk-card', `<div title="${esc(tip)}" class="pk-card`);
 export const TAXES = ['land', 'poll', 'excise'];
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -135,37 +140,38 @@ export function crownTaxGuide(b = null, open = false) {
         const t = T[tax];
         if (!t) continue;
         const cur = b && b.rates ? b.rates[tax] : null;
-        body += `<div style="${CARD}" title="${esc(taxTip(tax))}"><b>${esc(taxName(tax))}</b>${cur ? ` · <span style="${NOTE}">now ${esc(_lvLabel(cur))} (×${_plain(CrownBooks.levelMult(cur))})</span>` : ''}`;
-        body += `<div style="font-size:11px; margin-top:3px;"><b>Who pays:</b> ${fill(t.who)}<br><b>On:</b> ${fill(t.on)}<br><b>How much:</b> ${fill(t.how)}</div>`;
+        let inner = `<div style="font-size:11px;"><b>Who pays:</b> ${fill(t.who)}<br><b>On:</b> ${fill(t.on)}<br><b>How much:</b> ${fill(t.how)}</div>`;
         const rows = CrownBooks.LEVELS.map(id => {
             const e = levelEffect(tax, id);
             const here = id === cur;
-            return `<tr${here ? ' style="color:var(--gold);"' : ''}><td style="padding:1px 6px 1px 0;">${esc(_lvLabel(id))}${here ? ' ◂' : ''}</td><td style="padding:1px 6px;">×${_plain(e.mult)}</td><td style="padding:1px 6px;">${_signed(e.burden)} pts</td><td style="padding:1px 6px;">${_signed(e.stability)}</td></tr>`;
+            return `<tr${here ? ' style="color:#ffcf6a;"' : ''}><td style="${TD}">${esc(_lvLabel(id))}${here ? ' ◂' : ''}</td><td style="${TD}">×${_plain(e.mult)}</td><td style="${TD}">${_signed(e.burden)} pts</td><td style="${TD}">${_signed(e.stability)}</td></tr>`;
         }).join('');
-        body += `<table style="font-size:11px; border-collapse:collapse; margin-top:4px;"><tr style="color:var(--text-secondary);"><td style="padding:1px 6px 1px 0;">Level</td><td style="padding:1px 6px;">Take</td><td style="padding:1px 6px;">Burden</td><td style="padding:1px 6px;">Stability</td></tr>${rows}</table>`;
-        if (t.weight) body += `<div style="${NOTE} margin-top:2px;">${fill(t.weight)}</div>`;
-        body += '</div>';
+        inner += `<table style="font-size:11px; border-collapse:collapse; margin-top:6px;"><tr><th style="${TH}">Level</th><th style="${TH}">Take</th><th style="${TH}">Burden</th><th style="${TH}">Stability</th></tr>${rows}</table>`;
+        if (t.weight) inner += `<div style="${NOTE} margin-top:4px;">${fill(t.weight)}</div>`;
+        body += tipCard(inner, { title: esc(taxName(tax)), side: cur ? `now ${esc(_lvLabel(cur))} (×${_plain(CrownBooks.levelMult(cur))})` : '' }, taxTip(tax));
     }
     if (E.collection) body += `<div style="${NOTE} margin:4px 0;">${fill(E.collection)}</div>`;
-    if (E.levels) body += `<div style="font-size:11px; margin:6px 0 2px;"><b>Tax levels.</b> ${fill(E.levels)}</div>`;
+    if (E.levels) body += `${sectionHead('Tax levels')}<div style="font-size:11px;">${fill(E.levels)}</div>`;
     if (Array.isArray(E.raise) && E.raise.length) {
-        body += `<div style="font-size:11px; margin-top:6px;"><b>Raising a tax:</b></div>`;
+        body += sectionHead('Raising a tax:');
         body += `<div style="font-size:11px;">${bullets(E.raise.map(s => fill(s)))}</div>`;
     }
     if (E.lower) body += `<div style="font-size:11px;"><b>Lowering it:</b> ${fill(E.lower)}</div>`;
     const A = CrownBooks.config().army.levels || {};
     const Ct = CrownBooks.config().court.levels || {};
-    body += `<div style="${CARD}"><b>⚔️ Army pay</b>${b ? ` · <span style="${NOTE}">now ${esc((A[b.armyPay] || {}).label || b.armyPay)}</span>` : ''}<div style="${NOTE}">${fill(E.army || '')}</div>`
-        + bullets(Object.keys(A).map(id => `<b>${esc(A[id].label || id)}</b>: ${esc(armyLevelText(id))}${A[id].blurb ? ` <span style="${NOTE}">${esc(A[id].blurb)}</span>` : ''}`)) + '</div>';
-    body += `<div style="${CARD}"><b>🏛️ The court</b>${b ? ` · <span style="${NOTE}">now ${esc((Ct[b.courtLevel] || {}).label || b.courtLevel)}</span>` : ''}<div style="${NOTE}">${fill(E.court || '')}</div>`
-        + bullets(Object.keys(Ct).map(id => `<b>${esc(Ct[id].label || id)}</b>: ${esc(courtLevelText(id))}${Ct[id].blurb ? ` <span style="${NOTE}">${esc(Ct[id].blurb)}</span>` : ''}`)) + '</div>';
+    body += card(`<div style="${NOTE}">${fill(E.army || '')}</div>`
+        + bullets(Object.keys(A).map(id => `<b>${esc(A[id].label || id)}</b>: ${esc(armyLevelText(id))}${A[id].blurb ? ` <span style="${NOTE}">${esc(A[id].blurb)}</span>` : ''}`)),
+    { icon: '⚔️', title: 'Army pay', side: b ? `now ${esc((A[b.armyPay] || {}).label || b.armyPay)}` : '' });
+    body += card(`<div style="${NOTE}">${fill(E.court || '')}</div>`
+        + bullets(Object.keys(Ct).map(id => `<b>${esc(Ct[id].label || id)}</b>: ${esc(courtLevelText(id))}${Ct[id].blurb ? ` <span style="${NOTE}">${esc(Ct[id].blurb)}</span>` : ''}`)),
+    { icon: '🏛️', title: 'The court', side: b ? `now ${esc((Ct[b.courtLevel] || {}).label || b.courtLevel)}` : '' });
     const terms = E.terms || {};
-    if (Object.keys(terms).length) body += `<div style="font-size:11px; margin-top:6px;"><b>Terms</b></div><div style="font-size:11px;">${bullets(Object.values(terms).map(s => fill(s)))}</div>`;
+    if (Object.keys(terms).length) body += `${sectionHead('Terms')}<div style="font-size:11px;">${bullets(Object.values(terms).map(s => fill(s)))}</div>`;
     const lines = E.lines || {};
     const L = (ids) => ids.filter(l => lines[l]).map(l => `<b>${esc(lineLabel(l))}</b>: ${esc(lineTip(l))}`);
-    body += `<div style="font-size:11px; margin-top:6px;"><b style="color:var(--gold);">Revenue lines</b></div><div style="font-size:11px;">${bullets(L(CrownBooks.REVENUE_LINES))}</div>`;
-    body += `<div style="font-size:11px;"><b style="color:#e08080;">Spending lines</b></div><div style="font-size:11px;">${bullets(L(CrownBooks.EXPENSE_LINES))}</div>`;
-    body += `<div style="font-size:11px;"><b>Below the line</b></div><div style="font-size:11px;">${bullets(L([...CrownBooks.FINANCE_LINES, 'other']))}</div>`;
+    body += `${sectionHead('Revenue lines')}<div style="font-size:11px;">${bullets(L(CrownBooks.REVENUE_LINES))}</div>`;
+    body += `${sectionHead('<span style="color:#e0846a;">Spending lines</span>')}<div style="font-size:11px;">${bullets(L(CrownBooks.EXPENSE_LINES))}</div>`;
+    body += `${sectionHead('Below the line')}<div style="font-size:11px;">${bullets(L([...CrownBooks.FINANCE_LINES, 'other']))}</div>`;
     const html = more('ℹ️ What are these? The taxes, the levels and every line of the books', `<div class="tax-guide">${body}</div>`);
     return open ? html.replace('<details class="pk-more">', '<details class="pk-more" open>') : html;
 }
@@ -211,9 +217,9 @@ export function settlementTaxGuide(rates, currentId, perHead = 0.25) {
     if (G.how) body += `<div style="font-size:11px;"><b>How much:</b> ${fill(G.how, {}, extra)}</div>`;
     const rows = Object.values(rates || {}).map(r => {
         const here = r.id === currentId;
-        return `<li${here ? ' style="color:var(--gold);"' : ''}><b>${esc(r.name)}</b>${here ? ' ◂ now' : ''}: ${esc(settlementLevelText(r))}</li>`;
+        return `<li${here ? ' style="color:#ffcf6a;"' : ''}><b>${esc(r.name)}</b>${here ? ' ◂ now' : ''}: ${esc(settlementLevelText(r))}</li>`;
     }).join('');
-    if (rows) body += `<div style="font-size:11px; margin-top:4px;"><b>The rates:</b></div><ul class="pk-list" style="font-size:11px;">${rows}</ul>`;
-    if (Array.isArray(G.effects) && G.effects.length) body += `<div style="font-size:11px;"><b>What it does:</b></div><div style="font-size:11px;">${bullets(G.effects.map(s => fill(s, {}, extra)))}</div>`;
+    if (rows) body += `${sectionHead('The rates:')}<ul class="pk-list" style="font-size:11px;">${rows}</ul>`;
+    if (Array.isArray(G.effects) && G.effects.length) body += `${sectionHead('What it does:')}<div style="font-size:11px;">${bullets(G.effects.map(s => fill(s, {}, extra)))}</div>`;
     return more('ℹ️ What is this tax? Who pays it, how it is reckoned, what each rate does', body);
 }

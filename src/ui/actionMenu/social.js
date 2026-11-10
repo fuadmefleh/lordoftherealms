@@ -6,10 +6,30 @@ import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { Court } from '../../systems/court.js';
+import { Regency } from '../../systems/regency.js';
 import { ConversationScene } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { openPersonScene, personSprite } from './peopleScene.js';
+import { BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF, BTN_RED, sectionHead, lede, chips, kv, card, actRow, rowList, price, esc } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, PlayerEffects, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, House, Schemes, RealmWars, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, InnerMapRenderer } from './_imports.js';
+
+// The action menu's voice (ui/actionMenu/uiKit.js, styles.css "PANEL REVAMP")
+const MUTED = 'font-size:11px; color:#9d937c;';
+const TITLE = 'text-align:center; font-family:var(--font-display); font-size:18px; font-weight:600; letter-spacing:0.5px; color:#ffe9a8; margin:2px 0 10px;';
+const QUOTE = 'font-size:12px; color:#9d937c; font-style:italic; text-align:center;';
+const FIELD = 'display:block; width:100%; box-sizing:border-box; padding:7px 9px; margin-bottom:8px; background:rgba(0,0,0,0.35); border:1px solid rgba(245,197,66,0.18); border-radius:6px; color:#ece2c8; font-family:var(--font-body); font-size:12.5px;';
+
+/** A relationship's progress as a slim inline bar (spans: it sits inside a row's button). */
+function _xpNote(score) {
+    const progress = ActionMenu._getRelationshipProgress(score);
+    const current = progress.currentLevel || { label: 'Stranger', icon: '👤' };
+    const caption = progress.nextLevel
+        ? `${current.icon} ${current.label} → ${progress.nextLevel.icon} ${progress.nextLevel.label} (+${progress.remaining})`
+        : `${current.icon} ${current.label} (Max)`;
+    return `<span style="display:flex; align-items:center; gap:6px; color:#9d937c; font-size:10px; margin-top:2px;">`
+        + `<span style="flex:0 0 80px; height:4px; border-radius:2px; background:rgba(0,0,0,0.45); overflow:hidden;"><span style="display:block; height:100%; width:${progress.pct}%; background:linear-gradient(90deg, #7f8c8d, #f1c40f);"></span></span>${caption}</span>`;
+}
 
 Object.assign(ActionMenu, {
     // ============================================
@@ -30,8 +50,8 @@ Object.assign(ActionMenu, {
         const personalities = Relationships._getPersonalities();
 
         let html = '<div>';
-        html += `<p class="people-intro">The people of <strong>${tile.settlement.name}</strong>. Pick someone to spend time with them: friendship, romance, or company on the road.</p>`;
-        if (npcs.length === 0) html += '<p style="color: #aaa;">Nobody interesting around right now.</p>';
+        html += lede(`The people of <strong>${tile.settlement.name}</strong>. Pick someone to spend time with them: friendship, romance, or company on the road.`);
+        if (npcs.length === 0) html += `<p style="${MUTED}">Nobody interesting around right now.</p>`;
         html += '<div class="people-cards">';
         for (const npc of npcs) {
             const rel = Relationships.getRelationship(player, npc.id);
@@ -96,31 +116,25 @@ Object.assign(ActionMenu, {
             .filter(entry => entry.npc && entry.npc.isAlive && !Relationships.isInTravelParty(player, entry.npcId))
             .sort((a, b) => ((b.rel.score || 0) + (b.rel.affection || 0) * 0.5) - ((a.rel.score || 0) + (a.rel.affection || 0) * 0.5));
 
-        let html = '<div style="max-height: 520px; overflow-y: auto;">';
-        html += '<h4 style="margin-top: 0;">🧭 Travel Party</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary);">Manage companions who travel with you and invite trusted contacts.</p>';
-
-        html += `<div style="background: rgba(90,140,200,0.12); border: 1px solid rgba(90,140,200,0.35); padding: 8px; border-radius: 6px; margin-bottom: 8px; font-size: 12px; color: #bcd;">`;
-        html += `Active companions: <strong style="color: #def;">${party.length}</strong>`;
-        html += `</div>`;
+        let html = '<div>';
+        html += lede('Manage companions who travel with you and invite trusted contacts.');
+        html += chips([{ icon: '🧭', label: 'Active companions', value: party.length, cls: 'gold' }]);
 
         // Roster: approval, mood, values, gripes, quests, talk/gift/dismiss (ui/companionsPanel.js)
         html += CompanionsPanel.rosterHtml(game);
 
-        html += '<h5 style="margin: 8px 0 6px; color: #9ab;">Invite Known People</h5>';
+        html += sectionHead('Invite Known People');
         if (knownCandidates.length === 0) {
-            html += '<div style="padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03); color: #888; font-size: 11px;">No eligible contacts to invite right now.</div>';
+            html += `<div style="${MUTED} margin:0 2px 8px;">No eligible contacts to invite right now.</div>`;
         } else {
-            for (const entry of knownCandidates.slice(0, 12)) {
+            html += rowList(knownCandidates.slice(0, 12).map(entry => {
                 const relation = Relationships.getRelationLabel(entry.rel.score || 0);
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; font-size: 12px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-bottom: 4px;">`;
-                html += `<span>${relation.icon} <strong>${entry.npc.firstName}</strong> (${entry.rel.score || 0})</span>`;
-                html += `<div style="display: flex; gap: 6px;">`;
-                html += `<button onclick="window._partyInvite('${entry.npcId}')" style="padding: 3px 8px; background: #357; border: none; border-radius: 3px; color: #def; cursor: pointer; font-size: 10px;">Invite</button>`;
-                html += `<button onclick="window._partyOpenProfile('${entry.npcId}')" style="padding: 3px 8px; background: #444; border: none; border-radius: 3px; color: #ddd; cursor: pointer; font-size: 10px;">Profile</button>`;
-                html += `</div>`;
-                html += `</div>`;
-            }
+                return actRow({
+                    icon: relation.icon, name: entry.npc.firstName, desc: `${relation.label} · ${entry.rel.score || 0}`,
+                    side: `<button onclick="window._partyInvite('${entry.npcId}')" style="${BTN_GOLD}">Invite</button>`
+                        + `<button onclick="window._partyOpenProfile('${entry.npcId}')" style="${BTN_DARK}">Profile</button>`,
+                });
+            }));
         }
 
         html += '</div>';
@@ -307,41 +321,24 @@ Object.assign(ActionMenu, {
         }
 
         // ── Build the results panel ──
-        let html = '<div style="max-height: 450px; overflow-y: auto;">';
-        html += `<h4 style="margin-top: 0;">📖 Stories with ${npc.firstName}</h4>`;
-        html += `<p style="font-size: 12px; color: var(--text-secondary);">You sit with ${npc.firstName} (${npc.occupation}) and exchange tales. +${relGain} relationship.</p>`;
+        let html = '<div>';
+        html += lede(`You sit with ${npc.firstName} (${npc.occupation}) and exchange tales.`);
+        html += chips([{ icon: '🤝', label: 'Relationship', value: `+${relGain}`, cls: 'gold' }]);
 
-        const typeColors = {
-            kingdom: 'rgba(245,197,66,0.1)',
-            lore: 'rgba(139,69,19,0.15)',
-            tip: 'rgba(76,175,80,0.1)',
-            known: 'rgba(255,255,255,0.03)',
-            fallback: 'rgba(255,255,255,0.03)',
+        const titleColors = {
+            kingdom: '#ffcf6a',
+            lore: '#d7a36a',
+            tip: '#8fd18a',
         };
-        const borderColors = {
-            kingdom: 'var(--gold)',
-            lore: '#8b4513',
-            tip: '#4caf50',
-            known: '#555',
-            fallback: '#555',
-        };
-
         for (const outcome of outcomes) {
-            html += `
-                <div style="padding: 10px; margin-bottom: 8px; background: ${typeColors[outcome.type] || 'rgba(255,255,255,0.03)'};
-                    border-left: 3px solid ${borderColors[outcome.type] || '#555'}; border-radius: 0 4px 4px 0;">
-                    <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: ${borderColors[outcome.type] || '#ccc'};">
-                        ${outcome.icon} ${outcome.title}
-                    </div>
-                    <div style="font-size: 12px; color: #ccc; line-height: 1.5;">${outcome.text}</div>
-                </div>
-            `;
+            const color = titleColors[outcome.type];
+            html += card(`<div style="color:#ddd3bb; line-height:1.5;">${outcome.text}</div>`, {
+                icon: outcome.icon,
+                title: color ? `<span style="color:${color};">${outcome.title}</span>` : outcome.title,
+            });
         }
 
-        html += `<button data-am-act="openTileMenu" data-am-args='["showMeetPeopleMenu", ${tile.q}, ${tile.r}]' 
-                    style="width: 100%; margin-top: 8px; padding: 10px; background: rgba(255,255,255,0.08); 
-                    border: 1px solid var(--border-color); border-radius: 4px; cursor: pointer; color: var(--text-secondary); 
-                    font-family: var(--font-body);">Back to People</button>`;
+        html += rowList([{ icon: '←', name: 'Back to People', act: 'openTileMenu', args: ['showMeetPeopleMenu', tile.q, tile.r] }]);
         html += '</div>';
 
         game.ui.showCustomPanel('Stories', html);
@@ -352,17 +349,17 @@ Object.assign(ActionMenu, {
      * Show marriage celebration panel
      */
     _showMarriageCelebration(game, spouse) {
-        let html = '<div style="text-align: center;">';
-        html += '<h3 style="color: var(--gold); margin-top: 0;">💍 Just Married! 💍</h3>';
-        html += `<p style="font-size: 16px;">You and <strong>${spouse.firstName} ${spouse.dynasty}</strong> are now wed!</p>`;
-        html += '<p style="font-size: 40px;">👫💒🎉</p>';
-        html += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
-        html += '<div>+1 max stamina (companionship)</div>';
-        html += '<div>+3 renown</div>';
-        if (spouse.kingdomId) html += '<div>+5 reputation with spouse\'s kingdom</div>';
-        html += '<div style="margin-top: 6px; color: #ff69b4;">You may now have children as time passes!</div>';
-        html += '</div>';
-        html += `<button data-am-act="closePanel" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your New Life Together</button>`;
+        let html = '<div>';
+        html += `<div style="${TITLE}">💍 Just Married! 💍</div>`;
+        html += '<div style="text-align:center; font-size:40px; line-height:1.2; margin:0 0 8px;">👫💒🎉</div>';
+        html += lede(`You and <strong>${spouse.firstName} ${spouse.dynasty}</strong> are now wed!`);
+        html += rowList([
+            { icon: '💪', name: '+1 max stamina', desc: 'companionship', tone: 'good' },
+            { icon: '⭐', name: '+3 renown' },
+            spouse.kingdomId ? { icon: '🏳️', name: '+5 reputation with spouse\'s kingdom' } : null,
+            { icon: '👶', name: '<span style="color:#ff9ad5;">You may now have children as time passes!</span>' },
+        ]);
+        html += `<button data-am-act="closePanel" style="${BTN_GOLD} display:block; width:100%; padding:10px; font-size:14px;">Begin Your New Life Together</button>`;
         html += '</div>';
 
         game.ui.showCustomPanel('Wedding', html);
@@ -377,67 +374,6 @@ Object.assign(ActionMenu, {
         const player = game.player;
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">💕 Your Relationships</h4>';
-
-        // Unfinished business: matters people have brought to you (systems/relationships/matters.js)
-        const matters = Relationships.openMatters(player);
-        if (matters.length) {
-            html += '<div style="background: rgba(255,204,128,0.08); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,204,128,0.3);">';
-            html += '<div style="font-weight: bold; color: #ffcc80; margin-bottom: 4px;">💌 Unfinished Business</div>';
-            for (const m of matters) {
-                const left = Math.max(0, m.matter.expires - (game.world.day || 0));
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; font-size: 12px; padding: 3px 0;">`
-                    + `<span>${m.icon} <strong>${m.npc.firstName} ${m.npc.dynasty}</strong> · ${m.title} <span style="color:#998">in ${m.npc.settlementName || 'town'}, ${left} day${left === 1 ? '' : 's'} left</span></span>`
-                    + `<button onclick="window._openMatter('${m.npc.id}')" style="padding: 3px 8px; background: #5a4a2a; border: none; border-radius: 3px; color: #fde; cursor: pointer; font-size: 10px;">Talk</button></div>`;
-            }
-            html += '</div>';
-        }
-        window._openMatter = (npcId) => {
-            const npc = Relationships.getNPC(npcId);
-            const here = game.world.getTile(player.q, player.r);
-            const near = here && here.settlement && here.settlement.name === npc.settlementName;
-            if (!near && !Relationships.isInTravelParty(player, npcId) && player.spouse !== npcId) {
-                game.ui.showNotification('Not Here', `${npc.firstName} is in ${npc.settlementName}. Settle it face to face.`, 'warning');
-                return;
-            }
-            ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'relationships' });
-        };
-
-        // Spouse section
-        if (player.spouse) {
-            const spouse = Relationships.getNPC(player.spouse);
-            if (spouse) {
-                const rel = Relationships.getRelationship(player, player.spouse);
-                html += '<div style="background: rgba(255,105,180,0.15); padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,105,180,0.3);">';
-                html += `<div style="font-weight: bold; color: #ff69b4;">💍 Spouse: ${spouse.firstName} ${spouse.dynasty}</div>`;
-                html += `<div style="font-size: 11px; color: #aaa;">Age ${spouse.age} · ${spouse.occupation} · Affection: ${rel.affection}/100 · Relation: ${rel.score || 0}</div>`;
-                html += '<div style="margin-top: 4px;">';
-                html += ActionMenu._renderAffectionBar(rel.affection);
-                html += '</div>';
-                html += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
-                html += `<button onclick="window._divorceConfirm()" style="padding: 3px 8px; background: #633; border: none; border-radius: 3px; cursor: pointer; color: #c88; font-size: 10px; margin-top: 4px;">💔 Divorce</button>`;
-                html += '</div>';
-            }
-        }
-
-        // Children section
-        if (player.children && player.children.length > 0) {
-            html += '<div style="margin-bottom: 8px;">';
-            html += '<h5 style="margin: 4px 0; color: var(--gold);">👶 Children</h5>';
-            for (const child of player.children) {
-                if (!child.isAlive) continue;
-                const genderIcon = child.gender === 'male' ? '♂️' : '♀️';
-                const isHeir = player.heir === child.id;
-                const traitStr = child.traits?.length > 0
-                    ? child.traits.map(t => `${t.icon}`).join(' ')
-                    : '';
-                html += `<div style="background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px; margin-bottom: 4px; font-size: 12px; ${isHeir ? 'border-left: 3px solid var(--gold);' : ''}">`;
-                html += `<strong>${child.firstName} ${child.dynasty}</strong> ${genderIcon} · Age ${child.age} ${traitStr}`;
-                if (isHeir) html += ` <span style="color: var(--gold);">👑 Heir</span>`;
-                html += `</div>`;
-            }
-            html += '</div>';
-        }
 
         // Friends & Acquaintances
         const allRels = Object.entries(player.relationships || {});
@@ -449,82 +385,144 @@ Object.assign(ActionMenu, {
             .filter(entry => entry.npc && entry.npc.isAlive)
             .sort((a, b) => (b.rel.score || 0) - (a.rel.score || 0));
         const travelParty = Relationships.getTravelPartyMembers(player);
+        const liveChildren = (player.children || []).filter(c => c.isAlive);
 
-        if (travelParty.length > 0) {
-            html += '<h5 style="margin: 8px 0 4px; color: #6cf;">🧭 Travel Party</h5>';
-            for (const member of travelParty) {
-                const rel = Relationships.getRelationship(player, member.id);
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; font-size: 12px; background: rgba(90,140,200,0.10); border-radius: 4px; margin-bottom: 3px;">`;
-                const role = PlayerEffects.companionRole(member);
-                html += `<span>🧭 <strong>${member.firstName}</strong> (${rel.score || 0}) <span style="color:#9bc;font-size:11px">· ${member.occupation || 'traveller'}: ${role.text}</span></span>`;
-                html += `<button onclick="window._openKnownCharacter('${member.id}')" style="padding: 3px 8px; background: #355; border: none; border-radius: 3px; cursor: pointer; color: #cde; font-size: 10px;">Profile</button>`;
-                html += `</div>`;
+        html += chips([
+            player.spouse ? ['💍', 'Married', ''] : null,
+            liveChildren.length ? ['👶', 'Children', liveChildren.length] : null,
+            travelParty.length ? ['🧭', 'Travelling', travelParty.length] : null,
+            ['😊', 'Friends', friends.length],
+            rivals.length ? ['⚡', 'Rivals', rivals.length] : null,
+            ['📇', 'Known', knownPeople.length],
+        ]);
+
+        // Unfinished business: matters people have brought to you (systems/relationships/matters.js)
+        const matters = Relationships.openMatters(player);
+        if (matters.length) {
+            html += rowList(matters.map(m => {
+                const left = Math.max(0, m.matter.expires - (game.world.day || 0));
+                return {
+                    icon: m.icon, name: `${m.npc.firstName} ${m.npc.dynasty} · ${m.title}`,
+                    desc: `in ${m.npc.settlementName || 'town'} · Talk`,
+                    attrs: `onclick="window._openMatter('${m.npc.id}')"`,
+                    side: `${left} day${left === 1 ? '' : 's'} left`, tone: left <= 2 ? 'bad' : 'warn',
+                };
+            }), '💌 Unfinished Business');
+        }
+        window._openMatter = (npcId) => {
+            const npc = Relationships.getNPC(npcId);
+            const here = game.world.getTile(player.q, player.r);
+            const near = here && here.settlement && here.settlement.name === npc.settlementName;
+            if (!near && !Relationships.isInTravelParty(player, npcId) && player.spouse !== npcId && !Court.isMember(player, npcId)) {
+                game.ui.showNotification('Not Here', `${npc.firstName} is in ${npc.settlementName}. Settle it face to face.`, 'warning');
+                return;
+            }
+            ActionMenu.showCharacterDataModal(game, tile, npcId, { returnTo: 'relationships' });
+        };
+
+        // Spouse section
+        if (player.spouse) {
+            const spouse = Relationships.getNPC(player.spouse);
+            if (spouse) {
+                const rel = Relationships.getRelationship(player, player.spouse);
+                let body = `<div style="${MUTED}">Age ${spouse.age} · ${spouse.occupation} · Affection: ${rel.affection}/100 · Relation: ${rel.score || 0}</div>`;
+                body += '<div style="margin-top:6px;">' + ActionMenu._renderAffectionBar(rel.affection) + '</div>';
+                body += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
+                body += `<div style="margin-top:6px;"><button onclick="window._divorceConfirm()" style="${BTN_RED}">💔 Divorce</button></div>`;
+                html += card(body, { icon: '💍', title: `<span style="color:#ff9ad5;">Spouse: ${spouse.firstName} ${spouse.dynasty}</span>`, side: `♥ ${rel.affection}` });
             }
         }
 
+        // Children section
+        if (liveChildren.length > 0) {
+            html += rowList(liveChildren.map(child => {
+                const genderIcon = child.gender === 'male' ? '♂️' : '♀️';
+                const isHeir = player.heir === child.id;
+                const traitStr = child.traits?.length > 0 ? child.traits.map(t => `${t.icon}`).join(' ') : '';
+                return {
+                    icon: genderIcon, name: `${child.firstName} ${child.dynasty}`,
+                    desc: `Age ${child.age}${traitStr ? ` · ${traitStr}` : ''}`,
+                    side: isHeir ? '👑 Heir' : '', tone: isHeir ? 'gold' : '',
+                };
+            }), '👶 Children');
+        }
+
+        // One person you know: the whole row opens their profile
+        const personRow = (npc, rel, icon, desc, side, tone) => ({
+            icon, name: npc.firstName, desc, side, tone,
+            note: _xpNote(rel.score || 0),
+            attrs: `onclick="window._openKnownCharacter('${npc.id}')"`,
+            title: `${npc.firstName}'s profile`,
+        });
+
+        if (travelParty.length > 0) {
+            html += rowList(travelParty.map(member => {
+                const rel = Relationships.getRelationship(player, member.id);
+                const role = PlayerEffects.companionRole(member);
+                return { ...personRow(member, rel, '🧭', `${member.occupation || 'traveller'}: ${role.text}`, `${rel.score || 0} · Profile ›`), note: '' };
+            }), '🧭 Travel Party');
+        }
+
         if (romanticInterests.length > 0) {
-            html += '<h5 style="margin: 8px 0 4px; color: #ff69b4;">💕 Romantic Interests</h5>';
+            const rows = [];
             for (const [npcId, rel] of romanticInterests) {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive) continue;
                 const stage = Relationships.getCourtingStage(rel.affection, false);
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,105,180,0.1); padding: 6px 8px; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">`;
-                html += `<span>${stage.icon} <strong>${npc.firstName}</strong> · ${stage.label} · Affection: ${rel.affection} · Score: ${rel.score || 0}</span>`;
-                html += `<button onclick="window._openKnownCharacter('${npc.id}')" style="padding: 3px 8px; background: #544; border: none; border-radius: 3px; cursor: pointer; color: #fcc; font-size: 10px;">Profile</button>`;
-                html += `</div>`;
-                html += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
+                rows.push(personRow(npc, rel, stage.icon, `<span style="color:#f48fb1;">${stage.label}</span> · Affection: ${rel.affection} · Score: ${rel.score || 0}`, 'Profile ›'));
             }
+            html += rowList(rows, '💕 Romantic Interests');
         }
 
         if (friends.length > 0) {
-            html += '<h5 style="margin: 8px 0 4px; color: #4a4;">😊 Friends</h5>';
+            const rows = [];
             for (const [npcId, rel] of friends) {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive || npcId === player.spouse) continue;
                 const label = Relationships.getRelationLabel(rel.score);
-                html += `<div style="padding: 4px 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">`;
-                html += `<span>${label.icon} <strong>${npc.firstName}</strong> (${rel.score})</span>`;
-                html += `<button onclick="window._openKnownCharacter('${npc.id}')" style="padding: 3px 8px; background: #353; border: none; border-radius: 3px; cursor: pointer; color: #cec; font-size: 10px;">Profile</button>`;
-                html += `</div>`;
-                html += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
+                rows.push(personRow(npc, rel, label.icon, label.label, `${rel.score} · Profile ›`, 'good'));
             }
+            html += rowList(rows, '😊 Friends');
         }
 
         if (rivals.length > 0) {
-            html += '<h5 style="margin: 8px 0 4px; color: #a44;">⚡ Rivals</h5>';
+            const rows = [];
             for (const [npcId, rel] of rivals) {
                 const npc = Relationships.getNPC(npcId);
                 if (!npc || !npc.isAlive) continue;
                 const label = Relationships.getRelationLabel(rel.score);
-                html += `<div style="padding: 4px 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">`;
-                html += `<span>${label.icon} <strong>${npc.firstName}</strong> (${rel.score})</span>`;
-                html += `<button onclick="window._openKnownCharacter('${npc.id}')" style="padding: 3px 8px; background: #533; border: none; border-radius: 3px; cursor: pointer; color: #ecc; font-size: 10px;">Profile</button>`;
-                html += `</div>`;
-                html += ActionMenu._renderRelationshipXPBar(rel.score || 0, true);
+                rows.push(personRow(npc, rel, label.icon, label.label, `${rel.score} · Profile ›`, 'bad'));
             }
+            html += rowList(rows, '⚡ Rivals');
+        }
+
+        // The House's court (systems/court.js): invite those you know to live at court
+        if (player.house && knownPeople.length > 0) {
+            const courtN = Court.members(player).length;
+            html += rowList([{
+                icon: '🏰', name: 'Invite to Your Court',
+                desc: `Retainers and courtiers for the House: offices, a regent, counsel · ${courtN} of ${Court.capacity(player)} seats filled`,
+                act: 'showHouseCourt', args: ['invite'], side: '›', tone: 'gold',
+            }]);
         }
 
         if (knownPeople.length > 0) {
-            html += '<h5 style="margin: 8px 0 4px; color: #9ab;">📇 People You Know</h5>';
-            for (const entry of knownPeople.slice(0, 16)) {
+            html += rowList(knownPeople.slice(0, 16).map(entry => {
                 const relation = Relationships.getRelationLabel(entry.rel.score || 0);
-                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; font-size: 12px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-bottom: 3px;">`;
-                html += `<span>${relation.icon} <strong>${entry.npc.firstName}</strong> (${entry.rel.score || 0})</span>`;
-                html += `<button onclick="window._openKnownCharacter('${entry.npcId}')" style="padding: 3px 8px; background: #444; border: none; border-radius: 3px; cursor: pointer; color: #ddd; font-size: 10px;">Character Profile</button>`;
-                html += `</div>`;
-            }
+                return { ...personRow(entry.npc, entry.rel, relation.icon, relation.label, `${entry.rel.score || 0} · Character Profile ›`), note: '' };
+            }), '📇 People You Know');
         }
 
         if (friends.length === 0 && rivals.length === 0 && romanticInterests.length === 0 && !player.spouse && knownPeople.length === 0 && travelParty.length === 0) {
-            html += '<p style="color: #aaa; font-size: 12px;">You haven\'t formed any meaningful relationships yet. Visit settlements and meet people!</p>';
+            html += lede('You haven\'t formed any meaningful relationships yet. Visit settlements and meet people!');
         }
 
         // Dynasty info
         if (player.dynasty) {
-            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 8px;">';
-            html += `<div style="font-size: 11px; color: #888;">Dynasty: <strong style="color: var(--gold);">${player.dynasty.name}</strong> · Prestige: ${House.getPrestige(player)}</div>`;
-            html += `<div style="font-size: 11px; color: #888;">Age: ${player.age} · Max lifespan: ~${player.maxLifespan}</div>`;
-            html += '</div>';
+            html += sectionHead('Your Line');
+            html += kv('Dynasty', `<span style="color:#ffcf6a;">${player.dynasty.name}</span>`);
+            html += kv('Prestige', House.getPrestige(player));
+            html += kv('Age', `${player.age} · Max lifespan: ~${player.maxLifespan}`);
         }
 
         html += '</div>';
@@ -533,10 +531,11 @@ Object.assign(ActionMenu, {
         window._divorceConfirm = () => {
             game.ui.hideCustomPanel();
             let confirmHtml = '<div>';
-            confirmHtml += '<h4 style="margin-top: 0; color: #f66;">💔 Divorce</h4>';
-            confirmHtml += '<p style="font-size: 12px;">Are you sure you want to end your marriage? This will cost you karma and renown.</p>';
-            confirmHtml += `<button onclick="window._doDivorce()" style="width: 100%; padding: 10px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-bottom: 6px;">Yes, Divorce</button>`;
-            confirmHtml += `<button data-am-act="openTileMenu" data-am-args='["showRelationshipsMenu"]' style="width: 100%; padding: 8px; background: #555; border: none; border-radius: 4px; cursor: pointer; color: #ccc;">Cancel</button>`;
+            confirmHtml += lede('<span style="color:#e0846a;">💔 Divorce.</span> Are you sure you want to end your marriage? This will cost you karma and renown.');
+            confirmHtml += rowList([
+                { icon: '💔', name: 'Yes, Divorce', desc: 'Costs karma and renown', attrs: 'onclick="window._doDivorce()"', tone: 'bad', side: '−5 karma, −2 renown' },
+                { icon: '←', name: 'Cancel', act: 'openTileMenu', args: ['showRelationshipsMenu'] },
+            ]);
             confirmHtml += '</div>';
             game.ui.showCustomPanel('Confirm Divorce', confirmHtml);
         };
@@ -630,120 +629,102 @@ Object.assign(ActionMenu, {
         const settings = Relationships._getHeirSettings();
 
         let html = '<div>';
-        html += '<h4 style="margin-top: 0;">👑 Dynasty & Heirs</h4>';
+        const at = tile ? [tile.q, tile.r] : [];
 
         // Dynasty info
         const house = player.house || null;
-        html += '<div style="background: rgba(255,215,0,0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255,215,0,0.2);">';
-        html += `<div style="font-weight: bold; color: var(--gold);">${house ? house.name : 'House ' + (player.dynasty?.name || player.name)}</div>`;
-        if (house) {
-            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${house.foundedDay} · ⭐ Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</div>`;
-        } else {
-            html += `<div style="font-size: 11px; color: #aaa;">Founded day ${player.dynasty?.founded || 1} · Prestige: ${House.getPrestige(player)}</div>`;
-        }
-        html += `<div style="font-size: 11px; color: #aaa;">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
+        let who = `<div style="${MUTED}">${house
+            ? `Founded day ${house.foundedDay} · ⭐ Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}`
+            : `Founded day ${player.dynasty?.founded || 1} · Prestige: ${House.getPrestige(player)}`}</div>`;
+        who += `<div style="${MUTED}">You: ${player.name}, age ${player.age} (max ~${player.maxLifespan})</div>`;
         if (player.spouse) {
             const spouse = Relationships.getNPC(player.spouse);
-            if (spouse) {
-                html += `<div style="font-size: 11px; color: #ff69b4;">Spouse: ${spouse.firstName} ${spouse.dynasty}, age ${spouse.age}</div>`;
-            }
+            if (spouse) who += `<div style="font-size:11px; color:#ff9ad5;">Spouse: ${spouse.firstName} ${spouse.dynasty}, age ${spouse.age}</div>`;
         }
-        html += '</div>';
+        html += card(who, {
+            icon: (house && house.sigil && house.sigil.icon) || '👑',
+            title: house ? house.name : 'House ' + (player.dynasty?.name || player.name),
+            side: `⭐ ${house ? (house.prestige || 0) : House.getPrestige(player)}`, tone: 'gold',
+        });
 
+        // The House's business: one row a page
+        const nav = [];
         // A child's reign: the regent, and the choice at majority (systems/regency.js)
         if (player.regency && (player.regency.active || player.regency.ending)) {
             const rg = player.regency;
-            const label = rg.ending ? '👑 Coming of Age — decide the regent\'s fate' : `👑 Regency — ${rg.regent.name} (loyalty ${rg.regent.loyalty})`;
-            html += `<button data-am-act="showRegencyPanel" style="width:100%; padding:8px; margin-bottom:10px; background:${rg.ending ? 'var(--gold)' : '#4a3a1f'}; border:1px solid rgba(245,197,66,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:${rg.ending ? '#000' : 'var(--gold)'};">${label}</button>`;
+            nav.push(rg.ending
+                ? { icon: '👑', name: 'Coming of Age', desc: 'Decide the regent\'s fate', act: 'showRegencyPanel', side: 'decide', tone: 'warn' }
+                : { icon: '👑', name: `Regency — ${rg.regent.name}`, desc: `Loyalty ${rg.regent.loyalty}`, act: 'showRegencyPanel' });
         }
-
-        if (house) {
-            html += `<button data-am-act="openTileMenu" data-am-args='["showHousePanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background: var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">🛡️ Manage ${house.name}</button>`;
-        }
-        html += `<button data-am-act="openTileMenu" data-am-args='["showClaimsPanel"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-bottom:10px; background:#7a1f1f; border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#ffd700;">👑 Claims & Crowns</button>`;
+        if (house) nav.push({ icon: '🛡️', name: `Manage ${house.name}`, desc: 'Ambition, offices, demands, plots, Prestige', act: 'openTileMenu', args: ['showHousePanel', ...at], tone: 'gold', side: '›' });
+        nav.push({ icon: '👑', name: 'Claims & Crowns', act: 'openTileMenu', args: ['showClaimsPanel', ...at] });
         {
             const unread = (player.letters && player.letters.unread) || 0;
             const open = (player.letters && player.letters.inbox && player.letters.inbox.length) || 0;
-            html += `<button data-am-act="showLetters" style="width:100%; padding:8px; margin-bottom:10px; background:#2f3a4a; border:1px solid rgba(160,190,255,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe0ff;">✉️ Letters${open ? ` (${open} open${unread ? `, ${unread} new` : ''})` : ''}</button>`;
+            nav.push({ icon: '✉️', name: 'Letters', desc: open ? `${open} open${unread ? `, ${unread} new` : ''}` : '', act: 'showLetters', side: unread ? `${unread} new` : '', tone: unread ? 'gold' : '' });
         }
         {
             // Directed opposition: the realms' regard, a league against you, rival agents (systems/coalitions.js)
             const league = player.coalitions && player.coalitions.active;
-            html += `<button data-am-act="showThreatsPanel" style="width:100%; padding:8px; margin-bottom:10px; background:${league ? '#5a1f1f' : '#2f2a3a'}; border:1px solid rgba(224,128,128,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0c0c0;">⚜️ Threats${league ? ` — ${league.name}` : ''}</button>`;
+            nav.push({ icon: '⚜️', name: 'Threats', desc: league ? league.name : '', act: 'showThreatsPanel', side: league ? 'league' : '', tone: league ? 'bad' : '' });
         }
         {
             // A commission in a realm's army (ui/actionMenu/generalship.js)
             const cm = player.commission;
-            html += `<button data-am-act="showArmyCommand" style="width:100%; padding:8px; margin-bottom:10px; background:#3a3324; border:1px solid rgba(201,165,74,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0d890;">🎖️ Army Command${cm ? ` — ${cm.kingdomName}` : ''}</button>`;
+            nav.push({ icon: '🎖️', name: 'Army Command', desc: cm ? cm.kingdomName : '', act: 'showArmyCommand' });
             // The household guard a realm keeps for you (ui/actionMenu/realmEscort.js)
             const hg = player.realmEscort && player.realmEscort.guard;
-            html += `<button data-am-act="showHouseholdGuard" style="width:100%; padding:8px; margin-bottom:10px; background:#24303a; border:1px solid rgba(143,184,234,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe0ff;">🛡️ Household Guard${hg ? ` — ${hg.kingdomName}` : ''}</button>`;
+            nav.push({ icon: '🛡️', name: 'Household Guard', desc: hg ? hg.kingdomName : '', act: 'showHouseholdGuard' });
         }
-        html += `<button data-am-act="showHouseChronicle" style="width:100%; padding:8px; margin-bottom:10px; background:#3d3424; border:1px solid rgba(255,215,0,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:var(--gold);">📜 House Chronicle</button>`;
+        nav.push({ icon: '📜', name: 'House Chronicle', act: 'showHouseChronicle' });
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
-        html += `<button data-am-act="showAnnals" style="width:100%; padding:8px; margin-bottom:10px; background:#2e2a22; border:1px solid rgba(201,178,122,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#e8dcc0; font-family: Georgia, serif;">📖 The Annals</button>`;
+        nav.push({ icon: '📖', name: 'The Annals', act: 'showAnnals' });
         // The game's victory goal and its progress (ui/actionMenu/scenario.js)
-        html += `<button data-am-act="showAmbitionPanel" style="width:100%; padding:8px; margin-bottom:10px; background:#2e3a24; border:1px solid rgba(160,220,120,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe8b0;">🏆 Ambition of this Life</button>`;
+        nav.push({ icon: '🏆', name: 'Ambition of this Life', act: 'showAmbitionPanel' });
+        html += rowList(nav, 'The House');
 
         // Children
         if (!player.children || player.children.length === 0) {
-            html += '<p style="color: #aaa; font-size: 12px;">You have no children yet. Get married and time will tell!</p>';
+            html += lede('You have no children yet. Get married and time will tell!');
         } else {
-            html += '<h5 style="margin: 4px 0;">Children</h5>';
+            html += sectionHead('Children');
 
             for (const child of player.children) {
                 if (!child.isAlive) continue;
                 const isHeir = player.heir === child.id;
-                const eligible = child.age >= settings.minAgeToPlay;
                 const genderIcon = child.gender === 'male' ? '♂️' : '♀️';
                 const traitStr = child.traits?.length > 0
                     ? child.traits.map(t => `<span title="${t.name}">${t.icon}</span>`).join(' ')
-                    : '<span style="color:#888;">No traits</span>';
+                    : '<span style="color:#9d937c;">No traits</span>';
 
-                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isHeir ? 'border: 1px solid var(--gold);' : ''}">`;
-                html += `<div style="display: flex; justify-content: space-between; align-items: start;">`;
-                html += `<div>`;
-                html += `<strong>${child.firstName} ${child.dynasty}</strong> ${genderIcon}`;
-                if (isHeir) html += ` <span style="color: var(--gold);">👑 Designated Heir</span>`;
-                html += `<div style="font-size: 11px; color: #aaa;">Age ${child.age} · ${child.culture}</div>`;
-                html += `<div style="font-size: 11px; margin-top: 2px;">Born: ${traitStr}</div>`;
-                html += `<div style="font-size: 11px; margin-top: 2px; color: #c9b27a;">${Upbringing.summary(player, child)}</div>`;
+                let body = `<div style="${MUTED}">Age ${child.age} · ${child.culture}</div>`;
+                body += `<div style="font-size: 11px; margin-top: 2px;">Born: ${traitStr}</div>`;
+                body += `<div style="font-size: 11px; margin-top: 2px; color: #c9b27a;">${Upbringing.summary(player, child)}</div>`;
                 const where = HeirAgency.status(player, game.world, child);
-                if (where) html += `<div style="font-size: 11px; margin-top: 2px; color: #9cc8ff;">${where}</div>`;
-                if (child.upbringing && child.upbringing.pending) html += `<div style="font-size: 11px; color: #f5c542;">⚠️ A matter awaits your decision</div>`;
-                html += `</div>`;
-                html += `</div>`;
+                if (where) body += `<div style="font-size: 11px; margin-top: 2px; color: #9cc8ff;">${where}</div>`;
+                if (child.upbringing && child.upbringing.pending) body += `<div style="font-size: 11px; color: #f0b35a;">⚠️ A matter awaits your decision</div>`;
 
-                // Stats
-                html += `<div style="display: flex; gap: 8px; font-size: 11px; margin-top: 6px; flex-wrap: wrap; color: #bbb;">`;
-                html += `<span>💪 ${child.strength || 5}</span>`;
-                html += `<span>✨ ${child.charisma || 5}</span>`;
-                html += `<span>🧠 ${child.intelligence || 5}</span>`;
-                html += `<span>🙏 ${child.faith || 5}</span>`;
-                html += `<span>🍀 ${child.luck || 5}</span>`;
-                html += `</div>`;
-
-                // Skills
+                // Stats and skills
                 const skillLabels = { combat: '⚔️', commerce: '💰', leadership: '👑', diplomacy: '🤝', stealth: '🕵️', cartography: '🗺️' };
                 const childSkills = child.skills || {};
-                const hasSkills = Object.values(childSkills).some(v => v > 0);
-                if (hasSkills) {
-                    html += `<div style="display: flex; gap: 6px; font-size: 10px; margin-top: 3px; color: #999;">`;
-                    for (const [sk, val] of Object.entries(childSkills)) {
-                        if (val > 0) html += `<span>${skillLabels[sk] || sk} ${val}</span>`;
-                    }
-                    html += `</div>`;
+                body += '<div class="pk-chips" style="margin:6px 0 4px;">';
+                body += `<span class="pk-chip">💪 <b>${child.strength || 5}</b></span>`;
+                body += `<span class="pk-chip">✨ <b>${child.charisma || 5}</b></span>`;
+                body += `<span class="pk-chip">🧠 <b>${child.intelligence || 5}</b></span>`;
+                body += `<span class="pk-chip">🙏 <b>${child.faith || 5}</b></span>`;
+                body += `<span class="pk-chip">🍀 <b>${child.luck || 5}</b></span>`;
+                for (const [sk, val] of Object.entries(childSkills)) {
+                    if (val > 0) body += `<span class="pk-chip dim">${skillLabels[sk] || sk} <b>${val}</b></span>`;
                 }
+                body += '</div>';
 
                 // Actions
-                html += `<div style="margin-top: 6px; display: flex; gap: 4px;">`;
-                html += `<button data-am-act="showChildPanel" data-am-args='["${child.id}"]' style="padding: 4px 10px; background: #355; border: none; border-radius: 3px; cursor: pointer; color: #dff; font-size: 11px;">📖 ${child.upbringing && child.upbringing.comeOfAge ? 'Profile & Place' : 'Upbringing'}</button>`;
-                if (!isHeir) {
-                    html += `<button onclick="window._designateHeir('${child.id}')" style="padding: 4px 10px; background: #664; border: none; border-radius: 3px; cursor: pointer; color: var(--gold); font-size: 11px;">👑 Designate Heir</button>`;
-                }
-                html += `</div>`;
+                body += `<div><button data-am-act="showChildPanel" data-am-args='["${child.id}"]' style="${BTN_GOLD}">📖 ${child.upbringing && child.upbringing.comeOfAge ? 'Profile & Place' : 'Upbringing'}</button>`;
+                if (!isHeir) body += `<button onclick="window._designateHeir('${child.id}')" style="${BTN_DARK}">👑 Designate Heir</button>`;
+                body += '</div>';
 
-                html += `</div>`;
+                const block = card(body, { icon: genderIcon, title: `${child.firstName} ${child.dynasty}`, side: isHeir ? '👑 Designated Heir' : '', tone: isHeir ? 'gold' : '' });
+                html += isHeir ? block.replace('<div class="pk-card', '<div style="border-color: rgba(245,197,66,0.45);" class="pk-card') : block;
             }
         }
 
@@ -752,15 +733,12 @@ Object.assign(ActionMenu, {
             const heirChild = (player.children || []).find(c => c.id === player.heir);
             if (heirChild && heirChild.isAlive) {
                 const eligible = heirChild.age >= settings.minAgeToPlay;
-                html += `<div style="background: rgba(255,215,0,0.1); padding: 8px; border-radius: 4px; margin-top: 8px; font-size: 12px;">`;
-                html += `<div>Current heir: <strong style="color: var(--gold);">${heirChild.firstName}</strong> (age ${heirChild.age})</div>`;
-                if (eligible) {
-                    html += `<div style="color: #4a4;">✓ Eligible to succeed you</div>`;
-                } else {
-                    html += `<div style="color: #c80;">⏳ Must be ${settings.minAgeToPlay} to take over (currently ${heirChild.age})</div>`;
-                }
-                html += `<div style="color: #aaa; font-size: 11px; margin-top: 4px;">Inheritance: ${Math.round(settings.inheritanceGoldPercent * 100)}% gold, ${Math.round(settings.inheritanceRenownPercent * 100)}% renown</div>`;
-                html += `</div>`;
+                html += sectionHead('Succession');
+                html += kv('Current heir', `<span style="color:#ffcf6a;">${heirChild.firstName}</span> (age ${heirChild.age})`);
+                html += kv('Ready', eligible
+                    ? '<span style="color:#8fd18a;">✓ Eligible to succeed you</span>'
+                    : `<span style="color:#f0b35a;">⏳ Must be ${settings.minAgeToPlay} to take over (currently ${heirChild.age})</span>`);
+                html += kv('Inheritance', `${Math.round(settings.inheritanceGoldPercent * 100)}% gold, ${Math.round(settings.inheritanceRenownPercent * 100)}% renown`);
             }
         }
 
@@ -792,161 +770,173 @@ Object.assign(ActionMenu, {
         const roleDefs = House.roleDefs();
 
         let html = '<div>';
-        html += `<div style="text-align:center; margin-bottom:8px;">
-            <div style="font-size:28px;">${house.sigil?.icon || '🛡️'}</div>
-            <div style="font-weight:bold; color:var(--gold); font-size:16px;">${house.name}</div>
-            ${house.motto ? `<div style="font-style:italic; color:#bbb; font-size:12px;">&ldquo;${house.motto}&rdquo;</div>` : ''}
-            <div style="font-size:11px; color:#aaa;">Generation ${house.generation} · Founded day ${house.foundedDay}</div>
-            <div style="font-size:13px; color:var(--gold); margin-top:4px;">⭐ Prestige: ${house.prestige}</div>
-        </div>`;
-        html += `<button onclick="window._houseRename()" style="width:100%; padding:6px; margin-bottom:10px; background:#444; border:none; border-radius:4px; cursor:pointer; color:#ddd; font-size:12px;">✎ Rename &amp; Motto</button>`;
+        html += '<div style="text-align:center; margin:2px 0 10px;">';
+        html += `<div style="font-size:28px; line-height:1.2;">${house.sigil?.icon || '🛡️'}</div>`;
+        html += `<div style="${TITLE} margin:0;">${house.name}</div>`;
+        if (house.motto) html += `<div style="font-style:italic; color:#cbbf9f; font-size:12px;">&ldquo;${house.motto}&rdquo;</div>`;
+        html += `<div style="margin-top:6px; display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap;">${chips([
+            ['🧬', 'Generation', house.generation],
+            ['📅', 'Founded day', house.foundedDay],
+            { icon: '⭐', label: 'Prestige', value: house.prestige, cls: 'gold' },
+        ]).replace('class="pk-chips"', 'class="pk-chips" style="margin:0;"')}<button onclick="window._houseRename()" style="${BTN_PLAIN} margin:0;">✎ Rename &amp; Motto</button></div>`;
+        html += '</div>';
 
         // Ambition
-        html += '<h5 style="margin:6px 0;">🏛️ Ambition</h5>';
+        html += sectionHead('🏛️ Ambition');
         if (house.ambition) {
             const def = House._getAmbitionDef(house.ambition.id);
-            html += '<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; font-size:12px;">';
-            html += `<div style="color:var(--gold); font-weight:bold;">${def.name}</div>`;
+            let body = '';
             for (const ms of house.ambition.milestones) {
                 const md = def.milestones.find(x => x.id === ms.id);
-                html += `<div style="color:${ms.done ? '#7fd07f' : '#aaa'};">${ms.done ? '✓' : '○'} ${md ? md.label : ms.id}</div>`;
+                body += `<div style="color:${ms.done ? '#8fd18a' : '#9d937c'};">${ms.done ? '✓' : '○'} ${md ? md.label : ms.id}</div>`;
             }
-            html += `<div style="color:${house.ambition.capstoneDone ? '#7fd07f' : '#e0b040'}; margin-top:2px;">${house.ambition.capstoneDone ? '★' : '☆'} ${def.capstone.label}</div>`;
-            html += '</div>';
+            body += `<div style="color:${house.ambition.capstoneDone ? '#8fd18a' : '#f0b35a'}; margin-top:2px;">${house.ambition.capstoneDone ? '★' : '☆'} ${def.capstone.label}</div>`;
+            html += card(body, { icon: '🏛️', title: def.name, side: house.ambition.capstoneDone ? 'fulfilled' : '', tone: 'good' });
             if (house.ambition.capstoneDone) {
-                html += `<button onclick="window._houseChooseAmbition()" style="width:100%; padding:6px; margin-top:6px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold; font-size:12px;">Choose a New Ambition</button>`;
+                html += rowList([{ icon: '🏛️', name: 'Choose a New Ambition', attrs: 'onclick="window._houseChooseAmbition()"', side: '›', tone: 'gold' }]);
             }
         } else {
-            html += `<button onclick="window._houseChooseAmbition()" style="width:100%; padding:8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; font-weight:bold; color:#000;">Choose an Ambition</button>`;
+            html += rowList([{ icon: '🏛️', name: 'Choose an Ambition', desc: 'A goal for the House, with Prestige at its end', attrs: 'onclick="window._houseChooseAmbition()"', side: '›', tone: 'gold' }]);
         }
         // Honours won by fulfilled ambitions (each raises the House's fame everywhere — systems/fame.js)
         if (Array.isArray(house.honours) && house.honours.length) {
-            html += `<div style="font-size:11px; color:#d8c27a; margin-top:6px;">🏅 Honours: ${house.honours.map(h => `${h.name} <span style="color:#888;">(+${h.fame} fame)</span>`).join(' · ')}</div>`;
+            html += `<div style="font-size:11px; color:#d8c27a; margin:4px 2px 8px;">🏅 Honours: ${house.honours.map(h => `${h.name} <span style="color:#9d937c;">(+${h.fame} fame)</span>`).join(' · ')}</div>`;
         }
 
         // Demands on the House: benevolences, forced loans, guild and rival tribute (systems/demands.js)
         const demands = Demands.open(player);
         const crownLoans = Demands.loans(player);
         if (demands.length || crownLoans.length) {
-            html += '<h5 style="margin:10px 0 6px;">📜 Demands Upon the House</h5>';
-            const dBtn = (label, handler, enabled) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#6b5320' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+            html += sectionHead('📜 Demands Upon the House');
+            const dBtn = (label, handler, enabled, style = BTN_DARK) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="${enabled ? style : BTN_OFF}">${label}</button>`;
             for (const d of demands) {
-                html += '<div style="background:rgba(160,110,20,0.22); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
-                html += `<div style="display:flex; justify-content:space-between;"><strong>${d.icon} ${d.title}</strong><span style="color:#e0b040;">${Math.max(0, d.dueDay - game.world.day)} day(s)</span></div>`;
-                html += `<div style="color:#bbb; margin:2px 0 6px;">${d.text}</div>`;
-                html += '<div style="display:flex; gap:4px; flex-wrap:wrap;">';
-                html += dBtn(`💰 Pay (${d.amount}g)`, `window._demandAct('pay', ${d.id})`, player.gold >= d.amount);
-                html += dBtn(d.negotiated ? 'Haggled' : `🗣️ Negotiate (${Math.round(Demands.negotiateChance(player) * 100)}%)`, `window._demandAct('negotiate', ${d.id})`, !d.negotiated);
-                html += dBtn('✋ Refuse', `window._demandAct('refuse', ${d.id})`, true);
-                html += '</div></div>';
+                let body = `<div style="color:#cbbf9f; margin:0 0 6px;">${d.text}</div><div>`;
+                body += dBtn(`💰 Pay (${d.amount}g)`, `window._demandAct('pay', ${d.id})`, player.gold >= d.amount, BTN_GOLD);
+                body += dBtn(d.negotiated ? 'Haggled' : `🗣️ Negotiate (${Math.round(Demands.negotiateChance(player) * 100)}%)`, `window._demandAct('negotiate', ${d.id})`, !d.negotiated);
+                body += dBtn('✋ Refuse', `window._demandAct('refuse', ${d.id})`, true, BTN_RED);
+                body += '</div>';
+                html += card(body, { icon: d.icon, title: d.title, side: `${Math.max(0, d.dueDay - game.world.day)} day(s)`, tone: 'warn' });
             }
-            for (const l of crownLoans) {
-                html += `<div style="font-size:11px; color:#bbb; padding:2px 0;">👑 Lent ${l.amount}g to ${l.from} — due day ${l.dueDay}${l.defers ? ` (deferred ${l.defers}×)` : ''}</div>`;
-            }
+            html += rowList(crownLoans.map(l => ({
+                icon: '👑', name: `Lent ${l.amount}g to ${l.from}`,
+                desc: `due day ${l.dueDay}${l.defers ? ` (deferred ${l.defers}×)` : ''}`,
+                side: price(l.amount),
+            })));
         }
 
         // Townsfolk named in rival plots — confront them in their town (systems/schemes.js)
         const suspects = Schemes.suspects(player, game.world);
-        if (suspects.length) {
-            html += '<h5 style="margin:10px 0 6px;">🕵️ Suspects</h5>';
-            for (const s of suspects) {
-                html += `<div style="font-size:12px; padding:3px 0; color:#ccc;">🗡️ <strong>${s.name}</strong>, ${s.role} of ${s.town} — agent of ${s.rivalName}${s.status === 'plotting' ? ' <span style="color:#e08080;">(plot in hand)</span>' : ''}. <span style="color:#888;">Find them in town to accuse, turn or spare.</span></div>`;
-            }
-        }
         const informants = Object.values(house.informants || {}).filter(i => i && i.untilDay >= game.world.day);
-        for (const i of informants) {
-            html += `<div style="font-size:11px; color:#9cc; padding:2px 0;">👂 ${i.name} of ${i.town} informs for you until day ${i.untilDay}.</div>`;
+        if (suspects.length) {
+            html += rowList(suspects.map(s => ({
+                icon: '🗡️', name: `${s.name}, ${s.role} of ${s.town}`,
+                desc: `Agent of ${s.rivalName}. Find them in town to accuse, turn or spare.`,
+                side: s.status === 'plotting' ? 'plot in hand' : '', tone: 'bad',
+            })), '🕵️ Suspects');
         }
+        html += rowList(informants.map(i => ({
+            icon: '👂', name: `${i.name} of ${i.town}`, desc: 'Informs for you',
+            side: `until day ${i.untilDay}`, tone: 'good',
+        })), suspects.length ? '' : '👂 Informants');
 
-        // Offices / roles
-        html += '<h5 style="margin:10px 0 6px;">🏰 Offices</h5>';
-        for (const roleId of House.ROLE_IDS) {
+        // The court: those not of the blood who live at the House (systems/court.js)
+        const courtView = Court.view(player);
+        html += rowList([
+            {
+                icon: '👥', name: 'The Court',
+                desc: courtView.length
+                    ? courtView.slice(0, 4).map(c => esc(c.npc.firstName)).join(', ') + (courtView.length > 4 ? ` and ${courtView.length - 4} more` : '')
+                    : 'No one lives at your court yet. Invite people you know.',
+                note: `<span style="color:#9d937c;">${courtView.length} of ${Court.capacity(player)} seats · ${Court.dailyCost(player)}g a day in stipends${house.regentDesignate ? ' · a regent named' : ''}</span>`,
+                act: 'showHouseCourt', side: 'Open ›', tone: 'gold',
+            },
+        ], '👥 The Court');
+
+        // Offices / roles: the row appoints
+        html += rowList(House.ROLE_IDS.map(roleId => {
             const def = roleDefs[roleId];
             const memberId = house.roles[roleId];
             const member = memberId ? House._findMember(player, memberId) : null;
-            const loyalty = memberId && house.roleLoyalty[memberId] != null ? house.roleLoyalty[memberId] : '?';
-            html += '<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.25); padding:6px 8px; border-radius:4px; margin-bottom:4px; font-size:12px;">';
-            html += `<div><strong>${def.label}</strong> <span style="color:#888;">${def.blurb}</span><br>`;
-            html += member
-                ? `<span style="color:var(--gold);">${member.firstName}</span> <span style="color:#888;">(loyalty ${loyalty})</span>`
-                : '<span style="color:#888;">Vacant</span>';
-            html += '</div>';
-            html += `<button onclick="window._houseAssignRole('${roleId}')" style="padding:4px 8px; background:#555; border:none; border-radius:3px; cursor:pointer; color:#ddd; font-size:11px;">Assign</button>`;
-            html += '</div>';
-        }
+            const lv = memberId ? House.officerLoyalty(player, memberId) : null;
+            const loyalty = lv != null ? lv : '?';
+            const courtier = member && House.isCourtier(player, memberId);
+            return {
+                icon: '🏰', name: def.label, desc: def.blurb,
+                note: member ? `<span style="color:#ffcf6a;">${esc(member.firstName)}</span> <span style="color:#9d937c;">(${courtier ? 'courtier, ' : ''}loyalty ${loyalty})</span>` : '',
+                attrs: `onclick="window._houseAssignRole('${roleId}')"`,
+                side: member ? 'Assign ›' : '<span style="color:#9d937c;">Vacant</span><br><span style="font-size:10.5px; color:#9d937c;">Assign ›</span>',
+            };
+        }), '🏰 Offices');
 
         // Rivals
         const rivalKeys = Object.keys(house.rivals || {});
         if (rivalKeys.length) {
-            html += '<h5 style="margin:10px 0 6px;">⚔️ Rival Houses</h5>';
-            for (const k of rivalKeys) {
+            const rows = rivalKeys.map(k => {
                 const r = house.rivals[k];
                 const feud = r.feud || 0;
                 const label = feud >= 60 ? 'Hostile' : feud >= 30 ? 'Wary' : 'Cool';
-                const color = feud >= 60 ? '#e08080' : feud >= 30 ? '#e0b040' : '#88aabb';
-                const head = r.head ? ` <span style="color:#888;">· ${RivalHouses.headName(r)}, ${r.head.age} · ${RivalHouses.doing(game.world, r)}</span>` : '';
-                html += `<div style="display:flex; justify-content:space-between; font-size:12px; padding:3px 0;"><span>${r.name}${head}</span><span style="color:${color};">${label} (${feud})</span></div>`;
-            }
-            if (rivalKeys.some(k => house.rivals[k].head)) html += '<button data-am-act="showRivalHouses" style="padding:4px 8px; background:#555; border:none; border-radius:3px; cursor:pointer; color:#ddd; font-size:11px; margin-top:4px;">🏰 Rival Houses — their lords, purses and doings</button>';
+                return {
+                    icon: '⚔️', name: r.name,
+                    desc: r.head ? `${RivalHouses.headName(r)}, ${r.head.age} · ${RivalHouses.doing(game.world, r)}` : '',
+                    side: `${label} (${feud})`, tone: feud >= 60 ? 'bad' : feud >= 30 ? 'warn' : '',
+                };
+            });
+            if (rivalKeys.some(k => house.rivals[k].head)) rows.push({ icon: '🏰', name: 'Rival Houses', desc: 'Their lords, purses and doings', act: 'showRivalHouses', side: '›' });
+            html += rowList(rows, '⚔️ Rival Houses');
         }
 
         // Wars and ultimatums from kingdoms
         const wars = RealmWars.wars(player);
         const ultimatums = RealmWars.ultimatums(player);
         if (wars.length || ultimatums.length) {
-            html += '<h5 style="margin:10px 0 6px;">⚔️ Wars &amp; Ultimatums</h5>';
-            const warBtn = (label, handler, enabled) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#7a3b3b' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+            html += sectionHead('⚔️ Wars &amp; Ultimatums');
+            const warBtn = (label, handler, enabled, style = BTN_RED) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="${enabled ? style : BTN_OFF}">${label}</button>`;
             for (const u of ultimatums) {
-                html += '<div style="background:rgba(160,110,20,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
-                html += `<div style="display:flex; justify-content:space-between;"><strong>📜 ${u.name}</strong><span style="color:#e0b040;">${Math.max(0, u.dueDay - game.world.day)} day(s)</span></div>`;
-                html += `<div style="color:#bbb; margin:2px 0 6px;">Demands ${u.tribute} gold, or it declares war.</div>`;
-                html += `<div style="display:flex; gap:4px;">${warBtn(`💰 Pay tribute (${u.tribute}g)`, `window._warAct('tribute', '${u.kingdomId}')`, player.gold >= u.tribute)}</div>`;
-                html += '</div>';
+                const body = `<div style="color:#cbbf9f; margin:0 0 6px;">Demands ${u.tribute} gold, or it declares war.</div>`
+                    + `<div>${warBtn(`💰 Pay tribute (${u.tribute}g)`, `window._warAct('tribute', '${u.kingdomId}')`, player.gold >= u.tribute, BTN_GOLD)}</div>`;
+                html += card(body, { icon: '📜', title: u.name, side: `${Math.max(0, u.dueDay - game.world.day)} day(s)`, tone: 'warn' });
             }
             for (const w of wars) {
                 const k = game.world.getKingdom(w.kingdomId);
                 if (!k) continue;
-                const price = RealmWars.peacePrice(player, k);
+                const peace = RealmWars.peacePrice(player, k);
                 const canDemand = w.score >= RealmWars.CONFIG.enforcePeaceScore;
-                html += '<div style="background:rgba(120,30,30,0.35); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
-                html += `<div style="display:flex; justify-content:space-between;"><strong>⚔️ War with ${w.name}</strong><span style="color:${w.score >= 0 ? '#7fd07f' : '#e08080'};">Score ${w.score}</span></div>`;
-                html += `<div style="color:#bbb; margin:2px 0 4px;">Day ${game.world.day - w.startDay} · hosts broken ${w.hostsDefeated} · holdings lost ${w.holdingsLost}</div>`;
+                let body = `<div style="color:#cbbf9f; margin:0 0 4px;">Day ${game.world.day - w.startDay} · hosts broken ${w.hostsDefeated} · holdings lost ${w.holdingsLost}</div>`;
                 for (const h of w.hosts) {
                     const t = h.target;
-                    html += `<div style="color:#e08080; font-size:11px;">🚩 ${h.name} (str ${h.strength}) at (${h.q}, ${h.r}) → ${t.kind === 'colony' ? t.name : t.type} (${t.q}, ${t.r})</div>`;
+                    body += `<div style="color:#e0846a; font-size:11px;">🚩 ${h.name} (str ${h.strength}) at (${h.q}, ${h.r}) → ${t.kind === 'colony' ? t.name : t.type} (${t.q}, ${t.r})</div>`;
                 }
-                html += '<div style="display:flex; gap:4px; margin-top:6px;">';
-                html += warBtn(`🕊️ Buy peace (${price}g)`, `window._warAct('peace', '${w.kingdomId}')`, player.gold >= price);
-                html += warBtn(`👑 Demand peace (+${RealmWars.reparations(k)}g)`, `window._warAct('demand', '${w.kingdomId}')`, canDemand);
-                html += '</div></div>';
+                body += '<div style="margin-top:6px;">';
+                body += warBtn(`🕊️ Buy peace (${peace}g)`, `window._warAct('peace', '${w.kingdomId}')`, player.gold >= peace, BTN_DARK);
+                body += warBtn(`👑 Demand peace (+${RealmWars.reparations(k)}g)`, `window._warAct('demand', '${w.kingdomId}')`, canDemand, BTN_GOLD);
+                body += '</div>';
+                html += card(body, { icon: '⚔️', title: `War with ${w.name}`, side: `Score ${w.score}`, tone: w.score >= 0 ? 'good' : 'bad' });
             }
         }
 
         // Plots against the House — only revealed schemes are shown
         const plots = Schemes.known(player);
-        html += '<h5 style="margin:10px 0 6px;">🗡️ Plots Against You</h5>';
+        html += sectionHead('🗡️ Plots Against You');
         if (!plots.length) {
-            html += '<div style="font-size:11px; color:#888;">No known plots. Spies, a Spymaster and counter-espionage missions help uncover schemes before they strike.</div>';
+            html += `<div style="${MUTED} margin:0 2px 8px;">No known plots. Spies, a Spymaster and counter-espionage missions help uncover schemes before they strike.</div>`;
         }
-        const plotBtn = (label, handler, enabled = true) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="flex:1; padding:4px 6px; background:${enabled ? '#7a3b3b' : '#444'}; border:none; border-radius:3px; cursor:${enabled ? 'pointer' : 'default'}; color:#eee; font-size:11px;">${label}</button>`;
+        const plotBtn = (label, handler, enabled = true) => `<button ${enabled ? `onclick="${handler}"` : 'disabled'} style="${enabled ? BTN_DARK : BTN_OFF}">${label}</button>`;
         for (const s of plots) {
             const def = Schemes.TYPES[s.type];
             const days = Math.max(0, s.dueDay - game.world.day);
             const idleSpies = ((player.espionage && player.espionage.spies) || []).filter(sp => sp.status === 'idle').length;
             const goldCost = Schemes.bribeGoldCost(player, s);
             const presCost = Schemes.bribePrestigeCost(player, s);
-            html += '<div style="background:rgba(120,30,30,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px;">';
-            html += `<div style="display:flex; justify-content:space-between;"><strong>${def ? def.icon : '🗡️'} ${def ? def.name : s.type}</strong><span style="color:#e08080;">${days} day(s)</span></div>`;
-            html += `<div style="color:#bbb; margin:2px 0 6px;">${Schemes.describe(s)}.${s.guarded ? ' <span style="color:#7fd07f;">Guarded.</span>' : ''}</div>`;
-            html += '<div style="display:flex; gap:4px; flex-wrap:wrap;">';
+            let body = `<div style="color:#cbbf9f; margin:0 0 6px;">${Schemes.describe(s)}.${s.guarded ? ' <span style="color:#8fd18a;">Guarded.</span>' : ''}</div><div>`;
             if (def && def.guard) {
-                html += plotBtn(s.guarded ? 'Guarded' : `${def.guard.label} (${def.guard.cost}g, ${Math.round(def.guard.success * 100)}%)`,
+                body += plotBtn(s.guarded ? 'Guarded' : `${def.guard.label} (${def.guard.cost}g, ${Math.round(def.guard.success * 100)}%)`,
                     `window._schemeAct('guard', ${s.id})`, !s.guarded && player.gold >= def.guard.cost);
             }
-            html += plotBtn(s.spyTried ? 'Spy failed' : `🕵️ Send spy${idleSpies ? '' : ' (none idle)'}`, `window._schemeAct('spy', ${s.id})`, !s.spyTried && idleSpies > 0);
-            html += plotBtn(`💰 Buy off (${goldCost}g)`, `window._schemeAct('gold', ${s.id})`, player.gold >= goldCost);
-            html += plotBtn(`⭐ Buy off (${presCost})`, `window._schemeAct('prestige', ${s.id})`, house.prestige >= presCost);
-            html += '</div></div>';
+            body += plotBtn(s.spyTried ? 'Spy failed' : `🕵️ Send spy${idleSpies ? '' : ' (none idle)'}`, `window._schemeAct('spy', ${s.id})`, !s.spyTried && idleSpies > 0);
+            body += plotBtn(`💰 Buy off (${goldCost}g)`, `window._schemeAct('gold', ${s.id})`, player.gold >= goldCost);
+            body += plotBtn(`⭐ Buy off (${presCost})`, `window._schemeAct('prestige', ${s.id})`, house.prestige >= presCost);
+            body += '</div>';
+            html += card(body, { icon: def ? def.icon : '🗡️', title: def ? def.name : s.type, side: `${days} day(s)`, tone: 'bad' });
         }
 
         // Spend Prestige — what the House's standing can buy that gold can't
@@ -955,43 +945,43 @@ Object.assign(ActionMenu, {
         const here = tile && tile.settlement ? tile : game.world.getTile(player.q, player.r);
         const swayKingdomId = (here && here.settlement && here.settlement.kingdom) || player.allegiance || null;
         const swayKingdom = swayKingdomId ? game.world.getKingdom(swayKingdomId) : null;
-        const sinkRow = (icon, title, cost, blurb, buttons, blocked) => {
-            const affordable = house.prestige >= cost && !blocked;
-            let row = `<div style="background:rgba(0,0,0,0.25); padding:8px; border-radius:6px; margin-bottom:6px; font-size:12px; ${affordable ? '' : 'opacity:0.65;'}">`;
-            row += `<div style="display:flex; justify-content:space-between;"><strong>${icon} ${title}</strong><span style="color:var(--gold);">⭐ ${cost}</span></div>`;
-            row += `<div style="color:#aaa; margin:2px 0 6px;">${blurb}</div>`;
-            row += blocked ? `<div style="color:#e08080;">${blocked}</div>` : `<div style="display:flex; gap:6px;">${buttons}</div>`;
-            return row + '</div>';
+        // One sink as a row: the whole row spends; greyed with the reason when blocked or short
+        const sinkRow = (icon, name, cost, desc, handler, blocked) => {
+            const short = house.prestige < cost;
+            return {
+                icon, name, desc, attrs: `onclick="${handler}"`,
+                off: !!blocked || short,
+                why: blocked || `Needs ⭐${cost} Prestige (you have ${house.prestige})`,
+                side: `⭐ ${cost}`, tone: short ? 'bad' : 'gold',
+            };
         };
-        const sinkBtn = (label, handler) => `<button onclick="${handler}" style="flex:1; padding:5px 8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold; font-size:11px;">${label}</button>`;
-
-        html += '<h5 style="margin:10px 0 6px;">⭐ Spend Prestige</h5>';
-        html += sinkRow('📜', 'Press a Claim', sinks.pressClaim,
-            claim.titleId
-                ? `Take the office of <strong>${claim.title.name}</strong> — the House's name sets aside its reputation and renown requirements.`
-                : 'Claim the next office up, setting aside its reputation and renown requirements.',
-            sinkBtn(claim.titleId ? `Claim ${claim.title.name}` : 'Press Claim', 'window._housePressClaim()'),
-            claim.titleId ? null : claim.reason);
-        html += sinkRow('💍', 'Arrange a Prestigious Marriage', sinks.prestigiousMarriage,
-            'A noble of this settlement, already fond of you, joins those you can court. Marrying a noble brings renown, standing with their kingdom and Prestige.',
-            sinkBtn('Arrange a Match', 'window._houseNobleMatch()'),
-            player.spouse ? 'You are already married.' : (!(here && here.settlement) ? 'Visit a settlement to arrange a match.' : null));
-        html += sinkRow('🤝', 'Call in a Favor', sinks.callInFavor,
-            'An allied House repays old debts.',
-            sinkBtn(`💰 Gold (${House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (house.generation || 1)}g)`, "window._houseFavor('gold')")
-            + (swayKingdom ? sinkBtn(`👑 +${House.FAVOR_REPUTATION} rep · ${swayKingdom.name}`, "window._houseFavor('influence')") : ''),
-            null);
+        const favorGold = House.FAVOR_GOLD_BASE + House.FAVOR_GOLD_PER_GENERATION * (house.generation || 1);
+        html += rowList([
+            sinkRow('📜', claim.titleId ? `Press a Claim: ${claim.title.name}` : 'Press a Claim', sinks.pressClaim,
+                claim.titleId
+                    ? `Take the office of <strong>${claim.title.name}</strong> — the House's name sets aside its reputation and renown requirements.`
+                    : 'Claim the next office up, setting aside its reputation and renown requirements.',
+                'window._housePressClaim()', claim.titleId ? null : claim.reason),
+            sinkRow('💍', 'Arrange a Prestigious Marriage', sinks.prestigiousMarriage,
+                'A noble of this settlement, already fond of you, joins those you can court. Marrying a noble brings renown, standing with their kingdom and Prestige.',
+                'window._houseNobleMatch()',
+                player.spouse ? 'You are already married.' : (!(here && here.settlement) ? 'Visit a settlement to arrange a match.' : null)),
+            sinkRow('🤝', `Call in a Favor: 💰 Gold (${favorGold}g)`, sinks.callInFavor,
+                'An allied House repays old debts.', "window._houseFavor('gold')", null),
+            swayKingdom ? sinkRow('🤝', `Call in a Favor: 👑 +${House.FAVOR_REPUTATION} rep · ${swayKingdom.name}`, sinks.callInFavor,
+                'An allied House repays old debts.', "window._houseFavor('influence')", null) : null,
+        ], '⭐ Spend Prestige');
 
         // Chronicle
-        html += '<h5 style="margin:10px 0 6px;">📜 Chronicle</h5>';
+        html += sectionHead('📜 Chronicle');
         const recent = (house.history || []).slice(-6).reverse();
-        html += '<div style="font-size:11px; color:#bbb; max-height:120px; overflow-y:auto;">';
+        html += '<div style="font-size:11px; color:#cbbf9f; max-height:120px; overflow-y:auto; margin:0 2px 8px;">';
         for (const h of recent) {
-            html += `<div style="padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05);">Day ${h.day}: ${h.text}</div>`;
+            html += `<div style="padding:3px 0; border-bottom:1px solid rgba(245,197,66,0.07);"><span style="color:#9d937c;">Day ${h.day}:</span> ${h.text}</div>`;
         }
         html += '</div>';
 
-        html += `<button data-am-act="openTileMenu" data-am-args='["showDynastyMenu"${tile ? `, ${tile.q}, ${tile.r}` : ''}]' style="width:100%; padding:8px; margin-top:10px; background:#555; border:none; border-radius:4px; cursor:pointer; color:#ccc;">← Back to Dynasty</button>`;
+        html += rowList([{ icon: '←', name: 'Back to Dynasty', act: 'openTileMenu', args: ['showDynastyMenu', ...(tile ? [tile.q, tile.r] : [])] }]);
         html += '</div>';
         game.ui.showCustomPanel('House', html);
 
@@ -1050,10 +1040,10 @@ Object.assign(ActionMenu, {
         };
         window._houseRename = () => {
             const cur = house.name.replace(/^House\s+/i, '');
-            let h = `<div><h4 style="margin-top:0;">Name Your House</h4>
-                <input id="houseNameInput" value="${cur.replace(/"/g, '&quot;')}" style="width:100%; padding:8px; margin-bottom:8px; background:#222; border:1px solid #555; border-radius:4px; color:#fff;" />
-                <input id="houseMottoInput" value="${(house.motto || '').replace(/"/g, '&quot;')}" placeholder="Motto (optional)" style="width:100%; padding:8px; margin-bottom:8px; background:#222; border:1px solid #555; border-radius:4px; color:#fff;" />
-                <button onclick="window._houseSaveName()" style="width:100%; padding:8px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold;">Save</button></div>`;
+            let h = `<div>${sectionHead('Name Your House')}
+                <input id="houseNameInput" value="${cur.replace(/"/g, '&quot;')}" style="${FIELD}" />
+                <input id="houseMottoInput" value="${(house.motto || '').replace(/"/g, '&quot;')}" placeholder="Motto (optional)" style="${FIELD}" />
+                <button onclick="window._houseSaveName()" style="${BTN_GOLD} display:block; width:100%; padding:8px;">Save</button></div>`;
             game.ui.showCustomPanel('House Name', h);
         };
         window._houseSaveName = () => {
@@ -1067,18 +1057,19 @@ Object.assign(ActionMenu, {
             ActionMenu.showHousePanel(game, tile);
         };
         window._houseChooseAmbition = () => {
-            let h = '<div><h4 style="margin-top:0;">Choose an Ambition</h4>';
+            let h = '<div>';
             const open = House.ambitions(house);
-            if (!open.length) h += '<div style="font-size:12px; color:#aaa;">Your House has fulfilled every ambition open to it. Its name is written in the histories.</div>';
-            for (const a of open) {
+            if (!open.length) h += lede('Your House has fulfilled every ambition open to it. Its name is written in the histories.');
+            h += rowList(open.map(a => {
                 const rw = a.reward || {};
                 const rwText = [rw.prestige ? `${rw.prestige} Prestige` : '', rw.gold ? `${rw.gold} gold` : '', rw.renown ? `${rw.renown} renown` : '', rw.honour ? `honour: ${rw.honour.name}` : ''].filter(Boolean).join(' · ');
-                h += `<div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; margin-bottom:6px;">
-                    <div style="color:var(--gold); font-weight:bold;">${a.name}${a.tier > 1 ? ` <span style="font-size:10px; color:#d8c27a;">Tier ${a.tier}</span>` : ''}</div>
-                    <div style="font-size:12px; color:#aaa;">${a.blurb}</div>
-                    ${rwText ? `<div style="font-size:11px; color:#c9b77a;">Reward: ${rwText}</div>` : ''}
-                    <button onclick="window._houseSetAmbition('${a.id}')" style="width:100%; padding:6px; margin-top:4px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:#000; font-weight:bold;">Pursue</button></div>`;
-            }
+                return {
+                    icon: '🏛️', name: a.name, desc: a.blurb,
+                    note: rwText ? `<span style="color:#c9b77a;">Reward: ${rwText}</span>` : '',
+                    attrs: `onclick="window._houseSetAmbition('${a.id}')"`,
+                    side: `${a.tier > 1 ? `<span style="font-size:10px; color:#d8c27a;">Tier ${a.tier}</span><br>` : ''}Pursue ›`, tone: 'gold',
+                };
+            }), 'Choose an Ambition');
             h += '</div>';
             game.ui.showCustomPanel('Ambition', h);
         };
@@ -1091,16 +1082,30 @@ Object.assign(ActionMenu, {
         };
         window._houseAssignRole = (roleId) => {
             const kids = (player.children || []).filter(c => c.isAlive);
-            if (!kids.length) {
-                game.ui.showNotification('Offices', 'You have no family of age to appoint.', 'info');
+            // The heir must be of the blood; every other office may go to a courtier
+            const courtiers = roleId === 'heir' ? [] : Court.view(player);
+            if (!kids.length && !courtiers.length) {
+                game.ui.showNotification('Offices', roleId === 'heir' ? 'You have no children to name your heir.' : 'You have no family of age and no one at court to appoint. Invite people to your court.', 'info');
                 return;
             }
-            let h = `<div><h4 style="margin-top:0;">Appoint ${roleDefs[roleId].label}</h4>`;
-            for (const c of kids) {
-                const skill = roleDefs[roleId].skill;
-                h += `<button onclick="window._houseDoAssign('${roleId}','${c.id}')" style="display:block; width:100%; text-align:left; padding:8px; margin-bottom:4px; background:#444; border:none; border-radius:4px; cursor:pointer; color:#ddd;">${c.firstName} <span style="color:#888;">(${skill} ${(c.skills && c.skills[skill]) || 0})</span></button>`;
-            }
-            h += `<button onclick="window._houseDoClear('${roleId}')" style="width:100%; padding:6px; margin-top:4px; background:#633; border:none; border-radius:4px; cursor:pointer; color:#ecc;">Leave Vacant</button></div>`;
+            const skill = roleDefs[roleId].skill;
+            const held = (id) => {
+                const r = Court.officeOf(player, id);
+                return r && r !== roleId ? ` · now ${roleDefs[r].label}` : '';
+            };
+            let h = '<div>';
+            h += rowList(kids.map(c => ({
+                icon: c.gender === 'female' ? '👧' : '👦', name: esc(c.firstName), desc: `Of the blood, age ${c.age}${held(c.id)}`,
+                attrs: `onclick="window._houseDoAssign('${roleId}','${c.id}')"`,
+                side: `${skill} ${(c.skills && c.skills[skill]) || 0}`,
+            })), kids.length ? `Appoint ${roleDefs[roleId].label}: Family` : '');
+            h += rowList(courtiers.map(c => ({
+                icon: '👥', name: esc(c.name), desc: `${esc(c.occupation)}, age ${c.age} · loyalty ${c.loyalty}${held(c.id)}`,
+                attrs: `onclick="window._houseDoAssign('${roleId}','${c.id}')"`,
+                side: `${skill} ${c.skills[skill] || 0}`,
+            })), courtiers.length ? `Appoint ${roleDefs[roleId].label}: The Court` : '');
+            h += rowList([{ icon: '∅', name: 'Leave Vacant', attrs: `onclick="window._houseDoClear('${roleId}')"`, tone: 'bad' }]);
+            h += '</div>';
             game.ui.showCustomPanel('Appoint', h);
         };
         window._houseDoAssign = (roleId, childId) => {
@@ -1117,6 +1122,184 @@ Object.assign(ActionMenu, {
     },
 
     /**
+     * The House's court (systems/court.js): who lives there, their skills,
+     * loyalty, stipend and office; invite those you know, name a
+     * regent-designate. view: null (the roll) | 'invite' | 'member' | 'offer' | 'designate'.
+     */
+    showHouseCourt(game, view = null, npcId = null) {
+        const player = game.player;
+        const world = game.world;
+        const house = player.house;
+        if (!house) {
+            game.ui.showNotification('Court', 'Your House has not yet been founded.', 'info');
+            return;
+        }
+        Court.ensure(player);
+        const roleDefs = House.roleDefs();
+        const cap = Court.capacity(player);
+        const rows = Court.view(player);
+        const skillLine = (sk) => Court.SKILLS.map(k => `${k.slice(0, 4)} ${sk[k] || 0}`).join(' · ');
+        const loyaltyTone = (v) => (v < 30 ? 'bad' : v < 50 ? 'warn' : 'good');
+        const back = { icon: '←', name: 'Back to the Court', act: 'showHouseCourt' };
+        let html = '<div>';
+
+        if (view === 'member') {
+            const c = rows.find(r => r.id === npcId);
+            if (!c) return ActionMenu.showHouseCourt(game);
+            const office = c.office ? roleDefs[c.office].label : null;
+            let body = `<div style="color:#cbbf9f;">${esc(c.occupation)}, age ${c.age}${c.npc.settlementName ? ` · of ${esc(c.npc.settlementName)}` : ''} · at court since day ${c.since}</div>`;
+            body += `<div style="margin-top:6px; color:#ece2c8;">${skillLine(c.skills)}</div>`;
+            body += `<div style="margin-top:6px;">Loyalty <b>${c.loyalty}</b>${c.owed ? ` · <span style="color:#e0846a;">owed ${c.owed}g</span>` : ''} · their purse ${c.purse}g</div>`;
+            html += card(body, { icon: '👥', title: esc(c.name), side: office ? `🏰 ${office}` : (c.regentDesignate ? '👑 Regent-designate' : ''), tone: loyaltyTone(c.loyalty) });
+            const pay = c.stipend;
+            const canRaise = (player.gold || 0) >= pay + 1;
+            const designate = Regency.designateOptions(player, world).some(o => o.id === c.id);
+            html += rowList([
+                { icon: '💰', name: 'Raise their stipend', desc: `${pay}g → ${pay + 1}g a day (they think ${c.expected}g fair)`, attrs: `onclick="window._courtUI.stipend('${c.id}', 1)"`, side: price(pay + 1, canRaise), tone: 'gold' },
+                pay > 0 ? { icon: '✂️', name: 'Cut their stipend', desc: `${pay}g → ${pay - 1}g a day. They will not thank you.`, attrs: `onclick="window._courtUI.stipend('${c.id}', -1)"`, side: price(pay - 1), tone: 'warn' } : null,
+                { icon: '🏰', name: office ? `Office: ${office}` : 'Appoint to an office', desc: 'Steward, Marshal, Chancellor or Spymaster. The heir must be of the blood.', act: 'showHouseCourt', args: ['office', c.id], side: '›' },
+                c.regentDesignate
+                    ? { icon: '👑', name: 'Regent-designate', desc: 'Should you die leaving a child heir, they rule in the child\'s name. Click to unname them.', attrs: 'onclick="window._courtUI.designate(null)"', side: '✓', tone: 'gold' }
+                    : { icon: '👑', name: 'Name as regent-designate', desc: 'To rule for a child heir should you die', off: !designate, why: 'They cannot be named regent now', attrs: `onclick="window._courtUI.designate('${c.id}')"`, side: '›' },
+                { icon: '💬', name: 'Speak with them', attrs: `onclick="window._courtUI.talk('${c.id}')"`, side: '›' },
+                { icon: '🚪', name: 'Dismiss from court', desc: c.owed ? `Pays the ${c.owed}g owed, if you can` : 'They go home, a little hurt', attrs: `onclick="window._courtUI.dismiss('${c.id}')"`, side: '›', tone: 'bad' },
+                back,
+            ]);
+        } else if (view === 'office') {
+            const c = rows.find(r => r.id === npcId);
+            if (!c) return ActionMenu.showHouseCourt(game);
+            html += lede(`An office for <strong>${esc(c.name)}</strong>. What they bring scales with their skill and their loyalty (${c.loyalty}).`);
+            html += rowList(House.ROLE_IDS.filter(r => r !== 'heir').map(r => {
+                const def = roleDefs[r];
+                const holder = house.roles[r] ? House._findMember(player, house.roles[r]) : null;
+                const mine = house.roles[r] === c.id;
+                return {
+                    icon: '🏰', name: def.label, desc: `${def.blurb} ${def.skill} ${c.skills[def.skill] || 0}`,
+                    note: holder && !mine ? `<span style="color:#9d937c;">Now held by ${esc(holder.firstName)}</span>` : '',
+                    attrs: mine ? `onclick="window._courtUI.clearOffice('${r}', '${c.id}')"` : `onclick="window._courtUI.office('${r}', '${c.id}')"`,
+                    side: mine ? '✓ Held · vacate' : 'Appoint ›', tone: mine ? 'gold' : '',
+                };
+            }), 'Offices');
+            html += rowList([{ icon: '←', name: `Back to ${esc(c.npc.firstName)}`, act: 'showHouseCourt', args: ['member', c.id] }]);
+        } else if (view === 'invite') {
+            html += lede(`Invite someone you know to live at the court of <strong>${esc(house.name)}</strong> for a daily stipend. Friendship, the House's Prestige and rank, and the stipend weigh with them; those bound elsewhere will not come.`);
+            html += chips([{ icon: '👑', label: 'Seats', value: `${rows.length} / ${cap}`, cls: rows.length >= cap ? '' : 'gold' }, ['⭐', 'Prestige', house.prestige || 0]]);
+            const pros = Court.prospects(player, world).slice(0, 16);
+            if (!pros.length) html += lede('You know no one who could be asked. Meet people in the towns first.');
+            html += rowList(pros.map(({ npc, rel, odds }) => {
+                const label = Relationships.getRelationLabel(rel.score || 0);
+                return {
+                    icon: label.icon, name: `${esc(npc.firstName)} ${esc(npc.dynasty || '')}`,
+                    desc: `${esc(npc.occupation || 'commoner')}, age ${npc.age} · ${label.label} (${rel.score || 0}) · asks ~${odds.expected}g a day`,
+                    off: !odds.ok, why: odds.reason,
+                    attrs: `onclick="window._courtUI.offer('${npc.id}')"`,
+                    side: odds.ok ? `${Math.round(odds.chance * 100)}% ›` : '',
+                };
+            }), 'People You Know');
+            html += rowList([back]);
+        } else if (view === 'offer') {
+            const npc = Relationships.getNPC(npcId);
+            if (!npc) return ActionMenu.showHouseCourt(game, 'invite');
+            const exp = Court.expectedStipend(npc);
+            const tiers = [
+                { icon: '💰', name: 'A modest stipend', pay: Math.max(1, exp - 1) },
+                { icon: '💰', name: 'A fair stipend', pay: exp },
+                { icon: '💎', name: 'A generous stipend', pay: Math.ceil(exp * 1.5) },
+            ];
+            html += lede(`What will you offer <strong>${esc(npc.firstName)}</strong> to live at your court? They think ${exp}g a day fair. A welcome purse of ${Court.config().joinDays} days' stipend is paid when they accept.`);
+            html += rowList(tiers.map(t => {
+                const o = Court.inviteOdds(player, world, npc.id, t.pay);
+                const afford = (player.gold || 0) >= o.joinCost;
+                return {
+                    icon: t.icon, name: `${t.name}: ${t.pay}g a day`,
+                    desc: o.ok ? `${Math.round(o.chance * 100)}% they accept · welcome purse ${o.joinCost}g` : '',
+                    off: !o.ok || !afford, why: !o.ok ? o.reason : `The welcome purse is ${o.joinCost}g`,
+                    attrs: `onclick="window._courtUI.invite('${npc.id}', ${t.pay})"`,
+                    side: price(o.joinCost, afford), tone: 'gold',
+                };
+            }), `Invite ${esc(npc.firstName)}`);
+            html += rowList([{ icon: '←', name: 'Back to the invitations', act: 'showHouseCourt', args: ['invite'] }]);
+        } else if (view === 'designate') {
+            const opts = Regency.designateOptions(player, world);
+            html += lede('Should you die leaving a child heir, who rules in the child\'s name until they come of age? The one you name is offered first at your deathbed, and ruled by if you choose no other. Your spouse, a grown child or a courtier may be named.');
+            html += rowList(opts.map(o => ({
+                icon: o.kind === 'courtier' ? '👥' : o.kind === 'spouse' ? '💍' : '🧑', name: esc(o.name),
+                desc: `${esc(o.blurb)} · loyalty ${o.loyalty}, ambition ${o.ambition}`,
+                attrs: `onclick="window._courtUI.designate('${o.id}')"`,
+                side: house.regentDesignate === o.id ? '✓ Named' : 'Name ›', tone: house.regentDesignate === o.id ? 'gold' : '',
+            })), 'Regent-designate');
+            if (!opts.length) html += lede('There is no one to name: no spouse, no grown child at home, no one at court.');
+            if (house.regentDesignate) html += rowList([{ icon: '∅', name: 'Name no one', desc: 'The choice will be made at your death', attrs: 'onclick="window._courtUI.designate(null)"', tone: 'bad' }]);
+            html += rowList([back]);
+        } else {
+            html += lede(`Those not of the blood who live at the court of <strong>${esc(house.name)}</strong>: retainers to hold its offices, counsel it, and rule for a child heir. Each is paid a stipend from your purse every day.`);
+            html += chips([
+                { icon: '👑', label: 'Seats', value: `${rows.length} / ${cap}`, cls: 'gold' },
+                ['💰', 'Stipends', `${Court.dailyCost(player)}g/day`],
+                ['⭐', 'Prestige', house.prestige || 0],
+            ]);
+            if (!rows.length) html += lede('No one lives at your court yet.');
+            html += rowList(rows.map(c => ({
+                icon: c.office ? '🏰' : c.regentDesignate ? '👑' : '👥',
+                name: `${esc(c.name)}${c.office ? ` <span style="color:#d8c27a; font-size:11px;">${roleDefs[c.office].label}</span>` : ''}`,
+                desc: `${esc(c.occupation)}, age ${c.age} · ${skillLine(c.skills)}`,
+                note: `<span style="color:${c.loyalty < 30 ? '#e0846a' : c.loyalty < 50 ? '#f0b35a' : '#8fd18a'};">Loyalty ${c.loyalty}</span>${c.owed ? ` <span style="color:#e0846a;">· owed ${c.owed}g</span>` : ''}${c.regentDesignate ? ' <span style="color:#d8c27a;">· regent-designate</span>' : ''}`,
+                act: 'showHouseCourt', args: ['member', c.id],
+                side: `${c.stipend}g/day ›`, tone: loyaltyTone(c.loyalty),
+            })), 'Members');
+            const des = house.regentDesignate ? Regency.designateOptions(player, world).find(o => o.id === house.regentDesignate) : null;
+            html += rowList([
+                { icon: '✉️', name: 'Invite someone you know', desc: rows.length >= cap ? 'Your court is full: more Prestige or a higher rank makes room' : `${cap - rows.length} seat${cap - rows.length === 1 ? '' : 's'} free`, act: 'showHouseCourt', args: ['invite'], side: '›', tone: 'gold' },
+                { icon: '👑', name: 'Regent-designate', desc: des ? `${esc(des.name)}, ${esc(des.blurb.replace(/, your named regent$/, ''))}` : 'No one named to rule for a child heir', act: 'showHouseCourt', args: ['designate'], side: '›' },
+                { icon: '←', name: 'Back to the House', act: 'showHousePanel', side: '' },
+            ], 'The Court\'s Business');
+        }
+        html += '</div>';
+        game.ui.showCustomPanel('👥 The Court', html);
+
+        const done = (res, title, then) => {
+            if (!res || !res.success) game.ui.showNotification(title, (res && res.reason) || 'Not possible.', 'error');
+            game.ui.updateStats(player, world);
+            then();
+        };
+        window._courtUI = {
+            offer: (id) => ActionMenu.showHouseCourt(game, 'offer', id),
+            invite: (id, stipend) => {
+                const res = Court.invite(player, world, id, { stipend });
+                if (!res.success) return done(res, '👥 Court', () => ActionMenu.showHouseCourt(game, 'offer', id));
+                game.ui.showNotification(res.accepted ? '👥 A New Courtier' : '🙅 Declined', res.reason, res.accepted ? 'success' : 'warning');
+                game.ui.updateStats(player, world);
+                if (res.accepted) ActionMenu.showHouseCourt(game, 'member', id);
+                else ActionMenu.showHouseCourt(game, 'invite');
+            },
+            stipend: (id, step) => {
+                const e = Court.entry(player, id);
+                if (!e) return;
+                done(Court.setStipend(player, id, e.stipend + step), '💰 Stipend', () => ActionMenu.showHouseCourt(game, 'member', id));
+            },
+            office: (roleId, id) => {
+                const res = House.assignRole(player, roleId, id);
+                if (res.success) game.ui.showNotification('🏰 Appointed', `${Relationships.getNPC(id).firstName} is your ${roleDefs[roleId].label}.`, 'success');
+                done(res, '🏰 Office', () => ActionMenu.showHouseCourt(game, 'member', id));
+            },
+            clearOffice: (roleId, id) => {
+                done({ success: House.clearRole(player, roleId) }, '🏰 Office', () => ActionMenu.showHouseCourt(game, 'member', id));
+            },
+            designate: (id) => {
+                const res = Regency.designate(player, world, id);
+                if (res.success) game.ui.showNotification('👑 Regent-designate', res.text, 'success');
+                done(res, '👑 Regent-designate', () => ActionMenu.showHouseCourt(game, id && Court.isMember(player, id) ? 'member' : 'designate', id));
+            },
+            talk: (id) => ActionMenu.showCharacterDataModal(game, null, id, {}),
+            dismiss: (id) => {
+                const res = Court.dismiss(player, world, id);
+                if (res.success) game.ui.showNotification('🚪 Dismissed', res.text, 'info');
+                done(res, '🚪 Dismiss', () => ActionMenu.showHouseCourt(game, res.success ? null : 'member', id));
+            },
+        };
+    },
+
+    /**
      * Show death / succession screen when the player dies
      */
     showDeathScreen(game, cause) {
@@ -1124,50 +1307,50 @@ Object.assign(ActionMenu, {
         const player = game.player;
         const eligibleHeirs = Relationships.getEligibleHeirs(player);
 
-        let html = '<div style="text-align: center;">';
+        let html = '<div>';
+        const DEATH = `${TITLE} color:#e0846a;`;
 
         if (cause === 'starvation') {
-            html += '<h3 style="color: #a33; margin-top: 0;">💀 Starvation</h3>';
-            html += `<p style="font-size: 14px;">${player.name} has perished from starvation after ${player.starvationDays || '?'} days without food, at the age of ${player.age}.</p>`;
-            html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"Even the mightiest lord cannot defy hunger forever."</p>';
+            html += `<div style="${DEATH}">💀 Starvation</div>`;
+            html += lede(`${player.name} has perished from starvation after ${player.starvationDays || '?'} days without food, at the age of ${player.age}.`);
+            html += `<p style="${QUOTE}">"Even the mightiest lord cannot defy hunger forever."</p>`;
         } else if (cause === 'drowning') {
             // Spent or frozen in the water (player/swimming.js)
-            html += '<h3 style="color: #a33; margin-top: 0;">🌊 Drowned</h3>';
-            html += `<p style="font-size: 14px;">${player.name} went under and did not come up again, at the age of ${player.age}.</p>`;
-            html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"The water keeps what it takes."</p>';
+            html += `<div style="${DEATH}">🌊 Drowned</div>`;
+            html += lede(`${player.name} went under and did not come up again, at the age of ${player.age}.`);
+            html += `<p style="${QUOTE}">"The water keeps what it takes."</p>`;
         } else if (cause === 'illness' || cause === 'wounds') {
             // Death from a disease or festering wounds (systems/ailments.js)
             const dc = (player.ailments && player.ailments.deathCause) || {};
             const what = dc.name ? dc.name.toLowerCase() : (cause === 'wounds' ? 'your wounds' : 'sickness');
-            html += `<h3 style="color: #a33; margin-top: 0;">${dc.icon || '💀'} ${cause === 'wounds' ? 'Taken by Wounds' : 'Taken by Sickness'}</h3>`;
-            html += `<p style="font-size: 14px;">${player.name} has died of ${what} at the age of ${player.age}.</p>`;
-            html += '<p style="font-size: 12px; color: #aaa; font-style: italic;">"A sword spares some men. A fever spares fewer."</p>';
+            html += `<div style="${DEATH}">${dc.icon || '💀'} ${cause === 'wounds' ? 'Taken by Wounds' : 'Taken by Sickness'}</div>`;
+            html += lede(`${player.name} has died of ${what} at the age of ${player.age}.`);
+            html += `<p style="${QUOTE}">"A sword spares some men. A fever spares fewer."</p>`;
         } else {
-            html += '<h3 style="color: #a33; margin-top: 0;">💀 Death Comes for All</h3>';
-            html += `<p style="font-size: 14px;">${player.name} has died at the age of ${player.age}.</p>`;
+            html += `<div style="${DEATH}">💀 Death Comes for All</div>`;
+            html += lede(`${player.name} has died at the age of ${player.age}.`);
         }
 
         const house = player.house || null;
         if (house) {
-            html += `<p style="font-size: 12px; color: var(--gold);">${house.name} · Prestige: ${house.prestige || 0} · Generation ${house.generation || 1}</p>`;
+            html += chips([['🛡️', house.name, ''], { icon: '⭐', label: 'Prestige', value: house.prestige || 0, cls: 'gold' }, ['🧬', 'Generation', house.generation || 1]]);
         } else if (player.dynasty) {
-            html += `<p style="font-size: 12px; color: var(--gold);">House ${player.dynasty.name} · Prestige: ${House.getPrestige(player)}</p>`;
+            html += chips([['🛡️', `House ${player.dynasty.name}`, ''], { icon: '⭐', label: 'Prestige', value: House.getPrestige(player), cls: 'gold' }]);
         }
 
         // Offer to spend Prestige to secure a smooth succession (avoid disputes).
         const secureCost = (typeof House !== 'undefined') ? House._getSinks().secureSuccession : 20;
         const canSecure = house && (house.prestige || 0) >= secureCost && eligibleHeirs.length > 0;
         if (canSecure) {
-            html += `<label style="display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:#ddd; margin:8px 0;">
+            html += `<label class="pk-card" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#ece2c8; cursor:pointer;">
                 <input type="checkbox" id="secureSuccessionChk" />
-                Spend ${secureCost} Prestige to secure the succession
+                <span>Spend ${secureCost} Prestige to secure the succession</span>
             </label>`;
         }
 
         if (eligibleHeirs.length > 0) {
-            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
-            html += '<h4>Choose Your Heir</h4>';
-            html += `<p style="font-size: 12px; color: #aaa;">Continue your dynasty by taking control of one of your ${eligibleHeirs.some(h => h.isSibling) ? 'children or siblings' : 'children'}.</p>`;
+            html += sectionHead('Choose Your Heir');
+            html += `<div style="${MUTED} margin:0 2px 8px;">Continue your dynasty by taking control of one of your ${eligibleHeirs.some(h => h.isSibling) ? 'children or siblings' : 'children'}.</div>`;
 
             for (const heir of eligibleHeirs) {
                 const genderIcon = heir.gender === 'male' ? '♂️' : '♀️';
@@ -1176,56 +1359,51 @@ Object.assign(ActionMenu, {
                     ? heir.traits.map(t => `${t.icon} ${t.name}`).join(', ')
                     : 'None';
 
-                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; ${isDesignated ? 'border: 1px solid var(--gold);' : ''}">`;
-                html += `<strong>${heir.firstName} ${heir.dynasty}</strong> ${genderIcon} · Age ${heir.age}${heir.isSibling ? ' · <span style="color:#aaa;">sibling</span>' : ''}`;
-                if (isDesignated) html += ` <span style="color: var(--gold);">👑 Designated</span>`;
-                if (heir.traits?.length > 0) html += `<div style="font-size: 11px; color: #aaa;">Born: ${traitStr}</div>`;
-                html += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
-                html += `<button onclick="window._succeedAsHeir('${heir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: ${isDesignated ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: ${isDesignated ? '#000' : '#ccc'};">Play as ${heir.firstName}</button>`;
-                html += `</div>`;
+                let body = '';
+                if (heir.traits?.length > 0) body += `<div style="${MUTED}">Born: ${traitStr}</div>`;
+                body += `<div style="text-align: left;">${ActionMenu._heirProfileHtml(player, heir)}</div>`;
+                body += `<button onclick="window._succeedAsHeir('${heir.id}')" style="${isDesignated ? BTN_GOLD : BTN_PLAIN} display:block; width:100%; margin-top:8px; padding:8px;">Play as ${heir.firstName}</button>`;
+                const block = card(body, {
+                    icon: genderIcon, title: `${heir.firstName} ${heir.dynasty}`,
+                    side: `Age ${heir.age}${heir.isSibling ? ' · sibling' : ''}${isDesignated ? ' · 👑 Designated' : ''}`, tone: isDesignated ? 'gold' : '',
+                });
+                html += isDesignated ? block.replace('<div class="pk-card', '<div style="border-color: rgba(245,197,66,0.45);" class="pk-card') : block;
             }
 
             // A designated heir still under age: a regency for them instead (systems/regency.js)
             const minorHeir = (player.children || []).find(c => c && c.isAlive && c.id === player.heir && c.age < Relationships._getHeirSettings().minAgeToPlay);
             if (minorHeir) {
-                html += `<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--gold);">`;
-                html += `<strong>${minorHeir.firstName} ${minorHeir.dynasty}</strong> · Age ${minorHeir.age} <span style="color: var(--gold);">👑 Designated</span>`;
-                html += ActionMenu._regencyChoiceHtml(game, minorHeir);
-                html += `<button onclick="window._succeedViaRegency('${minorHeir.id}')" style="width: 100%; padding: 8px; margin-top: 6px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000;">Play ${minorHeir.firstName} under a regency</button>`;
-                html += '</div>';
+                let body = ActionMenu._regencyChoiceHtml(game, minorHeir);
+                body += `<button onclick="window._succeedViaRegency('${minorHeir.id}')" style="${BTN_GOLD} display:block; width:100%; margin-top:8px; padding:8px;">Play ${minorHeir.firstName} under a regency</button>`;
+                html += card(body, { icon: '👑', title: `${minorHeir.firstName} ${minorHeir.dynasty}`, side: `Age ${minorHeir.age} · 👑 Designated`, tone: 'gold' });
             }
-
-            html += '</div>';
         } else {
             // No adult heir — offer a regency if an under-age child exists.
             const assess = (typeof House !== 'undefined') ? House.assessSuccession(player) : { hasMinorHeir: false, regent: null };
-            html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
             if (assess.hasMinorHeir && assess.regent) {
                 // The designated heir if they are among the minors, else the eldest
                 const r = assess.minors.find(c => c.id === player.heir) || assess.regent;
-                html += '<h4 style="color: var(--gold);">A Regency?</h4>';
-                html += `<p style="font-size: 12px; color: #aaa;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</p>`;
-                html += ActionMenu._regencyChoiceHtml(game, r);
-                html += `<button onclick="window._succeedViaRegency('${r.id}')" style="width: 100%; padding: 10px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color:#000; margin-top: 6px;">Install Regency for ${r.firstName}</button>`;
-                html += `<button onclick="window._endDynasty()" style="width: 100%; padding: 8px; background: #a33; border: none; border-radius: 4px; cursor: pointer; color: #fff; margin-top: 6px;">Let the Dynasty End</button>`;
+                html += sectionHead('A Regency?');
+                let body = `<div style="color:#cbbf9f;">No heir has come of age. You may install a regency to raise <strong>${r.firstName}</strong> (age ${r.age}) to the throne — but the House will emerge weaker, shedding holdings.</div>`;
+                body += ActionMenu._regencyChoiceHtml(game, r);
+                body += `<button onclick="window._succeedViaRegency('${r.id}')" style="${BTN_GOLD} display:block; width:100%; margin-top:8px; padding:9px;">Install Regency for ${r.firstName}</button>`;
+                body += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; margin-top:6px; padding:8px;">Let the Dynasty End</button>`;
+                html += card(body, { icon: '👑', title: `${r.firstName}`, side: `Age ${r.age}`, tone: 'gold' });
             } else {
-                html += '<h4 style="color: #a33;">No Eligible Heirs</h4>';
-                html += '<p style="font-size: 12px; color: #aaa;">Without an heir, your dynasty ends here.</p>';
-                html += `<button onclick="window._endDynasty()" style="width: 100%; padding: 12px; background: #a33; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: #fff; margin-top: 10px;">🕯️ Read the Epitaph</button>`;
+                html += `<div style="${TITLE} color:#e0846a; font-size:15px; margin-top:12px;">No Eligible Heirs</div>`;
+                html += `<div style="${MUTED} text-align:center; margin:0 0 8px;">Without an heir, your dynasty ends here.</div>`;
+                html += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; padding:10px;">🕯️ Read the Epitaph</button>`;
             }
-            html += '</div>';
         }
 
         // Or go on another way: someone else in the world, or let the years pass (ui/actionMenu/afterlife.js)
         const waitFor = eligibleHeirs.length ? '' : (player.children || []).some(c => c.isAlive) ? ' until a child comes of age' : '';
-        html += '<div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0; padding-top: 10px;">';
-        html += '<h4 style="margin-bottom:6px;">Or Go On Another Way</h4>';
-        html += `<button onclick="window._deathNewLife()" style="width: 100%; padding: 8px; margin-top: 4px; background: #3d4a63; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; cursor: pointer; font-weight: bold; color: #eee;">🎭 A New Life: become someone else in the world</button>`;
-        html += `<button onclick="window._deathLetTimePass()" style="width: 100%; padding: 8px; margin-top: 6px; background: #3d4a63; border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; cursor: pointer; font-weight: bold; color: #eee;">⏳ Let Time Pass: watch the world turn${waitFor}, then jump back in</button>`;
-        html += '</div>';
-
-        // Read back the life just ended before choosing (ui/actionMenu/annals.js)
-        html += `<button onclick="window._deathAnnals()" style="width: 100%; padding: 8px; margin-top: 10px; background: #2e2a22; border: 1px solid rgba(201,178,122,0.35); border-radius: 4px; cursor: pointer; font-weight: bold; color: #e8dcc0; font-family: Georgia, serif;">📖 Read the Annals of your life</button>`;
+        html += rowList([
+            { icon: '🎭', name: 'A New Life', desc: 'Become someone else in the world', attrs: 'onclick="window._deathNewLife()"', side: '›' },
+            { icon: '⏳', name: 'Let Time Pass', desc: `Watch the world turn${waitFor}, then jump back in`, attrs: 'onclick="window._deathLetTimePass()"', side: '›' },
+            // Read back the life just ended before choosing (ui/actionMenu/annals.js)
+            { icon: '📖', name: 'Read the Annals of your life', attrs: 'onclick="window._deathAnnals()"', side: '›' },
+        ], 'Or Go On Another Way');
         html += '</div>';
         game.ui.showCustomPanel('Death', html, { locked: true });
         window._deathAnnals = () => ActionMenu.showAnnals(game, { locked: true, onBack: () => ActionMenu.showDeathScreen(game, cause), backLabel: '← Back to the deathbed' });
@@ -1245,37 +1423,37 @@ Object.assign(ActionMenu, {
                 game.ui.hideCustomPanel();
 
                 const hr = result.house || {};
-                let successHtml = '<div style="text-align: center;">';
-                successHtml += '<h3 style="color: var(--gold); margin-top: 0;">👑 A New Chapter</h3>';
-                successHtml += `<p style="font-size: 14px;">You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.</p>`;
-                successHtml += '<div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 12px; text-align: left;">';
-                successHtml += `<div>Age: ${result.heir.age}</div>`;
+                let successHtml = '<div>';
+                successHtml += `<div style="${TITLE}">👑 A New Chapter</div>`;
+                successHtml += lede(`You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.`);
                 // What the will passed on, then the purse after the succession's losses and costs
                 const inheritPct = Relationships._getHeirSettings().inheritanceGoldPercent;
                 const inherited = Math.floor(goldBefore * inheritPct);
-                successHtml += `<div>Inherited ${inherited} of ${goldBefore} gold (${Math.round(inheritPct * 100)}%)</div>`;
-                if (Math.floor(player.gold) !== inherited) successHtml += `<div>Purse after the succession: ${Math.floor(player.gold)} gold</div>`;
-                if (player.house) successHtml += `<div>${player.house.name} · Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}</div>`;
-                if (hr.regency) successHtml += `<div style="color:#e0a030;">Ascended under a regency — a weaker start.</div>`;
-                if (result.regency) successHtml += `<div style="color:#e0a030;">👑 ${result.regency.regent.name} rules as regent until you come of age at ${result.regency.majorityAge}. Dynasty → Regency.</div>`;
+                successHtml += kv('Age', result.heir.age);
+                successHtml += kv('Inherited', `${inherited} of ${goldBefore} gold (${Math.round(inheritPct * 100)}%)`);
+                if (Math.floor(player.gold) !== inherited) successHtml += kv('Purse after the succession', `${Math.floor(player.gold)} gold`);
+                if (player.house) successHtml += kv(player.house.name, `Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}`);
+                const notes = [];
+                if (hr.regency) notes.push(`<div style="color:#f0b35a;">Ascended under a regency — a weaker start.</div>`);
+                if (result.regency) notes.push(`<div style="color:#f0b35a;">👑 ${result.regency.regent.name} rules as regent until you come of age at ${result.regency.majorityAge}. Dynasty → Regency.</div>`);
                 // The life the heir lived before the throne (systems/heirAgency.js)
-                for (const l of ((result.heirRecord && result.heirRecord.lines) || [])) successHtml += `<div style="color:#9fd19f;">${l.icon} ${l.text}</div>`;
+                for (const l of ((result.heirRecord && result.heirRecord.lines) || [])) notes.push(`<div style="color:#8fd18a;">${l.icon} ${l.text}</div>`);
                 if (hr.disputed) {
-                    successHtml += hr.secured
-                        ? `<div style="color:#7fd07f;">A rival pressed a claim — quelled by spending Prestige.</div>`
-                        : `<div style="color:#e08080;">A disputed succession fragmented the House's holdings.</div>`;
+                    notes.push(hr.secured
+                        ? `<div style="color:#8fd18a;">A rival pressed a claim — quelled by spending Prestige.</div>`
+                        : `<div style="color:#e0846a;">A disputed succession fragmented the House's holdings.</div>`);
                 }
                 for (const loss of (hr.fragmented || [])) {
-                    if (loss.type === 'title') successHtml += `<div style="color:#e08080;">Lost your office in the turmoil.</div>`;
-                    if (loss.type === 'gold') successHtml += `<div style="color:#e08080;">Lost ${loss.amount} gold to rival claimants.</div>`;
+                    if (loss.type === 'title') notes.push(`<div style="color:#e0846a;">Lost your office in the turmoil.</div>`);
+                    if (loss.type === 'gold') notes.push(`<div style="color:#e0846a;">Lost ${loss.amount} gold to rival claimants.</div>`);
                 }
                 // Traits aren't inherited — but the realm remembers the late ruler
                 const echoNames = (result.traitEcho || []).map(e => Traits.TRAITS[e.id]).filter(Boolean).map(d => `${d.icon} ${d.name}`);
                 const raised = (result.heirTraits || []).map(id => Traits.TRAITS[id]).filter(Boolean).map(d => `${d.icon} ${d.name}`);
-                if (raised.length) successHtml += `<div style="color:#9fd19f;">Your upbringing made you ${raised.join(', ')}.</div>`;
-                if (echoNames.length) successHtml += `<div style="color:#c9b27a;">The realm still remembers ${result.oldName} as ${echoNames.join(' and ')}. That reputation clings to your House for a while.</div>`;
-                successHtml += '</div>';
-                successHtml += `<button data-am-act="closePanelAndRefresh" style="width: 100%; padding: 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">Begin Your Story</button>`;
+                if (raised.length) notes.push(`<div style="color:#8fd18a;">Your upbringing made you ${raised.join(', ')}.</div>`);
+                if (echoNames.length) notes.push(`<div style="color:#c9b27a;">The realm still remembers ${result.oldName} as ${echoNames.join(' and ')}. That reputation clings to your House for a while.</div>`);
+                if (notes.length) successHtml += card(notes.join(''));
+                successHtml += `<button data-am-act="closePanelAndRefresh" style="${BTN_GOLD} display:block; width:100%; margin-top:10px; padding:10px; font-size:14px;">Begin Your Story</button>`;
                 successHtml += '</div>';
 
                 game.ui.showCustomPanel('New Heir', successHtml);

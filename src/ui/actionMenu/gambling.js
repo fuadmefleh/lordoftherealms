@@ -4,6 +4,9 @@ import { Traits } from '../../systems/traits.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
 import { OddJobs } from '../../player/oddJobs.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader } from './_imports.js';
+import { lede, chips, purse, sectionHead, rowList, card, kv, price, BTN_GOLD, BTN_PLAIN, BTN_DARK, BTN_OFF } from './uiKit.js';
+import { BackRooms } from '../../systems/backRooms.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
 /** Busk an act in person on the street map; the crowd's score goes to the busking reward. */
 function _buskInPerson(game, tile, crowdMultiplier, perfId) {
@@ -22,53 +25,96 @@ function _buskInPerson(game, tile, crowdMultiplier, perfId) {
     });
 }
 
+/**
+ * The top of a gambling table: ← Back to the den, and the purse as a chip.
+ * goldId names the purse value so a table can refresh it in place.
+ */
+function _tableTop(gold, goldId = '') {
+    return `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="${BTN_DARK} margin:0;">← Back</button>
+        <span class="pk-chip gold">💰 Purse <b${goldId ? ` id="${goldId}"` : ''}>${gold}g</b></span>
+    </div>`;
+}
+
+/** Crown & Anchor's symbol tiles: idle look (the selected tile lights gold). */
+const CA_IDLE_BG = 'rgba(255,255,255,0.03)';
+const CA_IDLE_EDGE = 'rgba(245,197,66,0.14)';
+
+/** Dragon's Flip: the double-or-nothing offer after a win (call again, or cash out). */
+function _dfDoubleBox(titleHtml) {
+    const B = 'margin:0; padding: 7px 18px;';
+    return card(`<div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="window._dfDoubleOrNothing('dragon')" style="${BTN_GOLD} ${B}">🐉 Dragon</button>
+            <button onclick="window._dfDoubleOrNothing('shield')" style="${BTN_GOLD} ${B}">🛡️ Shield</button>
+            <button onclick="window._dfCashOut()" style="${BTN_PLAIN} ${B} color:#8fd18a; border-color:rgba(143,209,138,0.5);">💰 Cash Out</button>
+        </div>`, { title: titleHtml, tone: 'gold' });
+}
+
+/** A bet slider in the kit's quiet voice: label, range input, live value. */
+function _betSlider(label, id, labelId, min, max, value, width = 180) {
+    return `<div style="display:flex; align-items:center; gap:8px; justify-content:center; margin:6px 0 14px;">
+        <span style="font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#9d937c;">${label}</span>
+        <input type="range" id="${id}" min="${min}" max="${max}" value="${value}"
+            oninput="document.getElementById('${labelId}').textContent = this.value"
+            style="width:${width}px; accent-color:#ffcf6a;">
+        <span style="color:#ffcf6a; font-weight:700; min-width:40px;"><span id="${labelId}">${value}</span>g</span>
+    </div>`;
+}
+
 Object.assign(ActionMenu, {
     /**
      * Show gambling menu — pick a minigame
      */
     showGamblingMenu(game, tile) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'gambling', tile)) return;
+        // Where the realm or the town forbids gaming, the tables are only to be
+        // had in a back room behind some legitimate front (systems/backRooms.js)
+        const gaming = tile.settlement ? BackRooms.status(game.world, tile.settlement) : { legal: true };
+        if (!gaming.legal && !BackRooms.admitted(game.player, game.world, tile)) {
+            ActionMenu.showBackRoomDoor(game, tile);
+            return;
+        }
+        const underground = !gaming.legal;
+        const inOwnRoom = underground && game.player._backRoom && game.player._backRoom.gameId === 'own';
         const gold = game.player.gold;
-        // Check if player owns a tavern here
-        const ownsTavern = tile.playerProperties && tile.playerProperties.some(p => p.type === 'tavern' && !p.underConstruction);
+        // Check if player owns a tavern here (its house advantage holds in the open, or in its own back room)
+        const ownsTavern = (!underground || inOwnRoom) && tile.playerProperties && tile.playerProperties.some(p => p.type === 'tavern' && !p.underConstruction);
         const tavernTables = ownsTavern ? (tile.playerProperties.find(p => p.type === 'tavern')?.gamblingTables || 0) : 0;
 
         // Game catalogue comes from data/earlyJobs.json (gambling.games)
         const minigames = ActionMenu._getGamblingData();
 
-        let html = '<div style="width: 100%; box-sizing: border-box;">';
+        // The action menu's voice (ui/actionMenu/uiKit.js): a lede and chips, then one
+        // row a game — its minimum stake at the right, greyed when the purse is short
+        let html = underground
+            ? lede(`${gaming.why} Behind ${(BackRooms.games(game.world, tile).find(g => g.id === game.player._backRoom.gameId) || { front: 'the front' }).front}, the tables run all the same. Keep your voice down.`)
+            : lede('Games of chance at the tables. Pick a game, lay your stake.');
+        html += chips([
+            purse(gold),
+            ownsTavern ? { icon: '🍻', label: 'Your tavern', value: 'No AP cost', cls: 'gold' } : null,
+        ]);
 
         if (ownsTavern) {
-            html += `<div style="padding: 10px 14px; margin-bottom: 12px; background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); border-radius: 6px; text-align: center;">
-                <div style="font-size: 14px; color: var(--gold); font-weight: bold;">🍻 Your Tavern</div>
-                <div style="font-size: 12px; color: var(--text-secondary);">House advantage! +5% luck bonus${tavernTables > 0 ? ` · ${tavernTables} table${tavernTables > 1 ? 's' : ''} (+${tavernTables * 2}% extra)` : ''} · No AP cost</div>
-            </div>`;
+            html += card(`<div style="font-size:12px; color:#cbbf9f;">House advantage! +5% luck bonus${tavernTables > 0 ? ` · ${tavernTables} table${tavernTables > 1 ? 's' : ''} (+${tavernTables * 2}% extra)` : ''} · No AP cost</div>`,
+                { icon: '🍻', title: 'Your Tavern', tone: 'gold' });
         }
 
-        html += '<h4 style="margin-top: 0; text-align: center;">🎲 Games of Chance</h4>';
-        html += `<p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 16px;">Your purse: <span style="color: var(--gold); font-weight: bold;">${gold} gold</span></p>`;
-
-        for (const mg of minigames) {
+        html += rowList(minigames.map(mg => {
             const canPlay = gold >= mg.minBet;
-            html += `
-                <button onclick="window._openMinigame('${mg.id}')" ${!canPlay ? 'disabled' : ''}
-                    style="display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; margin-bottom: 8px;
-                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 4px solid ${mg.color || '#9b59b6'};
-                           border-radius: 8px; cursor: ${canPlay ? 'pointer' : 'not-allowed'}; text-align: left;
-                           color: var(--text-primary); transition: all 0.15s; ${!canPlay ? 'opacity: 0.4;' : ''}"
-                    onmouseenter="if(!this.disabled) this.style.background='rgba(255,255,255,0.08)'"
-                    onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                    <span style="font-size: 32px; line-height: 1;">${mg.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-family: var(--font-display); font-size: 15px; color: var(--gold); margin-bottom: 3px;">${mg.name}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.3;">${mg.description}</div>
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Min bet: ${mg.minBet}g</div>
-                    </div>
-                    <span style="font-size: 20px; color: var(--text-muted);">▶</span>
-                </button>`;
-        }
+            return {
+                icon: mg.icon,
+                name: mg.name,
+                desc: mg.description,
+                attrs: `onclick="window._openMinigame('${mg.id}')"`,
+                off: !canPlay,
+                why: `Min bet: ${mg.minBet}g — your purse holds ${gold}g`,
+                side: `Min bet: ${mg.minBet}g`,
+                tone: canPlay ? 'gold' : '',
+            };
+        }), '🎲 Games of Chance');
 
-        html += '</div>';
-        game.ui.showCustomPanel('🎲 Gambling Den', html);
+        game.ui.showCustomPanel(underground ? '🎲 The Back Room' : '🎲 Gambling Den', html);
 
         window._openMinigame = (id) => {
             if (id === 'crown_anchor') ActionMenu._minigameCrownAnchor(game, tile);
@@ -76,6 +122,56 @@ Object.assign(ActionMenu, {
             else if (id === 'high_low') ActionMenu._minigameHighLow(game, tile);
             else if (id === 'poker') ActionMenu._minigamePoker(game, tile);
         };
+    },
+
+    /**
+     * Where gaming is forbidden: the back-room games in town, each behind its
+     * front, what the doorman wants, and tonight's chance of a raid.
+     */
+    showBackRoomDoor(game, tile) {
+        const gaming = BackRooms.status(game.world, tile.settlement);
+        const games = BackRooms.games(game.world, tile);
+        let html = lede(`${gaming.why} No gaming house may open here: dice and cards go on behind closed doors, in the back of some honest business.`);
+        html += chips([purse(game.player.gold)]);
+        if (!games.length) {
+            html += card('<div style="font-size:12px; color:#cbbf9f;">Nobody here will own to a game. Where a gang runs dens, there is a back room to be found; a tavern of yours could be fitted with one of its own.</div>', { icon: '🚪', title: 'No back room here' });
+        } else {
+            html += rowList(games.map(g => {
+                const door = BackRooms.entry(game.player, game.world, tile, g);
+                const risk = Math.round(BackRooms.raidChance(game.world, tile, g) * 100);
+                const short = !door.free && game.player.gold < door.fee;
+                return {
+                    icon: g.kind === 'own' ? '🍻' : g.kind === 'gang' ? '🗝️' : '🚪',
+                    name: g.name,
+                    desc: `Behind ${g.front} · ${door.why}`,
+                    note: `<span style="color:#f0b35a;">Raid risk tonight ~${risk}%: the stakes on the table and a fine</span>`,
+                    act: 'backRoomEnter', args: [tile.q, tile.r, g.id],
+                    off: short, why: `The doorman wants ${door.fee}g`,
+                    side: door.free ? 'Walk in' : price(door.fee, !short),
+                    tone: 'gold',
+                };
+            }), 'Back rooms');
+        }
+        game.ui.showCustomPanel('🚪 A Back Room', html);
+    },
+
+    /** Through the front and down the stair (data-am-act="backRoomEnter"). */
+    backRoomEnter(game, q, r, gameId) {
+        const tile = game.world.getTile(q, r);
+        const res = BackRooms.enter(game.player, game.world, tile, gameId);
+        if (!res.success) {
+            game.ui.showNotification('🚪 Not Tonight', res.reason, 'error');
+            return;
+        }
+        game.ui.updateStats(game.player, game.world);
+        if (res.raided) {
+            let html = lede(res.text);
+            html += chips([['🎲', 'Stakes lost', `${res.lost}g`], ['⚖️', 'Fine', `${res.fine}g`], purse(game.player.gold)]);
+            html += card('<div style="font-size:12px; color:#cbbf9f;">The watch has your name now: there is heat on you in this realm. The back room is shut for the night.</div>', { icon: '🚨', title: 'Raided', tone: 'bad' });
+            game.ui.showCustomPanel('🚨 The Watch!', html);
+            return;
+        }
+        ActionMenu.showGamblingMenu(game, tile);
     },
 
     // ── MINIGAME: Texas Hold'em Poker ──────────────────────────────────────────
@@ -301,33 +397,23 @@ Object.assign(ActionMenu, {
             let html = `<div style="width:100%;box-sizing:border-box;">`;
 
             // Header
-            html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <button onclick="ActionMenu.showGamblingMenu(window._gambGame,window._gambTile)" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:13px;">← Back</button>
-                <span style="color:var(--gold);font-weight:bold;">💰 ${gold}g</span>
-            </div>`;
-            html += `<h4 style="margin:0 0 2px;text-align:center;">🂡 Texas Hold'em</h4>`;
-            if (pot > 0) html += `<div style="text-align:center;font-size:13px;color:var(--gold);margin-bottom:8px;">Pot: <b>${pot}g</b></div>`;
+            html += _tableTop(gold);
+            html += sectionHead("🂡 Texas Hold'em");
+            if (pot > 0) html += chips([{ icon: '💰', label: 'Pot', value: `${pot}g`, cls: 'gold' }]);
 
             if (street === 'ante') {
                 // Ante selection screen
-                html += `<p style="font-size:12px;color:var(--text-secondary);text-align:center;margin-bottom:14px;">Set your ante to start a hand. Both you and the dealer put the ante in the pot.</p>`;
+                html += lede('Set your ante to start a hand. Both you and the dealer put the ante in the pot.');
                 const anteMax = Math.min(pokerCfg.maxAnte ?? 200, Math.floor(gold / 2));
-                html += `<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:18px;">
-                    <span style="font-size:12px;color:var(--text-secondary);">Ante:</span>
-                    <input type="range" id="pokerAnte" min="${pokerCfg.minBet}" max="${anteMax}" value="${Math.min(20,anteMax)}"
-                        oninput="document.getElementById('pokerAnteLabel').textContent=this.value"
-                        style="width:160px;accent-color:#e74c3c;">
-                    <span id="pokerAnteLabel" style="color:var(--gold);font-weight:bold;min-width:38px;">${Math.min(20,anteMax)}</span>g
-                </div>`;
+                html += _betSlider('Ante', 'pokerAnte', 'pokerAnteLabel', pokerCfg.minBet, anteMax, Math.min(20, anteMax), 160);
                 html += `<button onclick="window._pokerDeal(parseInt(document.getElementById('pokerAnte').value))"
-                    style="display:block;width:100%;padding:12px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
-                           border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:15px;letter-spacing:1px;font-weight:bold;">
+                    style="${BTN_GOLD} display:block; width:100%; margin:0; padding:10px; font-family:var(--font-display); font-size:14px; letter-spacing:1px;">
                     🂡 Deal Cards
                 </button>`;
             } else {
                 // ── Community cards ──
                 html += `<div style="text-align:center;margin-bottom:10px;">`;
-                html += `<div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Community Cards</div>`;
+                html += `<div class="pk-head" style="text-align:center;">Community Cards</div>`;
                 html += `<div style="display:flex;gap:6px;justify-content:center;align-items:center;min-height:76px;">`;
                 for (let i = 0; i < 5; i++) {
                     if (i < community.length) {
@@ -345,14 +431,14 @@ Object.assign(ActionMenu, {
 
                 // Player
                 html += `<div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Your Hand</div>
+                    <div class="pk-head" style="text-align:center;">Your Hand</div>
                     <div style="display:flex;gap:5px;justify-content:center;">${playerCards.map(c=>cardHTML(c)).join('')}</div>`;
                 if (playerHandResult) html += `<div style="font-size:11px;margin-top:5px;color:${handColor(playerHandResult.rank)};font-weight:bold;">${playerHandResult.name}</div>`;
                 html += `</div>`;
 
                 // Dealer
                 html += `<div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;">Dealer</div>
+                    <div class="pk-head" style="text-align:center;">Dealer</div>
                     <div style="display:flex;gap:5px;justify-content:center;">`;
                 if (showDown) {
                     const dealerHandResult = evalHand([...dealerCards, ...community]);
@@ -365,49 +451,32 @@ Object.assign(ActionMenu, {
                 html += `</div></div>`;
 
                 // ── Status / last action ──
-                if (lastAction) html += `<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:6px;">${lastAction}</div>`;
-                html += `<div style="font-size:13px;color:var(--text-secondary);text-align:center;margin-bottom:10px;">${statusMsg}</div>`;
+                if (lastAction) html += `<div style="font-size:11px;color:#9d937c;text-align:center;margin-bottom:6px;">${lastAction}</div>`;
+                html += `<div style="font-size:13px;color:#ece2c8;text-align:center;margin-bottom:10px;">${statusMsg}</div>`;
 
                 // ── Action buttons ──
+                const PLAY = 'padding:8px 20px; margin:0; font-size:13px;';
                 if (!gameOver && !isFacingBet) {
                     const betMax = Math.min(100, gold, pot);
-                    html += `<div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:10px;">
-                        <span style="font-size:11px;color:var(--text-secondary);">Raise:</span>
-                        <input type="range" id="pokerBetInput" min="${currentAnte}" max="${betMax}" value="${currentAnte}"
-                            oninput="document.getElementById('pokerBetLabel').textContent=this.value"
-                            style="width:120px;accent-color:#e74c3c;">
-                        <span id="pokerBetLabel" style="color:var(--gold);font-weight:bold;min-width:32px;">${currentAnte}</span>g
-                    </div>`;
+                    html += _betSlider('Raise', 'pokerBetInput', 'pokerBetLabel', currentAnte, betMax, currentAnte, 120);
                     html += `<div style="display:flex;gap:8px;justify-content:center;">
-                        <button onclick="window._pokerAction('check')"
-                            style="padding:10px 20px;background:rgba(52,152,219,0.15);border:2px solid #3498db;border-radius:8px;
-                                   cursor:pointer;color:#3498db;font-size:13px;font-weight:bold;">✔ Check</button>
-                        <button onclick="window._pokerAction('bet')"
-                            style="padding:10px 20px;background:rgba(231,76,60,0.15);border:2px solid #e74c3c;border-radius:8px;
-                                   cursor:pointer;color:#e74c3c;font-size:13px;font-weight:bold;">💰 Bet</button>
-                        <button onclick="window._pokerAction('fold')"
-                            style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
-                                   cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
+                        <button onclick="window._pokerAction('check')" style="${BTN_PLAIN} ${PLAY}">✔ Check</button>
+                        <button onclick="window._pokerAction('bet')" style="${BTN_GOLD} ${PLAY}">💰 Bet</button>
+                        <button onclick="window._pokerAction('fold')" style="${BTN_DARK} ${PLAY}">✖ Fold</button>
                     </div>`;
                 } else if (!gameOver && isFacingBet) {
                     html += `<div style="display:flex;gap:8px;justify-content:center;">
-                        <button onclick="window._pokerCall()"
-                            style="padding:10px 24px;background:rgba(46,204,113,0.15);border:2px solid #2ecc71;border-radius:8px;
-                                   cursor:pointer;color:#2ecc71;font-size:13px;font-weight:bold;">📲 Call</button>
-                        <button onclick="window._pokerAction('fold')"
-                            style="padding:10px 18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:8px;
-                                   cursor:pointer;color:var(--text-secondary);font-size:13px;">✖ Fold</button>
+                        <button onclick="window._pokerCall()" style="${BTN_GOLD} ${PLAY}">📲 Call</button>
+                        <button onclick="window._pokerAction('fold')" style="${BTN_DARK} ${PLAY}">✖ Fold</button>
                     </div>`;
                 } else if (gameOver) {
                     html += `<button onclick="window._pokerNewHand()"
-                        style="display:block;width:100%;padding:11px;margin-top:4px;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;border:none;
-                               border-radius:8px;cursor:pointer;font-family:var(--font-display);font-size:14px;letter-spacing:1px;"
-                        ${gold < 10 ? 'disabled style="opacity:0.4;"' : ''}>
+                        style="${gold >= 10 ? BTN_GOLD : BTN_OFF} display:block; width:100%; margin:4px 0 0; padding:10px; font-family:var(--font-display); font-size:14px; letter-spacing:1px;"
+                        ${gold < 10 ? 'disabled' : ''}>
                         ${gold >= 10 ? '🂡 New Hand' : 'Out of gold!'}
                     </button>`;
                     html += `<button data-am-act="closePanel"
-                        style="display:block;width:100%;padding:9px;margin-top:6px;background:none;border:1px solid rgba(255,255,255,0.1);
-                               border-radius:8px;cursor:pointer;color:var(--text-secondary);font-size:12px;">Leave Table</button>`;
+                        style="${BTN_DARK} display:block; width:100%; margin:6px 0 0; padding:8px;">Leave Table</button>`;
                 }
             }
 
@@ -493,45 +562,35 @@ Object.assign(ActionMenu, {
         ];
 
         let html = '<div style="width: 100%; box-sizing: border-box; text-align: center;">';
-        html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;">← Back</button>
-                    <span style="color: var(--gold); font-weight: bold;">💰 ${gold}g</span>
-                 </div>`;
-        html += '<h4 style="margin: 0 0 4px;">🎲 Crown & Anchor</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Pick a symbol and place your bet. Three dice are rolled — each match pays your bet!</p>';
+        html += _tableTop(gold, 'caPurse');
+        html += sectionHead('🎲 Crown & Anchor');
+        html += lede('Pick a symbol and place your bet. Three dice are rolled — each match pays your bet!');
 
         // Bet slider
-        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; justify-content: center;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                    <input type="range" id="caBet" min="${cfg.minBet}" max="${maxBet}" value="${Math.min(25, maxBet)}" 
-                           oninput="document.getElementById('caBetLabel').textContent = this.value"
-                           style="width: 180px; accent-color: var(--gold);">
-                    <span id="caBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(25, maxBet)}</span>g
-                 </div>`;
+        html += _betSlider('Bet', 'caBet', 'caBetLabel', cfg.minBet, maxBet, Math.min(25, maxBet));
 
         // Symbol grid
-        html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Choose your symbol:</div>';
+        html += sectionHead('Choose your symbol');
         html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">';
         for (const sym of symbols) {
             html += `<button onclick="window._caPickSymbol('${sym.id}')" id="caSym_${sym.id}"
-                        style="padding: 12px 8px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1);
-                               border-radius: 8px; cursor: pointer; transition: all 0.15s; color: var(--text-primary);"
-                        onmouseenter="this.style.borderColor='var(--gold)'" onmouseleave="if(!this.classList.contains('ca-selected')) this.style.borderColor='rgba(255,255,255,0.1)'">
+                        style="padding: 10px 8px; background: ${CA_IDLE_BG}; border: 1px solid ${CA_IDLE_EDGE};
+                               border-radius: 8px; cursor: pointer; transition: all 0.15s; color: #ece2c8;"
+                        onmouseenter="this.style.borderColor='rgba(245,197,66,0.6)'" onmouseleave="if(!this.classList.contains('ca-selected')) this.style.borderColor='${CA_IDLE_EDGE}'">
                         <div style="font-size: 28px;">${sym.icon}</div>
-                        <div style="font-size: 11px; margin-top: 4px;">${sym.name}</div>
+                        <div style="font-size: 11px; margin-top: 4px; font-weight: 600;">${sym.name}</div>
                      </button>`;
         }
         html += '</div>';
 
         // Dice display area
         html += `<div id="caDiceArea" style="min-height: 80px; display: flex; justify-content: center; align-items: center; gap: 16px; margin-bottom: 16px;">
-                    <div style="font-size: 14px; color: var(--text-muted);">Pick a symbol and roll!</div>
+                    <div style="font-size: 13px; color: #9d937c;">Pick a symbol and roll!</div>
                  </div>`;
 
         // Roll button
         html += `<button id="caRollBtn" onclick="window._caRoll()" disabled
-                    style="padding: 10px 32px; background: #9b59b6; color: white; border: none; border-radius: 6px; cursor: pointer;
-                           font-family: var(--font-display); font-size: 14px; letter-spacing: 1px; opacity: 0.5; transition: all 0.15s;">
+                    style="${BTN_GOLD} margin:0; padding: 9px 32px; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px; opacity: 0.5; transition: all 0.15s;">
                     🎲 Roll the Dice
                  </button>`;
 
@@ -553,12 +612,12 @@ Object.assign(ActionMenu, {
                 if (el) {
                     if (s.id === symId) {
                         el.classList.add('ca-selected');
-                        el.style.borderColor = 'var(--gold)';
+                        el.style.borderColor = 'rgba(245,197,66,0.7)';
                         el.style.background = 'rgba(245, 197, 66, 0.15)';
                     } else {
                         el.classList.remove('ca-selected');
-                        el.style.borderColor = 'rgba(255,255,255,0.1)';
-                        el.style.background = 'rgba(255,255,255,0.05)';
+                        el.style.borderColor = CA_IDLE_EDGE;
+                        el.style.background = CA_IDLE_BG;
                     }
                 }
             }
@@ -604,7 +663,7 @@ Object.assign(ActionMenu, {
                 const randomIcons = [0, 1, 2].map(() => symbols[Math.floor(Math.random() * symbols.length)]);
                 if (diceArea) {
                     diceArea.innerHTML = randomIcons.map(s =>
-                        `<div style="width: 64px; height: 64px; background: rgba(155,89,182,0.2); border: 2px solid #9b59b6; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px;">${s.icon}</div>`
+                        `<div style="width: 64px; height: 64px; background: rgba(245,197,66,0.08); border: 2px solid rgba(245,197,66,0.4); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px;">${s.icon}</div>`
                     ).join('');
                 }
                 rollCount++;
@@ -615,7 +674,7 @@ Object.assign(ActionMenu, {
                     if (diceArea) {
                         diceArea.innerHTML = finalIcons.map(s => {
                             const isMatch = s.id === selectedSymbol;
-                            return `<div style="width: 64px; height: 64px; background: ${isMatch ? 'rgba(46,204,113,0.2)' : 'rgba(255,255,255,0.05)'}; border: 2px solid ${isMatch ? '#2ecc71' : 'rgba(255,255,255,0.15)'}; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px; transition: all 0.3s;">${s.icon}</div>`;
+                            return `<div style="width: 64px; height: 64px; background: ${isMatch ? 'rgba(143,209,138,0.16)' : 'rgba(255,255,255,0.04)'}; border: 2px solid ${isMatch ? '#8fd18a' : 'rgba(245,197,66,0.14)'}; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px; transition: all 0.3s;">${s.icon}</div>`;
                         }).join('');
                     }
 
@@ -623,25 +682,22 @@ Object.assign(ActionMenu, {
                     if (matches === 0) {
                         game.player.gold -= bet;
                         ActionMenu._gamblingFinance(game, -bet);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #e74c3c; font-weight: bold; font-size: 14px;">No matches! Lost ${bet}g 💸</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 14px;">No matches! Lost ${bet}g 💸</div>`;
                     } else {
                         const payout = Math.floor(bet * matches * (cfg.payoutPerMatch ?? 1)); // 1x per match, so 1 match = 1x, 2 = 2x, 3 = 3x
                         game.player.gold += payout; // net gain (doesn't deduct bet, matches pay bet each)
                         ActionMenu._gamblingFinance(game, payout);
                         const msg = matches === 3 ? '🎉 TRIPLE MATCH! Jackpot!' : matches === 2 ? '✨ Double match!' : '👍 One match!';
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #2ecc71; font-weight: bold; font-size: 14px;">${msg} Won ${payout}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 14px;">${msg} Won ${payout}g!</div>`;
                     }
                     game.ui.updateStats(game.player, game.world);
 
                     // Re-enable after result
                     setTimeout(() => {
                         if (rollBtn && game.player.gold >= 5) { rollBtn.disabled = false; rollBtn.style.opacity = '1'; }
-                        // Update gold display
-                        const panel = document.getElementById('customPanel');
-                        if (panel) {
-                            const goldSpan = panel.querySelector('span[style*="font-weight: bold"]');
-                            if (goldSpan && goldSpan.textContent.includes('g')) goldSpan.textContent = game.player.gold + 'g';
-                        }
+                        // Update gold display (the purse chip, _tableTop)
+                        const goldSpan = document.getElementById('caPurse');
+                        if (goldSpan) goldSpan.textContent = game.player.gold + 'g';
                     }, 600);
                 }
             }, 100);
@@ -655,21 +711,12 @@ Object.assign(ActionMenu, {
         const maxBet = Math.min(cfg.maxBet, gold);
 
         let html = '<div style="width: 100%; box-sizing: border-box; text-align: center;">';
-        html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;">← Back</button>
-                    <span style="color: var(--gold); font-weight: bold;">💰 ${gold}g</span>
-                 </div>`;
-        html += '<h4 style="margin: 0 0 4px;">🐉 Dragon\'s Flip</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Call the coin — Dragon or Shield. Double or nothing!</p>';
+        html += _tableTop(gold);
+        html += sectionHead('🐉 Dragon\'s Flip');
+        html += lede('Call the coin — Dragon or Shield. Double or nothing!');
 
         // Bet slider
-        html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; justify-content: center;">
-                    <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                    <input type="range" id="dfBet" min="${cfg.minBet}" max="${maxBet}" value="${Math.min(25, maxBet)}"
-                           oninput="document.getElementById('dfBetLabel').textContent = this.value"
-                           style="width: 180px; accent-color: var(--gold);">
-                    <span id="dfBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(25, maxBet)}</span>g
-                 </div>`;
+        html += _betSlider('Bet', 'dfBet', 'dfBetLabel', cfg.minBet, maxBet, Math.min(25, maxBet));
 
         // Coin display
         html += `<div id="dfCoinArea" style="margin: 20px auto; width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #c49a2a, #f5c542); display: flex; align-items: center; justify-content: center; font-size: 48px; box-shadow: 0 4px 20px rgba(245,197,66,0.3); transition: transform 0.1s;">
@@ -677,18 +724,12 @@ Object.assign(ActionMenu, {
                  </div>`;
 
         // Choice buttons
-        html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">Make your call:</div>';
+        html += sectionHead('Make your call');
         html += `<div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 16px;">
-                    <button onclick="window._dfFlip('dragon')" id="dfDragonBtn"
-                        style="padding: 12px 28px; background: rgba(231,76,60,0.15); border: 2px solid #e74c3c;
-                               border-radius: 8px; cursor: pointer; color: var(--text-primary); transition: all 0.15s; font-size: 14px;"
-                        onmouseenter="this.style.background='rgba(231,76,60,0.3)'" onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
+                    <button onclick="window._dfFlip('dragon')" id="dfDragonBtn" style="${BTN_GOLD} margin:0; padding: 10px 28px; font-size: 14px;">
                         🐉 Dragon
                     </button>
-                    <button onclick="window._dfFlip('shield')" id="dfShieldBtn"
-                        style="padding: 12px 28px; background: rgba(52,152,219,0.15); border: 2px solid #3498db;
-                               border-radius: 8px; cursor: pointer; color: var(--text-primary); transition: all 0.15s; font-size: 14px;"
-                        onmouseenter="this.style.background='rgba(52,152,219,0.3)'" onmouseleave="this.style.background='rgba(52,152,219,0.15)'">
+                    <button onclick="window._dfFlip('shield')" id="dfShieldBtn" style="${BTN_GOLD} margin:0; padding: 10px 28px; font-size: 14px;">
                         🛡️ Shield
                     </button>
                  </div>`;
@@ -758,26 +799,18 @@ Object.assign(ActionMenu, {
                         currentWinnings = winAmount;
                         game.player.gold += bet; // Net +bet (double minus the bet)
                         ActionMenu._gamblingFinance(game, bet);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #2ecc71; font-weight: bold; font-size: 15px;">🎉 ${resultName}! You win ${winAmount}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🎉 ${resultName}! You win ${winAmount}g!</div>`;
 
                         // Show double-or-nothing option
                         if (doubleArea) {
                             doubleArea.style.display = 'block';
-                            doubleArea.innerHTML = `
-                                <div style="padding: 12px; background: rgba(245,197,66,0.08); border: 1px solid var(--border-color); border-radius: 8px;">
-                                    <div style="font-size: 13px; color: var(--gold); margin-bottom: 8px;">🔥 Double or Nothing? (${currentWinnings}g at stake)</div>
-                                    <div style="display: flex; gap: 10px; justify-content: center;">
-                                        <button onclick="window._dfDoubleOrNothing('dragon')" style="padding: 8px 20px; background: rgba(231,76,60,0.2); border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer; color: var(--text-primary);">🐉 Dragon</button>
-                                        <button onclick="window._dfDoubleOrNothing('shield')" style="padding: 8px 20px; background: rgba(52,152,219,0.2); border: 1px solid #3498db; border-radius: 6px; cursor: pointer; color: var(--text-primary);">🛡️ Shield</button>
-                                        <button onclick="window._dfCashOut()" style="padding: 8px 20px; background: rgba(46,204,113,0.2); border: 1px solid #2ecc71; border-radius: 6px; cursor: pointer; color: #2ecc71; font-weight: bold;">💰 Cash Out</button>
-                                    </div>
-                                </div>`;
+                            doubleArea.innerHTML = _dfDoubleBox(`🔥 Double or Nothing? (${currentWinnings}g at stake)`);
                         }
                     } else {
                         game.player.gold -= bet;
                         ActionMenu._gamblingFinance(game, -bet);
                         currentWinnings = 0;
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #e74c3c; font-weight: bold; font-size: 15px;">💸 ${resultName}! You lose ${bet}g.</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💸 ${resultName}! You lose ${bet}g.</div>`;
                         if (doubleArea) doubleArea.style.display = 'none';
 
                         // Re-enable buttons
@@ -822,25 +855,17 @@ Object.assign(ActionMenu, {
                         currentWinnings *= 2;
                         game.player.gold += currentWinnings / 2; // Double the previous winnings
                         ActionMenu._gamblingFinance(game, currentWinnings / 2);
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #2ecc71; font-weight: bold; font-size: 15px;">🔥 DOUBLED! Winnings: ${currentWinnings}g!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #8fd18a; font-weight: bold; font-size: 15px;">🔥 DOUBLED! Winnings: ${currentWinnings}g!</div>`;
                         // Update double-or-nothing display
                         if (doubleArea) {
-                            doubleArea.innerHTML = `
-                                <div style="padding: 12px; background: rgba(245,197,66,0.08); border: 1px solid var(--border-color); border-radius: 8px;">
-                                    <div style="font-size: 13px; color: var(--gold); margin-bottom: 8px;">🔥🔥 Double again? (${currentWinnings}g at stake!)</div>
-                                    <div style="display: flex; gap: 10px; justify-content: center;">
-                                        <button onclick="window._dfDoubleOrNothing('dragon')" style="padding: 8px 20px; background: rgba(231,76,60,0.2); border: 1px solid #e74c3c; border-radius: 6px; cursor: pointer; color: var(--text-primary);">🐉 Dragon</button>
-                                        <button onclick="window._dfDoubleOrNothing('shield')" style="padding: 8px 20px; background: rgba(52,152,219,0.2); border: 1px solid #3498db; border-radius: 6px; cursor: pointer; color: var(--text-primary);">🛡️ Shield</button>
-                                        <button onclick="window._dfCashOut()" style="padding: 8px 20px; background: rgba(46,204,113,0.2); border: 1px solid #2ecc71; border-radius: 6px; cursor: pointer; color: #2ecc71; font-weight: bold;">💰 Cash Out</button>
-                                    </div>
-                                </div>`;
+                            doubleArea.innerHTML = _dfDoubleBox(`🔥🔥 Double again? (${currentWinnings}g at stake!)`);
                         }
                     } else {
                         // Lose everything from double-or-nothing
                         game.player.gold -= currentWinnings / 2;
                         ActionMenu._gamblingFinance(game, -(currentWinnings / 2));
                         currentWinnings = 0;
-                        if (resultArea) resultArea.innerHTML = `<div style="color: #e74c3c; font-weight: bold; font-size: 15px;">💀 Bust! Lost it all on the double!</div>`;
+                        if (resultArea) resultArea.innerHTML = `<div style="color: #e0846a; font-weight: bold; font-size: 15px;">💀 Bust! Lost it all on the double!</div>`;
                         if (doubleArea) doubleArea.style.display = 'none';
                         coinArea.style.boxShadow = '0 4px 30px rgba(231,76,60,0.5)';
 
@@ -909,31 +934,21 @@ Object.assign(ActionMenu, {
 
         const renderHL = () => {
             let html = '<div style="width: 100%; box-sizing: border-box; text-align: center;">';
-            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <button onclick="ActionMenu.showGamblingMenu(window._gambGame, window._gambTile)" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;">← Back</button>
-                        <span style="color: var(--gold); font-weight: bold;">💰 ${Math.floor(game.player.gold)}g</span>
-                     </div>`;
-            html += '<h4 style="margin: 0 0 4px;">🃏 High-Low</h4>';
-            html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Guess if the next card is Higher or Lower. Keep your streak for bigger payouts!</p>';
+            html += _tableTop(Math.floor(game.player.gold));
+            html += sectionHead('🃏 High-Low');
+            html += lede('Guess if the next card is Higher or Lower. Keep your streak for bigger payouts!');
 
             if (!inRound) {
                 // Bet phase
-                html += `<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; justify-content: center;">
-                            <span style="font-size: 12px; color: var(--text-secondary);">Bet:</span>
-                            <input type="range" id="hlBet" min="${cfg.minBet}" max="${Math.min(cfg.maxBet, game.player.gold)}" value="${Math.min(20, game.player.gold)}"
-                                   oninput="document.getElementById('hlBetLabel').textContent = this.value"
-                                   style="width: 180px; accent-color: var(--gold);">
-                            <span id="hlBetLabel" style="color: var(--gold); font-weight: bold; min-width: 40px;">${Math.min(20, game.player.gold)}</span>g
-                         </div>`;
+                html += _betSlider('Bet', 'hlBet', 'hlBetLabel', cfg.minBet, Math.min(cfg.maxBet, game.player.gold), Math.min(20, game.player.gold));
 
                 html += `<div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 16px;">
                             ${renderCard(currentCard)}
                             ${revealedCard ? renderCard(revealedCard) : renderCard(null, true)}
                          </div>`;
 
-                html += `<button onclick="window._hlStartRound()" 
-                            style="padding: 10px 32px; background: #2ecc71; color: white; border: none; border-radius: 6px; cursor: pointer;
-                                   font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;">
+                html += `<button onclick="window._hlStartRound()"
+                            style="${BTN_GOLD} margin:0; padding: 9px 32px; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;">
                             Deal & Start
                          </button>`;
             } else {
@@ -941,35 +956,28 @@ Object.assign(ActionMenu, {
                 const multiplier = 1 + streak * (cfg.streakBonus ?? 0.5);
                 const potentialWin = Math.floor(bet * multiplier);
 
-                html += `<div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 8px;">
-                            <div style="font-size: 12px; color: var(--text-secondary);">Streak: <span style="color: ${streak > 0 ? '#2ecc71' : 'var(--text-muted)'}; font-weight: bold;">${streak}</span></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">Multiplier: <span style="color: var(--gold); font-weight: bold;">${multiplier.toFixed(1)}x</span></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">Pot: <span style="color: #2ecc71; font-weight: bold;">${potentialWin}g</span></div>
-                         </div>`;
+                html += `<div style="display:flex; justify-content:center;">${chips([
+                    { icon: '🔥', label: 'Streak', value: `<span style="color:${streak > 0 ? '#8fd18a' : '#9d937c'};">${streak}</span>` },
+                    { icon: '✖', label: 'Multiplier', value: `${multiplier.toFixed(1)}x`, cls: 'gold' },
+                    { icon: '💰', label: 'Pot', value: `<span style="color:#8fd18a;">${potentialWin}g</span>` },
+                ])}</div>`;
 
                 html += `<div style="display: flex; justify-content: center; gap: 16px; margin: 20px 0;">
                             ${renderCard(currentCard)}
                             ${revealedCard ? renderCard(revealedCard) : renderCard(null, true)}
                          </div>`;
 
+                const G = 'margin:0; padding: 9px 22px; font-size: 14px;';
                 html += `<div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 12px;">
-                            <button onclick="window._hlGuess('higher')"
-                                style="padding: 10px 24px; background: rgba(46,204,113,0.2); border: 2px solid #2ecc71;
-                                       border-radius: 8px; cursor: pointer; color: var(--text-primary); font-size: 14px; transition: all 0.15s;"
-                                onmouseenter="this.style.background='rgba(46,204,113,0.35)'" onmouseleave="this.style.background='rgba(46,204,113,0.2)'">
+                            <button onclick="window._hlGuess('higher')" style="${BTN_PLAIN} ${G}">
                                 ⬆️ Higher
                             </button>
                             <button onclick="window._hlCashOut()"
-                                style="padding: 10px 24px; background: rgba(245,197,66,0.15); border: 2px solid var(--gold);
-                                       border-radius: 8px; cursor: pointer; color: var(--gold); font-weight: bold; font-size: 14px; transition: all 0.15s;"
-                                onmouseenter="this.style.background='rgba(245,197,66,0.25)'" onmouseleave="this.style.background='rgba(245,197,66,0.15)'"
-                                ${streak === 0 ? 'disabled style="opacity:0.4; pointer-events:none; padding: 10px 24px; background: rgba(245,197,66,0.15); border: 2px solid var(--gold); border-radius: 8px; color: var(--gold); font-weight: bold; font-size: 14px;"' : ''}>
+                                style="${streak === 0 ? BTN_OFF + ' pointer-events:none;' : BTN_GOLD} ${G}"
+                                ${streak === 0 ? 'disabled' : ''}>
                                 💰 Cash Out (${potentialWin}g)
                             </button>
-                            <button onclick="window._hlGuess('lower')"
-                                style="padding: 10px 24px; background: rgba(231,76,60,0.2); border: 2px solid #e74c3c;
-                                       border-radius: 8px; cursor: pointer; color: var(--text-primary); font-size: 14px; transition: all 0.15s;"
-                                onmouseenter="this.style.background='rgba(231,76,60,0.35)'" onmouseleave="this.style.background='rgba(231,76,60,0.2)'">
+                            <button onclick="window._hlGuess('lower')" style="${BTN_PLAIN} ${G}">
                                 ⬇️ Lower
                             </button>
                          </div>`;
@@ -1015,7 +1023,7 @@ Object.assign(ActionMenu, {
                 game.ui.showCustomPanel('🃏 High-Low', renderHL());
                 setTimeout(() => {
                     const res = document.getElementById('hlResult');
-                    if (res) res.innerHTML = `<div style="color: var(--gold); font-size: 13px;">🤝 Tie! Same value — draw again.</div>`;
+                    if (res) res.innerHTML = `<div style="color: #ffcf6a; font-size: 13px;">🤝 Tie! Same value — draw again.</div>`;
                 }, 50);
                 // After a brief pause, advance to next draw
                 setTimeout(() => { revealedCard = null; currentCard = nextCard; game.ui.showCustomPanel('🃏 High-Low', renderHL()); }, 1500);
@@ -1028,7 +1036,7 @@ Object.assign(ActionMenu, {
                 game.ui.showCustomPanel('🃏 High-Low', renderHL());
                 setTimeout(() => {
                     const res = document.getElementById('hlResult');
-                    if (res) res.innerHTML = `<div style="color: #2ecc71; font-size: 13px;">✅ Correct! ${nextCard.value}${nextCard.suit} — Streak: ${streak}!</div>`;
+                    if (res) res.innerHTML = `<div style="color: #8fd18a; font-size: 13px;">✅ Correct! ${nextCard.value}${nextCard.suit} — Streak: ${streak}!</div>`;
                 }, 50);
                 // After a brief pause, shift the revealed card to become the current card
                 setTimeout(() => { revealedCard = null; currentCard = nextCard; game.ui.showCustomPanel('🃏 High-Low', renderHL()); }, 1500);
@@ -1040,7 +1048,7 @@ Object.assign(ActionMenu, {
                 game.ui.showCustomPanel('🃏 High-Low', renderHL());
                 setTimeout(() => {
                     const res = document.getElementById('hlResult');
-                    if (res) res.innerHTML = `<div style="color: #e74c3c; font-size: 14px; font-weight: bold;">❌ Wrong! It was ${nextCard.value}${nextCard.suit}. Lost ${bet}g! 💸</div>`;
+                    if (res) res.innerHTML = `<div style="color: #e0846a; font-size: 14px; font-weight: bold;">❌ Wrong! It was ${nextCard.value}${nextCard.suit}. Lost ${bet}g! 💸</div>`;
                 }, 50);
                 // After showing the result, reset for next round
                 setTimeout(() => { revealedCard = null; currentCard = drawCard(); game.ui.showCustomPanel('🃏 High-Low', renderHL()); }, 2000);
@@ -1077,38 +1085,26 @@ Object.assign(ActionMenu, {
             || { village: 0.5, town: 1.0, city: 1.4, capital: 1.8 };
         const crowdMultiplier = crowdTable[settlement.type] ?? crowdTable.town ?? 1.0;
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">🎭 Street Performance</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Pick a performance to entertain the crowd in ${settlement.name}.</p>`;
-        html += `<p style="font-size: 11px; color: #aaa; margin-bottom: 12px;">Crowd size: <span style="color: var(--gold);">${crowdMultiplier >= 1.4 ? 'Large' : crowdMultiplier >= 1 ? 'Moderate' : 'Small'}</span> (${crowdMultiplier}x)</p>`;
+        const crowdWord = crowdMultiplier >= 1.4 ? 'Large' : crowdMultiplier >= 1 ? 'Moderate' : 'Small';
+        let html = sectionHead('🎭 Street Performance');
+        html += lede(`Pick a performance to entertain the crowd in ${settlement.name}.`);
+        html += chips([{ icon: '👥', label: 'Crowd size', value: `${crowdWord} (${crowdMultiplier}x)`, cls: 'gold' }]);
 
-        for (const perf of performances) {
+        html += rowList(performances.map(perf => {
             const statVal = ActionMenu._getPlayerStat(game.player, perf.stat);
             const statLabel = perf.stat.charAt(0).toUpperCase() + perf.stat.slice(1);
+            return {
+                icon: perf.icon,
+                name: perf.name,
+                desc: perf.description,
+                note: `<span style="color:#9d937c;">${statLabel}: ${statVal}</span>`,
+                attrs: `onclick="window._startBuskPerf('${perf.id}')"`,
+                side: '▶ Perform',
+                tone: 'gold',
+            };
+        }));
 
-            html += `
-                <button onclick="window._startBuskPerf('${perf.id}')"
-                    style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; margin-bottom: 8px;
-                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid #e67e22;
-                           border-radius: 8px; cursor: pointer; text-align: left; color: var(--text-primary); transition: all 0.15s;"
-                    onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                    <span style="font-size: 28px;">${perf.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 13px;">${perf.name}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${perf.description}</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${statLabel}: ${statVal}</div>
-                    </div>
-                    <div style="font-size: 12px; color: #e67e22; font-weight: 600;">▶ Perform</div>
-                </button>
-            `;
-        }
-
-        html += `<button data-am-act="closePanel"
-            style="margin-top: 6px; padding: 8px 20px; background: none; border: 1px solid rgba(255,255,255,0.1);
-                   border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: 12px;">
-            Cancel
-        </button>`;
-        html += '</div>';
+        html += `<button data-am-act="closePanel" style="${BTN_PLAIN}">Cancel</button>`;
         game.ui.showCustomPanel('Street Performance', html);
 
         window._startBuskPerf = (perfId) => {
@@ -1168,17 +1164,18 @@ Object.assign(ActionMenu, {
         for (let i = 0; i < 5; i++) starsHtml += i < stars ? '⭐' : '☆';
 
         let html = '<div style="max-width: 450px; text-align: center;">';
-        html += `<div style="font-size: 48px; margin: 16px 0;">${perf.icon}</div>`;
-        html += `<div style="font-size: 18px; color: ${ratingColor}; font-weight: bold; margin-bottom: 6px;">${rating}</div>`;
-        html += `<div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 10px;">${perf.name}</div>`;
-        html += `<div style="margin-bottom: 12px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
-        html += `<div style="font-size: 24px; color: var(--gold); font-weight: bold; margin: 8px 0;">+${actualPay} gold</div>`;
-        if (scorePercent >= 40) html += `<div style="font-size: 12px; color: #9b59b6;">+1 Renown</div>`;
-        if (perf.bonusKarma && scorePercent >= 25) html += `<div style="font-size: 12px; color: #2ecc71;">+1 Karma</div>`;
+        html += `<div style="font-size: 44px; margin: 10px 0 6px;">${perf.icon}</div>`;
+        html += `<div style="font-family: var(--font-display); font-size: 18px; color: ${ratingColor}; font-weight: bold; margin-bottom: 4px;">${rating}</div>`;
+        html += `<div class="pk-head" style="text-align:center; margin-top:0;">${perf.name}</div>`;
+        html += `<div style="margin-bottom: 10px; font-size: 20px; letter-spacing: 4px;">${starsHtml}</div>`;
+        html += `<div style="display:flex; justify-content:center;">${chips([
+            { icon: '💰', label: 'Earned', value: `+${actualPay} gold`, cls: 'gold' },
+            scorePercent >= 40 ? { icon: '⭐', label: '', value: '<span style="color:#ce93d8;">+1 Renown</span>' } : null,
+            perf.bonusKarma && scorePercent >= 25 ? { icon: '🕊️', label: '', value: '<span style="color:#8fd18a;">+1 Karma</span>' } : null,
+        ])}</div>`;
 
         html += `<button data-am-act="closePanel"
-            style="padding: 10px 32px; margin-top: 16px; background: linear-gradient(135deg, var(--gold), #d4a030); color: #1a1a2e; border: none;
-                   border-radius: 6px; cursor: pointer; font-family: var(--font-display); font-size: 14px; font-weight: bold; letter-spacing: 1px;">
+            style="${BTN_GOLD} margin: 12px 0 0; padding: 9px 32px; font-family: var(--font-display); font-size: 14px; letter-spacing: 1px;">
             Continue
         </button>`;
         html += '</div>';
@@ -1385,49 +1382,21 @@ Object.assign(ActionMenu, {
      * opts: { title, icon, description, baseRewardText, onSkip, onPlay, cancelable }
      */
     _showMinigamePrompt(game, opts) {
-        let html = '<div style="text-align: center;">';
-        html += `<div style="font-size: 48px; margin: 12px 0;">${opts.icon}</div>`;
-        html += `<h4 style="margin: 0 0 6px;">${opts.title}</h4>`;
-        if (opts.description) html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">${opts.description}</p>`;
+        let html = sectionHead(`${opts.icon} ${opts.title}`);
+        if (opts.description) html += lede(opts.description);
 
-        html += `<div style="display: flex; gap: 12px; margin-bottom: 12px;">`;
-
-        // Play button
-        html += `<button onclick="window._mgPlay()"
-            style="flex: 1; padding: 16px 12px; background: rgba(46,204,113,0.1); border: 2px solid #2ecc71;
-                   border-radius: 10px; cursor: pointer; color: var(--text-primary); transition: all 0.15s; text-align: center;"
-            onmouseenter="this.style.background='rgba(46,204,113,0.2)'" onmouseleave="this.style.background='rgba(46,204,113,0.1)'">
-            <div style="font-size: 22px; margin-bottom: 4px;">🎮</div>
-            <div style="font-weight: bold; font-size: 14px; color: #2ecc71;">Play Minigame</div>
-            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Earn bonus rewards</div>
-        </button>`;
-
-        // Skip button
-        html += `<button onclick="window._mgSkip()"
-            style="flex: 1; padding: 16px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12);
-                   border-radius: 10px; cursor: pointer; color: var(--text-primary); transition: all 0.15s; text-align: center;"
-            onmouseenter="this.style.background='rgba(255,255,255,0.08)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-            <div style="font-size: 22px; margin-bottom: 4px;">⏭️</div>
-            <div style="font-weight: bold; font-size: 14px; color: var(--text-secondary);">Skip</div>
-            <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Base reward only</div>
-        </button>`;
-
-        html += `</div>`;
+        html += rowList([
+            { icon: '🎮', name: 'Play Minigame', desc: 'Earn bonus rewards', attrs: 'onclick="window._mgPlay()"', side: '▶ Play', tone: 'gold' },
+            { icon: '⏭️', name: 'Skip', desc: 'Base reward only', attrs: 'onclick="window._mgSkip()"', side: 'Skip' },
+        ]);
 
         // Base reward preview
-        if (opts.baseRewardText) {
-            html += `<div style="padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 6px; font-size: 11px; color: var(--text-muted);">
-                <span style="color: var(--text-secondary);">Base reward:</span> ${opts.baseRewardText}
-            </div>`;
-        }
+        if (opts.baseRewardText) html += kv('Base reward', opts.baseRewardText);
 
         if (opts.cancelable) {
-            html += `<button data-am-act="closePanel"
-                style="margin-top: 8px; padding: 6px 16px; background: none; border: 1px solid rgba(255,255,255,0.08);
-                       border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 11px;">Cancel</button>`;
+            html += `<button data-am-act="closePanel" style="${BTN_DARK} margin-top: 10px;">Cancel</button>`;
         }
 
-        html += '</div>';
         game.ui.showCustomPanel(opts.title, html);
         window._mgPlay = opts.onPlay;
         window._mgSkip = opts.onSkip;

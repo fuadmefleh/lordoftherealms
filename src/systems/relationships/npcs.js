@@ -222,8 +222,9 @@ Object.assign(Relationships, {
 
         const settlementName = tile.settlement.name;
         // Return existing NPCs at this settlement
+        // Courtiers live at the House's court (systems/court.js), not on their town's streets
         let npcs = Relationships._npcs.filter(n =>
-            n.settlementName === settlementName && n.isAlive
+            n.settlementName === settlementName && n.isAlive && !n.atCourt
         );
 
         // Generate new NPCs if settlement has too few
@@ -298,6 +299,10 @@ Object.assign(Relationships, {
         // Governing one of your holdings (systems/holdings.js): they keep to their post
         if (npc.governing) {
             return { success: false, reason: `${npc.firstName} is governing one of your holdings. Dismiss them there first.` };
+        }
+        // Serving at the House's court (systems/court.js): they keep to it
+        if (npc.atCourt) {
+            return { success: false, reason: `${npc.firstName} serves at your court. Dismiss them from it first.` };
         }
         // A companion who betrayed you (systems/companions.js) will not ride with you again
         if (npc.companion && npc.companion.leftHow === 'betrayed') {

@@ -11,6 +11,7 @@ import { Locks } from '../../systems/locks.js';
 import { MODAL_STYLE, MODAL_HEADER_STYLE, MODAL_BODY_STYLE, MODAL_FOOTER_STYLE } from './data.js';
 import { _btn, _removeModal, _showStoreModal } from './logic.js';
 import { goodInfoIcon } from '../goodInfo.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
 const MODAL_ID = 'objActionModal';
 
@@ -211,6 +212,8 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
 
     window._containerAct = (kind, goodId, qty) => {
         const player = game.player;
+        // Stealing is crime to a child's parents (ui/parentsGuard.js)
+        if (kind === 'steal' && !ParentsGuard.ok(game, 'theft', null, { each: true })) return;
         const scene = theftScene(game, ctx);
         ctx.ownerName = scene.ownerName;
         const res = kind === 'steal'

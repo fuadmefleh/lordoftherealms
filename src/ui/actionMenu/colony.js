@@ -1,7 +1,7 @@
 // ActionMenu — colony methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
 import { DevotionPanel } from './devotion.js';
-import { esc } from './uiKit.js';
+import { esc, BTN_GOLD, BTN_DARK, BTN_PLAIN, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, Culture, KingdomAtlas } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -14,9 +14,7 @@ Object.assign(ActionMenu, {
     showBuildCulturalMenu(game, tile) {
         if (typeof Culture === 'undefined') return;
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Build Cultural Building</h4>';
-
+        const rows = [];
         for (const [key, building] of Object.entries(Culture.BUILDING_TYPES)) {
             const canBuild = (() => {
                 if (game.player.gold < building.cost) return 'Not enough gold';
@@ -26,32 +24,24 @@ Object.assign(ActionMenu, {
                 if (tile.culturalBuilding || tile.playerProperty || tile.religiousBuilding) return 'Tile occupied';
                 return null;
             })();
-
-            const disabled = canBuild ? 'opacity: 0.5; pointer-events: none;' : '';
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${disabled}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${building.icon}</span> <strong>${building.name}</strong></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${building.description}</div>
-                            <div style="font-size: 12px;">
-                                Influence: +${building.influencePerDay}/day | Radius: ${building.influenceRadius}
-                                ${building.researchBonus ? ` | Research: +${Math.round(building.researchBonus * 100)}%` : ''}
-                                ${building.moraleBonus ? ` | Morale: +${building.moraleBonus}` : ''}
-                                ${building.renownPerDay ? ` | Renown: +${building.renownPerDay}/day` : ''}
-                                ${building.incomeBonus ? ` | Income: +${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day` : ''}
-                            </div>
-                            <div style="font-size: 11px; color: var(--gold);">🏗️ ${building.constructionDays || 0} days</div>
-                            ${canBuild ? `<div style="font-size: 11px; color: #e74c3c; margin-top: 4px;">${canBuild}</div>` : ''}
-                        </div>
-                        <button onclick="window._buildCultural('${key}')" 
-                            style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; ${disabled}"
-                            ${canBuild ? 'disabled' : ''}>${building.cost} gold</button>
-                    </div>
-                </div>
-            `;
+            const stats = [
+                `Influence: +${building.influencePerDay}/day`, `Radius: ${building.influenceRadius}`,
+                building.researchBonus ? `Research: +${Math.round(building.researchBonus * 100)}%` : '',
+                building.moraleBonus ? `Morale: +${building.moraleBonus}` : '',
+                building.renownPerDay ? `Renown: +${building.renownPerDay}/day` : '',
+                building.incomeBonus ? `Income: +${Math.round(Culture.dailyIncome(building) * 10) / 10} gold/day` : '',
+            ].filter(Boolean).join(' · ');
+            rows.push({
+                icon: building.icon, name: building.name, desc: building.description,
+                note: `${stats} · 🏗️ ${building.constructionDays || 0} days`,
+                attrs: `onclick="window._buildCultural('${key}')"`, off: !!canBuild, why: `${canBuild} · ${building.description}`,
+                side: price(building.cost, game.player.gold >= building.cost),
+            });
         }
-
+        let html = '<div>';
+        html += lede('Raise a house of learning, art or worship: it spreads your influence over the land around it.');
+        html += chips([purse(game.player.gold)]);
+        html += rowList(rows, 'Build Cultural Building');
         html += '</div>';
         game.ui.showCustomPanel('📚 Cultural Buildings', html);
 
@@ -81,19 +71,23 @@ Object.assign(ActionMenu, {
         const level = b.level || 1;
         const check = Culture.canUpgrade(game.player, tile);
         const next = { ...b, level: level + 1 };
-        const row = (label, now, then) => `<div style="font-size: 12px;">${label}: ${now} → <strong>${then}</strong></div>`;
+        const row = (label, now, then) => kv(label, `${now} → <strong style="color:#8fd18a;">${then}</strong>`);
 
         let html = '<div>';
-        html += `<h4 style="margin-top: 0;">${b.icon} ${b.name} — Level ${level}/${Culture.LEVELS.max}</h4>`;
+        html += lede(`${b.icon} <b>${b.name}</b> — Level ${level}/${Culture.LEVELS.max}`);
         if (level < Culture.LEVELS.max) {
+            html += sectionHead(`At level ${level + 1}`);
             if (b.incomeBonus) html += row('Income', `${Math.round(Culture.dailyIncome(b) * 10) / 10} gold/day`, `${Math.round(Culture.dailyIncome(next) * 10) / 10} gold/day`);
             html += row('Influence', `+${b.influencePerDay * level}/day`, `+${b.influencePerDay * (level + 1)}/day`);
             if (b.researchBonus) html += row('Research', `+${Math.round(b.researchBonus * Culture.levelMultiplier(b) * 100)}%`, `+${Math.round(b.researchBonus * Culture.levelMultiplier(next) * 100)}%`);
             if (b.moraleBonus) html += row('Army morale', `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(b))}%`, `+${Math.round(b.moraleBonus / 5 * Culture.levelMultiplier(next))}%`);
             if (b.renownPerDay) html += row('Renown', `+${b.renownPerDay * level}/day`, `+${b.renownPerDay * (level + 1)}/day`);
         }
-        if (!check.can) html += `<div style="font-size: 12px; color: #e74c3c; margin-top: 8px;">${check.reason}</div>`;
-        html += `<button onclick="window._upgradeCultural()" style="margin-top: 12px; padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; ${check.can ? '' : 'opacity: 0.5; pointer-events: none;'}" ${check.can ? '' : 'disabled'}>Upgrade${check.cost !== undefined ? ` — ${check.cost} gold` : ''}</button>`;
+        html += `<div style="margin-top: 10px;">${rowList([{
+            icon: '⬆️', name: 'Upgrade', desc: `${b.name} to level ${level + 1}`,
+            attrs: 'onclick="window._upgradeCultural()"', off: !check.can, why: check.reason,
+            side: check.cost !== undefined ? price(check.cost, game.player.gold >= check.cost) : '',
+        }])}</div>`;
         html += '</div>';
         game.ui.showCustomPanel('📚 Upgrade Cultural Building', html);
 
@@ -161,54 +155,42 @@ Object.assign(ActionMenu, {
             return;
         }
 
+        const SEL = `${BTN_GOLD} font-size: 12px;`;
+        const UNSEL = `${BTN_DARK} font-size: 12px;`;
         let html = '<div style="max-width: 520px;">';
-        html += '<h4 style="margin-top: 0;">📢 Recruit Settlers</h4>';
-        html += `<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Convince people from <strong>${tile.settlement.name}</strong> (pop. ${sourcePop}) to move to your settlement.</p>`;
-        html += `<p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Max recruitable: ${maxRecruit} people (2% of population) | Cost: 2 AP per attempt</p>`;
+        html += lede(`📢 Convince people from <strong>${tile.settlement.name}</strong> (pop. ${sourcePop}) to move to your settlement.`);
+        html += chips([
+            ['👥', 'Max recruitable', `${maxRecruit} people`],
+            ['⏳', 'Cost', '2 AP per attempt'],
+            purse(player.gold),
+        ]);
+        html += `<div style="font-size: 11px; color: #9d937c; margin: -4px 0 8px;">Max recruitable: ${maxRecruit} people (2% of population) | Cost: 2 AP per attempt</div>`;
 
         // Colony selection
         if (colonies.length > 1) {
-            html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Send settlers to:</div>';
-            html += '<div style="display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;">';
+            html += sectionHead('Send settlers to:');
+            html += '<div style="display: flex; gap: 2px; margin-bottom: 12px; flex-wrap: wrap;">';
             colonies.forEach((c, i) => {
-                html += `<button onclick="window._selectTargetColony(${i})" id="colSel_${i}"
-                    style="padding: 6px 12px; background: ${i === 0 ? 'rgba(245,197,66,0.15)' : 'rgba(255,255,255,0.05)'}; border: 1px solid ${i === 0 ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius: 6px; cursor: pointer; color: var(--text-primary); font-size: 12px;">
-                    ${c.name} (${c.pop} settlers${c.enRoute > 0 ? `, ${c.enRoute} en route` : ''})
-                </button>`;
+                html += `<button onclick="window._selectTargetColony(${i})" id="colSel_${i}" style="${i === 0 ? SEL : UNSEL}">${c.name} (${c.pop} settlers${c.enRoute > 0 ? `, ${c.enRoute} en route` : ''})</button>`;
             });
             html += '</div>';
         } else {
-            html += `<div style="padding: 8px 12px; background: rgba(245,197,66,0.08); border-radius: 6px; border-left: 3px solid var(--gold); margin-bottom: 16px; font-size: 12px;">
-                        Destination: <strong style="color: var(--gold);">${colonies[0].name}</strong> (${colonies[0].pop} settlers${colonies[0].enRoute > 0 ? `, ${colonies[0].enRoute} en route` : ''})
-                     </div>`;
+            html += kv('Destination', `<strong style="color: #ffcf6a;">${colonies[0].name}</strong> (${colonies[0].pop} settlers${colonies[0].enRoute > 0 ? `, ${colonies[0].enRoute} en route` : ''})`);
         }
 
         // Recruitment methods
         const methods = [
-            { id: 'persuade', name: 'Spread the Word', icon: '🗣️', desc: 'Persuade people with tales of opportunity. Free but limited by charisma.', costLabel: 'Free', color: '#2ecc71' },
-            { id: 'hire', name: 'Hire Settlers', icon: '💰', desc: `Pay workers to relocate. ${maxRecruit * 15}g for ${maxRecruit} settlers.`, costLabel: `${maxRecruit * 15}g`, color: '#f5c542' },
-            { id: 'promise', name: 'Promise Prosperity', icon: '✨', desc: 'Make grand promises of wealth and land. Effective but slightly dubious.', costLabel: 'Free (−1 karma)', color: '#9b59b6' },
+            { id: 'persuade', name: 'Spread the Word', icon: '🗣️', desc: 'Persuade people with tales of opportunity. Free but limited by charisma.', costLabel: 'Free', tone: 'good' },
+            { id: 'hire', name: 'Hire Settlers', icon: '💰', desc: `Pay workers to relocate. ${maxRecruit * 15}g for ${maxRecruit} settlers.`, costLabel: price(maxRecruit * 15, player.gold >= maxRecruit * 15), tone: '' },
+            { id: 'promise', name: 'Promise Prosperity', icon: '✨', desc: 'Make grand promises of wealth and land. Effective but slightly dubious.', costLabel: 'Free (−1 karma)', tone: 'warn' },
         ];
-
-        html += '<div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">How will you recruit?</div>';
-        for (const m of methods) {
+        html += rowList(methods.map(m => {
             const disabled = m.id === 'hire' && player.gold < maxRecruit * 15;
-            html += `
-                <button onclick="window._recruitSettlers('${m.id}')" ${disabled ? 'disabled' : ''}
-                    style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; margin-bottom: 6px;
-                           background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-left: 3px solid ${m.color};
-                           border-radius: 6px; cursor: ${disabled ? 'not-allowed' : 'pointer'}; text-align: left;
-                           color: var(--text-primary); transition: all 0.15s; ${disabled ? 'opacity: 0.4;' : ''}"
-                    onmouseenter="if(!this.disabled) this.style.background='rgba(255,255,255,0.08)'"
-                    onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-                    <span style="font-size: 24px;">${m.icon}</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 13px;">${m.name}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${m.desc}</div>
-                    </div>
-                    <span style="font-size: 12px; color: ${m.color}; font-weight: bold; white-space: nowrap;">${m.costLabel}</span>
-                </button>`;
-        }
+            return {
+                icon: m.icon, name: m.name, desc: m.desc, side: m.costLabel, tone: m.tone,
+                attrs: `onclick="window._recruitSettlers('${m.id}')"`, off: disabled, why: `${m.desc} Not enough gold.`,
+            };
+        }), 'How will you recruit?');
 
         html += '</div>';
         game.ui.showCustomPanel('📢 Recruit Settlers', html);
@@ -219,10 +201,7 @@ Object.assign(ActionMenu, {
             selectedColonyIdx = idx;
             colonies.forEach((_, i) => {
                 const btn = document.getElementById('colSel_' + i);
-                if (btn) {
-                    btn.style.background = i === idx ? 'rgba(245,197,66,0.15)' : 'rgba(255,255,255,0.05)';
-                    btn.style.borderColor = i === idx ? 'var(--gold)' : 'rgba(255,255,255,0.1)';
-                }
+                if (btn) btn.setAttribute('style', i === idx ? SEL : UNSEL);
             });
         };
 
@@ -271,7 +250,7 @@ Object.assign(ActionMenu, {
         let indigenousWarning = '';
         if (nearbyIndigenous.length > 0) {
             const names = nearbyIndigenous.map(i => i.name).join(', ');
-            indigenousWarning = `<p style="color:#e8a040;">⚠️ Nearby indigenous: ${names}</p>`;
+            indigenousWarning = `<p style="color:#f0b35a; font-size:12px; margin:4px 0 8px;">⚠️ Nearby indigenous: ${names}</p>`;
         }
 
         // Distance from capital
@@ -280,41 +259,35 @@ Object.assign(ActionMenu, {
         if (capitalTile) {
             const dist = Hex.wrappingDistance(q, r, capitalTile.q, capitalTile.r, world.width);
             const penalty = Colonization.getDistancePenalty(world, world.kingdoms.find(k => k.id === player.allegiance), q, r);
-            distInfo = `<p>Distance from capital: <b>${dist}</b> hexes (loyalty penalty: <span style="color:${penalty > 15 ? '#ff6666' : '#aaffaa'}">-${penalty.toFixed(1)}</span>)</p>`;
+            distInfo = kv('Distance from capital', `<b>${dist}</b> hexes (loyalty penalty: <span style="color:${penalty > 15 ? '#e0846a' : '#8fd18a'}">-${penalty.toFixed(1)}</span>)`);
         }
 
-        // Policy options
-        let policyHtml = '';
-        for (const [id, policy] of Object.entries(Colonization.POLICIES)) {
-            policyHtml += `
-                <label style="display:block; margin:6px 0; cursor:pointer; padding:6px; border:1px solid #555; border-radius:4px;" 
-                       onclick="document.querySelectorAll('.colony-policy-opt').forEach(e=>e.style.borderColor='#555');this.style.borderColor='#4CAF50';document.getElementById('selectedPolicy').value='${id}'">
-                    <b>${policy.name}</b><br>
-                    <small style="color:#aaa;">${policy.description || policy.desc || ''}</small><br>
-                    <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Loyalty: +${policy.loyaltyBonus} | Production: +${(policy.productionBonus * 100).toFixed(0)}%</small>
-                </label>`;
-        }
+        // Policy options: picking one sets the hidden #selectedPolicy and marks its row
+        const pickJs = (id) => `document.querySelectorAll('.colony-policy-opt .pk-row-side').forEach(function(e){e.textContent=''});this.querySelector('.pk-row-side').textContent='✓ chosen';document.getElementById('selectedPolicy').value='${id}'`;
+        const policyRows = Object.entries(Colonization.POLICIES).map(([id, policy]) => ({
+            icon: '📜', name: policy.name,
+            desc: policy.description || policy.desc || '',
+            note: `Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Loyalty: +${policy.loyaltyBonus} | Production: +${(policy.productionBonus * 100).toFixed(0)}%`,
+            attrs: `onclick="${pickJs(id)}"`, side: id === 'manifest_destiny' ? '✓ chosen' : '', tone: 'gold',
+        }));
 
-        let html = `
-            <div style="max-height:450px; overflow-y:auto;">
-                <p>Establish a frontier colony here for <b>${Colonization.COLONY_COST} gold</b>.</p>
-                <p>Your gold: <b>${player.gold.toFixed(0)}</b></p>
-                ${distInfo}
-                ${indigenousWarning}
-                <hr style="border-color:#555;">
-                <p><b>Colony Name:</b></p>
-                <input type="text" id="colonyNameInput" value="${Kingdom.generateCityName('Imperial')}" 
-                       style="width:100%; padding:4px; background:#333; color:#fff; border:1px solid #666; border-radius:4px;">
-                <hr style="border-color:#555;">
-                <p><b>Colonization Policy:</b></p>
-                <input type="hidden" id="selectedPolicy" value="manifest_destiny">
-                <div class="colony-policy-opt">${policyHtml}</div>
-                <hr style="border-color:#555;">
-                <button data-am-act="executeFoundColony" data-am-args='[${q}, ${r}]' 
-                        style="width:100%; padding:8px; background:#4CAF50; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:14px;">
-                    🏴 Found Colony (${Colonization.COLONY_COST}g)
-                </button>
-            </div>`;
+        let html = '<div style="max-height:450px; overflow-y:auto;">';
+        html += lede(`Establish a frontier colony here for <b>${Colonization.COLONY_COST} gold</b>.`);
+        html += chips([{ icon: '💰', label: 'Your gold', value: player.gold.toFixed(0), cls: 'gold' }]);
+        html += distInfo;
+        html += indigenousWarning;
+        html += sectionHead('Colony Name:');
+        html += `<input type="text" id="colonyNameInput" value="${Kingdom.generateCityName('Imperial')}"
+                       style="width:100%; box-sizing:border-box; padding:7px 10px; background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.22); border-radius:6px; font-size:13px;">`;
+        html += sectionHead('Colonization Policy:');
+        html += '<input type="hidden" id="selectedPolicy" value="manifest_destiny">';
+        html += `<div class="colony-policy-opt">${rowList(policyRows)}</div>`;
+        html += rowList([{
+            icon: '🏴', name: 'Found Colony', desc: 'Raise the banner and settle here',
+            act: 'executeFoundColony', args: [q, r], tone: 'gold',
+            side: price(Colonization.COLONY_COST, player.gold >= Colonization.COLONY_COST),
+        }]);
+        html += '</div>';
 
         game.ui.showCustomPanel('Found Colony', html);
     },
@@ -373,20 +346,17 @@ Object.assign(ActionMenu, {
         }
 
         let html = '<div style="max-height:400px; overflow-y:auto;">';
-        html += '<p>Send a pioneering party to settle a distant region. Cost: <b>200 gold</b></p>';
-        html += '<p>Choose a target region:</p>';
-
-        for (const target of best) {
+        html += lede('Send a pioneering party to settle a distant region. Cost: <b>200 gold</b>');
+        html += chips([purse(player.gold)]);
+        html += rowList(best.map(target => {
             const hasIndigenous = Colonization.getNearbyIndigenous(world, target.q, target.r, 2).length > 0;
-            html += `
-                <div style="padding:8px; margin:4px 0; border:1px solid #555; border-radius:4px; cursor:pointer;"
-                     data-am-act="executeSendPioneers" data-am-args='[${target.q}, ${target.r}]'
-                     onmouseover="this.style.borderColor='#4CAF50'" onmouseout="this.style.borderColor='#555'">
-                    <b>${target.terrain}</b> — Distance: ${target.dist} hexes
-                    ${hasIndigenous ? '<span style="color:#e8a040;"> ⚠️ Indigenous nearby</span>' : ''}
-                    <br><small>Suitability: ${'⭐'.repeat(Math.min(5, Math.ceil(target.score / 2)))}</small>
-                </div>`;
-        }
+            return {
+                icon: '🗺️', name: target.terrain,
+                desc: `Distance: ${target.dist} hexes${hasIndigenous ? ' · <span style="color:#f0b35a;">⚠️ Indigenous nearby</span>' : ''}`,
+                note: `Suitability: ${'⭐'.repeat(Math.min(5, Math.ceil(target.score / 2)))}`,
+                act: 'executeSendPioneers', args: [target.q, target.r], side: price(200, player.gold >= 200),
+            };
+        }), 'Choose a target region:');
         html += '</div>';
 
         game.ui.showCustomPanel('Send Pioneers', html);
@@ -437,143 +407,80 @@ Object.assign(ActionMenu, {
         const isEmptyColony = tile.settlement.population < 10;
         const currentIncentive = Colonization.INCENTIVES[rec.incentive] || Colonization.INCENTIVES.none;
 
-        let html = `
-            <div style="max-height:550px; overflow-y:auto;">
-                <h3 style="margin:0 0 10px;">Colony: ${tile.settlement.name}</h3>
-                
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Population</small><br>
-                        <b>${tile.settlement.population}</b>${rec.enRoute ? ` <small style="color:#f5c542;">(+${rec.enRoute} en route)</small>` : ''}
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Loyalty</small><br>
-                        <b style="color:${loyaltyColor}">${colony.loyalty.toFixed(1)}%</b>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Distance</small><br>
-                        <b>${dist}</b> hexes
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Garrison</small><br>
-                        <b>${colony.garrisonStrength}</b>
-                    </div>
-                </div>`;
+        let html = '<div style="max-height:550px; overflow-y:auto;">';
+        html += lede(`Colony: <b>${tile.settlement.name}</b>`);
+        html += chips([
+            ['👥', 'Population', `${tile.settlement.population}${rec.enRoute ? ` <small style="color:#ffcf6a;">(+${rec.enRoute} en route)</small>` : ''}`],
+            ['🤝', 'Loyalty', `<span style="color:${loyaltyColor}">${colony.loyalty.toFixed(1)}%</span>`],
+            ['📏', 'Distance', `${dist} hexes`],
+            ['🛡️', 'Garrison', colony.garrisonStrength],
+        ]);
 
         // ── Missionary work (Missionary policy) ──
         if (policy.missionaryWork) {
             const m = colony.missionary || {};
             const mw = policy.missionaryWork;
             const faith = m.faith || (player.religion ? player.religion.name : null);
-            html += `
-                <div style="padding:8px 10px; background:rgba(155,89,182,0.08); border:1px solid rgba(155,89,182,0.3); border-radius:6px; margin-bottom:10px; font-size:12px;">
-                    <div style="font-weight:600; margin-bottom:4px;">⛪ Missionary Work</div>
-                    ${faith
-                        ? `Spreading <b>${faith}</b> within ${mw.radius} hexes: ${m.settlements || 0} settlement${m.settlements === 1 ? '' : 's'}, ${m.tribes || 0} tribe${m.tribes === 1 ? '' : 's'} reached · ${m.converts || 0} tribal converts so far.`
-                        : `Found a religion to have this colony's missionaries spread it. Until then they still befriend nearby tribes.`}
-                    <div style="color:#aaa; margin-top:3px;">Nearby tribes warm to the colony each day; the mother kingdom gains cultural influence and piety.</div>
-                </div>`;
+            html += card(`<div style="font-size:12px;">${faith
+                ? `Spreading <b>${faith}</b> within ${mw.radius} hexes: ${m.settlements || 0} settlement${m.settlements === 1 ? '' : 's'}, ${m.tribes || 0} tribe${m.tribes === 1 ? '' : 's'} reached · ${m.converts || 0} tribal converts so far.`
+                : 'Found a religion to have this colony\'s missionaries spread it. Until then they still befriend nearby tribes.'}
+                <div style="color:#9d937c; margin-top:3px;">Nearby tribes warm to the colony each day; the mother kingdom gains cultural influence and piety.</div></div>`, { icon: '⛪', title: 'Missionary Work' });
         }
 
         // ── Recruitment Status (shown when colony is young / small) ──
         if (isEmptyColony || rec.recruited > 0) {
-            html += `
-                <div style="padding:10px; background:rgba(245,197,66,0.06); border:1px solid rgba(245,197,66,0.2); border-radius:6px; margin-bottom:10px;">
-                    <div style="font-weight:600; font-size:13px; color:var(--gold); margin-bottom:8px;">📢 Recruitment Status</div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:12px;">
-                        <div><small style="color:#aaa;">Recruited</small><br><b>${rec.recruited || 0}</b></div>
-                        <div><small style="color:#aaa;">En Route</small><br><b style="color:#f5c542;">${rec.enRoute || 0}</b></div>
-                        <div><small style="color:#aaa;">Reputation</small><br><b>${(rec.reputation || 0).toFixed(0)}</b></div>
-                    </div>
-                    <div style="margin-top:8px; display:flex; gap:6px; align-items:center; font-size:12px;">
-                        <span>📋 Signboard:</span>
-                        ${rec.signboard
-                            ? '<span style="color:#4CAF50;">✓ Posted</span>'
-                            : `<button data-am-act="postSignboardAndManageColony" data-am-args='[${tile.q}, ${tile.r}]'
-                                style="padding:3px 10px; background:rgba(245,197,66,0.15); border:1px solid var(--gold); border-radius:4px; cursor:pointer; color:var(--text-primary); font-size:11px;">
-                                Post (20g)</button>`}
-                    </div>
-                    <div style="margin-top:8px; font-size:12px;">
-                        <span>Current Incentive: <b>${currentIncentive.icon} ${currentIncentive.name}</b></span>
-                        ${currentIncentive.dailyCost > 0 ? `<small style="color:#e8a040;"> (${currentIncentive.dailyCost}g/day)</small>` : ''}
-                    </div>
-                    <div style="display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;">`;
-
+            let body = chips([
+                ['', 'Recruited', rec.recruited || 0],
+                { icon: '', label: 'En Route', value: rec.enRoute || 0, cls: 'gold' },
+                ['', 'Reputation', (rec.reputation || 0).toFixed(0)],
+            ]);
+            const rows = [];
+            rows.push(rec.signboard
+                ? { icon: '📋', name: 'Signboard', desc: 'Advertising the colony to passing travellers', side: '✓ Posted', tone: 'good' }
+                : { icon: '📋', name: 'Signboard', desc: 'Post one to advertise the colony to passing travellers', act: 'postSignboardAndManageColony', args: [tile.q, tile.r], side: 'Post (20g)', tone: 'gold' });
+            body += rowList(rows);
+            body += `<div style="font-size:12px; margin:2px 0 4px;">Current Incentive: <b>${currentIncentive.icon} ${currentIncentive.name}</b>${currentIncentive.dailyCost > 0 ? ` <small style="color:#f0b35a;">(${currentIncentive.dailyCost}g/day)</small>` : ''}</div>`;
+            const incRows = [];
             for (const [id, inc] of Object.entries(Colonization.INCENTIVES)) {
                 if (id === 'none') continue;
                 const active = rec.incentive === id;
                 const setupCost = Number(inc.setupCost || 0);
                 const dailyCost = Number(inc.dailyCost || 0);
                 const attractionBonusPct = Number((inc.attractionBonus || 0) * 100).toFixed(0);
-                html += `<button data-am-act="_setIncentiveFromManage" data-am-args='[${tile.q}, ${tile.r}, "${id}"]'
-                    style="padding:4px 8px; font-size:11px; background:${active ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.05)'}; border:1px solid ${active ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius:4px; cursor:pointer; color:var(--text-primary);"
-                    title="${inc.desc || ''} (Setup: ${setupCost}g, Daily: ${dailyCost}g, +${attractionBonusPct}% attraction)">
-                    ${inc.icon} ${inc.name}
-                </button>`;
+                incRows.push({
+                    icon: inc.icon, name: inc.name, desc: `${inc.desc || ''} (Setup: ${setupCost}g, Daily: ${dailyCost}g, +${attractionBonusPct}% attraction)`,
+                    act: '_setIncentiveFromManage', args: [tile.q, tile.r, id],
+                    side: active ? '✓ current' : `${setupCost}g + ${dailyCost}g/day`, tone: active ? 'gold' : '',
+                });
             }
-
-            html += `<button data-am-act="_setIncentiveFromManage" data-am-args='[${tile.q}, ${tile.r}, "none"]'
-                    style="padding:4px 8px; font-size:11px; background:${rec.incentive === 'none' || !rec.incentive ? 'rgba(245,197,66,0.2)' : 'rgba(255,255,255,0.05)'}; border:1px solid ${rec.incentive === 'none' || !rec.incentive ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}; border-radius:4px; cursor:pointer; color:var(--text-primary);"
-                    title="Remove incentives">
-                    — None
-                </button>`;
-
-            html += `</div>
-                </div>`;
+            const none = rec.incentive === 'none' || !rec.incentive;
+            incRows.push({ icon: '—', name: 'None', desc: 'Remove incentives', act: '_setIncentiveFromManage', args: [tile.q, tile.r, 'none'], side: none ? '✓ current' : '', tone: none ? 'gold' : '' });
+            body += rowList(incRows);
+            html += card(body, { icon: '📢', title: 'Recruitment Status' });
 
             if (isEmptyColony) {
-                html += `<div style="padding:8px; background:rgba(100,149,237,0.08); border:1px solid rgba(100,149,237,0.2); border-radius:6px; margin-bottom:10px; font-size:12px; color:var(--text-secondary);">
-                    💡 <b>Tip:</b> Visit other settlements and use <em>Recruit Settlers</em> to attract people. Post a signboard and set incentives to draw settlers passively each day. Once you reach 10 settlers, the settlement will begin to grow on its own.
-                </div>`;
+                html += '<div style="font-size:12px; color:#9d937c; margin:0 0 10px;">💡 <b style="color:#ece2c8;">Tip:</b> Visit other settlements and use <em>Recruit Settlers</em> to attract people. Post a signboard and set incentives to draw settlers passively each day. Once you reach 10 settlers, the settlement will begin to grow on its own.</div>';
             }
         }
 
-        html += `
-                <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:8px;">
-                    <small style="color:#aaa;">Policy</small><br>
-                    <b>${policy.name}</b> — <small>${policy.description || policy.desc || ''}</small>
-                </div>
+        const relColor = colony.indigenousRelation > 50 ? '#8fd18a' : colony.indigenousRelation > 0 ? '#f0b35a' : '#e0846a';
+        html += sectionHead('The colony');
+        html += kv('Policy', `${policy.name} — <small style="font-weight:400; color:#9d937c;">${policy.description || policy.desc || ''}</small>`);
+        html += kv('Indigenous Relations', `<b style="color:${relColor}">${colony.indigenousRelation.toFixed(0)}</b> / 100`);
+        html += `<div style="font-size:11px; color:#9d937c; padding:2px 0 4px;">${nearbyIndigenous.length > 0 ? `Nearby: ${nearbyIndigenous.map(i => `${i.name} (${i.population})`).join(', ')}` : 'No indigenous nearby'}</div>`;
+        html += kv('Founded', `Day ${colony.foundedDay} (${Math.floor((world.day - colony.foundedDay) / 30)} months ago)`);
 
-                <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:8px;">
-                    <small style="color:#aaa;">Indigenous Relations</small><br>
-                    <b style="color:${colony.indigenousRelation > 50 ? '#4CAF50' : colony.indigenousRelation > 0 ? '#e8a040' : '#ff4444'}">${colony.indigenousRelation.toFixed(0)}</b> / 100
-                    ${nearbyIndigenous.length > 0 ? `<br><small>Nearby: ${nearbyIndigenous.map(i => `${i.name} (${i.population})`).join(', ')}</small>` : '<br><small>No indigenous nearby</small>'}
-                </div>
+        html += rowList([
+            { icon: '🛡️', name: 'Reinforce Garrison', desc: '+10 garrison', act: 'reinforceColony', args: [tile.q, tile.r], side: price(100, player.gold >= 100) },
+            { icon: '💰', name: 'Send Gold Aid', desc: '+15 loyalty', act: 'sendGoldToColony', args: [tile.q, tile.r], side: price(150, player.gold >= 150) },
+            { icon: '🏰', name: 'Manage Holding', desc: 'projects, governor, garrison', act: 'openTileMenu', args: ['showHoldingPanel', tile.q, tile.r], side: '›' },
+            { icon: '📜', name: 'Change Policy', desc: `Now: ${policy.name}`, act: 'changeColonyPolicy', args: [tile.q, tile.r], side: '›' },
+        ], 'Colony Actions:');
 
-                <div style="padding:8px; background:#2a2a2a; border-radius:4px; margin-bottom:10px;">
-                    <small style="color:#aaa;">Founded</small><br>
-                    Day ${colony.foundedDay} (${Math.floor((world.day - colony.foundedDay) / 30)} months ago)
-                </div>
-
-                <hr style="border-color:#555;">
-                <p><b>Colony Actions:</b></p>
-
-                <button data-am-act="reinforceColony" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🛡️ Reinforce Garrison (+10, costs 100g)
-                </button>
-
-                <button data-am-act="sendGoldToColony" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    💰 Send Gold Aid (+15 loyalty, costs 150g)
-                </button>
-
-                <button data-am-act="openTileMenu" data-am-args='["showHoldingPanel", ${tile.q}, ${tile.r}]'
-                        style="width:100%; padding:6px; margin:3px 0; background:#6a5a2a; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🏰 Manage Holding (projects, governor, garrison)
-                </button>
-
-                <button data-am-act="changeColonyPolicy" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    📜 Change Policy
-                </button>
-
-                ${colony.loyalty < Colonization.REVOLT_LOYALTY + 10 ? `
-                <div style="padding:8px; background:#4a2020; border:1px solid #ff4444; border-radius:4px; margin-top:8px;">
-                    ⚠️ <b>Warning:</b> This colony is at risk of independence revolt!
-                    ${colony.loyalty < Colonization.REVOLT_LOYALTY ? '<br>🔥 <b>REVOLT IMMINENT!</b>' : ''}
-                </div>` : ''}
-            </div>`;
+        if (colony.loyalty < Colonization.REVOLT_LOYALTY + 10) {
+            html += card(`<div style="color:#e0846a;">⚠️ <b>Warning:</b> This colony is at risk of independence revolt!${colony.loyalty < Colonization.REVOLT_LOYALTY ? '<br>🔥 <b>REVOLT IMMINENT!</b>' : ''}</div>`, { tone: 'bad' });
+        }
+        html += '</div>';
 
         game.ui.showCustomPanel('Colony Management', html);
     },
@@ -642,17 +549,16 @@ Object.assign(ActionMenu, {
         const tile = game.world.getTile(q, r);
         if (!tile || !tile.settlement || !tile.settlement.colony) return;
 
-        let html = '<p>Select a new colonization policy for this colony:</p>';
-        for (const [id, policy] of Object.entries(Colonization.POLICIES)) {
+        let html = lede('Select a new colonization policy for this colony:');
+        html += rowList(Object.entries(Colonization.POLICIES).map(([id, policy]) => {
             const isCurrent = tile.settlement.colony.policy === id;
-            html += `
-                <div style="padding:8px; margin:4px 0; border:1px solid ${isCurrent ? '#4CAF50' : '#555'}; border-radius:4px; cursor:pointer; ${isCurrent ? 'background:#2a3a2a;' : ''}"
-                     data-am-act="executeChangePolicy" data-am-args='[${q}, ${r}, "${id}"]'>
-                    <b>${policy.name}</b> ${isCurrent ? '(current)' : ''}<br>
-                    <small style="color:#aaa;">${policy.description || policy.desc || ''}</small><br>
-                    <small>Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Indigenous: ${policy.indigenousRelation > 0 ? '+' : ''}${policy.indigenousRelation} | Loyalty: +${policy.loyaltyBonus} | Production: +${((policy.productionBonus || 0) * 100).toFixed(0)}%</small>
-                </div>`;
-        }
+            return {
+                icon: isCurrent ? '✅' : '📜', name: policy.name,
+                desc: policy.description || policy.desc || '',
+                note: `Expansion: +${(policy.expansionBonus * 100).toFixed(0)}% | Indigenous: ${policy.indigenousRelation > 0 ? '+' : ''}${policy.indigenousRelation} | Loyalty: +${policy.loyaltyBonus} | Production: +${((policy.productionBonus || 0) * 100).toFixed(0)}%`,
+                act: 'executeChangePolicy', args: [q, r, id], side: isCurrent ? '(current)' : '', tone: isCurrent ? 'gold' : '',
+            };
+        }));
 
         game.ui.showCustomPanel('Change Colony Policy', html);
     },
@@ -684,56 +590,24 @@ Object.assign(ActionMenu, {
         const trade = typeof indigenous.tradeability === 'number' ? indigenous.tradeability : 0.5;
         const tradeWord = trade >= 0.6 ? 'Keen traders' : trade >= 0.4 ? 'Willing traders' : 'Reluctant traders';
 
-        let html = `
-            <div style="max-height:450px; overflow-y:auto;">
-                <h3 style="margin:0 0 10px;">The ${indigenous.name}</h3>
-                
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Population</small><br>
-                        <b>${indigenous.population}</b>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Disposition</small><br>
-                        <b style="color:${hostilityColor}">${dispositionText}</b>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Territory</small><br>
-                        <b>${tile.terrain.name}</b><br><small style="color:#aaa;">${tradeWord}</small>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Hostility</small><br>
-                        <b style="color:${hostilityColor}">${hostility}</b> <small style="color:#aaa;">/ 100</small>
-                    </div>
-                </div>
-
-                <hr style="border-color:#555;">
-                <p><b>Diplomatic Options:</b></p>
-
-                <button data-am-act="tradeWithIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🤝 Trade Goods (costs ${Colonization.TRIBE_TRADE_COST}g, reduces hostility — more with keen traders)
-                </button>
-
-                <button data-am-act="giftToIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    🎁 Offer Tribute (costs ${Colonization.TRIBE_TRIBUTE_COST}g, greatly reduces hostility)
-                </button>
-
-                <button data-am-act="learnFromIndigenous" data-am-args='[${tile.q}, ${tile.r}]' 
-                        style="width:100%; padding:6px; margin:3px 0; background:#555; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    📖 Learn Local Knowledge (${canLearn ? 'Available' : 'Need friendly relations'})
-                </button>
-
-                ${hostility > 50 ? `
-                <div style="padding:8px; background:#4a2020; border:1px solid #ff4444; border-radius:4px; margin-top:8px;">
-                    ⚠️ The ${indigenous.name} are ${dispositionText.toLowerCase()} towards outsiders. 
-                    Trade or tribute may improve relations.
-                </div>` : `
-                <div style="padding:8px; background:#2a3a2a; border:1px solid #4CAF50; border-radius:4px; margin-top:8px;">
-                    The ${indigenous.name} are ${dispositionText.toLowerCase()} and open to interaction.
-                </div>`}
-            </div>`;
+        let html = '<div style="max-height:450px; overflow-y:auto;">';
+        html += lede(`The <b>${indigenous.name}</b> · ${tile.terrain.name} · ${tradeWord}`);
+        html += chips([
+            ['👥', 'Population', indigenous.population],
+            ['🙂', 'Disposition', `<span style="color:${hostilityColor}">${dispositionText}</span>`],
+            ['⚔️', 'Hostility', `<span style="color:${hostilityColor}">${hostility}</span> / 100`],
+            purse(game.player.gold),
+        ]);
+        html += kv('Territory', `${tile.terrain.name} <small style="color:#9d937c; font-weight:400;">${tradeWord}</small>`);
+        html += rowList([
+            { icon: '🤝', name: 'Trade Goods', desc: 'reduces hostility — more with keen traders', act: 'tradeWithIndigenous', args: [tile.q, tile.r], side: price(Colonization.TRIBE_TRADE_COST, game.player.gold >= Colonization.TRIBE_TRADE_COST) },
+            { icon: '🎁', name: 'Offer Tribute', desc: 'greatly reduces hostility', act: 'giftToIndigenous', args: [tile.q, tile.r], side: price(Colonization.TRIBE_TRIBUTE_COST, game.player.gold >= Colonization.TRIBE_TRIBUTE_COST) },
+            { icon: '📖', name: 'Learn Local Knowledge', desc: canLearn ? 'Available' : 'Need friendly relations', act: 'learnFromIndigenous', args: [tile.q, tile.r], side: canLearn ? 'Available' : '', tone: canLearn ? 'good' : 'warn' },
+        ], 'Diplomatic Options:');
+        html += hostility > 50
+            ? `<div style="color:#e0846a; font-size:12px; margin-top:4px;">⚠️ The ${indigenous.name} are ${dispositionText.toLowerCase()} towards outsiders. Trade or tribute may improve relations.</div>`
+            : `<div style="color:#8fd18a; font-size:12px; margin-top:4px;">The ${indigenous.name} are ${dispositionText.toLowerCase()} and open to interaction.</div>`;
+        html += '</div>';
 
         game.ui.showCustomPanel('Negotiate with Natives', html);
     },
@@ -831,49 +705,22 @@ Object.assign(ActionMenu, {
         const exploredCount = Cartography.countExploredTiles(game.world);
         const totalTiles = game.world.width * game.world.height;
 
-        let html = `
-            <div style="max-height:500px; overflow-y:auto;">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Cartography Skill</small><br>
-                        <b>${skill.toFixed(1)}</b> / 10<br>
-                        <small style="color:#f5c542;">${skillDesc}</small>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Map Quality</small><br>
-                        <b>${qualityData.icon} ${qualityData.label}</b><br>
-                        <small>Accuracy: ${(qualityData.accuracy * 100).toFixed(0)}%</small>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Maps Owned</small><br>
-                        <b>${mapCount}</b>
-                    </div>
-                    <div style="padding:8px; background:#2a2a2a; border-radius:4px;">
-                        <small style="color:#aaa;">Explored</small><br>
-                        <b>${exploredCount}</b> / ${totalTiles} tiles
-                    </div>
-                </div>
-
-                <hr style="border-color:#555;">
-                ${ActionMenu._chartingSection(game)}
-
-                ${mapCount > 0 ? `
-                <hr style="border-color:#555;">
-                <p><b>Your Maps:</b></p>
-                <button data-am-act="showMapCollection" 
-                        style="width:100%; padding:8px; margin:3px 0; background:#3a5a3a; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-                    📚 View Map Collection (${mapCount} maps)
-                </button>` : ''}
-
-                ${skill >= 3 ? `
-                <hr style="border-color:#555;">
-                <p><b>Advanced:</b></p>
-                <button data-am-act="showAddErrorsMenu" 
-                        style="width:100%; padding:8px; margin:3px 0; background:#5a3a3a; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
-                    ✏️ <b>Add Deliberate Errors</b> — Alter a map for deception/security<br>
-                    <small style="color:#aaa;">Requires cartography skill 3+</small>
-                </button>` : ''}
-            </div>`;
+        let html = '<div style="max-height:500px; overflow-y:auto;">';
+        html += lede(`<span style="color:#ffcf6a;">${skillDesc}</span>`);
+        html += chips([
+            { icon: '🗺️', label: 'Cartography Skill', value: `${skill.toFixed(1)} / 10`, cls: 'gold' },
+            ['', 'Map Quality', `${qualityData.icon} ${qualityData.label} · Accuracy: ${(qualityData.accuracy * 100).toFixed(0)}%`],
+            ['📚', 'Maps Owned', mapCount],
+            ['🗺️', 'Explored', `${exploredCount} / ${totalTiles} tiles`],
+        ]);
+        html += ActionMenu._chartingSection(game);
+        if (mapCount > 0) {
+            html += rowList([{ icon: '📚', name: 'View Map Collection', desc: `${mapCount} maps`, act: 'showMapCollection', side: '›' }], 'Your Maps:');
+        }
+        if (skill >= 3) {
+            html += rowList([{ icon: '✏️', name: 'Add Deliberate Errors', desc: 'Alter a map for deception/security', note: 'Requires cartography skill 3+', act: 'showAddErrorsMenu', side: '›', tone: 'warn' }], 'Advanced:');
+        }
+        html += '</div>';
 
         game.ui.showCustomPanel('🗺️ Cartography', html);
     },
@@ -883,43 +730,42 @@ Object.assign(ActionMenu, {
         const { player, world } = game;
         const count = Cartography.draftCount(player);
         const here = Cartography.isCharted(player, player.q, player.r);
-        let html = `<p><b>Charting:</b> ${count} tile${count === 1 ? '' : 's'} charted toward your next map.</p>
-                <p style="font-size:12px; color:#aaa; margin:2px 0 6px;">Walk the land and use <b>📏 Chart This Tile</b> on each tile (1 AP). Once enough tiles are charted, draw them up into a map here.${here ? ' This tile is already charted.' : ''}</p>`;
+        let html = sectionHead('Charting');
+        html += `<p style="margin:0 0 4px;"><b>Charting:</b> ${count} tile${count === 1 ? '' : 's'} charted toward your next map.</p>
+                <p style="font-size:12px; color:#9d937c; margin:2px 0 6px;">Walk the land and use <b>📏 Chart This Tile</b> on each tile (1 AP). Once enough tiles are charted, draw them up into a map here.${here ? ' This tile is already charted.' : ''}</p>`;
+        const rows = [];
         for (const o of Cartography.drawOptions(player, world)) {
             const can = o.ready && player.gold >= o.cost;
             const why = !o.ready ? o.reason : player.gold < o.cost ? `Ink and vellum cost ${o.cost}g.` : `Ink and vellum: ${o.cost}g`;
-            html += `
-                <button data-am-act="createMap" data-am-args='["${o.type}"]' ${can ? '' : 'disabled'}
-                        style="width:100%; padding:8px; margin:3px 0; background:${can ? '#555' : '#333'}; color:${can ? '#fff' : '#888'}; border:none; border-radius:4px; cursor:${can ? 'pointer' : 'default'}; text-align:left;">
-                    ${o.icon} <b>Draw ${esc(o.name)}</b> — ${Math.min(o.have, o.need)} / ${o.need} tiles charted${o.type === 'survey' ? ', resources marked' : ''}<br>
-                    <small style="color:#aaa;">${esc(why)}</small>
-                </button>`;
+            const progress = `${Math.min(o.have, o.need)} / ${o.need} tiles charted${o.type === 'survey' ? ', resources marked' : ''}`;
+            rows.push({
+                icon: o.icon, name: `Draw ${esc(o.name)}`, desc: progress, note: can ? esc(why) : '',
+                act: 'createMap', args: [o.type], off: !can, why: `${esc(why)} · ${progress}`,
+                side: price(o.cost, player.gold >= o.cost),
+            });
         }
         // A standing order: walk the area and chart it all (ui/game/autoChart.js)
         const order = Cartography.autoChartView(player, world);
         if (order) {
-            html += `
-                <button data-am-act="stopAutoChartArea"
-                        style="width:100%; padding:8px; margin:3px 0; background:#5a3a3a; color:#fff; border:none; border-radius:4px; cursor:pointer; text-align:left;">
-                    🧭 <b>Stop auto-charting</b> — ${order.charted} charted, ${order.left} left within ${order.radius} tiles
-                </button>`;
-        } else {
-            html += '<p style="margin:8px 0 2px;"><b>🧭 Auto-chart the area</b> <small style="color:#aaa;">walks and charts every tile nearby, resting each night (1 AP a step, 1 AP a tile; Escape stops)</small></p><div style="display:flex; gap:4px;">';
-            for (const radius of Cartography.CHARTING.autoRadii || [2, 3, 4]) {
-                const left = Cartography._autoTargets(player, world, player.q, player.r, radius).length;
-                html += `<button data-am-act="autoChartArea" data-am-args='[${radius}]' ${left ? '' : 'disabled'}
-                        style="flex:1; padding:6px; background:${left ? '#3a4a5a' : '#333'}; color:${left ? '#fff' : '#888'}; border:none; border-radius:4px; cursor:${left ? 'pointer' : 'default'}; font-size:12px;">
-                    ${radius} tiles around<br><small style="color:#aaa;">${left} to chart</small>
-                </button>`;
-            }
-            html += '</div>';
+            rows.push({ icon: '🗺️', name: 'Stop auto-charting', desc: `${order.charted} charted, ${order.left} left within ${order.radius} tiles`, act: 'stopAutoChartArea', side: '■', tone: 'bad' });
         }
         if (count > 0) {
-            html += `
-                <button data-am-act="discardChartDraft"
-                        style="width:100%; padding:6px; margin:3px 0; background:#3a2a2a; color:#ccc; border:none; border-radius:4px; cursor:pointer; font-size:12px;">
-                    🗑️ Throw away the charted sheets
-                </button>`;
+            rows.push({ icon: '🗑️', name: 'Throw away the charted sheets', desc: `${count} tile${count === 1 ? '' : 's'} lost`, act: 'discardChartDraft', tone: 'bad' });
+        }
+        html += rowList(rows);
+        if (!order) {
+            html += sectionHead('🧭 Auto-chart the area');
+            html += '<div style="font-size:11px; color:#9d937c; margin:-2px 0 4px;">walks and charts every tile nearby, resting each night (1 AP a step, 1 AP a tile; Escape stops)</div>';
+            const auto = [];
+            for (const radius of Cartography.CHARTING.autoRadii || [2, 3, 4]) {
+                const left = Cartography._autoTargets(player, world, player.q, player.r, radius).length;
+                auto.push({
+                    icon: '🗺️', name: `${radius} tiles around`, desc: `${left} to chart`,
+                    act: 'autoChartArea', args: [radius], off: !left, why: `${left} to chart`,
+                    side: `${left} to chart`,
+                });
+            }
+            html += rowList(auto);
         }
         return html;
     },
@@ -1032,42 +878,30 @@ Object.assign(ActionMenu, {
             return;
         }
 
+        const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
         let html = '<div style="max-height:500px; overflow-y:auto;">';
-
+        html += chips([['📚', 'Maps', maps.length], purse(player.gold)]);
+        const rows = [];
         for (let i = 0; i < maps.length; i++) {
             const map = maps[i];
             const qualityData = Cartography.QUALITY[map.quality] || Cartography.QUALITY.crude;
             const ageText = map.createdDay > 0 ? `Day ${map.createdDay}` : 'Ancient';
 
             let tags = '';
-            if (map.isPropaganda) tags += '<span style="color:#ff6666; margin-left:4px;">[PROPAGANDA]</span>';
-            if (map.isStolen) tags += '<span style="color:#e8a040; margin-left:4px;">[STOLEN]</span>';
+            if (map.isPropaganda) tags += '<span style="color:#e0846a; margin-left:4px;">[PROPAGANDA]</span>';
+            if (map.isStolen) tags += '<span style="color:#f0b35a; margin-left:4px;">[STOLEN]</span>';
             if (map.isAncient) tags += '<span style="color:#a0a0ff; margin-left:4px;">[ANCIENT]</span>';
             if (map.deliberateErrors.length > 0) tags += '<span style="color:#ff9999; margin-left:4px;">[ALTERED]</span>';
 
-            html += `
-                <div style="padding:10px; margin:4px 0; border:1px solid #555; border-radius:4px; background:#2a2a2a;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <b>${map.icon || '📜'} ${map.name}</b>${tags}<br>
-                            <small style="color:#aaa;">${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | By: ${map.createdBy} | ${ageText}</small>
-                        </div>
-                        <small style="color:#f5c542;">${map.value}g</small>
-                    </div>
-                    ${map.notes ? `<p style="font-style:italic; color:#aaa; margin:4px 0; font-size:12px;">${map.notes}</p>` : ''}
-                    <div style="margin-top:6px; display:flex; gap:4px;">
-                        <button data-am-act="readMap" data-am-args='[${i}]' 
-                                style="flex:1; padding:4px 8px; background:#3a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
-                            📖 Read
-                        </button>
-                        <button data-am-act="sellPlayerMap" data-am-args='[${i}]' 
-                                style="flex:1; padding:4px 8px; background:#5a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
-                            💰 Sell (${Math.floor(map.value * 0.7)}g)
-                        </button>
-                    </div>
-                </div>`;
+            rows.push(actRow({
+                icon: map.icon || '📜', name: `${map.name}${tags}`,
+                desc: `${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | By: ${map.createdBy} | ${ageText} · worth <span style="color:#ffcf6a;">${map.value}g</span>`,
+                note: map.notes ? `<i style="color:#9d937c;">${map.notes}</i>` : '',
+                side: `<button data-am-act="readMap" data-am-args='[${i}]' style="${BTN_PLAIN} ${SMALL}">📖 Read</button>`
+                    + `<button data-am-act="sellPlayerMap" data-am-args='[${i}]' style="${BTN_GOLD} ${SMALL}">💰 Sell (${Math.floor(map.value * 0.7)}g)</button>`,
+            }));
         }
-
+        html += rowList(rows, 'Your Maps');
         html += '</div>';
         game.ui.showCustomPanel('📚 Map Collection', html);
     },
@@ -1142,21 +976,18 @@ Object.assign(ActionMenu, {
         }
 
         let html = '<div style="max-height:400px; overflow-y:auto;">';
-        html += '<p>Add deliberate errors to a map for deception or security. Altered maps appear authentic but contain false information.</p>';
-
+        html += lede('Add deliberate errors to a map for deception or security. Altered maps appear authentic but contain false information.');
+        const rows = [];
         for (let i = 0; i < maps.length; i++) {
             const map = maps[i];
             if (map.isPropaganda || map.isAncient || map.deliberateErrors.length >= Cartography.MAX_DELIBERATE_ERRORS) continue;
-
-            html += `
-                <div style="padding:8px; margin:4px 0; border:1px solid #555; border-radius:4px; cursor:pointer;"
-                     data-am-act="executeAddErrors" data-am-args='[${i}]'
-                     onmouseover="this.style.borderColor='#e8a040'" onmouseout="this.style.borderColor='#555'">
-                    <b>${map.icon || '📜'} ${map.name}</b><br>
-                    <small style="color:#aaa;">Current errors: ${map.deliberateErrors.length} / ${Cartography.MAX_DELIBERATE_ERRORS}</small>
-                </div>`;
+            rows.push({
+                icon: map.icon || '📜', name: map.name,
+                desc: `Current errors: ${map.deliberateErrors.length} / ${Cartography.MAX_DELIBERATE_ERRORS}`,
+                act: 'executeAddErrors', args: [i], side: '✏️', tone: 'warn',
+            });
         }
-
+        html += rowList(rows);
         html += '</div>';
         game.ui.showCustomPanel('✏️ Alter Map', html);
     },
@@ -1194,62 +1025,47 @@ Object.assign(ActionMenu, {
         const availableMaps = Cartography.getAvailableMapsForSale(tileWithCoords, world);
 
         let html = '<div style="max-height:500px; overflow-y:auto;">';
-        html += `<p>Your gold: <b>${player.gold.toFixed(0)}</b></p>`;
+        html += chips([{ icon: '💰', label: 'Your gold', value: player.gold.toFixed(0), cls: 'gold' }]);
 
         // Buy section
-        html += '<h4 style="color:#f5c542; margin:8px 0 4px;">📥 Maps for Sale</h4>';
+        html += sectionHead('📥 Maps for Sale');
         if (availableMaps.length === 0) {
-            html += '<p style="color:#aaa;">No maps available at this location.</p>';
+            html += '<p style="color:#9d937c;">No maps available at this location.</p>';
         } else {
+            const rows = [];
             for (let i = 0; i < availableMaps.length; i++) {
                 const item = availableMaps[i];
                 const map = item.map;
-                const price = item.price;
+                const cost = item.price;
                 const qualityData = Cartography.QUALITY[map.quality] || Cartography.QUALITY.crude;
-                const canAfford = player.gold >= price;
+                const canAfford = player.gold >= cost;
 
                 let tags = '';
-                if (map.isPropaganda) tags += '<span style="color:#ff6666; margin-left:4px;">[PROPAGANDA]</span>';
+                if (map.isPropaganda) tags += '<span style="color:#e0846a; margin-left:4px;">[PROPAGANDA]</span>';
                 if (map.isAncient) tags += '<span style="color:#a0a0ff; margin-left:4px;">[ANCIENT]</span>';
 
                 // Store map data for purchase
                 if (!window._mapTradeData) window._mapTradeData = [];
                 window._mapTradeData[i] = item;
 
-                html += `
-                    <div style="padding:8px; margin:4px 0; border:1px solid ${canAfford ? '#555' : '#433'}; border-radius:4px; ${canAfford ? '' : 'opacity:0.6;'}">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <b>${map.icon || '📜'} ${map.name}</b>${tags}<br>
-                                <small style="color:#aaa;">${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | Radius: ${map.radius}</small>
-                            </div>
-                            <button data-am-act="buyMapFromTrade" data-am-args='[${i}, ${tileQ}, ${tileR}]' 
-                                    style="padding:4px 12px; background:${canAfford ? '#3a5a3a' : '#444'}; color:#fff; border:none; border-radius:3px; cursor:${canAfford ? 'pointer' : 'default'}; white-space:nowrap;"
-                                    ${canAfford ? '' : 'disabled'}>
-                                Buy (${price}g)
-                            </button>
-                        </div>
-                        ${map.notes ? `<small style="font-style:italic; color:#888;">${map.notes}</small>` : ''}
-                    </div>`;
+                const desc = `${qualityData.label} | Accuracy: ${(map.accuracy * 100).toFixed(0)}% | Radius: ${map.radius}`;
+                rows.push({
+                    icon: map.icon || '📜', name: `${map.name}${tags}`, desc,
+                    note: map.notes ? `<i style="color:#9d937c;">${map.notes}</i>` : '',
+                    act: 'buyMapFromTrade', args: [i, tileQ, tileR], off: !canAfford, why: `${desc} · not enough gold`,
+                    title: `Buy (${cost}g)`, side: price(cost, canAfford),
+                });
             }
+            html += rowList(rows);
         }
 
         // Sell section
         const playerMaps = player.maps || [];
         if (playerMaps.length > 0) {
-            html += '<h4 style="color:#f5c542; margin:12px 0 4px;">📤 Sell Your Maps</h4>';
-            for (let i = 0; i < playerMaps.length; i++) {
-                const map = playerMaps[i];
-                const sellPrice = Math.floor(map.value * 0.7);
-                html += `
-                    <div style="padding:6px; margin:3px 0; border:1px solid #555; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>${map.icon || '📜'} ${map.name}</span>
-                        <button data-am-act="sellMapFromTrade" data-am-args='[${i}, ${tileQ}, ${tileR}]' 
-                                style="padding:3px 10px; background:#5a5a3a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
-                            Sell (${sellPrice}g)
-                        </button>
-                    </div>`;
-            }
+            html += rowList(playerMaps.map((map, i) => ({
+                icon: map.icon || '📜', name: map.name, desc: 'Sell to the map trader',
+                act: 'sellMapFromTrade', args: [i, tileQ, tileR], side: `Sell (${Math.floor(map.value * 0.7)}g)`, tone: 'good',
+            })), '📤 Sell Your Maps');
         }
 
         // Royal archive of the realm that holds this town: buys maps of other realms
@@ -1257,30 +1073,26 @@ Object.assign(ActionMenu, {
         const sType = tile.settlement && tile.settlement.type;
         if (realm && realm.isAlive && ['capital', 'city', 'town'].includes(sType)) {
             const atlas = KingdomAtlas.summary(realm, world);
-            html += `<h4 style="color:#f5c542; margin:12px 0 4px;">🏛️ Royal Archive of ${realm.name}</h4>`;
-            html += `<small style="color:#aaa;">${atlas.hired ? '🧭 Court cartographer employed' : 'No court cartographer'}`
+            html += sectionHead(`🏛️ Royal Archive of ${realm.name}`);
+            html += `<div style="font-size:11px; color:#9d937c;">${atlas.hired ? '🧭 Court cartographer employed' : 'No court cartographer'}`
                 + ` · ${atlas.mapsMade} maps drawn · Charts ${(atlas.accuracy * 100).toFixed(0)}% accurate`
-                + ` · Holds charts of: ${atlas.charts.length ? atlas.charts.map(c => c.name).join(', ') : 'none'}</small>`;
+                + ` · Holds charts of: ${atlas.charts.length ? atlas.charts.map(c => c.name).join(', ') : 'none'}</div>`;
             if (atlas.distrust > 0) {
-                html += `<br><small style="color:#ff8866;">The archivists have caught you selling ${atlas.distrust} doctored map(s).</small>`;
+                html += `<div style="font-size:11px; color:#e0846a;">The archivists have caught you selling ${atlas.distrust} doctored map(s).</div>`;
             }
-            let any = false;
+            const rows = [];
             for (let i = 0; i < playerMaps.length; i++) {
                 const map = playerMaps[i];
                 const offer = Cartography.archiveOffer(map, realm, world);
                 if (!offer.price) continue;
-                any = true;
                 const note = offer.improves ? 'better than their chart' : 'they have a better chart';
-                html += `
-                    <div style="padding:6px; margin:3px 0; border:1px solid #555; border-radius:4px; display:flex; justify-content:space-between; align-items:center;">
-                        <span>${map.icon || '📜'} ${map.name} <small style="color:#888;">(${note})</small></span>
-                        <button data-am-act="sellMapToArchive" data-am-args='[${i}, ${tileQ}, ${tileR}]'
-                                style="padding:3px 10px; background:#3a4a6a; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:12px;">
-                            Offer (${offer.price}g)
-                        </button>
-                    </div>`;
+                rows.push({
+                    icon: map.icon || '📜', name: map.name, desc: `(${note})`,
+                    act: 'sellMapToArchive', args: [i, tileQ, tileR], side: `Offer (${offer.price}g)`, tone: offer.improves ? 'good' : '',
+                });
             }
-            if (!any) html += '<p style="color:#888; margin:4px 0;">You carry no maps of other realms they would buy.</p>';
+            if (rows.length) html += `<div style="margin-top:6px;">${rowList(rows)}</div>`;
+            else html += '<p style="color:#9d937c; margin:4px 0;">You carry no maps of other realms they would buy.</p>';
         }
 
         html += '</div>';

@@ -1,25 +1,34 @@
 // ActionMenu — Manage Holding: develop a settlement you rule (projects,
 // governor, garrison, unrest and rebellion). Logic lives in
-// systems/holdings.js; this panel presents it.
+// systems/holdings.js; this panel presents it in the action menu's voice
+// (ui/actionMenu/uiKit.js): a lede and figures, then one row a project,
+// candidate or company.
 import { ActionMenu } from './_ref.js';
 import { peopleLine } from './labour.js';
 import { Holdings, PlayerMilitary } from './_imports.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
-import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD } from './uiKit.js';
+import { BTN_PLAIN, BTN_DIM, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 
-const STAT = 'padding: 6px 8px; background: rgba(0,0,0,0.25); border-radius: 4px;';
+const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
 
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function bar(value, max, color) {
+function bar(value, max, color, width = '') {
     const pct = Math.max(0, Math.min(100, Math.round((value / Math.max(1, max)) * 100)));
-    return `<div style="height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-top:3px;"><div style="width:${pct}%; height:100%; background:${color};"></div></div>`;
+    const box = width ? `width:${width}; display:inline-block; vertical-align:middle; margin-left:6px;` : 'margin-top:4px;';
+    return `<span style="display:block; height:4px; ${box} background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;"><span style="display:block; width:${pct}%; height:100%; background:${color};"></span></span>`;
 }
 
+/** A label/value pair whose value carries a muted aside ("→ 60", "a year"). */
 function stat(label, value, sub = '') {
-    return `<div style="${STAT}"><small style="color:#aaa;">${label}</small><br><b>${value}</b>${sub ? ` <small style="color:#999;">${sub}</small>` : ''}</div>`;
+    return kv(label, `${value}${sub ? ` <small style="color:#9d937c; font-weight:400;">${sub}</small>` : ''}`);
+}
+
+/** A small button for a row's side column (the row itself is then not a button). */
+function smallBtn(live, onclick, label) {
+    return `<button ${live ? `onclick="${onclick}"` : 'disabled'} style="${live ? BTN_PLAIN : BTN_DIM} ${SMALL}">${label}</button>`;
 }
 
 Object.assign(ActionMenu, {
@@ -36,62 +45,86 @@ Object.assign(ActionMenu, {
         const h = tile.settlement.holding;
         const present = Holdings._present(player, world, q, r);
 
-        let html = '<div style="font-size:12px; max-height:600px; overflow-y:auto;">';
-        html += `<p style="margin:0 0 6px; color:var(--text-secondary);">${esc(s.name)} · ${esc(s.tier.name)} · ${s.population} people · development slots <b>${s.used}/${s.slots}</b></p>`;
+        let html = '<div style="max-height:600px; overflow-y:auto;">';
+        html += lede(`<b>${esc(s.name)}</b> · ${esc(s.tier.name)} · ${s.population} people · development slots <b>${s.used}/${s.slots}</b>`);
+        const unrestColor = s.unrest >= 75 ? '#e0846a' : s.unrest >= 50 ? '#f0b35a' : '#8fd18a';
+        html += chips([
+            { icon: '💰', label: 'Tax', value: `${s.weeklyTax}g/wk`, cls: 'gold' },
+            ['🔥', 'Unrest', `<span style="color:${unrestColor};">${s.unrest}</span>`],
+            ['🛡️', 'Garrison', s.garrison],
+            purse(player.gold),
+        ]);
 
         // ── Rebellion ──
         if (s.rebellion) {
             const days = Math.max(0, s.rebellion.deadline - world.day);
             const cost = Holdings.parleyCost(tile.settlement);
             const army = PlayerMilitary.getArmyStrength(player);
-            html += `<div style="${CARD} border-color:#c0392b; background:rgba(192,57,43,0.12);">`;
-            html += `<strong style="color:#ff7b6b;">🔥 The town is in revolt</strong><div style="margin:4px 0;">Rebels ${s.rebellion.strength} strong hold the streets. No taxes and no building until it ends. If they still hold it in <b>${days}</b> day(s), the town is lost.</div>`;
-            html += `<button ${present && army > 0 ? 'onclick="window._holding.crush()"' : 'disabled'} style="${present && army > 0 ? BTN_RED : BTN_DIM}">⚔️ Crush the rebels (your army ${army} vs ${s.rebellion.strength})</button>`;
-            html += `<button ${player.gold >= cost ? 'onclick="window._holding.parley()"' : 'disabled'} style="${player.gold >= cost ? BTN_GOLD : BTN_DIM}">🤝 Buy them off (${cost}g, −5 renown)</button>`;
-            if (!present) html += '<div style="color:#999; font-size:10px; margin-top:3px;">You must be at the holding to lead your army against them. A garrison strong enough will crush them on its own.</div>';
-            html += '</div>';
+            const canCrush = present && army > 0;
+            let body = `<div style="margin:0 0 4px;">Rebels ${s.rebellion.strength} strong hold the streets. No taxes and no building until it ends. If they still hold it in <b>${days}</b> day(s), the town is lost.</div>`;
+            body += rowList([
+                {
+                    icon: '⚔️', name: 'Crush the rebels', desc: `Your army ${army} vs ${s.rebellion.strength}`,
+                    off: !canCrush, why: `Your army ${army} vs ${s.rebellion.strength} · ${present ? 'you have no soldiers to lead' : 'you must be at the holding'}`,
+                    attrs: canCrush ? 'onclick="window._holding.crush()"' : '', side: `${army} vs ${s.rebellion.strength}`, tone: 'bad',
+                },
+                {
+                    icon: '🤝', name: 'Buy them off', desc: '−5 renown',
+                    off: player.gold < cost, why: '−5 renown · your purse is short',
+                    attrs: player.gold >= cost ? 'onclick="window._holding.parley()"' : '', side: price(cost, player.gold >= cost),
+                },
+            ]);
+            if (!present) body += '<div style="color:#9d937c; font-size:10.5px;">You must be at the holding to lead your army against them. A garrison strong enough will crush them on its own.</div>';
+            html += card(body, { icon: '🔥', title: '<span style="color:#e0846a;">The town is in revolt</span>', side: `${days} day(s) left`, tone: 'bad' });
         }
 
         // ── Under siege (systems/holdingSieges.js) ──
         const siege = HoldingSieges.at(player, q, r);
         if (siege) {
-            html += `<div style="${CARD} border-color:#c0392b; background:rgba(192,57,43,0.12);">`;
-            html += `<strong style="color:#ff7b6b;">🚩 Under siege by ${esc(siege.hostName)}</strong><div style="margin:4px 0;">Day ${world.day - siege.startDay} · ${Math.round(siege.stores)} days of food · garrison ${Math.round(siege.garrison)} vs ${Math.round(siege.besiegers)} besiegers.</div>`;
-            html += `<button data-am-act="showHoldingSiegesPanel" style="${BTN_RED}">🏰 Holdings Under Siege</button></div>`;
+            const body = rowList([{
+                icon: '🏰', name: 'Holdings Under Siege',
+                desc: `Day ${world.day - siege.startDay} · ${Math.round(siege.stores)} days of food · garrison ${Math.round(siege.garrison)} vs ${Math.round(siege.besiegers)} besiegers.`,
+                act: 'showHoldingSiegesPanel', side: '›', tone: 'bad',
+            }]);
+            html += card(body, { icon: '🚩', title: `<span style="color:#e0846a;">Under siege by ${esc(siege.hostName)}</span>`, tone: 'bad' });
         }
 
         // ── Stats summary ──
-        const unrestColor = s.unrest >= 75 ? '#e74c3c' : s.unrest >= 50 ? '#e8a040' : '#7fd07f';
-        html += '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin:6px 0;">';
+        html += sectionHead('The town');
+        html += '<div style="display:grid; grid-template-columns:1fr 1fr; column-gap:18px; margin-bottom:8px;">';
         html += stat('Weekly tax', `${s.weeklyTax}g`, s.skim ? `(${s.skim}% skimmed)` : '');
         html += stat('Happiness', s.happiness, `→ ${s.happinessTarget}`);
         html += stat('Loyalty', s.loyalty == null ? '—' : `${s.loyalty}%`);
-        html += `<div style="${STAT}"><small style="color:#aaa;">Unrest</small><br><b style="color:${unrestColor};">${s.unrest}</b>${bar(s.unrest, 100, unrestColor)}</div>`;
+        html += kv('Unrest', `<span style="color:${unrestColor};">${s.unrest}</span>${bar(s.unrest, 100, unrestColor, '48px')}`);
         html += stat('Defence', s.defense, `rebels ${s.rebels}`);
         html += stat('Garrison', s.garrison, `${s.garrisonUnits} units · ${s.upkeep}g/day`);
         html += stat('Food in store', s.reserveDays == null ? '—' : `${s.reserveDays} days`);
         html += stat('Growth', `${s.growth > 0 ? '+' : ''}${s.growth}%`, 'a year');
-        html += stat('Governor', s.governor ? esc(s.governor.name.split(' (')[0]) : '<span style="color:#e8a040;">none</span>');
+        html += stat('Governor', s.governor ? esc(s.governor.name.split(' (')[0]) : '<span style="color:#f0b35a;">none</span>');
         html += '</div>';
         // ── The people (world/townLabour.js) ──
         const people = peopleLine(tile.settlement, world.day);
-        if (people) html += `<div style="margin:4px 0;">👥 ${people} <button data-am-act="showTownPeople" data-am-args='[null, ${q}, ${r}]' style="${BTN_PLAIN}">The people</button></div>`;
+        if (people) html += rowList([{ icon: '👥', name: 'The people', desc: people, act: 'showTownPeople', args: [null, q, r], side: '›' }]);
         if (s.drifting) {
-            html += '<div style="color:#e8a040; font-size:11px;">⚠️ Ungoverned and far from you, the town drifts: happiness and loyalty slip and unrest grows each day. Appoint a governor or come back.</div>';
+            html += '<div style="color:#f0b35a; font-size:11px; margin:2px 0 6px;">⚠️ Ungoverned and far from you, the town drifts: happiness and loyalty slip and unrest grows each day. Appoint a governor or come back.</div>';
         }
 
         // ── Projects ──
         const defs = Holdings.projects();
-        html += '<h5 style="margin:10px 0 4px;">🏗️ Development</h5>';
+        html += sectionHead('🏗️ Development');
         const built = Object.keys(h.built);
         if (built.length) {
-            html += `<div style="margin-bottom:4px;">Built: ${built.map(id => `${(defs[id] && defs[id].icon) || ''} ${esc((defs[id] && defs[id].name) || id)}`).join(' · ')}</div>`;
+            html += kv('Built', built.map(id => `${(defs[id] && defs[id].icon) || ''} ${esc((defs[id] && defs[id].name) || id)}`).join(' · '));
         }
+        const projectRows = [];
         for (const p of h.queue) {
             const def = defs[p.id] || { name: p.id, icon: '🏗️' };
             const left = Math.max(0, Math.ceil(p.days - p.progress));
-            html += `<div style="${CARD} padding:6px 8px;"><div style="display:flex; justify-content:space-between;"><span>${def.icon} <b>${esc(def.name)}</b> under construction</span><span style="color:#e0b040;">~${left} day(s)</span></div>${bar(p.progress, p.days, 'var(--gold)')}`;
-            html += `<button onclick="window._holding.cancel('${p.id}')" style="${BTN_PLAIN}">Abandon (refund half)</button></div>`;
+            projectRows.push(actRow({
+                icon: def.icon, name: esc(def.name), desc: `under construction · ~${left} day(s)`,
+                note: bar(p.progress, p.days, 'var(--gold)'),
+                side: `<span style="color:#ffcf6a;">~${left} day(s)</span>${smallBtn(true, `window._holding.cancel('${p.id}')`, 'Abandon (refund half)')}`,
+            }));
         }
         for (const [id, def] of Object.entries(defs)) {
             if (h.built[id] || h.queue.some(p => p.id === id)) continue;
@@ -100,61 +133,88 @@ Object.assign(ActionMenu, {
             if (!can.ok && /first\.|Already improved/.test(can.reason || '')) continue;
             const quote = Holdings.quote(player, id);
             const fx = Holdings.projectEffect(player, world, q, r, id);
-            const mats = quote.materials.map(m => `${m.need} ${m.id}${m.missing ? ` <span style="color:#e8a040;">(${m.missing} bought at ${m.price}g)</span>` : ''}`).join(', ');
+            const mats = quote.materials.map(m => `${m.need} ${m.id}${m.missing ? ` <span style="color:#f0b35a;">(${m.missing} bought at ${m.price}g)</span>` : ''}`).join(', ');
             const extra = [];
             if (fx.taxDelta) extra.push(`≈ ${fx.taxDelta > 0 ? '+' : ''}${fx.taxDelta}g tax a week`);
             if (fx.defenseAfter !== fx.defenseBefore) extra.push(`defence ${fx.defenseBefore} → ${fx.defenseAfter}`);
             if (fx.replaces) extra.push(`replaces the ${fx.replaces}`);
-            html += `<div style="${CARD} padding:6px 8px;">`;
-            html += `<div style="display:flex; justify-content:space-between; gap:6px;"><b>${def.icon} ${esc(def.name)}</b><span style="color:#aaa; white-space:nowrap;">${quote.total}g · ${def.days} days</span></div>`;
-            html += `<div style="color:#bbb; font-size:11px;">${esc(def.description || '')}</div>`;
-            html += `<div style="font-size:11px; color:#9fd59f;">${fx.lines.join(', ')}${extra.length ? ` · <span style="color:#e0d090;">${extra.join(' · ')}</span>` : ''}</div>`;
-            html += `<div style="font-size:10px; color:#999;">${quote.gold}g${mats ? ` + ${mats}` : ''}</div>`;
-            html += `<button ${can.ok ? `onclick="window._holding.start('${id}')"` : 'disabled'} style="${can.ok ? BTN_GOLD : BTN_DIM}">${can.ok ? 'Begin construction' : esc(can.reason)}</button>`;
-            html += '</div>';
+            const effect = `${fx.lines.join(', ')}${extra.length ? ` · <span style="color:#e0d090;">${extra.join(' · ')}</span>` : ''}`;
+            const cost = `<span style="color:#9d937c;">${quote.gold}g${mats ? ` + ${mats}` : ''}</span>`;
+            projectRows.push({
+                icon: def.icon, name: esc(def.name),
+                desc: esc(def.description || ''),
+                note: `${effect}<br>${cost}`,
+                off: !can.ok, why: `${esc(can.reason)} · ${esc(def.description || '')}`,
+                attrs: can.ok ? `onclick="window._holding.start('${id}')"` : '',
+                title: can.ok ? 'Begin construction' : '',
+                side: `${price(quote.total, can.ok)}<br><small style="color:#9d937c;">${def.days} days</small>`,
+            });
         }
+        html += rowList(projectRows);
 
         // ── Governor ──
-        html += '<h5 style="margin:10px 0 4px;">👤 Governor</h5>';
+        html += sectionHead('👤 Governor');
         if (h.governor) {
             const g = h.governor;
-            const loyColor = g.loyalty >= 60 ? '#7fd07f' : g.loyalty >= 30 ? '#e8a040' : '#e74c3c';
-            html += `<div style="${CARD}"><b>${esc(g.name)}</b> <small style="color:#999;">(${g.kind})</small><br>`;
-            html += `Stewardship ${g.stewardship} · Martial ${g.martial} · Intrigue ${g.intrigue} · Loyalty <b style="color:${loyColor};">${Math.round(g.loyalty)}</b>${g.wage ? ` · ${g.wage}g/day` : ''}`;
-            if (s.skim) html += `<div style="color:#e8a040; font-size:11px;">Pockets about ${s.skim}% of the taxes.</div>`;
-            if (g.unpaid) html += '<div style="color:#e74c3c; font-size:11px;">Unpaid: loyalty is falling.</div>';
-            html += `<br><button onclick="window._holding.dismiss()" style="${BTN_PLAIN}">Relieve of office</button></div>`;
+            const loyColor = g.loyalty >= 60 ? '#8fd18a' : g.loyalty >= 30 ? '#f0b35a' : '#e0846a';
+            const warns = [];
+            if (s.skim) warns.push(`<span style="color:#f0b35a;">Pockets about ${s.skim}% of the taxes.</span>`);
+            if (g.unpaid) warns.push('<span style="color:#e0846a;">Unpaid: loyalty is falling.</span>');
+            html += rowList([actRow({
+                icon: '👤', name: `${esc(g.name)} <small style="color:#9d937c; font-weight:400;">(${g.kind})</small>`,
+                desc: `Stewardship ${g.stewardship} · Martial ${g.martial} · Intrigue ${g.intrigue} · Loyalty <b style="color:${loyColor};">${Math.round(g.loyalty)}</b>${g.wage ? ` · ${g.wage}g/day` : ''}`,
+                note: warns.join(' '),
+                side: smallBtn(true, 'window._holding.dismiss()', 'Relieve of office'),
+            })]);
         } else {
-            html += '<div style="color:#aaa;">No one governs here. While you are far away the town drifts.</div>';
+            html += '<div style="color:#9d937c; margin:0 0 6px;">No one governs here. While you are far away the town drifts.</div>';
         }
         const cands = Holdings.governorCandidates(player, world, q, r);
         if (cands.length) {
-            html += '<details style="margin-top:4px;"><summary style="cursor:pointer;">Appoint a governor…</summary>';
-            for (const c of cands) {
+            const rows = cands.map(c => {
                 const preview = Holdings.computeFx(tile.settlement, { governor: c });
                 const affordable = (c.fee || 0) <= player.gold;
-                html += `<div style="${CARD} padding:6px 8px;"><b>${esc(c.name)}</b> <small style="color:#999;">${c.kind}</small><br>`;
-                html += `S ${c.stewardship} · M ${c.martial} · I ${c.intrigue} · loyalty ~${Math.round(c.loyalty)}${c.wage ? ` · ${c.wage}g/day` : ''}${c.fee ? ` · ${c.fee}g to hire` : ''}`;
-                html += `<div style="font-size:10px; color:#9fd59f;">tax ×${preview.taxMult.toFixed(2)}${preview.skim ? ` (skims ${Math.round(preview.skim * 100)}%)` : ''} · defence +${Math.round(c.martial * 4)}% · calms ${(c.martial * 0.05 + c.stewardship * 0.02 + c.intrigue * 0.03).toFixed(2)} unrest a day${c.kind === 'companion' ? ' · leaves your party' : ''}</div>`;
-                html += `<button ${affordable ? `onclick="window._holding.appoint('${esc(c.id)}')"` : 'disabled'} style="${affordable ? BTN_GOLD : BTN_DIM}">Appoint</button></div>`;
-            }
-            html += '</details>';
+                const line = `S ${c.stewardship} · M ${c.martial} · I ${c.intrigue} · loyalty ~${Math.round(c.loyalty)}${c.wage ? ` · ${c.wage}g/day` : ''}${c.fee ? ` · ${c.fee}g to hire` : ''}`;
+                return {
+                    icon: '👤', name: `${esc(c.name)} <small style="color:#9d937c; font-weight:400;">${c.kind}</small>`,
+                    desc: line,
+                    note: `tax ×${preview.taxMult.toFixed(2)}${preview.skim ? ` (skims ${Math.round(preview.skim * 100)}%)` : ''} · defence +${Math.round(c.martial * 4)}% · calms ${(c.martial * 0.05 + c.stewardship * 0.02 + c.intrigue * 0.03).toFixed(2)} unrest a day${c.kind === 'companion' ? ' · leaves your party' : ''}`,
+                    off: !affordable, why: `${line} · your purse is short`,
+                    attrs: affordable ? `onclick="window._holding.appoint('${esc(c.id)}')"` : '',
+                    title: 'Appoint',
+                    side: c.fee ? price(c.fee, affordable) : 'Appoint',
+                    tone: c.fee ? '' : 'gold',
+                };
+            });
+            html += `<details class="pk-more"><summary>Appoint a governor…</summary>${rowList(rows)}</details>`;
         }
 
         // ── Garrison ──
-        html += '<h5 style="margin:10px 0 4px;">🛡️ Garrison</h5>';
+        html += sectionHead('🛡️ Garrison');
         const group = (units) => units.reduce((m, u) => { m[u.type] = m[u.type] || { n: 0, name: u.name || u.type, icon: u.icon || '⚔️' }; m[u.type].n++; return m; }, {});
         const inGarrison = group(h.garrison);
         const inArmy = group(Holdings.stationable(player));
-        html += `<div>Stationed: ${Object.keys(inGarrison).length ? Object.entries(inGarrison).map(([type, g]) => `${g.icon} ${g.n} ${esc(g.name)} <button ${present ? `onclick="window._holding.withdraw('${type}', 1)"` : 'disabled'} style="${present ? BTN_PLAIN : BTN_DIM} padding:1px 6px;">−1</button>`).join(' ') : 'none'}</div>`;
-        html += `<div style="margin-top:4px;">Your army: ${Object.keys(inArmy).length ? Object.entries(inArmy).map(([type, g]) => `${g.icon} ${g.n} ${esc(g.name)} <button ${present ? `onclick="window._holding.station('${type}', 1)"` : 'disabled'} style="${present ? BTN_PLAIN : BTN_DIM} padding:1px 6px;">+1</button><button ${present ? `onclick="window._holding.station('${type}', ${g.n})"` : 'disabled'} style="${present ? BTN_PLAIN : BTN_DIM} padding:1px 6px;">all</button>`).join(' ') : 'no soldiers to spare'}</div>`;
-        html += '<div style="font-size:10px; color:#999; margin-top:3px;">Troops here defend against war hosts, raiders and rebels, calm unrest, and are paid from your purse each day. You must be at the holding to move them.</div>';
+        const gRows = [];
+        for (const [type, g] of Object.entries(inGarrison)) {
+            gRows.push(actRow({ icon: g.icon, name: `${g.n} ${esc(g.name)}`, desc: 'Stationed', side: smallBtn(present, `window._holding.withdraw('${type}', 1)`, '−1') }));
+        }
+        if (!gRows.length) gRows.push(actRow({ icon: '🏰', name: 'Stationed: none', desc: 'No troops hold the town' }));
+        for (const [type, g] of Object.entries(inArmy)) {
+            gRows.push(actRow({
+                icon: g.icon, name: `${g.n} ${esc(g.name)}`, desc: 'Your army',
+                side: smallBtn(present, `window._holding.station('${type}', 1)`, '+1') + smallBtn(present, `window._holding.station('${type}', ${g.n})`, 'all'),
+            }));
+        }
+        if (!Object.keys(inArmy).length) gRows.push(actRow({ icon: '⚔️', name: 'Your army', desc: 'no soldiers to spare' }));
+        html += rowList(gRows);
+        html += '<div style="font-size:10.5px; color:#9d937c; margin-top:-4px;">Troops here defend against war hosts, raiders and rebels, calm unrest, and are paid from your purse each day. You must be at the holding to move them.</div>';
 
         // ── Recent ──
         const log = ((player.holdings && player.holdings.log) || []).slice(-5).reverse();
         if (log.length) {
-            html += '<h5 style="margin:10px 0 4px;">📜 Recent</h5><div style="font-size:11px; color:#bbb;">';
-            for (const e of log) html += `<div>Day ${e.day}: ${esc(e.text)}</div>`;
+            html += sectionHead('📜 Recent');
+            html += '<div style="font-size:11px; color:#b9ae94;">';
+            for (const e of log) html += `<div style="padding:2px 0;"><span style="color:#9d937c;">Day ${e.day}:</span> ${esc(e.text)}</div>`;
             html += '</div>';
         }
         html += '</div>';

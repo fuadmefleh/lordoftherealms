@@ -16,6 +16,9 @@ import { goodInfoIcon } from '../goodInfo.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory, NpcDisposition, Seasons, SettlementMarket } from './_imports.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { Livestock } from '../../systems/livestock.js';
+import { lede, chips, purse, bullets, actRow, rowList, price, sectionHead, card, kv, BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF } from './uiKit.js';
+import { BackRooms } from '../../systems/backRooms.js';
+import { ParentsGuard } from '../parentsGuard.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -73,32 +76,28 @@ Object.assign(ActionMenu, {
             return;
         }
 
-        let html = '<div style="max-height: 400px; overflow-y: auto;">';
-        html += '<h4 style="margin-top: 0;">Hire a Ship</h4>';
-        html += '<p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Travel across the seas to distant shores.</p>';
+        // The action menu's voice (uiKit): a lede, then one row a port with the fare at the right
+        let html = lede('Hire a ship: travel across the seas to distant shores.');
+        html += chips([['⚓', 'Ports', coastalSettlements.length], purse(game.player.gold)]);
 
+        const rows = [];
         for (const dest of coastalSettlements) {
             const dist = Hex.wrappingDistance(tile.q, tile.r, dest.q, dest.r, game.world.width);
             const cost = 15 + (dist * 2);
             const travelDays = Math.max(1, Math.ceil(dist / 10));
             const canAfford = game.player.gold >= cost;
-
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; justify-content: space-between; align-items: center; ${!canAfford ? 'opacity: 0.6;' : ''}">
-                    <div>
-                        <div style="font-weight: bold; color: white;">${dest.name}</div>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Distance: ${dist} hexes · ${travelDays} day${travelDays > 1 ? 's' : ''} at sea</div>
-                    </div>
-                    <button onclick="window.payForPassage(${dest.q}, ${dest.r}, ${cost}, '${String(dest.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${travelDays})"
-                            ${!canAfford ? 'disabled' : ''} 
-                            style="padding: 6px 14px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                        ${cost} gold
-                    </button>
-                </div>
-            `;
+            const desc = `Distance: ${dist} hexes · ${travelDays} day${travelDays > 1 ? 's' : ''} at sea`;
+            rows.push({
+                icon: '⛵',
+                name: dest.name,
+                desc,
+                off: !canAfford,
+                why: `${desc} · not enough gold`,
+                attrs: `onclick="window.payForPassage(${dest.q}, ${dest.r}, ${cost}, '${String(dest.name).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${travelDays})"`,
+                side: price(cost, canAfford),
+            });
         }
-
-        html += '</div>';
+        html += `<div style="max-height: 400px; overflow-y: auto;">${rowList(rows, 'Hire a Ship')}</div>`;
 
         game.ui.showCustomPanel('Coastal Travel', html);
 
@@ -191,16 +190,12 @@ Object.assign(ActionMenu, {
             ActionMenu.showManagePropertyMenu(game, tile);
             return;
         }
-        let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
-        props.forEach((p, i) => {
+        const html = lede('You hold more than one property here. Which will you see to?') + rowList(props.map((p, i) => {
             const status = p.underConstruction
                 ? `🏗️ ${p.constructionDaysLeft} day(s) left`
                 : `Lv ${p.level} · ${p.storage > 0 && p.produces !== 'gold' ? `${p.storage} ${p.produces} stored` : 'running'}`;
-            html += `<button onclick="window._pickProperty(${i})" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--text-primary);cursor:pointer;text-align:left;">`;
-            html += `<span style="font-size:13px;font-weight:600;">${p.icon || '🏠'} ${p.name}</span>`;
-            html += `<span style="font-size:11px;color:var(--text-muted);">${status}</span></button>`;
-        });
-        html += '</div>';
+            return { icon: p.icon || '🏠', name: p.name, side: status, attrs: `onclick="window._pickProperty(${i})"` };
+        }));
         game.ui.showCustomPanel('🛠️ Your Properties Here', html);
         window._pickProperty = (i) => {
             tile.playerProperty = props[i];
@@ -256,44 +251,37 @@ Object.assign(ActionMenu, {
         }
 
         // Render menu
-        let html = `<div style="padding: 8px;">`;
+        // The action menu's voice (uiKit): a card for the house, chips and kv for its
+        // numbers, rows for what can be done, small kit buttons where one item has several
+        const bar = (pct, fill, h = 6) => `<div style="background:rgba(0,0,0,0.35); border-radius:4px; height:${h}px; overflow:hidden; margin:6px 0 3px;"><div style="width:${pct}%; height:100%; background:${fill}; transition:width 0.3s;"></div></div>`;
+        const muted = (t) => `<div style="font-size:11px; color:#9d937c;">${t}</div>`;
+        let html = '<div>';
 
         // Header info
-        html += `
-            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:16px;">
-                <div style="font-size:48px; border:2px solid var(--gold); border-radius:8px; padding:8px; background:rgba(0,0,0,0.3);">${prop.icon}</div>
-                <div style="flex-grow:1;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <h3 style="margin:0; color:var(--gold); font-family:var(--font-display); font-size:24px;">${prop.name} <span style="font-size:16px; color:white; opacity:0.7;">Lvl ${prop.level}</span></h3>
-                        <div style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:12px;">Owned: ${prop.daysOwned} days</div>
-                    </div>
-                    <div style="color:var(--text-secondary); font-size:13px; margin-top:4px;">${propType.description}</div>
-                </div>
-            </div>
-        `;
+        html += card(muted(propType.description), {
+            icon: prop.icon,
+            title: `${prop.name} <span style="font-size:12px; color:#9d937c; font-weight:400;">Lvl ${prop.level}</span>`,
+            side: `Owned: ${prop.daysOwned} days`,
+        });
 
         // If under construction, show only the construction banner and sell button — no management
         if (prop.underConstruction) {
             const pct = prop.constructionDaysTotal > 0 ? ((prop.constructionDaysTotal - prop.constructionDaysLeft) / prop.constructionDaysTotal * 100) : 100;
-            const barColor = pct > 66 ? '#2ecc71' : pct > 33 ? '#f39c12' : '#e74c3c';
-            html += `
-                <div style="padding: 14px; margin-bottom: 16px; background: rgba(245,197,66,0.08); border: 1px solid rgba(245,197,66,0.2); border-radius: 8px;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                        <span style="font-size: 24px;">🏗️</span>
-                        <div>
-                            <div style="font-weight: bold; color: var(--gold); font-size: 14px;">Under Construction</div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${prop.constructionDaysLeft} day${prop.constructionDaysLeft !== 1 ? 's' : ''} remaining</div>
-                        </div>
-                    </div>
-                    <div style="background: rgba(255,255,255,0.08); border-radius: 6px; height: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 5px; transition: width 0.3s;"></div>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; text-align: center;">${pct.toFixed(0)}% complete — no production or upkeep until finished</div>
-                </div>
-                <button onclick="window.sellPropertyAction()" style="width:100%; padding:10px; background:#c0392b; border:none; border-radius:4px; cursor:pointer; color:white; font-weight:bold; margin-top:8px;">
-                    Sell Property (Refund: ${Math.floor(propType.cost * 0.25)}g)
-                </button>
-            `;
+            const barColor = pct > 66 ? '#8fd18a' : pct > 33 ? '#f0b35a' : '#e0846a';
+            html += card(bar(pct, barColor, 10) + muted(`${pct.toFixed(0)}% complete — no production or upkeep until finished`), {
+                icon: '🏗️',
+                title: 'Under Construction',
+                side: `${prop.constructionDaysLeft} day${prop.constructionDaysLeft !== 1 ? 's' : ''} remaining`,
+                tone: 'gold',
+            });
+            html += rowList([{
+                icon: '💰',
+                name: 'Sell Property',
+                desc: 'Give up the works and take back a quarter of the cost',
+                side: `Refund: ${Math.floor(propType.cost * 0.25)}g`,
+                tone: 'bad',
+                attrs: 'onclick="window.sellPropertyAction()"',
+            }]);
             html += `</div>`;
             game.ui.showCustomPanel('Manage Property', html);
 
@@ -326,42 +314,40 @@ Object.assign(ActionMenu, {
             const factor = herdCfg.works ? Livestock.workFactor(game.world, game.player, tile, prop) : null;
             const draft = herdCfg.draft ? Livestock.draftFactor(game.world, game.player, tile, prop) : null;
             const bits = [`${heads} head kept here (room for ${herdCfg.species.map(id => (Livestock.species(id) || {}).icon || '').join('')})`];
-            if (factor != null && prop.herdFounded) bits.push(`the herd makes <b style="color:${factor >= 1 ? '#9fd89f' : '#e0a080'};">${Math.round(factor * 100)}%</b> of its output (target ${herdCfg.works.target} head)`);
+            if (factor != null && prop.herdFounded) bits.push(`the herd makes <b style="color:${factor >= 1 ? '#8fd18a' : '#e0846a'};">${Math.round(factor * 100)}%</b> of its output (target ${herdCfg.works.target} head)`);
             if (draft && draft > 1) bits.push(`horses and muck lift the harvest +${Math.round((draft - 1) * 100)}%`);
-            html += `<div style="margin-bottom:14px; padding:8px 10px; background:rgba(159,216,159,0.06); border:1px solid rgba(159,216,159,0.18); border-radius:6px; font-size:12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">`
-                + `<span>🐑 ${bits.join(' · ')}</span>`
-                + `<button data-am-act="showHerds" style="padding:4px 10px; background:var(--gold); color:#1a1a1a; border:none; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; flex-shrink:0;">Your Herds</button></div>`;
+            html += rowList([{ icon: '🐑', name: 'Your Herds', desc: bits.join(' · '), side: '›', act: 'showHerds' }]);
         }
 
         // ── Operational property management below ──
-        html += `
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
-                <div style="background:rgba(46,204,113,0.06); padding:12px; border-radius:6px; border:1px solid rgba(46,204,113,0.15);">
-                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Production</div>
-                    <div style="font-size:16px; font-weight:bold; color:#2ecc71;">${productionText}</div>
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">Rate: ${prodRateText}/day</div>
-                </div>
-                <div style="background:rgba(231,76,60,0.06); padding:12px; border-radius:6px; border:1px solid rgba(231,76,60,0.15);">
-                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Upkeep</div>
-                    <div style="font-size:20px; font-weight:bold; color:#e74c3c;">-${upkeep}g<span style="font-size:12px; color:var(--text-secondary);">/day</span></div>
-                    ${PlayerEconomy.getAdministrationMultiplier(game.player) > 1 ? `<div style="font-size:10px; color:var(--text-muted);">incl. +${Math.round((PlayerEconomy.getAdministrationMultiplier(game.player) - 1) * 100)}% admin overhead (${(game.player.properties || []).length} properties)</div>` : ''}
-                </div>
-                <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
-                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">${prop.type === 'tavern' ? 'Total Earnings' : 'Storage (Output)'}</div>
-                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:20px; font-weight:bold; color:var(--text-primary);">${prop.type === 'tavern' ? (prop.storage || 0) + 'g' : `${prop.storage}<span style="font-size:12px; color:var(--text-secondary);"> / ${PlayerEconomy.getStorageCapacity(game.player, prop)}</span>`}${prop.type !== 'tavern' && prop.wastedToday > 0 ? `<div style="font-size:10px; color:#e74c3c;">Full — ${prop.wastedToday} lost today</div>` : ''}</div>
-                        ${prop.type !== 'tavern' ? `<button onclick="window.collectPropertyGoods()" ${prop.storage <= 0 ? 'disabled' : ''} style="padding:5px 14px; background:${prop.storage > 0 ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)'}; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:12px; color:${prop.storage > 0 ? 'white' : 'var(--text-muted)'}; transition:all 0.15s;">Collect</button>` : ''}
-                    </div>
-                </div>
-                 <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
-                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px; letter-spacing:1px; text-transform:uppercase;">Auto-Sell (50% Value)</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <div style="font-size:13px; font-weight:bold; color:${prop.autoSell ? '#2ecc71' : '#95a5a6'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</div>
-                        <button onclick="window.toggleAutoSell()" style="padding:5px 14px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:var(--text-primary); border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">${prop.autoSell ? 'Disable' : 'Enable'}</button>
-                    </div>
-                </div>
-            </div>
-        `;
+        const adminMult = PlayerEconomy.getAdministrationMultiplier(game.player);
+        const opRows = [
+            { icon: '⚙️', name: 'Production', desc: productionText, side: `Rate: ${prodRateText}/day`, tone: 'good' },
+            { icon: '💰', name: 'Upkeep', desc: adminMult > 1 ? `incl. +${Math.round((adminMult - 1) * 100)}% admin overhead (${(game.player.properties || []).length} properties)` : 'Paid daily from your purse', side: `-${upkeep}g/day`, tone: 'bad' },
+        ];
+        if (prop.type === 'tavern') {
+            opRows.push({ icon: '💰', name: 'Total Earnings', side: `${prop.storage || 0}g`, tone: 'gold' });
+        } else {
+            const stored = `${prop.storage} / ${PlayerEconomy.getStorageCapacity(game.player, prop)}`;
+            const wasted = prop.wastedToday > 0 ? `<span style="color:#e0846a;">Full — ${prop.wastedToday} lost today</span> · ` : '';
+            opRows.push({
+                icon: '📦',
+                name: 'Storage (Output) · Collect',
+                desc: `${wasted}Take what is stored into your packs`,
+                off: prop.storage <= 0,
+                why: `${wasted}Nothing stored to collect`,
+                attrs: 'onclick="window.collectPropertyGoods()"',
+                side: stored,
+            });
+        }
+        opRows.push({
+            icon: '🏷️',
+            name: 'Auto-Sell (50% Value)',
+            desc: `${prop.autoSell ? 'Disable' : 'Enable'} — sell the output at half its value as it is made`,
+            attrs: 'onclick="window.toggleAutoSell()"',
+            side: `<span style="font-weight:700; color:${prop.autoSell ? '#8fd18a' : '#9d937c'};">${prop.autoSell ? 'ENABLED' : 'DISABLED'}</span>`,
+        });
+        html += rowList(opRows, 'Operations');
 
         // Workshop Specific Section: Recipe Selector & Input
         if (isWorkshop) {
@@ -370,31 +356,25 @@ Object.assign(ActionMenu, {
             const retoolingCost = Math.floor(retoolingBaseCost * prop.level);
             const isRetooling = prop.retooling && prop.retoolingDaysLeft > 0;
 
-            html += `
-            <div style="margin-bottom:20px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid ${isRetooling ? 'rgba(245,166,35,0.3)' : 'rgba(255,255,255,0.08)'};">
-                <h4 style="margin:0 0 12px 0; color:var(--gold); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Production Configuration</h4>
-            `;
+            html += sectionHead('Production Configuration');
+            html += `<div class="pk-card"${isRetooling ? ' style="border-color:rgba(240,179,90,0.35);"' : ''}>`;
 
             // Show retooling status banner
             if (isRetooling) {
-                html += `
-                <div style="background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:6px; padding:10px 14px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:20px;">🔧</span>
-                    <div>
-                        <div style="color:#f5a623; font-weight:600; font-size:13px;">Retooling in Progress</div>
-                        <div style="color:var(--text-muted); font-size:11px; margin-top:2px;">${prop.retoolingDaysLeft} day${prop.retoolingDaysLeft !== 1 ? 's' : ''} remaining — no production during retooling</div>
-                    </div>
-                </div>
-                `;
+                html += actRow({
+                    icon: '🔧',
+                    name: '<span style="color:#f0b35a;">Retooling in Progress</span>',
+                    desc: `${prop.retoolingDaysLeft} day${prop.retoolingDaysLeft !== 1 ? 's' : ''} remaining — no production during retooling`,
+                });
             }
 
             html += `
-                <div style="margin-bottom:16px;">
+                <div style="margin-bottom:10px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Active Recipe</div>
-                        ${prop.activeRecipe ? `<div style="font-size:10px; color:var(--text-muted);">Change cost: <span style="color:var(--gold); font-weight:600;">${retoolingCost}g</span></div>` : ''}
+                        <div style="font-size:11px; color:#9d937c; text-transform:uppercase; letter-spacing:1px;">Active Recipe</div>
+                        ${prop.activeRecipe ? `<div style="font-size:11px; color:#9d937c;">Change cost: <span style="color:#ffcf6a; font-weight:600;">${retoolingCost}g</span></div>` : ''}
                     </div>
-                    <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" ${isRetooling ? 'disabled' : ''} style="width:100%; padding:8px 32px 8px 10px; background:rgba(245,197,66,0.06); border:1px solid var(--border-color); color:var(--gold); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:13px; font-weight:600; outline:none; cursor:pointer; -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f5c542' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; background-size:12px; transition:all var(--transition-fast);">
+                    <select id="workshopRecipeSelector" onchange="window.selectRecipe(this.value)" ${isRetooling ? 'disabled' : ''} style="width:100%; padding:8px 32px 8px 10px; background:rgba(0,0,0,0.3); border:1px solid rgba(245,197,66,0.25); color:var(--gold); border-radius:var(--radius-sm); font-family:var(--font-body); font-size:13px; font-weight:600; outline:none; cursor:pointer; -webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f5c542' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\"); background-repeat:no-repeat; background-position:right 8px center; background-size:12px; transition:all var(--transition-fast);">
                         <option value="" style="background:#0c1220; color:var(--text-primary);">-- Select Recipe --</option>
                         ${(() => {
                             const allRecipes = (typeof Technology !== 'undefined') ? Technology.getUnlockedRecipes(game.player) : PlayerEconomy.RECIPES;
@@ -411,31 +391,21 @@ Object.assign(ActionMenu, {
 
             if (isRetooling) {
                 // During retooling, show muted input section
-                html += `<div style="color:var(--text-muted); font-style:italic; font-size:12px;">Workshop is being retooled. Deposits disabled until retooling completes.</div>`;
+                html += `<div style="color:#9d937c; font-style:italic; font-size:12px;">Workshop is being retooled. Deposits disabled until retooling completes.</div>`;
             } else if (prop.activeRecipe) {
                 const recipe = PlayerEconomy.RECIPES[prop.activeRecipe];
                 const inputGood = PlayerEconomy.GOODS[recipe.input.toUpperCase()];
                 const playerHas = (game.player.inventory && game.player.inventory[recipe.input]) || 0;
+                const dep = (n, label, gold = false) => `<button onclick="window.depositToWorkshop('${recipe.input}', ${n === 'all' ? playerHas : n})" ${playerHas < (n === 'all' ? 1 : n) ? 'disabled' : ''} style="${playerHas < (n === 'all' ? 1 : n) ? BTN_OFF : gold ? BTN_GOLD : BTN_PLAIN}">${label}</button>`;
 
-                html += `
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:16px;">
-                    <div>
-                        <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Input Storage (${inputGood.name})</div>
-                        <div style="font-size:18px; font-weight:bold; color:var(--text-primary); margin-top:2px;">${prop.inputStorage || 0} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">stored</span></div>
-                    </div>
-                    <div>
-                        <div style="font-size:11px; color:var(--text-muted); text-align:right; margin-bottom:6px;">In Inventory: <span style="color:var(--text-primary); font-weight:600;">${playerHas}</span></div>
-                        <div style="display:flex; gap:6px;">
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 1)" ${playerHas < 1 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+1</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 10)" ${playerHas < 10 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+10</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', 100)" ${playerHas < 100 ? 'disabled' : ''} style="padding:5px 10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--text-primary); border-radius:var(--radius-sm); cursor:pointer; font-size:12px; font-weight:600; transition:all 0.15s;">+100</button>
-                             <button onclick="window.depositToWorkshop('${recipe.input}', ${playerHas})" ${playerHas < 1 ? 'disabled' : ''} style="padding:5px 10px; background:var(--accent-green); border:none; color:white; font-weight:bold; border-radius:var(--radius-sm); cursor:pointer; font-size:12px; transition:all 0.15s;">+All</button>
-                        </div>
-                    </div>
-                </div>
-                `;
+                html += actRow({
+                    icon: inputGood.icon || '📥',
+                    name: `Input Storage (${inputGood.name}): ${prop.inputStorage || 0} <span style="font-weight:400; color:#9d937c;">stored</span>`,
+                    desc: `In Inventory: <b style="color:#ece2c8;">${playerHas}</b>`,
+                    side: `${dep(1, '+1')}${dep(10, '+10')}${dep(100, '+100')}${dep('all', '+All', true)}`,
+                });
             } else {
-                html += `<div style="color:var(--text-secondary); font-style:italic;">Select a recipe to enable production.</div>`;
+                html += `<div style="color:#9d937c; font-style:italic; font-size:12px;">Select a recipe to enable production.</div>`;
             }
 
             html += `</div>`;
@@ -450,112 +420,91 @@ Object.assign(ActionMenu, {
             const tableCost = 150 + tables * 100;
             const maxTables = prop.level + 1;
             const canBuyTable = game.player.gold >= tableCost && tables < maxTables;
+            const tablesLaw = BackRooms.tablesRun(game.world, tile, prop);
+            const backRoomCost = BackRooms.config().fitCost;
             const playerBeer = (game.player.inventory && game.player.inventory.beer) || 0;
             const playerLiquor = (game.player.inventory && game.player.inventory.liquor) || 0;
             const todayIncome = prop.todayIncome || 0;
 
-            html += `
-            <div style="margin-bottom:20px; background:linear-gradient(135deg, rgba(139,69,19,0.12) 0%, rgba(80,40,10,0.15) 100%); padding:16px; border-radius:8px; border:1px solid rgba(255,215,0,0.15);">
-                <h4 style="margin:0 0 12px 0; color:#f4a460; font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">🍻 Tavern Operations</h4>
-                
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
-                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px;">Today's Income</div>
-                        <div style="font-size:20px; font-weight:bold; color:#2ecc71;">${todayIncome}g</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,0.25); padding:10px; border-radius:6px;">
-                        <div style="font-size:10px; color:var(--text-muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.5px;">Gambling Tables</div>
-                        <div style="font-size:20px; font-weight:bold; color:var(--gold);">${tables} / ${maxTables}</div>
-                    </div>
-                </div>
-
-                <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Stock your tavern with beer and liquor to boost daily income. Each table adds +15% income.</div>
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
-                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <div style="font-size:12px; color:var(--text-primary);">🍺 Beer: <strong>${beerStock}</strong></div>
-                            <span style="font-size:10px; color:var(--text-muted);">-2/day</span>
-                        </div>
-                        <div style="font-size:10px; color:var(--text-secondary); margin-bottom:6px;">+30% income when stocked</div>
-                        <div style="display:flex; gap:4px;">
-                            <button onclick="window.stockTavern('beer', 5)" ${playerBeer < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+5</button>
-                            <button onclick="window.stockTavern('beer', 20)" ${playerBeer < 20 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+20</button>
-                            <button onclick="window.stockTavern('beer', ${playerBeer})" ${playerBeer < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--accent-green); border:none; color:white; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
-                        </div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">You have: ${playerBeer} beer</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <div style="font-size:12px; color:var(--text-primary);">🥃 Liquor: <strong>${liquorStock}</strong></div>
-                            <span style="font-size:10px; color:var(--text-muted);">-1/day</span>
-                        </div>
-                        <div style="font-size:10px; color:var(--text-secondary); margin-bottom:6px;">+20% income when stocked</div>
-                        <div style="display:flex; gap:4px;">
-                            <button onclick="window.stockTavern('liquor', 5)" ${playerLiquor < 5 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+5</button>
-                            <button onclick="window.stockTavern('liquor', 10)" ${playerLiquor < 10 ? 'disabled' : ''} style="flex:1; padding:4px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:var(--text-primary); border-radius:3px; cursor:pointer; font-size:11px; font-weight:600;">+10</button>
-                            <button onclick="window.stockTavern('liquor', ${playerLiquor})" ${playerLiquor < 1 ? 'disabled' : ''} style="flex:1; padding:4px; background:var(--accent-green); border:none; color:white; border-radius:3px; cursor:pointer; font-size:11px; font-weight:bold;">All</button>
-                        </div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">You have: ${playerLiquor} liquor</div>
-                    </div>
-                </div>
-
-                <button onclick="window.buyGamblingTable()" ${!canBuyTable ? 'disabled' : ''} 
-                    style="width:100%; padding:9px; background:${canBuyTable ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${canBuyTable ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${canBuyTable ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${canBuyTable ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; box-shadow:${canBuyTable ? '0 2px 8px rgba(245,197,66,0.3)' : 'none'}; transition:all 0.15s;">
-                    ${tables >= maxTables ? '🎲 Max Tables (upgrade to add more)' : `🎲 Add Gambling Table — ${tableCost}g`}
-                </button>
-            </div>
-            `;
+            const stock = (good, n) => {
+                const has = good === 'beer' ? playerBeer : playerLiquor;
+                const amount = n === 'all' ? has : n;
+                const off = has < (n === 'all' ? 1 : n);
+                return `<button onclick="window.stockTavern('${good}', ${amount})" ${off ? 'disabled' : ''} style="${off ? BTN_OFF : n === 'all' ? BTN_GOLD : BTN_PLAIN}">${n === 'all' ? 'All' : `+${n}`}</button>`;
+            };
+            html += sectionHead('🍻 Tavern Operations');
+            html += chips([
+                { icon: '💰', label: "Today's Income", value: `<span style="color:#8fd18a;">${todayIncome}g</span>` },
+                { icon: '🎲', label: 'Gambling Tables', value: `${tables} / ${maxTables}`, cls: 'gold' },
+            ]);
+            html += lede('Stock your tavern with beer and liquor to boost daily income. Each table adds +15% income.');
+            html += rowList([
+                {
+                    icon: '🍺',
+                    name: `Beer: ${beerStock} <span style="font-weight:400; font-size:11px; color:#9d937c;">-2/day</span>`,
+                    desc: '+30% income when stocked',
+                    note: `<span style="color:#9d937c;">You have: ${playerBeer} beer</span>`,
+                    side: stock('beer', 5) + stock('beer', 20) + stock('beer', 'all'),
+                },
+                {
+                    icon: '🥃',
+                    name: `Liquor: ${liquorStock} <span style="font-weight:400; font-size:11px; color:#9d937c;">-1/day</span>`,
+                    desc: '+20% income when stocked',
+                    note: `<span style="color:#9d937c;">You have: ${playerLiquor} liquor</span>`,
+                    side: stock('liquor', 5) + stock('liquor', 10) + stock('liquor', 'all'),
+                },
+                // Where gaming is forbidden the tables stand idle until a back room
+                // hides them, and then the watch may come for them (systems/backRooms.js)
+                !tablesLaw.open ? {
+                    icon: '🚪',
+                    name: 'Fit a hidden back room',
+                    desc: 'A false wall and a stair to the cellar: the tavern stays the honest front, the tables run below',
+                    note: `<span style="color:#f0b35a;">${tablesLaw.why}</span>`,
+                    off: game.player.gold < backRoomCost,
+                    why: `Fitting it out costs ${backRoomCost}g`,
+                    attrs: 'onclick="window.fitBackRoom()"',
+                    side: price(backRoomCost, game.player.gold >= backRoomCost),
+                } : {
+                    icon: '🎲',
+                    name: tables >= maxTables ? 'Max Tables (upgrade to add more)' : (tablesLaw.hidden ? 'Add a Back-Room Table' : 'Add Gambling Table'),
+                    desc: 'Each table adds +15% income',
+                    note: tablesLaw.hidden ? `<span style="color:#f0b35a;">Hidden in the back room: the watch may raid it and seize the tables</span>` : '',
+                    off: !canBuyTable,
+                    why: tables >= maxTables ? `${tables} / ${maxTables} tables` : 'Not enough gold',
+                    attrs: 'onclick="window.buyGamblingTable()"',
+                    side: tables >= maxTables ? '' : price(tableCost, game.player.gold >= tableCost),
+                },
+            ]);
         }
 
         // Upgrade Section
         const upgradeBtnLocked = isMaxLevel || !canAffordUpgrade;
-        html += `
-            <div style="margin-bottom:20px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                <h4 style="margin:0 0 12px 0; color:var(--text-primary); font-size:14px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:8px; font-family:var(--font-display);">Expansion & Upgrades</h4>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:600; color:var(--text-primary); font-size:14px;">Upgrade to Level ${prop.level + 1}</div>
-                        <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;">Increases production by 10% base value. Increases upkeep.</div>
-                    </div>
-                    <button onclick="window.upgradePropertyAction()" 
-                        ${upgradeBtnLocked ? 'disabled' : ''}
-                        style="padding:8px 18px; background:${isMaxLevel ? 'rgba(255,255,255,0.06)' : canAffordUpgrade ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${isMaxLevel || !canAffordUpgrade ? '1px solid rgba(255,255,255,0.1)' : 'none'}; border-radius:var(--radius-sm); cursor:${upgradeBtnLocked ? 'not-allowed' : 'pointer'}; font-weight:bold; color:${isMaxLevel || !canAffordUpgrade ? 'var(--text-muted)' : '#1a1207'}; box-shadow:${upgradeBtnLocked ? 'none' : '0 2px 8px rgba(245,197,66,0.3)'}; min-width:110px; text-align:center; font-size:13px; transition:all 0.15s;">
-                        ${isMaxLevel ? 'MAX LEVEL' : `${upgradeCost} gold`}
-                    </button>
-                </div>
-            </div>
-        `;
+        html += rowList([{
+            icon: '⬆️',
+            name: isMaxLevel ? 'MAX LEVEL' : `Upgrade to Level ${prop.level + 1}`,
+            desc: 'Increases production by 10% base value. Increases upkeep.',
+            off: upgradeBtnLocked,
+            why: isMaxLevel ? 'This property is at its highest level' : 'Increases production by 10% base value. Increases upkeep. · not enough gold',
+            attrs: 'onclick="window.upgradePropertyAction()"',
+            side: isMaxLevel ? 'MAX' : price(upgradeCost, canAffordUpgrade),
+        }], 'Expansion & Upgrades');
 
         // Caravan Logistics Section
-        html += `
-            <div style="margin-bottom:16px; background:rgba(255,255,255,0.03); padding:16px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h4 style="margin:0; font-size:14px; font-weight:600; font-family:var(--font-display); color:var(--text-primary);">Logistics Network</h4>
-                    <span style="font-size:10px; background:rgba(245,197,66,0.1); color:var(--gold); padding:3px 8px; border-radius:var(--radius-sm); border:1px solid rgba(245,197,66,0.15); font-weight:600;">Cost: 200g/caravan</span>
-                </div>
-                <p style="font-size:11px; color:var(--text-secondary); margin:0 0 12px 0;">Hire a caravan to transport your stored goods directly to a market for max profit.</p>
-                <div id="caravanDestinations" style="display:grid; gap:8px; max-height:200px; overflow-y:auto; padding-right:4px;">
+        html += sectionHead('Logistics Network <span style="float:right; letter-spacing:0.5px; text-transform:none; color:#ffcf6a;">Cost: 200g/caravan</span>');
+        html += lede('Hire a caravan to transport your stored goods directly to a market for max profit.');
+        html += `<div id="caravanDestinations" class="pk-rows" style="max-height:220px; overflow-y:auto;">
                     ${ActionMenu.getLogisticsDestinationsHtml(game, tile)}
-                </div>
-            </div>
-        `;
+                </div>`;
 
         // Fishing Wharf Logic
         const isFishingWharf = prop.type === 'fishing_wharf';
         if (isFishingWharf) {
-            html += `
-            <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(10,30,50,0.8) 0%, rgba(30,50,80,0.8) 100%); padding:20px; border-radius:8px; border:1px solid rgba(135,206,250,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                <h4 style="margin:0 0 12px 0; color:#aaddff; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Fishing Operations</h4>
-                
-                <div style="font-size:12px; color:#aaddff; margin-bottom:12px;">Active Boats: ${ActionMenu.countFishingBoats(game, tile)} / ${prop.level}</div>
-                
-                <div style="margin-bottom:8px; font-weight:bold; font-size:12px; color:var(--text-secondary);">Select Fishing Grounds:</div>
+            html += sectionHead('Fishing Operations');
+            html += chips([['⛵', 'Active Boats', `${ActionMenu.countFishingBoats(game, tile)} / ${prop.level}`]]);
+            html += `<div style="font-size:11px; color:#9d937c; margin-bottom:6px;">Select Fishing Grounds:</div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; max-height:150px; overflow-y:auto; margin-bottom:12px;">
                     ${ActionMenu.getVariablesFishingGrounds(game, tile)}
-                </div>
-            </div>
-            `;
+                </div>`;
 
             // Add helpers
             window.sendFishingBoat = (targetQ, targetR) => {
@@ -580,10 +529,9 @@ Object.assign(ActionMenu, {
                         return cat ? `${cat.icon} ${cat.name}` : c;
                     }).join(', ');
 
-                    html += `
-                    <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(100,50,180,0.15) 0%, rgba(60,30,100,0.2) 100%); padding:20px; border-radius:8px; border:1px solid rgba(156,39,176,0.3); box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                        <h4 style="margin:0 0 12px 0; color:#ce93d8; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">${prop.labIcon || '🔬'} ${prop.labName || 'Research Lab'}</h4>
-                        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Research Categories: ${labCategories}</div>
+                    html += sectionHead(`${prop.labIcon || '🔬'} ${prop.labName || 'Research Lab'}`);
+                    html += `<div>
+                        <div style="font-size:12px; color:#9d937c; margin-bottom:8px;">Research Categories: ${labCategories}</div>
                     `;
 
                     // Current research status
@@ -593,17 +541,11 @@ Object.assign(ActionMenu, {
                         const resTech = Technology.getTechByID(currentRes.techId);
                         const pct = Math.floor((currentRes.progress / currentRes.totalDays) * 100);
                         const remaining = currentRes.totalDays - currentRes.progress;
-                        html += `
-                        <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; margin-bottom:12px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                <div><span style="font-size:16px;">${resTech.icon}</span> <strong style="color:var(--gold);">Researching: ${resTech.name}</strong></div>
-                                <span style="color:var(--text-secondary); font-size:12px;">${remaining} day${remaining !== 1 ? 's' : ''} left</span>
-                            </div>
-                            <div style="background:rgba(0,0,0,0.4); border-radius:4px; height:6px; overflow:hidden;">
-                                <div style="background:linear-gradient(90deg, #9c27b0, #e040fb); height:100%; width:${pct}%;"></div>
-                            </div>
-                            <div style="text-align:right; font-size:11px; color:var(--text-secondary); margin-top:3px;">${pct}%</div>
-                        </div>`;
+                        html += card(bar(pct, 'linear-gradient(90deg, #9c27b0, #e040fb)') + `<div style="text-align:right; font-size:11px; color:#9d937c;">${pct}%</div>`, {
+                            icon: resTech.icon,
+                            title: `Researching: ${resTech.name}`,
+                            side: `${remaining} day${remaining !== 1 ? 's' : ''} left`,
+                        });
                     }
 
                     // Current crafting status
@@ -612,17 +554,11 @@ Object.assign(ActionMenu, {
                         const craftRecipe = Technology.PARTS_CRAFTING[currentCraft.partsType];
                         const craftPct = Math.floor((currentCraft.progress / currentCraft.totalDays) * 100);
                         const craftRemaining = currentCraft.totalDays - currentCraft.progress;
-                        html += `
-                        <div style="background:rgba(0,0,0,0.3); padding:12px; border-radius:6px; margin-bottom:12px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                                <div><span style="font-size:16px;">🔧</span> <strong style="color:#ff9800;">Crafting: ${craftRecipe ? craftRecipe.name : currentCraft.partsType}</strong></div>
-                                <span style="color:var(--text-secondary); font-size:12px;">${craftRemaining} day${craftRemaining !== 1 ? 's' : ''} left</span>
-                            </div>
-                            <div style="background:rgba(0,0,0,0.4); border-radius:4px; height:6px; overflow:hidden;">
-                                <div style="background:linear-gradient(90deg, #ff9800, #ffb74d); height:100%; width:${craftPct}%;"></div>
-                            </div>
-                            <div style="text-align:right; font-size:11px; color:var(--text-secondary); margin-top:3px;">${craftPct}% — produces ${currentCraft.quantity} parts</div>
-                        </div>`;
+                        html += card(bar(craftPct, 'linear-gradient(90deg, #ff9800, #ffb74d)') + `<div style="text-align:right; font-size:11px; color:#9d937c;">${craftPct}% — produces ${currentCraft.quantity} parts</div>`, {
+                            icon: '🔧',
+                            title: `Crafting: ${craftRecipe ? craftRecipe.name : currentCraft.partsType}`,
+                            side: `${craftRemaining} day${craftRemaining !== 1 ? 's' : ''} left`,
+                        });
                     }
 
                     // Craft Parts button
@@ -631,35 +567,35 @@ Object.assign(ActionMenu, {
                     const partsRecipe = Technology.PARTS_CRAFTING[partsType];
                     const partsInInv = (game.player.inventory && game.player.inventory[partsType]) || 0;
 
-                    html += `
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <div>
-                                <div style="font-size:13px; color:white;">${partsRecipe ? partsRecipe.icon : '🔧'} ${partsRecipe ? partsRecipe.name : 'Parts'} in inventory: <strong>${partsInInv}</strong></div>
-                                <div style="font-size:11px; color:var(--text-secondary);">Cost: ${partsRecipe ? partsRecipe.gold + 'g + ' + Technology.formatMaterials(partsRecipe.materials) : '?'} → ${partsRecipe ? partsRecipe.quantity : '?'} parts (${partsRecipe ? partsRecipe.days : '?'} days)</div>
-                            </div>
-                            <button onclick="window.startCraftingParts()" ${!craftCheck.can ? 'disabled' : ''} style="padding:8px 14px; background:${craftCheck.can ? 'linear-gradient(135deg, #e68a00, #ff9800)' : 'rgba(255,255,255,0.06)'}; border:${craftCheck.can ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${craftCheck.can ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${craftCheck.can ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; transition:all 0.15s;">
-                                Craft Parts
-                            </button>
-                        </div>
-                        ${!craftCheck.can && !currentCraft ? `<div style="font-size:11px; color:#e74c3c; margin-bottom:8px;">${craftCheck.reason}</div>` : ''}
-                    </div>`;
+                    const craftCost = `Cost: ${partsRecipe ? partsRecipe.gold + 'g + ' + Technology.formatMaterials(partsRecipe.materials) : '?'} → ${partsRecipe ? partsRecipe.quantity : '?'} parts (${partsRecipe ? partsRecipe.days : '?'} days)`;
+                    html += rowList([{
+                        icon: partsRecipe ? partsRecipe.icon : '🔧',
+                        name: `Craft Parts <span style="font-weight:400; color:#9d937c;">· ${partsRecipe ? partsRecipe.name : 'Parts'} in inventory: <b style="color:#ece2c8;">${partsInInv}</b></span>`,
+                        desc: craftCost,
+                        off: !craftCheck.can,
+                        why: !currentCraft ? `${craftCost} · ${craftCheck.reason}` : craftCost,
+                        attrs: 'onclick="window.startCraftingParts()"',
+                        side: partsRecipe ? price(partsRecipe.gold, game.player.gold >= partsRecipe.gold) : '',
+                    }]);
+                    html += '</div>';
                 } else {
                     // Lab not built — show build lab section
                     const labCheck = Technology.canBuildLab(game.player, prop);
-                    html += `
-                    <div style="margin-bottom:24px; background:linear-gradient(135deg, rgba(60,30,100,0.15) 0%, rgba(40,20,60,0.2) 100%); padding:20px; border-radius:8px; border:1px dashed rgba(156,39,176,0.3);">
-                        <h4 style="margin:0 0 8px 0; color:#ce93d8;">🔬 Build Research Lab</h4>
-                        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">${labConfig.description}</div>
-                        <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
-                            Lab: <strong style="color:white;">${labConfig.labName}</strong><br>
-                            Enables research in: ${labConfig.categories.map(c => { const cat = Object.values(Technology.CATEGORIES).find(cc => cc.id === c); return cat ? cat.name : c; }).join(', ')}<br>
-                            Cost: <strong style="color:var(--gold);">${labConfig.labCost}g</strong> + ${Technology.formatMaterials(labConfig.labMaterials)}<br>
-                            Adds ${labConfig.labUpkeep}g/day upkeep
-                        </div>
-                        <button onclick="window.buildLabAction()" ${!labCheck.can ? 'disabled' : ''} style="padding:10px 20px; width:100%; background:${labCheck.can ? 'linear-gradient(135deg, var(--gold-dark), var(--gold))' : 'rgba(255,255,255,0.06)'}; border:${labCheck.can ? 'none' : '1px solid rgba(255,255,255,0.1)'}; border-radius:var(--radius-sm); cursor:${labCheck.can ? 'pointer' : 'not-allowed'}; font-weight:bold; color:${labCheck.can ? '#1a1207' : 'var(--text-muted)'}; font-size:13px; transition:all 0.15s;">
-                            ${labCheck.can ? 'Build Lab' : labCheck.reason}
-                        </button>
-                    </div>`;
+                    html += sectionHead('🔬 Build Research Lab');
+                    html += lede(labConfig.description);
+                    html += kv('Lab', labConfig.labName);
+                    html += kv('Enables research in', labConfig.categories.map(c => { const cat = Object.values(Technology.CATEGORIES).find(cc => cc.id === c); return cat ? cat.name : c; }).join(', '));
+                    html += kv('Cost', `<span style="color:#ffcf6a;">${labConfig.labCost}g</span> + ${Technology.formatMaterials(labConfig.labMaterials)}`);
+                    html += kv('Upkeep', `Adds ${labConfig.labUpkeep}g/day upkeep`);
+                    html += rowList([{
+                        icon: '🔬',
+                        name: 'Build Lab',
+                        desc: labConfig.labName,
+                        off: !labCheck.can,
+                        why: labCheck.reason,
+                        attrs: 'onclick="window.buildLabAction()"',
+                        side: price(labConfig.labCost, game.player.gold >= labConfig.labCost),
+                    }]);
                 }
             }
         }
@@ -831,6 +767,11 @@ Object.assign(ActionMenu, {
                 game.ui.showNotification('Max Tables', 'Upgrade your tavern to add more tables', 'error');
                 return;
             }
+            const law = BackRooms.tablesRun(game.world, tile, tile.playerProperty);
+            if (!law.open) {
+                game.ui.showNotification('🚫 Gaming Forbidden', `${law.why} Fit a back room first.`, 'error');
+                return;
+            }
             const cost = 150 + tables * 100;
             if (game.player.gold < cost) {
                 game.ui.showNotification('Not Enough Gold', `Need ${cost} gold`, 'error');
@@ -842,6 +783,17 @@ Object.assign(ActionMenu, {
             game.ui.updateStats(game.player, game.world);
             ActionMenu.showManagePropertyMenu(game, tile);
         };
+
+        window.fitBackRoom = () => {
+            const res = BackRooms.fitBackRoom(game.player, game.world, tile);
+            if (!res.success) {
+                game.ui.showNotification('🚪 No Back Room', res.reason, 'error');
+                return;
+            }
+            game.ui.showNotification('🚪 A Back Room', res.text, 'success');
+            game.ui.updateStats(game.player, game.world);
+            ActionMenu.showManagePropertyMenu(game, tile);
+        };
     },
 
     /**
@@ -849,12 +801,12 @@ Object.assign(ActionMenu, {
      */
     getLogisticsDestinationsHtml(game, tile) {
         if (!tile.playerProperty || tile.playerProperty.storage <= 0) {
-            return '<div style="padding:16px; text-align:center; background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); font-style:italic; border:1px dashed rgba(255,255,255,0.1);">No goods in storage to transport.<br>wait for production or collect manually.</div>';
+            return '<div style="padding:10px; text-align:center; color:#9d937c; font-style:italic; font-size:12px;">No goods in storage to transport.<br>wait for production or collect manually.</div>';
         }
         // A tavern's takings (gold) and a workshop without a set output are not cargo
         const good = PlayerEconomy.GOODS[String(tile.playerProperty.produces || '').toUpperCase()];
         if (!good) {
-            return '<div style="padding:16px; text-align:center; background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); font-style:italic; border:1px dashed rgba(255,255,255,0.1);">Nothing here a caravan can carry to market.</div>';
+            return '<div style="padding:10px; text-align:center; color:#9d937c; font-style:italic; font-size:12px;">Nothing here a caravan can carry to market.</div>';
         }
 
         const settlements = game.world.getAllSettlements();
@@ -889,21 +841,13 @@ Object.assign(ActionMenu, {
                 const commerceBonus = 1 + (game.player.skills.commerce * 0.05);
                 const estValue = Math.floor(basePrice * (1 + dist * 0.05) * multiplier * tile.playerProperty.storage * commerceBonus);
 
-                html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:4px; transition:background 0.2s;">
-                        <div style="flex-grow:1;">
-                            <div style="font-weight:bold; color:var(--text-primary);">${s.name} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(${s.type})</span></div>
-                            <div style="display:flex; gap:12px; margin-top:2px;">
-                                <div style="font-size:10px; color:var(--text-secondary);">📏 ${dist} hexes</div>
-                                <div style="font-size:10px; color:#2ecc71;">💰 ~${estValue}g</div>
-                                <div style="font-size:10px; color:${trendColor};" title="Market Trend">${trendIcon} ${basePrice}g/unit</div>
-                            </div>
-                        </div>
-                        <button onclick="window.sendStorageCaravan(${s.q}, ${s.r})" style="padding:6px 12px; font-size:11px; background:linear-gradient(135deg, var(--gold-dark), var(--gold)); border:none; border-radius:3px; cursor:pointer; font-weight:bold; color:#1a1207; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                            Send
-                        </button>
-                    </div>
-                `;
+                html += actRow({
+                    icon: '🐫',
+                    name: `${s.name} <span style="font-size:10px; color:#9d937c; font-weight:normal;">(${s.type})</span>`,
+                    desc: `📏 ${dist} hexes · <span style="color:${trendColor};" title="Market Trend">${trendIcon} ${basePrice}g/unit</span>`,
+                    attrs: `onclick="window.sendStorageCaravan(${s.q}, ${s.r})"`,
+                    side: `<span style="color:#8fd18a;">💰 ~${estValue}g</span> <span style="color:#9d937c; font-size:11px;">Send ›</span>`,
+                });
                 count++;
             }
         }
@@ -935,27 +879,20 @@ Object.assign(ActionMenu, {
             if (needsGood) {
                 const dist = Hex.wrappingDistance(tile.q, tile.r, ws.q, ws.r, game.world.width);
                 if (dist > 0 && dist <= 20) {
-                    html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:rgba(255,255,255,0.03); border:1px dashed rgba(100,200,255,0.3); border-radius:4px; transition:background 0.2s;">
-                        <div style="flex-grow:1;">
-                            <div style="font-weight:bold; color:#aaddff;">${wsProp.icon || ''} ${wsProp.name}</div>
-                            <div style="display:flex; gap:12px; margin-top:2px;">
-                                <div style="font-size:10px; color:var(--text-secondary);">📏 ${dist} hexes</div>
-                                <div style="font-size:10px; color:#aaddff;">📦 Internal Transfer</div>
-                            </div>
-                        </div>
-                        <button onclick="window.sendStorageCaravan(${ws.q}, ${ws.r}, '${ws.type}')" style="padding:6px 12px; font-size:11px; background:#3498db; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                            Transfer
-                        </button>
-                    </div>
-                `;
+                    html += actRow({
+                        icon: wsProp.icon || '🏭',
+                        name: `<span style="color:#aaddff;">${wsProp.name}</span>`,
+                        desc: `📏 ${dist} hexes · <span style="color:#aaddff;">📦 Internal Transfer</span>`,
+                        attrs: `onclick="window.sendStorageCaravan(${ws.q}, ${ws.r}, '${ws.type}')"`,
+                        side: '<span style="color:#aaddff; font-size:11px;">Transfer ›</span>',
+                    });
                     count++;
                 }
             }
         }
 
         if (count === 0) {
-            return '<div style="padding:16px; text-align:center; color:var(--text-secondary);">No valid destinations within range (20 hexes).</div>';
+            return '<div style="padding:10px; text-align:center; color:#9d937c; font-size:12px;">No valid destinations within range (20 hexes).</div>';
         }
 
         return html;
@@ -1099,7 +1036,7 @@ Object.assign(ActionMenu, {
                 ${kingdom ? `<div>⚖️ ${policyLine(game.world, kingdom)}</div>` : ''}
             </div>
         </details>
-        ${fair ? `<div style="margin:0 0 10px; font-size:12px; color:var(--gold);">🎪 The ${fair.name} is on until day ${fair.until}: the stalls ask less and buy dearer.</div>` : ''}`;
+        ${fair ? `<div class="pk-lede" style="color:#ffcf6a;">🎪 The ${fair.name} is on until day ${fair.until}: the stalls ask less and buy dearer.</div>` : ''}`;
 
         // ── The town's craftsmanship (world/marketGrades.js): how much of its work is Fine, or Poor ──
         let craftBadge = '';
@@ -1118,52 +1055,58 @@ Object.assign(ActionMenu, {
         // ── Render HTML ──
         let html = `
         <style>
-            .trade-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-            .trade-purse { display:flex; align-items:center; gap:6px; font-size:15px; font-weight:700; color:var(--gold); font-family:var(--font-display); }
-            .trade-tabs { display:flex; gap:0; border-bottom:2px solid rgba(245,197,66,0.15); margin-bottom:12px; }
-            .trade-tab { padding:7px 16px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.45); background:none; border:none;
+            /* The action menu's voice (styles.css .pk-row / .amx-row): rows lit by a gold bar
+               at the left on hover, hairline rules, the buy/sell buttons as lit outlines */
+            .trade-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+            .trade-purse { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; background:rgba(0,0,0,0.28);
+                           border:1px solid rgba(245,197,66,0.16); font-size:12px; font-weight:600; color:#ffcf6a; white-space:nowrap; }
+            .trade-tabs { display:flex; gap:0; border-bottom:1px solid rgba(245,197,66,0.12); margin-bottom:12px; }
+            .trade-tab { padding:7px 16px; font-size:12px; font-weight:600; color:#a99f88; background:none; border:none;
                          border-bottom:2px solid transparent; cursor:pointer; font-family:var(--font-display); letter-spacing:0.5px;
-                         transition:all .15s; margin-bottom:-2px; }
-            .trade-tab:hover { color:rgba(255,255,255,0.7); }
-            .trade-tab.active { color:var(--gold); border-bottom-color:var(--gold); }
+                         transition:all .15s; margin-bottom:-1px; }
+            .trade-tab:hover { color:#d8ccaf; }
+            .trade-tab.active { color:#ffe08a; border-bottom-color:var(--gold); }
             .trade-section { display:none; }
             .trade-section.active { display:block; }
-            .trade-cat { margin-bottom:14px; }
-            .trade-cat-header { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35);
-                                text-transform:uppercase; letter-spacing:1px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:6px; }
-            .trade-row { display:grid; grid-template-columns:36px 1fr auto auto; gap:8px; align-items:center; padding:6px 8px;
-                         border-radius:6px; transition:background .12s; }
-            .trade-row:hover { background:rgba(245,197,66,0.06); }
-            .trade-row.sold-out { opacity:0.35; pointer-events:none; }
-            .trade-icon { font-size:22px; text-align:center; }
-            .trade-name { font-size:13px; font-weight:600; color:var(--text-primary); }
-            .trade-meta { font-size:11px; color:var(--text-secondary); }
-            .trade-price { font-size:13px; font-weight:700; color:var(--gold); white-space:nowrap; text-align:right; min-width:70px; }
-            .trade-price .trade-qty { font-weight:400; font-size:11px; color:rgba(255,255,255,0.4); display:block; }
-            .trade-btn { padding:4px 14px; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer;
-                         font-family:var(--font-body); transition:all .15s; white-space:nowrap; }
-            .trade-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.9),rgba(200,155,30,0.95)); color:#1a1a2e; }
-            .trade-btn-buy:hover { background:linear-gradient(180deg,rgba(255,210,80,1),rgba(220,170,40,1)); transform:scale(1.04); }
-            .trade-btn-sell { background:linear-gradient(180deg,rgba(46,204,113,0.85),rgba(39,174,96,0.9)); color:#fff; }
-            .trade-btn-sell:hover { background:linear-gradient(180deg,rgba(56,220,130,1),rgba(46,200,110,1)); transform:scale(1.04); }
-            .trade-sold-out { font-size:11px; color:rgba(231,76,60,0.7); font-weight:600; white-space:nowrap; }
-            .trade-empty { text-align:center; padding:20px; color:var(--text-secondary); font-size:13px; }
-            .trade-settlement-badge { font-size:11px; color:rgba(255,255,255,0.35); font-weight:400; }
-            .trade-meta { display:flex; flex-wrap:wrap; gap:8px; }
+            .trade-cat { margin-bottom:8px; }
+            .trade-cat > .pk-head { margin-top:10px; }
+            .trade-rows { margin:0 -6px; }
+            .trade-row { display:grid; grid-template-columns:30px minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:7px 10px 7px 8px;
+                         border-radius:7px; transition:background .12s, box-shadow .12s; }
+            .trade-row + .trade-row { box-shadow:0 -1px 0 rgba(245,197,66,0.06); }
+            .trade-row:hover { background:rgba(245,197,66,0.08); box-shadow:inset 3px 0 0 var(--gold); }
+            .trade-row.sold-out { opacity:0.45; pointer-events:none; }
+            .trade-row.sold-out .trade-icon { filter:grayscale(1); }
+            .trade-row.trade-grade { padding-left:26px; }
+            .trade-icon { font-size:19px; line-height:1; text-align:center; }
+            .trade-name { font-size:13px; font-weight:600; color:#ece2c8; }
+            .trade-price { font-size:12.5px; font-weight:700; color:#ffcf6a; white-space:nowrap; text-align:right; min-width:64px; }
+            .trade-price .trade-qty { font-weight:400; font-size:10.5px; color:#9d937c; display:block; }
+            .trade-price.trade-price-sell { color:#8fd18a; }
+            .trade-btn { padding:3px 12px; border:1px solid transparent; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;
+                         font-family:var(--font-body); transition:filter .12s, background .12s, border-color .12s; white-space:nowrap; letter-spacing:0.2px; }
+            .trade-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.22),rgba(245,197,66,0.12)); border-color:rgba(245,197,66,0.6); color:#ffe08a; }
+            .trade-btn-sell { background:linear-gradient(180deg,rgba(143,209,138,0.2),rgba(143,209,138,0.1)); border-color:rgba(143,209,138,0.55); color:#bfe8b8; }
+            .trade-btn:hover { filter:brightness(1.2); }
+            .trade-btn.trade-btn-disabled { background:transparent; border-color:rgba(255,255,255,0.08); color:#8f8a7e; }
+            .trade-sold-out { font-size:11px; color:#c98a6a; font-weight:600; white-space:nowrap; }
+            .trade-empty { text-align:center; padding:18px; color:#9d937c; font-size:12.5px; font-style:italic; }
+            .trade-settlement-badge { font-size:11px; color:#9d937c; font-weight:400; letter-spacing:0.5px; }
+            .trade-meta { display:flex; flex-wrap:wrap; gap:8px; font-size:11px; color:rgba(220,210,190,0.55); }
             .trade-chip { font-size:11px; white-space:nowrap; cursor:help; }
-            .trade-outlook { margin-bottom:10px; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.04); font-size:12px; }
-            .trade-outlook summary { cursor:pointer; color:var(--text-primary); list-style:none; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+            .trade-outlook { margin-bottom:10px; padding:6px 10px; border-radius:8px; background:rgba(0,0,0,0.22); border:1px solid rgba(245,197,66,0.12); font-size:12px; }
+            .trade-outlook summary { cursor:pointer; color:#ece2c8; list-style:none; display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
             .trade-outlook summary::-webkit-details-marker { display:none; }
-            .trade-outlook-more { margin-left:auto; font-size:11px; color:var(--text-secondary); }
-            .trade-outlook-more::after { content:' ▾'; }
+            .trade-outlook-more { margin-left:auto; font-size:11px; color:#9d937c; }
+            .trade-outlook-more::after { content:' ▾'; color:var(--gold); }
             .trade-outlook[open] .trade-outlook-more::after { content:' ▴'; }
-            .trade-outlook-body { margin-top:6px; display:flex; flex-direction:column; gap:4px; color:var(--text-secondary); }
+            .trade-outlook-body { margin-top:6px; padding-top:6px; border-top:1px solid rgba(245,197,66,0.07); display:flex; flex-direction:column; gap:4px; color:#b9ae94; }
             .trade-outlook-row { display:flex; flex-wrap:wrap; gap:10px; }
         </style>
 
         <div class="trade-header">
             <span class="trade-settlement-badge" style="text-transform:capitalize;">${settlementType} market${craftBadge}</span>
-            <div class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</div>
+            <span class="trade-purse">💰 ${Math.floor(playerGold).toLocaleString()} gold</span>
         </div>
         ${outlookHtml}
 
@@ -1178,7 +1121,7 @@ Object.assign(ActionMenu, {
             hasBuyGoods = true;
             const def = CATEGORIES[cat];
             html += `<div class="trade-cat">
-                <div class="trade-cat-header">${def.icon} ${def.label}</div>`;
+                ${sectionHead(`${def.icon} ${def.label}`)}<div class="trade-rows">`;
             for (const good of items) {
                 const isSoldOut = good.quantity <= 0;
                 // What one unit really costs this buyer (discounts and the difficulty's prices — Trading.buyCost)
@@ -1210,7 +1153,7 @@ Object.assign(ActionMenu, {
                         if (!(n > 0)) continue;
                         const gc = Trading.buyGradeCost(game.player, good, 1, tile.settlement, gid);
                         const gmax = Math.max(1, Trading.affordableGrade(game.player, good, tile.settlement, gid));
-                        html += `<div class="trade-row" style="padding-left:28px;">
+                        html += `<div class="trade-row trade-grade">
                             <span class="trade-icon" style="font-size:14px;">${Grades.get(gid).icon}</span>
                             <div><div class="trade-name" style="font-size:12px;">${good.name} ${Grades.labelHtml(gid)}</div></div>
                             <div class="trade-price">${gc} 💰<span class="trade-qty">${n} avail.</span></div>
@@ -1219,7 +1162,7 @@ Object.assign(ActionMenu, {
                     }
                 }
             }
-            html += '</div>';
+            html += '</div></div>';
         }
         if (!hasBuyGoods) {
             html += '<div class="trade-empty">No goods available at this market.</div>';
@@ -1231,6 +1174,7 @@ Object.assign(ActionMenu, {
         <div class="trade-section${tab === 'sell' ? ' active' : ''}" data-trade-section="sell">`;
 
         if (sellItems.length > 0) {
+            html += sectionHead('Your goods') + '<div class="trade-rows">';
             for (const item of sellItems) {
                 html += `<div class="trade-row">
                     <span class="trade-icon">${item.icon}</span>
@@ -1238,7 +1182,7 @@ Object.assign(ActionMenu, {
                         <div class="trade-name">${item.name}${goodInfoIcon(item.id)}${item.quality ? ` <span style="font-size:11px;" title="The grade of the ${item.name} you carry sets its price">${item.quality}</span>` : ''}</div>
                         <div class="trade-meta"><span class="trade-chip" style="cursor:default">You have ${item.quantity}</span>${stockBadge(item.id)}${guildBadge(item.id)}${policyBadge(item.id, true)}</div>
                     </div>
-                    <div class="trade-price" style="color:#2ecc71;"${trendTitle(item.id)}>${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
+                    <div class="trade-price trade-price-sell"${trendTitle(item.id)}>${item.sellPrice} 💰${whyIcon(sellWhy(why(item.id)), 'Why this price?')}
                         <span class="trade-qty">per unit</span>
                     </div>
                     <div>
@@ -1246,6 +1190,7 @@ Object.assign(ActionMenu, {
                     </div>
                 </div>`;
             }
+            html += '</div>';
         } else {
             html += '<div class="trade-empty">You have no goods to sell.</div>';
         }
@@ -1386,32 +1331,36 @@ Object.assign(ActionMenu, {
         // ── Render ──
         let html = `
         <style>
-            .npc-trade-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid rgba(245,197,66,0.12); }
-            .npc-trade-portrait { font-size:36px; width:48px; height:48px; display:flex; align-items:center; justify-content:center;
-                background:rgba(245,197,66,0.08); border:1px solid rgba(245,197,66,0.2); border-radius:10px; }
-            .npc-trade-info { flex:1; }
-            .npc-trade-name { font-size:16px; font-weight:700; color:var(--text-primary); font-family:var(--font-display); }
-            .npc-trade-type { font-size:11px; color:rgba(255,255,255,0.4); text-transform:uppercase; letter-spacing:1px; }
-            .npc-trade-purse { font-size:15px; font-weight:700; color:var(--gold); font-family:var(--font-display); white-space:nowrap; }
+            /* The action menu's voice (styles.css .pk-row): a quiet header, rows lit by a gold
+               bar at the left on hover, the buy/sell buttons as lit outlines */
+            .npc-trade-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid rgba(245,197,66,0.1); }
+            .npc-trade-portrait { font-size:28px; width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+                background:rgba(0,0,0,0.28); border:1px solid rgba(245,197,66,0.22); border-radius:50%; }
+            .npc-trade-info { flex:1; min-width:0; }
+            .npc-trade-name { font-size:15px; font-weight:600; color:#ffe9a8; font-family:var(--font-display); letter-spacing:0.5px; }
+            .npc-trade-type { font-size:10.5px; color:#9d937c; text-transform:uppercase; letter-spacing:1.5px; }
+            .npc-trade-purse { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:999px; background:rgba(0,0,0,0.28);
+                border:1px solid rgba(245,197,66,0.16); font-size:12px; font-weight:600; color:#ffcf6a; white-space:nowrap; }
             .npc-trade-section { display:none; }
             .npc-trade-section.active { display:block; }
-            .npc-cat { margin-bottom:14px; }
-            .npc-cat-hdr { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:rgba(255,255,255,0.35);
-                           text-transform:uppercase; letter-spacing:1px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:6px; }
-            .npc-row { display:grid; grid-template-columns:36px 1fr auto auto; gap:8px; align-items:center; padding:6px 8px; border-radius:6px; transition:background .12s; }
-            .npc-row:hover { background:rgba(245,197,66,0.06); }
-            .npc-row.out { opacity:0.35; pointer-events:none; }
-            .npc-ico { font-size:22px; text-align:center; }
-            .npc-gname { font-size:13px; font-weight:600; color:var(--text-primary); }
-            .npc-gmeta { font-size:11px; color:var(--text-secondary); }
-            .npc-gprice { font-size:13px; font-weight:700; color:var(--gold); white-space:nowrap; text-align:right; min-width:65px; }
-            .npc-gprice .npc-qty { font-weight:400; font-size:11px; color:rgba(255,255,255,0.4); display:block; }
-            .npc-btn { padding:4px 14px; border:none; border-radius:5px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font-body); transition:all .15s; white-space:nowrap; }
-            .npc-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.9),rgba(200,155,30,0.95)); color:#1a1a2e; }
-            .npc-btn-buy:hover { background:linear-gradient(180deg,rgba(255,210,80,1),rgba(220,170,40,1)); transform:scale(1.04); }
-            .npc-btn-sell { background:linear-gradient(180deg,rgba(46,204,113,0.85),rgba(39,174,96,0.9)); color:#fff; }
-            .npc-btn-sell:hover { background:linear-gradient(180deg,rgba(56,220,130,1),rgba(46,200,110,1)); transform:scale(1.04); }
-            .npc-empty { text-align:center; padding:20px; color:var(--text-secondary); font-size:13px; }
+            .npc-cat { margin-bottom:8px; }
+            .npc-cat > .pk-head { margin-top:10px; }
+            .npc-rows { margin:0 -6px; }
+            .npc-row { display:grid; grid-template-columns:30px minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:7px 10px 7px 8px; border-radius:7px; transition:background .12s, box-shadow .12s; }
+            .npc-row + .npc-row { box-shadow:0 -1px 0 rgba(245,197,66,0.06); }
+            .npc-row:hover { background:rgba(245,197,66,0.08); box-shadow:inset 3px 0 0 var(--gold); }
+            .npc-row.out { opacity:0.45; pointer-events:none; }
+            .npc-ico { font-size:19px; line-height:1; text-align:center; }
+            .npc-gname { font-size:13px; font-weight:600; color:#ece2c8; }
+            .npc-gmeta { font-size:11px; color:rgba(220,210,190,0.55); }
+            .npc-gprice { font-size:12.5px; font-weight:700; color:#ffcf6a; white-space:nowrap; text-align:right; min-width:60px; }
+            .npc-gprice .npc-qty { font-weight:400; font-size:10.5px; color:#9d937c; display:block; }
+            .npc-gprice.npc-gprice-sell { color:#8fd18a; }
+            .npc-btn { padding:3px 12px; border:1px solid transparent; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font-body); transition:filter .12s; white-space:nowrap; letter-spacing:0.2px; }
+            .npc-btn-buy { background:linear-gradient(180deg,rgba(245,197,66,0.22),rgba(245,197,66,0.12)); border-color:rgba(245,197,66,0.6); color:#ffe08a; }
+            .npc-btn-sell { background:linear-gradient(180deg,rgba(143,209,138,0.2),rgba(143,209,138,0.1)); border-color:rgba(143,209,138,0.55); color:#bfe8b8; }
+            .npc-btn:hover { filter:brightness(1.2); }
+            .npc-empty { text-align:center; padding:18px; color:#9d937c; font-size:12.5px; font-style:italic; }
         </style>
 
         <div class="npc-trade-header">
@@ -1420,9 +1369,9 @@ Object.assign(ActionMenu, {
                 <div class="npc-trade-name">${npcName}</div>
                 <div class="npc-trade-type">${typeLabel}</div>
             </div>
-            <div class="npc-trade-purse">💰 ${Math.floor(playerGold).toLocaleString()}</div>
+            <span class="npc-trade-purse">💰 ${Math.floor(playerGold).toLocaleString()}</span>
         </div>
-        ${priceMods.reasons.length > 0 ? `<div style="font-size:11px; margin:-6px 0 10px; color:${priceMods.pct > 0 ? '#ff8a65' : priceMods.pct < 0 ? '#66bb6a' : 'var(--text-secondary)'};"
+        ${priceMods.reasons.length > 0 ? `<div class="pk-lede" style="font-size:11.5px; color:${priceMods.pct > 0 ? '#e0846a' : priceMods.pct < 0 ? '#8fd18a' : '#9d937c'};"
             title="Disposition and personality change what this trader charges and pays">
             🏷️ Prices ${priceMods.pct > 0 ? '+' : ''}${priceMods.pct}% · ${priceMods.reasons.map(r => `${r.label} ${r.pct > 0 ? '+' : ''}${r.pct}%`).join(', ')}
         </div>` : ''}
@@ -1436,7 +1385,7 @@ Object.assign(ActionMenu, {
             if (!items || items.length === 0) continue;
             hasGoods = true;
             const def = CATEGORIES[cat];
-            html += `<div class="npc-cat"><div class="npc-cat-hdr">${def.icon} ${def.label}</div>`;
+            html += `<div class="npc-cat">${sectionHead(`${def.icon} ${def.label}`)}<div class="npc-rows">`;
             for (const good of items) {
                 const canAfford = playerGold >= good.price;
                 html += `<div class="npc-row">
@@ -1446,13 +1395,14 @@ Object.assign(ActionMenu, {
                     <div><button class="npc-btn npc-btn-buy" onclick="window._npcBuy('${good._itemId}',${good.price},${good.quantity})">Buy</button></div>
                 </div>`;
             }
-            html += '</div>';
+            html += '</div></div>';
         }
         if (!hasGoods) html += '<div class="npc-empty">This trader has nothing left to sell.</div>';
 
         html += `</div><div class="npc-trade-section${tab === 'sell' ? ' active' : ''}" data-npc-section="sell">`;
 
         if (sellItems.length > 0) {
+            html += sectionHead('Your goods') + '<div class="npc-rows">';
             for (const item of sellItems) {
                 html += `<div class="npc-row">
                     <span class="npc-ico">${item.icon}</span>
@@ -1460,10 +1410,11 @@ Object.assign(ActionMenu, {
                         <div class="npc-gname">${item.name}${item.quality ? ` <span style="color:#8fc3ff; font-size:11px;">${item.quality}</span>` : ''}</div>
                         <div class="npc-gmeta">You have: ${item.quantity}</div>
                     </div>
-                    <div class="npc-gprice" style="color:#2ecc71;">${item.sellPrice} 💰<span class="npc-qty">per unit</span></div>
+                    <div class="npc-gprice npc-gprice-sell">${item.sellPrice} 💰<span class="npc-qty">per unit</span></div>
                     <div><button class="npc-btn npc-btn-sell" onclick="window._npcSell('${item.id}',${item.sellPrice},${item.quantity})">Sell</button></div>
                 </div>`;
             }
+            html += '</div>';
         } else {
             html += '<div class="npc-empty">You have no goods to sell.</div>';
         }
@@ -1546,29 +1497,31 @@ Object.assign(ActionMenu, {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(20, 24, 32, 0.98);
+            background: linear-gradient(180deg, rgba(28, 24, 18, 0.98), rgba(16, 14, 11, 0.98));
             backdrop-filter: blur(10px);
-            border: 2px solid var(--gold);
-            border-radius: 8px;
-            padding: 20px;
+            border: 1px solid rgba(245, 197, 66, 0.35);
+            border-radius: 10px;
+            padding: 16px 18px;
             min-width: 300px;
             z-index: 2000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
+            color: #ddd3bb;
+            font-family: var(--font-body);
         `;
 
         modal.innerHTML = `
-            <h3 style="margin: 0; color: var(--gold); font-family: var(--font-display);">${title}</h3>
+            <h3 style="margin: 0; color: #ffe9a8; font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: 0.5px;">${title}</h3>
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label style="color: var(--text-secondary); font-size: 14px;">Quantity: <span id="qtyDisplay" style="color: white; font-weight: bold;">1</span> / ${max}</label>
+                <label style="color: #9d937c; font-size: 12px;">Quantity: <span id="qtyDisplay" style="color: #ece2c8; font-weight: 600;">1</span> / ${max}</label>
                 <input type="range" id="qtyRange" min="1" max="${max}" value="1" style="width: 100%; accent-color: var(--gold);">
-                <input type="number" id="qtyNumber" min="1" max="${max}" value="1" style="width: 100%; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px;">
+                <input type="number" id="qtyNumber" min="1" max="${max}" value="1" style="width: 100%; box-sizing: border-box; padding: 7px 9px; background: rgba(0,0,0,0.3); border: 1px solid rgba(245,197,66,0.2); color: #ece2c8; border-radius: 6px;">
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                <button id="qtyCancel" style="padding: 8px 16px; background: rgba(255,255,255,0.1); border: none; border-radius: 4px; color: white; cursor: pointer;">Cancel</button>
-                <button id="qtyConfirm" style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; color: var(--text-primary); font-weight: bold; cursor: pointer;">Confirm</button>
+            <div style="display: flex; justify-content: flex-end; gap: 4px;">
+                <button id="qtyCancel" style="${BTN_PLAIN}">Cancel</button>
+                <button id="qtyConfirm" style="${BTN_GOLD}">Confirm</button>
             </div>
         `;
 
@@ -1607,6 +1560,8 @@ Object.assign(ActionMenu, {
      * Show recruit menu
      */
     showRecruitMenu(game, tile) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'recruit', tile)) return;
         const settlement = tile.settlement;
         const capacity = PlayerMilitary.getRecruitmentCapacity(settlement);
         const recruited = game.player._recruitedThisTurn || 0;
@@ -1615,95 +1570,63 @@ Object.assign(ActionMenu, {
         const recruitContext = { isPort: Ships.isPortTile(game.world, tile.q, tile.r) };
         const navalStrength = PlayerMilitary.getNavalStrength(game.player);
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Recruit Units</h4>';
-        html += `<p style="color: var(--text-secondary); font-size: 12px;">Your army strength: ${PlayerMilitary.getArmyStrength(game.player)}`
-            + (navalStrength > 0 ? ` · ⛵ Squadron at sea: ${navalStrength} (escorts your ships, blockades ports)` : '') + '</p>';
-        html += `<div style="padding: 6px 10px; margin-bottom: 12px; background: rgba(255,255,255,0.06); border-radius: 4px; font-size: 12px;">
-            <span style="color: var(--text-secondary);">${settlement.name}</span> — 
-            <strong>${settlement.type}</strong> (pop: ${settlement.population.toLocaleString()}) — 
-            Recruits available: <strong style="color: ${remaining > 0 ? '#4CAF50' : '#e74c3c'};">${remaining}/${capacity}</strong>
-        </div>`;
+        // The action menu's voice (ui/actionMenu/uiKit.js): a lede and chips for the
+        // town, then one row a unit — its cost at the right, what holds it back greyed
+        const strength = PlayerMilitary.getArmyStrength(game.player);
+        let html = lede(`Raise men in <b>${settlement.name}</b>, a ${settlement.type} of ${settlement.population.toLocaleString()} souls. Each recruit is armed from your stores, then the town's armourers.`);
+        html += chips([
+            ['⚔️', 'Army', strength],
+            navalStrength > 0 ? ['⛵', 'At sea', navalStrength] : null,
+            { icon: '👤', label: 'Recruits', value: `${remaining}/${capacity}`, cls: remaining > 0 ? 'gold' : 'dim' },
+            purse(game.player.gold),
+        ]);
+        const mods = [];
         const peoplesRecruit = Peoples.recruitModifiers(settlement);
         if (Math.abs(peoplesRecruit.martial) >= 0.005) {
             const pct = Math.round(peoplesRecruit.martial * 100);
             const costPct = Math.round((1 - peoplesRecruit.costMult) * 100);
-            html += `<div style="padding: 4px 10px; margin: -8px 0 12px; font-size: 11px; color: ${pct > 0 ? '#81c784' : '#e57373'};" title="From the values, traits and status of the peoples living here">⚔️ Martial peoples: ${pct > 0 ? '+' : ''}${pct}% recruits, ${costPct >= 0 ? '−' : '+'}${Math.abs(costPct)}% recruit cost</div>`;
+            mods.push(`<span style="color:${pct > 0 ? '#8fd18a' : '#e0846a'};" title="From the values, traits and status of the peoples living here">⚔️ Martial peoples: ${pct > 0 ? '+' : ''}${pct}% recruits, ${costPct >= 0 ? '−' : '+'}${Math.abs(costPct)}% recruit cost</span>`);
         }
         const armsPct = Math.round((1 - Economy.recruitCostMultiplier(game.world, settlement)) * 100);
         if (armsPct > 0) {
             const armsSources = ActionMenu._resourceSourceNames(game.world, settlement.q, settlement.r, 'military');
-            html += `<div style="padding: 4px 10px; margin: -8px 0 12px; font-size: 11px; color: #81c784;" title="Iron, horses and coal within 2 hexes arm recruits cheaply">⚒️ Local ${armsSources}: −${armsPct}% recruit cost</div>`;
+            mods.push(`<span style="color:#8fd18a;" title="Iron, horses and coal within 2 hexes arm recruits cheaply">⚒️ Local ${armsSources}: −${armsPct}% recruit cost</span>`);
         }
+        if (mods.length) html += bullets(mods);
 
+        const unitRow = (unit, ok, why, onclick, tech) => {
+            const cost = PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world);
+            const traits = PlayerMilitary.describeUnitTraits(unit);
+            const live = ok && remaining > 0;
+            return actRow({
+                icon: unit.icon,
+                name: `${unit.name}${tech ? ' <span style="font-size:9.5px; letter-spacing:1px; color:#ce93d8;">TECH</span>' : ''}${ok ? '' : ' 🔒'}`,
+                desc: `${unit.description} · Strength ${unit.strength} · Upkeep ${unit.upkeep}g/day`,
+                note: [traits ? `<span style="color:#ce93d8;">✨ ${traits}</span>` : '', ok ? ActionMenu.recruitArmsNote(game, unit.id, tile.settlement) : ''].filter(Boolean).join(' '),
+                off: !live,
+                why: ok ? (remaining > 0 ? '' : 'No more recruits here today') : why,
+                attrs: live ? `onclick="${onclick}"` : '',
+                side: price(cost, game.player.gold >= cost),
+            });
+        };
+        const rows = [];
         for (const [key, unit] of Object.entries(PlayerMilitary.UNIT_TYPES)) {
             const avail = PlayerMilitary.isUnitAvailable(unit, settlement, recruitContext);
-            if (avail.available) {
-                html += `
-                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong></div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}${ActionMenu.recruitArmsNote(game, unit.id, tile.settlement)}
-                            </div>
-                            <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</button>
-                        </div>
-                    </div>
-                `;
-            } else {
-                html += `
-                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.02); border-radius: 4px; opacity: 0.4;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> \ud83d\udd12</div>
-                                <div style="font-size: 11px; color: #e74c3c;">${avail.reason}</div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
-                            </div>
-                            <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</span>
-                        </div>
-                    </div>
-                `;
-            }
+            rows.push(unitRow(unit, avail.available, avail.reason, `window.recruitUnit('${key}')`, false));
         }
+        html += rowList(rows, 'Companies');
 
         // Tech-unlocked units
         if (typeof Technology !== 'undefined') {
+            const techRows = [];
             for (const [key, unit] of Object.entries(Technology.TECH_UNITS)) {
                 if (!unit.requiredTech || !Technology.isImplemented(game.player, unit.requiredTech)) continue;
-
                 const techAvail = PlayerMilitary.isTechUnitAvailable(unit, settlement, recruitContext);
-                if (techAvail.available) {
-                    html += `
-                        <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.06); border: 1px solid rgba(156, 39, 176, 0.2); border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span></div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}${ActionMenu.recruitArmsNote(game, unit.id, tile.settlement)}
-                                </div>
-                                <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    html += `
-                        <div style="padding: 12px; margin-bottom: 8px; background: rgba(156, 39, 176, 0.02); border-radius: 4px; opacity: 0.4;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span> \ud83d\udd12</div>
-                                    <div style="font-size: 11px; color: #e74c3c;">${techAvail.reason}</div>
-                                    <div style="font-size: 12px; color: var(--text-secondary);">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
-                                </div>
-                                <span style="color: var(--text-secondary); font-size: 12px;">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</span>
-                            </div>
-                        </div>
-                    `;
-                }
+                techRows.push(unitRow(unit, techAvail.available, techAvail.reason, `window.recruitTechUnit('${key}')`, true));
             }
+            html += rowList(techRows, 'From your learning');
         }
 
-        html += '</div>';
         game.ui.showCustomPanel('Recruit', html);
 
         window.recruitUnit = (unitType) => {
@@ -1777,40 +1700,31 @@ Object.assign(ActionMenu, {
         LegendaryArtifacts.initialize(game.player);
         const artifactProgress = LegendaryArtifacts.getProgress(game.player);
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Legendary Artifacts</h4>';
-        html += '<p style="color: var(--text-secondary); font-size: 12px;">Artifacts are reforged from fragments recovered at ruins, caves, and monuments.</p>';
+        let html = lede('Artifacts are reforged from fragments recovered at ruins, caves, and monuments.');
 
         if (artifactProgress.length === 0) {
-            html += '<div style="color: var(--text-secondary); font-size: 12px;">No artifact records found.</div>';
+            html += sectionHead('Legendary Artifacts');
+            html += '<div style="color: #9d937c; font-size: 12px;">No artifact records found.</div>';
         } else {
-            for (const artifact of artifactProgress) {
+            html += chips([['✦', 'Reforged', `${artifactProgress.filter(a => a.isForged).length}/${artifactProgress.length}`, 'gold']]);
+            html += rowList(artifactProgress.map(artifact => {
                 const canReforge = artifact.isForgeable;
                 const status = artifact.isForged
                     ? 'Reforged'
                     : `${artifact.fragmentsOwned}/${artifact.fragmentsRequired} Fragments`;
-                const statusColor = artifact.isForged ? '#2ecc71' : canReforge ? '#f1c40f' : 'var(--text-secondary)';
-
-                html += `
-                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${artifact.isForged ? 'opacity: 0.75;' : ''}">
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                            <div>
-                                <div><span style="font-size: 20px;">${artifact.icon}</span> <strong>${artifact.name}</strong></div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${artifact.description}</div>
-                                ${artifact.passiveText ? `<div style="font-size: 11px; color: #e6b35c; margin-top: 3px;">✦ ${artifact.passiveText}${artifact.isForged ? '' : ' (once reforged)'}</div>` : ''}
-                                <div style="font-size: 11px; color: ${statusColor}; margin-top: 3px;">${status}</div>
-                            </div>
-                            <button onclick="window.reforgeArtifact('${artifact.id}')" ${(!canReforge || artifact.isForged) ? 'disabled' : ''}
-                                style="padding: 8px 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; min-width: 92px;">
-                                Reforge
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }
+                const live = canReforge && !artifact.isForged;
+                return {
+                    icon: artifact.icon,
+                    name: artifact.name,
+                    desc: artifact.description,
+                    note: artifact.passiveText ? `<span style="color:#e6b35c;">✦ ${artifact.passiveText}${artifact.isForged ? '' : ' (once reforged)'}</span>` : '',
+                    off: !live,
+                    attrs: `onclick="window.reforgeArtifact('${artifact.id}')"`,
+                    side: live ? `${status} · Reforge ›` : status,
+                    tone: artifact.isForged ? 'good' : canReforge ? 'gold' : '',
+                };
+            }), 'Legendary Artifacts');
         }
-
-        html += '</div>';
         game.ui.showCustomPanel('Artifact Forge', html);
 
         window.reforgeArtifact = (artifactId) => {
@@ -1834,101 +1748,85 @@ Object.assign(ActionMenu, {
      * Show contract menu
      */
     showContractMenu(game, tile) {
+        // Your parents' rules at this door too (ui/parentsGuard.js)
+        if (!ParentsGuard.ok(game, 'contract', tile)) return;
         const armyStrength = PlayerMilitary.getArmyStrength(game.player);
         const offers = PlayerMilitary.getMercenaryOffers(game.player, tile, game.world);
         const activeCompanies = game.player.mercenaryCompanies || [];
 
-        let html = '<div>';
-        html += '<h4 style="margin-top: 0;">Mercenary Contracts</h4>';
-        html += `<p style="color: var(--text-secondary); font-size: 12px;">Your army strength: ${armyStrength}</p>`;
+        // The action menu's voice (uiKit): a lede and chips, then a row a company or a job
+        const empty = (t) => `<div style="font-size: 12px; color: #9d937c; padding: 4px 2px 8px; font-style: italic;">${t}</div>`;
+        let html = lede('Mercenary Contracts: hire a famous company to march under your banner, or sell your own swords for coin.');
+        html += chips([['⚔️', 'Your army strength', armyStrength], ['🛡️', 'Hired companies', activeCompanies.length], purse(game.player.gold)]);
 
-        html += '<div style="margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">';
-        html += '<div style="font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Famous Companies for Hire</div>';
-
+        html += sectionHead('Famous Companies for Hire');
         if (offers.length === 0) {
             const why = PlayerMilitary.hostsMercenaryCompanies(tile.settlement)
                 ? 'No companies are recruiting here today.'
                 : 'No free company seeks work in a village. Look for them in the towns.';
-            html += `<div style="font-size: 12px; color: var(--text-secondary); padding: 8px; background: rgba(255,255,255,0.04); border-radius: 4px;">${why}</div>`;
+            html += empty(why);
         } else {
-            for (const offer of offers) {
+            html += rowList(offers.map(offer => {
                 const totalUnits = (offer.roster || []).reduce((sum, row) => sum + row.count, 0);
                 const rosterText = (offer.roster || []).map(row => `${row.count}x ${row.type}`).join(', ');
                 const canHire = game.player.gold >= offer.hireCost;
-                html += `
-                    <div style="padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canHire ? 'opacity: 0.65;' : ''}">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                            <div>
-                                <div><span style="font-size: 20px;">${offer.icon}</span> <strong>${offer.name}</strong></div>
-                                <div style="font-size: 12px; color: var(--text-secondary);">${offer.reputation}</div>
-                                <div style="font-size: 11px; margin-top: 3px;">Roster: ${totalUnits} units (${rosterText})</div>
-                                <div style="font-size: 11px; color: var(--text-secondary);">Loyalty: ${Math.floor(offer.loyalty)} | Daily Wage: ${offer.dailyWage}g | Contract: ${offer.duration} days</div>
-                            </div>
-                            <button onclick="window.hireMercCompany('${offer.offerId}')" ${!canHire ? 'disabled' : ''} style="padding: 8px 12px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer; min-width: 90px;">Hire (${offer.hireCost}g)</button>
-                        </div>
-                    </div>
-                `;
-            }
+                return {
+                    icon: offer.icon,
+                    name: offer.name,
+                    desc: offer.reputation,
+                    why: `${offer.reputation} · not enough gold to hire`,
+                    note: `<span style="color:#b9ae94;">Roster: ${totalUnits} units (${rosterText}) · Loyalty: ${Math.floor(offer.loyalty)} | Daily Wage: ${offer.dailyWage}g | Contract: ${offer.duration} days</span>`,
+                    off: !canHire,
+                    attrs: `onclick="window.hireMercCompany('${offer.offerId}')"`,
+                    side: `<span style="font-size:11px; color:#9d937c;">Hire</span> ${price(offer.hireCost, canHire)}`,
+                };
+            }));
         }
-        html += '</div>';
 
-        html += '<div style="margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">';
-        html += '<div style="font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Active Hired Companies</div>';
-
+        html += sectionHead('Active Hired Companies');
         if (activeCompanies.length === 0) {
-            html += '<div style="font-size: 12px; color: var(--text-secondary); padding: 8px; background: rgba(255,255,255,0.04); border-radius: 4px;">You have no hired companies.</div>';
+            html += empty('You have no hired companies.');
         } else {
-            for (const company of activeCompanies) {
+            html += rowList(activeCompanies.map(company => {
                 const loyalty = Math.floor(company.loyalty || 0);
-                const loyaltyColor = loyalty >= 65 ? '#2ecc71' : loyalty >= 45 ? '#f39c12' : '#e74c3c';
-                html += `
-                    <div style="padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between; gap: 10px; align-items: center;">
-                            <div>
-                                <div><span style="font-size: 20px;">${company.icon || '⚔️'}</span> <strong>${company.name}</strong></div>
-                                <div style="font-size: 11px; color: var(--text-secondary);">${company.reputation || 'Professional mercenary company'}</div>
-                                <div style="font-size: 11px; color: ${loyaltyColor};">Loyalty: ${loyalty} | Wage: ${company.dailyWage}g/day | Days Left: ${company.daysRemaining}</div>
-                            </div>
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
-                                <button onclick="window.payMercBonus('${company.id}')" style="padding: 6px 10px; background: rgba(46, 204, 113, 0.85); border: none; border-radius: 4px; cursor: pointer;">+ Loyalty (120g)</button>
-                                <button onclick="window.dismissMercCompany('${company.id}')" style="padding: 6px 10px; background: rgba(231, 76, 60, 0.85); border: none; border-radius: 4px; cursor: pointer; color: #fff;">Dismiss</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+                const loyaltyColor = loyalty >= 65 ? '#8fd18a' : loyalty >= 45 ? '#f0b35a' : '#e0846a';
+                return {
+                    icon: company.icon || '⚔️',
+                    name: company.name,
+                    desc: company.reputation || 'Professional mercenary company',
+                    note: `<span style="color:${loyaltyColor};">Loyalty: ${loyalty} | Wage: ${company.dailyWage}g/day | Days Left: ${company.daysRemaining}</span>`,
+                    side: `<button onclick="window.payMercBonus('${company.id}')" style="${BTN_GOLD}">+ Loyalty (120g)</button><button onclick="window.dismissMercCompany('${company.id}')" style="${BTN_RED}">Dismiss</button>`,
+                };
+            }));
         }
-        html += '</div>';
 
-        html += '<div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Low loyalty companies can defect if rival kingdoms outbid you.</div>';
+        html += '<div style="font-size: 11px; color: #9d937c; margin: 2px 0 10px;">Low loyalty companies can defect if rival kingdoms outbid you.</div>';
 
-        html += '<div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; margin-top: 6px;">';
-        html += '<div style="font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Take Mercenary Work</div>';
-
+        html += sectionHead('Take Mercenary Work');
         const mercRep = MercContracts.repWith(game.player, tile.settlement && tile.settlement.kingdom);
-        if (mercRep) html += `<div style="font-size: 11px; color: ${mercRep > 0 ? '#2ecc71' : '#e67e22'}; margin-bottom: 6px;">Your name as a sellsword here: ${mercRep > 0 ? '+' : ''}${Math.round(mercRep)} (fees ${mercRep > 0 ? 'raised' : 'cut'})</div>`;
+        if (mercRep) html += `<div style="font-size: 11px; color: ${mercRep > 0 ? '#8fd18a' : '#f0b35a'}; margin-bottom: 6px;">Your name as a sellsword here: ${mercRep > 0 ? '+' : ''}${Math.round(mercRep)} (fees ${mercRep > 0 ? 'raised' : 'cut'})</div>`;
+        const workRows = [];
         for (const [key, contract] of Object.entries(PlayerMilitary.CONTRACT_TYPES)) {
             const quote = MercContracts.quote(game.player, contract, tile.settlement);
             const canAccept = armyStrength >= contract.minStrength && !quote.refused && !game.player.activeContract;
             const winPct = Math.round(MercContracts.winChance(armyStrength, quote.opposition, game.player) * 100);
-            html += `
-                <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; ${!canAccept ? 'opacity: 0.5;' : ''}">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div><span style="font-size: 20px;">${contract.icon}</span> <strong>${contract.name}</strong></div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${contract.description}</div>
-                            <div style="font-size: 12px;">Duration: ${contract.duration} days | Min Strength: ${contract.minStrength} | Foe ≈${quote.opposition} | Odds ≈${winPct}%</div>
-                            ${quote.refused ? `<div style="font-size: 11px; color: #e74c3c;">${quote.reason}</div>` : ''}
-                        </div>
-                        <button onclick="window.acceptContract('${key}')" ${!canAccept ? 'disabled' : ''} style="padding: 8px 16px; background: var(--gold); border: none; border-radius: 4px; cursor: pointer;">${quote.payment} gold</button>
-                    </div>
-                </div>
-            `;
+            const reason = quote.refused ? quote.reason
+                : game.player.activeContract ? 'You are already under contract'
+                : armyStrength < contract.minStrength ? `Your army is too weak (needs ${contract.minStrength})` : '';
+            workRows.push({
+                icon: contract.icon,
+                name: contract.name,
+                desc: contract.description,
+                why: `${contract.description} · ${reason}`,
+                note: `<span style="color:#b9ae94;">Duration: ${contract.duration} days | Min Strength: ${contract.minStrength} | Foe ≈${quote.opposition} | Odds ≈${winPct}%</span>`,
+                off: !canAccept,
+                attrs: `onclick="window.acceptContract('${key}')"`,
+                side: `${quote.payment} gold`,
+                tone: 'good',
+            });
         }
+        html += rowList(workRows);
 
-        html += '</div>';
-
-        html += '</div>';
         game.ui.showCustomPanel('Contracts', html);
 
         window.hireMercCompany = (offerId) => {

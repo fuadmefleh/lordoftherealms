@@ -39,6 +39,7 @@ import './rivals.js';
 import './heirs.js';
 import './heirAgency.js';
 import './afterlife.js';
+import './parents.js';
 import './sagas.js';
 import './whispers.js';
 import './letters.js';

@@ -4,8 +4,11 @@
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { DayClock } from './dayClock.js';
+import { Infrastructure } from '../../systems/infrastructure.js';
+import { BackRooms } from '../../systems/backRooms.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Parentage } from '../../player/parentage.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
@@ -448,7 +451,7 @@ export function endDay() {
                     }
                     iTile.infrastructure.constructionDaysLeft--;
                     if (iTile.infrastructure.constructionDaysLeft <= 0) {
-                        iTile.infrastructure.underConstruction = false;
+                        Infrastructure.finishConstruction(this.world, iTile);
                         this.ui.showNotification('🏗️ Construction Complete!',
                             `Your ${iTile.infrastructure.name} is now operational!`, 'success');
                         this.player.infrastructureUnderConstruction.splice(i, 1);
@@ -560,6 +563,8 @@ export function endDay() {
                     this.ui.showNotification('⚔️ Rival House',
                         `${houseResult.rival.name} covets your holdings, biding its time.`, 'warning');
                 }
+                // The House's court: stipends unpaid, courtiers leaving or dying, an officer's hand in the coffers (systems/court.js)
+                for (const n of ((houseResult.court && houseResult.court.notices) || []).slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Rival Houses in the flesh — their heads ride, trade, sit at court, age and die (systems/rivalHouses.js)
                 for (const n of RivalHouses.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -657,10 +662,14 @@ export function endDay() {
                 const settled = DawnBirth.sync(this.player, this.world);
                 if (settled) this.ui.showNotification('🔥 Home', settled, 'success');
             }
+            // Under your parents' roof: curfew, the leash, duties, allowance, trust, coming of age (player/parentage.js)
+            for (const n of Parentage.processDay(this.player, this.world).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             if (ActionMenu.updateLettersBadge) ActionMenu.updateLettersBadge(this);
 
             // The towns' gangs — protection, dens, the black market, wages, smuggling, wars, raids, betrayals (systems/gangs.js)
             for (const n of Gangs.processDay(this.world, this.player).notices.slice(0, 5)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // A back room in a tavern of yours, where gaming is forbidden: the watch may find it (systems/backRooms.js)
+            for (const n of BackRooms.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)
             const lairDay = OutlawLairs.processDay(this.world, this.player);

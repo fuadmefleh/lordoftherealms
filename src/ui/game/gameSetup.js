@@ -520,6 +520,8 @@ export async function _doStartNewGame(settingsOverride) {
         origin: dawnStart ? 'wanderer' : s.origin, difficulty: s.difficulty, victory: s.victory,
         // (the New Game sheet sets the guided start from the origin; the player may override it)
         guidedStart: typeof s.guidedStart === 'boolean' ? s.guidedStart : undefined,
+        // Born to a Family (player/parentage.js): whose child, and how old
+        parents: s.parents, birthAge: s.birthAge,
     });
     {
         // An origin may begin somewhere else: look there
@@ -549,6 +551,8 @@ export async function _doStartNewGame(settingsOverride) {
     setTimeout(() => {
         // (the origin's welcome — the Wanderer's is the classic one)
         this.ui.showNotification(`${scenarioStart.icon || ''} Welcome, ${this.player.name}`.trim(), (dawnStart && DawnBirth.welcome(this.player, this.world)) || scenarioStart.welcome || `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
+        // Born to a Family, parents to be chosen: the picker (ui/actionMenu/parents.js)
+        if (this.player.parentage && this.player.parentage.pending && typeof ActionMenu.showParentPicker === 'function') ActionMenu.showParentPicker(this);
     }, 1200);
 
     // Start game loop

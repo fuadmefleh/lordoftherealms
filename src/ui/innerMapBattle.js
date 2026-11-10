@@ -843,9 +843,12 @@ export const InnerMapBattle = {
         const el = document.createElement('div');
         el.id = HUD_ID;
         el.innerHTML = `
-            <div class="bfh-top"></div>
+            <div class="bfh-top"><div class="bfh-title"></div><div class="bfh-sides"></div><div class="bfh-ctl"></div><div class="bfh-log"></div></div>
             <div class="bfh-bottom"><div class="bfh-cards"></div><div class="bfh-orders"></div></div>`;
-        el.addEventListener('click', (e) => {
+        // (on the press, not the click: the cards are redrawn as the fight goes on, and a
+        // card redrawn between press and release would never see its click)
+        el.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
             const b = e.target.closest('[data-bf]');
             if (!b) return;
             const [act, arg] = b.dataset.bf.split(':');
@@ -906,23 +909,23 @@ export const InnerMapBattle = {
             : 'Break them';
         const last = bf.log[bf.log.length - 1];
         const title = (B.opts && B.opts.title) || `Battle against the ${bf.enemyLabel}`;
-        el.querySelector('.bfh-top').innerHTML = `
-            <div class="bfh-title">⚔️ ${esc(title)}</div>
-            <div class="bfh-sides">
+        // (each part is rewritten only when it changed: a button rebuilt under the mouse loses its click)
+        const set = (sel, html) => { const n = el.querySelector(sel); if (n && n._html !== html) { n._html = html; n.innerHTML = html; } };
+        set('.bfh-title', `⚔️ ${esc(title)}`);
+        set('.bfh-sides', `
                 <div class="bfh-side">Your army <strong>${Math.round(s.pStr)}</strong> / ${Math.round(s.pStr0)}<div class="bfh-bar"><div style="width:${pct(s.pStr, s.pStr0)}%;background:#4f9fe0"></div></div></div>
                 <div style="font-size:11px;color:#a99;text-align:center;min-width:110px;">${esc(objective)}<br>${B.paused ? '⏸ paused' : `▶ ${B.speed}×`} · ${Math.floor(bf.t)}s<br><span title="The day's clock stands while you fight; the battle takes this much of it">🕐 ${Battlefield.gameHours(bf)}h of the day</span></div>
                 <div class="bfh-side" style="text-align:right;">${esc(bf.enemyLabel)} <strong>${Math.round(s.eStr)}</strong> / ${Math.round(s.eStr0)}<div class="bfh-bar"><div style="width:${pct(s.eStr, s.eStr0)}%;background:#e0604a;margin-left:auto"></div></div></div>
-            </div>
-            <div class="bfh-ctl">
+`);
+        set('.bfh-ctl', `
                 <button data-bf="pause" class="${B.paused ? 'on' : ''}" title="Space">${B.paused ? '▶ Begin / Resume' : '⏸ Pause'}</button>
                 <button data-bf="speed" title="+">⏩ ${B.speed}×</button>
                 <button data-bf="captains" class="${bf.aiSide.player ? 'on' : ''}" title="Your captains give the orders">🧭 Captains command</button>
                 <button data-bf="finish" title="Fight the rest of it out at once">🎲 Let the captains finish it</button>
-                <button data-bf="retreat" class="red" title="Every company leaves the field">🎺 Sound the retreat</button>
-            </div>
-            <div class="bfh-log">${last ? esc(last.text) : ''}</div>`;
+                <button data-bf="retreat" class="red" title="Every company leaves the field">🎺 Sound the retreat</button>`);
+        set('.bfh-log', last ? esc(last.text) : '');
         const mine = bf.companies.filter(c => c.side === 'player');
-        el.querySelector('.bfh-cards').innerHTML = mine.map((c, i) => {
+        set('.bfh-cards', mine.map((c, i) => {
             const st = c.state === 'formed' ? (c.engaged.length ? 'fighting' : ({ hold: 'holding', move: 'marching', charge: 'charging', volley: 'loosing' }[c.order.type] || c.order.type))
                 : c.state === 'routed' ? 'ROUTED' : c.state === 'withdrawing' ? 'falling back' : c.state === 'fled' ? 'off the field' : 'cut down';
             const led = bf.commander && bf.commander.ledId === c.id ? ' ★' : '';
@@ -932,17 +935,17 @@ export const InnerMapBattle = {
                 <div class="bfh-bar"><div style="width:${pct(c.str, c.str0)}%;background:#4f9fe0"></div></div>
                 <div class="bfh-bar" style="height:3px"><div style="width:${pct(c.morale, c.morale0)}%;background:${c.morale < Battlefield.config().morale.waver ? '#e08a50' : '#e8c060'}"></div></div>
             </div>`;
-        }).join('');
+        }).join(''));
         const sel = [...B.selected].map(id => bf.companies.find(c => c.id === id)).filter(Boolean);
         const archers = sel.some(c => c.kind === 'archer');
-        el.querySelector('.bfh-orders').innerHTML = `
+        set('.bfh-orders', `
             <button data-bf="all" title="0">All</button>
             <button data-bf="hold" title="H">🛡️ Hold</button>
             <button data-bf="charge" title="C">⚔️ Charge</button>
             ${archers ? '<button data-bf="volley" title="F">🏹 Loose</button>' : ''}
             <button data-bf="fallback" title="B">↩️ Fall back</button>
             <button data-bf="lead" title="L">★ Lead</button>
-            <span style="font-size:11px;color:#998d76;align-self:center;margin-left:6px;">${sel.length ? 'Right-click ground to march, a foe to attack' : 'Click a company (1-9, or drag a box round them) to command it'}</span>`;
+            <span style="font-size:11px;color:#998d76;align-self:center;margin-left:6px;">${sel.length ? 'Right-click ground to march, a foe to attack' : 'Click a company (1-9, or drag a box round them) to command it'}</span>`);
     },
 
     // ── The end ───────────────────────────────────────────────────────

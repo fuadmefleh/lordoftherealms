@@ -103,7 +103,8 @@ Object.assign(ActionMenu, {
 
     /** The battle in progress: the field, the phases fought, the next choice. */
     showFieldBattle(game) {
-        const b = game._fieldBattle;
+        // (a battle fought to its end as the day closed: its report, redrawn on the new day)
+        const b = game._fieldBattle || (game._fieldBattleDone && game._fieldBattleDone.done ? game._fieldBattleDone : null);
         if (!b) { game.ui.hideCustomPanel(); return; }
         let html = `<div style="padding:4px 2px;">
             <div style="display:flex; gap:12px;"><div style="flex:1;">${_bar('⚔️ Your force', b.sim.pStr, b.pStr0, '#4fc3f7')}</div>
@@ -140,7 +141,7 @@ Object.assign(ActionMenu, {
             if (b.reportText) html += `<div style="font-size:12px; line-height:1.5;">${esc(b.reportText)}</div>`;
             else {
                 if (r.loot > 0) html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${r.loot}</strong></div>`;
-                if (r.armsTaken) html += `<div>⚔️ Arms stripped from the fallen: ${Object.entries(r.armsTaken).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ')}</div>`;
+                if (r.armsTaken) html += `<div>⚔️ Arms stripped from the fallen: ${Object.entries(r.armsTaken).map(([k, v]) => { const nm = Arms.nameOf(k).toLowerCase(); return `${v} ${nm}${v > 1 && !/s$/.test(nm) ? 's' : ''}`; }).join(', ')}</div>`;
                 if (Arms.quiverNote(r.quivers)) html += `<div>${esc(Arms.quiverNote(r.quivers))}</div>`;
                 html += `<div>⚔️ Lost ${r.casualties || 0} soldier${r.casualties === 1 ? '' : 's'}${r.wounded ? `; ${r.wounded} carried off wounded` : ''}.</div>`;
                 if (r.karmaChange < 0) html += `<div style="color:#ff6666;">😈 Karma: ${r.karmaChange}</div>`;

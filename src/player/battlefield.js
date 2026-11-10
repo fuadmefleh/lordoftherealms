@@ -507,6 +507,8 @@ export const Battlefield = {
         for (let i = 0; i < spec.figs; i++) {
             c.figures.push({ i, slot: i, x: 0, y: 0, alive: true, fellAt: null, side: 0, anim: 'idle', swingT: 0, moving: false });
         }
+        // (a company drawn up in a town's streets stands in the street, not inside a house)
+        Battlefield._place(bf, c, 8);
         // Each in their place in the formation
         for (const f of c.figures) {
             const p = Battlefield.slotPos(c, f.slot);
@@ -532,11 +534,11 @@ export const Battlefield = {
         return { x: c.x + c.dx * along - c.dy * across, y: c.y + c.dy * along + c.dx * across };
     },
 
-    /** Nudge a point onto passable ground (nearest within 3 tiles). */
-    _place(bf, p) {
+    /** Nudge a point onto passable ground (nearest within `reach` tiles, 3 by default). */
+    _place(bf, p, reach = 3) {
         const f = bf.field;
         if (f.pass(Math.round(p.x), Math.round(p.y))) return true;
-        for (let r = 1; r <= 3; r++) {
+        for (let r = 1; r <= reach; r++) {
             for (let dy = -r; dy <= r; dy++) {
                 for (let dx = -r; dx <= r; dx++) {
                     if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
@@ -759,16 +761,25 @@ export const Battlefield = {
             if (c.order.type === 'move') c.order = { type: 'hold' };
             return;
         }
-        const ux = (g.x - c.x) / d, uy = (g.y - c.y) / d;
+        let ux = (g.x - c.x) / d, uy = (g.y - c.y) / d;
+        // A wall, a house or a hedge between it and where it is going (a town's streets):
+        // the way round, down the field's distance map to the goal
+        if (!Battlefield._lineClear(bf.field, c.x, c.y, g.x, g.y)) {
+            const leaving = c.state === 'routed' || c.state === 'withdrawing';
+            const way = Battlefield._wayRound(bf, c.x, c.y, leaving ? { edge: Math.round(g.x) } : { x: g.x, y: g.y });
+            if (way) { ux = way.x; uy = way.y; }
+        }
         const slow = Battlefield._slowAt(bf, c, c.x, c.y);
         const step = Math.min(d, g.speed * slow * dt);
         // Around what blocks the way: straight on, else bear off up to a right angle
+        // (a company caught inside what blocks the way walks straight out of it)
+        const caught = !bf.field.pass(Math.round(c.x), Math.round(c.y));
         let moved = false;
         for (const ang of [0, 0.5, -0.5, 1, -1, 1.5, -1.5]) {
             const cos = Math.cos(ang), sin = Math.sin(ang);
             const vx = ux * cos - uy * sin, vy = ux * sin + uy * cos;
             const nx = c.x + vx * step, ny = c.y + vy * step;
-            if (bf.field.pass(Math.round(nx), Math.round(ny)) || (c.state === 'routed' && ang !== 0 && Math.abs(ang) >= 1.5)) {
+            if (bf.field.pass(Math.round(nx), Math.round(ny)) || (caught && ang === 0) || (c.state === 'routed' && ang !== 0 && Math.abs(ang) >= 1.5)) {
                 c.x = _clamp(nx, 0, bf.field.w - 1);
                 c.y = _clamp(ny, 0, bf.field.h - 1);
                 moved = true;
@@ -785,6 +796,98 @@ export const Battlefield = {
             c.left = was;
             bf.log.push({ t: bf.t, text: was === 'routed' ? `${Battlefield.label(bf, c)} flee the field.` : `${Battlefield.label(bf, c)} are off the field.` });
         }
+    },
+
+    /** Nothing impassable on the straight line between two points of the field. */
+    _lineClear(field, x0, y0, x1, y1) {
+        const n = Math.ceil(_dist(x0, y0, x1, y1) / 0.5);
+        for (let i = 1; i <= n; i++) {
+            const t = i / n;
+            if (!field.pass(Math.round(x0 + (x1 - x0) * t), Math.round(y0 + (y1 - y0) * t))) return false;
+        }
+        return true;
+    },
+
+    /**
+     * The way round what blocks a company: a breadth-first distance map from the
+     * goal tile (or a whole edge column, for men leaving the field) over the
+     * passable ground, cached on the battle per goal; the direction (unit
+     * vector) toward the point a few steps down it from (x, y). Null when the
+     * goal cannot be reached from here.
+     */
+    _wayRound(bf, x, y, goal) {
+        const f = bf.field;
+        const W = f.w, H = f.h;
+        const key = goal.edge != null ? `e${goal.edge}` : `${Math.round(goal.x)},${Math.round(goal.y)}`;
+        if (!bf._flow) bf._flow = new Map();
+        let dist = bf._flow.get(key);
+        if (!dist) {
+            if (bf._flow.size > 48) bf._flow.clear();
+            dist = new Int32Array(W * H).fill(-1);
+            const queue = [];
+            const seed = (q, r) => { if (q >= 0 && r >= 0 && q < W && r < H && dist[r * W + q] < 0) { dist[r * W + q] = 0; queue.push(r * W + q); } };
+            if (goal.edge != null) { for (let r = 0; r < H; r++) seed(_clamp(goal.edge, 0, W - 1), r); } else seed(_clamp(Math.round(goal.x), 0, W - 1), _clamp(Math.round(goal.y), 0, H - 1));
+            for (let i = 0; i < queue.length; i++) {
+                const cur = queue[i];
+                const q = cur % W, r = (cur - q) / W;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (!dx && !dy) continue;
+                        const nq = q + dx, nr = r + dy;
+                        if (nq < 0 || nr < 0 || nq >= W || nr >= H || dist[nr * W + nq] >= 0) continue;
+                        if (!f.pass(nq, nr)) continue;
+                        // (no cutting the corner of what blocks the way)
+                        if (dx && dy && (!f.pass(q + dx, r) || !f.pass(q, r + dy))) continue;
+                        dist[nr * W + nq] = dist[cur] + 1;
+                        queue.push(nr * W + nq);
+                    }
+                }
+            }
+            bf._flow.set(key, dist);
+        }
+        let q = _clamp(Math.round(x), 0, W - 1), r = _clamp(Math.round(y), 0, H - 1);
+        if (dist[r * W + q] < 0) {
+            // Standing on a blocked tile (drawn up against a house, pushed into a wall): the nearest tile on the map
+            let best = null;
+            for (let dy = -10; dy <= 10; dy++) for (let dx = -10; dx <= 10; dx++) {
+                const nq = q + dx, nr = r + dy;
+                if (nq < 0 || nr < 0 || nq >= W || nr >= H) continue;
+                const v = dist[nr * W + nq];
+                if (v >= 0 && (!best || v + Math.hypot(dx, dy) < best.v)) best = { q: nq, r: nr, v: v + Math.hypot(dx, dy) };
+            }
+            if (!best) return null;
+            const d0 = _dist(best.q, best.r, x, y) || 1;
+            return { x: (best.q - x) / d0, y: (best.r - y) / d0 };
+        }
+        // Down the map a way, aiming at the furthest tile on it in plain sight
+        // (smoother than tile to tile, and never through a wall's corner)
+        const steps = [];
+        for (let n = 0; n < 12; n++) {
+            const here = dist[r * W + q];
+            if (here <= 0) break;
+            let nq = q, nr = r, nv = here, nd = Infinity;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                const aq = q + dx, ar = r + dy;
+                if (aq < 0 || ar < 0 || aq >= W || ar >= H) continue;
+                const v = dist[ar * W + aq];
+                if (v < 0 || v > nv) continue;
+                if (dx && dy && (!f.pass(q + dx, r) || !f.pass(q, r + dy))) continue;
+                // (of the tiles as near the goal, the straightest step)
+                const dd = Math.abs(dx) + Math.abs(dy);
+                if (v < nv || dd < nd) { if (v < here) { nv = v; nq = aq; nr = ar; nd = dd; } }
+            }
+            if (nq === q && nr === r) break;
+            q = nq; r = nr;
+            steps.push({ q, r });
+        }
+        if (!steps.length) return null;
+        let aim = steps[0];
+        for (let n = steps.length - 1; n > 0; n--) {
+            if (Battlefield._lineClear(f, x, y, steps[n].q, steps[n].r)) { aim = steps[n]; break; }
+        }
+        const d = _dist(aim.q, aim.r, x, y);
+        if (d < 1e-6) return null;
+        return { x: (aim.q - x) / d, y: (aim.r - y) / d };
     },
 
     /**
@@ -1194,7 +1297,10 @@ export const Battlefield = {
                 } else if (bf.field.pass(Math.round(f.x), Math.round(ny))) {
                     f.y = ny;
                 } else {
-                    f.moving = false;
+                    // Walled off from his place in the ranks: round by the streets toward the company
+                    const way = Battlefield._wayRound(bf, f.x, f.y, { x: c.x, y: c.y });
+                    const wx = way ? f.x + way.x * st : f.x, wy = way ? f.y + way.y * st : f.y;
+                    if (way && bf.field.pass(Math.round(wx), Math.round(wy))) { f.x = wx; f.y = wy; } else f.moving = false;
                 }
                 f.fx = tx - f.x; f.fy = ty - f.y;
             } else {

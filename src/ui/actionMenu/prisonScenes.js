@@ -70,7 +70,7 @@ function _cellView(game, st) {
         const options = Prison.crewOptions(player, world).map(o => ({
             id: `crew:${o.id}`, icon: o.icon, label: o.label, hint: o.hint, chance: o.chance, cost: `${o.cost} gold of the gang's`, can: o.can, reason: o.reason,
         }));
-        const who = c.boss ? `You are ${c.gang.name}'s boss: your word is an order.` : `You run with ${c.gang.name} as a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}; ${c.gang.boss.name} decides, and you will owe him.`;
+        const who = c.boss ? `You are ${c.gang.name}'s boss: your word is an order.` : `You run with ${c.gang.name} as a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}; ${c.gang.boss.name} decides, and you will owe the gang for it.`;
         return { ...base, text: `A message out through a cellmate's visitor. ${who} The gang's purse holds ${Math.floor(c.gang.purse)}g.`, footer: 'Once a day. It is the gang\'s coin, not yours.', options: [...options, _back] };
     }
     if (st.phase === 'break') {

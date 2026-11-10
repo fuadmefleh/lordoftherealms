@@ -193,7 +193,7 @@
         },
         "start": { "crewPerThousand": [1, 2], "crewMin": 3, "purseShareOfTown": 0.015, "purseMax": 300, "turf": [0.25, 0.6], "lieutenants": [2, 3], "stashGoods": ["liquor", "wine", "spices", "luxuries", "beer"], "stashQty": [2, 6] },
         "ranks": [
-            { "id": "hanger_on", "name": "Hanger-on", "icon": "🪶", "standing": 0, "weeklyPay": 4 },
+            { "id": "hanger_on", "name": "Hanger-on", "icon": "👣", "standing": 0, "weeklyPay": 4 },
             { "id": "soldier", "name": "Soldier", "icon": "🗡️", "standing": 15, "weeklyPay": 8 },
             { "id": "enforcer", "name": "Enforcer", "icon": "👊", "standing": 40, "weeklyPay": 14 },
             { "id": "lieutenant", "name": "Lieutenant", "icon": "🎖️", "standing": 80, "weeklyPay": 22 },
@@ -233,7 +233,7 @@
         "war": { "declareRatio": 1.35, "declareChance": 0.12, "skirmishLoss": 0.12, "turfShift": 0.08, "endCrew": 3, "truceDays": 60, "tributeShare": 0.3 },
         "cuts": [0.1, 0.25, 0.4],
         "errands": {
-            "collect": { "name": "Make the collection rounds", "icon": "🪙", "rank": 0, "ap": 2, "base": 0.75, "stat": "strength", "standing": 3, "share": 0.2, "purseShare": 0.004, "crackdown": 2, "heatCrime": "racket_weekly", "description": "Walk the gang's streets and collect what the shopkeepers owe. You keep a fifth." },
+            "collect": { "name": "Make the collection rounds", "icon": "💰", "rank": 0, "ap": 2, "base": 0.75, "stat": "strength", "standing": 3, "share": 0.2, "purseShare": 0.004, "crackdown": 2, "heatCrime": "racket_weekly", "description": "Walk the gang's streets and collect what the shopkeepers owe. You keep a fifth." },
             "forge": { "name": "Forge papers", "icon": "📜", "rank": 1, "ap": 3, "base": 0.7, "stat": "intelligence", "standing": 4, "needs": { "parchment": 1, "ink": 1 }, "makes": { "forged_documents": 1 }, "crackdown": 1, "heatCrime": "fence", "description": "With parchment and ink from your packs, the gang's forger teaches you to make passes and seals. Forged papers are contraband everywhere." },
             "holdout": { "name": "Lean on a holdout", "icon": "👊", "rank": 1, "ap": 3, "base": 0.6, "stat": "strength", "standing": 5, "turf": 0.05, "crackdown": 5, "heatCrime": "racket", "description": "A shop that won't pay. Make it pay: the gang's turf grows." },
             "run_cargo": { "name": "Run a cargo", "icon": "📦", "rank": 1, "ap": 4, "base": 0.6, "stat": "luck", "standing": 6, "share": 0.15, "crackdown": 2, "heatCrime": "smuggling", "description": "Bring a load of contraband in from over the border with the gang's coin. You take a cut of what it's worth here." },

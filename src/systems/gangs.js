@@ -139,7 +139,7 @@ export const Gangs = {
     ranks() {
         const r = Gangs.cfg().ranks;
         return Array.isArray(r) && r.length ? r : [
-            { id: 'hanger_on', name: 'Hanger-on', icon: '🪶', standing: 0, weeklyPay: 4 },
+            { id: 'hanger_on', name: 'Hanger-on', icon: '👣', standing: 0, weeklyPay: 4 },
             { id: 'soldier', name: 'Soldier', icon: '🗡️', standing: 15, weeklyPay: 8 },
             { id: 'enforcer', name: 'Enforcer', icon: '👊', standing: 40, weeklyPay: 14 },
             { id: 'lieutenant', name: 'Lieutenant', icon: '🎖️', standing: 80, weeklyPay: 22 },

@@ -322,3 +322,29 @@ describe('the field polished: assaults, steady holding, box selection, the clock
         expect(Battlefield.gameHours(bf)).toBeLessThanOrEqual(C.maxHours);
     });
 });
+
+describe('finding the way round in a town', () => {
+    it('a company sent past a wall finds the gap in it instead of standing against it', () => {
+        const { bf } = setUp({ playerArmy: [['soldier', 4, 10]] });
+        // A wall across the field at x = 30 with a single gap at y = 4
+        const w = bf.field.w, h = bf.field.h;
+        bf.field = { ...bf.field, pass: (q, r) => q >= 0 && r >= 0 && q < w && r < h && !(q === 30 && r !== 4) };
+        bf._flow = null;
+        const c = bf.companies.find(x => x.side === 'player');
+        c.x = 26; c.y = 20;
+        Battlefield.order(bf, c.id, { type: 'move', x: 34, y: 20 });
+        for (let i = 0; i < 3000 && c.order.type === 'move'; i++) Battlefield._moveCompany(bf, c, 0.1);
+        expect(c.x).toBeGreaterThan(33);
+        expect(Math.abs(c.y - 20)).toBeLessThan(1);
+    });
+
+    it('the way round follows the distance map, and is null when the goal is walled off', () => {
+        const ring = (q, r) => q >= 0 && r >= 0 && q < 20 && r < 20 && Math.max(Math.abs(q - 15), Math.abs(r - 10)) !== 2;
+        const bf = { field: { w: 20, h: 20, pass: ring } };
+        expect(Battlefield._lineClear(bf.field, 2, 10, 15, 10)).toBe(false);
+        expect(Battlefield._wayRound(bf, 2, 10, { x: 15, y: 10 })).toBe(null);
+        const bf2 = { field: { w: 20, h: 20, pass: (q, r) => q >= 0 && r >= 0 && q < 20 && r < 20 && !(q === 10 && r > 3) } };
+        const way = Battlefield._wayRound(bf2, 6, 10, { x: 15, y: 10 });
+        expect(way.y).toBeLessThan(0); // up toward the gap at the top of the wall
+    });
+});

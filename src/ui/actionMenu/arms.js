@@ -91,9 +91,12 @@ Object.assign(ActionMenu, {
             }
             // What else is carried for the slot
             const others = Arms.candidates(player, slot).filter(c => !p || c.id !== p.id);
+            // (no shield goes on while a two-hander fills both hands: say so on the button)
+            const bothHands = slot === 'off' && lo.main && lo.main.stats.hands >= 2 ? `Your ${lo.main.stats.name.toLowerCase()} takes both hands: put it away or take up a one-handed weapon first.` : '';
             for (const c of others.slice(0, 6)) {
-                html += act(`${itemIcon(c.id, esc(Arms.iconOf(c.id)), 18)} ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` ×${c.count}` : ''}`, ['equip', c.id], BTN_GOLD, true, statLine(Arms.stats(c.id, c.grade)));
+                html += act(`${itemIcon(c.id, esc(Arms.iconOf(c.id)), 18)} ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` ×${c.count}` : ''}`, ['equip', c.id], BTN_GOLD, !bothHands, bothHands || statLine(Arms.stats(c.id, c.grade)));
             }
+            if (bothHands && others.length) html += `<br><span style="${NOTE}">${esc(bothHands)}</span>`;
             if (!p && !others.length) html += `<span style="${NOTE}">You carry none. Forge one at an anvil, buy one, or order one from a town's weaponsmith.</span>`;
             html += '</div>';
         }
@@ -113,7 +116,7 @@ Object.assign(ActionMenu, {
             }
             const shortAny = kitted.some(u => u.kit && Arms.kitGaps(u).length);
             html += act('Issue arms from your stores', ['armPack'], BTN_PLAIN, shortAny, 'Nobody is short, or you carry nothing for them.');
-            if (s && s.market) {
+            if (Arms._mkt(s)) {
                 const q = kitted.filter(u => u.kit && Arms.kitGaps(u).length).length;
                 html += act(`Buy the shortfall in ${esc(s.name)}`, ['armBuy'], BTN_GOLD, q > 0, 'Nobody is short of arms.');
             }
@@ -134,7 +137,7 @@ Object.assign(ActionMenu, {
                 const qq = Arms.quiverQuote(player, s, world);
                 const want = Object.values(qq).reduce((t, o) => t + o.want, 0);
                 html += act('Fill the quivers from your packs', ['quiversPack'], BTN_PLAIN, want > 0 && Object.keys(qq).some(g => (player.inventory[g] || 0) > 0), want > 0 ? 'You carry none.' : 'Every quiver is full.');
-                if (s && s.market) {
+                if (Arms._mkt(s)) {
                     const cost = Object.values(qq).reduce((t, o) => t + (o.price || 0) * Math.min(o.want, o.stock || 0), 0);
                     const stock = Object.values(qq).reduce((t, o) => t + Math.min(o.want, o.stock || 0), 0);
                     html += act(`Buy for the quivers in ${esc(s.name)}${stock ? ` (${stock} for ${cost}g)` : ''}`, ['quiversBuy'], BTN_GOLD, stock > 0 && (player.gold || 0) >= 1, want > 0 ? 'The town has none to sell.' : 'Every quiver is full.');
@@ -192,7 +195,7 @@ Object.assign(ActionMenu, {
     recruitArmsNote(game, unitType, settlement) {
         const q = PlayerMilitary.recruitKitQuote(game.player, unitType, settlement, game.world);
         if (!q) return '';
-        let from = Object.entries(q.slots).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${x.price}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
+        let from = Object.entries(q.slots).filter(([, x]) => !x.twoHands).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${x.price}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
         // A bowman's quiver
         if (q.ammo) from += `, ${q.ammo.pack + q.ammo.buy}/${q.ammo.want} ${Arms.nameOf(q.ammo.good).toLowerCase()}${q.ammo.buy ? ` (${q.ammo.buy} at ${q.ammo.price}g)` : q.ammo.pack ? ' (yours)' : ''}`;
         return `<div style="font-size: 11px; color: ${q.factor >= 0.95 ? '#81c784' : '#e6b35a'};" title="A recruit is issued arms from your stores first, then the town's armourers' stock at its price">⚔️ Arms: ${esc(from)}${q.cost ? ` · +${q.cost} gold` : ''} · fights at ${pct(q.factor)}</div>`;

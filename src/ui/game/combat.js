@@ -371,6 +371,8 @@ export function _settlePendingCombat() {
         ActionMenu._settleFieldBattle(this);
     }
     if (b && b.done) {
+        // (its report stays readable: the panel open as the day ends is redrawn — ui/panelRefresh.js)
+        this._fieldBattleDone = b;
         this._fieldBattle = null;
         this._fieldBattleSource = null;
     }

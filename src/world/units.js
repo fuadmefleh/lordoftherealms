@@ -145,6 +145,8 @@ export class WorldUnit {
         const goods = Object.entries((player && player.inventory) || {})
             .reduce((sum, [k, v]) => sum + (k === 'quest' ? 0 : Math.max(0, n(v, 0))), 0);
         if (n(player && player.gold, 0) < n(p.poorGold, 40) && goods < n(p.poorGoods, 6)) chance *= n(p.poorMult, 0.5);
+        // A party riding in a crown's livery (a realm's household guard: player/realmEscort.js) is let be
+        if (player && (player.army || []).some(u => u && u.realmGuard != null)) chance *= n(p.escortMult, 0.6);
         return chance;
     }
 

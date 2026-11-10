@@ -675,6 +675,9 @@ Object.assign(ActionMenu, {
             // A commission in a realm's army (ui/actionMenu/generalship.js)
             const cm = player.commission;
             html += `<button data-am-act="showArmyCommand" style="width:100%; padding:8px; margin-bottom:10px; background:#3a3324; border:1px solid rgba(201,165,74,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0d890;">🎖️ Army Command${cm ? ` — ${cm.kingdomName}` : ''}</button>`;
+            // The household guard a realm keeps for you (ui/actionMenu/realmEscort.js)
+            const hg = player.realmEscort && player.realmEscort.guard;
+            html += `<button data-am-act="showHouseholdGuard" style="width:100%; padding:8px; margin-bottom:10px; background:#24303a; border:1px solid rgba(143,184,234,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:#cfe0ff;">🛡️ Household Guard${hg ? ` — ${hg.kingdomName}` : ''}</button>`;
         }
         html += `<button data-am-act="showHouseChronicle" style="width:100%; padding:8px; margin-bottom:10px; background:#3d3424; border:1px solid rgba(255,215,0,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:var(--gold);">📜 House Chronicle</button>`;
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)

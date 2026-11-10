@@ -6,6 +6,7 @@ import { Traits } from '../../systems/traits.js';
 import { Companions } from '../../systems/companions.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Crafting } from '../../player/crafting.js';
+import { RealmEscort } from '../../player/realmEscort.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { updateCounselBadge } from '../actionMenu/counsel.js';
 import { updateFirstStepsCard } from '../firstStepsCard.js';
@@ -1132,6 +1133,14 @@ Object.assign(UI.prototype, {
             ? PlayerMilitary.getArmyStrength(player)
             : (player.army ? player.army.length : 0);
         this._setHudText('tbShields', shields);
+        // The realm's household guard riding with you (player/realmEscort.js) in the chip's tooltip
+        {
+            const chip = document.getElementById('tbShields');
+            const box = chip && chip.parentElement;
+            const line = RealmEscort.hudLine(player);
+            const tip = line ? `Military Strength — 🛡️ ${line}` : 'Military Strength';
+            if (box && box.title !== tip) box.title = tip;
+        }
         updatePrestigeChip(player, world);
     },
 

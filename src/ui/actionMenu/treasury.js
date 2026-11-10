@@ -22,6 +22,9 @@ const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
 const TABS = [['budget', '📒 Budget'], ['realms', '🏰 Realms'], ['farms', '📜 Tax farms'], ['crown', '👑 Your purse']];
 const LABEL = LINE_LABEL;
 
+// (the household guards the crown keeps for its lords and itself: player/realmEscort.js)
+LABEL.guard = 'Household guards';
+
 let _tab = 'budget';
 
 function esc(s) {

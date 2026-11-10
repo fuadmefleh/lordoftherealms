@@ -3408,6 +3408,29 @@ The crown also **fears** a general grown strong: rank, the share of the army you
 
 **Restore a fallen realm** (in one of its old towns, 2 AP): fund a rising for 300–1,200g depending on the town's size. The chance is 35%, +25% if the occupier is restless, +3% per point of stealth. Success restores the kingdom there: +20 renown, +40 reputation with it, −30 with the occupier. Failure loses the gold, and the occupier may find out who paid. You can't fund a rising against the realm you're sworn to.
 
+### The Household Guard
+
+A realm keeps a guard for its lords and its crown. Hold rank in a realm and its soldiers ride with you, **paid and fed by the crown, not by you**. Open it from **Dynasty → 🛡️ Household Guard**, **Army Command**, or a settlement's **Household Guard** action. The top bar's military chip names it in its tooltip ("Royal Guard of Avaria: 86 men, paid by the crown"), and on the world map a small helm in the realm's colours rides at your shoulder with the men counted beside it. Tuning is in `data/escort.json`; the logic in `player/realmEscort.js`.
+
+| Your rank | How you hold it | The guard |
+|---|---|---|
+| Lord | A Lord's office in the realm you are sworn to (Marshal, Spymaster), or 2+ estates in its towns | **Household guard**: a knight and two soldiers (50 men) |
+| Great lord | Chancellor, the Great Lord start's House in its realm, or 5+ estates there | **Household company**: 2 knights, 3 soldiers, 2 archers (106 men) |
+| The crown | You rule the realm | **Royal Guard**: 4 soldiers, a knight, 2 archers (86 men; the Monarch start's guard and a usurper's are this guard) |
+
+The realm sends it on the first day you hold the rank, and it grows or shrinks when your rank does.
+
+- **Where the men come from.** They are the realm's own soldiers. Each company's men leave the realm's army (never more than 5% / 7% / 10% of it, by rank), and they go back to it when the guard ends. Their dead in your battles are the realm's dead and do not come back. Every month one lost company is replaced, if the treasury can pay and the army can spare it.
+- **Their arms** come out of the realm's armoury: each company gets a piece for each slot of its kit (the best tier in stock) and a quiver of arrows for its bowmen, refilled in the realm's towns. A slot the armoury cannot fill stays empty, and the company fights the worse for it. The survivors hand their arms back when they go home. The fallen's arms are lost on the field.
+- **Their pay.** Each company's wage (the unit type's upkeep: a soldier 5g a day, a knight 15g, an archer 4g) comes out of the treasury daily, booked on the crown's **Household guards** line in the Treasury panel. It goes into the men's pockets, and they spend half of what they carry each day in the town where you lodge. Their **bread** (0.02 a man a day, ten days carried) is bought from the granary of the town you are in, and the crown pays the town at 1.2g a unit, as it does for a general's host.
+- **When the treasury can't pay**, the wages are owed, and morale falls 3 a day. After a week unpaid, the last companies slip away (15% a day), taking their arms with them. Deserters do not return to the army. With no bread, morale falls 5 a day, and starving men below 25 morale desert.
+- **Morale** drifts back toward 65 and rises 6 with a victory. **Loyalty** to you starts at 30 (55 for the crown) and grows with each day of service (up to 85) and with victories.
+- **In battle** the guard fights as part of your army in road encounters, field battles and sieges. On the battlefield it stands as **companies of its own in its realm's livery**. On the street maps its companies follow you in single file (up to 6 figures, knights on their horses) in the realm's colours and the arms they were issued. They stay outside buildings and off the deck.
+- **It deters trouble.** Bands in sight are 40% less eager to come after a party in a crown's livery. Parleying with outlaws is 10% likelier to succeed. A rival's thieves (50%) and assassins (30%) may be turned back by the guard. A rival House weighs its strength before waylaying you, as it weighs your army.
+- **Your choices.** **Send them home**: the men and their arms ride back to the army, and the realm will not send them again for 60 days unless you ask. **Ask for more men**: first the companies the guard has lost, then up to 2 / 3 / 4 more companies (soldiers; knights for the crown). Each request costs 8 reputation with the realm (a ruler pays nothing) and is refused if your standing would fall below 10, if the army cannot spare the men, or if the treasury would be left with less than 300g + 30 days of the guard's pay.
+- **It leaves** if you lose the rank, are exiled, swear to another crown, or make war on the realm. What the crown still owes the men becomes the realm army's arrears, and the coin in their pockets goes home with them to the capital.
+- **A coup.** A guard of the realm whose loyalty is **60 or more** joins your coup. Otherwise it stands with the crown: its men count against you rather than for you, and if you win it is gone. If the coup is crushed, a guard that joined loses half its men.
+
 ### NPC Lords
 
 AI-driven lords roam the world with personality traits (Ambitious, Honorable, Cruel, Cunning) that drive their decisions. You can encounter them on the map and request meetings. Each trait's numbers feed their kingdom: a Builder founds villages and repairs damage faster, a Tyrant taxes harder but erodes stability, a Warmonger wins more battles but makes enemies, a Paranoid lord holds his walls. Pious lords weigh your karma heavily, and a lord counts you as kin while you're married into his realm.

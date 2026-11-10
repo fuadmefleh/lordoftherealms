@@ -36,6 +36,7 @@
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { RealmEscort } from './realmEscort.js';
 import { PlayerEffects } from './playerEffects.js';
 import { FieldBattle } from './fieldBattle.js';
 import { Ailments } from '../systems/ailments.js';
@@ -53,7 +54,7 @@ const DEFAULTS = {
     pursuit: { alone: 0.45, outmatched: 0.4, evenly: 0.12, otherwise: 0.3, poorGold: 40, poorGoods: 6, poorMult: 0.5 },
     flee: { base: 0.4, stealth: 0.03, mount: 0.2, cavalry: 0.1, perUnit: 0.02, unitCap: 0.25, cover: 0.05, openGround: -0.05, woundMovement: 0.08, woundBattle: 0.3, speed: 0.03, craven: 0.05, respiteDays: 3 },
     toll: { share: 0.25, armyShare: 0.08, armyRatioShare: 0.12, diplomacy: 0.01, min: 5, respiteDays: 7 },
-    parley: { base: 0.12, diplomacy: 0.035, charisma: 0.01, renownPer: 400, renownCap: 0.15, dread: 0.15, brave: 0.05, champion: 0.08, craven: -0.1, armyRatio: 0.3, armyMin: -0.15, armyMax: 0.35, warHost: -0.15, respiteDays: 7 },
+    parley: { base: 0.12, diplomacy: 0.035, charisma: 0.01, renownPer: 400, renownCap: 0.15, dread: 0.15, brave: 0.05, champion: 0.08, craven: -0.1, armyRatio: 0.3, armyMin: -0.15, armyMax: 0.35, warHost: -0.15, crownLivery: 0.1, respiteDays: 7 },
     hide: { base: 0.15, stealth: 0.05, forest: 0.25, hills: 0.15, marsh: 0.1, open: -0.1, perUnit: 0.04, unitCap: 0.4, mount: -0.03, scent: -0.1, respiteDays: 3 },
     bait: { chance: 0.75, monsterChance: 0.35, stealth: 0.01, food: 3, monsterFood: 8, respiteDays: 5 },
     fire: { base: 0.3, combat: 0.03, fuel: 0.25, brave: 0.08, champion: 0.05, army: 0.25, monster: -0.25, respiteDays: 5 },
@@ -132,6 +133,8 @@ export const RoadEncounters = {
             enemyStrength: Math.max(1, _num(attacker.strength, 1)),
             monster: attacker.type === 'monster',
             warHost: attacker.type === 'war_host',
+            // Men in a crown's livery at your side: a realm's household guard (player/realmEscort.js)
+            crownMen: RealmEscort.men(player),
         };
     },
 
@@ -198,6 +201,8 @@ export const RoadEncounters = {
         if (Traits.has(player, 'craven')) c += p.craven;
         if (sit.hasArmy) c += Math.max(p.armyMin, Math.min(p.armyMax, (sit.armyStrength / sit.enemyStrength - 0.5) * p.armyRatio));
         if (sit.warHost) c += p.warHost;
+        // (outlaws think twice before crossing the crown's own men)
+        else if (sit.crownMen > 0) c += _num(p.crownLivery, 0.1);
         return RoadEncounters._foeChance(player, c);
     },
 

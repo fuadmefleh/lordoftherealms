@@ -15,6 +15,7 @@ import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { InnerMapEscort } from '../innerMapEscort.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 import { BareBushes } from '../bareBushes.js';
@@ -989,6 +990,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapTasks.collect(items, ctx, camera, T);
         // ── Phase 3e: A battle on this ground — the companies and the fallen (ui/innerMapBattle.js) ──
         InnerMapBattle.collect(items, ctx, camera, T);
+        // ── Phase 3f: The realm's household guard behind you (ui/innerMapEscort.js) ──
+        InnerMapEscort.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {

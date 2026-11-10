@@ -268,8 +268,9 @@ export const InnerMapBattle = {
         const skins = looks.skins || ['Peach'];
         const hairs = looks.hairs || ['Short 01 - Buzzcut/Brown'];
         const rab = ((looks.liveries || {}).rabble || [{ shirt: 'Brown', legs: 'Charcoal', paint: 'Brown', plume: 'Black' }]);
-        const h = _hash(`${c.side}:${c.kind}:${variant}`);
-        const liv = InnerMapBattle._livery(bf, c.side, opts) || rab[h % rab.length];
+        const h = _hash(`${c.side}:${c.kind}:${variant}${c.guard != null ? `:${c.guard}` : ''}`);
+        // (a realm's household guard riding with you wears its realm's livery: player/realmEscort.js)
+        const liv = (c.guard != null && InnerMapBattle._realmLivery(c.guard)) || InnerMapBattle._livery(bf, c.side, opts) || rab[h % rab.length];
         const fill = { skin: skins[h % skins.length], hair: hairs[(h >>> 4) % hairs.length], shirt: liv.shirt, legs: liv.legs || 'Charcoal', paint: liv.paint || 'Red', plume: liv.plume || 'White' };
         const layers = recipe.map(l => l.replace(/\{(\w+)\}/g, (_, k) => fill[k] || ''));
         // Your soldiers show the arms they were issued (systems/arms.js kits): one man of the company per variant

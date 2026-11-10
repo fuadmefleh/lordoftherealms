@@ -638,19 +638,21 @@ Object.assign(PlayerMilitary, {
 
         if (player.gold < cost) {
             // Can't pay - lose some units
-            const nonMercCount = (player.army || []).filter(unit => !unit.mercenary).length;
+            // (the realm's household guard is the crown's to pay, not yours: player/realmEscort.js)
+            const nonMercCount = (player.army || []).filter(unit => !unit.mercenary && unit.realmGuard == null).length;
             const unitsLost = Math.max(1, Math.ceil(nonMercCount * 0.1));
             for (let i = 0; i < unitsLost; i++) {
                 let removed = false;
                 for (let index = player.army.length - 1; index >= 0; index--) {
-                    if (!player.army[index].mercenary) {
+                    if (!player.army[index].mercenary && player.army[index].realmGuard == null) {
                         player.army.splice(index, 1);
                         removed = true;
                         break;
                     }
                 }
-                if (!removed && player.army.length > 0) {
-                    player.army.pop();
+                if (!removed) {
+                    const own = player.army.map(u => u.realmGuard == null).lastIndexOf(true);
+                    if (own >= 0) player.army.splice(own, 1);
                 }
             }
             result.paid = false;

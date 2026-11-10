@@ -721,6 +721,12 @@ export const Schemes = {
         if (scheme.guarded && def.guard && Utils.random() < def.guard.success) {
             return Schemes._settle(player, world, scheme, 'foiled', `Your guards turned back the ${def.name.toLowerCase()} on ${scheme.target.label}.`);
         }
+        // The household guard a realm keeps for you (player/realmEscort.js: companies in your army
+        // with unit.realmGuard) stands between thieves and assassins and your House
+        const foil = Number((((DataLoader._gamedata && DataLoader._gamedata.escort) || {}).deter || {}).schemeFoil?.[scheme.type]) || 0;
+        if (foil > 0 && (player.army || []).some(u => u && u.realmGuard != null) && Utils.random() < foil) {
+            return Schemes._settle(player, world, scheme, 'foiled', `Your household guard turned back the ${def.name.toLowerCase()} on ${scheme.target.label}.`);
+        }
         // Counter-espionage agents posted nearby may catch the plotters in the act
         if (Schemes.isCovered(player, scheme) && Utils.random() < Schemes.counterEspionageEffects().detectionBonus) {
             return Schemes._settle(player, world, scheme, 'foiled', `Your counter-espionage agents caught the plotters before they struck ${scheme.target.label}.`);

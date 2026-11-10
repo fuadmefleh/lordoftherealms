@@ -62,6 +62,7 @@ import { LandMarket } from '../systems/landMarket.js';
 import { Ledger } from '../systems/ledger.js';
 import { Kingship } from '../systems/kingship.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { RealmEscort } from './realmEscort.js';
 // (scenarios.js imports this module too: Scenarios is only reached inside functions, after both load)
 import { Scenarios } from './scenarios.js';
 
@@ -561,6 +562,7 @@ export const Generalship = {
             retinueLost = Array.isArray(cas) ? cas.length : _num(cas);
         }
         if (enemy) Harvests.noteBattle(world, enemy.id);
+        RealmEscort.afterBattle(player, !!outcome.victory);
         c.lastBattleDay = day;
         const res = { success: true, victory: !!outcome.victory, hostLost, enemyLost, retinueLost, spec };
         if (outcome.victory) {
@@ -1159,11 +1161,15 @@ export const Generalship = {
         if (_dist(world, player, k.capital) > 2) return { ok: false, reason: `March the host to ${k.name}'s capital first.` };
         const lts = c.lieutenants || [];
         const loyal = lts.length ? lts.reduce((s, lt) => s + lt.loyalty, 0) / lts.length : 50;
-        const rebels = Generalship.power(player, c) * (0.5 + loyal / 100);
-        const loyalists = Math.max(0, _num(k.military) - _num(c.men)) * _num(C.capitalDefense, 1.5) * (1 + LordInfluence.lean(k, 'martial') * 0.1);
+        // The crown's household guard riding with you (player/realmEscort.js): loyal enough, it
+        // joins the coup; else it stands with the crown it serves
+        const guard = RealmEscort.coupSide(player, k.id);
+        const guardPower = guard.joins ? 0 : guard.men * Generalship.quality(player, c);
+        const rebels = Math.max(0, Generalship.power(player, c) - guardPower) * (0.5 + loyal / 100);
+        const loyalists = (Math.max(0, _num(k.military) - _num(c.men)) * _num(C.capitalDefense, 1.5) + (guard.joins ? 0 : guard.men)) * (1 + LordInfluence.lean(k, 'martial') * 0.1);
         const betrayers = lts.filter(lt => lt.loyalty < _num(C.disloyalBelow, 40));
         const chance = Utils.clamp(rebels / Math.max(1, rebels + loyalists), _num(C.minChance, 0.05), _num(C.maxChance, 0.9));
-        return { ok: true, chance: _r2(chance), betrayers: betrayers.map(lt => lt.name), rebels: Math.round(rebels), loyalists: Math.round(loyalists) };
+        return { ok: true, chance: _r2(chance), betrayers: betrayers.map(lt => lt.name), rebels: Math.round(rebels), loyalists: Math.round(loyalists), guard };
     },
 
     /** Turn the host on the crown. */
@@ -1186,6 +1192,8 @@ export const Generalship = {
             const kids = data && Array.isArray(data.children) ? data.children.filter(x => x && x.isAlive !== false) : [];
             const heirApparent = kids.filter(x => _num(x.age) >= 14).sort((a, b) => _num(b.age) - _num(a.age))[0] || null;
             const rival = c.rival;
+            // A guard that stood with the old crown is gone; one that joined becomes the royal guard
+            if (odds.guard && odds.guard.men && !odds.guard.joins) RealmEscort.end(player, world, 'loyal', null, { lostShare: 1 });
             Generalship._end(player, world, 'crowned', null);
             Throne._takeThrone(player, world, k);
             // The cast-down ruler: deposed, and dead in the fighting at the gates or fled
@@ -1203,6 +1211,8 @@ export const Generalship = {
         }
         // Crushed: the mutinous men are cut down or scattered; the would-be usurper flees
         k.military = Math.max(0, _num(k.military) - Math.round(_num(c.men) * _num(C.failLoss, 0.5)));
+        // ...the guard with them if it joined; a loyal guard rides home to the crown
+        if (odds.guard && odds.guard.men) RealmEscort.end(player, world, 'treason', null, { lostShare: odds.guard.joins ? _num(C.failLoss, 0.5) : 0 });
         Generalship._end(player, world, 'traitor', null);
         Throne.state(player).exile[k.id] = day + _num(C.exileDays, 720);
         if (!player.reputation) player.reputation = {};
@@ -1226,7 +1236,8 @@ export const Generalship = {
      */
     _seatCoupCourt(player, world, k, ctx = {}) {
         const o = ((Generalship.config().coup || {}).court) || {};
-        const guard = Scenarios._armyFromRealm(player, k, o.guard);
+        // (the crown's household guard: player/realmEscort.js — a guard that joined the coup stays in it)
+        const guard = RealmEscort.raise(player, world, k, 'crown', o.guard, { cap: false }).units;
         const { court, pretender, restless } = Scenarios.seatCourt(player, world, k, o, { old: ctx.old, heirApparent: ctx.heirApparent });
         const r = ctx.rival;
         if (r && court && Array.isArray(court.vassals)) {

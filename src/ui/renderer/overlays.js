@@ -102,6 +102,38 @@ Object.assign(Renderer.prototype, {
             drawIcon(ctx, 'person', screen.x, screen.y, glyphSize, '#f4efe4', 2);
         }
 
+        // The realm's household guard riding with you (player/realmEscort.js): a small token in the
+        // realm's colours at your shoulder, the men counted beside it
+        const guard = !isDead && this.player.realmEscort && this.player.realmEscort.guard;
+        if (guard && !this.player.boardedShip) {
+            const k = this.world && typeof this.world.getKingdom === 'function' ? this.world.getKingdom(guard.kingdomId) : null;
+            const men = (this.player.army || []).reduce((s, u) => s + (u && u.realmGuard != null ? (u.strength || 0) : 0), 0);
+            if (men > 0) {
+                const gr = Math.max(6, renderSize * 0.17);
+                const gx = screen.x + renderSize * 0.42, gy = screen.y + renderSize * 0.22;
+                ctx.beginPath();
+                ctx.arc(gx, gy, gr, 0, Math.PI * 2);
+                ctx.fillStyle = (k && k.color) || '#43301a';
+                ctx.fill();
+                ctx.strokeStyle = '#ffe08a';
+                ctx.lineWidth = 1.5 * this.camera.zoom;
+                ctx.stroke();
+                drawIcon(ctx, 'helm', gx, gy, gr * 1.35, '#fff6d8', 1.6);
+                if (this.camera.zoom > 0.6) {
+                    ctx.save();
+                    ctx.font = `700 ${Math.max(8, gr * 0.95)}px 'Inter', sans-serif`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+                    ctx.strokeText(String(men), gx + gr + 2, gy);
+                    ctx.fillStyle = '#ffe08a';
+                    ctx.fillText(String(men), gx + gr + 2, gy);
+                    ctx.restore();
+                }
+            }
+        }
+
         // Plumbob above player on world map
         if (isDead) {
             this._drawWorldDeadPlumbob(ctx, screen.x, screen.y - renderSize * 0.55, renderSize);

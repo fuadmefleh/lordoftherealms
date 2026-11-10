@@ -57,6 +57,7 @@ const topLevel = [
     'crafting',
     'mercenaryContracts',
     'generalship',
+    'escort',
     'devotion',
     'books',
     'feasts',

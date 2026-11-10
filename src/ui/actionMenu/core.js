@@ -1108,6 +1108,9 @@ Object.assign(ActionMenu, {
             case 'army_command':
                 ActionMenu.showArmyCommand(game);
                 break;
+            case 'household_guard':
+                ActionMenu.showHouseholdGuard(game);
+                break;
             case 'realm_wars':
                 ActionMenu.showRealmWarsMenu(game, tile);
                 break;

@@ -35,6 +35,7 @@ import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Difficulty } from '../core/difficulty.js';
 import { PlayerMilitary } from './playerMilitary.js';
+import { RealmEscort } from './realmEscort.js';
 import { PlayerEffects } from './playerEffects.js';
 import { Technology } from '../systems/technology.js';
 import { Housing } from '../systems/housing.js';
@@ -536,6 +537,8 @@ export const FieldBattle = {
         if (!withdrew) Companions.onBattle(player, victory, { enemyName: battle.enemyName, roleOf: n => PlayerEffects.companionRole(n) }, world);
         // The commanding child's record and fate (wounded, captured, killed)
         if (!withdrew) HeirAgency.onBattle(player, world, victory, battle.enemyName);
+        // The realm's household guard riding with you: its morale and loyalty (player/realmEscort.js)
+        if (!withdrew && battle.theatre !== 'sea') RealmEscort.afterBattle(player, victory);
         if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
         // The bowmen loosed their arrows and bolts (on the battlefield, the volleys each company
         // loosed: battle.volleys, player/battlefield.js); a won field gives some back (systems/arms.js)

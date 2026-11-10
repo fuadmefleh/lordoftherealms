@@ -391,6 +391,8 @@ export const SaveLoad = {
         'library',
         // A commission in a realm's army, and the ones laid down (player/generalship.js)
         'commission', 'commissionPast',
+        // The household guard a realm keeps for its lords and its crown (player/realmEscort.js; its companies ride in player.army)
+        'realmEscort',
         // Lots, rented and bought houses in town (systems/lots.js: rent day reads it)
         'lotHoldings',
         // The month's rents taken and paid, for the rent-day summary (systems/lots.js)

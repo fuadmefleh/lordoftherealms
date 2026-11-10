@@ -197,6 +197,15 @@ export const NPCLords = {
             }
         }
 
+        // A realm the player rules is the player's to run: the old AI lord's
+        // will (its goals and their standing effects: wars, peace, tribute,
+        // temples, pioneers) gives way to the crown's own policies, council
+        // and edicts (systems/throne.js, systems/kingship.js)
+        if (kingdom.crown && kingdom.crown.playerRuled) {
+            kingdom.lordModifiers = {};
+            return;
+        }
+
         // Standing effects of the lord's goals (stability, armies, truces, law)
         NPCLords.updateModifiers(kingdom);
 

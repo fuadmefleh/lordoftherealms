@@ -21,6 +21,27 @@
 //     sea (Pirates.addInfamy: hunters come at 25).
 //   - Sellsword Captain: a company (player.army, wages every day), a debt to
 //     a crown paid daily through Finance, standing as a sellsword.
+// Advanced starts (data/scenarios.json group 'advanced') begin high in the
+// world, taking over what the world already holds (nothing is minted):
+//   - The Monarch: a generated realm's crown (Throne._takeThrone): its
+//     treasury, army, court, laws and dynasty are the player's to run; the
+//     late AI monarch is dead (no second ruler), the realm's AI stops acting
+//     for it (world/kingdomAI.js, world/npcLords.js), a royal guard comes out
+//     of the realm's host, the old court's officers keep their council seats
+//     (Kingship), a consort and heirs; the late monarch's child is a vassal
+//     and pretender, the ambitious lords are restless, a neighbour backs them.
+//   - The High Priest: heads a world faith (player.religion with
+//     worldFaithId: every faith panel and leader action works on it): the
+//     great temple of a holy city, the church's estates there (rents from the
+//     town's own coin), tithes from the faithful realms' treasuries
+//     (PlayerReligion.collectTithes), clergy standing, a heresy loose in the
+//     see's realm and a zealous rival faith's realm as a feuding House.
+//   - The Great Lord: head of the realm's greatest noble house (its estates
+//     pass to the player, LandMarket), household knights out of the realm's
+//     host, a cadet blood claim, a jealous crown (feud).
+//   - The Guildmaster: elected master of a great town's guild (Guilds), its
+//     hall and stipend, an election soon with a challenger canvassing.
+// Challenge numbers scale with the difficulty's hostility knob.
 // Then the difficulty's starting-gold knob scales the purse (Normal: none).
 // The record lives on player.scenario (core/difficulty.js). Origins are
 // data: data/scenarios.json → origins. Randomness through Utils only; the
@@ -40,6 +61,13 @@ import { Finance } from '../systems/finance.js';
 import { Victory } from '../systems/victory.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { MercContracts } from './mercContracts.js';
+import { PlayerReligion } from './playerReligion.js';
+import { Kingship } from '../systems/kingship.js';
+import { Relationships } from '../systems/relationships.js';
+import { Religion } from '../systems/religion.js';
+import { Devotion } from '../systems/devotion.js';
+import { LandMarket } from '../systems/landMarket.js';
+import { Estates } from '../world/estates.js';
 
 const FALLBACK = {
     wanderer: {
@@ -112,7 +140,7 @@ export const Scenarios = {
     /** The choices the New Game screen offers: { origins, difficulties, victories } as arrays. */
     choices() {
         return {
-            origins: Object.values(Scenarios.origins()).map(o => ({ id: o.id, name: o.name, icon: o.icon, blurb: o.blurb, suggestedVictory: o.suggestedVictory || 'none', guidedStart: o.guidedStart !== false })),
+            origins: Object.values(Scenarios.origins()).map(o => ({ id: o.id, name: o.name, icon: o.icon, blurb: o.blurb, group: o.group || 'origin', suggestedVictory: o.suggestedVictory || 'none', guidedStart: o.guidedStart !== false })),
             difficulties: Object.values(Difficulty.levels()).map(d => ({ id: d.key, name: d.name, blurb: d.blurb || '' })),
             victories: Object.values(Victory.defs()).map(v => ({ id: v.id, name: v.name, icon: v.icon, blurb: v.blurb })),
         };
@@ -316,6 +344,396 @@ export const Scenarios = {
         Object.assign(vars, { town: home.s.name, men: `${men} sellswords`, debt, lender });
     },
 
+    // ── Advanced starts ─────────────────────────────────
+
+    /** How hard the start's challenge bites: the difficulty's hostility knob (Normal 1). */
+    _bite(player) {
+        return Difficulty.mult(player, 'hostility');
+    },
+
+    /** Renown, Prestige, karma, stats, skills: the common part of an advanced start. */
+    _standing(player, world, o, why) {
+        Scenarios._train(player, o);
+        if (_num(o.renown)) player.renown = _num(player.renown) + _num(o.renown);
+        if (_num(o.karma)) player.karma = _num(player.karma) + _num(o.karma);
+        if (player.house && _num(o.prestige) > 0) House.award(player.house, _num(o.prestige), why, _day(world));
+    },
+
+    /**
+     * Men drawn out of a realm's own host into the player's army: each unit's
+     * strength leaves kingdom.military (never more than it has), so nothing
+     * is raised from nowhere. Returns the units' count.
+     */
+    _armyFromRealm(player, kingdom, spec) {
+        if (!Array.isArray(player.army)) player.army = [];
+        let pool = Math.max(0, Math.floor(_num(kingdom && kingdom.military)));
+        let men = 0;
+        for (const [type, n] of Object.entries(_obj(spec) || {})) {
+            const def = PlayerMilitary.getUnitDef(type);
+            if (!def) continue;
+            for (let i = 0; i < Math.max(0, Math.floor(_num(n))); i++) {
+                const str = _num(def.strength, 10);
+                if (pool < str) break;
+                pool -= str;
+                player.army.push(PlayerMilitary.makeArmyUnit(def));
+                men++;
+            }
+        }
+        if (kingdom) kingdom.military = pool;
+        return men;
+    },
+
+    /** The realm nearest the player with at least `min` settlements (fewer if none has so many), or null. */
+    _nearestRealm(world, player, min, filter = null) {
+        const towns = _towns(world);
+        for (let need = min; need >= 1; need--) {
+            let best = null;
+            let bd = Infinity;
+            for (const k of _alive(world)) {
+                if (filter && !filter(k)) continue;
+                if (towns.filter(t => t.s.kingdom === k.id).length < need) continue;
+                const d = _dist(world, k.capital, player);
+                if (d < bd) { bd = d; best = k; }
+            }
+            if (best) return best;
+        }
+        return null;
+    },
+
+    /** A neutral steward's temperament for a realm the player now runs (kingdom.lord). */
+    _stewardLord(player, kingdom) {
+        const ruler = Throne._playerRuler(player, kingdom);
+        const ten = v => Utils.clamp(Math.round(_num(v, 8) / 2), 1, 10);
+        const old = _obj(kingdom.lord) || {};
+        kingdom.lord = {
+            ...old,
+            name: kingdom.ruler,
+            kingdomId: kingdom.id,
+            age: _num(player.age, 30),
+            traits: [], goals: [],
+            ambition: 5, honor: 6, intelligence: Utils.clamp(Math.round(_num(player.intelligence, 5)), 1, 10),
+            martial: ten(ruler.skills.martial), diplomacy: ten(ruler.skills.diplomacy), stewardship: ten(ruler.skills.stewardship),
+        };
+        kingdom.lordModifiers = {};
+    },
+
+    /**
+     * A consort and heirs for a crowned player old enough to have them (the
+     * heir system's own spouse and children: Relationships). Returns
+     * { spouse, children }.
+     */
+    _royalFamily(player, world, kingdom, o) {
+        const out = { spouse: null, children: [] };
+        const age = _num(player.age, 20);
+        const from = _num(o.spouseFromAge, 22);
+        if (age < from || player.spouse) return out;
+        const Y = (Relationships._getHeirSettings().daysPerYear) || 120;
+        const yearsWed = Utils.clamp(age - from + 1, 1, 15);
+        const pool = (Characters.FIRST_NAMES && (Characters.FIRST_NAMES[kingdom.culture] || Characters.FIRST_NAMES.Imperial)) || null;
+        const names = pool ? pool[player.gender === 'female' ? 'male' : 'female'] : null;
+        const first = names && names.length ? Utils.randPick(names) : 'Rowan';
+        const wed = { gender: player.gender, age, upbringing: { spouse: { kind: 'alliance', kingdomId: kingdom.id, kingdomName: kingdom.name, name: first, day: _day(world) - yearsWed * Y } } };
+        const spouse = Relationships._seatHeirSpouse(player, wed, world);
+        out.spouse = spouse;
+        if (!spouse) return out;
+        out.children = Relationships._heirsOwnChildren(player, wed, spouse, world);
+        // A crown wants an heir: at least one child of the marriage
+        if (!out.children.length) {
+            const kid = Relationships.generateChild(player, spouse, world, { quiet: true });
+            kid.age = Math.max(1, Math.min(yearsWed, 12));
+            kid.birthDay = _day(world) - kid.age * Y;
+            out.children.push(kid);
+        }
+        return out;
+    },
+
+    _monarch(player, world, o, vars) {
+        const day = _day(world);
+        const k = Scenarios._nearestRealm(world, player, 3);
+        if (!k) return;
+        const data = k.characterData;
+        const old = data && data.ruler && !data.ruler.isPlayer ? data.ruler : null;
+        const oldRuler = k.ruler || 'The old monarch';
+        // The late monarch's eldest child (14 or more) will say the throne is theirs
+        const kids = data && Array.isArray(data.children) ? data.children.filter(c => c && c.isAlive !== false) : [];
+        const heirApparent = kids.filter(c => _num(c.age) >= 14).sort((a, b) => _num(b.age) - _num(a.age))[0] || null;
+        // The late monarch dies: one ruler only, and it is the player
+        if (old) {
+            old.isAlive = false;
+            old.isRuler = false;
+            old.deathDay = day;
+        }
+        const cap = world.getTile(k.capital.q, k.capital.r);
+        Scenarios._moveTo(player, world, k.capital.q, k.capital.r);
+        Throne._takeThrone(player, world, k);
+        Throne.state(player).ruling.inherited = true;
+        Scenarios._stewardLord(player, k);
+        Scenarios._standing(player, world, o, `crowned in ${k.name}`);
+        Throne._log(player, world, `👑 ${oldRuler} is dead. ${k.ruler} is crowned in ${k.name}.`);
+        // A royal guard out of the realm's own host
+        const men = Scenarios._armyFromRealm(player, k, o.guard);
+        // A consort and heirs
+        const fam = Scenarios._royalFamily(player, world, k, o);
+        // The court: the realm's lords swear fealty, the old officers keep their seats
+        const court = Kingship.court(player);
+        Kingship._generateVassals(player, world, k, court);
+        court.initialized = true;
+        court.lastNewVassalDay = day;
+        for (const office of Kingship.OFFICES) {
+            const pick = Kingship.candidates(player, world, office).find(c => c.kind === 'courtier' && !c.office);
+            if (pick) Kingship.appoint(player, world, office, 'courtier', pick.id);
+        }
+        // The challenge: the old line's pretender and the restless great lords
+        const bite = Scenarios._bite(player);
+        const pv = court.vassals.find(v => v.seat) || court.vassals[0] || null;
+        let pretender = null;
+        if (pv) {
+            if (heirApparent) {
+                Object.assign(pv, { firstName: heirApparent.firstName, dynasty: heirApparent.dynasty || pv.dynasty, gender: heirApparent.gender || pv.gender, age: _num(heirApparent.age, pv.age) });
+                // (the prince is a lord of the court now, no longer a royal child)
+                if (data) data.children = data.children.filter(c => c !== heirApparent);
+            } else if (old && old.dynasty) {
+                pv.dynasty = old.dynasty; // a cousin of the old line
+            }
+            pv.pretender = true;
+            pv.ambition = 10;
+            pv.honor = Math.min(_num(pv.honor, 5), 3);
+            pv.grudge = Math.round(_num(o.pretenderGrudge, -45) * bite);
+            pretender = Kingship.fullName(pv);
+        }
+        let restless = 0;
+        for (const v of court.vassals) {
+            if (v === pv || _num(v.ambition) < _num(o.restlessAmbition, 6)) continue;
+            v.grudge = Math.round(_num(v.grudge) + _num(o.restlessGrudge, -22) * bite);
+            restless++;
+        }
+        for (const v of court.vassals) v.opinion = Math.round(Kingship.opinion(player, world, v).target);
+        Kingship.refresh(player, world);
+        // Your own realm is no rival House of yours; a neighbour backs the pretender
+        if (player.house && player.house.rivals) delete player.house.rivals[k.id];
+        const nb = _alive(world).filter(x => x.id !== k.id).sort((a, b) => _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] || null;
+        if (nb) {
+            const dyn = nb.characterData && nb.characterData.dynasty;
+            Scenarios._rival(player, world, nb, dyn && dyn.name ? `House ${dyn.name}` : nb.name, Math.round(_num(o.neighbourFeud, 35) * bite));
+            if (k.relations) k.relations[nb.id] = Math.min(_num(k.relations[nb.id]), -20);
+            if (nb.relations) nb.relations[k.id] = Math.min(_num(nb.relations[k.id]), -20);
+        }
+        player.scenario.realm = k.id;
+        player.scenario.start = { kind: 'monarch', kingdomId: k.id, oldRuler, pretender, restless, guard: men, family: fam.children.length + (fam.spouse ? 1 : 0) };
+        Object.assign(vars, {
+            kingdom: k.name, title: player.title, oldRuler, treasury: Math.floor(_num(k.treasury)).toLocaleString('en-US'),
+            army: Math.floor(_num(k.military)).toLocaleString('en-US'), lords: court.vassals.length,
+            pretender: pretender || 'a cousin of the old line', neighbour: nb ? nb.name : 'no foreign power',
+            town: cap && cap.settlement ? cap.settlement.name : k.name,
+        });
+    },
+
+    /** The player's tenets for a world faith they lead (its virtues, as a founder's tenets). */
+    _faithTenets(faith) {
+        const v = (faith && faith.virtues) || {};
+        const picks = [];
+        if (_num(v.militancy) >= 2) picks.push('Valor');
+        if (_num(v.scholarship) >= 2) picks.push('Wisdom');
+        if (_num(v.unity) >= 2) picks.push('Justice');
+        if (_num(v.militancy) === 0) picks.push('Peace');
+        picks.push('Charity', 'Humility');
+        const known = Religion.PLAYER_TENETS && Object.keys(Religion.PLAYER_TENETS).length ? Religion.PLAYER_TENETS : null;
+        return [...new Set(picks)].filter(t => !known || known[t]).slice(0, 3);
+    },
+
+    _highPriest(player, world, o, vars) {
+        const day = _day(world);
+        const k = Scenarios._nearestRealm(world, player, 2, x => x.religion && Religion.FAITHS[x.religion.faithId]);
+        if (!k) return;
+        const faith = Religion.FAITHS[k.religion.faithId];
+        const cap = world.getTile(k.capital.q, k.capital.r);
+        if (!cap || !cap.settlement) return;
+        const s = cap.settlement;
+        const q = k.capital.q;
+        const r = k.capital.r;
+        Scenarios._moveTo(player, world, q, r);
+        Scenarios._standing(player, world, o, `raised to head ${faith.name}`);
+        const title = (player.gender === 'male' && o.titleMale) ? o.titleMale : (o.title || 'High Priest');
+        player.title = `${title} of ${faith.name}`;
+        // The see: the faith, led. Every faith panel and leader action reads player.religion
+        player.religion = {
+            name: faith.name,
+            worldFaithId: faith.id,
+            tenets: Scenarios._faithTenets(faith),
+            followers: 0, buildings: [], influence: 0, founded: false, presence: {},
+            see: { kingdomId: k.id, q, r, town: s.name, since: day },
+            titheShare: _num(o.titheShare, 0.15), titheRevenueShare: _num(o.titheRevenueShare, 0.03), titheTotal: 0,
+        };
+        const rel = player.religion;
+        // The great temple: the realm's own cathedral passes to the see, if it raised one
+        const temples = Array.isArray(k.temples) ? k.temples : [];
+        const ti = temples.findIndex(t => t && t.type === 'cathedral');
+        if (ti >= 0) temples.splice(ti, 1);
+        const def = PlayerReligion.BUILDING_TYPES.TEMPLE;
+        cap.religiousBuilding = {
+            type: def.id, name: `Great Temple of ${s.name}`, icon: def.icon, religion: rel.name,
+            faithGain: def.faithGain, influenceRadius: def.influenceRadius, karmaBonus: 0, scholarshipBonus: 0,
+            incomeBonus: 0, renownPerDay: 0, followers: 0, level: 1,
+            underConstruction: false, constructionDaysLeft: 0, constructionDaysTotal: 0, see: true,
+        };
+        rel.buildings.push({ q, r, type: def.id, see: true });
+        // The flock: the holy city devoted, the realm's other towns a share by its piety
+        const piety = Utils.clamp(_num(k.religion.piety, 50) / 100, 0, 1);
+        let followers = 0;
+        for (const t of _towns(world)) {
+            if (t.s.kingdom !== k.id) continue;
+            const seat = t.q === q && t.r === r;
+            const share = seat ? _num(o.seatShare, 0.45) : _num(o.realmShare, 0.15) * (0.5 + piety);
+            rel.presence[`${t.q},${t.r}`] = Math.round(Math.min(0.9, share) * 1000) / 1000;
+            // (the faithful who come to the see's own altar: its followers, who give alms)
+            if (seat) followers += Math.floor(_num(t.s.population) * share * _num(o.followerShare, 0.1));
+        }
+        rel.followers = followers;
+        cap.religiousBuilding.followers = followers;
+        rel.influence = Math.floor(followers / 100);
+        // The clergy know their head (Devotion standing with the faith)
+        const dv = Devotion.state(player);
+        dv.faithId = faith.id;
+        dv.faithSince = day;
+        dv.standing[faith.id] = Math.max(_num(dv.standing[faith.id]), _num(o.faithStanding, 60));
+        // The ear of kings: every realm of the faith
+        for (const x of _alive(world)) {
+            if (x.religion && x.religion.faithId === faith.id) player.reputation[x.id] = _num(player.reputation[x.id]) + _num(o.reputation);
+        }
+        // The church's estates nearest the see are the see's: their rents are the faith's coffers
+        let estates = 0;
+        if (Estates.enabled()) {
+            Estates.derive(world, day);
+            const church = [];
+            for (const t of _towns(world)) {
+                if (t.s.kingdom !== k.id) continue;
+                for (const e of Estates.estatesOf(world, t.q, t.r)) {
+                    if (e.holder === `church:${k.id}`) church.push({ e, d: _dist(world, t, { q, r }) });
+                }
+            }
+            church.sort((a, b) => a.d - b.d || String(a.e.id).localeCompare(String(b.e.id)));
+            for (const { e } of church.slice(0, Math.max(0, Math.floor(_num(o.churchEstates, 3))))) {
+                LandMarket._setHolder(world, e, 'player', day);
+                e.church = true;
+                estates++;
+            }
+        }
+        // The challenge: a heresy loose in the see's realm, and a zealous rival faith
+        const bite = Scenarios._bite(player);
+        Religion.spawnHeresy(k, world);
+        const heresy = Religion.strongestHeresy(k);
+        if (heresy) heresy.strength = Math.max(_num(heresy.strength), Math.round(_num(o.heresyStrength, 28) * bite));
+        const militancy = x => _num(Religion.FAITHS[x.religion.faithId].virtues && Religion.FAITHS[x.religion.faithId].virtues.militancy);
+        const zealots = _alive(world).filter(x => x.id !== k.id && x.religion && x.religion.faithId !== faith.id && Religion.FAITHS[x.religion.faithId])
+            .sort((a, b) => militancy(b) - militancy(a) || _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] || null;
+        let rival = null;
+        if (player.house && player.house.rivals) delete player.house.rivals[k.id];
+        if (zealots) {
+            const zf = Religion.FAITHS[zealots.religion.faithId];
+            rival = `${zf.name} of ${zealots.name}`;
+            const dyn = zealots.characterData && zealots.characterData.dynasty;
+            Scenarios._rival(player, world, zealots, dyn && dyn.name ? `House ${dyn.name}, zealots of ${zf.name}` : `the zealots of ${zealots.name}`, Math.round(_num(o.rivalFeud, 35) * bite));
+            player.reputation[zealots.id] = Math.min(_num(player.reputation[zealots.id]), -15);
+        }
+        player.scenario.realm = k.id;
+        player.scenario.start = { kind: 'high_priest', kingdomId: k.id, faithId: faith.id, seat: { q, r, town: s.name }, estates, heresy: heresy ? heresy.name : null };
+        Object.assign(vars, {
+            title, faith: faith.name, temple: cap.religiousBuilding.name,
+            town: s.name, kingdom: k.name, heresy: heresy ? heresy.name : 'heresy', rival: rival || 'the unbelievers', estates,
+            estatesLine: estates > 0 ? `, and ${estates === 1 ? 'a church estate pays its rents' : `${estates} church estates pay their rents`} into its coffers` : '',
+        });
+    },
+
+    _greatLord(player, world, o, vars) {
+        const day = _day(world);
+        const k = Scenarios._nearestRealm(world, player, 2);
+        if (!k) return;
+        const isCap = t => t.q === k.capital.q && t.r === k.capital.r;
+        const mine = _towns(world).filter(t => t.s.kingdom === k.id);
+        const seat = mine.filter(t => !isCap(t)).sort((a, b) => _num(b.s.population) - _num(a.s.population))[0] || mine[0] || null;
+        if (!seat) return;
+        Scenarios._moveTo(player, world, seat.q, seat.r);
+        Scenarios._standing(player, world, o, `head of a great house of ${k.name}`);
+        const title = (player.gender === 'male' && o.titleMale) ? o.titleMale : (o.title || 'Lord');
+        player.title = `${title} of ${seat.s.name}`;
+        player.allegiance = k.id;
+        player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
+        // The realm's greatest noble house's estates are the player's
+        let estates = 0;
+        if (Estates.enabled()) {
+            Estates.derive(world, day);
+            const st = Estates.state(world);
+            const counts = {};
+            for (const e of Object.values(st.estates)) {
+                if (!e || Estates.kindOf(e.holder) !== 'noble') continue;
+                const h = Estates.ensureHolder(world, e.holder);
+                if (String(h.kid) !== String(k.id)) continue;
+                counts[e.holder] = (counts[e.holder] || 0) + 1;
+            }
+            // (the seat's own noble house first on a tie)
+            const atSeat = new Set(Estates.estatesOf(world, seat.q, seat.r).map(e => e.holder));
+            const house = Object.keys(counts).sort((a, b) => counts[b] - counts[a]
+                || (atSeat.has(b) ? 1 : 0) - (atSeat.has(a) ? 1 : 0) || a.localeCompare(b))[0];
+            if (house) {
+                for (const e of Estates.heldBy(world, house)) {
+                    LandMarket._setHolder(world, e, 'player', day);
+                    estates++;
+                }
+            }
+        }
+        // Household knights who rode in the realm's host
+        const men = Scenarios._armyFromRealm(player, k, o.retinue);
+        // A cadet line of the blood
+        const claim = Throne.grantClaim(player, world, k.id, 'blood', _num(o.claim, 20));
+        // The crown fears an overmighty subject
+        const dyn = k.characterData && k.characterData.dynasty;
+        Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the crown` : `the crown of ${k.name}`, Math.round(_num(o.crownFeud, 30) * Scenarios._bite(player)));
+        player.scenario.realm = k.id;
+        player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, retinue: men };
+        Object.assign(vars, { title, town: seat.s.name, kingdom: k.name, estates, claim, ruler: k.ruler || 'The crown' });
+    },
+
+    _guildmaster(player, world, o, vars) {
+        const day = _day(world);
+        const cands = [];
+        for (const t of _towns(world)) {
+            if (!['city', 'capital', 'town'].includes(t.s.type)) continue;
+            if (!Number.isFinite(t.s.q)) { t.s.q = t.q; t.s.r = t.r; }
+            if (Guilds.ensureTown(world, t.s, day)) cands.push(t);
+        }
+        if (!cands.length) return;
+        // The greatest guild towns, then the nearest of them to where the road began
+        const rank = { capital: 0, city: 1, town: 2 };
+        const home = cands.slice().sort((a, b) => (rank[a.s.type] - rank[b.s.type]) || (_dist(world, a, player) - _dist(world, b, player)))
+            .slice(0, 6).sort((a, b) => _dist(world, a, player) - _dist(world, b, player))[0];
+        Scenarios._moveTo(player, world, home.q, home.r);
+        const gids = Object.keys(home.s.guilds || {}).filter(gid => Guilds.def(gid));
+        const gid = gids.slice().sort((a, b) => _num(Guilds.guild(home.s, b).treasury) - _num(Guilds.guild(home.s, a).treasury) || a.localeCompare(b))[0];
+        if (!gid) return;
+        const tile = world.getTile(home.q, home.r);
+        // The entry fee goes into the hall, as anyone's does
+        const joined = Guilds.join(player, world, tile, gid);
+        if (!joined.success) return;
+        const g = Guilds.guild(home.s, gid);
+        const m = Guilds.membership(player, home.s, gid);
+        const st = Guilds.state(player);
+        m.rank = 3;
+        m.rankSince = day;
+        m.standing = _num(o.standing, 45);
+        st.stats.bestRank = Math.max(_num(st.stats.bestRank, -1), 3);
+        const before = g.master ? g.master.name : null;
+        g.master = { name: player.name || 'you', player: true };
+        g.nextElection = day + Math.max(7, Math.floor(_num(o.electionDays, 45)));
+        Guilds._log(st, world, `Elected guildmaster of the ${g.name}${before ? `, after ${before}` : ''}.`);
+        const goods = Guilds.def(gid).goods || [];
+        if (goods[0] && _num(o.stock) > 0) player.inventory[goods[0]] = _num(player.inventory[goods[0]]) + Math.floor(_num(o.stock));
+        Scenarios._standing(player, world, o, `elected master of the ${g.name}`);
+        player.title = `${o.title || 'Guildmaster'} of the ${g.name}`;
+        const cand = Guilds.candidates(home.s, g);
+        player.scenario.start = { kind: 'guildmaster', town: home.s.name, q: home.q, r: home.r, guild: gid };
+        Object.assign(vars, { guild: g.name, town: home.s.name, treasury: Math.floor(_num(g.treasury)).toLocaleString('en-US'), election: g.nextElection, challenger: cand.challenger });
+    },
+
     /**
      * Shape the new player by their Origin and record the scenario.
      * opts: { origin, difficulty, victory, guidedStart }. Unknown ids fall
@@ -346,6 +764,10 @@ export const Scenarios = {
             exiled_monarch: Scenarios._exiledMonarch,
             pirate_widow: Scenarios._pirateWidow,
             sellsword: Scenarios._sellsword,
+            monarch: Scenarios._monarch,
+            high_priest: Scenarios._highPriest,
+            great_lord: Scenarios._greatLord,
+            guildmaster: Scenarios._guildmaster,
         }[origin.id];
         // The origin's purse (data/scenarios.json `gold`); the shapes below may set their own
         if (origin.gold != null) player.gold = _num(origin.gold);

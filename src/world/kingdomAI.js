@@ -104,8 +104,10 @@ export const KingdomAI = {
             TradeRoutes.establishRoutes(kingdom, world);
         }
 
-        // Consider diplomatic actions
-        if (Utils.random() < 0.3) {
+        // Consider diplomatic actions — a realm the player rules sends envoys
+        // only on its ruler's word (Throne: alliances, gifts, peace), so the
+        // draw is kept (the stream stays put) but its court does not act
+        if (Utils.random() < 0.3 && !KingdomAI.isPlayerRuled(kingdom)) {
             KingdomAI.considerDiplomacy(kingdom, world);
         }
 
@@ -432,8 +434,9 @@ export const KingdomAI = {
         }
         kingdom.relations[target.id] = Utils.clamp(currentRelation + change, -100, 100);
 
-        // Form alliance if relations are very good
-        if (kingdom.relations[target.id] > 70 && !kingdom.allies.includes(target.id)) {
+        // Form alliance if relations are very good (never with the player's
+        // realm: its ruler signs alliances in person, Throne.proposeAlliance)
+        if (kingdom.relations[target.id] > 70 && !kingdom.allies.includes(target.id) && !KingdomAI.isPlayerRuled(target)) {
             kingdom.allies.push(target.id);
             target.allies.push(kingdom.id);
 
@@ -505,6 +508,11 @@ export const KingdomAI = {
                 type: 'military'
             });
         }
+    },
+
+    /** Does the player sit this realm's throne (kingdom.crown, systems/throne.js)? */
+    isPlayerRuled(kingdom) {
+        return !!(kingdom && kingdom.crown && kingdom.crown.playerRuled);
     },
 
     /** The living kingdom the player rules (kingdom.crown, systems/throne.js), or null. */

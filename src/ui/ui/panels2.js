@@ -37,6 +37,7 @@ Object.assign(UI.prototype, {
             html += `
                 <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
                     <div style="font-size: 18px; color: var(--gold); font-family: var(--font-display);">${player.religion.name}</div>
+                    ${player.religion.see ? `<div style="font-size: 12px; color: var(--text-secondary);">⛪ You head this faith from the see of ${player.religion.see.town}${player.religion.titheTotal ? ` · ${Utils.formatNumber(Math.round(player.religion.titheTotal))} gold in tithes so far` : ''}</div>` : ''}
                     <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Tenets:</div>
                     ${tenetLines}
                     <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 13px; flex-wrap: wrap;">
@@ -93,7 +94,7 @@ Object.assign(UI.prototype, {
             const activeFaiths = Object.values(Religion.FAITHS).filter(f => !f.extinct);
             const knownActiveFaiths = activeFaiths.filter(faith => {
                 // Always show player's own faith
-                if (player.religion && player.religion.faithId === faith.id) return true;
+                if (player.religion && (player.religion.faithId === faith.id || player.religion.worldFaithId === faith.id)) return true;
                 // Show if the player knows the religion of any kingdom that practices this faith
                 return world.kingdoms.some(k => k.isAlive && k.religion && k.religion.faithId === faith.id && player.knowsAbout(k.id, 'religion'));
             });

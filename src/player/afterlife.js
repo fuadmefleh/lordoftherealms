@@ -599,9 +599,12 @@ export const Afterlife = {
      * @returns {{ estates, leases, farms, works, properties, colonies, swept }}
      */
     escheat(old, world) {
-        const out = { estates: 0, leases: 0, farms: 0, works: 0, properties: 0, colonies: 0, swept: 0 };
+        const out = { estates: 0, leases: 0, farms: 0, works: 0, properties: 0, colonies: 0, swept: 0, crown: null };
         if (!world) return out;
         const day = _num(world.day);
+
+        // A crown the House wore goes back to the realm (its old line, else a kinsman)
+        if (old && old.throne && old.throne.ruling) out.crown = Throne.passCrown(old, world, 'the line ended');
 
         // Estates go to the crown of the town's realm (Estates keeps its holders' index true)
         const est = _obj(world.estates);

@@ -11,6 +11,9 @@
 //                     (holder 'player'), their crown's edicts in the realm
 //                     they rule, and those of a guild they head
 //   conqueror       — Holdings.list (settlements held in the player's name)
+//   empire          — the settlements of the realm the player rules (Throne)
+//   faith           — settlements devoted to the player's faith (Religion
+//                     presence ≥ the devoted share: player.religion.presence)
 // check() runs from the day's end (ui/game/endDay.js): the cheap goals every
 // day, net worth and monopolies once a week. The first time a goal is met
 // it is recorded (player.scenario.victoryAchieved) and reported once; play
@@ -25,6 +28,7 @@ import { EconomyChronicle } from './economyChronicle.js';
 import { Holdings } from './holdings.js';
 import { Guilds } from './guilds.js';
 import { Relationships } from './relationships.js';
+import { Religion } from './religion.js';
 
 const DEFAULTS = {
     none: { name: 'Sandbox', icon: '🌍', blurb: 'No goal: live as you please.' },
@@ -33,6 +37,8 @@ const DEFAULTS = {
     dynasty: { name: 'Dynasty', icon: '🛡️', blurb: 'Keep your House alive for {generations} generations or {years} years.', generations: 4, years: 100 },
     monopoly: { name: 'Monopolist', icon: '⚖️', blurb: 'Hold {target} trade monopolies at once.', target: 3 },
     conqueror: { name: 'Conqueror', icon: '🏰', blurb: 'Hold {target} settlements in your own hands.', target: 8 },
+    empire: { name: 'Empire', icon: '🗺️', blurb: 'Rule a realm of {target} settlements.', target: 10 },
+    faith: { name: 'Faith Ascendant', icon: '🕯️', blurb: 'Make {target} settlements devoted to your faith.', target: 10 },
 };
 
 /** Goals whose reading is heavy (net worth, every town's monopolies): checked weekly. */
@@ -114,6 +120,20 @@ export const Victory = {
         return out;
     },
 
+    /** Settlements devoted to the player's faith now: [{ q, r, name }]. */
+    devotedTowns(player, world) {
+        const out = [];
+        const rel = player && player.religion;
+        if (!rel || !_obj(rel.presence) || !world || typeof world.getTile !== 'function') return out;
+        for (const key of Object.keys(rel.presence)) {
+            const [q, r] = key.split(',').map(Number);
+            if (!Religion.isDevoted(rel, q, r)) continue;
+            const t = world.getTile(q, r);
+            if (t && t.settlement && _num(t.settlement.population) > 0) out.push({ q, r, name: t.settlement.name });
+        }
+        return out;
+    },
+
     /**
      * How far along the goal is: { id, name, icon, blurb, pct (0..1), done,
      * text, lines[] }. Reads only; draws no RNG.
@@ -178,6 +198,28 @@ export const Victory = {
             out.done = held.length >= target;
             out.text = `${held.length} of ${target} monopolies held.`;
             for (const m of held.slice(0, 6)) out.lines.push(`${m.good.replace(/_/g, ' ')} in ${m.town} (${m.by})`);
+            return out;
+        }
+        if (def.id === 'empire') {
+            const k = Throne.ruledKingdom(player, world);
+            const target = Math.max(1, _num(def.target, 10));
+            if (!k) {
+                out.text = 'You rule no realm: win or found one, then grow it.';
+                return out;
+            }
+            const n = Throne._settlementsOf(world, k).length;
+            out.pct = Math.min(1, n / target);
+            out.done = n >= target;
+            out.text = `${k.name}: ${n} of ${target} settlements.`;
+            return out;
+        }
+        if (def.id === 'faith') {
+            const held = Victory.devotedTowns(player, world);
+            const target = Math.max(1, _num(def.target, 10));
+            out.pct = Math.min(1, held.length / target);
+            out.done = held.length >= target;
+            out.text = player.religion ? `${held.length} of ${target} settlements devoted to ${player.religion.name}.` : 'You keep no faith of your own: found one, or lead one.';
+            for (const h of held.slice(0, 6)) out.lines.push(h.name);
             return out;
         }
         if (def.id === 'conqueror') {

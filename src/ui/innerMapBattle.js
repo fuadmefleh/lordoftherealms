@@ -254,9 +254,8 @@ export const InnerMapBattle = {
 
     /**
      * The layers a figure of company `c` wears: its unit type's recipe or its
-     * kind's, the side's livery, skin and hair by variant. (When soldiers
-     * carry real arms one day, the recipe's sword and shield lines are where
-     * an item's look goes.)
+     * kind's, the side's livery, skin and hair by variant. Your own men wear
+     * the arms they were issued in place of the recipe's (Arms.lookLayers).
      */
     layersFor(bf, c, variant, opts) {
         const looks = InnerMapBattle._lookCfg();
@@ -272,7 +271,7 @@ export const InnerMapBattle = {
         const layers = recipe.map(l => l.replace(/\{(\w+)\}/g, (_, k) => fill[k] || ''));
         // Your soldiers show the arms they were issued (systems/arms.js kits): one man of the company per variant
         const armed = c.side === 'player' && Array.isArray(c.units) ? c.units.filter(u => u && u.kit) : [];
-        return armed.length ? Arms.lookLayers(layers, Arms.kitView(armed[variant % armed.length])) : layers;
+        return armed.length ? Arms.lookLayers(layers, Arms.kitView(armed[variant % armed.length]), { paint: fill.paint }) : layers;
     },
 
     _registerLooks(game, bf, opts) {
@@ -436,8 +435,9 @@ export const InnerMapBattle = {
                     continue;
                 }
                 const dir = InnerMapCharacters.getDirection(f.fx || c.dx, f.fy || c.dy);
-                // (sword and shield show only in the combat poses: a soldier standing holds them ready)
-                const armed = c.kind !== 'archer';
+                // (weapons and shields show only in the combat poses: a soldier standing holds them
+                // ready, an archer his bow, which he also holds up to shoot)
+                const armed = true;
                 const anim = f.anim === 'fight' ? (c.kind === 'archer' ? 'halfslash' : 'slash')
                     : f.anim === 'shoot' ? 'ready' : (f.anim === 'idle' && armed) ? 'ready' : f.anim;
                 const tm = now + f.i * 0.37 + c.id * 0.11;

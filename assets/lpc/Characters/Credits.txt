@@ -60,3 +60,13 @@ Wings 01 - Feathered Wings
   ARTIST(S): Eliza Wyatt (DeathsDarling)
   LICENSE: OGA-BY 3.0
   DETAILS: Original by Eliza Wyatt. Made to animate with the LPC body by Redshrike.
+Arms layers (Props/Dagger, Axe, Dane Axe, Mace, Spear, Pike, Bill, Halberd, Bow, Crossbow;
+Props/Shield 02-05; Head Accessories/Cap 01 - Leather; Clothing/*/Armour/*)
+-------------------
+  ARTIST(S): weapon, shield, cap and armour drawings generated with ChatGPT (OpenAI image
+             generation) at the user's request, 2026-11-10 (sources in assets/lpc/new/arms/), over
+             reference frames of the LPC sheets here; posed and fitted to the frames of Eliza Wyatt's
+             arming sword, heater shield, Norman helm and shirt layers by scripts/make_arms_layers.py,
+             make_arms_shields.py and make_arms_wear.py (the frame geometry and the shirts' shading are
+             derived from those OGA-BY 3.0 layers).
+  LICENSE: OpenAI terms assign the drawings to the user; the derived frames follow OGA-BY 3.0.

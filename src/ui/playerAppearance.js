@@ -4,6 +4,7 @@
 // InnerMapCharacters as the player's own preset, used by the HUD portraits and
 // the walking sprite in towns.
 import { InnerMapCharacters } from './innerMapCharacters.js';
+import { Arms, ARMS_SLOTS } from '../systems/arms.js';
 
 const HAIR_COLORS = ['Black', 'Raven', 'Charcoal', 'Brown', 'Chestnut', 'Ash Brown', 'Blonde', 'Platinum',
     'Orange', 'Red', 'Ruby', 'Gray', 'Silver', 'White', 'Pink', 'Purple', 'Violet', 'Blue', 'Teal', 'Green'];
@@ -103,8 +104,26 @@ export function randomAppearance(gender, rand = Math.random) {
     return look;
 }
 
-/** The LPC layer paths for a look, bottom to top. */
-export function appearanceLayers(a) {
+/**
+ * The arms the player has on (systems/arms.js player.equipment), as a kit
+ * for Arms.lookLayers: { main, off, head, body } item ids, or null when
+ * nothing is worn. Reads only: pieces no longer in the packs are left off.
+ */
+export function gearKit(player) {
+    const eq = player && player.equipment;
+    if (!eq || typeof eq !== 'object') return null;
+    const kit = {};
+    let any = false;
+    for (const s of ARMS_SLOTS) {
+        const id = eq[s] && eq[s].id;
+        kit[s] = id && Arms.item(id) && Number((player.inventory || {})[id]) >= 1 ? id : null;
+        if (kit[s]) any = true;
+    }
+    return any ? kit : null;
+}
+
+/** The LPC layer paths for a look (and the arms worn, a gearKit), bottom to top. */
+export function appearanceLayers(a, kit = null) {
     const fem = a.build === 'feminine';
     const body = fem ? 'Body 01 - Feminine, Thin' : 'Body 02 - Masculine, Thin';
     const head = fem ? 'Head 01 - Feminine' : 'Head 02 - Masculine';
@@ -118,17 +137,18 @@ export function appearanceLayers(a) {
     ];
     if (a.beard && a.beard !== 'none') layers.push(`Hair/${a.beard}/${a.hairColor}`);
     if (a.hair && a.hair !== 'none') layers.push(`Hair/${a.hair}/${a.hairColor}`);
-    return layers;
+    return kit ? Arms.lookLayers(layers, kit, { build: fem ? 'Feminine, Thin' : 'Masculine, Thin', paint: a.shirtColor }) : layers;
 }
 
 /** A preset id unique to this look, so a changed look is a new preset. */
-export function appearancePresetId(a) {
-    return 'player:' + APPEARANCE_ROWS.map(r => a[r.key]).join('|');
+export function appearancePresetId(a, kit = null) {
+    const gear = kit ? '|' + ARMS_SLOTS.map(s => kit[s] || '').join(',') : '';
+    return 'player:' + APPEARANCE_ROWS.map(r => a[r.key]).join('|') + gear;
 }
 
 /** Composite the look as a character preset. Resolves to its id, or null. */
-export function registerAppearance(a) {
-    const id = appearancePresetId(a);
+export function registerAppearance(a, kit = null) {
+    const id = appearancePresetId(a, kit);
     if (InnerMapCharacters.getComposited(id)) return Promise.resolve(id);
-    return InnerMapCharacters.registerPreset(id, appearanceLayers(a)).then(ok => (ok ? id : null));
+    return InnerMapCharacters.registerPreset(id, appearanceLayers(a, kit)).then(ok => (ok ? id : null));
 }

@@ -9,6 +9,7 @@ import { InnerMap } from '../world/innerMap.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Crafting } from '../player/crafting.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { itemPicture } from './icons.js';
 
 const SLOT_COUNT = 7;
 
@@ -272,7 +273,12 @@ export const Hotbar = {
 
             // Icon
             const iconEl = el.querySelector('.hotbar-icon');
-            if (iconEl) iconEl.textContent = itemId ? icon : '';
+            if (iconEl) {
+                // a good with its own picture (ui/icons.js itemPicture) shows it, else its emoji
+                const pic = itemId ? itemPicture(itemId) : null;
+                if (pic) iconEl.innerHTML = `<img src="${pic}" alt="" style="width:80%;height:80%;object-fit:contain;vertical-align:middle;">`;
+                else iconEl.textContent = itemId ? icon : '';
+            }
 
             // Quantity
             const qtyEl = el.querySelector('.hotbar-qty');

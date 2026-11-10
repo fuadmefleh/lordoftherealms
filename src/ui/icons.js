@@ -718,6 +718,29 @@ export const PICTURE_ICONS = {
     '🎣': 'assets/items/fishing_pole.png',
 };
 
+/** Goods with their own picture: assets/items/arms/<id>.png (scripts/make_arms_icons.py). */
+export const ITEM_PICTURES = new Set([
+    'bronze_dagger', 'iron_dagger', 'rondel_dagger', 'bronze_sword', 'iron_sword', 'weapons', 'steel_arming_sword',
+    'steel_sword', 'bronze_axe', 'iron_axe', 'dane_axe', 'bronze_mace', 'iron_mace', 'flanged_mace', 'bronze_spear',
+    'spear', 'pike', 'iron_bill', 'halberd', 'enchanted_weapon', 'bow', 'crossbow', 'buckler', 'shield',
+    'heater_shield', 'kite_shield', 'pavise', 'leather_cap', 'helmet', 'steel_helm', 'gambeson', 'leather_armor',
+    'chainmail', 'brigandine', 'plate_armor', 'tin', 'bronze_bar', 'steel', 'haft', 'grip', 'shield_boss',
+    'whetstone', 'arrows',
+]);
+
+/** A good's picture path, or null when it shows as its emoji. */
+export function itemPicture(id) {
+    const key = String(id || '').toLowerCase();
+    return ITEM_PICTURES.has(key) ? `assets/items/arms/${key}.png` : null;
+}
+
+/** A good's icon as HTML: its picture (at `px` square) where it has one, else its emoji's. */
+export function itemIcon(id, emoji, px = 20) {
+    const src = itemPicture(id);
+    if (!src) return pictureIcon(emoji, px);
+    return `<img src="${src}" alt="${emoji == null ? '' : emoji}" style="width:${px}px;height:${px}px;vertical-align:middle;">`;
+}
+
 /**
  * An emoji icon as HTML: its picture where it has one (at `px` square,
  * pixel-crisp), else the emoji itself.

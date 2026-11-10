@@ -183,15 +183,19 @@ export const InnerMapCharacters = {
      * Composite all layers for a preset into walk and idle offscreen canvases.
      */
     _compositePreset(presetId, preset) {
+        // A long weapon (a spear, a pike, a polearm, a great axe) reaches past the 64px
+        // frame: such a look keeps the whole 128px cell round the body
+        const cell = preset.layers.some(l => this.LONG_PROPS.test(l)) ? this.FRAME_W * 2 : this.FRAME_W;
         const walkCanvas = this._compositeAnimation(preset.layers, 'Walk',
-            this.WALK_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+            this.WALK_FRAMES * cell, this.DIR_ROWS * cell, cell);
         const idleCanvas = this._compositeAnimation(preset.layers, 'Idle',
-            this.IDLE_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+            this.IDLE_FRAMES * cell, this.DIR_ROWS * cell, cell);
         const slashCanvas = this._compositeAnimation(preset.layers, 'Combat 1h - Slash',
-            this.SLASH_FRAMES * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+            this.SLASH_FRAMES * cell, this.DIR_ROWS * cell, cell);
 
         if (walkCanvas || idleCanvas) {
             const entry = {
+                cell,
                 walk: walkCanvas,
                 idle: idleCanvas || walkCanvas,
                 slash: slashCanvas || null,
@@ -199,12 +203,15 @@ export const InnerMapCharacters = {
             // Composite extra animation types (sitting, emotes, halfslash, swing)
             for (const ea of this._EXTRA_ANIMS) {
                 const canvas = this._compositeAnimation(preset.layers, ea.file,
-                    ea.frames * this.FRAME_W, this.DIR_ROWS * this.FRAME_H);
+                    ea.frames * cell, this.DIR_ROWS * cell, cell);
                 entry[ea.key] = canvas || null;
             }
             this._composited.set(presetId, entry);
         }
     },
+
+    // Prop layers whose weapon reaches out of the 64px frame (scripts/make_arms_layers.py)
+    LONG_PROPS: /^Props\/(Spear|Pike|Bill|Halberd|Dane Axe)\//,
 
     /**
      * Composite multiple layer images into a single offscreen canvas.
@@ -214,12 +221,13 @@ export const InnerMapCharacters = {
      * @param {number} height - Expected canvas height
      * @returns {HTMLCanvasElement|null}
      */
-    _compositeAnimation(layerPaths, animType, width, height) {
+    _compositeAnimation(layerPaths, animType, width, height, cellSize = this.FRAME_W) {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         let anyLoaded = false;
+        const cols = Math.round(width / cellSize), rows = Math.round(height / cellSize);
 
         for (const layerPath of layerPaths) {
             const fullPath = this._basePath + layerPath + '/' + animType + '.png';
@@ -229,29 +237,25 @@ export const InnerMapCharacters = {
             // walk, hold its ready-stance frame steady in the hand
             if (!img && prop && animType === this.PROP_CARRY_ANIM) {
                 const ready = this._imageCache.get(this._basePath + layerPath + '/' + this.PROP_READY_FILE + '.png');
-                if (ready) this._drawPropCarried(ctx, ready, width, height);
+                if (ready) this._drawPropCarried(ctx, ready, cols, rows, cellSize);
                 continue;
             }
             if (!img) continue;
 
-            // Oversized weapon sheets (128px cells round a 64px figure): crop each cell's middle
-            const k = Math.round(img.height / height);
-            if (k > 1 && img.width >= width * k) {
-                const cell = this.FRAME_W * k;
-                const off = (cell - this.FRAME_W) / 2;
-                for (let r = 0; r * this.FRAME_H < height; r++) {
-                    for (let f = 0; f * this.FRAME_W < width; f++) {
-                        ctx.drawImage(img, f * cell + off, r * cell + off, this.FRAME_W, this.FRAME_H,
-                            f * this.FRAME_W, r * this.FRAME_H, this.FRAME_W, this.FRAME_H);
-                    }
+            // Each source cell (64px, or 128px round the 64px figure for weapon sheets)
+            // laid centred in each of ours: a 64px look crops a big cell's middle, a
+            // 128px look keeps it whole and sets the 64px sheets in its middle
+            const k = Math.max(1, Math.round(img.height / (rows * this.FRAME_H)));
+            const src = this.FRAME_W * k;
+            const n = Math.min(cols, Math.floor(img.width / src)), m = Math.min(rows, Math.floor(img.height / src));
+            const take = Math.min(src, cellSize);
+            const so = (src - take) / 2, doff = (cellSize - take) / 2;
+            for (let r = 0; r < m; r++) {
+                for (let f = 0; f < n; f++) {
+                    ctx.drawImage(img, f * src + so, r * src + so, take, take,
+                        f * cellSize + doff, r * cellSize + doff, take, take);
                 }
-                anyLoaded = true;
-                continue;
             }
-
-            // Draw the layer — all LPC sheets are pre-aligned for compositing
-            ctx.drawImage(img, 0, 0, Math.min(img.width, width), Math.min(img.height, height),
-                0, 0, Math.min(img.width, width), Math.min(img.height, height));
             anyLoaded = true;
         }
 
@@ -265,15 +269,16 @@ export const InnerMapCharacters = {
     WALK_BOB: [0, -1, -1, 0, 0, -1, -1, 0],
 
     /** A prop's first ready frame per direction, repeated across a walk sheet with the stride's bob. */
-    _drawPropCarried(ctx, ready, width, height) {
-        const k = Math.max(1, Math.round(ready.height / height));
-        const cell = this.FRAME_W * k;
-        const off = (cell - this.FRAME_W) / 2;
-        for (let r = 0; r * this.FRAME_H < height; r++) {
-            for (let f = 0; f * this.FRAME_W < width; f++) {
+    _drawPropCarried(ctx, ready, cols, rows, cellSize = this.FRAME_W) {
+        const k = Math.max(1, Math.round(ready.height / (rows * this.FRAME_H)));
+        const src = this.FRAME_W * k;
+        const take = Math.min(src, cellSize);
+        const so = (src - take) / 2, doff = (cellSize - take) / 2;
+        for (let r = 0; r < rows; r++) {
+            for (let f = 0; f < cols; f++) {
                 const bob = this.WALK_BOB[f % this.WALK_BOB.length] || 0;
-                ctx.drawImage(ready, off, r * cell + off, this.FRAME_W, this.FRAME_H,
-                    f * this.FRAME_W, r * this.FRAME_H + bob, this.FRAME_W, this.FRAME_H);
+                ctx.drawImage(ready, so, r * src + so, take, take,
+                    f * cellSize + doff, r * cellSize + doff + bob, take, take);
             }
         }
     },
@@ -389,10 +394,16 @@ export const InnerMapCharacters = {
         // Compute current frame
         const frameIndex = Math.floor(time * fps) % totalFrames;
 
-        // Source rectangle from the composited sheet
-        const sx = frameIndex * this.FRAME_W;
-        const sy = (extraDef && extraDef.rows === 1 && comp[anim] ? 0 : direction) * this.FRAME_H;
-
+        // Source rectangle from the composited sheet (a long weapon's look has 128px
+        // cells round the figure: drawn twice the size, about the same middle)
+        const cell = comp.cell || this.FRAME_W;
+        const sx = frameIndex * cell;
+        const sy = (extraDef && extraDef.rows === 1 && comp[anim] ? 0 : direction) * cell;
+        if (cell !== this.FRAME_W) {
+            const k = cell / this.FRAME_W;
+            ctx.drawImage(sheet, sx, sy, cell, cell, dx - dw * (k - 1) / 2, dy - dh * (k - 1) / 2, dw * k, dh * k);
+            return true;
+        }
         ctx.drawImage(sheet, sx, sy, this.FRAME_W, this.FRAME_H, dx, dy, dw, dh);
         return true;
     },

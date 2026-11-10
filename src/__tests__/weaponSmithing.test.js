@@ -335,4 +335,40 @@ describe('soldiers look the part', () => {
         expect(bare.some(l => l.includes('Sword') || l.includes('Helm'))).toBe(false);
         expect(bare.some(l => l.includes('Shield'))).toBe(true);
     });
+
+    it('every weapon class, shield, helm and armour has its own art, dressed where the recipe had the old pieces', () => {
+        const recipe = [
+            'Props/Sword 01 - Arming Sword/_Behind/Steel', 'Props/Shield 01 - Heater Shield/Wood/Oak/_Behind',
+            'Body/Body 02 - Masculine, Thin/Peach', 'Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/Navy',
+            'Hair/Short 01 - Buzzcut/Brown', 'Head Accessories/Helm 03 - Norman/Steel',
+            'Props/Shield 01 - Heater Shield/Wood/Oak', 'Props/Shield 01 - Heater Shield/Paint/Blue',
+            'Props/Shield 01 - Heater Shield/Trim/Steel', 'Props/Sword 01 - Arming Sword/Steel',
+        ];
+        const look = Arms.lookLayers(recipe, { main: 'spear', off: 'shield', head: 'leather_cap', body: 'chainmail' });
+        expect(look[0]).toBe('Props/Spear/_Behind/Iron');
+        expect(look[look.length - 1]).toBe('Props/Spear/Iron');
+        expect(look).toContain('Props/Shield 03 - Round Shield/Base');
+        expect(look).toContain('Props/Shield 03 - Round Shield/Paint/Blue');   // the livery's paint
+        expect(look.some(l => l.includes('Heater'))).toBe(false);
+        expect(look).toContain('Head Accessories/Cap 01 - Leather/Leather');
+        const torso = look.findIndex(l => l.includes('/Torso/'));
+        expect(look[torso + 1]).toBe('Clothing/Masculine, Thin/Armour/Mail');
+        // a pike wants both hands: no shield; the feminine build wears her own armour sheets
+        const pike = Arms.lookLayers(recipe, { main: 'pike', off: 'kite_shield', head: null, body: 'gambeson' }, { build: 'Feminine, Thin' });
+        expect(pike.some(l => l.includes('Shield'))).toBe(false);
+        expect(pike).toContain('Clothing/Feminine, Thin/Armour/Gambeson');
+        // a recipe with no weapon lines (an archer) gets the bow added, behind and in front
+        const archer = Arms.lookLayers(['Body/Body 02 - Masculine, Thin/Peach', 'Hair/Short 01 - Buzzcut/Brown'], { main: 'bow', off: null, head: 'helmet', body: null });
+        expect(archer[0]).toBe('Props/Bow/_Behind/Wood');
+        expect(archer[archer.length - 1]).toBe('Props/Bow/Wood');
+        expect(archer).toContain('Head Accessories/Helm 03 - Norman/Iron');
+        // every layer a piece names is drawn: its sheets exist for the combat poses
+        const base = path.join(__dirname, '..', '..', 'assets', 'lpc', 'Characters');
+        for (const id of Object.keys(Arms.items())) {
+            const sp = Arms.spriteOf(id);
+            expect(sp.layer, id).toBeTruthy();
+            const sheet = sp.slot === 'main' || sp.slot === 'off' ? 'Combat 1h - Idle.png' : 'Walk.png';
+            expect(fs.existsSync(path.join(base, sp.layer, sheet)), `${id}: ${sp.layer}/${sheet}`).toBe(true);
+        }
+    });
 });

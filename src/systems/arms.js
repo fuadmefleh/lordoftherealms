@@ -103,6 +103,7 @@ export const Arms = {
                 market: _obj(troops.market) || {},
                 maxFactor: _num(troops.maxFactor, 1.45),
                 spoils: { per: 40, max: 6, goods: ['weapons'], ...(_obj(d.spoils) || {}) },
+                looks: { shieldPaints: [], defaultPaint: 'Brown', ...(_obj(d.looks) || {}) },
             };
         }
         return _cfg;
@@ -145,19 +146,23 @@ export const Arms = {
 
     /**
      * What the renderers need to draw a piece (soldiers on the inner map,
-     * the player): { id, slot, class, material, weaponClass, layer, layers,
-     * hands } — layer/layers are LPC paths under assets/lpc/Characters (null
-     * when the art is still to be made: draw by weaponClass).
+     * the player): { id, slot, class, material, weaponClass, layer, behind,
+     * paint, layers, hands } — LPC paths under assets/lpc/Characters: layer
+     * the piece in front of the body, behind its frames behind the body,
+     * paint a shield's folder of livery colours, layers everything it draws
+     * bottom to top (null / [] when there is no art: draw by weaponClass).
      */
     spriteOf(id) {
         const def = Arms.item(id);
         if (!def) return null;
         const s = _obj(def.sprite) || {};
         const layer = s.layer || null;
+        const own = Array.isArray(s.layers) ? s.layers.slice() : (layer ? [layer] : []);
         return {
             id, slot: def.slot, class: def.class, material: def.material || null,
             weaponClass: s.weaponClass || def.class, layer,
-            layers: Array.isArray(s.layers) ? s.layers.slice() : (layer ? [layer] : []),
+            behind: s.behind || null, paint: s.paint || null,
+            layers: s.behind ? [s.behind, ...own] : own,
             hands: _num(def.hands, 1),
         };
     },
@@ -605,35 +610,80 @@ export const Arms = {
     },
 
     /**
-     * Fit a soldier's LPC layer recipe (bottom to top, paths under
-     * assets/lpc/Characters) to the kit he was issued (kitView: { main, off,
-     * head, body }): the arming-sword layers take the sword's metal or go
-     * when his weapon is no sword (no art yet for axes, maces, spears, bows),
-     * the shield layers go when he has none (any shield shows as the heater
-     * until there is art for the others), the helm takes his helm's layer or
-     * goes. A recipe for a unit without a kit record is left as it is.
+     * Fit an LPC layer recipe (bottom to top, paths under
+     * assets/lpc/Characters) to a kit (kitView: { main, off, head, body }):
+     * the recipe's weapon lines (any Props/ but a shield) become the kit's
+     * weapon (its frames behind the body where the recipe had them, in front
+     * where it had those), its shield lines the kit's shield in the recipe's
+     * paint (a two-handed polearm or great axe leaves no hand for one), its
+     * helm the kit's helm, and the kit's body armour goes over the shirt.
+     * A slot the kit leaves empty takes its lines away; a piece the recipe
+     * has no line for is added (weapons and shields in front of everything,
+     * their back frames under everything, the helm over the hair, the armour
+     * over the clothes). opts: build ('Feminine, Thin' for the feminine
+     * body's armour sheets), paint (the livery colour when the recipe names
+     * none). A recipe without a kit is left as it is.
      */
-    lookLayers(layers, kit) {
+    lookLayers(layers, kit, opts = {}) {
         if (!Array.isArray(layers) || !kit) return layers;
-        const SWORD = 'Props/Sword 01 - Arming Sword/';
-        const main = Arms.item(kit.main);
-        const swordLayer = main && main.class === 'sword' && main.sprite && main.sprite.layer;
-        const metal = swordLayer && swordLayer.startsWith(SWORD) ? swordLayer.slice(SWORD.length) : null;
-        const helm = Arms.item(kit.head);
-        const helmLayer = helm && helm.sprite && helm.sprite.layer;
+        const sp = (slot) => {
+            const s = Arms.item(kit[slot]) ? Arms.spriteOf(kit[slot]) : null;
+            return s && s.layer ? s : null;
+        };
+        const main = sp('main');
+        const helm = sp('head');
+        const body = sp('body');
+        const reach = main && main.hands >= 2 && /^(pike|polearm|greataxe|spear)$/.test(main.weaponClass);
+        const shield = reach ? null : sp('off');
+        const looks = Arms.config().looks;
+        const recipePaint = (layers.find(l => /^Props\/Shield [^/]+\/Paint\/[^/]+$/.test(l)) || '').split('/').pop();
+        let paint = recipePaint || opts.paint || looks.defaultPaint;
+        const isHeater = shield && /Heater Shield/.test(shield.layer);
+        if (shield && !isHeater && !looks.shieldPaints.includes(paint)) paint = looks.defaultPaint;
+        const shieldFront = !shield ? [] : [
+            shield.layer,
+            ...(shield.paint ? [`${shield.paint}/${paint}`] : []),
+            ...(isHeater ? shield.layers.filter(l => l !== shield.layer) : []),
+        ];
+        const shieldBack = !shield || !shield.behind ? [] : [
+            shield.behind,
+            ...(!isHeater && shield.paint ? [`${shield.paint.replace(/\/Paint$/, '/_Behind/Paint')}/${paint}`] : []),
+        ];
+        const armour = body ? body.layer.replace('Masculine, Thin', opts.build || 'Masculine, Thin') : null;
         const out = [];
+        const done = { back: false, front: false, sback: false, sfront: false, helm: false, armour: false };
         for (const l of layers) {
-            if (l.startsWith(SWORD)) {
-                if (!metal) continue;
-                out.push(l.startsWith(SWORD + '_Behind/') ? `${SWORD}_Behind/${metal}` : `${SWORD}${metal}`);
-            } else if (l.startsWith('Props/Shield ')) {
-                if (Arms.item(kit.off)) out.push(l);
+            if (l.startsWith('Props/Shield ')) {
+                const back = /\/_Behind(\/|$)/.test(l);
+                // the recipe's own heater lines stand when the kit's shield is a heater
+                if (isHeater) { out.push(l); done[back ? 'sback' : 'sfront'] = true; continue; }
+                if (back && !done.sback) { out.push(...shieldBack); done.sback = true; }
+                if (!back && !done.sfront) { out.push(...shieldFront); done.sfront = true; }
+            } else if (l.startsWith('Props/')) {
+                const back = /\/_Behind\//.test(l);
+                if (back && !done.back) { if (main && main.behind) out.push(main.behind); done.back = true; }
+                if (!back && !done.front) { if (main) out.push(main.layer); done.front = true; }
             } else if (l.startsWith('Head Accessories/Helm Accessory')) {
-                if (helmLayer && /Bascinet/.test(helmLayer) && /Bascinet/.test(l)) out.push(l);
-            } else if (l.startsWith('Head Accessories/Helm ')) {
-                if (helmLayer) out.push(helmLayer);
-            } else out.push(l);
+                if (helm && /Bascinet/.test(helm.layer) && /Bascinet/.test(l)) out.push(l);
+            } else if (l.startsWith('Head Accessories/Helm ') || l.startsWith('Head Accessories/Cap ')) {
+                if (helm && !done.helm) out.push(helm.layer);
+                done.helm = true;
+            } else {
+                out.push(l);
+                if (/\/Torso\//.test(l) && armour && !done.armour) { out.push(armour); done.armour = true; }
+            }
         }
+        const after = (re) => {
+            let i = -1;
+            out.forEach((l, j) => { if (re.test(l)) i = j; });
+            return i + 1;
+        };
+        if (armour && !done.armour) out.splice(after(/^(Clothing|Body|Head)\//), 0, armour);
+        if (helm && !done.helm) out.splice(after(/^(Hair|Clothing|Body|Head)\//), 0, helm.layer);
+        if (shield && !done.sback) out.unshift(...shieldBack);
+        if (main && !done.back && main.behind) out.unshift(main.behind);
+        if (shield && !done.sfront) out.push(...shieldFront);
+        if (main && !done.front) out.push(main.layer);
         return out;
     },
 

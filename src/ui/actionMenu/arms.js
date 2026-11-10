@@ -5,6 +5,7 @@
 // (systems/arms.js). Buttons route through data-am-act → ActionMenu.armsAct.
 import { ActionMenu } from './_ref.js';
 import { Arms } from '../../systems/arms.js';
+import { itemIcon } from '../icons.js';
 import { Duels } from '../../systems/duels.js';
 import { Grades } from '../../core/grades.js';
 import { PlayerInventory } from '../../core/inventory.js';
@@ -70,7 +71,7 @@ Object.assign(ActionMenu, {
             const p = lo[slot];
             html += `<div style="${CARD}"><b>${def.icon} ${esc(def.label)}</b>: `;
             if (p) {
-                html += `${esc(Arms.iconOf(p.id))} ${esc(p.stats.name)}${gradeChip(p.grade)}<br><span style="${NOTE}">${esc(statLine(p.stats))}</span><br>`;
+                html += `${itemIcon(p.id, esc(Arms.iconOf(p.id)), 22)} ${esc(p.stats.name)}${gradeChip(p.grade)}<br><span style="${NOTE}">${esc(statLine(p.stats))}</span><br>`;
                 html += `<span style="${NOTE}">Condition ${bar(p.cond, p.cond < 50 ? '#e67e22' : '#2ecc71')} ${Math.round(p.cond)}%`;
                 if (p.stats.edge != null) html += ` · Edge ${bar(p.edge, p.edge < 50 ? '#e67e22' : '#5dade2')} ${Math.round(p.edge)}%`;
                 html += '</span><br>';
@@ -91,7 +92,7 @@ Object.assign(ActionMenu, {
             // What else is carried for the slot
             const others = Arms.candidates(player, slot).filter(c => !p || c.id !== p.id);
             for (const c of others.slice(0, 6)) {
-                html += act(`${esc(Arms.iconOf(c.id))} ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` ×${c.count}` : ''}`, ['equip', c.id], BTN_GOLD, true, statLine(Arms.stats(c.id, c.grade)));
+                html += act(`${itemIcon(c.id, esc(Arms.iconOf(c.id)), 18)} ${esc(Arms.nameOf(c.id))}${c.count > 1 ? ` ×${c.count}` : ''}`, ['equip', c.id], BTN_GOLD, true, statLine(Arms.stats(c.id, c.grade)));
             }
             if (!p && !others.length) html += `<span style="${NOTE}">You carry none. Forge one at an anvil, buy one, or order one from a town's weaponsmith.</span>`;
             html += '</div>';

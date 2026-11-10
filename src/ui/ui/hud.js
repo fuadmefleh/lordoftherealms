@@ -865,8 +865,10 @@ Clothes: ${cs.icon} ${cs.label} (${cs.freshness}%)`;
             const fw = InnerMapCharacters.FRAME_W;
             const fh = InnerMapCharacters.FRAME_H;
             const dir = 2; // LPC direction rows: up=0, left=1, down=2, right=3
+            // (a long weapon's look has 128px cells: its 64px figure sits in the middle)
+            const cell = comp.cell || fw, o = (cell - fw) / 2;
             ctx.clearRect(0, 0, cvs.width, cvs.height);
-            ctx.drawImage(sheet, 0, dir * fh, fw, fh, 0, 0, cvs.width, cvs.height);
+            ctx.drawImage(sheet, o, dir * cell + o, fw, fh, 0, 0, cvs.width, cvs.height);
         }
     },
 

@@ -67,10 +67,10 @@
         "_xpDoc": "xpPerHardness: more Woodcutting / Mining XP for a harder tree or rock, per point of its hardness (resistance), on top of the skill's perFell / perBreak.",
         "xpPerHardness": 0.2,
         "rareFinds": {
-            "mountain": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 3] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gold_ore", "weight": 0.6, "qty": [1, 1] }, { "item": "gems", "weight": 0.4, "qty": [1, 1] }],
+            "mountain": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 3] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gold_ore", "weight": 0.6, "qty": [1, 1] }, { "item": "gems", "weight": 0.4, "qty": [1, 1] }, { "item": "copper", "weight": 2, "qty": [1, 2] }, { "item": "tin", "weight": 1, "qty": [1, 2] }],
             "snow_peak": [{ "item": "ore", "weight": 5, "qty": [1, 2] }, { "item": "silver_ore", "weight": 1.5, "qty": [1, 1] }, { "item": "gems", "weight": 0.6, "qty": [1, 1] }],
-            "hills": [{ "item": "ore", "weight": 4, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 2] }, { "item": "silver_ore", "weight": 1, "qty": [1, 1] }, { "item": "gems", "weight": 0.2, "qty": [1, 1] }],
-            "highlands": [{ "item": "ore", "weight": 3, "qty": [1, 2] }, { "item": "coal", "weight": 2, "qty": [1, 2] }, { "item": "silver_ore", "weight": 0.8, "qty": [1, 1] }],
+            "hills": [{ "item": "ore", "weight": 4, "qty": [1, 2] }, { "item": "coal", "weight": 4, "qty": [1, 2] }, { "item": "silver_ore", "weight": 1, "qty": [1, 1] }, { "item": "gems", "weight": 0.2, "qty": [1, 1] }, { "item": "copper", "weight": 2.5, "qty": [1, 2] }, { "item": "tin", "weight": 1.2, "qty": [1, 2] }],
+            "highlands": [{ "item": "ore", "weight": 3, "qty": [1, 2] }, { "item": "coal", "weight": 2, "qty": [1, 2] }, { "item": "silver_ore", "weight": 0.8, "qty": [1, 1] }, { "item": "copper", "weight": 1.5, "qty": [1, 2] }, { "item": "tin", "weight": 0.8, "qty": [1, 2] }],
             "desert": [{ "item": "salt", "weight": 3, "qty": [1, 2] }, { "item": "gold_ore", "weight": 0.4, "qty": [1, 1] }, { "item": "gems", "weight": 0.3, "qty": [1, 1] }],
             "default": [{ "item": "ore", "weight": 2, "qty": [1, 1] }, { "item": "coal", "weight": 1, "qty": [1, 1] }, { "item": "clay", "weight": 2, "qty": [1, 3] }]
         }

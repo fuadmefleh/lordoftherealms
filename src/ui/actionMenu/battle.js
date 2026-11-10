@@ -125,6 +125,7 @@ Object.assign(ActionMenu, {
             if (b.reportText) html += `<div style="font-size:12px; line-height:1.5;">${esc(b.reportText)}</div>`;
             else {
                 if (r.loot > 0) html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${r.loot}</strong></div>`;
+                if (r.armsTaken) html += `<div>⚔️ Arms stripped from the fallen: ${Object.entries(r.armsTaken).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ')}</div>`;
                 html += `<div>⚔️ Lost ${r.casualties || 0} soldier${r.casualties === 1 ? '' : 's'}${r.wounded ? `; ${r.wounded} carried off wounded` : ''}.</div>`;
                 if (r.karmaChange < 0) html += `<div style="color:#ff6666;">😈 Karma: ${r.karmaChange}</div>`;
                 if (r.renownChange > 0) html += `<div style="color:#4fc3f7;">⭐ Renown +${r.renownChange}</div>`;

@@ -53,6 +53,7 @@ const topLevel = [
     'lots',
     'laws',
     'duels',
+    'arms',
     'crafting',
     'mercenaryContracts',
     'devotion',

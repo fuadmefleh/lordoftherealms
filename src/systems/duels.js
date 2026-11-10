@@ -44,6 +44,7 @@ import { Traits } from './traits.js';
 import { Ailments } from './ailments.js';
 import { CombatSkills } from './combatSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
+import { Arms } from './arms.js';
 
 const MOVE_IDS = ['strike', 'thrust', 'feint', 'guard'];
 
@@ -192,6 +193,13 @@ export const Duels = {
             defense: _num(p.defense, 2),
             power: Math.max(1, _num(p.power, 6)),
             armour: _clamp(_num(p.armour), 0, Duels.config().maxArmour),
+            // Gear (systems/arms.js; the player's): armour by damage type, the
+            // weapon's reach, damage type and penetration, the breath a heavy swing costs
+            armourVs: _obj(p.armourVs) || null,
+            reach: _num(p.reach, _num(Arms.config().duel.npcReach, 1)),
+            dtype: p.dtype || null,
+            pen: _clamp(_num(p.pen), 0, 0.9),
+            strikeCost: Math.max(0, _num(p.strikeCost)),
             riposte: _num(p.riposte),
             weapon: p.weapon || 'bare fists',
             weaponDmg: _num(p.weaponDmg),
@@ -230,6 +238,16 @@ export const Duels = {
     playerWeapon(player, quality = null) {
         const W = Duels.config().weapons;
         const inv = (player && player.inventory) || {};
+        // The arms in hand (systems/arms.js): its grade, condition and edge are in its stats already
+        const gear = player ? Arms.personal(player) : null;
+        if (gear && gear.weapon) {
+            const w = gear.weapon;
+            return {
+                id: w.id, name: w.name, icon: w.icon, dmg: w.dmg, attack: w.attack, rank: w.dmg,
+                reach: w.reach, pen: w.pen, dtype: w.dtype, weight: w.weight, hands: w.hands, quality: w.effect, arms: true,
+            };
+        }
+        if (player && Arms.barehanded(player)) return { id: 'fists', ...(W.fists || DEFAULTS.weapons.fists), quality: 1 };
         const eq = player && player.equipped && player.equipped.weapon;
         let pick = null;
         if (eq && W[eq] && (inv[eq] > 0 || !(eq in inv))) pick = { id: eq, ...W[eq] };
@@ -253,7 +271,12 @@ export const Duels = {
     /** The shield the player carries, or null (its guard scaled by crafted quality). */
     playerShield(player, quality = null) {
         const inv = (player && player.inventory) || {};
+        // The shield on the arm (systems/arms.js): none with a two-hander
+        const gear = player ? Arms.personal(player) : null;
+        if (gear && gear.shield) return { ...gear.shield, quality: 1 };
+        if (gear && gear.loadout.main && gear.loadout.main.stats.hands >= 2) return null;
         for (const [id, s] of Object.entries(Duels.config().shields)) {
+            if (Arms.isArms(id)) continue;
             if (inv[id] > 0) {
                 const q = Duels._quality(quality, id);
                 return { id, ...s, guard: _num(s.guard) * q, quality: q };
@@ -266,13 +289,34 @@ export const Duels = {
     playerArmour(player, extraReduction = 0, quality = null) {
         const C = Duels.config();
         if (player && player.blessings && player.blessings.protection > 0) return C.maxArmour;
+        return _clamp(1 - Duels._armourKeep(player, extraReduction, quality, null), 0, C.maxArmour);
+    },
+
+    /**
+     * The share of a blow that gets through the player's armour: the helm and
+     * harness worn (systems/arms.js — by damage type when `dtype` is given),
+     * the other carried protections (dragonscale, the amulet) and treasures.
+     */
+    _armourKeep(player, extraReduction = 0, quality = null, dtype = null) {
+        const C = Duels.config();
         const inv = (player && player.inventory) || {};
-        let keep = 1;
+        const gear = player ? Arms.personal(player) : null;
+        let keep = gear ? 1 - (dtype ? _num(gear.armourVs[dtype]) : _num(gear.armour)) : 1;
         for (const [id, red] of Object.entries(C.armour)) {
+            if (Arms.isArms(id)) continue;
             if (inv[id] > 0) keep *= 1 - _clamp(_num(red) * Duels._quality(quality, id), 0, 0.9);
         }
         keep *= 1 - _clamp(_num(extraReduction), 0, 0.9);
-        return _clamp(1 - keep, 0, C.maxArmour);
+        return keep;
+    },
+
+    /** The player's armour against each damage type: { cut, pierce, blunt } (0..maxArmour). */
+    playerArmourVs(player, extraReduction = 0, quality = null) {
+        const C = Duels.config();
+        if (player && player.blessings && player.blessings.protection > 0) return { cut: C.maxArmour, pierce: C.maxArmour, blunt: C.maxArmour };
+        const out = {};
+        for (const t of ['cut', 'pierce', 'blunt']) out[t] = _clamp(1 - Duels._armourKeep(player, extraReduction, quality, t), 0, C.maxArmour);
+        return out;
     },
 
     /**
@@ -302,8 +346,19 @@ export const Duels = {
         const maxHp = Math.round(20 + str + skill * 1.5);
         const maxHealth = Math.max(1, _num(player.maxHealth, 100));
         const healthFrac = opts.fresh ? 1 : _clamp(_num(player.health, maxHealth) / maxHealth, 0, 1);
-        const maxStamina = Math.max(4, Math.round(8 + str * 0.4 + 4 * energy - lame));
+        // Gear (systems/arms.js): harness weight costs breath, a heavy weapon costs more a swing,
+        // reach and the weapon's point or weight against armour
+        const A = Arms.config().duel;
+        const gear = Arms.personal(player);
+        const kgOver = Math.max(0, _num(gear.weight) - _num(A.freeKg, 8));
+        const maxStamina = Math.max(4, Math.round(8 + str * 0.4 + 4 * energy - lame - kgOver * _num(A.staminaPerKg, 0.12)));
+        const heavy = _num(weapon.weight) >= _num(A.heavyAt, 2.5) ? _num(A.heavyCost, 1) : 0;
         return Duels.fromProfile({
+            reach: weapon.reach != null ? weapon.reach : _num(A.npcReach, 1),
+            pen: _num(weapon.pen),
+            dtype: weapon.dtype || null,
+            armourVs: Duels.playerArmourVs(player, mods.damageReduction, mods.quality),
+            strikeCost: heavy,
             id: 'player',
             kind: 'player',
             name: player.name || 'You',
@@ -492,6 +547,10 @@ export const Duels = {
         const to = from === 'a' ? 'b' : 'a';
         const att = state[from];
         const def = state[to];
+        // The longer weapon reaches first on a strike or a thrust (systems/arms.js reach)
+        if (moveId === 'strike' || moveId === 'thrust') {
+            bonus += (_num(att.reach, 1) - _num(def.reach, 1)) * _num(Arms.config().duel.reachPerPoint, 0.03);
+        }
         const chance = Duels._hitChance(Duels._effAttack(state, from), Duels._effDefense(state, to), bonus);
         if (!(rng() < chance)) {
             entry.notes.push(_fill(Duels.config().lines.miss || '{b} twists away.', { a: att.name, b: def.name }));
@@ -508,7 +567,10 @@ export const Duels = {
             entry.notes.push(`${att.name} puts everything into a power swing!`);
         }
         const raw = att.power * _num(move.dmg, 1) * mult * variance * power;
-        const dmg = Math.max(1, Math.round(raw * (1 - def.armour)));
+        // Armour stops its share of the blow (by the blow's damage type when the
+        // wearer's harness is known); a point or a mace's weight goes partly through it
+        const armour = def.armourVs && att.dtype && def.armourVs[att.dtype] != null ? def.armourVs[att.dtype] : def.armour;
+        const dmg = Math.max(1, Math.round(raw * (1 - armour * (1 - _num(att.pen)))));
         def.hp = Math.max(0, def.hp - dmg);
         entry[from === 'a' ? 'dmgToB' : 'dmgToA'] += dmg;
         if (mv && def.hp > 0) {
@@ -555,7 +617,8 @@ export const Duels = {
         // Breath: pay for the move (Guard recovers); a blown fighter's move comes slow
         for (const side of ['a', 'b']) {
             const c = state[side];
-            const cost = _num(C.moves[moves[side]].cost);
+            // (a heavy weapon costs more breath to swing: systems/arms.js)
+            const cost = _num(C.moves[moves[side]].cost) + (moves[side] === 'strike' ? _num(c.strikeCost) : 0);
             c._tired = cost > 0 && c.stamina < cost;
             c.stamina = _clamp(c.stamina - cost, 0, c.maxStamina);
             if (c._tired) entry.notes.push(_fill(C.lines.tired || '{a} is blown.', { a: c.name }));
@@ -645,6 +708,24 @@ export const Duels = {
 
     /** Summary of a finished (or abandoned) duel. */
     result(state) {
+        // A finished fight leaves its marks on the player's gear (once): the blade
+        // dulls with every blow landed, the harness dents with every blow taken
+        if (state.over && !state._worn) {
+            state._worn = true;
+            for (const side of ['a', 'b']) {
+                const c = state[side];
+                if (!c || c.kind !== 'player' || !c.ref) continue;
+                const mine = side === 'a' ? 'dmgToB' : 'dmgToA';
+                const theirs = side === 'a' ? 'dmgToA' : 'dmgToB';
+                const mv = side === 'a' ? 'aMove' : 'bMove';
+                Arms.wearFromDuel(c.ref, {
+                    landed: state.log.filter(e => e[mine] > 0).length,
+                    taken: state.log.filter(e => e[theirs] > 0).length,
+                    guarded: state.log.filter(e => e[mv] === 'guard').length,
+                    spar: state.mode === 'spar',
+                });
+            }
+        }
         const lost = (side) => {
             const start = Math.max(1, state.startHp[side]);
             return _clamp((start - state[side].hp) / state[side].maxHp, 0, 1);

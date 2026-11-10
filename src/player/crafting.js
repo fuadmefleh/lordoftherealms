@@ -68,7 +68,7 @@ const DEFAULT_CONFIG = {
     ownedBonus: 0.2,
 };
 const DEFAULT_ROLL = { base: 1, perLevel: 0.22, workshop: 0.35, tools: 0.2, perAttr: 0.05, perDifficulty: 0.25, perInputGrade: 0.25, forge: 0.7, noise: 0.9 };
-const DEFAULT_STATION_SKILLS = { cook: 'cooking', craft: 'carpentry', smelt: 'smithing', brew: 'alchemy', tan: 'leatherwork' };
+const DEFAULT_STATION_SKILLS = { cook: 'cooking', craft: 'carpentry', smelt: 'smithing', brew: 'alchemy', tan: 'leatherwork', arms: 'smithing' };
 
 let _src;
 let _cfg = null;

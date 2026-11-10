@@ -97,7 +97,7 @@ export const FURNITURE_ACTIONS = {
     fireplace: ['warm', 'cook'],
     bed:       ['sleep'],
     rack:      ['shop'],
-    anvil:     ['craft'],
+    anvil:     ['craft', 'forge_arms'],
     forge:     ['smelt'],
     stall:     ['shop'],
     scales:    ['shop'],
@@ -149,7 +149,7 @@ export const BUILDING_FURNITURE_ACTIONS = {
     marketplace: { crate: ['shop'], stall: ['shop', 'furniture_maker'] },
     granary:     { crate: ['shop'] },
     warehouse:   { crate: ['store'], chest: ['store'] },
-    blacksmith:  { anvil: ['craft', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },
+    blacksmith:  { anvil: ['craft', 'forge_arms', 'hone_arms', 'shop'], rack: ['hone_arms', 'shop'] },
     temple:      { altar: ['pray', 'give_alms', 'blessing', 'physician'], statue: ['pray', 'blessing'], chest: ['give_alms'] },
     // The town's trades and offices: their counters open the town's panels
     guildhall:   { table: ['guild_business', 'find_work'], desk: ['guild_business'], throne: ['guild_business'], chest: ['guild_business'], rack: ['guild_business'] },

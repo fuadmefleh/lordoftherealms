@@ -369,6 +369,8 @@ export const SaveLoad = {
         'crafting', 'craftGrades', 'craftQuality', 'attrXp', 'skillXp', 'mercRep',
         // How worn each bow carried is (player/huntingBow.js)
         'bowWear',
+        // The arms and armour worn, their condition and edge (systems/arms.js)
+        'equipment',
         // Winter trap lines left set in the snow (player/seasonalWork.js)
         'trapLines',
         // Pirate captains, their havens, what they remember of you, your infamy at sea (systems/pirates.js)

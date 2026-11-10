@@ -526,6 +526,7 @@ export const FieldBattle = {
             casualties: battle.casualties,
             wounded: battle.wounded,
             loot: spoils.loot || 0,
+            armsTaken: spoils.armsTaken || null, // the beaten's arms stripped off the field (systems/arms.js)
             enemyName: battle.enemyName,
             playerStrength: battle.pStr0,
             enemyStrength: battle.eStr0,

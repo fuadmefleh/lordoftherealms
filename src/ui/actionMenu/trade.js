@@ -1645,7 +1645,7 @@ Object.assign(ActionMenu, {
                             <div>
                                 <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong></div>
                                 <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
+                                <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}${ActionMenu.recruitArmsNote(game, unit.id, tile.settlement)}
                             </div>
                             <button onclick="window.recruitUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</button>
                         </div>
@@ -1680,7 +1680,7 @@ Object.assign(ActionMenu, {
                                 <div>
                                     <div><span style="font-size: 20px;">${unit.icon}</span> <strong>${unit.name}</strong> <span style="font-size: 10px; color: #ce93d8;">TECH</span></div>
                                     <div style="font-size: 12px; color: var(--text-secondary);">${unit.description}</div>
-                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}
+                                    <div style="font-size: 12px;">Strength: ${unit.strength} | Upkeep: ${unit.upkeep} gold/day</div>${PlayerMilitary.describeUnitTraits(unit) ? `<div style="font-size: 11px; color: #ce93d8;">✨ ${PlayerMilitary.describeUnitTraits(unit)}</div>` : ''}${ActionMenu.recruitArmsNote(game, unit.id, tile.settlement)}
                                 </div>
                                 <button onclick="window.recruitTechUnit('${key}')" ${remaining <= 0 ? 'disabled' : ''} style="padding: 8px 16px; background: ${remaining > 0 ? 'var(--gold)' : '#555'}; border: none; border-radius: 4px; cursor: ${remaining > 0 ? 'pointer' : 'not-allowed'};">${PlayerMilitary.getRecruitCost(game.player, unit, tile.settlement, game.world)} gold</button>
                             </div>
@@ -1710,9 +1710,12 @@ Object.assign(ActionMenu, {
             if (!ActionMenu.commitPendingAP(game)) return;
             const result = PlayerMilitary.recruitUnit(game.player, unitType, tile.settlement, { ...recruitContext, world: game.world });
             if (result.success) {
+                const armed = result.arms && result.arms.kit
+                    ? ` — armed ${result.armed >= 0.95 ? 'fully' : result.armed >= 0.75 ? 'in part' : 'poorly'}${result.arms.cost ? ` (${result.arms.cost} gold of arms bought)` : ''}`
+                    : '';
                 game.ui.showNotification('Unit Recruited!', result.unit.domain === 'sea'
                     ? `${result.unit.name} joined your squadron — it escorts your ships and blockades ports, but never fights on land`
-                    : `${result.unit.name} joined your army`, 'success');
+                    : `${result.unit.name} joined your army${armed}`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showRecruitMenu(game, tile); // Refresh
             } else {
@@ -1747,9 +1750,13 @@ Object.assign(ActionMenu, {
             }
 
             game.player.gold -= techCost;
+            Economy.payTown(tile.settlement, techCost); // the bounty is spent in town
             game.player._recruitedThisTurn = (game.player._recruitedThisTurn || 0) + 1;
             if (!game.player.army) game.player.army = [];
-            game.player.army.push(PlayerMilitary.makeArmyUnit(unit));
+            const made = PlayerMilitary.makeArmyUnit(unit);
+            game.player.army.push(made);
+            // His arms: from your stores, then the town's armourers (systems/arms.js)
+            PlayerMilitary.armRecruit(game.player, made, tile.settlement, { world: game.world });
 
             game.player.skills.combat = Math.min(10, game.player.skills.combat + 0.3);
             game.ui.showNotification('Unit Recruited!', `${unit.name} joined your army`, 'success');

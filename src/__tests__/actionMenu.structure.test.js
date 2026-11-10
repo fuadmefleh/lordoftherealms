@@ -70,6 +70,8 @@ const EXPECTED_KEYS = [
     'showTownPeople',
     'showHinterland', 'hinterlandAct',
     'showLanguages', 'languagesAct', 'doBathe', 'showCommissions', 'commissionAct',
+    // Arms & Armour (systems/arms.js): equipment, wear, mending, soldiers' kits; the recruit menu's arms line
+    'showArms', 'armsAct', 'recruitArmsNote',
     'showHarvests', 'harvestAct',
     'showPublicWorks', 'publicWorksAct',
     'showTradePolicy', 'tradePolicyAct',
@@ -159,8 +161,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 375 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(375);
+    it('has 378 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(378);
     });
 
     it('every member except the known data props is a function', () => {

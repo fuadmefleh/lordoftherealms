@@ -483,7 +483,7 @@ describe('the duel panel', () => {
         const b = Duels.trainer({ type: 'town' });
         const state = DuelPanel.open(game, { a, b, mode: 'spar', title: 'Spar', onFinish: (r) => results.push(r) });
         expect(shown[0].h).toContain('Militia Sergeant');
-        expect(shown[0].h).toContain('steel sword');
+        expect(shown[0].h).toContain('munition sword');
         for (const m of Duels.MOVES) expect(shown[0].h).toContain(`window._duel.move('${m}')`);
         window._duel.move('guard');
         expect(state.round).toBe(1);

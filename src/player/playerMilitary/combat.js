@@ -12,7 +12,7 @@ import { RivalHouses } from '../../systems/rivalHouses.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { Difficulty } from '../../core/difficulty.js';
-import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy } from './_imports.js';
+import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -153,6 +153,7 @@ Object.assign(PlayerMilitary, {
             casualties,
             wounded: woundedUnits.length,
             loot,
+            armsTaken: spoils.armsTaken || null,
             enemyName,
             playerStrength,
             enemyStrength,
@@ -202,6 +203,11 @@ Object.assign(PlayerMilitary, {
             PlayerReligion.recordFallenUnit(player, unit);
         }
         player.army.push(...woundedUnits.reverse());
+        // The fighting knocks the survivors' arms about, and the commander's own (systems/arms.js)
+        if (theatre !== 'sea') {
+            Arms.wearKits(player);
+            Arms.wearFromBattle(player);
+        }
         return { casualties, woundedUnits };
     },
 
@@ -231,6 +237,9 @@ Object.assign(PlayerMilitary, {
             // Increase combat skill
             player.skills.combat = Math.min(10, player.skills.combat + 0.3);
             player.renown += Math.floor(enemyStrength / 10 * (1 + PlayerMilitary._worldEventRenownBonus(player, context)));
+            // The beaten are stripped of their arms: spears, swords and shields off the field (systems/arms.js)
+            const armsTaken = theatre === 'sea' ? {} : Arms.battleSpoils(player, enemyStrength);
+            if (Object.keys(armsTaken).length) return { loot, armsTaken };
         } else if (player.army.length === 0 && Utils.random() < 0.4) {
             // Defeat — the player is captured! Enter indentured servitude
             const servitudeDays = Utils.randInt(5, 15);

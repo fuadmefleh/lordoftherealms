@@ -122,8 +122,8 @@ describe('crafted quality is shown and fights', () => {
         expect(b.defense).toBeGreaterThan(a.defense);
         expect(b.armour).toBeGreaterThan(a.armour);
         expect(c.power).toBeLessThan(Duels.fromPlayer(makePlayer({ inventory: { weapons: 1 } }), {}).power);
-        // Without the player layer's map, nothing changes
-        expect(Duels.fromPlayer(fine, {}).power).toBeCloseTo(Duels.fromPlayer(plain, {}).power);
+        // Arms carry their own grade (systems/arms.js): the Fine blade cuts deeper even without the player layer's map
+        expect(Duels.fromPlayer(fine, {}).power).toBeGreaterThan(Duels.fromPlayer(plain, {}).power);
     });
 });
 

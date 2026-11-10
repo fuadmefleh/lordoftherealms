@@ -25,14 +25,18 @@ import { Underworld } from '../systems/underworld.js';
 import { Ailments } from '../systems/ailments.js';
 import { SocialSkills } from '../systems/socialSkills.js';
 import { Crafting } from './crafting.js';
+import { Arms } from '../systems/arms.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
     return Religion.tenetBonus(player && player.religion, key);
 }
 
-/** Personal damage reduction from gear in the inventory (multiplicative). */
-const ARMOR_REDUCTION = { leather_armor: 0.2, chainmail: 0.28, plate_armor: 0.36, helmet: 0.08, shield: 0.15, amulet: 0.1 };
+/**
+ * Personal damage reduction from carried things that are not arms
+ * (multiplicative). The helm, body armour and shield worn are systems/arms.js.
+ */
+const ARMOR_REDUCTION = { amulet: 0.1 };
 
 /** Better buy/sell prices in a kingdom the player has a trade agreement with. */
 const TRADE_AGREEMENT_BONUS = 0.10;
@@ -289,10 +293,11 @@ export const PlayerEffects = {
     /** Multiplier on health the player personally loses (protection, then armour). */
     personalDamageMultiplier(player) {
         if (this.isProtected(player)) return 0;
-        let mult = 1;
+        // The helm, harness and shield worn (systems/arms.js: by grade and condition)
+        let mult = Arms.harmMultiplier(player);
         const inv = player.inventory || {};
         for (const [item, reduction] of Object.entries(ARMOR_REDUCTION)) {
-            // Crafted armour protects by its quality (player/crafting.js)
+            // Other carried protections (the amulet) by their crafted quality (player/crafting.js)
             if (inv[item] > 0) mult *= 1 - Math.min(0.45, reduction * Crafting.effectMult(player, item));
         }
         // Dragon scale and dragonscale armour
@@ -303,7 +308,10 @@ export const PlayerEffects = {
     /** Scale a raw personal damage roll; protection blocks it entirely. */
     scaleDamage(player, raw) {
         const mult = this.personalDamageMultiplier(player);
-        return mult === 0 ? 0 : Math.max(1, Math.round(raw * mult));
+        if (mult === 0) return 0;
+        // The armour took the blow: it wears (systems/arms.js)
+        if (raw > 0) Arms.wearArmour(player, raw);
+        return Math.max(1, Math.round(raw * mult));
     },
 
     /**

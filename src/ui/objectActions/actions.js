@@ -226,6 +226,13 @@ export const OBJECT_ACTIONS = {
         category: 'production',
         modal: 'craft',
     },
+    forge_arms: {
+        label: 'Weaponsmith & Armoury',
+        icon: '⚔️',
+        desc: 'Forge blades, axe and mace heads, spearheads and harness; make shields, helms and gambesons',
+        category: 'production',
+        modal: 'arms',
+    },
     smelt: {
         label: 'Smelt Ore',
         icon: '⚒️',

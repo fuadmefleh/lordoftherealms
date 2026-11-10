@@ -43,7 +43,8 @@
     "shields": {
         "shield": { "name": "shield", "icon": "🛡️", "guard": 1.5, "riposte": 0.4 }
     },
-    "armour": { "leather_armor": 0.2, "chainmail": 0.28, "plate_armor": 0.36, "helmet": 0.08, "dragonscale_armor": 0.35, "amulet": 0.1 },
+    "_armour": "Weapons, shields and armour in data/arms.json are read from there (systems/arms.js): duel damage, handling, reach, penetration, block and protection by damage type. These tables keep the rest: a smith's hammer and bare fists; dragonscale and the amulet.",
+    "armour": { "dragonscale_armor": 0.35, "amulet": 0.1 },
     "maxArmour": 0.7,
     "npcs": {
         "guard":          { "attack": 4,   "defense": 3.5, "power": 8,   "hp": 34, "stamina": 12, "armour": 0.2,  "weapon": "a guardsman's spear" },

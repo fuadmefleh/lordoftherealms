@@ -1,6 +1,6 @@
 // PlayerMilitary — recruitment members (split from the original monolith).
 import { PlayerMilitary } from './_ref.js';
-import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy, SettlementSize } from './_imports.js';
+import { Utils, Technology, House, SettlementServices, PlayerEffects, Peoples, Ships, Economy, SettlementSize, Arms } from './_imports.js';
 
 Object.assign(PlayerMilitary, {
     /**
@@ -522,18 +522,47 @@ Object.assign(PlayerMilitary, {
         }
 
         player.gold -= cost;
+        // The bounty goes to the recruits, who spend it in town
+        Economy.payTown(settlement, cost);
 
         // Track recruitment count
         player._recruitedThisTurn = (player._recruitedThisTurn || 0) + 1;
 
         // Add to player's army (special stats travel with the unit)
         if (!player.army) player.army = [];
-        player.army.push(PlayerMilitary.makeArmyUnit(unit));
+        const made = PlayerMilitary.makeArmyUnit(unit);
+        player.army.push(made);
+
+        // Arm him (systems/arms.js): from your own stores first, then the town's
+        // armourers' stock at its price (context.buyArms === false: he comes with
+        // what he owns). A town with no market keeps the old abstraction (no kit).
+        const arms = PlayerMilitary.armRecruit(player, made, settlement, { world, buy: context.buyArms !== false });
 
         // Increase combat skill
         player.skills.combat = Math.min(10, player.skills.combat + 0.3);
 
-        return { success: true, unit };
+        return { success: true, unit, arms, armed: arms ? Arms.unitFactor(made) : 1 };
+    },
+
+    /**
+     * Issue a fresh recruit his kit (systems/arms.js): the packs first, then
+     * (opts.buy) the town's market. Where the town keeps no market and the
+     * packs hold nothing for him, he keeps the old abstraction (no kit
+     * record: he fights as recruits always did). → the issue result or null.
+     */
+    armRecruit(player, unit, settlement, opts = {}) {
+        if (!unit || !Arms.kitSpec(unit.type)) return null;
+        const hasMarket = !!(settlement && settlement.market);
+        const q = Arms.kitQuote(player, unit.type, null, null, { buy: false });
+        const packHas = !!q && Object.values(q.slots).some(x => x.from === 'pack');
+        if (!hasMarket && !packHas) return null;
+        return Arms.issueKit(player, unit, { settlement, world: opts.world || null, buy: opts.buy !== false });
+    },
+
+    /** What arming a recruit of `unitType` here would take (systems/arms.js kitQuote), or null. */
+    recruitKitQuote(player, unitType, settlement, world = null) {
+        const def = PlayerMilitary.getUnitDef(unitType);
+        return def ? Arms.kitQuote(player, def.id, settlement, world) : null;
     },
 
     /**
@@ -551,6 +580,8 @@ Object.assign(PlayerMilitary, {
             strength *= (1 + (unit.level - 1) * 0.2);
             // Wounded soldiers (saved by Surgery) fight at half strength
             if (unit.woundedDays > 0) strength *= 0.5;
+            // The arms he was issued: a bare man less, Fine steel more (systems/arms.js; 1 without a kit record)
+            strength *= Arms.unitFactor(unit);
             // Combat skill bonus
             strength *= (1 + player.skills.combat * 0.1);
             // Technology strength bonus

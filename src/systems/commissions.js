@@ -109,7 +109,9 @@ export const Commissions = {
         for (const r of craft) {
             const st = _obj((C.stations || {})[r.station]);
             if (!st || rank < (RANK[st.minType] || 0)) continue;
-            const s = rank >= 1 && st.town ? { ...st, ...st.town } : st;
+            // (a town's workshops take on harder work than a village's; a city's armourers the hardest)
+            let s = rank >= 1 && st.town ? { ...st, ...st.town } : st;
+            if (rank >= 2 && _obj(st.city)) s = { ...s, ...st.city };
             if (_num(r.difficulty, 1) > _num(s.maxDifficulty, 3)) continue;
             if (!_obj(r.ingredients) || !_obj(r.result)) continue;
             out.push({
@@ -132,6 +134,14 @@ export const Commissions = {
         return (r.skill && TradeSkills.forCraft(r.skill)) || TradeSkills.forStation(r.station);
     },
 
+    /** Is this the weaponsmith's work (a craft recipe of the arms station)? */
+    isArmsOffer(offer) {
+        if (!offer || offer.kind !== 'craft') return false;
+        const recipes = (DataLoader._gamedata && DataLoader._gamedata.crafting && DataLoader._gamedata.crafting.recipes) || [];
+        const r = recipes.find(x => x.id === offer.recipeId);
+        return !!r && r.station === 'arms';
+    },
+
     offer(world, settlement, offerId) {
         return Commissions.offers(world, settlement).find(o => o.id === offerId) || null;
     },
@@ -148,11 +158,19 @@ export const Commissions = {
      * What `runs` of an offer cost and give, paid by `pay` ('fee' | 'cut'):
      * { inputs, made, keep, give, fee, days }.
      */
-    quote(player, world, settlement, offer, runs, pay = 'fee') {
+    quote(player, world, settlement, offer, runs, pay = 'fee', opts = {}) {
         const C = Commissions.config();
         const n = Math.max(1, Math.floor(runs));
         const inputs = {};
         for (const [g, per] of Object.entries(offer.in)) inputs[g] = Math.ceil(per * n - 1e-9);
+        if (opts.supply) {
+            // An order: he finds the stuff himself, out of the town's stock, at its price
+            const sup = Commissions.supplyQuote(world, settlement, inputs);
+            const q = Commissions.quote(null, world, settlement, offer, n, 'fee');
+            const tongue = player ? Languages.tradeModifier(player, settlement, world) : 0;
+            const fee = Math.max(_num((C.fee || {}).min, 1), Math.round(q.worth * _num((C.fee || {}).share, 0.2) * (1 - tongue)));
+            return { ...q, inputs: {}, fee, supply: true, materials: sup.goods, materialsCost: sup.cost, short: sup.short, total: fee + sup.cost };
+        }
         const made = {};
         for (const [g, per] of Object.entries(offer.out)) made[g] = Math.floor(per * n + 1e-9);
         let worth = 0;
@@ -176,6 +194,36 @@ export const Commissions = {
         const hand = TradeSkills.hiredBonus(settlement, world, Commissions.skillOf(offer));
         const grades = Commissions.gradesFor(player, settlement, inputs, give, hand.bonus);
         return { runs: n, inputs, made, keep, give, fee, worth: Math.round(worth), days, grades, master: hand.master, masterBonus: hand.bonus };
+    },
+
+    /**
+     * The town goods an order's inputs come to: goods the market keeps are
+     * bought as they are; a part it doesn't keep (a grip, a haft, a shield
+     * boss) is made from the inputs of the craft recipe that makes it, down
+     * to market goods. → { goods: {good: n}, cost, short: [goods the town
+     * lacks or nobody here can make] }.
+     */
+    supplyQuote(world, settlement, inputs) {
+        const recipes = (DataLoader._gamedata && DataLoader._gamedata.crafting && DataLoader._gamedata.crafting.recipes) || [];
+        const goods = {};
+        const short = new Set();
+        const expand = (g, qty, depth) => {
+            if (!(qty > 0)) return;
+            if (SettlementMarket.tracks(g)) { goods[g] = _num(goods[g]) + qty; return; }
+            const r = depth < 3 && recipes.find(x => x && _obj(x.result) && _num(x.result[g]) > 0 && _obj(x.ingredients)
+                && Object.keys(x.ingredients).every(k => SettlementMarket.tracks(k) || k !== g));
+            if (!r) { short.add(g); return; }
+            const runs = Math.ceil(qty / _num(r.result[g], 1) - 1e-9);
+            for (const [k, per] of Object.entries(r.ingredients)) expand(k, per * runs, depth + 1);
+        };
+        for (const [g, n] of Object.entries(inputs || {})) expand(g, n, 0);
+        let cost = 0;
+        for (const [g, n] of Object.entries(goods)) {
+            const have = settlement && settlement.market ? SettlementMarket.available(settlement, g) : 0;
+            if (have < n) short.add(g);
+            cost += n * Commissions._worth(world, settlement, g);
+        }
+        return { goods, cost: Math.round(cost), short: [...short] };
     },
 
     /**
@@ -212,13 +260,14 @@ export const Commissions = {
      * Hand the goods over: the job starts. → { success, job, text } or
      * { success: false, reason }.
      */
-    commission(player, world, offerId, runs, pay = 'fee') {
+    commission(player, world, offerId, runs, pay = 'fee', opts = {}) {
         const tile = world && world.getTile(player.q, player.r);
         const s = tile && tile.settlement;
         if (!s) return { success: false, reason: 'There is no one here to hire.' };
         const offer = Commissions.offer(world, s, offerId);
         if (!offer) return { success: false, reason: `No one in ${s.name} does that work.` };
         if (Math.floor(runs) < 1) return { success: false, reason: 'Nothing to do.' };
+        if (opts.supply) return Commissions._order(player, world, s, offer, runs);
         const q = Commissions.quote(player, world, s, offer, runs, pay);
         const inv = player.inventory || (player.inventory = {});
         for (const [g, n] of Object.entries(q.inputs)) {
@@ -246,6 +295,32 @@ export const Commissions = {
         const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${Commissions._goodName(g).toLowerCase()}`).join(', ');
         const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
         return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when}${pay === 'cut' ? ' (keeping their cut)' : ` (${q.fee} gold)`}.` };
+    },
+
+    /**
+     * Order a piece: the craftsman buys the stuff out of the town's stock
+     * (its price into the town's purse) and works it for his fee.
+     */
+    _order(player, world, s, offer, runs) {
+        const q = Commissions.quote(player, world, s, offer, runs, 'fee', { supply: true });
+        const name = (g) => Commissions._goodName(g).toLowerCase();
+        if (q.short.length) return { success: false, reason: `${s.name} has no ${q.short.map(name).join(' or ')} to spare for it.` };
+        if (_num(player.gold) < q.total) return { success: false, reason: `${offer.who[0].toUpperCase() + offer.who.slice(1)} ask${offer.who.endsWith('s') ? '' : 's'} ${q.total} gold, the stuff and the work.` };
+        for (const [g, n] of Object.entries(q.materials)) SettlementMarket.take(s, g, n);
+        player.gold -= q.total;
+        Ledger.record(player, 'hiredWork', -q.total);
+        if (s.economy) s.economy.gold = _num(s.economy.gold) + q.total;
+        if (!Array.isArray(player.commissions)) player.commissions = [];
+        const job = {
+            id: `cm_${_day(world)}_${_nextId++}_${player.commissions.length}`,
+            kind: offer.kind, recipeId: offer.recipeId, label: offer.label, who: offer.who,
+            town: s.name, q: s.q, r: s.r, runs: q.runs, pay: 'order', fee: q.total, kept: {},
+            out: q.give, grades: q.grades, readyDay: _day(world) + q.days, collected: false, told: false,
+        };
+        player.commissions.push(job);
+        const outText = Object.entries(q.give).filter(([, n]) => n > 0).map(([g, n]) => `${n} ${name(g)}`).join(', ');
+        const when = q.days <= 0 ? 'by the end of the day' : `in ${q.days + 1} days`;
+        return { success: true, job, text: `${offer.who[0].toUpperCase() + offer.who.slice(1)} will have ${outText} for you ${when} (${q.total} gold, the stuff bought in ${s.name}).` };
     },
 
     /** `n` units of `g` just handed over from a job: its graded units go first, best first. */

@@ -1,6 +1,7 @@
 {
     "_doc": "Hired work (systems/commissions.js): bring your own goods to a town's tradesmen — the miller grinds your grain, the baker bakes your bread, the smith forges your tools — and pay for their time with gold (a fee) or with part of the product (a cut). The town trades are data/markets.json `recipes` (where the place is big enough for the trade); the craftsmen's work is data/crafting.json `recipes` by station, done by whoever in town keeps that station (`stations`: the smallest place that has one, and how hard a recipe they'll take on). A job takes as many days as the trade's hands need (`perDay` runs a day for a craft; a town trade works `tradeShare` of its daily capacity for you, at least `minPerDay` — a mill grinds a cartload in a day), and is collected at the same town.",
 
+    "_supply": "Order a piece (Commissions.commission with opts.supply): the craftsman finds the stuff himself. The inputs, and the parts they are made of (a grip is wood and leather), are bought out of the town's market stock at its price on top of his fee; what the town has none of cannot be ordered.",
     "fee": { "share": 0.2, "min": 1 },
     "cut": { "share": 0.25 },
     "tradeShare": 1,
@@ -11,19 +12,22 @@
         "craft": { "minType": "village", "maxDifficulty": 2, "perDay": 4, "who": "the joiner's shop", "town": { "maxDifficulty": 4, "who": "the craftsmen's workshops" } },
         "smelt": { "minType": "town", "maxDifficulty": 3, "perDay": 6, "who": "the smelter" },
         "brew": { "minType": "town", "maxDifficulty": 3, "perDay": 3, "who": "the apothecary" },
-        "tan": { "minType": "village", "maxDifficulty": 3, "perDay": 6, "who": "the tanner and the weavers" }
+        "tan": { "minType": "village", "maxDifficulty": 3, "perDay": 6, "who": "the tanner and the weavers" },
+        "arms": { "minType": "town", "maxDifficulty": 3, "perDay": 2, "who": "the weaponsmith", "city": { "maxDifficulty": 5, "who": "the armourers’ quarter" } }
     },
     "tradeNames": {
         "mill": "the mill", "bakery": "the baker", "brewery": "the brewer", "charcoal": "the charcoal burners",
         "distillery": "the distillery", "weaver": "the weavers", "linen_weaver": "the linen weavers", "tailor": "the tailor",
         "dairy": "the dairy", "smithy": "the smithy", "forge": "the forge", "armoury": "the armourer",
         "founder": "the bronze founder", "chandler": "the chandler", "tannery": "the tannery", "jeweller": "the jeweller",
-        "sawyer": "the sawpit", "joiner": "the joiner", "cobbler": "the cobbler", "butcher": "the butcher", "steelworks": "the steelworks", "mailer": "the mail-maker"
+        "sawyer": "the sawpit", "joiner": "the joiner", "cobbler": "the cobbler", "butcher": "the butcher", "steelworks": "the steelworks", "mailer": "the mail-maker",
+        "spearmaker": "the spearmaker", "shieldwright": "the shieldwright", "helmsmith": "the helm-smith", "leather_armourer": "the leather armourer", "quilter": "the quilters"
     },
     "tradeVerbs": {
         "mill": "Grind", "bakery": "Bake", "brewery": "Brew", "charcoal": "Burn", "distillery": "Distil", "weaver": "Weave",
         "linen_weaver": "Weave", "tailor": "Sew", "dairy": "Make", "smithy": "Forge", "forge": "Forge", "armoury": "Forge",
         "founder": "Cast", "chandler": "Render", "tannery": "Tan", "jeweller": "Cut and set",
-        "sawyer": "Saw", "joiner": "Make", "cobbler": "Make", "butcher": "Make", "steelworks": "Make", "mailer": "Forge"
+        "sawyer": "Saw", "joiner": "Make", "cobbler": "Make", "butcher": "Make", "steelworks": "Make", "mailer": "Forge",
+        "spearmaker": "Make", "shieldwright": "Make", "helmsmith": "Raise", "leather_armourer": "Make", "quilter": "Quilt"
     }
 }

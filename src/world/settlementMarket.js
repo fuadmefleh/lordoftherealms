@@ -78,6 +78,8 @@ function buildConfig(src) {
             perCapita: _num(g.perCapita), days: Math.max(1, _num(g.days, 20)), spoil: _clamp(_num(g.spoil), 0, 0.5),
             cap: Math.max(1, _num(g.cap, 4)), group: g.group || null, coldMult: _num(g.coldMult, 1) || 1,
             minType: g.minType || 'village', minStock: Math.max(0, _num(g.minStock)),
+            // (arms: a town whose realm is at war needs this many times as much — market.war)
+            warMult: Math.max(1, _num(g.warMult, 1)),
         };
     }
     const groups = {};
@@ -239,22 +241,25 @@ export const SettlementMarket = {
         // ...and the coin in its purse: a town with money to spend buys more, a
         // broke one does without (data/markets.json wealth; in steps, so the table holds)
         const wm = SettlementMarket.wealthMult(settlement);
+        // ...and war: the levies and the watch wear out arms (each good's warMult;
+        // market.war is set by systems/marketDynamics.js while the town's realm fights)
+        const war = settlement.market && settlement.market.war ? 1 : 0;
         let sh = _shapes.get(settlement);
         // (the same labour record at the same mix key gives the same class demand:
         // skip asking for it — this is read hundreds of times a day)
         const lab = settlement.labour;
         const lcfg = TownLabour.config();
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.lab === lab && sh.lcfg === lcfg && sh.wm === wm && sh.war === war
             && (!lab || (sh.mk === lab.mk && sh.lsh === lab.sh && sh.fk === lab.fk))) return sh;
         // ...and the class mix: nobles buy wine, peasants grain (world/townLabour.js)
         const dm = TownLabour.demandMults(settlement, C);
-        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm) {
+        if (sh && sh.pop === pop && sh.type === type && sh.cfg === C && sh.dm === dm && sh.wm === wm && sh.war === war) {
             sh.lab = lab; sh.lcfg = lcfg; sh.mk = lab ? lab.mk : undefined; sh.lsh = lab ? lab.sh : undefined; sh.fk = lab ? lab.fk : undefined;
             return sh;
         }
         const n = C.goodIds.length;
         sh = {
-            pop, type, cfg: C, dm, wm, used: {}, need: {}, target: {},
+            pop, type, cfg: C, dm, wm, war, used: {}, need: {}, target: {},
             usedA: new Uint8Array(n), needA: new Float64Array(n), targetA: new Float64Array(n),
             lab, lcfg, mk: lab ? lab.mk : undefined, lsh: lab ? lab.sh : undefined, fk: lab ? lab.fk : undefined,
         };
@@ -264,7 +269,7 @@ export const SettlementMarket = {
             const g = C.goods[id];
             const minRank = Number.isFinite(C.typeRank[g.minType]) ? C.typeRank[g.minType] : 0;
             const used = g.perCapita > 0 && rank >= minRank;
-            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) * wm : 0;
+            const need = used ? pop * g.perCapita * td * (dm ? dm[i] : 1) * wm * (war ? g.warMult : 1) : 0;
             // (a town keeps at least the good's minStock of what its people use)
             const target = Math.max(Math.max(0.05, need > 0 ? need : pop * g.perCapita * C.noNeedRef) * g.days, used ? g.minStock : 0);
             sh.used[id] = used;

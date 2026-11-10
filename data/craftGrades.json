@@ -21,7 +21,7 @@
         "jewellery": { "name": "Jewellery", "icon": "💍", "desc": "Rings, amulets and fine metalwork" },
         "pottery": { "name": "Pottery & Glass", "icon": "🏺", "desc": "Pots, crockery, glass and glassware" }
     },
-    "stationSkills": { "cook": "cooking", "craft": "carpentry", "smelt": "smithing", "brew": "alchemy", "tan": "leatherwork" },
+    "stationSkills": { "cook": "cooking", "craft": "carpentry", "smelt": "smithing", "brew": "alchemy", "tan": "leatherwork", "arms": "smithing" },
     "titles": [
         { "min": 0, "name": "Novice" },
         { "min": 2, "name": "Apprentice" },

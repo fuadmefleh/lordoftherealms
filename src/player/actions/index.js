@@ -34,6 +34,7 @@ import { Holdings } from '../../systems/holdings.js';
 import { RealmPolitics } from '../realmPolitics.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Prison } from '../prison.js';
+import { Arms } from '../../systems/arms.js';
 import { addSettlementActions } from './settlementActions.js';
 import { addWildernessActions } from './wildernessActions.js';
 
@@ -117,6 +118,18 @@ export const PlayerActions = {
             icon: '⛺',
             description: 'Recover stamina and wait for the next day'
         });
+
+        // Arms & Armour: what you wield and wear, and your soldiers' kits (systems/arms.js)
+        if (Object.keys(Arms.items()).some(id => (player.inventory && player.inventory[id] > 0))
+            || (player.army || []).some(u => u && u.kit)) {
+            const main = Arms.equipped(player, 'main');
+            actions.push({
+                type: 'arms_armour',
+                label: 'Arms & Armour',
+                icon: '⚔️',
+                description: main ? `${main.stats.name}${main.stats.edge != null && main.edge < 60 ? ' (dull)' : ''}${main.cond < 50 ? ' (worn)' : ''}: equip, sharpen, mend; arm your soldiers` : 'Take up arms and armour; arm your soldiers',
+            });
+        }
 
         // Eat from the pack when hungry (the daily ration alone won't keep up
         // with a hungry day on the road)

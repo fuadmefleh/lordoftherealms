@@ -437,6 +437,7 @@ Object.assign(ActionMenu, {
         // Free actions (0 AP)
         rest: 0,
         eat_meal: 0,
+        arms_armour: 0,
         disembark: 0,
         explore_inner_map: 0,
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
@@ -1012,6 +1013,9 @@ Object.assign(ActionMenu, {
                 break;
             case 'commissions':
                 ActionMenu.showCommissions(game);
+                break;
+            case 'arms_armour':
+                ActionMenu.showArms(game);
                 break;
             case 'dawn_settle': {
                 // The Dawn of Man: the clan makes camp for good (player/dawnBirth.js)

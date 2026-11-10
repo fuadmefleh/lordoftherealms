@@ -91,6 +91,7 @@
             "ransoms": { "name": "Ransoms taken at sea", "group": "labour" },
             "seaFines": { "name": "Fines and bribes at sea", "group": "levies" },
             "armyUpkeep": { "name": "Army upkeep", "group": "military" },
+            "armsKit": { "name": "Arms and armour bought and mended", "group": "military" },
             "mercenaryWages": { "name": "Mercenary wages", "group": "military" },
             "crewWages": { "name": "Crew wages", "group": "military" },
             "ships": { "name": "Ships: upkeep, repairs, fittings", "group": "military" },

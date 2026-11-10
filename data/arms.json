@@ -1,0 +1,99 @@
+{
+    "_doc": "Arms and armour (systems/arms.js). Every weapon, shield, helm and body armour the player can forge, buy, wear, wield and issue to troops. An item's stats: slot (main | off | head | body), class (dagger, sword, axe, mace, spear, polearm, bow, crossbow, shield, helm, padded, leather, mail, plate), material (bronze, iron, steel, wood, leather, cloth), hands (2 = no shield), cut / pierce / blunt (0-10: the duel's weapon damage is the best of the three / 2, its damage type the best of the three), reach (0-3: the longer weapon hits more often on strike and thrust), weight (kg: heavy weapons cost breath to swing, heavy harness costs stamina), attack (handling: added to the duel's attack), pen (0-1: the share of the defender's armour the blow ignores — maces and points go through mail), edge (true: the blade dulls and wants sharpening), wear (how fast it wears: 1 = normal), tier (what it is worth on a soldier: bronze 0.85, iron 1, steel 1.15), block / riposte (shields: duel guard and riposte), cover (shields: share of a missile or ambush blow it takes), prot (armour: share of each blow it stops) with vs (how well it stops cut / pierce / blunt), melee (false: a bow is no duelling weapon), repair (what mending it takes), sprite (for the renderers: weaponClass, and an LPC layer under assets/lpc/Characters when one exists; layers lists the composited layers bottom to top; null when the art is still to be made). Grades (core/grades.js) scale damage, block, cover and prot by their effect multiplier. troops: what each soldier must be issued (systems/arms.js issueKit) — per unit type, the slots with their weight in his worth and the classes that fill them; bare is what an unarmed man is worth against a fully armed one.",
+    "slots": {
+        "main": { "label": "Main hand", "icon": "🗡️" },
+        "off": { "label": "Off hand", "icon": "🛡️" },
+        "head": { "label": "Head", "icon": "⛑️" },
+        "body": { "label": "Body", "icon": "🥋" }
+    },
+    "classes": {
+        "dagger": { "label": "Dagger", "skill": "blades" },
+        "sword": { "label": "Sword", "skill": "blades" },
+        "axe": { "label": "Axe", "skill": "blades" },
+        "mace": { "label": "Mace", "skill": "blades" },
+        "spear": { "label": "Spear", "skill": "blades" },
+        "polearm": { "label": "Polearm", "skill": "blades" },
+        "bow": { "label": "Bow", "skill": "archery" },
+        "crossbow": { "label": "Crossbow", "skill": "archery" },
+        "shield": { "label": "Shield" },
+        "helm": { "label": "Helm" },
+        "padded": { "label": "Padded armour" },
+        "leather": { "label": "Leather armour" },
+        "mail": { "label": "Mail" },
+        "plate": { "label": "Plate" }
+    },
+    "wear": {
+        "_doc": "Condition (0-100) and edge (0-100) of the pieces the player wears and wields, and of a troop's kit. Duels: the weapon loses edge for every blow it lands and condition a little; armour loses condition for every blow taken; a spar (blunted) wears at sparShare. Harm on the road (PlayerEffects.scaleDamage) wears the armour by perHarm per point of harm. A battle wears the commander's own gear by battle and every surviving soldier's kit by kitBattle. Below `worn` condition a piece loses effect down to `brokenMult` at 0; at 0 it breaks and is lost. A dull edge (edgeMult at 0) cuts less. Mending at an anvil takes the item's repair goods (yourself: Smithing xp; at a town smith for a fee, the goods bought from the town's stock); a whetstone puts the edge back (it may crack: whetstoneBreak), or the town smith's grindstone for grindFee.",
+        "edgePerBlow": 2.5, "condPerBlow": 0.5, "condPerHit": 1.2, "sparShare": 0.25, "guardPerBlock": 0.4,
+        "perHarm": 0.35, "battle": 4, "kitBattle": 6,
+        "worn": 50, "brokenMult": 0.5, "edgeMult": 0.6,
+        "whetstoneBreak": 0.2, "grindFee": 3, "mendFee": 0.12, "mendFeeMin": 4, "kitMendShare": 0.15
+    },
+    "duel": {
+        "_doc": "How gear plays in Duels: reachPerPoint (hit chance per point of reach over the foe's, on strike and thrust), heavyAt (kg: a weapon this heavy or more costs heavyCost extra breath a strike), staminaPerKg (harness weight off the bout's breath, after freeKg), riposte for a two-hander's own parry.",
+        "reachPerPoint": 0.03, "heavyAt": 2.5, "heavyCost": 1, "staminaPerKg": 0.12, "freeKg": 8, "npcReach": 1
+    },
+    "items": {
+        "bronze_dagger": { "name": "Bronze Dagger", "slot": "main", "class": "dagger", "material": "bronze", "hands": 1, "cut": 3, "pierce": 4.4, "blunt": 0, "reach": 0, "weight": 0.4, "attack": 0.7, "pen": 0.15, "edge": true, "wear": 1.3, "tier": 0.8, "repair": { "bronze_bar": 1 }, "sprite": { "weaponClass": "dagger", "layer": null } },
+        "iron_dagger": { "name": "Iron Dagger", "slot": "main", "class": "dagger", "material": "iron", "hands": 1, "cut": 3.4, "pierce": 5, "blunt": 0, "reach": 0, "weight": 0.4, "attack": 0.8, "pen": 0.2, "edge": true, "wear": 1, "tier": 0.9, "repair": { "iron": 1 }, "sprite": { "weaponClass": "dagger", "layer": null } },
+        "rondel_dagger": { "name": "Steel Rondel Dagger", "slot": "main", "class": "dagger", "material": "steel", "hands": 1, "cut": 3, "pierce": 6, "blunt": 0, "reach": 0, "weight": 0.5, "attack": 0.9, "pen": 0.45, "edge": true, "wear": 0.7, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "dagger", "layer": null } },
+        "bronze_sword": { "name": "Bronze Leaf Sword", "slot": "main", "class": "sword", "material": "bronze", "hands": 1, "cut": 5.2, "pierce": 3.6, "blunt": 0, "reach": 1, "weight": 1, "attack": 0.8, "pen": 0, "edge": true, "wear": 1.3, "tier": 0.85, "repair": { "bronze_bar": 1 }, "sprite": { "weaponClass": "sword", "layer": "Props/Sword 01 - Arming Sword/Bronze" } },
+        "iron_sword": { "name": "Iron Arming Sword", "slot": "main", "class": "sword", "material": "iron", "hands": 1, "cut": 6.2, "pierce": 4.4, "blunt": 0, "reach": 1, "weight": 1.1, "attack": 1, "pen": 0.05, "edge": true, "wear": 1, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "sword", "layer": "Props/Sword 01 - Arming Sword/Iron" } },
+        "weapons": { "name": "Munition Sword", "slot": "main", "class": "sword", "material": "iron", "hands": 1, "cut": 6, "pierce": 4, "blunt": 0, "reach": 1, "weight": 1.2, "attack": 1, "pen": 0, "edge": true, "wear": 1.1, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "sword", "layer": "Props/Sword 01 - Arming Sword/Iron" } },
+        "steel_arming_sword": { "name": "Steel Arming Sword", "slot": "main", "class": "sword", "material": "steel", "hands": 1, "cut": 7, "pierce": 5.6, "blunt": 0, "reach": 1, "weight": 1.1, "attack": 1.3, "pen": 0.1, "edge": true, "wear": 0.7, "tier": 1.15, "repair": { "iron": 1 }, "sprite": { "weaponClass": "sword", "layer": "Props/Sword 01 - Arming Sword/Steel" } },
+        "steel_sword": { "name": "Steel Longsword", "slot": "main", "class": "sword", "material": "steel", "hands": 1, "cut": 7.6, "pierce": 6, "blunt": 0, "reach": 1.5, "weight": 1.5, "attack": 1.2, "pen": 0.1, "edge": true, "wear": 0.7, "tier": 1.2, "repair": { "iron": 1 }, "sprite": { "weaponClass": "longsword", "layer": "Props/Sword 01 - Arming Sword/Steel" } },
+        "bronze_axe": { "name": "Bronze Axe", "slot": "main", "class": "axe", "material": "bronze", "hands": 1, "cut": 5.4, "pierce": 0, "blunt": 2, "reach": 0.5, "weight": 1.3, "attack": 0.4, "pen": 0.1, "edge": true, "wear": 1.3, "tier": 0.85, "repair": { "bronze_bar": 1 }, "sprite": { "weaponClass": "axe", "layer": null } },
+        "iron_axe": { "name": "Bearded War Axe", "slot": "main", "class": "axe", "material": "iron", "hands": 1, "cut": 6.4, "pierce": 0, "blunt": 2.5, "reach": 0.5, "weight": 1.4, "attack": 0.6, "pen": 0.15, "edge": true, "wear": 1, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "axe", "layer": null } },
+        "dane_axe": { "name": "Steel Dane Axe", "slot": "main", "class": "axe", "material": "steel", "hands": 2, "cut": 8.6, "pierce": 0, "blunt": 3, "reach": 2, "weight": 2.6, "attack": 0.6, "pen": 0.25, "edge": true, "wear": 0.7, "tier": 1.2, "repair": { "iron": 1 }, "sprite": { "weaponClass": "greataxe", "layer": null } },
+        "bronze_mace": { "name": "Bronze Mace", "slot": "main", "class": "mace", "material": "bronze", "hands": 1, "cut": 0, "pierce": 0, "blunt": 5.2, "reach": 0.5, "weight": 1.4, "attack": 0.4, "pen": 0.3, "edge": false, "wear": 1, "tier": 0.85, "repair": { "bronze_bar": 1 }, "sprite": { "weaponClass": "mace", "layer": null } },
+        "iron_mace": { "name": "Iron Mace", "slot": "main", "class": "mace", "material": "iron", "hands": 1, "cut": 0, "pierce": 0, "blunt": 6, "reach": 0.5, "weight": 1.6, "attack": 0.5, "pen": 0.4, "edge": false, "wear": 0.7, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "mace", "layer": null } },
+        "flanged_mace": { "name": "Steel Flanged Mace", "slot": "main", "class": "mace", "material": "steel", "hands": 1, "cut": 0, "pierce": 0, "blunt": 7, "reach": 0.5, "weight": 1.6, "attack": 0.7, "pen": 0.55, "edge": false, "wear": 0.5, "tier": 1.15, "repair": { "iron": 1 }, "sprite": { "weaponClass": "mace", "layer": null } },
+        "bronze_spear": { "name": "Bronze Spear", "slot": "main", "class": "spear", "material": "bronze", "hands": 1, "cut": 1.5, "pierce": 4.4, "blunt": 0, "reach": 2, "weight": 1.6, "attack": 0.7, "pen": 0.15, "edge": true, "wear": 1.3, "tier": 0.85, "repair": { "bronze_bar": 1 }, "sprite": { "weaponClass": "spear", "layer": null } },
+        "spear": { "name": "Iron Spear", "slot": "main", "class": "spear", "material": "iron", "hands": 1, "cut": 1.5, "pierce": 5, "blunt": 0, "reach": 2, "weight": 1.6, "attack": 0.8, "pen": 0.2, "edge": true, "wear": 1, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "spear", "layer": null } },
+        "pike": { "name": "Pike", "slot": "main", "class": "polearm", "material": "iron", "hands": 2, "cut": 0.5, "pierce": 5.6, "blunt": 0, "reach": 3, "weight": 3, "attack": 0.4, "pen": 0.25, "edge": true, "wear": 1, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "pike", "layer": null } },
+        "iron_bill": { "name": "Bill", "slot": "main", "class": "polearm", "material": "iron", "hands": 2, "cut": 6.4, "pierce": 4.6, "blunt": 2, "reach": 2.5, "weight": 2.6, "attack": 0.6, "pen": 0.25, "edge": true, "wear": 1, "tier": 1.05, "repair": { "iron": 1 }, "sprite": { "weaponClass": "polearm", "layer": null } },
+        "halberd": { "name": "Steel Halberd", "slot": "main", "class": "polearm", "material": "steel", "hands": 2, "cut": 8.4, "pierce": 6.4, "blunt": 3, "reach": 2.5, "weight": 3, "attack": 0.8, "pen": 0.4, "edge": true, "wear": 0.7, "tier": 1.2, "repair": { "iron": 1 }, "sprite": { "weaponClass": "polearm", "layer": null } },
+        "enchanted_weapon": { "name": "Enchanted Blade", "slot": "main", "class": "sword", "material": "steel", "hands": 1, "cut": 10, "pierce": 7, "blunt": 0, "reach": 1, "weight": 1.2, "attack": 1.5, "pen": 0.2, "edge": false, "wear": 0, "tier": 1.3, "repair": null, "sprite": { "weaponClass": "sword", "layer": "Props/Sword 01 - Arming Sword/Silver" } },
+        "bow": { "name": "Bow", "slot": "main", "class": "bow", "material": "wood", "hands": 2, "cut": 0, "pierce": 0, "blunt": 0, "reach": 0, "weight": 0.8, "attack": -0.5, "pen": 0, "edge": false, "wear": 1, "tier": 1, "melee": false, "repair": { "rope": 1 }, "sprite": { "weaponClass": "bow", "layer": null } },
+        "crossbow": { "name": "Crossbow", "slot": "main", "class": "crossbow", "material": "wood", "hands": 2, "cut": 0, "pierce": 0, "blunt": 0, "reach": 0, "weight": 3, "attack": -0.5, "pen": 0, "edge": false, "wear": 0.8, "tier": 1.1, "melee": false, "repair": { "rope": 1 }, "sprite": { "weaponClass": "crossbow", "layer": null } },
+
+        "buckler": { "name": "Buckler", "slot": "off", "class": "shield", "material": "iron", "block": 1.1, "riposte": 0.7, "cover": 0.06, "weight": 1, "wear": 0.8, "tier": 0.8, "repair": { "iron": 1 }, "sprite": { "weaponClass": "buckler", "layer": null } },
+        "shield": { "name": "Round Shield", "slot": "off", "class": "shield", "material": "wood", "block": 1.5, "riposte": 0.4, "cover": 0.15, "weight": 4, "wear": 1.2, "tier": 1, "repair": { "planks": 1 }, "sprite": { "weaponClass": "round_shield", "layer": null } },
+        "heater_shield": { "name": "Heater Shield", "slot": "off", "class": "shield", "material": "wood", "block": 1.8, "riposte": 0.45, "cover": 0.17, "weight": 3.5, "wear": 1, "tier": 1.1, "repair": { "planks": 1, "leather": 1 }, "sprite": { "weaponClass": "heater_shield", "layer": "Props/Shield 01 - Heater Shield/Wood/Brown", "layers": ["Props/Shield 01 - Heater Shield/Wood/Brown", "Props/Shield 01 - Heater Shield/Trim/Iron"] } },
+        "kite_shield": { "name": "Kite Shield", "slot": "off", "class": "shield", "material": "wood", "block": 1.9, "riposte": 0.3, "cover": 0.22, "weight": 5, "wear": 1, "tier": 1.15, "repair": { "planks": 1, "leather": 1 }, "sprite": { "weaponClass": "kite_shield", "layer": null } },
+        "pavise": { "name": "Pavise", "slot": "off", "class": "shield", "material": "wood", "block": 2.2, "riposte": 0.1, "cover": 0.32, "weight": 8, "wear": 0.9, "tier": 1.2, "repair": { "planks": 2 }, "sprite": { "weaponClass": "pavise", "layer": null } },
+
+        "leather_cap": { "name": "Leather Cap", "slot": "head", "class": "helm", "material": "leather", "prot": 0.04, "vs": { "cut": 1, "pierce": 0.6, "blunt": 0.8 }, "weight": 0.5, "wear": 1.2, "tier": 0.7, "repair": { "leather": 1 }, "sprite": { "weaponClass": "cap", "layer": null } },
+        "helmet": { "name": "Iron Helm", "slot": "head", "class": "helm", "material": "iron", "prot": 0.08, "vs": { "cut": 1.2, "pierce": 0.9, "blunt": 0.8 }, "weight": 1.6, "wear": 0.8, "tier": 1, "repair": { "iron": 1 }, "sprite": { "weaponClass": "nasal_helm", "layer": "Head Accessories/Helm 03 - Norman/Iron" } },
+        "steel_helm": { "name": "Steel Bascinet", "slot": "head", "class": "helm", "material": "steel", "prot": 0.12, "vs": { "cut": 1.2, "pierce": 1, "blunt": 0.9 }, "weight": 2.4, "wear": 0.6, "tier": 1.2, "repair": { "iron": 1 }, "sprite": { "weaponClass": "bascinet", "layer": "Head Accessories/Helm 02 - Bascinet, Closed/Steel" } },
+
+        "gambeson": { "name": "Gambeson", "slot": "body", "class": "padded", "material": "cloth", "prot": 0.14, "vs": { "cut": 0.9, "pierce": 0.8, "blunt": 1.3 }, "weight": 3, "wear": 1.1, "tier": 0.85, "repair": { "textiles": 1 }, "sprite": { "weaponClass": "gambeson", "layer": null } },
+        "leather_armor": { "name": "Leather Armour", "slot": "body", "class": "leather", "material": "leather", "prot": 0.2, "vs": { "cut": 1, "pierce": 0.85, "blunt": 0.9 }, "weight": 5, "wear": 1, "tier": 0.95, "repair": { "leather": 1 }, "sprite": { "weaponClass": "leather_armour", "layer": null } },
+        "chainmail": { "name": "Mail Hauberk", "slot": "body", "class": "mail", "material": "iron", "prot": 0.28, "vs": { "cut": 1.25, "pierce": 0.8, "blunt": 0.6 }, "weight": 11, "wear": 0.8, "tier": 1.15, "repair": { "iron": 1 }, "sprite": { "weaponClass": "mail", "layer": null } },
+        "brigandine": { "name": "Brigandine", "slot": "body", "class": "plate", "material": "steel", "prot": 0.31, "vs": { "cut": 1.15, "pierce": 1, "blunt": 0.85 }, "weight": 10, "wear": 0.8, "tier": 1.25, "repair": { "iron": 1, "leather": 1 }, "sprite": { "weaponClass": "brigandine", "layer": null } },
+        "plate_armor": { "name": "Plate Harness", "slot": "body", "class": "plate", "material": "steel", "prot": 0.36, "vs": { "cut": 1.2, "pierce": 1.05, "blunt": 0.8 }, "weight": 18, "wear": 0.6, "tier": 1.35, "repair": { "steel": 1 }, "sprite": { "weaponClass": "plate", "layer": null } }
+    },
+    "troops": {
+        "_doc": "What a recruit must be issued, by unit type (systems/arms.js). slots: { slot: { w (his worth that rides on it; a kit's weights add to 1), classes (what fills it) } }. bare: what he is worth with nothing (a club, a knife, a jerkin of his own). market: the town goods bought for each slot when the pack has nothing fit, cheapest first. Unit types not listed fight as they come (siege engines, mages, ships). The worth of a filled slot = the item's tier x its grade's effect x its condition.",
+        "maxFactor": 1.45,
+        "market": { "main": ["weapons", "spear", "bow"], "off": ["shield"], "head": ["helmet"], "body": ["gambeson", "leather_armor", "chainmail"] },
+        "kits": {
+            "militia": { "bare": 0.6, "slots": { "main": { "w": 0.7, "classes": ["spear", "axe", "mace", "sword", "dagger", "polearm"] }, "off": { "w": 0.15, "classes": ["shield"] }, "body": { "w": 0.15, "classes": ["padded", "leather", "mail", "plate"] } } },
+            "soldier": { "bare": 0.55, "slots": { "main": { "w": 0.45, "classes": ["sword", "axe", "mace", "spear"] }, "off": { "w": 0.2, "classes": ["shield"] }, "head": { "w": 0.1, "classes": ["helm"] }, "body": { "w": 0.25, "classes": ["padded", "leather", "mail", "plate"] } } },
+            "pikeman": { "bare": 0.5, "slots": { "main": { "w": 0.55, "classes": ["polearm", "spear"] }, "head": { "w": 0.15, "classes": ["helm"] }, "body": { "w": 0.3, "classes": ["padded", "leather", "mail", "plate"] } } },
+            "archer": { "bare": 0.45, "slots": { "main": { "w": 0.7, "classes": ["bow"] }, "head": { "w": 0.1, "classes": ["helm"] }, "body": { "w": 0.2, "classes": ["padded", "leather"] } } },
+            "longbowman": { "bare": 0.45, "slots": { "main": { "w": 0.75, "classes": ["bow"] }, "head": { "w": 0.1, "classes": ["helm"] }, "body": { "w": 0.15, "classes": ["padded", "leather"] } } },
+            "crossbowman": { "bare": 0.45, "slots": { "main": { "w": 0.65, "classes": ["crossbow", "bow"] }, "off": { "w": 0.1, "classes": ["shield"] }, "body": { "w": 0.25, "classes": ["padded", "leather", "mail"] } } },
+            "knight": { "bare": 0.55, "slots": { "main": { "w": 0.35, "classes": ["sword", "mace", "axe", "polearm", "spear"] }, "off": { "w": 0.15, "classes": ["shield"] }, "head": { "w": 0.2, "classes": ["helm"] }, "body": { "w": 0.3, "classes": ["mail", "plate"] } } },
+            "cavalry": { "bare": 0.55, "slots": { "main": { "w": 0.45, "classes": ["sword", "spear", "axe", "mace"] }, "off": { "w": 0.15, "classes": ["shield"] }, "head": { "w": 0.15, "classes": ["helm"] }, "body": { "w": 0.25, "classes": ["leather", "mail", "plate", "padded"] } } },
+            "shield_wall": { "bare": 0.5, "slots": { "main": { "w": 0.35, "classes": ["spear", "axe", "sword", "mace"] }, "off": { "w": 0.35, "classes": ["shield"] }, "head": { "w": 0.1, "classes": ["helm"] }, "body": { "w": 0.2, "classes": ["padded", "leather", "mail", "plate"] } } },
+            "berserker": { "bare": 0.6, "slots": { "main": { "w": 0.8, "classes": ["axe", "sword", "mace"] }, "body": { "w": 0.2, "classes": ["padded", "leather"] } } },
+            "assassin": { "bare": 0.7, "slots": { "main": { "w": 1, "classes": ["dagger", "sword"] } } },
+            "scout": { "bare": 0.65, "slots": { "main": { "w": 0.7, "classes": ["bow", "spear", "sword", "dagger", "axe"] }, "body": { "w": 0.3, "classes": ["padded", "leather"] } } }
+        }
+    },
+    "spoils": {
+        "_doc": "A won battle strips the beaten: per `per` points of the enemy's strength, one piece of each of `goods` (the spears, munition swords and shields of the dead), at most `max` of each. Draws no RNG.",
+        "per": 40, "max": 6, "goods": ["weapons", "spear", "shield"]
+    }
+}

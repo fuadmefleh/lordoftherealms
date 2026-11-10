@@ -61,6 +61,20 @@ Object.assign(ActionMenu, {
 
         // What the town's tradesmen will do
         const offers = Commissions.offers(world, s);
+
+        // Order a piece of arms or armour: the weaponsmith buys the stuff out of the town's stock
+        const armsOffers = offers.filter(o => o.kind === 'craft' && Commissions.isArmsOffer(o));
+        if (armsOffers.length) {
+            html += `<div style="${CARD}"><b>⚔️ Order arms and armour</b> <span style="${NOTE}">— ${esc(armsOffers[0].who)} finds the iron, wood and leather in ${esc(s.name)}'s market and works it; you pay for the stuff and the work</span>`;
+            const rows = armsOffers.map(o => ({ o, q: Commissions.quote(player, world, s, o, 1, 'fee', { supply: true }) }))
+                .sort((x, y) => (x.q.short.length > 0) - (y.q.short.length > 0) || x.q.total - y.q.total);
+            for (const { o, q } of rows.slice(0, opts.all ? rows.length : 12)) {
+                const ok = !q.short.length && (player.gold || 0) >= q.total;
+                const why = q.short.length ? `${s.name} has no ${q.short.map(g => Commissions._goodName(g).toLowerCase()).join(' or ')} to spare.` : `${q.total} gold.`;
+                html += `<div style="margin-top:3px;">${act(`${o.icon ? esc(o.icon) + ' ' : ''}${esc(o.label)} — ${q.total}g`, ['order', o.id], ok ? BTN_GOLD : BTN_PLAIN, ok, why)} <span style="${NOTE}">${q.days + 1} day${q.days ? 's' : ''}</span>${gradeNote(q.grades)}</div>`;
+            }
+            html += '</div>';
+        }
         const usable = offers.map(o => ({ o, max: Commissions.maxRuns(player, o) }));
         usable.sort((a, b) => (b.max > 0) - (a.max > 0) || a.o.label.localeCompare(b.o.label));
         const showAll = !!opts.all;
@@ -101,6 +115,7 @@ Object.assign(ActionMenu, {
         const { player, world } = game;
         let res = null;
         if (op === 'hire') res = Commissions.commission(player, world, a, b, c);
+        else if (op === 'order') res = Commissions.commission(player, world, a, 1, 'fee', { supply: true });
         else if (op === 'collect') res = Commissions.collect(player, world);
         else if (op === 'all') { ActionMenu.showCommissions(game, { all: !!a }); return; }
         if (res) {

@@ -1687,6 +1687,43 @@ Inside buildings, furniture lets you work materials yourself: the **anvil** (Cra
 - **Hunting kit and goods from the wild** (2026-11): **Hunting Bow**: 3 wood + 1 rope (cord), or 3 wood + 2 sinew. **Arrows**: 1 wood + 2 feathers + 1 iron → 10, 1 stone instead of the iron → 6, or 1 eagle feather in place of the two feathers → 16. **Fishing Spear** (for spear fishing underwater): 1 wood + 1 iron, or 2 wood + 1 stone + 1 rope. All of these are made at the anvil (Carpentry). At the bench you can also make **stone tools** (2 stone, 1 wood, 1 sinew), **wood and antler carvings**, **ivory carvings** (Jewellery), **quills** (3 feathers) and **leather goods** (2 leather → 3 belts and pouches). At the hearth: **jerky and smoked game** from game meat, **dried meat**, and **smoked fish and salt fish** (→ preserved fish). At the stable stall: **cured furs** (2 pelts + salt) and a **bear-skin rug**. Each one sells for more than its inputs cost at base price, and more again at a better grade. Bows, arrows and fishing spears are on town stalls and with blacksmiths and merchants. Arrows now cost 5g each.
 - **Antidote** (2 herbs + 1 mushroom): its own remedy now. Used from the Ailments panel it **purges the Bloody Flux, Marsh Fever and Wound Fever outright**, draws out wound infection (85%) and eases other sickness.
 
+### Arms & Armour: Weapon Smithing, Shields and Harness
+
+Weapons, shields, helms and body armour are made, graded, worn, worn out, mended, traded and issued to your soldiers (`systems/arms.js`, catalogue `data/arms.json`).
+
+**The range.** Each piece has a slot (main hand, off hand, head, body), a class and a material, and stats that every fight reads:
+
+| Kind | Pieces (bronze → iron → steel) | What they do |
+|------|------------------------|--------------|
+| Daggers | Bronze Dagger, Iron Dagger, Steel Rondel | Quick (good handling), no reach; the rondel's point goes through 45% of armour |
+| Swords | Bronze Leaf Sword, Munition Sword (the town armourers' "Weapons"), Iron Arming Sword, Steel Arming Sword, Steel Longsword | Cut and point, reach 1 to 1.5; turned by mail |
+| Axes | Bronze Axe, Bearded War Axe, Steel Dane Axe (two hands) | Heavy cuts; the Dane axe hits hardest of all and costs breath |
+| Maces | Bronze Mace, Iron Mace, Steel Flanged Mace | Blunt: mail and plate stop little of it (40–55% of armour ignored) |
+| Spears & polearms | Bronze Spear, Iron Spear, Pike, Bill, Steel Halberd (pike, bill and halberd two-handed) | Reach 2–3: the longer weapon lands more strikes and thrusts |
+| Bows | Bow, Crossbow | Missile weapons: for the hunt and the battle line, not a duel |
+| Shields | Buckler, Round Shield, Heater Shield, Kite Shield, Pavise | Guard in a duel, riposte, and cover against ambush and missiles (buckler: quick ripostes, little cover; pavise: a wall) |
+| Helms | Leather Cap, Iron Helm, Steel Bascinet | 4–12% of each blow |
+| Body | Gambeson, Leather Armour, Mail Hauberk, Brigandine, Plate Harness | 14–36% of each blow, by damage type: mail turns a cut far better than a mace; padding soaks blunt blows; plate is heavy |
+
+Every number is scaled by the piece's **grade** (Poor ×0.8 … Masterwork ×1.65), its **condition** (below 50% it loses effect, down to half at 0, when it breaks and is gone) and, for an edged weapon, its **edge** (a blunt blade cuts 40% less; maces don't care).
+
+**The smithing chain** (at an anvil: **Weaponsmith & Armoury**; smelting at the forge):
+- **Ore to metal**: Bloomery Iron — 2 iron ore + 1 coal → 2 bar iron, or 2 ore + 2 wood (charcoal) → 2. Iron Ingot (3 iron), Steel (ingot + coal) as before. **Bronze Bars**: 3 copper + 1 tin → 2. Copper and tin come from the hills: a miner's rarer finds in hills, highlands and mountains, and the town markets of upland country.
+- **Parts** (graded, and a better part makes a better piece): **Ash Hafts** (1 wood → 2, Carpentry), **Hilts & Grips** (1 wood + 1 leather → 2, Leatherwork), **Shield Bosses** (1 iron → 2, Smithing at the forge), **Whetstone** (2 stone).
+- **Forging** (Smithing, at the Forge minigame — its score moves the grade and the failure chance): blade + grip for daggers and swords (e.g. Iron Arming Sword: 3 iron + a grip; Steel Arming Sword: 1 steel + 1 iron + a grip; Longsword: 2 steel + a grip), head + haft for axes, maces, spears and polearms (Pike: 1 iron + 3 hafts; Halberd: 1 steel + 1 iron + 2 hafts), Buckler (2 iron + leather), Iron Helm (2 iron + coal), Steel Bascinet (steel + leather), Mail Hauberk (2 ingots + leather), Brigandine (steel, 2 iron, cloth, leather), Plate Harness (3 steel + 2 leather).
+- **Shields and padding** (Carpentry / Tailoring, no forge): Round Shield (3 planks + rawhide + a boss), Heater (3 planks, 2 leather, iron), Kite (4 planks, 2 leather, boss, iron), Pavise (8 planks, 2 leather, 2 iron); Leather Cap, Leather Armour (3 leather + tallow), Gambeson (cloth + wool).
+Every arms recipe makes more than its stuff is worth at base price; a Fine piece sells for 1.4× and fights 1.2× better.
+
+**Wearing it.** **Arms & Armour** (in the action menu whenever you carry arms or have soldiers) shows your four slots: what you wield and wear, its grade, condition and edge, and what it does. An empty slot takes up the best piece you carry; you can take up another, or put a piece away (fists, no shield). A two-handed weapon leaves no hand for a shield. Your harness weighs: past 8 kg every kilo costs a little breath in a duel, and a weapon of 2.5 kg or more costs 1 extra breath a Strike.
+
+**Wear, sharpening and mending.** Every blow you land in a duel dulls the blade and wears it a little; every blow you take dents your helm and harness; every guard wears your shield (a sparring bout a quarter as much). Harm on the road wears the armour that turned it, and a battle knocks your gear about. **Sharpen** on a whetstone (it may crack) or at a town smith's grindstone (3 gold). **Mend** a piece yourself at an anvil with its repair stuff (an iron bar for iron and steel, a plank or leather for a shield, cloth for a gambeson; a little Smithing practice) or have the town smith do it — his fee, and the stuff bought from the town's own stock.
+
+**Buying and ordering.** The town armourers make the soldier's kit from the town's own stock: the **spearmaker** (iron and wood → spears), **shieldwright** (planks, hide and iron → round shields), **helm-smith** (iron and coal → helms), **leather armourer** and the **quilters** (cloth and wool → gambesons), beside the old **armoury** (iron and coal → munition swords) and the mail-maker. What they make is on the stalls when the stock runs high. **When the town's realm is at war** its people need 3–4 times the arms (the levies and the watch wear them out): the stock drains, prices climb and the armourers burn through the town's iron. To get a better piece, **order it**: Hire the Tradesmen → *Order arms and armour* — the weaponsmith (towns: up to difficulty 3; a city's armourers' quarter: anything) buys the iron, wood and leather out of the town's market at its price (down to the grip's wood and leather) and works it for his fee; it comes out in the town's grades.
+
+**Arming your soldiers.** A recruit is issued a kit for his type — e.g. a Soldier: a sword, axe, mace or spear; a shield; a helm; body armour. A Pikeman: a pike or spear, helm, body armour. Archers: a bow and light armour. A Knight: a weapon, shield, helm and mail or plate. The kit comes **from your own stores first** (the worst of a stack, keeping your own pieces), **then the town armourers' stock**, bought at its price (the coin to the town); the recruit menu shows where each piece would come from, what it costs and how well he would fight. With nothing to give him he comes with what he owns and fights at about half a man (militia 60%, soldiers 55%, archers 45%); a Common iron kit is his full worth; Fine steel lifts him up to +45%. The recruit's bounty itself is now spent in the town. Battles wear every soldier's kit; the smiths mend them (Arms & Armour → *Mend their arms*: a fee and iron from the town's stock). The fallen take their arms with them. Mercenaries, siege engines, mages and ships come armed. A won battle strips the beaten of their arms: a munition sword, a spear and a shield per 40 points of the enemy's strength (up to 6 each) into your packs.
+
+For the artists and renderers, every piece names its sprite: `weaponClass` (dagger, sword, longsword, axe, greataxe, mace, spear, pike, polearm, bow, crossbow, buckler, round_shield, heater_shield, kite_shield, pavise, cap, nasal_helm, bascinet, gambeson, leather_armour, mail, brigandine, plate) and, where the LPC art exists, its layer (the arming sword in bronze, iron and steel; the heater shield; the Norman helm and closed bascinet) — `Arms.spriteOf(id)`, and a soldier's kit by slot with `Arms.kitView(unit)`.
+
 ---
 
 ## 7. Caravans & Trade Routes
@@ -1857,7 +1894,7 @@ The arrangement is kept for each home and survives leaving and saving. What it d
 
 ### Recruiting Units
 
-Units are recruited at settlements. Available types depend on settlement size:
+Units are recruited at settlements. Available types depend on settlement size. The cost is the recruit's bounty (spent in the town); his **arms** come on top, from your stores or the town armourers' stock — a unit's strength below is for a man fully armed in Common iron, and an unarmed one fights at about half (see [Arms & Armour](#arms--armour-weapon-smithing-shields-and-harness)):
 
 | Unit | Cost | Upkeep | Strength | Where to Recruit |
 |------|------|--------|----------|-----------------|
@@ -2062,13 +2099,13 @@ A band you paid, talked down, fed or drove off leaves you alone for a while (7 d
 
 ### Personal Protection
 
-When you are attacked without an army, or brawl on the local map, gear in your pack softens the blows: Leather Armor −20%, Shield −15%, Amulet −10% (they stack). Divine Protection blocks all damage.
+When you are attacked without an army, or brawl on the local map, the armour you wear softens the blows: your body armour (Gambeson −14% … Leather −20%, Mail −28%, Plate −36%), your helm (−4 to −12%) and your shield's cover (−6 to −32%) by their grade and condition, and an Amulet −10% (they stack; each piece at most −45%). Only what you wear counts — one helm, one harness, one shield (see [Arms & Armour](#arms--armour-weapon-smithing-shields-and-harness)) — and every blow wears it. Divine Protection blocks all damage.
 
 ### Personal Combat: Duels
 
 Every fight between you and one other person uses the same duel rules: combat training, tournament bouts, duels with rival adventurers, their ambushes, and brawls on the local map.
 
-**Who you are in a fight.** Your **attack** comes from your combat skill, strength and luck and from the best weapon you carry: a Hammer (Tools) +1.5 damage, a Sword (Weapons) +3 damage and +1 attack, an Enchanted Weapon +5 damage and +1.5 attack. An equipped weapon is used ahead of the others in your pack. Bare fists hit at −1 attack. A **Shield** adds +1.5 defence and makes a parried strike hit back 40% harder. **Armour** turns part of every blow: Leather Armor 20%, Dragonscale 35%, an Amulet 10%, plus carried dragon scales, up to 70% (Divine Protection counts as the full 70%). Earned traits that change battle power (Brave, Craven, Champion, …), your mood and carried treasures scale your attack and damage. Wounds and sickness weaken you, and a Lame fighter guards worse. Your **breath** (stamina) is 8 + 0.4 × strength + up to 4 when you are rested (energy, with needs on). Your **pool** of hit points for the bout is 20 + strength + 1.5 × combat skill, and you start with less when you are already hurt.
+**Who you are in a fight.** Your **attack** comes from your combat skill, strength and luck and from the weapon in your main hand (see [Arms & Armour](#arms--armour-weapon-smithing-shields-and-harness)): its damage is the best of its cut, point or weight ÷ 2 (a Munition Sword +3, a Steel Longsword +3.8, an Enchanted Blade +5) by its grade, condition and edge, plus its handling to your attack. With no arms, a smith's hammer (Tools) still does +1.5. Bare fists hit at −1 attack. **Reach**: the longer weapon gets +3% to hit per point of reach on strikes and thrusts. A **Shield** adds its guard to your defence (Round Shield +1.5) and makes a parried strike hit back harder (a buckler 70%). **Armour** turns part of every blow by its damage type — mail turns a cut far better than a mace, padding soaks a club — and a mace's weight or a rondel's point goes partly through it (penetration). Dragonscale 35%, an Amulet 10% and carried dragon scales add to it, up to 70% (Divine Protection counts as the full 70%). Earned traits that change battle power (Brave, Craven, Champion, …), your mood and carried treasures scale your attack and damage. Wounds and sickness weaken you, and a Lame fighter guards worse. Your **breath** (stamina) is 8 + 0.4 × strength + up to 4 when you are rested (energy, with needs on). Your **pool** of hit points for the bout is 20 + strength + 1.5 × combat skill, and you start with less when you are already hurt.
 
 **The exchange.** Each round you and your opponent each pick a move at the same time:
 

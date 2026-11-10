@@ -97,11 +97,11 @@
     "trades": {
         "craftSkills": { "smithing": "smithing", "leatherwork": "tanning", "tailoring": "tanning", "brewing": "brewing", "alchemy": "brewing" },
         "tradeSkills": {
-            "smithy": "smithing", "forge": "smithing", "armoury": "smithing", "founder": "smithing", "steelworks": "smithing", "mailer": "smithing",
-            "tannery": "tanning", "weaver": "tanning", "linen_weaver": "tanning", "tailor": "tanning", "cobbler": "tanning",
+            "smithy": "smithing", "forge": "smithing", "armoury": "smithing", "founder": "smithing", "steelworks": "smithing", "mailer": "smithing", "spearmaker": "smithing", "helmsmith": "smithing",
+            "tannery": "tanning", "weaver": "tanning", "linen_weaver": "tanning", "tailor": "tanning", "cobbler": "tanning", "leather_armourer": "tanning", "quilter": "tanning",
             "brewery": "brewing", "distillery": "brewing"
         },
-        "stationSkills": { "smelt": "smithing", "tan": "tanning", "brew": "brewing" },
+        "stationSkills": { "smelt": "smithing", "tan": "tanning", "brew": "brewing", "arms": "smithing" },
         "masterRoles": {
             "smithing": ["blacksmith_npc"],
             "tanning": ["tanner", "weaver"],

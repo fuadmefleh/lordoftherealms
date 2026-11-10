@@ -180,6 +180,7 @@ export const Afterlife = {
         player.army = [];
         player.mercenaryCompanies = [];
         player.activeContract = null;
+        player.commission = null;
         const companions = (player.travelParty || []).length;
         player.travelParty = [];
         player.path = null;

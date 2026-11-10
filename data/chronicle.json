@@ -95,6 +95,7 @@
             "crewWages": { "name": "Crew wages", "group": "military" },
             "ships": { "name": "Ships: upkeep, repairs, fittings", "group": "military" },
             "plunder": { "name": "Battle spoils", "group": "military" },
+            "crownWages": { "name": "Crown wages (commission)", "group": "military" },
             "banditTolls": { "name": "Tolls paid to bandits on the road", "group": "military" },
             "robbery": { "name": "Robbed on the road", "group": "other" },
             "rivalTribute": { "name": "Tribute to rival Houses", "group": "other" },

@@ -50,7 +50,7 @@ describe('the new-game choices', () => {
     it('offers the advanced starts as their own group, with their suggested goals', () => {
         const c = Scenarios.choices();
         const adv = c.origins.filter(o => o.group === 'advanced').map(o => o.id);
-        expect(adv).toEqual(['monarch', 'high_priest', 'great_lord', 'guildmaster']);
+        expect(adv).toEqual(['monarch', 'high_priest', 'great_lord', 'guildmaster', 'general']);
         expect(c.origins.find(o => o.id === 'wanderer').group).toBe('origin');
         expect(c.origins.find(o => o.id === 'monarch').suggestedVictory).toBe('empire');
         expect(c.origins.find(o => o.id === 'high_priest').suggestedVictory).toBe('faith');

@@ -14,6 +14,7 @@ import { Housing } from '../../systems/housing.js';
 import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
+import { Generalship } from '../generalship.js';
 import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
@@ -404,6 +405,22 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
             icon: '🏛️',
             description: `Swear fealty to the kingdom of ${tile.settlement.name}`
         });
+    }
+
+    // Army Command — a commission in a realm's army (player/generalship.js):
+    // sought at a capital, commanded from anywhere the host is
+    {
+        const held = Generalship.state(player);
+        const seekHere = !held && Generalship.enabled() && tile.settlement.kingdom != null
+            && (() => { const k = world.getKingdom(tile.settlement.kingdom); return !!(k && k.capital && k.capital.q === tile.q && k.capital.r === tile.r); })();
+        if (held || seekHere) {
+            actions.push({
+                type: 'army_command',
+                label: held ? 'Army Command' : 'Seek a Commission',
+                icon: '🎖️',
+                description: held ? `Command your host in the army of ${held.kingdomName}` : 'Serve in the realm\'s army: command its soldiers and rise through its ranks',
+            });
+        }
     }
 
     // Wars of the realms — follow the wars, broker peace, campaign for your liege

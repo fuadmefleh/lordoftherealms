@@ -55,6 +55,7 @@ const topLevel = [
     'duels',
     'crafting',
     'mercenaryContracts',
+    'generalship',
     'devotion',
     'books',
     'feasts',

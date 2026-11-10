@@ -20,6 +20,7 @@ import { PlayerEffects } from './playerEffects.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { Quests } from '../systems/quests.js';
 import { NPCLords } from '../world/npcLords.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 export const REALM_POLITICS = {
     broker: { fee: 50, cooldownDays: 10, base: 0.2, perDiplomacy: 0.04, maxRenownBonus: 0.15, lopsidedPenalty: 0.15, renown: 8, reputation: 8 },
@@ -258,7 +259,11 @@ export const RealmPolitics = {
             st.merit[meritKey] = (st.merit[meritKey] || 0) + 1;
             KingdomAI._warState(opts.liege, enemy.id, world).gains += 1;
             enemy.military = Math.floor((enemy.military || 0) * C.enemyLoss);
-            player.gold = (player.gold || 0) + C.wage;
+            // The wage is the liege's coin: out of its treasury, what it can pay
+            const wage = Math.max(0, Math.min(C.wage, Math.floor(opts.liege.treasury || 0)));
+            opts.liege.treasury = (opts.liege.treasury || 0) - wage;
+            if (wage > 0) CrownBooks.note(opts.liege, 'army', wage);
+            player.gold = (player.gold || 0) + wage;
             if (!player.reputation) player.reputation = {};
             const gain = PlayerEffects.scaleReputationGain(player, C.reputation);
             player.reputation[opts.liege.id] = Math.min(100, (player.reputation[opts.liege.id] || 0) + gain);
@@ -266,7 +271,7 @@ export const RealmPolitics = {
             NPCLords.rememberDeed(world, enemy.lord, 'war_on_us', { weight: -4, note: `for ${opts.liege.name}` });
             return {
                 success: true, battle,
-                message: `You rout a ${enemy.name} vanguard for ${opts.liege.name}. +${C.wage}g wages, +${gain} reputation; the war turns in your liege's favour.`,
+                message: `You rout a ${enemy.name} vanguard for ${opts.liege.name}. +${wage}g wages, +${gain} reputation; the war turns in your liege's favour.`,
             };
         }
         return { success: true, battle, failed: true, message: `The ${enemy.name} vanguard throws you back.` };
@@ -432,7 +437,11 @@ export const RealmPolitics = {
             if (!merit) continue;
             delete st.merit[key];
             const share = Math.min(S.maxTributeShare, S.tributeSharePerMerit * merit);
-            const gold = Math.floor((h.tribute || 0) * share) + S.goldPerMerit * merit;
+            // The share comes out of the victor's treasury (where the tribute went)
+            const victorK = world.getKingdom(h.victor);
+            const want = Math.floor((h.tribute || 0) * share) + S.goldPerMerit * merit;
+            const gold = victorK ? Math.max(0, Math.min(want, Math.floor(victorK.treasury || 0))) : 0;
+            if (victorK) victorK.treasury = (victorK.treasury || 0) - gold;
             const renown = S.renownPerMerit * merit;
             player.gold = (player.gold || 0) + gold;
             player.renown = (player.renown || 0) + renown;

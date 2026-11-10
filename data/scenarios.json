@@ -177,6 +177,22 @@
       "stats": { "intelligence": 1 },
       "title": "Guildmaster",
       "welcome": "The masters of the {guild} have elected you guildmaster. The hall's purse holds {treasury} gold, and the next election is on day {election}: {challenger} is canvassing against you. Keep your standing up, or lobby the crown for a monopoly."
+    },
+    "general": {
+      "group": "advanced",
+      "name": "The General",
+      "icon": "⚔️",
+      "blurb": "A General in a realm's army: the crown's soldiers at your command on a border at war, lieutenants who owe you their rank, wages from a treasury that may run dry, a rival at court and a ruler who watches a victorious general closely.",
+      "guidedStart": false,
+      "suggestedVictory": "crown",
+      "gold": 350,
+      "prestige": 20,
+      "renown": 30,
+      "reputation": 25,
+      "enemyFeud": 25,
+      "skills": { "leadership": 4, "combat": 3, "diplomacy": 1 },
+      "stats": { "strength": 1 },
+      "welcome": "You are {rank} of {kingdom}, at the head of {men} of its soldiers camped at {town}. {warLine} {rival} whispers against you before {ruler}. The crown's first orders: {order} Open Army Command from the Dynasty menu."
     }
   },
 

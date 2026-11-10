@@ -376,6 +376,7 @@ Object.assign(InnerMapRenderer, {
             this._ambPartsN++;
             rec.part = part; rec.art = art; rec.x = place.x; rec.y = place.y; rec.flip = place.flip;
             rec.sortY = (r + 1) * this.TILE_SIZE + 0.25; rec.q = q; rec.r = r; rec.waterY = place.waterY;
+            rec.turn = place.turn || 1;
         }
     },
 
@@ -393,9 +394,18 @@ Object.assign(InnerMapRenderer, {
             p = { x: q + at[0], y: r + at[1], flip: false, waterY: null };
         } else if (def) {
             const box = buildingBox(def);
-            const water = box ? this._ambWaterSide(box, q, r) : null;
+            // A mill the map stood on the bank knows its wheel's wall (world/innerMap/mills.js)
+            const cb = InnerMap.tiles[r] && InnerMap.tiles[r][q] && InnerMap.tiles[r][q].customBuilding;
+            const wheel = cb && cb.wheel && box ? cb.wheel : null;
+            const water = wheel ? { side: wheel.side } : box ? this._ambWaterSide(box, q, r) : null;
             if (part.place === 'waterSide') {
-                if (water) p = { x: water.x + at[0] * (water.flip ? -1 : 1), y: water.y + at[1], flip: water.flip, waterY: water.y };
+                if (wheel) {
+                    // Beside the gable wall's foot, `at` [out from the wall, down from the foot row's top]
+                    const wall = wheel.side > 0 ? q + box.maxQ + 1 : q + box.minQ;
+                    const y = r + box.maxR + at[1];
+                    // The bottom of an undershot wheel goes with the stream (still water: it turns as it was built to)
+                    p = { x: wall + at[0] * wheel.side, y, flip: false, waterY: y + (part.waterline || 0), turn: wheel.flow ? -wheel.flow : 1 };
+                } else if (water) p = { x: water.x + at[0] * (water.flip ? -1 : 1), y: water.y + at[1], flip: water.flip, waterY: water.y };
             } else if (part.place === 'roof' && box && !(part.unlessWater && water)) {
                 p = { x: q + (box.minQ + box.maxQ + 1) / 2 + at[0], y: r + box.roofR + at[1], flip: false, waterY: null };
             }
@@ -442,7 +452,7 @@ Object.assign(InnerMapRenderer, {
         const man = art.man;
         const frames = Math.max(1, man.frames || 1);
         const fw = (man.w || art.img.width / frames), fh = man.h || art.img.height;
-        const w = (man.tilesW || 1) * ds, h = (man.tilesH || 1) * ds;
+        const w = (man.tilesW || 1) * ds * (part.scale || 1), h = (man.tilesH || 1) * ds * (part.scale || 1);
         const piv = man.pivot || [0.5, 0.5];
         const t = this._ambientT;
         let frame = 0;
@@ -456,22 +466,51 @@ Object.assign(InnerMapRenderer, {
         const sc = camera.worldToScreenFast(rec.x * T, rec.y * T);
         const sx = sc.x, sy = sc.y;
         if (sx + w < 0 || sx - w > ctx.canvas.width || sy + h < 0 || sy - h > ctx.canvas.height) return;
+        // (squash: a wheel or sails seen a little from the side, narrower than tall)
+        const sq = part.squash || 1;
+        // Below the waterline a wheel shows dim through the water (`submerged`: how much of it shows)
+        const wl = part.submerged != null && rec.waterY != null ? camera.worldToScreenFast(0, rec.waterY * T).y : null;
+        const pose = () => {
+            ctx.translate(sx, sy);
+            if (rec.flip) ctx.scale(-1, 1);
+            if (sq !== 1) ctx.scale(sq, 1);
+            if (part.spin) ctx.rotate(t * part.spin * (rec.turn || 1) * Math.PI * 2);
+            if (part.sway) ctx.rotate(Math.sin(t * 1.3 + rec.q) * part.sway * Math.PI / 180);
+            ctx.drawImage(art.img, frame * fw, 0, fw, fh, -w * piv[0], -h * piv[1], w, h);
+        };
         ctx.save();
         ctx.imageSmoothingEnabled = true;
-        ctx.translate(sx, sy);
-        if (rec.flip) ctx.scale(-1, 1);
-        if (part.spin) ctx.rotate(t * part.spin * Math.PI * 2);
-        if (part.sway) ctx.rotate(Math.sin(t * 1.3 + rec.q) * part.sway * Math.PI / 180);
-        ctx.drawImage(art.img, frame * fw, 0, fw, fh, -w * piv[0], -h * piv[1], w, h);
+        if (wl != null) {
+            ctx.beginPath();
+            ctx.rect(sx - w, sy - h, w * 2, wl - (sy - h));
+            ctx.clip();
+        }
+        pose();
         ctx.restore();
-        // Where the wheel meets the water it throws up spray
+        if (wl != null && part.submerged > 0) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.beginPath();
+            ctx.rect(sx - w, wl, w * 2, sy + h - wl);
+            ctx.clip();
+            ctx.globalAlpha = part.submerged;
+            pose();
+            ctx.restore();
+        }
+        // Where the wheel meets the water it throws up spray: at the rim on either side, the
+        // paddles coming up out of the stream (downstream) throwing the more
         if (part.spray && rec.waterY != null) {
             const kind = this._ambCfg.kinds[part.spray];
             if (kind && kind._sprites && kind._sprites.length) {
                 const rate = part.sprayRate || 5;
                 const n = slotCount(kind, rate, this._ambCfg.maxSlots);
-                const bottom = (man.tilesH || 1) * (1 - piv[1]) * 0.85;
-                this._ambDrawEmitter(ctx, camera, rec.x * T, (rec.y + bottom) * T, kind, rate, 1, rec.q * 31 + rec.r, n, ds, null);
+                const half = (man.tilesW || 1) * (part.scale || 1) * 0.5 * sq * 0.8;
+                const up = -(rec.turn || 1);  // the side the bottom paddles head for
+                for (const s of [up, -up]) {
+                    const k = s === up ? 1 : 0.5;
+                    this._ambDrawEmitter(ctx, camera, (rec.x + s * half) * T, rec.waterY * T, kind, rate * k, 1, rec.q * 31 + rec.r + (s > 0 ? 7 : 0), Math.max(1, Math.round(n * k)), ds, null);
+                }
+                ctx.globalAlpha = 1;
             }
         }
     },

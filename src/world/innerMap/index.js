@@ -25,6 +25,7 @@ import './camp.js';
 import './harbour.js';
 import './deckLife.js';
 import './water.js';
+import './mills.js';
 import './swimming.js';
 import './animals.js';
 import './farmPlots.js';

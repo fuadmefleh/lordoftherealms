@@ -47,6 +47,9 @@ export function gameLoop(timestamp, loopId) {
     DayClock.sync(this);
     // ...and the top bar shows what is left of them, on every map (ui/apChip.js: DOM only on change)
     updateAPChip(this.player);
+    // ...and the street map's hotbar follows the packs, whatever put goods in or took them out
+    // (ui/hotbar.js: redraws only when PlayerInventory.stamp changes)
+    Hotbar.sync(this);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
 

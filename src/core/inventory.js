@@ -73,6 +73,26 @@ export const PlayerInventory = {
         return used;
     },
 
+    /**
+     * A cheap fingerprint of what the player carries: "id:qty;" for every good
+     * held. Goods reach and leave `player.inventory` by many roads — addItem
+     * here, but also direct writes all over the systems (eating, selling,
+     * crafting, butchering, a whole new inventory on load) — so anything that
+     * shows the packs (the street map's hotbar, ui/hotbar.js sync) compares
+     * this each frame and redraws only when it differs: a new good, a stack
+     * that grew or shrank, a good gone to nothing, or the packs swapped out.
+     */
+    stamp(player) {
+        const inv = player && player.inventory;
+        if (!inv) return '';
+        let s = '';
+        for (const id in inv) {
+            const qty = inv[id];
+            if (qty > 0) s += id + ':' + qty + ';';
+        }
+        return s;
+    },
+
     getFreeSlots(player) {
         return Math.max(0, PlayerInventory.getCapacity(player) - PlayerInventory.getUsedSlots(player));
     },

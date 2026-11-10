@@ -52,9 +52,8 @@ const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _r2 = (v) => Math.round(v * 100) / 100;
 const _day = (world) => (world && Number.isFinite(world.day) ? world.day : 0);
 const _key = (q, r) => `${q},${r}`;
-const LEVELS = CrownBooks.LEVELS;
-const REV = REVENUE_LINES.slice(), EXP = EXPENSE_LINES.slice();
-const REV_N = REV.length, EXP_N = EXP.length;
+// (read when used: an import cycle can reach this module before crownBooks.js has run)
+const _levels = () => CrownBooks.LEVELS;
 const TAXES = ['land', 'poll', 'excise'];
 
 function _hash(str) {
@@ -90,8 +89,8 @@ function _alive(world) {
 }
 
 export const Fiscal = {
-    REVENUE_LINES,
-    EXPENSE_LINES,
+    get REVENUE_LINES() { return REVENUE_LINES; },
+    get EXPENSE_LINES() { return EXPENSE_LINES; },
 
     config() {
         return CrownBooks.config();
@@ -444,8 +443,8 @@ export const Fiscal = {
         const d = f.day;
         const treasury = _num(k.treasury);
         let rev = 0, exp = 0;
-        for (let i = 0; i < REV_N; i++) { const v = d[REV[i]]; if (v) rev += v; }
-        for (let i = 0; i < EXP_N; i++) { const v = d[EXP[i]]; if (v) exp += v; }
+        for (let i = 0; i < REVENUE_LINES.length; i++) { const v = d[REVENUE_LINES[i]]; if (v) rev += v; }
+        for (let i = 0; i < EXPENSE_LINES.length; i++) { const v = d[EXPENSE_LINES[i]]; if (v) exp += v; }
         d.other = _r2(treasury - f.openTreasury - (rev - exp + (d.loans || 0) + (d.debase || 0)));
         // (the lines are kept to the hundredth on the closed page)
         for (const l in d) { const v = d[l]; if (v) d[l] = Math.round(v * 100) / 100; }
@@ -517,11 +516,11 @@ export const Fiscal = {
         if (f.arrearsDays > 0) want += 1;
         if (_num(k.stability, 50) < _num(N.unrestAt, 35) && f.arrearsDays === 0) want -= 1;
         if (Fiscal.recent(world, k.id, 'tax_revolt', _num(N.revoltDays, 60)).length) want -= 1;
-        want = _clamp(Math.round(want), 0, LEVELS.length - 1);
-        const cur = Math.max(0, LEVELS.indexOf(f.level));
+        want = _clamp(Math.round(want), 0, _levels().length - 1);
+        const cur = Math.max(0, _levels().indexOf(f.level));
         const next = want > cur ? cur + 1 : want < cur ? cur - 1 : cur;
         if (next !== cur) {
-            f.level = LEVELS[next];
+            f.level = _levels()[next];
             for (const l of TAXES) f.rates[l] = f.level;
             if (next > cur && next >= 2) Fiscal._record(world, st, { kind: 'tax_raise', kingdomId: k.id, kingdom: k.name, level: f.level });
         }
@@ -818,7 +817,7 @@ export const Fiscal = {
     setRate(player, world, tax, level) {
         const k = Fiscal.ruledKingdom(player, world);
         if (!k) return { success: false, reason: 'You rule no realm.' };
-        if (!LEVELS.includes(level)) return { success: false, reason: 'Unknown level.' };
+        if (!_levels().includes(level)) return { success: false, reason: 'Unknown level.' };
         const f = CrownBooks.state(k);
         const which = tax === 'all' ? TAXES : TAXES.includes(tax) ? [tax] : [];
         if (!which.length) return { success: false, reason: 'Unknown tax.' };

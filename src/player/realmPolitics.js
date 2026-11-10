@@ -21,6 +21,7 @@ import { PlayerMilitary } from './playerMilitary.js';
 import { Quests } from '../systems/quests.js';
 import { NPCLords } from '../world/npcLords.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { RealmArms } from '../world/realmArms.js';
 
 export const REALM_POLITICS = {
     broker: { fee: 50, cooldownDays: 10, base: 0.2, perDiplomacy: 0.04, maxRenownBonus: 0.15, lopsidedPenalty: 0.15, renown: 8, reputation: 8 },
@@ -250,7 +251,8 @@ export const RealmPolitics = {
         if (!player.army || player.army.length === 0) return { success: false, reason: 'You need an army to join the campaign.' };
 
         const strength = RealmPolitics.campaignStrength(enemy);
-        const battle = PlayerMilitary.combat(player, strength, `${enemy.name} vanguard`, { ...context, world });
+        // (the vanguard's war chest is its realm's treasury: the spoils come out of it)
+        const battle = PlayerMilitary.combat(player, strength, `${enemy.name} vanguard`, { ...context, world, lootKingdom: enemy });
         // No battle was fought (e.g. only war galleys, which stay off land fields)
         if (battle.reason) return { success: false, reason: battle.reason };
         if (battle.victory) {
@@ -258,7 +260,10 @@ export const RealmPolitics = {
             const meritKey = `${opts.liege.id}:${enemy.id}`;
             st.merit[meritKey] = (st.merit[meritKey] || 0) + 1;
             KingdomAI._warState(opts.liege, enemy.id, world).gains += 1;
+            const before = { [enemy.id]: enemy.military || 0 };
             enemy.military = Math.floor((enemy.military || 0) * C.enemyLoss);
+            // (its fallen's arms are lost out of its armoury: world/realmArms.js)
+            RealmArms.battle(null, enemy, before);
             // The wage is the liege's coin: out of its treasury, what it can pay
             const wage = Math.max(0, Math.min(C.wage, Math.floor(opts.liege.treasury || 0)));
             opts.liege.treasury = (opts.liege.treasury || 0) - wage;

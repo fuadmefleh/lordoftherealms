@@ -273,9 +273,13 @@ describe('arming troops', () => {
 
     it('a won battle strips the beaten of their arms', () => {
         const p = fighter();
-        const got = Arms.battleSpoils(p, 130);
+        // ...out of what they carried (PlayerMilitary._armsSource), never more; nothing from nothing
+        const carried = { weapons: 10, spear: 2, shield: 0 };
+        const got = Arms.battleSpoils(p, 130, carried);
         expect(got.weapons).toBe(3);
-        expect(p.inventory.spear).toBe(3);
+        expect(p.inventory.spear).toBe(2);
+        expect(carried).toEqual({ weapons: 7, spear: 0, shield: 0 });
+        expect(Arms.battleSpoils(fighter(), 130)).toEqual({});
     });
 });
 

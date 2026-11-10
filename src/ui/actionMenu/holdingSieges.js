@@ -8,6 +8,8 @@ import { ActionMenu } from './_ref.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
 import { RealmWars } from '../../systems/realmWars.js';
 import { Sieges } from '../../systems/sieges.js';
+import { fieldChoiceHtml } from './uiKit.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 
 const CARD = 'background:rgba(0,0,0,0.3);padding:10px;border-radius:8px;margin-bottom:10px;';
 const MUTED = 'color:var(--text-secondary);font-size:11px;';
@@ -127,6 +129,28 @@ Object.assign(ActionMenu, {
         const siege = HoldingSieges.list(player).find(s => s.key === key);
         if (!siege) { ActionMenu.showHoldingSiegesPanel(game); return; }
         let res;
+        // The relief: on the holding's own ground yourself, or the captains' roll
+        if (act === 'relieve' && arg !== 'captains') {
+            const why = HoldingSieges._relieveBlock(player, world, HoldingSieges._get(player, key));
+            if (why) { game.ui.showNotification('🏰 Siege', why, 'error'); return; }
+            game.ui.showCustomPanel(`⚔️ Relieve ${siege.name}`, fieldChoiceHtml(['holdingSiegeAct', 'relieveField', key], ['holdingSiegeAct', 'relieve', key, 'captains'],
+                `Fought on ${siege.name}'s own ground against the besiegers; the garrison's sally keeps some of them busy.`));
+            return;
+        }
+        if (act === 'relieveField') {
+            const fight = HoldingSieges.relieveBattle(player, world, key);
+            if (!fight) { ActionMenu.holdingSiegeAct(game, 'relieve', key, 'captains'); return; }
+            const done = (fought) => {
+                const r = HoldingSieges.relieve(player, world, key, fought ? { combatResult: fought } : {});
+                if (r.success) game.ui.showNotification(r.victory ? '🎺 Siege Relieved' : '⚔️ Relief Beaten Back', r.message, r.victory ? 'success' : 'error');
+                else game.ui.showNotification('🏰 Siege', r.reason || 'Not possible right now.', 'error');
+                game.ui.updateStats(player, world);
+                ActionMenu.showHoldingSiegesPanel(game);
+            };
+            InnerMapBattle.start(game, { ...fight, title: `The relief of ${siege.name}`, onDone: (fought) => { if (fought) done(fought); } })
+                .then((ok) => { if (!ok) done(null); });
+            return;
+        }
         if (act === 'relieve') {
             res = HoldingSieges.relieve(player, world, key);
             if (res.success) {

@@ -1092,6 +1092,7 @@ export const OutlawLairs = {
             const enemy = OutlawLairs.stageStrength(player, world, lair, stage);
             const fight = PlayerMilitary.combat(player, enemy, `${lair.name} (${stage.name})`, {
                 terrainId: tile && tile.terrain ? tile.terrain.id : null, world,
+                lootPurse: lair.hoard || null, // what the beaten drop comes out of the lair's hoard
             });
             if (fight.reason) return { success: false, reason: fight.reason };
             res.stages.push({ name: stage.name, enemy, victory: !!fight.victory, casualties: _num(fight.casualties), loot: _num(fight.loot), captured: !!fight.captured });

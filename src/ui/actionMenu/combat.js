@@ -5,6 +5,8 @@ import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
 import { siegePanelHtml, siegeResultHtml } from './siegePanel.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
+import { fieldChoiceHtml } from './uiKit.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 import { Arms } from '../../systems/arms.js';
 import { openLordAudience, lordAudienceAct } from './lordAudience.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
@@ -291,11 +293,45 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('🏳️ Siege Lifted', res.text || 'You march away.', 'info');
             return;
         }
+        // Storming the walls or meeting the relief: in the streets / on the ground yourself, or the captains' roll
+        const [arg0, how] = String(arg == null ? '' : arg).split('|');
+        if ((act === 'storm' || act === 'relief') && how !== 'captains') {
+            if ((player.actionPoints || 0) < C.storm.apCost) { spend(C.storm.apCost); return; }
+            game.ui.showCustomPanel(act === 'storm' ? `⚔️ Storm ${s.name}` : '🚩 The Relief Host', fieldChoiceHtml(
+                ['siegeAct', act === 'storm' ? 'stormField' : 'reliefField', arg0],
+                ['siegeAct', act, `${arg0}|captains`],
+                act === 'storm' ? `Fought in ${s.name}'s own streets: the garrison holds them, your army comes on from outside the walls.` : undefined));
+            return;
+        }
+        if (act === 'stormField' || act === 'reliefField') {
+            const storm = act === 'stormField';
+            const fight = storm ? Sieges.stormBattle(player, world) : Sieges.reliefBattle(player, world);
+            if (!fight) { game.ui.showNotification('🏰 Siege', storm ? 'There is no siege to storm.' : 'The relief host is not within reach.', 'error'); return; }
+            if (!spend(C.storm.apCost)) return;
+            const done = (fought) => {
+                const r = storm ? Sieges.storm(player, world, { sack: arg0 === 'sack', combatResult: fought })
+                    : Sieges.fightRelief(player, world, { combatResult: fought });
+                if (r.success === false) { game.ui.showNotification('🏰 Siege', r.reason, 'error'); return; }
+                _rollBattleWound(game, r);
+                game.ui.updateStats(player, world);
+                game.ui.showCustomPanel(storm ? (r.victory ? '⚔️ The Walls Are Carried' : '⚔️ Assault Repelled') : (r.victory ? '🚩 Relief Host Broken' : '🚩 Driven Off'),
+                    siegeResultHtml(r, battleExtrasHtml(r), !!Sieges.active(player)));
+            };
+            InnerMapBattle.start(game, {
+                ...fight, layout: storm ? 'assault' : null,
+                title: storm ? `The storming of ${s.name}` : `Against ${fight.enemy.name}`,
+                onDone: (fought) => { if (fought) done(fought); },
+            }).then((ok) => {
+                // No ground to fight on: the captains' roll after all
+                if (!ok) done(null);
+            });
+            return;
+        }
         let title = '🏰 Siege';
         let result;
         if (act === 'storm') {
             if (!spend(C.storm.apCost)) return;
-            result = Sieges.storm(player, world, { sack: arg === 'sack' });
+            result = Sieges.storm(player, world, { sack: arg0 === 'sack' });
             if (result.success === false) { game.ui.showNotification('Cannot Storm', result.reason, 'error'); return; }
             _rollBattleWound(game, result);
             title = result.victory ? '⚔️ The Walls Are Carried' : '⚔️ Assault Repelled';

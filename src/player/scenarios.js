@@ -455,6 +455,56 @@ export const Scenarios = {
         return out;
     },
 
+    /**
+     * Seat the Royal Court of a realm the player has just taken (the Monarch
+     * start, a general's coup — player/generalship.js): the realm's lords
+     * swear fealty (Kingship vassals), the old officers keep their seats on
+     * the council, the old line's heir (`ctx.heirApparent`, 14 or more; else a
+     * cousin of `ctx.old`'s dynasty) becomes a pretender lord with a grudge,
+     * and the ambitious lords grow restless. o: the tuning (pretenderGrudge,
+     * restlessAmbition, restlessGrudge). → { court, pretender, restless }.
+     */
+    seatCourt(player, world, k, o = {}, ctx = {}) {
+        const day = _day(world);
+        const data = k.characterData;
+        const { old = null, heirApparent = null } = ctx;
+        const court = Kingship.court(player);
+        Kingship._generateVassals(player, world, k, court);
+        court.initialized = true;
+        court.lastNewVassalDay = day;
+        for (const office of Kingship.OFFICES) {
+            if (court.council && court.council[office]) continue;
+            const pick = Kingship.candidates(player, world, office).find(c => c.kind === 'courtier' && !c.office);
+            if (pick) Kingship.appoint(player, world, office, 'courtier', pick.id);
+        }
+        const bite = Scenarios._bite(player);
+        const pv = court.vassals.find(v => v.seat && !v.pretender) || court.vassals.find(v => !v.pretender) || null;
+        let pretender = null;
+        if (pv) {
+            if (heirApparent) {
+                Object.assign(pv, { firstName: heirApparent.firstName, dynasty: heirApparent.dynasty || pv.dynasty, gender: heirApparent.gender || pv.gender, age: _num(heirApparent.age, pv.age) });
+                // (the prince is a lord of the court now, no longer a royal child)
+                if (data && Array.isArray(data.children)) data.children = data.children.filter(c => c !== heirApparent);
+            } else if (old && old.dynasty) {
+                pv.dynasty = old.dynasty; // a cousin of the old line
+            }
+            pv.pretender = true;
+            pv.ambition = 10;
+            pv.honor = Math.min(_num(pv.honor, 5), 3);
+            pv.grudge = Math.round(_num(o.pretenderGrudge, -45) * bite);
+            pretender = Kingship.fullName(pv);
+        }
+        let restless = 0;
+        for (const v of court.vassals) {
+            if (v === pv || _num(v.ambition) < _num(o.restlessAmbition, 6)) continue;
+            v.grudge = Math.round(_num(v.grudge) + _num(o.restlessGrudge, -22) * bite);
+            restless++;
+        }
+        for (const v of court.vassals) v.opinion = Math.round(Kingship.opinion(player, world, v).target);
+        Kingship.refresh(player, world);
+        return { court, pretender, restless };
+    },
+
     _monarch(player, world, o, vars) {
         const day = _day(world);
         const k = Scenarios._nearestRealm(world, player, 3);
@@ -482,41 +532,10 @@ export const Scenarios = {
         const men = Scenarios._armyFromRealm(player, k, o.guard);
         // A consort and heirs
         const fam = Scenarios._royalFamily(player, world, k, o);
-        // The court: the realm's lords swear fealty, the old officers keep their seats
-        const court = Kingship.court(player);
-        Kingship._generateVassals(player, world, k, court);
-        court.initialized = true;
-        court.lastNewVassalDay = day;
-        for (const office of Kingship.OFFICES) {
-            const pick = Kingship.candidates(player, world, office).find(c => c.kind === 'courtier' && !c.office);
-            if (pick) Kingship.appoint(player, world, office, 'courtier', pick.id);
-        }
-        // The challenge: the old line's pretender and the restless great lords
+        // The court: the realm's lords swear fealty, the old officers keep their seats;
+        // the old line's pretender and the restless great lords
+        const { court, pretender, restless } = Scenarios.seatCourt(player, world, k, o, { old, heirApparent });
         const bite = Scenarios._bite(player);
-        const pv = court.vassals.find(v => v.seat) || court.vassals[0] || null;
-        let pretender = null;
-        if (pv) {
-            if (heirApparent) {
-                Object.assign(pv, { firstName: heirApparent.firstName, dynasty: heirApparent.dynasty || pv.dynasty, gender: heirApparent.gender || pv.gender, age: _num(heirApparent.age, pv.age) });
-                // (the prince is a lord of the court now, no longer a royal child)
-                if (data) data.children = data.children.filter(c => c !== heirApparent);
-            } else if (old && old.dynasty) {
-                pv.dynasty = old.dynasty; // a cousin of the old line
-            }
-            pv.pretender = true;
-            pv.ambition = 10;
-            pv.honor = Math.min(_num(pv.honor, 5), 3);
-            pv.grudge = Math.round(_num(o.pretenderGrudge, -45) * bite);
-            pretender = Kingship.fullName(pv);
-        }
-        let restless = 0;
-        for (const v of court.vassals) {
-            if (v === pv || _num(v.ambition) < _num(o.restlessAmbition, 6)) continue;
-            v.grudge = Math.round(_num(v.grudge) + _num(o.restlessGrudge, -22) * bite);
-            restless++;
-        }
-        for (const v of court.vassals) v.opinion = Math.round(Kingship.opinion(player, world, v).target);
-        Kingship.refresh(player, world);
         // Your own realm is no rival House of yours; a neighbour backs the pretender
         if (player.house && player.house.rivals) delete player.house.rivals[k.id];
         const nb = _alive(world).filter(x => x.id !== k.id).sort((a, b) => _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] || null;

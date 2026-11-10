@@ -934,15 +934,22 @@ export const Arms = {
      * enemy's strength one of each spoils good (at most `max` each), into
      * the packs (what doesn't fit is left on the field). → { good: n }
      */
-    battleSpoils(player, enemyStrength) {
+    /**
+     * `from` = { good: pieces } the beaten actually carried (a band's packs, a
+     * rival retinue's arms, a realm's armoury share: PlayerMilitary._armsSource);
+     * the strip is taken out of it, never more than it holds. No `from`, nothing.
+     */
+    battleSpoils(player, enemyStrength, from = null) {
         const S = Arms.config().spoils;
         const n = Math.min(_num(S.max, 6), Math.floor(Math.max(0, _num(enemyStrength)) / Math.max(1, _num(S.per, 40))));
         const got = {};
-        if (!(n > 0) || !player) return got;
+        if (!(n > 0) || !player || !from || typeof from !== 'object') return got;
         for (const g of Array.isArray(S.goods) ? S.goods : []) {
-            if (!PlayerInventory.canAdd(player, g)) continue;
-            PlayerInventory.addItem(player, g, n);
-            got[g] = n;
+            const take = Math.min(n, Math.floor(_num(from[g])));
+            if (!(take > 0) || !PlayerInventory.canAdd(player, g)) continue;
+            PlayerInventory.addItem(player, g, take);
+            from[g] = _num(from[g]) - take;
+            got[g] = take;
         }
         return got;
     },

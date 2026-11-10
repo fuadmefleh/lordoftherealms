@@ -200,6 +200,13 @@ export const FieldBattle = {
             outcome: null, // 'victory' | 'defeat' | 'withdrew'
             done: false,
             result: null,
+            // Where the spoils come from (PlayerMilitary._spoilsSource): the purse the enemy
+            // carries, or a town's purse / a realm's treasury the caller names; a world
+            // unit's inventory is found at the end (finish)
+            ...(enemy.purse !== undefined ? { lootPurse: enemy.purse } : {}),
+            ...(ctx.lootTown ? { lootTown: ctx.lootTown } : {}),
+            ...(ctx.lootKingdom ? { lootKingdom: ctx.lootKingdom } : {}),
+            ...(ctx.armsFrom ? { armsFrom: ctx.armsFrom } : {}),
         };
     },
 
@@ -488,6 +495,24 @@ export const FieldBattle = {
         return entry;
     },
 
+    /**
+     * The battle's spoils source for PlayerMilitary._battleSpoils: the purse
+     * handed in (battle.lootPurse: a band's, or null for nothing), the world
+     * unit's inventory (or its realm's treasury), a town's purse or a realm's
+     * treasury named at the start — else nothing ({ lootPurse: null }).
+     */
+    lootSource(battle, world) {
+        const unit = battle.unitId && world && Array.isArray(world.units) ? world.units.find(u => u.id === battle.unitId) : null;
+        // (the coin comes from the first source PlayerMilitary._spoilsSource finds; the arms from _armsSource)
+        const out = battle.lootPurse !== undefined ? { lootPurse: battle.lootPurse } : unit ? PlayerMilitary._unitLoot(unit, world) : {};
+        if (battle.lootTown) out.lootTown = battle.lootTown;
+        if (battle.lootKingdom && !out.lootKingdom) out.lootKingdom = battle.lootKingdom;
+        if (battle.armsFrom) out.armsFrom = battle.armsFrom;
+        if (unit && !out.lootUnit) out.lootUnit = unit;
+        if (!out.lootTown && !out.lootKingdom && out.lootPurse === undefined) out.lootPurse = null;
+        return out;
+    },
+
     /** Fight the rest of the battle with the default stances. Returns battle.result. */
     auto(player, battle, world) {
         let guard = 10;
@@ -519,8 +544,8 @@ export const FieldBattle = {
             victory, volleys: battle.volleys || null,
         });
 
-        // (battle.lootPurse: the beaten side's own purse, when the battle knows it — player/battlefield.js)
-        const spoilsCtx = battle.lootPurse !== undefined ? { ...context, lootPurse: battle.lootPurse } : context;
+        // The spoils come out of what the beaten had, and no more (PlayerMilitary._spoilsSource)
+        const spoilsCtx = { ...context, ...FieldBattle.lootSource(battle, world) };
         const spoils = withdrew ? { loot: 0 } : PlayerMilitary._battleSpoils(player, victory, battle.eStr0, spoilsCtx, battle.enemyName);
         if (spoils.loot > 0) Ledger.record(player, 'plunder', spoils.loot);
         if (spoils.goldConfiscated > 0) Ledger.record(player, 'robbery', -spoils.goldConfiscated);

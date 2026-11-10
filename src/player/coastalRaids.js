@@ -188,6 +188,7 @@ export const CoastalRaids = {
                 enemyComposition: PlayerMilitary._getSettlementComposition(s, tile),
                 world,
                 theatre: 'coastal',
+                lootTown: s, // the defenders' coin is the town's
             }));
             res.success = true;
             res.mode = burn ? 'burn' : 'plunder';

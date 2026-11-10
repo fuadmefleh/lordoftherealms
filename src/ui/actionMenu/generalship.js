@@ -5,11 +5,12 @@
 // player/generalship.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Generalship } from '../../player/generalship.js';
+import { NPCLords } from '../../world/npcLords.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc, bullets } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--gold);';
-const AP = { battle: 2, assault: 2, besiege: 1, raid: 2, address: 1 };
+const AP = { battle: 2, assault: 2, besiege: 1, raid: 2, address: 1, expose: 1 };
 const HOW = { resigned: 'resigned', dismissed: 'dismissed in disgrace', crowned: 'crowned', traitor: 'turned traitor', lapsed: 'lapsed', fallen: 'the realm fell' };
 
 function _bar(value, max, color) {
@@ -145,9 +146,24 @@ Object.assign(ActionMenu, {
         // ── The court ──
         html += `<div style="${HEAD}">The court</div><div style="${CARD}">`;
         if (c.rival) {
-            html += `<div>🗣️ ${esc(c.rival.name)} speaks against you (influence ${Math.round(c.rival.influence)}).</div>`;
+            const rv = c.rival;
+            const traits = (rv.traits || []).map(t => t && t.name).filter(Boolean).join(', ');
+            const opinion = Array.isArray(rv.traits) ? Math.round(NPCLords.getLordOpinion(rv, player, world)) : null;
+            html += `<div>🗣️ <b>${esc(rv.name)}</b>${rv.house ? ` of ${esc(rv.house)}${rv.estates ? ` (${rv.estates} estate${rv.estates > 1 ? 's' : ''})` : ''}` : ''} — your rival at court, influence ${Math.round(rv.influence)}.</div>`;
+            html += `<div style="font-size:11px;color:#bbb;">${traits ? `${esc(traits)}. ` : ''}${rv.persona ? `He ${esc(rv.persona.words)}.` : ''}${opinion != null ? ` His opinion of you: ${opinion}.` : ''}${rv.foiled ? ` You have foiled him ${rv.foiled} time${rv.foiled > 1 ? 's' : ''}.` : ''}</div>`;
+            const sc = rv.scheme;
+            if (sc) {
+                const left = Math.max(0, (sc.due || 0) - (world.day || 0));
+                html += `<div style="margin-top:4px;color:#e8c070;">🕵️ He ${esc(sc.text)} It bites in ${left} day${left === 1 ? '' : 's'} (day ${sc.due})${sc.blunted ? ', blunted by your friends at court' : ''}.</div>`;
+            } else if ((rv.quietUntil || -1) > (world.day || 0)) {
+                html += `<div style="font-size:11px;color:#9fd89f;">He holds his tongue (bought) until day ${rv.quietUntil}.</div>`;
+            }
             const cost = (Generalship.config().court || {}).answerGold || 80;
             html += _btn(`🎁 Answer at court (${cost}g to the courtiers)`, 'answer', [], BTN_DARK, gold >= cost);
+            if (sc) html += _btn(`🔎 Expose his scheme (${Math.round(Generalship.exposeOdds(player, c) * 100)}%, ${AP.expose} AP)`, 'expose', [], BTN_GOLD, true, 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.');
+            const price = Generalship.buyOffPrice(c);
+            if (price != null) html += _btn(`💰 Buy his silence (${price}g to his House)`, 'buyOff', [], BTN_DARK, gold >= price, 'He drops his scheme and keeps quiet for a month.');
+            else html += '<div style="font-size:11px;color:#999;">He is too proud to be bought.</div>';
         }
         const co = v.coup;
         if (co && co.ok) {
@@ -177,58 +193,79 @@ Object.assign(ActionMenu, {
             game.ui.showNotification('⚡ Not Enough Action Points', `This needs ${ap} AP — rest to start a new day.`, 'error');
             return;
         }
-        // Giving battle: on the field yourself (ui/innerMapBattle.js), or the captains' one roll
-        if (action === 'battle' && args[1] !== 'captains') {
-            const id = args[0];
-            game.ui.showCustomPanel('⚔️ Give Battle', `<div style="padding:4px 2px;">
-                ${_btn('⚔️ Take the field — command the host yourself', 'fieldBattle', [id], BTN_GOLD + 'display:block;width:100%;text-align:left;padding:9px 10px;')}
-                <div style="font-size:11px;color:#999;margin:2px 0 8px;">The host drawn up on the ground where the armies meet: march, hold, charge, loose, sound the retreat.</div>
-                ${_btn('🎲 Let the captains fight it', 'battle', [id, 'captains'], BTN_DARK + 'display:block;width:100%;text-align:left;padding:8px 10px;')}
+        // Giving battle, storming the walls, falling on a town: on the ground yourself
+        // (ui/innerMapBattle.js), or the captains' one roll
+        const CHOICE = {
+            battle: ['⚔️ Give Battle', 'The host drawn up on the ground where the armies meet: march, hold, charge, loose, sound the retreat.'],
+            assault: ['⚔️ Storm the Walls', 'Fought in the town\'s own streets: its defenders hold them, your host comes on from outside the walls.'],
+            raid: ['🔥 Raid', 'Fought in the place itself: its defenders in the streets, your host from the fields around it.'],
+        };
+        if (CHOICE[action] && args[args.length - 1] !== 'captains') {
+            const [title, blurb] = CHOICE[action];
+            game.ui.showCustomPanel(title, `<div style="padding:4px 2px;">
+                ${_btn('⚔️ Take the field — command the host yourself', 'field', [action, ...args], BTN_GOLD + 'display:block;width:100%;text-align:left;padding:9px 10px;')}
+                <div style="font-size:11px;color:#999;margin:2px 0 8px;">${blurb}</div>
+                ${_btn('🎲 Let the captains fight it', action, [...args, 'captains'], BTN_DARK + 'display:block;width:100%;text-align:left;padding:8px 10px;')}
                 <div style="font-size:11px;color:#999;margin-top:2px;">Settled at once on the odds.</div></div>`);
             return;
         }
-        if (action === 'fieldBattle') {
+        if (action === 'field') {
+            const [kind, ...rest] = args;
             const c = Generalship.state(player);
             const day = Number(world.day) || 0;
             const minMen = Number((Generalship.config().host || {}).minMen) || 10;
-            const why = !c ? 'You hold no commission.' : c.siege ? `Your host is tied down before ${c.siege.name}.`
-                : c.lastBattleDay === day ? 'The host fought today. It needs a night to re-form.'
-                    : (Number(c.men) || 0) < minMen ? 'Your host is too few to give battle.' : null;
-            const prep = why ? null : Generalship.prepareBattle(player, world, 'field', { enemyId: args[0] });
-            if (why || !prep.spec) {
-                game.ui.showNotification('🎖️ Army Command', why || prep.reason, 'error');
+            let prep;
+            if (kind === 'assault') prep = Generalship.assaultSpec(player, world);
+            else if (kind === 'raid') prep = Generalship.raidSpec(player, world);
+            else {
+                const why = !c ? 'You hold no commission.' : c.siege ? `Your host is tied down before ${c.siege.name}.`
+                    : c.lastBattleDay === day ? 'The host fought today. It needs a night to re-form.'
+                        : (Number(c.men) || 0) < minMen ? 'Your host is too few to give battle.' : null;
+                prep = why ? { reason: why } : Generalship.prepareBattle(player, world, 'field', { enemyId: rest[0] });
+            }
+            if (!prep || !prep.spec) {
+                game.ui.showNotification('🎖️ Army Command', (prep && prep.reason) || 'That cannot be done.', 'error');
                 return;
             }
-            player.actionPoints -= AP.battle;
+            const cost = AP[kind] || AP.battle;
+            if ((player.actionPoints || 0) < cost) {
+                game.ui.showNotification('⚡ Not Enough Action Points', `This needs ${cost} AP — rest to start a new day.`, 'error');
+                return;
+            }
+            player.actionPoints -= cost;
+            // The outcome fought (or the captains' roll when there is no ground) → the Generalship path
+            const settle = (outcome) => kind === 'assault' ? Generalship.assault(player, world, { outcome })
+                : kind === 'raid' ? Generalship.raid(player, world, { outcome })
+                    : Generalship.settleBattle(player, world, prep.spec, outcome);
+            const report = (r, withdrew = false) => {
+                game.ui.updateStats(player, world);
+                const msg = withdrew ? `You sounded the retreat. ${r.message || ''}` : (r.message || r.reason);
+                ActionMenu.showArmyCommand(game, { html: esc(msg || 'The battle is over.'), color: r.victory ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.5)' });
+            };
             InnerMapBattle.openHost(game, prep.spec, {
-                onDone: (outcome) => {
-                    const r = Generalship.settleBattle(player, world, prep.spec, outcome);
-                    game.ui.updateStats(player, world);
-                    const msg = outcome && outcome.withdrew ? `You sounded the retreat. ${r.message || ''}` : r.message;
-                    ActionMenu.showArmyCommand(game, { html: esc(msg || 'The battle is over.'), color: r.victory ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.5)' });
-                },
+                onDone: (outcome) => report(settle(outcome), !!(outcome && outcome.withdrew)),
             }).then((ok) => {
-                if (ok) return;
-                // No ground to fight on: the captains' roll
-                const r = Generalship.settleBattle(player, world, prep.spec, Generalship.autoResolve(prep.spec));
-                ActionMenu.showArmyCommand(game, { html: esc(r.message || 'Done.'), color: r.victory ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.5)' });
+                if (!ok) report(settle(Generalship.autoResolve(prep.spec)));
             });
             return;
         }
+        const argv = args[args.length - 1] === 'captains' ? args.slice(0, -1) : args;
         let res;
         if (action === 'seek') res = Generalship.seek(player, world, world.getTile(player.q, player.r));
-        else if (action === 'battle') res = Generalship.giveBattle(player, world, args[0]);
-        else if (action === 'besiege') res = Generalship.besiege(player, world, args[0]);
+        else if (action === 'battle') res = Generalship.giveBattle(player, world, argv[0]);
+        else if (action === 'besiege') res = Generalship.besiege(player, world, argv[0]);
         else if (action === 'assault') res = Generalship.assault(player, world);
-        else if (action === 'policy') res = Generalship.setSiegePolicy(player, args[0]);
+        else if (action === 'policy') res = Generalship.setSiegePolicy(player, argv[0]);
         else if (action === 'lift') res = Generalship.liftSiege(player, world);
         else if (action === 'raid') res = Generalship.raid(player, world);
-        else if (action === 'supply') res = Generalship.requisition(player, world, { ownPurse: !!args[0] });
+        else if (action === 'supply') res = Generalship.requisition(player, world, { ownPurse: !!argv[0] });
         else if (action === 'address') res = Generalship.addressTroops(player, world);
-        else if (action === 'spoils') res = Generalship.shareSpoils(player, world, args[0]);
+        else if (action === 'spoils') res = Generalship.shareSpoils(player, world, argv[0]);
         else if (action === 'appoint') res = Generalship.appointLieutenant(player, world);
-        else if (action === 'dismissLt') res = Generalship.dismissLieutenant(player, world, args[0]);
+        else if (action === 'dismissLt') res = Generalship.dismissLieutenant(player, world, argv[0]);
         else if (action === 'answer') res = Generalship.answerRival(player, world);
+        else if (action === 'expose') res = Generalship.exposeScheme(player, world);
+        else if (action === 'buyOff') res = Generalship.buyOffRival(player, world);
         else if (action === 'coup') res = Generalship.stageCoup(player, world);
         else if (action === 'resign') res = Generalship.resign(player, world);
         else return;

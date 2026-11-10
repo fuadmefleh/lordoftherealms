@@ -414,8 +414,8 @@
     "maxFiguresPerCompany": 16,
     "kinds": {
       "foot": { "speed": 1.35, "ranks": 3, "along": 1.0, "across": 1.0, "melee": 1 },
-      "archer": { "speed": 1.45, "ranks": 2, "along": 1.1, "across": 1.15, "melee": 0.6, "range": 13, "volleyEvery": 3.2 },
-      "horse": { "speed": 3.1, "ranks": 2, "along": 1.9, "across": 1.45, "melee": 1.1 }
+      "archer": { "speed": 1.45, "ranks": 2, "along": 1.1, "across": 1.15, "melee": 1.8, "range": 13, "volleyEvery": 3.2 },
+      "horse": { "speed": 3.1, "ranks": 2, "along": 1.9, "across": 1.45, "melee": 1.1, "power": 0.88 }
     },
     "deploy": { "gap": 22, "rowGap": 2.5 },
     "meleeSeconds": 18,
@@ -443,6 +443,10 @@
     "maxSeconds": 420,
     "withdrawSeconds": 14,
     "lossToUnits": 0.6,
+    "_balance": "Tuned so the field fought out by both sides' captains gives the phased battle's odds (src/__tests__/battlefieldBalance.test.js): horse are worth a little less on the field (power), bowmen who close fight as hard as their counter over pikes says (melee, archerMeleeCounter), an army mostly of bowmen joins the press (ai.archerJoin within ai.archerJoinShare), each side's luck of the day (fieldLuck).",
+    "archerMeleeCounter": true,
+    "fieldLuck": 0.18,
+    "ai": { "archerKeepAway": 0, "archerJoin": 20, "archerJoinShare": 0.5 },
     "looks": {
       "_doc": "Layer recipes per look (paths under assets/lpc/Characters). A company's look: its unit type's recipe when there is one ('militia', 'knight'), else '<kind>', and '<kind>_rabble' for bandits, raiders and pirates. Liveries: the player's from 'player', a realm's from 'realms' (picked by the realm's id), the rest from 'rabble'. Gear: a recipe's weapon, shield, helm and armour lines are what an enemy company shows; your own companies' lines are swapped for the arms each man was issued (systems/arms.js lookLayers; data/arms.json sprite).",
       "skins": ["Peach", "Tan", "Brown", "Bronze", "Honey", "Coffee"],

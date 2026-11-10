@@ -3,9 +3,9 @@
 
   "ranks": [
     { "id": "captain",   "name": "Captain",              "icon": "🎖️", "share": 0.05, "maxMen": 150, "wage": 6,  "merit": 0,   "minFavour": 0,  "lieutenants": 1, "renown": 0,  "prestige": 0 },
-    { "id": "commander", "name": "Commander",            "icon": "🛡️", "share": 0.10, "maxMen": 300, "wage": 12, "merit": 30,  "minFavour": 45, "lieutenants": 2, "renown": 10, "prestige": 5 },
-    { "id": "general",   "name": "General",              "icon": "⚔️", "share": 0.18, "maxMen": 500, "wage": 22, "merit": 80,  "minFavour": 55, "lieutenants": 3, "renown": 25, "prestige": 12, "landGrant": 1 },
-    { "id": "marshal",   "name": "Marshal of the Realm", "icon": "🏰", "share": 0.28, "maxMen": 800, "wage": 35, "merit": 160, "minFavour": 65, "lieutenants": 4, "renown": 40, "prestige": 20, "landGrant": 1 }
+    { "id": "commander", "name": "Commander",            "icon": "🛡️", "share": 0.10, "maxMen": 300, "wage": 12, "merit": 40,  "minFavour": 45, "lieutenants": 2, "renown": 10, "prestige": 5 },
+    { "id": "general",   "name": "General",              "icon": "⚔️", "share": 0.18, "maxMen": 500, "wage": 22, "merit": 100, "minFavour": 55, "lieutenants": 3, "renown": 25, "prestige": 12, "landGrant": 1 },
+    { "id": "marshal",   "name": "Marshal of the Realm", "icon": "🏰", "share": 0.28, "maxMen": 800, "wage": 35, "merit": 250, "minFavour": 65, "lieutenants": 4, "renown": 40, "prestige": 20, "landGrant": 1 }
   ],
 
   "seek": { "minReputation": 0, "minMartial": 3, "minRenown": 5, "startFavour": 50, "startMorale": 60, "startSupplyDays": 8, "refusedCooldown": 20 },
@@ -30,14 +30,14 @@
     "frontRange": 3, "enemyShare": 0.25, "minEnemy": 20, "maxEnemy": 800,
     "perLeadership": 0.04, "perLieutenantSkill": 0.012, "veteranBonus": 0.35, "supplyless": 0.75,
     "winLoss": 0.06, "loseLoss": 0.16, "enemyWinLoss": 0.35, "enemyLoseLoss": 0.1, "spread": 0.15, "retinueLoss": 0.15,
-    "merit": 6, "favour": 4, "lossFavour": -6, "veterancy": 0.05, "lieutenantDeath": 0.25,
+    "merit": 3, "favour": 2, "lossFavour": -6, "veterancy": 0.05, "lieutenantDeath": 0.25,
     "renown": 4, "warGains": 1
   },
 
   "siege": {
     "garrisonShare": 0.08, "minGarrison": 15,
     "walls": { "village": 1.0, "town": 1.25, "city": 1.4, "capital": 1.6 },
-    "progressPerDay": 9, "assaultLoss": 0.18, "assaultEnemyLoss": 0.5, "surrenderAt": 100,
+    "progressPerDay": 6, "maxRatio": 2.5, "assaultLoss": 0.18, "assaultEnemyLoss": 0.5, "surrenderAt": 100,
     "merit": 15, "favour": 8, "renown": 10, "warGains": 3,
     "sack":  { "purse": 0.5,  "food": 0.6, "crownShare": 0.4, "menShare": 0.2, "karma": -6, "population": 0.06, "morale": 10, "happiness": -20 },
     "spare": { "purse": 0.15, "crownShare": 0.7, "morale": -3, "karma": 2 }
@@ -50,21 +50,35 @@
     "warKinds": { "defend": 2, "besiege": 2, "battle": 3, "raid": 2 },
     "peaceKinds": { "patrol": 1 },
     "days": { "defend": 20, "besiege": 40, "battle": 20, "raid": 25, "patrol": 30 },
-    "holdDays": 8, "defendRadius": 2, "battles": 2, "raids": 2, "patrolTowns": 3,
-    "merit": { "defend": 8, "besiege": 18, "battle": 10, "raid": 8, "patrol": 5 },
+    "holdDays": 8, "defendRadius": 2, "battles": 2, "raids": 2, "patrolTowns": 3, "creditRange": 3, "creditDays": 2,
+    "merit": { "defend": 8, "besiege": 18, "battle": 10, "raid": 8, "patrol": 2 },
     "bonus": { "defend": 60, "besiege": 150, "battle": 80, "raid": 50, "patrol": 30 },
-    "doneFavour": 10, "failFavour": -14, "lostTownFavour": -20
+    "doneFavour": 6, "kindFavour": { "patrol": 3 }, "failFavour": -14, "lostTownFavour": -20
   },
 
-  "court": { "rivalCadence": 15, "slander": [3, 8], "answerGold": 80, "answerFavour": 6, "answerCooldown": 10, "rivalNames": ["Lord", "Ser", "Count", "Baron"] },
+  "court": {
+    "_comment": "The rival at court is the head of the realm's greatest noble House (world/estates.js noble holders) made an NPC lord (traits, honour, wit, memory). Every rivalCadence days he hatches a scheme the player sees coming; it bites on its day (schemeDays later) by his influence/50, half as hard when answered at court. Expose it (odds from diplomacy and stealth, less against a cunning or clever lord) or buy him off (gold into his House's purse; an honourable or proud lord will not be bought).",
+    "rivalCadence": 15, "schemeDays": 7, "slander": [3, 8], "answerGold": 80, "answerFavour": 6, "answerCooldown": 10, "recallFear": 45,
+    "rivalNames": ["Lord", "Ser", "Count", "Baron"],
+    "schemes": {
+      "slander": { "weight": 3, "text": "is whispering against you before the crown." },
+      "credit":  { "weight": 2, "merit": 6, "favour": 2, "text": "is telling the court your victories were won on his counsel." },
+      "supply":  { "weight": 2, "days": 6, "text": "is working on the granary wardens to hold your wagons back." },
+      "wages":   { "weight": 2, "text": "has a friend at the treasury who could sit on your pay chest." },
+      "recall":  { "weight": 2, "belowFavour": 50, "favour": 5, "text": "is petitioning the crown to recall you before you grow too strong." }
+    },
+    "expose": { "base": 0.35, "perDiplomacy": 0.05, "perStealth": 0.03, "cunning": 0.15, "perWit": 0.02, "min": 0.1, "max": 0.85, "cooldown": 5, "influence": 10, "favour": 4, "failFavour": -3 },
+    "buyOff": { "base": 60, "perInfluence": 4, "greedy": 0.75, "quietDays": 30, "influence": 5 }
+  },
 
   "fear": { "perRank": 10, "perShare": 120, "perRenown": 0.05, "perMerit": 0.12, "perFavour": -0.3, "paranoid": 15, "ambition": 10, "recallAt": 70, "recallBelowFavour": 50, "recallChance": 0.12, "recallFavour": -10 },
 
-  "favour": { "demoteBelow": 20, "dismissBelow": 8, "warWon": 12, "warLost": -10, "warWonMerit": 10, "realmBattleWon": 1.5, "realmBattleLost": -2, "realmMerit": 1 },
+  "favour": { "demoteBelow": 20, "dismissBelow": 8, "warWon": 12, "warLost": -10, "warWonMerit": 10, "realmBattleWon": 0.5, "realmBattleLost": -1.5, "realmMerit": 0.5, "minDaysInRank": 45 },
 
-  "realmBattle": { "minMult": 0.85, "maxMult": 1.35, "rankBonus": 0.02 },
+  "realmBattle": { "minMult": 0.85, "maxMult": 1.25, "rankBonus": 0.015 },
 
-  "coup": { "minRank": 2, "minMorale": 55, "capitalDefense": 1.5, "disloyalBelow": 40, "betrayChance": 0.5, "renown": 60, "prestige": 50, "failReputation": -100, "failLoss": 0.5, "exileDays": 720, "minChance": 0.05, "maxChance": 0.9 },
+  "coup": { "minRank": 2, "minMorale": 55, "capitalDefense": 1.5, "disloyalBelow": 40, "betrayChance": 0.5, "renown": 60, "prestige": 50, "failReputation": -100, "failLoss": 0.5, "exileDays": 720, "minChance": 0.05, "maxChance": 0.9,
+    "court": { "_comment": "A successful coup seats a Royal Court as the Monarch start does (Scenarios.seatCourt): a guard out of the realm's host, sworn lords, the old officers on the council, the old line's heir a pretender, restless ambitious lords, and the old rival among them. A usurper is resented more than an heir.", "guard": { "soldier": 4, "knight": 1, "archer": 2 }, "pretenderGrudge": -55, "restlessAmbition": 6, "restlessGrudge": -28, "rivalGrudge": -35 } },
 
   "lieutenants": {
     "skill": [2, 7], "loyalty": [45, 80],
@@ -80,5 +94,5 @@
 
   "dismissal": { "reputation": -20, "resignReputation": -3 },
 
-  "start": { "rank": 2, "merit": 90, "favour": 55, "supplyDays": 12, "morale": 65, "veterancy": 0.15, "relations": -45, "rivalInfluence": 40 }
+  "start": { "rank": 2, "merit": 110, "favour": 55, "supplyDays": 12, "morale": 65, "veterancy": 0.15, "relations": -45, "rivalInfluence": 40 }
 }

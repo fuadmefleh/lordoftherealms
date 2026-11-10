@@ -48,6 +48,7 @@ import { Difficulty } from '../core/difficulty.js';
 import { Economy } from '../world/economy.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { RealmArms } from '../world/realmArms.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Characters } from '../world/characters.js';
 import { Estates } from '../world/estates.js';
@@ -59,7 +60,10 @@ import { Throne } from '../systems/throne.js';
 import { RealmWars } from '../systems/realmWars.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { Ledger } from '../systems/ledger.js';
+import { Kingship } from '../systems/kingship.js';
 import { PlayerMilitary } from './playerMilitary.js';
+// (scenarios.js imports this module too: Scenarios is only reached inside functions, after both load)
+import { Scenarios } from './scenarios.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -196,7 +200,7 @@ export const Generalship = {
         c.men = Generalship.targetMen(c, k);
         const slots = _num(Generalship.rankDef(c).lieutenants, 1);
         for (let i = 0; i < Math.min(slots, Math.max(1, Math.floor(_num(opts.lieutenants, 1)))); i++) c.lieutenants.push(Generalship._makeLieutenant(c, k));
-        c.rival = Generalship._makeRival(k, _num(opts.rivalInfluence, 25));
+        c.rival = Generalship._makeRival(k, _num(opts.rivalInfluence, 25), world);
         Generalship._title(player, c, k);
         Generalship._log(c, world, `Commissioned ${Generalship.rankDef(c).name} in the army of ${k.name}.`);
         if (player.house) House._chronicle(player.house, world, `${player.name || 'The head of the House'} takes a commission as ${Generalship.rankDef(c).name} in the army of ${k.name}.`, ['war']);
@@ -230,10 +234,70 @@ export const Generalship = {
         };
     },
 
-    _makeRival(k, influence) {
+    /**
+     * The rival at court: the head of one of the realm's own noble Houses
+     * (world/estates.js `noble:<realm>:<n>` holders — the one with the most
+     * land, a great lord), made a lord in the NPCLords mould (traits, ambition,
+     * honour, wit, a memory of the player's deeds) with a persona that says
+     * how he schemes. Without an estates system, a lord of the realm's culture.
+     */
+    _makeRival(k, influence, world = null) {
         const C = Generalship.config().court || {};
         const names = Generalship._names(k);
-        return { name: `${Utils.randPick(C.rivalNames || ['Lord'])} ${Utils.randPick(names.male || ['Osric'])}`, influence: Utils.clamp(influence, 0, 100) };
+        const noble = world ? Generalship._greatNoble(world, k) : null;
+        const lord = NPCLords.generateLord(k);
+        // A rival at court schemes: at least one ambitious or cunning bone in him
+        if (!lord.traits.some(t => t && (t.id === 'ambitious' || t.id === 'cunning'))) {
+            lord.traits.unshift(Utils.random() < 0.5 ? NPCLords.TRAITS.AMBITIOUS : NPCLords.TRAITS.CUNNING);
+            lord.goals = NPCLords.generateGoals(lord.traits);
+        }
+        const female = Utils.random() < 0.15;
+        const first = Utils.randPick((female ? names.female : names.male) || names.male || ['Osric']);
+        const surname = noble ? String(noble.name).replace(/^House\s+/i, '') : null;
+        const style = female ? 'Lady' : Utils.randPick(C.rivalNames || ['Lord']);
+        return {
+            ...lord,
+            name: `${style} ${first}${surname ? ` ${surname}` : ''}`,
+            firstName: first, female, kingdomId: k.id,
+            holder: noble ? noble.id : null, house: noble ? noble.name : null, estates: noble ? noble.estates : 0,
+            influence: Utils.clamp(influence + (noble ? Math.min(15, noble.estates * 2) : 0), 0, 100),
+            persona: Generalship._rivalPersona(lord),
+            scheme: null, quietUntil: -1, lastExposeDay: -99, foiled: 0,
+        };
+    },
+
+    /** The realm's greatest noble House by land: { id, name, estates } or null. */
+    _greatNoble(world, k) {
+        if (!Estates.enabled()) return null;
+        Estates.derive(world, _day(world));
+        const count = new Map();
+        for (const t of _towns(world, k)) {
+            for (const e of Estates.estatesOf(world, t.q, t.r)) {
+                if (Estates.kindOf(e.holder) !== 'noble') continue;
+                const h = Estates.holder(world, e.holder);
+                if (!h || String(h.kid) !== String(k.id)) continue;
+                count.set(e.holder, (count.get(e.holder) || 0) + 1);
+            }
+        }
+        const best = [...count.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0];
+        if (!best) return null;
+        const h = Estates.holder(world, best[0]);
+        return { id: best[0], name: (h && h.name) || 'a great House', estates: best[1] };
+    },
+
+    /** How a rival schemes, from his traits and character: { manner, words, bribable }. */
+    _rivalPersona(lord) {
+        const has = id => (lord.traits || []).some(t => t && t.id === id);
+        const honour = _num(lord.honor, 5);
+        const manner = has('cunning') ? 'cunning' : has('cruel') ? 'cruel' : has('greedy') ? 'greedy' : has('honorable') ? 'proud' : 'ambitious';
+        const words = {
+            cunning: 'smiles to your face and works through others',
+            cruel: 'wants you broken, not merely gone',
+            greedy: 'would sell his silence, for a price',
+            proud: 'thinks the command was his by right of birth',
+            ambitious: 'wants your command for himself',
+        }[manner];
+        return { manner, words, bribable: !has('honorable') && honour <= 7, greedy: has('greedy') };
     },
 
     // ── The host ─────────────────────────────────────
@@ -482,9 +546,15 @@ export const Generalship = {
         const hostLost = Math.max(0, Math.min(_num(c.men), Math.round(_num(outcome.hostLost))));
         const enemyLost = Math.max(0, Math.round(_num(outcome.enemyLost)));
         // The host's dead are the realm's dead; the enemy's are its realm's
+        const before = {};
+        if (k) before[k.id] = _num(k.military);
+        if (enemy) before[enemy.id] = _num(enemy.military);
         c.men -= hostLost;
         if (k) k.military = Math.max(0, _num(k.military) - hostLost);
         if (enemy) enemy.military = Math.max(0, _num(enemy.military) - enemyLost);
+        // ...and so are their arms: the fallen's lost out of each armoury, the field's holder
+        // gathering some of its own and stripping some of the beaten's (world/realmArms.js)
+        if (k && enemy) RealmArms.battle(outcome.victory ? k : enemy, outcome.victory ? enemy : k, before);
         let retinueLost = 0;
         if (_num(outcome.retinueLost) > 0 && (player.army || []).length) {
             const cas = PlayerMilitary._applyCasualties(player, 'land', Math.round(outcome.retinueLost)).casualties;
@@ -588,14 +658,24 @@ export const Generalship = {
         return { success: true, message: `You lift the siege of ${name}.` };
     },
 
-    /** Storm the besieged town now. */
-    assault(player, world) {
+    /** The spec of storming the besieged town now (the gate checks first): { spec } or { reason }. */
+    assaultSpec(player, world) {
         const c = Generalship.state(player);
-        if (!c || !c.siege) return { success: false, reason: 'You are not besieging a town.' };
-        if (c.lastBattleDay === _day(world)) return { success: false, reason: 'The host fought today.' };
-        const prep = Generalship.prepareBattle(player, world, 'assault');
+        if (!c || !c.siege) return { reason: 'You are not besieging a town.' };
+        if (c.lastBattleDay === _day(world)) return { reason: 'The host fought today.' };
+        return Generalship.prepareBattle(player, world, 'assault');
+    },
+
+    /**
+     * Storm the besieged town now. opts.outcome: the assault already fought
+     * (on the town's own streets: ui/innerMapBattle.js) — else the captains'
+     * one roll. A victory takes the town (the usual capture path).
+     */
+    assault(player, world, opts = {}) {
+        const c = Generalship.state(player);
+        const prep = Generalship.assaultSpec(player, world);
         if (!prep.spec) return { success: false, reason: prep.reason };
-        const out = Generalship.autoResolve(prep.spec);
+        const out = opts.outcome || Generalship.autoResolve(prep.spec);
         const res = Generalship.settleBattle(player, world, prep.spec, out);
         if (!res.success) return res;
         if (res.victory) {
@@ -630,7 +710,7 @@ export const Generalship = {
         // Hunger inside the walls: the town eats its granary down, faster with the roads cut
         if (s.economy) s.economy.food = Math.max(0, _num(s.economy.food) * 0.93 - _num(s.population) * 0.002);
         const starving = s.economy && _num(s.economy.food) <= 1;
-        const ratio = Utils.clamp(Generalship.power(player, c) / Math.max(1, sg.garrison * sg.walls), 0.3, 3);
+        const ratio = Utils.clamp(Generalship.power(player, c) / Math.max(1, sg.garrison * sg.walls), 0.3, _num(S.maxRatio, 3));
         sg.progress = _num(sg.progress) + _num(S.progressPerDay, 9) * ratio * (starving ? 2 : 1) * (_num(c.supplies) > 0 ? 1 : 0.5);
         if (sg.progress >= _num(S.surrenderAt, 100)) {
             const taken = Generalship._capture(player, world, c, 'surrendered');
@@ -650,8 +730,15 @@ export const Generalship = {
         const tile = world.getTile(sg.q, sg.r);
         const s = tile && tile.settlement;
         c.siege = null;
+        // The town the crown told you to take, taken by your own host
+        if (c.order && c.order.kind === 'besiege' && c.order.target && c.order.target.q === sg.q && c.order.target.r === sg.r) c.order.tookPart = true;
         if (!k || !enemy || !s) return { message: 'The town is lost to the war.' };
-        enemy.military = Math.max(0, _num(enemy.military) - (how === 'surrendered' ? sg.garrison : 0));
+        if (how === 'surrendered') {
+            // The garrison marches out without its arms: lost to its realm
+            const before = { [enemy.id]: _num(enemy.military) };
+            enemy.military = Math.max(0, _num(enemy.military) - sg.garrison);
+            RealmArms.battle(null, enemy, before);
+        }
         // Old estates of the conquered crown and its nobles: one to the general (rank General or higher)
         const grant = _num(c.rank) >= 2 ? Generalship._grantEstateAt(player, world, sg.q, sg.r, enemy.id) : null;
         KingdomAI.takeTile(k, enemy, world, sg.q, sg.r);
@@ -746,20 +833,35 @@ export const Generalship = {
 
     // ── Raids ────────────────────────────────────────
 
-    raid(player, world) {
+    /** The spec of a raid on the enemy town at or beside the player (the gate checks first): { spec, target } or { reason }. */
+    raidSpec(player, world) {
         const c = Generalship.state(player);
-        if (!c) return { success: false, reason: 'You hold no commission.' };
-        if (c.siege) return { success: false, reason: 'Your host is tied down by the siege.' };
+        if (!c) return { reason: 'You hold no commission.' };
+        if (c.siege) return { reason: 'Your host is tied down by the siege.' };
         const R = Generalship.config().raid || {};
         const day = _day(world);
-        if (day - _num(c.lastRaidDay, -99) < _num(R.cooldown, 2)) return { success: false, reason: 'The host is still gathering its last plunder.' };
+        if (day - _num(c.lastRaidDay, -99) < _num(R.cooldown, 2)) return { reason: 'The host is still gathering its last plunder.' };
         const target = Generalship._enemyTownNear(player, world, c);
-        if (!target) return { success: false, reason: 'No enemy village or town lies at or beside you.' };
-        const key = `${target.q},${target.r}`;
-        if (_num(c.raided[key], -999) > day - 30) return { success: false, reason: `${target.s.name} has been stripped already.` };
+        if (!target) return { reason: 'No enemy village or town lies at or beside you.' };
+        if (_num(c.raided[`${target.q},${target.r}`], -999) > day - 30) return { reason: `${target.s.name} has been stripped already.` };
         const prep = Generalship.prepareBattle(player, world, 'raid', { q: target.q, r: target.r });
+        return prep.spec ? { spec: prep.spec, target } : prep;
+    },
+
+    /**
+     * Raid the enemy town at or beside the player. opts.outcome: the fight
+     * already fought on its streets (ui/innerMapBattle.js) — else the captains'
+     * one roll. A victory plunders its purse and granary.
+     */
+    raid(player, world, opts = {}) {
+        const c = Generalship.state(player);
+        const R = Generalship.config().raid || {};
+        const day = _day(world);
+        const prep = Generalship.raidSpec(player, world);
         if (!prep.spec) return { success: false, reason: prep.reason };
-        const res = Generalship.settleBattle(player, world, prep.spec, Generalship.autoResolve(prep.spec));
+        const target = prep.target;
+        const key = `${target.q},${target.r}`;
+        const res = Generalship.settleBattle(player, world, prep.spec, opts.outcome || Generalship.autoResolve(prep.spec));
         c.lastRaidDay = day;
         if (!res.victory) return res;
         c.raided[key] = day;
@@ -854,7 +956,177 @@ export const Generalship = {
         c.lastAnswerDay = day;
         Generalship._favour(c, _num(C.answerFavour, 6));
         c.rival.influence = Utils.clamp(c.rival.influence - 6, 0, 100);
-        return { success: true, message: `Your gifts loosen tongues at ${k ? k.name : 'the'} court: ${c.rival.name}'s whispers lose their bite. Favour +${_num(C.answerFavour, 6)}.` };
+        // (the courtiers you bought speak against his scheme too: it bites half as hard)
+        if (c.rival.scheme) c.rival.scheme.blunted = true;
+        return { success: true, message: `Your gifts loosen tongues at ${k ? k.name : 'the'} court: ${c.rival.name}'s whispers lose their bite${c.rival.scheme ? ', and his scheme with them' : ''}. Favour +${_num(C.answerFavour, 6)}.` };
+    },
+
+    /** An old save's rival ({ name, influence }) made a lord of the realm. */
+    _ensureRival(c, k, world) {
+        const r = c.rival;
+        if (!r || !k || Array.isArray(r.traits)) return r;
+        const lord = Generalship._makeRival(k, 0, world);
+        c.rival = { ...lord, name: r.name || lord.name, influence: Utils.clamp(_num(r.influence, 25), 0, 100) };
+        return c.rival;
+    },
+
+    /** The schemes a rival may hatch now, with weights: [[kind, weight]]. */
+    _schemeChoices(player, world, c) {
+        const W = ((Generalship.config().court || {}).schemes) || {};
+        const r = c.rival;
+        const m = (r.persona && r.persona.manner) || 'ambitious';
+        const lean = { cunning: { supply: 1.5, wages: 1.5 }, cruel: { recall: 1.5, slander: 1.3 }, greedy: { wages: 1.6 }, proud: { credit: 1.6, slander: 1.2 }, ambitious: { credit: 1.3, recall: 1.3 } }[m] || {};
+        const ok = {
+            slander: true,
+            credit: _num(c.record.battlesWon) + _num(c.record.townsTaken) + _num(c.record.realmWon) > 0,
+            supply: Generalship._consuming(c, world),
+            wages: true,
+            recall: _num(c.rank) > 0 && _num(c.fear) >= _num((Generalship.config().court || {}).recallFear, 45),
+        };
+        return Object.keys(ok).filter(id => ok[id] && _num((W[id] || {}).weight) > 0).map(id => [id, _num(W[id].weight) * _num(lean[id], 1)]);
+    },
+
+    /**
+     * The court's day: the rival lord hatches a scheme every rivalCadence days
+     * (unless bought quiet), the player sees it coming (its kind, what it will
+     * do, the day it bites) and may answer at court, expose it or buy him off;
+     * on its day what is left of it bites.
+     */
+    _courtDay(player, world, c, k, out) {
+        const C = Generalship.config().court || {};
+        const W = C.schemes || {};
+        const day = _day(world);
+        const r = Generalship._ensureRival(c, k, world);
+        if (!r) return;
+        const sc = r.scheme;
+        if (sc && day >= _num(sc.due)) {
+            r.scheme = null;
+            Generalship._schemeBites(player, world, c, k, sc, out);
+            return;
+        }
+        if (sc || day < _num(r.quietUntil, -1) || day <= c.since || (day - c.since) % _num(C.rivalCadence, 15) !== 0) return;
+        const choices = Generalship._schemeChoices(player, world, c);
+        if (!choices.length) return;
+        const kind = Generalship._pickKind(Object.fromEntries(choices));
+        const def = W[kind] || {};
+        const due = day + _num(C.schemeDays, 7);
+        r.scheme = { kind, since: day, due, text: def.text || 'He schemes against you.', strength: Math.round(r.influence) };
+        Generalship._log(c, world, `${r.name} schemes: ${r.scheme.text}`);
+        out.notices.push({ icon: '🕵️', title: 'A Scheme at Court', text: `${r.name} ${def.text || 'schemes against you'} It will bite on day ${due} unless you answer it at court, expose it, or buy him off (Army Command).`, type: 'warning' });
+    },
+
+    /** A scheme's day comes: what it does, by the rival's influence (halved when answered at court). */
+    _schemeBites(player, world, c, k, sc, out) {
+        const C = Generalship.config().court || {};
+        const W = (C.schemes || {})[sc.kind] || {};
+        const r = c.rival;
+        const day = _day(world);
+        const bite = (r.influence / 50) * (sc.blunted ? 0.5 : 1);
+        let text = '';
+        if (sc.kind === 'slander') {
+            const [lo, hi] = C.slander || [3, 8];
+            const harm = Math.round(Utils.randInt(lo, hi) * bite);
+            Generalship._favour(c, -harm);
+            text = `${r.name} speaks against you before ${k.ruler || 'the crown'}. Favour −${harm}.`;
+        } else if (sc.kind === 'credit') {
+            const merit = Math.round(_num(W.merit, 6) * bite);
+            c.merit = Math.max(0, _num(c.merit) - merit);
+            Generalship._favour(c, -Math.round(_num(W.favour, 2) * bite));
+            r.influence = Utils.clamp(r.influence + 2, 0, 100);
+            text = `${r.name} tells the court your victories were won on his counsel. Merit −${merit}.`;
+        } else if (sc.kind === 'supply') {
+            const days = Math.max(1, Math.round(_num(W.days, 6) * (sc.blunted ? 0.5 : 1)));
+            c.supplyCutUntil = day + days;
+            text = `${r.name}'s friends among the granary wardens hold your wagons back: for ${days} days no grain comes up unless you requisition it.`;
+        } else if (sc.kind === 'wages') {
+            c.wagesHeldUntil = Math.max(_num(c.lastPaidDay) + _num((Generalship.config().wages || {}).cadence, 7), day);
+            text = `${r.name}'s man at the treasury sits on the pay chest: your next wages will be owed, not paid.`;
+        } else if (sc.kind === 'recall') {
+            if (_num(c.favour) < _num(W.belowFavour, 50) && !sc.blunted && _num(c.rank) > 0) {
+                Generalship._demote(player, world, c, out, `${r.name} has the crown's ear: you are recalled.`);
+                return;
+            }
+            Generalship._favour(c, -Math.round(_num(W.favour, 5) * bite));
+            text = `${r.name} petitions ${k.ruler || 'the crown'} to recall you. The crown keeps you, for now, but cools.`;
+        }
+        Generalship._log(c, world, text);
+        out.notices.push({ icon: '🗣️', title: 'Whispers at Court', text, type: 'warning' });
+    },
+
+    /** The odds of exposing the rival's scheme before the crown: 0–1. */
+    exposeOdds(player, c) {
+        const X = ((Generalship.config().court || {}).expose) || {};
+        const r = c && c.rival;
+        if (!r) return 0;
+        const sk = player.skills || {};
+        let p = _num(X.base, 0.35) + _num(sk.diplomacy) * _num(X.perDiplomacy, 0.05) + _num(sk.stealth) * _num(X.perStealth, 0.03);
+        if (r.persona && r.persona.manner === 'cunning') p -= _num(X.cunning, 0.15);
+        p -= (_num(r.intelligence, 5) - 5) * _num(X.perWit, 0.02);
+        return _r2(Utils.clamp(p, _num(X.min, 0.1), _num(X.max, 0.85)));
+    },
+
+    /** Lay the rival's scheme bare before the crown. Success: foiled, he loses face; failure: you look petty. */
+    exposeScheme(player, world) {
+        const c = Generalship.state(player);
+        const r = c && c.rival;
+        if (!r || !r.scheme) return { success: false, reason: 'There is no scheme afoot to expose.' };
+        const X = ((Generalship.config().court || {}).expose) || {};
+        const day = _day(world);
+        if (day - _num(r.lastExposeDay, -99) < _num(X.cooldown, 5)) return { success: false, reason: 'You accused him lately; the court will not hear it again so soon.' };
+        r.lastExposeDay = day;
+        const odds = Generalship.exposeOdds(player, c);
+        if (Utils.random() < odds) {
+            const kind = r.scheme.kind;
+            r.scheme = null;
+            r.foiled = _num(r.foiled) + 1;
+            r.influence = Utils.clamp(r.influence - _num(X.influence, 10), 0, 100);
+            Generalship._favour(c, _num(X.favour, 4));
+            NPCLords.rememberDeed(world, r, 'humbled', { note: 'exposed at court' });
+            const text = `You lay ${r.name}'s scheme (${kind}) bare before the crown. He is shamed, and the court laughs at him.`;
+            Generalship._log(c, world, text);
+            return { success: true, message: `${text} Favour +${_num(X.favour, 4)}.` };
+        }
+        Generalship._favour(c, _num(X.failFavour, -3));
+        NPCLords.rememberDeed(world, r, 'insult', { note: 'accused at court' });
+        return { success: true, failed: true, message: `You accuse ${r.name}, but cannot prove it. The court thinks you petty. Favour ${_num(X.failFavour, -3)}.` };
+    },
+
+    /** What buying the rival off costs (gold into his House's purse), or null when he cannot be bought. */
+    buyOffPrice(c) {
+        const B = ((Generalship.config().court || {}).buyOff) || {};
+        const r = c && c.rival;
+        if (!r || !(r.persona && r.persona.bribable)) return null;
+        const p = (_num(B.base, 60) + _num(r.influence) * _num(B.perInfluence, 4)) * (r.persona.greedy ? _num(B.greedy, 0.75) : 1);
+        return Math.round(p);
+    },
+
+    /** Buy the rival's silence: gold to his House (it spends it in the capital); he drops his scheme and keeps quiet. */
+    buyOffRival(player, world) {
+        const c = Generalship.state(player);
+        const r = c && c.rival;
+        if (!r) return { success: false, reason: 'No one at court speaks against you.' };
+        const price = Generalship.buyOffPrice(c);
+        if (price == null) return { success: false, reason: `${r.name} is too proud to be bought.` };
+        if (_num(player.gold) < price) return { success: false, reason: `${r.name}'s silence costs ${price}g.` };
+        const B = ((Generalship.config().court || {}).buyOff) || {};
+        const day = _day(world);
+        player.gold = _r2(_num(player.gold) - price);
+        Ledger.record(player, 'diplomacy', -price);
+        // Into his House's purse (world/estates.js noble holder); a lord with no House spends it at the capital
+        const h = r.holder && Estates.enabled() ? Estates.ensureHolder(world, r.holder) : null;
+        if (h) h.purse = _num(h.purse) + price;
+        else {
+            const k = _kingdom(world, c.kingdomId);
+            const cap = k && k.capital ? world.getTile(k.capital.q, k.capital.r) : null;
+            if (cap && cap.settlement) Economy.payTown(cap.settlement, price);
+        }
+        r.scheme = null;
+        r.quietUntil = day + _num(B.quietDays, 30);
+        r.influence = Utils.clamp(r.influence - _num(B.influence, 5), 0, 100);
+        NPCLords.rememberDeed(world, r, 'gift', { note: 'bought his silence' });
+        const text = `${price}g finds its way to ${r.house || r.name}. ${r.name} drops his scheme and holds his tongue, for a month at least.`;
+        Generalship._log(c, world, text);
+        return { success: true, message: text };
     },
 
     /** How much the crown fears its general (0–100). */
@@ -909,14 +1181,25 @@ export const Generalship = {
         }
         const oldRuler = k.ruler || 'the crown';
         if (Utils.random() < chance) {
+            const data = k.characterData;
+            const old = data && data.ruler && !data.ruler.isPlayer ? data.ruler : null;
+            const kids = data && Array.isArray(data.children) ? data.children.filter(x => x && x.isAlive !== false) : [];
+            const heirApparent = kids.filter(x => _num(x.age) >= 14).sort((a, b) => _num(b.age) - _num(a.age))[0] || null;
+            const rival = c.rival;
             Generalship._end(player, world, 'crowned', null);
             Throne._takeThrone(player, world, k);
+            // The cast-down ruler: deposed, and dead in the fighting at the gates or fled
+            if (old) { old.isRuler = false; old.deposed = true; }
+            // The realm's own temper, now the player's: a steward's, not the old ruler's
+            Scenarios._stewardLord(player, k);
+            const court = Generalship._seatCoupCourt(player, world, k, { old, heirApparent, rival, lieutenants: c.lieutenants });
             player.renown = _num(player.renown) + _num(C.renown, 60);
             if (player.house) House.award(player.house, _num(C.prestige, 50), `seized the crown of ${k.name}`, day);
             const text = `👑 The host of ${k.name} marches into the capital. ${oldRuler} is cast down, and ${k.ruler} takes the throne.`;
             Throne._log(player, world, text);
             if (Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: k.id });
-            return { success: true, crowned: true, message: text };
+            const tail = ` ${court.lords} lords bend the knee${court.guard ? `, ${court.guard} of the host's best become your royal guard` : ''}${court.pretender ? `, but ${court.pretender} says the throne is theirs` : ''}. Open the Royal Court from the Dynasty menu.`;
+            return { success: true, crowned: true, message: text + tail, court };
         }
         // Crushed: the mutinous men are cut down or scattered; the would-be usurper flees
         k.military = Math.max(0, _num(k.military) - Math.round(_num(c.men) * _num(C.failLoss, 0.5)));
@@ -931,6 +1214,40 @@ export const Generalship = {
         RealmWars.declareWar(player, world, k, 'treason');
         const text = `${betrayedBy ? `${betrayedBy} betrayed the plot. ` : ''}The loyalists hold the capital and your host breaks. You flee ${k.name} with a price on your head.`;
         return { success: true, crowned: false, failed: true, message: text };
+    },
+
+    /**
+     * A usurper's court, seated as the Monarch start seats one (Scenarios.
+     * seatCourt): a royal guard out of the realm's host, the realm's lords
+     * sworn (the old officers keep the council), the old line's heir a
+     * pretender lord, the ambitious lords restless — and the rival from the
+     * old court among them, nursing his grudge. Tuning: coup.court.
+     * → { lords, pretender, restless, guard }
+     */
+    _seatCoupCourt(player, world, k, ctx = {}) {
+        const o = ((Generalship.config().coup || {}).court) || {};
+        const guard = Scenarios._armyFromRealm(player, k, o.guard);
+        const { court, pretender, restless } = Scenarios.seatCourt(player, world, k, o, { old: ctx.old, heirApparent: ctx.heirApparent });
+        const r = ctx.rival;
+        if (r && court && Array.isArray(court.vassals)) {
+            const v = court.vassals.find(x => !x.pretender && !x.office) || null;
+            if (v) {
+                Object.assign(v, {
+                    firstName: r.firstName || v.firstName,
+                    dynasty: r.house ? String(r.house).replace(/^House\s+/i, '') : v.dynasty,
+                    gender: r.female ? 'female' : 'male',
+                    ambition: Math.max(_num(v.ambition), _num(r.ambition, 7)),
+                    honor: _num(r.honor, _num(v.honor, 5)),
+                    grudge: Math.round(_num(v.grudge) + _num(o.rivalGrudge, -35) * Scenarios._bite(player)),
+                    oldRival: true,
+                });
+                v.opinion = Math.round(Kingship.opinion(player, world, v).target);
+            }
+        }
+        if (player.house && player.house.rivals) delete player.house.rivals[k.id];
+        const ruling = Throne.state(player).ruling;
+        if (ruling) ruling.usurped = true;
+        return { lords: court ? court.vassals.length : 0, pretender, restless, guard };
     },
 
     // ── Ending a commission ──────────────────────────
@@ -1080,7 +1397,21 @@ export const Generalship = {
             if (!failed && o.progress >= o.need) done = true;
         } else if (o.kind === 'besiege') {
             const t = world.getTile(o.target.q, o.target.r);
-            if (t && t.settlement && t.settlement.kingdom === k.id) done = true;
+            // The host at the front before the town (within creditRange of it) counts as taking part
+            if (_dist(world, player, o.target) <= _num(O.creditRange, 3)) o.nearDay = day;
+            if (t && t.settlement && t.settlement.kingdom === k.id) {
+                const tookPart = o.tookPart || (o.nearDay != null && day - o.nearDay <= _num(O.creditDays, 2));
+                if (tookPart) done = true;
+                else {
+                    // The realm's own armies took it without you: no credit, no blame — fresh orders
+                    c.order = null;
+                    Generalship._log(c, world, `${o.target.name} fell to ${k.name}'s armies without you; the order lapses.`);
+                    out.notices.push({ icon: '📜', title: 'Taken Without You', text: `${o.target.name} has fallen to ${k.name}'s own armies before your host came up. The crown sends fresh orders.`, type: 'info' });
+                    Generalship._issueOrder(player, world, c, out);
+                    if (!c.order) c.nextOrderDay = day + _num(O.cadence, 6);
+                    return;
+                }
+            }
         } else if (o.kind === 'patrol') {
             for (const t of o.targets || []) if (!t.seen && player.q === t.q && player.r === t.r) { t.seen = true; o.progress++; }
             if (o.progress >= o.need) done = true;
@@ -1090,7 +1421,7 @@ export const Generalship = {
         if (done) {
             c.record.ordersDone++;
             c.merit += _num((O.merit || {})[o.kind], 8);
-            Generalship._favour(c, _num(O.doneFavour, 10));
+            Generalship._favour(c, _num((O.kindFavour || {})[o.kind], _num(O.doneFavour, 10)));
             if (c.rival) c.rival.influence = Utils.clamp(c.rival.influence - 3, 0, 100);
             const want = _num((O.bonus || {})[o.kind]);
             const bonus = Math.max(0, Math.min(want, Math.floor(_num(k.treasury))));
@@ -1149,7 +1480,9 @@ export const Generalship = {
         c.owed = _r2(_num(c.owed) + _num(rd.wage));
         if (day - _num(c.lastPaidDay) >= _num(W.cadence, 7)) {
             c.lastPaidDay = day;
-            const paid = Math.max(0, Math.min(c.owed, Math.floor(_num(k.treasury))));
+            // (the rival's friend at the treasury sits on the pay chest: owed, not paid, this payday)
+            const held = _num(c.wagesHeldUntil, -1) >= day;
+            const paid = held ? 0 : Math.max(0, Math.min(c.owed, Math.floor(_num(k.treasury))));
             if (paid > 0) {
                 k.treasury = _r2(_num(k.treasury) - paid);
                 CrownBooks.note(k, 'army', paid);
@@ -1170,7 +1503,8 @@ export const Generalship = {
         c._atWar = consuming;
         if (consuming) {
             const need = Generalship.dailyNeed(c) * (c.siege ? _num(S.siegeMult, 1.5) : 1);
-            if (Generalship.supplyDays(c) < _num(S.topUpDays, 10) / 2) {
+            // (the rival's friends among the granary wardens hold the wagons back: requisition by hand)
+            if (Generalship.supplyDays(c) < _num(S.topUpDays, 10) / 2 && !(_num(c.supplyCutUntil, -1) >= day)) {
                 const t = Generalship._supplyTown(player, world, c);
                 if (t) Generalship._supplyFrom(player, world, c, t.settlement);
             }
@@ -1207,16 +1541,9 @@ export const Generalship = {
         if (c.order) Generalship._tickOrder(player, world, c, out);
         else if (day >= _num(c.nextOrderDay)) Generalship._issueOrder(player, world, c, out);
 
-        // The court: the rival's whispers
-        const C = Generalship.config().court || {};
-        if (c.rival && day > 0 && (day - c.since) % _num(C.rivalCadence, 15) === 0 && day !== c.since) {
-            const [lo, hi] = C.slander || [3, 8];
-            const harm = Math.round(Utils.randInt(lo, hi) * c.rival.influence / 50);
-            if (harm > 0) {
-                Generalship._favour(c, -harm);
-                out.notices.push({ icon: '🗣️', title: 'Whispers at Court', text: `${c.rival.name} speaks against you before ${k.ruler || 'the crown'}. Favour −${harm}.`, type: 'warning' });
-            }
-        }
+        // The court: the rival lord's schemes
+        Generalship._courtDay(player, world, c, k, out);
+        if (!Generalship.state(player)) return out;
 
         // Fear, promotion, demotion
         c.fear = Generalship.fear(player, world, c);
@@ -1229,7 +1556,8 @@ export const Generalship = {
                 else { Generalship._dismiss(player, world, out, 'The crown fears you.'); return out; }
             } else {
                 const next = Generalship.ranks()[c.rank + 1];
-                if (next && c.merit >= _num(next.merit) && c.favour >= _num(next.minFavour)) Generalship._promote(player, world, c, out);
+                // (a rank is held a while before the next: favour.minDaysInRank)
+                if (next && c.merit >= _num(next.merit) && c.favour >= _num(next.minFavour) && day - _num(c.rankSince, c.since) >= _num(FV.minDaysInRank)) Generalship._promote(player, world, c, out);
             }
         }
         if (c.favour < _num(FV.demoteBelow, 20)) {

@@ -60,6 +60,7 @@ import { Regency } from './regency.js';
 import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
+import { RealmArms } from '../world/realmArms.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -493,9 +494,11 @@ export const Sieges = {
                 const dist = Hex.wrappingDistance(from.q, from.r, s.q, s.r, world.width);
                 const days = Utils.clamp(Math.ceil(dist / R.hexesPerDay) + Utils.randInt(R.extraDays[0], R.extraDays[1]), R.minDays, R.maxDays);
                 kingdom.military = Math.max(0, kingdom.military - strength);
+                // (the host marches with its share of the armoury: world/realmArms.js)
+                const reliefArms = RealmArms.detach(kingdom, strength);
                 s.relief = {
                     id: `rh_${kingdom.id}_${day}_${s.q}_${s.r}`,
-                    name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength,
+                    name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength, arms: reliefArms ? reliefArms.stock : null,
                     q: from.q, r: from.r, stuckDays: 0,
                     departDay: day + Math.max(0, days - Math.ceil(dist / R.hexesPerDay)), // mustering
                     arriveDay: day + days, arrived: false, arrivedDay: null,
@@ -578,7 +581,7 @@ export const Sieges = {
         const unit = (world.units || []).find(u => u.id === rel.id);
         if (unit) unit.destroyed = true;
         const k = Sieges._kingdom(world, rel.kingdomId);
-        if (k) k.military = _num(k.military) + Math.round(rel.strength * Sieges.config().relief.returnShare);
+        if (k) { k.military = _num(k.military) + Math.round(rel.strength * Sieges.config().relief.returnShare); if (rel.arms) RealmArms.attach(k, { stock: rel.arms }, Sieges.config().relief.returnShare); }
     },
 
     /** Shortest land route from `from` to `to` (breadth-first over passable tiles), or null. Draws nothing. */
@@ -687,7 +690,32 @@ export const Sieges = {
         return { success: true, stance };
     },
 
-    /** Storm the walls. opts.sack: loot the town and leave instead of holding it. */
+    /**
+     * The assault as a battle to fight on the town's own streets
+     * (ui/innerMapBattle.js, FieldBattle.start): { enemy, ctx, hex } — the
+     * garrison behind its walls (stormDefense), the town's purse its spoils —
+     * or null with no siege.
+     */
+    stormBattle(player, world) {
+        const s = Sieges.active(player);
+        const tile = s && Sieges._tile(world, s);
+        const settlement = tile && tile.settlement;
+        if (!settlement) return null;
+        return {
+            enemy: { strength: Sieges.stormDefense(s), name: settlement.name, type: 'garrison', composition: PlayerMilitary._getSettlementComposition(settlement, tile) },
+            ctx: {
+                terrainId: tile.terrain && tile.terrain.id, siege: true, theatre: PlayerMilitary.settlementTheatre(world, tile),
+                enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0, lootTown: settlement,
+            },
+            hex: { q: s.q, r: s.r },
+        };
+    },
+
+    /**
+     * Storm the walls. opts.sack: loot the town and leave instead of holding it.
+     * opts.combatResult: the assault already fought in the streets (stormBattle
+     * on the battlefield) — else the usual combat roll.
+     */
     storm(player, world, opts = {}) {
         const s = Sieges.active(player);
         if (!s) return { success: false, reason: 'No siege in progress.' };
@@ -696,13 +724,14 @@ export const Sieges = {
         const settlement = tile && tile.settlement;
         if (!settlement) return Sieges._finish(player, world, 'lifted', 'The town is gone.');
         const defense = Sieges.stormDefense(s);
-        const landBefore = Sieges._landUnits(player).length;
+        const landBefore = Sieges._landUnits(player).length + (opts.combatResult ? _num(opts.combatResult.casualties) : 0);
         const theatre = PlayerMilitary.settlementTheatre(world, tile);
-        const result = PlayerMilitary.combat(player, defense, settlement.name, {
+        const result = opts.combatResult || PlayerMilitary.combat(player, defense, settlement.name, {
             terrainId: tile.terrain && tile.terrain.id,
             enemyComposition: PlayerMilitary._getSettlementComposition(settlement, tile),
             world, siege: true, theatre,
             enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
+            lootTown: settlement, // the garrison's coin is the town's
         });
         if (result.reason) return { success: false, reason: result.reason };
         result.success = true;
@@ -774,15 +803,43 @@ export const Sieges = {
         return out;
     },
 
-    /** March out to meet the relief host before it falls on the camp. */
-    fightRelief(player, world) {
-        const s = Sieges.active(player);
-        if (!s || !s.relief) return { success: false, reason: 'No relief host to fight.' };
+    /** Can the relief host be met now? → null, or the reason not. */
+    _reliefReach(player, world, s) {
+        if (!s || !s.relief) return 'No relief host to fight.';
         // Arrived at the walls, or met on the road within reach of your lines
         const r = s.relief;
         const near = typeof r.q === 'number' && Hex.wrappingDistance(player.q, player.r, r.q, r.r, world.width) <= 1;
-        if (!r.arrived && !near) return { success: false, reason: `${r.name} has not arrived yet.` };
-        return Sieges._reliefBattle(player, world, s, true);
+        return !r.arrived && !near ? `${r.name} has not arrived yet.` : null;
+    },
+
+    /**
+     * Meeting the relief host as a battle to fight on the ground (ui/
+     * innerMapBattle.js): { enemy, ctx, hex } — the host and the garrison's
+     * sally, its chest (or its realm's treasury) the spoils — or null.
+     */
+    reliefBattle(player, world) {
+        const s = Sieges.active(player);
+        if (Sieges._reliefReach(player, world, s)) return null;
+        const R = Sieges.config().relief;
+        const relief = s.relief;
+        const sally = s.morale >= R.sallyMorale ? Math.round(s.garrison * R.sally) : 0;
+        const tile = Sieges._tile(world, s);
+        const unit = (world.units || []).find(u => u.id === relief.id);
+        const loot = unit ? PlayerMilitary._unitLoot(unit, world)
+            : { lootKingdom: (relief.kingdomId != null && world.getKingdom && world.getKingdom(relief.kingdomId)) || null };
+        return {
+            enemy: { strength: relief.strength + sally, name: relief.name, type: 'war_host', ...(loot.lootPurse !== undefined ? { purse: loot.lootPurse } : {}) },
+            ctx: { terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: false, armsFrom: relief.arms || null, ...(loot.lootKingdom ? { lootKingdom: loot.lootKingdom } : {}) },
+            hex: { q: player.q, r: player.r },
+        };
+    },
+
+    /** March out to meet the relief host before it falls on the camp. opts.combatResult: fought on the field already. */
+    fightRelief(player, world, opts = {}) {
+        const s = Sieges.active(player);
+        const why = Sieges._reliefReach(player, world, s);
+        if (why) return { success: false, reason: why };
+        return Sieges._reliefBattle(player, world, s, true, opts.combatResult || null);
     },
 
     /** Break camp and march away. */
@@ -1003,18 +1060,21 @@ export const Sieges = {
 
     // ── Battles and endings ─────────────────────────────────────
 
-    _reliefBattle(player, world, s, initiative) {
+    _reliefBattle(player, world, s, initiative, fought = null) {
         const C = Sieges.config();
         const R = C.relief;
         const relief = s.relief;
         const sally = s.morale >= R.sallyMorale ? Math.round(s.garrison * R.sally) : 0;
         const tile = Sieges._tile(world, s);
-        const result = PlayerMilitary.combat(player, relief.strength + sally, relief.name, {
-            world, terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: !initiative,
+        const unit = (world.units || []).find(u => u.id === relief.id);
+        // The relief host's spoils: its own chest, else its realm's treasury
+        const loot = unit ? PlayerMilitary._unitLoot(unit, world)
+            : { lootKingdom: (relief.kingdomId != null && world.getKingdom && world.getKingdom(relief.kingdomId)) || null };
+        const result = fought || PlayerMilitary.combat(player, relief.strength + sally, relief.name, {
+            world, terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: !initiative, ...loot, armsFrom: relief.arms || null,
         });
         result.success = true;
         result.sally = sally;
-        const unit = (world.units || []).find(u => u.id === relief.id);
         if (unit && !result.reason) unit.destroyed = true;
         if (!result.reason && result.victory) {
             s.relief = null;
@@ -1029,7 +1089,7 @@ export const Sieges = {
             return result;
         }
         const k = Sieges._kingdom(world, relief.kingdomId);
-        if (k) k.military = _num(k.military) + Math.round(relief.strength * R.returnShare);
+        if (k) { k.military = _num(k.military) + Math.round(relief.strength * R.returnShare); if (relief.arms) RealmArms.attach(k, { stock: relief.arms }, R.returnShare); }
         s.relief = null;
         result.outcome = Sieges._finish(player, world, 'broken', `${relief.name} drives your army from before ${s.name}.`);
         result.message = result.outcome.text;

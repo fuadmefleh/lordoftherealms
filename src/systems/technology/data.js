@@ -319,7 +319,7 @@ Object.assign(Technology, {
             days: 6,
             requires: [],
             tier: 1,
-            description: 'Construct dirt roads between hexes to speed travel.',
+            description: 'Surveyors and road gangs: anyone can clear a dirt path, but proper roads, stone paving and bridges start here.',
             effects: { unlockInfrastructure: 'DIRT_ROAD' },
             flavorText: 'All great journeys begin with a well-trodden path.',
         },

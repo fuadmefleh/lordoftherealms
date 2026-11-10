@@ -586,7 +586,7 @@ Object.assign(InnerMap, {
                 // (since terrainGen 5 the mill goes down to the water, once the water is laid: below)
                 if (gen >= 5) millOpts = { palette, arch };
                 const genResult = SettlementGenerator.generate(
-                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5 }
+                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5, terrain: landId }
                 );
                 // Store layout data for road generation at enter() time
                 tiles._settlementLayout = genResult;
@@ -787,6 +787,9 @@ Object.assign(InnerMap, {
             // Retired from the wild (the LPC oak and rocks, replaced by the drawn
             // trees and rocks in world/townProps.js); kept so old maps still draw them
             if (def.retired) return false;
+            // Palms have a fell block but no ground of their own: they grow only where
+            // world/innerMap/palms.js plants them (deserts, beaches, islands), never in a wood
+            if (def.palm) return false;
             return true;
         }
 

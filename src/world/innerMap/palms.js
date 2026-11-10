@@ -21,6 +21,24 @@ function _rng(seed) {
     return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
 }
 
+/** Is a tree that isn't a palm standing within `gap` cells of (q, r)? */
+function _otherTreeNear(tiles, q, r, gap) {
+    for (let rr = r - gap; rr <= r + gap; rr++) {
+        const row = tiles[rr];
+        if (!row) continue;
+        for (let qq = q - gap; qq <= q + gap; qq++) {
+            const t = row[qq];
+            const o = t && t.customObject;
+            if (!o) continue;
+            const d = CustomObjects.getDef(o.defId);
+            const tags = (d && d.tags) || [];
+            const tree = tags.includes('tree') || (d && d.objectType === 'tree');
+            if (tree && !tags.includes('palm') && !(d && d.palm)) return true;
+        }
+    }
+    return false;
+}
+
 Object.assign(InnerMap, {
     /** Plant the hex's wild palms. Returns how many were planted. */
     _plantPalms(tiles, worldTile, worldQ, worldR, worldSeed = 0) {
@@ -52,6 +70,7 @@ Object.assign(InnerMap, {
                 }
             }
         }
+        const gap = Number.isFinite(C.groveGap) ? C.groveGap : 4;
         let planted = 0;
         for (let r = 2; r < H - 1; r++) {
             for (let q = 1; q < W - 2; q++) {
@@ -66,6 +85,8 @@ Object.assign(InnerMap, {
                 const chance = d >= 1 ? (P.oasis || 0) : (P.chance || 0);
                 if (!(chance > 0) || rng() >= chance) continue;
                 const def = defs[Math.floor(rng() * defs.length)];
+                // Palms keep to their own groves: none among the oaks and pines the scatter grew
+                if (gap > 0 && _otherTreeNear(tiles, q, r, gap)) continue;
                 if (TownProps.place(tiles, def, q, r)) planted++;
             }
         }

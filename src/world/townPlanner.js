@@ -33,6 +33,7 @@ import { TownProps, FIELD_W, FIELD_H } from './townProps.js';
 import { LotBook } from './lotBook.js';
 import { planChurchyard } from './churchyard.js';
 import { Cultures } from './cultures.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 /** How each size of settlement is laid out. */
 export const PLAN = {
@@ -130,6 +131,14 @@ function _archPlan(base, ap, type) {
 function _ring(type, d) {
     if (type === 'village') return d <= 0.5 ? 'core' : d <= 0.85 ? 'mid' : 'edge';
     return d <= 0.35 ? 'core' : d <= 0.7 ? 'mid' : 'edge';
+}
+
+/** Do palms grow on this hex's land (data/innerMap.json palms.townTerrains)? No terrain known: yes. */
+function _palmsGrowIn(terrain) {
+    if (!terrain) return true;
+    const d = (DataLoader._gamedata && DataLoader._gamedata.innerMap && DataLoader._gamedata.innerMap.palms) || {};
+    const hot = Array.isArray(d.townTerrains) ? d.townTerrains : ['desert', 'beach', 'island', 'savanna', 'tropical_rainforest'];
+    return hot.includes(String(terrain).toLowerCase());
 }
 
 export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts = {}) {
@@ -515,6 +524,11 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
 
     // ── 5. Dressing: what stands by the doors, back gardens, the square ──
     const propDef = id => CustomObjects.getDef(id);
+    // Palms only where palms grow: a desert culture's town in a forest keeps its oaks and pines
+    // (data/innerMap.json palms.townTerrains). An out-of-climate palm is passed over in place,
+    // drawing the same dice, so the rest of the plan doesn't move for it.
+    const palmsGrow = _palmsGrowIn(planOpts && planOpts.terrain);
+    const outOfClimate = id => { const d = propDef(id); return !palmsGrow && !!(d && (d.palm || (Array.isArray(d.tags) && d.tags.includes('palm')))); };
     const pickTag = tag => { const ids = TownProps.idsWithTag(tag); return ids.length ? ids[Math.floor(rng() * ids.length)] : null; };
     const putProp = (id, q, r, opts) => { const d = propDef(id); return !!d && TownProps.place(tiles, d, q, r, opts); };
     // Nothing set down on a doorstep: no cell of it in the two rows below a door, nor a tile to either side
@@ -589,6 +603,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         const corners = [[pq0, plazaTop + 2], [pq0 + pw - 1, plazaTop + 2], [pq0, plazaBottom - 1], [pq0 + pw - 1, plazaBottom - 1]];
         corners.forEach(([q, r], i) => {
             const id = SQ.corners[i % SQ.corners.length];
+            if (outOfClimate(id)) return;
             const d = propDef(id);
             const w = d ? d.bounds.maxCol - d.bounds.minCol + 1 : 1;
             const at = i % 2 ? q - w + 1 : q;
@@ -656,7 +671,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
                 const y = line.bottom(x) + 1;
                 if (!tiles[y] || reach(x, y) > 0.95 || tiles[y][x]._plaza) continue;
                 const id = ids[Math.floor(rng() * ids.length)];
-                if (!blocksDoor(id, x, y)) putProp(id, x, y);
+                if (!outOfClimate(id) && !blocksDoor(id, x, y)) putProp(id, x, y);
             }
         }
     }
@@ -671,6 +686,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             const q = 2 + Math.floor(rng() * (W - 4)), r = 2 + Math.floor(rng() * (H - 4));
             if (reach(q, r) > 0.95) continue;
             const d = propDef(ids[Math.floor(rng() * ids.length)]);
+            if (outOfClimate(d.id)) { put++; continue; }
             // A tile of room all round, so nothing stands hard against a wall or out in a street
             let room = true;
             for (let rr = r + d.bounds.minRow - 1; rr <= r + 1 && room; rr++) {

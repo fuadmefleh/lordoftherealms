@@ -20,7 +20,7 @@ export const Infrastructure = {
             buildTime: 2, // days
             moveCostOverride: 1, // always costs 1 to traverse
             moveCostReduction: null,
-            requiredTech: 'road_building',
+            requiredTech: null, // anyone can clear a dirt path
             requiredTerrain: null, // any passable land
             description: 'A cleared dirt path. Movement cost is always 1.',
             renderColor: '#8B7355',
@@ -172,6 +172,9 @@ export const Infrastructure = {
         const cost = check.cost;
 
         player.gold -= cost;
+        // The work is done by hands hired from the nearest town: the coin goes to its purse
+        const town = Infrastructure._nearestTown(world, tile.q, tile.r);
+        if (town) Economy.payTown(town, cost);
 
         const buildDays = check.buildDays != null ? check.buildDays : (infra.buildTime || 0);
 
@@ -442,6 +445,21 @@ export const Infrastructure = {
     /**
      * Get available infrastructure types a player can build at a given tile
      */
+    /** The settlement nearest a hex (its labourers build the works), or null. */
+    _nearestTown(world, q, r) {
+        if (!world || typeof world.getTile !== 'function') return null;
+        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews()
+            : typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
+        let best = null, bd = Infinity;
+        for (const v of views || []) {
+            if (!v || !Number.isFinite(v.q) || !Number.isFinite(v.r)) continue;
+            const d = Hex.distance(q, r, v.q, v.r);
+            if (d < bd) { bd = d; best = v; }
+        }
+        const t = best ? world.getTile(best.q, best.r) : null;
+        return (t && t.settlement) || null;
+    },
+
     getAvailableTypes(player, tile, world) {
         const available = [];
         for (const [key, infra] of Object.entries(Infrastructure.TYPES)) {

@@ -8,7 +8,7 @@
       "buildTime": 2,
       "moveCostOverride": null,
       "moveCostReduction": 0.5,
-      "requiredTech": "road_building",
+      "requiredTech": null,
       "requiredTerrain": null,
       "description": "A cleared dirt path. Halves movement cost on this hex.",
       "renderColor": "#8B7355",

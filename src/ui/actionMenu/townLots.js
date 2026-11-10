@@ -2,7 +2,8 @@
 // player holds (systems/lots.js holdingsView): its town, its state (an empty
 // lot, building, built; a house rented or owned), the tenant, the rent, the
 // day it was last paid and any arrears — and what can be done with each:
-// raise a house to let on an empty lot, let a house / take it off the
+// raise a house to let on an empty lot (or have it blessed as a burial
+// ground: systems/graveyards.js), let a house / take it off the
 // letting, put a tenant out, give up a rented house, sell a lot or a house.
 // Opened from the world action menu in town ('town_lots') and from a lot or
 // house of the player's on the town map (ui/innerMapLots.js). Buttons route
@@ -10,6 +11,7 @@
 import { ActionMenu } from './_ref.js';
 import { Lots } from '../../systems/lots.js';
 import { LotBook } from '../../world/lotBook.js';
+import { Graveyards } from '../../systems/graveyards.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_RED, CARD, esc, lede, bullets } from './uiKit.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
@@ -58,6 +60,10 @@ function row(game, v) {
 
     const btns = [];
     if (v.canBuildHouse) btns.push(act(`🏗️ Build a House to Let (${v.houseCost}g)`, args('build'), BTN_GOLD, `Stands in ${LotBook.houseDays(worldTypeOf(world, v) || 'village')} days; let to the townsfolk for a daily rent. Other works (a shop, a workshop) are built on the lot on the town map.`));
+    if (v.canBuildHouse) {
+        const fee = Graveyards.consecrateFee(world.getTile(v.q, v.r) && world.getTile(v.q, v.r).settlement);
+        btns.push(act(`⛪ Make it a Burial Ground (${fee}g)`, args('consecrate'), BTN_GOLD, 'The priest blesses the lot (a fee to the temple); the townsfolk lease its plots from you. More (a bone mill, an ossuary) under Graveyards & the Dead.'));
+    }
     if (v.canLet) btns.push(act('🔑 Let it', args('let'), BTN_GOLD, 'Offer it to the townsfolk: a tenant pays you rent each day'));
     if (v.canStopLetting) btns.push(act('Stop letting', args('unlet'), BTN_PLAIN, 'Take it off the letting'));
     if (v.canEvict) btns.push(act('🚪 Put the Tenant Out', args('evict'), BTN_RED, v.owed > 0 ? `Their ${v.owed}g of arrears is lost` : 'The house goes back to let'));
@@ -111,6 +117,7 @@ Object.assign(ActionMenu, {
         let res;
         switch (op) {
             case 'build': res = Lots.buildHouseOnLot(player, world, s, ref); break;
+            case 'consecrate': res = Graveyards.consecrate(player, world, s, ref); break;
             case 'let': res = Lots.letHouse(player, world, q, r, ref); break;
             case 'unlet': res = Lots.stopLetting(player, world, q, r, ref); break;
             case 'evict': res = Lots.evictTenant(player, world, q, r, ref); break;

@@ -9,6 +9,7 @@ import { showWildsEncounter } from '../wildsEncounter.js';
 import { InnerMapDeck } from '../innerMapDeck.js';
 import { Cartography } from '../../systems/cartography.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 
 export async function enterInnerMap(worldQ, worldR) {
     if (!this.world || !this.player) return;
@@ -165,6 +166,8 @@ export function exitInnerMap(opts = {}) {
         this.ui.showNotification('🔒 Locked In', 'You are in a cell. Serve your time, post bail, or find a way out.', 'error');
         return;
     }
+    // Off the field mid-battle: your captains fight it out without you (ui/innerMapBattle.js)
+    if (InnerMapBattle.active) InnerMapBattle.abandon(this);
     if (InnerMap.clearJail) InnerMap.clearJail();
     // Off the deck: a fight left unfinished goes as the dice say (ui/innerMapDeck.js)
     InnerMapDeck.onExit(this);

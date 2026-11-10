@@ -1986,6 +1986,36 @@ Between phases you may **🏳️ Withdraw**: a rear guard costs about 6% of your
 
 Victory and defeat bring the usual loot, experience, renown, capture and the consequences of whom you fought (karma, reputation, the unit destroyed). Battle spoils go on the Ledger. If you close the battle panel half-way, your captains fight on with the default stances (hold the line, then aggressive, then commit the reserves) and the result is waiting for you at day's end. Tuning lives in `data/military.json` → `fieldBattle`.
 
+#### Taking the Field
+
+Before the first blow of a land battle the panel offers two more ways to fight it:
+
+- **⚔️ Take the field.** You fight it yourself, on the ground where it happens. The game opens the hex's own street map (the same map you walk in that hex) and picks the most open stretch of it near you. Both armies stand there as companies of soldiers. Your army is grouped by role: foot (soldiers, militia, pikemen), archers (archers, crossbowmen, longbowmen) and horse (cavalry, knights, elephants). A company holds at most 16 men, and each figure stands for a share of the side's strength. The bigger army is capped at about 54 figures and the smaller one is drawn to the same scale. Your companies wear your blue livery. A realm's soldiers wear its colours, and bandits, raiders and pirates come in whatever they own. You stand behind the company you lead (★). The battle starts paused.
+- **🎲 Let the captains fight it.** The battle is settled at once with the default stances, and the panel shows your odds.
+
+**On the field.** Select a company by clicking one of its men or its card, or press 1–9. Shift-click or Shift+number adds a company to the selection, and 0 or **All** selects every company. **Right-click the ground** to march there; several selected companies keep their places relative to each other. **Right-click an enemy company** to attack it: foot and horse charge, archers loose at it. The keys are H to hold, C to charge the nearest foe (horse skip foot that stand ready), F to loose, B to fall back six paces and L to lead that company. Space pauses and resumes, + changes the speed (1×, 2×, 4×), and WASD or the arrow keys pan the view. Along the top of the screen:
+
+- **🧭 Captains command** hands your side to your captains.
+- **🎲 Let the captains finish it** fights the rest of the battle out at once.
+- **🎺 Sound the retreat** marches every company off your edge of the field.
+
+Leaving the map mid-battle, or letting the day end, also leaves the rest to your captains.
+
+**How it fights.** The battle uses the phased battle's numbers. Your army's multipliers apply to every one of your companies: counters, Leadership, traits, artifacts, techs, unit specials, the difficulty and the battle's luck. The hex's terrain and the weather apply to each company by its kind.
+
+- **Volleys.** Archers loose every 3.2 seconds at the nearest foe within 13 tiles (longbows reach further). They hold the volley if your own men are in that press. Arrows do less to men in woods and to foot holding with their shields up.
+- **Melee.** Companies whose men touch trade losses on the melee phase's numbers. A company holding fights with the Hold the line stance (its pikemen and a defender stand firmer). A charging company fights Aggressive. Archers fight at 60% in the press. Each kind of company counters another, at 60% of the counters' usual weight.
+- **Flanks and charges.** A charge into the flank strikes at ×1.2 and into the rear at ×1.4, and it shakes the company it hits. The first moments of a charge strike harder: ×1.5 for horse and ×1.2 for foot. Horse that charge foot standing their ground lose a quarter of that edge.
+- **Ground.** Woods slow everyone and hamper horse. High ground adds 15%, and fighting in the shallows takes 25% off.
+- **Morale.** Each company has its own. Losses shake it, and so does a friend breaking nearby. The commander within 7 tiles steadies it, and so does the enemy's captain for theirs. A shaken company fights worse and may break while it is under pressure. A company also breaks when its spirit is gone or fewer than 30% of its men remain. A broken company **routs**: it runs for its own edge, and whatever catches it, horse above all, cuts it down on the pursuit's numbers. A routed company left alone long enough may rally.
+- **The end.** The battle ends when a side has no company still standing. Sounding the retreat ends it once your men are off the field. A "hold the field" objective ends when its time is up, and otherwise the battle stops at 7 minutes. Then the usual aftermath runs.
+- **Losses.** Each company's losses are taken from that company's own units: lose a company of archers and you lose archers. 60% of the strength a company lost is men gone for good, and the rest find their way back. A company that broke and ran also loses what the rout costs.
+- **Loot.** Spoils come out of what the beaten side carried (a band's purse) and never more. Renown, karma, companions, capture and the unit's fate follow as in any battle.
+
+**What you see.** The men are the game's own LPC soldiers: helmets and the realm's shirts, with sword and shield held ready. Riders sit on the game's horses. Companies march, wheel to face the foe, close up their ranks as men fall and swing in the press. Arrows arc overhead, dust rises where horse charge, and blood flies. The fallen stay where they fell, men and horses, until you leave the map. A plate over each company shows its strength and spirit, and the orders of the selected companies are drawn on the ground. Tuning and the soldiers' looks live in `data/military.json` → `battlefield`.
+
+**A general's host.** When you hold a commission (Army Command), **Give battle** asks the same question: take the field with the crown's host or let the captains roll it. The host and the enemy army are drawn up from their realms' make-up, scaled down to a few dozen figures, and their quality stands in for the army multipliers. The losses on the field become the host's men lost, the enemy's dead and your retinue's losses, and they are settled exactly as the one-roll battle is.
+
 ### Unit Progression
 
 Units gain XP through combat (+5 XP per battle, +10 XP per contract). At 100 XP, units level up (max level 5), gaining a ×1.2 strength multiplier per level.

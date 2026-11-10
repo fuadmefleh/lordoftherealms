@@ -20,6 +20,7 @@ import { InnerMapFelling } from '../innerMapFelling.js';
 import { announceSkillUps } from '../skillUps.js';
 import { DayClock } from './dayClock.js';
 import { updateAPChip } from '../apChip.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -387,6 +388,10 @@ export function gameLoop(timestamp, loopId) {
             // (a touch below centre: the bottom bar covers more of the screen than the top)
             // centred in the band clear of the bars (the top bar ~7%, the hotbar and day panel from ~75%)
             cam.follow(InnerMap.width * Ts / 2, InnerMap.height * Ts / 2 + (0.5 - 0.41) * this.canvas.height / cam.zoom);
+        } else if (InnerMapBattle.active) {
+            // A battle on this ground: the camera over the field, panned with WASD / the arrows
+            const bc = InnerMapBattle.cameraTarget();
+            cam.follow(bc.x, bc.y);
         } else {
             cam.follow(pWorld.x, pWorld.y);
         }
@@ -410,6 +415,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapDiving.update(simDelta, this);
         // Aboard ship: the crew, the sea's events, boarders (ui/innerMapDeck.js)
         InnerMapDeck.update(simDelta, this);
+        // A battle on the field: its own clock (paused / 1× / 2× / 4×), not the day's (ui/innerMapBattle.js)
+        InnerMapBattle.update(deltaTime, this);
 
         // Update light system from time of day
         if (typeof LightSystem !== 'undefined') {
@@ -633,6 +640,8 @@ export function setupInputHandlers() {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target && e.target.isContentEditable)) return;
         // Nothing to drive until a game is running (title/loading: no UI, world or player yet)
         if (!this.ui || !this.world || !this.player) return;
+        // A battle on the field takes its keys first: select, orders, pause, pan (ui/innerMapBattle.js)
+        if (InnerMapBattle.active && InnerMap.active && InnerMapBattle.key(this, e)) return;
         // Cheats panel: ` or F9
         if (e.key === '`' || e.key === 'F9') {
             e.preventDefault();
@@ -790,6 +799,8 @@ export function handleClick(screenX, screenY, button = 'left') {
     if (InnerMap.active) {
         const innerHex = InnerMapRenderer.getInnerHexAtScreen(screenX, screenY, this.innerMapCamera);
         if (!innerHex) return;
+        // A battle on the field: clicks select companies and give orders (ui/innerMapBattle.js)
+        if (InnerMapBattle.active && InnerMapBattle.click(this, innerHex.q, innerHex.r, button, screenX, screenY)) return;
         // Furnishing a home: clicks pick up and set down furniture (ui/innerMapFurnish.js)
         if (InnerMapFurnish.active && InnerMapFurnish.click(this, innerHex.q, innerHex.r, button)) return;
 

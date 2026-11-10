@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { resolveHostileEncounter } from './combat.logic.js';
 import { RoadEncounters } from '../../player/roadEncounters.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 import { PlayerReligion } from '../../player/playerReligion.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -361,6 +362,8 @@ export function _resumeHeldJourney() {
  * default stances.
  */
 export function _settlePendingCombat() {
+    // A battle still on the field (ui/innerMapBattle.js): the captains fight it out first
+    if (InnerMapBattle.active && InnerMapBattle.battle === this._fieldBattle) InnerMapBattle.abandon(this);
     const b = this._fieldBattle;
     if (b && !b.done) {
         FieldBattle.auto(this.player, b, this.world);

@@ -193,6 +193,31 @@
       "skills": { "leadership": 4, "combat": 3, "diplomacy": 1 },
       "stats": { "strength": 1 },
       "welcome": "You are {rank} of {kingdom}, at the head of {men} of its soldiers camped at {town}. {warLine} {rival} whispers against you before {ruler}. The crown's first orders: {order} Open Army Command from the Dynasty menu."
+    },
+    "crime_lord": {
+      "group": "advanced",
+      "name": "The Crime Lord",
+      "icon": "🗝️",
+      "blurb": "Boss of an established gang in a great city: its crew and lieutenants, protection rackets and a dice den, a smuggling line, a hidden stash. The watch captain is on your payroll, the magistrate is not, and a rival gang wants your streets.",
+      "guidedStart": false,
+      "suggestedVictory": "kingpin",
+      "gold": 350,
+      "dirty": 350,
+      "guildRank": 4,
+      "standing": 200,
+      "crew": 12,
+      "turf": 0.6,
+      "dens": 1,
+      "purse": 700,
+      "stash": { "liquor": 8, "spices": 4, "luxuries": 2 },
+      "heat": 30,
+      "crackdown": 35,
+      "rivalCrew": 10,
+      "rivalWar": true,
+      "skills": { "stealth": 3, "combat": 2, "leadership": 2 },
+      "stats": { "intelligence": 1, "strength": 1 },
+      "title": "Boss",
+      "welcome": "{oldBoss} is dead, and the {gang} of {town} answer to you now: {crew} crew, {lieutenants} lieutenants, protection on {turf}% of the streets, a dice den and {purse} gold in the hidden stash. {captain} takes your coin; {magistrate} does not. And the {rival} want your streets: it's war. Open the Underworld from the town menu."
     }
   },
 
@@ -211,6 +236,7 @@
     "monopoly":        { "name": "Monopolist", "icon": "⚖️", "blurb": "Hold {target} trade monopolies at once (won by your company's lobbying or granted by your crown).", "target": 3 },
     "conqueror":       { "name": "Conqueror", "icon": "🏰", "blurb": "Hold {target} settlements in your own hands.", "target": 8 },
     "empire":          { "name": "Empire", "icon": "🗺️", "blurb": "Rule a realm of {target} settlements.", "target": 10 },
-    "faith":           { "name": "Faith Ascendant", "icon": "🕯️", "blurb": "Make {target} settlements devoted to your faith.", "target": 10 }
+    "faith":           { "name": "Faith Ascendant", "icon": "🕯️", "blurb": "Make {target} settlements devoted to your faith.", "target": 10 },
+    "kingpin":         { "name": "Kingpin", "icon": "🗝️", "blurb": "Be boss of the underworld in {target} towns at once (a gang of your own, or one you took).", "target": 4 }
   }
 }

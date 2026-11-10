@@ -86,6 +86,8 @@
             "theft": { "name": "Theft", "group": "labour" },
             "racket": { "name": "Protection rackets", "group": "labour" },
             "guild": { "name": "Thieves' Guild: Guildmaster's cut", "group": "labour" },
+            "gang": { "name": "Your gang: the boss's cut, pay and the purse", "group": "labour" },
+            "laundering": { "name": "Laundering fees", "group": "levies" },
             "piracy": { "name": "Piracy", "group": "labour" },
             "pirateBounty": { "name": "Pirate bounties", "group": "labour" },
             "ransoms": { "name": "Ransoms taken at sea", "group": "labour" },

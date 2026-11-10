@@ -19,6 +19,17 @@
 //                pays a premium, more under blockade and in the lean season.
 //   Hot goods  — stolen goods stay "hot" for some days; only a fence buys them.
 //
+//   Gangs      — the organisations in each town, the town watch's crackdown
+//                and the bought captain and magistrate: systems/gangs.js.
+//
+// The coin is real: what a pickpocket, burglar, racket or ransom takes comes
+// out of the town's purse (Economy.drawTown), a burglar's goods out of its
+// market stock, a royal treasury heist out of the crown's treasury; the fence
+// and the black market are the town's gangs, paying from their purses for
+// goods that go into their stash; fines go to the town, bribes to the watch
+// captain (who spends them in town). Crime money is dirty (Gangs.addDirty).
+// Arrests read the realm's law on punishment (Laws.punishment).
+//
 // Content lives in data/underworld.json (DataLoader.underworld). No import-time
 // side effects; every roll goes through Utils.random. `world` / `player` are
 // always passed in — no globals.
@@ -36,6 +47,10 @@ import { Quests } from './quests.js';
 import { TownLabour } from '../world/townLabour.js';
 import { Fame } from './fame.js';
 import { SocialSkills } from './socialSkills.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
+import { Ledger } from './ledger.js';
+import { Laws } from './laws.js';
+import { Gangs } from './gangs.js';
 
 const LOG_CAP = 20;
 const SETTLEMENT_ORDER = ['village', 'town', 'city', 'capital'];
@@ -300,6 +315,10 @@ export const Underworld = {
         const kingdom = opts.kingdom || null;
         const heatGain = (opts.caught ? _num(def.caughtHeat, def.heat) : _num(def.heat)) * scale;
         const heat = kingdom ? Underworld.addHeat(player, kingdom, heatGain, world) : 0;
+        // The town's watch feels it too: its crackdown rises (systems/gangs.js)
+        if (world && opts.q != null && opts.r != null && heatGain > 0) {
+            Gangs.addCrackdown(world, opts.q, opts.r, heatGain * _num((Underworld.data().gangs || {}).crackdownPerHeat, 0.8));
+        }
         const deeds = {};
         for (const [d, v] of Object.entries(def.deeds || {})) deeds[d] = _num(v) * scale;
         Traits.recordDeeds(player, deeds);
@@ -336,7 +355,7 @@ export const Underworld = {
      * Chance a job succeeds at a settlement: the job's base, plus stealth, a
      * stat, guild rank and traits, minus guard strength and local heat.
      */
-    jobOdds(player, world, settlement, jobId, extra = 0) {
+    jobOdds(player, world, settlement, jobId, extra = 0, tile = null) {
         const job = Underworld.jobDef(jobId);
         const o = Underworld.cfg('odds');
         if (!job || !player) return 0;
@@ -353,6 +372,8 @@ export const Underworld = {
             - Underworld.getHeat(player, settlement && settlement.kingdom) * o.heatPenaltyPerPoint
             // Idle hands and hungry streets hide a thief (world/townLabour.js)
             + TownLabour.crimeOdds(settlement)
+            // The town's crackdown, and a watch captain your gang has bought (systems/gangs.js)
+            + (tile && tile.settlement === settlement ? Gangs.jobModifier(player, world, tile) : 0)
             + extra;
         return _clamp(p, o.min, o.max);
     },
@@ -533,7 +554,9 @@ export const Underworld = {
     },
 
     blackMarketPrice(world, tile, goodId) {
-        const price = Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.blackMarketMultiplier(world, tile, goodId)));
+        // Supply and demand: the gangs' stash of it in town against the town's need (systems/gangs.js)
+        const price = Math.max(1, Math.floor(Underworld._baseValue(goodId) * Underworld.blackMarketMultiplier(world, tile, goodId)
+            * Gangs.blackScarcity(world, tile, goodId)));
         return Math.min(price, Underworld.openSaleCap(world, tile, goodId));
     },
 
@@ -637,22 +660,25 @@ export const Underworld = {
         const scale = (status === 'illegal' ? 2 : status === 'tariff' ? 1.25 : 0.5) * (blockade ? bm.blockadeHeatMultiplier : 1);
         const price = Underworld.blackMarketPrice(world, tile, goodId);
         const caught = Utils.random() < Underworld.blackMarketCatchChance(player, world, tile, goodId);
-        Underworld._removeGoods(player, goodId, qty);
         if (caught) {
-            const fine = Math.min(player.gold || 0, Math.floor(price * qty * 0.5));
-            player.gold -= fine;
+            Underworld._removeGoods(player, goodId, qty);
+            const fine = Underworld._fine(player, world, settlement, price * qty * 0.5);
             Underworld.recordCrime(player, world, 'black_market', { kingdom: settlement.kingdom, caught: true, scale, q: tile.q, r: tile.r });
             const arrest = Underworld._maybeArrest(player, world, settlement, 'black-market dealing', 0.35);
             const text = `The watch raided the deal. ${qty} ${_label(goodId)} confiscated, fined ${fine}g.${arrest ? ` ${arrest.text}` : ''}`;
             Underworld._log(player, world, text);
             return { success: true, caught: true, fine, arrested: !!arrest, text };
         }
-        const earned = price * qty;
-        player.gold = (player.gold || 0) + earned;
-        if (player.financeToday && player.financeToday.income) {
-            player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + earned;
+        // The buyer is one of the town's gangs: its purse pays, its stash takes the goods
+        const deal = Gangs.buyFromPlayer(player, world, tile, goodId, qty, price);
+        if (!(deal.qty > 0)) {
+            player.actionPoints += 1;
+            return { success: false, reason: 'The black market here is short of coin this week: nobody can pay for that.' };
         }
-        Underworld.ensure(player).stats.earned += earned;
+        Underworld._removeGoods(player, goodId, deal.qty);
+        qty = deal.qty;
+        const earned = deal.paid;
+        Underworld._payGold(player, world, earned, 'smuggling');
         Underworld.recordCrime(player, world, 'black_market', { kingdom: settlement.kingdom, scale });
         if (blockade) Quests.track(player, 'blockade_runs');
         const text = `Sold ${qty} ${_label(goodId)} on the black market for ${earned}g${blockade ? ' — the blockade has the whole town paying double' : ''}.`;
@@ -684,16 +710,17 @@ export const Underworld = {
         const held = _num(player.inventory && player.inventory[goodId]);
         if (!(qty > 0) || held < qty) return { success: false, reason: 'You do not have that many.' };
         const day = Seasons.today(world);
-        const hot = Math.min(qty, Underworld.hotQty(player, goodId, day));
+        const hot0 = Math.min(qty, Underworld.hotQty(player, goodId, day));
         const price = Underworld.fencePrice(player, goodId, world, tile);
+        // The fence is one of the town's gangs: its purse pays, the goods wait in its pile till they're cold
+        const deal = Gangs.buyFromPlayer(player, world, tile, goodId, qty, price, { hot: hot0 > 0 });
+        if (!(deal.qty > 0)) return { success: false, reason: 'The fences here are short of coin this week.' };
+        qty = deal.qty;
+        const hot = Math.min(qty, hot0);
         Underworld._removeGoods(player, goodId, qty);
         if (hot > 0) Underworld._consumeHot(player, goodId, hot);
-        const earned = price * qty;
-        player.gold = (player.gold || 0) + earned;
-        if (player.financeToday && player.financeToday.income) {
-            player.financeToday.income.theft = (player.financeToday.income.theft || 0) + earned;
-        }
-        Underworld.ensure(player).stats.earned += earned;
+        const earned = deal.paid;
+        Underworld._payGold(player, world, earned, 'theft');
         Underworld.recordCrime(player, world, 'fence', { kingdom: settlement.kingdom, scale: hot > 0 ? 1 : 0.5 });
         if (hot > 0) Underworld._gainStanding(player, world, 1);
         return { success: true, earned, text: `The fence took ${qty} ${_label(goodId)} for ${earned}g, no questions asked.` };
@@ -783,17 +810,40 @@ export const Underworld = {
             else if (st.lyingLow && st.lyingLow.kingdom === (settlement && settlement.kingdom)) locked = 'You are lying low';
             else if (id === 'racket' && st.rackets.some(r => r.key === _key(tile.q, tile.r))) locked = 'You already run this town';
             else if (id === 'racket' && st.rackets.length >= Math.max(1, st.guild.rank)) locked = 'Your rank cannot hold more rackets';
-            out.push({ id, ...job, odds: Underworld.jobOdds(player, world, settlement, id), locked });
+            out.push({ id, ...job, odds: Underworld.jobOdds(player, world, settlement, id, 0, tile), locked });
         }
         return out;
     },
 
     _payGold(player, world, amount, kind = 'theft') {
+        if (!(amount > 0)) return;
         player.gold = (player.gold || 0) + amount;
-        if (player.financeToday && player.financeToday.income) {
-            player.financeToday.income[kind] = (player.financeToday.income[kind] || 0) + amount;
-        }
+        Ledger.record(player, kind, amount);
         Underworld.ensure(player).stats.earned += amount;
+        // Crime money is dirty until laundered (systems/gangs.js)
+        Gangs.addDirty(player, amount);
+    },
+
+    /** A fine: out of the player's purse into the town's (the magistrate's court), scaled by the realm's law. */
+    _fine(player, world, settlement, amount) {
+        const mult = settlement && settlement.kingdom != null ? Laws.punishment(world, settlement.kingdom).fine : 1;
+        const fine = Math.min(Math.max(0, Math.floor(player.gold || 0)), Math.round(_num(amount) * mult));
+        if (!(fine > 0)) return 0;
+        player.gold -= fine;
+        Ledger.record(player, 'fines', -fine);
+        Economy.payTown(settlement, fine);
+        Gangs._dirtyFollowsGold(player);
+        return fine;
+    },
+
+    /** The live tile of a settlement (by its q, r), or null. */
+    _tileOfSettlement(world, settlement) {
+        if (!settlement || !world || typeof world.getTile !== 'function') return null;
+        if (settlement.q != null && settlement.r != null) {
+            const t = world.getTile(settlement.q, settlement.r);
+            if (t && t.settlement) return t;
+        }
+        return null;
     },
 
     /**
@@ -811,7 +861,18 @@ export const Underworld = {
     _arrest(player, world, settlement, offense) {
         const h = Underworld.cfg('heat');
         const heat = Underworld.getHeat(player, settlement && settlement.kingdom);
-        const days = Math.max(1, Math.round(h.jailBaseDays + heat * h.jailDaysPerHeat));
+        // The realm's law on punishment lengthens or shortens the stay (systems/laws.js)
+        const law = settlement && settlement.kingdom != null ? Laws.punishment(world, settlement.kingdom) : { jail: 1 };
+        let days = Math.max(1, Math.round((h.jailBaseDays + heat * h.jailDaysPerHeat) * law.jail));
+        const here = player && world && typeof world.getTile === 'function' ? world.getTile(player.q, player.r) : null;
+        const tile = Underworld._tileOfSettlement(world, settlement) || here;
+        const town = tile && tile.settlement === settlement ? tile : null;
+        // A magistrate on your gang's payroll finds the case wanting (systems/gangs.js)
+        const bought = town ? Gangs.bought(player, world, town) : { magistrate: false };
+        if (bought.magistrate) days = 1;
+        // The watch empties a dirty purse into the town's coffers
+        const D = (Underworld.data().gangs || {}).dirty || {};
+        const seized = Gangs.seizeDirty(player, settlement, _num(D.seizeOnArrest, 0.7));
         player.jailState = {
             daysRemaining: days,
             totalDays: days,
@@ -823,8 +884,10 @@ export const Underworld = {
         };
         player.stamina = 0;
         player.movementRemaining = 0;
+        if (town) { player.jailState.q = town.q; player.jailState.r = town.r; }
         if (Underworld.ensure(player).heist) Underworld.ensure(player).heist = null;
-        return { days, text: `Arrested and jailed for ${days} day(s).` };
+        const extra = `${seized > 0 ? ` The watch took ${seized}g of dirty coin off you.` : ''}${bought.magistrate ? ' Your magistrate will see the case dismissed by morning.' : ''}`;
+        return { days, seized, text: `Arrested and jailed for ${days} day(s).${extra}` };
     },
 
     _spendAP(player, ap) {
@@ -855,10 +918,16 @@ export const Underworld = {
             let loot = { added: {}, dropped: {} };
             if (jobId === 'pickpocket' || jobId === 'burglary') {
                 const [lo, hi] = job.gold || [5, 20];
-                gold = Utils.randInt(lo, hi) + Math.round(guard * _num(job.goldPerGuard));
+                // The townsfolk's coin: out of the town's purse
+                gold = Math.floor(Economy.drawTown(settlement, Utils.randInt(lo, hi) + Math.round(guard * _num(job.goldPerGuard))));
                 if (jobId === 'burglary' && Array.isArray(job.loot) && job.loot.length) {
                     const [ql, qh] = job.lootQty || [1, 2];
-                    loot = Underworld._addLoot(player, world, { [Utils.randPick(job.loot)]: Utils.randInt(ql, qh) });
+                    // A merchant's goods: what the town's market holds
+                    const held = job.loot.filter(id => SettlementMarket.tracks(id) && SettlementMarket.available(settlement, id) >= 1);
+                    const good = Utils.randPick(held.length ? held : job.loot);
+                    const got = Math.floor(SettlementMarket.tracks(good) ? SettlementMarket.take(settlement, good, Utils.randInt(ql, qh)) : 0);
+                    if (got > 0) loot = Underworld._addLoot(player, world, { [good]: got });
+                    if (got > 0 && Object.keys(loot.dropped).length) SettlementMarket.add(settlement, good, got);
                 }
                 Underworld._payGold(player, world, gold);
             } else if (jobId === 'racket') {
@@ -883,8 +952,7 @@ export const Underworld = {
             return { success: true, outcome: 'empty', text: `${job.name}: it went sour and you slipped away with nothing.` };
         }
         Underworld.recordCrime(player, world, jobId, { ...where, caught: true });
-        const fine = Math.min(player.gold || 0, Math.round(20 * guard));
-        player.gold -= fine;
+        const fine = Underworld._fine(player, world, settlement, 20 * guard);
         const arrest = Underworld._maybeArrest(player, world, settlement, _label(jobId));
         const text = `${job.name}: caught in the act! Fined ${fine}g.${arrest ? ` ${arrest.text}` : ' You talked your way out of a cell.'}`;
         Underworld._log(player, world, text);
@@ -953,7 +1021,7 @@ export const Underworld = {
         const plan = Underworld.heistPlan(player);
         if (!plan) return 0;
         const target = (Underworld.data().heistTargets || {})[plan.targetId] || {};
-        return Underworld.jobOdds(player, world, tile && tile.settlement, 'heist', plan.bonus - _num(target.difficulty));
+        return Underworld.jobOdds(player, world, tile && tile.settlement, 'heist', plan.bonus - _num(target.difficulty), tile);
     },
 
     /** Strike. Big gold, hot loot, heavy heat — or a cell. */
@@ -972,12 +1040,16 @@ export const Underworld = {
         const where = { kingdom: settlement.kingdom, q: tile.q, r: tile.r };
         if (Utils.random() < odds) {
             const [lo, hi] = target.gold || [200, 400];
-            const gold = Utils.randInt(lo, hi);
+            const gold = Underworld._heistTake(world, settlement, target, Utils.randInt(lo, hi));
             Underworld._payGold(player, world, gold);
             let loot = { added: {}, dropped: {} };
             if (Array.isArray(target.loot) && target.loot.length) {
                 const [ql, qh] = target.lootQty || [1, 2];
-                loot = Underworld._addLoot(player, world, { [Utils.randPick(target.loot)]: Utils.randInt(ql, qh) });
+                const held = target.loot.filter(id => SettlementMarket.tracks(id) && SettlementMarket.available(settlement, id) >= 1);
+                const good = Utils.randPick(held.length ? held : target.loot);
+                const got = Math.floor(SettlementMarket.tracks(good) ? SettlementMarket.take(settlement, good, Utils.randInt(ql, qh)) : 0);
+                if (got > 0) loot = Underworld._addLoot(player, world, { [good]: got });
+                if (got > 0 && Object.keys(loot.dropped).length) SettlementMarket.add(settlement, good, got);
             }
             Underworld.recordCrime(player, world, 'heist', where);
             if (target.karma) player.karma = Math.max(-100, (player.karma || 0) + target.karma);
@@ -994,6 +1066,25 @@ export const Underworld = {
         const text = `The job on ${plan.name} falls apart!${arrest ? ` ${arrest.text}` : ' You escape over the rooftops, empty-handed.'}`;
         Underworld._log(player, world, text);
         return { success: true, outcome: 'failed', arrested: !!arrest, text };
+    },
+
+    /**
+     * The gold a heist carries off, and whose it was: the crown's treasury
+     * (target.source 'crown') or the town's purse — never more than
+     * target.purseShare of what is there.
+     */
+    _heistTake(world, settlement, target, want) {
+        const share = _num(target.purseShare, 0.15);
+        if (target.source === 'crown') {
+            const k = Underworld._settlementKingdom(world, settlement);
+            if (!k) return Math.floor(Economy.drawTown(settlement, want));
+            const take = Math.floor(Math.max(0, Math.min(want, _num(k.treasury) * share)));
+            k.treasury = _num(k.treasury) - take;
+            return take;
+        }
+        const purse = Economy.townPurse(settlement);
+        const cap = purse == null ? want : Math.min(want, purse * share);
+        return Math.floor(Economy.drawTown(settlement, cap));
     },
 
     abandonHeist(player) {
@@ -1019,8 +1110,11 @@ export const Underworld = {
             ? Underworld.ensure(player).guild.rank * Underworld.cfg('guild').bribeDiscountPerRank : 0;
         // The distrusted and the shunned pay dearer (systems/fame.js)
         // Persuasion: a smooth talker pays less and is reported less (systems/socialSkills.js)
+        // A captain on your gang's payroll comes cheap (systems/gangs.js)
+        const W = (Underworld.data().gangs || {}).watch || {};
+        const ownCaptain = Gangs.bought(player, world, tile).captain ? _num(W.boughtBribeMult, 0.5) : 1;
         const gold = Math.ceil(relief * b.goldPerHeatPerGuard * Underworld.guardStrength(settlement, kingdom) * Math.max(0.4, 1 - discount)
-            * Fame.bribeMult(player, settlement.kingdom) * (1 - SocialSkills.frac(player, 'persuasion', 'bribe')));
+            * Fame.bribeMult(player, settlement.kingdom) * (1 - SocialSkills.frac(player, 'persuasion', 'bribe')) * ownCaptain);
         const fail = _clamp(b.failChance * ((kingdom && (kingdom.traits || []).includes('orderly')) ? 1.5 : 1)
             - (_num(player.charisma, 5) - 5) * b.charismaPerPoint - SocialSkills.frac(player, 'persuasion', 'bribeOdds'), 0.02, 0.5);
         return { gold, relief, fail };
@@ -1033,6 +1127,10 @@ export const Underworld = {
         if (!Underworld._spendAP(player, 1)) return { success: false, reason: 'A bribe takes 1 action point.' };
         const kingdomId = tile.settlement.kingdom;
         player.gold -= quote.gold;
+        Ledger.record(player, 'bribes', -quote.gold);
+        Gangs._dirtyFollowsGold(player);
+        // The sergeant's purse is the watch captain's: he spends it in town (systems/gangs.js)
+        Gangs.payCaptain(world, tile, quote.gold);
         Traits.recordDeed(player, 'deceit', 1);
         SocialSkills.trainBy(player, 'persuasion', 'bribe');
         if (Utils.random() < quote.fail) {
@@ -1075,7 +1173,8 @@ export const Underworld = {
 
         const kingdom = Underworld._settlementKingdom(world, settlement);
         const guard = Underworld.guardStrength(settlement, kingdom);
-        const chance = _clamp((h.searchBase + (heat - h.watchedAt) * h.searchPerHeat) * (guard / 2), 0, h.searchMax);
+        // A crackdown in town makes them keener; a captain your gang has bought, much less keen (systems/gangs.js)
+        const chance = _clamp((h.searchBase + (heat - h.watchedAt) * h.searchPerHeat) * (guard / 2) * Gangs.searchMult(player, world, tile), 0, h.searchMax);
         if (!(Utils.random() < chance)) return { heat, level, warning, search: null };
 
         const day = Seasons.today(world);
@@ -1094,8 +1193,12 @@ export const Underworld = {
             }
         }
         const found = Object.keys(seized).length > 0;
-        const fine = Math.min(player.gold || 0, Math.round(heat * h.searchFinePerHeat + (found ? value * h.contrabandFineShare : 0)));
-        player.gold -= fine;
+        // Seized goods that are legal here go to the town's market (sold off by the magistrate); contraband is burned
+        for (const [id, n] of Object.entries(seized)) if (SettlementMarket.tracks(id) && Underworld.contrabandStatus(kingdom, id) !== 'illegal') SettlementMarket.add(settlement, id, n);
+        // ...and a dirty purse is emptied into its coffers
+        const D = (Underworld.data().gangs || {}).dirty || {};
+        const dirtyTaken = Gangs.seizeDirty(player, settlement, _num(D.seizeOnSearch, 0.5));
+        const fine = Underworld._fine(player, world, settlement, heat * h.searchFinePerHeat + (found ? value * h.contrabandFineShare : 0));
         let arrest = null;
         if (heat >= h.arrestAt || found) arrest = Underworld._maybeArrest(player, world, settlement, 'wanted by the watch', heat >= h.arrestAt ? h.arrestChance : h.arrestChance * 0.4);
         if (!found && !arrest) Underworld.addHeat(player, settlement.kingdom, -h.cleanSearchRelief, world);
@@ -1103,6 +1206,7 @@ export const Underworld = {
         const parts = [`The guards at ${settlement.name} search you.`];
         parts.push(found ? `They seize ${PlayerInventory.describe(seized)}.` : 'They find nothing.');
         if (fine > 0) parts.push(`Fined ${fine}g.`);
+        if (dirtyTaken > 0) parts.push(`They take ${dirtyTaken}g of coin you can't account for.`);
         if (arrest) parts.push(arrest.text);
         const text = parts.join(' ');
         Underworld._log(player, world, text);
@@ -1193,19 +1297,34 @@ export const Underworld = {
                     out.notices.push(`The watch broke up your racket in ${rk.name}.`);
                     continue;
                 }
+                // The town's gangs don't share their streets with a freelancer (systems/gangs.js)
+                const rtile = world && typeof world.getTile === 'function' ? world.getTile(rk.q, rk.r) : null;
+                const rs = rtile && rtile.settlement;
+                if (rtile && rs && Gangs.hasGangs(rs) && !Gangs.membership(player, rtile)) {
+                    const big = Gangs.gangsAt(world, rtile).filter(g => g.turf > 0.3).sort((a, b) => b.turf - a.turf)[0];
+                    if (big && Utils.random() < Math.min(0.5, big.turf * 0.5)) {
+                        big.turf = Math.min(1, big.turf + 0.03);
+                        out.notices.push(`${big.name} ran your racket out of ${rk.name}: those are their streets.`);
+                        continue;
+                    }
+                }
                 kept.push(rk);
-                Underworld._payGold(player, world, rk.weekly, 'racket');
-                out.income += rk.weekly;
-                Underworld.recordCrime(player, world, 'racket_weekly', { kingdom: rk.kingdom });
+                // The shopkeepers' coin: out of the town's purse (a poor town pays what it can)
+                const paid = Math.floor(rs ? Economy.drawTown(rs, rk.weekly) : rk.weekly);
+                Underworld._payGold(player, world, paid, 'racket');
+                out.income += paid;
+                Underworld.recordCrime(player, world, 'racket_weekly', { kingdom: rk.kingdom, q: rk.q, r: rk.r });
             }
             st.rackets = kept;
             if (Underworld.isGuildmaster(player) && st.guild.lastCutDay !== day) {
                 const c = Underworld.cfg('guild').guildmasterCut || {};
-                const cut = Math.round(_num(c.base, 150) + st.rackets.length * _num(c.perRacket, 25));
+                const want = Math.round(_num(c.base, 150) + st.rackets.length * _num(c.perRacket, 25));
                 st.guild.lastCutDay = day;
+                // The gangs' tithe to the guild: out of their purses (systems/gangs.js)
+                const cut = world ? Gangs.tithe(world, want) : 0;
                 Underworld._payGold(player, world, cut, 'guild');
                 out.income += cut;
-                out.notices.push(`The guild pays its Guildmaster's cut: ${cut}g.`);
+                if (cut > 0) out.notices.push(`The guild pays its Guildmaster's cut: ${cut}g.`);
             }
             if (out.income > 0 && st.rackets.length) out.notices.push(`Protection money from ${st.rackets.length} racket(s) comes in.`);
         }
@@ -1232,6 +1351,7 @@ export const Underworld = {
             leanSeason: Seasons.isLean(Seasons.today(world)),
             log: st.log.slice(-8).reverse(),
             stats: { ...st.stats },
+            dirty: Gangs.dirty(player),
         };
     },
 };

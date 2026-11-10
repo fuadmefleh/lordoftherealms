@@ -822,7 +822,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 label: heat > 0 ? `Underworld (heat ${Math.round(heat)})` : 'Underworld',
                 icon: '🗝️',
                 description: inGuildTown
-                    ? 'Guild jobs, the fence and the black market — and your heat in every realm'
+                    ? 'The town\'s gangs and its watch, guild jobs, the fence and the black market, laundering — and your heat in every realm'
                     : 'Your notoriety here: bribe the watch or lie low'
             });
         }

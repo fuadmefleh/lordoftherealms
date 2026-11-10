@@ -76,6 +76,7 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
+import { Gangs } from '../../systems/gangs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { Finance } from '../../systems/finance.js';
 import { MarketFairs } from '../../systems/marketFairs.js';
@@ -362,6 +363,8 @@ function _endDay(game) {
     game.languagesDay = Languages.processDay(player, world);
     mark(game, 'Languages.processDay');
     game.dawnSettled = DawnBirth.sync(player, world) || null;
+    Gangs.processDay(world, player);
+    mark(game, 'Gangs.processDay');
     OutlawLairs.processDay(world, player);
     mark(game, 'OutlawLairs.processDay');
     game.discoveryDay = Discovery.processDay(world, player);

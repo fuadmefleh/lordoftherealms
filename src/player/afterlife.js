@@ -43,6 +43,7 @@ import { Couriers } from '../systems/couriers.js';
 import { CourierRiders } from '../systems/courierRiders.js';
 import { Hospitality } from '../systems/hospitality.js';
 import { OutlawLairs } from '../systems/outlawLairs.js';
+import { Gangs } from '../systems/gangs.js';
 import { Lots } from '../systems/lots.js';
 import { Graveyards } from '../systems/graveyards.js';
 import { Discovery } from '../systems/discovery.js';
@@ -116,6 +117,7 @@ const WORLD_DAY = [
     (w) => Couriers.processDay(w, null),
     (w) => CourierRiders.processDay(w, null),
     (w) => Hospitality.processDay(w, null),
+    (w) => Gangs.processDay(w, null),
     (w) => OutlawLairs.processDay(w, null),
     (w) => Discovery.processDay(w, null),
     (w) => Pirates.processDay(w, null),

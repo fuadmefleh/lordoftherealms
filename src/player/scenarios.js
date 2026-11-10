@@ -41,6 +41,11 @@
 //     host, a cadet blood claim, a jealous crown (feud).
 //   - The Guildmaster: elected master of a great town's guild (Guilds), its
 //     hall and stipend, an election soon with a challenger canvassing.
+//   - The Crime Lord: boss of the biggest gang of a great city (systems/gangs.js
+//     Gangs.setupCrimeLord): its crew, lieutenants (one scheming), rackets,
+//     a den, a smuggling line, its hidden stash (coin and goods that came out
+//     of the town), a bought watch captain, high guild rank, heat, dirty
+//     coin, and a rival gang at war.
 // Challenge numbers scale with the difficulty's hostility knob.
 // Then the difficulty's starting-gold knob scales the purse (Normal: none).
 // The record lives on player.scenario (core/difficulty.js). Origins are
@@ -70,6 +75,7 @@ import { LandMarket } from '../systems/landMarket.js';
 import { Estates } from '../world/estates.js';
 import { Kingdom } from '../world/kingdom.js';
 import { Generalship } from './generalship.js';
+import { Gangs } from '../systems/gangs.js';
 
 const FALLBACK = {
     wanderer: {
@@ -736,6 +742,19 @@ export const Scenarios = {
         Object.assign(vars, { guild: g.name, town: home.s.name, treasury: Math.floor(_num(g.treasury)).toLocaleString('en-US'), election: g.nextElection, challenger: cand.challenger });
     },
 
+    _crimeLord(player, world, o, vars) {
+        const set = Gangs.setupCrimeLord(player, world, o, _towns(world), { q: player.q, r: player.r });
+        if (!set) return;
+        Scenarios._moveTo(player, world, set.tile.q, set.tile.r);
+        Scenarios._standing(player, world, o, `boss of ${set.gang.name}`);
+        // The rival bites harder on the harder settings
+        if (set.rival) set.rival.crew = Math.max(1, Math.round(set.rival.crew * Scenarios._bite(player)));
+        player.title = `${o.title || 'Boss'} of ${set.tile.settlement.name}`;
+        player.scenario.realm = set.tile.settlement.kingdom || null;
+        player.scenario.start = { kind: 'crime_lord', town: set.tile.settlement.name, q: set.tile.q, r: set.tile.r, gang: set.gang.id };
+        Object.assign(vars, set.vars);
+    },
+
     /**
      * The General: a commission (player/generalship.js) as General in a realm
      * at war (or, if none is, one at daggers drawn with a neighbour), its host
@@ -832,6 +851,7 @@ export const Scenarios = {
             great_lord: Scenarios._greatLord,
             guildmaster: Scenarios._guildmaster,
             general: Scenarios._general,
+            crime_lord: Scenarios._crimeLord,
         }[origin.id];
         // The origin's purse (data/scenarios.json `gold`); the shapes below may set their own
         if (origin.gold != null) player.gold = _num(origin.gold);

@@ -256,18 +256,31 @@ export const Battlefield = {
      * `maxFiguresPerCompany` figures. → [{ kind, role, typeId, units, str }]
      */
     _playerGroups(player, theatre = 'land') {
+        // (a realm's household guard riding with you — unit.realmGuard, player/realmEscort.js —
+        // stands as companies of its own, in its realm's livery, after your own of each role)
         const byRole = { pikeman: [], archer: [], cavalry: [] };
+        const guardRole = { pikeman: new Map(), archer: new Map(), cavalry: new Map() };
         for (const u of player.army || []) {
             if (!PlayerMilitary._theatreParticipant(u, theatre) || PlayerMilitary.isNavalUnit(u)) continue;
-            byRole[PlayerMilitary._roleForUnitType(u.type)].push(u);
+            const role = PlayerMilitary._roleForUnitType(u.type);
+            if (u.realmGuard != null) {
+                const m = guardRole[role];
+                if (!m.has(u.realmGuard)) m.set(u.realmGuard, []);
+                m.get(u.realmGuard).push(u);
+            } else byRole[role].push(u);
         }
         const out = [];
-        for (const role of ['pikeman', 'archer', 'cavalry']) {
-            const list = byRole[role];
-            if (!list.length) continue;
-            const weight = (u) => (u.strength || 1) * (1 + ((u.level || 1) - 1) * 0.2) * (u.woundedDays > 0 ? 0.5 : 1);
+        const weight = (u) => (u.strength || 1) * (1 + ((u.level || 1) - 1) * 0.2) * (u.woundedDays > 0 ? 0.5 : 1);
+        const add = (role, list, guard) => {
+            if (!list.length) return;
             const total = list.reduce((s, u) => s + weight(u), 0);
-            out.push({ kind: KIND_OF_ROLE[role], role, units: list, weight: total, typeId: Battlefield._dominantType(list) });
+            const g = { kind: KIND_OF_ROLE[role], role, units: list, weight: total, typeId: Battlefield._dominantType(list) };
+            if (guard != null) g.guard = guard;
+            out.push(g);
+        };
+        for (const role of ['pikeman', 'archer', 'cavalry']) {
+            add(role, byRole[role], null);
+            for (const [kid, list] of guardRole[role]) add(role, list, kid);
         }
         return out;
     },
@@ -364,7 +377,7 @@ export const Battlefield = {
                 // The units of this group shared over its companies, in order
                 const from = Math.round(g.units.length * all.slice(0, i).reduce((s, p) => s + p.str / str, 0));
                 const to = i === all.length - 1 ? g.units.length : Math.round(g.units.length * all.slice(0, i + 1).reduce((s, p) => s + p.str / str, 0));
-                pSpecs.push({ side: 'player', kind: g.kind, typeId: g.typeId, str: part.str, figs: part.figs, units: g.units.slice(from, Math.max(from, to)), share });
+                pSpecs.push({ side: 'player', kind: g.kind, typeId: g.typeId, str: part.str, figs: part.figs, units: g.units.slice(from, Math.max(from, to)), share, guard: g.guard });
             });
         }
         // The enemy's, from what is known of them (their composition)
@@ -502,6 +515,11 @@ export const Battlefield = {
             cols: 1,
             rangeBonus: def && def.rangeBonus ? def.rangeBonus : 0,
         };
+        // A realm's household guard (player/realmEscort.js): its own company, in its realm's livery
+        if (spec.guard != null) {
+            c.guard = spec.guard;
+            c.name = `Guard ${c.name.toLowerCase()}`;
+        }
         const ranks = Math.min(k.ranks, spec.figs);
         c.cols = Math.ceil(spec.figs / ranks);
         for (let i = 0; i < spec.figs; i++) {

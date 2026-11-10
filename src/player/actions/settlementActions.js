@@ -15,6 +15,7 @@ import { Titles } from '../../systems/titles.js';
 import { Festivals } from '../../systems/festivals.js';
 import { RealmPolitics } from '../realmPolitics.js';
 import { Generalship } from '../generalship.js';
+import { RealmEscort } from '../realmEscort.js';
 import { Throne } from '../../systems/throne.js';
 import { PlayerReligion } from '../playerReligion.js';
 import { SeasonalWork } from '../seasonalWork.js';
@@ -421,6 +422,17 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 description: held ? `Command your host in the army of ${held.kingdomName}` : 'Serve in the realm\'s army: command its soldiers and rise through its ranks',
             });
         }
+    }
+
+    // The household guard a realm keeps for its lords and its crown (player/realmEscort.js)
+    if (RealmEscort.guard(player) || RealmEscort.standing(player, world)) {
+        const hg = RealmEscort.guard(player);
+        actions.push({
+            type: 'household_guard',
+            label: 'Household Guard',
+            icon: '🛡️',
+            description: hg ? RealmEscort.hudLine(player) : 'The realm keeps a guard for one of your rank: ask for it',
+        });
     }
 
     // Wars of the realms — follow the wars, broker peace, campaign for your liege

@@ -21,6 +21,7 @@ import { announceSkillUps } from '../skillUps.js';
 import { DayClock } from './dayClock.js';
 import { updateAPChip } from '../apChip.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
+import { InnerMapEscort } from '../innerMapEscort.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -418,6 +419,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapDeck.update(simDelta, this);
         // A battle on the field: its own clock (paused / 1× / 2× / 4×), not the day's (ui/innerMapBattle.js)
         InnerMapBattle.update(deltaTime, this);
+        // The realm's household guard walking behind you (ui/innerMapEscort.js)
+        InnerMapEscort.update(simDelta, this);
 
         // Update light system from time of day
         if (typeof LightSystem !== 'undefined') {

@@ -58,6 +58,7 @@ import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Characters } from '../world/characters.js';
 import { Throne } from '../systems/throne.js';
+import { RealmEscort } from './realmEscort.js';
 import { House } from '../systems/house.js';
 import { Guilds } from '../systems/guilds.js';
 import { Ships } from '../systems/ships.js';
@@ -373,22 +374,7 @@ export const Scenarios = {
      * is raised from nowhere. Returns the units' count.
      */
     _armyFromRealm(player, kingdom, spec) {
-        if (!Array.isArray(player.army)) player.army = [];
-        let pool = Math.max(0, Math.floor(_num(kingdom && kingdom.military)));
-        let men = 0;
-        for (const [type, n] of Object.entries(_obj(spec) || {})) {
-            const def = PlayerMilitary.getUnitDef(type);
-            if (!def) continue;
-            for (let i = 0; i < Math.max(0, Math.floor(_num(n))); i++) {
-                const str = _num(def.strength, 10);
-                if (pool < str) break;
-                pool -= str;
-                player.army.push(PlayerMilitary.makeArmyUnit(def));
-                men++;
-            }
-        }
-        if (kingdom) kingdom.military = pool;
-        return men;
+        return RealmEscort.draw(player, kingdom, spec).length;
     },
 
     /** The realm nearest the player with at least `min` settlements (fewer if none has so many), or null. */
@@ -528,8 +514,9 @@ export const Scenarios = {
         Scenarios._stewardLord(player, k);
         Scenarios._standing(player, world, o, `crowned in ${k.name}`);
         Throne._log(player, world, `👑 ${oldRuler} is dead. ${k.ruler} is crowned in ${k.name}.`);
-        // A royal guard out of the realm's own host
-        const men = Scenarios._armyFromRealm(player, k, o.guard);
+        // A royal guard out of the realm's own host: the crown's household guard, paid and
+        // armed by the realm (player/realmEscort.js), not by the player
+        const men = RealmEscort.raise(player, world, k, 'crown', o.guard, { cap: false }).units;
         // A consort and heirs
         const fam = Scenarios._royalFamily(player, world, k, o);
         // The court: the realm's lords swear fealty, the old officers keep their seats;
@@ -708,8 +695,9 @@ export const Scenarios = {
                 }
             }
         }
-        // Household knights who rode in the realm's host
-        const men = Scenarios._armyFromRealm(player, k, o.retinue);
+        // Household knights who rode in the realm's host: the great lord's household guard,
+        // paid and armed by the realm (player/realmEscort.js)
+        const men = RealmEscort.raise(player, world, k, 'great', o.retinue, { cap: false }).units;
         // A cadet line of the blood
         const claim = Throne.grantClaim(player, world, k.id, 'blood', _num(o.claim, 20));
         // The crown fears an overmighty subject

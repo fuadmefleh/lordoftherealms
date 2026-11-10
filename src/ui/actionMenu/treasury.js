@@ -26,6 +26,9 @@ const LABEL = {
     purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', other: 'Other (events, tribute, temples, fleet)',
 };
 
+// (the household guards the crown keeps for its lords and itself: player/realmEscort.js)
+LABEL.guard = 'Household guards';
+
 let _tab = 'budget';
 
 function esc(s) {

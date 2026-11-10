@@ -1108,6 +1108,8 @@ export function endDay() {
             // Your liege won a war you fought in
             // A commission in a realm's army (player/generalship.js)
             for (const n of ((playerResults.generalship && playerResults.generalship.notices) || [])) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The household guard a realm keeps for you (player/realmEscort.js)
+            for (const n of ((playerResults.realmEscort && playerResults.realmEscort.notices) || [])) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const sp of (playerResults.warSpoils || [])) {
                 this.ui.showNotification('🎖️ Spoils of War', `Your liege has humbled ${sp.enemy}. For your service: ${sp.gold} gold and ${sp.renown} renown.`, 'success');
             }

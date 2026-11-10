@@ -27,6 +27,7 @@ import './titlesEspionage.js';
 import './services.js';
 import './realmPolitics.js';
 import './generalship.js';
+import './realmEscort.js';
 import './court.js';
 import './delves.js';
 import './underworld.js';

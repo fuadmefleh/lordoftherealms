@@ -5,6 +5,7 @@
 // player/generalship.js; this panel presents it.
 import { ActionMenu } from './_ref.js';
 import { Generalship } from '../../player/generalship.js';
+import { RealmEscort } from '../../player/realmEscort.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc, bullets } from './uiKit.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
@@ -45,6 +46,9 @@ Object.assign(ActionMenu, {
         const c = v.commission;
         let html = '<div style="font-size:12px; max-height:540px; overflow-y:auto;">';
         if (message) html += `<div style="${CARD} border-color:${message.color || 'rgba(245,197,66,0.4)'}; color:#eee;">${message.html}</div>`;
+        // The realm's household guard riding with you: not the host, not your own (ui/actionMenu/realmEscort.js)
+        const hg = RealmEscort.hudLine(player);
+        if (hg) html += `<button data-am-act="showHouseholdGuard" style="${BTN_DARK} display:block; width:100%; text-align:left; margin-bottom:8px;">🛡️ ${esc(hg)}</button>`;
 
         if (!c) {
             const tile = world.getTile(player.q, player.r);

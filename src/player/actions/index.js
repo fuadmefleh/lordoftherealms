@@ -33,6 +33,7 @@ import { Holdings } from '../../systems/holdings.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
 import { Generalship } from '../generalship.js';
+import { RealmEscort } from '../realmEscort.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Prison } from '../prison.js';
 import { Arms } from '../../systems/arms.js';
@@ -448,6 +449,9 @@ export const PlayerActions = {
 
         // A commission in a realm's army: the host, wages, supplies, sieges, orders, the court
         results.generalship = Generalship.processDay(player, world);
+
+        // The household guard a realm keeps for its lords and its crown: sent, paid, fed, lost (player/realmEscort.js)
+        results.realmEscort = RealmEscort.processDay(player, world);
 
         // Spring planting contracts pay out at the harvest
         results.plantingContracts = SeasonalWork.processDaily(player, world);

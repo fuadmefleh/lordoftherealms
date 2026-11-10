@@ -23,8 +23,8 @@ const _r2 = (v) => Math.round(v * 100) / 100;
 
 /** Revenue lines, in the order the panel shows them. */
 export const REVENUE_LINES = ['land', 'poll', 'excise', 'customs', 'demesne', 'seigniorage', 'farms', 'levy', 'sales'];
-/** Expense lines. */
-export const EXPENSE_LINES = ['army', 'arms', 'court', 'works', 'debt', 'dole', 'purse'];
+/** Expense lines ('guard': the household guards the crown keeps for its lords and itself, player/realmEscort.js). */
+export const EXPENSE_LINES = ['army', 'arms', 'guard', 'court', 'works', 'debt', 'dole', 'purse'];
 /** Financing (not income): borrowing and the mint's debasement profit. */
 export const FINANCE_LINES = ['loans', 'debase'];
 

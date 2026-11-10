@@ -95,5 +95,75 @@
     "spoils": {
         "_doc": "A won battle strips the beaten: per `per` points of the enemy's strength, one piece of each of `goods` (the spears, munition swords and shields of the dead), at most `max` of each. Draws no RNG.",
         "per": 40, "max": 6, "goods": ["weapons", "spear", "shield"]
+    },
+    "ammo": {
+        "_doc": "Arrows and bolts (systems/arms.js): a bowman (archer, longbowman; a scout issued a bow) carries a quiver of arrows, a crossbowman (or anyone issued a crossbow) bolts: unit.ammo, filled from the packs (every day, and after a battle) and, when he is recruited where the town sells them, bought at its price. Every battle (the auto battle, the phased field battle, the battlefield on the ground) he looses perBattle (on the battlefield: fieldVolley per volley his company looses); a won field gives back recover of what was loosed (picked up off the ground, into the packs). Short of a battle's worth he fights weaker: his worth x (dryMult + (1 - dryMult) x quiver / perBattle). A unit with no quiver record (an older save, a recruit who came with his own) is filled once, free. goods: the ammunition by weapon class.",
+        "goods": { "bow": "arrows", "crossbow": "bolts" },
+        "units": {
+            "archer": {
+                "quiver": 16,
+                "perBattle": 8
+            },
+            "longbowman": {
+                "quiver": 20,
+                "perBattle": 10
+            },
+            "crossbowman": {
+                "quiver": 12,
+                "perBattle": 6
+            },
+            "scout": {
+                "quiver": 8,
+                "perBattle": 4
+            }
+        },
+        "dryMult": 0.35,
+        "recover": 0.3,
+        "fieldVolley": 0.4
+    },
+    "realms": {
+        "_doc": "The crowns' armouries (world/realmArms.js, kingdom.armoury). A realm's army (kingdom.military, in men) needs a kit per menPerKit men: a weapon (main) for its foot and horse, a bow (ranged) for its archers (its composition's archer share), a shield (off) for the foot, a helm and a body armour for every man, and quiver arrows per archer kit. Every buyEvery days the crown buys what it lacks out of its own towns' market stock (at most marketShare of a town's stock at a time, the cheapest good of the slot first, at the town's price, paid from the treasury into the town's purse, booked as the army's arms line), spending at most spendShare of what the treasury holds above its reserve (reserveBase + reservePerMan x men). Pieces wear out: wear.peace of them a day, wear.war at war (this is the realm's draw on the towns' arms: the old warMult stand-in is gone). A battle: each side loses the arms of its fallen (the men lost x lostShare of the pieces); the side holding the field recovers recoverOwn of its own and strips strip of the beaten's; each side looses perBattle arrows per archer kit (the victor picks up arrowRecover of its own). A host sent against the player (systems/realmWars.js) takes its share of the armoury with it, brings back what survives, and loses it all when broken. More than keep x the need in store (after a demobilisation, a rich haul) is sold back to the realm's best-stocked market at sellShare of its price, as far as the town's purse pays. Battle power x the army's arms factor: (1 - archers) x the soldier's kit worth + archers x the archer's (troops.kits soldier/archer weights; a filled slot = its fill x the pieces' average tier; a bow without arrows at dryMult), clamped to [minFactor, troops.maxFactor]. A new realm starts with start of its need in its arsenals.",
+        "menPerKit": 10,
+        "buyEvery": 3,
+        "spendShare": 0.12,
+        "reserveBase": 300,
+        "reservePerMan": 0.8,
+        "marketShare": 0.5,
+        "keep": 1.25,
+        "sellShare": 0.6,
+        "start": 1,
+        "wear": { "peace": 0.0006, "war": 0.004 },
+        "lostShare": 1,
+        "recoverOwn": 0.35,
+        "strip": 0.3,
+        "quiver": 16,
+        "perBattle": 8,
+        "arrowRecover": 0.25,
+        "dryMult": 0.35,
+        "minFactor": 0.6,
+        "meleeKit": "soldier",
+        "rangedKit": "archer",
+        "slots": {
+            "main": ["weapons", "spear"],
+            "ranged": ["bow", "crossbow"],
+            "off": ["shield"],
+            "head": ["helmet"],
+            "body": ["gambeson", "leather_armor", "chainmail"]
+        },
+        "ammo": { "bow": "arrows", "crossbow": "bolts" },
+        "order": ["main", "ranged", "body", "off", "head", "ammo"]
+    },
+    "rivals": {
+        "_doc": "The rival Houses' retinues in harness (systems/rivalHouses.js, rival.arms). A retinue is baseMen of the House's household men plus its hired guards; each needs the soldier's kit (troops.kits.soldier). When the retinue stands in a town (a trading stop, a court, home) the House buys what it lacks out of the town's market stock (the cheapest good of each slot), paying the town's price from the purse into the town's, never below invest.reserve gold and at most spendShare of the purse at once. The retinue's strength (its fights on the road, a waylaying, your attack) x its kit factor (as a soldier's: bare to troops.maxFactor). The pieces wear out (wear a week, share of them); a beaten retinue loses the arms of its fallen (the guards lost, and lostShare of the rest); a retinue scattered by you leaves lostShare of its arms on the road. The head fights a duel in the House's best blade and harness.",
+        "baseMen": 4,
+        "spendShare": 0.3,
+        "wear": 0.01,
+        "lostShare": 0.3,
+        "slots": {
+            "main": ["weapons", "spear", "iron_sword", "steel_sword"],
+            "off": ["shield", "heater_shield"],
+            "head": ["helmet", "steel_helm"],
+            "body": ["gambeson", "leather_armor", "chainmail"]
+        }
     }
 }

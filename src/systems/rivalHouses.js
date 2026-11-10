@@ -72,6 +72,9 @@ import { Estates } from '../world/estates.js';
 import { LandMarket } from './landMarket.js';
 import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
+import { Arms } from './arms.js';
+import { Economy } from '../world/economy.js';
+import { PlayerInventory } from '../core/inventory.js';
 
 export const RIVAL_TYPE = 'rival_retinue';
 const ERRANDS = ['trade', 'court', 'shadow', 'invest', 'waylay', 'home'];
@@ -345,10 +348,167 @@ export const RivalHouses = {
         return rival;
     },
 
-    /** The retinue's fighting strength: the head's cunning, hired guards, the House's renown. */
+    /**
+     * The retinue's fighting strength: the head's cunning, hired guards, the
+     * House's renown — as its men are armed (armsFactor).
+     */
     strength(rival) {
         const G = this.config().guard;
-        return 20 + _num(rival.head && rival.head.intrigue) * 2 + _num(rival.guard) * _num(G.per, 8) + Math.floor(_num(rival.renown) / 5);
+        const raw = 20 + _num(rival.head && rival.head.intrigue) * 2 + _num(rival.guard) * _num(G.per, 8) + Math.floor(_num(rival.renown) / 5);
+        return Math.max(1, Math.round(raw * this.armsFactor(rival)));
+    },
+
+    // ──────────── ARMS ────────────
+    // The retinue in harness (data/arms.json rivals): its household men and
+    // hired guards each want a soldier's kit, bought out of the towns' market
+    // stock with the House's purse; worn, lost in a beaten fight, left on the
+    // road for the player who scatters them.
+
+    armsConfig() {
+        const gd = DataLoader._gamedata;
+        const d = (gd && gd.arms && gd.arms.rivals) || {};
+        return {
+            baseMen: 4, spendShare: 0.3, wear: 0.01, lostShare: 0.3,
+            slots: { main: ['weapons', 'spear'], off: ['shield'], head: ['helmet'], body: ['gambeson', 'leather_armor', 'chainmail'] },
+            ...d,
+        };
+    },
+
+    /** The men of the retinue who want arms: the household and the hired guards. */
+    men(rival) {
+        return Math.max(1, Math.round(_num(this.armsConfig().baseMen, 4) + _num(rival && rival.guard)));
+    },
+
+    /** rival.arms (a household armed of old when missing: a kit for each of its own men). */
+    arms(rival) {
+        if (!rival) return { stock: {} };
+        if (rival.arms && rival.arms.stock) return rival.arms;
+        const A = this.armsConfig();
+        const stock = {};
+        const n = Math.max(0, Math.round(_num(A.baseMen, 4)));
+        for (const ids of Object.values(A.slots || {})) if (ids && ids[0] && n > 0) stock[ids[0]] = n;
+        rival.arms = { stock, spent: 0 };
+        return rival.arms;
+    },
+
+    /** Pieces held for a slot: { n, tier, best } (best: the finest piece's id). */
+    _armsSlot(rival, slot) {
+        const A = this.armsConfig();
+        const st = this.arms(rival).stock;
+        let n = 0, t = 0, best = null, bt = -1;
+        for (const id of A.slots[slot] || []) {
+            const v = Math.max(0, Math.floor(_num(st[id]) + 1e-9));
+            if (!v) continue;
+            const def = Arms.item(id);
+            const tier = _num(def && def.tier, 1);
+            n += v; t += v * tier;
+            if (tier > bt) { bt = tier; best = id; }
+        }
+        return { n, tier: n ? t / n : 1, best };
+    },
+
+    /** What the retinue's arms make of it (a soldier's kit for every man: bare to the arms' max). */
+    armsFactor(rival) {
+        const spec = Arms.kitSpec('soldier');
+        if (!spec || !rival) return 1;
+        const men = this.men(rival);
+        const bare = Math.max(0.1, Math.min(1, _num(spec.bare, 0.55)));
+        let sum = 0;
+        for (const [slot, sp] of Object.entries(spec.slots || {})) {
+            const h = this._armsSlot(rival, slot);
+            sum += _num(sp.w) * Math.min(1, h.n / men) * h.tier;
+        }
+        return _round2(Math.max(bare, Math.min(_num(Arms.config().maxFactor, 1.45), bare + (1 - bare) * sum)));
+    },
+
+    /** The finest piece of each slot (for the renderers: Arms.lookLayers takes it) — { main, off, head, body }. */
+    kitView(rival) {
+        const out = {};
+        for (const slot of Arms.SLOTS) out[slot] = this._armsSlot(rival, slot).best;
+        return out;
+    },
+
+    /** '6 men: 6 Munition Sword, 4 Round Shield…' */
+    armsLabel(rival) {
+        const st = this.arms(rival).stock;
+        const parts = Object.entries(st).filter(([, n]) => Math.floor(n) > 0).map(([id, n]) => `${Math.floor(n)} ${Arms.nameOf(id)}`);
+        return `${this.men(rival)} men${parts.length ? ': ' + parts.join(', ') : ', unarmed'}`;
+    },
+
+    /**
+     * The retinue stands in a town with a market: the House buys what its
+     * men lack (cheapest of each slot), paying the town's price from its
+     * purse into the town's, never below its reserve. → gold spent
+     */
+    _buyArms(world, rival, settlement) {
+        if (!settlement || !settlement.market) return 0;
+        const A = this.armsConfig();
+        const C = this.config();
+        const a = this.arms(rival);
+        const men = this.men(rival);
+        let budget = Math.min(_num(rival.gold) * _num(A.spendShare, 0.3), _num(rival.gold) - _num(C.invest && C.invest.reserve, 400));
+        if (!(budget >= 1)) return 0;
+        const tile = world && typeof world.getTile === 'function' ? world.getTile(settlement.q, settlement.r) : null;
+        let spent = 0;
+        for (const slot of ['main', 'body', 'off', 'head']) {
+            const want = men - this._armsSlot(rival, slot).n;
+            if (!(want > 0)) continue;
+            let best = null;
+            for (const id of A.slots[slot] || []) {
+                if (!SettlementMarket.tracks(id) || SettlementMarket.available(settlement, id) < 1) continue;
+                const good = _goodDef(id);
+                if (!good || !(good.basePrice > 0)) continue;
+                const price = Math.max(1, Economy.marketPrice(good, settlement, tile, world));
+                if (!best || price < best.price) best = { id, price };
+            }
+            if (!best) continue;
+            const n = Math.min(want, SettlementMarket.available(settlement, best.id), Math.floor(budget / best.price));
+            if (!(n >= 1)) continue;
+            const got = Math.floor(SettlementMarket.take(settlement, best.id, n) + 1e-9);
+            if (!(got >= 1)) continue;
+            const cost = got * best.price;
+            rival.gold -= cost;
+            Economy.payTown(settlement, cost);
+            a.stock[best.id] = _num(a.stock[best.id]) + got;
+            budget -= cost;
+            spent += cost;
+        }
+        if (spent > 0) {
+            a.spent = _num(a.spent) + spent;
+            this._note(rival, world, `Bought arms in ${settlement.name} for ${spent} gold.`);
+        }
+        return spent;
+    },
+
+    /** The week's wear on the retinue's arms: a share of the pieces worn out. */
+    _wearArms(rival) {
+        const share = Math.max(0, Math.min(0.5, _num(this.armsConfig().wear, 0.01)));
+        const st = this.arms(rival).stock;
+        for (const id of Object.keys(st)) st[id] = _round2(_num(st[id]) * (1 - share));
+    },
+
+    /** Arms lost: `share` of every piece (whole pieces only). → { id: n } */
+    _loseArms(rival, share) {
+        const st = this.arms(rival).stock;
+        const out = {};
+        const k = Math.max(0, Math.min(1, _num(share)));
+        for (const id of Object.keys(st)) {
+            const n = Math.floor(_num(st[id]) * k + 1e-9);
+            if (n > 0) { st[id] = _round2(_num(st[id]) - n); out[id] = n; }
+        }
+        return out;
+    },
+
+    /** Arms a beaten retinue left on the field, into the player's packs (as far as they hold). → { id: n } taken */
+    _armsToPlayer(player, dropped) {
+        const got = {};
+        if (!player) return got;
+        for (const [id, n] of Object.entries(dropped || {})) {
+            if (!(n > 0)) continue;
+            const r = PlayerInventory.addItem(player, id, n);
+            if (r && r.success) got[id] = n;
+        }
+        return got;
     },
 
     // ──────────── LAND ────────────
@@ -1095,7 +1255,10 @@ export const RivalHouses = {
                 // A waylaying retinue cut down in a fight on foot (no battle report reaches us): the hunt is over
                 if (rival.plan && rival.plan.kind === 'waylay') {
                     const hunted = (world.units || []).find(u => u.id === rival.plan.unitId);
-                    if (!hunted || hunted.destroyed) this._endWaylay(player, world, rival, hunted || null, 'beaten', out);
+                    if (!hunted || hunted.destroyed) {
+                        this._endWaylay(player, world, rival, hunted || null, 'beaten', out);
+                        delete rival.armsDropped; // (left where they fell)
+                    }
                 }
                 let unit = this.retinueOf(world, rival);
                 if (!unit) unit = this._spawnRetinue(world, rival);
@@ -1108,6 +1271,7 @@ export const RivalHouses = {
                     this._landWeek(world, rival);
                     this._courtWeek(world, rival, live);
                     this._guardWeek(world, rival, player, out);
+                    this._wearArms(rival);
                     this._ambitionWeek(player, world, rival, out);
                 }
                 unit.strength = this.strength(rival);
@@ -1122,6 +1286,12 @@ export const RivalHouses = {
                 if (rival.plan && rival.plan.kind !== 'waylay' && this._advance(world, unit)) this._arrive(player, world, rival, unit, out);
                 // Business done or the stay over: settle the next errand now, to ride tomorrow
                 if (!rival.plan) this._plan(player, world, rival, unit, out);
+                // In a town: arms for the men who lack them, out of its armourers' stock
+                const here = this._settlementAt(world, unit.q, unit.r);
+                if (here && here.market) {
+                    this._buyArms(world, rival, here);
+                    unit.strength = this.strength(rival);
+                }
                 if (player && unit.q === player.q && unit.r === player.r && rival.metNoticeDay !== day && _day(world) - _num(rival.metNoticeDay, -99) > 5) {
                     rival.metNoticeDay = day;
                     out.notices.push({ icon: '🏰', title: 'A Rival in Town', text: `${this.headName(rival)} of ${rival.name} is here, with a retinue in ${rival.name.replace(/^House /, '')} colours.`, type: 'info' });
@@ -1210,7 +1380,11 @@ export const RivalHouses = {
         } else if (how === 'spared') {
             this._note(rival, world, 'Waylaid you on the road, and let you go.');
         } else if (how === 'beaten') {
+            const menBefore = this.men(rival);
             rival.guard = Math.floor(_num(rival.guard) * _num(Wy.beatenGuards, 0.5));
+            // The fallen guards' arms, and some of the rest, are left on the field
+            const kept = (this.men(rival) / Math.max(1, menBefore)) * (1 - _num(this.armsConfig().lostShare, 0.3));
+            rival.armsDropped = this._loseArms(rival, 1 - kept);
             feud(_num(Wy.beatenFeud, 10), 'an ambush beaten off');
             text = `${name}'s ambush failed: you beat off their men. They will not forget the shame.`;
             this._note(rival, world, 'Waylaid you, and was beaten off.', 'shamed');
@@ -1541,11 +1715,22 @@ export const RivalHouses = {
         const age = _num(h.age, 40);
         const ageMult = age > 55 ? 0.8 : age < 22 ? 0.9 : 1;
         const temperament = this.has(h, 'proud') ? 'aggressive' : this.has(h, 'scheming') ? 'tricky' : m >= 7 ? 'aggressive' : 'balanced';
+        // The House's best blade and harness (rival.arms; a longsword and light harness when it holds none)
+        const kit = this.kitView(rival);
+        const w = kit.main ? Arms.stats(kit.main) : null;
+        const prot = (id) => { const s = id ? Arms.stats(id) : null; return s ? s.prot : 0; };
+        const worn = 1 - (1 - prot(kit.body)) * (1 - prot(kit.head));
+        const sh = kit.off ? Arms.stats(kit.off) : null;
         return Duels.fromProfile({
             id: `rivalHead:${rival.kingdomId}`, kind: 'rival', name: this.headName(rival), icon: '🏰',
             title: `Head of ${rival.name}`,
-            attack: (m * 0.9 + 1) * ageMult, defense: m * 0.6 * ageMult, power: (5 + m * 0.6) * ageMult,
-            armour: 0.15, weapon: 'a longsword', weaponDmg: 2, temperament,
+            attack: (m * 0.9 + 1) * ageMult, defense: (m * 0.6 + (sh ? sh.block * 0.5 : 0)) * ageMult, power: (5 + m * 0.6) * ageMult,
+            armour: worn > 0 ? _round2(Math.max(0.05, worn * 0.6)) : 0.15,
+            weapon: w && w.melee ? `a ${w.name.toLowerCase()}` : 'a longsword',
+            weaponDmg: w && w.melee ? _round2(Math.max(1, w.dmg * 0.65)) : 2,
+            ...(w && w.melee ? { dtype: w.dtype, reach: w.reach, pen: w.pen } : {}),
+            shield: sh ? sh.name.toLowerCase() : null, riposte: sh ? sh.riposte : 0,
+            temperament,
             hp: Math.round((22 + m * 1.6) * ageMult), stamina: Math.round(8 + m * 0.5), skill: m, ref: rival,
         });
     },
@@ -1749,6 +1934,10 @@ export const RivalHouses = {
             player.gold = _num(player.gold) + spoils;
             this._endWaylay(player, world, rival, unit, 'beaten', { notices: [] });
             let text = `You beat off ${name}'s ambush and take ${spoils} gold from their coffers. They struck first: no honour lost.`;
+            // What their fallen and fleeing left on the field
+            const took = this._armsToPlayer(player, rival.armsDropped);
+            delete rival.armsDropped;
+            if (Object.keys(took).length) text += ` Their men left ${PlayerInventory.describe(took)} on the field: yours now.`;
             if (Utils.random() < A.slayChance) {
                 this._succeed(world, rival, { notices: [] }, player);
                 text += ` ${name} falls in the fight; the new head swears vengeance.`;
@@ -1773,6 +1962,9 @@ export const RivalHouses = {
         this._note(rival, world, 'Was set upon by you on the road.', 'attacked');
         this.remember(rival, world, 'attacked');
         let text = `You scatter ${name}'s retinue and take ${loot} gold from their coffers. Feud +${A.feud}, −${A.reputation} reputation with their realm.`;
+        // ...and some of the arms they dropped as they ran (data/arms.json rivals.lostShare)
+        const took = this._armsToPlayer(player, this._loseArms(rival, _num(this.armsConfig().lostShare, 0.3)));
+        if (Object.keys(took).length) text += ` They leave ${PlayerInventory.describe(took)} on the road.`;
         const hired = this._hireGuards(world, rival);
         if (hired) {
             unit.strength = this.strength(rival);
@@ -1802,6 +1994,7 @@ export const RivalHouses = {
             ambition: amb ? { name: amb.name, icon: amb.icon, have: prog.have, target: prog.target, id: rival.ambition.id } : null,
             renown: Math.round(_num(rival.renown)), favourite: favour, hunting: !!(rival.plan && rival.plan.kind === 'waylay'),
             allies: ties.filter(t => t.tie >= _num(C.ties.allyAt, 50)).map(t => t.name), enemies: ties.filter(t => t.tie <= _num(C.ties.enemyAt, -50)).map(t => t.name), guards: _num(rival.guard), strength: this.strength(rival),
+            arms: this.armsLabel(rival), armed: this.armsFactor(rival), kit: this.kitView(rival),
             estates: lands.map(e => e.name), landValue: Math.round(this.landValue(world, rival)),
             kingdomId: rival.kingdomId, house: rival.name, name: this.headName(rival), age: h.age, gender: h.gender,
             traits: (h.traits || []).map(t => C.traits[t]).filter(Boolean),

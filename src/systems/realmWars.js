@@ -21,6 +21,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { Difficulty } from '../core/difficulty.js';
 import { WorldUnit } from '../world/units.js';
+import { RealmArms } from '../world/realmArms.js';
 import { House } from './house.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Technology } from './technology.js';
@@ -256,7 +257,8 @@ export const RealmWars = {
         unit.icon = '🚩';
         unit.name = rec.name;
         unit.speed = CONFIG.hostSpeed;
-        unit.strength = rec.strength;
+        // (its men fight as they are armed: world/realmArms.js — rec.armed, set when it marched)
+        unit.strength = Math.max(1, Math.round(rec.strength * (Number.isFinite(rec.armed) ? rec.armed : 1)));
         unit.population = rec.strength * 2;
         unit.kingdomId = kingdom.id;
         unit.objectiveQ = rec.targetQ;
@@ -283,6 +285,8 @@ export const RealmWars = {
         }
         const strength = Utils.clamp(Math.round(20 + (kingdom.military || 0) * 0.04), 25, 180);
         kingdom.military = Math.max(0, (kingdom.military || 0) - strength);
+        // The host takes its share of the realm's armoury (and quivers) with it
+        const arms = RealmArms.detach(kingdom, strength);
         const rec = {
             id: `wh_${kingdom.id}_${world.day}_${war.hosts.length}`,
             name: `${kingdom.name} War Host`,
@@ -290,6 +294,8 @@ export const RealmWars = {
             targetQ: best.t.q, targetR: best.t.r,
             target: best.t,
             strength,
+            arms: arms ? arms.stock : null,
+            armed: arms ? arms.armed : 1,
         };
         war.hosts.push(rec);
         war.lastHostDay = world.day;
@@ -356,6 +362,8 @@ export const RealmWars = {
         unit.destroyed = true;
         war.hosts = war.hosts.filter(h => h.id !== rec.id);
         kingdom.military = (kingdom.military || 0) + Math.round(rec.strength * 0.8);
+        // ...and the survivors' arms back into the armoury
+        RealmArms.attach(kingdom, { stock: rec.arms }, 0.8);
         if (lost) {
             war.score += CONFIG.scorePerHoldingLost;
             war.holdingsLost++;
@@ -401,6 +409,7 @@ export const RealmWars = {
                 unit.destroyed = true;
                 war.hosts = war.hosts.filter(h => h.id !== rec.id);
                 kingdom.military = (kingdom.military || 0) + rec.strength;
+                RealmArms.attach(kingdom, { stock: rec.arms }, 1);
                 continue;
             }
             if (unit.q === rec.targetQ && unit.r === rec.targetR) {

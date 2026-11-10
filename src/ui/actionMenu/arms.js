@@ -116,6 +116,29 @@ Object.assign(ActionMenu, {
                 const q = kitted.filter(u => u.kit && Arms.kitGaps(u).length).length;
                 html += act(`Buy the shortfall in ${esc(s.name)}`, ['armBuy'], BTN_GOLD, q > 0, 'Nobody is short of arms.');
             }
+            // Arrows and bolts: what the shooters carry, and what filling their quivers takes
+            const shooters = (player.army || []).filter(u => Arms.ammoGood(u) && !u.mercenary);
+            if (shooters.length) {
+                const byGood = {};
+                for (const u of shooters) {
+                    const g = Arms.ammoGood(u);
+                    const o = byGood[g] || (byGood[g] = { have: 0, quiver: 0, dry: 0, units: 0 });
+                    const q = Arms.quiverOf(u);
+                    const have = u.ammo == null ? q.quiver : Math.floor(u.ammo);
+                    o.have += have; o.quiver += q.quiver; o.units++;
+                    if (have < q.perBattle) o.dry++;
+                }
+                const lines = Object.entries(byGood).map(([g, o]) => `${esc(Arms.iconOf(g))} ${esc(Arms.nameOf(g))}: ${o.have}/${o.quiver} in ${o.units} quiver${o.units > 1 ? 's' : ''} (${PlayerInventory.describe({ [g]: Math.floor(player.inventory[g] || 0) }) || 'none'} in your packs)${o.dry ? ` <span style="color:#e67e22">${o.dry} short of a battle's worth: they fight at ${pct(Arms.dryMult())}</span>` : ''}`);
+                html += `<div style="margin:4px 0;">${lines.join('<br>')}</div>`;
+                const qq = Arms.quiverQuote(player, s, world);
+                const want = Object.values(qq).reduce((t, o) => t + o.want, 0);
+                html += act('Fill the quivers from your packs', ['quiversPack'], BTN_PLAIN, want > 0 && Object.keys(qq).some(g => (player.inventory[g] || 0) > 0), want > 0 ? 'You carry none.' : 'Every quiver is full.');
+                if (s && s.market) {
+                    const cost = Object.values(qq).reduce((t, o) => t + (o.price || 0) * Math.min(o.want, o.stock || 0), 0);
+                    const stock = Object.values(qq).reduce((t, o) => t + Math.min(o.want, o.stock || 0), 0);
+                    html += act(`Buy for the quivers in ${esc(s.name)}${stock ? ` (${stock} for ${cost}g)` : ''}`, ['quiversBuy'], BTN_GOLD, stock > 0 && (player.gold || 0) >= 1, want > 0 ? 'The town has none to sell.' : 'Every quiver is full.');
+                }
+            }
             if (Arms.hasSmith(s)) {
                 const mq = Arms.kitMendQuote(player, s, world);
                 html += act(`🔨 Mend their arms (${mq.total}g${mq.iron ? `, ${mq.iron} iron` : ''})`, ['mendKits'], BTN_PLAIN, mq.units > 0 && (player.gold || 0) >= mq.total, mq.units ? `${mq.total} gold.` : 'Their arms need no mending.');
@@ -149,6 +172,14 @@ Object.assign(ActionMenu, {
                 ? { success: true, text: `${r.units} soldiers armed: ${PlayerInventory.describe(got)}${r.cost ? ` (${r.cost} gold)` : ''}.` }
                 : { success: false, reason: op === 'armBuy' ? 'The town has nothing fit for them, or you lack the gold.' : 'You carry nothing fit for them.' };
         } else if (op === 'mendKits') res = Arms.mendKits(player, s, world);
+        else if (op === 'quiversPack' || op === 'quiversBuy') {
+            const r = Arms.supplyQuivers(player, { settlement: s, world, buy: op === 'quiversBuy' });
+            const got = { ...r.fromPack };
+            for (const [k, n] of Object.entries(r.bought)) got[k] = (got[k] || 0) + n;
+            res = Object.keys(got).length
+                ? { success: true, text: `The quivers take ${PlayerInventory.describe(got)}${r.cost ? ` (${r.cost} gold)` : ''}.${r.short ? ` ${r.short} still wanted.` : ''}` }
+                : { success: false, reason: op === 'quiversBuy' ? 'The town has none to sell, or you lack the gold.' : 'You carry none for them.' };
+        }
         if (res) {
             game.ui.showNotification('⚔️ Arms & Armour', res.success ? (res.text || 'Done.') : (res.reason || 'Not possible.'), res.success ? 'success' : 'error');
             game.ui.updateStats(player, world);
@@ -160,7 +191,9 @@ Object.assign(ActionMenu, {
     recruitArmsNote(game, unitType, settlement) {
         const q = PlayerMilitary.recruitKitQuote(game.player, unitType, settlement, game.world);
         if (!q) return '';
-        const from = Object.entries(q.slots).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${x.price}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
+        let from = Object.entries(q.slots).map(([slot, x]) => (x.id ? `${Arms.nameOf(x.id)}${x.from === 'pack' ? ' (yours)' : ` (${x.price}g)`}` : `no ${(Arms.config().slots[slot] || {}).label || slot}`.toLowerCase())).join(', ');
+        // A bowman's quiver
+        if (q.ammo) from += `, ${q.ammo.pack + q.ammo.buy}/${q.ammo.want} ${Arms.nameOf(q.ammo.good).toLowerCase()}${q.ammo.buy ? ` (${q.ammo.buy} at ${q.ammo.price}g)` : q.ammo.pack ? ' (yours)' : ''}`;
         return `<div style="font-size: 11px; color: ${q.factor >= 0.95 ? '#81c784' : '#e6b35a'};" title="A recruit is issued arms from your stores first, then the town's armourers' stock at its price">⚔️ Arms: ${esc(from)}${q.cost ? ` · +${q.cost} gold` : ''} · fights at ${pct(q.factor)}</div>`;
     },
 });

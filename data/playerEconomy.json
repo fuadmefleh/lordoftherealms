@@ -734,6 +734,7 @@
         "SHIELD": { "id": "shield", "name": "Round Shield", "icon": "🛡️", "basePrice": 50, "description": "Glued boards faced with rawhide, an iron boss over the grip: the common soldier's shield." },
         "BOW": { "id": "bow", "name": "Bow", "icon": "🏹", "basePrice": 50, "description": "A hunting or war bow of yew or ash. Useless without arrows." },
         "ARROWS": { "id": "arrows", "name": "Arrows", "icon": "🎯", "basePrice": 5, "description": "Fletched arrows, sold by the each: every shot at game uses one, and a hunter gets some back." },
+        "BOLTS": { "id": "bolts", "name": "Crossbow Bolts", "icon": "🎯", "basePrice": 6, "description": "Short, heavy iron-headed bolts for the crossbow, sold by the each. Crossbowmen spend them in every battle; a crossbow hunter uses them on game." },
         "FISHING_SPEAR": { "id": "fishing_spear", "name": "Fishing Spear", "icon": "🔱", "basePrice": 40, "description": "A light barbed spear for taking fish underwater. It wears with use." },
         "SINEW": { "id": "sinew", "name": "Sinew", "icon": "🧵", "basePrice": 5, "description": "Dried tendon from a butchered beast: twisted into bowstrings and lashings." },
         "CURED_FURS": { "id": "cured_furs", "name": "Cured Furs", "icon": "🦊", "basePrice": 26, "description": "Fleshed, salted and stretched pelts, ready for the furrier." },

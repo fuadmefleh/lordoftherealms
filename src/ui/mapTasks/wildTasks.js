@@ -116,7 +116,7 @@ function _dropArrow(at, from, item = 'arrows') {
         if (!t || !t.subTerrain || !t.subTerrain.passable || t._wet || t._sea || t.customObject || t.customBuilding) continue;
         if (t.groundItem && t.groundItem.itemId !== item) continue;
         if (t.groundItem) t.groundItem.quantity = (t.groundItem.quantity || 0) + 1;
-        else t.groundItem = { itemId: item, name: 'Arrows', icon: '🏹', quantity: 1, placedBy: 'hunt' };
+        else t.groundItem = { itemId: item, name: item === 'bolts' ? 'Crossbow Bolts' : 'Arrows', icon: '🏹', quantity: 1, placedBy: 'hunt' };
         return t;
     }
     return null;
@@ -556,7 +556,7 @@ export const WildTaskRunner = {
                     this._spook(ctx, _num(B.woundedBolt, 0.7), 0.5);
                 } else {
                     shooting.misses++;
-                    if (r.missArrow && _dropArrow(ctx.beast, me, B.ammo)) ctx.note(B.words.arrowLies);
+                    if (r.missArrow && _dropArrow(ctx.beast, me, r.ammo || B.ammo)) ctx.note(B.words.arrowLies);
                     if (r.fumble) shooting.fumble = r.fumble;
                     if (shooting.misses >= _num(B.missesBeforeGone, 2) && !r.secondArrow) {
                         ctx.note(fmt(shooting.wounded ? B.words.escaped : B.words.gone, { name }));

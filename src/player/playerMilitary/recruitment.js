@@ -556,7 +556,7 @@ Object.assign(PlayerMilitary, {
         const q = Arms.kitQuote(player, unit.type, null, null, { buy: false });
         const packHas = !!q && Object.values(q.slots).some(x => x.from === 'pack');
         if (!hasMarket && !packHas) return null;
-        return Arms.issueKit(player, unit, { settlement, world: opts.world || null, buy: opts.buy !== false });
+        return Arms.issueKit(player, unit, { settlement, world: opts.world || null, buy: opts.buy !== false, recruit: true });
     },
 
     /** What arming a recruit of `unitType` here would take (systems/arms.js kitQuote), or null. */
@@ -582,6 +582,8 @@ Object.assign(PlayerMilitary, {
             if (unit.woundedDays > 0) strength *= 0.5;
             // The arms he was issued: a bare man less, Fine steel more (systems/arms.js; 1 without a kit record)
             strength *= Arms.unitFactor(unit);
+            // ...and a bowman's quiver: short of a battle's arrows or bolts he is worth much less
+            strength *= Arms.ammoFactor(unit);
             // Combat skill bonus
             strength *= (1 + player.skills.combat * 0.1);
             // Technology strength bonus
@@ -660,6 +662,8 @@ Object.assign(PlayerMilitary, {
 
         const mercenaryUpdate = PlayerMilitary._processMercenaryCompanies(player, world);
         result.mercenaryWages = mercenaryUpdate.wagesPaid;
+        // The baggage hands out arrows and bolts from the packs to the shooters short of them (systems/arms.js)
+        result.quivers = Arms.supplyQuivers(player);
         result.mercenaryEvents = mercenaryUpdate.events;
 
         return result;

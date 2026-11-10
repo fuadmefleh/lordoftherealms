@@ -45,6 +45,7 @@ import { HeirAgency } from '../systems/heirAgency.js';
 import { Ledger } from '../systems/ledger.js';
 import { CombatSkills } from '../systems/combatSkills.js';
 import { Duels } from '../systems/duels.js';
+import { Arms } from '../systems/arms.js';
 
 const DEFAULTS = {
     phases: [
@@ -511,6 +512,12 @@ export const FieldBattle = {
         // The commanding child's record and fate (wounded, captured, killed)
         if (!withdrew) HeirAgency.onBattle(player, world, victory, battle.enemyName);
         if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
+        // The bowmen loosed their arrows and bolts (on the battlefield, the volleys each company
+        // loosed: battle.volleys, player/battlefield.js); a won field gives some back (systems/arms.js)
+        const quivers = Arms.spendQuivers(player, {
+            units: (player.army || []).filter(u => PlayerMilitary._theatreParticipant(u, battle.theatre)),
+            victory, volleys: battle.volleys || null,
+        });
 
         // (battle.lootPurse: the beaten side's own purse, when the battle knows it — player/battlefield.js)
         const spoilsCtx = battle.lootPurse !== undefined ? { ...context, lootPurse: battle.lootPurse } : context;
@@ -529,6 +536,7 @@ export const FieldBattle = {
             wounded: battle.wounded,
             loot: spoils.loot || 0,
             armsTaken: spoils.armsTaken || null, // the beaten's arms stripped off the field (systems/arms.js)
+            quivers,
             enemyName: battle.enemyName,
             playerStrength: battle.pStr0,
             enemyStrength: battle.eStr0,

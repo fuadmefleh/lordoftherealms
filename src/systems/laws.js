@@ -11,7 +11,9 @@
 //
 // Every law is read: privatePrisons by systems/knockout.js, foreignLand by
 // systems/lots.js, punishment by systems/streetCrime.js (fines, cells) and
-// systems/knockout.js (deter). The panel is
+// systems/knockout.js (deter), and by systems/underworld.js and
+// systems/gangs.js (arrests' fines and cells, the watch's raids); vice by
+// systems/gangs.js (the gangs' dens and the crown's licence). The panel is
 // ui/actionMenu/laws.js.
 
 import { DataLoader } from '../core/dataLoader.js';

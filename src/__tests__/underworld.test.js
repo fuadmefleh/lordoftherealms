@@ -17,6 +17,7 @@ import { PlayerEffects } from '../player/playerEffects.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { addSettlementActions } from '../player/actions/settlementActions.js';
 import { Tavern } from '../player/tavern.js';
+import { Gangs } from '../systems/gangs.js';
 
 beforeAll(async () => {
     if (!DataLoader._gamedata) {
@@ -243,8 +244,9 @@ describe('hot goods and fences', () => {
         // One cool unit may go to market; the hot two may not
         expect(Trading.sellGoods(p, 'silk', 2, w.getTile(1, 0).settlement, w).success).toBe(false);
         expect(Trading.sellGoods(p, 'silk', 1, w.getTile(1, 0).settlement, w).success).toBe(true);
-        // The fence takes hot goods
+        // The fence takes hot goods (a town gang that has the coin to pay: systems/gangs.js)
         member(p, 0);
+        for (const g of Gangs.gangsAt(w, w.getTile(1, 0))) g.purse = 1000;
         const res = Underworld.sellToFence(p, w, w.getTile(1, 0), 'silk', 2);
         expect(res.success).toBe(true);
         expect(p.inventory.silk).toBeUndefined();
@@ -362,14 +364,23 @@ describe('the thieves\' guild', () => {
         const w = makeWorld(48);
         const p = makePlayer();
         member(p, 5);
+        // Running with the town's gang: its streets are open to your racket (systems/gangs.js)
+        const town = w.getTile(1, 0);
+        Gangs.join(p, w, town, Gangs.gangsAt(w, town)[0].id);
         Utils.setRng(() => 0.0);
-        const res = Underworld.doJob(p, w, w.getTile(1, 0), 'racket');
+        const res = Underworld.doJob(p, w, town, 'racket');
         expect(res.outcome).toBe('success');
         const gold = p.gold;
+        // The Guildmaster's cut is the gangs' tithe: it comes out of their purses
+        const purses = () => Object.values(w.tiles).reduce((a, t) => a + ((t.settlement.underworld && t.settlement.underworld.gangs) || []).reduce((b, g) => b + g.purse, 0), 0);
+        const before = purses();
         w.day = 49;
         const tick = Underworld.processDay(p, w);
         const weekly = p.underworld.rackets[0].weekly;
-        expect(tick.income).toBe(weekly + 150 + 25);
+        const cut = tick.income - weekly;
+        expect(cut).toBeGreaterThan(0);
+        expect(cut).toBeLessThanOrEqual(150 + 25);
+        expect(before - purses()).toBeGreaterThanOrEqual(cut - 1);
         expect(p.gold).toBe(gold + tick.income);
         w.day = 50;
         expect(Underworld.processDay(p, w).income).toBe(0);
@@ -388,9 +399,12 @@ describe('the thieves\' guild', () => {
         expect(Underworld.heistOdds(p, w, tile)).toBeGreaterThan(before);
         Utils.setRng(() => 0.0);
         const gold = p.gold;
+        // The royal treasury's gold is the crown's
+        w.getKingdom('merathis').treasury = 40000;
         const res = Underworld.executeHeist(p, w, tile);
         expect(res.outcome).toBe('success');
         expect(p.gold).toBeGreaterThan(gold);
+        expect(w.getKingdom('merathis').treasury).toBe(40000 - (p.gold - gold));
         expect(Underworld.getHeat(p, 'merathis')).toBeGreaterThanOrEqual(25);
         expect(p.underworld.heist).toBeNull();
     });

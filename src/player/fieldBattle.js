@@ -512,7 +512,9 @@ export const FieldBattle = {
         if (!withdrew) HeirAgency.onBattle(player, world, victory, battle.enemyName);
         if (battle.sim.routed === 'player') Traits.recordDeed(player, 'cowardice', 2); // the army broke and ran
 
-        const spoils = withdrew ? { loot: 0 } : PlayerMilitary._battleSpoils(player, victory, battle.eStr0, context, battle.enemyName);
+        // (battle.lootPurse: the beaten side's own purse, when the battle knows it — player/battlefield.js)
+        const spoilsCtx = battle.lootPurse !== undefined ? { ...context, lootPurse: battle.lootPurse } : context;
+        const spoils = withdrew ? { loot: 0 } : PlayerMilitary._battleSpoils(player, victory, battle.eStr0, spoilsCtx, battle.enemyName);
         if (spoils.loot > 0) Ledger.record(player, 'plunder', spoils.loot);
         if (spoils.goldConfiscated > 0) Ledger.record(player, 'robbery', -spoils.goldConfiscated);
 

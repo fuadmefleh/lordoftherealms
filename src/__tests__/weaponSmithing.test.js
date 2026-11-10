@@ -319,3 +319,20 @@ describe('the town armourers and war', () => {
         expect(player.inventory.iron_sword).toBe(1);
     });
 });
+
+describe('soldiers look the part', () => {
+    it('a battle recipe follows the issued kit: the sword\'s metal, no shield or helm when none was issued', () => {
+        const recipe = [
+            'Props/Sword 01 - Arming Sword/_Behind/Steel', 'Props/Shield 01 - Heater Shield/Wood/Oak',
+            'Body/Body 02 - Masculine, Thin/Peach', 'Head Accessories/Helm 03 - Norman/Steel', 'Props/Sword 01 - Arming Sword/Steel',
+        ];
+        const iron = Arms.lookLayers(recipe, { main: 'iron_sword', off: null, head: 'steel_helm', body: null });
+        expect(iron).toContain('Props/Sword 01 - Arming Sword/Iron');
+        expect(iron).toContain('Props/Sword 01 - Arming Sword/_Behind/Iron');
+        expect(iron.some(l => l.includes('Shield'))).toBe(false);
+        expect(iron).toContain('Head Accessories/Helm 02 - Bascinet, Closed/Steel');
+        const bare = Arms.lookLayers(recipe, { main: null, off: 'shield', head: null, body: null });
+        expect(bare.some(l => l.includes('Sword') || l.includes('Helm'))).toBe(false);
+        expect(bare.some(l => l.includes('Shield'))).toBe(true);
+    });
+});

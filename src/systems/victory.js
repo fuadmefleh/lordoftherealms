@@ -14,6 +14,7 @@
 //   empire          — the settlements of the realm the player rules (Throne)
 //   faith           — settlements devoted to the player's faith (Religion
 //                     presence ≥ the devoted share: player.religion.presence)
+//   kingpin         — towns where the player is boss of a gang (Gangs.bossTowns)
 // check() runs from the day's end (ui/game/endDay.js): the cheap goals every
 // day, net worth and monopolies once a week. The first time a goal is met
 // it is recorded (player.scenario.victoryAchieved) and reported once; play
@@ -29,6 +30,7 @@ import { Holdings } from './holdings.js';
 import { Guilds } from './guilds.js';
 import { Relationships } from './relationships.js';
 import { Religion } from './religion.js';
+import { Gangs } from './gangs.js';
 
 const DEFAULTS = {
     none: { name: 'Sandbox', icon: '🌍', blurb: 'No goal: live as you please.' },
@@ -39,6 +41,7 @@ const DEFAULTS = {
     conqueror: { name: 'Conqueror', icon: '🏰', blurb: 'Hold {target} settlements in your own hands.', target: 8 },
     empire: { name: 'Empire', icon: '🗺️', blurb: 'Rule a realm of {target} settlements.', target: 10 },
     faith: { name: 'Faith Ascendant', icon: '🕯️', blurb: 'Make {target} settlements devoted to your faith.', target: 10 },
+    kingpin: { name: 'Kingpin', icon: '🗝️', blurb: 'Be boss of the underworld in {target} towns at once.', target: 4 },
 };
 
 /** Goals whose reading is heavy (net worth, every town's monopolies): checked weekly. */
@@ -220,6 +223,15 @@ export const Victory = {
             out.done = held.length >= target;
             out.text = player.religion ? `${held.length} of ${target} settlements devoted to ${player.religion.name}.` : 'You keep no faith of your own: found one, or lead one.';
             for (const h of held.slice(0, 6)) out.lines.push(h.name);
+            return out;
+        }
+        if (def.id === 'kingpin') {
+            const held = world ? Gangs.bossTowns(player, world) : [];
+            const target = Math.max(1, _num(def.target, 4));
+            out.pct = Math.min(1, held.length / target);
+            out.done = held.length >= target;
+            out.text = `Boss in ${held.length} of ${target} towns.`;
+            for (const h of held.slice(0, 6)) out.lines.push(`${h.gang.name} of ${h.town}`);
             return out;
         }
         if (def.id === 'conqueror') {

@@ -14,6 +14,7 @@ import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 import { glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
 import { BareBushes } from '../bareBushes.js';
@@ -986,6 +987,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapFarming.collect(items, ctx, camera, T);
         // ── Phase 3d: A job's heaps and strays (ui/innerMapTasks.js) ──
         InnerMapTasks.collect(items, ctx, camera, T);
+        // ── Phase 3e: A battle on this ground — the companies and the fallen (ui/innerMapBattle.js) ──
+        InnerMapBattle.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {
@@ -1169,6 +1172,8 @@ Object.assign(InnerMapRenderer, {
         if (typeof InnerMapCombat !== 'undefined') {
             InnerMapCombat.render(ctx, camera);
         }
+        // Arrows in flight, dust, blood, the companies' plates and orders (ui/innerMapBattle.js)
+        InnerMapBattle.renderOverlay(ctx, camera);
     },
 
     /**

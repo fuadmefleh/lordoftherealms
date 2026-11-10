@@ -41,6 +41,11 @@
 //     host, a cadet blood claim, a jealous crown (feud).
 //   - The Guildmaster: elected master of a great town's guild (Guilds), its
 //     hall and stipend, an election soon with a challenger canvassing.
+//   - The Crime Lord: boss of the biggest gang of a great city (systems/gangs.js
+//     Gangs.setupCrimeLord): its crew, lieutenants (one scheming), rackets,
+//     a den, a smuggling line, its hidden stash (coin and goods that came out
+//     of the town), a bought watch captain, high guild rank, heat, dirty
+//     coin, and a rival gang at war.
 // Challenge numbers scale with the difficulty's hostility knob.
 // Then the difficulty's starting-gold knob scales the purse (Normal: none).
 // The record lives on player.scenario (core/difficulty.js). Origins are
@@ -69,6 +74,8 @@ import { Devotion } from '../systems/devotion.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { Estates } from '../world/estates.js';
 import { Kingdom } from '../world/kingdom.js';
+import { Generalship } from './generalship.js';
+import { Gangs } from '../systems/gangs.js';
 
 const FALLBACK = {
     wanderer: {
@@ -735,6 +742,80 @@ export const Scenarios = {
         Object.assign(vars, { guild: g.name, town: home.s.name, treasury: Math.floor(_num(g.treasury)).toLocaleString('en-US'), election: g.nextElection, challenger: cand.challenger });
     },
 
+    _crimeLord(player, world, o, vars) {
+        const set = Gangs.setupCrimeLord(player, world, o, _towns(world), { q: player.q, r: player.r });
+        if (!set) return;
+        Scenarios._moveTo(player, world, set.tile.q, set.tile.r);
+        Scenarios._standing(player, world, o, `boss of ${set.gang.name}`);
+        // The rival bites harder on the harder settings
+        if (set.rival) set.rival.crew = Math.max(1, Math.round(set.rival.crew * Scenarios._bite(player)));
+        player.title = `${o.title || 'Boss'} of ${set.tile.settlement.name}`;
+        player.scenario.realm = set.tile.settlement.kingdom || null;
+        player.scenario.start = { kind: 'crime_lord', town: set.tile.settlement.name, q: set.tile.q, r: set.tile.r, gang: set.gang.id };
+        Object.assign(vars, set.vars);
+    },
+
+    /**
+     * The General: a commission (player/generalship.js) as General in a realm
+     * at war (or, if none is, one at daggers drawn with a neighbour), its host
+     * a share of the realm's own army, camped at the border town facing the
+     * enemy with grain drawn from its granary (the crown paying), lieutenants,
+     * a rival at court and the crown's first orders.
+     */
+    _general(player, world, o, vars) {
+        if (!Generalship.enabled()) return;
+        const G = Generalship.config().start || {};
+        const towns = _towns(world);
+        const big = k => towns.filter(t => t.s.kingdom === k.id).length >= 2;
+        const foesOf = k => (k.wars || []).map(id => _kingdomOf(world, id)).filter(e => e && e.isAlive !== false && e.capital);
+        let k = Scenarios._nearestRealm(world, player, 2, x => big(x) && foesOf(x).length > 0);
+        let enemy = k && foesOf(k).length ? foesOf(k).sort((a, b) => _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] : null;
+        if (!k || !enemy) {
+            // No war yet: a realm and the neighbour it hates most, near enough to war
+            k = Scenarios._nearestRealm(world, player, 2, big);
+            if (!k) return;
+            enemy = _alive(world).filter(e => e.id !== k.id)
+                .sort((a, b) => _num(k.relations && k.relations[a.id]) - _num(k.relations && k.relations[b.id]) || _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] || null;
+            if (enemy) {
+                const rel = _num(G.relations, -45);
+                k.relations = k.relations || {};
+                enemy.relations = enemy.relations || {};
+                k.relations[enemy.id] = Math.min(_num(k.relations[enemy.id]), rel);
+                enemy.relations[k.id] = Math.min(_num(enemy.relations[k.id]), rel);
+            }
+        }
+        const atWar = !!(enemy && (k.wars || []).includes(enemy.id));
+        // Camp at the realm's town nearest the enemy
+        const mine = towns.filter(t => t.s.kingdom === k.id);
+        const camp = enemy
+            ? mine.slice().sort((a, b) => Generalship.distanceTo(world, a, enemy) - Generalship.distanceTo(world, b, enemy))[0]
+            : mine[0];
+        if (!camp) return;
+        Scenarios._moveTo(player, world, camp.q, camp.r);
+        Scenarios._standing(player, world, o, `commissioned General of ${k.name}`);
+        player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
+        const bite = Scenarios._bite(player);
+        const c = Generalship._grant(player, world, k, {
+            rank: _num(G.rank, 2), merit: _num(G.merit, 90), favour: Math.round(_num(G.favour, 55) / Math.max(0.5, bite)),
+            morale: _num(G.morale, 65), veterancy: _num(G.veterancy, 0.15), lieutenants: 3,
+            rivalInfluence: Math.round(_num(G.rivalInfluence, 40) * bite),
+        });
+        Generalship._supplyFrom(player, world, c, camp.s, { days: _num(G.supplyDays, 12) });
+        // The enemy knows the general's name
+        if (enemy) Scenarios._rival(player, world, enemy, `the crown of ${enemy.name}`, Math.round(_num(o.enemyFeud, 25) * bite));
+        // The crown's first orders
+        c.nextOrderDay = _day(world);
+        Generalship._issueOrder(player, world, c, { notices: [] });
+        player.scenario.realm = k.id;
+        player.scenario.start = { kind: 'general', kingdomId: k.id, enemyId: enemy ? enemy.id : null, town: camp.s.name, q: camp.q, r: camp.r, men: c.men, atWar };
+        Object.assign(vars, {
+            rank: Generalship.rankDef(c).name, kingdom: k.name, ruler: k.ruler || 'The crown', men: c.men, town: camp.s.name,
+            enemy: enemy ? enemy.name : 'its enemies', rival: c.rival ? c.rival.name : 'a rival',
+            warLine: atWar ? `${k.name} is at war with ${enemy.name}.` : `${k.name} and ${enemy ? enemy.name : 'its neighbours'} are at daggers drawn: war is coming.`,
+            order: c.order ? c.order.text : 'Hold the marches.',
+        });
+    },
+
     /**
      * Shape the new player by their Origin and record the scenario.
      * opts: { origin, difficulty, victory, guidedStart }. Unknown ids fall
@@ -769,6 +850,8 @@ export const Scenarios = {
             high_priest: Scenarios._highPriest,
             great_lord: Scenarios._greatLord,
             guildmaster: Scenarios._guildmaster,
+            general: Scenarios._general,
+            crime_lord: Scenarios._crimeLord,
         }[origin.id];
         // The origin's purse (data/scenarios.json `gold`); the shapes below may set their own
         if (origin.gold != null) player.gold = _num(origin.gold);

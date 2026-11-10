@@ -45,10 +45,11 @@ Object.assign(ActionMenu, {
         // Who stands against you, and the league if one is sworn (ui/actionMenu/threats.js)
         html += `<button data-am-act="showThreatsPanel" style="${BTN_DARK} width:100%;">⚜️ Threats: the realms' regard${player.coalitions && player.coalitions.active ? ` — ${player.coalitions.active.name}` : ''}</button>`;
 
+        html += `<button data-am-act="showArmyCommand" style="${BTN_DARK} width:100%;">🎖️ Army Command${player.commission ? `: your host in the army of ${player.commission.kingdomName}` : ': serve in a realm\'s army'}</button>`;
         if (campaign) {
             html += `<div style="${CARD}border-color:rgba(245,197,66,0.4);">`;
             html += `<div style="font-weight:bold;color:var(--gold);">🛡️ Your liege, ${campaign.liege.name}, is at war</div>`;
-            html += `<div style="color:var(--text-secondary);margin:4px 0;">Ride out against the enemy (${ActionMenu.REALM_POLITICS_AP.campaign} AP). Each victory pushes your liege toward its war goal, pays ${REALM_POLITICS.campaign.wage}g, and earns you a share of the tribute if your liege wins.</div>`;
+            html += `<div style="color:var(--text-secondary);margin:4px 0;">Ride out against the enemy (${ActionMenu.REALM_POLITICS_AP.campaign} AP). Each victory pushes your liege toward its war goal, pays up to ${REALM_POLITICS.campaign.wage}g from your liege's treasury, and earns you a share of the tribute if your liege wins.</div>`;
             for (const enemy of campaign.enemies) {
                 const strength = RealmPolitics.campaignStrength(enemy);
                 html += `<button onclick="window._realm.campaign('${enemy.id}')" style="${(player.army || []).length ? BTN_GOLD : BTN_DIM}" ${(player.army || []).length ? '' : 'disabled'}>⚔️ Fight ${enemy.name} (≈${strength} strength)</button>`;

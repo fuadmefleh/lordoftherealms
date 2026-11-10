@@ -12,6 +12,8 @@ import { FoodSkills } from '../../systems/foodSkills.js';
 import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { PerformTasks } from '../mapTasks/performTasks.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
+import { Gangs } from '../../systems/gangs.js';
+import { Ledger } from '../../systems/ledger.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerInventory } from './_imports.js';
 
 Object.assign(ActionMenu, {
@@ -121,11 +123,9 @@ Object.assign(ActionMenu, {
         const actualFine = Math.min(fine, player.gold);
         player.gold -= actualFine;
         player.karma = (player.karma || 0) - 3;
-
-        if (player.financeToday) {
-            player.financeToday.expenses = player.financeToday.expenses || {};
-            player.financeToday.expenses.fines = (player.financeToday.expenses.fines || 0) + actualFine;
-        }
+        // The fine goes to the town's court
+        Ledger.record(player, 'fines', -actualFine);
+        Economy.payTown(tile.settlement || settlement, actualFine);
 
         const kingdomId = settlement.kingdom;
         if (kingdomId && player.reputation) {
@@ -1254,12 +1254,12 @@ Object.assign(ActionMenu, {
 
 /** A purse lifted: the gold, the crime on the record, karma, maybe a stealth gain. */
 function _ppLift(game, player, settlement, target, extra = 0) {
-    const gold = target.goldAmount + extra;
+    // The mark's purse is the town's coin (world/economy.js): a poor town's folk carry less
+    const gold = Math.floor(Economy.drawTown(settlement, target.goldAmount + extra));
     player.gold += gold;
     Underworld.recordCrime(player, game.world, 'theft', { kingdom: settlement.kingdom });
-    if (player.financeToday) {
-        player.financeToday.income.theft = (player.financeToday.income.theft || 0) + gold;
-    }
+    Ledger.record(player, 'theft', gold);
+    Gangs.addDirty(player, gold);
     player.karma = (player.karma || 0) - 1;
     // Stealth practice (systems/socialSkills.js; a level-up is announced from the queue)
     let skillUp = false;
@@ -1305,14 +1305,16 @@ function _ppInPerson(game, tile, player, settlement, target, quick) {
  * record, the jail term. Returns { text } for the notice or panel.
  */
 function _smuggleSettle(game, tile, player, settlement, itemName, price, success) {
-    player.inventory[itemName]--;
-    if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
     if (success) {
+        // The buyer is one of the town's gangs: its purse pays, its stash takes the goods (systems/gangs.js)
+        const deal = Gangs.buyFromPlayer(player, game.world, tile, itemName, 1, price);
+        if (!(deal.qty > 0)) return { text: `Nobody on the black market here can pay ${price}g for ${itemName} this week. You keep it.` };
+        player.inventory[itemName]--;
+        if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
         player.gold += price;
         Underworld.recordCrime(player, game.world, 'smuggling', { kingdom: settlement.kingdom });
-        if (player.financeToday) {
-            player.financeToday.income.smuggling = (player.financeToday.income.smuggling || 0) + price;
-        }
+        Ledger.record(player, 'smuggling', price);
+        Gangs.addDirty(player, price);
         player.karma = (player.karma || 0) - 1;
         if (SocialSkills.has('stealth')) SocialSkills.train(player, 'stealth', SocialSkills.xpFor('stealth', 'steal') + price * SocialSkills.xpFor('stealth', 'stealPerGold'));
         else if (Math.random() < 0.15 && player.skills) {
@@ -1320,14 +1322,15 @@ function _smuggleSettle(game, tile, player, settlement, itemName, price, success
         }
         return { text: `Sold ${itemName} for ${price}g on the black market.` };
     }
+    // Caught: the goods are seized (burned as contraband) and the fine goes to the town's court
+    player.inventory[itemName]--;
+    if (player.inventory[itemName] <= 0) delete player.inventory[itemName];
     const fine = Math.floor(price * 0.5);
     const actualFine = Math.min(fine, player.gold);
     player.gold -= actualFine;
     player.karma = (player.karma || 0) - 3;
-    if (player.financeToday) {
-        player.financeToday.expenses = player.financeToday.expenses || {};
-        player.financeToday.expenses.fines = (player.financeToday.expenses.fines || 0) + actualFine;
-    }
+    Ledger.record(player, 'fines', -actualFine);
+    Economy.payTown(tile.settlement || settlement, actualFine);
     const kingdomId = settlement.kingdom;
     if (kingdomId && player.reputation) {
         player.reputation[kingdomId] = (player.reputation[kingdomId] || 0) - 8;

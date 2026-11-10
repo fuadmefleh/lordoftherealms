@@ -15,6 +15,7 @@ import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
 import { TownProps } from '../../world/townProps.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Gangs } from '../../systems/gangs.js';
 import { Holdings } from '../../systems/holdings.js';
 import { Rivals } from '../../systems/rivals.js';
 import { Upbringing } from '../../systems/upbringing.js';
@@ -652,6 +653,9 @@ export function endDay() {
             }
             if (ActionMenu.updateLettersBadge) ActionMenu.updateLettersBadge(this);
 
+            // The towns' gangs — protection, dens, the black market, wages, smuggling, wars, raids, betrayals (systems/gangs.js)
+            for (const n of Gangs.processDay(this.world, this.player).notices.slice(0, 5)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
             // Outlaw lairs — formation, growth, raiding parties, realm expeditions (systems/outlawLairs.js)
             const lairDay = OutlawLairs.processDay(this.world, this.player);
             for (const n of lairDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
@@ -1102,6 +1106,8 @@ export function endDay() {
             }
 
             // Your liege won a war you fought in
+            // A commission in a realm's army (player/generalship.js)
+            for (const n of ((playerResults.generalship && playerResults.generalship.notices) || [])) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             for (const sp of (playerResults.warSpoils || [])) {
                 this.ui.showNotification('🎖️ Spoils of War', `Your liege has humbled ${sp.enemy}. For your service: ${sp.gold} gold and ${sp.renown} renown.`, 'success');
             }

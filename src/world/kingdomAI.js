@@ -1114,6 +1114,9 @@ export const KingdomAI = {
         attackPower *= Math.max(0.2, 1 + KingdomBonuses.get(attacker, 'warBonus'));
         defensePower *= Math.max(0.2, 1 + KingdomBonuses.get(defender, 'warBonus') + KingdomBonuses.get(defender, 'defense')
             + LordInfluence.mod(defender, 'defense')); // a wary lord's fortifications
+        // A commissioned general in the field (player/generalship.js: kingdom.fieldCommand)
+        attackPower *= KingdomAI.fieldCommandMult(attacker, world);
+        defensePower *= KingdomAI.fieldCommandMult(defender, world);
         // Home ground: each side fights better on terrain it favours
         attackPower *= KingdomAI.homeGroundMultiplier(attacker, terrainId);
         defensePower *= KingdomAI.homeGroundMultiplier(defender, terrainId);
@@ -1152,6 +1155,10 @@ export const KingdomAI = {
             });
         }
 
+        // The general in the field hears how the day went (player/generalship.js reads the log)
+        KingdomAI._noteFieldCommand(attacker, world, attackPower > defensePower, defender.id);
+        KingdomAI._noteFieldCommand(defender, world, attackPower <= defensePower, attacker.id);
+
         // Determine winner
         if (attackPower > defensePower && lastTown && KingdomAI._capitulates(attacker, defender, world)) {
             // The last town opens its gates on terms: the realm survives, poorer
@@ -1159,22 +1166,7 @@ export const KingdomAI = {
             attacker.military = Math.floor(attacker.military * 0.95);
         } else if (attackPower > defensePower) {
             // Attacker wins - take the contested tile
-            const tile = frontline ? world.getTile(frontline.q, frontline.r) : null;
-            if (tile && tile.kingdom === defender.id) {
-                tile.kingdom = attacker.id;
-                attacker.territory.push({ q: frontline.q, r: frontline.r });
-                defender.territory = defender.territory.filter(t => t.q !== frontline.q || t.r !== frontline.r);
-                const war = KingdomAI._warState(attacker, defender.id, world);
-                war.gains++;
-
-                // A captured settlement changes hands (and remembers its old crown)
-                if (tile.settlement && tile.settlement.kingdom === defender.id) {
-                    tile.settlement.kingdom = attacker.id;
-                    if (!tile.settlement.formerKingdom) tile.settlement.formerKingdom = defender.id;
-                    war.gains += 2; // towns count for more toward the war goal
-                    world.events.push({ text: `🏰 ${attacker.name} captures ${tile.settlement.name} from ${defender.name}!`, type: 'military' });
-                }
-            }
+            if (frontline) KingdomAI.takeTile(attacker, defender, world, frontline.q, frontline.r);
 
             // Both armies bleed
             const defenderLossMult = moraleBreak === defender.id ? 0.82 : 0.9;
@@ -1182,15 +1174,7 @@ export const KingdomAI = {
             defender.military = Math.floor(defender.military * defenderLossMult);
             attacker.military = Math.floor(attacker.military * attackerLossMult);
 
-            // A realm falls only when its last town does; a lost capital moves
-            const towns = KingdomAI._settlementsOf(defender, world);
-            if (towns.length === 0) {
-                KingdomAI._collapse(defender, attacker, world);
-            } else if (defender.capital && !towns.some(t => t.q === defender.capital.q && t.r === defender.capital.r)) {
-                const seat = towns.reduce((a, b) => ((b.settlement.population || 0) > (a.settlement.population || 0) ? b : a));
-                defender.capital = { q: seat.q, r: seat.r };
-                world.events.push({ text: `👑 ${defender.name}'s court flees to ${seat.settlement.name}.`, type: 'military' });
-            }
+            KingdomAI.afterTownLoss(defender, attacker, world);
         } else {
             // Defender wins - attacker loses military
             const attackerLossMult = moraleBreak === attacker.id ? 0.78 : 0.85;
@@ -1198,6 +1182,68 @@ export const KingdomAI = {
             attacker.military = Math.floor(attacker.military * attackerLossMult);
             defender.military = Math.floor(defender.military * defenderLossMult);
         }
+    },
+
+    /**
+     * A tile of `defender` passes to `attacker` (a won battle, a town taken by
+     * a general's siege): the territory, the war goal (a town counts for 3),
+     * a captured town's crown (it remembers the old one). Draws no RNG beyond
+     * a first war goal. → { taken, town } (town: the settlement, or null).
+     */
+    takeTile(attacker, defender, world, q, r) {
+        const out = { taken: false, town: null };
+        const tile = world.getTile(q, r);
+        if (!tile || tile.kingdom !== defender.id) return out;
+        tile.kingdom = attacker.id;
+        attacker.territory.push({ q, r });
+        defender.territory = defender.territory.filter(t => t.q !== q || t.r !== r);
+        const war = KingdomAI._warState(attacker, defender.id, world);
+        war.gains++;
+        out.taken = true;
+        // A captured settlement changes hands (and remembers its old crown)
+        if (tile.settlement && tile.settlement.kingdom === defender.id) {
+            tile.settlement.kingdom = attacker.id;
+            if (!tile.settlement.formerKingdom) tile.settlement.formerKingdom = defender.id;
+            war.gains += 2; // towns count for more toward the war goal
+            world.events.push({ text: `🏰 ${attacker.name} captures ${tile.settlement.name} from ${defender.name}!`, type: 'military' });
+            out.town = tile.settlement;
+        }
+        return out;
+    },
+
+    /** A realm falls only when its last town does; a lost capital moves. */
+    afterTownLoss(defender, attacker, world) {
+        const towns = KingdomAI._settlementsOf(defender, world);
+        if (towns.length === 0) {
+            KingdomAI._collapse(defender, attacker, world);
+            return 'collapsed';
+        }
+        if (defender.capital && !towns.some(t => t.q === defender.capital.q && t.r === defender.capital.r)) {
+            const seat = towns.reduce((a, b) => ((b.settlement.population || 0) > (a.settlement.population || 0) ? b : a));
+            defender.capital = { q: seat.q, r: seat.r };
+            world.events.push({ text: `👑 ${defender.name}'s court flees to ${seat.settlement.name}.`, type: 'military' });
+            return 'fled';
+        }
+        return null;
+    },
+
+    /**
+     * The battle multiplier of a realm whose commissioned general is with the
+     * army (kingdom.fieldCommand, written each day by player/generalship.js).
+     * 1 when none is, or the record is stale (the general dead or gone).
+     */
+    fieldCommandMult(kingdom, world) {
+        const fc = kingdom && kingdom.fieldCommand;
+        if (!fc || !(fc.mult > 0) || fc.day < KingdomAI._day(world) - 1) return 1;
+        return fc.mult;
+    },
+
+    _noteFieldCommand(kingdom, world, won, enemyId) {
+        const fc = kingdom && kingdom.fieldCommand;
+        if (!fc || KingdomAI.fieldCommandMult(kingdom, world) === 1) return;
+        if (!Array.isArray(fc.log)) fc.log = [];
+        fc.log.push({ day: KingdomAI._day(world), won: !!won, enemyId });
+        if (fc.log.length > 20) fc.log.shift();
     },
 
     /**

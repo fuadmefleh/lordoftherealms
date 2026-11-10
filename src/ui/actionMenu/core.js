@@ -933,6 +933,9 @@ Object.assign(ActionMenu, {
             case 'renounce_allegiance':
                 ActionMenu.doRenounceAllegiance(game, tile);
                 break;
+            case 'army_command':
+                ActionMenu.showArmyCommand(game);
+                break;
             case 'realm_wars':
                 ActionMenu.showRealmWarsMenu(game, tile);
                 break;

@@ -115,7 +115,9 @@ describe('a new life', () => {
         expect(Afterlife.candidates(game.world, 1)).not.toEqual(a);
     }, 240000);
 
-    for (const seed of [35, 36]) {
+    // (seeds where the bot has bought into the world by day 300: since the towns' gangs
+    // turn weekly (systems/gangs.js), seed 36's bot ends the run owning nothing)
+    for (const seed of [35, 37]) {
         it(`hands the old House's holdings on and plays on as someone new (seed ${seed})`, () => {
             const game = played(seed, 300);
             const { world } = game;

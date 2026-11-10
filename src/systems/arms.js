@@ -604,6 +604,39 @@ export const Arms = {
         return out;
     },
 
+    /**
+     * Fit a soldier's LPC layer recipe (bottom to top, paths under
+     * assets/lpc/Characters) to the kit he was issued (kitView: { main, off,
+     * head, body }): the arming-sword layers take the sword's metal or go
+     * when his weapon is no sword (no art yet for axes, maces, spears, bows),
+     * the shield layers go when he has none (any shield shows as the heater
+     * until there is art for the others), the helm takes his helm's layer or
+     * goes. A recipe for a unit without a kit record is left as it is.
+     */
+    lookLayers(layers, kit) {
+        if (!Array.isArray(layers) || !kit) return layers;
+        const SWORD = 'Props/Sword 01 - Arming Sword/';
+        const main = Arms.item(kit.main);
+        const swordLayer = main && main.class === 'sword' && main.sprite && main.sprite.layer;
+        const metal = swordLayer && swordLayer.startsWith(SWORD) ? swordLayer.slice(SWORD.length) : null;
+        const helm = Arms.item(kit.head);
+        const helmLayer = helm && helm.sprite && helm.sprite.layer;
+        const out = [];
+        for (const l of layers) {
+            if (l.startsWith(SWORD)) {
+                if (!metal) continue;
+                out.push(l.startsWith(SWORD + '_Behind/') ? `${SWORD}_Behind/${metal}` : `${SWORD}${metal}`);
+            } else if (l.startsWith('Props/Shield ')) {
+                if (Arms.item(kit.off)) out.push(l);
+            } else if (l.startsWith('Head Accessories/Helm Accessory')) {
+                if (helmLayer && /Bascinet/.test(helmLayer) && /Bascinet/.test(l)) out.push(l);
+            } else if (l.startsWith('Head Accessories/Helm ')) {
+                if (helmLayer) out.push(helmLayer);
+            } else out.push(l);
+        }
+        return out;
+    },
+
     /** The best piece in the packs for a kit slot: { id, grade, value } or null. */
     _packPick(player, slot, classes, used = null) {
         let best = null;

@@ -16,6 +16,7 @@ import { BTN_GOLD, BTN_PLAIN, BTN_OFF, CARD, esc } from './uiKit.js';
 import { RoadEncounters } from '../../player/roadEncounters.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
 import { Ailments } from '../../systems/ailments.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 
 const ODDS_COLOR = { 'very likely': '#7fd07f', likely: '#b5d77f', 'even odds': '#e0b040', risky: '#e08a50', desperate: '#e06060', certain: '#9ecbff' };
 
@@ -108,6 +109,19 @@ Object.assign(ActionMenu, {
             <div style="flex:1;">${_bar(`${b.enemyIcon} ${esc(b.enemyName)}`, b.sim.eStr, b.eStr0, '#ff8a65')}</div></div>
             <div style="font-size:11px; color:#888; margin:4px 0;">📐 ${esc((b.terrainId || 'mixed ground').replace(/_/g, ' '))} · ${esc(b.weather || 'clear')} · counters ×${b.pCounter.toFixed(2)} vs ×${b.eCounter.toFixed(2)}${b.ambushed ? ' · <span style="color:#e08a50;">they caught you unready</span>' : ''}${b.commanderSlain ? ' · <span style="color:#ce93d8;">your assassins slew their commander</span>' : ''}</div>`;
         html += _phaseLogHtml(b.log);
+        if (!b.done && !b.log.length && b.theatre === 'land') {
+            // Before the first blow: fight it on the ground yourself, or leave it to the captains
+            const odds = FieldBattle.estimate(b, FieldBattle.defaultStance(b));
+            html += `<div style="${CARD}">
+                <button data-am-act="battleAct" data-am-args='["field"]' style="${BTN_GOLD}display:block; width:100%; text-align:left; padding:9px 10px; margin:0;">
+                    <div>⚔️ Take the field — command the battle yourself</div>
+                    <div style="font-weight:normal; font-size:11px; opacity:0.8; margin-top:2px;">Your companies drawn up on this very ground: march them, hold, charge, loose volleys, sound the retreat.</div></button>
+                <button data-am-act="battleAct" data-am-args='["captains"]' style="${BTN_PLAIN}display:block; width:100%; text-align:left; padding:8px 10px; margin:6px 0 0;">
+                    <div>🎲 Let the captains fight it — win ${_oddsHtml(odds.win)} · ~${Math.round((odds.loss || 0) * 100)}% losses</div>
+                    <div style="font-weight:normal; font-size:11px; opacity:0.75; margin-top:2px;">Settled at once, with the usual stances.</div></button>
+                <div style="font-size:11px; color:#888; margin-top:6px;">Or call the stances phase by phase:</div>
+            </div>`;
+        }
         if (!b.done) {
             const ph = FieldBattle.currentPhase(b);
             html += `<div style="margin-top:8px; font-weight:bold; color:var(--gold);">${ph.icon} Phase ${b.sim.phase + 1} of ${FieldBattle.config().phases.length}: ${esc(ph.name)} — choose your stance</div>`;
@@ -144,7 +158,25 @@ Object.assign(ActionMenu, {
     battleAct(game, stance) {
         const b = game._fieldBattle;
         if (!b || b.done) { ActionMenu.showFieldBattle(game); return; }
-        FieldBattle.play(game.player, b, stance, game.world);
+        if (stance === 'field') {
+            // On the ground (ui/innerMapBattle.js): the result comes back when the field is decided
+            game.ui.hideCustomPanel();
+            InnerMapBattle.open(game, b, {
+                onDone: () => {
+                    ActionMenu._settleFieldBattle(game);
+                    game.ui.updateStats(game.player, game.world);
+                    ActionMenu.showFieldBattle(game);
+                    if (b.done && game._fieldBattleSource && game._fieldBattleSource.kind === 'attack' && !game.isProcessingTurn) game.endDay();
+                },
+            }).then((ok) => {
+                // No map to fight on: the captains have it after all
+                if (!ok && !b.done) ActionMenu.battleAct(game, 'captains');
+            });
+            return;
+        }
+        if (stance === 'captains') {
+            FieldBattle.auto(game.player, b, game.world);
+        } else FieldBattle.play(game.player, b, stance, game.world);
         if (b.done) ActionMenu._settleFieldBattle(game);
         game.ui.updateStats(game.player, game.world);
         ActionMenu.showFieldBattle(game);

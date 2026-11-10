@@ -188,3 +188,13 @@ describe('a storm fought on the streets', () => {
         expect(c.record.townsTaken).toBe(1);
     }, 60000);
 });
+
+describe('a lady at court', () => {
+    it('reads of her, not him: persona, scheme and the panel texts', () => {
+        const lady = { female: true, name: 'Lady Laurel Carew' };
+        expect(Generalship.ofRival(lady, 'He smiles to your face; his House pays him. The command was his by right.'))
+            .toBe('She smiles to your face; her House pays her. The command was hers by right.');
+        expect(Generalship.ofRival({ female: false }, 'He holds his tongue.')).toBe('He holds his tongue.');
+        expect(Generalship._rivalPersona({ female: true, traits: [{ id: 'ambitious' }], honor: 5 }).words).toBe('wants your command for herself');
+    });
+});

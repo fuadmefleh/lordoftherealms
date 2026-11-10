@@ -154,20 +154,21 @@ Object.assign(ActionMenu, {
             const traits = (rv.traits || []).map(t => t && t.name).filter(Boolean).join(', ');
             const opinion = Array.isArray(rv.traits) ? Math.round(NPCLords.getLordOpinion(rv, player, world)) : null;
             html += `<div>🗣️ <b>${esc(rv.name)}</b>${rv.house ? ` of ${esc(rv.house)}${rv.estates ? ` (${rv.estates} estate${rv.estates > 1 ? 's' : ''})` : ''}` : ''} — your rival at court, influence ${Math.round(rv.influence)}.</div>`;
-            html += `<div style="font-size:11px;color:#bbb;">${traits ? `${esc(traits)}. ` : ''}${rv.persona ? `He ${esc(rv.persona.words)}.` : ''}${opinion != null ? ` His opinion of you: ${opinion}.` : ''}${rv.foiled ? ` You have foiled him ${rv.foiled} time${rv.foiled > 1 ? 's' : ''}.` : ''}</div>`;
+            const of = (t) => Generalship.ofRival(rv, t);
+            html += `<div style="font-size:11px;color:#bbb;">${traits ? `${esc(traits)}. ` : ''}${rv.persona ? of(`He ${esc(rv.persona.words)}.`) : ''}${opinion != null ? of(` His opinion of you: ${opinion}.`) : ''}${rv.foiled ? of(` You have foiled him ${rv.foiled} time${rv.foiled > 1 ? 's' : ''}.`) : ''}</div>`;
             const sc = rv.scheme;
             if (sc) {
                 const left = Math.max(0, (sc.due || 0) - (world.day || 0));
-                html += `<div style="margin-top:4px;color:#e8c070;">🕵️ He ${esc(sc.text)} It bites in ${left} day${left === 1 ? '' : 's'} (day ${sc.due})${sc.blunted ? ', blunted by your friends at court' : ''}.</div>`;
+                html += `<div style="margin-top:4px;color:#e8c070;">🕵️ ${of('He')} ${esc(sc.text)} It bites in ${left} day${left === 1 ? '' : 's'} (day ${sc.due})${sc.blunted ? ', blunted by your friends at court' : ''}.</div>`;
             } else if ((rv.quietUntil || -1) > (world.day || 0)) {
-                html += `<div style="font-size:11px;color:#9fd89f;">He holds his tongue (bought) until day ${rv.quietUntil}.</div>`;
+                html += `<div style="font-size:11px;color:#9fd89f;">${of('He holds his tongue')} (bought) until day ${rv.quietUntil}.</div>`;
             }
             const cost = (Generalship.config().court || {}).answerGold || 80;
             html += _btn(`🎁 Answer at court (${cost}g to the courtiers)`, 'answer', [], BTN_DARK, gold >= cost);
-            if (sc) html += _btn(`🔎 Expose his scheme (${Math.round(Generalship.exposeOdds(player, c) * 100)}%, ${AP.expose} AP)`, 'expose', [], BTN_GOLD, true, 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.');
+            if (sc) html += _btn(`🔎 ${of('Expose his scheme')} (${Math.round(Generalship.exposeOdds(player, c) * 100)}%, ${AP.expose} AP)`, 'expose', [], BTN_GOLD, true, 'Lay it bare before the crown: foiled and shamed if you can prove it; you look petty if you cannot.');
             const price = Generalship.buyOffPrice(c);
-            if (price != null) html += _btn(`💰 Buy his silence (${price}g to his House)`, 'buyOff', [], BTN_DARK, gold >= price, 'He drops his scheme and keeps quiet for a month.');
-            else html += '<div style="font-size:11px;color:#999;">He is too proud to be bought.</div>';
+            if (price != null) html += _btn(`💰 ${of(`Buy his silence (${price}g to his House)`)}`, 'buyOff', [], BTN_DARK, gold >= price, of('He drops his scheme and keeps quiet for a month.'));
+            else html += `<div style="font-size:11px;color:#999;">${of(rv.persona && rv.persona.manner === 'proud' ? 'He is too proud to be bought.' : 'He is too honourable to be bought.')}</div>`;
         }
         const co = v.coup;
         if (co && co.ok) {
@@ -204,6 +205,21 @@ Object.assign(ActionMenu, {
             assault: ['⚔️ Storm the Walls', 'Fought in the town\'s own streets: its defenders hold them, your host comes on from outside the walls.'],
             raid: ['🔥 Raid', 'Fought in the place itself: its defenders in the streets, your host from the fields around it.'],
         };
+        // A coup or a resignation is not undone: asked once more before it is done
+        const STAKES = {
+            coup: ['👑 Turn the Host on the Crown?', () => {
+                const co = Generalship.view(player, world).coup || {};
+                return `About ${Math.round((co.chance || 0) * 100)}% that the men follow you and the crown falls. If it fails, half your host is cut down, you are exiled from ${esc((Generalship.state(player) || {}).kingdomName || 'the realm')} and it declares war on you.`;
+            }, '👑 Give the word', BTN_RED],
+            resign: ['Resign Your Commission?', () => 'You give up your rank, your host and your wages. Reputation −3 with the realm.', 'Resign', BTN_RED],
+        };
+        if (STAKES[action] && args[args.length - 1] !== 'sure') {
+            const [title, text, yes, style] = STAKES[action];
+            game.ui.showCustomPanel(title, `<div style="padding:4px 2px;font-size:12px;"><div style="margin-bottom:10px;">${text()}</div>
+                ${_btn(yes, action, [...args, 'sure'], style)} <button data-am-act="showArmyCommand" style="${BTN_DARK}">Not now</button></div>`);
+            return;
+        }
+        if (args[args.length - 1] === 'sure') args = args.slice(0, -1);
         if (CHOICE[action] && args[args.length - 1] !== 'captains') {
             const [title, blurb] = CHOICE[action];
             game.ui.showCustomPanel(title, `<div style="padding:4px 2px;">

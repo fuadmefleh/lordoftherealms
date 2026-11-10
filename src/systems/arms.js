@@ -239,6 +239,27 @@ export const Arms = {
         return eq;
     },
 
+    /**
+     * A piece put away keeps its wear: the condition and edge of the last one of
+     * its kind taken off (eq.kept), so swapping a blade out and back in is no
+     * free mend. A stack of more than one hands up an unworn piece.
+     */
+    _stow(eq, piece) {
+        if (!piece || !piece.id) return;
+        if (!_obj(eq.kept)) eq.kept = {};
+        if (_num(piece.cond, 100) < 100 || _num(piece.edge, 100) < 100) eq.kept[piece.id] = { cond: _num(piece.cond, 100), edge: _num(piece.edge, 100) };
+        else delete eq.kept[piece.id];
+    },
+
+    _takeUp(player, eq, id) {
+        const kept = _obj(eq.kept) ? eq.kept[id] : null;
+        if (kept && Arms._held(player, id) <= 1) {
+            delete eq.kept[id];
+            return { id, cond: _num(kept.cond, 100), edge: _num(kept.edge, 100) };
+        }
+        return { id, cond: 100, edge: 100 };
+    },
+
     _held(player, id) {
         return Math.floor(_num(player && player.inventory && player.inventory[id]) + 1e-9);
     },
@@ -284,7 +305,7 @@ export const Arms = {
             }
             const best = Arms.candidates(player, slot).find(c => slot !== 'main' || Arms.stats(c.id).melee);
             if (!best) return null;
-            e = eq[slot] = { id: best.id, cond: 100, edge: 100 };
+            e = eq[slot] = Arms._takeUp(player, eq, best.id);
         }
         if (!e) return null;
         const g = Grades.bestIndex(player, e.id);
@@ -311,8 +332,9 @@ export const Arms = {
         }
         const cur = eq[def.slot];
         if (cur && cur.id === id) return { success: true, text: `You already have your ${Arms.nameOf(id).toLowerCase()}.` };
-        eq[def.slot] = { id, cond: 100, edge: 100 };
-        if (def.slot === 'main' && _num(def.hands, 1) >= 2) eq.off = null;
+        Arms._stow(eq, cur);
+        eq[def.slot] = Arms._takeUp(player, eq, id);
+        if (def.slot === 'main' && _num(def.hands, 1) >= 2) { Arms._stow(eq, eq.off); eq.off = null; }
         if (player.equipped && player.equipped.weapon && def.slot === 'main') player.equipped.weapon = id;
         return { success: true, text: `You take up the ${Arms.nameOf(id).toLowerCase()}.` };
     },
@@ -349,6 +371,7 @@ export const Arms = {
         if (!player || !ARMS_SLOTS.includes(slot)) return { success: false, reason: 'No such slot.' };
         const eq = Arms._eq(player);
         const cur = eq[slot];
+        Arms._stow(eq, cur);
         eq[slot] = null;
         if (slot === 'main' && player.equipped) delete player.equipped.weapon;
         return { success: true, text: cur ? `You put away the ${Arms.nameOf(cur.id).toLowerCase()}.` : 'Nothing to put away.' };
@@ -526,7 +549,7 @@ export const Arms = {
     /** The unit worth of a good at a town (its market value, else the base price). */
     _worth(world, settlement, id) {
         const base = Arms.basePrice(id) || PlayerInventory.goodValue(id) || 5;
-        if (settlement && settlement.market && SettlementMarket.tracks(id)) {
+        if (Arms._mkt(settlement) && SettlementMarket.tracks(id)) {
             const tile = world && typeof world.getTile === 'function' && Number.isFinite(settlement.q) ? world.getTile(settlement.q, settlement.r) : null;
             const v = SettlementMarket.value(world, settlement, tile, id, base);
             if (v > 0) return v;
@@ -551,7 +574,7 @@ export const Arms = {
             let goodsCost = 0;
             const short = [];
             for (const [g, n] of Object.entries(goods)) {
-                if (SettlementMarket.tracks(g) && settlement.market && SettlementMarket.available(settlement, g) < n) short.push(g);
+                if (SettlementMarket.tracks(g) && Arms._mkt(settlement) && SettlementMarket.available(settlement, g) < n) short.push(g);
                 goodsCost += n * Arms._worth(world, settlement, g);
             }
             const fee = Math.max(_num(W.mendFeeMin, 4), Math.round(Arms.basePrice(p.id) * W.mendFee * (1 - p.cond / 100)));
@@ -580,7 +603,7 @@ export const Arms = {
         if (!q.smith) return { success: false, reason: 'There is no smith here.' };
         if (q.smith.short.length) return { success: false, reason: `The smith has no ${q.smith.short.join(', ').replace(/_/g, ' ')} to mend it with.` };
         if (_num(player.gold) < q.smith.total) return { success: false, reason: `The smith wants ${q.smith.total} gold.` };
-        for (const [g, n] of Object.entries(q.goods)) if (SettlementMarket.tracks(g) && s.market) SettlementMarket.take(s, g, n);
+        for (const [g, n] of Object.entries(q.goods)) if (SettlementMarket.tracks(g) && Arms._mkt(s)) SettlementMarket.take(s, g, n);
         player.gold -= q.smith.total;
         Economy.payTown(s, q.smith.total);
         Ledger.record(player, 'armsKit', -q.smith.total);
@@ -604,12 +627,15 @@ export const Arms = {
         const bare = _clamp(_num(spec.bare, 0.55), 0.1, 1);
         const cm = Arms.condMult(_num(unit.kit.cond, 100));
         let sum = 0;
+        const twoHands = Arms._twoHanded(unit.kit.main);
         for (const [slot, s] of Object.entries(spec.slots || {})) {
-            const id = unit.kit[slot];
+            // (a two-hander fills the shield's place: its weight at three quarters of the weapon's worth)
+            const from = slot === 'off' && twoHands ? 'main' : slot;
+            const id = unit.kit[from];
             const def = Arms.item(id);
             if (!def) continue;
-            const g = unit.kit.g && unit.kit.g[slot] != null ? unit.kit.g[slot] : Grades.COMMON;
-            sum += _num(s.w) * _num(def.tier, 1) * Grades.effectMult(g) * cm;
+            const g = unit.kit.g && unit.kit.g[from] != null ? unit.kit.g[from] : Grades.COMMON;
+            sum += _num(s.w) * _num(def.tier, 1) * Grades.effectMult(g) * cm * (from !== slot ? 0.75 : 1);
         }
         return _r2(_clamp(bare + (1 - bare) * sum, bare, Arms.config().maxFactor));
     },
@@ -619,7 +645,7 @@ export const Arms = {
         const spec = Arms.kitSpec(unit && unit.type);
         if (!spec) return [];
         const kit = _obj(unit.kit) || {};
-        return Object.keys(spec.slots || {}).filter(s => !Arms.item(kit[s]));
+        return Object.keys(spec.slots || {}).filter(s => !Arms.item(kit[s]) && !(s === 'off' && Arms._twoHanded(kit.main)));
     },
 
     /** "Iron Spear, Round Shield, Gambeson" for a unit's kit ('' when none). */
@@ -740,9 +766,15 @@ export const Arms = {
     },
 
     /** The best piece in the packs for a kit slot: { id, grade, value } or null. */
-    _packPick(player, slot, classes, used = null) {
+    _packPick(player, slot, classes, used = null, opts = {}) {
+        // (a kit with a shield in it takes a one-handed weapon when there is one)
+        if (opts.oneHand) {
+            const one = Arms._packPick(player, slot, classes, used, { ...opts, oneHand: false, onlyOneHand: true });
+            if (one) return one;
+        }
         let best = null;
         for (const def of Arms.itemsFor(slot, classes)) {
+            if (opts.onlyOneHand && _num(def.hands, 1) >= 2) continue;
             const held = Arms._held(player, def.id) - _num(used && used[def.id]);
             if (!(held > 0)) continue;
             // (the equipped piece stays with the player unless there are spares)
@@ -755,9 +787,25 @@ export const Arms = {
         return best;
     },
 
+    /**
+     * The town's market for buying arms, arrows and iron: made on first need
+     * (SettlementMarket.ensure), as the day's market tick would make it — so a
+     * town on the first day of a game sells to you too. Null without a town.
+     */
+    _mkt(settlement) {
+        if (!settlement || typeof settlement !== 'object') return null;
+        return settlement.market || SettlementMarket.ensure(settlement);
+    },
+
+    /** Does this piece take both hands? */
+    _twoHanded(id) {
+        const def = id ? Arms.item(id) : null;
+        return !!def && _num(def.hands, 1) >= 2;
+    },
+
     /** The cheapest market good the town has in stock for a kit slot: { id, price } or null. */
     _marketPick(world, settlement, slot, classes) {
-        if (!settlement || !settlement.market) return null;
+        if (!Arms._mkt(settlement)) return null;
         const goods = Arms.config().market[slot] || [];
         const G = _goodsTable();
         const tile = world && typeof world.getTile === 'function' && Number.isFinite(settlement.q) ? world.getTile(settlement.q, settlement.r) : null;
@@ -784,9 +832,12 @@ export const Arms = {
         const out = { slots: {}, cost: 0 };
         const kit = { g: {} };
         const usedPack = {};
+        const hasOff = !!(spec.slots || {}).off;
         for (const [slot, s] of Object.entries(spec.slots || {})) {
+            // A two-hander leaves no hand for the shield
+            if (slot === 'off' && Arms._twoHanded(kit.main)) { out.slots[slot] = { from: null, id: null, twoHands: true }; continue; }
             const classes = Array.isArray(s.classes) ? s.classes : [];
-            const pick = opts.noPack ? null : Arms._packPick(player, slot, classes, usedPack);
+            const pick = opts.noPack ? null : Arms._packPick(player, slot, classes, usedPack, { oneHand: slot === 'main' && hasOff });
             if (pick) {
                 usedPack[pick.id] = _num(usedPack[pick.id]) + 1;
                 out.slots[slot] = { from: 'pack', id: pick.id };
@@ -808,7 +859,7 @@ export const Arms = {
             const pack = opts.noPack ? 0 : Math.min(want, Arms._held(player, good));
             const G = _goodsTable()[good.toUpperCase()];
             const tile = world && settlement && typeof world.getTile === 'function' && Number.isFinite(settlement.q) ? world.getTile(settlement.q, settlement.r) : null;
-            const avail = settlement && settlement.market && G && opts.buy !== false ? Math.min(want - pack, SettlementMarket.available(settlement, good)) : 0;
+            const avail = Arms._mkt(settlement) && G && opts.buy !== false ? Math.min(want - pack, SettlementMarket.available(settlement, good)) : 0;
             const price = avail > 0 ? Math.max(1, Economy.marketPrice(G, settlement, tile, world)) : 0;
             out.ammo = { good, want, pack, buy: avail, price };
             out.cost += avail * price;
@@ -832,10 +883,13 @@ export const Arms = {
         if (!_obj(unit.kit)) unit.kit = { g: {}, cond: 100 };
         const kit = unit.kit;
         if (!_obj(kit.g)) kit.g = {};
+        const hasOff = !!(spec.slots || {}).off;
         for (const [slot, sp] of Object.entries(spec.slots || {})) {
             if (Arms.item(kit[slot])) continue;
+            // A two-hander leaves no hand for the shield
+            if (slot === 'off' && Arms._twoHanded(kit.main)) continue;
             const classes = Array.isArray(sp.classes) ? sp.classes : [];
-            const pick = opts.noPack ? null : Arms._packPick(player, slot, classes);
+            const pick = opts.noPack ? null : Arms._packPick(player, slot, classes, null, { oneHand: slot === 'main' && hasOff });
             if (pick) {
                 const drawn = Grades.remove(player, pick.id, 1, { order: 'worst' });
                 kit[slot] = pick.id;
@@ -922,11 +976,11 @@ export const Arms = {
         if (!Arms.hasSmith(settlement)) return { success: false, reason: 'There is no smith here.' };
         const q = Arms.kitMendQuote(player, settlement, world);
         if (!q.units) return { success: false, reason: 'Your soldiers\' arms need no mending.' };
-        if (q.iron > 0 && settlement.market && SettlementMarket.available(settlement, 'iron') < q.iron) {
+        if (q.iron > 0 && Arms._mkt(settlement) && SettlementMarket.available(settlement, 'iron') < q.iron) {
             return { success: false, reason: `The smiths of ${settlement.name} have no iron to spare (${q.iron} wanted).` };
         }
         if (_num(player.gold) < q.total) return { success: false, reason: `The smiths want ${q.total} gold.` };
-        if (q.iron > 0 && settlement.market) SettlementMarket.take(settlement, 'iron', q.iron);
+        if (q.iron > 0 && Arms._mkt(settlement)) SettlementMarket.take(settlement, 'iron', q.iron);
         player.gold -= q.total;
         Economy.payTown(settlement, q.total);
         Ledger.record(player, 'armsKit', -q.total);
@@ -1078,7 +1132,7 @@ export const Arms = {
                 out.fromPack[good] = _num(out.fromPack[good]) + fromPack;
                 want -= fromPack;
             }
-            if (want > 0 && opts.buy && s && s.market && SettlementMarket.tracks(good) && G[good.toUpperCase()]) {
+            if (want > 0 && opts.buy && Arms._mkt(s) && SettlementMarket.tracks(good) && G[good.toUpperCase()]) {
                 const price = Math.max(1, Economy.marketPrice(G[good.toUpperCase()], s, tile, world));
                 const n = Math.min(want, SettlementMarket.available(s, good), Math.floor(_num(player.gold) / price));
                 const got = n > 0 ? Math.floor(SettlementMarket.take(s, good, n) + 1e-9) : 0;
@@ -1111,7 +1165,7 @@ export const Arms = {
             o.want += want;
         }
         for (const [good, o] of Object.entries(out)) {
-            if (settlement && settlement.market && G[good.toUpperCase()]) {
+            if (Arms._mkt(settlement) && G[good.toUpperCase()]) {
                 o.price = Math.max(1, Economy.marketPrice(G[good.toUpperCase()], settlement, tile, world));
                 o.stock = SettlementMarket.available(settlement, good);
             }

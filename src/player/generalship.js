@@ -67,6 +67,11 @@ import { RealmEscort } from './realmEscort.js';
 import { Scenarios } from './scenarios.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+// A rival at court may be a lady: the texts written of 'him' read of 'her'
+const _gx = (lord, text) => (!lord || !lord.female || typeof text !== 'string' ? text : text
+    .replace(/\bwas his\b/g, 'was hers').replace(/\bhimself\b/g, 'herself')
+    .replace(/\bhis\b/g, 'her').replace(/\bHis\b/g, 'Her').replace(/\bhim\b/g, 'her')
+    .replace(/\bhe\b/g, 'she').replace(/\bHe\b/g, 'She'));
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
 const _day = world => _num(world && world.day);
 const _r2 = v => Math.round(v * 100) / 100;
@@ -262,7 +267,7 @@ export const Generalship = {
             firstName: first, female, kingdomId: k.id,
             holder: noble ? noble.id : null, house: noble ? noble.name : null, estates: noble ? noble.estates : 0,
             influence: Utils.clamp(influence + (noble ? Math.min(15, noble.estates * 2) : 0), 0, 100),
-            persona: Generalship._rivalPersona(lord),
+            persona: Generalship._rivalPersona({ ...lord, female }),
             scheme: null, quietUntil: -1, lastExposeDay: -99, foiled: 0,
         };
     },
@@ -298,7 +303,7 @@ export const Generalship = {
             proud: 'thinks the command was his by right of birth',
             ambitious: 'wants your command for himself',
         }[manner];
-        return { manner, words, bribable: !has('honorable') && honour <= 7, greedy: has('greedy') };
+        return { manner, words: _gx(lord, words), bribable: !has('honorable') && honour <= 7, greedy: has('greedy') };
     },
 
     // ── The host ─────────────────────────────────────
@@ -960,7 +965,7 @@ export const Generalship = {
         c.rival.influence = Utils.clamp(c.rival.influence - 6, 0, 100);
         // (the courtiers you bought speak against his scheme too: it bites half as hard)
         if (c.rival.scheme) c.rival.scheme.blunted = true;
-        return { success: true, message: `Your gifts loosen tongues at ${k ? k.name : 'the'} court: ${c.rival.name}'s whispers lose their bite${c.rival.scheme ? ', and his scheme with them' : ''}. Favour +${_num(C.answerFavour, 6)}.` };
+        return { success: true, message: _gx(c.rival, `Your gifts loosen tongues at ${k ? k.name : 'the'} court: ${c.rival.name}'s whispers lose their bite${c.rival.scheme ? ', and his scheme with them' : ''}. Favour +${_num(C.answerFavour, 6)}.`) };
     },
 
     /** An old save's rival ({ name, influence }) made a lord of the realm. */
@@ -1012,9 +1017,9 @@ export const Generalship = {
         const kind = Generalship._pickKind(Object.fromEntries(choices));
         const def = W[kind] || {};
         const due = day + _num(C.schemeDays, 7);
-        r.scheme = { kind, since: day, due, text: def.text || 'He schemes against you.', strength: Math.round(r.influence) };
+        r.scheme = { kind, since: day, due, text: _gx(r, def.text || 'He schemes against you.'), strength: Math.round(r.influence) };
         Generalship._log(c, world, `${r.name} schemes: ${r.scheme.text}`);
-        out.notices.push({ icon: '🕵️', title: 'A Scheme at Court', text: `${r.name} ${def.text || 'schemes against you'} It will bite on day ${due} unless you answer it at court, expose it, or buy him off (Army Command).`, type: 'warning' });
+        out.notices.push({ icon: '🕵️', title: 'A Scheme at Court', text: _gx(r, `${r.name} ${def.text || 'schemes against you'} It will bite on day ${due} unless you answer it at court, expose it, or buy him off (Army Command).`), type: 'warning' });
     },
 
     /** A scheme's day comes: what it does, by the rival's influence (halved when answered at court). */
@@ -1035,7 +1040,7 @@ export const Generalship = {
             c.merit = Math.max(0, _num(c.merit) - merit);
             Generalship._favour(c, -Math.round(_num(W.favour, 2) * bite));
             r.influence = Utils.clamp(r.influence + 2, 0, 100);
-            text = `${r.name} tells the court your victories were won on his counsel. Merit −${merit}.`;
+            text = _gx(r, `${r.name} tells the court your victories were won on his counsel. Merit −${merit}.`);
         } else if (sc.kind === 'supply') {
             const days = Math.max(1, Math.round(_num(W.days, 6) * (sc.blunted ? 0.5 : 1)));
             c.supplyCutUntil = day + days;
@@ -1074,7 +1079,7 @@ export const Generalship = {
         if (!r || !r.scheme) return { success: false, reason: 'There is no scheme afoot to expose.' };
         const X = ((Generalship.config().court || {}).expose) || {};
         const day = _day(world);
-        if (day - _num(r.lastExposeDay, -99) < _num(X.cooldown, 5)) return { success: false, reason: 'You accused him lately; the court will not hear it again so soon.' };
+        if (day - _num(r.lastExposeDay, -99) < _num(X.cooldown, 5)) return { success: false, reason: _gx(r, 'You accused him lately; the court will not hear it again so soon.') };
         r.lastExposeDay = day;
         const odds = Generalship.exposeOdds(player, c);
         if (Utils.random() < odds) {
@@ -1084,7 +1089,7 @@ export const Generalship = {
             r.influence = Utils.clamp(r.influence - _num(X.influence, 10), 0, 100);
             Generalship._favour(c, _num(X.favour, 4));
             NPCLords.rememberDeed(world, r, 'humbled', { note: 'exposed at court' });
-            const text = `You lay ${r.name}'s scheme (${kind}) bare before the crown. He is shamed, and the court laughs at him.`;
+            const text = _gx(r, `You lay ${r.name}'s scheme (${kind}) bare before the crown. He is shamed, and the court laughs at him.`);
             Generalship._log(c, world, text);
             return { success: true, message: `${text} Favour +${_num(X.favour, 4)}.` };
         }
@@ -1094,6 +1099,11 @@ export const Generalship = {
     },
 
     /** What buying the rival off costs (gold into his House's purse), or null when he cannot be bought. */
+    /** A text written of the rival as 'he', read of the rival as they are. */
+    ofRival(lord, text) {
+        return _gx(lord, text);
+    },
+
     buyOffPrice(c) {
         const B = ((Generalship.config().court || {}).buyOff) || {};
         const r = c && c.rival;
@@ -1108,7 +1118,7 @@ export const Generalship = {
         const r = c && c.rival;
         if (!r) return { success: false, reason: 'No one at court speaks against you.' };
         const price = Generalship.buyOffPrice(c);
-        if (price == null) return { success: false, reason: `${r.name} is too proud to be bought.` };
+        if (price == null) return { success: false, reason: `${r.name} is too ${r.persona && r.persona.manner === 'proud' ? 'proud' : 'honourable'} to be bought.` };
         if (_num(player.gold) < price) return { success: false, reason: `${r.name}'s silence costs ${price}g.` };
         const B = ((Generalship.config().court || {}).buyOff) || {};
         const day = _day(world);
@@ -1126,7 +1136,7 @@ export const Generalship = {
         r.quietUntil = day + _num(B.quietDays, 30);
         r.influence = Utils.clamp(r.influence - _num(B.influence, 5), 0, 100);
         NPCLords.rememberDeed(world, r, 'gift', { note: 'bought his silence' });
-        const text = `${price}g finds its way to ${r.house || r.name}. ${r.name} drops his scheme and holds his tongue, for a month at least.`;
+        const text = _gx(r, `${price}g finds its way to ${r.house || r.name}. ${r.name} drops his scheme and holds his tongue, for a month at least.`);
         Generalship._log(c, world, text);
         return { success: true, message: text };
     },

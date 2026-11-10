@@ -221,6 +221,36 @@ describe('arming troops', () => {
         expect(PlayerMilitary.getArmyStrength(armed)).toBeGreaterThan(PlayerMilitary.getArmyStrength(army) * 2);
     });
 
+    it('a kit with a shield takes a one-hander when there is one; a two-hander leaves the shield in the packs', () => {
+        const p = fighter({ inventory: { dane_axe: 1, iron_sword: 1, kite_shield: 1 } });
+        const q = Arms.kitQuote(p, 'militia');
+        expect(q.slots.main.id).toBe('iron_sword');
+        expect(q.slots.off.id).toBe('kite_shield');
+        const p2 = fighter({ inventory: { dane_axe: 1, kite_shield: 1 } });
+        const q2 = Arms.kitQuote(p2, 'militia');
+        expect(q2.slots.main.id).toBe('dane_axe');
+        expect(q2.slots.off.id).toBe(null);
+        const unit = { type: 'militia', strength: 5, level: 1 };
+        Arms.issueKit(p2, unit, {});
+        expect(unit.kit.main).toBe('dane_axe');
+        expect(unit.kit.off).toBeUndefined();
+        expect(p2.inventory.kite_shield).toBe(1);
+        // not short of arms for the shield it cannot hold, and the axe fills its place
+        expect(Arms.kitGaps(unit)).not.toContain('off');
+        expect(Arms.unitFactor(unit)).toBeGreaterThan(Arms.unitFactor({ type: 'militia', kit: { main: 'iron_sword', g: {}, cond: 100 } }));
+    });
+
+    it('a town on the first day, its market not yet made, still sells kits and arrows', () => {
+        const { world, player, s } = atTown('town');
+        delete s.market;
+        player.inventory = {};
+        const q = Arms.kitQuote(player, 'archer', s, world);
+        expect(s.market).toBeTruthy();
+        expect(q.ammo.buy + q.ammo.pack).toBeGreaterThanOrEqual(0);
+        expect(Arms._mkt(null)).toBe(null);
+        expect(Arms.quiverQuote(player, s, world)).toBeTruthy();
+    });
+
     it('recruits are armed out of the town\'s armourers\' stock at its price, the coin to the town', () => {
         const { world, player, s } = atTown('town');
         player.gold = 5000;

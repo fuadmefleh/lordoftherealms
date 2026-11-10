@@ -378,6 +378,28 @@ describe('equipping from the hotbar and the packs', () => {
         expect(r2.reason).toMatch(/both hands/);
     });
 
+    it('a piece put away keeps its wear: no free mend by swapping it out and back', () => {
+        const player = p();
+        Arms.equip(player, 'iron_sword');
+        player.equipment.main.cond = 40;
+        player.equipment.main.edge = 30;
+        Arms.equip(player, 'dane_axe');
+        expect(Arms.equipped(player, 'main').cond).toBe(100);
+        Arms.equip(player, 'iron_sword');
+        expect(Arms.equipped(player, 'main').cond).toBe(40);
+        expect(Arms.equipped(player, 'main').edge).toBe(30);
+        Arms.unequip(player, 'main');
+        Arms.toggleEquip(player, 'iron_sword');
+        expect(Arms.equipped(player, 'main').cond).toBe(40);
+        // the shield the two-hander put on your back keeps its dents too
+        Arms.equip(player, 'shield');
+        player.equipment.off.cond = 55;
+        Arms.equip(player, 'dane_axe');
+        Arms.equip(player, 'iron_sword');
+        Arms.equip(player, 'shield');
+        expect(Arms.equipped(player, 'off').cond).toBe(55);
+    });
+
     it('not arms: no equip', () => {
         expect(Arms.toggleEquip(p(), 'bread').success).toBe(false);
     });

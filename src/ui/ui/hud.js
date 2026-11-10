@@ -414,7 +414,8 @@ Object.assign(UI.prototype, {
                     jailEl.setAttribute('data-am-act', 'enterJailMap');
                     jailEl.setAttribute('title', 'Walk your cell: your pallet, the loose flagstone, the cell door, your cellmates');
                 }
-                jailEl.style.cssText = 'color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(231,76,60,0.2); border-radius: 4px; margin-top: 4px; cursor: pointer;';
+                // (hung under the top bar's middle: in the bar's row it was squeezed off its right edge)
+                jailEl.style.cssText = 'position: absolute; top: calc(100% + 26px); left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; color: #e74c3c; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(20,12,10,0.88); border: 1px solid rgba(231,76,60,0.6); border-radius: 4px; cursor: pointer;';
                 const topBar = document.getElementById('topBar');
                 if (topBar) topBar.appendChild(jailEl);
             }
@@ -432,7 +433,7 @@ Object.assign(UI.prototype, {
                 siegeEl = document.createElement('div');
                 siegeEl.id = 'holdingSiegeBanner';
                 if (siegeEl.setAttribute) siegeEl.setAttribute('data-am-act', 'showHoldingSiegesPanel');
-                siegeEl.style.cssText = 'color: #ffb4a0; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(192,57,43,0.3); border: 1px solid rgba(231,76,60,0.6); border-radius: 4px; margin-top: 4px; cursor: pointer;';
+                siegeEl.style.cssText = 'position: absolute; top: calc(100% + 56px); left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 5; color: #ffb4a0; font-weight: bold; font-size: 12px; text-align: center; padding: 4px 8px; background: rgba(60,18,14,0.9); border: 1px solid rgba(231,76,60,0.6); border-radius: 4px; cursor: pointer;';
                 const topBar = document.getElementById('topBar');
                 if (topBar) topBar.appendChild(siegeEl);
             }
@@ -1113,7 +1114,7 @@ Object.assign(UI.prototype, {
 
     /** Top-bar gold + income + stars (renown) + shields (army strength). */
     updateTopBarResources(player, world) {
-        this._setHudText('tbGold', Utils.formatNumber(player.gold));
+        this._setHudText('tbGold', Utils.formatNumber(Math.floor(Number(player.gold) || 0)));
 
         // Per-day income from the latest finance snapshot (0 before day 1 ends).
         const hist = player.financeHistory;

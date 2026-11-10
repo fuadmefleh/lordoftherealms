@@ -441,7 +441,7 @@ Object.assign(ActionMenu, {
             </div>`;
             html += `<div style="background:#1a2e1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
             html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${result.loot}</strong></div>`;
-            if (result.armsTaken) html += `<div style="margin-top:4px;">⚔️ Arms stripped from the fallen: ${Object.entries(result.armsTaken).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ')}</div>`;
+            if (result.armsTaken) html += `<div style="margin-top:4px;">⚔️ Arms stripped from the fallen: ${Object.entries(result.armsTaken).map(([k, v]) => { const nm = Arms.nameOf(k).toLowerCase(); return `${v} ${nm}${v > 1 && !/s$/.test(nm) ? 's' : ''}`; }).join(', ')}</div>`;
             if (Arms.quiverNote(result.quivers)) html += `<div style="margin-top:4px;">${Arms.quiverNote(result.quivers)}</div>`;
             if (result.inventoryLoot && Object.keys(result.inventoryLoot).length > 0) {
                 html += `<div style="margin-top:4px;">📦 Supplies captured:</div>`;

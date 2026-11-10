@@ -49,7 +49,10 @@ export const NpcPortrait = {
     attachPlayer(el, player) {
         if (!el || typeof el.appendChild !== 'function' || typeof document.createElement !== 'function') return;
         const preset = this.playerPreset(player);
-        InnerMapCharacters.playerPreset = preset;
+        // (a new look — arms taken up or put away — is drawn once it is composited:
+        // until then the old one stands there, not an empty spot)
+        const composited = (id) => !!(InnerMapCharacters.getComposited && InnerMapCharacters.getComposited(id));
+        if (!player || !player.appearance || composited(preset) || !composited(InnerMapCharacters.playerPreset)) InnerMapCharacters.playerPreset = preset;
         if (el.dataset && el.dataset.preset === preset) return;
         if (el.dataset) el.dataset.preset = preset;
         if (el._stopPortrait) el._stopPortrait();
@@ -65,6 +68,7 @@ export const NpcPortrait = {
             .then(() => (player && player.appearance ? registerAppearance(player.appearance, gearKit(player)) : null))
             .then(() => {
                 if (!el.dataset || el.dataset.preset !== preset) return;
+                if (composited(preset)) InnerMapCharacters.playerPreset = preset;
                 el.classList.toggle('has-sprite', this.hasSprite(subject));
                 el._stopPortrait = this.mount(canvas, subject);
             });

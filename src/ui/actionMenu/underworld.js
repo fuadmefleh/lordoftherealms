@@ -49,7 +49,9 @@ function booksHtml(b) {
     if (!b || !b.all) return '';
     const last = b.last || { took: 0, paid: 0, in: {}, out: {} };
     const weeks = Math.max(1, b.weeks);
-    let html = `<div style="${NOTE}">📒 Last week took ${g0(last.took)}, paid out ${g0(last.paid)} · all time${b.weeks ? ` (${b.weeks} wk)` : ''} took ${g0(b.all.took)} (≈${g0(b.all.took / weeks)}/wk), paid ${g0(b.all.paid)} (≈${g0(b.all.paid / weeks)}/wk)</div>`;
+    // (the weekly average is of its trade: its first purse is not a week's take)
+    const firstPurse = Number((b.all.in || {}).founding) || 0;
+    let html = `<div style="${NOTE}">📒 Last week took ${g0(last.took)}, paid out ${g0(last.paid)} · all time${b.weeks ? ` (${b.weeks} wk)` : ''} took ${g0(b.all.took)} (≈${g0((b.all.took - firstPurse) / weeks)}/wk${firstPurse ? ` besides its first purse` : ''}), paid ${g0(b.all.paid)} (≈${g0(b.all.paid / weeks)}/wk)</div>`;
     const rows = (dir) => {
         const labels = Gangs.BOOK_LABELS[dir];
         const kinds = Object.keys({ ...b.all[dir], ...((b.cur || {})[dir] || {}) }).sort((x, y) => (b.all[dir][y] || 0) - (b.all[dir][x] || 0));

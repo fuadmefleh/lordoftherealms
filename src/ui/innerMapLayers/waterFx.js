@@ -32,7 +32,7 @@ const DEFAULTS = {
         period: 5.2, from: 1.25, to: 0.06, inShare: 0.55, roll: 0.09,
         thick: 0.09, dashes: 4, gap: 0.22,
         foam: '#eaf8ff', wash: '#bfe7ff', alpha: 0.85, washAlpha: 0.22,
-        kinds: { sea: 1, lake: 0.7, pond: 0.35, river: 0.3 },
+        kinds: { sea: 1, lake: 0.85, pond: 0.6, river: 0.75 },
         splashEvery: 7, splashKinds: ['sea', 'lake'],
     },
     glint: { density: 0.08, cycle: [3.5, 7], fps: 7, alpha: 0.9, nightAlpha: 0.3, rippleKinds: ['pond'] },
@@ -120,7 +120,10 @@ Object.assign(InnerMapRenderer, {
                 // (a river's banks lap gently in the surf field, _waterFxField; its cells
                 // keep their sparkles drifting downstream, bank or no)
                 if (kind === 'river') {
-                    if (h < cfg.river.density) cell = { q, r, kind, river: true, h, fx: flow ? flow[0] : 0, fy: flow ? flow[1] : 0 };
+                    // (a sparkle drifts most of a tile either way: only where there is water all round,
+                    // else it slides off over the painted bank onto the grass)
+                    const open = !sides && !land(q - 1, r - 1) && !land(q + 1, r - 1) && !land(q - 1, r + 1) && !land(q + 1, r + 1);
+                    if (open && h < cfg.river.density) cell = { q, r, kind, river: true, h, fx: flow ? flow[0] : 0, fy: flow ? flow[1] : 0 };
                 } else if (sides && _num(cfg.surf.kinds[kind], 0) > 0) {
                     cell = { q, r, kind, sides, h, strength: _num(cfg.surf.kinds[kind], 0) };
                 } else if (!sides && h < cfg.glint.density) {

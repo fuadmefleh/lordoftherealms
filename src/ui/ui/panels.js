@@ -806,6 +806,11 @@ Object.assign(UI.prototype, {
             informants: '🕵️ Informant Upkeep',
             propertyUpkeep: '🏗️ Property Upkeep',
         };
+        // Hover: what the line is (data/chronicle.json ledger.categories desc)
+        const tip = (k) => {
+            const d = Ledger.category(k).desc;
+            return d ? ` title="${String(d).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"` : '';
+        };
 
         let html = '<div style="max-height: 500px; overflow-y: auto;">';
 
@@ -847,7 +852,7 @@ Object.assign(UI.prototype, {
                 const pct = totalIncome > 0 ? Math.round(incomeByType[k] / totalIncome * 100) : 0;
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
-                        <span style="color: var(--text-secondary);">${labels[k] || Ledger.category(k).name}</span>
+                        <span style="color: var(--text-secondary);"${tip(k)}>${labels[k] || Ledger.category(k).name}</span>
                         <span style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
                                 <span style="display: block; width: ${pct}%; height: 100%; background: #27ae60; border-radius: 3px;"></span>
@@ -869,7 +874,7 @@ Object.assign(UI.prototype, {
                 const pct = totalExpenses > 0 ? Math.round(expenseByType[k] / totalExpenses * 100) : 0;
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px;">
-                        <span style="color: var(--text-secondary);">${labels[k] || Ledger.category(k).name}</span>
+                        <span style="color: var(--text-secondary);"${tip(k)}>${labels[k] || Ledger.category(k).name}</span>
                         <span style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 60px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; display: inline-block; overflow: hidden;">
                                 <span style="display: block; width: ${pct}%; height: 100%; background: #e74c3c; border-radius: 3px;"></span>

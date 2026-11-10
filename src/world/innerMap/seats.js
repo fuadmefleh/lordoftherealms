@@ -131,7 +131,10 @@ Object.assign(InnerMap, {
         if (s.colony && s.colony.isPlayerColony) return true;
         if ((player.colonies || []).some(c => c.q === wt.q && c.r === wt.r)) return true;
         const ruling = player.throne && player.throne.ruling;
-        return !!(ruling && ruling.kingdomId != null && s.kingdom != null && ruling.kingdomId === s.kingdom);
+        if (ruling && ruling.kingdomId != null && s.kingdom != null && ruling.kingdomId === s.kingdom) return true;
+        // A great lord's own seat: the town of their House's library (systems/library.js holdsSeat)
+        const lib = player.library;
+        return !!(lib && lib.holdsSeat && lib.seat && lib.seat.q === wt.q && lib.seat.r === wt.r);
     },
 
     /**

@@ -387,6 +387,8 @@ export const SaveLoad = {
         'annalsPast',
         // Origin, difficulty and victory goal (player/scenarios.js, core/difficulty.js)
         'scenario',
+        // A seat's own library and the books written for it (systems/library.js; player/startKnowledge.js)
+        'library',
         // A commission in a realm's army, and the ones laid down (player/generalship.js)
         'commission', 'commissionPast',
         // Lots, rented and bought houses in town (systems/lots.js: rent day reads it)

@@ -1,6 +1,22 @@
 {
     "_comment": "Books on inner-map bookshelves (systems/books.js). A shelf offers the unread books its place could hold (tier: village 1, town 2, capital/temple/library 3); each reading advances the open book by one sitting (two sittings a day count at most); finishing it grants its reward once. Rewards: skills (capped at 10), stats (capped by devotion's statCaps.intelligence share via Devotion.raiseStat), knowledge (an extinct faith discovered, tiles revealed around the reader).",
     "config": { "sittingsPerDay": 2, "tierBySettlement": { "village": 1, "town": 2, "city": 2, "capital": 3 }, "templeTier": 3, "idleFun": 20 },
+    "libraries": {
+        "_doc": "A seat's own library (systems/library.js; founded by player/startKnowledge.js for the advanced starts). Its books are written from the world when it is founded (the realm's chronicle, the royal roll, maps, the faith's annals, the guild's rolls) and come first at a shelf inside one of the seat's buildings; each sitting reads out pagesPerSitting pages (sittings between minSittings and maxSittings). neighbours: how many neighbouring realms the royal library has maps and letters of.",
+        "pagesPerSitting": 2, "minSittings": 3, "maxSittings": 8, "neighbours": 3,
+        "buildings": {
+            "royal": ["castle", "manor", "town_hall", "library"],
+            "lordly": ["manor", "castle", "town_hall", "library"],
+            "temple": ["temple", "church", "cathedral", "monastery", "chapel", "library"],
+            "guild": ["guildhall", "town_hall", "library"]
+        },
+        "names": {
+            "royal": "the Royal Library of {town}",
+            "lordly": "the Library of {town}",
+            "temple": "the Library of the {temple}",
+            "guild": "the Archive of the {guild}"
+        }
+    },
     "books": [
         { "id": "art_of_command", "title": "The Art of Command", "author": "Marshal Edric Vane", "tier": 1, "sittings": 3, "topic": "battle tactics", "reward": { "skills": { "leadership": 0.6 } }, "finish": "You close Vane's book with a new eye for the line of a battle." },
         { "id": "ledgers_of_merathis", "title": "The Ledgers of Merathis", "author": "a nameless factor", "tier": 1, "sittings": 3, "topic": "trade and credit", "reward": { "skills": { "commerce": 0.6 } }, "finish": "Credit, carriage, margin — the factor's ledgers finally make sense." },

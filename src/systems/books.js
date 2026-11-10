@@ -12,10 +12,17 @@
 //
 // State on player.reading (saved). The shelf's pick is a hash of the shelf
 // and the books already read: no RNG. Content: data/books.json.
+//
+// A seat's own library (systems/library.js, player.library): at a shelf
+// inside the seat (ctx.townKey + ctx.building) its unread books come first.
+// They are written from the world (the realm's chronicle, maps, the faith's
+// annals...): each sitting reads out a passage of the book's pages, and
+// finishing one also grants its lore, realms known, land charted.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { Devotion } from './devotion.js';
+import { Library } from './library.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -49,8 +56,9 @@ export const Books = {
         return Array.isArray(Books.data().books) ? Books.data().books : [];
     },
 
-    book(id) {
-        return Books.list().find(b => b.id === id) || null;
+    /** A book by id: the shelves' (data/books.json), or one of the player's library. */
+    book(id, player = null) {
+        return Books.list().find(b => b.id === id) || Library.book(player, id) || null;
     },
 
     state(player) {
@@ -88,7 +96,14 @@ export const Books = {
     /** The book the next sitting would be spent on (the open one, or the shelf's pick). */
     nextBook(player, ctx = {}) {
         const st = Books.state(player);
-        if (st.current && !st.finished.includes(st.current) && Books.book(st.current)) return Books.book(st.current);
+        const atLibrary = Library.isAt(player, ctx);
+        const open = st.current && !st.finished.includes(st.current) ? Books.book(st.current, player) : null;
+        // (a library's book stays on its shelves: away from them, the shelf's pick)
+        if (open && (!open.library || atLibrary)) return open;
+        if (atLibrary) {
+            const lib = Library.unread(player, st.finished);
+            if (lib.length) return lib.find(b => _num(st.progress[b.id]) > 0) || lib[0];
+        }
         const avail = Books.available(player, Books.shelfTier(ctx));
         if (!avail.length) return null;
         return avail[_hash(`${ctx.shelfKey || ''}:${st.finished.length}`) % avail.length];
@@ -112,17 +127,28 @@ export const Books = {
         }
         st.today.n += 1;
         const pace = 1 + Devotion.tenet(player, 'reading');
-        st.progress[book.id] = _r2(Math.min(sittings, _num(st.progress[book.id]) + pace));
+        const before = _num(st.progress[book.id]);
+        st.progress[book.id] = _r2(Math.min(sittings, before + pace));
         const progress = st.progress[book.id];
+        // A library book reads out its passage for the sitting
+        const passage = book.library ? Library.passage(book, before, progress) : [];
+        const said = passage.length ? `"${passage.join(' ')}"` : '';
         if (progress < sittings) {
-            return { text: `You read on in ${book.title} by ${book.author} — ${book.topic}. (${Math.floor(progress)}/${sittings})`, book, progress, sittings, counted: true, finished: false, rewards: [] };
+            return { text: `You read on in ${book.title} by ${book.author} — ${book.topic}. (${Math.floor(progress)}/${sittings})${said ? ` ${said}` : ''}`, book, progress, sittings, counted: true, finished: false, rewards: [], passage };
         }
         // Finished: the reward, once
         st.finished.push(book.id);
         st.current = null;
         delete st.progress[book.id];
         const rewards = Books._reward(player, world, book);
-        return { text: `${book.finish || `You finish ${book.title}.`}${rewards.length ? ` (${rewards.join(', ')})` : ''}`, book, progress: sittings, sittings, counted: true, finished: true, rewards };
+        let more = '';
+        if (book.library) {
+            rewards.push(...Library.reward(player, world, book.reward || {}));
+            const lib = Library.state(player);
+            const left = Library.unread(player, st.finished).length;
+            if (lib) more = left ? ` ${left} more ${left === 1 ? 'book waits' : 'books wait'} in ${lib.name}.` : ` You have read every book in ${lib.name}.`;
+        }
+        return { text: `${said ? `${said} ` : ''}${book.finish || `You finish ${book.title}.`}${rewards.length ? ` (${rewards.join(', ')})` : ''}${more}`, book, progress: sittings, sittings, counted: true, finished: true, rewards, passage };
     },
 
     _reward(player, world, book) {

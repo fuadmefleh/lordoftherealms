@@ -221,6 +221,17 @@
     }
   },
 
+  "knowledge": {
+    "_doc": "What each advanced start knows on day one (player/startKnowledge.js): radii in hexes of land charted (tile.explored), livingMemory in years of the realm's world history already known (the rest is in the seat's library), fluency (0-100) in neighbouring/minority tongues, how many people are already acquainted (people.score: their regard). Libraries: data/books.json → libraries.",
+    "monarch": { "ring": 2, "livingMemory": 100, "minorityFluency": 70, "neighbourFluency": 35, "neighbours": 3 },
+    "great_lord": { "seatRadius": 6, "estateRadius": 2, "capitalRadius": 2, "livingMemory": 60, "vassals": 2, "lords": 2, "neighbourFluency": 20 },
+    "high_priest": { "siteRadius": 1, "capitalRadius": 2, "townRadius": 1, "livingMemory": 60, "clergy": 4, "faithFluency": 40 },
+    "guildmaster": { "homeRadius": 3, "reach": 18, "towns": 5, "merchants": 4, "fluency": 50, "farTowns": 6, "farReach": 26 },
+    "general": { "depth": 4, "campRadius": 5, "enemyFluency": 30, "mapAccuracy": 0.85 },
+    "crime_lord": { "cityRadius": 3, "fluency": 40 },
+    "people": { "score": 25 }
+  },
+
   "difficulty": {
     "easy":   { "name": "Easy",   "blurb": "A richer start, kinder markets, fewer wars, softer foes, gentler sickness.", "startGold": 1.5, "buyPrice": 0.9, "sellPrice": 1.1, "hostility": 0.6, "enemyStrength": 0.8, "illness": 0.6 },
     "normal": { "name": "Normal", "blurb": "The world as it is.", "startGold": 1, "buyPrice": 1, "sellPrice": 1, "hostility": 1, "enemyStrength": 1, "illness": 1 },

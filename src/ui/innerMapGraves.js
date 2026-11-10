@@ -25,7 +25,7 @@ import { Utils } from '../core/utils.js';
 import { InnerMapDigging } from './innerMapDigging.js';
 import { ActionMenu } from './actionMenu.js';
 
-const PANEL_ITEM = { type: 'action', action: 'grave_panel', label: 'Graveyards & the Dead', icon: '🪦', desc: 'Your grounds, leases, bones, mills and your own dead' };
+const PANEL_ITEM = { type: 'action', action: 'grave_panel', label: 'Graveyards & the Dead', icon: '⚰️', desc: 'Your grounds, leases, bones, mills and your own dead' };
 
 function _fill(line, vars) {
     return String(line || '').replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
@@ -67,12 +67,12 @@ export const InnerMapGraves = {
         const ref = { groundId: at.ground.id, plot: at.i, gq: at.q, gr: at.r };
         if (!info) {
             const open = at.ground.open && at.ground.open[at.i] != null;
-            items.push({ type: 'header', label: open ? '🕳️ An Open Grave' : at.ground.owner === 'player' ? '🪦 An Empty Plot — Yours' : '🪦 An Empty Plot' });
+            items.push({ type: 'header', label: open ? '🕳️ An Open Grave' : at.ground.owner === 'player' ? '⚰️ An Empty Plot — Yours' : '⚰️ An Empty Plot' });
             if (at.ground.owner === 'player') items.push(PANEL_ITEM);
             return items;
         }
         const g = info.grave;
-        items.push({ type: 'header', label: info.legible ? `🪦 ${g.name}` : '🪦 An Old Grave' });
+        items.push({ type: 'header', label: info.legible ? `⚰️ ${g.name}` : '⚰️ An Old Grave' });
         items.push({ type: 'action', action: 'grave_read', label: info.legible ? 'Read the Grave' : 'Look at the Grave', icon: '📜', desc: info.legible ? 'Who lies here, and since when' : 'The marker is long gone', ...ref });
         items.push({ type: 'action', action: 'grave_respects', label: 'Pay Your Respects', icon: '🕯️', desc: 'Stand a while by the grave', ...ref });
         if (info.mine && info.expired && !g.kin) {
@@ -98,7 +98,7 @@ export const InnerMapGraves = {
                 const info = s && Graveyards.graveAt(world, s, item.groundId, item.plot);
                 if (!info) return true;
                 const g = info.grave;
-                if (!info.legible) { _note(game, '🪦 An Old Grave', GraveBook.config().text.unmarked || 'Its marker is long gone.'); return true; }
+                if (!info.legible) { _note(game, '⚰️ An Old Grave', GraveBook.config().text.unmarked || 'Its marker is long gone.'); return true; }
                 const lines = [GraveBook.epitaph(g, world)];
                 if (g.cause) lines.push(`Taken by ${g.cause}.`);
                 const years = GraveBook.yearsBetween(g.died, world.day);
@@ -107,7 +107,7 @@ export const InnerMapGraves = {
                 else if (g.until == null) lines.push('Held in perpetuity.');
                 else if (info.expired) lines.push('Its lease has run out.');
                 else lines.push(`Leased until ${GraveBook.yearOf(g.until, world)}.`);
-                _note(game, `🪦 ${(GraveBook.markerDef(info.marker) || {}).name || 'A Grave'}`, lines.join(' '));
+                _note(game, `⚰️ ${(GraveBook.markerDef(info.marker) || {}).name || 'A Grave'}`, lines.join(' '));
                 return true;
             }
             case 'grave_respects': {

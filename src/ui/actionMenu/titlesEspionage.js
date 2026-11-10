@@ -569,6 +569,7 @@ Object.assign(ActionMenu, {
      */
     close() {
         const menu = document.getElementById('actionMenu');
+        if (menu && typeof menu._amxCleanup === 'function') menu._amxCleanup();
         if (menu) menu.remove();
         const tooltip = document.getElementById('actionTooltip');
         if (tooltip) tooltip.remove();

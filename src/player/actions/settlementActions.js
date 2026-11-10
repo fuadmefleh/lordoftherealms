@@ -196,6 +196,7 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
                 label: 'Your Lots & Town Houses',
                 icon: '🏘️',
                 description: `${held.length} held${here ? `, ${here} here` : ''}${tenants ? `, ${tenants} let` : ''}${owed ? `, ${owed}g in arrears` : ''}: build, let, put out, sell`,
+                notice: owed ? `${owed}g of rent in arrears` : null,
             });
         }
     }
@@ -208,8 +209,9 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         actions.push({
             type: 'graveyards',
             label: 'Graveyards & the Dead',
-            icon: '🪦',
+            icon: '⚰️',
             description: `The churchyard and the charnel house${work ? `, ${work} grave${work === 1 ? '' : 's'} to dig` : ''}${sites ? `, ${sites} work${sites === 1 ? '' : 's'} of yours` : ''}${kin ? `, ${kin} of yours awaiting burial` : ''}: plots, bones, burial grounds`,
+            notice: kin ? `${kin} of your own awaiting burial` : work ? `${work} grave${work === 1 ? '' : 's'} to dig` : null,
         });
     }
 

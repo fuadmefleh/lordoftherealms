@@ -483,7 +483,7 @@ export const Graveyards = {
             }
             if (!renewed) {
                 gr.lapsed = day;
-                notices.push({ icon: '🪦', title: 'A Lease Runs Out', type: 'info', text: `The lease on ${gr.name}'s grave in your ground at ${s.name} has run out, and no one has renewed it. Clear it to free the plot.` });
+                notices.push({ icon: '⚰️', title: 'A Lease Runs Out', type: 'info', text: `The lease on ${gr.name}'s grave in your ground at ${s.name} has run out, and no one has renewed it. Clear it to free the plot.` });
             }
         }
     },

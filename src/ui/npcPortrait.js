@@ -3,7 +3,7 @@
 // NPC's emoji (the caller's element) while sprites load or when there are none.
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { DataLoader } from '../core/dataLoader.js';
-import { appearancePresetId, registerAppearance } from './playerAppearance.js';
+import { appearancePresetId, registerAppearance, gearKit } from './playerAppearance.js';
 
 // The head-and-shoulders region of a 64×64 LPC frame
 const CROP_X = 14, CROP_Y = 10, CROP = 36;
@@ -34,9 +34,9 @@ export const NpcPortrait = {
         return _loading;
     },
 
-    /** The player's own sprite: the look they chose, else a noble of their gender. */
+    /** The player's own sprite: the look they chose (in the arms they wear), else a noble of their gender. */
     playerPreset(player) {
-        if (player && player.appearance) return appearancePresetId(player.appearance);
+        if (player && player.appearance) return appearancePresetId(player.appearance, gearKit(player));
         const gender = player && player.gender === 'female' ? 'female' : 'male';
         return `${gender}_noble`;
     },
@@ -62,7 +62,7 @@ export const NpcPortrait = {
         }
         const subject = { preset };
         this.ensureLoaded()
-            .then(() => (player && player.appearance ? registerAppearance(player.appearance) : null))
+            .then(() => (player && player.appearance ? registerAppearance(player.appearance, gearKit(player)) : null))
             .then(() => {
                 if (!el.dataset || el.dataset.preset !== preset) return;
                 el.classList.toggle('has-sprite', this.hasSprite(subject));

@@ -1,7 +1,7 @@
 // UI — panels methods.
 import { UI } from './core.js';
 import { applyUiScale } from '../uiScale.js';
-import { icon, titleCrest, glyphLabel } from '../icons.js';
+import { icon, titleCrest, glyphLabel, itemIcon } from '../icons.js';
 import { PanelRefresh } from '../panelRefresh.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Traits } from '../../systems/traits.js';
@@ -988,7 +988,7 @@ Object.assign(UI.prototype, {
                 inventoryHtml += `
                     <div${title} style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span>${icon} ${name}${goodInfoIcon(itemId)}${quality}${worth}</span>
+                            <span>${itemIcon(itemId, icon, 20)} ${name}${goodInfoIcon(itemId)}${quality}${worth}</span>
                             <span style="color: var(--gold);">×${quantity}</span>
                         </div>${extra}
                     </div>

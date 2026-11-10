@@ -5,3 +5,12 @@ Fishing pole icon (fishing_pole.png, fishing_pole_64.png, fishing_pole_raw.png)
   LICENSE: OpenAI terms assign output rights to the user; confirm before any public release.
   DETAILS: Inventory/hotbar icon, transparent. fishing_pole.png 32x32 (one tile),
            fishing_pole_64.png 64x64, fishing_pole_raw.png the 1254x1254 original.
+
+Arms & stuffs icons (arms/*.png)
+-------------------
+  ARTIST(S): generated with ChatGPT (OpenAI image generation) at the user's request, 2026-11-10,
+             two icon sheets (assets/lpc/new/arms/icons_arms_source.png, icons_wear_source.png)
+             drawn after the fishing-rod icon; cut and keyed by scripts/make_arms_icons.py.
+  LICENSE: OpenAI terms assign output rights to the user; confirm before any public release.
+  DETAILS: 64x64, transparent: every arms good (weapons, shields, helms, body armour) and
+           tin, bronze bar, steel, haft, grip, shield boss, whetstone, arrows.

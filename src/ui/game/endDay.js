@@ -6,6 +6,7 @@ import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDyna
 import { DayClock } from './dayClock.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
@@ -214,6 +215,11 @@ export function endDay() {
         try {
             // A choice scene left open (sea, digs, prison, duties) is settled first (ui/actionMenu/choiceScenes.js)
             settleScene(this);
+            // The day's last hours: points left over go on the character's own
+            // upkeep — a wash, clean clothes, a bed, an evening's company
+            // (player/autoUpkeep.js; Settings → The Day's Last Hours)
+            const upkeep = AutoUpkeep.run(this.player, this.world, { mode: this.ui && this.ui._autoUpkeep });
+            if (upkeep) this.ui.showNotification('🌙 The Day\'s Last Hours', upkeep.text, 'info');
             // Process player's daily activities
             const playerResults = PlayerActions.endDay(this.player, this.world);
             // A night between: whatever a deep dive took, the breath is back (player/diving.js)

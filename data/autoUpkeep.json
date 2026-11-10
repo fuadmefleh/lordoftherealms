@@ -1,0 +1,55 @@
+{
+    "_doc": "The day's last hours (src/player/autoUpkeep.js). When the player ends the day with action points left, their character spends them on their own upkeep, most pressing need first, using the game's own actions at their own costs: eat from the pack, bathe, wash clothes, make camp, take a room, talk with the locals, sit by a campfire, a hotel's bathhouse or supper. Coin goes to the town that gave the service. The setting (Settings > Gameplay > The Day's Last Hours) chooses 'full' (upkeep and leisure), 'upkeep' (only needs that matter: food, clean body and clothes, a bed) or 'off'.",
+    "enabled": true,
+    "below": {
+        "_comment": "A need under this value is worth seeing to (0..100). Clothes: freshness.",
+        "hunger": 45,
+        "hygiene": 55,
+        "clothes": 55,
+        "energy": 45,
+        "comfort": 45,
+        "social": 50,
+        "fun": 50
+    },
+    "weight": {
+        "_comment": "How much each need's shortfall counts when choosing what to do first.",
+        "hunger": 1.4,
+        "hygiene": 1.0,
+        "clothes": 0.9,
+        "energy": 1.2,
+        "comfort": 0.7,
+        "social": 0.6,
+        "fun": 0.6
+    },
+    "coin": {
+        "_comment": "The most the character spends on itself in an evening: maxPerDay, and never more than purseShare of the purse. 'upkeep' mode spends only on rooms, baths and laundry.",
+        "maxPerDay": 15,
+        "purseShare": 0.2
+    },
+    "coldBath": {
+        "_comment": "A wild bath colder than this (comfort, data/hospitality.json bathing.cold) is only taken when hygiene is under 'unless'.",
+        "colderThan": -10,
+        "unless": 25
+    },
+    "chat": {
+        "_comment": "Talk with the locals (the Talk to Locals / tavern-talk action: 1 AP, its own need effects). At most 'times' a night.",
+        "ap": 1,
+        "needs": { "social": 10, "fun": 3 },
+        "times": 2
+    },
+    "campfire": {
+        "_comment": "Build a campfire (the Build Campfire action: 2 AP, 2 wood, its warmth and its need effects).",
+        "ap": 2,
+        "wood": 2,
+        "heal": 15,
+        "needs": { "comfort": 10, "fun": 3 }
+    },
+    "services": {
+        "_comment": "Inn and hotel services (data/hospitality.json services) the character may buy for itself, by what they are for. Rooms: the cheapest tier at or above 'room'.",
+        "laundry": "laundry",
+        "bath": "bath",
+        "supper": "supper",
+        "leisure": ["bathhouse", "fine_dining"],
+        "room": "private"
+    }
+}

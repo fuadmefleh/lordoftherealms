@@ -10,6 +10,7 @@
 // of the harness is to exercise the same sequence the player gets.
 
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Lots } from '../../systems/lots.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
@@ -204,6 +205,11 @@ function _endDay(game) {
     game.trace = [];
     mark(game, 'start');
 
+    // The day's last hours (player/autoUpkeep.js). The bot sees to its own needs
+    // and spends its points on work, so it's off unless a run asks for it
+    // (game.autoUpkeep = 'full' | 'upkeep'); what it did is kept on game.upkeep.
+    game.upkeep = game.autoUpkeep ? AutoUpkeep.run(player, world, { mode: game.autoUpkeep }) : null;
+    mark(game, 'AutoUpkeep.run');
     PlayerActions.endDay(player, world);
     mark(game, 'PlayerActions.endDay');
     Councils.processDaily(player, world);

@@ -96,6 +96,8 @@ const EXPECTED_KEYS = [
     '_serviceResult', 'showBlacksmithMenu', 'showBlessingMenu', 'showStableMenu', 'showGuardMenu',
     'showTributeMenu', 'showAudienceMenu', 'OUTLAW_REFUSED_ACTIONS', 'refuseIfOutlawed',
     'REALM_POLITICS_AP', 'showRealmWarsMenu', 'showRestorationMenu', '_realmResult',
+    // A commission in a realm's army (ui/actionMenu/generalship.js): +2
+    'showArmyCommand', 'armyAct',
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
@@ -159,8 +161,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 375 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(375);
+    it('has 377 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(377);
     });
 
     it('every member except the known data props is a function', () => {

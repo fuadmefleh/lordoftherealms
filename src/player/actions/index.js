@@ -32,6 +32,7 @@ import { Petitions } from '../../systems/petitions.js';
 import { Holdings } from '../../systems/holdings.js';
 
 import { RealmPolitics } from '../realmPolitics.js';
+import { Generalship } from '../generalship.js';
 import { SeasonalWork } from '../seasonalWork.js';
 import { Prison } from '../prison.js';
 import { addSettlementActions } from './settlementActions.js';
@@ -431,6 +432,9 @@ export const PlayerActions = {
 
         // A share of the tribute when a liege you fought for wins its war
         results.warSpoils = RealmPolitics.processDaily(player, world);
+
+        // A commission in a realm's army: the host, wages, supplies, sieges, orders, the court
+        results.generalship = Generalship.processDay(player, world);
 
         // Spring planting contracts pay out at the harvest
         results.plantingContracts = SeasonalWork.processDaily(player, world);

@@ -671,6 +671,11 @@ Object.assign(ActionMenu, {
             const league = player.coalitions && player.coalitions.active;
             html += `<button data-am-act="showThreatsPanel" style="width:100%; padding:8px; margin-bottom:10px; background:${league ? '#5a1f1f' : '#2f2a3a'}; border:1px solid rgba(224,128,128,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0c0c0;">⚜️ Threats${league ? ` — ${league.name}` : ''}</button>`;
         }
+        {
+            // A commission in a realm's army (ui/actionMenu/generalship.js)
+            const cm = player.commission;
+            html += `<button data-am-act="showArmyCommand" style="width:100%; padding:8px; margin-bottom:10px; background:#3a3324; border:1px solid rgba(201,165,74,0.4); border-radius:4px; cursor:pointer; font-weight:bold; color:#f0d890;">🎖️ Army Command${cm ? ` — ${cm.kingdomName}` : ''}</button>`;
+        }
         html += `<button data-am-act="showHouseChronicle" style="width:100%; padding:8px; margin-bottom:10px; background:#3d3424; border:1px solid rgba(255,215,0,0.3); border-radius:4px; cursor:pointer; font-weight:bold; color:var(--gold);">📜 House Chronicle</button>`;
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
         html += `<button data-am-act="showAnnals" style="width:100%; padding:8px; margin-bottom:10px; background:#2e2a22; border:1px solid rgba(201,178,122,0.35); border-radius:4px; cursor:pointer; font-weight:bold; color:#e8dcc0; font-family: Georgia, serif;">📖 The Annals</button>`;

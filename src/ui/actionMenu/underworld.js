@@ -2,7 +2,8 @@
 //   🔪 Streets  — the town's gangs (systems/gangs.js): who runs which streets,
 //                the watch's crackdown and who has bought its captain and
 //                magistrate; joining a crew, its errands, rising in it,
-//                challenging the boss, founding your own; and, as boss, the
+//                challenging the boss, founding your own; each gang's books
+//                (taken and paid by kind, last week and all time); and, as boss, the
 //                cut, crew, lieutenants, the bought watch, dens, smuggling,
 //                war and truce, the purse.
 //   🗝️ Guild    — heat per realm, guild rank, jobs and heists (systems/underworld.js).
@@ -41,6 +42,30 @@ function btn(on, call, text, style = BTN_GOLD, title = '') {
 
 // ── 🔪 Streets ──────────────────────────────────────────
 
+const g0 = v => `${Math.floor(v || 0)}g`;
+
+/** A gang's books (Gangs.bookView): last week and all time, taken and paid, by kind. */
+function booksHtml(b) {
+    if (!b || !b.all) return '';
+    const last = b.last || { took: 0, paid: 0, in: {}, out: {} };
+    const weeks = Math.max(1, b.weeks);
+    let html = `<div style="${NOTE}">📒 Last week took ${g0(last.took)}, paid out ${g0(last.paid)} · all time${b.weeks ? ` (${b.weeks} wk)` : ''} took ${g0(b.all.took)} (≈${g0(b.all.took / weeks)}/wk), paid ${g0(b.all.paid)} (≈${g0(b.all.paid / weeks)}/wk)</div>`;
+    const rows = (dir) => {
+        const labels = Gangs.BOOK_LABELS[dir];
+        const kinds = Object.keys({ ...b.all[dir], ...((b.cur || {})[dir] || {}) }).sort((x, y) => (b.all[dir][y] || 0) - (b.all[dir][x] || 0));
+        return kinds.map(k => `<tr><td>${esc(labels[k] || label(k))}</td><td style="text-align:right;">${g0(last[dir][k])}</td><td style="text-align:right;">${g0(b.all[dir][k])}</td></tr>`).join('');
+    };
+    const head = (t) => `<tr style="color:#ccc;"><th style="text-align:left;">${t}</th><th style="text-align:right;">last wk</th><th style="text-align:right;">all time</th></tr>`;
+    const ins = rows('in');
+    const outs = rows('out');
+    if (ins || outs) {
+        html += `<details style="font-size:11px; color:#bbb;"><summary style="cursor:pointer;">The books</summary><table style="width:100%; border-collapse:collapse;">`
+            + `${ins ? head('Taken') + ins : ''}${outs ? head('Paid out') + outs : ''}</table>`
+            + `${b.cur && (b.cur.took || b.cur.paid) ? `<div>This week so far: took ${g0(b.cur.took)}, paid ${g0(b.cur.paid)}.</div>` : ''}</details>`;
+    }
+    return html;
+}
+
 function streetsTab(game, tile) {
     const player = game.player;
     const world = game.world;
@@ -72,6 +97,7 @@ function streetsTab(game, tile) {
         if (g.ownsMagistrate) tags.push('owns the magistrate');
         if (g.raids) tags.push(`raided ${g.raids}×`);
         html += `<div style="${NOTE}">${tags.join(' · ')}</div>`;
+        html += booksHtml(g.books);
         if (!v.membership && !g.banned && !g.bossIsYou) {
             const can = sum.contactMet || sum.member;
             html += btn(can, `window._uw.gang('join','${g.id}')`, `Ask to run with them`, BTN_GOLD, can ? '' : 'Find a guild contact first (a barkeep, "special work")');

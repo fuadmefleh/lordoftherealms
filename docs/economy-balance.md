@@ -1370,6 +1370,53 @@ No broke days, starvation or deaths either way. Odd jobs still pay: a town short
 - The craftsmen's goods and the other faucets listed above.
 - The tick cost was not re-measured. The trade pass adds a few arithmetic steps per lot.
 
+## Gangs and the towns' purses (2026-11)
+
+The towns' gangs (`systems/gangs.js`, `data/underworld.json` → `gangs`) take coin out of their towns' purses each week (protection, dice dens, black-market sales, fenced goods resold) and pay it back (wages, recruits, the boss living high, dens opened, the bought watch, raids), and pay foreign towns for the contraband they smuggle in. Every movement is now booked on the gang (`Gangs._book` → `g.books`: this week, last week and all time, by kind), and the 🔪 Streets tab shows each gang's books.
+
+**How it was measured.** `GANGSIM=1 npx vitest run src/__tests__/gangs.econ.sim.test.js` (`GSEEDS`, `GDAYS`, `GSAMPLE`). Each seed's harness world (the player fed and idle) runs twice for the same days: as the game plays it, and with `Gangs.processDay` switched off (no gang is ever seeded). It prints the coin of the towns that keep gangs (towns, cities, capitals), their median purse, the coin the gangs and the bought watch hold, and the gangs' books. Seeds 101–505, 480 days.
+
+**Before** (the gangs as merged; seeds 101 / 202 / 303):
+
+| | d121 | d481 |
+|---|---|---|
+| Coin held by the gangs | 23.3k / 21.9k / 24.7k | 15.6k / 10.6k / 9.3k |
+| Coin held by the bought watch | 1.5k / 1.4k / 1.2k | 1.7k / 1.6k / 1.6k |
+| Coin of the gang towns themselves | 27.8k / 32.6k / 12.4k | 10.7k / 17.0k / 8.8k |
+| Taken from the towns, a week (all-time average) | 9.8k / 9.7k / 10.9k | 5.0k / 5.3k / 4.9k |
+
+The gangs held about as much coin as the 22–24 towns they live in. Protection was mostly per head (0.03g a head a week, while towns hold 0.2–0.5g a head), dens took 0.012g a head each, the townsfolk's black-market buying had no budget, and an NPC boss kept eight weeks of wages plus a den's price before spending anything.
+
+**What changed.**
+- Protection: 3.5% of the purse + 0.004g a head (max 200), was 1.2% + 0.03g (max 400).
+- Dens: 1.5% of the purse + 0.003g a head each (max 80), was 0.012g a head (max 160). Opening one costs 150g (was 220).
+- The black market: the townsfolk spend at most 4% of the town's purse a week across its gangs (`blackMarket.purseShare`). Legal goods sold to the town's market are only handed over as far as the town pays for them (before, the goods went in even when the purse came up short).
+- Wages 1.5g a man (was 3) and a lieutenant's wage of its own, 6g (`lieutenantWage`; it was the player's lieutenant pay, 22g). Recruits 15g (was 25). New gangs start with 1–2 men a thousand (was 2–4), a first purse of at most 300g (was 450).
+- The war chest: three weeks' wages and a den's price, half of the excess spent in town each week (was eight weeks, 30%). The bought watch spends half its purse a week (was a quarter). Retainers 8g (captain) and 6g (magistrate) a guard point (were 18 and 14).
+
+**After** (seeds 101 / 202 / 303 / 404 / 505):
+
+| | d121 | d481 |
+|---|---|---|
+| Coin held by the gangs | 6.0k / 5.4k / 4.6k / 4.6k / 7.0k | 3.1k / 2.7k / 2.2k / 2.4k / 2.3k |
+| Coin held by the bought watch | 0.1–0.2k | 0.07–0.2k |
+| Gang towns' coin, with gangs / without | 32.6 / 37.1k, 35.6 / 36.0k, 12.3 / 17.3k, 14.2 / 9.4k, 25.0 / 25.7k | 21.9 / 12.8k, 17.7 / 17.9k, 15.4 / 7.0k, 12.7 / 7.3k, 7.2 / 17.3k |
+| Median gang town, with / without | 320 / 320, 304 / 303, 368 / 427, 355 / 309, 375 / 352 | 283 / 177, 197 / 271, 244 / 280, 193 / 147, 233 / 227 |
+| All towns' coin, with / without | 67 / 71k, 82 / 90k, 80 / 83k, 55 / 53k, 104 / 105k | 78 / 71k, 109 / 109k, 100 / 84k, 67 / 64k, 112 / 155k |
+| Last week taken / paid back | 2.9 / 3.4k, 2.4 / 2.7k, 2.0 / 2.5k, 2.2 / 2.5k, 2.8 / 3.4k | 1.6 / 1.4k, 1.8 / 1.8k, 1.6 / 1.7k, 1.3 / 1.3k, 1.3 / 1.1k |
+
+Over the 480 days, by kind (seed 101): taken: dens 73.6k, protection 50.7k, black market 26.9k, first purses 3.6k, fenced goods 2.3k, plunder 1.0k; paid: wages 68.0k, the bosses' spending 41.8k, contraband bought abroad 15.6k, recruits 13.5k, bribes to the watch 8.9k, raids 5.0k, dens opened 2.7k. The other seeds are alike (dens 60–72k, protection 35–46k, black market 24–43k, wages 55–70k, smuggling 23–34k).
+
+**Reading it.**
+- The with/without runs diverge from the first gang week, and the spread is wider than the gangs' effect: the gang towns' coin at day 481 ranges from −58% to +120% against the run without gangs, and all towns' coin from −28% to +18%, both ways across the seeds. The direct measure is the books: in steady state the gangs pay back about what they take each week (1.3–1.8k taken, 1.1–1.8k paid, over 21–24 towns: 55–85g a town a week), and they and the watch hold 2.3–3.3k between them, 2–5% of all towns' coin (it was 11–17k, about as much as the gang towns held).
+- The drain that remains is real: the weekly take is 7–18% of an average gang town's coin (the cities and capitals hold most of it; a small town's protection is a few gold a week). Most of it comes back as wages and spending, but 10–20% of the take goes abroad as contraband bought in other realms' towns (paid into their purses: trade, not a leak), and the gangs keep a small war chest. The first 120 days take more (5–6k a week), because the towns start with more coin than they settle to.
+- Gang towns under 50g at day 481: 1–6 of 21–24 with gangs, 2–5 without.
+
+**Also in this pass.**
+- **Word to your crew** from a cell (`Prison.sendWord`): the gaoler's bribe is paid out of the gang's purse into the town, a breakout's men are paid from the purse and spend it in town, and the kept magistrate's fee goes into his purse. All three are booked on the gang (`springing`).
+- **Containers** in someone else's building (`Containers.larder`): what the owner has is topped up each 14 days out of the town's market stock (bought from the town's own sellers, so no coin moves between purses), so a theft takes the goods out of the town; goods no market trades are heirlooms that never come back. Before, every container restocked from nothing every 14 days.
+- **The bot** pays bail through `Prison.postBail` (into the town), where it used to subtract it from its purse with no payee.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each

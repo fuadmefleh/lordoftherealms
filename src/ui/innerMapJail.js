@@ -7,7 +7,7 @@
 //   - the straw pallet: sleep (serve the day);
 //   - the loose flagstone: dig the tunnel (with tools), or crawl out of it;
 //   - the cell door: call the guard (bribes), labour in the yard, plan the
-//     break-out, post bail — or the whole prison panel;
+//     break-out, send word to your crew, post bail — or the whole prison panel;
 //   - a cellmate: talk, share food, or (the smuggler, a friend) ask for tools;
 //   - the gaoler: a bribe; other prisoners: a word through the bars.
 //
@@ -90,6 +90,8 @@ export const InnerMapJail = {
             items.push(triedTonight
                 ? { type: 'disabled', label: 'The guards are wary after tonight\'s attempt.' }
                 : { type: 'action', action: 'jailmap_break', label: 'Plan the Break-Out', icon: '🏃', desc: 'Rush the guard or slip out at the change of the watch' });
+            const crew = Prison.crew(player, game.world);
+            if (crew) items.push({ type: 'action', action: 'jailmap_crew', label: 'Send Word to Your Crew', icon: '📨', desc: `${crew.gang.name} could spring you, on the gang's coin` });
             if (jail.bailCost) items.push({ type: 'action', action: 'jailmap_bail', label: `Post Bail (${jail.bailCost} gold)`, icon: '💰', desc: (player.gold || 0) >= jail.bailCost ? 'Walk out today' : 'You haven\'t the coin' });
             items.push({ type: 'action', action: 'jailmap_panel', label: 'Think It All Over', icon: '📜', desc: 'Everything at once: the prison panel' });
         }
@@ -177,6 +179,7 @@ export const InnerMapJail = {
             case 'jailmap_bribe': scene('bribe'); return true;
             case 'jailmap_break': scene('break'); return true;
             case 'jailmap_mates': scene('mates'); return true;
+            case 'jailmap_crew': scene('crew'); return true;
             case 'jailmap_bail': {
                 const r = Prison.postBail(player, world);
                 note(r.success ? '💰 Bail Posted' : 'Not Possible', r.success ? r.text : r.reason, r.success ? 'success' : 'error');

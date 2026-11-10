@@ -13,6 +13,8 @@ import { PracticeSkills } from '../../systems/practiceSkills.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { TradeSkills } from '../../systems/tradeSkills.js';
 import { goodInfoIcon } from '../goodInfo.js';
+import { Arms } from '../../systems/arms.js';
+import { Hotbar } from '../hotbar.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
@@ -969,6 +971,14 @@ Object.assign(UI.prototype, {
                     if (info.prestige > 0 && player.house) extra += `<button data-ui-act="dedicateTreasure" data-ui-args='["${itemId}"]' style="${btn}">🏛️ Enshrine (+${info.prestige} Prestige)</button>`;
                     if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
                 }
+                // Arms and armour: take it up in its slot, or put it away (systems/arms.js)
+                if (Arms.isArms(itemId)) {
+                    const btn = 'padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(129,199,132,0.15); color: var(--text-primary); cursor: pointer;';
+                    const slot = (Arms.config().slots[Arms.item(itemId).slot] || {}).label || '';
+                    extra += Arms.isEquipped(player, itemId)
+                        ? `<div style="font-size: 11px; color: #81c784; margin-top: 4px;">Worn (${slot.toLowerCase()}) <button data-ui-act="equipArms" data-ui-args='["${itemId}"]' style="${btn}">Put away</button></div>`
+                        : `<button data-ui-act="equipArms" data-ui-args='["${itemId}"]' style="${btn}">${Arms.item(itemId).slot === 'main' ? '✋ Wield' : '🧥 Wear'} (${slot.toLowerCase()})</button>`;
+                }
                 // (what it is: hover the i beside its name — ui/goodInfo.js)
                 const title = '';
                 // Crafted goods carry their quality (player/crafting.js)
@@ -993,6 +1003,16 @@ Object.assign(UI.prototype, {
             title="Each kind of good takes a slot. A mount (+5) and each house (+3) add room.">🎒 Packs: ${used}/${cap} kinds of goods</div>` + inventoryHtml;
 
         this.showCustomPanel('Inventory', inventoryHtml);
+    },
+
+    /** Take up a weapon, shield or armour from the packs in its slot, or put it away (systems/arms.js). */
+    equipArms(itemId) {
+        const r = Arms.toggleEquip(this.game.player, itemId);
+        const slotIcon = (Arms.config().slots[r.slot] || {}).icon || '⚔️';
+        this.showNotification(r.success ? `${slotIcon} ${r.label}` : '⚔️ Arms & Armour', r.success ? r.text : (r.reason || 'Not possible.'), r.success ? 'success' : 'error');
+        this.updateStats(this.game.player, this.game.world);
+        Hotbar.refresh();
+        this.showInventoryPanel();
     },
 
     /** Enshrine a treasure in the House hall for Prestige. */

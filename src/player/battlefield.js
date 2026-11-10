@@ -50,6 +50,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { PlayerMilitary } from './playerMilitary.js';
 import { FieldBattle } from './fieldBattle.js';
 import { Traits } from '../systems/traits.js';
+import { Arms } from '../systems/arms.js';
 
 const DEFAULTS = {
     step: 0.1,
@@ -512,6 +513,8 @@ export const Battlefield = {
             f.x = p.x; f.y = p.y;
             Battlefield._place(bf, f);
         }
+        // Arrows: the volleys its bowmen's quivers hold (systems/arms.js; null: not counted)
+        c.volleys = Arms.fieldVolleys(c.units);
         bf.companies.push(c);
         return c;
     },
@@ -931,6 +934,8 @@ export const Battlefield = {
             p *= S.personal.opening || 1;
             if (bf.field.high(q, r)) p *= T.high;
             if (c.rangeBonus) p *= 1 + Math.min(0.3, c.rangeBonus * 0.03);
+            // Quivers empty: what arrows they can scrounge
+            if (c.volleys != null && (c.shots || 0) >= c.volleys) p *= Arms.dryMult();
         }
         if (bf.battle.ambushed && c.side === 'enemy' && bf.t < 15) p *= FieldBattle.config().ambushPower;
         return Math.max(0.0001, p);
@@ -1051,6 +1056,7 @@ export const Battlefield = {
         }
         if (!target) return;
         c.volleyT = k.volleyEvery;
+        c.shots = (c.shots || 0) + 1;
         const d = _dist(c.x, c.y, target.x, target.y);
         const flight = d / cfg.flightSpeed;
         bf.pending.push({ at: _r2(bf.t + flight), from: c.id, to: target.id, ...(inPress(target) ? { press: intoPress } : {}) });
@@ -1440,6 +1446,8 @@ export const Battlefield = {
             seconds: Math.round(bf.t), how: bf.over.how,
         });
         b.field = { seconds: Math.round(bf.t), how: bf.over.how, log: bf.log.slice(-12) };
+        // The volleys each of your companies loosed: the arrows they spent (systems/arms.js, via FieldBattle.finish)
+        b.volleys = bf.companies.filter(c => c.side === 'player' && c.units.length).map(c => ({ units: c.units, n: Math.min(c.shots || 0, c.volleys == null ? Infinity : c.volleys) }));
         const result = FieldBattle.finish(player, b, world);
         return result;
     },

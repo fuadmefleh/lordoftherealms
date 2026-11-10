@@ -280,15 +280,13 @@ describe('arming troops', () => {
 });
 
 describe('the town armourers and war', () => {
-    it('a town at war needs more arms: the price of a spear climbs', () => {
-        const { world, s } = atTown('town');
-        s.market.stock.spear = SettlementMarket.target(s, 'spear');
+    it('war no longer multiplies a town\'s own need of arms: the realm\'s army draws them itself (world/realmArms.js)', () => {
+        const { s } = atTown('town');
         const need = SettlementMarket.need(s, 'spear');
-        const price = SettlementMarket.value(world, s, null, 'spear', 35);
         s.market.war = 1;
-        expect(SettlementMarket.need(s, 'spear')).toBeCloseTo(need * 4, 6);
-        expect(SettlementMarket.value(world, s, null, 'spear', 35)).toBeGreaterThan(price);
+        expect(SettlementMarket.need(s, 'spear')).toBeCloseTo(need, 6);
         delete s.market.war;
+        for (const g of Object.values(DataLoader._gamedata.markets.goods)) expect(g.warMult).toBeUndefined();
     });
 
     it('the spearmaker, shieldwright and helm-smith are town trades on the town\'s iron and wood', () => {

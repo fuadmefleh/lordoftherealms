@@ -130,6 +130,8 @@ Object.assign(PlayerMilitary, {
         const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
         const casualtyCount = Math.ceil(fighting().length * casualtyRate);
         const { casualties, woundedUnits } = PlayerMilitary._applyCasualties(player, theatre, casualtyCount);
+        // The bowmen loosed their arrows (the fallen took theirs with them); a won field gives some back
+        const quivers = Arms.spendQuivers(player, { units: fighting(), victory });
 
         // Rewards for victory (or, beaten and alone, capture)
         const spoils = PlayerMilitary._battleSpoils(player, victory, enemyStrength, context, enemyName);
@@ -154,6 +156,7 @@ Object.assign(PlayerMilitary, {
             wounded: woundedUnits.length,
             loot,
             armsTaken: spoils.armsTaken || null,
+            quivers,
             enemyName,
             playerStrength,
             enemyStrength,

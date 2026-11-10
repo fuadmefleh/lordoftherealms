@@ -92,7 +92,10 @@ describe('RealmWars', () => {
         expect(out.marching).toHaveLength(1);
         expect(world.kingdoms[0].military).toBe(940);
         const unit = world.units.find(u => u.type === 'war_host');
-        expect(unit.strength).toBe(60);
+        // (60 men, as armed out of the realm's armoury: world/realmArms.js)
+        const rec = war.hosts[0];
+        expect(rec.strength).toBe(60);
+        expect(unit.strength).toBe(Math.round(60 * rec.armed));
 
         // March it home on its target.
         for (let i = 0; i < 5 && !(unit.q === 7 && unit.r === 7); i++) unit.update(world, player);

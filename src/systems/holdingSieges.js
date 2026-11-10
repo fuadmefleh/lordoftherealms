@@ -38,6 +38,7 @@ import { Utils } from '../core/utils.js';
 import { Hex } from '../core/hex.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from '../world/economy.js';
+import { RealmArms } from '../world/realmArms.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { House } from './house.js';
 import { Holdings } from './holdings.js';
@@ -375,6 +376,11 @@ export const HoldingSieges = {
             // Another host comes up: it joins the lines
             existing.besiegers += rec.strength;
             existing.besiegersStart += rec.strength;
+            // (its arms join the lines too: world/realmArms.js)
+            if (rec.arms) {
+                existing.arms = existing.arms || {};
+                for (const [g, n] of Object.entries(rec.arms)) existing.arms[g] = Math.round((_num(existing.arms[g]) + _num(n)) * 100) / 100;
+            }
             unit.destroyed = true;
             war.hosts = war.hosts.filter(h => h.id !== rec.id);
             const host = HoldingSieges._hostUnit(world, existing);
@@ -397,6 +403,7 @@ export const HoldingSieges = {
             hostId: rec.id, hostName: rec.name,
             startDay: day,
             besiegers: rec.strength, besiegersStart: rec.strength,
+            arms: rec.arms || null, // the host's share of the realm's armoury (world/realmArms.js)
             besiegerStores: Utils.randInt(B.stores[0], B.stores[1]),
             besiegerMorale: B.morale,
             besiegerSick: 0,
@@ -868,7 +875,10 @@ export const HoldingSieges = {
         const unit = HoldingSieges._hostUnit(world, s);
         if (unit) unit.destroyed = true;
         war.hosts = war.hosts.filter(h => h.id !== s.hostId);
-        kingdom.military = _num(kingdom.military) + Math.round(s.besiegers * HoldingSieges.config().besiegers.returnShare);
+        const back = s.besiegers * HoldingSieges.config().besiegers.returnShare;
+        kingdom.military = _num(kingdom.military) + Math.round(back);
+        // ...with the arms of those who come home (world/realmArms.js)
+        if (s.arms) RealmArms.attach(kingdom, { stock: s.arms }, Math.min(1, back / Math.max(1, _num(s.besiegersStart))));
     },
 
     /** The town falls to the enemy through RealmWars' capture path. */

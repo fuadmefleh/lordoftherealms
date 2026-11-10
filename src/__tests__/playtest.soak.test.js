@@ -11,7 +11,7 @@
 // (SOAK_DAYS overrides both). A death no longer ends the run: the heir takes
 // over, or a new life begins (harness.carryOn), so a long run crosses
 // generations. The game is saved and reloaded at the midpoint and every 20
-// years. SOAK_VERBOSE=1 prints each run's stats, gold ledger, lives and its
+// years (SOAK_TIMEOUT ms overrides the per-seed timeout on a busy machine). SOAK_VERBOSE=1 prints each run's stats, gold ledger, lives and its
 // growth by year (ms/day, save size) — a slow leak shows there first.
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -40,7 +40,7 @@ const DAYS = Number(ENV.SOAK_DAYS) || YEARS * DAYS_PER_YEAR;
 const SAVE_AT = Math.floor(DAYS / 2);
 const SAVE_EVERY = 20 * DAYS_PER_YEAR;
 // A day costs ~60-150ms late in a run (the world fills up); generous for the slow years
-const TIMEOUT = Math.max(150000, DAYS * 400);
+const TIMEOUT = Number(ENV.SOAK_TIMEOUT) || Math.max(150000, DAYS * 400);
 const GOLD_CAP = 1e7;
 
 // The engine logs chattily (pathfinding, generation); keep the run quiet
@@ -349,7 +349,7 @@ describe('headless playtest soak', () => {
                     days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     rivalHouses: RivalHouses.rivals(game.player).filter(r => r.head).map(r => `${RivalHouses.headName(r)} ${r.head.age} (${r.name}, head #${(r.stats && r.stats.heads) || 1}): ${Math.round(r.gold)}g, feud ${Math.round(r.feud || 0)}, ${r.head.children.length} kids, trades ${r.stats.trades} (${Math.round(r.stats.tradeProfit)}g), court ${r.stats.courtVisits}, plots paid ${r.stats.plotsPaid}`),
-                    uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats },
+                    uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats, gangs: uw.gangs, dirty: uw.dirty },
                     company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({
                         capital: Math.round(capital), reputation, posts: posts.map(p => `${p.name}: ${JSON.stringify(p.stock)} ${JSON.stringify(p.lastWeek)}`),
                         stats: cs, contracts: contracts.length, pnl: MerchantHouses.profitAndLoss(game.player),
@@ -402,7 +402,9 @@ describe('headless playtest soak', () => {
                 // ...and funds a public work and sells bullion to a mint (systems/publicWorks.js, systems/mints.js)
                 'publicWorksFunded', 'bullionSold',
                 // ...and travels abroad, takes lessons in the tongue, bathes and hires the town's tradesmen
-                'foreignTownDays', 'langLessons', 'commissioned'] : [])]) {
+                'foreignTownDays', 'langLessons', 'commissioned',
+                // ...and runs with a town's crew, does its errands and washes the dirty coin (systems/gangs.js)
+                'gangJoined', 'gangErrands', 'laundered'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

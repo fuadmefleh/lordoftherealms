@@ -39,7 +39,8 @@ function headCard(v) {
     if (v.allies.length) extras.push(`🤝 allied with ${v.allies.map(esc).join(', ')}`);
     if (v.enemies.length) extras.push(`💢 at odds with ${v.enemies.map(esc).join(', ')}`);
     if (v.guards) extras.push(`🛡️ ${v.guards} hired guards`);
-    extras.push(`⚔️ retinue strength ${v.strength}`);
+    extras.push(`⚔️ retinue strength ${v.strength}${v.armed != null && v.armed < 0.95 ? ` (ill-armed: ${Math.round(v.armed * 100)}%)` : v.armed > 1.02 ? ` (well armed: ${Math.round(v.armed * 100)}%)` : ''}`);
+    if (v.arms) extras.push(`🛡️ ${esc(v.arms)}`);
     html += `<div style="${NOTE} margin-top:3px;">${extras.join(' · ')}</div>`;
     // The errand names the town when they are in it; else say where the road has them
     const where = !v.where ? ' · nowhere to be found'

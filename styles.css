@@ -1376,6 +1376,23 @@ body {
     cursor: default;
 }
 
+/* A weapon, shield or armour worn in its slot (ui/hotbar.js) */
+.hotbar-slot.equipped {
+    border-color: rgba(129, 199, 132, 0.85);
+    box-shadow: inset 0 0 8px rgba(129, 199, 132, 0.25);
+}
+
+.hotbar-slot.equipped::after {
+    content: 'worn';
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    font-size: 8px;
+    font-weight: 700;
+    color: #81c784;
+    pointer-events: none;
+}
+
 .hotbar-key {
     position: absolute;
     top: 2px;

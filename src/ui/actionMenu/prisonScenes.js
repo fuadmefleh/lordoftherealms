@@ -3,7 +3,9 @@
 //   'prison'     the cell: cellmates (talk, share food, ask for tools), bribe a
 //                guard (look away tonight / tools / lost papers), dig the
 //                tunnel or labour in the yard (each takes the day), plan the
-//                break-out (once a night), post bail, serve the day.
+//                break-out (once a night), send word to your crew (a gang
+//                you run with in town springs you on its coin), post bail,
+//                serve the day.
 //   'servitude'  bound to a captor: slip away at night, bribe an overseer,
 //                work for an earlier release, buy your freedom.
 //
@@ -14,6 +16,7 @@ import { ActionMenu } from './_ref.js';
 import { registerScene } from './choiceScenes.js';
 import { Prison } from '../../player/prison.js';
 import { PlayerMilitary } from '../../player/playerMilitary.js';
+import { Gangs } from '../../systems/gangs.js';
 
 const _day = (game) => (game.world && game.world.day) || 0;
 const _back = { id: 'back', icon: '↩️', label: 'Back', chance: null, odds: false };
@@ -61,6 +64,15 @@ function _cellView(game, st) {
         if (pr.lookAwayDay === _day(game)) o[0] = { ...o[0], can: false, reason: 'A guard already owes you tonight' };
         return { ...base, text: 'The guards are paid little and drink much. A refusal means a report, and more days.', options: [...o, _back] };
     }
+    if (st.phase === 'crew') {
+        const c = Prison.crew(player, world);
+        if (!c) return { ...base, text: 'No crew of yours runs in this town.', options: [_back] };
+        const options = Prison.crewOptions(player, world).map(o => ({
+            id: `crew:${o.id}`, icon: o.icon, label: o.label, hint: o.hint, chance: o.chance, cost: `${o.cost} gold of the gang's`, can: o.can, reason: o.reason,
+        }));
+        const who = c.boss ? `You are ${c.gang.name}'s boss: your word is an order.` : `You run with ${c.gang.name} as a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}; ${c.gang.boss.name} decides, and you will owe him.`;
+        return { ...base, text: `A message out through a cellmate's visitor. ${who} The gang's purse holds ${Math.floor(c.gang.purse)}g.`, footer: 'Once a day. It is the gang\'s coin, not yours.', options: [...options, _back] };
+    }
     if (st.phase === 'break') {
         const why = triedTonight ? 'The guards are wary after tonight\'s attempt' : '';
         const options = [
@@ -79,6 +91,8 @@ function _cellView(game, st) {
         { id: 'work', icon: '🧱', label: 'Labour in the yard', hint: 'Takes the day; it counts double against your sentence.', chance: null },
         { id: 'break', icon: '🏃', label: 'Plan the break-out', hint: 'Once a night.', chance: null, odds: false, can: !triedTonight, reason: 'The guards are wary after tonight\'s attempt' },
     ];
+    const crew = Prison.crew(player, world);
+    if (crew) options.push({ id: 'crew', icon: '📨', label: 'Send word to your crew', hint: `${crew.gang.name} could spring you, on the gang's coin.`, chance: null, odds: false });
     if (jail.bailCost) options.push({ id: 'bail', icon: '💰', label: 'Post bail', chance: null, cost: `${jail.bailCost} gold`, can: (player.gold || 0) >= jail.bailCost, reason: `You need ${jail.bailCost} gold` });
     options.push({ id: 'wait', icon: '🔒', label: 'Serve the day', hint: 'Sit it out.', chance: null });
     return { ...base, text: `Offence: ${jail.offense || 'unknown'} (#${jail.offenseNumber || 1}). The straw is damp, the bread is stale.`, options };
@@ -97,6 +111,13 @@ function _cellAct(game, st, choice) {
         if (r.released) return { notification: { title: '📜 Papers Lost', body: r.text, type: 'success' } };
         return stay('cell');
     }
+    if (choice.startsWith('crew:')) {
+        const r = Prison.sendWord(player, world, arg);
+        if (!r.success) return fail(r.reason);
+        if (r.escaped) return { notification: { title: '🧗 Sprung!', body: r.text, type: 'success' } };
+        if (r.released) return { notification: { title: '📨 Your Crew Came Through', body: r.text, type: 'success' } };
+        return { notification: { title: '📨 It Went Wrong', body: r.text, type: 'error' } };
+    }
     if (choice.startsWith('break:')) {
         const r = Prison.breakout(player, world, arg);
         if (!r.success) return fail(r.reason);
@@ -105,7 +126,7 @@ function _cellAct(game, st, choice) {
     }
     switch (what) {
         case 'back': return stay('cell');
-        case 'mates': case 'bribe': case 'break': return stay(what);
+        case 'mates': case 'bribe': case 'break': case 'crew': return stay(what);
         case 'talk': case 'food': {
             const r = Prison.talk(player, world, arg, what);
             return r.success ? stay() : fail(r.reason);

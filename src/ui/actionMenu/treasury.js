@@ -9,6 +9,7 @@
 import { ActionMenu } from './_ref.js';
 import { Fiscal } from '../../systems/fiscal.js';
 import { CrownBooks } from '../../world/crownBooks.js';
+import { RealmArms } from '../../world/realmArms.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
@@ -21,7 +22,7 @@ const TABS = [['budget', '📒 Budget'], ['realms', '🏰 Realms'], ['farms', '�
 const LABEL = {
     land: 'Land tax', poll: 'Hearth tax', excise: 'Excise', customs: 'Customs & tolls', demesne: 'Demesne & monopolies',
     seigniorage: 'Seigniorage', farms: 'Tax farms sold', levy: 'Extraordinary levy', sales: 'Offices & land sold',
-    army: 'Army wages', court: 'Court & administration', works: 'Roads & works', debt: 'Debt service', dole: 'Dole & granaries',
+    army: 'Army wages', arms: 'Arms & armour', court: 'Court & administration', works: 'Roads & works', debt: 'Debt service', dole: 'Dole & granaries',
     purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', other: 'Other (events, tribute, temples, fleet)',
 };
 
@@ -110,6 +111,12 @@ function budgetTab(game) {
     html += `<span style="${NOTE}">The people's burden ${Math.round((b.burden || 0) * 100)}% (15% is the customary due) · stability ${b.stability >= 0 ? '+' : ''}${b.stability} from taxes and pay${whyIcon(stabilityWhy(Causes.stability(k, world)), 'The realm’s stability: why?')} · corruption ${Math.round(b.corruption * 100)}% · crown estates ${Math.round(b.demesne * 100)}% of the land's gold`;
     if (b.arrearsDays > 0) html += ` · <span style="color:#e08080;">soldiers unpaid ${b.arrearsDays} days (${g0(b.arrears.army)}g owed), the army at ${Math.round(b.armyFactor * 100)}%</span>`;
     if (b.deficitWeeks > 0) html += ` · <span style="color:#e8a040;">${b.deficitWeeks} week(s) in deficit</span>`;
+    // The armoury (world/realmArms.js): how well the army is armed, and what it lacks
+    const arm = RealmArms.summary(k);
+    if (arm) {
+        const short = Object.entries(arm.deficits).filter(([, n]) => n > 0).map(([slot, n]) => `${n} ${{ main: 'weapons', ranged: 'bows', off: 'shields', head: 'helms', body: 'harness', ammo: 'arrows' }[slot] || slot}`);
+        html += `<br>⚔️ The army fights at <b>${Math.round(arm.factor * 100)}%</b> of its worth by its arms${short.length ? ` · short of ${esc(short.join(', '))}` : ' · fully armed'} · ${g0(arm.stats.spent)}g spent on arms in all`;
+    }
     html += '</span></div>';
     html += linesTable(b);
     const S = b.stats || {};

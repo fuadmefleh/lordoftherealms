@@ -20,6 +20,7 @@ import { Harvests } from './harvests.js';
 import { MoneySupply } from './moneySupply.js';
 import { CrownBooks } from './crownBooks.js';
 import { Cultures } from './cultures.js';
+import { RealmArms } from './realmArms.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
@@ -785,6 +786,11 @@ export const KingdomAI = {
             }
         }
         defender.territory = [];
+        // Its arsenals fall to the conqueror (world/realmArms.js)
+        if (defender.armoury && defender.armoury.stock) {
+            RealmArms.attach(attacker, defender.armoury, 1);
+            defender.armoury.stock = {};
+        }
         for (const k of world.kingdoms) {
             if (k.wars) k.wars = k.wars.filter(id => id !== defender.id);
             if (k.warState) delete k.warState[defender.id];
@@ -888,6 +894,8 @@ export const KingdomAI = {
         fallen.wars = [];
         fallen.truces = {};
         fallen.navy = null; // the old fleet is long gone; a new one is counted tomorrow
+        // The rising arms itself out of the town's own stalls (world/realmArms.js)
+        RealmArms.seizeTown(fallen, tile.settlement);
         KingdomAI.startWar(fallen, occupier, world);
         world.events.push({ text: `🔥 ${tile.settlement.name} throws off ${occupier.name}'s rule — ${fallen.name} rises again!`, type: 'military' });
     },
@@ -955,6 +963,9 @@ export const KingdomAI = {
             }
             if (attrition > 0 && kingdom.military > cap) kingdom.military = cap;
         }
+        // Arm the men it keeps: kits bought from its own towns' stock, worn out,
+        // the surplus sold back (world/realmArms.js; draws no RNG)
+        RealmArms.daily(kingdom, world, KingdomAI._getKingdomComposition(kingdom));
     },
 
     /**
@@ -1120,6 +1131,10 @@ export const KingdomAI = {
         // Home ground: each side fights better on terrain it favours
         attackPower *= KingdomAI.homeGroundMultiplier(attacker, terrainId);
         defensePower *= KingdomAI.homeGroundMultiplier(defender, terrainId);
+        // The arms they carry: a realm short of weapons, harness or arrows fights
+        // weaker, one in mail better (world/realmArms.js)
+        attackPower *= RealmArms.factor(attacker);
+        defensePower *= RealmArms.factor(defender);
         // Knowing the enemy's land (the royal archive's chart of it) wins
         // battles — and a doctored chart loses them
         attackPower *= KingdomAtlas.campaignMultiplier(attacker, defender.id);
@@ -1159,7 +1174,8 @@ export const KingdomAI = {
         KingdomAI._noteFieldCommand(attacker, world, attackPower > defensePower, defender.id);
         KingdomAI._noteFieldCommand(defender, world, attackPower <= defensePower, attacker.id);
 
-        // Determine winner
+        // Determine winner (the men each side had, for the arms of the fallen)
+        const menBefore = { [attacker.id]: attacker.military, [defender.id]: defender.military };
         if (attackPower > defensePower && lastTown && KingdomAI._capitulates(attacker, defender, world)) {
             // The last town opens its gates on terms: the realm survives, poorer
             defender.military = Math.floor(defender.military * 0.85);
@@ -1182,6 +1198,9 @@ export const KingdomAI = {
             attacker.military = Math.floor(attacker.military * attackerLossMult);
             defender.military = Math.floor(defender.military * defenderLossMult);
         }
+        // The fallen's arms are lost; the field's holder gathers its own and strips the beaten
+        const won = attackPower > defensePower;
+        RealmArms.battle(won ? attacker : defender, won ? defender : attacker, menBefore);
     },
 
     /**

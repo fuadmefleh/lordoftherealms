@@ -103,6 +103,10 @@ export const Arms = {
                 market: _obj(troops.market) || {},
                 maxFactor: _num(troops.maxFactor, 1.45),
                 spoils: { per: 40, max: 6, goods: ['weapons'], ...(_obj(d.spoils) || {}) },
+                ammo: {
+                    goods: { bow: 'arrows', crossbow: 'bolts' }, units: {}, dryMult: 0.35, recover: 0.3, fieldVolley: 0.4,
+                    ...(_obj(d.ammo) || {}),
+                },
             };
         }
         return _cfg;
@@ -306,6 +310,33 @@ export const Arms = {
         if (def.slot === 'main' && _num(def.hands, 1) >= 2) eq.off = null;
         if (player.equipped && player.equipped.weapon && def.slot === 'main') player.equipped.weapon = id;
         return { success: true, text: `You take up the ${Arms.nameOf(id).toLowerCase()}.` };
+    },
+
+    /** Is this piece the one worn in its slot? */
+    isEquipped(player, id) {
+        const def = Arms.item(id);
+        if (!player || !def) return false;
+        const p = Arms.equipped(player, def.slot);
+        return !!p && p.id === id;
+    },
+
+    /**
+     * The hotbar's and the packs' one click on a piece: take it up in its
+     * slot (a two-hander puts the shield on your back), or — already worn —
+     * put it away. → { success, text | reason, slot, label, equipped }
+     */
+    toggleEquip(player, id) {
+        const def = Arms.item(id);
+        if (!player || !def) return { success: false, reason: 'That is not something to wield or wear.' };
+        const label = (Arms.config().slots[def.slot] || {}).label || def.slot;
+        const out = (r, equipped) => ({ ...r, slot: def.slot, label, equipped });
+        if (Arms.isEquipped(player, id)) return out(Arms.unequip(player, def.slot), false);
+        const offBefore = def.slot === 'main' && _num(def.hands, 1) >= 2 ? Arms.equipped(player, 'off') : null;
+        const r = Arms.equip(player, id);
+        if (!r.success) return out(r, false);
+        let text = `${r.text.replace(/\.$/, '')} (${label.toLowerCase()}).`;
+        if (offBefore) text += ` It takes both hands: your ${Arms.nameOf(offBefore.id).toLowerCase()} goes on your back.`;
+        return out({ success: true, text }, true);
     },
 
     /** Put a slot's piece away and leave it empty (bare hands, no shield...). */
@@ -699,6 +730,19 @@ export const Arms = {
             } else out.slots[slot] = { from: null, id: null };
         }
         out.factor = Arms.unitFactor({ type: unitType, kit: { ...kit, cond: 100 } });
+        // A bowman's quiver: from the packs, else bought here
+        const good = Arms.ammoGood({ type: unitType, kit });
+        if (good) {
+            const want = Arms.quiverOf({ type: unitType }).quiver;
+            const pack = opts.noPack ? 0 : Math.min(want, Arms._held(player, good));
+            const G = _goodsTable()[good.toUpperCase()];
+            const tile = world && settlement && typeof world.getTile === 'function' && Number.isFinite(settlement.q) ? world.getTile(settlement.q, settlement.r) : null;
+            const avail = settlement && settlement.market && G && opts.buy !== false ? Math.min(want - pack, SettlementMarket.available(settlement, good)) : 0;
+            const price = avail > 0 ? Math.max(1, Economy.marketPrice(G, settlement, tile, world)) : 0;
+            out.ammo = { good, want, pack, buy: avail, price };
+            out.cost += avail * price;
+            if (pack + avail < want) out.factor = _r2(out.factor * (Arms.config().ammo.dryMult + (1 - Arms.config().ammo.dryMult) * Math.min(1, (pack + avail) / Arms.quiverOf({ type: unitType }).perBattle)));
+        }
         return out;
     },
 
@@ -741,6 +785,14 @@ export const Arms = {
         }
         if (res.cost > 0) Ledger.record(player, 'armsKit', -res.cost);
         res.kit = kit;
+        // A bowman's quiver: a fresh recruit (opts.recruit) brings none of his own
+        if (Arms.ammoGood(unit)) {
+            if (opts.recruit && unit.ammo == null) unit.ammo = 0;
+            const q = Arms.supplyQuivers(player, { units: [unit], settlement: s, world, buy: !!opts.buy });
+            for (const [k, n] of Object.entries(q.fromPack)) res.fromPack[k] = _num(res.fromPack[k]) + n;
+            for (const [k, n] of Object.entries(q.bought)) res.bought[k] = _num(res.bought[k]) + n;
+            res.cost += q.cost;
+        }
         return res;
     },
 
@@ -843,5 +895,191 @@ export const Arms = {
             got[g] = n;
         }
         return got;
+    },
+
+    // ── Arrows and bolts ──────────────────────────────
+
+    /**
+     * What a soldier shoots: 'arrows' | 'bolts' | null (no shooter). A unit
+     * issued a bow or crossbow shoots its missile; one with no kit record
+     * by its type (data/arms.json ammo.units: crossbowmen bolts, the rest
+     * arrows; a scout only with a bow issued).
+     */
+    ammoGood(unit) {
+        if (!unit) return null;
+        const A = Arms.config().ammo;
+        const kit = _obj(unit.kit);
+        const main = kit && Arms.item(kit.main);
+        if (main) return A.goods[main.class] || null;
+        const type = String(unit.type || '').toLowerCase();
+        if (!_obj(A.units[type]) || type === 'scout') return null;
+        if (kit) return null; // (a kit record with no weapon: he has no bow to shoot)
+        return type === 'crossbowman' ? (A.goods.crossbow || 'bolts') : (A.goods.bow || 'arrows');
+    },
+
+    /** A shooter's quiver and his battle's share: { quiver, perBattle }. */
+    quiverOf(unit) {
+        const A = Arms.config().ammo;
+        const u = _obj(A.units[String(unit && unit.type || '').toLowerCase()]) || {};
+        const quiver = Math.max(1, Math.round(_num(u.quiver, 12)));
+        return { quiver, perBattle: Math.max(1, Math.min(quiver, Math.round(_num(u.perBattle, quiver / 2)))) };
+    },
+
+    /**
+     * A shooter's worth by his quiver: 1 with a battle's worth of missiles
+     * (or no quiver record: he came with his own), down to dryMult with none.
+     */
+    ammoFactor(unit) {
+        if (!Arms.ammoGood(unit) || unit.ammo == null) return 1;
+        const dry = _clamp(_num(Arms.config().ammo.dryMult, 0.35), 0, 1);
+        return _r2(dry + (1 - dry) * _clamp(_num(unit.ammo) / Arms.quiverOf(unit).perBattle, 0, 1));
+    },
+
+    /** A battle report's line on the arrows (a spendQuivers result): '' when none were loosed. */
+    quiverNote(q) {
+        if (!q || !q.loosed) return '';
+        const loosed = Object.entries(q.loosed).filter(([, n]) => n > 0);
+        if (!loosed.length && !q.dry) return '';
+        const name = (g, n) => `${n} ${Arms.nameOf(g).toLowerCase()}`;
+        let t = loosed.length ? `🏹 ${loosed.map(([g, n]) => name(g, n)).join(' and ')} loosed` : '🏹 No arrows loosed';
+        const back = Object.entries(q.recovered || {}).filter(([, n]) => n > 0);
+        if (back.length) t += ` (${back.map(([g, n]) => name(g, n)).join(', ')} picked up off the field)`;
+        if (q.dry) t += `; ${q.dry} of your shooters ran short and fought at ${Math.round(Arms.dryMult() * 100)}%`;
+        return `${t}.`;
+    },
+
+    /** What a shooter out of missiles is worth (data/arms.json ammo.dryMult). */
+    dryMult() {
+        return _clamp(_num(Arms.config().ammo.dryMult, 0.35), 0, 1);
+    },
+
+    /**
+     * The volleys a battlefield company of these units can loose before its
+     * quivers are empty (each volley spends fieldVolley missiles a shooter);
+     * null when none of them shoots (not counted).
+     */
+    fieldVolleys(units) {
+        let shooters = 0, missiles = 0;
+        for (const u of units || []) {
+            if (!Arms.ammoGood(u)) continue;
+            shooters++;
+            missiles += u.ammo == null ? Arms.quiverOf(u).quiver : Math.max(0, Math.floor(_num(u.ammo)));
+        }
+        if (!shooters) return null;
+        const per = shooters * Math.max(0.01, _num(Arms.config().ammo.fieldVolley, 0.4));
+        return Math.floor(missiles / per + 1e-9);
+    },
+
+    /**
+     * Fill the shooters' quivers: from the packs (the baggage), then, with
+     * opts.buy, the town's market (opts.settlement) at its price into the
+     * town's purse while the gold lasts. A shooter with no quiver record is
+     * filled once, free (he came with his own). opts.units: only these.
+     * → { fromPack: {good: n}, bought: {good: n}, cost, short: n (missiles still wanted) }
+     */
+    supplyQuivers(player, opts = {}) {
+        const out = { fromPack: {}, bought: {}, cost: 0, short: 0 };
+        if (!player) return out;
+        const s = opts.settlement || null;
+        const world = opts.world || null;
+        const units = Array.isArray(opts.units) ? opts.units : (player.army || []);
+        const G = _goodsTable();
+        const tile = s && world && typeof world.getTile === 'function' && Number.isFinite(s.q) ? world.getTile(s.q, s.r) : null;
+        for (const unit of units) {
+            const good = Arms.ammoGood(unit);
+            if (!good || unit.mercenary) continue;
+            const { quiver } = Arms.quiverOf(unit);
+            if (unit.ammo == null) { unit.ammo = quiver; continue; }
+            let want = Math.max(0, quiver - Math.floor(_num(unit.ammo)));
+            if (!(want > 0)) continue;
+            const have = Arms._held(player, good);
+            const fromPack = Math.min(want, have);
+            if (fromPack > 0) {
+                Grades.remove(player, good, fromPack, { order: 'worst' });
+                unit.ammo = _num(unit.ammo) + fromPack;
+                out.fromPack[good] = _num(out.fromPack[good]) + fromPack;
+                want -= fromPack;
+            }
+            if (want > 0 && opts.buy && s && s.market && SettlementMarket.tracks(good) && G[good.toUpperCase()]) {
+                const price = Math.max(1, Economy.marketPrice(G[good.toUpperCase()], s, tile, world));
+                const n = Math.min(want, SettlementMarket.available(s, good), Math.floor(_num(player.gold) / price));
+                const got = n > 0 ? Math.floor(SettlementMarket.take(s, good, n) + 1e-9) : 0;
+                if (got > 0) {
+                    player.gold -= got * price;
+                    Economy.payTown(s, got * price);
+                    out.cost += got * price;
+                    unit.ammo = _num(unit.ammo) + got;
+                    out.bought[good] = _num(out.bought[good]) + got;
+                    want -= got;
+                }
+            }
+            out.short += want;
+        }
+        if (out.cost > 0) Ledger.record(player, 'armsKit', -out.cost);
+        return out;
+    },
+
+    /** Missiles the shooters lack to fill their quivers, and what buying them here would cost: { good: { want, price } }. */
+    quiverQuote(player, settlement = null, world = null) {
+        const out = {};
+        const G = _goodsTable();
+        const tile = settlement && world && typeof world.getTile === 'function' && Number.isFinite(settlement.q) ? world.getTile(settlement.q, settlement.r) : null;
+        for (const unit of (player && player.army) || []) {
+            const good = Arms.ammoGood(unit);
+            if (!good || unit.mercenary || unit.ammo == null) continue;
+            const want = Math.max(0, Arms.quiverOf(unit).quiver - Math.floor(_num(unit.ammo)));
+            if (!(want > 0)) continue;
+            const o = out[good] || (out[good] = { want: 0, price: null, stock: 0 });
+            o.want += want;
+        }
+        for (const [good, o] of Object.entries(out)) {
+            if (settlement && settlement.market && G[good.toUpperCase()]) {
+                o.price = Math.max(1, Economy.marketPrice(G[good.toUpperCase()], settlement, tile, world));
+                o.stock = SettlementMarket.available(settlement, good);
+            }
+        }
+        return out;
+    },
+
+    /**
+     * A battle fought: every shooter looses his battle's share (opts.units:
+     * the survivors who fought; opts.volleys: [{ units, n }] — on the
+     * battlefield (player/battlefield.js) each company's volleys loosed, at
+     * fieldVolley missiles a unit a volley, in place of the battle's share).
+     * A won field (opts.victory) gives back `recover` of what was loosed,
+     * into the packs; then the quivers are filled from the packs again.
+     * → { loosed: {good: n}, recovered: {good: n}, dry: shooters who ran out }
+     */
+    spendQuivers(player, opts = {}) {
+        const A = Arms.config().ammo;
+        const out = { loosed: {}, recovered: {}, dry: 0 };
+        if (!player) return out;
+        const units = Array.isArray(opts.units) ? opts.units : (player.army || []);
+        const field = new Map();
+        const onField = Array.isArray(opts.volleys);
+        if (onField) {
+            for (const v of opts.volleys) {
+                for (const u of (v && v.units) || []) field.set(u, _num(field.get(u)) + _num(v.n) * _num(A.fieldVolley, 0.4));
+            }
+        }
+        for (const unit of units) {
+            const good = Arms.ammoGood(unit);
+            if (!good) continue;
+            const q = Arms.quiverOf(unit);
+            if (unit.ammo == null) unit.ammo = q.quiver;
+            const want = onField ? Math.round(_num(field.get(unit))) : q.perBattle;
+            const n = Math.min(Math.floor(_num(unit.ammo)), Math.max(0, want));
+            unit.ammo = Math.max(0, Math.floor(_num(unit.ammo)) - n);
+            if (n > 0) out.loosed[good] = _num(out.loosed[good]) + n;
+            if (want > n) out.dry++;
+        }
+        if (opts.victory) {
+            for (const [good, n] of Object.entries(out.loosed)) {
+                const back = Math.floor(n * _clamp(_num(A.recover, 0.3), 0, 1));
+                if (back > 0 && PlayerInventory.addItem(player, good, back).success) out.recovered[good] = back;
+            }
+        }
+        Arms.supplyQuivers(player, { units });
+        return out;
     },
 };

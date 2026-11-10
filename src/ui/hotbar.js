@@ -3,12 +3,18 @@
 // Lets the player assign items from their
 // inventory to slots 1-7 and use/place them
 // in the inner map with a single keypress.
+// A weapon, shield or piece of armour is not
+// placed: clicking it (or its key) takes it up
+// in its slot, or puts it away when worn
+// (systems/arms.js toggleEquip); the worn ones
+// are marked on the bar.
 // ============================================
 
 import { InnerMap } from '../world/innerMap.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Crafting } from '../player/crafting.js';
 import { PlayerInventory } from '../core/inventory.js';
+import { Arms } from '../systems/arms.js';
 
 const SLOT_COUNT = 7;
 
@@ -110,11 +116,15 @@ export const Hotbar = {
         this._renderSlots();
     },
 
-    /** Toggle selection on a slot. */
+    /** Toggle selection on a slot (arms: take it up or put it away instead). */
     selectSlot(index) {
         if (index < 0 || index >= SLOT_COUNT) return;
         // If the slot is empty, ignore
         if (!_slots[index].itemId) return;
+        if (Arms.isArms(_slots[index].itemId)) {
+            this.equipItem(_slots[index].itemId);
+            return;
+        }
         // If already selected, deselect
         if (_activeSlot === index) {
             _activeSlot = -1;
@@ -171,6 +181,27 @@ export const Hotbar = {
         if (inv === _shownInv && PlayerInventory.stamp(_game.player) === _shownStamp) return false;
         this.refresh();
         return true;
+    },
+
+    /**
+     * Take up a weapon, shield or piece of armour from the bar in its slot
+     * (a two-hander clears the shield), or put it away when it is the one
+     * worn — with a word on what happened. → the Arms.toggleEquip result
+     */
+    equipItem(itemId) {
+        if (!_game || !_game.player || !Arms.isArms(itemId)) return null;
+        const player = _game.player;
+        const res = Arms.toggleEquip(player, itemId);
+        const ui = _game.ui;
+        if (ui && typeof ui.showNotification === 'function') {
+            const slotIcon = (Arms.config().slots[res.slot] || {}).icon || '⚔️';
+            ui.showNotification(res.success ? `${slotIcon} ${res.label || 'Arms'}` : '⚔️ Arms & Armour',
+                res.success ? (res.text || 'Done.') : (res.reason || 'Not possible.'), res.success ? 'success' : 'error');
+        }
+        if (ui && typeof ui.updateStats === 'function') ui.updateStats(player, _game.world);
+        if (_activeSlot >= 0 && _slots[_activeSlot] && _slots[_activeSlot].itemId === itemId) _activeSlot = -1;
+        this._renderSlots();
+        return res;
     },
 
     /**
@@ -278,8 +309,10 @@ export const Hotbar = {
             const qtyEl = el.querySelector('.hotbar-qty');
             if (qtyEl) qtyEl.textContent = qty > 0 ? `×${qty}` : '';
 
-            // Active state
+            // Active state; arms worn in their slot are marked
+            const worn = !!itemId && qty > 0 && Arms.isArms(itemId) && Arms.isEquipped(_game.player, itemId);
             el.classList.toggle('active', _activeSlot === i);
+            el.classList.toggle('equipped', worn);
             el.classList.toggle('empty', !itemId || qty <= 0);
 
             // Tooltip
@@ -291,7 +324,9 @@ export const Hotbar = {
                     el.appendChild(tooltipEl);
                 }
                 const qTag = Crafting.qualityTag(_game.player, itemId);
-                tooltipEl.textContent = `${name}${qTag ? ` · ${qTag}` : ''} (${qty})`;
+                const arm = Arms.isArms(itemId) ? (Arms.config().slots[Arms.item(itemId).slot] || {}).label : null;
+                const how = arm ? (worn ? ` · worn (${arm.toLowerCase()}): click to put away` : ` · click to take up (${arm.toLowerCase()})`) : '';
+                tooltipEl.textContent = `${name}${qTag ? ` · ${qTag}` : ''} (${qty})${how}`;
             } else if (tooltipEl) {
                 tooltipEl.textContent = '';
             }

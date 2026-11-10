@@ -1,7 +1,7 @@
 // ============================================
 // HUNTING BOW — game shot with a bow and arrows
 // ============================================
-// Hunting at range needs a bow (or a crossbow) and arrows in the packs. Each
+// Hunting at range needs a bow and arrows (or a crossbow and bolts) in the packs. Each
 // shot uses an arrow; whether it strikes comes from the distance, how alert
 // the beast is, its size and speed (data/animals.json species), the hunter's
 // Hunting & Butchering rank and steadiness (Hunting.hitThreshold: combat,
@@ -32,7 +32,7 @@ const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _r3 = (v) => Math.round(v * 1000) / 1000;
 
 const DEFAULTS = {
-    weapons: { bow: { aim: 0, wear: 1 }, crossbow: { aim: 0.06, wear: 0.7 } },
+    weapons: { bow: { aim: 0, wear: 1 }, crossbow: { aim: 0.06, wear: 0.7, ammo: 'bolts' } },
     ammo: 'arrows',
     hit: {
         base: 0.8, freeTiles: 1, perTile: 0.07, alert: 0.3,
@@ -85,8 +85,10 @@ export const HuntingBow = {
     },
 
     /**
-     * The weapon in hand: the best of the bows held (by grade, then the
-     * weapon's own aim) → { item, grade (index), gradeId, effect, aim, wear } or null.
+     * The weapon in hand: the best of the bows held that has its missiles
+     * in the packs (a crossbow shoots bolts, a bow arrows: each weapon's
+     * ammo, else the hunt's), by grade, then the weapon's own aim
+     * → { item, grade (index), gradeId, effect, aim, wear, ammo } or null.
      */
     weapon(player, c = HuntingBow.cfg()) {
         let best = null;
@@ -96,21 +98,30 @@ export const HuntingBow = {
             const grade = idx == null ? Grades.COMMON : idx;
             const effect = Grades.effectMult(grade);
             const aim = _num(w && w.aim);
-            const value = (effect - 1) * c.hit.perGradeEffect + aim;
-            if (!best || value > best.value) best = { item, grade, gradeId: Grades.get(grade).id, effect, aim, wear: _num(w && w.wear, 1), value };
+            const ammo = (w && w.ammo) || c.ammo;
+            // (a bow you have arrows for before a better one you have none for)
+            const loaded = _num(player.inventory[ammo]) >= 1 ? 10 : 0;
+            const value = loaded + (effect - 1) * c.hit.perGradeEffect + aim;
+            if (!best || value > best.value) best = { item, grade, gradeId: Grades.get(grade).id, effect, aim, wear: _num(w && w.wear, 1), ammo, value };
         }
         return best;
     },
 
-    /** Arrows in the packs. */
-    arrows(player, c = HuntingBow.cfg()) {
-        return Math.max(0, Math.floor(_num(player && player.inventory && player.inventory[c.ammo])));
+    /** The missile a weapon shoots (its own ammo, else the hunt's arrows). */
+    ammoOf(weapon, c = HuntingBow.cfg()) {
+        return (weapon && weapon.ammo) || c.ammo;
+    },
+
+    /** Missiles in the packs for the weapon in hand (arrows, or bolts for a crossbow). */
+    arrows(player, c = HuntingBow.cfg(), weapon = undefined) {
+        const w = weapon === undefined ? HuntingBow.weapon(player, c) : weapon;
+        return Math.max(0, Math.floor(_num(player && player.inventory && player.inventory[HuntingBow.ammoOf(w, c)])));
     },
 
     /** Can the player shoot? → { ok, weapon, arrows, reason } (reason: what is missing, plainly). */
     gear(player, c = HuntingBow.cfg()) {
         const weapon = HuntingBow.weapon(player, c);
-        const arrows = HuntingBow.arrows(player, c);
+        const arrows = HuntingBow.arrows(player, c, weapon);
         if (!weapon) return { ok: false, weapon: null, arrows, missing: 'bow', reason: HuntingBow.say('noBow', {}, c) || 'You need a bow to hunt.' };
         if (!(arrows > 0)) return { ok: false, weapon, arrows, missing: 'arrows', reason: HuntingBow.say('noArrows', {}, c) || 'You have no arrows.' };
         return { ok: true, weapon, arrows, reason: '' };
@@ -217,11 +228,11 @@ export const HuntingBow = {
     },
 
     /** Put `n` arrows of a grade back in the packs (as many as fit) → how many. */
-    _giveArrows(player, n, gradeId, c) {
+    _giveArrows(player, n, gradeId, c, ammo = c.ammo) {
         if (!(n > 0)) return 0;
-        const res = PlayerInventory.addItem(player, c.ammo, n);
+        const res = PlayerInventory.addItem(player, ammo, n);
         if (!res.success) return 0;
-        if (gradeId && gradeId !== 'common') Grades.add(player, c.ammo, n, gradeId);
+        if (gradeId && gradeId !== 'common') Grades.add(player, ammo, n, gradeId);
         return n;
     },
 
@@ -239,7 +250,8 @@ export const HuntingBow = {
         if (!g.ok) return { ok: false, reason: g.reason, missing: g.missing };
         const weapon = g.weapon;
         // The arrow: the best first
-        const drawn = Grades.remove(player, c.ammo, 1, { order: 'best' });
+        const ammo = HuntingBow.ammoOf(weapon, c);
+        const drawn = Grades.remove(player, ammo, 1, { order: 'best' });
         const arrowGrade = Object.keys(drawn.drawn || {}).find(k => drawn.drawn[k] > 0) || 'common';
         const shot = { ...o, weapon, arrowEffect: _num(drawn.effect, 1) };
         const chance = HuntingBow.hitChance(player, shot, c);
@@ -254,7 +266,7 @@ export const HuntingBow = {
                 const inIt = 1 + Math.max(0, Math.floor(_num(o.embedded)));
                 let whole = 0;
                 for (let i = 0; i < inIt; i++) if (rng() < c.recover.carcass) whole++;
-                recovered = HuntingBow._giveArrows(player, whole, arrowGrade, c);
+                recovered = HuntingBow._giveArrows(player, whole, arrowGrade, c, ammo);
             }
         } else {
             missArrow = rng() < c.recover.miss;
@@ -276,7 +288,7 @@ export const HuntingBow = {
         return {
             ok: true, hit, killed, wounded, chance, killChance: kc, arrowGrade, missArrow, recovered, secondArrow, fumble,
             broke: wear.broke, condition: wear.condition, worn: !wear.broke && wear.condition <= c.wear.snapBelow,
-            weapon, arrowsLeft: HuntingBow.arrows(player, c), levelUp,
+            weapon, ammo, arrowsLeft: HuntingBow.arrows(player, c, weapon), levelUp,
         };
     },
 
@@ -301,7 +313,7 @@ export const HuntingBow = {
             if (r.fumble && !fumble) fumble = r.fumble;
             if (r.killed) { killed = true; recovered += r.recovered; break; }
             if (r.wounded) { wounded = true; embedded++; alert = Math.min(1, alert + Q.alertPerMiss); continue; }
-            if (r.missArrow) recovered += HuntingBow._giveArrows(player, 1, r.arrowGrade, c);
+            if (r.missArrow) recovered += HuntingBow._giveArrows(player, 1, r.arrowGrade, c, r.ammo);
             if (!r.secondArrow) alert = Math.min(1, alert + Q.alertPerMiss);
         }
         return { ok: true, killed, shots, recovered, broke, levelUps, fumble, wounded: wounded && !killed };

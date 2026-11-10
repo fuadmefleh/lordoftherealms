@@ -331,6 +331,8 @@ export const SaveLoad = {
                 'tradePolicy',
                 // The crown's books: tax levels, budget lines, arrears, corruption, demesne (world/crownBooks.js)
                 'fisc',
+                // Its arsenals: the army's arms and arrows (world/realmArms.js)
+                'armoury',
                 // What its shipwrights know (world/shipcraft.js: absent = the whole craft) and
                 // the tongues its court has learned (world/cultures.js)
                 'shipcraft', 'tongues']),

@@ -96,12 +96,9 @@ export const MarketDynamics = {
             Economy.initSettlement(live);
             lives.push(live);
             const m = SettlementMarket.ensure(live);
-            // A realm at war wears out arms: the town needs more of them (goods' warMult, world/settlementMarket.js)
-            if (m) {
-                const kg = live.kingdom && typeof world.getKingdom === 'function' ? world.getKingdom(live.kingdom) : null;
-                const war = !!(kg && Array.isArray(kg.wars) && kg.wars.length);
-                if (war) m.war = 1; else if (m.war) delete m.war;
-            }
+            // (a realm at war draws its arms out of this stock itself — world/realmArms.js —
+            // so the old war flag that multiplied the town's own need is gone)
+            if (m && m.war) delete m.war;
             // Markets take their turns (every tickDays, staggered by place)
             if (k > 1 && Number.isFinite(day) && SettlementMarket.slot(s.q, s.r) !== turn) continue;
             // What the town brings to market, worked out afresh every few days

@@ -30,8 +30,9 @@ describe('the gear', () => {
         expect(noArrows.missing).toBe('arrows');
         expect(noArrows.reason).toMatch(/arrows/i);
         expect(HuntingBow.gear(hunter()).ok).toBe(true);
-        // a crossbow shoots too
-        expect(HuntingBow.gear(hunter({ crossbow: 1, arrows: 3 })).ok).toBe(true);
+        // a crossbow shoots too — bolts, not arrows (systems/arms.js ammo)
+        expect(HuntingBow.gear(hunter({ crossbow: 1, bolts: 3 })).ok).toBe(true);
+        expect(HuntingBow.gear(hunter({ crossbow: 1, arrows: 3 })).ok).toBe(false);
     });
 
     it('loosing without gear does nothing', () => {

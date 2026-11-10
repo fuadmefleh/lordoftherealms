@@ -5,6 +5,7 @@ import { Ailments } from '../../systems/ailments.js';
 import { Sieges } from '../../systems/sieges.js';
 import { siegePanelHtml, siegeResultHtml } from './siegePanel.js';
 import { FieldBattle } from '../../player/fieldBattle.js';
+import { Arms } from '../../systems/arms.js';
 import { openLordAudience, lordAudienceAct } from './lordAudience.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerEffects, Treasures } from './_imports.js';
 
@@ -405,6 +406,7 @@ Object.assign(ActionMenu, {
             html += `<div style="background:#1a2e1a; padding:8px; border-radius:4px; margin-bottom:8px;">`;
             html += `<div>💰 Gold looted: <strong style="color:#ffd700;">${result.loot}</strong></div>`;
             if (result.armsTaken) html += `<div style="margin-top:4px;">⚔️ Arms stripped from the fallen: ${Object.entries(result.armsTaken).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ')}</div>`;
+            if (Arms.quiverNote(result.quivers)) html += `<div style="margin-top:4px;">${Arms.quiverNote(result.quivers)}</div>`;
             if (result.inventoryLoot && Object.keys(result.inventoryLoot).length > 0) {
                 html += `<div style="margin-top:4px;">📦 Supplies captured:</div>`;
                 for (const [item, qty] of Object.entries(result.inventoryLoot)) {

@@ -44,7 +44,23 @@ export const InnerMapCharacters = {
         { key: 'ready',     file: 'Combat 1h - Idle',      frames: 2, fps: 1.5 },
         // On a rock face (ui/innerMapClimbing.js): the sheet has one row, the back turned
         { key: 'climb',     file: 'Climb',                 frames: 6, fps: 8, rows: 1 },
+        // Drawing and loosing a bow or crossbow: only the bow's own sheet (Props/Bow/Wood/Shoot.png,
+        // scripts/make_arms_shoot.py); every other layer is cut from frames it already has (SHOOT_PICK).
+        // Played by frame (InnerMapBattle times it to the volley): time = frame index
+        { key: 'shoot',     file: 'Shoot',                 frames: 6, fps: 1, pick: true },
     ],
+
+    // The body's frame in each of the 6 shoot frames, per facing row (up, left, down, right):
+    // side-on the ready stance, then the swing frames where the front arm comes up and reaches out
+    // toward the facing; toward or away from the eye, the halfslash frames with the fist before the
+    // chest. Must match BODY in scripts/make_arms_shoot.py, which placed the bow in those fists.
+    SHOOT_PICK: (() => {
+        const ud = [['Combat 1h - Idle', 0], ['Combat 1h - Halfslash', 1], ['Combat 1h - Halfslash', 2],
+            ['Combat 1h - Halfslash', 3], ['Combat 1h - Halfslash', 3], ['Combat 1h - Halfslash', 2]];
+        const side = [['Combat 1h - Idle', 0], ['Legacy - Swing', 3], ['Legacy - Swing', 4],
+            ['Legacy - Swing', 5], ['Legacy - Swing', 5], ['Legacy - Swing', 5]];
+        return [ud, side, ud, side];
+    })(),
 
     // Map from object-definition animation name → internal drawCharacter anim key
     ANIM_KEY_MAP: {
@@ -112,6 +128,7 @@ export const InnerMapCharacters = {
                 pathSet.add(this._basePath + layerPath + '/Idle.png');
                 pathSet.add(this._basePath + layerPath + '/Combat 1h - Slash.png');
                 for (const ea of this._EXTRA_ANIMS) {
+                    if (ea.pick && !layerPath.startsWith('Props/')) continue;
                     pathSet.add(this._basePath + layerPath + '/' + ea.file + '.png');
                 }
             }
@@ -158,9 +175,11 @@ export const InnerMapCharacters = {
         const preset = { layers: layers.slice() };
         this._presets[presetId] = preset;
         const anims = ['Walk', 'Idle', 'Combat 1h - Slash', ...this._EXTRA_ANIMS.map(ea => ea.file)];
+        const picked = new Set(this._EXTRA_ANIMS.filter(ea => ea.pick).map(ea => ea.file));
         const promises = [];
         for (const layerPath of layers) {
             for (const anim of anims) {
+                if (picked.has(anim) && !layerPath.startsWith('Props/')) continue;
                 const fullPath = this._basePath + layerPath + '/' + anim + '.png';
                 if (this._imageCache.has(fullPath)) continue;
                 promises.push(new Promise(resolve => {
@@ -202,8 +221,9 @@ export const InnerMapCharacters = {
             };
             // Composite extra animation types (sitting, emotes, halfslash, swing)
             for (const ea of this._EXTRA_ANIMS) {
-                const canvas = this._compositeAnimation(preset.layers, ea.file,
-                    ea.frames * cell, this.DIR_ROWS * cell, cell);
+                const canvas = ea.pick
+                    ? this._compositePicked(preset.layers, ea.file, this.SHOOT_PICK, ea.frames, cell)
+                    : this._compositeAnimation(preset.layers, ea.file, ea.frames * cell, this.DIR_ROWS * cell, cell);
                 entry[ea.key] = canvas || null;
             }
             this._composited.set(presetId, entry);
@@ -260,6 +280,45 @@ export const InnerMapCharacters = {
         }
 
         return anyLoaded ? canvas : null;
+    },
+
+    /**
+     * An animation no LPC body sheet has (the bow's shoot): a prop layer with its own sheet
+     * (`file`) draws it whole; a prop without one is left out; every other layer takes, for
+     * frame f of row r, frame pick[r][f][1] of its sheet pick[r][f][0]. Null when no prop
+     * layer has the sheet (nothing to shoot with).
+     */
+    _compositePicked(layerPaths, file, pick, frames, cellSize = this.FRAME_W) {
+        const own = layerPaths.filter(l => l.startsWith('Props/') && this._imageCache.get(this._basePath + l + '/' + file + '.png'));
+        if (!own.length) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = frames * cellSize;
+        canvas.height = this.DIR_ROWS * cellSize;
+        const ctx = canvas.getContext('2d');
+        const cellOf = (img, f, r, df, dr) => {
+            const k = Math.max(1, Math.round(img.height / (this.DIR_ROWS * this.FRAME_H)));
+            const src = this.FRAME_W * k;
+            if ((f + 1) * src > img.width || (r + 1) * src > img.height) return;
+            const take = Math.min(src, cellSize);
+            const so = (src - take) / 2, doff = (cellSize - take) / 2;
+            ctx.drawImage(img, f * src + so, r * src + so, take, take, df * cellSize + doff, dr * cellSize + doff, take, take);
+        };
+        for (const layerPath of layerPaths) {
+            if (layerPath.startsWith('Props/')) {
+                const img = this._imageCache.get(this._basePath + layerPath + '/' + file + '.png');
+                if (!img) continue;
+                for (let r = 0; r < this.DIR_ROWS; r++) for (let f = 0; f < frames; f++) cellOf(img, f, r, f, r);
+                continue;
+            }
+            for (let r = 0; r < this.DIR_ROWS; r++) {
+                for (let f = 0; f < frames; f++) {
+                    const [anim, sf] = pick[r][f];
+                    const img = this._imageCache.get(this._basePath + layerPath + '/' + anim + '.png');
+                    if (img) cellOf(img, sf, r, f, r);
+                }
+            }
+        }
+        return canvas;
     },
 
     // Gear's ready-stance sheet ('Combat 1h - Idle'), and the animation it is carried through

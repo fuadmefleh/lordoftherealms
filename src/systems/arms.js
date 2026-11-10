@@ -641,6 +641,27 @@ export const Arms = {
     },
 
     /**
+     * A side's livery on the armour of a layer recipe (bottom to top): over
+     * mail or plate (looks.tabardOver) a tabard of the shirt's colour, a
+     * brigandine's cloth cover in that colour (scripts/make_arms_livery.py).
+     * A colour outside looks.liveryColours leaves the recipe as it is.
+     */
+    liveryLayers(layers, colour) {
+        if (!Array.isArray(layers)) return layers;
+        const looks = Arms.config().looks || {};
+        if (!colour || !(looks.liveryColours || []).includes(colour)) return layers;
+        const over = looks.tabardOver || [];
+        const out = [];
+        for (const l of layers) {
+            const m = /^Clothing\/([^/]+)\/Armour\/([^/]+)$/.exec(l);
+            if (m && m[2] === 'Brigandine') { out.push(`${l}/${colour}`); continue; }
+            out.push(l);
+            if (m && over.includes(m[2])) out.push(`Clothing/${m[1]}/Armour/Tabard/${colour}`);
+        }
+        return out;
+    },
+
+    /**
      * Fit an LPC layer recipe (bottom to top, paths under
      * assets/lpc/Characters) to a kit (kitView: { main, off, head, body }):
      * the recipe's weapon lines (any Props/ but a shield) become the kit's

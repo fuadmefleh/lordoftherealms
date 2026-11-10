@@ -137,7 +137,9 @@ export function appearanceLayers(a, kit = null) {
     ];
     if (a.beard && a.beard !== 'none') layers.push(`Hair/${a.beard}/${a.hairColor}`);
     if (a.hair && a.hair !== 'none') layers.push(`Hair/${a.hair}/${a.hairColor}`);
-    return kit ? Arms.lookLayers(layers, kit, { build: fem ? 'Feminine, Thin' : 'Masculine, Thin', paint: a.shirtColor }) : layers;
+    if (!kit) return layers;
+    // (a tabard over mail or plate, a brigandine's cover, in the shirt's colour)
+    return Arms.liveryLayers(Arms.lookLayers(layers, kit, { build: fem ? 'Feminine, Thin' : 'Masculine, Thin', paint: a.shirtColor }), a.shirtColor);
 }
 
 /** A preset id unique to this look, so a changed look is a new preset. */

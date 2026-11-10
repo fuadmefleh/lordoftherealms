@@ -73,6 +73,7 @@ export const InnerMapBattle = {
     _keys: {},
     _presetsReady: false,
     _looks: new Map(),     // company id → [presetId per variant]
+    _spread: new WeakMap(), // figure → its drawn offset from where the battle has it (_at)
     _lastField: null,      // the field just fought: its fallen stay on the map
     _cmdT: 0,
     _ending: false,
@@ -256,7 +257,8 @@ export const InnerMapBattle = {
     /**
      * The layers a figure of company `c` wears: its unit type's recipe or its
      * kind's, the side's livery, skin and hair by variant. Your own men wear
-     * the arms they were issued in place of the recipe's (Arms.lookLayers).
+     * the arms they were issued in place of the recipe's (Arms.lookLayers);
+     * a side's tabards and brigandine covers are its shirt colour (Arms.liveryLayers).
      */
     layersFor(bf, c, variant, opts) {
         const looks = InnerMapBattle._lookCfg();
@@ -272,7 +274,9 @@ export const InnerMapBattle = {
         const layers = recipe.map(l => l.replace(/\{(\w+)\}/g, (_, k) => fill[k] || ''));
         // Your soldiers show the arms they were issued (systems/arms.js kits): one man of the company per variant
         const armed = c.side === 'player' && Array.isArray(c.units) ? c.units.filter(u => u && u.kit) : [];
-        return armed.length ? Arms.lookLayers(layers, Arms.kitView(armed[variant % armed.length]), { paint: fill.paint }) : layers;
+        const worn = armed.length ? Arms.lookLayers(layers, Arms.kitView(armed[variant % armed.length]), { paint: fill.paint }) : layers;
+        // a side in livery wears it over its mail and plate (bandits and raiders each their own)
+        return rabble ? worn : Arms.liveryLayers(worn, fill.shirt);
     },
 
     _registerLooks(game, bf, opts) {
@@ -373,8 +377,9 @@ export const InnerMapBattle = {
                 const shooters = a.figures.filter(f => f.alive);
                 const marks = b.figures.filter(f => f.alive);
                 for (const f of shooters) {
-                    const m = marks[Math.floor(_fx() * marks.length)] || b;
-                    B.particles.push({ kind: 'arrow', x0: f.x, y0: f.y, x1: m.x + (_fx() - 0.5) * 1.6, y1: m.y + (_fx() - 0.5) * 1.2, t: -_fx() * 0.35, dur: Math.max(0.4, e.flight), arc: 1.2 + e.flight * 1.4 });
+                    const m = marks[Math.floor(_fx() * marks.length)];
+                    const s0 = B._at(a, f), s1 = m ? B._at(b, m) : b;
+                    B.particles.push({ kind: 'arrow', x0: s0.x, y0: s0.y, x1: s1.x + (_fx() - 0.5) * 1.6, y1: s1.y + (_fx() - 0.5) * 1.2, t: -_fx() * 0.35, dur: Math.max(0.4, e.flight), arc: 1.2 + e.flight * 1.4 });
                 }
             } else if (e.type === 'fall') {
                 for (let i = 0; i < 6; i++) B.particles.push({ kind: 'blood', x: e.x + (_fx() - 0.5) * 0.4, y: e.y + (_fx() - 0.5) * 0.3, vx: (_fx() - 0.5) * 1.6, vz: 1 + _fx() * 1.8, z: 0.8, t: 0, dur: 0.7 });
@@ -411,6 +416,42 @@ export const InnerMapBattle = {
 
     // ── Drawing ───────────────────────────────────────────────────────
 
+    /**
+     * Where a figure is drawn (tiles): where the battle has him, his formation opened out to the
+     * looks' spacing (battlefield.looks.spacing: the gap between files and between ranks a
+     * figure needs on screen so the man behind is not hidden by the man before him). The sim
+     * keeps its own, closer formation (every distance, reach and frontage the odds are tuned
+     * on); each man is drawn moved by the difference between his place in the opened formation
+     * and his place in the sim's, eased toward it as he takes or leaves his place (a routed man
+     * runs where he runs). The fallen keep the offset they fell with.
+     */
+    _at(c, f) {
+        const B = InnerMapBattle;
+        const want = (B._lookCfg().spacing || {})[c.kind];
+        if (!want || f.slot == null) return { x: f.x, y: f.y };
+        let d = B._spread.get(f);
+        if (f.alive) {
+            let tx = 0, ty = 0;
+            if (c.state !== 'routed' && c.state !== 'fled') {
+                const k = Battlefield.config().kinds[c.kind] || {};
+                const p = Battlefield.slotPos(c, f.slot);
+                const ox = p.x - c.x, oy = p.y - c.y;
+                // along the facing, and across it (the left hand: -dy, dx)
+                const along = ox * c.dx + oy * c.dy, across = -ox * c.dy + oy * c.dx;
+                const ka = (Number(want.along) || k.along || 1) / (k.along || 1) - 1;
+                const kc = (Number(want.across) || k.across || 1) / (k.across || 1) - 1;
+                tx = c.dx * along * ka - c.dy * across * kc;
+                ty = c.dy * along * ka + c.dx * across * kc;
+            }
+            if (!d) { d = { x: tx, y: ty }; B._spread.set(f, d); }
+            const now = performance.now();
+            const e = Math.min(1, Math.max(0, (now - (d.t || now)) / 1000) * 3);
+            d.t = now;
+            d.x += (tx - d.x) * e; d.y += (ty - d.y) * e;
+        }
+        return d ? { x: f.x + d.x, y: f.y + d.y } : { x: f.x, y: f.y };
+    },
+
     /** The figures in the depth-sorted pass (innerMapLayers/entities.js). */
     collect(items, ctx, camera, T) {
         const B = InnerMapBattle;
@@ -424,7 +465,8 @@ export const InnerMapBattle = {
         for (const c of bf.companies) {
             const sel = B.active && B.selected.has(c.id);
             for (const f of c.figures) {
-                const wx = f.x * T + T / 2, wy = f.y * T + T / 2;
+                const at = B._at(c, f);
+                const wx = at.x * T + T / 2, wy = at.y * T + T / 2;
                 const s = camera.worldToScreenFast(wx, wy);
                 const sx = s.x, sy = s.y;
                 if (sx < -ds * 3 || sx > W + ds * 3 || sy < -ds * 3 || sy > H + ds * 3) continue;
@@ -439,9 +481,12 @@ export const InnerMapBattle = {
                 // (weapons and shields show only in the combat poses: a soldier standing holds them
                 // ready, an archer his bow, which he also holds up to shoot)
                 const armed = true;
-                const anim = f.anim === 'fight' ? (c.kind === 'archer' ? 'halfslash' : 'slash')
+                // a bowman standing to his work draws and looses with the volleys (_shootFrame)
+                const shot = c.kind === 'archer' && f.anim !== 'fight' && f.anim !== 'walk' ? B._shootFrame(bf, c, f) : null;
+                const anim = shot != null ? 'shoot'
+                    : f.anim === 'fight' ? (c.kind === 'archer' ? 'halfslash' : 'slash')
                     : f.anim === 'shoot' ? 'ready' : (f.anim === 'idle' && armed) ? 'ready' : f.anim;
-                const tm = now + f.i * 0.37 + c.id * 0.11;
+                const tm = shot != null ? shot + 0.5 : now + f.i * 0.37 + c.id * 0.11;
                 const routed = c.state === 'routed';
                 items.push({ sortY: wy + T / 2, zLayer: 2, sortX: f.x, draw: () => {
                     if (sel) {
@@ -471,6 +516,31 @@ export const InnerMapBattle = {
                 B._drawFoot(ctx, ds, preset, sx, sy, fc.moving ? 'walk' : 'idle', dir, now, ready, false);
             } });
         }
+    },
+
+    /**
+     * Which frame of the shoot sheet (InnerMapCharacters SHOOT_PICK: 0 bow held ready, 1 nocking,
+     * 2 drawing, 3-4 full draw, 5 loosed) a bowman of company c shows now, timed by its volleys:
+     * the bow comes up and is drawn over the last moments before the volley (Battlefield's
+     * volleyT counts down to it), loosed as it flies, then held ready. Each man a little off the
+     * beat of the next. Null while the company is not standing to shoot (marching, in the press).
+     */
+    _shootFrame(bf, c, f) {
+        if (c.state !== 'formed' || c.moving || (c.engaged && c.engaged.length)) return null;
+        const k = Battlefield.config().kinds.archer || {};
+        const every = Number(k.volleyEvery) || 3.2;
+        const jit = ((f.i * 37) % 11) / 11 * 0.16 - 0.08;
+        const tn = c.volleyT + jit;
+        const since = every - c.volleyT;
+        if (c.shots > 0 && since >= 0 && since < 0.4 + jit) return 5;
+        const range = (Number(k.range) || 13) + (c.rangeBonus || 0) + 1;
+        if (tn > 0 && Battlefield._nearestFoeDist(bf, c) <= range) {
+            if (tn > 1.7) return 0;
+            if (tn > 1.25) return 1;
+            if (tn > 0.8) return 2;
+            return tn > 0.4 ? 3 : 4;
+        }
+        return 0;
     },
 
     _drawFoot(ctx, ds, preset, sx, sy, anim, dir, tm, ready, routed) {
@@ -628,7 +698,7 @@ export const InnerMapBattle = {
             const alive = c.figures.filter(f => f.alive);
             if (!alive.length) continue;
             let top = Infinity, mx = 0;
-            for (const f of alive) { top = Math.min(top, f.y); mx += f.x; }
+            for (const f of alive) { const at = B._at(c, f); top = Math.min(top, at.y); mx += at.x; }
             mx /= alive.length;
             const s = toS(mx, top);
             const mine = c.side === 'player';
@@ -680,7 +750,8 @@ export const InnerMapBattle = {
             for (const f of c.figures) {
                 if (!f.alive) continue;
                 // a figure stands about a tile tall above its feet
-                const d = Math.hypot(f.x - x, (f.y - 0.6) - y);
+                const at = InnerMapBattle._at(c, f);
+                const d = Math.hypot(at.x - x, (at.y - 0.6) - y);
                 if (d < bd) { bd = d; best = c; }
             }
         }

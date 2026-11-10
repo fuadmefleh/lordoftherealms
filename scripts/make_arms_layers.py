@@ -11,12 +11,20 @@ sword's sheets by the sword's pose there (scripts/arms_pose.py: the hand,
 the blade's direction, its foreshortening, in front of the body or behind):
 
   swing   (dagger, axes, mace) along the sword's blade, as the sword swings
-  pole    (spear, pike, bill, halberd) upright in the ready stance, levelled
-          toward the facing in the cuts (a thrust as the hand drives forward)
+  pole    (spear, pike, bill, halberd) in the ready stance slanted forward from
+          the front fist side-on (the head out in front of the face), upright
+          seen from the front or back; levelled toward the facing in the cuts
+          side-on (a thrust as the hand drives forward), slanted across the body
+          toward the facing seen from the front or back (a shaft pointing
+          straight at the eye foreshortens to a stub)
+          (the Dane axe swings like the swords, but is held slanted forward in
+          the ready stance, its head clear of the face)
   bow     upright in the hand, the string toward the body
   xbow    levelled toward the facing, the stock at the hand
 
-The metal is recoloured to the sword's own Bronze / Iron / Steel ramps.
+The metal is recoloured to the sword's own Bronze and Steel ramps and a grey iron
+ramp (IRON). Run scripts/make_arms_sword.py first (the sword's ready stance and
+iron, which the weapons here follow), then this, then scripts/make_arms_shoot.py.
 Writes assets/lpc/Characters/Props/<Weapon>/<Metal>/<anim>.png and
 .../_Behind/<Metal>/<anim>.png, 128px cells round the 64px body like the
 sword's sheets (ui/innerMapCharacters.js keeps the whole cell when a layer is
@@ -39,10 +47,14 @@ from make_new_windows import key_white  # noqa: E402
 SRC = 'assets/lpc/new/arms/'
 OUT = 'assets/lpc/Characters/Props/'
 
+IRON = [(27, 25, 43), (68, 64, 70), (98, 94, 98), (122, 118, 118), (152, 148, 142), (190, 186, 176)]
 STEEL = [(27, 25, 43), (72, 65, 82), (114, 107, 126), (134, 126, 127), (168, 179, 184), (227, 231, 211)]
 METALS = {
     'Steel': STEEL,
-    'Iron': [(0, 0, 0), (37, 32, 37), (57, 43, 52), (82, 65, 74), (111, 101, 99), (148, 128, 129)],
+    # grey iron: darker and flatter than steel, warmer, never near-black (the LPC sword's own Iron
+    # ramp, (0,0,0) (37,32,37) (57,43,52) (82,65,74) (111,101,99) (148,128,129), read as black on a
+    # flat axe head; scripts/make_arms_sword.py moves the LPC iron sword onto this ramp too)
+    'Iron': IRON,
     'Bronze': [(27, 19, 19), (70, 40, 37), (96, 52, 41), (121, 65, 24), (162, 97, 24), (225, 157, 77)],
 }
 WOOD = [(42, 23, 34), (84, 54, 30), (117, 80, 45), (148, 107, 68), (162, 121, 75), (190, 146, 96)]
@@ -106,25 +118,43 @@ def quantize(img):
     return idx
 
 
-def pose_for(mode, anim, row, p):
+def _fist(p, fx):
+    """The front fist in the side-on ready stance: ahead of and above the sword's grip (the rear hand)."""
+    return (p['grip'][0] + fx * 13, p['grip'][1] - 4)
+
+
+def pose_for(mode, anim, row, p, name=None):
     """(grip, dir, along-scale, across-scale, mirror, layer) of a weapon in a frame from the sword's pose p."""
     fx, fy = FACE[row]
     side = row in (1, 3)
     if mode == 'swing':
+        if name == 'Dane Axe' and anim == 'Combat 1h - Idle':
+            # the two-hander held ready slanting forward, its head out in front of the face
+            if side:
+                t = math.radians(52)
+                return _fist(p, fx), (fx * math.sin(t), -math.cos(t)), 1.0, 1.0, row == 1, 'front'
+            return p['grip'], ((0.3 if row == 2 else -0.3), -0.95), 0.95, 1.0, row == 1, 'behind' if row == 0 else p['layer']
         k = max(0.3, min(1.0, p['len'] / FULL))
         return p['grip'], p['dir'], k, 1.0, row == 1, p['layer']
     if mode == 'pole':
         if anim == 'Combat 1h - Idle':
-            # upright, leaning a little toward the facing, the butt by the foot
-            t = math.radians(14)
-            d = (fx * math.sin(t), -math.cos(t)) if side else (0.12 if row == 2 else -0.12, -1)
+            if side:
+                # held ready slanting forward, the head out in front of the face, the butt behind the heel
+                t = math.radians(38)
+                return _fist(p, fx), (fx * math.sin(t), -math.cos(t)), 1.0, 1.0, row == 1, 'front'
+            # seen from the front or behind: upright, off to the weapon's side
+            d = (0.12 if row == 2 else -0.12, -1)
             n = math.hypot(*d)
             return p['grip'], (d[0] / n, d[1] / n), 1.0, 1.0, row == 1, 'behind' if row == 0 else p['layer']
         # levelled at the foe, a little down
         if side:
             d = (fx * math.cos(math.radians(8)), math.sin(math.radians(8)))
             return p['grip'], d, 1.0, 1.0, row == 1, 'front'
-        return p['grip'], (0, fy), 0.45, 1.0, False, 'behind' if row == 0 else 'front'
+        # toward or away from the eye: slanted across the body toward the facing (a shaft
+        # pointing straight at the eye foreshortens to a stub that reads as pointing at the ground)
+        t = math.radians(40)
+        sx = -1 if row == 2 else 1
+        return p['grip'], (sx * math.sin(t), fy * math.cos(t)), 0.85, 1.0, row == 2, 'behind' if row == 0 else 'front'
     if mode == 'bow':
         # upright, held out at arm's length toward the facing, the string toward the body;
         # seen from the front or back, edge-on
@@ -211,7 +241,7 @@ def main():
                         if not p:
                             continue
                         last = p
-                        grip, d, k, across, mirror, layer = pose_for(mode, anim, r, p)
+                        grip, d, k, across, mirror, layer = pose_for(mode, anim, r, p, name)
                         cell = outline(place(idx, (gx, gy), spa, grip, d, k, across, mirror, pal))
                         sheets[layer].alpha_composite(cell, (i * CELL, r * CELL))
                 for layer, sheet in sheets.items():

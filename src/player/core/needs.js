@@ -9,6 +9,8 @@ import { Hex } from '../../core/hex.js';
 import { Terrain } from '../../world/terrain.js';
 import { FoodSkills } from '../../systems/foodSkills.js';
 import { Endurance } from '../endurance.js';
+import { Economy } from '../../world/economy.js';
+import { Ledger } from '../../systems/ledger.js';
 
 /** Waking hours in one day — the inner-map day and the world-map day share it. */
 export const WAKING_HOURS = 16;
@@ -323,7 +325,13 @@ export const PlayerNeedsMethods = {
         if ((this.gold || 0) < place.cost) return { success: false, reason: `It costs ${place.cost} gold.` };
         const B = _bathingConfig();
         const spec = B[place.kind] || BATHING_DEFAULTS[place.kind];
-        if (place.cost > 0) this.gold -= place.cost;
+        if (place.cost > 0) {
+            // The well's keeper or the bathhouse is the town's: the coin goes to its purse
+            this.gold -= place.cost;
+            const here = world.getTile(this.q, this.r);
+            Economy.payTown(here && here.settlement, place.cost);
+            Ledger.record(this, 'lodging', -place.cost);
+        }
         // Soap in the pack: a cleaner bath and cleaner clothes (core/grades.js)
         const soap = this.useSoap();
         // Dirty clothes would cap the bath: they get scrubbed first

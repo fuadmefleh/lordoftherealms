@@ -97,7 +97,8 @@ const topLevel = [
     'craftGrades',
     'livestock',
     'graves',
-    'ambient'
+    'ambient',
+    'autoUpkeep'
 ];
 
 const merged = {};

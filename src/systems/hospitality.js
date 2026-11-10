@@ -43,6 +43,7 @@ import { Ledger } from './ledger.js';
 import { Fame } from './fame.js';
 import { FoodSkills } from './foodSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
+import { Economy } from '../world/economy.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -536,6 +537,17 @@ export const Hospitality = {
         return world && typeof world.getTile === 'function' ? world.getTile(view.q, view.r) : null;
     },
 
+    /**
+     * A guest's coin at an NPC house goes into its town's purse (the keeper,
+     * the cook and the laundress are townsfolk). A roadhouse out on the road
+     * keeps no town purse.
+     */
+    _payHouse(world, view, amount) {
+        if (!view || view.owner !== 'npc' || !(amount > 0)) return 0;
+        const tile = this._fameTile(world, view);
+        return tile && tile.settlement ? Economy.payTown(tile.settlement, amount) : 0;
+    },
+
     /** Whether tonight's rooms are all taken (only ever at a near-full NPC house). */
     noVacancy(world, view) {
         if (!view || view.owner === 'player') return false;
@@ -598,6 +610,7 @@ export const Hospitality = {
         if (t.price > 0) {
             player.gold -= t.price;
             Ledger.record(player, 'lodging', -t.price);
+            this._payHouse(world, v, t.price);
         }
         if (q.freeRoom) Fame.claimInn(player, world, this._fameTile(world, v), 'room');
         player._restTypeOverride = 'inn';
@@ -628,6 +641,7 @@ export const Hospitality = {
         if (s.price > 0) {
             player.gold -= s.price;
             Ledger.record(player, 'lodging', -s.price);
+            this._payHouse(world, v, s.price);
         } else if (S.needs && S.needs.hunger && v.owner === 'npc') {
             Fame.claimInn(player, world, this._fameTile(world, v), 'meal');
         }

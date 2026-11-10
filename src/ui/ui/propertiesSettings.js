@@ -823,6 +823,8 @@ Object.assign(UI.prototype, {
         // Store notification duration for use in showNotification
         this._notifDuration = (settings.notificationDuration || 4) * 1000;
         this._confirmEndDay = settings.confirmEndDay || false;
+        // The day's last hours: leftover points spent on the character's upkeep (player/autoUpkeep.js)
+        this._autoUpkeep = ['full', 'upkeep', 'off'].includes(settings.autoUpkeep) ? settings.autoUpkeep : 'full';
         // The Steward's Counsel morning brief (ui/actionMenu/counsel.js)
         this._morningBrief = settings.morningBrief !== false;
         // The Season's Reckoning at each change of season (ui/actionMenu/reckoning.js)
@@ -885,6 +887,14 @@ Object.assign(UI.prototype, {
                         <input type="checkbox" id="gsConfirmEndDay" ${s.confirmEndDay ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
                     </label>
+                </div>
+                <div class="gs-row">
+                    <label>The Day's Last Hours<br><span style="font-size:10px;color:var(--text-secondary);">Points left at day's end go on your own upkeep</span></label>
+                    <select id="gsAutoUpkeep" class="gs-select">${[
+                        { value: 'full', label: 'Upkeep and leisure' },
+                        { value: 'upkeep', label: 'Upkeep only' },
+                        { value: 'off', label: 'Off' },
+                    ].map(o => `<option value="${o.value}" ${(s.autoUpkeep || 'full') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}</select>
                 </div>
                 <div class="gs-row">
                     <label title="One notification each new day with the Steward's top three matters">Steward's Morning Brief</label>
@@ -1340,6 +1350,7 @@ Object.assign(UI.prototype, {
             showDayCounter: getChecked('gsShowDayCounter'),
             showMinimap: getChecked('gsShowMinimap'),
             confirmEndDay: getChecked('gsConfirmEndDay'),
+            autoUpkeep: getVal('gsAutoUpkeep') || 'full',
             morningBrief: getChecked('gsMorningBrief'),
             seasonReckoning: getChecked('gsSeasonReckoning'),
             heralds: getChecked('gsHeralds'),
@@ -1407,6 +1418,7 @@ Object.assign(UI, {
             showDayCounter: true,
             showMinimap: true,
             confirmEndDay: false,
+            autoUpkeep: 'full',
             morningBrief: true,
             seasonReckoning: true,
             heralds: true,

@@ -953,7 +953,7 @@ export const Livestock = {
                 const by = {};
                 for (const [a, w] of why) by[w] = (by[w] || 0) + 1;
                 const parts = Object.entries(by).map(([w, n]) => `${n} of ${w}`);
-                notices.push({ icon: '🪦', title: 'Beasts Lost', text: `At ${name}: ${why.length === 1 ? `a ${Livestock.headName(why[0][0])} died of ${why[0][1]}` : `${why.length} died — ${parts.join(', ')}`}.`, type: 'warning' });
+                notices.push({ icon: '💀', title: 'Beasts Lost', text: `At ${name}: ${why.length === 1 ? `a ${Livestock.headName(why[0][0])} died of ${why[0][1]}` : `${why.length} died — ${parts.join(', ')}`}.`, type: 'warning' });
             }
         }
         // Products: eggs, milk, feathers, wool (a livestock property's working beasts work for it instead)

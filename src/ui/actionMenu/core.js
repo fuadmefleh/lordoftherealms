@@ -1,6 +1,5 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
-import { uiZoom } from '../uiScale.js';
 import { pictureIcon } from '../icons.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Endurance } from '../../player/endurance.js';
@@ -37,6 +36,72 @@ function paintPlaceView(game, tile, view) {
     } catch (e) {
         // A tainted or unavailable canvas just leaves the plain card
     }
+}
+
+// ── The action menu as a town's districts ──
+// The menu shows one district at a time behind a ribbon of wax seals, so a
+// capital's forty-odd actions are never all on screen at once. Districts are a
+// view over _categorizeActions: Social splits into the people's places (tavern,
+// temple, lodging) and the hall of lords and realms.
+const AMX_COURT_TYPES = new Set([
+    'pledge_allegiance', 'renounce_allegiance', 'realm_wars', 'fund_restoration', 'form_kingdom',
+    'claims_crowns', 'royal_court', 'request_meeting', 'meet_rival_house', 'seek_title',
+    'view_title_status', 'resign_title', 'collect_tax', 'request_bounty', 'capture_fugitive',
+    'hold_council', 'espionage_menu', 'manage_spies', 'hold_court', 'rivals_here', 'hall_of_heroes',
+    'patronage', 'manage_dynasty', 'treasury', 'host_feast', 'hold_tournament', 'host_festival',
+    'meet_courier',
+]);
+const AMX_DISTRICTS = {
+    hearth:    { icon: '🏕️', label: 'Hearth', hint: 'Rest, food, body and the road' },
+    market:    { icon: '⚖️', label: 'Market', hint: 'Trade, work, coin and property' },
+    folk:      { icon: '🍺', label: 'Tavern & Temple', hint: 'People, faith, talk and a bed' },
+    court:     { icon: '👑', label: 'Hall & Court', hint: 'Lords, titles, realms and intrigue' },
+    arms:      { icon: '⚔️', label: 'Arms', hint: 'Soldiers, training and the sword' },
+    works:     { icon: '🏗️', label: 'Works', hint: 'Build, raise and tear down' },
+    frontier:  { icon: '🧭', label: 'Frontier', hint: 'Colonies, holdings and new land' },
+    maps:      { icon: '🗺️', label: 'Maps', hint: 'Charting the land and trading maps' },
+    jail:      { icon: '🔒', label: 'Jail', hint: 'Your cell, and the ways out of it' },
+    servitude: { icon: '⛓️', label: 'Servitude', hint: 'Your bond, and the ways out of it' },
+};
+const AMX_ORDER = ['hearth', 'market', 'folk', 'court', 'arms', 'works', 'frontier', 'maps', 'jail', 'servitude'];
+const AMX_FROM_CATEGORY = { general: 'hearth', commerce: 'market', military: 'arms', building: 'works', frontier: 'frontier', cartography: 'maps', jail: 'jail', servitude: 'servitude' };
+// Each seal its own wax
+const AMX_WAX = {
+    athand: '#a8781c', hearth: '#8a3a22', market: '#2f6b45', folk: '#8a5a1c', court: '#5b3277',
+    arms: '#7f1f1f', works: '#5e4630', frontier: '#24676a', maps: '#2c4f7c', jail: '#3d3d46', servitude: '#3d3d46',
+};
+// Actions that charge their AP per use inside their own menus
+const AMX_PER_USE = { gambling: 2, smuggle: 2 };
+// Pins and recent actions are a per-player-of-this-browser convenience, not game state
+const AMX_PIN_KEY = 'lotr_actionmenu_pins';
+const AMX_RECENT_KEY = 'lotr_actionmenu_recent';
+const _amxKey = (a) => (a.unitId ? `${a.type}#${a.unitId}` : a.type);
+function _amxLoad(key) {
+    try {
+        const v = JSON.parse(localStorage.getItem(key) || '[]');
+        return Array.isArray(v) ? v.filter(x => typeof x === 'string') : [];
+    } catch (e) {
+        return [];
+    }
+}
+function _amxSave(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { /* storage unavailable: pins last this menu only */ }
+}
+
+/** The districts with actions here, in seal order. */
+function _amxDistricts(actions, tile, game) {
+    const byId = {};
+    for (const cat of ActionMenu._categorizeActions(actions)) {
+        for (const a of cat.actions) {
+            const id = cat.id === 'social' ? (AMX_COURT_TYPES.has(a.type) ? 'court' : 'folk') : (AMX_FROM_CATEGORY[cat.id] || 'hearth');
+            (byId[id] = byId[id] || []).push(a);
+        }
+    }
+    const atSea = !!(game.player.boardedShip && tile.terrain && !tile.terrain.passable);
+    const hearth = tile.settlement ? 'Hearth' : atSea ? 'Ship & Sea' : 'Camp & Wilds';
+    return AMX_ORDER.filter(id => byId[id]).map(id => ({
+        id, ...AMX_DISTRICTS[id], label: id === 'hearth' ? hearth : AMX_DISTRICTS[id].label, actions: byId[id],
+    }));
 }
 
 Object.assign(ActionMenu, {
@@ -114,7 +179,7 @@ Object.assign(ActionMenu, {
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', commissions: 'commerce',
-            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', sea_rovers: 'general', explore_inner_map: 'general',
+            disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
             odd_jobs: 'commerce', bounty_board: 'commerce', busking: 'commerce', gambling: 'commerce',
@@ -152,6 +217,13 @@ Object.assign(ActionMenu, {
             underworld: 'commerce',
             guildhall: 'commerce',
             post_house: 'commerce',
+            // (these used to fall through to General, swelling it to half the list)
+            arms_armour: 'military', army_command: 'military', outlaw_lair: 'military', sea_rovers: 'military',
+            hire_sailors: 'commerce', trading_company: 'commerce', underwriter: 'commerce', bourse: 'commerce',
+            mint: 'commerce', estates: 'commerce', putting_out: 'commerce', meet_trader: 'commerce',
+            treasury: 'social', meet_courier: 'social',
+            public_works: 'building', terraform: 'building',
+            chart_tile: 'cartography',
         };
 
         for (const action of actions) {
@@ -168,37 +240,26 @@ Object.assign(ActionMenu, {
     },
 
     /**
-     * Create the action menu UI — all categories visible, no scrolling
+     * Create the action menu UI: the place card, a ribbon of district seals
+     * (At Hand, Hearth, Market, Tavern & Temple, Hall & Court, Arms, Works,
+     * Frontier, Maps), one district's actions at a time in a scrolling list,
+     * a search across them all, and a note on the action under the pointer.
      */
     createMenu(game, tile, actions) {
         // Remove existing menu if any
         ActionMenu.close();
 
-        const categories = ActionMenu._categorizeActions(actions);
-
-        // If servitude/jail, show simple flat list (very few actions)
-        const isSpecial = categories.length === 1 && (categories[0].id === 'servitude' || categories[0].id === 'jail');
+        const districts = _amxDistricts(actions, tile, game);
+        const ap = game.player.actionPoints != null ? game.player.actionPoints : 10;
+        const maxAp = game.player.maxActionPoints || 10;
+        const state = { pins: _amxLoad(AMX_PIN_KEY), recent: _amxLoad(AMX_RECENT_KEY), ap };
+        const total = districts.reduce((n, d) => n + d.actions.length, 0);
+        // A short list (jail, servitude, a bare hex) is shown whole, without seals
+        const flat = total <= 8 || districts.length === 1;
 
         const menu = document.createElement('div');
         menu.id = 'actionMenu';
-        menu.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(16, 20, 28, 0.97);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(245, 197, 66, 0.35);
-            border-radius: 12px;
-            z-index: 1000;
-            box-shadow: 0 12px 48px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,197,66,0.08);
-            overflow: hidden;
-            font-family: var(--font-body);
-            display: flex;
-            flex-direction: column;
-            max-width: calc(92vw / var(--ui-zoom));
-            max-height: calc(90vh / var(--ui-zoom));
-        `;
+        menu.className = 'amx' + (flat ? ' amx-flat' : '');
 
         // ── Header: a place card — the map itself around this hex, the place named over it ──
         let placeName, placeKind;
@@ -210,14 +271,14 @@ Object.assign(ActionMenu, {
             placeKind = 'landmark';
         } else {
             placeName = tile.terrain.name || tile.terrain.id;
-            placeKind = 'wilds';
+            placeKind = tile.terrain && !tile.terrain.passable ? (game.player.boardedShip ? 'at sea' : 'the waters') : 'wilds';
         }
         const kingdom = tile.kingdom && game.world.getKingdom ? game.world.getKingdom(tile.kingdom) : null;
         const placeSub = [tile.settlement || tile.improvement ? (tile.terrain.name || tile.terrain.id) : null,
             kingdom ? kingdom.name : 'Unclaimed lands'].filter(Boolean).join(' · ');
-
-        const ap = game.player.actionPoints != null ? game.player.actionPoints : 10;
-        const maxAp = game.player.maxActionPoints || 10;
+        const apPips = maxAp <= 14
+            ? `<span class="amx-ap-pips" aria-hidden="true">${'◆'.repeat(Math.max(0, Math.min(ap, maxAp)))}<i>${'◆'.repeat(Math.max(0, maxAp - Math.max(0, ap)))}</i></span>`
+            : '';
 
         let html = `
             <div class="am-place">
@@ -229,203 +290,314 @@ Object.assign(ActionMenu, {
                     <div class="am-place-sub">${_escHtml(placeSub)}</div>
                 </div>
                 <div class="am-place-side">
-                    <span class="am-place-ap" title="Action points left today">⚡ ${ap}/${maxAp} AP</span>
-                    <button id="closeActionMenu" class="am-place-close" title="Close">✕</button>
+                    <span class="am-place-ap" title="Action points left today: ${ap} of ${maxAp}">${apPips}<b>${ap}</b>/${maxAp} AP</span>
+                    <button id="closeActionMenu" class="am-place-close" title="Close (Esc)">✕</button>
                 </div>
             </div>
         `;
 
-        if (isSpecial) {
-            // Simple flat layout for jail/servitude — few actions
-            html += `<div style="padding: 10px; display: grid; gap: 6px;">`;
-            for (const action of categories[0].actions) {
-                html += ActionMenu._renderActionButton(action);
+        // ── The seals: one per district, At Hand first ──
+        if (!flat) {
+            html += '<div class="amx-seals" role="tablist" aria-label="Districts">';
+            html += `<button class="amx-seal" data-dist="athand" role="tab" style="--wax:${AMX_WAX.athand}" title="At Hand: what needs you, your pinned actions and your recent ones">
+                <span class="amx-wax">⭐<i class="amx-count" data-count="athand"></i></span><span class="amx-seal-name">At Hand</span></button>`;
+            for (const d of districts) {
+                html += `<button class="amx-seal" data-dist="${d.id}" role="tab" style="--wax:${AMX_WAX[d.id] || AMX_WAX.hearth}" title="${_escHtml(d.label)}: ${_escHtml(d.hint || '')}">
+                    <span class="amx-wax">${d.icon}<i class="amx-count">${d.actions.length}</i></span><span class="amx-seal-name">${_escHtml(d.label)}</span></button>`;
             }
-            html += `</div>`;
-        } else {
-            // ── Multi-column layout: all categories visible at once ──
-            // Determine column count based on number of categories
-            const colCount = categories.length <= 2 ? categories.length : categories.length <= 4 ? 2 : 3;
-
-            html += `<div style="display: grid; grid-template-columns: repeat(${colCount}, 1fr); gap: 0;">`;
-
-            for (const cat of categories) {
-                html += `<div style="border-right: 1px solid rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.04);
-                    display: flex; flex-direction: column;">`;
-
-                // Category header
-                html += `<div style="padding: 7px 10px; font-size: 11px; font-family: var(--font-display);
-                    color: var(--gold); letter-spacing: 1px; text-transform: uppercase;
-                    border-bottom: 1px solid rgba(245,197,66,0.12); background: rgba(245,197,66,0.03);
-                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${cat.icon} ${cat.label}
-                </div>`;
-
-                // Action items — compact tile grid
-                html += `<div style="padding: 6px; display: flex; flex-direction: column; gap: 3px; flex: 1;">`;
-                for (const action of cat.actions) {
-                    html += ActionMenu._renderActionTile(action);
-                }
-                html += `</div>`;
-
-                html += `</div>`;
-            }
-
-            html += `</div>`;
+            html += '</div>';
         }
+
+        // ── Caption: the district's name and what it holds, and the search ──
+        html += `
+            <div class="amx-cap">
+                <div class="amx-cap-text"><span class="amx-cap-title"></span><span class="amx-cap-hint"></span></div>
+                <label class="amx-search" title="Type anywhere to search every action here">
+                    <span aria-hidden="true">🔍</span>
+                    <input type="text" class="amx-search-input" placeholder="Seek an action…" autocomplete="off" spellcheck="false" aria-label="Search actions">
+                </label>
+            </div>
+        `;
+
+        // ── The list: At Hand, then every district (only one shows at a time) ──
+        html += '<div class="amx-list" role="tabpanel">';
+        html += '<div class="amx-sec" data-sec="athand"></div>';
+        for (const d of districts) {
+            html += `<div class="amx-sec" data-sec="${d.id}"><div class="amx-sec-head">${d.icon} ${_escHtml(d.label)}</div>`;
+            for (const a of d.actions) html += ActionMenu._renderActionTile(a, { dist: d, ap, pins: state.pins });
+            html += '</div>';
+        }
+        html += '<div class="amx-empty" hidden>Nothing by that name here. Try another word, or clear the search.</div>';
+        html += '</div>';
+
+        const HINT = flat ? '<span class="amx-note-hint">Type to search · ↑ ↓ to choose · Enter to act</span>'
+            : '<span class="amx-note-hint">Type to search · ↑ ↓ to choose · Enter to act · ← → between districts · ☆ pins an action to At Hand</span>';
+        html += `<div class="amx-note" aria-live="polite">${HINT}</div>`;
 
         menu.innerHTML = html;
         document.body.appendChild(menu);
         paintPlaceView(game, tile, menu.querySelector('.am-place-view'));
 
-        // ── Event listeners ──
-        document.getElementById('closeActionMenu').addEventListener('click', () => ActionMenu.close());
+        const list = menu.querySelector('.amx-list');
+        const note = menu.querySelector('.amx-note');
+        const search = menu.querySelector('.amx-search-input');
+        const capTitle = menu.querySelector('.amx-cap-title');
+        const capHint = menu.querySelector('.amx-cap-hint');
+        const empty = menu.querySelector('.amx-empty');
+        const byKey = new Map();
+        for (const d of districts) for (const a of d.actions) if (!byKey.has(_amxKey(a))) byKey.set(_amxKey(a), { action: a, dist: d });
 
-        // Action buttons
-        const buttons = menu.querySelectorAll('.action-menu-btn');
-        buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const actionType = btn.getAttribute('data-action');
-                const unitId = btn.getAttribute('data-unit-id');
-                ActionMenu.handleAction(game, tile, actionType, unitId);
-            });
-        });
-
-        // Tooltip system for action descriptions
-        const tooltipEl = document.createElement('div');
-        tooltipEl.id = 'actionTooltip';
-        tooltipEl.style.cssText = `
-            position: fixed; z-index: 1100; pointer-events: none;
-            background: rgba(10, 14, 22, 0.96); border: 1px solid rgba(245,197,66,0.3);
-            border-radius: 6px; padding: 8px 12px; max-width: 260px;
-            font-size: 12px; color: var(--text-secondary); line-height: 1.4;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.7);
-            display: none; transition: opacity 0.12s;
-        `;
-        document.body.appendChild(tooltipEl);
-
-        buttons.forEach(btn => {
-            btn.addEventListener('mouseenter', (e) => {
-                const desc = btn.getAttribute('data-desc');
-                if (!desc) return;
-                tooltipEl.textContent = desc;
-                tooltipEl.style.display = 'block';
-                // Position tooltip to the right of the button, or left if near edge
-                // (the tooltip is zoomed: work in its own px)
-                const z = uiZoom();
-                const rect = btn.getBoundingClientRect();
-                const viewW = window.innerWidth / z;
-                const viewH = window.innerHeight / z;
-                let left = rect.right / z + 8;
-                let top = rect.top / z;
-                if (left + 270 > viewW) {
-                    left = rect.left / z - 270;
+        // At Hand: what needs you now, your pins, your recent actions (only those here)
+        const buildAtHand = () => {
+            const seen = new Set();
+            const groups = [];
+            const take = (title, keys) => {
+                const rows = [];
+                for (const k of keys) {
+                    if (seen.has(k) || !byKey.has(k)) continue;
+                    seen.add(k);
+                    const { action, dist } = byKey.get(k);
+                    rows.push(ActionMenu._renderActionTile(action, { dist, ap, pins: state.pins, showDistrict: true }));
                 }
-                if (top + 60 > viewH) {
-                    top = viewH - 60;
-                }
-                tooltipEl.style.left = left + 'px';
-                tooltipEl.style.top = top + 'px';
-            });
-            btn.addEventListener('mouseleave', () => {
-                tooltipEl.style.display = 'none';
-            });
-        });
-    },
+                if (rows.length) groups.push(`<div class="amx-sec-head amx-sub">${title}</div>${rows.join('')}`);
+                return rows.length;
+            };
+            const needs = [...byKey.values()].filter(v => v.action.notice && !v.action.disabled).map(v => _amxKey(v.action));
+            if (ap <= 0 && byKey.has('rest')) needs.push('rest');
+            const n = take('Needs you', needs) + take('Pinned', state.pins) + take('Recent', state.recent.slice(0, 5));
+            const sec = list.querySelector('[data-sec="athand"]');
+            // Under them, the place at a glance: each district and the first of what it holds
+            let dir = `<div class="amx-sec-head amx-sub">${n ? 'Elsewhere here' : 'Here'}</div>`;
+            for (const d of districts) {
+                const names = d.actions.slice(0, 3).map(a => _escHtml(a.label)).join(' · ') + (d.actions.length > 3 ? ' …' : '');
+                dir += `<button class="amx-dir" data-goto="${d.id}" style="--wax:${AMX_WAX[d.id] || AMX_WAX.hearth}">
+                    <span class="amx-dir-wax">${d.icon}</span>
+                    <span class="amx-txt"><span class="amx-name">${_escHtml(d.label)}</span><span class="amx-desc">${names}</span></span>
+                    <span class="amx-dir-n">${d.actions.length} ›</span></button>`;
+            }
+            sec.innerHTML = (groups.join('') || '<div class="amx-athand-empty">Nothing presses. Pin an action with ☆ and it waits here; what you do gathers here too.</div>') + dir;
+            const c = menu.querySelector('[data-count="athand"]');
+            if (c) { c.textContent = n || ''; c.classList.toggle('amx-urgent', needs.some(k => byKey.has(k))); }
+            return n;
+        };
 
-    /**
-     * Render a compact action tile — icon + name + AP badge, no description inline
-     */
-    _renderActionTile(action) {
-        const apCost = ActionMenu.getAPCost(action.type);
-        const perUseActions = { gambling: 2, smuggle: 2 };
-        let apBadge = '';
-        if (perUseActions[action.type]) {
-            apBadge = `<span style="font-size: 9px; color: #f39c12; opacity: 0.8; margin-left: auto; flex-shrink: 0;">⚡${perUseActions[action.type]}/use</span>`;
-        } else if (apCost > 0) {
-            apBadge = `<span style="font-size: 9px; color: #f39c12; opacity: 0.8; margin-left: auto; flex-shrink: 0;">⚡${apCost}</span>`;
+        const sealOf = (id) => menu.querySelector(`.amx-seal[data-dist="${id}"]`);
+        const distById = Object.fromEntries(districts.map(d => [d.id, d]));
+        let current = null;
+
+        const apply = () => {
+            const words = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            const searching = words.length > 0;
+            menu.classList.toggle('amx-searching', searching);
+            let shown = 0;
+            for (const sec of list.querySelectorAll('.amx-sec')) {
+                const id = sec.getAttribute('data-sec');
+                if (searching || flat) {
+                    if (id === 'athand') { sec.hidden = true; continue; }
+                    let n = 0;
+                    for (const row of sec.querySelectorAll('.amx-row')) {
+                        const hay = row.getAttribute('data-q') || '';
+                        const ok = words.every(w => hay.includes(w));
+                        row.hidden = !ok;
+                        if (ok) n++;
+                    }
+                    sec.hidden = n === 0;
+                    shown += n;
+                } else {
+                    sec.hidden = id !== current;
+                    for (const row of sec.querySelectorAll('.amx-row')) row.hidden = false;
+                    if (!sec.hidden) shown = 1;
+                }
+            }
+            empty.hidden = !(searching && shown === 0);
+            for (const s of menu.querySelectorAll('.amx-seal')) {
+                const on = !searching && s.getAttribute('data-dist') === current;
+                s.classList.toggle('on', on);
+                s.setAttribute('aria-selected', on ? 'true' : 'false');
+            }
+            if (searching) {
+                capTitle.textContent = 'Search';
+                capHint.textContent = shown ? `${shown} action${shown === 1 ? '' : 's'} here` : '';
+            } else if (flat) {
+                capTitle.textContent = 'What you can do';
+                capHint.textContent = `${total} action${total === 1 ? '' : 's'} here`;
+            } else if (current === 'athand') {
+                capTitle.textContent = 'At Hand';
+                capHint.textContent = 'What needs you, your pinned and your recent actions';
+            } else {
+                const d = distById[current];
+                capTitle.textContent = d ? d.label : '';
+                capHint.textContent = d ? d.hint || '' : '';
+            }
+        };
+
+        const select = (id) => {
+            current = id;
+            if (search.value) search.value = '';
+            apply();
+            list.scrollTop = 0;
+            const s = sealOf(id);
+            if (s && s.scrollIntoView) s.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        };
+
+        const atHandCount = buildAtHand();
+        if (!flat) {
+            const preferred = atHandCount > 0 ? 'athand' : (tile.settlement && distById.market ? 'market' : districts[0].id);
+            select(preferred);
         } else {
-            apBadge = `<span style="font-size: 9px; color: #27ae60; opacity: 0.7; margin-left: auto; flex-shrink: 0;">free</span>`;
+            apply();
         }
-        // Not now: shown greyed, with why (action.reason), and can't be pressed
-        if (action.disabled) {
-            const why = action.reason || action.description || '';
-            return `
-            <button class="action-menu-btn action-menu-btn-off" disabled data-action="${action.type}" title="${_escHtml(why)}"
-                style="display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.015);
-                    border: 1px dashed rgba(255,255,255,0.08); padding: 6px 8px; border-radius: 5px; color: #888;
-                    cursor: not-allowed; text-align: left; font-family: var(--font-body); min-width: 0; opacity: 0.75;">
-                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; filter: grayscale(1);">${pictureIcon(action.icon, 18)}</span>
-                <span style="display: flex; flex-direction: column; min-width: 0;">
-                    <span style="font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${action.label}</span>
-                    ${why ? `<span style="font-size: 10px; color: #c98a6a; white-space: normal; line-height: 1.25;">🔒 ${_escHtml(why)}</span>` : ''}
-                </span>
-            </button>
-        `;
+
+        // A narrow window: the seal ribbon scrolls sideways (the wheel too), its edges fading
+        const ribbon = menu.querySelector('.amx-seals');
+        if (ribbon) {
+            ribbon.classList.toggle('amx-seals-more', ribbon.scrollWidth > ribbon.clientWidth + 1);
+            ribbon.addEventListener('wheel', (e) => {
+                if (ribbon.scrollWidth <= ribbon.clientWidth + 1 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                ribbon.scrollLeft += e.deltaY;
+                e.preventDefault();
+            }, { passive: false });
         }
-        return `
-            <button class="action-menu-btn" data-action="${action.type}"${action.unitId ? ` data-unit-id="${action.unitId}"` : ''}
-                data-desc="${(action.description || '').replace(/"/g, '&quot;')}"
-                style="
-                    display: flex; align-items: center; gap: 7px;
-                    background: rgba(255,255,255,0.025);
-                    border: 1px solid rgba(255,255,255,0.05);
-                    padding: 6px 8px;
-                    border-radius: 5px;
-                    color: var(--text-primary);
-                    cursor: pointer;
-                    text-align: left;
-                    transition: background 0.12s, border-color 0.12s;
-                    font-family: var(--font-body);
-                    white-space: nowrap;
-                    min-width: 0;
-                " onmouseover="this.style.background='rgba(245,197,66,0.12)';this.style.borderColor='rgba(245,197,66,0.3)'"
-                   onmouseout="this.style.background='rgba(255,255,255,0.025)';this.style.borderColor='rgba(255,255,255,0.05)'">
-                <span style="font-size: 16px; width: 22px; text-align: center; flex-shrink: 0;">${pictureIcon(action.icon, 18)}</span>
-                <span style="font-size: 12px; color: #ddd; overflow: hidden; text-overflow: ellipsis;">${action.label}</span>
-                ${apBadge}
-            </button>
-        `;
+
+        const setPin = (key, on) => {
+            state.pins = state.pins.filter(k => k !== key);
+            if (on) state.pins.unshift(key);
+            state.pins = state.pins.slice(0, 24);
+            _amxSave(AMX_PIN_KEY, state.pins);
+            for (const b of menu.querySelectorAll(`.amx-pin[data-pin="${CSS.escape(key)}"]`)) {
+                b.classList.toggle('on', on);
+                b.textContent = on ? '★' : '☆';
+                b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                b.title = on ? 'Unpin from At Hand' : 'Pin to At Hand';
+            }
+            buildAtHand();
+            apply();
+        };
+
+        // ── The note: the whole of the action under the pointer or the keyboard ──
+        const describe = (row) => {
+            if (!row) { note.innerHTML = HINT; return; }
+            const btn = row.querySelector('.amx-main');
+            note.innerHTML = btn ? btn.getAttribute('data-note') || HINT : HINT;
+        };
+
+        // ── Events ──
+        menu.addEventListener('click', (e) => {
+            const pin = e.target.closest('.amx-pin');
+            if (pin) { setPin(pin.getAttribute('data-pin'), !pin.classList.contains('on')); return; }
+            const dirRow = e.target.closest('.amx-dir');
+            if (dirRow) { select(dirRow.getAttribute('data-goto')); return; }
+            const seal = e.target.closest('.amx-seal');
+            if (seal) { select(seal.getAttribute('data-dist')); return; }
+            if (e.target.closest('#closeActionMenu')) { ActionMenu.close(); return; }
+            const btn = e.target.closest('.action-menu-btn');
+            if (btn && !btn.disabled) {
+                const key = btn.getAttribute('data-key');
+                if (key) _amxSave(AMX_RECENT_KEY, [key, ...state.recent.filter(k => k !== key)].slice(0, 8));
+                ActionMenu.handleAction(game, tile, btn.getAttribute('data-action'), btn.getAttribute('data-unit-id'));
+            }
+        });
+        list.addEventListener('mouseover', (e) => describe(e.target.closest('.amx-row')));
+        list.addEventListener('focusin', (e) => describe(e.target.closest('.amx-row')));
+        list.addEventListener('mouseleave', () => {
+            const f = document.activeElement && document.activeElement.closest && document.activeElement.closest('.amx-row');
+            describe(f && menu.contains(f) ? f : null);
+        });
+        search.addEventListener('input', () => { apply(); list.scrollTop = 0; });
+
+        const visibleButtons = () => [...list.querySelectorAll('.amx-main, .amx-dir')].filter(b => b.offsetParent !== null);
+        menu.addEventListener('keydown', (e) => {
+            const inSearch = e.target === search;
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                const btns = visibleButtons();
+                if (!btns.length) return;
+                const i = btns.indexOf(e.target.closest ? e.target.closest('.amx-main, .amx-dir') : null);
+                let next;
+                if (e.key === 'ArrowDown') next = inSearch || i < 0 ? btns[0] : btns[Math.min(btns.length - 1, i + 1)];
+                else if (i <= 0) { search.focus(); e.preventDefault(); return; } else next = btns[i - 1];
+                next.focus();
+                next.scrollIntoView({ block: 'nearest' });
+                e.preventDefault();
+            } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inSearch && !flat) {
+                const ids = [...menu.querySelectorAll('.amx-seal')].map(s => s.getAttribute('data-dist'));
+                const i = Math.max(0, ids.indexOf(current));
+                select(ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length]);
+                const s = sealOf(current);
+                if (s) s.focus();
+                e.preventDefault();
+            } else if (e.key === 'Enter' && inSearch) {
+                const first = visibleButtons().find(b => !b.disabled);
+                if (first) first.click();
+                e.preventDefault();
+            } else if (e.key === 'Escape' && inSearch) {
+                // (the game's own Escape skips text fields: clear the search, then close)
+                if (search.value) { search.value = ''; apply(); } else ActionMenu.close();
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        });
+
+        // Type anywhere: a letter while the menu is open goes to the search, not to the map's hotkeys
+        const onKey = (e) => {
+            if (!menu.isConnected) { window.removeEventListener('keydown', onKey, true); return; }
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const t = e.target;
+            const tag = t && t.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+            if (e.key === '/') { search.focus(); e.preventDefault(); e.stopPropagation(); return; }
+            if (e.key.length === 1 && /[a-z]/i.test(e.key)) {
+                search.focus();
+                e.stopPropagation();
+            }
+        };
+        window.addEventListener('keydown', onKey, true);
+        menu._amxCleanup = () => window.removeEventListener('keydown', onKey, true);
     },
 
     /**
-     * Render a single action button with icon, label, and description
+     * One action as a row of the menu's list: its icon, name and a line of what
+     * it does (or why not now, or what needs you), its cost in AP pips, and a
+     * pin. `opts`: { dist, ap, pins, showDistrict }.
      */
-    _renderActionButton(action) {
-        const apCost = ActionMenu.getAPCost(action.type);
-        // Special display for actions that charge AP per-use inside their menus
-        const perUseActions = { gambling: 2, smuggle: 2 };
-        let apLabel = '';
-        if (perUseActions[action.type]) {
-            apLabel = `<span style="font-size: 10px; color: #f39c12; background: rgba(243,156,18,0.15); padding: 1px 5px; border-radius: 3px; white-space: nowrap;">⚡${perUseActions[action.type]}/use</span>`;
-        } else if (apCost > 0) {
-            apLabel = `<span style="font-size: 10px; color: #f39c12; background: rgba(243,156,18,0.15); padding: 1px 5px; border-radius: 3px; white-space: nowrap;">⚡${apCost}</span>`;
+    _renderActionTile(action, opts = {}) {
+        const ap = opts.ap != null ? opts.ap : Infinity;
+        const key = _amxKey(action);
+        const perUse = AMX_PER_USE[action.type];
+        const cost = perUse || ActionMenu.getAPCost(action.type);
+        const short = !action.disabled && cost > 0 && cost > ap;
+        let costHtml;
+        if (cost === 0) costHtml = '<span class="amx-free">free</span>';
+        else {
+            const pips = cost <= 4 ? '◆'.repeat(cost) : `◆<b>${cost}</b>`;
+            costHtml = `<span class="amx-pips${short ? ' amx-short' : ''}" title="${cost} action point${cost === 1 ? '' : 's'}${perUse ? ' each time' : ''}">${pips}${perUse ? '<small>/use</small>' : ''}</span>`;
         }
+        const desc = action.description || '';
+        const why = action.disabled ? (action.reason || desc) : '';
+        let line;
+        if (action.disabled) line = `<span class="amx-desc amx-why">🔒 ${_escHtml(why)}</span>`;
+        else if (action.notice) line = `<span class="amx-desc amx-notice">● ${_escHtml(action.notice)}</span>`;
+        else line = `<span class="amx-desc">${_escHtml(desc)}</span>`;
+        const where = opts.showDistrict && opts.dist ? `<span class="amx-where">${_escHtml(opts.dist.label)}</span>` : '';
+        const costText = cost === 0 ? 'Free' : `${cost} AP${perUse ? ' each time' : ''}`;
+        const noteText = `<b>${_escHtml(action.label)}</b> <span class="amx-note-cost">${costText}${short ? ` · you have ${ap} left today` : ''}</span> — ${_escHtml(action.disabled ? why : [action.notice, desc].filter(Boolean).join('. '))}`;
+        const pinned = (opts.pins || []).includes(key);
+        const hay = `${action.label} ${desc} ${action.notice || ''} ${opts.dist ? opts.dist.label : ''} ${action.type.replace(/_/g, ' ')}`.toLowerCase();
         return `
-            <button class="action-menu-btn" data-action="${action.type}"${action.unitId ? ` data-unit-id="${action.unitId}"` : ''} style="
-                display: flex; align-items: center; gap: 10px;
-                background: rgba(255,255,255,0.03);
-                border: 1px solid rgba(255,255,255,0.07);
-                padding: 10px 12px;
-                border-radius: 6px;
-                color: var(--text-primary);
-                cursor: pointer;
-                text-align: left;
-                transition: background 0.15s, border-color 0.15s, transform 0.1s;
-                font-family: var(--font-body);
-            " onmouseover="this.style.background='rgba(245,197,66,0.1)';this.style.borderColor='rgba(245,197,66,0.35)'"
-               onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.borderColor='rgba(255,255,255,0.07)'">
-                <span style="font-size: 22px; width: 30px; text-align: center; flex-shrink: 0;">${pictureIcon(action.icon, 18)}</span>
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 13px; font-weight: 600; color: #e0e0e0;">${action.label}</span>
-                        ${apLabel}
-                    </div>
-                    <div style="font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px;
-                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${action.description || ''}</div>
-                </div>
-            </button>
+            <div class="amx-row${action.disabled ? ' amx-off' : ''}${short ? ' amx-dim' : ''}" data-q="${_escHtml(hay)}">
+                <button class="action-menu-btn amx-main${action.disabled ? ' action-menu-btn-off' : ''}" data-action="${_escHtml(action.type)}"${action.unitId ? ` data-unit-id="${_escHtml(action.unitId)}"` : ''}
+                    data-key="${_escHtml(key)}" data-desc="${_escHtml(desc)}" data-note="${_escHtml(noteText)}"${action.disabled ? ` disabled title="${_escHtml(why)}"` : ''}>
+                    <span class="amx-ico">${pictureIcon(action.icon, 20)}</span>
+                    <span class="amx-txt"><span class="amx-name">${_escHtml(action.label)}${where}</span>${line}</span>
+                    <span class="amx-cost">${costHtml}</span>
+                </button>
+                <button class="amx-pin${pinned ? ' on' : ''}" data-pin="${_escHtml(key)}" aria-pressed="${pinned ? 'true' : 'false'}" title="${pinned ? 'Unpin from At Hand' : 'Pin to At Hand'}">${pinned ? '★' : '☆'}</button>
+            </div>
         `;
+    },
+
+    /** A single action row (kept for callers of the old full-width button). */
+    _renderActionButton(action, opts) {
+        return ActionMenu._renderActionTile(action, opts);
     },
 
     /**

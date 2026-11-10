@@ -140,7 +140,9 @@ export const PlayerActions = {
                 type: 'eat_meal',
                 label: 'Eat a Meal',
                 icon: '🍖',
-                description: `Eat from your pack (hunger ${Math.round(player.needs.hunger)}%)`
+                description: `Eat from your pack (hunger ${Math.round(player.needs.hunger)}%)`,
+                // (a notice lifts the action into the menu's "At Hand" list — ui/actionMenu/core.js)
+                notice: player.needs.hunger < 35 ? 'You are hungry' : null,
             });
         }
 

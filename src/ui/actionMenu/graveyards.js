@@ -113,7 +113,7 @@ function siteCard(game, v) {
         const lapsed = v.graves.filter(x => x.expired && !x.kin);
         if (lapsed.length) {
             html += `<div style="${NOTE} margin-top:4px;">Leases run out:</div>`;
-            for (const x of lapsed.slice(0, 6)) html += `<div style="${NOTE}">🪦 ${esc(x.name)}${x.goods ? ` (grave goods)` : ''} ${act('👷 Sexton: clear it', args('clear', x.i), BTN_PLAIN, 'His fee to the town; the bones (and goods) to you')}</div>`;
+            for (const x of lapsed.slice(0, 6)) html += `<div style="${NOTE}">⚰️ ${esc(x.name)}${x.goods ? ` (grave goods)` : ''} ${act('👷 Sexton: clear it', args('clear', x.i), BTN_PLAIN, 'His fee to the town; the bones (and goods) to you')}</div>`;
             if (lapsed.length > 6) html += `<div style="${NOTE}">…and ${lapsed.length - 6} more.</div>`;
         }
         const resting = v.graves.filter(x => !x.expired).slice(0, 5);
@@ -191,7 +191,7 @@ Object.assign(ActionMenu, {
             for (const v of here.concat(away)) html += siteCard(game, v);
         }
         html += '</div>';
-        game.ui.showCustomPanel('🪦 Graveyards & the Dead', html);
+        game.ui.showCustomPanel('⚰️ Graveyards & the Dead', html);
     },
 
     /** Every button on the panel: op, the town (q, r), then its own arguments. */

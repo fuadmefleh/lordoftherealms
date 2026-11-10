@@ -193,7 +193,8 @@ export function addWildernessActions(actions, player, tile, world) {
                 type: 'delve_resume',
                 label: `Resume Delve: ${delving.name}`,
                 icon: '🕯️',
-                description: 'Go back down into the chamber where you left off'
+                description: 'Go back down into the chamber where you left off',
+                notice: 'A delve left unfinished',
             });
         } else if (Delves.isDelveSite(tile)) {
             const site = Delves.siteInfo(tile);

@@ -2,6 +2,7 @@
 import { UI } from './core.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, taxWhy } from '../whyPopover.js';
+import { settlementTaxGuide, settlementLevelText } from '../actionMenu/taxGuide.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Finance } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -485,6 +486,8 @@ Object.assign(UI.prototype, {
                         </div>
                     </div>
                     
+                    ${settlementTaxGuide(Taxation.TAX_RATES, currentRate, Taxation.TAX_PER_HEAD)}
+                    <div style="font-size:11px; color:var(--text-secondary); margin:-4px 0 10px;">The realm's own taxes (land, hearth, excise) and every line of a crown's books: <button data-am-act="showTreasury" data-am-args='["budget"]' style="padding:2px 8px; background:rgba(255,255,255,0.12); color:var(--text-primary); border:none; border-radius:4px; cursor:pointer; font-size:11px;">🧾 The Crown's Treasury</button></div>
                     ${moodRows ? `<div class="info-section-title">Your Settlements</div>
                     <div style="margin-bottom:12px;">${moodRows}</div>
                     <div style="font-size:11px; color:var(--text-secondary); margin-bottom:12px;">Happy towns pay up to 25% more and conquered towns grow loyal; miserable ones pay less and turn against you.</div>` : ''}
@@ -496,7 +499,7 @@ Object.assign(UI.prototype, {
         for (const [key, rate] of Object.entries(Taxation.TAX_RATES)) {
             const isSelected = rate.id === currentRate;
             taxHtml += `
-                <button data-ui-act="setTaxRate" data-ui-args='["${rate.id}"]' style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
+                <button data-ui-act="setTaxRate" data-ui-args='["${rate.id}"]' title="${settlementLevelText(rate)}" style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.05)'}; color:${isSelected ? 'black' : 'var(--text-primary)'}; border:none; border-radius:4px; cursor:pointer; text-align:left;">
                     <span style="font-weight:bold;">${rate.name}</span>
                     <span style="font-size:12px; opacity:0.8;">Happ: ${rate.happinessBonus > 0 ? '+' : ''}${rate.happinessBonus} | Growth: ${rate.growthBonus > 0 ? '+' : ''}${(rate.growthBonus * 100).toFixed(0)}%/yr</span>
                 </button>

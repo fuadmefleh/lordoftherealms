@@ -1,4 +1,17 @@
 {
+  "_taxGuide": "What the Royal Treasury's Taxes tab (src/ui/ui/techTreasury.js via src/ui/actionMenu/taxGuide.js) says your settlement tax is. {perHead} is Taxation.TAX_PER_HEAD; the per-level happiness target, growth and welfare numbers are computed from taxRates. Keep each line to what systems/marketDynamics.js Taxation and systems/labour.js read.",
+  "taxGuide": {
+    "what": "Your own tax: one rate for every settlement you rule (towns you founded or conquered, and holdings granted you). It is not the crown's land, hearth and excise taxes: those are the realm's, set by its ruler in the Crown's Treasury.",
+    "who": "The people of your settlements, out of their town's purse, every 7 days.",
+    "how": "{perHead}g a head a week × the rate × the town's mood (×0.75 at happiness 0 to ×1.25 at 100) × the harvest (×0.4 to ×1.4) × its development (markets, harbours, a good or a skimming steward) × events × your office's tax perk.",
+    "effects": [
+      "<b>Happiness</b>: each collection it moves a quarter of the way toward 50 + 1.5 × the rate's happiness bonus (plus its peoples, buildings and patronage).",
+      "<b>Growth</b>: the rate's yearly growth (or decline) is applied each week; a town never falls below 10.",
+      "<b>Welfare and migration</b>: every class's welfare falls by (rate − 15%) × its weight (peasants feel it most), so people leave a heavily taxed town for its trade partners, and come to a lightly taxed one.",
+      "<b>Loyalty</b>: a conquered town gains or loses (happiness − 50) / 25 loyalty a week; a disloyal colony rebels.",
+      "<b>The council</b>: sworn to a crown, you need the council's vote to raise the rate; the Guilds and the Commons like low taxes."
+    ]
+  },
   "taxRates": {
     "VERY_LOW": { "id": "very_low", "name": "Very Low (5%)", "rate": 0.05, "happinessBonus": 10, "growthBonus": 0.05 },
     "LOW": { "id": "low", "name": "Low (10%)", "rate": 0.10, "happinessBonus": 5, "growthBonus": 0.02 },

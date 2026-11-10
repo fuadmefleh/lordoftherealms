@@ -1277,6 +1277,53 @@ There you set:
 - the court: frugal breeds corruption, lavish adds stability.
 
 You can also put a town's taxes to auction, and sell offices or crown land. Your royal levy is a share of the crown's daily taxes. The 🏰 Realms tab compares every realm's purse.
+
+#### Reading the books: every tax and every line
+
+The 🧾 Treasury's **📒 Budget** and **👑 Your purse** tabs open an **ℹ️ What are these?** section: every tax with who pays it, what it falls on, how it is reckoned (from the live tuning in `data/fiscal.json`) and what each level does, the army's pay and the court in figures, and every line of the books. Hover any line of the budget for its meaning; hover a tax's name for who pays, and a level button for its effect. Beside each tax control the panel shows its current level and what that level does. (The HUD's 💰 **Royal Treasury → ⚖️ Taxes** tab is *your own* settlement tax, below; it links here.)
+
+**The three taxes.** Collectors call on each town every 7 days and take every day's dues since, out of the town's purse (a town in revolt pays nothing for 30 days).
+
+| Tax | Who pays | Reckoned at Standard | Share of the tax index |
+|---|---|---|---|
+| 🌾 **Land tax** | the peasants, and the town for what it makes and sells away | 6% of the peasants' earnings × the harvest (×0.5–×1.5) + 6% of half the town's production gold + 50% of the coin from goods sold to other towns + 1% a day of the coin it holds past 2g a head | 50% |
+| 🏠 **Hearth tax** | every working head: peasants and artisans once, merchants ×1.5; clergy and nobles exempt | 0.25g a day for every 100 heads | 25% |
+| 🧺 **Excise** | the artisans and merchants | 3.5% of the artisans' earnings + 3.5% of the town's trade income | 25% |
+
+Each is then × the realm's collection (steward, stability, blockades, events), less 35% × corruption kept by the officials.
+
+**What a level does** (one tax moved from Standard, all else equal). The take is × the level. The **burden** is 15% × the realm's tax index, which weights land 50%, hearth and excise 25% each. Every class's welfare falls by (burden − 15%) × its weight, so people drift to towns that treat them better. Above a burden of 17%, towns risk weekly tax revolts. **Stability** falls 12 for each whole step the tax index stands above 1:
+
+| Level | Take | Land tax: burden · stability | Hearth or excise: burden · stability |
+|---|---|---|---|
+| 🍃 Light | ×0.75 | −1.9 pts · +1.5 | −0.9 pts · +0.75 |
+| ⚖️ Standard | ×1 | — | — |
+| 💰 Heavy | ×1.3 | +2.3 pts · −1.8 | +1.1 pts · −0.9 |
+| ⛓️ Crushing | ×1.65 | +4.9 pts · −3.9 | +2.4 pts · −1.95 |
+
+Taxes also take coin out of circulation (wages put it back), and a realm whose tax index reaches 1.25 gets talked about for its heavy taxes.
+
+**The lines of the books.**
+- *Revenue*:
+  - **Land tax**, **Hearth tax** and **Excise**, as above.
+  - **Customs & tolls**: tariffs at the border, and the crown's road, bridge and canal tolls.
+  - **Demesne & monopolies**: the crown's estates and its licences and post.
+  - **Seigniorage**: the mint's profit on striking coin.
+  - **Tax farms sold**: the farmers' lump sums.
+  - **Extraordinary levy**: an extra share on every tax while it runs, and benevolences.
+  - **Offices & land sold**: offices, crown land, licences, petitions and surplus arms.
+- *Spending*:
+  - **Army wages**: soldiers' pay and bounties, the fleet, field costs, and wages to commissioned officers (you, when you serve: your Ledger shows it as *Crown wages*).
+  - **Arms & armour**: weapons, shields, helms, harness and arrows bought from the realm's markets.
+  - **Court & administration**: the household and clerks, and edicts' upkeep.
+  - **Roads & works**.
+  - **Debt service**: interest and repayments.
+  - **Dole & granaries**: famine grain.
+  - **The ruler's purse**: the royal levy.
+- *Below the line*:
+  - **Borrowed**: loans, not income.
+  - **Debasement**: the mint's gain on thinner coin.
+  - **Other**: everything else, so the books balance.
 ### Land, Estates & the Putting-Out System
 
 **The farmland and its estates.** The grain, flax and vines a town brings to market grow on the farmland about it. About 40% of that land is the peasants' own freeholds and commons, which nobody sells. The rest is held in a few **estates**: one about a village, two about a town, three about a city, four about a capital (the first of a capital's is the crown's demesne). They are held by the crown, the realm's noble houses, the Church, the town's burghers or the merchant houses. The **🌾 Estates & Land** action in every settlement (also the 🏡 Estates tab of the market window and the Steward's Counsel) shows each estate: its holder, its share of the farmland, its tenant households, its soil, its crops a day and their worth, its rent, its tenants' loyalty and what it is worth.
@@ -1344,6 +1391,8 @@ You can set tax rates if you govern settlements of your own, or hold the office 
 Each settlement's **happiness** (0–100) drifts a quarter of the way toward the target at every collection. It matters:
 - **Revenue** is scaled from ×0.75 (happiness 0) to ×1.25 (happiness 100), so squeezing a miserable town yields less than you'd think.
 - **Conquered towns** gain or lose loyalty each week by (happiness − 50) / 25, and low-loyalty colonies rebel.
+- **Welfare and migration**: in the towns you rule, every class's welfare falls by (rate − 15%) × its weight (peasants 1.2, artisans and merchants 1, nobles 0.6, clergy 0.3). People leave a heavily taxed town for its trade partners and come to a lightly taxed one.
+- The take is also × the harvest (×0.4 to ×1.4), world events and your office's tax perk. The Taxes tab's **ℹ️ What is this tax?** section lists every rate in figures, and its buttons show them on hover. This tax is yours alone. It is not the crown's land, hearth and excise taxes, which the realm's ruler sets in the 🧾 Crown's Treasury.
 - The Treasury's Tax tab lists each settlement's mood and weekly yield.
 - **Development** changes all of this: markets, harbours and a good steward raise a holding's take, while a skimming governor or a revolt cuts it. Taverns, temples and squares raise its happiness target. See [Developing Your Holdings](#developing-your-holdings).
 

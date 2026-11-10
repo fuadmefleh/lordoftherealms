@@ -14,17 +14,13 @@ import { BTN_GOLD, BTN_PLAIN, BTN_DIM, BTN_RED, CARD, panelTabs, intelBadge, clo
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
+import { LINE_LABEL, lineTip, crownTaxGuide, taxControlNote, taxTip, levelEffectText, armyLevelText, courtLevelText } from './taxGuide.js';
 
 const NOTE = 'font-size: 11px; color: var(--text-secondary);';
 const TH = 'text-align:left; padding:3px 6px; font-size:11px; color:var(--text-secondary); border-bottom:1px solid rgba(255,255,255,0.1);';
 const TD = 'padding:3px 6px; border-bottom:1px solid rgba(255,255,255,0.05);';
 const TABS = [['budget', '📒 Budget'], ['realms', '🏰 Realms'], ['farms', '📜 Tax farms'], ['crown', '👑 Your purse']];
-const LABEL = {
-    land: 'Land tax', poll: 'Hearth tax', excise: 'Excise', customs: 'Customs & tolls', demesne: 'Demesne & monopolies',
-    seigniorage: 'Seigniorage', farms: 'Tax farms sold', levy: 'Extraordinary levy', sales: 'Offices & land sold',
-    army: 'Army wages', arms: 'Arms & armour', court: 'Court & administration', works: 'Roads & works', debt: 'Debt service', dole: 'Dole & granaries',
-    purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', other: 'Other (events, tribute, temples, fleet)',
-};
+const LABEL = LINE_LABEL;
 
 let _tab = 'budget';
 
@@ -63,7 +59,8 @@ function linesTable(b) {
         const d = b.last[l] || 0, w = b.week[l] || 0;
         if (Math.abs(d) < 0.5 && Math.abs(w) < 0.5) return '';
         const c = sign > 0 ? '#8fd18f' : '#e08080';
-        return `<tr><td style="${TD}">${esc(LABEL[l] || l)}</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
+        const tip = lineTip(l);
+        return `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD}">${esc(LABEL[l] || l)}</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} color:${c};">${sign > 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
     };
     html += `<tr><td colspan="3" style="${TD} font-weight:bold; color:var(--gold);">Revenue</td></tr>`;
     for (const l of CrownBooks.REVENUE_LINES) html += row(l, 1);
@@ -74,7 +71,8 @@ function linesTable(b) {
     for (const l of ['loans', 'debase', 'other']) {
         const d = b.last[l] || 0, w = b.week[l] || 0;
         if (Math.abs(d) < 0.5 && Math.abs(w) < 0.5) continue;
-        html += `<tr><td style="${TD} ${NOTE}">${esc(LABEL[l])}</td><td style="${TD} ${NOTE}">${d >= 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} ${NOTE}">${w >= 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
+        const tip = lineTip(l);
+        html += `<tr${tip ? ` title="${esc(tip)}"` : ''}><td style="${TD} ${NOTE}">${esc(LABEL[l])}</td><td style="${TD} ${NOTE}">${d >= 0 ? '+' : '−'}${g0(Math.abs(d))}g</td><td style="${TD} ${NOTE}">${w >= 0 ? '+' : '−'}${g0(Math.abs(w))}g</td></tr>`;
     }
     return html + '</table>';
 }
@@ -103,6 +101,8 @@ function budgetTab(game) {
         '<b>Excise</b> falls on the artisans\' work and the merchants\' trade.',
         'Unpaid soldiers desert after a week; unpaid clerks help themselves.',
     ]);
+    // What every tax, level and line is (the posted rates are public: the guide shows them to anyone)
+    html += crownTaxGuide(b);
     // The books themselves are for the ruler, the realm's officers and your spies (systems/realmIntel.js)
     const why = RealmIntel.whyLabel(player, world, k, 'books');
     if (!why) return html + publicBudget(game, k, b);
@@ -132,7 +132,7 @@ function realmsTab(game) {
     const { player, world } = game;
     const rows = Fiscal.realmTable(world);
     let html = lede('Every realm’s posted taxes, and its chests as far as you can know them: the figures for a realm whose books are open to you (🔓), the talk of the street for the rest.');
-    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Treasury</th><th style="${TH}">Year</th><th style="${TH}">Week: in · out</th><th style="${TH}">Taxes</th><th style="${TH}">Troubles</th></tr>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;"><tr><th style="${TH}">Realm</th><th style="${TH}">Treasury</th><th style="${TH}">Year</th><th style="${TH}">Week: in · out</th><th style="${TH}" title="The posted level of the land, hearth and excise taxes (the 📒 Budget tab explains each)">Taxes</th><th style="${TH}">Troubles</th></tr>`;
     for (const r of rows) {
         const why = RealmIntel.whyLabel(player, world, r.id, 'books');
         const knows = typeof player.knowsAbout !== 'function' || player.knowsAbout(r.id, 'economy');
@@ -189,16 +189,19 @@ function crownTab(game) {
     const C = Fiscal.config();
     let html = lede('Set each tax, the army\'s pay and the court. Heavy taxes fill the chests and drive the poor to lighter realms; light ones starve the army.');
     html += `<div style="${NOTE} margin-bottom:8px;">The <b>burden</b> is what the people feel (welfare, migration, tax revolts); <b>stability</b> is the realm's.</div>`;
+    const tipOf = (blurb, fx) => [blurb, fx].filter(Boolean).join(' ');
     for (const tax of ['land', 'poll', 'excise']) {
-        html += `<div style="margin-top:6px;"><b>${esc(LABEL[tax])}</b>: `;
-        for (const id of CrownBooks.LEVELS) html += act(lvl(id), ['rate', tax, id], b.rates[tax] === id ? BTN_GOLD : BTN_PLAIN, b.rates[tax] !== id, (C.levels[id] || {}).blurb || '');
+        html += `<div style="margin-top:6px;"><b title="${esc(taxTip(tax))}" style="cursor:help;">${esc(LABEL[tax])}</b> <span style="${NOTE}">now ${lvl(b.rates[tax])} · ${esc(levelEffectText(tax, b.rates[tax]))}</span>${taxControlNote(tax)}`;
+        for (const id of CrownBooks.LEVELS) html += act(lvl(id), ['rate', tax, id], b.rates[tax] === id ? BTN_GOLD : BTN_PLAIN, b.rates[tax] !== id, tipOf((C.levels[id] || {}).blurb, levelEffectText(tax, id)));
         html += '</div>';
     }
-    html += '<div style="margin-top:6px;"><b>Army pay</b>: ';
-    for (const [id, L] of Object.entries(C.army.levels)) html += act(esc(L.label), ['army', id], b.armyPay === id ? BTN_GOLD : BTN_PLAIN, b.armyPay !== id, L.blurb || '');
-    html += '</div><div style="margin-top:6px;"><b>Court</b>: ';
-    for (const [id, L] of Object.entries(C.court.levels)) html += act(esc(L.label), ['court', id], b.courtLevel === id ? BTN_GOLD : BTN_PLAIN, b.courtLevel !== id, L.blurb || '');
+    html += `<div style="margin-top:6px;"><b>Army pay</b> <span style="${NOTE}">now ${esc((C.army.levels[b.armyPay] || {}).label || b.armyPay)} · ${esc(armyLevelText(b.armyPay))}</span><br>`;
+    for (const [id, L] of Object.entries(C.army.levels)) html += act(esc(L.label), ['army', id], b.armyPay === id ? BTN_GOLD : BTN_PLAIN, b.armyPay !== id, tipOf(L.blurb, armyLevelText(id)));
+    html += `</div><div style="margin-top:6px;"><b>Court</b> <span style="${NOTE}">now ${esc((C.court.levels[b.courtLevel] || {}).label || b.courtLevel)} · ${esc(courtLevelText(b.courtLevel))}</span><br>`;
+    for (const [id, L] of Object.entries(C.court.levels)) html += act(esc(L.label), ['court', id], b.courtLevel === id ? BTN_GOLD : BTN_PLAIN, b.courtLevel !== id, tipOf(L.blurb, courtLevelText(id)));
     html += '</div>';
+    html += `<div style="${NOTE} margin-top:4px;">Hover a level for what it does in figures.</div>`;
+    html += crownTaxGuide(b);
     html += `<div style="${CARD}">Burden ${Math.round((b.burden || 0) * 100)}% · stability ${b.stability >= 0 ? '+' : ''}${b.stability} · last week +${g0(CrownBooks.revenue(b.week))}g / −${g0(CrownBooks.expense(b.week))}g · ${b.reserveDays} days in hand</div>`;
     html += `<div style="${CARD}"><b>Raise money</b><br><span style="${NOTE}">Sell offices (gold now, corruption for years) or crown land (gold now, the crown's rents less for ever). Borrow and debase from the Bank and the Mint.</span><br>`;
     html += act('📜 Sell offices', ['sale', 'offices'], BTN_RED) + act('🌾 Sell crown land', ['sale', 'land'], BTN_RED, b.demesne > (C.demesne.min || 0.05) + 1e-9) + '</div>';

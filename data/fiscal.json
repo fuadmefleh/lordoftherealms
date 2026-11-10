@@ -82,6 +82,74 @@
     "_crisis": "Ways out of a fiscal crisis besides borrowing, the levy, debasement and default (systems/finance.js chooses): selling offices raises `offices.days` of revenue (corruption + corruption.officesSale); selling crown land raises `land.days` of the yield of `land.share` of the demesne.",
     "crisis": { "offices": { "days": 20 }, "land": { "days": 120, "share": 0.3 } },
 
+    "_explain": "What the Treasury panel (src/ui/actionMenu/treasury.js, via src/ui/actionMenu/taxGuide.js) tells the player each tax, level and budget line is. {pct:path} prints a number of this file as a percent, {num:path} as it stands, {c100:path} times 100 (a sum per hundred), {x:path} as a multiplier: the prose follows the tuning. Per-level effects (revenue x, burden and stability) are computed from levels/burden/stability, not written here. Keep each line to what the code reads.",
+    "explain": {
+        "intro": "Every coin the crown takes comes out of its towns' purses (the coin their people hold), and its wages go back into them. Collectors call on each town every {num:collectEvery} days and take every day's dues since; a town whose purse is empty pays only what it has, and a town in revolt pays nothing for {num:revolts.days} days.",
+        "collection": "Every tax is then × the realm's collection (the steward, stability, blockades, events) and less {pct:corruption.leak} × corruption kept by the officials.",
+        "taxes": {
+            "land": {
+                "icon": "🌾", "name": "Land tax",
+                "who": "The countryside and the town's trade: the peasants who work the land, and the town as a whole for what it makes and sells away.",
+                "on": "The peasants' earnings (swelled or cut by the harvest), the town's production, the coin it took for goods sold to other towns, and the coin it sits on.",
+                "how": "{pct:rates.land} of the peasants' earnings × the harvest (×0.5 to ×1.5), + {pct:rates.land} of {pct:rates.landProd} of the town's production gold, + {pct:rates.sales} of the coin from goods sold to other towns, + {pct:rates.hoard} a day of the coin it holds past {num:rates.hoardReserve}g a head. All × the land tax's level.",
+                "weight": "It is {pct:burden.weights.land} of the realm's tax index: a step on the land tax moves the burden and stability twice as far as a step on the hearth tax or the excise."
+            },
+            "poll": {
+                "icon": "🏠", "name": "Hearth tax",
+                "who": "Every working head: peasants and artisans count once, merchants {x:pollWeights.merchants}; clergy and nobles are exempt.",
+                "on": "Heads, not earnings: a poor town pays as much per person as a rich one.",
+                "how": "{c100:rates.poll}g a day for every 100 taxable heads, × the hearth tax's level.",
+                "weight": "It is {pct:burden.weights.poll} of the realm's tax index."
+            },
+            "excise": {
+                "icon": "🧺", "name": "Excise",
+                "who": "The artisans and the merchants.",
+                "on": "The artisans' earnings and the merchants' trade income.",
+                "how": "{pct:rates.excise} of the artisans' earnings + {pct:rates.excise} of the town's trade income, × the excise's level.",
+                "weight": "It is {pct:burden.weights.excise} of the realm's tax index."
+            }
+        },
+        "levels": "Each level multiplies that tax's take: 🍃 Light {x:levels.light.mult}, ⚖️ Standard {x:levels.standard.mult}, 💰 Heavy {x:levels.heavy.mult}, ⛓️ Crushing {x:levels.crushing.mult}. NPC crowns set all three to one level; a ruler sets each apart.",
+        "raise": [
+            "<b>Revenue</b>: that tax's take × the level (paid only from what the towns' purses hold).",
+            "<b>The people's burden</b> rises (base {pct:burden.base} × the tax index). Every class's welfare falls by (burden − 15%) × its weight, so people drift along the trade roads to towns that treat them better.",
+            "<b>Tax revolts</b>: above a burden of {pct:revolts.burdenAt} (or where the peasants are hard-pressed), each town risks a revolt each week (at most {pct:revolts.max}): no taxes for {num:revolts.days} days, −{num:revolts.happiness} happiness there, −{num:revolts.stability} stability.",
+            "<b>Stability</b>: the realm's target falls {num:stability.perLevel} for each whole step the tax index stands above Standard (and rises as much below it).",
+            "<b>Coin</b>: taxes take coin out of circulation and wages put it back; each week the realm's coin moves by {pct:coin.share} of the difference."
+        ],
+        "lower": "Lowering does the reverse: less gold, a lighter burden (people stay and settlers come), fewer revolts, a steadier realm. Light taxes can leave the army unpaid: soldiers unpaid more than {num:army.desert.afterDays} days desert.",
+        "army": "Army wages: {num:army.pay}g a day per soldier (×{num:army.warPay} at war, × the realm's upkeep bonuses), + {num:army.bounty}g for each new recruit, × the pay level. Paid before the court. Soldiers spend it where they are quartered.",
+        "court": "Court & administration: {num:court.base}g + {num:court.perTown}g a town + {num:court.perHead}g a head, a day, × the court level. The clerks spend it in the capital.",
+        "terms": {
+            "burden": "The people's burden: what the taxes weigh on them ({pct:burden.base} is the customary due). Raised by the tax levels, a tax farmer's squeeze and corruption.",
+            "stability": "The 'Taxes & pay' part of the realm's stability: the tax levels, unpaid days (up to −{num:stability.arrearsCap}), corruption (−{num:stability.corruption} at 100%), and the army-pay and court levels.",
+            "corruption": "The share of officials on the take: {pct:corruption.leak} of it leaks out of the taxes. It grows while the clerks go unpaid, under a frugal court and when offices are sold, and fades while they are paid.",
+            "demesne": "The crown's own estates: their share of the land's production gold (the capital's counts {x:demesne.capital}). Selling crown land shrinks it for good.",
+            "reserve": "Days in hand: how many days of spending the chests would cover."
+        },
+        "lines": {
+            "land": "The land tax: on the peasants' earnings (by the harvest), the town's production and its sales to other towns.",
+            "poll": "The hearth tax: so much a working head (merchants more, clergy and nobles exempt).",
+            "excise": "The excise: on the artisans' earnings and the merchants' trade.",
+            "customs": "Tariffs on goods crossing the border, and the crown's road, bridge and canal tolls.",
+            "demesne": "The crown's own estates (a share of the land's gold) and its monopolies (licences, the post).",
+            "seigniorage": "The mint's profit on striking and re-striking the realm's coin.",
+            "farms": "Lump sums paid by tax farmers who bought the right to collect a town's taxes.",
+            "levy": "An extraordinary levy: an extra share on every tax while it runs (a crown deep in debt), and forced gifts from its subjects.",
+            "sales": "One-off sales: offices, crown land, licences and petitions, and surplus arms sold off.",
+            "army": "Soldiers' daily pay and recruits' bounties, the fleet's upkeep, field costs, and wages the crown pays its commissioned officers (you, when you serve).",
+            "arms": "Weapons, shields, helms, harness and arrows the crown buys from its towns' markets to arm its soldiers.",
+            "court": "The household, officers and clerks (by the realm's size), and the upkeep of royal edicts.",
+            "works": "Building and keeping up roads, bridges, canals and other public works.",
+            "debt": "Interest and repayments on the crown's loans from the banking houses.",
+            "dole": "Famine relief: grain bought for the hungry and to stock the granaries.",
+            "purse": "The ruler's own cut of the crown's revenue (the royal levy: your gold, if you rule).",
+            "loans": "Gold borrowed from the banking houses (not income: it must be paid back).",
+            "debase": "Gold made by debasing the coin (prices rise after).",
+            "other": "Everything else that moved the treasury (events, tribute, temples, licences): the books always balance."
+        }
+    },
+
     "_smoothing": "Daily smoothing of the books' average revenue and spending (the Finance tick's income and the reserve).",
     "smoothing": 0.05,
     "histWeeks": 52,

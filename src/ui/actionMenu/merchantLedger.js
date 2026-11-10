@@ -148,7 +148,7 @@ function statementHtml(game) {
     if (!st.op.income.length && !st.op.expenses.length && !st.cap.length) return html + `<div style="${NOTE}">Nothing on the books yet: the ledger fills as the days pass.</div>`;
     html += `<div style="margin:6px 0; font-size:13px;">Net income: <b>${col(st.op.net)}</b></div>`;
     if (st.groups.length) html += chips(st.groups.map(g => [g.icon, esc(g.name), col(g.net)]));
-    const lines = (list) => list.map(l => `<tr><td style="${TD}">${esc(l.name)} <span style="${NOTE}">${esc(Ledger.group(l.group).icon)}</span></td><td style="${TD} text-align:right;">${col(l.amount)}</td></tr>`).join('');
+    const lines = (list) => list.map(l => `<tr${l.desc ? ` title="${esc(l.desc)}"` : ''}><td style="${TD}">${esc(l.name)} <span style="${NOTE}">${esc(Ledger.group(l.group).icon)}</span></td><td style="${TD} text-align:right;">${col(l.amount)}</td></tr>`).join('');
     html += `<table style="width:100%; border-collapse:collapse; font-size:12px;"><tr><th style="${TH}">Income</th><th style="${TH} text-align:right;"></th></tr>${lines(st.op.income)}`;
     html += `<tr><th style="${TH}">Expenses</th><th style="${TH}"></th></tr>${lines(st.op.expenses)}</table>`;
     if (st.cap.length) html += `${sectionHead('📦 Capital and stock (not profit or loss)')}<table style="width:100%; border-collapse:collapse; font-size:12px;">${lines(st.cap)}</table>`;

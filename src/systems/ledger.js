@@ -50,7 +50,7 @@ export const Ledger = {
     /** A category's definition: { id, name, group, kind } (unknown ones are 'op' in 'other'). */
     category(id) {
         const c = Ledger.config().categories[id] || {};
-        return { id, name: c.name || String(id).replace(/([A-Z])/g, ' $1').replace(/^./, ch => ch.toUpperCase()), group: c.group || 'other', kind: c.kind || 'op' };
+        return { id, name: c.name || String(id).replace(/([A-Z])/g, ' $1').replace(/^./, ch => ch.toUpperCase()), group: c.group || 'other', kind: c.kind || 'op', desc: c.desc || '' };
     },
 
     group(id) {
@@ -192,7 +192,7 @@ export const Ledger = {
             const amount = Math.round(v);
             if (!amount) continue;
             const c = Ledger.category(k);
-            const line = { id: k, name: c.name, group: c.group, amount };
+            const line = { id: k, name: c.name, group: c.group, desc: c.desc, amount };
             if (c.kind === 'memo') { out.memo.push(line); continue; }
             if (c.kind === 'cap') { out.cap.push(line); continue; }
             (amount >= 0 ? out.op.income : out.op.expenses).push(line);

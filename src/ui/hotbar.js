@@ -8,6 +8,7 @@
 import { InnerMap } from '../world/innerMap.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { Crafting } from '../player/crafting.js';
+import { PlayerInventory } from '../core/inventory.js';
 
 const SLOT_COUNT = 7;
 
@@ -20,6 +21,10 @@ const _slots = Array.from({ length: SLOT_COUNT }, () => ({ itemId: null }));
 let _activeSlot = -1;   // -1 = none selected
 let _game = null;
 let _bound = false;
+// What the slots were last drawn from (PlayerInventory.stamp) and from which packs —
+// sync() redraws only when either differs
+let _shownStamp = null;
+let _shownInv = null;
 
 // ── Item icon lookup ──
 function _getItemIcon(itemId) {
@@ -126,6 +131,8 @@ export const Hotbar = {
     refresh() {
         if (!_game || !_game.player) return;
         const inv = _game.player.inventory || {};
+        _shownStamp = PlayerInventory.stamp(_game.player);
+        _shownInv = _game.player.inventory || null;
         const invKeys = Object.keys(inv).filter(k => inv[k] > 0);
 
         // Remove slots whose items are no longer in inventory
@@ -147,6 +154,23 @@ export const Hotbar = {
         }
 
         this._renderSlots();
+    },
+
+    /**
+     * Keep the bar true to the packs: called by the game loop every frame
+     * (ui/game/gameLoop.js). Whatever road the goods took into or out of
+     * `player.inventory` — harvest, forage, felling, mining, butchery, a
+     * dug-up find, the livestock pen, a grave — the fingerprint changes and
+     * the slots are redrawn; otherwise it costs one short string. Returns
+     * whether it redrew.
+     */
+    sync(game) {
+        if (game) _game = game;
+        if (!_game || !_game.player || !this.visible) return false;
+        const inv = _game.player.inventory || null;
+        if (inv === _shownInv && PlayerInventory.stamp(_game.player) === _shownStamp) return false;
+        this.refresh();
+        return true;
     },
 
     /**
@@ -334,6 +358,7 @@ export const Hotbar = {
             _slots[i].itemId = arr[i] || null;
         }
         _activeSlot = -1;
+        _shownStamp = null;
         this._renderSlots();
     },
 };

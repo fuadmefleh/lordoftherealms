@@ -3,7 +3,7 @@
 // Drawn over the ground and under every sprite (innerMapRenderer.js, after
 // the ground overlays), only for the water cells on screen:
 //
-//   • Surf on sea and lake shores (and a little on ponds): a broken band of
+//   • Surf on sea and lake shores (and gently on ponds and river banks): a broken band of
 //     foam runs in from the open water to the waterline on each side of a
 //     shore cell that faces land, with a pale wash behind it, then fades as it
 //     draws back. Neighbouring cells are out of step, so the waves roll along
@@ -24,6 +24,7 @@ import { InnerMapRenderer } from '../innerMapRenderer.js';
 import { InnerMap } from '../../world/innerMap.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { CustomObjects } from '../../world/customObjects.js';
+import { sheetScale } from '../sheetScale.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -31,7 +32,7 @@ const DEFAULTS = {
         period: 5.2, from: 1.25, to: 0.06, inShare: 0.55, roll: 0.09,
         thick: 0.09, dashes: 4, gap: 0.22,
         foam: '#eaf8ff', wash: '#bfe7ff', alpha: 0.85, washAlpha: 0.22,
-        kinds: { sea: 1, lake: 0.7, pond: 0.35, river: 0 },
+        kinds: { sea: 1, lake: 0.7, pond: 0.35, river: 0.3 },
         splashEvery: 7, splashKinds: ['sea', 'lake'],
     },
     glint: { density: 0.08, cycle: [3.5, 7], fps: 7, alpha: 0.9, nightAlpha: 0.3, rippleKinds: ['pond'] },
@@ -116,10 +117,12 @@ Object.assign(InnerMapRenderer, {
                 if (land(q - 1, r)) sides |= W;
                 const h = _hash(q, r, 7);
                 let cell = null;
-                if (sides && _num(cfg.surf.kinds[kind], 0) > 0) {
-                    cell = { q, r, kind, sides, h, strength: _num(cfg.surf.kinds[kind], 0) };
-                } else if (kind === 'river') {
+                // (a river's banks lap gently in the surf field, _waterFxField; its cells
+                // keep their sparkles drifting downstream, bank or no)
+                if (kind === 'river') {
                     if (h < cfg.river.density) cell = { q, r, kind, river: true, h, fx: flow ? flow[0] : 0, fy: flow ? flow[1] : 0 };
+                } else if (sides && _num(cfg.surf.kinds[kind], 0) > 0) {
+                    cell = { q, r, kind, sides, h, strength: _num(cfg.surf.kinds[kind], 0) };
                 } else if (!sides && h < cfg.glint.density) {
                     cell = { q, r, kind, glint: true, h, ripple: cfg.glint.rippleKinds.includes(kind) };
                 }
@@ -174,6 +177,12 @@ Object.assign(InnerMapRenderer, {
         return 1;
     },
 
+    /** The water's clock (s): the ambient clock when there is one, else the wall clock. */
+    _waterFxNow() {
+        if (typeof this._ambientT === 'number' && typeof this.tickAmbient === 'function') return this._ambientT;
+        return performance.now() / 1000;
+    },
+
     _renderWaterFx(ctx, camera) {
         const cfg = this._waterFxCfg();
         if (!cfg.enabled || InnerMap._insideBuilding) return;
@@ -183,7 +192,9 @@ Object.assign(InnerMapRenderer, {
         const ds = T * camera.zoom;
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const origin = camera.worldToScreenFast(qMin * T, rMin * T);
-        const now = performance.now() / 1000;
+        // The water moves on the ambient clock (innerMapLayers/ambient.js tickAmbient): with
+        // the game, standing still while it is paused, like the fires and the smoke
+        const now = this._waterFxNow();
         const wx = this._waterFxWeather(cfg);
         const day = this._waterFxDay();
         const refl = this._sheets && this._sheets.get('water_reflections');
@@ -227,7 +238,7 @@ Object.assign(InnerMapRenderer, {
         const have = this._waterFxSheets.get(path);
         if (have) return have.data ? have : null;
         if (typeof Image === 'undefined' || typeof document === 'undefined') return null;
-        const rec = { data: null, w: 0 };
+        const rec = { data: null, w: 0, h: 0, k: 1 };
         this._waterFxSheets.set(path, rec);
         const img = new Image();
         img.onload = () => {
@@ -238,6 +249,10 @@ Object.assign(InnerMapRenderer, {
                 g.drawImage(img, 0, 0);
                 rec.data = g.getImageData(0, 0, img.width, img.height).data;
                 rec.w = img.width;
+                rec.h = img.height;
+                // A sheet repainted at more than 32px a cell (the painted terrain is 4×):
+                // its 32px cell addresses scale up with it (ui/sheetScale.js)
+                rec.k = sheetScale(img);
                 // Work the shore out again with the real waterline
                 if (this._waterFxFieldCache) this._waterFxFieldCache.pending = true;
             } catch (e) { /* a tainted or missing sheet: the cell outline is used */ }
@@ -285,8 +300,8 @@ Object.assign(InnerMapRenderer, {
                     for (let sx = 0; sx < SUB; sx++) {
                         let v = land ? 0 : INF;
                         if (sheet) {
-                            const px = td.sx + Math.floor((sx + 0.5) * (td.sw || 32) / SUB);
-                            const py = td.sy + Math.floor((sy + 0.5) * (td.sh || 32) / SUB);
+                            const px = _sheetPx(sheet, td.sx + (sx + 0.5) * (td.sw || 32) / SUB, sheet.w);
+                            const py = _sheetPx(sheet, td.sy + (sy + 0.5) * (td.sh || 32) / SUB, sheet.h);
                             const o = (py * sheet.w + px) * 4;
                             const a = sheet.data[o + 3], R = sheet.data[o], G = sheet.data[o + 1], B = sheet.data[o + 2];
                             const blue = a > 128 && B > R + 25 && B >= G - 10;
@@ -397,16 +412,21 @@ Object.assign(InnerMapRenderer, {
                 // Skip open water far from any shore (cheap test on the cell's middle sample)
                 const mid = (r * SUB + (SUB >> 1)) * F.w + q * SUB + (SUB >> 1);
                 if (F.dist[mid] > reachMax + 1) continue;
-                const cellPh = _hash(q, r, 7) * 0.12;
+                // Each wave a little out of step with the next: a phase offset hashed at the
+                // tile corners and blended across the tile, so there is no seam at its edges
+                const h00 = _hash(q, r, 7) * 0.12, h10 = _hash(q + 1, r, 7) * 0.12;
+                const h01 = _hash(q, r + 1, 7) * 0.12, h11 = _hash(q + 1, r + 1, 7) * 0.12;
                 for (let sy = 0; sy < SUB; sy++) {
                     const gy = r * SUB + sy;
                     const oy = (r - rMin) * SUB + sy;
+                    const fy = _smooth((sy + 0.5) / SUB);
+                    const hl = h00 + (h01 - h00) * fy, hr = h10 + (h11 - h10) * fy;
                     for (let sx = 0; sx < SUB; sx++) {
                         const gx = q * SUB + sx;
                         const d = F.dist[gy * F.w + gx];
                         if (d > reachMax || d <= 0) continue;
                         // The wave rolls along the beach: its phase shifts with position
-                        const p = now / period + (gx + gy) / SUB * roll + cellPh;
+                        const p = now / period + (gx + gy) / SUB * roll + hl + (hr - hl) * _smooth((sx + 0.5) / SUB);
                         const ph = p - Math.floor(p);
                         let line, a;
                         if (ph < inShare) {
@@ -443,7 +463,11 @@ Object.assign(InnerMapRenderer, {
         }
         if (!any) return;
         g2.putImageData(F.img, 0, 0);
+        // Drawn up smoothed: soft foam over the painted water, not a staircase of blocks
+        const smoothWas = ctx.imageSmoothingEnabled;
+        ctx.imageSmoothingEnabled = S_.smooth !== false;
         ctx.drawImage(F.canvas, 0, 0, iw, ih, Math.round(origin.x), Math.round(origin.y), Math.round(cols * ds), Math.round(rowsN * ds));
+        ctx.imageSmoothingEnabled = smoothWas;
     },
 
     /**
@@ -477,10 +501,10 @@ Object.assign(InnerMapRenderer, {
                     if (!sheet) { waiting = true; continue; }
                     const sw = tl.sw || 32, sh = tl.sh || 32;
                     for (let sy = 0; sy < SUB; sy++) {
-                        const py = tl.sy + Math.floor((sy + 0.5) * sh / SUB);
+                        const py = _sheetPx(sheet, tl.sy + (sy + 0.5) * sh / SUB, sheet.h);
                         const base = (cr * SUB + sy) * w + cq * SUB;
                         for (let sx = 0; sx < SUB; sx++) {
-                            const px = tl.sx + Math.floor((sx + 0.5) * sw / SUB);
+                            const px = _sheetPx(sheet, tl.sx + (sx + 0.5) * sw / SUB, sheet.w);
                             if (sheet.data[(py * sheet.w + px) * 4 + 3] > 128) dist[base + sx] = 0;
                         }
                     }
@@ -663,6 +687,14 @@ Object.assign(InnerMapRenderer, {
         ctx.globalAlpha = 1;
     },
 });
+
+/** A 32px-cell address (fractional) → the pixel in a sheet scaled by sheet.k, kept on the sheet */
+function _sheetPx(sheet, v, size) {
+    const p = Math.floor(v * (sheet.k || 1));
+    return Math.max(0, Math.min((size || 1) - 1, p));
+}
+
+function _smooth(k) { return k * k * (3 - 2 * k); }
 
 function _num(v, d) { return typeof v === 'number' && Number.isFinite(v) ? v : d; }
 

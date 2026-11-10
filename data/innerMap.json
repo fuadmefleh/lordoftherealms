@@ -1,11 +1,11 @@
 {
     "dayClock": { "_doc": "The day's one clock (ui/game/dayClock.js): the hour shown in the top bar, run by the town and country maps (1 real minute an hour) and moved on by what you do anywhere. Every action point spent passes hoursPerAP hours (travel, work, trading, audiences...), so a full day's maxActionPoints (10) fills the waking day from wakeHour (8 AM) to about 11 PM. Time passed in person (walking a town, work on the map, sleep) costs points in turn: you can never hold more action points than the hours left before midnight allow (floor(hoursLeft / hoursPerAP)). A day ended by going to bed wakes at wakeHour.", "hoursPerAP": 1.5, "wakeHour": 8 },
     "waterFx": {
-        "_doc": "Living water on the inner map (ui/innerMapLayers/waterFx.js): surf on sea/lake/pond shores (from/to in tiles off the land edge, period in seconds; kinds = strength by water kind), sparkles on open water and ripples on ponds (assets/lpc/FX/Water Reflections.png), sparkles drifting down the river, splashes where waves break (Splash.png). weather scales speed, reach, splash frequency and sparkle.",
+        "_doc": "Living water on the inner map (ui/innerMapLayers/waterFx.js): surf on sea/lake shores, gentler on ponds and river banks (from/to in tiles off the land edge, period in seconds; kinds = strength by water kind), sparkles on open water and ripples on ponds (assets/lpc/FX/Water Reflections.png), sparkles drifting down the river, splashes where waves break (Splash.png). weather scales speed, reach, splash frequency and sparkle.",
         "enabled": true,
         "surf": { "period": 5.2, "from": 1.25, "to": 0.06, "sub": 16, "inShare": 0.55, "roll": 0.09, "thick": 0.09, "dashes": 4, "gap": 0.22,
             "foam": "#eaf8ff", "wash": "#bfe7ff", "alpha": 0.85, "washAlpha": 0.22,
-            "kinds": { "sea": 1, "lake": 0.7, "pond": 0.35, "river": 0 }, "splashEvery": 7, "splashKinds": ["sea", "lake"] },
+            "kinds": { "sea": 1, "lake": 0.7, "pond": 0.35, "river": 0.3 }, "splashEvery": 7, "splashKinds": ["sea", "lake"] },
         "glint": { "density": 0.08, "cycle": [3.5, 7], "fps": 7, "alpha": 0.9, "nightAlpha": 0.3, "rippleKinds": ["pond"] },
         "river": { "density": 0.16, "speed": 0.55, "alpha": 0.75 },
         "swell": { "enabled": true, "density": 0.45, "wavelength": 3.2, "speed": 0.6, "underway": 1.6, "crest": 0.3, "length": 0.55, "alpha": 0.6, "minDist": 2.2, "color": "#d8f0ff" },

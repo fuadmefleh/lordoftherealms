@@ -45,7 +45,7 @@ Rendering and input handling. This layer reads game state and draws it — it do
 | `whyPopover.js` | ~210 | The "Why?" ⓘ: `whyIcon(payload)` returns an ⓘ carrying its explanation as `data-why` JSON; one capture-phase document listener (installed on first use) opens a popover beside it (appended to `<body>`, positioned with `toUiPx` for the `--ui-zoom` convention; Escape/outside click closes). Formatters from `player/causes.js`: `priceWhy`, `sellWhy` (Market window), `opinionWhy` (lord audience), `taxWhy` (Finance → Taxes), `stabilityWhy` (kingdom panel, hex info, Treasury budget) |
 | `companionsPanel.js` | ~150 | Travel-party roster (approval, mood, values, gripes, quests; talk/gift/pay/raise/dismiss), rendered inside `ActionMenu.showTravelPartyMenu` |
 | `game.js` | ~1200 | **Main game loop**: `requestAnimationFrame`, input routing, day/turn control |
-| `hotbar.js` | ~280 | Hotbar: quick-access tool buttons |
+| `hotbar.js` | ~310 | Hotbar: the street map's item slots; `sync()` (every frame) redraws them when `PlayerInventory.stamp` changes |
 | `innerMap/` | ~4100 | Inner-map system: rendering layers, character compositing, combat |
 | `innerMapCharacters.js` | ~480 | LPC-format character sprite compositing |
 | `innerMapUI.js` | ~700 | Inner-map HUD overlay (health bars, interaction prompts) |

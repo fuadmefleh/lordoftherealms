@@ -216,25 +216,57 @@ Object.assign(PlayerMilitary, {
         return { casualties, woundedUnits };
     },
 
+    /** The spoils source of a world unit: { lootPurse } (its inventory) or { lootKingdom }. */
+    _unitLoot(unit, world) {
+        if (unit && unit.inventory) return { lootPurse: unit.inventory };
+        const kid = unit && (unit.kingdomId != null ? unit.kingdomId : unit.kingdom);
+        const k = kid != null && world && typeof world.getKingdom === 'function' ? world.getKingdom(kid) : null;
+        return k ? { lootKingdom: k } : { lootPurse: null };
+    },
+
+    /**
+     * Where a victory's coin comes from: { have, take(n) → taken } or null.
+     *   context.lootPurse   what the beaten carried ({ gold }: a band's or a world
+     *                       unit's inventory; null for nothing)
+     *   context.lootTown    a town's purse (the plundered or stormed town; a real
+     *                       town gets its economy record first)
+     *   context.lootKingdom a realm's treasury (its army's war chest)
+     * Without one the loot is nothing: no coin from nowhere.
+     */
+    _spoilsSource(context = {}) {
+        if (context.lootPurse !== undefined) {
+            const purse = context.lootPurse;
+            const have = purse ? Math.max(0, Math.floor(Number(purse.gold) || 0)) : 0;
+            return { have, take: (n) => { const t = Math.max(0, Math.min(have, Math.floor(n))); if (purse) purse.gold = have - t; return t; } };
+        }
+        const s = context.lootTown;
+        if (s && typeof s === 'object') {
+            if (!s.economy && (Number(s.population) || 0) > 0) Economy.initSettlement(s);
+            const have = Math.floor(Economy.townPurse(s) || 0);
+            return { have, take: (n) => Math.floor(Economy.drawTown(s, Math.max(0, Math.min(have, Math.floor(n))))) };
+        }
+        const k = context.lootKingdom;
+        if (k && typeof k === 'object') {
+            const have = Math.max(0, Math.floor(Number(k.treasury) || 0));
+            return { have, take: (n) => { const t = Math.max(0, Math.min(have, Math.floor(n))); k.treasury = Math.round(((Number(k.treasury) || 0) - t) * 100) / 100; return t; } };
+        }
+        return null;
+    },
+
     /**
      * After the fighting: a victory's loot, the survivors' experience, the
      * commander's combat skill and renown; a defeat with no army left may end
      * in capture and indentured servitude. Returns { loot } or
      * { loot: 0, captured: true, servitudeDays, goldConfiscated }.
+     * The loot comes out of a real source (_spoilsSource) and no more.
      */
     _battleSpoils(player, victory, enemyStrength, context = {}, enemyName = 'Bandits') {
         const theatre = context.theatre || 'land';
         let loot = 0;
         if (victory) {
-            loot = Math.floor(enemyStrength * Utils.randFloat(2, 5));
-            // context.lootPurse: what the beaten carried ({ gold }, or null for nothing) —
-            // the loot comes out of it and no more (player/battlefield.js)
-            if (context.lootPurse !== undefined) {
-                const purse = context.lootPurse;
-                const have = purse ? Math.max(0, Math.floor(Number(purse.gold) || 0)) : 0;
-                loot = Math.min(loot, have);
-                if (purse) purse.gold = have - loot;
-            }
+            const want = Math.floor(enemyStrength * Utils.randFloat(2, 5));
+            const src = PlayerMilitary._spoilsSource(context);
+            loot = src ? src.take(Math.min(want, src.have)) : 0;
             player.gold += loot;
 
             // Experience for the survivors who fought
@@ -410,12 +442,14 @@ Object.assign(PlayerMilitary, {
             world,
             siege: true, // siege engines batter the defences
             theatre,
+            lootTown: settlement, // the defenders' spoils come out of the town's purse
         });
 
         result.defenseStrength = defenseStrength;
         if (result.victory) {
-            // Successful raid
-            const plunder = Math.floor(settlement.population * Utils.randFloat(0.5, 2));
+            // Successful raid: the plunder out of the town's purse, as much as is left in it
+            const want = Math.floor(settlement.population * Utils.randFloat(0.5, 2));
+            const plunder = PlayerMilitary._spoilsSource({ lootTown: settlement }).take(want);
             player.gold += plunder;
             result.plunder = plunder;
             settlement.lastRaidedDay = day;
@@ -503,6 +537,7 @@ Object.assign(PlayerMilitary, {
             siege: true, // siege engines breach the walls
             theatre,
             enemyMoraleBonus: settlement.type === 'capital' ? 0.1 : 0,
+            lootTown: settlement, // the garrison's spoils out of the town's purse
         });
         result.garrisonStrength = garrisonStrength;
 
@@ -542,9 +577,10 @@ Object.assign(PlayerMilitary, {
             result.conquered = true;
             Quests.track(player, 'settlements_captured');
 
-            // Plunder gold from the settlement
+            // Plunder gold out of the settlement's purse (as much as it holds)
             const range = opts.plunder || [1, 3];
-            const plunder = Math.floor(settlement.population * Utils.randFloat(range[0], range[1]));
+            const want = Math.floor(settlement.population * Utils.randFloat(range[0], range[1]));
+            const plunder = PlayerMilitary._spoilsSource({ lootTown: settlement }).take(want);
             player.gold += plunder;
             result.plunder = plunder;
 
@@ -705,6 +741,9 @@ Object.assign(PlayerMilitary, {
             enemyComposition: PlayerMilitary._getWorldUnitComposition(worldUnit),
             world,
             defending: !!opts.defending,
+            // The spoils are what the unit carried (the rest of its inventory follows below);
+            // a realm's men with no chest of their own: out of its treasury
+            ...PlayerMilitary._unitLoot(worldUnit, world),
             // Aboard ship or on the water the fight is at sea
             theatre: PlayerMilitary.tileTheatre(
                 typeof player.q === 'number' ? world.getTile(player.q, player.r) : unitTile, player),

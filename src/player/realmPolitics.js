@@ -250,7 +250,8 @@ export const RealmPolitics = {
         if (!player.army || player.army.length === 0) return { success: false, reason: 'You need an army to join the campaign.' };
 
         const strength = RealmPolitics.campaignStrength(enemy);
-        const battle = PlayerMilitary.combat(player, strength, `${enemy.name} vanguard`, { ...context, world });
+        // (the vanguard's war chest is its realm's treasury: the spoils come out of it)
+        const battle = PlayerMilitary.combat(player, strength, `${enemy.name} vanguard`, { ...context, world, lootKingdom: enemy });
         // No battle was fought (e.g. only war galleys, which stay off land fields)
         if (battle.reason) return { success: false, reason: battle.reason };
         if (battle.victory) {

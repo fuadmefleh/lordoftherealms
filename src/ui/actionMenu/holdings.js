@@ -178,6 +178,7 @@ Object.assign(ActionMenu, {
                 if (!hold || !hold.rebellion) return;
                 const battle = PlayerMilitary.combat(player, hold.rebellion.strength, `Rebels of ${tile.settlement.name}`, {
                     terrainId: tile.terrain && tile.terrain.id, world,
+                    lootPurse: null, // rebel peasants carry nothing worth the taking
                 });
                 if (battle.reason && !battle.victory && battle.casualties === undefined) {
                     after('⚔️ Rebellion', { success: false, reason: battle.reason });

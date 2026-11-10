@@ -78,9 +78,10 @@ export function gameLoop(timestamp, loopId) {
         InnerMapRenderer._mouseX = this.mouseX;
         InnerMapRenderer._mouseY = this.mouseY;
 
-        // Update time system (1 hour per real minute)
+        // Update time system (1 hour per real minute) — not while a battle is fought on this map:
+        // it runs on its own clock and moves the day on by its hours when it ends (ui/innerMapBattle.js)
         const prevHour = InnerMap.timeOfDay;
-        const timeResult = InnerMap.updateTime(simDelta);
+        const timeResult = InnerMapBattle.active ? null : InnerMap.updateTime(simDelta);
 
         // ── Hourly needs decay ──
         if (InnerMap.timeOfDay > prevHour && this.player && this.player.needs) {

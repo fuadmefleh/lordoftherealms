@@ -207,9 +207,10 @@ Object.assign(ActionMenu, {
             player.actionPoints -= cost;
             return true;
         };
-        const fight = (enemyStrength, name) => {
+        // (the beaten are the realm's soldiers: their war chest is its treasury)
+        const fight = (enemyStrength, name, realm = null) => {
             const t = world.getTile(player.q, player.r);
-            return PlayerMilitary.combat(player, enemyStrength, name, { world, terrainId: t && t.terrain && t.terrain.id });
+            return PlayerMilitary.combat(player, enemyStrength, name, { world, terrainId: t && t.terrain && t.terrain.id, lootKingdom: realm });
         };
         window._throne = {
             policy: (axis, id) => result('👑 Royal Policy', Throne.setPolicy(player, world, axis, id)),
@@ -230,7 +231,7 @@ Object.assign(ActionMenu, {
                 const crisis = st.crises.find(c => c.id === crisisId);
                 const k = crisis && world.getKingdom(crisis.kingdomId);
                 if (!k) return;
-                const battle = fight(Throne.vanguardStrength(k), `${k.name} partisans`);
+                const battle = fight(Throne.vanguardStrength(k), `${k.name} partisans`, k);
                 if (battle.reason) { game.ui.showNotification('⚔️ Battle', battle.reason, 'error'); return; }
                 const res = Throne.backClaimant(player, world, crisisId, claimantId, 'battle', { victory: battle.victory });
                 if (res.success && battle.casualties && battle.casualties.length) res.message += ` You lost ${battle.casualties.length} soldier(s).`;
@@ -240,7 +241,7 @@ Object.assign(ActionMenu, {
                 if (!spendAP(AP.battle)) return;
                 const k = st.civilWar && world.getKingdom(st.civilWar.kingdomId);
                 if (!k) return;
-                const battle = fight(Throne.loyalistVanguard(player, world), `${k.name} loyalists`);
+                const battle = fight(Throne.loyalistVanguard(player, world), `${k.name} loyalists`, k);
                 if (battle.reason) { game.ui.showNotification('⚔️ Battle', battle.reason, 'error'); return; }
                 const res = Throne.recordThroneBattle(player, world, battle.victory);
                 if (res.success && battle.casualties && battle.casualties.length) res.message += ` You lost ${battle.casualties.length} soldier(s).`;

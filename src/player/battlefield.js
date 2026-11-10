@@ -66,25 +66,38 @@ const DEFAULTS = {
     },
     deploy: { gap: 22, rowGap: 2.5 },
     counterWeight: 0.6,
+    // The army's whole make-up against the foe's (the phased battle's counter), laid on every company
+    armyCounter: 0,
+    // Each side's luck of the day on the field (×1±fieldLuck, drawn once from the battle's stream)
+    fieldLuck: 0,
     chargeSpeed: 1.45,
     routSpeed: 1.25,
     withdrawSpeed: 0.85,
     contact: 1.35,
     meleeSeconds: 18,
     volleySeconds: 10,
+    // Volleys into a press where your own men fight: this share of the effect (0: held)
+    pressVolley: 0,
     pursuitSeconds: 8,
     spread: 0.15,
     chargeShock: { seconds: 2.5, horse: 1.5, foot: 1.2, vsHoldingFoot: 0.75 },
     flank: { side: 1.2, rear: 1.4, shockSide: 0.08, shockRear: 0.18 },
     terrain: { coverArrows: 0.45, coverMelee: 1.15, horseInCover: 0.65, high: 1.15, water: 0.75, holdShields: 0.75 },
     morale: { lossShock: 2.2, regen: 0.015, commanderRegen: 0.02, commanderRadius: 7, friendRout: 0.08, friendRadius: 9, waver: 0.5, waverPower: 0.8, rout: 0.22, routStrength: 0.3, routChance: 1.4, rallyAfter: 12, rallyMorale: 0.55 },
-    ai: { think: 1, horseWait: 6, footWait: 2.5, archerKeepAway: 5 },
+    ai: { think: 1, horseWait: 6, footWait: 2.5, archerKeepAway: 5, archerJoin: 0 },
     pursuitAfterBreak: 9,
     holdSeconds: 150,
     withdrawSeconds: 14,
     flightSpeed: 16,
     // The share of a company's strength lost that is men lost for good (the rest scattered, back by evening)
     lossToUnits: 0.6,
+    // A company holding faces the foe once and keeps that front; it wheels only for a threat
+    // within threatRange tiles more than acos(threatCos) off its front
+    hold: { threatRange: 9, threatCos: 0.5 },
+    // An assault on a town: the attackers drawn up this many tiles outside the streets
+    assault: { gap: 26 },
+    // The day's clock while a battle is fought: it stands still, then moves on by this
+    clock: { baseHours: 1, hoursPerMinute: 0.5, minHours: 1, maxHours: 5 },
 };
 
 function _merge(base, over) {
@@ -176,6 +189,65 @@ export const Battlefield = {
         return best;
     },
 
+    /**
+     * The ground of an assault on a town (or a raid on a village): the
+     * defenders in the streets, the attackers drawn up outside, toward the
+     * edge of the map with the most room between it and the town. Needs the
+     * field's `town(q, r)` (the street map's built-up ground). → { area, lines:
+     * { player, enemy }, cy, playerSide } or null when the field has no town.
+     */
+    assaultLayout(field) {
+        if (typeof field.town !== 'function') return null;
+        let sx = 0, sy = 0, n = 0;
+        for (let y = 1; y < field.h - 1; y += 2) {
+            for (let x = 1; x < field.w - 1; x += 2) {
+                if (field.pass(x, y) && field.town(x, y)) { sx += x; sy += y; n++; }
+            }
+        }
+        if (n < 6) return null;
+        const tx = sx / n, ty = sy / n;
+        const cfg = Battlefield.config();
+        const gap = (cfg.assault && cfg.assault.gap) || 26;
+        // Come on from the side with the more room outside the town
+        const west = tx >= field.w / 2;
+        const dir = west ? 1 : -1;
+        const px = _clamp(tx - dir * gap, 4, field.w - 5);
+        const ex = _clamp(tx, 4, field.w - 5);
+        const cy = _clamp(ty, 8, field.h - 9);
+        const x0 = Math.max(1, Math.min(px, ex) - 6), x1 = Math.min(field.w - 2, Math.max(px, ex) + 6);
+        const y0 = Math.max(1, cy - 14), y1 = Math.min(field.h - 2, cy + 14);
+        return {
+            area: { x0, y0, x1, y1, cx: (px + ex) / 2, cy },
+            lines: { player: px, enemy: ex },
+            cy,
+            playerSide: west ? 'west' : 'east',
+        };
+    },
+
+    /**
+     * The companies of a side with a living man inside the box (field tiles,
+     * corners in any order): a drag-box selection. → [company id]
+     */
+    inBox(bf, side, x0, y0, x1, y1) {
+        const lx = Math.min(x0, x1), hx = Math.max(x0, x1), ly = Math.min(y0, y1), hy = Math.max(y0, y1);
+        return bf.companies
+            .filter(c => c.side === side && Battlefield.standing(c)
+                && c.figures.some(f => f.alive && f.x >= lx && f.x <= hx && f.y >= ly && f.y <= hy))
+            .map(c => c.id);
+    },
+
+    /**
+     * The hours of the day a battle takes: a set time for drawing up and
+     * clearing the field, and so much more for each minute it was fought
+     * (data/military.json → battlefield.clock). The world's clock stands while
+     * the battle runs and moves on by this when it ends.
+     */
+    gameHours(bf) {
+        const C = Battlefield.config().clock || {};
+        const h = (Number(C.baseHours) || 0) + (Math.max(0, Number(bf && bf.t) || 0) / 60) * (Number(C.hoursPerMinute) || 0);
+        return _r2(_clamp(h, Number(C.minHours) || 0, Number(C.maxHours) || 24));
+    },
+
     // ── Drawing up ──────────────────────────────────────────────────────
 
     /**
@@ -223,8 +295,10 @@ export const Battlefield = {
      */
     create(player, battle, field, opts = {}) {
         const cfg = Battlefield.config();
-        const area = opts.area || Battlefield.pickArea(field, opts.prefer || null);
-        const pDir = opts.playerSide === 'east' ? -1 : 1;
+        // An assault: the defenders in the town's streets, the attackers outside (assaultLayout)
+        const assault = opts.layout === 'assault' ? Battlefield.assaultLayout(field) : null;
+        const area = (assault && assault.area) || opts.area || Battlefield.pickArea(field, opts.prefer || null);
+        const pDir = (assault ? assault.playerSide : opts.playerSide) === 'east' ? -1 : 1;
         const bf = {
             id: `bf_${battle.id}`,
             seed: battle.seed,
@@ -253,6 +327,8 @@ export const Battlefield = {
             },
             aiSide: { player: false, enemy: true },
             aiT: 0,
+            layout: assault ? 'assault' : 'field',
+            lines: assault ? assault.lines : null,
         };
         // Each side's power with the composition-borne parts (hex terrain, weather)
         // taken out, to be laid on per company kind instead
@@ -260,6 +336,13 @@ export const Battlefield = {
             const S = bf.sides[side];
             const compBorne = PlayerMilitary._terrainMultiplier(battle.terrainId, comp) * PlayerMilitary._weatherMultiplier(battle.weather, comp);
             S.rest = (mult || 1) / Math.max(0.01, compBorne);
+            // The army's make-up against the foe's as a whole (the phased battle's counter):
+            // an army that answers the enemy's fights better everywhere (armyCounter of it)
+            const other = side === 'player' ? battle.eComp : battle.pComp;
+            S.counter = comp && other ? PlayerMilitary._counterMultiplier(comp, other) : 1;
+            // The run of the day on each side (the phased battle's rolls, felt over the whole field)
+            const L = Number(cfg.fieldLuck) || 0;
+            if (L > 0) S.fortune *= Utils.withRng(_stream(bf), () => Utils.randFloat(1 - L, 1 + L));
             for (const kind of Object.keys(cfg.kinds)) {
                 const pure = { cavalry: 0, archer: 0, pikeman: 0, [ROLE_OF_KIND[kind]]: 1 };
                 S.kindMult[kind] = PlayerMilitary._terrainMultiplier(battle.terrainId, pure) * PlayerMilitary._weatherMultiplier(battle.weather, pure);
@@ -289,13 +372,9 @@ export const Battlefield = {
         const eSpecs = Battlefield._compSpecs('enemy', battle.eComp, eTotal, strPerFig, eTypes);
         if (battle.host) pSpecs.push(...Battlefield._compSpecs('player', battle.pComp, pTotal, strPerFig, { pikeman: 'soldier', archer: 'archer', cavalry: 'knight' }));
 
-        // The spoils are what the beaten carried: a world unit's purse, or the purse handed in
-        // (a host's war chest) — FieldBattle.finish takes the loot out of it, minting nothing
+        // The spoils are what the beaten carried: the purse handed in, else a world unit's
+        // inventory, a town's purse, a realm's treasury (FieldBattle.lootSource) — minting nothing
         if (opts.lootPurse !== undefined) battle.lootPurse = opts.lootPurse;
-        else if (battle.unitId && opts.world && Array.isArray(opts.world.units)) {
-            const unit = opts.world.units.find(u => u.id === battle.unitId);
-            battle.lootPurse = (unit && unit.inventory) || null;
-        }
 
         Battlefield._deploySide(bf, pSpecs, 'player');
         Battlefield._deploySide(bf, eSpecs, 'enemy');
@@ -357,7 +436,8 @@ export const Battlefield = {
         const cfg = Battlefield.config();
         const S = bf.sides[side];
         const a = bf.area;
-        const lineX = a.cx - S.dir * cfg.deploy.gap / 2;
+        // (an assault sets each side's line itself: the attackers outside, the defenders in the streets)
+        const lineX = bf.lines && bf.lines[side] != null ? bf.lines[side] : a.cx - S.dir * cfg.deploy.gap / 2;
         const foot = specs.filter(s => s.kind === 'foot');
         const archers = specs.filter(s => s.kind === 'archer');
         const horse = specs.filter(s => s.kind === 'horse');
@@ -377,7 +457,8 @@ export const Battlefield = {
             return { total, placed };
         };
         const mid = row(foot, lineX);
-        row(archers, lineX + S.dir * (foot.length ? 3.5 : 0));
+        // (the archers a few paces behind the foot, loosing over them: deploy.archers, negative = behind)
+        row(archers, lineX + S.dir * (foot.length ? (cfg.deploy.archers == null ? -3.5 : cfg.deploy.archers) : 0));
         // Horse on the wings, outside the foot
         const half = Math.max(mid.total, 6) / 2 + 3;
         horse.forEach((s, i) => {
@@ -570,7 +651,9 @@ export const Battlefield = {
         const S = bf.sides[side];
         const foes = bf.companies.filter(o => o.side !== side && Battlefield.standing(o));
         if (!foes.length) return;
-        const holdGround = (side === 'player' && bf.objective.type === 'hold') || (side === 'enemy' && bf.battle.defending === false && bf.objective.type === 'hold');
+        // (the defenders of an assaulted town hold their streets and let the attackers come)
+        const holdGround = (side === 'player' && bf.objective.type === 'hold') || (side === 'enemy' && bf.battle.defending === false && bf.objective.type === 'hold')
+            || (side === 'enemy' && bf.layout === 'assault');
         const foeHasArchers = foes.some(f => f.kind === 'archer');
         const ownFootEngaged = bf.companies.some(o => o.side === side && o.kind === 'foot' && o.engaged.length);
         for (const c of bf.companies) {
@@ -581,7 +664,13 @@ export const Battlefield = {
             if (c.kind === 'archer') {
                 const k = cfg.kinds.archer;
                 const threat = Battlefield._nearest(c, foes, f => f.kind !== 'archer');
-                if (threat && threat.d < cfg.ai.archerKeepAway && !holdGround) {
+                // When the lines have met, the archers sling their bows and fall on the flank of the
+                // nearest press within ai.archerJoin tiles (0: they keep shooting from where they stand)
+                const join = Number(cfg.ai.archerJoin) || 0;
+                const press = join > 0 && !holdGround ? Battlefield._nearest(c, foes, f => f.engaged.some(id => (bf.companies.find(x => x.id === id) || {}).side === side)) : null;
+                if (press && press.d <= join) {
+                    if (c.order.type !== 'charge' || c.order.targetId !== press.c.id) Battlefield.order(bf, c.id, { type: 'charge', targetId: press.c.id });
+                } else if (threat && threat.d < cfg.ai.archerKeepAway && !holdGround) {
                     c.order = { type: 'move', x: c.x - S.dir * 5, y: c.y };
                 } else if (near.d > k.range + c.rangeBonus - 1) {
                     if (!holdGround) c.order = { type: 'move', x: near.c.x - (near.c.x - c.x) / near.d * (k.range - 2), y: near.c.y - (near.c.y - c.y) / near.d * (k.range - 2) };
@@ -607,7 +696,9 @@ export const Battlefield = {
             } else {
                 if (bf.t < cfg.ai.footWait && foeHasArchers === false) continue;
                 if (holdGround && near.d > 6) { c.order = { type: 'hold' }; continue; }
-                const prey = Battlefield._nearest(c, foes, f => f.kind !== 'horse') || near;
+                // Foot meet their foot first (never marching past it to leave their own archers bare),
+                // then whatever else is not horse
+                const prey = Battlefield._nearest(c, foes, f => f.kind === 'foot') || Battlefield._nearest(c, foes, f => f.kind !== 'horse') || near;
                 if (prey.d > 9) c.order = { type: 'move', x: prey.c.x - (prey.c.x - c.x) / prey.d * 6, y: prey.c.y };
                 else if (c.order.type !== 'charge' || c.order.targetId !== prey.c.id) Battlefield.order(bf, c.id, { type: 'charge', targetId: prey.c.id });
             }
@@ -643,11 +734,10 @@ export const Battlefield = {
         if (!Battlefield.alive(c)) return;
         const g = Battlefield._goal(bf, c);
         if (!g) {
-            // Holding (or engaged): face the nearest foe
-            const foe = Battlefield._nearest(c, Battlefield._enemiesOf(bf, c));
-            if (foe && foe.d < 30) Battlefield._turn(c, foe.c.x - c.x, foe.c.y - c.y, dt);
+            Battlefield._holdFront(bf, c, dt);
             return;
         }
+        c.front = null; // on the move: a new front is taken when it halts
         const d = _dist(c.x, c.y, g.x, g.y);
         if (d < 0.3) {
             if (c.order.type === 'move') c.order = { type: 'hold' };
@@ -679,6 +769,40 @@ export const Battlefield = {
             c.left = was;
             bf.log.push({ t: bf.t, text: was === 'routed' ? `${Battlefield.label(bf, c)} flee the field.` : `${Battlefield.label(bf, c)} are off the field.` });
         }
+    },
+
+    /**
+     * A company standing still keeps a front. In the press it faces the foe
+     * it fights (nearest of them). Holding, it takes its front once (toward
+     * the nearest foe, or as it stands) and keeps it: it wheels only for a
+     * real threat — a foe still in order within hold.threatRange coming on
+     * from outside its front arc — not for every company that moves out there.
+     */
+    _holdFront(bf, c, dt) {
+        const H = Battlefield.config().hold || {};
+        if (c.engaged.length) {
+            const foes = c.engaged.map(id => bf.companies.find(x => x.id === id)).filter(Boolean);
+            const foe = Battlefield._nearest(c, foes);
+            if (foe) Battlefield._turn(c, foe.c.x - c.x, foe.c.y - c.y, dt);
+            c.front = null;
+            return;
+        }
+        const foes = bf.companies.filter(o => o.side !== c.side && Battlefield.standing(o));
+        if (!c.front) {
+            const foe = Battlefield._nearest(c, foes);
+            const vx = foe && foe.d < 30 ? (foe.c.x - c.x) / foe.d : c.dx, vy = foe && foe.d < 30 ? (foe.c.y - c.y) / foe.d : c.dy;
+            c.front = { x: vx, y: vy };
+        } else {
+            const range = Number(H.threatRange) || 9;
+            const cos = H.threatCos == null ? 0.5 : Number(H.threatCos);
+            const threat = Battlefield._nearest(c, foes, o => {
+                const d = _dist(c.x, c.y, o.x, o.y);
+                if (d > range || d < 1e-6) return false;
+                return ((o.x - c.x) * c.front.x + (o.y - c.y) * c.front.y) / d < cos;
+            });
+            if (threat) c.front = { x: (threat.c.x - c.x) / threat.d, y: (threat.c.y - c.y) / threat.d };
+        }
+        Battlefield._turn(c, c.front.x, c.front.y, dt);
     },
 
     /** Swing the company's facing toward (vx, vy), quickly. */
@@ -778,8 +902,10 @@ export const Battlefield = {
         const k = cfg.kinds[c.kind];
         const T = cfg.terrain;
         const q = Math.round(c.x), r = Math.round(c.y);
-        let p = c.str * S.rest * (S.kindMult[c.kind] || 1) * S.fortune;
+        // (kinds.X.power: what a company of its kind is worth on the field, all blows — the field's own weighing of horse and bow)
+        let p = c.str * S.rest * (S.kindMult[c.kind] || 1) * S.fortune * (k.power || 1);
         p *= (c.morale < cfg.morale.waver ? cfg.morale.waverPower : 1) * _clamp(c.morale, 0.4, 1.2);
+        if (kind !== 'guard') p *= 1 + ((S.counter || 1) - 1) * (Number(cfg.armyCounter) || 0);
         if (vs) {
             const a = { cavalry: 0, archer: 0, pikeman: 0, [c.role]: 1 };
             const b = { cavalry: 0, archer: 0, pikeman: 0, [vs.role]: 1 };
@@ -788,7 +914,7 @@ export const Battlefield = {
             // (one kind against one is starker than the blended armies the counters were made for)
             const cw = cfg.counterWeight == null ? 1 : cfg.counterWeight;
             const felt = 1 + (counter - 1) * cw;
-            p *= kind === 'melee' ? (c.kind === 'archer' ? 1 : felt) : kind === 'volley' ? felt : 1;
+            p *= kind === 'melee' ? (c.kind === 'archer' && !cfg.archerMeleeCounter ? 1 : felt) : kind === 'volley' ? felt : 1;
         }
         if (kind === 'melee') {
             p *= k.melee || 1;
@@ -909,18 +1035,25 @@ export const Battlefield = {
             target = bf.companies.find(x => x.id === c.order.targetId && Battlefield.alive(x));
             if (target && _dist(c.x, c.y, target.x, target.y) > range) target = null;
         }
-        // Not into a press where your own are fighting
+        // A press where your own are fighting: loosed into only when nothing else is in
+        // range, dropping shafts over your men's heads at the back of theirs (pressVolley
+        // of the effect; 0 holds the volley)
         const inPress = (o) => o.engaged.length > 0 && o.engaged.some(id => (bf.companies.find(x => x.id === id) || {}).side === c.side);
-        if (target && inPress(target)) target = null;
+        const intoPress = Number(cfg.pressVolley) || 0;
+        if (target && inPress(target) && !(intoPress > 0)) target = null;
         if (!target) {
             const near = Battlefield._nearest(c, Battlefield._enemiesOf(bf, c), o => o.state !== 'fled' && !inPress(o));
+            if (near && near.d <= range) target = near.c;
+        }
+        if (!target && intoPress > 0) {
+            const near = Battlefield._nearest(c, Battlefield._enemiesOf(bf, c), o => o.state !== 'fled' && o.state !== 'routed');
             if (near && near.d <= range) target = near.c;
         }
         if (!target) return;
         c.volleyT = k.volleyEvery;
         const d = _dist(c.x, c.y, target.x, target.y);
         const flight = d / cfg.flightSpeed;
-        bf.pending.push({ at: _r2(bf.t + flight), from: c.id, to: target.id });
+        bf.pending.push({ at: _r2(bf.t + flight), from: c.id, to: target.id, ...(inPress(target) ? { press: intoPress } : {}) });
         bf.events.push({ type: 'volley', from: c.id, to: target.id, flight, n: c.figures.filter(f => f.alive).length });
     },
 
@@ -940,7 +1073,7 @@ export const Battlefield = {
             if (bf.field.cover(Math.round(b.x), Math.round(b.y))) guard /= T.coverArrows;
             if (b.kind === 'foot' && b.order.type === 'hold') guard /= T.holdShields;
             const r = pa / (pa + guard);
-            const share = opening.lossBase * 2 * r * cfg.kinds.archer.volleyEvery / cfg.volleySeconds;
+            const share = opening.lossBase * 2 * r * cfg.kinds.archer.volleyEvery / cfg.volleySeconds * (s.press != null ? s.press : 1);
             const loss = b.str * share * (b.side === 'player' ? bf.sides.player.casMult : 1);
             bf.events.push({ type: 'land', to: b.id, x: b.x, y: b.y });
             Battlefield._hurt(bf, b, loss, 'arrows');

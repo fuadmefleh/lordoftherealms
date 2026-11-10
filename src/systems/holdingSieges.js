@@ -664,21 +664,47 @@ export const HoldingSieges = {
      * usual combat (PlayerMilitary.attackUnit); the garrison sallies to help
      * if its heart is still in it. Beating the host ends the siege (relieved).
      */
-    relieve(player, world, key) {
-        const s = HoldingSieges._get(player, key);
-        if (!s) return { success: false, reason: 'That holding is not under siege.' };
+    /** Why the relief cannot be fought now, or null. */
+    _relieveBlock(player, world, s) {
+        if (!s) return 'That holding is not under siege.';
         const C = HoldingSieges.config();
-        if (player.boardedShip) return { success: false, reason: 'Go ashore first.' };
-        if (Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width) > C.presence) {
-            return { success: false, reason: `March your army to ${s.name} first.` };
-        }
-        if (PlayerMilitary.getArmyStrength(player) <= 0) return { success: false, reason: 'You have no army to relieve it with.' };
+        if (player.boardedShip) return 'Go ashore first.';
+        if (Hex.wrappingDistance(player.q, player.r, s.q, s.r, world.width) > C.presence) return `March your army to ${s.name} first.`;
+        if (PlayerMilitary.getArmyStrength(player) <= 0) return 'You have no army to relieve it with.';
+        if (!HoldingSieges._hostUnit(world, s)) return 'The besiegers are not to be found.';
+        return null;
+    },
+
+    /**
+     * The relief as a battle to fight on the holding's ground (ui/
+     * innerMapBattle.js): { enemy, ctx, hex } — the besieging host, less what
+     * the garrison's sally keeps busy, its chest the spoils — or null.
+     */
+    relieveBattle(player, world, key) {
+        const s = HoldingSieges._get(player, key);
+        if (HoldingSieges._relieveBlock(player, world, s)) return null;
+        const C = HoldingSieges.config();
         const unit = HoldingSieges._hostUnit(world, s);
-        if (!unit) return { success: false, reason: 'The besiegers are not to be found.' };
+        const sally = s.morale >= C.relief.sallyMorale ? Math.round(s.garrison * C.relief.sallyShare) : 0;
+        const t = world.getTile(s.q, s.r);
+        return {
+            enemy: { strength: Math.max(1, Math.round(unit.strength - sally * 0.5)), name: unit.name, type: unit.type, composition: PlayerMilitary._getWorldUnitComposition(unit), purse: unit.inventory || null },
+            ctx: { terrainId: t && t.terrain && t.terrain.id, theatre: 'land' },
+            hex: { q: s.q, r: s.r },
+        };
+    },
+
+    /** opts.combatResult: the relief already fought on the field (relieveBattle) — else the usual combat. */
+    relieve(player, world, key, opts = {}) {
+        const s = HoldingSieges._get(player, key);
+        const why = HoldingSieges._relieveBlock(player, world, s);
+        if (why) return { success: false, reason: why };
+        const C = HoldingSieges.config();
+        const unit = HoldingSieges._hostUnit(world, s);
         const sally = s.morale >= C.relief.sallyMorale ? Math.round(s.garrison * C.relief.sallyShare) : 0;
         const full = unit.strength;
         unit.strength = Math.max(1, Math.round(full - sally * 0.5));
-        const result = PlayerMilitary.attackUnit(player, unit, world);
+        const result = PlayerMilitary.attackUnit(player, unit, world, opts.combatResult ? { combatResult: opts.combatResult } : {});
         result.sally = sally;
         if (result.reason && !result.victory) {
             unit.strength = full;

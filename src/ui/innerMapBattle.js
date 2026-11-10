@@ -86,11 +86,10 @@ export const InnerMapBattle = {
      * seconds}, title, onDone(result, bf) }. False if there is nothing to
      * fight with.
      */
-    start(game, { enemy, ctx = {}, hex = null, objective = null, title = null, onDone = null } = {}) {
+    start(game, { enemy, ctx = {}, hex = null, objective = null, title = null, onDone = null, layout = null } = {}) {
         const battle = FieldBattle.start(game.player, enemy, game.world, ctx);
-        if (!battle || battle.success === false) return false;
-        InnerMapBattle.open(game, battle, { hex, objective, title, onDone, enemy, lootPurse: enemy.purse });
-        return true;
+        if (!battle || battle.success === false) return Promise.resolve(false);
+        return InnerMapBattle.open(game, battle, { hex, objective, title, onDone, enemy, layout, ...(enemy.purse !== undefined ? { lootPurse: enemy.purse } : {}) });
     },
 
     /**
@@ -103,7 +102,9 @@ export const InnerMapBattle = {
         const where = spec.where || {};
         return InnerMapBattle.open(game, battle, {
             hex: { q: where.q, r: where.r },
-            objective: spec.kind === 'assault' ? { type: 'rout' } : null,
+            objective: spec.kind === 'assault' || spec.kind === 'raid' ? { type: 'rout' } : null,
+            // Storming a town or falling on a village: their men in the streets, yours from outside
+            layout: spec.kind === 'assault' || spec.kind === 'raid' ? 'assault' : null,
             title: title || `${spec.host.kingdomName || 'Your host'} against ${spec.enemy.kingdomName || 'the enemy'}`,
             host: spec,
             liveries: { player: InnerMapBattle._realmLivery(spec.host.kingdomId), enemy: InnerMapBattle._realmLivery(spec.enemy.kingdomId) },
@@ -129,7 +130,7 @@ export const InnerMapBattle = {
         const prefer = { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR };
         const area = Battlefield.pickArea(field, prefer, Math.min(48, field.w - 4), Math.min(26, field.h - 4));
         const bf = Battlefield.create(game.player, battle, field, {
-            area, objective: opts.objective || null, enemy: opts.enemy || null, world: game.world,
+            area, objective: opts.objective || null, enemy: opts.enemy || null, world: game.world, layout: opts.layout || null,
             ...(opts.lootPurse !== undefined ? { lootPurse: opts.lootPurse } : {}),
         });
         InnerMapBattle.active = true;
@@ -145,7 +146,7 @@ export const InnerMapBattle = {
         InnerMapBattle._lastField = null;
         InnerMapBattle.selected = new Set(bf.companies.filter(c => c.side === 'player').slice(0, 1).map(c => c.id));
         // The ground of the battle in sight, end to end
-        for (let r = Math.max(0, Math.floor(area.y0) - 6); r <= Math.min(field.h - 1, Math.ceil(area.y1) + 6); r++) {
+        for (let r = Math.max(0, Math.floor(bf.area.y0) - 6); r <= Math.min(field.h - 1, Math.ceil(bf.area.y1) + 6); r++) {
             for (let q = 0; q < field.w; q++) {
                 const t = InnerMap.tiles[r][q];
                 if (t) { t.explored = true; t.visible = true; }
@@ -160,10 +161,10 @@ export const InnerMapBattle = {
         const cam = game.innerMapCamera;
         InnerMapBattle._savedZoom = { min: cam.minZoom, zoom: cam.zoom, target: cam.targetZoom };
         const T = InnerMapRenderer.tileSize;
-        const fit = Math.min(game.canvas.width / ((area.x1 - area.x0 + 6) * T), game.canvas.height / ((area.y1 - area.y0 + 10) * T));
+        const fit = Math.min(game.canvas.width / ((bf.area.x1 - bf.area.x0 + 6) * T), game.canvas.height / ((bf.area.y1 - bf.area.y0 + 10) * T));
         cam.minZoom = Math.min(cam.minZoom, Math.max(0.35, fit * 0.8));
         cam.targetZoom = Math.max(cam.minZoom, Math.min(cam.zoom, fit));
-        InnerMapBattle.cam = { x: area.cx * T + T / 2, y: area.cy * T + T / 2 };
+        InnerMapBattle.cam = { x: bf.area.cx * T + T / 2, y: bf.area.cy * T + T / 2 };
         cam.centerOn(InnerMapBattle.cam.x, InnerMapBattle.cam.y);
         InnerMapBattle._looks.clear();
         InnerMapBattle._registerLooks(game, bf, opts);
@@ -592,6 +593,17 @@ export const InnerMapBattle = {
             ctx.beginPath(); ctx.moveTo(a.x - ux * L, a.y - uy * L); ctx.lineTo(a.x - ux * L * 0.75, a.y - uy * L * 0.75); ctx.stroke();
         }
         if (!bf || !B.active) { ctx.restore(); return; }
+        // The selection box being dragged
+        if (B._drag) {
+            const d = B._drag;
+            ctx.fillStyle = 'rgba(245,197,66,0.08)';
+            ctx.strokeStyle = 'rgba(245,197,66,0.85)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([6, 4]);
+            ctx.fillRect(Math.min(d.x0, d.x1), Math.min(d.y0, d.y1), Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0));
+            ctx.strokeRect(Math.min(d.x0, d.x1) + 0.5, Math.min(d.y0, d.y1) + 0.5, Math.abs(d.x1 - d.x0), Math.abs(d.y1 - d.y0));
+            ctx.setLineDash([]);
+        }
         // Orders of the companies selected, drawn on the ground
         for (const c of bf.companies) {
             if (!B.selected.has(c.id) || !Battlefield.alive(c)) continue;
@@ -708,6 +720,21 @@ export const InnerMapBattle = {
         return true;
     },
 
+    /** A box dragged on the screen (canvas px): select your companies with a man inside it (shift adds). */
+    _boxSelect(d, add) {
+        const B = InnerMapBattle;
+        const cam = B.game.innerMapCamera;
+        const T = InnerMapRenderer.tileSize;
+        const a = cam.screenToWorld(d.x0, d.y0), b = cam.screenToWorld(d.x1, d.y1);
+        const x0 = Math.min(a.x, b.x) / T - 0.5, x1 = Math.max(a.x, b.x) / T - 0.5;
+        // (a man stands about a tile tall above his feet: a box over his head still takes him)
+        const y0 = Math.min(a.y, b.y) / T - 0.5, y1 = Math.max(a.y, b.y) / T - 0.5 + 0.8;
+        const ids = Battlefield.inBox(B.bf, 'player', x0, y0, x1, y1);
+        if (!add) B.selected = new Set(ids);
+        else for (const id of ids) B.selected.add(id);
+        B._updateHud(true);
+    },
+
     /** Orders for the selected companies from the HUD or the keys. */
     command(what) {
         const B = InnerMapBattle;
@@ -772,15 +799,40 @@ export const InnerMapBattle = {
             B._blur = () => { B._keys = {}; };
             window.addEventListener('blur', B._blur);
             // (a shift-click adds a company to the selection: the click handler has no event)
-            B._md = (e) => { B._shift = !!e.shiftKey; };
+            // Drag a box on the field with the left button to select every company of yours inside it
+            B._md = (e) => {
+                B._shift = !!e.shiftKey;
+                const g = B.game;
+                B._dragFrom = e.button === 0 && g && g.canvas && e.target === g.canvas ? g._clientToCanvas(e.clientX, e.clientY) : null;
+                B._drag = null;
+            };
+            B._mm = (e) => {
+                const from = B._dragFrom;
+                if (!from || !B.active) return;
+                const p = B.game._clientToCanvas(e.clientX, e.clientY);
+                if (!B._drag && Math.hypot(p.x - from.x, p.y - from.y) < 8) return;
+                B._drag = { x0: from.x, y0: from.y, x1: p.x, y1: p.y };
+            };
+            B._mu = (e) => {
+                if (e.button !== 0) return;
+                const d = B._drag;
+                B._dragFrom = null;
+                B._drag = null;
+                if (d && B.active) B._boxSelect(d, !!e.shiftKey);
+            };
             window.addEventListener('mousedown', B._md, true);
+            window.addEventListener('mousemove', B._mm, true);
+            window.addEventListener('mouseup', B._mu, true);
         } else if (!on && B._kd) {
             window.removeEventListener('keydown', B._kd);
             window.removeEventListener('keyup', B._ku);
             window.removeEventListener('blur', B._blur);
             window.removeEventListener('mousedown', B._md, true);
-            B._kd = B._ku = B._blur = B._md = null;
+            window.removeEventListener('mousemove', B._mm, true);
+            window.removeEventListener('mouseup', B._mu, true);
+            B._kd = B._ku = B._blur = B._md = B._mm = B._mu = null;
             B._keys = {};
+            B._drag = B._dragFrom = null;
         }
     },
 
@@ -858,7 +910,7 @@ export const InnerMapBattle = {
             <div class="bfh-title">⚔️ ${esc(title)}</div>
             <div class="bfh-sides">
                 <div class="bfh-side">Your army <strong>${Math.round(s.pStr)}</strong> / ${Math.round(s.pStr0)}<div class="bfh-bar"><div style="width:${pct(s.pStr, s.pStr0)}%;background:#4f9fe0"></div></div></div>
-                <div style="font-size:11px;color:#a99;text-align:center;min-width:110px;">${esc(objective)}<br>${B.paused ? '⏸ paused' : `▶ ${B.speed}×`} · ${Math.floor(bf.t)}s</div>
+                <div style="font-size:11px;color:#a99;text-align:center;min-width:110px;">${esc(objective)}<br>${B.paused ? '⏸ paused' : `▶ ${B.speed}×`} · ${Math.floor(bf.t)}s<br><span title="The day's clock stands while you fight; the battle takes this much of it">🕐 ${Battlefield.gameHours(bf)}h of the day</span></div>
                 <div class="bfh-side" style="text-align:right;">${esc(bf.enemyLabel)} <strong>${Math.round(s.eStr)}</strong> / ${Math.round(s.eStr0)}<div class="bfh-bar"><div style="width:${pct(s.eStr, s.eStr0)}%;background:#e0604a;margin-left:auto"></div></div></div>
             </div>
             <div class="bfh-ctl">
@@ -890,7 +942,7 @@ export const InnerMapBattle = {
             ${archers ? '<button data-bf="volley" title="F">🏹 Loose</button>' : ''}
             <button data-bf="fallback" title="B">↩️ Fall back</button>
             <button data-bf="lead" title="L">★ Lead</button>
-            <span style="font-size:11px;color:#998d76;align-self:center;margin-left:6px;">${sel.length ? 'Right-click ground to march, a foe to attack' : 'Click a company (or 1-9) to command it'}</span>`;
+            <span style="font-size:11px;color:#998d76;align-self:center;margin-left:6px;">${sel.length ? 'Right-click ground to march, a foe to attack' : 'Click a company (1-9, or drag a box round them) to command it'}</span>`;
     },
 
     // ── The end ───────────────────────────────────────────────────────
@@ -910,9 +962,29 @@ export const InnerMapBattle = {
             console.error('[InnerMapBattle] aftermath failed:', err);
         }
         B._close();
+        B._passBattleTime(game, bf);
         if (typeof opts.onDone === 'function') {
             try { opts.onDone(result, bf); } catch (err) { console.error('[InnerMapBattle] onDone:', err); }
         }
+    },
+
+    /**
+     * The day's clock stood still while the battle was fought (ui/game/
+     * gameLoop.js skips InnerMap.updateTime while it is on); now it moves on
+     * by the battle's hours (Battlefield.gameHours), and the commander feels
+     * each of them (hunger, fatigue: the hourly needs).
+     */
+    _passBattleTime(game, bf) {
+        if (!bf || !InnerMap.active) return;
+        const hours = Battlefield.gameHours(bf);
+        const before = Math.floor(Number(InnerMap.timeOfDay) || 0);
+        InnerMap.passHours(hours);
+        const passed = Math.max(0, Math.floor(Number(InnerMap.timeOfDay) || 0) - before);
+        const p = game && game.player;
+        if (p && p.needs && typeof p.decayNeedsPerHour === 'function') {
+            for (let i = 0; i < passed; i++) p.decayNeedsPerHour({ insideBuilding: false, isNight: InnerMap.timeOfDay >= 21 || InnerMap.timeOfDay < 6, isRaining: !!(InnerMap._weather && InnerMap._weather.type === 'rain'), inOwnHouse: false });
+        }
+        bf.gameHours = hours;
     },
 
     /** Leave the field mid-battle (the map left, the day ended): the captains fight it out. */

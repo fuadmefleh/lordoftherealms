@@ -407,6 +407,163 @@
     "withdraw": { "lossShare": 0.06, "enemyCavalry": 0.5, "ownCavalry": 0.5, "cowardiceRatio": 1.2, "spareDays": 3 },
     "estimateRuns": 150
   },
+  "battlefield": {
+    "_doc": "Battles fought on the hex's own inner map (player/battlefield.js, ui/innerMapBattle.js): companies of figures, real-time with pause. Every power and loss reuses fieldBattle's numbers (the phases' lossBase, the stances, rout.lossMult, ambushPower); these keys tune the field itself. Built-in defaults; keys here override them. 'looks' are the LPC layer recipes the figures are composited from ({skin} {hair} {shirt} {legs} {paint} {plume} filled per figure).",
+    "strPerFigure": 2.5,
+    "maxFiguresPerSide": 54,
+    "maxFiguresPerCompany": 16,
+    "kinds": {
+      "foot": { "speed": 1.35, "ranks": 3, "along": 1.0, "across": 1.0, "melee": 1 },
+      "archer": { "speed": 1.45, "ranks": 2, "along": 1.1, "across": 1.15, "melee": 0.6, "range": 13, "volleyEvery": 3.2 },
+      "horse": { "speed": 3.1, "ranks": 2, "along": 1.9, "across": 1.45, "melee": 1.1 }
+    },
+    "deploy": { "gap": 22, "rowGap": 2.5 },
+    "meleeSeconds": 18,
+    "volleySeconds": 10,
+    "pursuitSeconds": 8,
+    "chargeShock": { "seconds": 2.5, "horse": 1.5, "foot": 1.2, "vsHoldingFoot": 0.75 },
+    "flank": { "side": 1.2, "rear": 1.4, "shockSide": 0.08, "shockRear": 0.18 },
+    "terrain": { "coverArrows": 0.45, "coverMelee": 1.15, "horseInCover": 0.65, "high": 1.15, "water": 0.75, "holdShields": 0.75 },
+    "morale": {
+      "lossShock": 2.2,
+      "regen": 0.015,
+      "commanderRegen": 0.02,
+      "commanderRadius": 7,
+      "friendRout": 0.08,
+      "friendRadius": 9,
+      "waver": 0.5,
+      "waverPower": 0.8,
+      "rout": 0.22,
+      "routStrength": 0.3,
+      "routChance": 1.4,
+      "rallyAfter": 12,
+      "rallyMorale": 0.55
+    },
+    "holdSeconds": 150,
+    "maxSeconds": 420,
+    "withdrawSeconds": 14,
+    "lossToUnits": 0.6,
+    "looks": {
+      "_doc": "Layer recipes per look (paths under assets/lpc/Characters). A company's look: its unit type's recipe when there is one ('militia', 'knight'), else '<kind>', and '<kind>_rabble' for bandits, raiders and pirates. Liveries: the player's from 'player', a realm's from 'realms' (picked by the realm's id), the rest from 'rabble'. Gear: when soldiers carry real items later, a recipe's sword/shield lines are the ones to swap.",
+      "skins": ["Peach", "Tan", "Brown", "Bronze", "Honey", "Coffee"],
+      "hairs": [
+        "Short 01 - Buzzcut/Brown",
+        "Short 02 - Parted/Black",
+        "Short 03 - Curly/Chestnut",
+        "Short 05 - Natural/Black",
+        "Short 04 - Cowlick/Blonde",
+        "Short 06 - Balding/Gray"
+      ],
+      "variants": 3,
+      "liveries": {
+        "player": { "shirt": "Navy", "paint": "Blue", "legs": "Charcoal", "plume": "White" },
+        "realms": [
+          { "shirt": "Wine", "paint": "Red", "legs": "Charcoal", "plume": "Red" },
+          { "shirt": "Forest", "paint": "Green", "legs": "Brown", "plume": "Green" },
+          { "shirt": "Mustard", "paint": "Yellow", "legs": "Charcoal", "plume": "Yellow" },
+          { "shirt": "Plum", "paint": "Purple", "legs": "Charcoal", "plume": "Purple" },
+          { "shirt": "Teal", "paint": "Cyan", "legs": "Navy", "plume": "White" },
+          { "shirt": "Black", "paint": "Black", "legs": "Charcoal", "plume": "Black" }
+        ],
+        "rabble": [
+          { "shirt": "Brown", "legs": "Charcoal", "paint": "Brown", "plume": "Black" },
+          { "shirt": "Leather", "legs": "Brown", "paint": "Brown", "plume": "Black" },
+          { "shirt": "Charcoal", "legs": "Brown", "paint": "Black", "plume": "Black" },
+          { "shirt": "Umber", "legs": "Charcoal", "paint": "Brown", "plume": "Black" },
+          { "shirt": "Sepia", "legs": "Navy", "paint": "Brown", "plume": "Black" }
+        ]
+      },
+      "recipes": {
+        "foot": [
+          "Props/Sword 01 - Arming Sword/_Behind/Steel",
+          "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+          "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/{shirt}",
+          "Hair/{hair}",
+          "Head Accessories/Helm 03 - Norman/Steel",
+          "Props/Shield 01 - Heater Shield/Wood/Oak",
+          "Props/Shield 01 - Heater Shield/Paint/{paint}",
+          "Props/Shield 01 - Heater Shield/Trim/Steel",
+          "Props/Sword 01 - Arming Sword/Steel"
+        ],
+        "militia": [
+          "Props/Sword 01 - Arming Sword/_Behind/Iron",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/{shirt}",
+          "Hair/{hair}",
+          "Head Accessories/Helm 05 - Kettle Helm/Iron",
+          "Props/Sword 01 - Arming Sword/Iron"
+        ],
+        "archer": [
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 02 - Leggings/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 04 - T-shirt/{shirt}",
+          "Hair/{hair}",
+          "Head Accessories/Helm 04 - Chainmail Hood/Iron"
+        ],
+        "horse": [
+          "Props/Sword 01 - Arming Sword/_Behind/Steel",
+          "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+          "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 01 - Hose/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/{shirt}",
+          "Head Accessories/Helm 01 - Bascinet, Open/Steel",
+          "Props/Shield 01 - Heater Shield/Wood/Oak",
+          "Props/Shield 01 - Heater Shield/Paint/{paint}",
+          "Props/Shield 01 - Heater Shield/Trim/Steel",
+          "Props/Sword 01 - Arming Sword/Steel"
+        ],
+        "knight": [
+          "Props/Sword 01 - Arming Sword/_Behind/Steel",
+          "Props/Shield 01 - Heater Shield/Wood/Oak/_Behind",
+          "Props/Shield 01 - Heater Shield/Trim/Steel/_Behind",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 01 - Hose/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 07 - Buttoned Longsleeve Shirt/{shirt}",
+          "Head Accessories/Helm 02 - Bascinet, Closed/Steel",
+          "Head Accessories/Helm Accessory 01 - Bascinet Plumage/{plume}",
+          "Props/Shield 01 - Heater Shield/Wood/Oak",
+          "Props/Shield 01 - Heater Shield/Paint/{paint}",
+          "Props/Shield 01 - Heater Shield/Trim/Steel",
+          "Props/Sword 01 - Arming Sword/Steel"
+        ],
+        "foot_rabble": [
+          "Props/Sword 01 - Arming Sword/_Behind/Iron",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 06 - Scoop T-shirt/{shirt}",
+          "Hair/{hair}",
+          "Props/Sword 01 - Arming Sword/Iron"
+        ],
+        "archer_rabble": [
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 04 - Cuffed Pants/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 05 - V-neck T-shirt/{shirt}",
+          "Hair/{hair}"
+        ],
+        "horse_rabble": [
+          "Props/Sword 01 - Arming Sword/_Behind/Iron",
+          "Body/Body 02 - Masculine, Thin/{skin}",
+          "Head/Head 02 - Masculine/{skin}",
+          "Clothing/Masculine, Thin/Legs/Pants 03 - Pants/{legs}",
+          "Clothing/Masculine, Thin/Torso/Shirt 01 - Longsleeve Shirt/{shirt}",
+          "Hair/{hair}",
+          "Props/Sword 01 - Arming Sword/Iron"
+        ]
+      }
+    }
+  },
   "encounters": {
     "_doc": "Hostile encounters on the road (player/roadEncounters.js): flee, pay toll / throw food, parley / drive off with fire, hide, or stand and fight. Odds shown before you choose.",
     "minChance": 0.05,

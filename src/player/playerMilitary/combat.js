@@ -179,10 +179,15 @@ Object.assign(PlayerMilitary, {
      * last-recruited first). Surgery may carry each off wounded instead; the
      * dead are remembered for Resurrection. Shared by combat() and the phased
      * field battle (player/fieldBattle.js). Draws one roll per casualty only
-     * when the army has surgeons.
+     * when the army has surgeons. opts.pick: take these units (first first)
+     * instead of the last-recruited (player/battlefield.js).
      */
-    _applyCasualties(player, theatre, count) {
-        const fighting = () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
+    _applyCasualties(player, theatre, count, opts = {}) {
+        // opts.pick: the units to take, in order (the battlefield's company that suffered the losses)
+        const pick = Array.isArray(opts.pick) ? opts.pick.slice().reverse() : null;
+        const fighting = pick
+            ? () => pick.filter(u => player.army.includes(u))
+            : () => player.army.filter(u => PlayerMilitary._theatreParticipant(u, theatre));
         // Surgery: each would-be casualty may be carried off wounded instead
         const woundedChance = Technology.getEffectTotal(player, 'woundedRecoveryBonus');
         const woundedUnits = [];
@@ -216,6 +221,14 @@ Object.assign(PlayerMilitary, {
         let loot = 0;
         if (victory) {
             loot = Math.floor(enemyStrength * Utils.randFloat(2, 5));
+            // context.lootPurse: what the beaten carried ({ gold }, or null for nothing) —
+            // the loot comes out of it and no more (player/battlefield.js)
+            if (context.lootPurse !== undefined) {
+                const purse = context.lootPurse;
+                const have = purse ? Math.max(0, Math.floor(Number(purse.gold) || 0)) : 0;
+                loot = Math.min(loot, have);
+                if (purse) purse.gold = have - loot;
+            }
             player.gold += loot;
 
             // Experience for the survivors who fought

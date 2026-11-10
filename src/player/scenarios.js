@@ -46,6 +46,10 @@
 //     a den, a smuggling line, its hidden stash (coin and goods that came out
 //     of the town), a bought watch captain, high guild rank, heat, dirty
 //     coin, and a rival gang at war.
+// Every advanced start also knows what its position would (player/startKnowledge.js):
+// the map charted, the realm's history, prices, tongues, people, and — for
+// rulers, lords, the see and the guildhall — a library at the seat
+// (systems/library.js); the welcome ends with a "What you know" note.
 // Challenge numbers scale with the difficulty's hostility knob.
 // Then the difficulty's starting-gold knob scales the purse (Normal: none).
 // The record lives on player.scenario (core/difficulty.js). Origins are
@@ -76,6 +80,7 @@ import { Estates } from '../world/estates.js';
 import { Kingdom } from '../world/kingdom.js';
 import { Generalship } from './generalship.js';
 import { Gangs } from '../systems/gangs.js';
+import { StartKnowledge } from './startKnowledge.js';
 
 const FALLBACK = {
     wanderer: {
@@ -687,6 +692,7 @@ export const Scenarios = {
         player.reputation[k.id] = _num(player.reputation[k.id]) + _num(o.reputation);
         // The realm's greatest noble house's estates are the player's
         let estates = 0;
+        let houseName = null;
         if (Estates.enabled()) {
             Estates.derive(world, day);
             const st = Estates.state(world);
@@ -702,6 +708,7 @@ export const Scenarios = {
             const house = Object.keys(counts).sort((a, b) => counts[b] - counts[a]
                 || (atSeat.has(b) ? 1 : 0) - (atSeat.has(a) ? 1 : 0) || a.localeCompare(b))[0];
             if (house) {
+                houseName = Estates.ensureHolder(world, house).name;
                 for (const e of Estates.heldBy(world, house)) {
                     LandMarket._setHolder(world, e, 'player', day);
                     estates++;
@@ -716,7 +723,7 @@ export const Scenarios = {
         const dyn = k.characterData && k.characterData.dynasty;
         Scenarios._rival(player, world, k, dyn && dyn.name ? `House ${dyn.name}, the crown` : `the crown of ${k.name}`, Math.round(_num(o.crownFeud, 30) * Scenarios._bite(player)));
         player.scenario.realm = k.id;
-        player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, retinue: men };
+        player.scenario.start = { kind: 'great_lord', kingdomId: k.id, seat: { q: seat.q, r: seat.r, town: seat.s.name }, estates, retinue: men, house: houseName };
         Object.assign(vars, { title, town: seat.s.name, kingdom: k.name, estates, claim, ruler: k.ruler || 'The crown' });
     },
 
@@ -874,15 +881,19 @@ export const Scenarios = {
         }[origin.id];
         // The origin's purse (data/scenarios.json `gold`); the shapes below may set their own
         if (origin.gold != null) player.gold = _num(origin.gold);
+        // An advanced start knows what its position would (player/startKnowledge.js): the
+        // map, the history, the realms, prices, tongues, people, and a library at its seat
+        let knows = null;
         if (shape && world) {
             shape(player, world, origin, vars);
+            if (origin.group === 'advanced') knows = StartKnowledge.grant(player, world, origin.id);
             if (typeof player.updateVisibility === 'function') player.updateVisibility(world, 4);
         }
         // The difficulty's purse (Normal: untouched)
         const gm = Difficulty.mult(player, 'startGold');
         if (gm !== 1) player.gold = Math.max(0, Math.round(_num(player.gold) * gm));
         const welcome = String(origin.welcome || FALLBACK.wanderer.welcome)
-            .replace(/\{(\w+)\}/g, (m, key) => (vars[key] != null ? String(vars[key]) : m));
-        return { origin: origin.id, name: origin.name, icon: origin.icon, welcome };
+            .replace(/\{(\w+)\}/g, (m, key) => (vars[key] != null ? String(vars[key]) : m)) + StartKnowledge.note(knows);
+        return { origin: origin.id, name: origin.name, icon: origin.icon, welcome, knowledge: knows ? player.scenario.knowledge : null };
     },
 };

@@ -171,6 +171,9 @@ export const OBJECT_ACTIONS = {
                 shelfKey: `${tile ? `${tile.q},${tile.r}` : 'wilds'}:${inside ? inside.type : 'out'}:${anchorQ},${anchorR}`,
                 settlementType: tile && tile.settlement ? tile.settlement.type : null,
                 temple: !!(inside && TEMPLE_BUILDINGS.includes(inside.type)),
+                // (a seat's own library, systems/library.js: its shelves are the seat building's)
+                townKey: tile ? `${tile.q},${tile.r}` : null,
+                building: inside ? inside.type : null,
             });
             return r.text;
         },

@@ -265,8 +265,9 @@ describe('running with a crew', () => {
         const town = tile.settlement.economy.gold;
         const res = Gangs.found(p, w, tile, 'The Test Knives');
         expect(res.success).toBe(true);
-        expect(p.gold).toBe(2000 - 200 - 100);
-        expect(tile.settlement.economy.gold).toBe(town + 100);
+        const fees = Gangs.cfg().recruitFee * 4;
+        expect(p.gold).toBe(2000 - 200 - fees);
+        expect(tile.settlement.economy.gold).toBe(town + fees);
         expect(res.gang.purse).toBe(200);
         expect(Gangs.isBoss(p, w, tile)).toBe(true);
     });
@@ -304,7 +305,7 @@ describe('the boss\'s hand', () => {
         const crew = g.crew;
         expect(Gangs.bossAct(p, w, tile, 'hire', 2).success).toBe(true);
         expect(g.crew).toBe(crew + 2);
-        expect(tile.settlement.economy.gold).toBe(town + 50);
+        expect(tile.settlement.economy.gold).toBe(town + Gangs.cfg().recruitFee * 2);
         const lt = g.lieutenants[0];
         const loyal = lt.loyalty;
         Gangs.bossAct(p, w, tile, 'bonus', lt.id);
@@ -517,6 +518,8 @@ describe('the Crime Lord', () => {
         ActionMenu.showUnderworldPanel(game, t2, 'streets');
         expect(shown[shown.length - 1]).toContain(g2.name);
         expect(shown[shown.length - 1]).toContain('The boss');
+        expect(shown[shown.length - 1]).toContain('Last week took');
+        expect(shown[shown.length - 1]).not.toMatch(/undefined|NaN/);
         expect(game.nav.items.map(i => i.key)).toEqual(['streets', 'guild', 'market', 'coin']);
         window._uw.gang('cut', 0);
         expect(g2.cut).toBe(0.1);

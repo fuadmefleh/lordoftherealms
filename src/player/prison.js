@@ -24,6 +24,13 @@
 //     watch (helped by a bribed guard and friends), or the tunnel. An escape
 //     brings heat with the crown (Underworld 'jailbreak' crime: posters and
 //     warrants) and a gaoler's bounty (Gossip), and costs reputation.
+//   • WORD TO YOUR CREW — run with a gang in the jail's town (systems/gangs.js)
+//     and it can spring you, once a day, at the gang's cost: its go-between
+//     bribes the gaoler out of the gang's purse (into the town), its men come
+//     over the wall (paid from the purse and spent in town; men lost, the
+//     crackdown up, a jailbreak in the crown's eyes), or the magistrate it
+//     keeps dismisses the case for a week's retainer. A boss orders it; a
+//     member must have the rank, and pays for the favour in standing.
 //
 // processDay (from PlayerActions.endDay) draws only when jailState.prison
 // exists, on its own seeded stream, so the soak bot's jail stints keep their
@@ -32,6 +39,7 @@
 import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Underworld } from '../systems/underworld.js';
+import { Gangs } from '../systems/gangs.js';
 import { Gossip } from '../systems/gossip.js';
 import { Relationships } from '../systems/relationships.js';
 import { Ledger } from '../systems/ledger.js';
@@ -59,6 +67,18 @@ const DEFAULTS = {
     work: { extraDays: 1, health: 2, strength: 0.1 },
     breakout: { rush: { base: 0.12, combat: 0.04, strength: 0.01 }, slip: { base: 0.1, stealth: 0.04 }, failDays: [2, 5], reputation: 10, bounty: 60 },
     servitude: { bribeShare: 0.4, bribeBase: 0.5, bribeDiplomacy: 0.04, failDays: [1, 3], workExtraDays: 1 },
+    crew: {
+        minRank: { bribe: 1, breakout: 2, magistrate: 1 },
+        purseShare: [0, 0.2, 0.3, 0.45],
+        standingCost: { bribe: 10, breakout: 20, magistrate: 6 },
+        bribe: { mult: 1, oddsBonus: 0.15, boughtCaptain: 0.1 },
+        breakout: {
+            minCrew: 4, men: [3, 6], payPerMan: 12, base: 0.3, perMan: 0.06, guardPenalty: 0.07, boughtCaptain: 0.2,
+            crackdownPenalty: 0.003, min: 0.1, max: 0.9, crackdown: 20, failCrackdown: 12,
+            lossOnWin: [0, 1], lossOnFail: [1, 3], failDays: [2, 5], loyaltyOnFail: -5, heat: 6,
+        },
+        magistrate: { feeWeeks: 1 },
+    },
 };
 
 // The march from a settlement with no jail to one with (data/jail.json → transport)
@@ -398,18 +418,8 @@ export const Prison = {
         if (kind === 'rush') player.skills.combat = Math.min(10, _skill(player, 'combat') + (ok ? 0.3 : 0.1));
         else player.skills.stealth = Math.min(10, _skill(player, 'stealth') + (ok ? 0.5 : 0.1));
         if (ok) {
-            const where = Prison._where(player, world);
-            const kingdom = pr.kingdom || where.kingdom;
-            const b = Prison.config().breakout;
-            Underworld.recordCrime(player, world, 'jailbreak', { kingdom });
-            if (kingdom && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(b.reputation, 10);
-            if (kingdom) {
-                Gossip.initializePlayer(player);
-                player.gossip.bounties.push({ rumorId: null, kingdom, gold: _num(b.bounty, 60) + _num(jail.daysRemaining) * 5, issuedDay: _day(world), description: 'jailbreak' });
-            }
             const how = { rush: 'You knocked the guard down and ran', slip: 'You slipped out at the change of the watch', tunnel: 'You crawled out through your tunnel' }[kind] || 'You got out';
-            const rel = Prison.release(player, world, 'escaped');
-            return { success: true, escaped: true, text: `${how}! The realm will be looking for you: heat, a gaoler's bounty, −${_num(b.reputation, 10)} reputation.${rel.text ? ` ${rel.text}` : ''}` };
+            return { success: true, escaped: true, text: Prison._jailbroken(player, world, how) };
         }
         const [lo, hi] = Prison.config().breakout.failDays;
         const added = Utils.randInt(lo, hi);
@@ -431,6 +441,166 @@ export const Prison = {
         const text = `Caught! +${added} days added to your sentence, and a beating (−${hurt} health).${lost}`;
         Prison._log(pr, text);
         return { success: true, escaped: false, added, text };
+    },
+
+    /** Out of the cell by force or stealth: the crime of it (heat, a gaoler's bounty, reputation), then release. → text. */
+    _jailbroken(player, world, how) {
+        const jail = player.jailState;
+        const pr = Prison.state(player, world);
+        const where = Prison._where(player, world);
+        const kingdom = pr.kingdom || where.kingdom;
+        const b = Prison.config().breakout;
+        Underworld.recordCrime(player, world, 'jailbreak', { kingdom });
+        if (kingdom && player.reputation) player.reputation[kingdom] = _num(player.reputation[kingdom]) - _num(b.reputation, 10);
+        if (kingdom) {
+            Gossip.initializePlayer(player);
+            player.gossip.bounties.push({ rumorId: null, kingdom, gold: _num(b.bounty, 60) + _num(jail.daysRemaining) * 5, issuedDay: _day(world), description: 'jailbreak' });
+        }
+        const rel = Prison.release(player, world, 'escaped');
+        return `${how}! The realm will be looking for you: heat, a gaoler's bounty, −${_num(b.reputation, 10)} reputation.${rel.text ? ` ${rel.text}` : ''}`;
+    },
+
+    // ── Word to your crew ─────────────────────────────
+
+    /**
+     * The crew you run with in the jail's town, if word can reach them (not
+     * on the march): { tile, gang, m, boss, watch }, or null.
+     */
+    crew(player, world) {
+        const jail = player && player.jailState;
+        if (!jail || !world || typeof world.getTile !== 'function') return null;
+        if (jail.transport && !jail.transport.done) return null;
+        const where = Prison._where(player, world);
+        const q = jail.q != null ? jail.q : where.q;
+        const r = jail.r != null ? jail.r : where.r;
+        const tile = q != null && r != null ? world.getTile(q, r) : null;
+        if (!tile || !tile.settlement || !Gangs.hasGangs(tile.settlement)) return null;
+        const m = Gangs.membership(player, tile);
+        const gang = m ? Gangs.gang(world, tile, m.gangId) : null;
+        if (!gang) return null;
+        return { tile, gang, m, boss: !!(gang.boss && gang.boss.player), watch: Gangs.watch(world, tile) };
+    },
+
+    _crewBreakOdds(player, world, c) {
+        const B = Prison.config().crew.breakout;
+        const kingdom = c.tile.settlement.kingdom != null && typeof world.getKingdom === 'function' ? world.getKingdom(c.tile.settlement.kingdom) : null;
+        const guard = Underworld.guardStrength(c.tile.settlement, kingdom);
+        const men = Math.min(c.gang.crew - 1, _num(B.men && B.men[1], 6));
+        return Math.max(_num(B.min, 0.1), Math.min(_num(B.max, 0.9), _num(B.base, 0.3) + men * _num(B.perMan, 0.06)
+            - guard * _num(B.guardPenalty, 0.07) - _num(c.watch.crackdown) * _num(B.crackdownPenalty, 0.003)
+            + (c.watch.captain.bribedBy === c.gang.id ? _num(B.boughtCaptain, 0.2) : 0)));
+    },
+
+    /**
+     * What your crew could do for you, each { id, icon, label, hint, cost, chance, can, reason }:
+     *   bribe      — the gang's go-between pays the gaoler from its purse to lose your papers
+     *   breakout   — the crew comes for you over the wall (paid from the purse; men lost, the crackdown up)
+     *   magistrate — the magistrate the gang keeps finds the case wanting (his fee from the purse)
+     * A member below the rank (or asking more of the purse than a man of his rank is worth) is refused;
+     * a member pays for the favour in standing. One word a day.
+     */
+    crewOptions(player, world) {
+        const c = Prison.crew(player, world);
+        if (!c) return [];
+        const C = Prison.config().crew;
+        const pr = Prison.state(player, world);
+        const today = pr.crewDay === _day(world);
+        const share = c.boss ? 1 : _num((C.purseShare || [])[Math.min(c.m.rank, (C.purseShare || []).length - 1)], 0);
+        const budget = Math.floor(c.gang.purse * share);
+        const lock = (id, cost) => {
+            if (today) return 'Your crew already had word from you today';
+            if (!c.boss && c.m.rank < _num(C.minRank[id], 1)) return `${c.gang.boss.name} won't stick his neck out for a ${Gangs.rankDef(c.m.rank).name.toLowerCase()}`;
+            if (cost > c.gang.purse) return `${c.gang.name}'s purse holds ${Math.floor(c.gang.purse)}g; this takes ${cost}g`;
+            if (!c.boss && cost > budget) return `${c.gang.boss.name} won't spend ${cost}g on you`;
+            return null;
+        };
+        const out = [];
+        // The gaoler, bribed from the purse
+        const bribeCost = Math.max(5, Math.round(Prison.bribeCost(player, world, 'release') * _num(C.bribe.mult, 1)));
+        const bribeOdds = _clamp(Prison.bribeChance(player, world) + _num(C.bribe.oddsBonus, 0.15) + (c.watch.captain.bribedBy === c.gang.id ? _num(C.bribe.boughtCaptain, 0.1) : 0));
+        out.push({ id: 'bribe', icon: '💰', label: 'Have them pay off the gaoler', hint: `${c.gang.name}'s go-between lays ${bribeCost}g of the gang's coin on the gaoler to lose your papers. He may pocket it and report you.`, cost: bribeCost, chance: bribeOdds, reason: lock('bribe', bribeCost) });
+        // The crew over the wall
+        const B = C.breakout;
+        const men = Math.max(0, Math.min(c.gang.crew - 1, _num(B.men && B.men[1], 6)));
+        const breakCost = men * _num(B.payPerMan, 12);
+        let breakWhy = lock('breakout', breakCost);
+        if (!breakWhy && c.gang.crew < _num(B.minCrew, 4)) breakWhy = `${c.gang.name} has too few men to storm a jail`;
+        out.push({ id: 'breakout', icon: '🧗', label: 'Have them break you out', hint: `${men} of the crew come over the wall at night, ${_num(B.payPerMan, 12)}g a man from the purse. Some may not come back, and the town's crackdown will rise.`, cost: breakCost, chance: Prison._crewBreakOdds(player, world, c), reason: breakWhy });
+        // The magistrate the gang keeps
+        const ours = c.watch.magistrate.bribedBy === c.gang.id;
+        const fee = Gangs.retainer(world, c.tile, 'magistrate') * Math.max(1, _num(C.magistrate.feeWeeks, 1));
+        out.push({ id: 'magistrate', icon: '⚖️', label: `Have ${c.watch.magistrate.name} dismiss the case`, hint: ours ? `The magistrate on ${c.gang.name}'s payroll finds the case wanting, for a week's retainer (${fee}g) more.` : `${c.watch.magistrate.name} isn't on ${c.gang.name}'s payroll.`, cost: fee, chance: 1, reason: ours ? lock('magistrate', fee) : `${c.watch.magistrate.name} answers to nobody in ${c.gang.name}` });
+        for (const o of out) o.can = !o.reason;
+        return out;
+    },
+
+    /** Send word to your crew: 'bribe' | 'breakout' | 'magistrate'. → { success, ok, released, escaped, text, reason }. */
+    sendWord(player, world, kind) {
+        const c = Prison.crew(player, world);
+        if (!c) return { success: false, reason: 'No crew of yours runs in this town.' };
+        const opt = Prison.crewOptions(player, world).find(o => o.id === kind);
+        if (!opt) return { success: false, reason: 'Your crew can\'t do that.' };
+        if (!opt.can) return { success: false, reason: opt.reason };
+        const C = Prison.config().crew;
+        const pr = Prison.state(player, world);
+        const jail = player.jailState;
+        const s = c.tile.settlement;
+        const g = c.gang;
+        pr.crewDay = _day(world);
+        // A member owes the gang for the favour
+        if (!c.boss) c.m.standing = Math.max(0, _num(c.m.standing) - _num(C.standingCost[kind]));
+        const owe = c.boss ? '' : ` You owe ${g.boss.name} for it (−${_num(C.standingCost[kind])} standing).`;
+        if (kind === 'magistrate') {
+            g.purse = Math.round((g.purse - opt.cost) * 100) / 100;
+            Gangs._book(g, 'out', 'springing', opt.cost);
+            c.watch.magistrate.purse = Math.round((_num(c.watch.magistrate.purse) + opt.cost) * 100) / 100;
+            const rel = Prison.release(player, world, 'dismissed');
+            const text = `${c.watch.magistrate.name} reads the charge, frowns, and finds it wanting. You walk out a free man; it cost ${g.name} ${opt.cost}g.${owe}${rel.text ? ` ${rel.text}` : ''}`;
+            return { success: true, ok: true, released: true, text };
+        }
+        if (kind === 'bribe') {
+            g.purse = Math.round((g.purse - opt.cost) * 100) / 100;
+            Gangs._book(g, 'out', 'springing', opt.cost);
+            Prison._payJail(player, world, opt.cost);
+            if (Utils.random() < opt.chance) {
+                Traits.recordDeed(player, 'deceit', 0.5);
+                const rel = Prison.release(player, world, 'bribed');
+                return { success: true, ok: true, released: true, text: `${g.name}'s man has a word and a purse for the gaoler: ${opt.cost}g, and your papers are "lost" by dawn.${owe}${rel.text ? ` ${rel.text}` : ''}` };
+            }
+            const [lo, hi] = Prison.config().bribe.reportDays;
+            const added = Utils.randInt(lo, hi);
+            jail.daysRemaining += added;
+            jail.totalDays += added;
+            const text = `The gaoler took ${g.name}'s ${opt.cost}g and reported it anyway: +${added} day${added === 1 ? '' : 's'}.${owe}`;
+            Prison._log(pr, text);
+            return { success: true, ok: false, added, text };
+        }
+        // The breakout: the men are paid whether it works or not, and spend it in town
+        const B = C.breakout;
+        const men = Math.max(0, Math.min(g.crew - 1, _num(B.men && B.men[1], 6)));
+        g.purse = Math.round((g.purse - opt.cost) * 100) / 100;
+        Gangs._book(g, 'out', 'springing', opt.cost);
+        Economy.payTown(s, opt.cost);
+        const won = Utils.random() < opt.chance;
+        const [llo, lhi] = won ? B.lossOnWin : B.lossOnFail;
+        const lost = Math.min(Math.max(0, g.crew - 1), Utils.randInt(llo, lhi));
+        g.crew -= lost;
+        Gangs.addCrackdown(world, c.tile.q, c.tile.r, won ? _num(B.crackdown, 20) : _num(B.failCrackdown, 12));
+        if (s.kingdom != null) Underworld.addHeat(player, s.kingdom, _num(B.heat, 6), world);
+        const losses = lost ? ` ${lost} of ${g.name}'s men didn't make it back.` : '';
+        if (won) {
+            Traits.recordDeeds(player, { dread: 1, cunning: 0.5 });
+            const how = `${men} of ${g.name} come over the wall at the dead of night, cosh the gaoler and take you out`;
+            return { success: true, ok: true, escaped: true, lost, text: `${Prison._jailbroken(player, world, how)}${losses}${owe}` };
+        }
+        for (const l of g.lieutenants) l.loyalty = Math.max(0, Math.min(100, _num(l.loyalty) + _num(B.loyaltyOnFail, -5)));
+        const [dlo, dhi] = B.failDays;
+        const added = Utils.randInt(dlo, dhi);
+        jail.daysRemaining += added;
+        jail.totalDays += added;
+        const text = `${g.name} came for you, and the watch was waiting.${losses} +${added} days on your sentence, and the town's crackdown is up.${owe}`;
+        Prison._log(pr, text);
+        return { success: true, ok: false, lost, added, text };
     },
 
     // ── Release ───────────────────────────────────────

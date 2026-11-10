@@ -349,7 +349,7 @@ describe('headless playtest soak', () => {
                     days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     rivalHouses: RivalHouses.rivals(game.player).filter(r => r.head).map(r => `${RivalHouses.headName(r)} ${r.head.age} (${r.name}, head #${(r.stats && r.stats.heads) || 1}): ${Math.round(r.gold)}g, feud ${Math.round(r.feud || 0)}, ${r.head.children.length} kids, trades ${r.stats.trades} (${Math.round(r.stats.tradeProfit)}g), court ${r.stats.courtVisits}, plots paid ${r.stats.plotsPaid}`),
-                    uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats },
+                    uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats, gangs: uw.gangs, dirty: uw.dirty },
                     company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({
                         capital: Math.round(capital), reputation, posts: posts.map(p => `${p.name}: ${JSON.stringify(p.stock)} ${JSON.stringify(p.lastWeek)}`),
                         stats: cs, contracts: contracts.length, pnl: MerchantHouses.profitAndLoss(game.player),
@@ -402,7 +402,9 @@ describe('headless playtest soak', () => {
                 // ...and funds a public work and sells bullion to a mint (systems/publicWorks.js, systems/mints.js)
                 'publicWorksFunded', 'bullionSold',
                 // ...and travels abroad, takes lessons in the tongue, bathes and hires the town's tradesmen
-                'foreignTownDays', 'langLessons', 'commissioned'] : [])]) {
+                'foreignTownDays', 'langLessons', 'commissioned',
+                // ...and runs with a town's crew, does its errands and washes the dirty coin (systems/gangs.js)
+                'gangJoined', 'gangErrands', 'laundered'] : [])]) {
             expect(totals[key] || 0, `the bot never did "${key}" — ${JSON.stringify(totals)}`).toBeGreaterThan(0);
         }
     });

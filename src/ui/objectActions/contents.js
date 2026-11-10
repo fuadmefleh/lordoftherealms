@@ -169,6 +169,7 @@ export function showContentsModal(game, objDef, anchorQ, anchorR) {
                 </div>
             </div>
             <div style="${MODAL_BODY_STYLE}">
+                ${access === 'steal' && Containers.town(game.world, ctx) ? `<div style="font-size:11px;color:#999">Bought at ${ctx.settlementName || 'the town'}'s market. What you take, the owner goes without until the market can sell them more.</div>` : ''}
                 ${watchers ? `<div style="font-size:11px;color:#bbb">👁 ${watchers}${InnerMap.timeOfDay >= 22 || InnerMap.timeOfDay < 5 ? ' · the dark is on your side' : ''}</div>` : ''}
                 ${lastMsg ? `<div style="font-size:12px;padding:6px 8px;border-radius:4px;background:${lastMsg.bad ? 'rgba(224,106,90,0.15)' : 'rgba(93,219,106,0.12)'};color:${lastMsg.bad ? '#e8a090' : '#9fe0a6'}">${lastMsg.text}</div>` : ''}
                 ${lock ? _lockHtml(player, lock, scene, picking) : `<div style="display:flex;flex-direction:column;gap:3px">

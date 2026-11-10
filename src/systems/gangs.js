@@ -32,6 +32,13 @@
 //                      deposits, goods the player sells to the fence and
 //                      the black market (Underworld)
 //   gang → crown       the licence on dens where vice is licensed (Laws)
+//   gang → the jail    springing a member (player/prison.js): a bribed gaoler
+//                      (into the town), the crew's pay for a breakout (spent in
+//                      town), the kept magistrate's fee (his purse)
+// Every one of these is booked (Gangs._book → g.books: this week, last week,
+// all time, taken and paid by kind), and the Streets tab shows each gang's.
+// The townsfolk spend at most blackMarket.purseShare of the town's purse a
+// week at the gangs' black market; the rest of the stash waits.
 // Goods: smuggled goods leave a market's stock; contraband in a stash is
 // used up by the town's people as it is sold; fenced goods go back into the
 // town's market stock once cold. Black-market prices follow the stash in
@@ -96,7 +103,24 @@ function _range(pair, d) {
     return Utils.randInt(Math.round(lo), Math.round(hi));
 }
 
+// The kinds of coin a gang's books keep (g.books): what it took and what it paid out
+const BOOK_LABELS = {
+    in: {
+        protection: 'Protection', dens: 'Dice dens', blackMarket: 'Black market', fence: 'Fenced goods resold',
+        collections: 'Collection rounds', ransoms: 'Ransoms', tribute: 'Tribute', plunder: 'A broken rival\'s purse',
+        deposits: 'Put in by you', founding: 'Its first purse',
+    },
+    out: {
+        wages: 'Wages', recruits: 'Recruits', bribes: 'Bribes to the watch', smuggling: 'Contraband bought abroad',
+        tithes: 'Tithes to the guild', spending: 'The boss living high', denOpen: 'Dens opened', bonuses: 'Bonuses',
+        tribute: 'Tribute', seized: 'Seized in raids', toYou: 'Paid to you', purchases: 'Goods bought from you',
+        springing: 'Springing you from jail', split: 'Carried off by a split',
+    },
+};
+
 export const Gangs = {
+    BOOK_LABELS,
+
     // ──────────── CONFIG ────────────
 
     cfg() {
@@ -241,6 +265,7 @@ export const Gangs = {
             week: null,
             stats: { taken: 0, paid: 0, raids: 0 },
         };
+        Gangs._book(g, 'in', 'founding', purse);
         const nLt = opts.lieutenants != null ? opts.lieutenants : _range(S.lieutenants, [2, 3]);
         for (let i = 0; i < nLt; i++) g.lieutenants.push(Gangs._lieutenant(st));
         if (opts.stash !== false) {
@@ -260,6 +285,54 @@ export const Gangs = {
         const total = live.reduce((a, g) => a + Math.max(0, g.turf), 0);
         if (total > 1) for (const g of live) g.turf = Math.round(Math.max(0, g.turf) / total * 100) / 100;
         for (const g of live) g.turf = _clamp(_num(g.turf), 0, 1);
+    },
+
+    // ──────────── THE BOOKS ────────────
+
+    /** A gang's books: { cur, last, all } each { in: {kind: g}, out: {kind: g} }, and the weeks closed. */
+    books(g) {
+        if (!g) return null;
+        const b = _obj(g.books);
+        if (b && _obj(b.cur) && _obj(b.all)) return b;
+        g.books = { cur: { in: {}, out: {} }, last: null, all: { in: {}, out: {} }, weeks: 0 };
+        return g.books;
+    },
+
+    /**
+     * Book `amount` of coin to a gang: dir 'in' (taken) or 'out' (paid), by
+     * kind (BOOK_LABELS). The week's and all-time tallies, and the old
+     * stats.taken / stats.paid totals. → amount booked.
+     */
+    _book(g, dir, kind, amount) {
+        const a = _num(amount);
+        if (!g || !(a > 0) || (dir !== 'in' && dir !== 'out')) return 0;
+        const b = Gangs.books(g);
+        b.cur[dir][kind] = _r2(_num(b.cur[dir][kind]) + a);
+        b.all[dir][kind] = _r2(_num(b.all[dir][kind]) + a);
+        if (!_obj(g.stats)) g.stats = { taken: 0, paid: 0, raids: 0 };
+        if (dir === 'in') g.stats.taken = _r2(_num(g.stats.taken) + a);
+        else g.stats.paid = _r2(_num(g.stats.paid) + a);
+        return a;
+    },
+
+    /** The week's books close (at the end of the gang's week): this week becomes last week. */
+    _closeWeek(g) {
+        const b = Gangs.books(g);
+        b.last = b.cur;
+        b.cur = { in: {}, out: {} };
+        b.weeks = _num(b.weeks) + 1;
+    },
+
+    /** Totals of a side of the books ({ kind: g }). */
+    bookTotal(side) {
+        return _r2(Object.values(_obj(side) || {}).reduce((a, v) => a + _num(v), 0));
+    },
+
+    /** The books for the panel: last week, this week so far and all time, each { in, out, took, paid }. */
+    bookView(g) {
+        const b = Gangs.books(g);
+        const side = s => (s ? { in: { ...s.in }, out: { ...s.out }, took: Gangs.bookTotal(s.in), paid: Gangs.bookTotal(s.out) } : null);
+        return { last: side(b.last), cur: side(b.cur), all: side(b.all), weeks: _num(b.weeks) };
     },
 
     gangsAt(world, tile) {
@@ -399,6 +472,7 @@ export const Gangs = {
         const n = price > 0 ? Math.min(qty, Math.floor(g.purse / price + 1e-9)) : qty;
         if (n <= 0) return { qty: 0, paid: 0, gang: g };
         g.purse = _r2(g.purse - n * price);
+        Gangs._book(g, 'out', 'purchases', n * price);
         if (hot) g.fenced.push({ good: goodId, qty: n, day: _day(world) });
         else g.stash[goodId] = _r2(_num(g.stash[goodId]) + n);
         return { qty: n, paid: n * price, gang: g };
@@ -529,6 +603,7 @@ export const Gangs = {
             name, player: true, boss: player.name || 'you', crew, purse: 0, turf: _num(F.turf, 0.15), dens: 0, smuggling: false, lieutenants: 1, stash: false,
         });
         g.purse = seed;
+        Gangs._book(g, 'in', 'deposits', seed);
         st.gangs.push(g);
         Gangs._normaliseTurf(st);
         uw.gangs[_key(tile.q, tile.r)] = { gangId: g.id, rank: Gangs.BOSS_RANK(), standing: 0, joinedDay: _day(world) };
@@ -648,7 +723,8 @@ export const Gangs = {
             const took = Economy.drawTown(s, want);
             const mine = Math.floor(took * _num(offer.share, 0.2));
             g.purse = _r2(g.purse + took - mine);
-            g.stats.taken += took;
+            Gangs._book(g, 'in', 'collections', took);
+            Gangs._book(g, 'out', 'toYou', mine);
             Gangs._payPlayer(player, mine);
             text = `You walk the rounds: ${Math.floor(took)}g from the shops of ${s.name}. ${mine}g is yours.`;
         } else if (id === 'holdout') {
@@ -670,6 +746,7 @@ export const Gangs = {
                 const worth = run.units * Underworld._baseValue(run.good) * Gangs.blackScarcity(world, tile, run.good);
                 const mine = Math.min(Math.floor(g.purse), Math.floor(worth * _num(offer.share, 0.15)));
                 g.purse = _r2(g.purse - mine);
+                Gangs._book(g, 'out', 'toYou', mine);
                 Gangs._payPlayer(player, mine);
                 text = `You bring ${run.units} ${_label(run.good)} in from ${run.from}, bought for ${run.cost}g of the gang's coin. Your cut: ${mine}g.`;
             } else {
@@ -691,6 +768,8 @@ export const Gangs = {
             const ransom = Economy.drawTown(s, Math.max(20, want));
             const mine = Math.floor(ransom * _num(offer.share, 0.3));
             g.purse = _r2(g.purse + ransom - mine);
+            Gangs._book(g, 'in', 'ransoms', ransom);
+            Gangs._book(g, 'out', 'toYou', mine);
             Gangs._payPlayer(player, mine);
             text = `The family pays ${Math.floor(ransom)}g and gets their child back. ${mine}g is yours; the rest is the gang's.`;
         }
@@ -775,7 +854,8 @@ export const Gangs = {
 
     weeklyWages(g) {
         const ranks = Gangs.ranks();
-        const ltPay = _num((ranks[Gangs.BOSS_RANK() - 1] || {}).weeklyPay, 22);
+        // (a lieutenant's wage; the player's own pay is their rank's weeklyPay)
+        const ltPay = _num(Gangs.cfg().lieutenantWage, _num((ranks[Gangs.BOSS_RANK() - 1] || {}).weeklyPay, 22));
         return Math.round(g.crew * _num(Gangs.cfg().wagePerCrew, 3) + g.lieutenants.length * ltPay);
     },
 
@@ -801,6 +881,7 @@ export const Gangs = {
                 const k = Math.min(n, room);
                 if (g.purse < fee * k) return { success: false, reason: `Signing ${k} costs ${fee * k}g; the purse holds ${Math.floor(g.purse)}g.` };
                 g.purse = _r2(g.purse - fee * k);
+                Gangs._book(g, 'out', 'recruits', fee * k);
                 Economy.payTown(s, fee * k);
                 g.crew += k;
                 return { success: true, text: `${k} new ${k === 1 ? 'face' : 'faces'} sign on for ${fee}g a head. Crew: ${g.crew}.` };
@@ -811,6 +892,7 @@ export const Gangs = {
                 if (!lt) return { success: false, reason: 'No such lieutenant.' };
                 if (g.purse < cost) return { success: false, reason: `A bonus is ${cost}g; the purse is short.` };
                 g.purse = _r2(g.purse - cost);
+                Gangs._book(g, 'out', 'bonuses', cost);
                 Economy.payTown(s, cost);
                 lt.loyalty = _clamp(lt.loyalty + _num(L.bonusLoyalty, 15), 0, 100);
                 return { success: true, text: `${lt.name} weighs the purse and grins. (Loyalty ${Math.round(lt.loyalty)})` };
@@ -842,10 +924,12 @@ export const Gangs = {
                     const rival = Gangs.gang(world, tile, w.bribedBy);
                     if (g.purse < fee * 4) return { success: false, reason: `${w.name} is on ${rival.name}'s payroll. To turn him costs ${fee * 4}g.` };
                     g.purse = _r2(g.purse - fee * 2);
+                    Gangs._book(g, 'out', 'bribes', fee * 2);
                     w.purse = _r2(_num(w.purse) + fee * 2);
                     rival.feud = _num(rival.feud) + 25;
                 }
                 g.purse = _r2(g.purse - fee * 2);
+                Gangs._book(g, 'out', 'bribes', fee * 2);
                 w.purse = _r2(_num(w.purse) + fee * 2);
                 w.bribedBy = g.id;
                 Traits.recordDeed(player, 'deceit', 1);
@@ -861,6 +945,7 @@ export const Gangs = {
                 const cost = _num(D.openCost, 220);
                 if (g.purse < cost) return { success: false, reason: `Fitting out a den costs ${cost}g of the gang's coin.` };
                 g.purse = _r2(g.purse - cost);
+                Gangs._book(g, 'out', 'denOpen', cost);
                 Economy.payTown(s, cost);
                 g.dens++;
                 return { success: true, text: `A cellar, a few tables, dice and a doorman: ${g.name} runs ${g.dens} den${g.dens === 1 ? '' : 's'} now.` };
@@ -886,6 +971,8 @@ export const Gangs = {
                 if (theirs > ours * 1.2 && tribute < 50) return { success: false, reason: `${foe.boss.name} laughs: you have nothing to pay with.` };
                 g.purse = _r2(g.purse - tribute);
                 foe.purse = _r2(foe.purse + tribute);
+                Gangs._book(g, 'out', 'tribute', tribute);
+                Gangs._book(foe, 'in', 'tribute', tribute);
                 Gangs._peace(world, g, foe);
                 return { success: true, text: `${foe.boss.name} takes ${tribute}g and the truce holds until day ${g.truces[foe.id]}.` };
             }
@@ -893,6 +980,7 @@ export const Gangs = {
                 const want = Math.min(Math.floor(g.purse), Math.max(1, Math.floor(_num(Number(arg), 100))));
                 if (want <= 0) return { success: false, reason: 'The purse is empty.' };
                 g.purse = _r2(g.purse - want);
+                Gangs._book(g, 'out', 'toYou', want);
                 Gangs._payPlayer(player, want);
                 // The men notice when the boss empties the purse
                 if (want > Gangs.weeklyWages(g) * 2) for (const l of g.lieutenants) l.loyalty = _clamp(l.loyalty - 3, 0, 100);
@@ -905,6 +993,7 @@ export const Gangs = {
                 Ledger.record(player, 'gang', -want);
                 Gangs._dirtyFollowsGold(player);
                 g.purse = _r2(g.purse + want);
+                Gangs._book(g, 'in', 'deposits', want);
                 return { success: true, text: `You put ${want}g into ${g.name}'s purse.` };
             }
             default:
@@ -932,6 +1021,7 @@ export const Gangs = {
     _endWar(world, tile, st, winner, loser) {
         winner.turf = _r2(Math.min(1, winner.turf + loser.turf));
         winner.purse = _r2(winner.purse + loser.purse);
+        Gangs._book(winner, 'in', 'plunder', loser.purse);
         for (const [good, n] of Object.entries(loser.stash)) winner.stash[good] = _r2(_num(winner.stash[good]) + n);
         winner.crew += Math.floor(loser.crew / 2);
         loser.dissolved = true;
@@ -1006,6 +1096,7 @@ export const Gangs = {
         const got = SettlementMarket.take(src.s, good, want);
         const cost = Math.round(got * src.ask);
         g.purse = _r2(g.purse - cost);
+        Gangs._book(g, 'out', 'smuggling', cost);
         Economy.payTown(src.s, cost);
         if (!lose) g.stash[good] = _r2(_num(g.stash[good]) + got);
         return { good, units: got, cost, from: src.s.name };
@@ -1106,6 +1197,7 @@ export const Gangs = {
         for (const g of gangs) {
             const take = Math.floor(g.purse * share * k * 100) / 100;
             g.purse = _r2(g.purse - take);
+            Gangs._book(g, 'out', 'tithes', take);
             got += take;
         }
         return Math.floor(got);
@@ -1182,7 +1274,8 @@ export const Gangs = {
                 * g.turf * Math.max(0.2, 1 - _num(watch.crackdown) / _num(P.crackdownRelief, 150));
             g.week.protection = Economy.drawTown(s, prot);
             if (g.dens > 0) {
-                const want = g.dens * Math.min(_num(D.max, 160), pop * _num(D.perHead, 0.012)) * _num(vice.den, 1);
+                // The gamblers' coin: a share of what the town has, and of its people
+                const want = g.dens * Math.min(_num(D.max, 160), pop * _num(D.perHead, 0.012) + _num(Economy.townPurse(s), 0) * _num(D.shareOfPurse, 0)) * _num(vice.den, 1);
                 const took = Economy.drawTown(s, want);
                 const licence = Math.floor(took * _num(vice.licence));
                 if (licence > 0 && kingdom) {
@@ -1208,40 +1301,51 @@ export const Gangs = {
                 }
             }
             g.fenced = keep;
-            // The black market: the town's people buy from the stash at supply-and-demand prices
+            // The black market: the town's people buy from the stash at supply-and-demand prices,
+            // with what they can spare of the town's coin (purseShare a week, shared among the gangs)
             const share = live().length > 1 ? 1 / live().length : 1;
+            let budget = B.purseShare != null ? _num(Economy.townPurse(s), pop * 2) * _num(B.purseShare) * share : Infinity;
             for (const [good, n] of Object.entries(g.stash)) {
                 if (!(n > 0)) { delete g.stash[good]; continue; }
                 const status = Underworld.contrabandStatus(kingdom, good);
                 const need = SettlementMarket.tracks(good) ? Math.max(SettlementMarket.need(s, good), SettlementMarket.refNeed(s, good)) : Gangs.blackTarget(tile, good) / 30;
                 let units = Math.min(n, Math.max(1, need * _num(B.weeklyDemandDays, 7) * _num(B.consumeShare, 0.6) * share));
                 if (status === 'legal') {
-                    // Legal goods sell to the town's market at its price
-                    units = Math.min(n, units);
-                    const value = Math.floor(units * Underworld._baseValue(good) * 0.8);
-                    const paid = Economy.drawTown(s, value);
-                    if (SettlementMarket.tracks(good)) SettlementMarket.add(s, good, units);
-                    g.stash[good] = _r2(n - units);
+                    // Legal goods sell to the town's market at its price: as many as the town pays for
+                    const unit = Underworld._baseValue(good) * 0.8;
+                    if (unit > 0) units = Math.min(units, Math.max(0, budget) / unit);
+                    const paid = Economy.drawTown(s, units * unit);
+                    const sold = unit > 0 ? Math.min(units, paid / unit) : units;
+                    if (SettlementMarket.tracks(good)) SettlementMarket.add(s, good, sold);
+                    g.stash[good] = _r2(n - sold);
+                    if (g.stash[good] <= 0.01) delete g.stash[good];
                     g.week.resale += paid;
+                    budget -= paid;
                     continue;
                 }
                 const mult = _num(Underworld.cfg('blackMarket')[status], 1.5);
                 const price = Underworld._baseValue(good) * mult * Gangs.blackScarcity(world, tile, good);
-                const paid = Economy.drawTown(s, units * price);
+                if (price > 0) units = Math.min(units, Math.max(0, budget) / price);
+                const paid = units > 0 ? Economy.drawTown(s, units * price) : 0;
                 const sold = price > 0 ? Math.min(units, paid / price) : 0;
                 g.stash[good] = _r2(n - sold);
                 if (g.stash[good] <= 0.01) delete g.stash[good];
                 g.week.sales += paid;
+                budget -= paid;
             }
             const income = g.week.protection + g.week.dens + g.week.sales + g.week.resale;
             g.purse = _r2(g.purse + income);
-            g.stats.taken = _r2(_num(g.stats.taken) + income);
+            Gangs._book(g, 'in', 'protection', g.week.protection);
+            Gangs._book(g, 'in', 'dens', g.week.dens);
+            Gangs._book(g, 'in', 'blackMarket', g.week.sales);
+            Gangs._book(g, 'in', 'fence', g.week.resale);
 
             // ── The boss's cut and the player's pay ──
             if (g.boss && g.boss.player && m && m.gangId === g.id && player) {
                 const cut = Math.min(Math.floor(g.purse), Math.floor(income * _num(g.cut, 0.25)));
                 if (cut > 0) {
                     g.purse = _r2(g.purse - cut);
+                    Gangs._book(g, 'out', 'toYou', cut);
                     Gangs._payPlayer(player, cut);
                 }
                 g.week.bossCut = cut;
@@ -1249,6 +1353,7 @@ export const Gangs = {
                 const pay = Math.min(Math.floor(g.purse), _num(Gangs.rankDef(m.rank).weeklyPay, 4));
                 if (pay > 0) {
                     g.purse = _r2(g.purse - pay);
+                    Gangs._book(g, 'out', 'toYou', pay);
                     Gangs._payPlayer(player, pay);
                 }
                 m.standing = _num(m.standing) + 1;
@@ -1260,7 +1365,7 @@ export const Gangs = {
             g.purse = _r2(g.purse - paid);
             Economy.payTown(s, paid);
             g.week.wages = paid;
-            g.stats.paid = _r2(_num(g.stats.paid) + paid);
+            Gangs._book(g, 'out', 'wages', paid);
             const unpaid = paid < wages - 0.5;
             const squeeze = g.boss && g.boss.player ? Math.max(0, _num(g.cut, 0.25) - _num(L.fairCut, 0.25)) * 10 * _num(L.loyaltyCutPer10, -2) : 0;
             for (const l of g.lieutenants) {
@@ -1278,6 +1383,7 @@ export const Gangs = {
                 const fee = Gangs.retainer(world, tile, who);
                 if (g.purse >= fee) {
                     g.purse = _r2(g.purse - fee);
+                    Gangs._book(g, 'out', 'bribes', fee);
                     w.purse = _r2(_num(w.purse) + fee);
                 } else {
                     w.bribedBy = null;
@@ -1305,6 +1411,7 @@ export const Gangs = {
             const R = _obj(W.raid) || {};
             const seized = Math.floor(g.purse * _num(R.purseShare, 0.3));
             g.purse = _r2(g.purse - seized);
+            Gangs._book(g, 'out', 'seized', seized);
             Economy.payTown(s, seized);
             for (const good of Object.keys(g.stash)) {
                 g.stash[good] = _r2(g.stash[good] * (1 - _num(R.stashShare, 0.5)));
@@ -1341,6 +1448,8 @@ export const Gangs = {
             Gangs._log(st, world, `${g.name} started working the streets.`);
         }
         Gangs._normaliseTurf(st);
+        // The week's books close: errands since the last turn and this turn are last week now
+        for (const g of live()) Gangs._closeWeek(g);
     },
 
     _npcBoss(world, tile, st, g, s) {
@@ -1350,6 +1459,7 @@ export const Gangs = {
             const k = Math.min(3, Gangs.crewCap(s) - g.crew, Math.floor((g.purse - wages * 4) / fee));
             if (k > 0) {
                 g.purse = _r2(g.purse - fee * k);
+                Gangs._book(g, 'out', 'recruits', fee * k);
                 Economy.payTown(s, fee * k);
                 g.crew += k;
             }
@@ -1358,6 +1468,7 @@ export const Gangs = {
         const maxDens = _num((D.maxByType || {})[s.type], 1);
         if (g.dens < maxDens && g.purse > _num(D.openCost, 220) * 2 + wages * 2 && Utils.random() < 0.15) {
             g.purse = _r2(g.purse - _num(D.openCost, 220));
+            Gangs._book(g, 'out', 'denOpen', _num(D.openCost, 220));
             Economy.payTown(s, _num(D.openCost, 220));
             g.dens++;
         }
@@ -1365,6 +1476,7 @@ export const Gangs = {
         const fee2 = Gangs.retainer(world, tile, 'captain');
         if (!w.bribedBy && _num(st.watch.crackdown) > 40 && g.purse > fee2 * 4 + wages) {
             g.purse = _r2(g.purse - fee2 * 2);
+            Gangs._book(g, 'out', 'bribes', fee2 * 2);
             w.purse = _r2(_num(w.purse) + fee2 * 2);
             w.bribedBy = g.id;
         }
@@ -1389,6 +1501,7 @@ export const Gangs = {
         if (g.purse > reserve) {
             const spend = Math.floor((g.purse - reserve) * _num(Gangs.cfg().spendExcess, 0.3));
             g.purse = _r2(g.purse - spend);
+            Gangs._book(g, 'out', 'spending', spend);
             Economy.payTown(s, spend);
         }
     },
@@ -1436,6 +1549,8 @@ export const Gangs = {
                     const tribute = Math.floor(lose.purse * _num(W.tributeShare, 0.3));
                     lose.purse = _r2(lose.purse - tribute);
                     win.purse = _r2(win.purse + tribute);
+                    Gangs._book(lose, 'out', 'tribute', tribute);
+                    Gangs._book(win, 'in', 'tribute', tribute);
                     Gangs._peace(world, win, lose);
                     Gangs._log(st, world, `${lose.name} paid ${win.name} ${tribute}g for a truce.`);
                     if (mine) Gangs._note(out, `${lose.name} paid ${win.name} ${tribute}g for a truce in ${tile.settlement.name}.`, 'info');
@@ -1496,6 +1611,8 @@ export const Gangs = {
                 g.lieutenants = g.lieutenants.filter(l => l !== lt);
                 const split = Gangs._newGang(world, s, tile.q, tile.r, st, { boss: lt.name, crew, purse: 0, turf: Math.min(g.turf, 0.1), dens: 0, smuggling: false, lieutenants: 1, stash: false });
                 split.purse = coin;
+                Gangs._book(g, 'out', 'split', coin);
+                Gangs._book(split, 'in', 'founding', coin);
                 g.turf = _r2(Math.max(0, g.turf - split.turf));
                 st.gangs.push(split);
                 Gangs._declare(world, g, split);
@@ -1539,7 +1656,11 @@ export const Gangs = {
         g.smuggling = true;
         // The hidden stash: what the old boss squirrelled away came out of the town's coffers and market
         const top = Math.max(0, _num(o.purse, 700) - g.purse);
-        if (top > 0) g.purse = _r2(g.purse + Economy.drawTown(tile.settlement, top));
+        if (top > 0) {
+            const got = Economy.drawTown(tile.settlement, top);
+            g.purse = _r2(g.purse + got);
+            Gangs._book(g, 'in', 'founding', got);
+        }
         for (const [good, n] of Object.entries(_obj(o.stash) || {})) {
             const got = SettlementMarket.take(tile.settlement, good, n);
             if (got > 0) g.stash[good] = _r2(_num(g.stash[good]) + got);
@@ -1596,6 +1717,8 @@ export const Gangs = {
             ownsCaptain: st.watch.captain.bribedBy === g.id, ownsMagistrate: st.watch.magistrate.bribedBy === g.id,
             truceUntil: mine ? _num(mine.truces[g.id]) : 0,
             raids: _num(g.stats && g.stats.raids),
+            purse: Math.floor(_num(g.purse)),
+            books: Gangs.bookView(g),
         }));
         return {
             gangs, watch: st.watch, crackdown: Math.round(_num(st.watch.crackdown)), log: (st.log || []).slice(-6).reverse(),

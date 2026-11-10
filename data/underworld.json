@@ -181,6 +181,7 @@
     },
     "gangs": {
         "_doc": "Criminal organisations in the towns (src/systems/gangs.js). Each town, city and capital keeps settlement.underworld: its gangs (boss, crew, lieutenants, purse, stash of goods, turf, dens, rackets, wars) and its watch (a captain and a magistrate who can be bought, and the town's crackdown 0-100). Every coin is real: protection, dens, ransoms and black-market sales come out of the town's purse (Economy.drawTown); wages, recruits, bribes spent and openings go back into it; smuggled goods are bought from another realm's market stock and paid into that town's purse; fenced goods go into the town's market stock once cold. The week runs on its own seeded stream. Ranks: hanger-on -> soldier -> enforcer -> lieutenant -> boss.",
+        "_tuning": "Tuned 2026-11 against the gangs' weekly drain on the towns' purses with GANGSIM=1 npx vitest run src/__tests__/gangs.econ.sim.test.js (the same worlds with and without gangs; the numbers are in docs/economy-balance.md). Protection, dens and the black market draw mostly on the town's purse, not its head count, and the townsfolk spend at most blackMarket.purseShare of it a week at the black market; lieutenantWage is an NPC lieutenant's wage (the player's own pay is their rank's weeklyPay).",
         "perType": { "town": [1, 1], "city": [1, 2], "capital": [2, 3] },
         "names": {
             "first": ["Bran", "Corvin", "Mags", "Hesk", "Roderick", "Wenna", "Tam", "Ysolde", "Grigor", "Nell", "Doran", "Sabine", "Ulric", "Fenna", "Jory", "Agna", "Malk", "Ottilie", "Rook", "Vesna"],
@@ -190,7 +191,7 @@
             "captain": ["Captain Odo Hask", "Captain Mira Venn", "Captain Garret Lowe", "Captain Brannoc Ell", "Captain Isolde Marr", "Captain Pell Varro"],
             "magistrate": ["Magistrate Aldous Pryne", "Magistrate Helga Thorn", "Magistrate Cuthbert Lisle", "Magistrate Rosamund Dare", "Magistrate Edric Faulk"]
         },
-        "start": { "crewPerThousand": [2, 4], "crewMin": 4, "purseShareOfTown": 0.015, "purseMax": 450, "turf": [0.25, 0.6], "lieutenants": [2, 3], "stashGoods": ["liquor", "wine", "spices", "luxuries", "beer"], "stashQty": [2, 6] },
+        "start": { "crewPerThousand": [1, 2], "crewMin": 3, "purseShareOfTown": 0.015, "purseMax": 300, "turf": [0.25, 0.6], "lieutenants": [2, 3], "stashGoods": ["liquor", "wine", "spices", "luxuries", "beer"], "stashQty": [2, 6] },
         "ranks": [
             { "id": "hanger_on", "name": "Hanger-on", "icon": "🪶", "standing": 0, "weeklyPay": 4 },
             { "id": "soldier", "name": "Soldier", "icon": "🗡️", "standing": 15, "weeklyPay": 8 },
@@ -198,22 +199,23 @@
             { "id": "lieutenant", "name": "Lieutenant", "icon": "🎖️", "standing": 80, "weeklyPay": 22 },
             { "id": "boss", "name": "Boss", "icon": "👑", "standing": 0, "weeklyPay": 0 }
         ],
-        "wagePerCrew": 3,
+        "wagePerCrew": 1.5,
+        "lieutenantWage": 6,
         "crewPerPopMax": 0.01,
-        "recruitFee": 25,
-        "protection": { "shareOfPurse": 0.012, "perHead": 0.03, "max": 400, "crackdownRelief": 150 },
-        "dens": { "perHead": 0.012, "max": 160, "openCost": 220, "maxByType": { "town": 1, "city": 2, "capital": 3 }, "crackdown": 2 },
+        "recruitFee": 15,
+        "protection": { "shareOfPurse": 0.035, "perHead": 0.004, "max": 200, "crackdownRelief": 150 },
+        "dens": { "perHead": 0.003, "shareOfPurse": 0.015, "max": 80, "openCost": 150, "maxByType": { "town": 1, "city": 2, "capital": 3 }, "crackdown": 2 },
         "smuggling": { "runUnits": [3, 6], "maxStashPerGood": 30, "sourceRadius": 14 },
-        "blackMarket": { "weeklyDemandDays": 7, "fallbackTarget": 6, "elasticity": 0.6, "min": 0.6, "max": 2.6, "consumeShare": 0.6 },
+        "blackMarket": { "weeklyDemandDays": 7, "fallbackTarget": 6, "elasticity": 0.6, "min": 0.6, "max": 2.6, "consumeShare": 0.6, "purseShare": 0.04 },
         "fence": { "resaleShare": 0.8, "coolDays": 10 },
         "watch": {
             "crackdownDecay": 4,
             "raidFrom": 35,
             "raidChancePer": 0.012,
             "boughtRaidMult": 0.25,
-            "captainRetainerPerGuard": 18,
-            "magistrateRetainerPerGuard": 14,
-            "spendShare": 0.25,
+            "captainRetainerPerGuard": 8,
+            "magistrateRetainerPerGuard": 6,
+            "spendShare": 0.5,
             "raid": { "purseShare": 0.3, "stashShare": 0.5, "crewShare": 0.2 },
             "boughtSearchMult": 0.3,
             "boughtJobBonus": 0.06,
@@ -245,8 +247,8 @@
         "vice": { "forbidden": { "den": 0.7, "crackdown": 2 }, "tolerated": { "den": 1, "crackdown": 0 }, "licensed": { "den": 1.25, "crackdown": -1, "licence": 0.2 } },
         "guildTithe": 0.05,
         "_reserve": "An NPC boss keeps reserveWeeks of wages plus a den's price as a war chest; spendExcess of anything above it is spent in town each week (the boss and his men living high), so a gang's purse never hoards the town's coin.",
-        "reserveWeeks": 8,
-        "spendExcess": 0.3
+        "reserveWeeks": 3,
+        "spendExcess": 0.5
     },
     "npcReactions": {
         "guard": 0.6, "priest": 0.75, "noble": 0.85, "merchant": 0.9,
@@ -289,6 +291,19 @@
             "slip": { "base": 0.1, "stealth": 0.04 },
             "failDays": [2, 5], "reputation": 10, "bounty": 60
         },
-        "servitude": { "bribeShare": 0.4, "bribeBase": 0.5, "bribeDiplomacy": 0.04, "failDays": [1, 3], "workExtraDays": 1 }
+        "servitude": { "bribeShare": 0.4, "bribeBase": 0.5, "bribeDiplomacy": 0.04, "failDays": [1, 3], "workExtraDays": 1 },
+        "crew": {
+            "_doc": "Send word to your crew (player/prison.js crewOptions/sendWord): a gang you run with in the jail's town springs you, once a day, out of its purse. bribe: the gaoler's 'release' price x mult, paid into the town; odds = the guard bribe's + oddsBonus (+ boughtCaptain where the gang owns the captain). breakout: up to men[1] of the crew (never the last man) at payPerMan each, paid into the town win or lose; odds = base + perMan x men - guardPenalty x guard strength - crackdownPenalty x crackdown (+ boughtCaptain); men lost, crackdown and heat raised, and a jailbreak on your record when it works; failDays and the lieutenants' loyalty when it doesn't. magistrate: only where the gang keeps him; feeWeeks of his retainer into his purse. A member needs minRank and may ask for at most purseShare[rank] of the purse, and pays standingCost in standing.",
+            "minRank": { "bribe": 1, "breakout": 2, "magistrate": 1 },
+            "purseShare": [0, 0.2, 0.3, 0.45],
+            "standingCost": { "bribe": 10, "breakout": 20, "magistrate": 6 },
+            "bribe": { "mult": 1, "oddsBonus": 0.15, "boughtCaptain": 0.1 },
+            "breakout": {
+                "minCrew": 4, "men": [3, 6], "payPerMan": 12, "base": 0.3, "perMan": 0.06, "guardPenalty": 0.07, "boughtCaptain": 0.2,
+                "crackdownPenalty": 0.003, "min": 0.1, "max": 0.9, "crackdown": 20, "failCrackdown": 12,
+                "lossOnWin": [0, 1], "lossOnFail": [1, 3], "failDays": [2, 5], "loyaltyOnFail": -5, "heat": 6
+            },
+            "magistrate": { "feeWeeks": 1 }
+        }
     }
 }

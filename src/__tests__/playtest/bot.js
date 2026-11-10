@@ -34,6 +34,8 @@ import { Throne } from '../../systems/throne.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Espionage } from '../../systems/espionage.js';
 import { Underworld } from '../../systems/underworld.js';
+import { Gangs } from '../../systems/gangs.js';
+import { Prison } from '../../player/prison.js';
 import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Heirs } from '../../systems/heirs.js';
@@ -267,6 +269,116 @@ function underworld(game, tile, stats) {
             if (res.success) count(stats, `job_${res.outcome}`);
         }
     }
+}
+
+/**
+ * The town's gangs (systems/gangs.js): with a guild contact, run with the
+ * crew holding the most streets, run its errands while the heat allows, rise
+ * in it and, as a lieutenant with good odds, take it over; as boss (the Crime
+ * Lord start, or a gang taken) keep the purse working; and wash dirty coin
+ * through a front. Past the short soak's horizon, or as a boss from the start.
+ */
+function gangLife(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    if (!Gangs.hasGangs(s)) return;
+    const boss = Gangs.isBoss(player, world, tile);
+    if (world.day <= 150 && !Gangs.bossTowns(player, world).length) return;
+    const uw = Underworld.ensure(player);
+    const heat = Underworld.getHeat(player, s.kingdom);
+    let m = Gangs.membership(player, tile);
+    // (a crew in two towns at most: a life of its own beyond the streets)
+    if (!m && (uw.guild.contactMet || uw.guild.member) && heat < 40 && Object.keys(uw.gangs || {}).length < 2 && Utils.random() < 0.25) {
+        const g = Gangs.gangsAt(world, tile).filter(x => !x.banned && !(x.boss && x.boss.player)).sort((a, b) => b.turf - a.turf)[0];
+        if (g && Gangs.join(player, world, tile, g.id).success) {
+            count(stats, 'gangJoined');
+            m = Gangs.membership(player, tile);
+        }
+    }
+    if (m) {
+        if (boss) bossDay(game, tile, stats);
+        if (heat < 45 && Utils.random() < 0.4) {
+            // The surest job it can do today (a kidnapping only now and then: the watch never forgets)
+            const open = Gangs.errands(player, world, tile)
+                .filter(e => !e.locked && (player.actionPoints || 0) >= e.ap && (e.id !== 'kidnap' || Utils.random() < 0.05))
+                .sort((a, b) => b.odds - a.odds);
+            if (open.length) {
+                const res = Gangs.doErrand(player, world, tile, open[0].id);
+                if (res.success) {
+                    count(stats, 'gangErrands');
+                    count(stats, `gangErrand_${res.outcome}`);
+                    if (res.promoted) count(stats, 'gangRankUp');
+                }
+            }
+        }
+        if (!boss && m.rank >= Gangs.BOSS_RANK() - 1 && (player.actionPoints || 0) >= 4
+            && Gangs.challengeOdds(player, world, tile) >= 0.6 && Utils.random() < 0.1) {
+            const res = Gangs.challengeBoss(player, world, tile);
+            if (res.success) count(stats, res.outcome === 'success' ? 'gangTaken' : 'gangChallengeLost');
+        }
+    }
+    // Dirty coin through a front here (a tavern, an inn... or the gang's dens)
+    const dirty = Gangs.dirty(player);
+    if (dirty >= 50) {
+        const cap = Gangs.launderCapacity(player, world, tile);
+        if (cap.fronts.length && cap.left > 0 && Gangs.launder(player, world, tile, Math.min(Math.floor(dirty), cap.left)).success) count(stats, 'laundered');
+    }
+}
+
+/** The boss's week: a fair cut, the watch bought, men signed, lieutenants kept sweet, a fat purse drawn on. */
+function bossDay(game, tile, stats) {
+    const { player, world } = game;
+    const s = tile.settlement;
+    const g = Gangs.myGang(player, world, tile);
+    if (!g) return;
+    const st = Gangs.town(world, tile);
+    const wages = Gangs.weeklyWages(g);
+    const order = (op, arg) => {
+        const r = Gangs.bossAct(player, world, tile, op, arg);
+        if (r.success) count(stats, 'bossOrders');
+        return r;
+    };
+    const cuts = Gangs.c('cuts', [0.1, 0.25, 0.4]);
+    if (Math.abs(g.cut - (Gangs.c('lieutenants', {}).fairCut || 0.25)) > 0.001) order('cut', Math.max(0, cuts.indexOf(0.25)));
+    for (const who of ['captain', 'magistrate']) {
+        const fee = Gangs.retainer(world, tile, who);
+        const want = who === 'captain' ? st.watch.crackdown >= 30 : g.purse > fee * 6 + wages * 4;
+        if (want && !st.watch[who].bribedBy && g.purse > fee * 2 + wages * 2) order(who);
+    }
+    for (const lt of g.lieutenants.slice()) {
+        if (lt.loyalty < 40 && g.purse > (Gangs.c('lieutenants', {}).bonusCost || 50) + wages) order('bonus', lt.id);
+    }
+    if (g.purse > wages * 6 && g.crew < Gangs.crewCap(s)) order('hire', 2);
+    const D = Gangs.c('dens', {});
+    if (g.purse > (D.openCost || 220) * 2 + wages * 3 && Utils.random() < 0.1) order('den');
+    for (const foe of Gangs.rivals(world, tile, g)) {
+        if (Gangs.atWar(g, foe) && g.crew < foe.crew * 0.7) order('truce', foe.id);
+    }
+    if (g.purse > wages * 10 + 300) order('withdraw', Math.floor((g.purse - wages * 8) / 2));
+}
+
+/**
+ * In a cell: word to the crew first (the magistrate the gang keeps, then a
+ * bribed gaoler, then the men over the wall when the odds are good), else
+ * bail when the purse can spare it three times over. → true when out.
+ */
+function leaveJail(game, stats) {
+    const { player, world } = game;
+    const jail = player.jailState;
+    if (!jail) return true;
+    const opts = Prison.crewOptions(player, world).filter(o => o.can);
+    const pick = opts.find(o => o.id === 'magistrate') || opts.find(o => o.id === 'bribe' && o.chance >= 0.5)
+        || opts.find(o => o.id === 'breakout' && o.chance >= 0.6);
+    if (pick) {
+        const r = Prison.sendWord(player, world, pick.id);
+        if (r.success) count(stats, r.ok ? 'crewSprung' : 'crewFailed');
+        if (!player.jailState) return true;
+    }
+    if (jail.bailCost && player.gold > jail.bailCost * 3 && Prison.postBail(player, world).success) {
+        count(stats, 'bailed');
+        return true;
+    }
+    return false;
 }
 
 function properties(game, tile, stats) {
@@ -1111,6 +1223,7 @@ function settlementBusiness(game, stats) {
     booked(game, 'speculate', () => speculate(game, tile, stats));
     booked(game, 'recruit', () => recruit(game, tile, stats));
     booked(game, 'underworld', () => underworld(game, tile, stats));
+    booked(game, 'gangs', () => gangLife(game, tile, stats));
     booked(game, 'companions', () => companions(game, tile, stats));
     booked(game, 'work', () => work(game, tile, stats));
     booked(game, 'properties', () => properties(game, tile, stats));
@@ -1338,6 +1451,11 @@ function chooseDestination(game) {
     }
     // Colonies hold court; drop by now and then
     if (roll < 0.3 && (player.colonies || []).length) return { q: player.colonies[0].q, r: player.colonies[0].r };
+    // A boss looks in on the gang now and then (systems/gangs.js)
+    if (roll >= 0.5 && roll < 0.7) {
+        const home = Gangs.bossTowns(player, world).find(b => b.q !== player.q || b.r !== player.r);
+        if (home) return { q: home.q, r: home.r };
+    }
     // A ship laid up in another port: go back to it now and then, to sail
     if (roll >= 0.3 && roll < 0.4) {
         const laid = (player.ships || []).find(sh => sh.status === 'docked' && (sh.q !== player.q || sh.r !== player.r));
@@ -1604,13 +1722,8 @@ export function botDay(game, stats) {
         else if (n.title === 'Escort Failed') count(stats, 'escortsFailed');
     }
     if (player.jailState) {
-        if (player.jailState.bailCost && player.gold > player.jailState.bailCost * 3) {
-            player.gold -= player.jailState.bailCost;
-            player.jailState = null;
-            player.stamina = player.maxStamina;
-            player.movementRemaining = player.maxStamina;
-            count(stats, 'bailed');
-        } else {
+        // (bail is paid into the town, as the cell's own button pays it: player/prison.js)
+        if (!booked(game, 'jail', () => leaveJail(game, stats))) {
             count(stats, 'jailDays');
             return;
         }

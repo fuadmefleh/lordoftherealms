@@ -2205,6 +2205,11 @@ However you end up in a cell (the watch, a guard search, debtors' prison, a botc
 - **The tunnel.** With tools, a day of digging adds 12–22% (more if you are strong); tools break now and then. A cell search may find it (6% a night, more the further you get), as may an informant you never befriended: tools taken, tunnel filled in, +2–4 days. At 100% you can go out through it (~85%).
 - **Labour in the yard.** Takes the day, which counts double against your sentence.
 - **Jailbreak** — once a night: **slip out at the change of the watch** (Stealth), **rush the guard** (Combat, Strength; fail and they take your tools) or **the tunnel**. Failure adds 2–5 days and a beating, and each failure makes the next harder. An escape is a crime of its own: heat with the crown (posters and warrants follow), a gaoler's bounty and −10 reputation.
+- **Send word to your crew** — if you run with a gang in the jail's town (see [Gangs & the Town Watch](#gangs--the-town-watch)), a message goes out with a cellmate's visitor, once a day (📨 in the cell, or at your cell door on the jail map). It is the gang's coin, not yours:
+  - **Pay off the gaoler**: the gang's go-between lays the price of "lost papers" on him out of the gang's purse (into the town). The odds are a guard bribe's +15% (+10% more if the gang owns the watch captain); if he pockets it and reports you, +1–3 days.
+  - **Break you out**: up to 6 of the crew come over the wall at night, paid 12g a man from the purse (spent in town, whether it works or not). The odds grow with the men sent and a bought captain, and fall with the town's guard and crackdown. It is a jailbreak in the crown's eyes (heat, a gaoler's bounty, −10 reputation), raises the crackdown by 20 (12 if it fails) and costs the gang a man or so; a failure costs 1–3 men, 2–5 more days and the lieutenants' faith.
+  - **Have the magistrate dismiss the case**: only where the gang keeps the magistrate; a week's retainer more into his purse, and you walk out.
+  - As **boss** your word is an order. As a **member** the boss decides: a Hanger-on is refused, a Soldier can ask for the gaoler or the magistrate, an Enforcer or Lieutenant for a breakout, and he won't spend more than 20% (Soldier), 30% (Enforcer) or 45% (Lieutenant) of the purse on you. You owe him for it in standing (−10, −20 for a breakout, −6 for the magistrate). Tuning in `data/underworld.json` → `prison.crew`.
 - **Bail** and serving your time work as before; friends you made inside follow up whichever way you leave.
 
 ---
@@ -2724,19 +2729,21 @@ Every town, city and capital has its own underworld: one gang in a town, one or 
 
 | In | Out |
 |---|---|
-| **Protection** from the town's purse: about 1.2% of the purse plus 0.03g a head (at most 400g), times its turf, less as the crackdown rises | **Wages** to its crew (3g a man) and lieutenants (22g each), spent in the town (into its purse). Unpaid, 15% of the crew walks and the lieutenants sour |
-| **Dens**: 0.012g a head per den (at most 160g each), out of the town's purse, scaled by the realm's **Gaming & Vice** law | **The watch** it has bought: the captain's and magistrate's weekly retainers. They spend a quarter of their purses in town each week |
-| **The black market**: the town's people buy contraband from its stash at supply-and-demand prices (paid out of the town's purse; the goods are used up) | **Smuggling**: a run over the border buys 3–6 units of a good banned or tariffed here from the nearest foreign town (within 14 hexes) where it is legal and in stock: that market's stock falls and its purse is paid the asking price |
-| **Fenced goods**, once cold: legal goods go back into the town's market stock and the town pays 80% of their worth | **Recruits** (25g a head) and a **new den** (220g), paid into the town |
+| **Protection** from the town's purse: about 3.5% of the purse plus 0.004g a head (at most 200g), times its turf, less as the crackdown rises | **Wages** to its crew (1.5g a man) and lieutenants (6g each), spent in the town (into its purse). Unpaid, 15% of the crew walks and the lieutenants sour |
+| **Dens**: 1.5% of the town's purse plus 0.003g a head per den (at most 80g each), out of the town's purse, scaled by the realm's **Gaming & Vice** law | **The watch** it has bought: the captain's and magistrate's weekly retainers. They spend half their purses in town each week |
+| **The black market**: the town's people buy contraband from its stash at supply-and-demand prices (paid out of the town's purse; the goods are used up), spending at most 4% of the town's purse a week across all its gangs | **Smuggling**: a run over the border buys 3–6 units of a good banned or tariffed here from the nearest foreign town (within 14 hexes) where it is legal and in stock: that market's stock falls and its purse is paid the asking price |
+| **Fenced goods**, once cold: legal goods go back into the town's market stock and the town pays 80% of their worth | **Recruits** (15g a head) and a **new den** (150g), paid into the town |
 | A broken rival's purse, stash and streets, or a beaten one's tribute | A **raid** by the watch: 30% of the purse to the town's coffers, half the stash burned, a fifth of the crew taken |
 
-A gang's first purse and stash, when the world first sees it, were taken out of its town's purse and market in the same way. A gang not run by you keeps a war chest (eight weeks' wages and the price of a den) and its boss and men spend 30% of anything above it in town each week, so the town's coin keeps moving. Left to themselves, bosses sign men when the purse is fat, open dens, buy the captain when the crackdown passes 40, and make war on weaker rivals.
+A gang's first purse and stash, when the world first sees it, were taken out of its town's purse and market in the same way. A gang not run by you keeps a war chest (three weeks' wages and the price of a den) and its boss and men spend half of anything above it in town each week, so the town's coin keeps moving.
+
+**The books.** Every gang keeps books, and the **🔪 Streets** tab shows them under each gang: what it took and what it paid out last week and over all time (with the weekly average), and, opened up, by kind: protection, dens, the black market, fenced goods, collection rounds, ransoms, tribute and plunder taken; wages, recruits, bribes to the watch, contraband bought abroad, the guild's tithe, the boss living high, dens opened, bonuses, tribute, raids, what it paid you and what it cost to spring you from jail. Left to themselves, bosses sign men when the purse is fat, open dens, buy the captain when the crackdown passes 40, and make war on weaker rivals.
 
 **The watch.** Each town keeps a watch captain and a magistrate (named), and a **crackdown** from 0 to 100. Crime raises it: every crime you commit in town (0.8 per point of heat it brings), gang wars (+6 a week), dens (+2 a week each, more where vice is forbidden, less where it is licensed), betrayals to the watch (+25). It cools by 4 a week (3 where punishment is harsh, 5 where it is lenient). From 35, the watch **raids** gangs: the higher the crackdown, the likelier (×the realm's fine multiplier); a gang that has bought the captain is raided a quarter as often. The crackdown also makes searches at the gate likelier and your jobs harder.
 
 **The realm's laws** (📜 Laws panel) bear on all of it. **Punishment** scales fines, cells and raids (see above). **🎲 Gaming & Vice** is a law of its own: *Forbidden* (dens take 30% less and draw +2 crackdown a week each), *Tolerated* (as described), or *Licensed* (dens take 25% more, draw 1 less crackdown, and a fifth of their take goes to the crown's treasury as the licence). A ruler can change it like any law.
 
-A gang can put the **captain** on its payroll (18g a week per point of the town's guard strength, two weeks up front; four weeks to turn him from a rival gang, who will take it ill): no raids on it, fewer searches of its members at the gate (×0.3), cheaper bribes (half price) and +6% on their jobs in town. The **magistrate** (14g per guard point a week): an arrest of one of its members in that town is dismissed after one night. A gang that can't pay the retainer loses its man.
+A gang can put the **captain** on its payroll (8g a week per point of the town's guard strength, two weeks up front; four weeks to turn him from a rival gang, who will take it ill): no raids on it, fewer searches of its members at the gate (×0.3), cheaper bribes (half price) and +6% on their jobs in town. The **magistrate** (6g per guard point a week): an arrest of one of its members in that town is dismissed after one night, and a member already in its cells can have the case dismissed (see [Jail](#jail-cellmates-bribes-and-tunnels)). A gang that can't pay the retainer loses its man.
 
 **Running with a crew.** With a guild contact you can ask any gang to take you on (one crew per town; you can run with crews in several towns). You start as a **Hanger-on** and rise with standing earned on its errands (and 1 a week for being on the books):
 
@@ -2761,16 +2768,16 @@ Odds for errands work like the guild's jobs, plus 3% per gang rank. Failing can 
 
 A **Lieutenant** can **move against the boss** (4 AP): the odds grow with your combat, leadership and standing, and with each lieutenant who is tired of the boss (loyalty under 40), and fall with the boss's might. Win and the gang is yours (the old boss goes in the river: karma and heat). Lose and you are beaten (−25 health), thrown out, and the gang will never take you back.
 
-With the guild's rank of **Prowler** or above you can **found a crew of your own** in a town: 200g for its purse and 25g a head to sign 4 men (paid into the town), one lieutenant, 15% of the streets. The biggest crew in town takes it ill.
+With the guild's rank of **Prowler** or above you can **found a crew of your own** in a town: 200g for its purse and 15g a head to sign 4 men (paid into the town), one lieutenant, 15% of the streets. The biggest crew in town takes it ill.
 
 **The boss's hand** (when the gang is yours):
 
 - **The cut**: 10%, 25% or 40% of the week's take is paid to you (dirty coin). More than 25% sours every lieutenant each week.
 - **The purse**: take coin out (dirty; emptying more than two weeks' wages sours the lieutenants) or put your own in.
-- **Crew**: sign men at 25g a head (into the town), up to 1% of the town's people.
+- **Crew**: sign men at 15g a head (into the town), up to 1% of the town's people.
 - **Lieutenants**: pay a 50g **bonus** (+15 loyalty) or **purge** one (karma, dread, crackdown +10, the others' loyalty −6).
 - **Buy the watch**: the captain and the magistrate, as above. Stop paying any time.
-- **Rackets**: open a **dice den** (220g; one in a town, two in a city, three in a capital) and turn the weekly **border runs** on or off.
+- **Rackets**: open a **dice den** (150g; one in a town, two in a city, three in a capital) and turn the weekly **border runs** on or off.
 - **War and truce**: go to war with another gang, or buy a truce (30% of your purse as tribute) that lasts 60 days.
 
 **Wars.** Each week at war, the two crews clash: each loses men in proportion to the other's strength (crew, lieutenants' skill, the boss's might, or your combat and leadership), the stronger takes 8% of the weaker's streets, and the crackdown rises. A gang brought down to 3 men is finished: its streets, purse, stash and half its men go to the victor. A beaten gang with half its rival's crew may buy a truce. Gangs also start wars among themselves when one is a third stronger than another (likelier if they have a feud).
@@ -2797,7 +2804,13 @@ Gold from crime is **dirty**: jobs, the fence, the black market, smuggling, rack
 
 ### Chests, crates and barrels: looking inside, taking and stealing
 
-Every chest, crate, barrel, shelf, bookshelf, sack, weapon rack, desk, stall, cauldron and oven holds something. **Inspect** one inside a building, or choose **Look Inside** on an editor-placed crate or barrel in the street, to see what it holds. Contents fit the place: ale and mead in a tavern's barrels, coin and gems in a bank's chest, arrows on a barracks rack. A container keeps the same contents until it restocks every 14 days, and what you remove stays gone until then (`data/containers.json`, `systems/containers.js`).
+Every chest, crate, barrel, shelf, bookshelf, sack, weapon rack, desk, stall, cauldron and oven holds something. **Inspect** one inside a building, or choose **Look Inside** on an editor-placed crate or barrel in the street, to see what it holds. Contents fit the place: ale and mead in a tavern's barrels, coin and gems in a bank's chest, arrows on a barracks rack (`data/containers.json`, `systems/containers.js`).
+
+Where the contents come from:
+
+- **Someone else's, in a town** (a house, a shop, the street): what the owner has really got. Every 14 days the household or business tops the box up to what the place wants out of **the town's market stock**, buying from the town's own sellers (the coin stays in the town). A market short of a good leaves the box short; an empty market leaves it empty. Goods no market sells (an old coin, an amulet) are heirlooms: there from the first look, and never replaced. What you steal is gone from the owner's store; at the next restock they buy it again from the market, so a theft takes the goods out of the town.
+- **Someone else's, out of town** (a building with no town around it): heirlooms only, never restocked.
+- **Unclaimed** (the wilds, ruins, camps, lairs): finds from nature, rolled again every 14 days; what you take stays gone until then.
 
 - **Your own** chests (a house or property you own) open as storage, where you put things in and take them out.
 - **Unclaimed** containers (the wilds, ruins, camps, lairs) let you **Take** freely.

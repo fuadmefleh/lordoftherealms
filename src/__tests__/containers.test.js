@@ -6,6 +6,7 @@ import { Containers } from '../systems/containers.js';
 import { Underworld } from '../systems/underworld.js';
 import { Utils } from '../core/utils.js';
 import { loadData } from './playtest/harness.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 beforeAll(async () => {
     await loadData();
@@ -57,6 +58,84 @@ describe('container contents', () => {
         Utils.setSeed(9);
         Containers.contents(null, world(), bankChest);
         expect(Utils.random()).toBe(before);
+    });
+});
+
+describe('a town\'s chests hold what their owners bought', () => {
+    /** A town on (5, 7) with a market well stocked with ale, mead and liquor. */
+    function townWorld(day = 3) {
+        const s = { name: 'Varrholt', type: 'town', population: 2000, kingdom: 'k1', q: 5, r: 7, economy: { gold: 500 } };
+        SettlementMarket.ensure(s);
+        for (const id of ['beer', 'mead', 'liquor', 'wine', 'cheese']) s.market.stock[id] = 40;
+        const tile = { q: 5, r: 7, settlement: s };
+        return { day, generationParams: { seed: 4242 }, kingdoms: [], getKingdom: () => null, getTile: (q, r) => (q === 5 && r === 7 ? tile : null), s };
+    }
+    const tavernBarrel = { ...bankChest, furnitureType: 'barrel', building: { type: 'tavern', q: 10, r: 11, name: 'The Drowned Rat' } };
+    const stocked = (w) => {
+        for (let i = 0; i < 50; i++) {
+            const ctx = { ...tavernBarrel, q: 3 + i };
+            const probe = JSON.parse(JSON.stringify(w.s.market.stock));
+            if (Object.keys(Containers.stocked(w, ctx)).length) { w.s.market.stock = probe; return ctx; }
+        }
+        throw new Error('no stocked barrel');
+    };
+
+    it('the owner fills the barrel out of the town\'s market stock, and the coin stays in town', () => {
+        const w = townWorld();
+        const ctx = stocked(w);
+        const market = { ...w.s.market.stock };
+        const gold = w.s.economy.gold;
+        const inside = Containers.contents(null, w, ctx);
+        expect(Object.keys(inside).length).toBeGreaterThan(0);
+        for (const [id, n] of Object.entries(inside)) expect(w.s.market.stock[id]).toBeCloseTo(market[id] - n, 5);
+        expect(w.s.economy.gold).toBe(gold);
+        // Looking again takes nothing more
+        const after = { ...w.s.market.stock };
+        expect(Containers.contents(null, w, ctx)).toEqual(inside);
+        expect(w.s.market.stock).toEqual(after);
+    });
+
+    it('a theft leaves the owner short; the next restock buys it again from the market', () => {
+        const w = townWorld();
+        const p = player();
+        const ctx = stocked(w);
+        const [id, n] = Object.entries(Containers.contents(p, w, ctx))[0];
+        Utils.setRng(() => 0.999);
+        const res = Containers.steal(p, w, ctx, id, n, { hour: 2 });
+        Utils.resetRng();
+        expect(res.ok).toBe(true);
+        expect(Containers.contents(p, w, ctx)[id]).toBeUndefined();
+        expect(w.s.larders[Containers.key(ctx)].stolen[id]).toBe(n);
+        // Two weeks on, the owner buys it in again
+        const w2 = { ...w, day: w.day + 14 };
+        const market = w.s.market.stock[id];
+        const again = Containers.contents(p, w2, ctx);
+        const want = Containers.stocked(w2, ctx)[id] || 0;
+        expect(again[id] || 0).toBe(want);
+        expect(w.s.market.stock[id]).toBeCloseTo(market - want, 5);
+    });
+
+    it('an empty market leaves the owner\'s barrel empty', () => {
+        const w = townWorld();
+        const ctx = stocked(w);
+        for (const id of Object.keys(w.s.market.stock)) w.s.market.stock[id] = 0;
+        expect(Containers.contents(null, w, ctx)).toEqual({});
+    });
+
+    it('heirlooms no market trades are there from the first look, and never come back once taken', () => {
+        const w = townWorld();
+        const p = player();
+        let ctx = null;
+        for (let i = 0; i < 80 && !ctx; i++) {
+            const c = { ...bankChest, q: i };
+            if (Containers.contents(null, w, c).ancient_coin) ctx = c;
+        }
+        expect(ctx).not.toBeNull();
+        const n = Containers.contents(p, w, ctx).ancient_coin;
+        Utils.setRng(() => 0.999);
+        expect(Containers.steal(p, w, ctx, 'ancient_coin', n, { hour: 2 }).ok).toBe(true);
+        Utils.resetRng();
+        for (let k = 1; k <= 4; k++) expect(Containers.contents(p, { ...w, day: w.day + 14 * k }, ctx).ancient_coin).toBeUndefined();
     });
 });
 

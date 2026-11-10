@@ -2,11 +2,19 @@
 // CONTAINERS — what's inside, and helping yourself to it
 // ============================================
 // Every chest, crate, barrel, shelf and sack on an inner map holds something.
-// What it holds is rolled from the world seed, the place (world tile, the
-// building, the furniture's spot) and the restock period, so the same chest
-// shows the same things every time you open it until the period turns. Only
-// what the player has removed is stored: player.containerLoot[key] =
-// { period, taken: { goodId: qty } } (saved with the player).
+// What the place wants in it is rolled from the world seed, the place (world
+// tile, the building, the furniture's spot) and the restock period.
+//   - Unclaimed containers (the wilds, ruins, lairs) hold that roll: finds
+//     from nature. What the player removed is stored on player.containerLoot
+//     [key] = { period, taken: { goodId: qty } } (saved with the player).
+//   - Someone else's (a town's houses, shops and streets) hold what the owner
+//     has really got (larder()): each period the household or business tops
+//     it up to the roll out of the town's market stock (bought from the town's
+//     own sellers: the coin stays in the town's purse, the goods leave the
+//     market), as far as the market has them. Goods no market trades, and
+//     boxes out of town, are heirlooms: there from the first look, never
+//     replaced. What is stolen is gone from the owner's store; the owner buys
+//     it again from the market at the next restock.
 //
 // Whether you may simply take something depends on where it is (access()):
 //   own    a building you own                  → take freely
@@ -32,6 +40,7 @@ import { Underworld } from './underworld.js';
 import { Laws } from './laws.js';
 import { Ledger } from './ledger.js';
 import { SocialSkills } from './socialSkills.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -148,14 +157,85 @@ export const Containers = {
         const period = Containers.period(world);
         let rec = player.containerLoot[k];
         if (!rec || rec.period !== period) {
-            rec = { period, taken: {} };
+            // (an out-of-town owner's store outlives the period: nothing restocks it)
+            rec = rec && rec.larder ? { period, taken: {}, larder: rec.larder } : { period, taken: {} };
             player.containerLoot[k] = rec;
         }
         return rec;
     },
 
+    /** The town whose townsfolk own a container (its house, shop or street), or null. */
+    town(world, ctx) {
+        if (!ctx || !ctx.inSettlement || !world || typeof world.getTile !== 'function') return null;
+        const t = world.getTile(ctx.worldQ, ctx.worldR);
+        return (t && t.settlement) || null;
+    },
+
+    /**
+     * The owner's store in someone else's container: { period, stock, stolen,
+     * bought } (whole units). What the place wants is the roll (stocked());
+     * the owner gets it from real sources:
+     *   in a town  — at each restock period the household or business tops
+     *                the box up to that out of the town's market stock
+     *                (SettlementMarket.take: bought from the town's own
+     *                sellers, so the coin stays in the town's purse); a market
+     *                short of a good leaves the box short. Kept on the
+     *                settlement (settlement.larders[key], saved with the tile).
+     *   heirlooms  — goods no market trades (old coins, an amulet), and
+     *                everything in a building out of town, are there from the
+     *                first look and never replaced: kept on the player's record.
+     * Stolen goods leave the store for good; the owner buys again from the
+     * market at the next restock, so a theft takes goods out of the town.
+     * Null when there is nowhere to keep it (no town, no player: a preview).
+     */
+    larder(player, world, ctx) {
+        const s = Containers.town(world, ctx);
+        const k = Containers.key(ctx);
+        let rec;
+        if (s) {
+            if (!s.larders || typeof s.larders !== 'object') s.larders = {};
+            rec = s.larders[k];
+            if (!rec) rec = s.larders[k] = { period: null, stock: {}, stolen: {}, bought: 0 };
+        } else if (player) {
+            if (!player.containerLoot) player.containerLoot = {};
+            const pr = player.containerLoot[k] || (player.containerLoot[k] = { period: Containers.period(world), taken: {} });
+            rec = pr.larder;
+            if (!rec) rec = pr.larder = { period: null, stock: {}, stolen: {}, bought: 0 };
+        } else {
+            return null;
+        }
+        const period = Containers.period(world);
+        if (rec.period === period) return rec;
+        const first = rec.period == null;
+        // Out of town nothing is replaced once it's gone: only the first look stocks it
+        if (!s && !first) { rec.period = period; return rec; }
+        for (const [id, n] of Object.entries(Containers.stocked(world, ctx))) {
+            const have = _num(rec.stock[id]);
+            if (have >= n) continue;
+            if (s && SettlementMarket.tracks(id)) {
+                const want = Math.min(n - have, SettlementMarket.available(s, id));
+                const got = want > 0 ? Math.floor(SettlementMarket.take(s, id, want) + 1e-9) : 0;
+                if (got > 0) {
+                    rec.stock[id] = have + got;
+                    rec.bought = _num(rec.bought) + got;
+                }
+            } else if (first) {
+                rec.stock[id] = n;
+            }
+        }
+        rec.period = period;
+        return rec;
+    },
+
     /** What's in it now: { goodId: qty }. */
     contents(player, world, ctx) {
+        if (Containers.access(ctx) === 'steal') {
+            const rec = Containers.larder(player, world, ctx);
+            if (!rec) return Containers.stocked(world, ctx);
+            const out = {};
+            for (const [id, n] of Object.entries(rec.stock)) if (_num(n) >= 1) out[id] = Math.floor(n);
+            return out;
+        }
         const stock = Containers.stocked(world, ctx);
         const k = Containers.key(ctx);
         const rec = player && player.containerLoot && player.containerLoot[k];
@@ -259,8 +339,14 @@ export const Containers = {
         if (n <= 0) return { ok: false, caught: false, text: 'There is none left.' };
         const res = Containers.stealGoods(player, world, ctx, goodId, n, scene);
         if (res.ok) {
-            const rec = Containers._record(player, world, ctx);
-            rec.taken[goodId] = _num(rec.taken[goodId]) + n;
+            // Out of the owner's store for good: the owner is that much poorer
+            const rec = Containers.larder(player, world, ctx);
+            if (rec) {
+                rec.stock[goodId] = Math.max(0, _num(rec.stock[goodId]) - n);
+                if (!rec.stock[goodId]) delete rec.stock[goodId];
+                if (!rec.stolen) rec.stolen = {};
+                rec.stolen[goodId] = _num(rec.stolen[goodId]) + n;
+            }
         }
         return res;
     },

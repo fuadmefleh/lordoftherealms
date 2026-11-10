@@ -11,7 +11,7 @@
 // (SOAK_DAYS overrides both). A death no longer ends the run: the heir takes
 // over, or a new life begins (harness.carryOn), so a long run crosses
 // generations. The game is saved and reloaded at the midpoint and every 20
-// years. SOAK_VERBOSE=1 prints each run's stats, gold ledger, lives and its
+// years (SOAK_TIMEOUT ms overrides the per-seed timeout on a busy machine). SOAK_VERBOSE=1 prints each run's stats, gold ledger, lives and its
 // growth by year (ms/day, save size) — a slow leak shows there first.
 
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -40,7 +40,7 @@ const DAYS = Number(ENV.SOAK_DAYS) || YEARS * DAYS_PER_YEAR;
 const SAVE_AT = Math.floor(DAYS / 2);
 const SAVE_EVERY = 20 * DAYS_PER_YEAR;
 // A day costs ~60-150ms late in a run (the world fills up); generous for the slow years
-const TIMEOUT = Math.max(150000, DAYS * 400);
+const TIMEOUT = Number(ENV.SOAK_TIMEOUT) || Math.max(150000, DAYS * 400);
 const GOLD_CAP = 1e7;
 
 // The engine logs chattily (pathfinding, generation); keep the run quiet

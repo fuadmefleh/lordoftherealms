@@ -28,6 +28,7 @@ import { loadData, newGame, endDay, roundTrip, carryOn } from './playtest/harnes
 import { SaveLoad } from '../systems/saveLoad.js';
 import { RivalHouses } from '../systems/rivalHouses.js';
 import { botDay, personaOf } from './playtest/bot.js';
+import { Scenarios } from '../player/scenarios.js';
 
 const ENV = (typeof process !== 'undefined' && process.env) || {};
 const LONG = !!ENV.SOAK;
@@ -261,9 +262,12 @@ function guardianProblems(game, phase) {
 
 // SOAK_GEN='{"startYear":1}' plays other worlds (here: one begun at the Dawn of Man)
 const SOAK_GEN = ENV.SOAK_GEN ? JSON.parse(ENV.SOAK_GEN) : {};
+// SOAK_ORIGIN=monarch (or high_priest, great_lord, ...) begins each run with that origin (player/scenarios.js)
+const SOAK_ORIGIN = ENV.SOAK_ORIGIN || null;
 
 function runSoak(seed) {
     let game = newGame(seed, SOAK_GEN);
+    if (SOAK_ORIGIN) Scenarios.apply(game.player, game.world, { origin: SOAK_ORIGIN });
     const stats = {};
     const problems = [];
     const arbitrage = new Set();

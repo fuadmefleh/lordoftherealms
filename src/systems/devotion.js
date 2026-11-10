@@ -156,6 +156,9 @@ export const Devotion = {
      */
     creed(player) {
         if (player && player.religion && player.religion.name) {
+            // A High Priest leads a world faith (player/scenarios.js): its creed is that faith's
+            const wf = player.religion.worldFaithId && Religion.FAITHS[player.religion.worldFaithId];
+            if (wf) return { id: wf.id, name: wf.name, icon: wf.icon || '🙏', own: true, tenets: player.religion.tenets || [] };
             return { id: 'own', name: player.religion.name, icon: '🕯️', own: true, tenets: player.religion.tenets || [] };
         }
         const st = player && _obj(player.devotion);
@@ -212,7 +215,7 @@ export const Devotion = {
     placeFaith(world, tile, place, player = null) {
         if (!tile) return null;
         if (place === 'holy' && tile.holySite) return tile.holySite.faithId || null;
-        if (tile.religiousBuilding && player && player.religion && tile.religiousBuilding.religion === player.religion.name) return 'own';
+        if (tile.religiousBuilding && player && player.religion && tile.religiousBuilding.religion === player.religion.name) return player.religion.worldFaithId || 'own';
         if (place === 'temple' || place === 'altar') {
             const s = tile.settlement;
             const kid = (s && s.kingdom) || tile.kingdom;

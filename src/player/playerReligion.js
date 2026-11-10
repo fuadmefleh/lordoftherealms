@@ -14,6 +14,7 @@ import { Ledger } from '../systems/ledger.js';
 import { House } from '../systems/house.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { TownLabour } from '../world/townLabour.js';
+import { CrownBooks } from '../world/crownBooks.js';
 
 /** Fallback preaching tuning (data/religion.json → preaching overrides). */
 const PREACH_DEFAULTS = {
@@ -159,7 +160,9 @@ export const PlayerReligion = {
             };
             if (!kingdom.isAlive) continue;
             const faith = Religion.getKingdomFaith(kingdom);
-            const zealous = faith && faith.virtues && faith.virtues.militancy >= cfg.militantMilitancy;
+            // (zealots resent a rival faith's devoted, never their own High Priest's)
+            const zealous = faith && faith.virtues && faith.virtues.militancy >= cfg.militantMilitancy
+                && faith.id !== religion.worldFaithId;
             const delta = zealous
                 ? -n * cfg.militantPenaltyPerDevoted
                 : Math.min(cfg.maxReputationPerDay, n * cfg.reputationPerDevoted * warmth);
@@ -177,6 +180,43 @@ export const PlayerReligion = {
                 player.reputation[kingdom.id] = after;
                 out.reputation[kingdom.id] = after - before;
             }
+        }
+        // A High Priest's see (player/scenarios.js): the faithful realms tithe
+        if (religion.worldFaithId) out.tithe = PlayerReligion.collectTithes(player, world);
+        return out;
+    },
+
+    /**
+     * The tithe to a High Priest's see: each living realm keeping the faith
+     * the player heads pays a share (religion.titheShare) of its pilgrims'
+     * gold that day (kingdom.religion.pilgrimIncome, Religion.processTurn)
+     * and a small share (titheRevenueShare) of the crown's daily revenue
+     * (world/crownBooks.js), out of its own treasury, never more than it holds. Real gold moving
+     * from crowns to the see. Returns { gold, realms }.
+     */
+    collectTithes(player, world) {
+        const out = { gold: 0, realms: 0 };
+        const religion = player && player.religion;
+        const fid = religion && religion.worldFaithId;
+        if (!fid || !world || !Array.isArray(world.kingdoms)) return out;
+        const share = Math.max(0, Math.min(1, Number(religion.titheShare) || 0));
+        const revShare = Math.max(0, Math.min(0.2, Number(religion.titheRevenueShare) || 0));
+        if (share <= 0 && revShare <= 0) return out;
+        for (const k of world.kingdoms) {
+            if (!k || !k.isAlive || !k.religion || k.religion.faithId !== fid) continue;
+            // (the pilgrims' gold, and the tithe of the crown's own daily revenue)
+            const due = Math.floor((Number(k.religion.pilgrimIncome) || 0) * share
+                + (CrownBooks.enabled() ? CrownBooks.lastRevenue(k) : 0) * revShare);
+            const paid = Math.max(0, Math.min(due, Math.floor(Number(k.treasury) || 0)));
+            if (paid <= 0) continue;
+            k.treasury -= paid;
+            out.gold += paid;
+            out.realms++;
+        }
+        if (out.gold > 0) {
+            player.gold = (player.gold || 0) + out.gold;
+            Ledger.record(player, 'faith', out.gold);
+            religion.titheTotal = (religion.titheTotal || 0) + out.gold;
         }
         return out;
     },
@@ -901,7 +941,8 @@ export const PlayerReligion = {
         const base = (1 + (player.charisma || 0) * 0.1 + (player.faith || 0) * 0.1) * PlayerReligion.conversionMultiplier(player);
         const effectiveness = base * Math.max(C.minEffect, 1 - saturation) * (1 + weakBonus);
         let hostility = 0;
-        if (church) {
+        // The clergy of a realm keep their head's own faith: a High Priest preaches with their blessing
+        if (church && !(religion && religion.worldFaithId && church.faith.id === religion.worldFaithId)) {
             const H = C.hostility;
             const pop = Math.max(1, settlement.population || 0);
             const clergyShare = (TownLabour.counts(settlement).clergy || 0) / pop;

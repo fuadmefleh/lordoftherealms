@@ -154,7 +154,7 @@ function _vassalsTab(player, world) {
     for (const s of Kingship.vassalSummary(player, world).sort((a, b) => b.power - a.power)) {
         const v = s.vassal;
         html += `<div style="${CARD}${v.rebel ? 'border-color:rgba(231,76,60,0.6);' : ''}">`;
-        html += `<div style="font-weight:bold;">${v.rebel ? '🔥 ' : ''}${_esc(s.name)} <span style="${MUTED}">of ${_esc(s.seatName)} · age ${v.age} · ${_esc(s.traits.join(', '))}</span></div>`;
+        html += `<div style="font-weight:bold;">${v.rebel ? '🔥 ' : ''}${v.pretender ? '<span title="Of the old royal line: says the throne is theirs" style="color:#e67e22;">🗡️ Pretender</span> ' : ''}${_esc(s.name)} <span style="${MUTED}">of ${_esc(s.seatName)} · age ${v.age} · ${_esc(s.traits.join(', '))}</span></div>`;
         html += `<div style="font-size:11px;">Opinion <span style="color:${_opinionColor(s.opinion)};font-weight:bold;">${_sign(s.opinion)}</span> (heading ${_sign(s.forecast.target)}) · power ${s.power} · ambition ${v.ambition} · honor ${v.honor} · seeks ${_esc(s.goals.join(', '))}${v.kin ? ' · 💍 kin' : ''}${s.refusing ? ' · <span style="color:#e74c3c;">refusing the levy</span>' : ''}${s.cowed ? ' · cowed' : ''}${s.faction && s.faction.revealed ? ' · <span style="color:#e67e22;">in a faction</span>' : ''}</div>`;
         html += `<div style="${MUTED}">${s.forecast.parts.map(p => `${_esc(p.label)} ${_sign(p.value)}`).join(' · ')}</div>`;
         if (!v.rebel) {

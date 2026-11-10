@@ -270,11 +270,33 @@ export default function SettingsScreen() {
             <div className="input-row">
               <label htmlFor="origin">Origin:</label>
               <select id="origin" value={settings.origin} onChange={e => handleOrigin(e.target.value)}>
-                {ORIGINS.map(([id, o]) => <option key={id} value={id}>{`${o.icon || ''} ${o.name || id}`.trim()}</option>)}
+                <optgroup label="Origins: start small">
+                  {ORIGINS.filter(([, o]) => o.group !== 'advanced').map(([id, o]) => <option key={id} value={id}>{`${o.icon || ''} ${o.name || id}`.trim()}</option>)}
+                </optgroup>
+                <optgroup label="Advanced starts: begin high">
+                  {ORIGINS.filter(([, o]) => o.group === 'advanced').map(([id, o]) => <option key={id} value={id}>{`${o.icon || ''} ${o.name || id}`.trim()}</option>)}
+                </optgroup>
               </select>
             </div>
             <div className="settings-hint" style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 8px' }}>
+              {(_find(ORIGINS, settings.origin) || {}).group === 'advanced' && (
+                <strong style={{ color: 'var(--gold, #f5c542)' }}>Advanced start: you take over a real seat of power from day one, with its rivals. </strong>
+              )}
               {(_find(ORIGINS, settings.origin) || {}).blurb}
+            </div>
+            <div className="origin-cards" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '0 0 8px' }}>
+              {ORIGINS.filter(([, o]) => o.group === 'advanced').map(([id, o]) => (
+                <button key={id} type="button" title={o.blurb} onClick={() => handleOrigin(id)}
+                  className="origin-card-btn"
+                  style={{
+                    fontSize: '11px', padding: '3px 7px', cursor: 'pointer', borderRadius: '4px',
+                    border: `1px solid ${settings.origin === id ? 'var(--gold, #f5c542)' : 'rgba(255,255,255,0.2)'}`,
+                    background: settings.origin === id ? 'rgba(245,197,66,0.18)' : 'rgba(0,0,0,0.25)',
+                    color: 'inherit',
+                  }}>
+                  {`${o.icon || ''} ${o.name || id}`.trim()}
+                </button>
+              ))}
             </div>
             <SelectInput {...bind} id="difficulty" label="Difficulty:" field="difficulty"
               options={DIFFICULTIES.map(([id, d]) => [id, d.name || id])} />

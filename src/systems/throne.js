@@ -1224,6 +1224,40 @@ export const Throne = {
         return { success: true, message: `You abdicate. ${k.ruler} takes the throne of ${k.name}.` };
     },
 
+    /**
+     * The player's line ends on the throne (a death with no heir taken up, a
+     * new life): the crown goes back to the realm. The eldest grown child of
+     * the old royal line still at court takes it, else a kinsman of the
+     * realm's dynasty. The realm's AI runs it again from the next day.
+     * Returns the new ruler's name, or null if the player ruled nothing.
+     */
+    passCrown(player, world, how = 'died') {
+        const st = Throne.state(player);
+        const k = Throne.ruledKingdom(player, world);
+        if (!k) return null;
+        Throne._archiveReign(player, world, how, k);
+        st.ruling = null;
+        const data = k.characterData;
+        const royal = data && Array.isArray(data.children)
+            ? data.children.filter(c => c && c.isAlive !== false && (c.age || 0) >= 16).sort((a, b) => (b.age || 0) - (a.age || 0))[0]
+            : null;
+        const heir = royal || Characters.generateCharacter({
+            culture: k.culture, age: Utils.randInt(25, 45),
+            dynasty: data && data.dynasty ? data.dynasty.name : undefined,
+            isRuler: true,
+        });
+        if (royal) data.children = data.children.filter(c => c !== royal);
+        const playerRuler = data && data.ruler && data.ruler.isPlayer ? data.ruler : null;
+        Throne._installRuler(world, k, heir);
+        if (playerRuler) { playerRuler.isAlive = false; playerRuler.deposed = false; }
+        if (player.allegiance === k.id) { player.allegiance = null; player.kingdomTitle = null; }
+        Throne.syncCrowns(player, world);
+        const text = `👑 The crown of ${k.name} passes to ${k.ruler}.`;
+        Throne._log(player, world, text);
+        if (world && Array.isArray(world.events)) world.events.push({ text, type: 'political', category: 'political', kingdom: k.id });
+        return k.ruler;
+    },
+
     /** Today's levy rate from the tax policy. */
     levyRate(player) {
         const r = Throne.state(player).ruling;

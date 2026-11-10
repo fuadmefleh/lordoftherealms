@@ -153,18 +153,21 @@ export const Battlefield = {
         h = Math.min(h, field.h - 2);
         const px = prefer ? prefer.q : field.w / 2, py = prefer ? prefer.r : field.h / 2;
         let best = null;
-        const stepX = Math.max(2, Math.floor(w / 6)), stepY = Math.max(2, Math.floor(h / 6));
+        const stepX = Math.max(2, Math.floor(w / 8)), stepY = Math.max(2, Math.floor(h / 8));
         for (let y0 = 1; y0 + h < field.h - 1; y0 += stepY) {
             for (let x0 = 1; x0 + w < field.w - 1; x0 += stepX) {
                 let open = 0, n = 0;
                 for (let y = y0; y < y0 + h; y += 2) {
                     for (let x = x0; x < x0 + w; x += 2) {
                         n++;
-                        if (field.pass(x, y)) open += field.cover(x, y) ? 0.6 : 1;
+                        // (a town's streets and yards count for little: armies meet outside the walls)
+                        if (field.pass(x, y)) open += field.cover(x, y) ? 0.6 : (field.town && field.town(x, y) ? 0.25 : 1);
                     }
                 }
                 const cx = x0 + w / 2, cy = y0 + h / 2;
-                const score = open / Math.max(1, n) - _dist(cx, cy, px, py) / (field.w + field.h) * 0.6;
+                // Open ground first (a field, not a town's streets), then near where you stand
+                const share = open / Math.max(1, n);
+                const score = share * share * share - _dist(cx, cy, px, py) / (field.w + field.h) * 0.25;
                 if (!best || score > best.score) best = { x0, y0, x1: x0 + w, y1: y0 + h, cx, cy, score };
             }
         }
@@ -263,8 +266,8 @@ export const Battlefield = {
             }
         }
 
-        // The player's side, from the army itself
-        const groups = Battlefield._playerGroups(player, battle.theatre);
+        // The player's side, from the army itself (a realm's host: from its composition, below)
+        const groups = battle.host ? [] : Battlefield._playerGroups(player, battle.theatre);
         const pTotal = Math.max(1, battle.sim.pStr);
         const eTotal = Math.max(1, battle.sim.eStr);
         const gWeight = groups.reduce((s, g) => s + g.weight, 0) || 1;
@@ -283,19 +286,8 @@ export const Battlefield = {
         // The enemy's, from what is known of them (their composition)
         const eTypes = Battlefield._enemyTypes(opts.enemy || { name: battle.enemyName, type: battle.enemyType });
         bf.enemyInfo.rabble = eTypes.rabble;
-        const eSpecs = [];
-        for (const role of ['pikeman', 'archer', 'cavalry']) {
-            const share = battle.eComp[role] || 0;
-            if (share < 0.06) continue;
-            const str = eTotal * share;
-            for (const part of Battlefield._split(str, strPerFig, cfg)) {
-                eSpecs.push({ side: 'enemy', kind: KIND_OF_ROLE[role], typeId: eTypes[role], str: part.str, figs: part.figs, units: [] });
-            }
-        }
-        if (!eSpecs.length) eSpecs.push({ side: 'enemy', kind: 'foot', typeId: eTypes.pikeman, str: eTotal, figs: Math.max(cfg.minFiguresPerCompany, Math.round(eTotal / strPerFig)), units: [] });
-        // (the remaining shares re-normalised, so the side's strength is whole)
-        const eSum = eSpecs.reduce((s, c) => s + c.str, 0);
-        for (const c of eSpecs) c.str *= eTotal / eSum;
+        const eSpecs = Battlefield._compSpecs('enemy', battle.eComp, eTotal, strPerFig, eTypes);
+        if (battle.host) pSpecs.push(...Battlefield._compSpecs('player', battle.pComp, pTotal, strPerFig, { pikeman: 'soldier', archer: 'archer', cavalry: 'knight' }));
 
         // The spoils are what the beaten carried: a world unit's purse, or the purse handed in
         // (a host's war chest) — FieldBattle.finish takes the loot out of it, minting nothing
@@ -328,6 +320,24 @@ export const Battlefield = {
         }
         bf.log.push({ t: 0, text: `The armies are drawn up: your ${pc.length} compan${pc.length === 1 ? 'y' : 'ies'} against the ${battle.enemyName}.` });
         return bf;
+    },
+
+    /** A side's companies from a composition: [{ side, kind, typeId, str, figs, units: [] }]. */
+    _compSpecs(side, comp, total, strPerFig, types) {
+        const cfg = Battlefield.config();
+        const out = [];
+        for (const role of ['pikeman', 'archer', 'cavalry']) {
+            const share = comp[role] || 0;
+            if (share < 0.06) continue;
+            for (const part of Battlefield._split(total * share, strPerFig, cfg)) {
+                out.push({ side, kind: KIND_OF_ROLE[role], typeId: types[role], str: part.str, figs: part.figs, units: [] });
+            }
+        }
+        if (!out.length) out.push({ side, kind: 'foot', typeId: types.pikeman, str: total, figs: Math.max(cfg.minFiguresPerCompany, Math.round(total / strPerFig)), units: [] });
+        // (the shares left re-normalised, so the side's strength is whole)
+        const sum = out.reduce((s, c) => s + c.str, 0);
+        for (const c of out) c.str *= total / sum;
+        return out;
     },
 
     /** Split a strength into companies of at most maxFiguresPerCompany figures. */
@@ -1167,6 +1177,89 @@ export const Battlefield = {
      * to date (sim, log, outcome) and FieldBattle.finish run — the usual
      * aftermath. Returns battle.result.
      */
+    // ── A realm's host (the General: player/generalship.js) ────────────
+
+    /**
+     * The battle a general fights with the crown's host, drawn up from a
+     * Generalship.prepareBattle spec: { kind, where { terrainId }, host { men,
+     * retinue, quality, morale, composition, kingdomName }, enemy { men,
+     * quality, composition, kingdomName } }. The host's quality and the
+     * enemy's stand in for the army multipliers (FieldBattle.start's pMult /
+     * eMult); terrain and weather by composition as ever. Returns a battle
+     * object Battlefield.create takes — its companies carry no units (the
+     * host's men are counted, not listed): read the end with hostOutcome().
+     */
+    hostBattle(player, world, spec, ctx = {}) {
+        const comp = (c) => PlayerMilitary._normalizeComposition(c || {});
+        const pComp = comp(spec.host.composition);
+        const eComp = comp(spec.enemy.composition);
+        const terrainId = (spec.where && spec.where.terrainId) || null;
+        const weather = PlayerMilitary._battleWeather(player, { world, ...ctx });
+        const pStr = Math.max(1, (Number(spec.host.men) || 0) + (Number(spec.host.retinue) || 0));
+        const eStr = Math.max(1, Number(spec.enemy.men) || 1);
+        const byComp = (c) => PlayerMilitary._terrainMultiplier(terrainId, c) * PlayerMilitary._weatherMultiplier(weather, c);
+        const morale = _clamp((Number(spec.host.morale) || 60) / 100, 0, 1);
+        return {
+            id: spec.id || `host_${(world && world.day) || 0}`,
+            seed: (Math.abs(Utils.hashStr(`host:${spec.id}:${pStr}:${eStr}`)) % 200000) + 1,
+            enemyName: `${spec.enemy.kingdomName || 'enemy'} army`,
+            enemyType: 'war_host',
+            enemyIcon: '⚔️',
+            unitId: null,
+            theatre: 'land',
+            terrainId,
+            weather,
+            defending: !!ctx.defending,
+            ambushed: false,
+            pComp, eComp,
+            leadership: (player.skills?.leadership || 1) * 0.015 + (morale - 0.6) * 0.3,
+            leadershipSkill: player.skills?.leadership || 1,
+            enemyMoraleBonus: 0,
+            pMult: byComp(pComp) * (Number(spec.host.quality) || 1),
+            eMult: byComp(eComp) * (Number(spec.enemy.quality) || 1),
+            pCasMult: 1,
+            personal: FieldBattle.personalEdge(player),
+            fortune: 1,
+            pStr0: pStr, eStr0: eStr,
+            sim: { pStr, eStr, phase: 0, score: 0, reservesUsed: false, routed: null },
+            log: [], casualties: 0, wounded: 0, outcome: null, done: false, result: null,
+            host: true,
+        };
+    },
+
+    /**
+     * The end of a host battle, in Generalship.settleBattle's terms:
+     * { victory, hostLost, enemyLost, retinueLost, withdrew } — the share of
+     * each side's strength lost on the field (the host's men × lossToUnits,
+     * the scattered come back), the retinue's only in a defeat or retreat.
+     */
+    hostOutcome(bf, spec) {
+        const cfg = Battlefield.config();
+        const fb = FieldBattle.config();
+        if (!bf.over) bf.over = { winner: Battlefield._byScore(bf), how: 'ended' };
+        const pursuit = fb.phases[fb.phases.length - 1];
+        const lossShare = (side) => {
+            const cs = bf.companies.filter(c => c.side === side);
+            const str0 = cs.reduce((s, c) => s + c.str0, 0) || 1;
+            const left = cs.reduce((s, c) => {
+                const ran = c.state === 'routed' || (c.state === 'fled' && c.left === 'routed');
+                return s + Math.max(0, c.str) * (ran ? 1 - pursuit.lossBase * fb.rout.lossMult : 1);
+            }, 0);
+            return _clamp(1 - left / str0, 0, 1);
+        };
+        const victory = bf.over.winner === 'player';
+        const pShare = lossShare('player') * cfg.lossToUnits;
+        const eShare = lossShare('enemy') * (spec.kind === 'assault' && victory ? 1 : cfg.lossToUnits);
+        return {
+            victory,
+            withdrew: bf.over.winner === 'withdrew',
+            hostLost: Math.round((Number(spec.host.men) || 0) * pShare),
+            enemyLost: Math.round((Number(spec.enemy.men) || 0) * eShare),
+            retinueLost: victory ? 0 : Math.ceil((Number(spec.host.retinueUnits) || 0) * pShare),
+            seconds: Math.round(bf.t),
+        };
+    },
+
     conclude(player, bf, world) {
         const b = bf.battle;
         if (b.done) return b.result;

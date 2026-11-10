@@ -226,3 +226,34 @@ describe('the fight', () => {
         expect(typeof result.victory).toBe('boolean');
     });
 });
+
+describe("a realm's host (the General)", () => {
+    const spec = (men, enemyMen) => ({
+        id: 'gb_test', kind: 'field', day: 10, where: { q: 0, r: 0, terrainId: 'plains' },
+        host: { kingdomId: 'k1', kingdomName: 'Avel', men, retinue: 0, retinueUnits: 4, quality: 1.1, morale: 70, composition: { cavalry: 0.3, archer: 0.28, pikeman: 0.42 } },
+        enemy: { kingdomId: 'k2', kingdomName: 'Dorn', men: enemyMen, quality: 1, composition: { cavalry: 0.3, archer: 0.3, pikeman: 0.4 } },
+    });
+
+    it("draws the host up from its composition and returns Generalship.settleBattle's outcome shape", () => {
+        Utils.setSeed(21);
+        const world = makeWorld();
+        const player = makePlayer();
+        const sp = spec(400, 150);
+        const battle = Battlefield.hostBattle(player, world, sp);
+        const bf = Battlefield.create(player, battle, Battlefield.openField(64, 40), { world });
+        const mine = bf.companies.filter(c => c.side === 'player');
+        expect(new Set(mine.map(c => c.kind))).toEqual(new Set(['foot', 'archer', 'horse']));
+        expect(mine.every(c => c.units.length === 0)).toBe(true);
+        // hundreds of men stand on the field as a few dozen figures
+        expect(mine.reduce((s, c) => s + c.figures.length, 0)).toBeLessThanOrEqual(Battlefield.config().maxFiguresPerSide + 6);
+        Battlefield.fightOut(bf);
+        const out = Battlefield.hostOutcome(bf, sp);
+        expect(out.victory).toBe(true);
+        expect(out.hostLost).toBeGreaterThanOrEqual(0);
+        expect(out.hostLost).toBeLessThan(400);
+        expect(out.enemyLost).toBeGreaterThan(0);
+        expect(out.retinueLost).toBe(0);
+        // the player's own army is untouched by a host battle
+        expect(player.army.length).toBe(0);
+    });
+});

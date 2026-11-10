@@ -6,6 +6,7 @@
 import { ActionMenu } from './_ref.js';
 import { Generalship } from '../../player/generalship.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, BTN_OFF, CARD, esc, bullets } from './uiKit.js';
+import { InnerMapBattle } from '../innerMapBattle.js';
 
 const HEAD = 'font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 12px 0 4px; color: var(--gold);';
 const AP = { battle: 2, assault: 2, besiege: 1, raid: 2, address: 1 };
@@ -174,6 +175,44 @@ Object.assign(ActionMenu, {
         const ap = AP[action] || 0;
         if (ap && (player.actionPoints || 0) < ap) {
             game.ui.showNotification('⚡ Not Enough Action Points', `This needs ${ap} AP — rest to start a new day.`, 'error');
+            return;
+        }
+        // Giving battle: on the field yourself (ui/innerMapBattle.js), or the captains' one roll
+        if (action === 'battle' && args[1] !== 'captains') {
+            const id = args[0];
+            game.ui.showCustomPanel('⚔️ Give Battle', `<div style="padding:4px 2px;">
+                ${_btn('⚔️ Take the field — command the host yourself', 'fieldBattle', [id], BTN_GOLD + 'display:block;width:100%;text-align:left;padding:9px 10px;')}
+                <div style="font-size:11px;color:#999;margin:2px 0 8px;">The host drawn up on the ground where the armies meet: march, hold, charge, loose, sound the retreat.</div>
+                ${_btn('🎲 Let the captains fight it', 'battle', [id, 'captains'], BTN_DARK + 'display:block;width:100%;text-align:left;padding:8px 10px;')}
+                <div style="font-size:11px;color:#999;margin-top:2px;">Settled at once on the odds.</div></div>`);
+            return;
+        }
+        if (action === 'fieldBattle') {
+            const c = Generalship.state(player);
+            const day = Number(world.day) || 0;
+            const minMen = Number((Generalship.config().host || {}).minMen) || 10;
+            const why = !c ? 'You hold no commission.' : c.siege ? `Your host is tied down before ${c.siege.name}.`
+                : c.lastBattleDay === day ? 'The host fought today. It needs a night to re-form.'
+                    : (Number(c.men) || 0) < minMen ? 'Your host is too few to give battle.' : null;
+            const prep = why ? null : Generalship.prepareBattle(player, world, 'field', { enemyId: args[0] });
+            if (why || !prep.spec) {
+                game.ui.showNotification('🎖️ Army Command', why || prep.reason, 'error');
+                return;
+            }
+            player.actionPoints -= AP.battle;
+            InnerMapBattle.openHost(game, prep.spec, {
+                onDone: (outcome) => {
+                    const r = Generalship.settleBattle(player, world, prep.spec, outcome);
+                    game.ui.updateStats(player, world);
+                    const msg = outcome && outcome.withdrew ? `You sounded the retreat. ${r.message || ''}` : r.message;
+                    ActionMenu.showArmyCommand(game, { html: esc(msg || 'The battle is over.'), color: r.victory ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.5)' });
+                },
+            }).then((ok) => {
+                if (ok) return;
+                // No ground to fight on: the captains' roll
+                const r = Generalship.settleBattle(player, world, prep.spec, Generalship.autoResolve(prep.spec));
+                ActionMenu.showArmyCommand(game, { html: esc(r.message || 'Done.'), color: r.victory ? 'rgba(127,208,127,0.4)' : 'rgba(224,96,96,0.5)' });
+            });
             return;
         }
         let res;

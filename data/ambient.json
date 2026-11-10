@@ -108,7 +108,7 @@
     "parts": [
         { "id": "waterwheel", "art": "waterwheel", "on": { "buildingTypes": ["mill"] }, "place": "waterSide", "at": [0, 0.15], "spin": 0.18, "spray": "spray", "sprayRate": 6 },
         { "id": "windmill_sails", "art": "windmill_sails", "on": { "buildingTypes": ["mill"] }, "place": "roof", "unlessWater": true, "at": [0, 0.4], "spin": 0.1 },
-        { "id": "pennant", "art": "pennant", "on": { "buildingTypes": ["castle", "guard_tower", "barracks", "town_hall"] }, "place": "roof", "at": [0, -0.6], "fps": 8 },
+        { "id": "pennant", "art": "pennant", "on": { "buildingTypes": ["castle", "guard_tower", "barracks", "town_hall"] }, "place": "roof", "at": [0, 1.1], "fps": 8 },
         { "id": "well_bucket", "art": "well_bucket", "on": { "objects": ["tp_well"] }, "place": "object", "at": [1, 0], "fps": 6, "every": 14 }
     ]
 }

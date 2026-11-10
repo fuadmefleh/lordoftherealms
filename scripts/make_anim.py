@@ -19,6 +19,35 @@ TILE = 128
 DIR = 'assets/lpc/new/anim'
 # source: [(id, tiles)] in order left to right
 SOURCES = {'wheel_sails_source.png': [('waterwheel', 3), ('windmill_sails', 4)]}
+# animation strips: source -> (id, frames, tiles tall); the frames side by side, evenly spaced, the
+# same window cut from each (what stands still stays still), the pivot at the pole's foot
+STRIPS = {'pennant_source.png': ('pennant', 6, 1.6)}
+
+
+def strip(name, sid, frames, tall, manifest):
+    a = np.array(Image.open(os.path.join(DIR, 'source', name)).convert('RGBA'))
+    a[a[..., 3] <= 24] = 0
+    q = a.shape[1] / frames
+    x0s, x1s, y0s, y1s = [], [], [], []
+    for k in range(frames):
+        ys, xs = np.nonzero(a[:, int(k * q):int((k + 1) * q), 3] > 0)
+        x0s.append(xs.min()); x1s.append(xs.max() + 1); y0s.append(ys.min()); y1s.append(ys.max() + 1)
+    x0, x1, y0, y1 = min(x0s), max(x1s), min(y0s), max(y1s)
+    fh = round(tall * TILE)
+    fw = round((x1 - x0) * fh / (y1 - y0))
+    out = Image.new('RGBA', (fw * frames, fh), (0, 0, 0, 0))
+    for k in range(frames):
+        ox = int(k * q)
+        out.alpha_composite(Image.fromarray(a[y0:y1, ox + x0:ox + x1], 'RGBA').resize((fw, fh), Image.LANCZOS), (k * fw, 0))
+    out.save(os.path.join(DIR, f'{sid}.png'), optimize=True)
+    # the pole: the first frame's column of opaque pixels reaching furthest down, from the left
+    f0 = np.array(out.crop((0, 0, fw, fh)))[..., 3] > 40
+    low = [np.nonzero(f0[:, x])[0].max() if f0[:, x].any() else -1 for x in range(fw)]
+    deep = [x for x in range(fw) if low[x] >= max(low) - 2]
+    px = (min(deep) + max(deep)) / 2 / fw
+    manifest[sid] = {'file': f'{sid}.png', 'w': fw, 'h': fh, 'tilesW': round(fw / TILE, 3), 'tilesH': tall,
+                     'frames': frames, 'pivot': [round(px, 3), 1.0]}
+    print(f'{sid}: {frames} frames of {fw}x{fh}, pole at {px:.2f}')
 
 
 def hub(a):
@@ -54,6 +83,8 @@ def main():
             manifest[sid] = {'file': f'{sid}.png', 'w': size, 'h': size, 'tilesW': tiles, 'tilesH': tiles,
                              'frames': 1, 'pivot': [0.5, 0.5]}
             print(f'{sid}: {size}px, hub at ({cx:.0f}, {cy:.0f}) of {W}x{H}')
+    for name, (sid, frames, tall) in STRIPS.items():
+        strip(name, sid, frames, tall, manifest)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(manifest, f, indent=2)
         f.write('\n')

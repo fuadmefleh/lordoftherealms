@@ -304,6 +304,8 @@ Object.assign(ActionMenu, {
 
         const result = Colonization.foundPlayerColony(player, tile, world, q, r, name, policyId);
         if (result.success) {
+            // The colony stands: the founding panel is done with
+            game.ui.hideCustomPanel();
             game.ui.showNotification('Colony Founded!', `${name} has been established as your frontier colony!`, 'success');
             game.endDay();
         } else {

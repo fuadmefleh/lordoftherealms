@@ -4,6 +4,8 @@
 // by applyCheats() from the game loop.
 import { UI } from './core.js';
 import { Hex, House, PlayerMilitary } from './_imports.js';
+import { Parentage } from '../../player/parentage.js';
+import { Court } from '../../systems/court.js';
 
 // Movement granted by "infinite movement" — enough to cross a region in a day
 // without letting getReachableHexes flood the whole map
@@ -50,6 +52,12 @@ Object.assign(UI.prototype, {
             .map(u => btn('cheatAddUnits', `${u.icon || '⚔️'} ${u.name || u.id} ×5`, [u.id, 5]))
             .join('');
 
+        // The family section's status line
+        const pa = Parentage.state(player);
+        const family = [
+            pa && pa.active ? `Parents' trust ${Math.round(pa.trust)}${pa.grounded ? ' · grounded' : ''}` : (pa && pa.pending ? 'Not yet born' : 'No parents rule you'),
+            player.house ? `Court ${Court.members(player).length}/${Court.capacity(player)}` : 'No House',
+        ].join(' · ');
         const html = `
             <div class="cheats-panel">
                 <p class="cheat-note">Toggle with <kbd>\`</kbd> or <kbd>F9</kbd>.</p>
@@ -84,12 +92,81 @@ Object.assign(UI.prototype, {
                     ${btn('cheatSkipDays', '⏩ Skip 30 days', [30])}
                 </div>
 
+                <h4>Family &amp; Court</h4>
+                <div class="cheat-row">
+                    ${btn('cheatParentTrust', "🤝 +25 parents' trust", [25])}
+                    ${btn('cheatParentTrust', "🤝 Max parents' trust", [1000])}
+                    ${btn('cheatParentPardon', '🕊️ Clear strikes & grounding')}
+                    ${btn('cheatComeOfAge', '🎂 Come of age now')}
+                </div>
+                <div class="cheat-row">
+                    ${btn('cheatCourtFill', '👥 Fill the court')}
+                    ${btn('cheatCourtLoyal', '💛 Courtiers fully loyal')}
+                </div>
+                <p class="cheat-note">${family}</p>
+
                 <h4>Army</h4>
                 <div class="cheat-row">${units || '<em>No unit types loaded.</em>'}</div>
             </div>`;
 
         this.showCustomPanel('🧪 Cheats', html);
     },
+
+    // ── Family & Court (player/parentage.js, systems/court.js) ──
+
+    /** Raise the parents' trust (a big number = the most they can give). */
+    cheatParentTrust(amount) {
+        const pa = Parentage.state(this.game.player);
+        if (!pa || !pa.active) { this._cheatDone('Parents', 'No parents rule you now.'); return; }
+        const max = Number((Parentage.data().trust || {}).max) || 100;
+        pa.trust = Math.min(max, (Number(pa.trust) || 0) + amount);
+        this._cheatDone('Parents', `Their trust in you: ${Math.round(pa.trust)}`);
+    },
+
+    /** Wipe the strikes, the grounding and a stopped allowance. */
+    cheatParentPardon() {
+        const pa = Parentage.state(this.game.player);
+        if (!pa || !pa.active) { this._cheatDone('Parents', 'No parents rule you now.'); return; }
+        pa.strikes = [];
+        pa.grounded = null;
+        pa.cut = null;
+        this._cheatDone('Parents', 'All forgiven: no strikes, no grounding, the allowance flows again.');
+    },
+
+    /** Their rule ends as if you had come of age today. */
+    cheatComeOfAge() {
+        const { player, world } = this.game;
+        const pa = Parentage.state(player);
+        if (!pa || !pa.active) { this._cheatDone('Parents', 'No parents rule you now.'); return; }
+        const comeOfAge = Number(Parentage.data().comeOfAge) || 16;
+        if ((Number(player.age) || 0) < comeOfAge) player.age = comeOfAge;
+        const out = Parentage.end(player, world, 'age');
+        for (const n of out.notices || []) this.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+        this._cheatDone('Parents', `You are ${player.age}, and your own master.`);
+    },
+
+    /** Seat people you know at court, free, up to its capacity. */
+    cheatCourtFill() {
+        const { player, world } = this.game;
+        if (!player.house) { this._cheatDone('Court', 'You have no House to keep a court.'); return; }
+        let added = 0;
+        for (const { npc } of Court.prospects(player, world)) {
+            if (Court.members(player).length >= Court.capacity(player)) break;
+            if (Court._barred(player, world, npc)) continue;
+            const res = Court.join(player, world, npc.id, { free: true });
+            if (res && res.success !== false) added++;
+        }
+        this._cheatDone('Court', added ? `${added} joined your court (${Court.members(player).length}/${Court.capacity(player)}).`
+            : `Nobody more to seat: the court holds ${Court.members(player).length}/${Court.capacity(player)}, or you know no one who could come.`);
+    },
+
+    /** Every courtier as loyal as can be. */
+    cheatCourtLoyal() {
+        const court = Court.ensure(this.game.player);
+        for (const e of court) e.loyalty = 100;
+        this._cheatDone('Court', `${court.length} courtier${court.length === 1 ? '' : 's'} at full loyalty.`);
+    },
+
 
     _cheatDone(title, message) {
         const { player, world } = this.game;

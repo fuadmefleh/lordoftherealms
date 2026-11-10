@@ -562,6 +562,9 @@ Object.assign(InnerMap, {
             tiles.push(row);
         }
 
+        // The town's mill, moved to the water's edge once the water is laid (worlds since terrainGen 5)
+        let millOpts = null;
+
         // --- Settlement building placement ---
         // Must run BEFORE the grass layer so road tiles are excluded from
         // the grass mask and the 9-tile brush creates proper edges.
@@ -580,6 +583,8 @@ Object.assign(InnerMap, {
                 const culture = gen >= 3 ? Cultures.cultureOf(game.world, worldTile.settlement) : null;
                 const palette = culture ? Cultures.palette(worldTile.settlement.culture) : null;
                 const arch = culture && gen >= 4 ? Cultures.architecture(worldTile.settlement.culture) : null;
+                // (since terrainGen 5 the mill goes down to the water, once the water is laid: below)
+                if (gen >= 5) millOpts = { palette, arch };
                 const genResult = SettlementGenerator.generate(
                     tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5 }
                 );
@@ -626,8 +631,14 @@ Object.assign(InnerMap, {
         }
         // --- The hex's river across the map, bridged where a street crosses
         // it; then reeds, lilies and stones along the shores (world/innerMap/water.js; hash-placed) ---
+        let river = null;
         if (this._layRiver && (!atSea || terrainId === 'lake')) {
-            this._layRiver(tiles, worldTile, worldQ, worldR, game && game.world);
+            river = this._layRiver(tiles, worldTile, worldQ, worldR, game && game.world);
+        }
+        // --- The mill on the water's edge, its wheel in the stream (world/innerMap/mills.js;
+        // hash-placed: draws nothing from rng) ---
+        if (millOpts && this._millByWater) {
+            this._millByWater(tiles, worldTile, worldQ, worldR, { ...millOpts, riverPath: river && river.path });
         }
         if (this._dressWater) this._dressWater(tiles, worldQ, worldR);
 

@@ -3,9 +3,9 @@
 
   "ranks": [
     { "id": "captain",   "name": "Captain",              "icon": "🎖️", "share": 0.05, "maxMen": 150, "wage": 6,  "merit": 0,   "minFavour": 0,  "lieutenants": 1, "renown": 0,  "prestige": 0 },
-    { "id": "commander", "name": "Commander",            "icon": "🛡️", "share": 0.10, "maxMen": 300, "wage": 12, "merit": 30,  "minFavour": 45, "lieutenants": 2, "renown": 10, "prestige": 5 },
-    { "id": "general",   "name": "General",              "icon": "⚔️", "share": 0.18, "maxMen": 500, "wage": 22, "merit": 80,  "minFavour": 55, "lieutenants": 3, "renown": 25, "prestige": 12, "landGrant": 1 },
-    { "id": "marshal",   "name": "Marshal of the Realm", "icon": "🏰", "share": 0.28, "maxMen": 800, "wage": 35, "merit": 160, "minFavour": 65, "lieutenants": 4, "renown": 40, "prestige": 20, "landGrant": 1 }
+    { "id": "commander", "name": "Commander",            "icon": "🛡️", "share": 0.10, "maxMen": 300, "wage": 12, "merit": 40,  "minFavour": 45, "lieutenants": 2, "renown": 10, "prestige": 5 },
+    { "id": "general",   "name": "General",              "icon": "⚔️", "share": 0.18, "maxMen": 500, "wage": 22, "merit": 100, "minFavour": 55, "lieutenants": 3, "renown": 25, "prestige": 12, "landGrant": 1 },
+    { "id": "marshal",   "name": "Marshal of the Realm", "icon": "🏰", "share": 0.28, "maxMen": 800, "wage": 35, "merit": 250, "minFavour": 65, "lieutenants": 4, "renown": 40, "prestige": 20, "landGrant": 1 }
   ],
 
   "seek": { "minReputation": 0, "minMartial": 3, "minRenown": 5, "startFavour": 50, "startMorale": 60, "startSupplyDays": 8, "refusedCooldown": 20 },
@@ -73,7 +73,7 @@
 
   "fear": { "perRank": 10, "perShare": 120, "perRenown": 0.05, "perMerit": 0.12, "perFavour": -0.3, "paranoid": 15, "ambition": 10, "recallAt": 70, "recallBelowFavour": 50, "recallChance": 0.12, "recallFavour": -10 },
 
-  "favour": { "demoteBelow": 20, "dismissBelow": 8, "warWon": 12, "warLost": -10, "warWonMerit": 10, "realmBattleWon": 0.5, "realmBattleLost": -1.5, "realmMerit": 0.5, "minDaysInRank": 30 },
+  "favour": { "demoteBelow": 20, "dismissBelow": 8, "warWon": 12, "warLost": -10, "warWonMerit": 10, "realmBattleWon": 0.5, "realmBattleLost": -1.5, "realmMerit": 0.5, "minDaysInRank": 45 },
 
   "realmBattle": { "minMult": 0.85, "maxMult": 1.25, "rankBonus": 0.015 },
 
@@ -94,5 +94,5 @@
 
   "dismissal": { "reputation": -20, "resignReputation": -3 },
 
-  "start": { "rank": 2, "merit": 90, "favour": 55, "supplyDays": 12, "morale": 65, "veterancy": 0.15, "relations": -45, "rivalInfluence": 40 }
+  "start": { "rank": 2, "merit": 110, "favour": 55, "supplyDays": 12, "morale": 65, "veterancy": 0.15, "relations": -45, "rivalInfluence": 40 }
 }

@@ -11,6 +11,7 @@ import { CourierRiders } from '../../systems/courierRiders.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
+import { RealmArms } from '../../world/realmArms.js';
 import { Difficulty } from '../../core/difficulty.js';
 import { Utils, Technology, House, Quests, RealmWars, Throne, PlayerEffects, Housing, Culture, PlayerReligion, PlayerInventory, WorldEvents, WEATHER_EFFECTS, Economy, Arms } from './_imports.js';
 
@@ -219,12 +220,51 @@ Object.assign(PlayerMilitary, {
         return { casualties, woundedUnits };
     },
 
+    /**
+     * What the beaten carried in arms, for Arms.battleSpoils to strip: a
+     * { good: pieces } object it takes out of (and so out of its owner):
+     *   a rival House's retinue     its rival.arms stock
+     *   a realm's war host          the arms it took from the armoury (rec.arms)
+     *   a band with packs           the weapons/spears/shields in its inventory
+     *   a realm's men / a town's    their share of the realm's armoury (kingdom.
+     *   garrison                    armoury.stock: enemyStrength of its army)
+     * else null: nothing to strip. → { from, commit(taken) } (commit takes a share's strip out of its owner).
+     */
+    _armsSource(player, context = {}, enemyStrength = 0) {
+        // A host that marched with arms of its own (a siege's relief: context.armsFrom)
+        if (context.armsFrom && typeof context.armsFrom === 'object') return { from: context.armsFrom };
+        const unit = context.lootUnit;
+        if (unit && unit.rivalId != null) {
+            const rival = RivalHouses.rivalOfUnit(player, unit);
+            if (rival) return { from: RivalHouses.arms(rival).stock };
+        }
+        if (unit && unit.type === 'war_host') {
+            for (const war of Object.values((player.realmWars && player.realmWars.wars) || {})) {
+                const rec = (war.hosts || []).find(h => h.id === unit.id);
+                if (rec && rec.arms) return { from: rec.arms };
+            }
+        }
+        const kingdom = context.lootKingdom
+            || (context.lootTown && context.lootTown.kingdom != null && context.world && typeof context.world.getKingdom === 'function' ? context.world.getKingdom(context.lootTown.kingdom) : null);
+        if (kingdom && kingdom.armoury) {
+            // The fallen's share of the armoury: as many of its men as were beaten
+            const stock = RealmArms.state(kingdom).stock;
+            const share = Math.min(1, Math.max(0, Number(enemyStrength) || 0) / Math.max(1, (Number(kingdom.military) || 0) + (Number(enemyStrength) || 0)));
+            const view = {};
+            for (const [g, v] of Object.entries(stock)) view[g] = Math.floor((Number(v) || 0) * share);
+            // (what Arms takes from the view leaves the armoury)
+            return { from: view, commit: (taken) => { for (const [g, n] of Object.entries(taken || {})) stock[g] = Math.max(0, (Number(stock[g]) || 0) - n); } };
+        }
+        if (unit && unit.inventory) return { from: unit.inventory };
+        return null;
+    },
+
     /** The spoils source of a world unit: { lootPurse } (its inventory) or { lootKingdom }. */
     _unitLoot(unit, world) {
-        if (unit && unit.inventory) return { lootPurse: unit.inventory };
+        if (unit && unit.inventory) return { lootPurse: unit.inventory, lootUnit: unit };
         const kid = unit && (unit.kingdomId != null ? unit.kingdomId : unit.kingdom);
         const k = kid != null && world && typeof world.getKingdom === 'function' ? world.getKingdom(kid) : null;
-        return k ? { lootKingdom: k } : { lootPurse: null };
+        return k ? { lootKingdom: k, lootUnit: unit } : { lootPurse: null, lootUnit: unit || null };
     },
 
     /**
@@ -286,7 +326,9 @@ Object.assign(PlayerMilitary, {
             player.skills.combat = Math.min(10, player.skills.combat + 0.3);
             player.renown += Math.floor(enemyStrength / 10 * (1 + PlayerMilitary._worldEventRenownBonus(player, context)));
             // The beaten are stripped of their arms: spears, swords and shields off the field (systems/arms.js)
-            const armsTaken = theatre === 'sea' ? {} : Arms.battleSpoils(player, enemyStrength);
+            const armsSrc = theatre === 'sea' ? null : PlayerMilitary._armsSource(player, context, enemyStrength);
+            const armsTaken = armsSrc ? Arms.battleSpoils(player, enemyStrength, armsSrc.from) : {};
+            if (armsSrc && armsSrc.commit) armsSrc.commit(armsTaken);
             if (Object.keys(armsTaken).length) return { loot, armsTaken };
         } else if (player.army.length === 0 && Utils.random() < 0.4) {
             // Defeat — the player is captured! Enter indentured servitude

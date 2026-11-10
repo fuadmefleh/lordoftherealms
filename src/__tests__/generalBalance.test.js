@@ -136,7 +136,7 @@ function run(seed, keepWar = true) {
 }
 
 describe('the General career over months', () => {
-    const seeds = (process.env.GEN_SEEDS || '301,302,303').split(',').map(Number);
+    const seeds = (process.env.GEN_SEEDS || '301,302,303,304').split(',').map(Number);
     const results = [];
     for (const seed of seeds) {
         it(`seed ${seed}: the crown is not bankrupted and the general is paid`, () => {

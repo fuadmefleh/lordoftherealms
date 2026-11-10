@@ -60,6 +60,7 @@ import { Regency } from './regency.js';
 import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
+import { RealmArms } from '../world/realmArms.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -493,9 +494,11 @@ export const Sieges = {
                 const dist = Hex.wrappingDistance(from.q, from.r, s.q, s.r, world.width);
                 const days = Utils.clamp(Math.ceil(dist / R.hexesPerDay) + Utils.randInt(R.extraDays[0], R.extraDays[1]), R.minDays, R.maxDays);
                 kingdom.military = Math.max(0, kingdom.military - strength);
+                // (the host marches with its share of the armoury: world/realmArms.js)
+                const reliefArms = RealmArms.detach(kingdom, strength);
                 s.relief = {
                     id: `rh_${kingdom.id}_${day}_${s.q}_${s.r}`,
-                    name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength,
+                    name: `${kingdom.name} Relief Host`, kingdomId: kingdom.id, strength, arms: reliefArms ? reliefArms.stock : null,
                     q: from.q, r: from.r, stuckDays: 0,
                     departDay: day + Math.max(0, days - Math.ceil(dist / R.hexesPerDay)), // mustering
                     arriveDay: day + days, arrived: false, arrivedDay: null,
@@ -578,7 +581,7 @@ export const Sieges = {
         const unit = (world.units || []).find(u => u.id === rel.id);
         if (unit) unit.destroyed = true;
         const k = Sieges._kingdom(world, rel.kingdomId);
-        if (k) k.military = _num(k.military) + Math.round(rel.strength * Sieges.config().relief.returnShare);
+        if (k) { k.military = _num(k.military) + Math.round(rel.strength * Sieges.config().relief.returnShare); if (rel.arms) RealmArms.attach(k, { stock: rel.arms }, Sieges.config().relief.returnShare); }
     },
 
     /** Shortest land route from `from` to `to` (breadth-first over passable tiles), or null. Draws nothing. */
@@ -826,7 +829,7 @@ export const Sieges = {
             : { lootKingdom: (relief.kingdomId != null && world.getKingdom && world.getKingdom(relief.kingdomId)) || null };
         return {
             enemy: { strength: relief.strength + sally, name: relief.name, type: 'war_host', ...(loot.lootPurse !== undefined ? { purse: loot.lootPurse } : {}) },
-            ctx: { terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: false, ...(loot.lootKingdom ? { lootKingdom: loot.lootKingdom } : {}) },
+            ctx: { terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: false, armsFrom: relief.arms || null, ...(loot.lootKingdom ? { lootKingdom: loot.lootKingdom } : {}) },
             hex: { q: player.q, r: player.r },
         };
     },
@@ -1068,7 +1071,7 @@ export const Sieges = {
         const loot = unit ? PlayerMilitary._unitLoot(unit, world)
             : { lootKingdom: (relief.kingdomId != null && world.getKingdom && world.getKingdom(relief.kingdomId)) || null };
         const result = fought || PlayerMilitary.combat(player, relief.strength + sally, relief.name, {
-            world, terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: !initiative, ...loot,
+            world, terrainId: tile && tile.terrain && tile.terrain.id, theatre: 'land', defending: !initiative, ...loot, armsFrom: relief.arms || null,
         });
         result.success = true;
         result.sally = sally;
@@ -1086,7 +1089,7 @@ export const Sieges = {
             return result;
         }
         const k = Sieges._kingdom(world, relief.kingdomId);
-        if (k) k.military = _num(k.military) + Math.round(relief.strength * R.returnShare);
+        if (k) { k.military = _num(k.military) + Math.round(relief.strength * R.returnShare); if (relief.arms) RealmArms.attach(k, { stock: relief.arms }, R.returnShare); }
         s.relief = null;
         result.outcome = Sieges._finish(player, world, 'broken', `${relief.name} drives your army from before ${s.name}.`);
         result.message = result.outcome.text;

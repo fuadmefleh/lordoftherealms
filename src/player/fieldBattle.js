@@ -206,6 +206,7 @@ export const FieldBattle = {
             ...(enemy.purse !== undefined ? { lootPurse: enemy.purse } : {}),
             ...(ctx.lootTown ? { lootTown: ctx.lootTown } : {}),
             ...(ctx.lootKingdom ? { lootKingdom: ctx.lootKingdom } : {}),
+            ...(ctx.armsFrom ? { armsFrom: ctx.armsFrom } : {}),
         };
     },
 
@@ -501,12 +502,15 @@ export const FieldBattle = {
      * treasury named at the start — else nothing ({ lootPurse: null }).
      */
     lootSource(battle, world) {
-        if (battle.lootPurse !== undefined) return { lootPurse: battle.lootPurse };
         const unit = battle.unitId && world && Array.isArray(world.units) ? world.units.find(u => u.id === battle.unitId) : null;
-        if (unit) return PlayerMilitary._unitLoot(unit, world);
-        if (battle.lootTown) return { lootTown: battle.lootTown };
-        if (battle.lootKingdom) return { lootKingdom: battle.lootKingdom };
-        return { lootPurse: null };
+        // (the coin comes from the first source PlayerMilitary._spoilsSource finds; the arms from _armsSource)
+        const out = battle.lootPurse !== undefined ? { lootPurse: battle.lootPurse } : unit ? PlayerMilitary._unitLoot(unit, world) : {};
+        if (battle.lootTown) out.lootTown = battle.lootTown;
+        if (battle.lootKingdom && !out.lootKingdom) out.lootKingdom = battle.lootKingdom;
+        if (battle.armsFrom) out.armsFrom = battle.armsFrom;
+        if (unit && !out.lootUnit) out.lootUnit = unit;
+        if (!out.lootTown && !out.lootKingdom && out.lootPurse === undefined) out.lootPurse = null;
+        return out;
     },
 
     /** Fight the rest of the battle with the default stances. Returns battle.result. */

@@ -236,6 +236,11 @@ describe('rank and the court', () => {
         c.merit = 40;
         c.favour = 60;
         w.day = Math.ceil((w.day + 1) / 7) * 7;
+        // Not before a rank has been held a while
+        Generalship.processDay(g.player, w);
+        expect(Generalship.rankDef(c).id).toBe('captain');
+        c.rankSince = w.day - 60;
+        w.day += 7;
         Generalship.processDay(g.player, w);
         expect(Generalship.rankDef(c).id).toBe('commander');
         // Favour gone: demoted, then dismissed

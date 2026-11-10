@@ -669,17 +669,30 @@ export const Battlefield = {
                 const threat = Battlefield._nearest(c, foes, f => f.kind !== 'archer');
                 // When the lines have met, the archers sling their bows and fall on the flank of the
                 // nearest press within ai.archerJoin tiles (0: they keep shooting from where they stand)
-                const join = Number(cfg.ai.archerJoin) || 0;
+                // (only an army that is mostly bowmen does it — ai.archerJoinShare of its strength:
+                // a few archers behind the foot keep shooting)
+                const own = bf.companies.filter(o => o.side === side && Battlefield.alive(o));
+                const bowShare = own.reduce((s2, o) => s2 + (o.kind === 'archer' ? o.str0 : 0), 0) / Math.max(1e-6, own.reduce((s2, o) => s2 + o.str0, 0));
+                const join = bowShare >= (Number(cfg.ai.archerJoinShare) || 0) ? Number(cfg.ai.archerJoin) || 0 : 0;
                 const press = join > 0 && !holdGround ? Battlefield._nearest(c, foes, f => f.engaged.some(id => (bf.companies.find(x => x.id === id) || {}).side === side)) : null;
                 if (press && press.d <= join) {
                     if (c.order.type !== 'charge' || c.order.targetId !== press.c.id) Battlefield.order(bf, c.id, { type: 'charge', targetId: press.c.id });
                 } else if (threat && threat.d < cfg.ai.archerKeepAway && !holdGround) {
                     c.order = { type: 'move', x: c.x - S.dir * 5, y: c.y };
-                } else if (near.d > k.range + c.rangeBonus - 1) {
-                    if (!holdGround) c.order = { type: 'move', x: near.c.x - (near.c.x - c.x) / near.d * (k.range - 2), y: near.c.y - (near.c.y - c.y) / near.d * (k.range - 2) };
                 } else {
-                    const target = Battlefield._nearest(c, foes, f => f.kind !== 'archer' && _dist(c.x, c.y, f.x, f.y) <= k.range + c.rangeBonus) || near;
-                    c.order = { type: 'volley', targetId: target.c.id };
+                    // A mark they may loose at: not locked in a press with their own men (unless
+                    // pressVolley lets them drop shafts over their heads)
+                    const range = k.range + c.rangeBonus;
+                    const intoPress = (Number(cfg.pressVolley) || 0) > 0;
+                    const clearOf = f => intoPress || !f.engaged.some(id => (bf.companies.find(x => x.id === id) || {}).side === side);
+                    const inRange = Battlefield._nearest(c, foes, f => clearOf(f) && f.kind !== 'archer' && _dist(c.x, c.y, f.x, f.y) <= range)
+                        || Battlefield._nearest(c, foes, f => clearOf(f) && _dist(c.x, c.y, f.x, f.y) <= range);
+                    const mark = inRange || Battlefield._nearest(c, foes, clearOf);
+                    if (inRange) c.order = { type: 'volley', targetId: inRange.c.id };
+                    else if (mark && !holdGround) {
+                        // Walk up until a clear mark is in range (the foe's archers, as often as not)
+                        c.order = { type: 'move', x: mark.c.x - (mark.c.x - c.x) / mark.d * (k.range - 2), y: mark.c.y - (mark.c.y - c.y) / mark.d * (k.range - 2) };
+                    } else c.order = { type: 'volley', targetId: near.c.id };
                 }
             } else if (c.kind === 'horse') {
                 if (bf.t < cfg.ai.horseWait && !ownFootEngaged && !holdGround) continue;

@@ -257,3 +257,68 @@ describe("a realm's host (the General)", () => {
         expect(player.army.length).toBe(0);
     });
 });
+
+describe('the field polished: assaults, steady holding, box selection, the clock', () => {
+    it('an assault draws the defenders up in the streets and the attackers outside', () => {
+        Utils.setSeed(31);
+        const world = makeWorld();
+        const player = makePlayer({ army: army([['soldier', 6, 10], ['archer', 2, 8]]) });
+        const unit = makeUnit('raider', 50, world);
+        const { enemy, ctx } = FieldBattle.unitEnemy(player, unit, world);
+        const battle = FieldBattle.start(player, enemy, world, ctx);
+        // a town in the east of the map: streets around (50, 20)
+        const field = Battlefield.openField(64, 40);
+        field.town = (q, r) => Math.abs(q - 50) < 8 && Math.abs(r - 20) < 8;
+        const bf = Battlefield.create(player, battle, field, { world, layout: 'assault' });
+        expect(bf.layout).toBe('assault');
+        const theirs = bf.companies.filter(c => c.side === 'enemy');
+        const mine = bf.companies.filter(c => c.side === 'player');
+        const mid = (cs) => ({ x: cs.reduce((s, c) => s + c.x, 0) / cs.length, y: cs.reduce((s, c) => s + c.y, 0) / cs.length });
+        const e = mid(theirs), p = mid(mine);
+        expect(field.town(Math.round(e.x), Math.round(e.y))).toBe(true);
+        expect(field.town(Math.round(p.x), Math.round(p.y))).toBe(false);
+        expect(Math.abs(p.x - 50)).toBeGreaterThan(15);
+        // the defenders' foot hold their streets until the attackers close
+        for (let i = 0; i < 30; i++) Battlefield.tick(bf);
+        expect(theirs.filter(c => c.kind === 'foot').every(c => c.order.type === 'hold')).toBe(true);
+    });
+
+    it('a company holding takes its front once and keeps it while a foe moves about out of reach', () => {
+        const { bf } = setUp({ playerArmy: [['soldier', 4, 10]], enemyStrength: 40, seed: 32 });
+        bf.aiSide.enemy = false;
+        const mine = bf.companies.find(c => c.side === 'player');
+        const foe = bf.companies.find(c => c.side === 'enemy');
+        for (let i = 0; i < 30; i++) Battlefield.tick(bf);
+        const front = { x: mine.dx, y: mine.dy };
+        // the foe wanders across the field, far off (beyond hold.threatRange)
+        foe.x = mine.x + 20; foe.y = mine.y + 15;
+        for (let i = 0; i < 40; i++) Battlefield.tick(bf);
+        expect(mine.dx).toBeCloseTo(front.x, 2);
+        expect(mine.dy).toBeCloseTo(front.y, 2);
+        // a foe close on its flank: it wheels to meet it
+        foe.x = mine.x; foe.y = mine.y + 5;
+        for (const f of foe.figures) { const p = Battlefield.slotPos(foe, f.slot); f.x = p.x; f.y = p.y; }
+        for (let i = 0; i < 20; i++) Battlefield.tick(bf);
+        expect(mine.dy).toBeGreaterThan(0.5);
+    });
+
+    it('a box dragged over the field takes the companies with a man inside it', () => {
+        const { bf } = setUp({ playerArmy: [['soldier', 4, 10], ['archer', 3, 8], ['cavalry', 2, 18]] });
+        const mine = bf.companies.filter(c => c.side === 'player');
+        const all = Battlefield.inBox(bf, 'player', 0, 0, 64, 40);
+        expect(all.sort()).toEqual(mine.map(c => c.id).sort());
+        const one = mine[0];
+        const f = one.figures[0];
+        expect(Battlefield.inBox(bf, 'player', f.x - 0.2, f.y - 0.2, f.x + 0.2, f.y + 0.2)).toContain(one.id);
+        expect(Battlefield.inBox(bf, 'enemy', 0, 0, 64, 40).some(id => mine.some(c => c.id === id))).toBe(false);
+    });
+
+    it('a battle takes a set share of the day, more the longer it is fought', () => {
+        const { bf } = setUp({ playerArmy: [['soldier', 4, 10]] });
+        const C = Battlefield.config().clock;
+        expect(Battlefield.gameHours(bf)).toBe(C.minHours);
+        bf.t = 420;
+        expect(Battlefield.gameHours(bf)).toBeGreaterThan(Battlefield.gameHours({ t: 60 }));
+        expect(Battlefield.gameHours(bf)).toBeLessThanOrEqual(C.maxHours);
+    });
+});

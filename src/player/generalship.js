@@ -48,6 +48,7 @@ import { Difficulty } from '../core/difficulty.js';
 import { Economy } from '../world/economy.js';
 import { KingdomAI } from '../world/kingdomAI.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { RealmArms } from '../world/realmArms.js';
 import { NPCLords } from '../world/npcLords.js';
 import { Characters } from '../world/characters.js';
 import { Estates } from '../world/estates.js';
@@ -545,9 +546,15 @@ export const Generalship = {
         const hostLost = Math.max(0, Math.min(_num(c.men), Math.round(_num(outcome.hostLost))));
         const enemyLost = Math.max(0, Math.round(_num(outcome.enemyLost)));
         // The host's dead are the realm's dead; the enemy's are its realm's
+        const before = {};
+        if (k) before[k.id] = _num(k.military);
+        if (enemy) before[enemy.id] = _num(enemy.military);
         c.men -= hostLost;
         if (k) k.military = Math.max(0, _num(k.military) - hostLost);
         if (enemy) enemy.military = Math.max(0, _num(enemy.military) - enemyLost);
+        // ...and so are their arms: the fallen's lost out of each armoury, the field's holder
+        // gathering some of its own and stripping some of the beaten's (world/realmArms.js)
+        if (k && enemy) RealmArms.battle(outcome.victory ? k : enemy, outcome.victory ? enemy : k, before);
         let retinueLost = 0;
         if (_num(outcome.retinueLost) > 0 && (player.army || []).length) {
             const cas = PlayerMilitary._applyCasualties(player, 'land', Math.round(outcome.retinueLost)).casualties;
@@ -726,7 +733,12 @@ export const Generalship = {
         // The town the crown told you to take, taken by your own host
         if (c.order && c.order.kind === 'besiege' && c.order.target && c.order.target.q === sg.q && c.order.target.r === sg.r) c.order.tookPart = true;
         if (!k || !enemy || !s) return { message: 'The town is lost to the war.' };
-        enemy.military = Math.max(0, _num(enemy.military) - (how === 'surrendered' ? sg.garrison : 0));
+        if (how === 'surrendered') {
+            // The garrison marches out without its arms: lost to its realm
+            const before = { [enemy.id]: _num(enemy.military) };
+            enemy.military = Math.max(0, _num(enemy.military) - sg.garrison);
+            RealmArms.battle(null, enemy, before);
+        }
         // Old estates of the conquered crown and its nobles: one to the general (rank General or higher)
         const grant = _num(c.rank) >= 2 ? Generalship._grantEstateAt(player, world, sg.q, sg.r, enemy.id) : null;
         KingdomAI.takeTile(k, enemy, world, sg.q, sg.r);

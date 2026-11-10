@@ -93,14 +93,17 @@
         }
     },
     "looks": {
-        "_doc": "How the pieces are dressed on the LPC figures (systems/arms.js lookLayers). shieldPaints: the livery colours the new shields' Paint folders hold (scripts/make_arms_shields.py PAINTS); a side's paint outside it shows defaultPaint. The heater keeps every colour of its own pack.",
+        "_doc": "How the pieces are dressed on the LPC figures (systems/arms.js lookLayers, liveryLayers). shieldPaints: the livery colours the new shields' Paint folders hold (scripts/make_arms_shields.py PAINTS); a side's paint outside it shows defaultPaint. The heater keeps every colour of its own pack. liveryColours: the shirt colours the livery wear is made in (scripts/make_arms_livery.py): a man in mail or plate wears a tabard of his shirt's colour over it (tabardOver: the armour sheets that take one), a brigandine's cloth cover is his shirt's colour; a shirt colour outside the list shows no tabard and the brigandine's own red.",
         "shieldPaints": ["Red", "Blue", "Green", "Yellow", "Purple", "Cyan", "Black", "Brown", "White", "Navy", "Wine", "Forest"],
-        "defaultPaint": "Brown"
+        "defaultPaint": "Brown",
+        "liveryColours": ["Navy", "Wine", "Forest", "Mustard", "Plum", "Teal", "Black", "Brown", "Leather", "Charcoal", "Umber", "Sepia", "Red", "Blue", "Green"],
+        "tabardOver": ["Mail", "Plate"]
     },
     "spoils": {
         "_doc": "A won battle strips the beaten: per `per` points of the enemy's strength, one piece of each of `goods` (the spears, munition swords and shields of the dead), at most `max` of each. Draws no RNG.",
         "per": 40, "max": 6, "goods": ["weapons", "spear", "shield"]
-    },
+    }
+,
     "ammo": {
         "_doc": "Arrows and bolts (systems/arms.js): a bowman (archer, longbowman; a scout issued a bow) carries a quiver of arrows, a crossbowman (or anyone issued a crossbow) bolts: unit.ammo, filled from the packs (every day, and after a battle) and, when he is recruited where the town sells them, bought at its price. Every battle (the auto battle, the phased field battle, the battlefield on the ground) he looses perBattle (on the battlefield: fieldVolley per volley his company looses); a won field gives back recover of what was loosed (picked up off the ground, into the packs). Short of a battle's worth he fights weaker: his worth x (dryMult + (1 - dryMult) x quiver / perBattle). A unit with no quiver record (an older save, a recruit who came with his own) is filled once, free. goods: the ammunition by weapon class.",
         "goods": { "bow": "arrows", "crossbow": "bolts" },

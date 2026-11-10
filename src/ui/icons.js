@@ -725,7 +725,7 @@ export const ITEM_PICTURES = new Set([
     'spear', 'pike', 'iron_bill', 'halberd', 'enchanted_weapon', 'bow', 'crossbow', 'buckler', 'shield',
     'heater_shield', 'kite_shield', 'pavise', 'leather_cap', 'helmet', 'steel_helm', 'gambeson', 'leather_armor',
     'chainmail', 'brigandine', 'plate_armor', 'tin', 'bronze_bar', 'steel', 'haft', 'grip', 'shield_boss',
-    'whetstone', 'arrows',
+    'whetstone', 'arrows', 'bolts',
 ]);
 
 /** A good's picture path, or null when it shows as its emoji. */

@@ -459,6 +459,12 @@
         "Short 06 - Balding/Gray"
       ],
       "variants": 3,
+      "_spacing": "How far apart the men are DRAWN (tiles between files, across the facing, and between ranks, along it), per kind. The battle itself keeps kinds.along / kinds.across (its frontages, reaches and odds are tuned on them); ui/innerMapBattle.js _at opens each formation out to these on screen so a man is not hidden behind the man in front of him.",
+      "spacing": {
+        "foot": { "along": 1.25, "across": 1.5 },
+        "archer": { "along": 1.3, "across": 1.5 },
+        "horse": { "along": 2.0, "across": 1.8 }
+      },
       "liveries": {
         "player": { "shirt": "Navy", "paint": "Blue", "legs": "Charcoal", "plume": "White" },
         "realms": [

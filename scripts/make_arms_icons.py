@@ -1,7 +1,7 @@
 """
 Inventory icons for the arms and their stuffs, cut from ChatGPT's two icon
 sheets (assets/lpc/new/arms/icons_arms_source.png, 6 x 5 cells, and
-icons_wear_source.png, 4 x 4 cells; white backgrounds keyed out, each item
+icons_wear_source.png, 4 x 4 cells) and its single icons (icon_<id>_source.png; white backgrounds keyed out, each item
 trimmed and set square). Nothing is drawn here.
 
 Writes assets/items/arms/<good id>.png (64x64), the pictures ui/icons.js
@@ -31,6 +31,8 @@ SHEETS = [
         'leather_armor', 'chainmail', 'brigandine', 'plate_armor',
         'tin', 'bronze_bar', 'steel', 'haft',
         'grip', 'shield_boss', 'whetstone', 'arrows']),
+    # one icon alone (ChatGPT, drawn after the arms sheets with them as its reference)
+    ('icon_bolts_source.png', 1, 1, ['bolts']),
 ]
 
 

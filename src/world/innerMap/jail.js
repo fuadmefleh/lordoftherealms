@@ -178,8 +178,9 @@ Object.assign(InnerMap, {
             t.baseTerrain = 'wall';
             t.subTerrain = { id: 'wall', name: 'Wall', icon: '🧱', color: '#3a3438', passable: false };
         };
-        const put = (t, type, name, kind, passable = false) => {
+        const put = (t, type, name, kind, passable = false, art = null) => {
             t._furniture = { type, icon: '', name, passable };
+            if (art) t._furniture.art = art;
             t._jailKind = kind;
             if (!passable) t.subTerrain = { id: `furniture_${type}`, name, icon: '', color: this.FURNITURE_COLORS[type] || '#4a4a52', passable: false };
         };
@@ -210,12 +211,12 @@ Object.assign(InnerMap, {
             const cols = _cellCols(i);
             const door = this._jailDoor(i);
             put(tiles[door.r][door.q], 'cell', i === PLAYER_CELL ? 'Your Cell Door' : 'Cell Door', i === PLAYER_CELL ? 'door' : 'other_door');
-            put(tiles[1][cols[0]], 'bed', i === PLAYER_CELL ? 'Your Straw Pallet' : 'Straw Pallet', i === PLAYER_CELL ? 'bed' : 'other_bed');
+            put(tiles[1][cols[0]], 'bed', i === PLAYER_CELL ? 'Your Straw Pallet' : 'Straw Pallet', i === PLAYER_CELL ? 'bed' : 'other_bed', false, 'straw');
             put(tiles[1][cols[2]], 'bucket', 'Slop Bucket', 'bucket');
         }
-        // The loose flagstone in the player's cell (the tunnel)
+        // The loose flagstone in the player's cell (the tunnel): a slab of the floor, straw kicked about it
         const pc = _cellCols(PLAYER_CELL);
-        put(tiles[3][pc[0]], 'millstone', 'Loose Flagstone', 'stone');
+        put(tiles[3][pc[0]], 'flagstone', 'Loose Flagstone', 'stone');
         // The gaoler's room
         put(tiles[9][3], 'desk', 'Gaoler\'s Desk', 'desk');
         put(tiles[9][13], 'chest', 'Confiscated Belongings', 'chest');

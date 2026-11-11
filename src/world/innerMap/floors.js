@@ -308,6 +308,8 @@ Object.assign(InnerMap, {
                 }
             }
         }
+        // Its beds and tables at their own size (world/innerMap/interiors.js)
+        if (this._joinPieces) this._joinPieces(tiles, w, h, stairs[0]);
     },
 
     /**
@@ -353,7 +355,8 @@ Object.assign(InnerMap, {
             const taken = new Set((this._sleepersPlaced || []).map(s => `${s.q},${s.r}`));
             const beds = [];
             for (const row of interior.tiles) for (const t of row) {
-                if (t && t._furniture && t._furniture.type === 'bed' && !taken.has(`${t.q},${t.r}`)) beds.push(t);
+                // (a bed of two tiles is lain in from its head)
+                if (t && t._furniture && t._furniture.type === 'bed' && !(t._furniture.piece && t._furniture.piece.j) && !taken.has(`${t.q},${t.r}`)) beds.push(t);
             }
             if (beds.length) {
                 const bed = beds[_hash(String(npc.id != null ? npc.id : npc.name || '')) % beds.length];

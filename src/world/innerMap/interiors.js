@@ -340,7 +340,7 @@ Object.assign(InnerMap, {
                 { type: 'rack', icon: '⚔️', name: 'Weapon Rack', q: 7, r: 1, passable: false },
                 { type: 'rack', icon: '🛡️', name: 'Armor Rack', q: 8, r: 1, passable: false },
                 { type: 'barrel', icon: '🛢️', name: 'Quench Barrel', q: 1, r: 3, passable: false },
-                { type: 'sack', icon: '⚫', name: 'Coal Sacks', q: 1, r: 5, passable: false },
+                { type: 'sack', icon: '⚫', name: 'Coal Sacks', q: 1, r: 5, passable: false, art: 'sack_coal' },
                 { type: 'chest', icon: '📦', name: 'Supply Chest', q: 8, r: 6, passable: false },
             ]
         },
@@ -683,6 +683,78 @@ Object.assign(InnerMap, {
         bucket: '#6a5a4a', stairs: '#8a7a6a', stairs_down: '#5a4a3a',
         desk: '#6a4a2a', shelf: '#5a3a1a', cauldron: '#3a3a3a', tub: '#b87333', oven: '#8a4a3a',
         millstone: '#8a8a8a', cell: '#4a4a52', press: '#5a5a5a', lectern: '#6a4a2a', sack: '#a08a5a', rug: '#8a2a2a',
+        flagstone: '#5a5a60',
+    },
+
+    /**
+     * Pieces of furniture bigger than a tile, [wide, deep] in tiles: a bed a person lies in
+     * (its head at the top), a table four sit at, a bath, a market stall, an altar, a forge.
+     * _joinPieces makes them so where the room allows (two side by side become one; a lone
+     * one claims the free tile beside it), else they stay a tile's piece.
+     */
+    PIECE_SPANS: { bed: [1, 2], table: [2, 1], desk: [2, 1], tub: [2, 1], stall: [2, 1], altar: [2, 1], forge: [2, 1] },
+
+    /**
+     * Join the furniture of a room into its big pieces (PIECE_SPANS). Each tile of a piece keeps
+     * the piece's furniture, with piece = { q, r, w, h, i, j } (its head's tile, its size, this
+     * tile's place in it); nothing is joined that would cut a walkable tile off from start.
+     * (Horse stalls are stalls of another kind, and left alone.)
+     */
+    _joinPieces(tiles, w, h, start) {
+        const T = (q, r) => (tiles[r] && tiles[r][q]) || null;
+        const free = (t) => t && t.baseTerrain !== 'wall' && !t._isDoor && !t._furniture && t.subTerrain.passable && !t.customObject;
+        const flood = () => {
+            const seen = new Set([`${start.q},${start.r}`]); const queue = [start];
+            while (queue.length) {
+                const { q, r } = queue.shift();
+                for (const [dq, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    const t = T(q + dq, r + dr), key = `${q + dq},${r + dr}`;
+                    if (!t || seen.has(key) || !t.subTerrain.passable) continue;
+                    seen.add(key); queue.push({ q: q + dq, r: r + dr });
+                }
+            }
+            return seen;
+        };
+        // (what could be walked to before still can: a corner the layout already shut off stays so)
+        const before = start ? flood() : null;
+        const reached = () => {
+            if (!before) return true;
+            const seen = flood();
+            for (const key of before) {
+                const [q, r] = key.split(',').map(Number);
+                if (T(q, r).subTerrain.passable && !seen.has(key)) return false;
+            }
+            return true;
+        };
+        for (let r = 0; r < h; r++) {
+            for (let q = 0; q < w; q++) {
+                const t = T(q, r), f = t && t._furniture;
+                if (!f || f.piece || /horse/i.test(f.name || '')) continue;
+                const span = this.PIECE_SPANS[f.type];
+                if (!span) continue;
+                const [sw, sh] = span;
+                const step = sw > 1 ? [1, 0] : [0, 1];
+                const same = (o) => o && o._furniture && o._furniture.type === f.type && !o._furniture.piece && !/horse/i.test(o._furniture.name || '');
+                const after = T(q + step[0], r + step[1]), before = T(q - step[0], r - step[1]);
+                let head = null, other = null, claimed = null;
+                if (same(after)) { head = t; other = after; }
+                else if (free(after)) { head = t; other = after; claimed = after; }
+                else if (free(before)) { head = before; other = t; claimed = before; }
+                if (!head) continue;
+                if (claimed) {
+                    const prev = claimed.subTerrain;
+                    claimed._furniture = { ...f };
+                    if (!f.passable) claimed.subTerrain = { ...t.subTerrain };
+                    if (!reached()) { claimed._furniture = null; claimed.subTerrain = prev; continue; }
+                }
+                // (head: the top or left tile; other: the one after it — either may be the one claimed)
+                const base = { q: head === t ? q : q - step[0], r: head === t ? r : r - step[1], w: sw, h: sh };
+                head._furniture = { ...(head === claimed ? f : head._furniture), piece: { ...base, i: 0, j: 0 } };
+                other._furniture = { ...(other === claimed ? f : other._furniture), piece: { ...base, i: step[0], j: step[1] } };
+                // (one piece, one name: the head's)
+                other._furniture.name = head._furniture.name;
+            }
+        }
     },
 
     /**
@@ -1022,6 +1094,8 @@ Object.assign(InnerMap, {
                     name: furn.name,
                     passable: furn.passable,
                 };
+                // (its own look, where a type's usual sprite would mislead: coal in the sacks)
+                if (furn.art) tile._furniture.art = furn.art;
                 // Pews face the altar ahead of them: seen from the door, their backs
                 if (furn.type === 'pew' && (layout.furniture || []).some(a => a.type === 'altar' && a.r < furn.r)) tile._furniture.facing = 'up';
                 if (!furn.passable) {
@@ -1035,6 +1109,9 @@ Object.assign(InnerMap, {
                 }
             }
         }
+
+        // Beds, tables, baths, stalls, altars and forges at their own size, where the room allows
+        this._joinPieces(tiles, w, h, { q: Math.floor(w / 2), r: h - 1 });
 
         // ── Overlay nine-tile brush sprites if available ──
         if (typeof CustomInteriors !== 'undefined' && CustomInteriors.getBrushes().length > 0) {

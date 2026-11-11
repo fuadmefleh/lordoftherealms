@@ -41,29 +41,32 @@ Object.assign(InnerMap, {
      * NPC's head, the character animation, and how long (seconds) it lasts.
      */
     FURNITURE_ACTIVITIES: {
-        table:     { icon: '🍲', label: 'eating',      anim: 'sitting', duration: [6, 12] },
-        pew:       { icon: '🙏', label: 'praying',     anim: 'sitting', duration: [8, 14] },
+        // seat: what they sit on beside it (drawn under them, ui/innerMapLayers/entities.js);
+        // keepers: who mind it from behind, the counter before them; on: used from on it, not
+        // beside it — sat on (a pew, the throne), lain in (a bed), sat in up to the rim (a bath)
+        table:     { icon: '🍲', label: 'eating',      anim: 'sitting', duration: [6, 12], seat: 'stool' },
+        pew:       { icon: '🙏', label: 'praying',     anim: 'sitting', duration: [8, 14], on: 'sit' },
         bar:       { icon: '🍺', label: 'drinking',    anim: 'idle',    duration: [6, 12] },
         barrel:    { icon: '🍺', label: 'drawing ale', anim: 'idle',    duration: [3, 6] },
         fireplace: { icon: '🔥', label: 'warming up',  anim: 'idle',    duration: [5, 9] },
-        bed:       { icon: '💤', label: 'resting',     anim: 'sitting', duration: [10, 18] },
+        bed:       { icon: '💤', label: 'resting',     anim: 'idle',    duration: [10, 18], on: 'lie' },
         bookshelf: { icon: '📖', label: 'reading',     anim: 'idle',    duration: [6, 10] },
         anvil:     { icon: '🔨', label: 'hammering',   anim: 'slash',   duration: [6, 12] },
         forge:     { icon: '🔥', label: 'stoking',     anim: 'slash',   duration: [4, 8] },
         rack:      { icon: '⚔️', label: 'inspecting',  anim: 'idle',    duration: [3, 6] },
         altar:     { icon: '🙏', label: 'praying',     anim: 'emotes',  duration: [6, 12] },
         statue:    { icon: '🙏', label: 'praying',     anim: 'emotes',  duration: [4, 8] },
-        stall:     { icon: '💰', label: 'haggling',    anim: 'emotes',  duration: [4, 8] },
+        stall:     { icon: '💰', label: 'haggling',    anim: 'emotes',  duration: [4, 8], keepers: ['merchant'], keep: { icon: '💰', label: 'minding the stall', anim: 'idle' } },
         scales:    { icon: '⚖️', label: 'weighing',    anim: 'idle',    duration: [4, 8] },
         crate:     { icon: '📦', label: 'sorting',     anim: 'idle',    duration: [4, 8] },
         chest:     { icon: '📦', label: 'rummaging',   anim: 'idle',    duration: [3, 6] },
-        throne:    { icon: '👑', label: 'holding court', anim: 'sitting', duration: [10, 18] },
+        throne:    { icon: '👑', label: 'holding court', anim: 'sitting', duration: [10, 18], on: 'sit' },
         well:      { icon: '💧', label: 'drawing water', anim: 'idle',  duration: [3, 6] },
         bucket:    { icon: '💧', label: 'washing',     anim: 'idle',    duration: [3, 6] },
-        desk:      { icon: '✒️', label: 'writing',     anim: 'sitting', duration: [8, 14] },
+        desk:      { icon: '✒️', label: 'writing',     anim: 'sitting', duration: [8, 14], seat: 'stool' },
         lectern:   { icon: '📖', label: 'reading',     anim: 'idle',    duration: [6, 10] },
         shelf:     { icon: '🏺', label: 'browsing',    anim: 'idle',    duration: [3, 6] },
-        tub:       { icon: '🛁', label: 'bathing',     anim: 'sitting', duration: [8, 14] },
+        tub:       { icon: '🛁', label: 'bathing',     anim: 'sitting', duration: [8, 14], on: 'soak' },
         oven:      { icon: '🍞', label: 'baking',      anim: 'idle',    duration: [6, 10] },
         cauldron:  { icon: '⚗️', label: 'stirring',    anim: 'idle',    duration: [5, 9] },
         press:     { icon: '💰', label: 'striking coin', anim: 'slash', duration: [5, 9] },
@@ -183,6 +186,7 @@ Object.assign(InnerMap, {
     /** Make an NPC give up the furniture they're using or heading for. */
     yieldFurniture(npc) {
         if (!npc || !npc._act) return;
+        this._offPiece(npc, npc._act);
         npc.activity = null;
         npc.path = null;
         npc._act.phase = 'rest';
@@ -237,6 +241,50 @@ Object.assign(InnerMap, {
         return false;
     },
 
+    /**
+     * Onto the piece they use (FURNITURE_ACTIVITIES[type].on): stood at its head tile (a bed's
+     * pillow end, a bath's or pew's own tile), sat or lain there, facing out — or facing the
+     * altar from a pew that faces it. Nobody shares a piece: taken, they use it from beside.
+     */
+    _onPiece(npc, act, def) {
+        const t = this.getTile(act.spot.q, act.spot.r);
+        const f = t && t._furniture;
+        if (!f) return;
+        const head = f.piece ? { q: f.piece.q, r: f.piece.r } : { q: act.spot.q, r: act.spot.r };
+        if (this.npcs.some(n => n !== npc && n.activity && n.activity.on && n.activity.at && n.activity.at.q === head.q && n.activity.at.r === head.r)) return;
+        act.from = { q: npc.q, r: npc.r };
+        npc.q = npc.prevQ = head.q;
+        npc.r = npc.prevR = head.r;
+        npc.path = null;
+        Object.assign(npc.activity, { on: def.on, at: head, piece: f.piece || null });
+        npc._pose = def.on === 'lie' ? null : 2;
+        const backTo = f.type === 'pew' && f.facing === 'up';
+        npc._seatOn = true;     // (on an impassable tile on purpose: world/innerMap/npcs.js leaves them be)
+        npc.facing = backTo ? 0 : 2;
+    },
+
+    /** Up off the piece, back onto the floor where they stood. */
+    _offPiece(npc, act) {
+        if (!act || !act.from) return;
+        npc.q = npc.prevQ = act.from.q;
+        npc.r = npc.prevR = act.from.r;
+        act.from = null;
+        npc._pose = null;
+        npc._seatOn = false;
+        if (npc.activity && npc.activity.on) npc.activity = null;
+    },
+
+    /**
+     * Where a piece's keeper stands to mind it (FURNITURE_ACTIVITIES[type].keepers): the
+     * open tile behind it, or null (not a keeper, or nowhere to stand).
+     */
+    _keeperSpot(npc, spot) {
+        const def = spot && this.FURNITURE_ACTIVITIES[spot.type];
+        if (!def || !def.keepers || !def.keepers.includes(npc.type)) return null;
+        const t = this.getTile(spot.q, spot.r - 1);
+        return t && t.subTerrain.passable && !t._isDoor && !t.customObject && !t._furniture ? { q: spot.q, r: spot.r - 1 } : null;
+    },
+
     /** Facing constant (0 up, 1 left, 2 down, 3 right) from an NPC toward (tq, tr). */
     _npcFacingToward(npc, tq, tr) {
         const dq = tq - npc.q, dr = tr - npc.r;
@@ -273,6 +321,8 @@ Object.assign(InnerMap, {
         npc.idleTimer -= deltaTime;
         if (npc.idleTimer <= 0 && act.phase !== 'exit') {
             npc.activity = null;
+            if (act.counter) { npc._behindCounter = null; act.counter = false; }
+            this._offPiece(npc, act);
             // (upstairs, the way out is down the stairs)
             const door = this._doorTile() || (this._stairsDownTile && this._stairsDownTile());
             act.phase = 'exit';
@@ -288,7 +338,7 @@ Object.assign(InnerMap, {
                     const spot = this._pickFurnitureFor(npc);
                     if (spot) {
                         const t = this.getTile(spot.q, spot.r);
-                        const stand = t && t.subTerrain.passable && !t.customObject ? spot : this.findAdjacentPassable(spot.q, spot.r);
+                        const stand = this._keeperSpot(npc, spot) || (t && t.subTerrain.passable && !t.customObject ? spot : this.findAdjacentPassable(spot.q, spot.r));
                         if (stand && this._npcWalkTo(npc, stand.q, stand.r)) {
                             act.phase = 'walk';
                             act.spot = spot;
@@ -320,6 +370,19 @@ Object.assign(InnerMap, {
                     act.timer = lo + Utils.random() * (hi - lo);
                     npc.facing = this._npcFacingToward(npc, act.spot.q, act.spot.r);
                     npc.activity = { type: act.spot.type, icon: def.icon, label: def.label, anim: def.anim };
+                    // Sat at a table: on a stool, drawn at the table's edge
+                    if (def.seat && def.anim === 'sitting') Object.assign(npc.activity, { seat: def.seat, at: { q: act.spot.q, r: act.spot.r } });
+                    // A stall's keeper behind its counter, facing out (the counter hides their legs)
+                    // On it: sat on the pew or throne, in the bed or the bath (its head tile, a big piece)
+                    if (def.on) this._onPiece(npc, act, def);
+                    const behind = this._keeperSpot(npc, act.spot);
+                    if (behind && behind.q === npc.q && behind.r === npc.r) {
+                        const pc = this.getTile(act.spot.q, act.spot.r)._furniture.piece;
+                        npc._behindCounter = { row: act.spot.r, piece: pc ? { q: pc.q, r: pc.r } : null };
+                        act.counter = true;
+                        npc.facing = 2;
+                        Object.assign(npc.activity, def.keep);
+                    }
                 } else {
                     act.phase = 'rest';
                     act.spot = null;
@@ -331,6 +394,8 @@ Object.assign(InnerMap, {
                 act.timer -= deltaTime;
                 if (act.timer > 0) return;
                 npc.activity = null;
+                if (act.counter) { npc._behindCounter = null; act.counter = false; }
+                this._offPiece(npc, act);
                 act.phase = 'rest';
                 act.spot = null;
                 act.timer = 1 + Utils.random() * 3;

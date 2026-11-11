@@ -14,6 +14,8 @@
 //   node scripts/pixellab.mjs objects <dir> --style sprite.png [--crop x,y,w,h] --items "a table|a barrel|..." [--desc "..."]
 //        (a pack of one-view objects in that sprite's look; objects-keep <pack id> 0,3 keeps chosen frames)
 //   node scripts/pixellab.mjs style <out.png> --desc "..." --style "sheet.png:x,y,w,h;other.png"
+//   node scripts/pixellab.mjs tiles <dir> --desc "1). oak planks 2). ..." [--size 32] [--view top-down] [--style a.png:x,y,w,h]
+//        (tiles pro: floor variations; --feature building --wall "..." --floor "..." gives a construction kit)
 //
 // rotate turns a sprite to face another way (a pew seen from behind, a chair side-on):
 // the source cell is cut from a sheet (--crop), sent at --size (16/32/64/128), and the
@@ -187,7 +189,7 @@ async function main() {
         const [, out] = a._;
         if (!out || !a.desc || !a.style) throw new Error('style <out.png> --desc "..." --style sheet.png[:x,y,w,h][;other.png:...]');
         const refs = String(a.style).split(';').map(s => {
-            const [f, c] = s.split(':');
+            const [, f, c] = s.match(/^(.*?)(?::(\d+,\d+,\d+,\d+))?$/);   // (a drive letter's colon is no crop)
             let im = readPng(f);
             if (c) { const [x, y, w, h] = c.split(',').map(Number); im = crop(im, x, y, w, h); }
             return { image: b64(im), width: im.w, height: im.h };
@@ -310,6 +312,59 @@ async function main() {
             const r = await call('POST', `/objects/${id}/select-frames`, { indices: String(a.keep).split(',').map(Number) });
             console.log(`kept: ${(r.created_object_ids || []).join(', ')}`);
         }
+        return;
+    }
+    // tiles: tiles pro — independent tile variations (floors) or a connectable set (--feature
+    // building|tileset|roads), saved as <dir>/tile_<n>.png with the answer's placement rules in
+    // <dir>/tiles.json. --style a.png[:x,y,w,h];b.png gives style tiles (not with --feature).
+    if (cmd === 'tiles') {
+        const [, dir] = a._;
+        if (!dir || !a.desc) throw new Error('tiles <dir> --desc "1). ... 2). ..." [--size 32] [--type square_topdown] [--view top-down] [--feature building] [--wall "..."] [--floor "..."] [--style a.png:x,y,w,h] [--segment]');
+        const body = {
+            description: a.desc,
+            tile_type: a.type || 'square_topdown',
+            tile_size: Number(a.size) || 32,
+            tile_view: a.view || 'top-down',
+        };
+        if (a.segment) body.outline_mode = 'segmentation';
+        if (a.feature) body.tile_feature = a.feature;
+        if (a.wall) body.building_wall_description = a.wall;
+        if (a.floor) body.building_floor_description = a.floor;
+        if (a['wall-tiles']) body.building_wall_tiles = Number(a['wall-tiles']);
+        if (a.layout) body.building_layout = a.layout;
+        if (a['wall-angle']) body.building_wall_angle = Number(a['wall-angle']);
+        if (a.colors) body.target_palette = { colors: String(a.colors).split(',') };
+        if (a.seed) body.seed = Number(a.seed);
+        if (a.style) {
+            body.style_images = String(a.style).split(';').map(s => {
+                const [, f, c] = s.match(/^(.*?)(?::(\d+,\d+,\d+,\d+))?$/);
+                let im = readPng(f);
+                if (c) { const [x, y, w, h] = c.split(',').map(Number); im = crop(im, x, y, w, h); }
+                return { base64: pngBuffer(im).toString('base64'), width: im.w, height: im.h };
+            });
+            // --own-colours: take the style's outline, detail and shading but not its palette
+            if (a['own-colours']) body.style_options = { color_palette: false, outline: true, detail: true, shading: true };
+        }
+        const job = await call('POST', '/create-tiles-pro', body);
+        const id = job.tile_id;
+        console.log(`tiles ${id} queued${job.usage ? ` ${JSON.stringify(job.usage)}` : ''}`);
+        let o = null;
+        for (let i = 0; i < 120; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            try { o = await call('GET', `/tiles-pro/${id}`); } catch (e) { if (/42[39]|404|processing/i.test(e.message)) continue; throw e; }
+            const st = String(o.status || '').toLowerCase();
+            if (/fail|error/.test(st)) throw new Error(`tiles ${id}: ${JSON.stringify(o).slice(0, 300)}`);
+            if (o.storage_urls && Object.keys(o.storage_urls).length && !/processing|pending/.test(st)) break;
+        }
+        fs.mkdirSync(dir, { recursive: true });
+        for (const [k, url] of Object.entries(o.storage_urls || {})) {
+            const res = await fetch(url);
+            fs.writeFileSync(path.join(dir, `${k}.png`), Buffer.from(await res.arrayBuffer()));
+        }
+        const meta = { ...o };
+        delete meta.storage_urls;
+        fs.writeFileSync(path.join(dir, 'tiles.json'), JSON.stringify(meta, null, 2));
+        console.log(`tiles ${id} (${o.kind || 'tiles'}): ${Object.keys(o.storage_urls || {}).length} -> ${dir}${o.usage ? ` ${JSON.stringify(o.usage)}` : ''}`);
         return;
     }
     console.log('usage: node scripts/pixellab.mjs balance | rotate <sheet.png> <out.png> [--crop x,y,w,h] [--from south] [--to north] [--view "low top-down"] [--palette]\n'

@@ -316,9 +316,9 @@ Object.assign(InnerMap, {
         room(20, GATE_WALL + 1, 31, CH - 2, 'Barracks');
         put(1, 23, 'rack', 'Weapon Rack'); put(2, 23, 'rack', 'Shield Rack');
         put(6, 24, 'table', 'Guards\' Table'); put(7, 24, 'table', 'Guards\' Table');
-        put(11, 23, 'barrel', 'Ale Barrel'); put(1, 25, 'chest', 'Arms Chest'); put(9, 25, 'candle', 'Brazier', true);
+        put(11, 23, 'barrel', 'Ale Barrel'); put(3, 25, 'table', 'Dice Table');   // (dice in the guardroom: the barracks' floor is the way between the bunks) put(1, 25, 'chest', 'Arms Chest'); put(9, 25, 'candle', 'Brazier', true);
         for (const q of [21, 23, 25, 27, 29]) put(q, 23, 'bed', 'Bunk');
-        put(31, 23, 'rack', 'Spear Rack'); put(31, 25, 'chest', 'Kit Chest'); put(25, 25, 'table', 'Dice Table');
+        put(31, 23, 'rack', 'Spear Rack'); put(31, 25, 'chest', 'Kit Chest');
         put(15, 23, 'banner', 'Portcullis Chains', true); put(17, 23, 'banner', 'Portcullis Chains', true);
 
         // ── The courtyard: stables on the west wall, the smithy on the east, a well, the practice yard ──
@@ -342,9 +342,11 @@ Object.assign(InnerMap, {
         // The great hall: the throne on its dais, the high table, the long tables, the hearths
         room(10, 1, 22, KEEP_WALL - 1, 'Great Hall');
         put(MID, 2, 'throne', 'Throne');
-        put(MID - 2, 1, 'banner', 'House Banner', true); put(MID + 2, 1, 'banner', 'House Banner', true);
+        // (the banners hang clear of the guards posted either side of the throne)
+        put(MID - 3, 1, 'banner', 'House Banner', true); put(MID + 3, 1, 'banner', 'House Banner', true);
         put(MID - 4, 2, 'candle', 'Candelabrum', true); put(MID + 4, 2, 'candle', 'Candelabrum', true);
-        for (let r = 5; r <= 8; r++) { put(13, r, 'table', 'Long Table'); put(19, r, 'table', 'Long Table'); }
+        // (the long tables down either side, a bench's width apart)
+        for (const r of [5, 7, 9]) { put(12, r, 'table', 'Long Table'); put(13, r, 'table', 'Long Table'); put(19, r, 'table', 'Long Table'); put(20, r, 'table', 'Long Table'); }
         put(10, 6, 'fireplace', 'Great Hearth'); put(22, 6, 'fireplace', 'Great Hearth');
         for (let r = 3; r <= KEEP_WALL - 1; r++) put(MID, r, 'rug', 'Red Carpet', true);
         put(11, 10, 'desk', 'Council Map Table'); put(21, 10, 'bookshelf', 'Rolls of the Realm');
@@ -369,6 +371,8 @@ Object.assign(InnerMap, {
         gate.baseTerrain = 'stone_floor';
         gate.subTerrain = { id: 'door', name: 'Castle Gate', icon: '🚪', color: '#6a4a2a', passable: true };
         gate._isDoor = true;
+        // Beds, tables, the bath and the forge at their own size (world/innerMap/interiors.js)
+        if (this._joinPieces) this._joinPieces(tiles, CW, CH, { q: MID, r: CH - 1 });
         return { tiles, width: CW, height: CH };
     },
 

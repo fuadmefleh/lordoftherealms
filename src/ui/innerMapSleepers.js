@@ -52,7 +52,11 @@ export const InnerMapSleepers = {
         ctx.fillStyle = 'rgba(0,0,0,0.18)';
         ctx.fillRect(bx, by + ds * 0.07, bw, ds * 0.02);
         ctx.restore();
-        // Z… z… drifting up from the pillow
+        this.drawZs(ctx, npc, sx, headY, ds, now);
+    },
+
+    /** Z… z… drifting up from the pillow at (sx, headY). */
+    drawZs(ctx, npc, sx, headY, ds, now = performance.now() / 1000) {
         ctx.save();
         ctx.fillStyle = '#cfe3ff';
         ctx.textAlign = 'center';

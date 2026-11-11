@@ -71,7 +71,8 @@ export const FurnitureCatalogue = {
         const type = look.type || 'crate';
         return {
             id: null, type, name: look.name || String(type).replace(/_/g, ' '), icon: look.icon || '💺',
-            passable: !!look.passable, footprint: [1, 1],
+            // (a house's own bed or table keeps the size it came at: world/innerMap/interiors.js PIECE_SPANS)
+            passable: !!look.passable, footprint: Array.isArray(look.footprint) ? [Math.max(1, _num(look.footprint[0], 1)), Math.max(1, _num(look.footprint[1], 1))] : [1, 1],
             comfort: this.typeComfort(type), restBonus: this.typeRestBonus(type), price: this.typePrice(type), original: true, desc: 'Came with the house.',
         };
     },

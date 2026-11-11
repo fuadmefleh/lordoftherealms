@@ -926,6 +926,11 @@ Object.assign(InnerMap, {
             n.activity = { type: 'scene', ...A, _scene: true };
             n._pose = A.pose != null ? A.pose : null;
             n._swing = A.tool ? { tool: A.tool, interval: Number(A.swing) || 0.9, t: 0, sound: A.sound || null } : null;
+            // (a stall's keeper stood behind it, facing out: its awning and counter before them)
+            if (sc.spot.face === 2 && ((this.FURNITURE_ACTIVITIES || {})[sc.spot.type] || {}).keepers) {
+                const st = this.getTile(sc.spot.q, sc.spot.r + 1), pc = st && st._furniture && st._furniture.piece;
+                n._behindCounter = { row: sc.spot.r + 1, piece: pc ? { q: pc.q, r: pc.r } : null };
+            }
         } else if (sc.role === 'bard') {
             n.activity = { type: 'scene', icon: '🎵', label: 'Playing for the room', anim: 'emotes', _scene: true };
             n._pose = null;
@@ -935,6 +940,9 @@ Object.assign(InnerMap, {
             n.activity = { type: 'scene', ...A, _scene: true, quiet: true };
             if (sc.spot.stand) n.activity.anim = 'idle';
             n._pose = n.activity.anim === 'sitting' ? (sc.spot.on || I.kind !== 'church' ? 2 : 0) : null;
+            // (beside a table: on a stool drawn up to it — furnitureUse.js FURNITURE_ACTIVITIES[type].seat)
+            const seat = !sc.spot.on && n.activity.anim === 'sitting' && ((this.FURNITURE_ACTIVITIES || {})[sc.spot.at] || {}).seat;
+            if (seat) Object.assign(n.activity, { seat, at: { q: sc.spot.fq, r: sc.spot.fr } });
         }
         if (I.kind === 'tavern' && sc.role === 'staff' && this._sceneNear(n.q, n.r) && _hs((this._scn || {}).seed, 'kp', n.id, this.worldDay || 0) < 0.5) {
             this._sceneSay(n, this._scenePickLine(C.tavern.keeper, 'keeper'), 800);

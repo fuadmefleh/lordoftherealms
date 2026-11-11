@@ -811,13 +811,17 @@ export const InnerMapRenderer = {
 
     renderInnerHexHighlight(ctx, camera, q, r, fillColor, strokeColor) {
         const T = this.TILE_SIZE;
-        const screen = camera.worldToScreen(q * T, r * T);
+        // (a piece of furniture bigger than a tile — a bed, a long table — is outlined whole)
+        const tile = InnerMap.getTile && InnerMap.getTile(q, r);
+        const pc = tile && tile._furniture && tile._furniture.piece;
+        const q0 = pc ? pc.q : q, r0 = pc ? pc.r : r, w = pc ? pc.w : 1, h = pc ? pc.h : 1;
+        const screen = camera.worldToScreen(q0 * T, r0 * T);
         const ds = T * camera.zoom;
 
         ctx.fillStyle = fillColor;
-        ctx.fillRect(screen.x, screen.y, ds, ds);
+        ctx.fillRect(screen.x, screen.y, ds * w, ds * h);
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 2;
-        ctx.strokeRect(screen.x, screen.y, ds, ds);
+        ctx.strokeRect(screen.x, screen.y, ds * w, ds * h);
     },
 };

@@ -111,7 +111,11 @@ Object.assign(InnerMap, {
                 const t = this._furnishTile(q, r);
                 if (!this._movableFurniture(t) || t._furniture._piece) continue;
                 const f = t._furniture;
-                const piece = { uid: `f${++seq}`, id: null, look: { type: f.type, name: f.name, icon: f.icon, passable: !!f.passable }, q, r, rot: 0 };
+                // (a big piece is adopted once, from its head tile, at its size)
+                if (f.piece && (f.piece.i || f.piece.j)) continue;
+                const look = { type: f.type, name: f.name, icon: f.icon, passable: !!f.passable };
+                if (f.piece) look.footprint = [f.piece.w, f.piece.h];
+                const piece = { uid: `f${++seq}`, id: null, look, q, r, rot: 0 };
                 if (f._storage && Object.keys(f._storage).length) piece.storage = f._storage;
                 else if (FurnitureCatalogue.holdsThings(f.type)) piece.storage = {};
                 rec.pieces.push(piece);
@@ -145,6 +149,11 @@ Object.assign(InnerMap, {
                 comfort: v.comfort, restBonus: v.restBonus,
                 _piece: piece.uid, _part: i > 0, _anchorQ: piece.q, _anchorR: piece.r,
             };
+            // (bigger than a tile: drawn whole, as a house's own big pieces are — world/innerMap/interiors.js)
+            if (cells.length > 1) {
+                const [w, h] = FurnitureCatalogue.footprint(piece);
+                t._furniture.piece = { q: piece.q, r: piece.r, w, h, i: c.q - piece.q, j: c.r - piece.r };
+            }
             if (piece.storage && i === 0) t._furniture._storage = piece.storage;
             if (!v.passable) {
                 t.subTerrain = {

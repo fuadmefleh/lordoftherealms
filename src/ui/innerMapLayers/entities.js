@@ -89,6 +89,42 @@ Object.assign(InnerMapRenderer, {
         drawMapMarker(ctx, glyphFor(npc.icon) || 'person', sx, sy, Math.max(8, ds * 0.22));
     },
 
+    /**
+     * Where a piece of furniture is drawn, in world px: { x, y, w, h, art, img } — a big piece
+     * (world/innerMap/interiors.js _joinPieces) from its head tile at its own art's size, bottom
+     * aligned as ui/innerMapLayers/terrainRoads.js draws it; a tile's piece filling its tile.
+     */
+    _pieceRect(at, T) {
+        const tile = InnerMap.getTile(at.q, at.r);
+        const f = tile && tile._furniture;
+        if (!f) return null;
+        const pc = f.piece;
+        const fa = (this._interiorArt && this._interiorArt.furniture) || {};
+        const big = pc && fa[`${f.type}_${pc.w}x${pc.h}`];
+        const art = big || (f.art && fa[f.art]) || (f.facing === 'up' && fa[`${f.type}_back`]) || fa[f.type] || null;
+        const q0 = pc ? pc.q : at.q, r0 = pc ? pc.r : at.r, w = pc ? pc.w : 1, h = pc ? pc.h : 1;
+        const dw = big ? art.sw * T / 48 : T, dh = big ? art.sh * T / 48 : T;
+        const img = art && this._getSheetByPath(art.sheet);
+        return { x: q0 * T + (w * T - dw) / 2, y: (r0 + h) * T - dh, w: dw, h: dh, art, img };
+    },
+
+    /**
+     * Someone lying in a bed, awake: their head on its pillow, the bed's covers drawn up over
+     * them (the bed's own art again, from its covers' edge down — art.pillow / art.cover).
+     */
+    _drawInBed(ctx, npc, p, x, y, sc, ds) {
+        const A = p.art || {};
+        const top = y, w = p.w * sc, h = p.h * sc, left = x - w / 2;
+        const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
+        const cw = ds * 1.2 * 0.8, ch = ds * 1.8 * 0.8;
+        const headY = top + h * (A.pillow || 0.2);
+        if (useSprite) InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, x - cw / 2, headY - ch * 0.3, cw, ch);
+        if (p.img && A.sw) {
+            const k = this._sheetScale(p.img), cut = A.cover || 0.35;
+            ctx.drawImage(p.img, A.sx * k, (A.sy + A.sh * cut) * k, A.sw * k, A.sh * (1 - cut) * k, left, top + h * cut, w, h * (1 - cut));
+        }
+    },
+
     /** A townsfolk's name under their feet. */
     _drawNpcName(ctx, name, sx, sy, ds, zoom) {
         drawMapText(ctx, name, sx, sy + ds * 0.3, {
@@ -842,6 +878,17 @@ Object.assign(InnerMapRenderer, {
                 }
                 // Asleep in bed, under the blanket (world/innerMap/floors.js, ui/innerMapSleepers.js)
                 if (npc._asleep && InnerMap._insideBuilding) {
+                    // (in a bed of two tiles: under its own covers, as anyone lying in it)
+                    const bedP = !npc._asleep.bedroll && self._pieceRect({ q: npc.q, r: npc.r }, T);
+                    if (bedP && bedP.art && bedP.art.cover) {
+                        const bs = camera.worldToScreenFast(bedP.x + bedP.w / 2, bedP.y);
+                        const zRef = npc, bx = bs.x, by = bs.y;
+                        items.push({ sortY: bedP.y + bedP.h - 1, zLayer: 2, draw() {
+                            self._drawInBed(ctx, zRef, bedP, bx, by, ds / T, ds);
+                            InnerMapSleepers.drawZs(ctx, zRef, bx, by + bedP.h * (ds / T) * (bedP.art.pillow || 0.2), ds);
+                        } });
+                        continue;
+                    }
                     const zs = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
                     const zx = zs.x, zy = zs.y;
                     const zRef = npc;
@@ -861,6 +908,7 @@ Object.assign(InnerMapRenderer, {
                 }
                 let worldX, worldY;
                 let anim = 'idle';
+                let seatArt = null, onPiece = null, soakAt = null;
                 let direction = npc.facing != null ? npc.facing : InnerMapCharacters.DIR_DOWN;
 
                 if ((npc.state === 'walking' || npc.state === 'inside_building') && npc.path && npc.pathIndex < npc.path.length) {
@@ -879,6 +927,28 @@ Object.assign(InnerMapRenderer, {
                     worldX = npc.q * T + T / 2;
                     worldY = npc.r * T + T / 2;
                     if (npc.activity) anim = npc.activity.anim || 'idle';
+                    // Sat at a table (world/innerMap/furnitureUse.js activity.seat): on a stool,
+                    // drawn up to the table's edge rather than out in the room
+                    if (npc.activity && npc.activity.seat && npc.activity.at && anim === 'sitting') {
+                        seatArt = self._interiorArt && self._interiorArt.furniture && self._interiorArt.furniture[npc.activity.seat];
+                        worldX += Math.sign(npc.activity.at.q - npc.q) * T * 0.22;
+                        worldY += Math.sign(npc.activity.at.r - npc.r) * T * 0.22;
+                    }
+                    // On the piece itself (world/innerMap/furnitureUse.js _onPiece): sat on the pew or
+                    // throne at its seat, in the bath up to the rim, or lain in the bed under its covers
+                    onPiece = npc.activity && npc.activity.on && npc.activity.at ? self._pieceRect(npc.activity.at, T) : null;
+                    if (onPiece) {
+                        const mode = npc.activity.on, A = onPiece.art || {};
+                        worldX = onPiece.x + onPiece.w / 2;
+                        if (mode === 'sit') worldY = onPiece.y + (A.seat || 0.6) * onPiece.h + T * 0.38;
+                        else if (mode === 'soak') { soakAt = onPiece.y + (A.rim || 0.4) * onPiece.h; worldY = soakAt + T * 0.42; }
+                        else if (mode === 'lie') {
+                            const ls = camera.worldToScreenFast(worldX, onPiece.y);
+                            const lRef = npc, lp = onPiece, lx = ls.x, ly = ls.y;
+                            items.push({ sortY: lp.y + lp.h - 1, zLayer: 2, draw() { self._drawInBed(ctx, lRef, lp, lx, ly, ds / T, ds); } });
+                            continue;
+                        }
+                    }
                     // The watch stands on guard, sword and shield held ready
                     else if (npc.type === 'guard' && !npc._dialogFrozen) anim = 'ready';
                     // Swinging at the player (InnerMapCombat._updateNPCReactions)
@@ -896,15 +966,20 @@ Object.assign(InnerMapRenderer, {
                 const sx = screen.x + (npc._drunk && anim === 'walk' ? Math.sin(now * 3.1 + npc.id) * ds * 0.12 : 0);
                 // (the stall's art: its counter top a tile above the anchor row's foot, the awning above that)
                 const stallFoot = counter ? camera.worldToScreenFast(worldX, (counter.row + 1) * T).y : 0;
-                const sy = counter ? stallFoot - ds * 0.6 : screen.y;
+                // (a stall of two tiles: they stand in it, face under the awning, the counter before them)
+                const stallBox = counter && counter.piece ? self._pieceRect(counter.piece, T) : null;
+                const stallScr = stallBox ? camera.worldToScreenFast(stallBox.x, stallBox.y) : null;
+                const sy = stallBox ? stallFoot + ds * 0.22 : counter ? stallFoot - ds * 0.6 : screen.y;
                 if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
                 if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
                 // (sat in a pew facing the altar: its back hides them below the shoulders)
                 const pewT = !counter && npc._seatOn ? InnerMap.getTile(npc.q, npc.r) : null;
                 const pewBack = !!(pewT && pewT._furniture && pewT._furniture.type === 'pew' && pewT._furniture.facing === 'up');
-                const clipY = counter ? stallFoot - ds * 0.95 : pewBack ? camera.worldToScreenFast(worldX, npc.r * T).y + ds * 0.54 : null;
+                const clipY = stallBox ? stallFoot : counter ? stallFoot - ds * 0.95
+                    : soakAt != null ? camera.worldToScreenFast(worldX, soakAt).y
+                    : pewBack ? camera.worldToScreenFast(worldX, npc.r * T).y + ds * 0.54 : null;
 
-                const sortY = counter ? (counter.row + 1) * T + 0.5 : worldY + T / 2;   // bottom-of-tile for consistent depth sort
+                const sortY = stallBox ? (counter.row + 1) * T - 0.5 : counter ? (counter.row + 1) * T + 0.5 : onPiece ? onPiece.y + onPiece.h - 0.5 : worldY + T / 2;   // bottom-of-tile for consistent depth sort
                 // A town woodcutter at a tree (world/innerMap/townWoodcutters.js): the swing timed to
                 // the blows, the axe in hand (ui/innerMapFelling.js)
                 const chopRec = npc._chop;
@@ -918,6 +993,9 @@ Object.assign(InnerMapRenderer, {
                 // Held in one frame of the anim (sat on the bench, kneeling at prayer)
                 const poseDef = npc._pose != null ? InnerMapCharacters._EXTRA_ANIMS.find(e => e.key === anim) : null;
                 const nRef = npc, nAnim = anim, nDir = direction;
+                // (the name: over the stall's awning or the head behind a counter, clear of the marker and the
+                // customers; under the piece they sit or lie on)
+                const labelY = stallBox ? stallScr.y - ds * 0.55 : counter ? sy - ds * 2.25 : onPiece ? camera.worldToScreenFast(worldX, onPiece.y + onPiece.h).y - ds * 0.3 : sy;
 
                 items.push({ sortY, zLayer: 2, draw() {
                     if (clipY != null) { ctx.save(); ctx.beginPath(); ctx.rect(-1e4, -1e4, 2e4, clipY + 1e4); ctx.clip(); }
@@ -927,6 +1005,11 @@ Object.assign(InnerMapRenderer, {
                         const charScale = nRef.type === 'child' ? 0.7 : 1.0;
                         const cw = charW * charScale, ch = charH * charScale;
                         const cx = sx - cw / 2, cy = sy - ch + ds * 0.3;
+                        const seatImg = seatArt && self._getSheetByPath(seatArt.sheet);
+                        if (seatImg) {
+                            const ks = self._sheetScale(seatImg);
+                            ctx.drawImage(seatImg, seatArt.sx * ks, seatArt.sy * ks, (seatArt.sw || 32) * ks, (seatArt.sh || 32) * ks, sx - ds / 2, sy - ds * 0.68, ds, ds);
+                        }
                         ctx.beginPath();
                         ctx.ellipse(sx, sy + ds * 0.15, cw * 0.2, ds * 0.06, 0, 0, Math.PI * 2);
                         ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -987,10 +1070,17 @@ Object.assign(InnerMapRenderer, {
                         self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }
                     if (clipY != null) ctx.restore();
-                    if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, sy, ds, camera.zoom);
+                    if (stallBox && stallBox.img) {
+                        const sc = ds / T, k = self._sheetScale(stallBox.img), a = stallBox.art;
+                        ctx.drawImage(stallBox.img, a.sx * k, a.sy * k, a.sw * k, a.sh * k, Math.round(stallScr.x), Math.round(stallScr.y), Math.round(stallBox.w * sc), Math.round(stallBox.h * sc));
+                    }
+                    // (behind a counter their feet are hidden: the name goes over their head, clear of the
+                    // customers before the stall)
+                    if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, labelY, ds, camera.zoom);
                     // (not over a woodcutter at work: the axe swung up over the head says it, and would be hidden)
                     // (nor over every drinker or worshipper sat in a scene: activity.quiet)
-                    if (nRef.activity && !nRef.activity.quiet && chopP == null && swingP == null) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
+                    // (a stall keeper's marker goes over their name, both above the awning)
+                    if (nRef.activity && !nRef.activity.quiet && chopP == null && swingP == null) self._drawNpcActivity(ctx, nRef, sx, stallBox ? labelY - ds * 0.05 + ds * 1.55 * (nRef.type === 'child' ? 0.7 : 1) - ds * 0.3 : sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
                         const nHealth = InnerMapCombat.getNPCHealth(nRef.id);

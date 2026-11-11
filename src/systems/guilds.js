@@ -1126,9 +1126,17 @@ export const Guilds = {
             const live = g.strike ? 0.3 : 1;
             g.prosperity = _round2(_clamp(0.5 * _num(g.prosperity, 1) + 0.5 * (0.5 * cover + 0.5 * price) * live, 0, 1.5));
             // Dues into the hall (capped), the strike fund out of it
+            // (real coin: the members pay their dues out of the town's purse, and a hall
+            // over its cap spends the excess back into the town)
             const cap = g.members * C.dues * C.treasuryWeeks;
-            g.treasury = Math.round(Math.min(Math.max(_num(g.treasury), cap), _num(g.treasury) + g.members * C.dues * g.prosperity));
-            if (g.treasury > cap) g.treasury = Math.round(Math.max(cap, g.treasury * 0.97));
+            const had = _num(g.treasury);
+            let want = Math.round(Math.min(Math.max(had, cap), had + g.members * C.dues * g.prosperity));
+            if (want > cap) want = Math.round(Math.max(cap, want * 0.97));
+            if (want > had) g.treasury = had + Math.floor(Economy.drawTown(s, want - had));
+            else {
+                g.treasury = want;
+                if (had - want > 0) Economy.payTown(s, had - want);
+            }
             Guilds._refreshToll(player, world, s, g);
             // Strikes run their course (or the strike fund runs dry)
             if (g.strike) {

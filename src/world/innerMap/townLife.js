@@ -357,6 +357,8 @@ Object.assign(InnerMap, {
         const period = this.townPeriod();
         const rnd = Utils.random;
         npc._chatWith = null;
+        // Down tools at a scene: the stall, the anvil, the pew (world/innerMap/townScenes.js)
+        if (this._sceneClear) this._sceneClear(npc);
         if (npc._field) this._leaveField(npc);
         if (npc._forage && this._leaveForage) this._leaveForage(npc);
         if (npc._chop && this._stopChopping) this._stopChopping(npc);
@@ -373,6 +375,8 @@ Object.assign(InnerMap, {
             if (npc._post && rnd() < 0.55) return this._goStand(npc, npc._post, 'post', npc._post.face);
             return this._goPatrol(npc);
         }
+        // The stall, the service, the crier's round, a drunk's way home (world/innerMap/townScenes.js)
+        if (this._scenePick && this._scenePick(npc, period)) return true;
         const table = C.schedule[npc.type] || C.schedule.default || DEFAULTS.schedule.default;
         const act = _weighted(table[period] || table.morning, rnd) || 'stroll';
         return this._doActivity(npc, act, period);
@@ -397,6 +401,9 @@ Object.assign(InnerMap, {
                 if (rnd() < (Number(C.fieldWork[npc.type]) || 0) && this._goToField(npc)) return true;
                 if (!npc._work) return this._doActivity(npc, 'errand', period);
                 const outside = rnd() < (Number(C.tendOutside[npc.type]) || 0);
+                // (out front at their own prop, the smith at the anvil: world/innerMap/townScenes.js)
+                const yard = outside && this._tendSpot ? this._tendSpot(npc) : null;
+                if (yard) return yard.inside ? this._goInto(npc, npc._work, 'work') : this._goStand(npc, yard.spot, 'tend', yard.face);
                 return outside ? this._goStand(npc, this._findPassableAdjacentTile(npc._work.q, npc._work.r), 'tend', 2)
                     : this._goInto(npc, npc._work, 'work');
             }
@@ -405,6 +412,8 @@ Object.assign(InnerMap, {
                 return b ? this._goInto(npc, b, 'errand') : this._doActivity(npc, 'stroll', period);
             }
             case 'market': {
+                // To a staffed stall in the square, to haggle (world/innerMap/townScenes.js)
+                if (this._goShopStall && this._goShopStall(npc)) return true;
                 const b = pickB(['marketplace']);
                 if (b && rnd() < 0.5) return this._goInto(npc, b, 'market');
                 return this._goStand(npc, this.townSpot(rnd, A.center, 7), 'market');
@@ -640,6 +649,8 @@ Object.assign(InnerMap, {
         if (act === 'field') this._startFieldWork(npc);
         if (act === 'chop' && this._startChopping) this._startChopping(npc);
         if (act === 'forage' && this._startForaging) this._startForaging(npc);
+        // At the stall, the crier's spot, the anvil, the well (world/innerMap/townScenes.js)
+        if (this._sceneArrived) this._sceneArrived(npc, act);
         npc._activity = null;
         npc._face = null;
     },

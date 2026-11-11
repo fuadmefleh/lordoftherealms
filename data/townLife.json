@@ -10,9 +10,9 @@
     "schedule": {
         "default": {
             "dawn":      { "home": 2, "well": 3, "stroll": 1 },
-            "morning":   { "work": 5, "errand": 2, "market": 1, "chat": 1.5, "stroll": 1 },
+            "morning":   { "work": 5, "errand": 2, "market": 2.5, "chat": 1.5, "stroll": 1 },
             "midday":    { "market": 3, "tavern": 1.5, "chat": 2.5, "well": 1, "work": 2 },
-            "afternoon": { "work": 5, "errand": 2, "chat": 1.5, "stroll": 1 },
+            "afternoon": { "work": 5, "errand": 2, "market": 1.5, "chat": 1.5, "stroll": 1 },
             "evening":   { "tavern": 3, "chat": 3, "plaza": 2, "home": 2, "church": 0.5 },
             "night":     { "home": 1 }
         },

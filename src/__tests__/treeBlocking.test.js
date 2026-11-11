@@ -25,8 +25,9 @@ describe('tree blocking', () => {
     });
 
     it('other props still block their whole bottom rows', () => {
-        const well = TownProps.defs().find(d => d.id === 'tp_tent_hide');
-        expect(solidCells(well).length).toBe(6);
+        // (the clan's hide tent: 4 tiles wide, its bottom 3 rows solid, the pole tips above walkable)
+        const tent = TownProps.defs().find(d => d.id === 'tp_tent_hide');
+        expect(solidCells(tent).length).toBe(12);
     });
 
     it('the new trees grow wild, are felled for wood, and turn with the seasons', () => {

@@ -1,6 +1,7 @@
 // InnerMap — state members (split from the original monolith).
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Hospitality } from './_imports.js';
+import { Castles } from '../castles.js';
 
 Object.assign(InnerMap, {
     // Configuration (loaded from JSON)
@@ -243,10 +244,43 @@ Object.assign(InnerMap, {
      */
     settlementLayout(settlement) {
         const type = (settlement && settlement.type) || 'village';
-        const base = this.SETTLEMENT_BUILDINGS[type] || this.SETTLEMENT_BUILDINGS.village;
-        const kinds = Hospitality.kindsFor(settlement);
+        let base = this.SETTLEMENT_BUILDINGS[type] || this.SETTLEMENT_BUILDINGS.village;
+        // Before its castle rises (world/castles.js), a capital's seat is its lord's great hall
+        if (type === 'capital' && !Castles.has(settlement)) {
+            base = { ...base, required: base.required.map(b => (b === 'castle' ? 'manor' : b)) };
+        }
+        let kinds = Hospitality.kindsFor(settlement);
+        // Buildings come with the age (data/dawn.json eraBuildings, by the world's year as the
+        // map is drawn): before its year a required building is a house, an optional one is left out
+        const since = this.eraBuildingYears();
+        const year = this._worldYear;
+        if (since && Number.isFinite(year)) {
+            const ok = b => !(b in since) || year >= since[b];
+            base = { ...base, required: base.required.map(b => (ok(b) ? b : 'house')), optional: (base.optional || []).filter(ok) };
+            kinds = kinds.filter(ok);
+        }
         if (!kinds.length) return base;
         return { ...base, required: [...base.required, ...kinds], maxBuildings: (base.maxBuildings || 10) + kinds.length };
+    },
+
+    /** The year each building type first appears (data/dawn.json eraBuildings.since), or null. */
+    eraBuildingYears() {
+        const d = DataLoader._gamedata && DataLoader._gamedata.dawn;
+        const s = d && d.eraBuildings && d.eraBuildings.since;
+        return s && typeof s === 'object' ? s : null;
+    },
+
+    /**
+     * Which age of building a year is in, for the town map's cache: '' once every
+     * building type has come (a full-grown world: the cache as it always was), else
+     * how many have, so a town is laid out anew as each one's year passes.
+     */
+    eraBuildingStamp(year) {
+        const since = this.eraBuildingYears();
+        if (!since || !Number.isFinite(year)) return '';
+        const years = Object.values(since).filter(Number.isFinite);
+        const passed = years.filter(y => year >= y).length;
+        return passed >= years.length ? '' : `|e${passed}`;
     },
 
     // ══════════════════════════════════════════════

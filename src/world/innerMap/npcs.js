@@ -449,6 +449,8 @@ Object.assign(InnerMap, {
         if (!this.active) return;
         // Gates townsfolk opened to pass, shut behind them once the gateway is clear (world/innerMap/gates.js)
         if (!this._insideBuilding && this._closeGatesBehind) this._closeGatesBehind();
+        // Stalls kept, services held, the tavern full — people come in to an empty room (world/innerMap/townScenes.js)
+        if (this._updateTownScenes) this._updateTownScenes(deltaTime);
         if (this.npcs.length === 0) return;
         // The town's woodcutters at their trees (world/innerMap/townWoodcutters.js)
         if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);
@@ -457,7 +459,8 @@ Object.assign(InnerMap, {
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
             // (not someone asleep in bed: they lie on it — world/innerMap/floors.js)
             const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];
-            if (!npc._asleep && (!curTile || !curTile.subTerrain.passable)) {
+            // (nor someone sat on a pew: world/innerMap/townScenes.js)
+            if (!npc._asleep && !npc._seatOn && (!curTile || !curTile.subTerrain.passable)) {
                 let relocated = false;
                 const neighbors = [
                     { q: npc.q + 1, r: npc.r },
@@ -574,7 +577,11 @@ Object.assign(InnerMap, {
 
                 case 'inside_building':
                     // The player is in here too — go about their business on the furniture
-                    if (this._insideBuilding) { this._updateInteriorNpc(npc, deltaTime); break; }
+                    if (this._insideBuilding) {
+                        // (a part in the scene in here: the bar, the pews — world/innerMap/townScenes.js)
+                        if (!(this._sceneNpcUpdate && this._sceneNpcUpdate(npc, deltaTime))) this._updateInteriorNpc(npc, deltaTime);
+                        break;
+                    }
                     npc.idleTimer -= deltaTime;
                     if (npc.idleTimer <= 0) {
                         // Abed at night: stay in till morning (world/innerMap/townLife.js)
@@ -587,6 +594,8 @@ Object.assign(InnerMap, {
                             npc.state = 'leaving_building';
                         } else {
                             // Normal outdoor map — NPC exits, reappear at outdoor position
+                            // (where they were: out of the tavern late, some go home drunk — world/innerMap/townScenes.js)
+                            npc._lastVenue = npc.currentBuilding;
                             npc.currentBuilding = null;
                             npc._insideBuildingQ = undefined;
                             npc._insideBuildingR = undefined;
@@ -704,6 +713,8 @@ Object.assign(InnerMap, {
             return;
         }
 
+        // Of an evening, the eldest's stories by the fire (world/innerMap/townScenes.js)
+        if (npc.campHub && this._campScene && this._campScene(npc)) return;
         // A clan's people keep about their campfire (world/innerMap/camp.js)
         if (npc.campHub && this._campDestination) {
             const spot = this._campDestination(npc);

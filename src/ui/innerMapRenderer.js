@@ -668,6 +668,8 @@ export const InnerMapRenderer = {
         this._renderGroundOverlays(ctx, camera);
         // ── Layer 1.6: Living water — surf on the shores, sun on the water, the river running (innerMapLayers/waterFx.js) ──
         if (this._renderWaterFx) this._renderWaterFx(ctx, camera);
+        // ── Layer 1.65: Things adrift on the river, and the weir that catches them (innerMapLayers/riverDrift.js) ──
+        if (this._renderRiverDrift) this._renderRiverDrift(ctx, camera);
         // ── Layer 1.7: Under the water, diving — the bottom and its finds (innerMapLayers/underwater.js) ──
         if (this._renderUnderwaterFloor) this._renderUnderwaterFloor(ctx, camera);
 

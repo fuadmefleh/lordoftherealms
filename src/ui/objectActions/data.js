@@ -102,7 +102,7 @@ export const FURNITURE_ACTIONS = {
     stall:     ['shop'],
     scales:    ['shop'],
     altar:     ['pray', 'give_alms'],
-    pew:       ['sit', 'meditate'],
+    pew:       ['attend_service', 'sit', 'meditate'],
     statue:    ['pray'],
     well:      ['draw_water', 'wash'],
     bucket:    ['wash'],
@@ -117,14 +117,14 @@ export const FURNITURE_ACTIONS = {
 export const BUILDING_FURNITURE_ACTIONS = {
     tavern: {
         bar:   ['drink', 'tavern_services', 'gamble'],
-        table: ['sit', 'eat', 'gamble'],
+        table: ['listen_bard', 'sit', 'eat', 'gamble'],
         bed:   ['rent_room'],
     },
     // Houses of hospitality (systems/hospitality.js): the beds are let, not slept in free
     guest_house: { bed: ['take_room'], bar: ['lodging_desk'], table: ['sit', 'dine_here'], bucket: ['bathe_here'], fireplace: ['warm'] },
-    inn:         { bed: ['take_room'], bar: ['lodging_desk', 'drink'], table: ['sit', 'dine_here'], bucket: ['bathe_here'], fireplace: ['warm'] },
+    inn:         { bed: ['take_room'], bar: ['lodging_desk', 'drink'], table: ['listen_bard', 'sit', 'dine_here'], bucket: ['bathe_here'], fireplace: ['warm'] },
     hotel:       { bed: ['take_room'], bar: ['lodging_desk'], table: ['sit', 'dine_here'], bucket: ['bathe_here'], fireplace: ['warm'] },
-    roadhouse:   { bed: ['take_room'], bar: ['lodging_desk', 'drink'], table: ['sit', 'dine_here'], barrel: ['drink'], fireplace: ['warm'] },
+    roadhouse:   { bed: ['take_room'], bar: ['lodging_desk', 'drink'], table: ['listen_bard', 'sit', 'dine_here'], barrel: ['drink'], fireplace: ['warm'] },
     town_hall: {
         table:  ['notices', 'find_work', 'tribute'],
         throne: ['audience', 'find_work'],

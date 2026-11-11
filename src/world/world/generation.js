@@ -1,6 +1,6 @@
 // World — generation methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, MinHeap, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Cultures, WorldAge, Castles } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -13,6 +13,11 @@ Object.assign(World.prototype, {
     generate(terrainParams = {}) {
         const seed = terrainParams.seed || Utils.randInt(1, 2147483646);
         this.generationParams = { ...terrainParams, seed };
+        // A younger world (start year between the dawn and the mature year,
+        // world/worldAge.js) keeps the age settings it was made with, so a
+        // save regenerates the same world
+        const age = WorldAge.forParams(this.generationParams);
+        if (age.t < 1 && !this.generationParams.worldAge) this.generationParams.worldAge = age.snapshot;
         // The calendar starts in the chosen year (before the dawn year: no
         // towns or realms yet — world/dawn.js)
         this.baseYear = Dawn.startYear(terrainParams);
@@ -143,16 +148,25 @@ Object.assign(World.prototype, {
         const ruinsFreq = terrainParams.ruinsFreq || 'normal';
         this.placePointsOfInterest(ruinsFreq);
 
+        // A start year before the mature year: the world as it stood then —
+        // fewer, smaller places, smaller realms, fewer ruins, founded earlier
+        // (world/worldAge.js). Everything below derives from what is left.
+        const age = WorldAge.forParams(terrainParams);
+        const young = age.t < 1;
+        if (young) WorldAge.apply(this, age);
+        // Castles come late: a capital before its castle's year keeps a great hall (world/castles.js)
+        Castles.sync(this, { creating: true });
+
         console.log('Generating road network...');
-        this.generateRoads();
+        this.generateRoads(young ? { maxEdge: WorldAge.roadReach(age) } : {});
 
         console.log('Generating world history...');
-        this.history = WorldEvents.generateHistory(this);
+        this.history = WorldEvents.generateHistory(this, young ? { from: age.dawnYear } : {});
 
         // Initialize world religion system
         console.log('Initializing religions & holy sites...');
         if (typeof Religion !== 'undefined') {
-            Religion.initialize(this);
+            Religion.initialize(this, young ? { holySites: WorldAge.curve(age.cfg.holySites, age.t) } : {});
         }
 
         // Initialize cultural system
@@ -183,6 +197,9 @@ Object.assign(World.prototype, {
         console.log('Spawning initial world units...');
         this.spawnInitialUnits();
 
+        // Nothing has happened yet that a young world's calendar hasn't reached
+        if (young) this.history = this.history.filter(h => !(h && h.year >= this.year));
+
         console.log(`World generated: ${this.width}x${this.height}, ${this.kingdoms.length} kingdoms`);
     },
 
@@ -210,7 +227,7 @@ Object.assign(World.prototype, {
      * `generationParams.customWorld`, so resuming a saved game rebuilds the
      * same map (World.generate) instead of rolling a random one.
      */
-    loadFromEditorData(editorData, kingdomCount = 6) {
+    loadFromEditorData(editorData, kingdomCount = 6, extra = {}) {
         console.log('Loading custom world from editor data...');
         const rules = editorData.rules || {};
         const seed = Number(editorData.seed) || Math.abs(Utils.hashStr(String(editorData.name || 'custom'))) || 1;
@@ -220,6 +237,8 @@ Object.assign(World.prototype, {
             independentSettlements: rules.independentSettlements || 'normal',
             ruinsFreq: rules.ruinsFreq || 'normal',
             customWorld: editorData,
+            // (a New Game on a custom map: the calendar's first year)
+            ...(extra && Number.isFinite(extra.startYear) ? { startYear: extra.startYear } : {}),
         });
     },
 
@@ -629,8 +648,11 @@ Object.assign(World.prototype, {
      * neighbours its road actually runs to (roadLinks, a bit per
      * Hex.neighbors direction), so the renderer draws the road as laid
      * instead of joining every road hex that happens to touch another.
+     * `opts.maxEdge`: skip tree edges longer than this (a young world).
      */
-    generateRoads() {
+    generateRoads(opts = {}) {
+        // A young world (world/worldAge.js) lays no road longer than this between two towns
+        const maxEdge = Number.isFinite(opts.maxEdge) ? opts.maxEdge : Infinity;
         const settlements = this.getAllSettlements();
         if (settlements.length < 2) return;
         const width = this.width;
@@ -675,6 +697,7 @@ Object.assign(World.prototype, {
             edges.sort((a, b) => a.d - b.d);
 
             for (const edge of edges) {
+                if (edge.d > maxEdge) continue;
                 const s1 = regionSettlements[edge.from];
                 const s2 = regionSettlements[edge.to];
                 const path = this.findRoadPath(s1.q, s1.r, s2.q, s2.r);

@@ -1197,7 +1197,7 @@ The Steward's Counsel warns of a ship at sea in dangerous waters with nothing in
 
 ### Specie, Mints & the Price Level
 
-Gold does not come from nowhere. Every realm has **coin in circulation**: the silver and gold in its people's purses, tills and strongboxes. The crown's chests and the banks' vaults hold more, but that coin moves no prices until it is spent. How much coin a realm has for its people sets its **price level**.
+Gold does not come from nowhere. Every realm has **coin in circulation**: the real coin in its towns' purses and its people's, its guilds', gangs', inns' and couriers', and in the packs of the caravans and soldiers on its roads, counted every week. The crown's chests, the great houses' coffers, the banks' vaults and your own purse hold more, but that coin moves no prices until it is spent: gold you pay into a town, conjured or earned, becomes that realm's coin. How much coin a realm has for its people sets its **price level**.
 
 **The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with its coin's purity: clipped coin raises prices on top. The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default, or a panic on its Bourse) a tenth more, so its prices sag.
 
@@ -2635,6 +2635,7 @@ Build roads, bridges, and irrigation to improve your territory. Requires relevan
 | Stone Road | 80g | 4 days | Paved Roads | Reduces movement cost to 1 |
 | Bridge | 150g | 6 days | Bridge Construction | Eliminates river/swamp penalty (cost = 1) |
 | Irrigation Channel | 60g | 3 days | Irrigation Systems | +50% farm productivity |
+| Timber Dam | 90g | 3 days | — (a river hex only) | A weir across the river: whatever floats down it fetches up there |
 
 Roads dramatically speed up travel and trade. Stone roads make every hex cost just 1 stamina — connect your properties and trade destinations for maximum efficiency.
 
@@ -2688,6 +2689,16 @@ Prices between towns on good roads draw together: measured over three seeds, a g
 - **The crowns build too.** On its weekly turn a crown with the money (and no missed payments, a debt ratio under 0.5) rebuilds washed-out bridges and repairs ruined roads. At peace and with welfare at least 0.35, it also paves its busiest road (at most one every 120 days), builds harbour works at its great ports, and now and then digs a canal between two towns no good road joins. Mercantile crowns build sooner, aggressive ones later. Crowns in debt toll their new highways.
 
 **On the map.** Highways are drawn pale and broad, tracks thin and dashed, rutted roads orange, ruined ones red and broken, closed passes ice-blue with ❄️. Fords and ferries show 🌊 / ⛴️, toll gates 💰, works under way 🚧, and canals are blue water lines between their towns. The trade map colours each land link by the worst stretch of road on it, and the *trade* map mode colours the roads by repair. The Steward points out a toll bridge or toll highway near you that would repay itself, your stalled works, and roads closed nearby.
+
+### Rivers That Run, and What They Carry
+
+On the street map the rivers flow: flecks of foam and darker ripples stream down every river cell along its own course, quick mid-channel, slow by the banks, curling in eddies over a ford (`ui/innerMapLayers/waterFx.js`).
+
+**Throw something in.** Click river water near you (from the bank, a ford or a bridge) and choose **Throw Something In**, or pick a good on the hotbar and click the river. One goes in at a time. Heavy goods (stone, ore, iron, tools, weapons…) sink; anything else floats off, bobbing, down the river's own course and round its bends. Click it as it passes within two cells of you to **Fish It Out**.
+
+**Downstream.** When it reaches the edge of the map it carries on into the next hex of the river, about two hours a hex (`data/riverDrift.json` `hoursPerHex`), and keeps going while you are elsewhere. Visit a hex it is passing through and you will see it drift in from the side it came by. Where the river reaches the sea it is lost. Into a lake it lies on the water near where the river comes in, and sinks after 20 days. Where a river ends inland it comes to rest in the pool at its end.
+
+**Weirs catch it.** A finished **Timber Dam** (Build Infrastructure on a river hex) and a town's water mill on a river (worlds made since terrainGen 5) both weir the river. Whatever comes down fetches up against the weir, up to 12 things, and the rest spill over. On the street map the dam lies across the river (logs on stakes, the mill's a stone sill), the water pooled dark above and white below. Things caught on it are piled against it: click one and take it off from the weir's end on the bank. The world keeps them all on `world.riverDrift`, saved with the game (`systems/riverDrift.js`).
 
 ---
 

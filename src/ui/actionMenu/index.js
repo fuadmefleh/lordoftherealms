@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { trackShows } from '../panelRefresh.js';
 import './core.js';
 import './trade.js';
+import './barterTable.js';
 import './build.js';
 import './colony.js';
 import './combat.js';

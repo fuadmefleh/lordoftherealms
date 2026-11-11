@@ -6,6 +6,9 @@ import { UI } from './core.js';
 import { Hex, House, PlayerMilitary } from './_imports.js';
 import { Parentage } from '../../player/parentage.js';
 import { Court } from '../../systems/court.js';
+import { MoneySupply } from '../../world/moneySupply.js';
+import { CoinCensus } from '../../systems/coinCensus.js';
+import { Barter } from '../../world/barter.js';
 
 // Movement granted by "infinite movement" — enough to cross a region in a day
 // without letting getReachableHexes flood the whole map
@@ -66,8 +69,8 @@ Object.assign(UI.prototype, {
 
                 <h4>Resources</h4>
                 <div class="cheat-row">
-                    ${btn('cheatGold', '💰 +1,000 gold', [1000])}
-                    ${btn('cheatGold', '💰 +100,000 gold', [100000])}
+                    ${btn('cheatGold', Barter.inKind(player) ? '🎒 +1,000 worth of goods' : '💰 +1,000 gold', [1000])}
+                    ${btn('cheatGold', Barter.inKind(player) ? '🎒 +100,000 worth of goods' : '💰 +100,000 gold', [100000])}
                     ${btn('cheatFood', '🍞 +50 bread', [50])}
                 </div>
 
@@ -229,7 +232,18 @@ Object.assign(UI.prototype, {
     },
 
     cheatGold(amount) {
-        this.game.player.gold += amount;
+        const { player, world } = this.game;
+        // In a barter place (world/barter.js) there is no coin to give: goods of that worth instead
+        if (Barter.inKind(player)) {
+            const kit = Barter.giveKit(player, amount);
+            this._cheatDone('Goods', Object.entries(kit).map(([id, q]) => `+${q} ${id}`).join(', ') || 'nothing');
+            return;
+        }
+        player.gold += amount;
+        // Coin from nothing: booked as new coin in the realm the player stands in
+        // (world/moneySupply.js). The player's purse is a hoard: it moves that
+        // realm's prices once it is spent into circulation
+        if (world) MoneySupply.registerNew(world, CoinCensus.realmAt(world, player.q, player.r), amount, 'cheat');
         this._cheatDone('Gold', `+${amount.toLocaleString()} gold`);
     },
 

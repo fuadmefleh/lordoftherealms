@@ -39,6 +39,7 @@ import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
 import { SocialSkills } from './socialSkills.js';
+import { Throne } from './throne.js';
 
 const DEFAULTS = {
     sight: { radius: 7, guardHearRadius: 16, hiddenStates: ['inside_building', 'leaving_building', 'gone'] },
@@ -122,6 +123,12 @@ function _cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
 let _cfg = null;
 let _cfgSrc;
+
+/** What the ruler's own watch mutters as it looks away (data: barks.royalGuard[crime]). */
+function _royalPool(crime) {
+    const B = (StreetCrime.config().barks || {}).royalGuard || {};
+    return B[crime] || B.assault || [];
+}
 
 export const StreetCrime = {
     DEFAULTS,
@@ -207,6 +214,17 @@ export const StreetCrime = {
         return out;
     },
 
+    /**
+     * The player rules the realm this town belongs to: its watch is theirs, and
+     * stands down rather than arrest its own sovereign (the town still sees, and talks).
+     */
+    aboveLaw(player, world, settlement) {
+        if (!player || !settlement || settlement.kingdom == null) return false;
+        let k = null;
+        try { k = Throne.ruledKingdom(player, world); } catch (e) { k = null; }
+        return !!(k && String(k.id) === String(settlement.kingdom));
+    },
+
     // ──────────── HOW THEY REACT ────────────
 
     /**
@@ -226,6 +244,11 @@ export const StreetCrime = {
         const fearful = traits.some(t => (R.fearTraits || []).includes(t));
         let act;
         let mood;
+        if (w.role === 'guard' && ctx.royal) {
+            // The ruler's own watch: they look away, and say so
+            const line = _pick(_royalPool(crime), `${seed}|royal`);
+            return { act: 'stand', mood: 'fear', bark: line ? _fill(line, { victim: ctx.victimName || 'them' }) : null };
+        }
         if (w.role === 'guard') {
             act = 'arrest';
             mood = 'anger';
@@ -287,7 +310,12 @@ export const StreetCrime = {
         let act;
         let mood;
         let pool;
-        if (implicates) {
+        if (implicates && isGuard && ctx.royal) {
+            // The ruler stands over a body in their own town: the watch sees nothing
+            act = 'stare';
+            mood = 'fear';
+            pool = _royalPool('murder');
+        } else if (implicates) {
             // Caught with the body: the watch arrests, kin rage or wail, the rest run
             mood = role === 'kin' || angry || isGuard ? 'anger' : 'fear';
             act = isGuard ? 'arrest' : role === 'kin' ? (angry ? 'stand' : 'mourn') : mood === 'anger' ? 'stand' : 'flee';
@@ -368,8 +396,10 @@ export const StreetCrime = {
         const witnessed = !!g.witnessed;
 
         // Heat with the crown (and the deed's mark on the player's character)
+        // The ruler in their own town: the watch stands down, the crown does not hunt itself
+        const royal = opts.royal != null ? !!opts.royal : StreetCrime.aboveLaw(player, world, settlement);
         const share = witnessed ? 1 : _num(C.heat.unseenShare && C.heat.unseenShare[crime], 0);
-        const heat = player ? _num((Underworld.recordCrime(player, world, crime, { kingdom, scale: share }) || {}).heat) : 0;
+        const heat = royal ? 0 : player ? _num((Underworld.recordCrime(player, world, crime, { kingdom, scale: share }) || {}).heat) : 0;
         // Karma: the rumour takes it when seen; an unseen deed still weighs on the soul
         if (player && !witnessed) {
             const k = _num(C.karmaUnseen && C.karmaUnseen[crime], 0);
@@ -383,8 +413,9 @@ export const StreetCrime = {
             incident = {
                 id: st.nextId++, k: crime, victim: victim.name || 'someone', vuid, vtype: victim.type || 'villager',
                 town, key, kingdom, d: day, witnessed, rumourId: g.rumor ? g.rumor.id : null,
-                witnesses: seenBy.slice(0, 5).map(w => w.npc.name), answered: false,
+                witnesses: seenBy.slice(0, 5).map(w => w.npc.name), answered: royal,
             };
+            if (royal) incident.royal = true;
             st.incidents.push(incident);
             if (st.incidents.length > MAX_INCIDENTS) st.incidents.splice(0, st.incidents.length - MAX_INCIDENTS);
         }

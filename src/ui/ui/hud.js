@@ -15,6 +15,8 @@ import { NpcPortrait } from '../npcPortrait.js';
 import { updatePrestigeChip } from '../prestigeChip.js';
 import { updateAPChip } from '../apChip.js';
 import { Calendar } from '../../systems/calendar.js';
+import { Barter } from '../../world/barter.js';
+import { setCoinless } from '../actionMenu/uiKit.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -1114,7 +1116,23 @@ Object.assign(UI.prototype, {
 
     /** Top-bar gold + income + stars (renown) + shields (army strength). */
     updateTopBarResources(player, world) {
-        this._setHudText('tbGold', Utils.formatNumber(Math.floor(Number(player.gold) || 0)));
+        // Before coin (world/barter.js) the purse is the worth of the goods carried:
+        // "~120" under a pack, not coins; the panels' purse and prices say so too (uiKit)
+        const inKind = Barter.inKind(player);
+        setCoinless(inKind);
+        this._setHudText('tbGold', inKind ? `~${Utils.formatNumber(Math.floor(Number(player.gold) || 0))}` : Utils.formatNumber(Math.floor(Number(player.gold) || 0)));
+        {
+            const box = document.getElementById('tbGold');
+            const res = box && typeof box.closest === 'function' ? box.closest('.tb-res-gold') : null;
+            if (res && res.classList.contains('tb-barter') !== inKind) res.classList.toggle('tb-barter', inKind);
+            if (res) {
+                const coin = Barter.coinOf(player);
+                const tip = inKind
+                    ? `Goods worth ~${Math.floor(Number(player.gold) || 0)} — there is no coin here: you pay and are paid in goods${coin > 0 ? ` (your ${Math.floor(coin)} coin waits for a town that uses coin)` : ''}`
+                    : 'Gold';
+                if (res.title !== tip) res.title = tip;
+            }
+        }
 
         // Per-day income from the latest finance snapshot (0 before day 1 ends).
         const hist = player.financeHistory;

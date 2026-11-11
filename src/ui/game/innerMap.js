@@ -3,6 +3,7 @@
 // ============================================
 
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
+import { inKind, money } from '../barterVoice.js';
 import { Wilds } from '../../player/wilds.js';
 import { Prison } from '../../player/prison.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
@@ -371,7 +372,7 @@ export function _showInnerMapEndDayModal() {
                 <span>📜 Year</span><span style="color:#f5c542;">${year}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
-                <span>💰 Gold</span><span style="color:#f5c542;">${this.player.gold}</span>
+                ${inKind(this) ? `<span>🎒 Goods</span><span style="color:#f5c542;">${money(this, this.player.gold)}</span>` : `<span>💰 Gold</span><span style="color:#f5c542;">${this.player.gold}</span>`}
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom: 4px;">
                 <span>❤️ Health</span><span style="color:#f5c542;">${this.player.health}/${this.player.maxHealth}</span>

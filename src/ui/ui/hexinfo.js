@@ -1,5 +1,6 @@
 // UI — hexinfo methods.
 import { UI } from './core.js';
+import { voice } from '../barterVoice.js';
 import { Cultures } from '../../world/cultures.js';
 import { Languages } from '../../systems/languages.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
@@ -493,7 +494,7 @@ Object.assign(UI.prototype, {
             }
         }
 
-        body.innerHTML = html;
+        body.innerHTML = voice(this.game, html); // (goods' worth where the player deals in kind: ui/barterVoice.js)
         this.showPanel('hexInfoPanel');
     },
 
@@ -731,7 +732,7 @@ Object.assign(UI.prototype, {
             }
         }
 
-        body.innerHTML = html;
+        body.innerHTML = voice(this.game, html); // (goods' worth where the player deals in kind: ui/barterVoice.js)
         this.showPanel('hexInfoPanel');
     },
 

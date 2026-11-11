@@ -1,9 +1,11 @@
 // ActionMenu — core methods (split from the original monolith).
 import { ActionMenu } from './_ref.js';
+import { voice } from '../barterVoice.js';
 import { pictureIcon } from '../icons.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Parentage } from '../../player/parentage.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { Dawn } from '../../world/dawn.js';
 import { Endurance } from '../../player/endurance.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, Gossip, OutlawLairs } from './_imports.js';
 
@@ -181,7 +183,7 @@ Object.assign(ActionMenu, {
             rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
-            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', your_parents: 'social', commissions: 'commerce',
+            prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
             disembark: 'general', row_ashore: 'general', row_to_ship: 'general', ship_hold: 'commerce', port_market: 'commerce', explore_ocean: 'general', make_for_port: 'general', hunt_pirates: 'military', commit_piracy: 'military', raid_haven: 'military', landing_party: 'military', explore_inner_map: 'general',
             trade: 'commerce', contract: 'commerce', ship_passage: 'commerce',
             collect_goods: 'commerce', manage_property: 'commerce', start_caravan: 'commerce',
@@ -279,6 +281,9 @@ Object.assign(ActionMenu, {
         const kingdom = tile.kingdom && game.world.getKingdom ? game.world.getKingdom(tile.kingdom) : null;
         const placeSub = [tile.settlement || tile.improvement ? (tile.terrain.name || tile.terrain.id) : null,
             kingdom ? kingdom.name : 'Unclaimed lands'].filter(Boolean).join(' · ');
+        // A hot button on the place card for walking into the hex on foot (Explore Interior / Go on Deck),
+        // so it isn't buried in a district's list
+        const quick = actions.find(a => a && a.type === 'explore_inner_map' && !a.disabled) || null;
         const apPips = maxAp <= 14
             ? `<span class="amx-ap-pips" aria-hidden="true">${'◆'.repeat(Math.max(0, Math.min(ap, maxAp)))}<i>${'◆'.repeat(Math.max(0, maxAp - Math.max(0, ap)))}</i></span>`
             : '';
@@ -294,6 +299,7 @@ Object.assign(ActionMenu, {
                 </div>
                 <div class="am-place-side">
                     <span class="am-place-ap" title="Action points left today: ${ap} of ${maxAp}">${apPips}<b>${ap}</b>/${maxAp} AP</span>
+                    ${quick ? `<button class="action-menu-btn amx-quick" data-action="${quick.type}" title="${_escHtml(quick.description || quick.label)} (free)">${quick.icon || '🗺️'} ${_escHtml(quick.type === 'explore_inner_map' && quick.label === 'Explore Interior' ? 'Explore' : quick.label)}</button>` : ''}
                     <button id="closeActionMenu" class="am-place-close" title="Close (Esc)">✕</button>
                 </div>
             </div>
@@ -337,7 +343,8 @@ Object.assign(ActionMenu, {
             : '<span class="amx-note-hint">Type to search · ↑ ↓ to choose · Enter to act · ← → between districts · ☆ pins an action to At Hand</span>';
         html += `<div class="amx-note" aria-live="polite">${HINT}</div>`;
 
-        menu.innerHTML = html;
+        // (costs told as goods' worth where the player deals in kind: ui/barterVoice.js)
+        menu.innerHTML = voice(game, html);
         document.body.appendChild(menu);
         paintPlaceView(game, tile, menu.querySelector('.am-place-view'));
 
@@ -481,7 +488,7 @@ Object.assign(ActionMenu, {
         const describe = (row) => {
             if (!row) { note.innerHTML = HINT; return; }
             const btn = row.querySelector('.amx-main');
-            note.innerHTML = btn ? btn.getAttribute('data-note') || HINT : HINT;
+            note.innerHTML = btn ? voice(game, btn.getAttribute('data-note') || HINT) : HINT;
         };
 
         // ── Events ──
@@ -614,6 +621,7 @@ Object.assign(ActionMenu, {
         eat_meal: 0,
         arms_armour: 0,
         your_parents: 0,
+        dawn_instep: 0,
         disembark: 0,
         explore_inner_map: 0,
         jail_wait: 0, jail_bail: 0, jail_escape: 0, jail_cell: 0,
@@ -1210,6 +1218,18 @@ Object.assign(ActionMenu, {
                 if (Parentage.state(game.player) && Parentage.state(game.player).pending) ActionMenu.showParentPicker(game);
                 else ActionMenu.showParents(game);
                 break;
+            case 'dawn_instep': {
+                // The Dawn of Man: the clan walks with you hex for hex, or at its own pace (world/dawn.js keepStep)
+                const p = game.player;
+                p.dawnInStep = !p.dawnInStep;
+                const clan = Dawn.kinClan(game.world, p);
+                const beside = clan && Hex.wrappingOffsetDistance(clan.q, clan.r, p.q, p.r, game.world.width) <= 1;
+                if (p.dawnInStep && beside) { clan.q = p.q; clan.r = p.r; }
+                game.ui.showNotification(p.dawnInStep ? '👣 In step' : '🐾 At their own pace',
+                    p.dawnInStep ? (beside ? 'Your clan walks with you now, hex for hex, wherever they can follow on foot.' : 'Your clan will fall in step as soon as you are beside them.')
+                        : 'Your clan follows at its own pace again, two hexes a day, within a few leagues of you.', 'info');
+                break;
+            }
             case 'dawn_settle': {
                 // The Dawn of Man: the clan makes camp for good (player/dawnBirth.js)
                 const res = DawnBirth.settleHere(game.player, game.world);

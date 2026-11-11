@@ -31,6 +31,8 @@
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { MoneySupply } from '../world/moneySupply.js';
+import { Barter } from '../world/barter.js';
+import { CoinCensus } from './coinCensus.js';
 import { Coinage } from '../world/coinage.js';
 import { Economy } from '../world/economy.js';
 import { Finance } from './finance.js';
@@ -197,8 +199,20 @@ export const Mints = {
     processDay(world, player = null) {
         const out = { notices: [], news: null };
         if (!world || !Mints.enabled()) return out;
-        const news = MoneySupply.processDay(world, { panic: Mints._panics(world, player) });
+        // (the census of the purses beyond the towns: only on the weekly turn)
+        // Before the first coin no purse holds any (world/barter.js): what one does was made from nothing
+        if (Barter.active(world)) CoinCensus.purge(world, player);
+        const C = MoneySupply.config();
+        const st = MoneySupply.state(world);
+        const due = st.lastDay == null || _day(world) - st.lastDay >= C.every || _day(world) < st.lastDay;
+        const holders = due ? CoinCensus.count(world, player, { towns: false }) : null;
+        // Before coin (world/barter.js) the census counts empty purses and nothing is struck;
+        // while coin spreads, only the towns that use it sell ore to the mints
+        const barter = Barter.active(world);
+        const coinTown = Barter.lingering(world) && !barter ? (s) => Barter.hasCoin(world, s) : null;
+        const news = MoneySupply.processDay(world, { panic: Mints._panics(world, player), holders, barter, coinTown });
         out.news = news;
+        if (barter) return out;
         if (news) {
             Mints._crownsWeek(world, player, out);
             if (player) Mints._leaseWeek(world, player, out);
@@ -242,9 +256,11 @@ export const Mints = {
         if (p >= 1) return { ok: false, cost: 0, reason: 'The coin is already of full weight.' };
         const last = rec.mint.lastRecoin;
         if (last != null && _day(world) - last < _num(R.cooldown, 120)) return { ok: false, cost: 0, reason: `The last recoinage was on day ${last}: the mint cannot call the coin in again so soon.` };
+        // (the coin called in is the coin in the towns' purses: the markets bring it to the mint)
         const share = _num(R.crownShare, 0.5);
-        const cost = Math.ceil(rec.coin * (1 - p) * share);
-        return { ok: true, cost, coinAfter: Math.round(rec.coin * (p + (1 - p) * share)), purity: p };
+        const called = MoneySupply.townCoin(world, k.id);
+        const cost = Math.ceil(called * (1 - p) * share);
+        return { ok: true, cost, called: Math.round(called), coinAfter: Math.round(called * (p + (1 - p) * share)), purity: p };
     },
 
     /** A recoinage edict: the old coin is called in and struck anew at full purity. */
@@ -254,8 +270,11 @@ export const Mints = {
         if (_num(k.treasury) < q.cost) return { success: false, reason: `The treasury needs ${q.cost}g to make up the silver.` };
         const R = Mints.config().recoinage;
         const rec = MoneySupply.realm(world, k.id);
+        // The crown's silver goes into the new coin; the holders get back purity + crownShare × (1 − purity)
+        // of each piece: the towns' purses shrink by the rest
         k.treasury = _num(k.treasury) - q.cost;
-        MoneySupply.adjust(world, k.id, q.coinAfter - rec.coin, 'recoin');
+        const p = q.purity, share = _num(R.crownShare, 0.5);
+        MoneySupply.recoinTowns(world, k, p + (1 - p) * share);
         const f = Finance.kingdomState(k);
         f.purity = 1;
         rec.mint.lastRecoin = _day(world);
@@ -367,6 +386,8 @@ export const Mints = {
         Ledger.record(player, 'goodsSold', gold);
         const rec = MoneySupply.ensureRealm(world, q.kingdom);
         MoneySupply._fill(rec);
+        // (paid in new coin: the mint's struck coin of the week counts it)
+        rec.mint.pendingPaid = _num(rec.mint.pendingPaid) + gold;
         rec.mint.pending[good] = _num(rec.mint.pending[good]) + n;
         rec.mint.playerWeek = _num(rec.mint.playerWeek) + n * q.fine;
         const st = Mints.state(player);
@@ -482,7 +503,10 @@ export const Mints = {
         player.gold = _num(player.gold) + gain;
         Ledger.record(player, 'fraud', gain);
         Underworld.addHeat(player, q.kingdom.id, _num(C.passHeat, 4), world);
-        MoneySupply.adjust(world, q.kingdom.id, q.stake + gain, 'counterfeit');
+        // The false coin passes at face for good coin: the towns hold as many pieces as before,
+        // the stake was melted to silver the copper, and the player's purse is up by the gain —
+        // coin made from copper, in a hoard until it is spent
+        MoneySupply.note(world, q.kingdom.id, gain, 'counterfeit');
         st.stats.passed++;
         st.stats.counterfeitGain += gain;
         Mints._log(player, world, `Passed false coin in ${q.kingdom.name}: ${gain}g gained.`);

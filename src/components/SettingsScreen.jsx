@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import CharacterForge from './CharacterForge';
-import { buildForGender, defaultAppearance } from '../ui/playerAppearance';
+import { buildForGender, defaultAppearance, eraMisfits, fitAppearanceToYear } from '../ui/playerAppearance';
+import erasData from '../../data/eras.json';
 import scenariosData from '../../data/scenarios.json';
 import dawnData from '../../data/dawn.json';
 import birthData from '../../data/birth.json';
+import { WorldAge } from '../world/worldAge.js';
+import { ModStore } from '../systems/modStore';
 
 // Origin & Challenge choices (data/scenarios.json; applied by player/scenarios.js)
 const _entries = (o) => Object.entries(o || {}).filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object');
@@ -117,7 +120,27 @@ export default function SettingsScreen() {
     hillsLevel: 0.52,
     mountainLevel: 0.70,
     snowPeakLevel: 0.88,
+    // A map from the World Editor ('' = generate a new world)
+    customWorldId: '',
   });
+
+  // The maps saved in the World Editor (systems/modStore.js), for the World choice
+  const [customWorlds, setCustomWorlds] = useState([]);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        await ModStore.init();
+        const list = await ModStore.listWorlds();
+        if (live) setCustomWorlds(list || []);
+      } catch (err) {
+        console.warn('Could not list custom worlds', err);
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+  const custom = !!settings.customWorldId;
+  const chosenWorld = custom ? customWorlds.find(w => w.id === settings.customWorldId) : null;
 
   const handlePreset = useCallback((key) => {
     setPreset(key);
@@ -133,6 +156,15 @@ export default function SettingsScreen() {
   const handleChange = useCallback((field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   }, []);
+
+  // The look wears the clothes of the start year's era (world/eraWardrobe.js): a choice
+  // that era would not wear becomes the nearest one it would
+  useEffect(() => {
+    const look = settings.charAppearance;
+    if (look && eraMisfits(look, settings.startYear, erasData).length) {
+      handleChange('charAppearance', fitAppearanceToYear(look, settings.startYear, erasData));
+    }
+  }, [settings.startYear, settings.charAppearance, handleChange]);
 
   // A look still at its default follows the gender; a customised one keeps
   // everything but the build (and only that when the gender names one)
@@ -189,7 +221,32 @@ export default function SettingsScreen() {
       <div id="settingsContent">
         <h2 className="settings-title">New Game Initialization</h2>
 
+        {/* The world: a new one generated, or a map made in the World Editor */}
+        <div className="settings-presets">
+          <span className="preset-label">World:</span>
+          <select
+            id="customWorldId"
+            value={settings.customWorldId}
+            onChange={e => handleChange('customWorldId', e.target.value)}
+            title="Generate a new world, or play on a map you made in the World Editor"
+          >
+            <option value="">🎲 Generate a new world</option>
+            {customWorlds.map(w => (
+              <option key={w.id} value={w.id}>🗺️ {w.name || w.id} ({w.width} × {w.height})</option>
+            ))}
+          </select>
+          {custom && (
+            <span className="preset-label" style={{ opacity: 0.8 }}>
+              Your map, as you made it: its land, realms and towns. Your character, origin and challenge still apply.
+            </span>
+          )}
+          {!custom && customWorlds.length === 0 && (
+            <span className="preset-label" style={{ opacity: 0.6 }}>Maps you save in the World Editor appear here.</span>
+          )}
+        </div>
+
         {/* Map Size Presets */}
+        {!custom && (
         <div className="settings-presets">
           <span className="preset-label">Map Size:</span>
           {Object.keys(MAP_PRESETS).map(key => (
@@ -203,6 +260,7 @@ export default function SettingsScreen() {
             </button>
           ))}
         </div>
+        )}
 
         <div className="settings-groups-container">
           {/* Character: who you are and what you look like */}
@@ -265,6 +323,8 @@ export default function SettingsScreen() {
                 appearance={settings.charAppearance}
                 gender={settings.charGender}
                 name={[settings.charFirstName, settings.charLastName].filter(Boolean).join(' ')}
+                year={settings.startYear}
+                eraData={erasData}
                 onChange={look => handleChange('charAppearance', look)}
               />
             </div>
@@ -332,6 +392,8 @@ export default function SettingsScreen() {
             </div>
           </div>
 
+          {/* (a custom map keeps its own land: none of the generation settings apply) */}
+          {!custom && (<>
           {/* World Dimensions */}
           <div className="settings-group">
             <h3>World Dimensions</h3>
@@ -402,10 +464,12 @@ export default function SettingsScreen() {
               options={[['scarce','Scarce'],['normal','Normal'],['abundant','Abundant']]} />
           </div>
 
+          </>)}
+
           {/* Kingdoms & World */}
           <div className="settings-group">
             <h3>Kingdoms & World</h3>
-            <RangeInput {...bind} id="kingdomCount" label="Kingdoms:" field="kingdomCount" min={2} max={20} />
+            {!custom && <RangeInput {...bind} id="kingdomCount" label="Kingdoms:" field="kingdomCount" min={2} max={20} />}
             <div className="input-row">
               <label htmlFor="startYear">Start Year:</label>
               <input
@@ -418,18 +482,28 @@ export default function SettingsScreen() {
               />
             </div>
             <div className="settings-hint" style={{ fontSize: '11px', opacity: 0.8, margin: '2px 0 8px' }}>
-              {settings.startYear < DAWN_YEAR
+              {custom
+                ? `Year ${Math.max(settings.startYear, DAWN_YEAR)} on ${chosenWorld ? (chosenWorld.name || 'your map') : 'your map'}: the calendar starts here.${settings.startYear < DAWN_YEAR ? ` (A hand-made map can't begin at the Dawn of Man: it starts in ${DAWN_YEAR}.)` : ''}`
+                : settings.startYear < DAWN_YEAR
                 ? `🔥 The Dawn of Man: no towns, roads or crowns yet — wandering clans settle the land, villages rise, and chiefdoms grow into up to ${settings.kingdomCount} realms over the decades. You are born into one of the wandering clans, with your family about you.`
-                : `The realms are long founded; the calendar begins in year ${settings.startYear}. Any year before ${DAWN_YEAR} starts at the Dawn of Man.`}
+                : (() => {
+                  // How old the world is in that year (world/worldAge.js, data/dawn.json age.bands)
+                  const age = WorldAge.band(settings.startYear, dawnData);
+                  const what = age.hint ? `${age.label} — ${age.hint}` : age.label;
+                  return `Year ${settings.startYear}: ${what}. Any year before ${DAWN_YEAR} starts at the Dawn of Man.`;
+                })()}
             </div>
+            {!custom && (<>
             <SelectInput {...bind} id="independentSettlements" label="Independent Towns:" field="independentSettlements"
               options={[['none','None'],['few','Few'],['normal','Normal'],['many','Many']]} />
             <SelectInput {...bind} id="ruinsFreq" label="Ruins & POI:" field="ruinsFreq"
               options={[['none','None'],['few','Few'],['normal','Normal'],['many','Many']]} />
+            </>)}
           </div>
         </div>
 
         {/* Advanced Settings */}
+        {!custom && (
         <details className="advanced-settings">
           <summary>Advanced Generation Parameters</summary>
           <div className="settings-groups-container">
@@ -449,6 +523,7 @@ export default function SettingsScreen() {
             </div>
           </div>
         </details>
+        )}
 
         <div className="settings-actions">
           <button className="title-btn" onClick={() => setPhase('title')}>Back</button>

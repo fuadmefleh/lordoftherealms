@@ -98,7 +98,9 @@
             "emptyAt": 0.4,
             "starsDrift": 0.15,
             "repDrift": 0.15,
-            "maxHistory": 8
+            "maxHistory": 8,
+            "cashKeep": 800,
+            "spendShare": 0.5
         },
         "player": {
             "priceSteps": [0.6, 0.8, 1, 1.25, 1.5, 2],

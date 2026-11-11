@@ -18,6 +18,7 @@ import { Economy } from '../world/economy.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Seasons } from '../world/seasons.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
+import { Barter } from '../world/barter.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Technology } from './technology.js';
 import { Hex } from '../core/hex.js';
@@ -145,7 +146,8 @@ export const MarketDynamics = {
         MerchantCaravans.selectLinks(world, links, turnArg, day, lives.length);
         this._disrupt(world, player, links, turnArg);
         const bases = this._basePrices();
-        const flow = SettlementMarket.flows(links, bases, day);
+        // (goods for goods where a town barters: a world begun before coin, world/barter.js)
+        const flow = SettlementMarket.flows(links, bases, day, Barter.flowOpts(world));
         // The duties the day's trade paid go to the crowns (systems/tradePolicy.js)
         flow.duties = TradePolicy.collect(world, links);
         // Tolls over the public works, and the roads' traffic (systems/publicWorks.js)
@@ -631,7 +633,10 @@ export const Taxation = {
             const holdingMult = Taxation.holdingFx(settlement, 'taxMult', 1);
             // The tithe and the tenants' rents follow the harvest (world/harvests.js)
             const harvestMult = Harvests.rentFactor(settlement);
-            const taxCollected = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult * harvestMult);
+            const taxDue = Math.floor(taxBase * taxPolicy.rate * landBonus * Taxation.officeTaxMultiplier(player) * eventMult * moodMult * holdingMult * harvestMult);
+            // (real coin: the tax comes out of the town's purse — a drained town pays what it has)
+            const live = (tile && tile.settlement) || settlement;
+            const taxCollected = dryRun ? Math.min(taxDue, Math.floor(Economy.townPurse(live) ?? taxDue)) : Math.floor(Economy.drawTown(live, taxDue));
 
             totalCollected += taxCollected;
             const growthRate = Taxation.getGrowthRate(settlement, taxPolicy);

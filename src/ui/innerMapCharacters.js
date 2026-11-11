@@ -8,6 +8,7 @@
 // Layers are pre-rendered to offscreen canvases for performance.
 // ============================================
 
+import { EraWardrobe } from '../world/eraWardrobe.js';
 
 export const InnerMapCharacters = {
     // ── Configuration (loaded from innerMapRenderer.json) ──
@@ -82,6 +83,15 @@ export const InnerMapCharacters = {
     DIR_DOWN: 2,
     DIR_RIGHT: 3,
 
+    // ── The era's wardrobe (world/eraWardrobe.js, data/eras.json) ──
+    // The game sets the world's year each frame (setYear). In a younger world
+    // an NPC's look is its preset fitted to the era — 'era:<era>:<preset>#<variant>',
+    // composited on first need; the mature world (the default) draws the presets as they are.
+    _era: null,          // the current era's record, or null (mature / no game)
+    _year: null,
+    _eraBases: new Set(),  // the configured NPC presets (fitted when the era asks)
+    _eraPending: new Set(),
+
     // ── State ──
     _loaded: false,
     _loading: false,
@@ -97,8 +107,9 @@ export const InnerMapCharacters = {
     configure(configData) {
         if (configData.characterPresets) {
             this._presets = {};
+            this._eraBases = new Set();
             for (const [k, v] of Object.entries(configData.characterPresets)) {
-                if (!k.startsWith('_')) this._presets[k] = v;
+                if (!k.startsWith('_')) { this._presets[k] = v; this._eraBases.add(k); }
             }
         }
         if (configData.npcAppearanceMap) {
@@ -363,11 +374,71 @@ export const InnerMapCharacters = {
         if (!presets || presets.length === 0) {
             // Fallback: pick from all presets — but never the player's own
             // look (registerPreset 'player:…'), or a stranger wears your face
-            const allKeys = Object.keys(this._presets).filter(id => !id.startsWith('player:'));
+            // (nor an era's fitting of a preset: the preset itself is fitted below)
+            const allKeys = Object.keys(this._presets).filter(id => !id.startsWith('player:') && !id.startsWith('era:'));
             if (allKeys.length === 0) return null;
-            return allKeys[Math.abs(seed) % allKeys.length];
+            return this._eraPreset(allKeys[Math.abs(seed) % allKeys.length], seed);
         }
-        return presets[Math.abs(seed) % presets.length];
+        return this._eraPreset(presets[Math.abs(seed) % presets.length], seed);
+    },
+
+    // ══════════════════════════════════════════════
+    // THE ERA'S WARDROBE
+    // ══════════════════════════════════════════════
+
+    /** The world's current year (from the game loop): picks the era the looks are fitted to. */
+    setYear(year) {
+        if (year === this._year) return;
+        this._year = year;
+        const era = year == null ? null : EraWardrobe.eraOf(year);
+        this._era = era && !EraWardrobe.isModern(era) ? era : null;
+    },
+
+    /** The current era's id ('late' in the mature world). */
+    eraId() {
+        return this._era ? this._era.id : 'late';
+    },
+
+    /** A layer recipe fitted to the current era, for a wearer named by `seed` (as it is in the mature world). */
+    eraLayers(layers, seed = 0) {
+        return this._era ? EraWardrobe.fit(layers, this._era, seed) : layers;
+    },
+
+    /** An NPC preset as the era's wearer `seed` wears it (the preset itself in the mature world). */
+    _eraPreset(base, seed) {
+        if (!this._era || !base || !this._eraBases.has(base)) return base;
+        const v = EraWardrobe._hash(String(seed)) % EraWardrobe.variants();
+        return `era:${this._era.id}:${base}#${v}`;
+    },
+
+    /**
+     * The preset to draw for an id: an era look made in another era (the
+     * centuries passed, or a save from another age) is re-fitted to this one,
+     * a plain NPC preset is fitted when the era asks. A fitted look not yet
+     * composited is started, and its plain preset drawn meanwhile.
+     */
+    _live(presetId) {
+        if (typeof presetId !== 'string') return presetId;
+        let base = null, v = 0;
+        if (presetId.startsWith('era:')) {
+            const m = /^era:([^:]+):(.+)#(\d+)$/.exec(presetId);
+            if (!m) return presetId;
+            base = m[2]; v = Number(m[3]);
+            if (!this._era) return base;
+            if (m[1] === this._era.id && this._composited.has(presetId)) return presetId;
+        } else {
+            if (!this._era || !this._eraBases.has(presetId)) return presetId;
+            base = presetId;
+        }
+        if (!this._presets[base]) return presetId;
+        const id = `era:${this._era.id}:${base}#${v}`;
+        if (this._composited.has(id)) return id;
+        if (!this._eraPending.has(id)) {
+            this._eraPending.add(id);
+            const layers = EraWardrobe.fit(this._presets[base].layers || [], this._era, `${base}#${v}`);
+            this.registerPreset(id, layers).finally(() => this._eraPending.delete(id));
+        }
+        return base;
     },
 
     // ══════════════════════════════════════════════
@@ -404,6 +475,7 @@ export const InnerMapCharacters = {
      * @param {number} dh - Destination height
      */
     drawCharacter(ctx, presetId, anim, direction, time, dx, dy, dw, dh) {
+        presetId = this._live(presetId);
         const comp = this._composited.get(presetId);
         if (!comp) return false;
 
@@ -478,6 +550,6 @@ export const InnerMapCharacters = {
      * Get the composited canvas for direct access (e.g., test page).
      */
     getComposited(presetId) {
-        return this._composited.get(presetId) || null;
+        return this._composited.get(this._live(presetId)) || null;
     },
 };

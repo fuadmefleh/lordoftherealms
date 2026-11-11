@@ -150,6 +150,9 @@ export const PlayerInventory = {
      * @returns {{ added: Object, sold: Object, gold: number }}
      */
     addOrSell(player, items) {
+        // In a world still bartering (world/barter.js puts `player._inKind` on) there's
+        // nobody to sell to for coin: what's owed goes in the packs regardless
+        if (player && player._inKind) return { added: PlayerInventory.addItems(player, items, { force: true }).added, sold: {}, gold: 0 };
         const res = PlayerInventory.addItems(player, items);
         let gold = 0;
         for (const [id, qty] of Object.entries(res.dropped)) {

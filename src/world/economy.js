@@ -422,6 +422,8 @@ export const Economy = {
     /** Coin in a town's purse, or null when it keeps no purse (no economy record). */
     townPurse(settlement) {
         const e = settlement && settlement.economy;
+        // (a place born at the dawn never had coin it wasn't given: no record is an empty purse, not a bottomless one)
+        if (!e && settlement && (settlement.dawnBorn || settlement.freshPurse)) return 0;
         return e && Number.isFinite(e.gold) ? Math.max(0, e.gold) : null;
     },
 
@@ -432,6 +434,8 @@ export const Economy = {
     payTown(settlement, amount) {
         const g = Number(amount);
         if (!settlement || typeof settlement !== 'object' || !(g > 0)) return 0;
+        // A town that barters (world/barter.js stamps it) takes no coin: the payer paid it in goods
+        if (settlement.inKind) return 0;
         if (!settlement.economy) Economy.initSettlement(settlement);
         settlement.economy.gold = Math.round(((Number(settlement.economy.gold) || 0) + g) * 100) / 100;
         return g;
@@ -511,6 +515,9 @@ export const Economy = {
      */
     initSettlement(settlement, { fresh = false } = {}) {
         if (!settlement.economy) {
+            // A place born at the dawn (world/dawn.js) is always new: no coin or grain from before it
+            // (or founded later in a world begun before coin: settlement.freshPurse)
+            if (settlement.dawnBorn || settlement.freshPurse) fresh = true;
             const F = Economy.FOOD;
             const rates = Economy.PRODUCTION_RATES[settlement.type] || Economy.PRODUCTION_RATES.village;
             const popMod = 1 + ((Number(settlement.population) || 0) / 10000) * 0.5;

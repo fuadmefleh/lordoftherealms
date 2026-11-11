@@ -12,7 +12,11 @@
 //   • Sun on the water: sparse sparkles that come and go on open water
 //     (assets/lpc/FX/Water Reflections.png rows 0–1, four 32×32 frames), and
 //     ripple rings on ponds (its row 2). Dimmer by night.
-//   • The river runs: its sparkles drift downstream (the world river's
+//   • The river runs: flecks of foam and darker ripple lines stream down
+//     every river cell along that cell's own flow (t._flow, laid with the
+//     river: world/innerMap/water.js _recordRiverFlow), quick mid-channel,
+//     slow by the banks, curling in eddies over a ford; its sparkles drift
+//     the same way (maps laid before the flow was kept: the world river's
 //     outflow side, else along the river's run).
 //
 // Storm and wind make the waves come faster, reach further and break more
@@ -43,6 +47,10 @@ const DEFAULTS = {
         bowCount: 34, bowLength: 5, bowSpread: 0.9, wakeCount: 75, wakeLength: 14, wakeAngle: 0.2,
     },
     river: { density: 0.16, speed: 0.55, alpha: 0.75 },
+    streaks: {
+        enabled: true, density: 0.6, speed: 1.1, travel: 1.6, length: [3, 6], alpha: 0.5,
+        foam: '#e6f5ff', shade: '#2c5a86', shadeShare: 0.3, shadeAlpha: 0.35, bankSlow: 0.4, bankTravel: 0.6, eddy: 2.4,
+    },
     weather: {
         storm: { speed: 1.7, reach: 1.25, splash: 3, glint: 0.2 },
         rain: { speed: 1.2, reach: 1.1, splash: 1.5, glint: 0.4 },
@@ -104,6 +112,8 @@ Object.assign(InnerMapRenderer, {
         const land = (q, r) => { const t = at(q, r); return !!t && !_isWater(t) && !t._deck; };
         const flow = this._riverFlowVec();
         const rows = new Map();
+        const streaks = new Map();
+        const SK = cfg.streaks || {};
         let any = false;
         for (let r = 0; r < H; r++) {
             for (let q = 0; q < Wd; q++) {
@@ -123,7 +133,22 @@ Object.assign(InnerMapRenderer, {
                     // (a sparkle drifts most of a tile either way: only where there is water all round,
                     // else it slides off over the painted bank onto the grass)
                     const open = !sides && !land(q - 1, r - 1) && !land(q + 1, r - 1) && !land(q - 1, r + 1) && !land(q + 1, r + 1);
-                    if (open && h < cfg.river.density) cell = { q, r, kind, river: true, h, fx: flow ? flow[0] : 0, fy: flow ? flow[1] : 0 };
+                    const own = t._flow && Number.isFinite(t._flow.x) ? t._flow : null;
+                    if (open && h < cfg.river.density) {
+                        cell = { q, r, kind, river: true, h, fx: own ? own.x : flow ? flow[0] : 0, fy: own ? own.y : flow ? flow[1] : 0, own: !!own };
+                    }
+                    // The current itself: a streak or two down this cell, along its own flow
+                    // (density over 1: a second streak in that share of the cells)
+                    const dens = _num(SK.density, 0.5);
+                    if (own && SK.enabled !== false && !t._bridge) {
+                        const mid = Math.max(_num(SK.bankSlow, 0.4), Math.min(1, 1 - (own.d || 0) / 4.5));
+                        for (let n = 0; n < 2; n++) {
+                            if (_hash(q, r, 23 + n * 14) >= dens - n) continue;
+                            if (!streaks.has(r)) streaks.set(r, []);
+                            streaks.get(r).push({ q, r, fx: own.x, fy: own.y, h: _hash(q, r, 29 + n * 14), h2: _hash(q, r, 31 + n * 14), mid, open, ford: !!t._ford });
+                            any = true;
+                        }
+                    }
                 } else if (sides && _num(cfg.surf.kinds[kind], 0) > 0) {
                     cell = { q, r, kind, sides, h, strength: _num(cfg.surf.kinds[kind], 0) };
                 } else if (!sides && h < cfg.glint.density) {
@@ -139,7 +164,7 @@ Object.assign(InnerMapRenderer, {
         if (!flow) {
             for (const list of rows.values()) {
                 for (const cell of list) {
-                    if (!cell.river) continue;
+                    if (!cell.river || cell.own) continue;
                     let hx = 0, vy = 0;
                     for (let d = -3; d <= 3; d++) {
                         if (d && _isWater(at(cell.q + d, cell.r))) hx++;
@@ -149,7 +174,7 @@ Object.assign(InnerMapRenderer, {
                 }
             }
         }
-        this._waterFxCache = { tiles, rows: any ? rows : null };
+        this._waterFxCache = { tiles, rows: any ? rows : null, streaks: streaks.size ? streaks : null };
         return this._waterFxCache.rows;
     },
 
@@ -213,6 +238,7 @@ Object.assign(InnerMapRenderer, {
         ctx.imageSmoothingEnabled = false;
         this._drawSwell(ctx, origin, ds, this._frameRange, now, wx, cfg, deck);
         this._drawSurfField(ctx, origin, ds, this._frameRange, now, period, wx, S_);
+        this._drawRiverStreaks(ctx, origin, ds, this._frameRange, now, wx, cfg, day);
         if (deck) this._drawWake(ctx, camera, now, wx, cfg, deck);
         for (let r = rMin; r <= rMax; r++) {
             const list = rows.get(r);
@@ -671,6 +697,62 @@ Object.assign(InnerMapRenderer, {
         ctx.globalAlpha = G.alpha * light * (cell.ripple ? 1 : wx.glint);
         if (ctx.globalAlpha <= 0.02) { ctx.globalAlpha = 1; return; }
         ctx.drawImage(refl, frame * 32, rowY, 32, 32, Math.round(x0), Math.round(y0), Math.ceil(ds), Math.ceil(ds));
+        ctx.globalAlpha = 1;
+    },
+
+    /**
+     * The river runs: in each streak cell a fleck of foam (or a darker ripple
+     * line) a few art pixels long slides down the cell's own flow and fades —
+     * quicker and further mid-channel, slow and short by the banks (so it
+     * keeps off the painted bank); over a ford it curls round in an eddy.
+     */
+    _drawRiverStreaks(ctx, origin, ds, range, now, wx, cfg, day) {
+        const c = this._waterFxCache;
+        const rows = c && c.tiles === InnerMap.tiles ? c.streaks : null;
+        if (!rows) return;
+        const SK = cfg.streaks;
+        const { qMin, qMax, rMin, rMax } = range;
+        const px = Math.max(2, Math.round(ds / 16)); // two art pixels
+        const [l0, l1] = Array.isArray(SK.length) ? SK.length : [2, 4];
+        const light = 0.55 + 0.45 * day;
+        const tiles = InnerMap.tiles;
+        for (let r = rMin; r <= rMax; r++) {
+            const list = rows.get(r);
+            if (!list) continue;
+            const row = tiles[r];
+            for (const s of list) {
+                if (s.q < qMin || s.q > qMax) continue;
+                const t = row[s.q];
+                if (!t || !t.explored || !t.visible || t.customObject || t.customObjectPart) continue;
+                const shade = s.h2 < SK.shadeShare;
+                const sp = SK.speed * wx.speed * s.mid;
+                const travel = s.open ? SK.travel * (0.6 + 0.4 * s.mid) : SK.bankTravel;
+                const k = _frac(now * sp / travel + s.h * 7.3);
+                const a = Math.sin(k * Math.PI) * (shade ? SK.shadeAlpha : SK.alpha * light) * (0.55 + 0.45 * s.mid);
+                if (a <= 0.03) continue;
+                ctx.globalAlpha = a;
+                ctx.fillStyle = shade ? SK.shade : SK.foam;
+                const x0 = origin.x + (s.q - qMin) * ds + ds / 2, y0 = origin.y + (r - rMin) * ds + ds / 2;
+                let fx = s.fx, fy = s.fy;
+                let cx, cy;
+                if (s.ford) {
+                    // an eddy over the stones: round and round, drifting on a little
+                    const ang = now * SK.eddy * (s.h > 0.5 ? 1 : -1) + s.h * 6.28;
+                    cx = x0 + Math.cos(ang) * ds * 0.22 + fx * (k - 0.5) * ds * 0.3;
+                    cy = y0 + Math.sin(ang) * ds * 0.16 + fy * (k - 0.5) * ds * 0.3;
+                    fx = -Math.sin(ang); fy = Math.cos(ang);
+                } else {
+                    const side = s.open ? (s.h2 - 0.5) * 0.7 : 0;
+                    cx = x0 + fx * (k - 0.5) * travel * ds - fy * side * ds;
+                    cy = y0 + fy * (k - 0.5) * travel * ds + fx * side * ds;
+                }
+                const n = l0 + Math.floor(s.h * (l1 - l0 + 1));
+                for (let j = 0; j < n; j++) {
+                    const o = (j - (n - 1) / 2) * px;
+                    ctx.fillRect(Math.round((cx + fx * o) / px) * px, Math.round((cy + fy * o) / px) * px, px, px);
+                }
+            }
+        }
         ctx.globalAlpha = 1;
     },
 

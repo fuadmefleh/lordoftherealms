@@ -1060,7 +1060,10 @@ export const SettlementMarket = {
         const B = C.buf;
         const st = SettlementMarket._load(m, B.st);
         // Today's trade counters (filled by flows)
+        // (the barter books run the whole season: world/barter.js closes them)
+        const bt = m.trade;
         m.trade = { in: 0, out: 0, cut: 0 };
+        if (bt) for (const key of ['bv', 'bvc', 'bvLast', 'bvcLast']) if (bt[key]) m.trade[key] = bt[key];
 
         // Production
         // (`prod` is a list in config order — SettlementMarket.productionList — or { goodId: units })
@@ -1282,18 +1285,28 @@ export const SettlementMarket = {
      * systems/tradePolicy.js) add to the friction a good must beat to move
      * that way (Infinity: its export is banned); the duty on what moves is
      * left on link.paidAB / paidBA for the treasuries.
-     * The value of the goods moved each way (at the exporter's price) is left
-     * on link.valAB / valBA for the coin the realms settle in (world/moneySupply.js).
-     * @returns {{ moved:number, value:number, gold:number }}
+     * The coin the importing towns paid the exporters each way is left on
+     * link.valAB / valBA for the money supply's books (world/moneySupply.js).
+     * Before coin (world/barter.js flowOpts; null in a world begun with coin):
+     * `opts.inKind(settlement)` says a town barters — a link with a barter town
+     * on either end is goods for goods: each lot is owed in kind, and at the
+     * end of the link's turn the side that owes pays the balance in its spare
+     * goods (its most plentiful first), with no coin and no duty; and
+     * `opts.short` lets coin towns pay in kind what their purse can't. The
+     * value bartered is booked on each barter town's market.trade.bv (and
+     * .bvc, the part with coin towns) for the coming of coin.
+     * @returns {{ moved:number, value:number, gold:number, barter:number }}
      */
-    flows(links, basePrices, day = null) {
+    flows(links, basePrices, day = null, opts = null) {
         const C = SettlementMarket.config();
         const T = C.trade;
         // Each link trades every `tickDays` (staggered by its towns), moving that many days' worth
         const k = SettlementMarket.tickDays();
         const turn = Number.isFinite(day) && k > 1 ? ((day % k) + k) % k : null;
         const share = turn !== null ? 1 - Math.pow(1 - T.share, k) : T.share;
-        const out = { moved: 0, value: 0, gold: 0 };
+        const out = { moved: 0, value: 0, gold: 0, barter: 0 };
+        const inKindOf = opts && typeof opts.inKind === 'function' ? opts.inKind : null;
+        const shortKind = !!(opts && opts.short);
         const P = C.price;
         const lo = P.min, hiUsed = P.max, hiFree = Math.min(P.max, P.noNeedMax), e = -P.elasticity;
         const sc = (stock, target, used) => {
@@ -1349,6 +1362,20 @@ export const SettlementMarket = {
             const kdL = kd * (link.keep > 0 ? link.keep : 1);
             // Stock ratios further apart than this can't beat the friction (the curve is a power law)
             const frR = Math.pow(fr, 1 / P.elasticity);
+            // Barter (world/barter.js): goods for goods on a link with a barter town;
+            // in kind for what a coin town's purse can't pay in a world begun before coin.
+            // cred: the worth of each side's spare goods, owed: what each owes in kind
+            const kindLink = inKindOf !== null && (!!inKindOf(a) || !!inKindOf(b));
+            const mayKind = kindLink || (inKindOf !== null && shortKind);
+            let owedA = 0, owedB = 0, credA = 0, credB = 0;
+            if (mayKind) {
+                for (let i = 0; i < n; i++) {
+                    if (!(bases[i] > 0)) continue;
+                    const spA = xa[i] - sha.targetA[i] * kdL, spB = xb[i] - shb.targetA[i] * kdL;
+                    if (spA > 0) credA += spA * bases[i] * sc(xa[i], sha.targetA[i], sha.usedA[i]);
+                    if (spB > 0) credB += spB * bases[i] * sc(xb[i], shb.targetA[i], shb.usedA[i]);
+                }
+            }
             let movedA = 0, movedB = 0, goldLink = 0;
             const emb = link.embody === true;
             let cAB = null, cBA = null, gAB = 0, gBA = 0, payAB = 0, payBA = 0;
@@ -1390,14 +1417,21 @@ export const SettlementMarket = {
                 // (the importer pays the price between the markets, and the crown's duty on top)
                 const imp = aExports ? b : a, exp = aExports ? a : b;
                 const duty = dut - (pm !== null && pm[i] === 1 ? per : 0);
-                const unitPay = base * (se + (si - se) * payMid), unitDuty = duty > 0 && !emb ? base * se * duty : 0;
-                const cash = purse(imp);
+                const unitPay = base * (se + (si - se) * payMid), unitDuty = duty > 0 && !emb && !kindLink ? base * se * duty : 0;
+                // (in kind: what the importer's spare goods are worth, less what it owes already)
+                const kindRoom = mayKind && (kindLink || !emb) ? Math.max(0, aExports ? credB - owedB + owedA : credA - owedA + owedB) : 0;
+                const coinHas = kindLink ? 0 : purse(imp);
+                const cash = coinHas + kindRoom;
                 if (cash < qty * (unitPay + unitDuty)) qty = cash / (unitPay + unitDuty);
                 if (!(qty >= 0.05)) continue;
                 qty = Math.floor(qty * 100) / 100;
+                // Coin first, the rest owed in kind
+                const coinPay = kindLink ? 0 : Math.min(qty * unitPay, coinHas);
+                const kindPay = qty * unitPay - coinPay;
+                if (kindPay > 0) { if (aExports) owedB += kindPay; else owedA += kindPay; }
                 // (an embodied lot is paid for when its caravan arrives: link.payAB / payBA)
-                if (!emb) pay(imp, exp, qty * unitPay);
-                else if (aExports) payAB += qty * unitPay; else payBA += qty * unitPay;
+                if (!emb) pay(imp, exp, coinPay);
+                else if (aExports) payAB += coinPay; else payBA += coinPay;
                 if (unitDuty > 0 && imp.economy && Number.isFinite(imp.economy.gold)) imp.economy.gold = _round2(imp.economy.gold - qty * unitDuty);
                 xe[i] -= qty;
                 if (!emb) xi[i] += pm !== null && pm[i] === 1 ? Math.round(qty * (1 - lossP) * 100) / 100 : qty;
@@ -1406,18 +1440,53 @@ export const SettlementMarket = {
                 budget -= qty * base * se;
                 const g = qty * base * (si - se) * T.goldScale;
                 goldLink += g;
-                if (aExports) { movedA += qty; gAB += g; valAB += qty * base * se; } else { movedB += qty; gBA += g; valBA += qty * base * se; }
+                // (valAB / valBA: the coin the importer paid the exporter today, for the money supply's books)
+                const coinPaid = emb ? 0 : coinPay;
+                if (aExports) { movedA += qty; gAB += g; valAB += coinPaid; } else { movedB += qty; gBA += g; valBA += coinPaid; }
                 // (an embodied lot pays its duty as the caravan's border toll instead)
                 if (duty > 0 && !emb) { if (aExports) paidAB += qty * base * se * duty; else paidBA += qty * base * se * duty; }
                 valLink += qty * base * se;
                 out.moved += qty;
                 out.value += qty * base * se;
             }
+            // Barter: the side that owes pays the balance in its spare goods (most plentiful first)
+            if (mayKind && (owedA > 0 || owedB > 0)) {
+                const settle = (xf, shF, xt, value) => {
+                    let rem = value;
+                    const order = [];
+                    for (let i = 0; i < n; i++) if (bases[i] > 0 && xf[i] - shF.targetA[i] * kdL > 0.01) order.push(i);
+                    order.sort((i, j) => (xf[j] / Math.max(1e-6, shF.targetA[j])) - (xf[i] / Math.max(1e-6, shF.targetA[i])) || i - j);
+                    for (const i of order) {
+                        if (!(rem > 0.01)) break;
+                        const u = bases[i] * sc(xf[i], shF.targetA[i], shF.usedA[i]);
+                        if (!(u > 0)) continue;
+                        const q = Math.floor(Math.min(xf[i] - shF.targetA[i] * kdL, rem / u) * 100) / 100;
+                        if (!(q > 0)) continue;
+                        xf[i] -= q;
+                        xt[i] += q;
+                        rem -= q * u;
+                    }
+                    return value - rem;
+                };
+                const net = owedA - owedB;
+                if (net > 0.01) settle(xa, sha, xb, net);
+                else if (net < -0.01) settle(xb, shb, xa, -net);
+                // The barter books (world/barter.js): the goods traded in kind, and with coin towns
+                const kv = owedA + owedB;
+                const book = (s, m, partnerCoin) => {
+                    if (!inKindOf(s) || !m.trade) return;
+                    m.trade.bv = _round2(_num(m.trade.bv) + kv);
+                    if (partnerCoin) m.trade.bvc = _round2(_num(m.trade.bvc) + kv);
+                };
+                book(a, ma, !inKindOf(b));
+                book(b, mb, !inKindOf(a));
+                out.barter += kv;
+            }
             // What moved, for the tolls and the roads' traffic (systems/publicWorks.js)
             link.val = valLink;
             if (emb) { link.cargoAB = cAB; link.cargoBA = cBA; link.goldAB = gAB; link.goldBA = gBA; link.payAB = _round2(payAB); link.payBA = _round2(payBA); }
             if (paidAB > 0 || paidBA > 0) { link.paidAB = _num(link.paidAB) + paidAB; link.paidBA = _num(link.paidBA) + paidBA; }
-            // What crossed each way, for the specie the realms settle in (world/moneySupply.js collectTrade)
+            // The coin paid each way, for the money supply's books (world/moneySupply.js collectTrade)
             if (valAB > 0 || valBA > 0) { link.valAB = _num(link.valAB) + valAB; link.valBA = _num(link.valBA) + valBA; }
             if (movedA > 0 || movedB > 0) {
                 // An embodied link's margin rides with its caravans (paid on arrival)

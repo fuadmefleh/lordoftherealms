@@ -5,13 +5,14 @@
 // the walking sprite in towns.
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { Arms, ARMS_SLOTS } from '../systems/arms.js';
+import { EraWardrobe } from '../world/eraWardrobe.js';
 
 const HAIR_COLORS = ['Black', 'Raven', 'Charcoal', 'Brown', 'Chestnut', 'Ash Brown', 'Blonde', 'Platinum',
     'Orange', 'Red', 'Ruby', 'Gray', 'Silver', 'White', 'Pink', 'Purple', 'Violet', 'Blue', 'Teal', 'Green'];
 
 const CLOTH_COLORS = ['Garnet', 'Wine', 'Red', 'Coral', 'Amber', 'Mustard', 'Forest', 'Emerald', 'Teal',
     'Royal', 'Navy', 'Midnight', 'Indigo', 'Purple', 'Plum', 'Lavender', 'Black', 'Charcoal', 'Gray',
-    'White', 'Linen', 'Beige', 'Leather', 'Brown', 'Chocolate'];
+    'White', 'Linen', 'Beige', 'Leather', 'Brown', 'Chocolate', 'Tan', 'Umber', 'Sepia', 'Coffee'];
 
 /** Each option: the choices shown in the picker. `label` drops the asset-pack numbering. */
 export const APPEARANCE_OPTIONS = {
@@ -64,12 +65,62 @@ export function optionLabel(key, value) {
     return String(value).replace(/^.*? - /, '').replace(/ (Mustache|Shirt)$/, '');
 }
 
-/** Step one option forwards or backwards, wrapping. */
-export function cycleOption(appearance, key, step) {
-    const opts = APPEARANCE_OPTIONS[key].map(_value);
-    const i = Math.max(0, opts.indexOf(appearance[key]));
+/**
+ * Step one option forwards or backwards, wrapping. With a start year, the
+ * choices its era would not wear (world/eraWardrobe.js) are stepped over.
+ */
+export function cycleOption(appearance, key, step, year = null, eraData = null) {
+    let opts = APPEARANCE_OPTIONS[key].map(_value);
+    if (year != null) {
+        const ok = opts.filter(v => optionFitsEra(appearance, key, v, year, eraData));
+        if (ok.length) opts = ok;
+    }
+    const at = opts.indexOf(appearance[key]);
+    // (a choice outside the era steps onto the era's first or last)
+    const i = at >= 0 || year == null ? Math.max(0, at) : (step > 0 ? -1 : 0);
     const next = opts[(i + step + opts.length) % opts.length];
     return { ...appearance, [key]: next };
+}
+
+// The look's cloth, which the era decides (the rest — skin, hair, eyes — is the person's own)
+const ERA_KEYS = ['shirt', 'shirtColor', 'legs', 'legsColor'];
+// Garments every era wears, to judge a colour on its own
+const PLAIN = { shirtColor: 'Torso/Shirt 06 - Scoop T-shirt', legsColor: 'Legs/Pants 02 - Leggings' };
+
+/** Would the world of `year` wear this choice (world/eraWardrobe.js, data/eras.json)? */
+export function optionFitsEra(a, key, value, year, eraData = null) {
+    if (!ERA_KEYS.includes(key) || year == null) return true;
+    const era = EraWardrobe.eraOf(year, eraData);
+    if (EraWardrobe.isModern(era)) return true;
+    const cloth = a.build === 'feminine' ? 'Clothing/Feminine, Thin' : 'Clothing/Masculine, Thin';
+    const layer = key === 'shirt' ? `${cloth}/Torso/${value}/${a.shirtColor}`
+        : key === 'legs' ? `${cloth}/Legs/${value}/${a.legsColor}`
+            : `${cloth}/${PLAIN[key]}/${value}`;
+    if (key === 'shirt' || key === 'legs') {
+        // (the garment alone: its colour is judged by its own row)
+        const out = EraWardrobe.fit([layer], era, 0, eraData);
+        return out.length === 1 && out[0].slice(0, out[0].lastIndexOf('/')) === layer.slice(0, layer.lastIndexOf('/'));
+    }
+    return EraWardrobe.allows(layer, era, eraData);
+}
+
+/** The keys of a look its start year would not wear. */
+export function eraMisfits(a, year, eraData = null) {
+    return ERA_KEYS.filter(k => !optionFitsEra(a, k, a[k], year, eraData));
+}
+
+/**
+ * The look fitted to its start year's era: each choice the era would not
+ * wear becomes the first one it would (the look as it is in the mature world).
+ */
+export function fitAppearanceToYear(a, year, eraData = null) {
+    let out = a;
+    for (const key of ERA_KEYS) {
+        if (optionFitsEra(out, key, out[key], year, eraData)) continue;
+        const ok = APPEARANCE_OPTIONS[key].map(_value).find(v => optionFitsEra(out, key, v, year, eraData));
+        if (ok) out = { ...out, [key]: ok };
+    }
+    return out;
 }
 
 /** The build that goes with a gender ('other' keeps whatever is chosen). */
@@ -92,7 +143,7 @@ export function defaultAppearance(gender) {
 }
 
 /** A random look for the given gender. `rand` returns [0, 1). */
-export function randomAppearance(gender, rand = Math.random) {
+export function randomAppearance(gender, rand = Math.random, year = null, eraData = null) {
     const pick = key => _value(APPEARANCE_OPTIONS[key][Math.floor(rand() * APPEARANCE_OPTIONS[key].length)]);
     const build = buildForGender(gender, rand() < 0.5 ? 'feminine' : 'masculine');
     const look = { build };
@@ -101,6 +152,12 @@ export function randomAppearance(gender, rand = Math.random) {
     if (rand() < 0.75) look.hairColor = HAIR_COLORS[Math.floor(rand() * 13)];
     if (build === 'feminine' || rand() < 0.5) look.beard = 'none';
     if (look.hair === 'none' && rand() < 0.7) look.hair = 'Short 02 - Parted';
+    if (year == null) return look;
+    // ...in the clothes of its time
+    for (const key of ERA_KEYS) {
+        const ok = APPEARANCE_OPTIONS[key].map(_value).filter(v => optionFitsEra(look, key, v, year, eraData));
+        if (ok.length && !ok.includes(look[key])) look[key] = ok[Math.floor(rand() * ok.length)];
+    }
     return look;
 }
 

@@ -1,0 +1,18 @@
+{
+    "_doc": "Things thrown in a river and carried down it (systems/riverDrift.js; on the street map ui/innerMapRiverDrift.js, drawn by ui/innerMapLayers/riverDrift.js). hoursPerHex: how long the current takes to carry a thing across a hex off the street map (the world clock: day x 24 + the hour). mapSpeed: cells a second it drifts on the street map mid-channel (bankSlow: how much slower at the edges; wander: how far it swings across the channel, in cells; bob: how high it bobs, in art pixels). damAt: how far down the hex's river a weir stands (0 its head, 1 its foot) when nothing else places it. damCap: how many things a dam holds before the rest spill over it. millWeirs: a town's water mill on a river hex weirs it (worlds since millWeirGen). restDays: how long a thing lies in a lake (then sinks) or a pool at a river's end, or washed up on a bank. maxItems: the most adrift in the world at once (the oldest at rest go first). reach: how far (cells) you can lean out and hook a thing from the bank, a ford or a bridge; damReach: from the bank beside a dam. sinkers: goods that go straight to the bottom.",
+    "enabled": true,
+    "hoursPerHex": 2,
+    "mapSpeed": 1.1,
+    "bankSlow": 0.5,
+    "wander": 0.7,
+    "bob": 1.5,
+    "damAt": 0.55,
+    "damCap": 12,
+    "millWeirs": true,
+    "millWeirGen": 5,
+    "restDays": { "lake": 20, "pool": 120, "bank": 60 },
+    "maxItems": 150,
+    "reach": 2,
+    "damReach": 3,
+    "sinkers": ["stone", "iron", "iron_ore", "copper_ore", "gold_ore", "silver_ore", "tin_ore", "coal", "gems", "marble", "salt", "tools", "weapons", "armor"]
+}

@@ -210,6 +210,32 @@ export const OBJECT_ACTIONS = {
         // The devotion model (systems/devotion.js): faith, place, diminishing returns
         onExecute: (game) => _furnitureDevotion(game, 'pray'),
     },
+    // Town scenes (world/innerMap/townScenes.js): join what's going on in here
+    attend_service: {
+        label: 'Join the Service',
+        icon: '⛪',
+        desc: 'Sit with the congregation through the service',
+        category: 'spiritual',
+        modal: null,
+        effects: { comfort: 20, social: 12, fun: 5 },
+        message: 'You sit with the congregation and hear the sermon through.',
+        timeSkip: 1,
+        condition: () => !!InnerMap.sceneState().service,
+        conditionFail: 'No service is being held just now.',
+        onExecute: (game) => `You sit with the congregation through the service. ${_furnitureDevotion(game, 'pray')}`,
+    },
+    listen_bard: {
+        label: 'Listen to the Bard',
+        icon: '🎵',
+        desc: 'Sit back with a cup and enjoy the music',
+        category: 'entertainment',
+        modal: null,
+        effects: { fun: 25, social: 15, comfort: 6 },
+        message: 'You sit back, tap your foot and join the chorus. A fine evening.',
+        timeSkip: 1,
+        condition: () => !!InnerMap.sceneState().bard,
+        conditionFail: 'Nobody is playing just now.',
+    },
     meditate: {
         label: 'Meditate',
         icon: '🧘',

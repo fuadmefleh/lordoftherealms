@@ -3,6 +3,7 @@ import { UI } from './core.js';
 import { applyUiScale } from '../uiScale.js';
 import { icon, titleCrest, glyphLabel, itemIcon } from '../icons.js';
 import { PanelRefresh } from '../panelRefresh.js';
+import { voice, inKind, money } from '../barterVoice.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -62,7 +63,9 @@ Object.assign(UI.prototype, {
         html += tile('❤️', 'Health', `${player.health} / ${player.maxHealth}`, { color: player.health < player.maxHealth * 0.35 ? '#e57373' : '' });
         html += tile('⚡', 'Stamina', `${Math.floor(player.movementRemaining || 0)} / ${player.maxStamina}`);
         html += tile('🎯', 'Action Points', `${ap} / ${player.maxActionPoints || 10}`);
-        html += tile('💰', 'Gold', Utils.formatNumber(player.gold), { color: 'var(--gold)' });
+        html += inKind(this.game)
+            ? tile('🎒', 'Goods', money(this.game, player.gold), { color: 'var(--gold)', title: 'There is no coin here: the worth of the goods you carry, which you pay and are paid in' })
+            : tile('💰', 'Gold', Utils.formatNumber(player.gold), { color: 'var(--gold)' });
         html += tile('☯', 'Karma', player.karma, { color: player.karma > 0 ? '#9fd6a8' : player.karma < 0 ? '#e57373' : '' });
         html += tile('⭐', 'Renown', player.renown);
         html += tile(fame.icon || '🗣️', 'Repute Here', esc(fame.label), { color: fame.color || '', title: `${fame.blurb || ''} (good ${fame.good} · ill ${fame.ill})` });
@@ -493,6 +496,9 @@ Object.assign(UI.prototype, {
      */
     showCustomPanel(title, htmlContent, opts = {}) {
         const locked = !!opts.locked;
+        // Where the player deals in kind there is no gold to speak of (ui/barterVoice.js)
+        title = voice(this.game, title);
+        htmlContent = voice(this.game, htmlContent);
         // Remember which view painted the panel, to redraw it after the day (ui/panelRefresh.js)
         PanelRefresh.note(this);
         // A tab bar (setPanelNav) holds while the player moves between its views:
@@ -1302,6 +1308,9 @@ Object.assign(UI.prototype, {
      * Show a notification toast (Sims-style card)
      */
     showNotification(title, message, type = 'default') {
+        // (sums told as goods' worth where the player deals in kind: ui/barterVoice.js)
+        title = voice(this.game, title);
+        message = voice(this.game, message);
         const area = document.getElementById('notificationArea');
         if (!area) {
             // No HUD mounted (title screen, tests): still keep the log

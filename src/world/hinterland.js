@@ -30,6 +30,7 @@ import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
 import { Harvests } from './harvests.js';
 import { Transport } from './transport.js';
+import { WorldAge } from './worldAge.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -321,6 +322,8 @@ export const Hinterland = {
             const c = { kind, q: o.q, r: o.r, d: o.d, pr: Hinterland.kind(kind).priority, h: _roll(`hl:pick:${Hinterland.seed(world)}:${hk}`) };
             if (arr) arr.push(c); else cands.set(sk, [c]);
         }
+        // A young world's towns work fewer sites (world/worldAge.js; 1 when full-grown)
+        const ageScale = WorldAge.scaleNow(world, 'hinterland');
         for (const s of views) {
             const sk = _key(s.q, s.r);
             if (only && !only.has(sk)) continue;
@@ -328,7 +331,8 @@ export const Hinterland = {
             const arr = cands.get(sk);
             if (!arr) continue;
             arr.sort((a, b) => (b.pr - a.pr) || (a.d - b.d) || (a.h - b.h));
-            const max = _num(C.maxSites[s.type], 2);
+            const full = _num(C.maxSites[s.type], 2);
+            const max = ageScale < 1 ? Math.max(1, Math.round(full * ageScale)) : full;
             const per = {};
             let n = 0;
             // A town founded in play (day given) builds its sites one after

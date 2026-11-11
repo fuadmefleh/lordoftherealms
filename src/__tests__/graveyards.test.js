@@ -124,6 +124,24 @@ describe('The churchyard on the map', () => {
         }
     });
 
+    it('no grave or marker where water has run over the ground, and no burial there', () => {
+        const ctx = enter(setup('town'));
+        const yard = InnerMap.townYard();
+        const town = Graveyards.ground(ctx.settlement, 'town');
+        // a stream laid across the first plots after the planner marked them
+        const flooded = yard.plots.slice(0, 3);
+        for (const p of flooded) for (const t of [InnerMap.getTile(p.q, p.r), InnerMap.getTile(p.q, p.r + 1)]) { t._wet = true; t._waterKind = 'river'; }
+        InnerMap.refreshGraves(ctx.world);
+        for (const p of flooded) {
+            const t = InnerMap.getTile(p.q, p.r);
+            expect(t.customObject).toBeFalsy();
+            expect(t._graveShow).toBeFalsy();
+            expect(t._plotRef).toBeFalsy();
+        }
+        expect(town.drowned).toEqual([0, 1, 2]);
+        for (const i of GraveBook.freePlots(town)) expect(i).toBeGreaterThan(2);
+    });
+
     it('the same town lays the same churchyard every visit', () => {
         enter(setup('village'));
         const a = JSON.stringify(InnerMap.townYard());

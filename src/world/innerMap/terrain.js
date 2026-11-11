@@ -380,7 +380,11 @@ Object.assign(InnerMap, {
         // afresh — a village where the clan made camp is no longer wild ground
         // (its name and size and style: a tent village that grows into a town is laid out anew)
         const st = worldTile.settlement;
-        const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}` : null;
+        // (the age's buildings: a town drawn before a building type's year is laid out anew after it)
+        this._worldYear = game && game.world && Number.isFinite(game.world.year) ? game.world.year : null;
+        const era = st ? this.eraBuildingStamp(this._worldYear) : '';
+        // (a capital whose castle has since risen is laid out anew: world/castles.js)
+        const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}` : null;
         // (the open sea is drawn afresh each time: your ship may be another one)
         if (worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id)) delete this._cache[key];
         const cached = this._cache[key];

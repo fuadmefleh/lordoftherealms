@@ -4,6 +4,7 @@
 
 import { Characters } from '../world/characters.js';
 import { Dawn } from '../world/dawn.js';
+import { Barter } from '../world/barter.js';
 import { House } from './house.js';
 import { Titles } from './titles.js';
 import { Espionage } from './espionage.js';
@@ -39,6 +40,7 @@ import { RivalAgents } from './rivalAgents.js';
 import { Mail } from './mail.js';
 import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
+import { RiverDrift } from './riverDrift.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
@@ -183,6 +185,9 @@ export const SaveLoad = {
             // A world begun at the Dawn of Man: its progress and the paths its
             // villages have trodden since (world/dawn.js; null for other worlds)
             dawn: Dawn.serialize(world),
+            // A world begun before coin: how far coin has come (world/barter.js; null
+            // for worlds begun with coin). Each town's own coinSince travels with it
+            barter: world.barter ? JSON.parse(JSON.stringify(world.barter)) : null,
             // Settlement markets travel with their tiles (settlement.market);
             // the old regional table is kept empty for older readers
             markets: {},
@@ -222,6 +227,8 @@ export const SaveLoad = {
             gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
             // The trees felled on the maps, their stumps and what grows back (world/innerMap/felling.js)
             felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
+            // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
+            riverDrift: RiverDrift.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
         };
@@ -357,6 +364,8 @@ export const SaveLoad = {
      */
     EXTRA_PLAYER_FIELDS: [
         'charisma', 'intelligence', 'faith', 'maxInventory',
+        // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
+        'escortStance',
         'loans', 'taxRate', 'activeContract',
         'mapDeceptions', 'marriageAllianceKingdom', 'cultureIncomeCarry',
         'foragingTrips', 'huntingTrips', 'jobsCompleted', 'performancesGiven',
@@ -437,7 +446,8 @@ export const SaveLoad = {
             ...SaveLoad._pickDefined(player, SaveLoad.EXTRA_PLAYER_FIELDS),
             q: player.q,
             r: player.r,
-            gold: player.gold,
+            // (the real coin: in a barter place `player.gold` reads the goods carried — world/barter.js)
+            gold: Barter.coinOf(player),
             karma: player.karma,
             renown: player.renown,
             health: player.health,
@@ -477,6 +487,7 @@ export const SaveLoad = {
             // The Dawn of Man: the clan you were born to, your kin, your home village (player/dawnBirth.js)
             dawnClan: player.dawnClan || null,
             dawnKin: player.dawnKin || null,
+            dawnInStep: !!player.dawnInStep,
             dawnHome: player.dawnHome || null,
             dawnCampVisited: !!player.dawnCampVisited,
             kinOwed: player.kinOwed || 0, // meals from the kin's pot not yet paid back
@@ -768,6 +779,9 @@ export const SaveLoad = {
         Couriers.restore(saveData.post, world);
         Hospitality.restore(saveData.hospitality, world);
         Dawn.restore(saveData.dawn, world);
+        world.barter = saveData.barter && typeof saveData.barter === 'object' ? saveData.barter : null;
+        // An older save of a world begun at the dawn: barter brought in, once (world/barter.js)
+        if (!world.barter) Barter.migrate(world, saveData.generationParams || world.generationParams);
         // The labour news (older saves: none)
         Labour.restore(saveData.labour, world);
         // The hinterland (older saves: none — the sites are derived from the terrain on the next day)
@@ -797,6 +811,8 @@ export const SaveLoad = {
         world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
         // The trees felled (older saves: none — the woods stand whole)
         world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
+        // Things adrift on the rivers (older saves: none)
+        RiverDrift.restore(saveData.riverDrift, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -836,6 +852,8 @@ export const SaveLoad = {
      * Restore player from save data
      */
     restorePlayer(saveData, player, world = null) {
+        // (the purse in kind off first, so the saved coin isn't paid out as goods — world/barter.js)
+        Barter.uninstall(player);
         Object.assign(player, saveData);
         // Today's tally is always open (older saves kept null: writes before the first close were lost)
         if (!player.financeToday || typeof player.financeToday !== 'object') player.financeToday = {};
@@ -1082,6 +1100,14 @@ export const SaveLoad = {
         if (!Array.isArray(player.artifacts.discovered)) {
             player.artifacts.discovered = [];
         }
+
+        // A world still bartering: the purse in kind back on, the saved coin kept aside (world/barter.js);
+        // an older dawn save brought into barter turns the player's coin into goods, once
+        if (world && world.barter && world.barter.migratePlayer) {
+            delete world.barter.migratePlayer;
+            Barter.beginPlayer(player, world);
+        }
+        if (world) Barter.syncPlayer(world, player);
     },
 
     /**

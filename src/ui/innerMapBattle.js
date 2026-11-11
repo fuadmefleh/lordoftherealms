@@ -277,7 +277,10 @@ export const InnerMapBattle = {
         const armed = c.side === 'player' && Array.isArray(c.units) ? c.units.filter(u => u && u.kit) : [];
         const worn = armed.length ? Arms.lookLayers(layers, Arms.kitView(armed[variant % armed.length]), { paint: fill.paint }) : layers;
         // a side in livery wears it over its mail and plate (bandits and raiders each their own)
-        return rabble ? worn : Arms.liveryLayers(worn, fill.shirt);
+        const dressed = rabble ? worn : Arms.liveryLayers(worn, fill.shirt);
+        // ...as the world's era wears it (world/eraWardrobe.js): hides and flint spears at the Dawn,
+        // mail and round shields in the early kingdoms
+        return InnerMapCharacters.eraLayers(dressed, `bf:${c.side}:${c.kind}:${variant}`);
     },
 
     _registerLooks(game, bf, opts) {

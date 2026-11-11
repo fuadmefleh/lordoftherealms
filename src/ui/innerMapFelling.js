@@ -68,6 +68,8 @@ function _trunk(def, q, r) {
 const TOOLS = {
     axe: { grip: [0.15, 0.9], own: -56 },
     pickaxe: { grip: [0.2, 0.93], own: -63 },
+    // the smith's hammer at the anvil (world/innerMap/townScenes.js)
+    hammer: { grip: [0.18, 0.9], own: -50 },
 };
 let _itemImg = null;
 function _item(name) {

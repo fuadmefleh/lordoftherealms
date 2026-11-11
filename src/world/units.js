@@ -596,6 +596,8 @@ export class WorldUnit {
                     level: 0,
                     kingdom: null,
                 };
+                // (in a world begun before coin a new village has no coin it wasn't given: world/barter.js)
+                if (world.barter) tile.settlement.freshPurse = true;
                 if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
                 world.events.push({ text: `A new settlement, ${name}, has been established!`, type: 'growth' });
             }

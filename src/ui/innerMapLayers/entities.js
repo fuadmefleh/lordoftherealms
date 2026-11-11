@@ -890,11 +890,18 @@ Object.assign(InnerMapRenderer, {
                 }
 
                 const screen = camera.worldToScreenFast(worldX, worldY);
-                const sx = screen.x, sy = screen.y;
+                // A town scene (world/innerMap/townScenes.js): a vendor stands behind the stall's
+                // counter (drawn over the stall, the counter hiding their feet); a drunk sways home
+                const counter = npc._behindCounter;
+                const sx = screen.x + (npc._drunk && anim === 'walk' ? Math.sin(now * 3.1 + npc.id) * ds * 0.12 : 0);
+                // (the stall's art: its counter top a tile above the anchor row's foot, the awning above that)
+                const stallFoot = counter ? camera.worldToScreenFast(worldX, (counter.row + 1) * T).y : 0;
+                const sy = counter ? stallFoot - ds * 0.6 : screen.y;
                 if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
                 if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
+                const clipY = counter ? stallFoot - ds * 0.95 : null;
 
-                const sortY = worldY + T / 2;   // bottom-of-tile for consistent depth sort
+                const sortY = counter ? (counter.row + 1) * T + 0.5 : worldY + T / 2;   // bottom-of-tile for consistent depth sort
                 // A town woodcutter at a tree (world/innerMap/townWoodcutters.js): the swing timed to
                 // the blows, the axe in hand (ui/innerMapFelling.js)
                 const chopRec = npc._chop;
@@ -902,9 +909,15 @@ Object.assign(InnerMapRenderer, {
                     ? Math.max(0, Math.min(0.999, chopRec.timer / (chopRec.interval || 1))) : null;
                 const carryAxe = !!(chopRec && chopRec.going);
                 const chopTool = (chopRec && chopRec.tool) || 'axe';
+                // A smith's hammer at the anvil (world/innerMap/townScenes.js _swing), swung like the axe
+                const swingRec = chopP == null && npc._swing && anim === 'slash' ? npc._swing : null;
+                const swingP = swingRec ? Math.max(0, Math.min(0.999, swingRec.t / (swingRec.interval || 1))) : null;
+                // Held in one frame of the anim (sat on the bench, kneeling at prayer)
+                const poseDef = npc._pose != null ? InnerMapCharacters._EXTRA_ANIMS.find(e => e.key === anim) : null;
                 const nRef = npc, nAnim = anim, nDir = direction;
 
                 items.push({ sortY, zLayer: 2, draw() {
+                    if (clipY != null) { ctx.save(); ctx.beginPath(); ctx.rect(-1e4, -1e4, 2e4, clipY + 1e4); ctx.clip(); }
                     const useSprite = charReady && nRef.preset && InnerMapCharacters.getComposited(nRef.preset);
                     if (useSprite) {
                         const charW = ds * 1.2, charH = ds * 1.8;
@@ -951,11 +964,15 @@ Object.assign(InnerMapRenderer, {
                         if (basket && nDir === InnerMapCharacters.DIR_UP) InnerMapFelling.drawCarriedStone(ctx, sx, sy, ds, nDir, nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0, nRef._carry.good);
                         if (extra && nDir === InnerMapCharacters.DIR_UP) drawTool();
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, true, chopTool);
+                        if (swingP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, swingP, true, swingRec.tool);
                         const stepBob = nAnim === 'walk' ? Math.abs(Math.sin(npcTime * 9)) * ds * 0.03 : 0;
                         if (carryAxe) InnerMapFelling.drawCarriedAxe(ctx, sx, sy, ds, nDir, true, stepBob, chopTool);
-                        const bodyTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS) : npcTime;
+                        const bodyTime = chopP != null ? InnerMapFelling.swingTime(chopP, InnerMapCharacters.SLASH_FPS)
+                            : swingP != null ? InnerMapFelling.swingTime(swingP, InnerMapCharacters.SLASH_FPS)
+                                : poseDef ? (nRef._pose + 0.5) / poseDef.fps : npcTime;
                         InnerMapCharacters.drawCharacter(ctx, nRef.preset, nAnim, nDir, bodyTime, cx, cy, cw, ch);
                         if (chopP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, chopP, false, chopTool);
+                        if (swingP != null) InnerMapFelling.drawAxe(ctx, sx, sy, ds, nDir, swingP, false, swingRec.tool);
                         // on the way out to the tree, the axe over the shoulder
                         if (carryAxe) InnerMapFelling.drawCarriedAxe(ctx, sx, sy, ds, nDir, false, stepBob, chopTool);
                         // a miner's basket of stone (world/innerMap/townMiners.js), before the chest
@@ -966,9 +983,11 @@ Object.assign(InnerMapRenderer, {
                     } else {
                         self._drawNpcStandIn(ctx, nRef, sx, sy, ds);
                     }
+                    if (clipY != null) ctx.restore();
                     if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, sy, ds, camera.zoom);
                     // (not over a woodcutter at work: the axe swung up over the head says it, and would be hidden)
-                    if (nRef.activity && chopP == null) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
+                    // (nor over every drinker or worshipper sat in a scene: activity.quiet)
+                    if (nRef.activity && !nRef.activity.quiet && chopP == null && swingP == null) self._drawNpcActivity(ctx, nRef, sx, sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
                         const nHealth = InnerMapCombat.getNPCHealth(nRef.id);

@@ -1,6 +1,6 @@
 // World — runtime methods.
 import { World } from './core.js';
-import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Shipcraft } from './_imports.js';
+import { Terrain, Kingdom, WeatherSystem, NPCLords, Hex, Utils, WorldEvents, WorldUnit, Characters, Religion, Culture, Peoples, Colonization, Cartography, KingdomAI, Dawn, Barter, Shipcraft, Castles } from './_imports.js';
 
 Object.assign(World.prototype, {
     /**
@@ -89,7 +89,14 @@ Object.assign(World.prototype, {
         const seasonNum = Math.floor(((this.day - 1) % 120) / 30);
         const seasons = ['Spring', 'Summer', 'Autumn', 'Winter'];
         this.season = seasons[seasonNum];
+        const lastYear = this.year;
         this.year = this.baseYear + Math.floor((this.day - 1) / 120);
+        // A new year: capitals whose castle's year has come raise it, if their crown can pay (world/castles.js)
+        if (this.year !== lastYear) {
+            Castles.sync(this);
+            // Dawn-born places leave camp for streets once the dawn year is past (world/dawn.js)
+            Dawn.syncCamps(this);
+        }
 
         // Clear previous events
         this.events = [];
@@ -173,6 +180,9 @@ Object.assign(World.prototype, {
 
         // Process units (player injected so raiders can target them without a global)
         this.processUnits(player);
+
+        // In a world begun before coin, coin comes when barter breaks down (world/barter.js)
+        Barter.processDay(this);
 
         return {
             day: this.day,

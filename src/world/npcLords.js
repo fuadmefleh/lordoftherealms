@@ -6,7 +6,7 @@ import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { KingdomAI } from './kingdomAI.js';
 import { KingdomStability, LordInfluence } from './kingdomState.js';
-import { TradeRoutes } from './economy.js';
+import { TradeRoutes, Economy } from './economy.js';
 import { Characters } from './characters.js';
 import { Colonization } from './colonization.js';
 
@@ -352,6 +352,13 @@ export const NPCLords = {
         return out;
     },
 
+    /** Draw `amount` out of towns' purses by their people (each gives at most 5% of its purse). → what was drawn */
+    _fromTowns(towns, amount) {
+        if (!(amount > 0) || !towns.length) return 0;
+        const res = Economy.drawTowns(towns.map(s => ({ settlement: s, weight: Math.max(1, s.population || 0) })), amount, 0.05);
+        return Math.floor(res.paid);
+    },
+
     /** Stewardship multiplier on gold a lord's own schemes bring in (0.75-1.25). */
     _stewardMult(kingdom) {
         return 1 + LordInfluence.lean(kingdom, 'stewardship') * 0.25;
@@ -386,8 +393,10 @@ export const NPCLords = {
             const tile = world.getTile(t.q, t.r);
             if (tile && (tile.hasRoad || tile.infrastructure)) roads++;
         }
-        const gold = Math.round((towns.length * T.perTown + routes * T.perRoute + Math.min(roads, T.maxRoads) * T.perRoad)
+        const due = Math.round((towns.length * T.perTown + routes * T.perRoute + Math.min(roads, T.maxRoads) * T.perRoad)
             * NPCLords._stewardMult(kingdom));
+        // (real coin: the factors' dues come out of the realm's towns' purses, by their people)
+        const gold = NPCLords._fromTowns(towns, due);
         kingdom.treasury = (kingdom.treasury || 0) + gold;
 
         const friends = [...partners].map(id => world.getKingdom(id))
@@ -505,8 +514,9 @@ export const NPCLords = {
             }
             return null;
         }
-        const towns = NPCLords._towns(kingdom, world).length;
-        const saved = Math.round(towns * T.savingsPerTown * NPCLords._stewardMult(kingdom));
+        // (the savings are coin the stewards squeeze out of the towns' purses)
+        const list = NPCLords._towns(kingdom, world);
+        const saved = NPCLords._fromTowns(list, Math.round(list.length * T.savingsPerTown * NPCLords._stewardMult(kingdom)));
         kingdom.treasury = (kingdom.treasury || 0) + saved;
         return saved;
     },

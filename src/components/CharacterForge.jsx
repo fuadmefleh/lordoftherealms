@@ -4,6 +4,7 @@ import { NpcPortrait } from '../ui/npcPortrait';
 import {
   APPEARANCE_ROWS, optionLabel, cycleOption, randomAppearance, registerAppearance,
 } from '../ui/playerAppearance';
+import { EraWardrobe } from '../world/eraWardrobe';
 
 // Facing order for the turn buttons: down, left, up, right
 const FACINGS = [InnerMapCharacters.DIR_DOWN, InnerMapCharacters.DIR_LEFT,
@@ -12,9 +13,10 @@ const FACINGS = [InnerMapCharacters.DIR_DOWN, InnerMapCharacters.DIR_LEFT,
 /**
  * The character-creation look: a full-length figure you can turn and watch
  * walk, a bust showing how the HUD portrait will read, and a cycler per
- * feature. The look lives in settings.charAppearance.
+ * feature. The look lives in settings.charAppearance. The clothes offered are
+ * those of the start year's era (`year`, data/eras.json via `eraData`).
  */
-export default function CharacterForge({ appearance, gender, name, onChange }) {
+export default function CharacterForge({ appearance, gender, name, onChange, year = null, eraData = null }) {
   const figureRef = useRef(null);
   const bustRef = useRef(null);
   const [presetId, setPresetId] = useState(null);
@@ -62,7 +64,9 @@ export default function CharacterForge({ appearance, gender, name, onChange }) {
   }, [presetId, facing, walking]);
 
   const turn = (step) => setFacing(f => (f + step + FACINGS.length) % FACINGS.length);
-  const cycle = (key, step) => onChange(cycleOption(appearance, key, step));
+  const cycle = (key, step) => onChange(cycleOption(appearance, key, step, year, eraData));
+  const era = year != null ? EraWardrobe.eraOf(year, eraData) : null;
+  const dated = era && !EraWardrobe.isModern(era);
   const rows = APPEARANCE_ROWS.filter(r => !r.when || r.when(appearance));
 
   return (
@@ -96,8 +100,13 @@ export default function CharacterForge({ appearance, gender, name, onChange }) {
               aria-label={`Next ${r.label}`}>›</button>
           </div>
         ))}
+        {dated && (
+          <div className="char-forge-era" title="The clothes offered are those of the start year">
+            Dressed for {era.label}{era.hint ? `: ${era.hint}` : ''}.
+          </div>
+        )}
         <button type="button" className="char-forge-random"
-          onClick={() => onChange(randomAppearance(gender))}>🎲 Random Look</button>
+          onClick={() => onChange(randomAppearance(gender, Math.random, year, eraData))}>🎲 Random Look</button>
       </div>
     </div>
   );

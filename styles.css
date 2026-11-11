@@ -3637,6 +3637,12 @@ body {
     cursor: pointer;
 }
 .char-forge-random:hover { border-color: var(--gold); background: rgba(245, 197, 66, 0.16); }
+.char-forge-era {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
 @media (max-width: 900px) {
     .char-forge-body { grid-template-columns: 1fr; }
 }
@@ -6609,3 +6615,28 @@ body #customPanel.custom-panel--hub { width: min(760px, calc(94vw / var(--ui-zoo
 /* A lede inside a centred block (the gambling tables) drops its left rule: centred text beside a rule at the far left read as a stray bar */
 #customPanel [style*="text-align:center"] .pk-lede,
 #customPanel [style*="text-align: center"] .pk-lede { border-left: 0; padding-left: 0; }
+
+/* The place card's hot button: walk into the hex on foot (ui/actionMenu/core.js, Explore Interior / Go on Deck) */
+#actionMenu.amx .amx-quick {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 11px;
+    font: 600 11px/1.4 var(--font-body);
+    color: #ffe08a;
+    background: linear-gradient(180deg, rgba(245, 197, 66, 0.26), rgba(245, 197, 66, 0.12));
+    border: 1px solid rgba(245, 197, 66, 0.6);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: filter 0.12s, box-shadow 0.12s;
+}
+#actionMenu.amx .amx-quick:hover, #actionMenu.amx .amx-quick:focus-visible {
+    filter: brightness(1.18);
+    box-shadow: 0 0 10px rgba(245, 197, 66, 0.35);
+    outline: none;
+}
+
+/* Before coin (world/barter.js): the top bar's purse is the worth of the goods carried — a pack, not coins */
+.tb-res-gold.tb-barter .tb-res-icon .ico { display: none; }
+.tb-res-gold.tb-barter .tb-res-icon::before { content: '🎒'; font-size: 17px; line-height: 1; }

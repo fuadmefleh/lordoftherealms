@@ -70,7 +70,7 @@ export const InnerMapReactions = {
         try { playerAttack = Duels.fromPlayer(player, { mods: PlayerEffects.duelModifiers(player), fresh: true }).attack; } catch (e) { playerAttack = 0; }
         const seed = `${day}|${StreetCrime.npcKey(victim)}|${crime}`;
         for (const w of witnesses) {
-            w.react = StreetCrime.reactionFor(w, crime, { seed, victimName: victim.name, playerAttack });
+            w.react = StreetCrime.reactionFor(w, crime, { seed, victimName: victim.name, playerAttack, royal: this._royal(game) });
             w.mood = w.react.mood;
         }
         const wt = InnerMap.currentWorldTile || {};
@@ -106,10 +106,11 @@ export const InnerMapReactions = {
         if (game.ui && typeof game.ui.showNotification === 'function') {
             const seen = witnesses.filter(w => w.seen);
             const guards = witnesses.filter(w => w.react.act === 'arrest').length;
+            const royal = this._royal(game) && witnesses.some(w => w.role === 'guard');
             if (seen.length) {
                 const names = seen.slice(0, 3).map(w => w.npc.name).join(', ');
                 game.ui.showNotification(crime === 'murder' ? '👁️ Witnessed!' : '👁️ Seen!',
-                    `${seen.length} saw you ${crime === 'murder' ? 'kill' : crime === 'vandalism' ? 'smashing' : 'attack'} ${victim.name} (${names}${seen.length > 3 ? '…' : ''}). They will remember it, and the town will talk.${guards ? ` The watch is coming!` : ''}`,
+                    `${seen.length} saw you ${crime === 'murder' ? 'kill' : crime === 'vandalism' ? 'smashing' : 'attack'} ${victim.name} (${names}${seen.length > 3 ? '…' : ''}). They will remember it, and the town will talk.${guards ? ' The watch is coming!' : royal ? ' Your watch looks the other way.' : ''}`,
                     'warning');
             } else if (crime === 'murder') {
                 game.ui.showNotification('🤫 Unseen', `No one saw you kill ${victim.name}. The body will be found all the same.`, 'warning');
@@ -222,7 +223,7 @@ export const InnerMapReactions = {
         const secs = (C.reactions && C.reactions.barkSeconds) || 3.6;
         for (const w of fresh) {
             victim._reacted.add(w.npc.id);
-            w.react = StreetCrime.reactionFor(w, crime, { seed, victimName: victim.name, playerAttack });
+            w.react = StreetCrime.reactionFor(w, crime, { seed, victimName: victim.name, playerAttack, royal: this._royal(game) });
             w.mood = w.react.mood;
             const npc = w.npc;
             if (npc._dialogFrozen) continue;
@@ -240,6 +241,12 @@ export const InnerMapReactions = {
         if (guards.length && game.ui && typeof game.ui.showNotification === 'function') {
             game.ui.showNotification('🛡️ The Watch', `${guards[0].npc.name} has seen you attacking ${victim.name} and is coming!`, 'error');
         }
+    },
+
+    /** The player rules this town's realm: its watch stands down (StreetCrime.aboveLaw). */
+    _royal(game) {
+        const ref = InnerMap._currentWorldTileRef;
+        return !!(game && ref && ref.settlement && StreetCrime.aboveLaw(game.player, game.world, ref.settlement));
     },
 
     /** A line shouted over an NPC's head for `secs` seconds. */
@@ -502,7 +509,7 @@ export const InnerMapReactions = {
                 if (this._responders.has(npc.id) || this._fleeing.has(npc.id)) continue;
                 if (!indoors && _dist(npc.q, npc.r, at.q, at.r) > radius) continue;
                 set.add(npc.id);
-                const r = StreetCrime.foundReaction(npc, body, { carried: isCarried, playerOver, seed: `${day}|${body.name}|${body.at}` });
+                const r = StreetCrime.foundReaction(npc, body, { carried: isCarried, playerOver, royal: this._royal(game), seed: `${day}|${body.name}|${body.at}` });
                 if (r.mood === 'fear' || r.mood === 'anger') npc.mood = r.mood;
                 // Everyone visibly reacts: kin, the watch and the first of the crowd say a line;
                 // the rest of the crowd gasp, recoil, shout — a crowd of full sentences is noise
@@ -713,6 +720,12 @@ export const InnerMapReactions = {
         const now = _now();
         const T = InnerMapRenderer.TILE_SIZE;
         const ds = T * camera.zoom;
+        // Said over a place: the church's bell over its roof (world/innerMap/townScenes.js)
+        for (const sb of InnerMap._spotBarks || []) {
+            if (sb.tiles !== InnerMap.tiles || now > sb.until) continue;
+            const s = camera.worldToScreen(sb.q * T + T / 2, sb.r * T);
+            this._drawBubble(ctx, sb.text, s.x, s.y - ds * 1.2, camera.zoom, Math.min(1, (sb.until - now) / 400));
+        }
         for (const npc of InnerMap.npcs) {
             const b = npc._bark;
             if (!b) continue;
@@ -720,7 +733,8 @@ export const InnerMapReactions = {
             if (b.from && now < b.from) continue; // the second half of a conversation (world/innerMap/townLife.js)
             if (npc.state === 'inside_building' && !InnerMap._insideBuilding) continue;
             let wx = npc.q * T + T / 2;
-            let wy = npc.r * T + T / 2;
+            // (a vendor behind a stall's counter is drawn down at the counter: world/innerMap/townScenes.js)
+            let wy = npc._behindCounter ? (npc._behindCounter.row + 1) * T - T * 0.6 : npc.r * T + T / 2;
             if (npc.path && npc.pathIndex < npc.path.length) {
                 const t = npc.path[npc.pathIndex];
                 wx += (t.q * T + T / 2 - wx) * (npc.moveProgress || 0);
@@ -743,7 +757,8 @@ export const InnerMapReactions = {
         const w = ctx.measureText(shown).width + px * 1.2;
         const h = px * 1.7;
         const bx = x - w / 2;
-        const by = y - h;
+        // (kept below the top bar: a priest at the altar against the far wall)
+        const by = Math.max(y - h, ctx.canvas.height * 0.09);
         ctx.fillStyle = 'rgba(250, 244, 228, 0.95)';
         ctx.strokeStyle = 'rgba(60, 40, 20, 0.85)';
         ctx.lineWidth = Math.max(1, px * 0.1);

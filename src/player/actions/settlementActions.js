@@ -39,6 +39,7 @@ import { Couriers } from '../../systems/couriers.js';
 import { LandMarket } from '../../systems/landMarket.js';
 import { PuttingOut } from '../../systems/puttingOut.js';
 import { BackRooms } from '../../systems/backRooms.js';
+import { DataLoader } from '../../core/dataLoader.js';
 
 export function addSettlementActions(actions, player, tile, world, ctx) {
     const { isCity, isVillage, isPlayerSettlement, playerSettlementCount, playerKingdom, hasPlayerFoundedKingdom } = ctx;
@@ -217,8 +218,12 @@ export function addSettlementActions(actions, player, tile, world, ctx) {
         });
     }
 
-    // Tavern / Talk to Locals
-    if (isCity) {
+    // Tavern / Talk to Locals. A clan's camp at the dawn, or a world before the tavern's
+    // age (data/dawn.json eraBuildings), has no tavern: its people talk round the fire
+    const stl = tile.settlement;
+    const tavernYear = (() => { const d = DataLoader._gamedata && DataLoader._gamedata.dawn; const y = d && d.eraBuildings && d.eraBuildings.since && d.eraBuildings.since.tavern; return Number.isFinite(y) ? y : 0; })();
+    const noTavern = !!(stl && stl.dawnBorn && stl.campEra === true) || (Number.isFinite(world.year) && world.year < tavernYear);
+    if (isCity && !noTavern) {
         actions.push({
             type: 'tavern',
             label: 'Visit the Tavern',

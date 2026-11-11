@@ -27,6 +27,7 @@ import { NPCLords } from './npcLords.js';
 import { Characters } from './characters.js';
 import { Economy } from './economy.js';
 import { WorldUnit } from './units.js';
+import { Barter } from './barter.js';
 
 const UNSETTLEABLE = new Set(['mountain', 'snow_peak', 'ice', 'snow']);
 const WATER = new Set(['deep_ocean', 'ocean', 'coast', 'sea', 'lake']);
@@ -46,6 +47,23 @@ export const Dawn = {
     /** Start years before this begin at the dawn */
     dawnYear() {
         return _num(Dawn.data().dawnYear, 200);
+    },
+
+    /**
+     * Settlements born at the dawn keep camp (tents round their fires, on the
+     * town map: world/innerMap/camp.js) while the world is still in its dawn,
+     * even when raised to a town; once the dawn year is past they're laid out
+     * as villages and towns. settlement.campEra, refreshed each new year
+     * (World._advanceDay) and when a village is founded.
+     */
+    syncCamps(world) {
+        if (!world || typeof world.getSettlementViews !== 'function') return;
+        const camp = _num(world.year, 0) < Dawn.dawnYear();
+        for (const v of world.getSettlementViews()) {
+            const t = Dawn._tile(world, v.q, v.r);
+            const s = t && t.settlement;
+            if (s && s.dawnBorn && s.campEra !== camp) s.campEra = camp;
+        }
     },
 
     /** The calendar year a world with these generation params starts in */
@@ -133,6 +151,8 @@ export const Dawn = {
             nameSeq: 0,
             paths: {},
         };
+        // No coin yet: goods for goods until barter breaks down (world/barter.js)
+        Barter.fresh(world);
 
         const land = [];
         for (const row of world.tiles) for (const t of row) if (t.terrain.passable && !UNSETTLEABLE.has(t.terrain.id)) land.push(t);
@@ -267,6 +287,34 @@ export const Dawn = {
     },
 
     /**
+     * "Keep in step" (player.dawnInStep): the clan walks with the player hex
+     * for hex instead of trailing behind at two hexes a day. Called after each
+     * of the player's steps (player/core/movement.js). It follows while it was
+     * beside the player (on the hex they left, or one by it) and the new hex is
+     * one it can walk to: the same land, passable, not aboard a ship. Where it
+     * can't, it waits, and falls in again when the player is back beside it
+     * (or catches up in the day's walk, _followPlayer). → true when it moved.
+     */
+    keepStep(world, player) {
+        if (!player || !player.dawnInStep || player.boardedShip) return false;
+        const clan = Dawn.kinClan(world, player);
+        if (!clan) return false;
+        const fromQ = Number.isFinite(player.prevQ) ? player.prevQ : player.q;
+        const fromR = Number.isFinite(player.prevR) ? player.prevR : player.r;
+        const near = Hex.wrappingOffsetDistance(clan.q, clan.r, fromQ, fromR, world.width) <= 1
+            || Hex.wrappingOffsetDistance(clan.q, clan.r, player.q, player.r, world.width) <= 1;
+        if (!near) return false;
+        const pt = Dawn._tile(world, player.q, player.r);
+        const ct = Dawn._tile(world, clan.q, clan.r);
+        if (!pt || !ct || !pt.terrain || !pt.terrain.passable || pt.regionId !== ct.regionId) return false;
+        clan.q = player.q;
+        clan.r = player.r;
+        clan.targetQ = player.q;
+        clan.targetR = player.r;
+        return true;
+    },
+
+    /**
      * The player's clan makes camp for good where the player stands: a
      * village, their home. → { success, settlement } or { success: false, reason }.
      */
@@ -354,8 +402,12 @@ export const Dawn = {
             culture: clan.culture || null,
             dawnBorn: true,
             foundedBy: clan.name,
+            // (a camp while the world is in its dawn: Dawn.syncCamps)
+            campEra: _num(world.year, 0) < Dawn.dawnYear(),
         };
         Economy.initSettlement(tile.settlement, { fresh: true });
+        // (a village that barters from its first day: world/barter.js)
+        if (Barter.active(world, tile.settlement)) tile.settlement.inKind = true;
         if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
         clan.destroyed = true;
         world.dawn.villagesFounded++;
@@ -517,6 +569,8 @@ export const Dawn = {
         kingdom.truces = {};
         kingdom.warState = {};
         kingdom.stability = 55;
+        // A chiefdom whose seat barters keeps no coin in its chests (world/barter.js)
+        if (Barter.active(world, town)) Barter.coinlessRealm(kingdom);
         // Its shipwrights know nothing yet: the years teach them (world/shipcraft.js)
         Shipcraft.beginRealm(kingdom);
 

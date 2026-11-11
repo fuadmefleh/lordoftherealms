@@ -177,7 +177,7 @@ export const Religion = {
      * Called during world generation to assign religions to kingdoms,
      * place holy sites, and seed religious history.
      */
-    initialize(world) {
+    initialize(world, opts = {}) {
         // 1. Assign faiths to kingdoms
         for (const kingdom of world.kingdoms) {
             const faithId = Religion.KINGDOM_FAITHS[kingdom.id] || Utils.randPick(Object.keys(Religion.getActiveFaiths()));
@@ -195,7 +195,7 @@ export const Religion = {
         }
 
         // 2. Place holy sites across the map
-        Religion.placeHolySites(world);
+        Religion.placeHolySites(world, opts);
 
         // 3. Generate religious history entries
         Religion.generateReligiousHistory(world);
@@ -216,8 +216,10 @@ export const Religion = {
     // HOLY SITE PLACEMENT
     // ─────────────────────────────────────────────
 
-    placeHolySites(world) {
-        const count = Utils.randInt(5, 9);
+    placeHolySites(world, opts = {}) {
+        // A young world (world/worldAge.js) has hallowed fewer places yet
+        const drawn = Utils.randInt(5, 9);
+        const count = Number.isFinite(opts.holySites) && opts.holySites < 1 ? Math.max(1, Math.round(drawn * opts.holySites)) : drawn;
         const placed = [];
 
         for (let i = 0; i < count; i++) {

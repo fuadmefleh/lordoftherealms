@@ -15,5 +15,8 @@ export { Colonization } from '../colonization.js';
 export { Cartography } from '../../systems/cartography.js';
 export { KingdomAI } from '../kingdomAI.js';
 export { Dawn } from '../dawn.js';
+export { Barter } from '../barter.js';
 export { Cultures } from '../cultures.js';
 export { Shipcraft } from '../shipcraft.js';
+export { WorldAge } from '../worldAge.js';
+export { Castles } from '../castles.js';

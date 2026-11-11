@@ -396,7 +396,8 @@ export const Fiscal = {
         if (f.arrears.court > 0.5) f.corruption = _clamp(f.corruption + _num(C.corruption.unpaidGain), 0, 1);
         else f.corruption = _clamp(f.corruption - _num(C.corruption.decay) + _num(courtLv.corruption), 0, 1);
         f.corruption = Math.round(f.corruption * 10000) / 10000;
-        f.wkCoin = _r2(_num(f.wkCoin) + collected - paidA - paidC);
+        // The coin: taxes out of the towns' purses into the chests, wages back (booked as they move)
+        MoneySupply.note(world, k.id, -(collected - paidA - paidC), 'fisc');
         if (ruled && player) {
             if (wasArrears === 0 && f.arrearsDays === 1) Fiscal._note(out, '⚔️', 'The Soldiers Go Unpaid', `The treasury of ${k.name} cannot meet the army's pay (${Math.round(f.arrears.army)}g owed). Unpaid men desert after a week.`, 'warning');
             else if (f.arrearsDays === _num(A.desert.afterDays, 7) + 1) Fiscal._note(out, '🏳️', 'Desertion', `Unpaid for a week, the soldiers of ${k.name} begin to slip away.`, 'error');
@@ -478,13 +479,7 @@ export const Fiscal = {
         f.hist.push([day, Math.round(_num(k.treasury)), Math.round(rev), Math.round(exp)]);
         const H = Math.max(8, _num(C.histWeeks, 52));
         if (f.hist.length > H) f.hist.splice(0, f.hist.length - H);
-        // The coin: taxes out of circulation, wages back into it
-        const Cn = C.coin;
-        const R = MoneySupply.realm(world, k.id);
-        if (R && _num(f.wkCoin)) {
-            const lim = R.coin * _num(Cn.maxShare, 0.04);
-            MoneySupply.adjust(world, k.id, _clamp(-_num(f.wkCoin) * _num(Cn.share, 0.6), -lim, lim), 'fisc');
-        }
+        // (the coin's moves were booked daily: world/moneySupply.js counts the purses)
         f.wkCoin = 0;
         const ruled = k.id === ruledId;
         if (!ruled) {

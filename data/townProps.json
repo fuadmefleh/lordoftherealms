@@ -18,7 +18,7 @@
         "crops":    "assets/lpc/crops.png",
         "buckets":  "assets/lpc/Objects/Small Items/Buckets.png",
         "baskets":  "assets/lpc/Objects/Small Items/Baskets A.png",
-        "clan_tents": "assets/lpc/Objects/Camp/Clan Tents.png",
+        "clan_tents": "assets/lpc/Objects/Camp/Clan Tents Large.png",
         "campfire": "assets/lpc/Objects/Small Items/Fire, Camp.png",
         "pillar":   "assets/lpc/Structure/Pillars/Stone Pillar A.png",
         "runestone": "assets/lpc/Objects/Furniture/Wolf Stone.png",
@@ -33,8 +33,8 @@
         "harvest":  "assets/lpc/Objects/Small Items/Harvest.png"
     },
     "props": [
-        { "id": "tp_tent_hide",     "name": "Hide Tent",        "sheet": "clan_tents", "rect": [0, 0, 3, 3], "solid": 2, "tags": ["tent"] },
-        { "id": "tp_tent_fell",     "name": "Fell Tent",        "sheet": "clan_tents", "rect": [3, 0, 3, 3], "solid": 2, "tags": ["tent"] },
+        { "id": "tp_tent_hide",     "name": "Hide Tent",        "sheet": "clan_tents", "rect": [0, 0, 4, 4], "solid": 3, "tags": ["tent"] },
+        { "id": "tp_tent_fell",     "name": "Fell Tent",        "sheet": "clan_tents", "rect": [4, 0, 4, 4], "solid": 3, "tags": ["tent"] },
         { "id": "tp_campfire",      "name": "Campfire",         "sheet": "campfire", "rect": [0, 1, 1, 1], "solid": 1, "tags": ["hearth"] },
         { "id": "tp_campfire_out",  "name": "Cold Campfire",    "sheet": "campfire", "rect": [0, 0, 1, 1], "solid": 0, "tags": ["hearthOut"] },
         { "id": "tp_column_white",  "name": "Column",           "sheet": "pillar",   "rect": [0, 0, 2, 3], "solid": 1, "tags": ["monument"] },

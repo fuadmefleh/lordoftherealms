@@ -2,30 +2,40 @@
 // MONEY SUPPLY — the coin in each realm, where it flows, and what it does
 // to prices
 // ============================================
-// Every realm has coin in circulation (world.money.realms[id].coin), seeded
-// at coinPerHead × its people the first time it is seen. The crown's chests
-// (kingdom.treasury) and the banks' vaults (systems/finance.js) are coin held
-// out of circulation: they are shown beside it (broad money) but do not move
-// prices until they are spent. Once a week (`every` days) the coin moves:
-//   • trade      NPC traders' goods crossing a border are settled `specie`
-//                in coin (the value each trade link carried, left on the
-//                link by SettlementMarket.flows and gathered daily by
-//                collectTrade); a realm with less coin per head than a
-//                trading partner is cheaper, sells it more and wins coin back
-//                (the price-specie flow: hume × the gap in log coin per head ×
-//                the smaller coin), so a drained realm recovers, a realm whose
-//                mines pour out coin spends it abroad, and a persistent deficit
-//                settles a little low
-//   • transfers  tribute and capitulation indemnities, crown loans across a
-//                border and their repayment (transfer(), called by
-//                KingdomAI.endWar and systems/finance.js)
+// A realm's money is the real coin held in it — there is no second ledger.
+// Once a week (`every` days) the census counts it:
+//   • in circulation (world.money.realms[id].coin): the purses of the realm's
+//     towns (settlement.economy.gold) and townsfolk, counted here, plus every
+//     other purse located in the realm — gangs, guilds, inns, couriers,
+//     caravans and armies on its roads, court NPCs, merchant houses, lairs,
+//     adventurers — which systems/coinCensus.js
+//     counts and systems/mints.js passes in (ctx.holders)
+//   • out of circulation (broad money, moves no prices until it is spent):
+//     the crown's chests (kingdom.treasury), the great landholders' coffers
+//     (nobles, church, burghers, rival Houses), the banks' vaults, and the
+//     player's purse while the player stands in the realm
+// Coin moving between purses inside a realm changes nothing; coin crossing a
+// border moves it between realms; coin made or destroyed (the mint, wear,
+// debasement, a cheat) changes the world's total. Between censuses each flow
+// is booked as it happens (note()), and the census books the rest of the
+// week's change as 'other' (wages, taxes, rents, spending...).
+// The weekly turn moves real coin, always out of and into town purses:
+//   • trade      NPC trade across a border is paid town to town every day
+//                (world/settlementMarket.js; collectTrade books it); on top,
+//                the price-specie flow: a realm with less coin per head than
+//                a trading partner is cheaper, sells it more and wins coin
+//                back (hume × the gap in log coin per head × the smaller coin)
+//   • transfers  tribute, indemnities, crown loans, plunder move treasury coin
+//                (the callers move it; transfer() books it on both realms)
 //   • Gresham    debased coin drives the good coin out to sounder partners
 //   • flight     a run on a bank or a crown default sends coin abroad
-//   • wear       a little coin is lost every week
+//   • drift      pilgrims and travellers carry coin from rich realms to poor
+//   • wear       a little of the towns' coin is lost every week
 //   • the mint   strikes new coin from the gold and silver ore it buys in the
-//                realm's markets (and from the player, systems/mints.js);
-//                fine / purity of coin per unit, the crown keeping the
-//                seigniorage
+//                realm's markets (paid into the selling town's purse) and from
+//                the player (paid into the player's purse); the crown's
+//                seigniorage is struck into the treasury; foreign coin that
+//                came in is restruck for the same charge, drawn from the towns
 // Hoarding: a realm at war, or in a panic, hoards part of its coin
 // (velocity). The realm's price level then follows its coin × velocity per
 // head against the world's — level = clamp(ratio ^ elasticity), smoothed —
@@ -49,16 +59,20 @@ const _r2 = (v) => Math.round(v * 100) / 100;
 const _r4 = (v) => Math.round(v * 10000) / 10000;
 
 /** Flow kinds kept per realm per week (and in total). */
-export const FLOW_KINDS = ['trade', 'tribute', 'loans', 'gresham', 'flight', 'mint', 'wear', 'debase', 'recoin', 'counterfeit', 'player', 'drift', 'fisc'];
-/** Flows that bring foreign coin in (restruck at the realm's mint). */
-const FOREIGN = new Set(['trade', 'tribute', 'loans', 'gresham', 'flight']);
+export const FLOW_KINDS = ['trade', 'tribute', 'loans', 'plunder', 'gresham', 'flight', 'mint', 'wear', 'debase', 'recoin', 'counterfeit', 'cheat', 'drift', 'fisc', 'other'];
+/**
+ * Flows booked against the hoards (the crown's chests, the player's purse):
+ * on the realm's books, but not the coin in circulation.
+ */
+export const HOARD_FLOWS = new Set(['tribute', 'loans', 'plunder', 'debase', 'counterfeit', 'cheat']);
+/** Flows that bring foreign coin into circulation (restruck at the realm's mint). */
+const FOREIGN = new Set(['trade', 'gresham', 'flight']);
 
 const DEFAULTS = {
-    enabled: true, every: 7, coinPerHead: 2,
+    enabled: true, every: 7,
     level: { elasticity: 0.5, min: 0.9, max: 1.12, smoothing: 0.2 },
     velocity: { war: 0.12, panic: 0.1, adjust: 0.3, floor: 0.6 },
-    trade: { specie: 0.35, hume: 0.04, maxShare: 0.06 },
-    transfers: { tribute: 0.15, loans: 0.4, maxShare: 0.1 },
+    trade: { hume: 0.04, maxShare: 0.06 },
     gresham: { rate: 0.15 },
     flight: { rate: 0.015, defaultDays: 30 },
     wear: 0.002,
@@ -74,7 +88,6 @@ const DEFAULTS = {
         },
         seignHistory: 8,
     },
-    debase: { coinShare: 1 },
     recoinage: { crownShare: 0.5, stability: 2, maxDebtRatio: 0.3, treasuryCover: 4, cooldown: 120, minGap: 0.05 },
     exchange: { perPurity: 0.25, max: 0.05, minGold: 50 },
     concession: { termDays: 120, share: 0.5, feeShare: 0.9, minFee: 40 },
@@ -83,7 +96,7 @@ const DEFAULTS = {
     counsel: { bullionGain: 0.05, mintRadius: 25 },
 };
 
-const SECTIONS = ['level', 'velocity', 'trade', 'transfers', 'gresham', 'flight', 'income', 'debase', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel'];
+const SECTIONS = ['level', 'velocity', 'trade', 'gresham', 'flight', 'income', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel'];
 
 let _cfgSrc;
 let _cfg = null;
@@ -110,6 +123,84 @@ function _flows() {
     const o = {};
     for (const k of FLOW_KINDS) o[k] = 0;
     return o;
+}
+
+/** A town's purse (0 without one). */
+function _purse(s) {
+    const e = s && s.economy;
+    return e && Number.isFinite(e.gold) ? Math.max(0, e.gold) : 0;
+}
+
+/**
+ * Draw up to `amount` out of towns' purses, each in proportion to what it
+ * holds (never below zero). → what was drawn (to the hundredth).
+ */
+function _drawTowns(towns, amount) {
+    let want = _r2(Math.max(0, _num(amount)));
+    if (!(want > 0) || !towns || !towns.length) return 0;
+    let total = 0;
+    for (const s of towns) total += _purse(s);
+    if (!(total > 0)) return 0;
+    want = Math.min(want, total);
+    let drawn = 0;
+    for (const s of towns) {
+        const have = _purse(s);
+        if (!(have > 0)) continue;
+        const take = Math.min(have, Math.floor(want * have / total * 100) / 100);
+        if (!(take > 0)) continue;
+        s.economy.gold = _r2(have - take);
+        drawn += take;
+    }
+    return _r2(drawn);
+}
+
+/**
+ * Pay `amount` into towns' purses by their people (all to the first town
+ * with a purse when nobody lives anywhere). → what was paid.
+ */
+function _payTowns(towns, amount) {
+    const a = _r2(Math.max(0, _num(amount)));
+    const list = (towns || []).filter(s => s && s.economy && Number.isFinite(s.economy.gold));
+    if (!(a > 0) || !list.length) return 0;
+    const pop = list.reduce((t, s) => t + Math.max(0, _num(s.population)), 0);
+    let paid = 0;
+    list.forEach((s, i) => {
+        const part = i === list.length - 1 ? _r2(a - paid) : pop > 0 ? Math.floor(a * Math.max(0, _num(s.population)) / pop * 100) / 100 : 0;
+        if (!(part > 0)) return;
+        s.economy.gold = _r2(s.economy.gold + part);
+        paid = _r2(paid + part);
+    });
+    return paid;
+}
+
+/**
+ * The live towns of the living realms: Map(kid → [settlement]). Every
+ * settlement with a realm (the tile's live record, not a view's copy).
+ */
+function _townsByRealm(world, byId) {
+    const towns = new Map();
+    const views = world && typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
+    for (const v of views) {
+        const tile = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
+        const live = (tile && tile.settlement) || v;
+        const kid = live && live.kingdom;
+        if (kid == null || (byId && !byId.has(kid))) continue;
+        let list = towns.get(kid);
+        if (!list) towns.set(kid, list = []);
+        list.push(live);
+    }
+    return towns;
+}
+
+/** The coin in a realm's towns: { towns (their purses), folk (the townsfolk's rolled purses) }. */
+function _townCoin(list) {
+    let towns = 0, folk = 0;
+    for (const s of list || []) {
+        towns += _purse(s);
+        const people = s.folk && Array.isArray(s.folk.people) ? s.folk.people : null;
+        if (people) for (const p of people) if (p && !p.died && !p.away && typeof p.purse === 'number' && p.purse > 0) folk += p.purse;
+    }
+    return { towns: _r2(towns), folk: _r2(folk) };
 }
 
 export const MoneySupply = {
@@ -163,14 +254,29 @@ export const MoneySupply = {
         R.pop = _num(R.pop);
         R.ratio = _num(R.ratio, 1) > 0 ? _num(R.ratio, 1) : 1;
         R.wkIn = _num(R.wkIn);
+        // The census: coin in the towns' purses, the townsfolk's, other holders' (circulating);
+        // the banks' vaults and the player's purse (hoards). counted: false until the first census
+        // (an older save's abstract counter is replaced by it, with nothing booked)
+        R.towns = _num(R.towns);
+        R.folk = _num(R.folk);
+        R.held = _num(R.held);
+        R.coffers = _num(R.coffers);
+        R.banks = _num(R.banks);
+        R.purse = _num(R.purse);
+        if (typeof R.counted !== 'boolean') R.counted = false;
         if (!_obj(R.wk)) R.wk = _flows();
         if (!_obj(R.last)) R.last = _flows();
         if (!_obj(R.tot)) R.tot = _flows();
-        for (const o of [R.wk, R.last, R.tot]) for (const k of FLOW_KINDS) o[k] = _num(o[k]);
+        for (const o of [R.wk, R.last, R.tot]) {
+            // (older saves booked flows this version no longer has: 'player')
+            for (const k of Object.keys(o)) if (!FLOW_KINDS.includes(k)) delete o[k];
+            for (const k of FLOW_KINDS) o[k] = _num(o[k]);
+        }
         if (!Array.isArray(R.hist)) R.hist = [];
         const m = _obj(R.mint) || (R.mint = {});
         if (!MoneySupply.config().mint.policies[m.policy]) m.policy = 'normal';
         if (!_obj(m.pending)) m.pending = {};
+        m.pendingPaid = _num(m.pendingPaid);
         m.playerWeek = _num(m.playerWeek);
         m.struck = _num(m.struck);
         m.seign = _num(m.seign);
@@ -187,7 +293,11 @@ export const MoneySupply = {
         return st ? JSON.parse(JSON.stringify(st)) : null;
     },
 
-    /** After a load (older saves: none — every realm is seeded afresh on the next day, level 1). */
+    /**
+     * After a load. Older saves: none — every realm is counted afresh on the
+     * next weekly turn; an abstract counter from before the census is
+     * replaced by the first count (counted: false), its level kept.
+     */
     restore(saved, world) {
         if (!world) return;
         world.money = _obj(saved) ? JSON.parse(JSON.stringify(saved)) : null;
@@ -201,12 +311,21 @@ export const MoneySupply = {
         return st.realms[kid] || null;
     },
 
-    /** Make sure a living realm has a record (seeded at coinPerHead × its people). */
+    /**
+     * Make sure a living realm has a record: its coin is the coin in its
+     * towns' and townsfolk's purses now (the weekly census adds the other
+     * holders).
+     */
     ensureRealm(world, k) {
         if (!k || k.id == null) return null;
         const st = MoneySupply.state(world);
         let R = st.realms[k.id];
-        if (!R) R = st.realms[k.id] = MoneySupply._blank(MoneySupply.config().coinPerHead * Math.max(1, _num(k.population)));
+        if (!R) {
+            const c = _townCoin(_townsByRealm(world, new Set([k.id])).get(k.id));
+            R = st.realms[k.id] = MoneySupply._blank(c.towns + c.folk);
+            R.towns = c.towns;
+            R.folk = c.folk;
+        }
         return R;
     },
 
@@ -230,13 +349,20 @@ export const MoneySupply = {
         return _clamp(Math.pow(lv, I.elasticity), I.min, I.max);
     },
 
-    /** Coin in circulation, in the crown's chests and in the banks' vaults: { coin, treasury, banks, broad }. */
-    broadMoney(world, kingdom, bankReserves = 0) {
+    /**
+     * Coin in circulation, in the crown's chests, in the great landholders'
+     * coffers, in the banks' vaults and in the player's purse (as last counted
+     * in the realm): { coin, treasury, coffers, banks, player, broad }.
+     * `bankReserves` overrides the counted vaults.
+     */
+    broadMoney(world, kingdom, bankReserves = null) {
         const R = kingdom ? MoneySupply.realm(world, kingdom.id) : null;
         const coin = R ? R.coin : 0;
         const treasury = Math.max(0, _num(kingdom && kingdom.treasury));
-        const banks = Math.max(0, _num(bankReserves));
-        return { coin, treasury, banks, broad: coin + treasury + banks };
+        const banks = Math.max(0, bankReserves != null ? _num(bankReserves) : R ? R.banks : 0);
+        const player = R ? Math.max(0, _num(R.purse)) : 0;
+        const coffers = R ? Math.max(0, _num(R.coffers)) : 0;
+        return { coin, treasury, coffers, banks, player, broad: coin + treasury + coffers + banks + player };
     },
 
     /** A realm's coin in circulation (rounded), or null when not seen yet. */
@@ -267,53 +393,73 @@ export const MoneySupply = {
         return st && Array.isArray(st.news) ? st.news : [];
     },
 
+    /** The live towns of a realm (for the callers that move coin into or out of them). */
+    towns(world, kid) {
+        return _townsByRealm(world, new Set([kid])).get(kid) || [];
+    },
+
     // ── Flows ─────────────────────────────────────────────
 
-    _note(R, kind, amount) {
+    /** Book a flow on a realm's week (no coin moves: the books only). */
+    _book(R, kind, amount) {
         R.wk[kind] = _r2(_num(R.wk[kind]) + amount);
         R.tot[kind] = _r2(_num(R.tot[kind]) + amount);
-        // Foreign coin coming in is brought to the mint to be restruck (brassage)
+        // Foreign coin coming into circulation is brought to the mint to be restruck (brassage)
         if (amount > 0 && FOREIGN.has(kind)) R.wkIn = _num(R.wkIn) + amount;
     },
 
-    /** Add (or, negative, remove) coin in a realm's circulation. @returns the amount applied */
-    adjust(world, kid, amount, kind = 'player') {
-        if (!MoneySupply.enabled()) return 0;
+    /**
+     * Book coin that has already moved in real purses: `amount` (negative: out)
+     * of `kind` in the realm. A circulating flow also moves the realm's counted
+     * coin until the next census (which counts the purses afresh); a hoard flow
+     * (HOARD_FLOWS: the crown's chests, the player's purse) is on the books
+     * only. @returns the amount booked
+     */
+    note(world, kid, amount, kind = 'other') {
+        if (!world || !MoneySupply.enabled()) return 0;
         const k = _kingdom(world, kid);
-        if (!k || k.isAlive === false) return 0;
+        const a = _r2(_num(amount));
+        if (!k || k.isAlive === false || !a) return 0;
         const R = MoneySupply.ensureRealm(world, k);
-        const a = Math.max(-R.coin, _num(amount));
-        if (!a) return 0;
-        R.coin = _r2(R.coin + a);
-        MoneySupply._note(R, kind, a);
+        MoneySupply._book(R, kind, a);
+        if (!HOARD_FLOWS.has(kind)) R.coin = _r2(Math.max(0, R.coin + a));
         return a;
     },
 
     /**
-     * Move coin between two realms' circulation: `share` of `amount` (the
-     * transfers section for tribute and loans), at most maxShare of the
-     * payer's coin. @returns the coin moved
+     * Coin made from nothing (the cheat panel) entering the realm its holder
+     * stands in, booked under `kind`. The coin itself is wherever the caller
+     * put it — the player's purse: a hoard, counted at the next census as
+     * broad money, moving prices once it is spent into circulation.
+     * @returns the amount booked
      */
-    transfer(world, fromKid, toKid, amount, kind = 'tribute', share = null) {
+    registerNew(world, kid, amount, kind = 'cheat') {
+        return MoneySupply.note(world, kid, amount, kind);
+    },
+
+    /**
+     * Book a payment between two crowns (tribute, an indemnity, a crown loan
+     * and its repayment, the crown's share of plunder): the callers move the
+     * treasury coin; it is booked out of one realm and into the other. The
+     * coin in circulation does not move (it is in the chests; it circulates
+     * when the crown spends it). @returns the amount booked
+     */
+    transfer(world, fromKid, toKid, amount, kind = 'tribute') {
         if (!MoneySupply.enabled() || fromKid == null || toKid == null || fromKid === toKid) return 0;
         const a = _kingdom(world, fromKid), b = _kingdom(world, toKid);
         if (!a || !b || a.isAlive === false || b.isAlive === false) return 0;
-        const T = MoneySupply.config().transfers;
-        const Ra = MoneySupply.ensureRealm(world, a), Rb = MoneySupply.ensureRealm(world, b);
-        const s = share != null ? share : _num(T[kind], 1);
-        const amt = _r2(Math.min(Math.max(0, _num(amount)) * s, Ra.coin * _num(T.maxShare, 0.25)));
+        const amt = _r2(Math.max(0, _num(amount)));
         if (!(amt > 0)) return 0;
-        Ra.coin = _r2(Ra.coin - amt);
-        Rb.coin = _r2(Rb.coin + amt);
-        MoneySupply._note(Ra, kind, -amt);
-        MoneySupply._note(Rb, kind, amt);
+        MoneySupply._book(MoneySupply.ensureRealm(world, a), kind, -amt);
+        MoneySupply._book(MoneySupply.ensureRealm(world, b), kind, amt);
         return amt;
     },
 
     /**
-     * Gather the day's cross-border NPC trade (link.valAB / valBA: the value
-     * of the goods each way at the exporter's price, left by
-     * SettlementMarket.flows) into the week's trade book, and clear it.
+     * Gather the day's cross-border NPC trade (link.valAB / valBA: the coin
+     * the importing towns paid the exporters each way today, left by
+     * SettlementMarket.flows) into the week's trade book, and book it on the
+     * realms (the coin has already moved, town purse to town purse).
      */
     collectTrade(world, links) {
         if (!world || !Array.isArray(links)) return 0;
@@ -328,16 +474,29 @@ export const MoneySupply = {
             if (!on) continue;
             const ka = link.a && link.a.kingdom, kb = link.b && link.b.kingdom;
             if (ka == null || kb == null || ka === kb) continue;
-            if (ab > 0) { const key = `${ka}>${kb}`; book[key] = _r2(_num(book[key]) + ab); total += ab; }
-            if (ba > 0) { const key = `${kb}>${ka}`; book[key] = _r2(_num(book[key]) + ba); total += ba; }
+            if (ab > 0) {
+                const key = `${ka}>${kb}`;
+                book[key] = _r2(_num(book[key]) + ab);
+                total += ab;
+                MoneySupply.note(world, ka, ab, 'trade');
+                MoneySupply.note(world, kb, -ab, 'trade');
+            }
+            if (ba > 0) {
+                const key = `${kb}>${ka}`;
+                book[key] = _r2(_num(book[key]) + ba);
+                total += ba;
+                MoneySupply.note(world, kb, ba, 'trade');
+                MoneySupply.note(world, ka, -ba, 'trade');
+            }
         }
         return total;
     },
 
     /**
      * Book goods the player carried across a border into the week's trade
-     * book, as NPC trade is: `value` of goods from realm `fromKid` sold in
-     * realm `toKid` (the importer's coin settles part of it, weekly).
+     * book (it makes the two realms trading partners, for the price-specie
+     * flow, Gresham and flight): `value` of goods from realm `fromKid` sold in
+     * realm `toKid`. The coin itself moved when the player paid and was paid.
      * @returns the value booked
      */
     noteTrade(world, fromKid, toKid, value) {
@@ -361,25 +520,32 @@ export const MoneySupply = {
 
     /**
      * The week's minting for a realm: buy ore above `keep` × target from its
-     * markets (at most weeklyFine × the policy's draw of fine value), add what
-     * the player sold, strike fine / purity of coin; the crown keeps the
-     * seigniorage, the rest circulates. Foreign coin that came in this week
-     * (trade, tribute, loans, Gresham, flight) is restruck in part (`remint`)
-     * for the same charge. `towns` are the realm's live settlements.
-     * @returns { fine, struck, seign }
+     * markets (at most weeklyFine × the policy's draw of fine value), paying
+     * each selling town in new coin (fine / purity, less the seigniorage);
+     * the player was paid in new coin when they sold (mint.pendingPaid). The
+     * crown's seigniorage is struck into its treasury. Foreign coin that came
+     * into circulation this week is restruck in part (`remint`) for the same
+     * charge, drawn from the towns' purses into the treasury. `towns` are the
+     * realm's live settlements.
+     * @returns { fine, struck (all new coin: towns + player + treasury), seign (to the crown), toTowns, toPlayer, brassage }
      */
     mintWeek(world, k, R, towns) {
         MoneySupply._fill(R);
         const M = MoneySupply.config().mint;
         const pol = MoneySupply.policy(R);
+        const rate = _num(pol.seigniorage);
         const purity = _purity(k);
         let fine = 0;
-        // What the player sold the mint this week
+        // What the player sold the mint this week (already paid in new coin)
         for (const [g, n] of Object.entries(R.mint.pending)) fine += Math.max(0, _num(n)) * _num(M.fine[g]);
+        const toPlayer = _r2(R.mint.pendingPaid);
         R.mint.pending = {};
+        R.mint.pendingPaid = 0;
         R.mint.playerWeek = 0;
+        let seignRaw = fine > 0 ? fine / purity * rate : 0;
         // Ore bought in the realm's markets
         let room = _num(M.weeklyFine) * _num(pol.draw, 1);
+        let toTowns = 0;
         const cfg = SettlementMarket.config();
         for (const g of ['gold_ore', 'silver_ore']) {
             const per = _num(M.fine[g]);
@@ -400,38 +566,42 @@ export const MoneySupply = {
                 room -= take * per;
                 // The mint pays the town for its ore in the new coin (less the seigniorage):
                 // the struck coin enters circulation through the towns' purses
+                const coin = take * per / purity;
+                seignRaw += coin * rate;
                 if (s.economy && Number.isFinite(s.economy.gold)) {
-                    s.economy.gold = _r2(s.economy.gold + take * per / purity * (1 - _num(pol.seigniorage)));
+                    const pay = _r2(coin * (1 - rate));
+                    s.economy.gold = _r2(s.economy.gold + pay);
+                    toTowns = _r2(toTowns + pay);
                 }
             }
         }
-        const struck = fine > 0 ? _r2(fine / purity) : 0;
-        let seign = _r2(struck * _num(pol.seigniorage));
-        if (struck > 0) {
-            R.coin = _r2(R.coin + struck - seign);
-            MoneySupply._note(R, 'mint', struck - seign);
+        const seign = Math.floor(seignRaw);
+        const struck = _r2(toTowns + toPlayer + seign);
+        if (toTowns > 0) {
+            MoneySupply._book(R, 'mint', toTowns);
+            R.coin = _r2(R.coin + toTowns);
         }
         // Foreign coin brought in this week: `remint` of it is restruck, for the same charge
         const restruck = Math.min(R.coin, _num(R.wkIn) * _num(M.remint, 0.5));
         R.wkIn = 0;
-        const brassage = _r2(restruck * _num(pol.seigniorage));
+        const brassage = _drawTowns(towns, Math.floor(restruck * rate));
         if (brassage > 0) {
-            R.coin = _r2(R.coin - brassage);
-            MoneySupply._note(R, 'mint', -brassage);
-            seign = _r2(seign + brassage);
+            MoneySupply._book(R, 'mint', -brassage);
+            R.coin = _r2(Math.max(0, R.coin - brassage));
         }
-        if (seign > 0) {
-            k.treasury = _num(k.treasury) + Math.floor(seign);
-            CrownBooks.note(k, 'seigniorage', Math.floor(seign));
+        const toCrown = _r2(seign + brassage);
+        if (toCrown > 0) {
+            k.treasury = _r2(_num(k.treasury) + toCrown);
+            CrownBooks.note(k, 'seigniorage', toCrown);
         }
         R.mint.struck = _r2(R.mint.struck + struck);
-        R.mint.seign = _r2(R.mint.seign + seign);
+        R.mint.seign = _r2(R.mint.seign + toCrown);
         R.mint.lastStruck = struck;
-        R.mint.lastSeign = seign;
-        R.mint.seignHist.push(seign);
+        R.mint.lastSeign = toCrown;
+        R.mint.seignHist.push(toCrown);
         const cap = Math.max(1, Math.floor(_num(M.seignHistory, 8)));
         if (R.mint.seignHist.length > cap) R.mint.seignHist.splice(0, R.mint.seignHist.length - cap);
-        return { fine, struck, seign };
+        return { fine, struck, seign: toCrown, toTowns, toPlayer, brassage };
     },
 
     /** The mint's average weekly seigniorage over its kept history. */
@@ -440,12 +610,69 @@ export const MoneySupply = {
         return h.length ? h.reduce((s, v) => s + _num(v), 0) / h.length : 0;
     },
 
+    // ── Moving real coin ──────────────────────────────────
+
+    /**
+     * Move up to `amount` of coin out of realm a's town purses into realm b's,
+     * booked under `kind` on both. @returns the coin moved
+     */
+    _move(world, towns, ka, kb, amount, kind) {
+        const st = MoneySupply.state(world);
+        const Ra = st.realms[ka], Rb = st.realms[kb];
+        if (!Ra || !Rb) return 0;
+        const drawn = _drawTowns(towns.get(ka), amount);
+        if (!(drawn > 0)) return 0;
+        const paid = _payTowns(towns.get(kb), drawn);
+        // (a realm with no town to take it: the coin goes back where it came from)
+        if (paid < drawn) _payTowns(towns.get(ka), _r2(drawn - paid));
+        if (!(paid > 0)) return 0;
+        Ra.coin = _r2(Math.max(0, Ra.coin - paid));
+        Rb.coin = _r2(Rb.coin + paid);
+        Ra.towns = _r2(Math.max(0, Ra.towns - paid));
+        Rb.towns = _r2(Rb.towns + paid);
+        MoneySupply._book(Ra, kind, -paid);
+        MoneySupply._book(Rb, kind, paid);
+        return paid;
+    },
+
+    /**
+     * The census: count each living realm's coin from the purses — its towns
+     * and townsfolk here, `holders` (Map kid → { coin, banks, player }:
+     * systems/coinCensus.js) for the rest — and book the week's change not
+     * already booked as 'other' (wages, taxes, rents, the player's spending...).
+     */
+    census(world, towns, alive, holders = null) {
+        const st = MoneySupply.state(world);
+        for (const k of alive) {
+            const R = st.realms[k.id];
+            const c = _townCoin(towns.get(k.id));
+            const h = holders && typeof holders.get === 'function' ? holders.get(k.id) : null;
+            R.towns = c.towns;
+            R.folk = c.folk;
+            R.held = h ? _r2(_num(h.coin)) : 0;
+            R.coffers = h ? _r2(_num(h.coffers)) : 0;
+            R.banks = h ? _r2(_num(h.banks)) : 0;
+            R.purse = h ? _r2(_num(h.player)) : 0;
+            const coin = _r2(R.towns + R.folk + R.held);
+            if (R.counted) {
+                const rest = _r2(coin - R.coin);
+                if (rest) MoneySupply._book(R, 'other', rest);
+            }
+            R.counted = true;
+            R.coin = coin;
+        }
+    },
+
     // ── The week ──────────────────────────────────────────
 
     /**
-     * The weekly turn (every `every` days): mints, trade settlement, Gresham,
-     * flight, wear, hoarding, the price levels and their news. ctx: { panic:
-     * Set of realm ids with a run on a bank (systems/mints.js gathers it) }.
+     * The weekly turn (every `every` days): the census, the price-specie
+     * flow, Gresham, flight, the mints, drift, wear, hoarding, the price
+     * levels and their news. ctx: { panic: Set of realm ids with a run on a
+     * bank, holders: Map kid → { coin, coffers, banks, player } of the purses beyond
+     * the towns (systems/mints.js gathers both), barter: true while no town has
+     * coin (census only), coinTown(settlement): which towns use coin in a world
+     * still partly bartering (world/barter.js) }.
      * @returns the news made, or null when it is not the day
      */
     processDay(world, ctx = {}) {
@@ -457,36 +684,24 @@ export const MoneySupply = {
         st.lastDay = day;
         const alive = _alive(world);
         const byId = new Map(alive.map(k => [k.id, k]));
+        const towns = _townsByRealm(world, byId);
         for (const k of alive) MoneySupply.ensureRealm(world, k);
-        // Fallen realms: their coin passes to the conqueror (or the richest realm)
-        for (const kid of Object.keys(st.realms)) {
-            if (byId.has(kid)) continue;
-            const gone = st.realms[kid];
-            const dead = _kingdom(world, kid);
-            const heir = (dead && dead.conqueredBy && byId.get(dead.conqueredBy)) || alive.slice().sort((a, b) => st.realms[b.id].coin - st.realms[a.id].coin)[0];
-            if (heir && gone && gone.coin > 0) {
-                const R = st.realms[heir.id];
-                R.coin = _r2(R.coin + gone.coin);
-                MoneySupply._note(R, 'tribute', gone.coin);
-            }
-            delete st.realms[kid];
-        }
+        // Fallen realms: their towns (and the coin in them) now count for their new masters
+        for (const kid of Object.keys(st.realms)) if (!byId.has(kid)) delete st.realms[kid];
         if (!alive.length) { st.trade = {}; return []; }
 
-        // The realms' towns (live, for the mints)
-        const towns = new Map();
-        const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
-        for (const s of views) {
-            if (!byId.has(s.kingdom)) continue;
-            const tile = typeof world.getTile === 'function' ? world.getTile(s.q, s.r) : null;
-            const live = (tile && tile.settlement) || s;
-            if (!live.market) continue;
-            let list = towns.get(s.kingdom);
-            if (!list) towns.set(s.kingdom, list = []);
-            list.push(live);
-        }
+        // 0. The census: the coin is what the purses hold
+        MoneySupply.census(world, towns, alive, ctx.holders || null);
+        // Before coin (world/barter.js: ctx.barter, no town has coin yet) there is
+        // nothing to flow, strike or price: the census counts the empty purses
+        if (ctx.barter) { st.trade = {}; return []; }
+        // (the ratios the flows read: this week's coin per head against the world's)
+        let sum0 = 0, pop0 = 0;
+        for (const k of alive) { sum0 += st.realms[k.id].coin; pop0 += Math.max(1, _num(k.population)); }
+        const norm0 = pop0 > 0 && sum0 > 0 ? sum0 / pop0 : 0;
+        const ratio = (k) => (norm0 > 0 ? (st.realms[k.id].coin / Math.max(1, _num(k.population))) / norm0 : 1);
 
-        // 1. Trade settles in specie (pairwise, with the price-specie flow)
+        // 1. The trading partners (the week's book of coin paid across borders) and the price-specie flow
         const pairs = new Map();
         for (const [key, v] of Object.entries(st.trade)) {
             const at = key.indexOf('>');
@@ -495,8 +710,8 @@ export const MoneySupply = {
             const lo = a < b ? a : b, hi = a < b ? b : a;
             const pk = `${lo}|${hi}`;
             let p = pairs.get(pk);
-            if (!p) pairs.set(pk, p = { a: lo, b: hi, ab: 0, ba: 0 });
-            if (a === lo) p.ab += _num(v); else p.ba += _num(v);
+            if (!p) pairs.set(pk, p = { a: lo, b: hi, vol: 0 });
+            p.vol += _num(v);
         }
         st.trade = {};
         const partners = new Map(); // kid → Map(kid → volume)
@@ -506,85 +721,105 @@ export const MoneySupply = {
             m.set(y, _num(m.get(y)) + v);
         };
         const T = C.trade;
-        const tradeOut = new Map(); // coin each realm has paid out by trade this week (capped)
+        const tradeOut = new Map();
         for (const p of [...pairs.values()].sort((x, y) => (x.a + x.b).localeCompare(y.a + y.b))) {
+            if (!(p.vol > 0)) continue;
+            addPartner(p.a, p.b, p.vol);
+            addPartner(p.b, p.a, p.vol);
+            // Coin from b to a for a having less coin per head (cheaper: it sells b more)
             const Ra = st.realms[p.a], Rb = st.realms[p.b];
-            const vol = p.ab + p.ba;
-            if (!(vol > 0)) continue;
-            addPartner(p.a, p.b, vol);
-            addPartner(p.b, p.a, vol);
-            // Coin from b to a: a's net exports settled in specie, plus what a wins back
-            // from b for having less coin per head (the price-specie flow: on the
-            // unclamped ratios, so a realm piling up coin past the clamp still sheds it)
-            const gap = Math.log(Math.max(1e-3, _num(Rb.ratio, 1))) - Math.log(Math.max(1e-3, _num(Ra.ratio, 1)));
-            const flow = _num(T.specie) * (p.ab - p.ba) + _num(T.hume) * gap * Math.min(Ra.coin, Rb.coin);
-            const payer = flow > 0 ? p.b : p.a;
-            const Rp = flow > 0 ? Rb : Ra, Rr = flow > 0 ? Ra : Rb;
-            const room = Math.max(0, Rp.coin * _num(T.maxShare, 0.06) - _num(tradeOut.get(payer)));
-            const amt = _r2(Math.min(Math.abs(flow), room));
-            if (!(amt > 0)) continue;
-            tradeOut.set(payer, _num(tradeOut.get(payer)) + amt);
-            Rp.coin = _r2(Rp.coin - amt);
-            Rr.coin = _r2(Rr.coin + amt);
-            MoneySupply._note(Rp, 'trade', -amt);
-            MoneySupply._note(Rr, 'trade', amt);
+            const gap = Math.log(Math.max(1e-3, ratio(byId.get(p.b)))) - Math.log(Math.max(1e-3, ratio(byId.get(p.a))));
+            const flow = _num(T.hume) * gap * Math.min(Ra.coin, Rb.coin);
+            const payer = flow > 0 ? p.b : p.a, payee = flow > 0 ? p.a : p.b;
+            const room = Math.max(0, st.realms[payer].coin * _num(T.maxShare, 0.06) - _num(tradeOut.get(payer)));
+            const amt = Math.min(Math.abs(flow), room);
+            if (!(amt >= 0.01)) continue;
+            const moved = MoneySupply._move(world, towns, payer, payee, amt, 'trade');
+            tradeOut.set(payer, _num(tradeOut.get(payer)) + moved);
         }
 
         // 2. Gresham's law and coin flight: to the sounder trading partners
         const panic = ctx.panic instanceof Set ? ctx.panic : new Set();
         const F = C.flight;
         const inPanic = (k) => panic.has(k.id) || (k.finance && k.finance.lastDefaultDay != null && day - k.finance.lastDefaultDay <= _num(F.defaultDays, 30));
-        const sendAbroad = (k, R, amount, kind) => {
+        const sendAbroad = (k, amount, kind) => {
             const p = _purity(k);
             let dest = [...((partners.get(k.id) || new Map()).entries())]
                 .filter(([id]) => byId.has(id) && _purity(byId.get(id)) >= p && !inPanic(byId.get(id)));
             if (!dest.length) dest = alive.filter(o => o !== k && _purity(o) >= p && !inPanic(o)).map(o => [o.id, Math.max(1, st.realms[o.id].coin)]);
             const w = dest.reduce((s, [, v]) => s + v, 0);
-            const amt = Math.min(_r2(amount), R.coin);
-            if (!(w > 0) || !(amt > 0)) return 0;
+            if (!(w > 0) || !(amount > 0)) return 0;
             let sent = 0;
-            for (const [id, v] of dest) {
-                const part = _r2(amt * v / w);
-                if (!(part > 0)) continue;
-                const Ro = st.realms[id];
-                Ro.coin = _r2(Ro.coin + part);
-                MoneySupply._note(Ro, kind, part);
-                sent += part;
-            }
-            R.coin = _r2(R.coin - sent);
-            MoneySupply._note(R, kind, -sent);
+            for (const [id, v] of dest) sent += MoneySupply._move(world, towns, k.id, id, amount * v / w, kind);
             return sent;
         };
         for (const k of alive) {
             const R = st.realms[k.id];
             const p = _purity(k);
-            if (p < 1) sendAbroad(k, R, R.coin * _num(C.gresham.rate) * (1 - p), 'gresham');
-            if (inPanic(k)) sendAbroad(k, R, R.coin * _num(F.rate), 'flight');
+            if (p < 1) sendAbroad(k, R.towns * _num(C.gresham.rate) * (1 - p), 'gresham');
+            if (inPanic(k)) sendAbroad(k, R.towns * _num(F.rate), 'flight');
         }
 
         // 3. The mints strike the week's bullion and restrike the foreign coin that came in
-        for (const k of alive) MoneySupply.mintWeek(world, k, st.realms[k.id], towns.get(k.id) || []);
+        // (in a world still partly bartering, only towns that use coin sell ore to the mint: ctx.coinTown)
+        for (const k of alive) {
+            const list = towns.get(k.id) || [];
+            MoneySupply.mintWeek(world, k, st.realms[k.id], typeof ctx.coinTown === 'function' ? list.filter(ctx.coinTown) : list);
+        }
 
         // 4. The invisible balance: pilgrims, mercenaries' pay, smugglers and
         // travellers carry coin from the realms that have much of it to those that
-        // have little, trade or no trade (drift × the log gap, the total kept)
+        // have little, trade or no trade (drift × the log gap): what leaves the rich
+        // realms' towns is what reaches the poor realms'
         const D = _num(C.drift);
         if (D > 0 && alive.length > 1) {
-            let up = 0, total = 0;
             const adj = new Map();
+            let up = 0, total = 0;
             for (const k of alive) {
                 const R = st.realms[k.id];
-                const a = R.coin * (Math.pow(Math.max(1e-3, _num(R.ratio, 1)), -D) - 1);
+                const a = R.coin * (Math.pow(Math.max(1e-3, ratio(k)), -D) - 1);
                 adj.set(k.id, a);
                 up += a;
                 total += R.coin;
             }
+            let pool = 0;
+            const give = [];
             for (const k of alive) {
                 const R = st.realms[k.id];
-                const a = _r2(adj.get(k.id) - (total > 0 ? up * R.coin / total : 0));
-                if (!a || R.coin + a < 0) continue;
-                R.coin = _r2(R.coin + a);
-                MoneySupply._note(R, 'drift', a);
+                const a = adj.get(k.id) - (total > 0 ? up * R.coin / total : 0);
+                const list = towns.get(k.id) || [];
+                if (a < 0) {
+                    const drawn = _drawTowns(list, -a);
+                    if (drawn > 0) {
+                        pool = _r2(pool + drawn);
+                        R.coin = _r2(Math.max(0, R.coin - drawn));
+                        R.towns = _r2(Math.max(0, R.towns - drawn));
+                        MoneySupply._book(R, 'drift', -drawn);
+                    }
+                } else if (a > 0 && list.some(s => s.economy && Number.isFinite(s.economy.gold))) give.push([k, a]);
+            }
+            const want = give.reduce((s, [, a]) => s + a, 0);
+            let left = pool;
+            give.forEach(([k, a], i) => {
+                const part = i === give.length - 1 ? left : _r2(Math.min(left, pool * a / want));
+                const paid = _payTowns(towns.get(k.id), part);
+                if (!(paid > 0)) return;
+                left = _r2(left - paid);
+                const R = st.realms[k.id];
+                R.coin = _r2(R.coin + paid);
+                R.towns = _r2(R.towns + paid);
+                MoneySupply._book(R, 'drift', paid);
+            });
+            // (no realm to take it: back to the first realm drawn on)
+            if (left > 0) {
+                const from = alive.find(k => _num(st.realms[k.id].wk.drift) < 0);
+                if (from) {
+                    const back = _payTowns(towns.get(from.id), left);
+                    const R = st.realms[from.id];
+                    R.coin = _r2(R.coin + back);
+                    R.towns = _r2(R.towns + back);
+                    MoneySupply._book(R, 'drift', back);
+                }
             }
         }
 
@@ -593,8 +828,12 @@ export const MoneySupply = {
         let sumCV = 0, sumPop = 0;
         for (const k of alive) {
             const R = st.realms[k.id];
-            const lost = _r2(R.coin * _num(C.wear));
-            if (lost > 0) { R.coin = _r2(R.coin - lost); MoneySupply._note(R, 'wear', -lost); }
+            const lost = _drawTowns(towns.get(k.id), R.towns * _num(C.wear));
+            if (lost > 0) {
+                R.coin = _r2(Math.max(0, R.coin - lost));
+                R.towns = _r2(Math.max(0, R.towns - lost));
+                MoneySupply._book(R, 'wear', -lost);
+            }
             const war = Array.isArray(k.wars) && k.wars.length > 0;
             const target = Math.max(_num(V.floor, 0.6), 1 - (war ? _num(V.war) : 0) - (inPanic(k) ? _num(V.panic) : 0));
             R.vel = _r4(R.vel + (target - R.vel) * _num(V.adjust, 0.3));
@@ -610,9 +849,9 @@ export const MoneySupply = {
             const R = st.realms[k.id];
             const prev = R.level;
             if (norm > 0) {
-                const ratio = (R.coin * R.vel / R.pop) / norm;
-                R.ratio = _r4(ratio);
-                R.target = _r4(_clamp(Math.pow(Math.max(1e-6, ratio), _num(L.elasticity, 0.5)), _num(L.min, 0.9), _num(L.max, 1.12)));
+                const r = (R.coin * R.vel / R.pop) / norm;
+                R.ratio = _r4(r);
+                R.target = _r4(_clamp(Math.pow(Math.max(1e-6, r), _num(L.elasticity, 0.5)), _num(L.min, 0.9), _num(L.max, 1.12)));
                 R.level = _r4(_clamp(R.level + (R.target - R.level) * _num(L.smoothing, 0.2), _num(L.min, 0.9), _num(L.max, 1.12)));
             }
             R.hist.push([day, Math.round(R.coin), R.level, R.vel]);
@@ -655,5 +894,38 @@ export const MoneySupply = {
             if (h.kingdomId === kid && h.kind === kind) return h;
         }
         return null;
+    },
+
+    // ── Recoinage (the edict: systems/mints.js) ───────────
+
+    /** The coin in a realm's town purses now (what a recoinage calls in). */
+    townCoin(world, kid) {
+        return _townCoin(MoneySupply.towns(world, kid)).towns;
+    },
+
+    /**
+     * Call in a realm's town coin and strike it anew at full purity: each
+     * town's purse is cut to `factor` of itself (holders get back purity +
+     * crownShare × (1 − purity) of each piece; the crown's silver is melted
+     * into the new coin). @returns the coin taken out of circulation
+     */
+    recoinTowns(world, k, factor) {
+        const f = _clamp(_num(factor, 1), 0, 1);
+        if (!k || f >= 1) return 0;
+        let cut = 0;
+        for (const s of MoneySupply.towns(world, k.id)) {
+            const have = _purse(s);
+            if (!(have > 0)) continue;
+            const after = _r2(have * f);
+            s.economy.gold = after;
+            cut = _r2(cut + have - after);
+        }
+        if (cut > 0) {
+            const R = MoneySupply.ensureRealm(world, k);
+            MoneySupply._book(R, 'recoin', -cut);
+            R.coin = _r2(Math.max(0, R.coin - cut));
+            R.towns = _r2(Math.max(0, R.towns - cut));
+        }
+        return cut;
     },
 };

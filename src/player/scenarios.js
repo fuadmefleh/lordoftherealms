@@ -285,7 +285,9 @@ export const Scenarios = {
     },
 
     _exiledMonarch(player, world, o, vars) {
-        const realms = _alive(world).filter(k => _towns(world).filter(t => t.s.kingdom === k.id).length >= 2);
+        let realms = _alive(world).filter(k => _towns(world).filter(t => t.s.kingdom === k.id).length >= 2);
+        // (a young world's realms may hold their capital alone: world/worldAge.js)
+        if (!realms.length) realms = _alive(world).filter(k => _towns(world).some(t => t.s.kingdom === k.id));
         if (!realms.length) return;
         // The realm in the worst turmoil (lowest stability), the weakest on a tie
         const k = realms.slice().sort((a, b) => _num(a.stability, 60) - _num(b.stability, 60) || _num(a.military) - _num(b.military))[0];
@@ -340,7 +342,9 @@ export const Scenarios = {
     },
 
     _sellsword(player, world, o, vars) {
-        const towns = _towns(world).filter(t => t.s.kingdom != null && ['town', 'city'].includes(t.s.type));
+        let towns = _towns(world).filter(t => t.s.kingdom != null && ['town', 'city'].includes(t.s.type));
+        // A young world may have no realm town but the capitals (world/worldAge.js): any crown's settlement
+        if (!towns.length) towns = _towns(world).filter(t => t.s.kingdom != null);
         if (!towns.length) return;
         const sorted = towns.slice().sort((a, b) => _dist(world, a, player) - _dist(world, b, player));
         const home = Utils.randPick(sorted.slice(0, 4));
@@ -786,7 +790,9 @@ export const Scenarios = {
         if (!Generalship.enabled()) return;
         const G = Generalship.config().start || {};
         const towns = _towns(world);
-        const big = k => towns.filter(t => t.s.kingdom === k.id).length >= 2;
+        const twoTowns = k => towns.filter(t => t.s.kingdom === k.id).length >= 2;
+        // (a young world's realms may hold their capital alone: world/worldAge.js)
+        const big = _alive(world).some(twoTowns) ? twoTowns : k => towns.some(t => t.s.kingdom === k.id);
         const foesOf = k => (k.wars || []).map(id => _kingdomOf(world, id)).filter(e => e && e.isAlive !== false && e.capital);
         let k = Scenarios._nearestRealm(world, player, 2, x => big(x) && foesOf(x).length > 0);
         let enemy = k && foesOf(k).length ? foesOf(k).sort((a, b) => _dist(world, a.capital, k.capital) - _dist(world, b.capital, k.capital))[0] : null;

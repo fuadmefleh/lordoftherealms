@@ -5,6 +5,7 @@
 // ============================================
 
 import { Hex } from '../../core/hex.js';
+import { Dawn } from '../../world/dawn.js';
 import { Colonization } from '../../world/colonization.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Religion } from '../../systems/religion.js';
@@ -33,6 +34,15 @@ export function addWildernessActions(actions, player, tile, world) {
     if (DawnBirth.canSettleHere(player, world)) {
         const L = DawnBirth.data().lines || {};
         actions.push({ type: 'dawn_settle', label: L.settleAction || 'Make camp for good', icon: '🔥', description: L.settleDesc || 'Your clan settles here for good and founds a village.' });
+    }
+
+    // The Dawn of Man: keep the clan in step with you, hex for hex, or let it go at its own pace
+    const kin = player.dawnClan ? Dawn.kinClan(world, player) : null;
+    if (kin) {
+        const near = Hex.wrappingOffsetDistance(kin.q, kin.r, player.q, player.r, world.width) <= 1;
+        actions.push(player.dawnInStep
+            ? { type: 'dawn_instep', label: 'Let the clan go at its own pace', icon: '🐾', description: 'Your people stop matching your stride: they follow behind, two hexes a day, within a few leagues of you.' }
+            : { type: 'dawn_instep', label: 'Keep the clan in step', icon: '👣', description: near ? 'Your people walk with you, hex for hex, wherever they can follow on foot.' : 'Your people are not beside you: they will fall in step when you are next to them.' });
     }
 
     // Meditate / Pray (anywhere on passable terrain)

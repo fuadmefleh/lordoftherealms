@@ -10,6 +10,7 @@ import './floors.js';
 import './movement.js';
 import './npcs.js';
 import './townLife.js';
+import './townScenes.js';
 import './townWoodcutters.js';
 import './townMiners.js';
 import './townHerbalists.js';

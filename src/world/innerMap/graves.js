@@ -27,6 +27,10 @@ import { GraveArt, GROUND_ART } from '../graveArt.js';
 import { Graveyards } from '../../systems/graveyards.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+// Water laid over the ground after the planner marked it (a river, a pond, the sea's edge):
+// no grave is dug there, nothing stands on it
+const _wet = t => !!(t && !t._bridge && !t._pier && !t._deck
+    && (t._wet || t._sea || /water|^sea$|ocean|lake/.test((t.subTerrain && t.subTerrain.id) || '')));
 
 Object.assign(InnerMap, {
     /** The churchyard on this map: { q0, q1, r0, r1, w, h, front, gate, plots } (rebuilt from the tiles' marks if need be). */
@@ -114,6 +118,7 @@ Object.assign(InnerMap, {
     },
 
     _standGround(s, ground, cells, day) {
+        const drowned = [];
         for (let i = 0; i < cells.length && i < ground.cap; i++) {
             const c = cells[i];
             if (!c) continue;
@@ -121,6 +126,7 @@ Object.assign(InnerMap, {
             if (!head || !foot) continue;
             this._unstandGrave(head);
             this._unstandGrave(foot);
+            if (_wet(head) || _wet(foot)) { head._plotRef = null; foot._plotRef = null; drowned.push(i); continue; }
             const ref = { g: ground.id, i, q: c.q, r: c.r };
             head._plotRef = ref;
             foot._plotRef = ref;
@@ -133,6 +139,8 @@ Object.assign(InnerMap, {
             head._graveShow = grave || open ? { marker: m, fresh: fresh || m === 'grave_mound', open, art: !!(m && GraveArt.hasArt(m)) } : null;
             if (m && !GROUND_ART.has(m) && GraveArt.hasArt(m)) this._standObject(GraveArt.defId(m), c.q, c.r);
         }
+        // No one is buried where the water runs
+        if (drowned.length) ground.drowned = drowned; else delete ground.drowned;
     },
 
     /** Take a grave's marker off a tile (and give back the ground under it). */
@@ -158,7 +166,7 @@ Object.assign(InnerMap, {
         if (!def) return false;
         for (const m of def.meta || []) {
             const t = this.getTile(q + m.localCol, r + m.localRow);
-            if (!t || t.customBuilding || t.customBuildingPart) return false;
+            if (!t || t.customBuilding || t.customBuildingPart || _wet(t)) return false;
             if ((t.customObject || t.customObjectPart) && !(t.customObject && /^grave_/.test(t.customObject.defId || '') && t === this.getTile(q, r))) return false;
         }
         const a = this.getTile(q, r);

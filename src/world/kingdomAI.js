@@ -406,7 +406,8 @@ export const KingdomAI = {
                 kingdom: kingdom.id,
             };
             if (typeof world.invalidateSettlements === 'function') world.invalidateSettlements();
-            Economy.initSettlement(target.tile.settlement);
+            // (in a world begun before coin a new village has no coin it wasn't given: world/barter.js)
+            Economy.initSettlement(target.tile.settlement, { fresh: !!world.barter });
         }
     },
 

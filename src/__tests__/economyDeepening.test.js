@@ -113,11 +113,17 @@ const realm = (id, name, pop) => ({
     finance: { purity: 1, debt: [], debtRatio: 0, missed: 0, unpaid: 0, defaults: 0, lastDefaultDay: null },
 });
 function bare(realms, day = 7) {
+    // (each realm one town, its purse 2 coin a head: the money supply counts the purses)
+    const tiles = new Map();
+    realms.forEach((k, i) => {
+        const s = { name: `${k.name} Town`, type: 'town', population: k.population, kingdom: k.id, q: 50 + i, r: 0, economy: { gold: 2 * k.population } };
+        tiles.set(`${50 + i},0`, { q: 50 + i, r: 0, kingdom: k.id, settlement: s });
+    });
     return {
         day, kingdoms: realms, generationParams: { seed: 4242 }, activeEvents: [],
         getKingdom(id) { return this.kingdoms.find(k => k.id === id); },
-        getSettlementViews() { return []; },
-        getTile() { return null; },
+        getSettlementViews() { return [...tiles.values()].map(t => t.settlement); },
+        getTile(q, r) { return tiles.get(`${q},${r}`) || null; },
     };
 }
 const bourseOf = (player, exchanges) => {
@@ -203,12 +209,12 @@ describe('the player\'s cross-realm trade in coin', () => {
         const check = TradePolicy.consignCheck(g.player, g.world, lots, 10, B, 'tools', 10);
         TradePolicy.consignSale(g.player, g.world, lots, B, 'tools', 10, 200, check);
         expect(MoneySupply.state(g.world).trade[key]).toBeGreaterThan(150);
-        // ...and the weekly turn settles it as coin from the importer to the exporter
-        const before = MoneySupply.realm(g.world, A.kingdom) ? MoneySupply.realm(g.world, A.kingdom).tot.trade || 0 : 0;
-        MoneySupply.state(g.world).trade[key] = 5000;
+        // ...and the weekly turn reads it as the two realms trading (the coin itself moved
+        // when the player paid and was paid, purse to purse), then clears the book
         g.world.day += 7;
+        MoneySupply.state(g.world).lastDay = null;
         MoneySupply.processDay(g.world, {});
-        expect(MoneySupply.realm(g.world, A.kingdom).tot.trade).toBeGreaterThan(before);
+        expect(MoneySupply.state(g.world).trade).toEqual({});
     });
 });
 

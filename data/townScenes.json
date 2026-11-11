@@ -1,0 +1,109 @@
+{
+    "_doc": "Scenes that make a town look lived in, by the hour (world/innerMap/townScenes.js over world/innerMap/townLife.js). Every choice is a hash of the town, the day, the hour and the person — never the shared RNG. market: the square's stalls (TownProps tp_stall) staffed in hours [open, close) by vendors (roles in vendorRoles order, real townsfolk), standing behind the counter (behind: tiles up from the stall's anchor row; front: one below) and hawking every hawkEvery seconds the goods of stallGoods[role] the town's market actually stocks (world/settlementMarket.js); shoppers stand at a stall's front, haggle (a pair of lines), and browse on to another stall (browse chance). church: services each day at services[] (start, end hours), plus holyDay.extra every holyDay.every days; the bell rings bellLead hours before, and a share of adults (holyDay.share on the holy day) walk in and sit in the pews till it ends; the priest preaches lines of the town's faith (sermon by faith id, else generic with {faith}/{tenet}). interiors: what the player sees inside each kind of building — staff at their station (staffAt furniture, behind it or beside it), patrons seated round seatsAt furniture, crowdByHour (24 hours) how many come in, stay seconds [min,max]. tavern: a bard from bard.hours, events every eventEvery seconds (weights), the arguments that spill into a scuffle the keeper breaks up; drunkShare of those leaving a tavern after drunkAfter o'clock stagger home. tend: what a tradesperson does out front of their workplace by building type (prop: a town prop they work at, within reach tiles of the door; tool: a tool in hand swung each swing seconds; sound). crier: one townsperson cries the news in the square every everyHours in hours. camp: at a Dawn of Man camp the eldest tells stories by the fire in hours, listeners sit round. Lines: {good}, {name}, {faith}, {tenet}, {news}, {ruler}, {town}.",
+    "playerRadius": 24,
+    "market": {
+        "open": 7,
+        "close": 18,
+        "vendorRoles": ["merchant", "farmer", "villager"],
+        "hawkEvery": [7, 14],
+        "browse": 0.6,
+        "stay": { "vend": [40, 70], "shop": [14, 26] },
+        "stallGoods": {
+            "merchant": ["textiles", "linen", "clothes", "wool_cloak", "boots", "pottery", "candles", "soap", "rope", "salt", "spices", "tools", "leather", "glassware", "lamp_oil"],
+            "farmer": ["grain", "flour", "cheese", "meat", "fish", "sausage", "cider", "mead", "wool", "hide"],
+            "villager": ["bread", "cheese", "fish", "beer", "candles", "pottery", "rope", "sausage"]
+        },
+        "goodNames": { "lamp_oil": "lamp oil", "wool_cloak": "wool cloaks", "textiles": "cloth", "glassware": "glass", "leather_armor": "leather jerkins" },
+        "hawk": {
+            "food": ["Fresh {good}! Fresh today!", "{good}, good and cheap!", "Who'll buy my {good}?", "Finest {good} in {town}!"],
+            "drink": ["{good} by the jug!", "Wet your throat — {good} here!"],
+            "any": ["Fine {good}, cheap!", "{good}! Come and see!", "Best {good} this side of the river!", "Step up, step up — {good}!", "You won't find better {good}!"],
+            "none": ["Come and see, come and see!", "Bargains, friends, bargains!", "Everything must go!"]
+        },
+        "haggle": [
+            ["How much for the {good}?", "For you? Three silver."],
+            ["Three? I'll give you two.", "Two and a half, and I'm robbing myself."],
+            ["Is this {good} fresh?", "Fresh this morning, on my mother's life."],
+            ["That's daylight robbery!", "Then go and rob someone else!"],
+            ["I'll take two, if you knock a penny off.", "Done. You drive a hard bargain."],
+            ["This was cheaper last week.", "And the roads were safer last week."]
+        ],
+        "packUp": ["Packing up for the day!", "That's me done. Home!", "Last call — then I'm off!"]
+    },
+    "church": {
+        "types": ["church", "temple", "chapel"],
+        "services": [{ "start": 8, "end": 9.5 }, { "start": 18, "end": 19 }],
+        "holyDay": { "every": 7, "offset": 0, "share": 0.55, "extra": { "start": 11, "end": 12.5 } },
+        "share": 0.18,
+        "bellLead": 0.5,
+        "roles": ["villager", "farmer", "merchant", "noble", "beggar", "child"],
+        "bell": ["🔔 Dong… dong… dong…", "🔔 The bell rings for prayers"],
+        "call": ["To prayers! The bell is rung!", "Come, friends — the service begins."],
+        "open": ["Let us begin, in the name of {faith}.", "Welcome, all. Let us pray."],
+        "close": ["Go in peace.", "Hold to {tenet} this week, friends.", "Blessings on {town}. Go in peace."],
+        "amen": ["Amen.", "Amen…", "So it is.", "Blessed be."],
+        "between": ["(murmured prayers)", "Grant us a good harvest…", "Keep my children safe…", "Forgive me…"],
+        "sermon": {
+            "any": ["Hold fast to {tenet}, as {faith} teaches!", "{tenet} is the road, and the road is long.", "Who among us has not strayed? Return!", "Give to the poor, and the gods give to you.", "The harvest is the gods' gift — waste none of it.", "Be at peace with your neighbour, friends."],
+            "solaris": ["The Sun sees every deed, friends.", "Walk in the light, and fear no dark."],
+            "tidemother": ["The tide takes, and the tide gives back.", "Safe harbour to all who keep faith."],
+            "earthroot": ["The roots bind us all, one to another.", "Be patient as the oak is patient."],
+            "ironfaith": ["The soul is forged in trial!", "Labour is prayer. Work, and be blessed."],
+            "starseers": ["The stars have written our road.", "Charity is the wisest of virtues."],
+            "stoneheart": ["Honour the ancestors who built before you.", "Craft well, and your work outlives you."],
+            "stormfather": ["Courage! The Stormfather loves the bold!", "Live free, and die with glory."],
+            "dunewalkers": ["Turn no stranger from your door.", "Fair trade is a holy thing."],
+            "flameheralds": ["The Flame burns away all impurity!", "Let your zeal light the dark!"],
+            "silentorder": ["…", "(the priest sits in silence)"]
+        }
+    },
+    "tavern": {
+        "types": ["tavern", "inn", "roadhouse"],
+        "bard": { "hours": [18, 24], "roles": ["traveler", "villager"], "songs": ["♪ Oh the miller's daughter… ♪", "♪ Raise your cups to the road! ♪", "♪ Down by the river, my love… ♪", "♪ The king went a-hunting… ♪", "♪ Hey nonny, hey nonny no! ♪", "♪ Fill my cup, fill my cup! ♪"], "cheer": ["Another!", "Play the one about the miller!", "Bravo!", "Ha! Sing it!"] },
+        "eventEvery": [6, 11],
+        "events": { "toast": 3, "dice": 2, "banter": 4, "argue": 1 },
+        "toast": ["To {ruler}!", "To good harvests!", "To absent friends!", "To the bottom of the cup!", "Your health, {name}!"],
+        "cheers": ["Cheers!", "Hear, hear!", "Drink!"],
+        "dice": ["Sixes! Pay up!", "Snake eyes… again.", "Double or nothing?", "You're loading those dice!", "Come on, come on…"],
+        "banter": ["Another round!", "Barkeep! More ale!", "…and then the cow fell in the well!", "Did you hear the news?", "This ale's watered.", "Best stew in {town}, this."],
+        "argue": [["You cheated me, {name}!", "Say that again, I dare you!"], ["Your sister's a goat!", "What did you say?!"], ["That was my seat.", "Was it? I don't see your name on it."]],
+        "keeperBreak": ["Oi! Take it outside!", "Not in my house!", "Break it up, you two!"],
+        "keeper": ["What'll it be?", "Ale's fresh today.", "Mind the glasses."],
+        "drunkShare": 0.45,
+        "drunkAfter": 20,
+        "drunk": ["*hic*", "♪ …and the miller's daughter… ♪", "Which way's home?", "I love you, all of you…", "Who moved the street?"]
+    },
+    "interiors": {
+        "tavern": { "types": ["tavern", "inn", "roadhouse"], "staffAt": ["bar"], "staffSide": "behind", "staffActivity": { "icon": "🍺", "label": "Tending the bar", "anim": "idle" }, "seatsAt": ["table"], "seatSide": "around", "seatActivity": { "icon": "🍺", "label": "Drinking", "anim": "sitting" }, "stage": ["fireplace"], "crowdByHour": [4, 2, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 3, 3, 2, 2, 3, 4, 6, 8, 9, 9, 8, 6], "stay": [70, 160], "roles": ["villager", "farmer", "merchant", "traveler", "blacksmith_npc", "noble"] },
+        "church": { "types": ["church", "temple", "chapel"], "staffAt": ["altar", "lectern"], "staffSide": "behind", "staffRoles": ["priest"], "staffActivity": { "icon": "🙏", "label": "Tending the altar", "anim": "idle" }, "seatsAt": ["pew"], "seatSide": "row", "seatOn": true, "face": 0, "seatActivity": { "icon": "🙏", "label": "At prayer", "anim": "sitting" }, "between": 2, "stay": [30, 60] },
+        "market": { "types": ["marketplace"], "staffAt": ["stall"], "staffSide": "behind", "staffActivity": { "icon": "💰", "label": "Minding the stall", "anim": "idle" }, "seatsAt": ["stall", "scales"], "seatSide": "front", "seatActivity": { "icon": "🛒", "label": "Shopping", "anim": "idle" }, "crowdByHour": [0, 0, 0, 0, 0, 0, 0, 2, 3, 4, 4, 4, 3, 3, 3, 3, 2, 1, 0, 0, 0, 0, 0, 0], "stay": [20, 45], "roles": ["villager", "farmer", "noble", "traveler", "child"] },
+        "smithy": { "types": ["blacksmith"], "staffAt": ["anvil"], "staffSide": "beside", "staffRoles": ["blacksmith_npc"], "staffActivity": { "icon": "🔨", "label": "Hammering at the anvil", "anim": "slash", "tool": "hammer", "swing": 0.9, "sound": "anvil" }, "hours": [6, 19], "seatsAt": ["rack"], "seatSide": "beside", "seatActivity": { "icon": "⚔️", "label": "Looking at the blades", "anim": "idle" }, "crowdByHour": [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0], "stay": [20, 40], "roles": ["guard", "farmer", "villager", "noble"] },
+        "bakery": { "types": ["bakery"], "staffAt": ["oven"], "staffSide": "beside", "staffActivity": { "icon": "🍞", "label": "Baking", "anim": "idle" }, "hours": [4, 15], "seatsAt": ["bar", "shelf"], "seatSide": "beside", "seatActivity": { "icon": "🍞", "label": "Buying bread", "anim": "idle" }, "crowdByHour": [0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "stay": [12, 25], "roles": ["villager", "farmer", "child", "merchant"] }
+    },
+    "tend": {
+        "blacksmith": { "prop": "tp_anvil", "reach": 6, "activity": { "icon": "🔨", "label": "Hammering at the anvil", "anim": "slash", "tool": "hammer", "swing": 0.9, "sound": "anvil" } },
+        "bakery": { "activity": { "icon": "🍞", "label": "Selling bread", "anim": "idle" }, "barks": ["Bread! Warm bread!", "Fresh loaves!"] },
+        "marketplace": { "activity": { "icon": "📦", "label": "Hauling crates", "anim": "idle" } },
+        "warehouse": { "activity": { "icon": "📦", "label": "Hauling crates", "anim": "idle" } },
+        "beggar": { "activity": { "icon": "🪙", "label": "Begging", "anim": "sitting", "pose": 0 }, "barks": ["Alms… alms for the poor…", "Spare a coin?"] }
+    },
+    "well": { "activity": { "icon": "💧", "label": "Drawing water", "anim": "idle" }, "lines": ["Did you hear? {news}", "They say {news}", "Water's low again.", "Heavy bucket, this."] },
+    "play": ["Tag! You're it!", "Can't catch me!", "Wait for me!", "My turn!"],
+    "crier": {
+        "hours": [9, 17],
+        "everyHours": 2,
+        "stay": [24, 34],
+        "roles": ["villager", "merchant"],
+        "open": ["Hear ye! Hear ye!", "Oyez! Oyez! Oyez!"],
+        "close": ["Long live {ruler}!", "God save {ruler}!", "That is all! Go about your business!"],
+        "fallback": ["All is well in {town}!", "Market day, market day!", "The roads are open and the gates are kept!"],
+        "war": ["{kingdom} is at war with {other}!"],
+        "dear": ["{good} is dear this week!"]
+    },
+    "camp": {
+        "hours": [18, 23],
+        "listeners": 5,
+        "stories": ["Long ago, before the rivers…", "…and the great bear spoke, and said…", "Our mothers' mothers walked here.", "The stars are the fires of the dead.", "…so the fox stole the fire, and ran…", "Listen, little ones. Listen."],
+        "listen": ["Ooh…", "And then?", "Tell the one about the bear!"]
+    }
+}

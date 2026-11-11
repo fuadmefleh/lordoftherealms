@@ -23,6 +23,7 @@ import { DayClock } from './dayClock.js';
 import { updateAPChip } from '../apChip.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
+import { InnerMapRiverDrift } from '../innerMapRiverDrift.js';
 
 // Blows at a tree or a rock land harder with Woodcutting / Mining (player/gathering.js): the
 // world's swing damage (world/innerMap/movement.js), wrapped once, for every caller
@@ -53,8 +54,15 @@ export function gameLoop(timestamp, loopId) {
     // ...and the street map's hotbar follows the packs, whatever put goods in or took them out
     // (ui/hotbar.js: redraws only when PlayerInventory.stamp changes)
     Hotbar.sync(this);
+    // Things adrift on the rivers: the world carries them on; on a street map the current
+    // does, cell by cell, at the map's pace (ui/innerMapRiverDrift.js)
+    const _driftSpeed = Number.isFinite(this.timeSpeed) ? this.timeSpeed : 1;
+    InnerMapRiverDrift.update(this, InnerMap.active ? deltaTime * (_driftSpeed === 3 ? 4 : _driftSpeed) : deltaTime);
     // Off the inner map a winded diver still gets their breath back (ui/innerMapDiving.js)
     if (!InnerMap.active && this.player && this.player.breathRecovery) InnerMapDiving.recoverOnSurface(deltaTime, this);
+
+    // What people wear follows the world's year (world/eraWardrobe.js: a no-op unless it changed)
+    InnerMapCharacters.setYear(this.world ? this.world.year : null);
 
     // -- Inner Map Mode --
     if (InnerMap.active) {
@@ -401,6 +409,12 @@ export function gameLoop(timestamp, loopId) {
 
         // Update NPCs
         InnerMap.updateNPCs(simDelta);
+        // The town scenes' sounds: the smith's anvil, the church bell (world/innerMap/townScenes.js)
+        if (InnerMap._sceneSounds && InnerMap._sceneSounds.length) {
+            for (const snd of InnerMap._sceneSounds.splice(0)) {
+                try { audioManager.playSFX(snd.kind); } catch { /* sound is best-effort */ }
+            }
+        }
         // The deer graze, wander and bolt (world/innerMap/animals.js)
         InnerMapAnimals.update(simDelta, this);
 

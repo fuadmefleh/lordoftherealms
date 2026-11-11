@@ -33,6 +33,7 @@ import { Harvests } from '../world/harvests.js';
 import { Seasons } from '../world/seasons.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
+import { Barter } from '../world/barter.js';
 import { Ledger } from '../systems/ledger.js';
 import { TradeSkills } from '../systems/tradeSkills.js';
 import { Foraging, Hunting } from './foraging.js';
@@ -183,11 +184,16 @@ export const OddJobs = {
         const factors = OddJobs.payFor(player, world, settlement, job, scorePercent);
         // The town's employers pay out of its purse: a broke town pays what it can
         const owed = factors.pay;
-        const can = Economy.townPurse(settlement);
-        factors.pay = can == null ? owed : Math.min(owed, Math.floor(can));
-        Economy.drawTown(settlement, factors.pay);
+        if (Barter.paysInKind(player, settlement)) {
+            // A barter town pays in goods out of its stores (world/barter.js)
+            factors.pay = Math.floor(Barter.townPays(player, settlement, owed));
+        } else {
+            const can = Economy.townPurse(settlement);
+            factors.pay = can == null ? owed : Math.min(owed, Math.floor(can));
+            Economy.drawTown(settlement, factors.pay);
+            player.gold = _num(player.gold) + factors.pay;
+        }
         if (factors.pay < owed) factors.short = owed - factors.pay;
-        player.gold = _num(player.gold) + factors.pay;
         if (factors.pay > 0) Ledger.record(player, 'jobs', factors.pay);
         const renown = scorePercent >= 40 ? 1 : 0;
         player.renown = _num(player.renown) + renown;
@@ -212,6 +218,8 @@ export const OddJobs = {
      * purse, as much as it holds. → the gold paid.
      */
     payFromTown(player, settlement, amount) {
+        // (a barter town pays in goods out of its stores: world/barter.js)
+        if (Barter.paysInKind(player, settlement)) return Math.floor(Barter.townPays(player, settlement, Math.max(0, Math.floor(_num(amount)))));
         const pay = OddJobs.townCanPay(settlement, amount);
         if (!(pay > 0)) return 0;
         Economy.drawTown(settlement, pay);

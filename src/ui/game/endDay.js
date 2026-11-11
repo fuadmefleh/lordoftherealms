@@ -8,12 +8,14 @@ import { Infrastructure } from '../../systems/infrastructure.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Barter } from '../../world/barter.js';
 import { Parentage } from '../../player/parentage.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Traits } from '../../systems/traits.js';
 import { Hospitality } from '../../systems/hospitality.js';
+import { RiverDrift } from '../../systems/riverDrift.js';
 import { Crops } from '../../systems/crops.js';
 import { Delves } from '../../systems/delves.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -289,6 +291,13 @@ export function endDay() {
                     colonyFood: Technology.getEffectTotal(this.player, 'settlementFoodBonus'),
                 },
             });
+            // Before coin (world/barter.js): the purse in kind stays on while any town
+            // barters; the heralds tell when coin emerges, spreads, or reaches every market
+            Barter.syncPlayer(this.world, this.player);
+            {
+                const bn = this.world.barter && this.world.barter.news;
+                if (bn && bn.day === this.world.day) this.ui.showNotification(bn.kind === 'firstCoin' ? '⚖️ The First Coin' : '⚖️ Coin Spreads', bn.text, 'info');
+            }
             this.player.endDay(this.world);
             // Low needs nag once per day on the world map too
             if (typeof this._checkNeedWarnings === 'function') this._checkNeedWarnings();
@@ -649,6 +658,9 @@ export function endDay() {
             for (const n of Mail.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Hospitality — the morning after a night's lodging, your houses' week, the town houses' prices (systems/hospitality.js)
             for (const n of Hospitality.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Things adrift on the rivers: carried on through the night, hex by hex (systems/riverDrift.js;
+            // the game loop carries them by the hour, ui/innerMapRiverDrift.js)
+            RiverDrift.processDay(this.world, this.player, this.world.day * 24);
             // Your beasts: fodder, eggs and milk, births, sickness, wolves (systems/livestock.js)
             for (const n of Livestock.processDay(this.world, this.player).notices.slice(0, 4)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             // Your own fields: crops grow, thirst, ripen, freeze or rot (systems/crops.js)

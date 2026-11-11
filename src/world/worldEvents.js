@@ -6,8 +6,51 @@ import { Utils } from '../core/utils.js';
 import { Kingdom } from './kingdom.js';
 import { WEATHER_EFFECTS } from './weather.js';
 import { Seasons } from './seasons.js';
+import { Economy } from './economy.js';
 
 export const WorldEvents = {
+    /**
+     * A windfall for a crown (a reform, a boom, a trade deal, a find): real
+     * coin, raised from its towns' purses by their people (each gives at most
+     * 5%). → what came in
+     */
+    _gain(world, kingdom, amount) {
+        if (!kingdom || !(amount > 0)) return 0;
+        const towns = [];
+        for (const t of kingdom.territory || []) {
+            const tile = world && typeof world.getTile === 'function' ? world.getTile(t.q, t.r) : null;
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id) towns.push({ settlement: tile.settlement, weight: Math.max(1, tile.settlement.population || 0) });
+        }
+        const got = towns.length ? Math.floor(Economy.drawTowns(towns, amount, 0.05).paid) : 0;
+        kingdom.treasury = (kingdom.treasury || 0) + got;
+        return got;
+    },
+
+    /**
+     * A loss to a crown (a scandal, a famine, a crash): `share` of its chests
+     * plus `flat`, spent into its towns' purses (bribes, relief, repairs paid
+     * to their people), not lost to the world. → what went out
+     */
+    _lose(world, kingdom, share, flat = 0) {
+        if (!kingdom) return 0;
+        const have = Math.max(0, kingdom.treasury || 0);
+        const out = Math.min(have, Math.floor(have * (share || 0)) + (flat || 0));
+        if (!(out > 0)) return 0;
+        kingdom.treasury = have - out;
+        const towns = [];
+        for (const t of kingdom.territory || []) {
+            const tile = world && typeof world.getTile === 'function' ? world.getTile(t.q, t.r) : null;
+            if (tile && tile.settlement && tile.settlement.kingdom === kingdom.id && tile.settlement.economy) towns.push(tile.settlement);
+        }
+        const pop = towns.reduce((a, s) => a + Math.max(1, s.population || 0), 0);
+        let paid = 0;
+        towns.forEach((s, i) => {
+            const part = i === towns.length - 1 ? out - paid : Math.floor(out * Math.max(1, s.population || 0) / pop);
+            if (part > 0) { Economy.payTown(s, part); paid += part; }
+        });
+        return out;
+    },
+
     /**
      * A realm's towns. Generated worlds keep settlements on their tiles and
      * leave kingdom.settlements empty; small hand-made worlds fill the list.
@@ -37,9 +80,10 @@ export const WorldEvents = {
     /**
      * Generate initial world history
      */
-    generateHistory(world) {
+    generateHistory(world, opts = {}) {
         const history = [];
-        const startYear = 1;
+        // A young world's history begins at the dawn year (world/worldAge.js)
+        const startYear = Number.isFinite(opts.from) ? opts.from : 1;
         const currentYear = world.year || 853;
 
         // Key historical milestones
@@ -212,7 +256,7 @@ export const WorldEvents = {
                 };
 
             case 'scandal':
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.9);
+                WorldEvents._lose(world, kingdom, 0.1);
                 WorldEvents._nudgeStability(kingdom, -5);
                 return {
                     category: WorldEvents.CATEGORIES.POLITICAL,
@@ -222,7 +266,7 @@ export const WorldEvents = {
                 };
 
             case 'reform':
-                kingdom.treasury += 500;
+                WorldEvents._gain(world, kingdom, 500);
                 return {
                     category: WorldEvents.CATEGORIES.POLITICAL,
                     text: `${kingdom.name}: ${kingdom.ruler} enacts reforms. Economy improves!`,
@@ -254,7 +298,7 @@ export const WorldEvents = {
 
         switch (type) {
             case 'boom':
-                kingdom.treasury += 1000;
+                WorldEvents._gain(world, kingdom, 1000);
                 return {
                     category: WorldEvents.CATEGORIES.ECONOMIC,
                     text: `${kingdom.name}: Economic boom! Treasury increased by 1000 gold.`,
@@ -263,7 +307,7 @@ export const WorldEvents = {
                 };
 
             case 'recession':
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.8);
+                WorldEvents._lose(world, kingdom, 0.2);
                 return {
                     category: WorldEvents.CATEGORIES.ECONOMIC,
                     text: `${kingdom.name}: Economic recession. Treasury reduced by 20%.`,
@@ -274,8 +318,8 @@ export const WorldEvents = {
             case 'trade_deal':
                 const partner = Utils.randPick(livingKingdoms.filter(k => k.id !== kingdom.id));
                 if (partner) {
-                    kingdom.treasury += 500;
-                    partner.treasury += 500;
+                    WorldEvents._gain(world, kingdom, 500);
+                    WorldEvents._gain(world, partner, 500);
                     kingdom.relations[partner.id] = Math.min(100, (kingdom.relations[partner.id] || 0) + 10);
                     partner.relations[kingdom.id] = Math.min(100, (partner.relations[kingdom.id] || 0) + 10);
                     return {
@@ -289,7 +333,7 @@ export const WorldEvents = {
 
             case 'market_crash':
                 for (const k of livingKingdoms) {
-                    k.treasury = Math.floor(k.treasury * 0.9);
+                    WorldEvents._lose(world, k, 0.1);
                 }
                 return {
                     category: WorldEvents.CATEGORIES.ECONOMIC,
@@ -301,7 +345,7 @@ export const WorldEvents = {
                 {
                     const settlement = WorldEvents._pickTown(world, kingdom, type);
                     if (settlement) {
-                        kingdom.treasury += 800;
+                        WorldEvents._gain(world, kingdom, 800);
                         return {
                             category: WorldEvents.CATEGORIES.ECONOMIC,
                             text: `${kingdom.name}: Rich mineral deposit discovered near ${settlement.name}!`,
@@ -423,7 +467,7 @@ export const WorldEvents = {
 
             case 'famine':
                 kingdom.population = Math.floor(kingdom.population * 0.95);
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.9);
+                WorldEvents._lose(world, kingdom, 0.1);
                 return {
                     category: WorldEvents.CATEGORIES.NATURAL,
                     text: `${kingdom.name}: Famine spreads across the land. Population and treasury reduced.`,
@@ -435,7 +479,7 @@ export const WorldEvents = {
                 {
                     const floodSettlement = WorldEvents._pickTown(world, kingdom, type);
                     if (floodSettlement) {
-                        kingdom.treasury = Math.floor(kingdom.treasury * 0.85);
+                        WorldEvents._lose(world, kingdom, 0.15);
                         return {
                             category: WorldEvents.CATEGORIES.NATURAL,
                             text: `${kingdom.name}: Devastating floods near ${floodSettlement.name}. Infrastructure damaged.`,
@@ -447,7 +491,7 @@ export const WorldEvents = {
                 break;
 
             case 'earthquake':
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.8);
+                WorldEvents._lose(world, kingdom, 0.2);
                 return {
                     category: WorldEvents.CATEGORIES.NATURAL,
                     text: `${kingdom.name}: Earthquake destroys buildings. Costly repairs needed.`,
@@ -466,7 +510,7 @@ export const WorldEvents = {
 
             case 'bountiful_harvest':
                 kingdom.population = Math.floor(kingdom.population * 1.05);
-                kingdom.treasury += 300;
+                WorldEvents._gain(world, kingdom, 300);
                 return {
                     category: WorldEvents.CATEGORIES.NATURAL,
                     text: `${kingdom.name}: Bountiful harvest! Population and wealth increase.`,
@@ -498,7 +542,7 @@ export const WorldEvents = {
 
         switch (type) {
             case 'festival':
-                kingdom.treasury -= 200;
+                WorldEvents._lose(world, kingdom, 0, 200);
                 WorldEvents._nudgeStability(kingdom, 4);
                 return {
                     category: WorldEvents.CATEGORIES.RELIGIOUS,
@@ -508,7 +552,7 @@ export const WorldEvents = {
                 };
 
             case 'pilgrimage':
-                kingdom.treasury += 400;
+                WorldEvents._gain(world, kingdom, 400);
                 return {
                     category: WorldEvents.CATEGORIES.RELIGIOUS,
                     text: `${kingdom.name}: Pilgrims flock to holy sites. Tourism revenue increases.`,
@@ -536,7 +580,7 @@ export const WorldEvents = {
                 };
 
             case 'schism':
-                kingdom.treasury = Math.floor(kingdom.treasury * 0.9);
+                WorldEvents._lose(world, kingdom, 0.1);
                 const other = Utils.randPick(livingKingdoms.filter(k => k.id !== kingdom.id));
                 if (other) {
                     kingdom.relations[other.id] = Math.max(-100, (kingdom.relations[other.id] || 0) - 20);

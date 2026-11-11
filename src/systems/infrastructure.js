@@ -127,6 +127,11 @@ export const Infrastructure = {
             }
         }
 
+        // A dam goes across a river (systems/riverDrift.js)
+        if (infra.requiresRiver && !tile.hasRiver) {
+            return { can: false, reason: 'Must be built across a river' };
+        }
+
         // Docks (jetties) need open water beside them; settlements on the
         // water are ports already
         if (infra.requiresCoast) {

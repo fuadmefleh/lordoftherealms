@@ -19,6 +19,7 @@ import { Livestock } from '../../systems/livestock.js';
 import { lede, chips, purse, bullets, actRow, rowList, price, sectionHead, card, kv, BTN_GOLD, BTN_PLAIN, BTN_RED, BTN_OFF } from './uiKit.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { Barter } from '../../world/barter.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -902,6 +903,8 @@ Object.assign(ActionMenu, {
      * Show trade menu
      */
     showTradeMenu(game, tile, section = null) {
+        // A town that doesn't use coin yet barters (world/barter.js): one table, goods for goods
+        if (tile && tile.settlement && Barter.active(game.world, tile.settlement)) return ActionMenu.showBarterTable(game, tile);
         // Buy or Sell: the one asked for, else the one last shown (a purchase re-renders the window)
         const tab = section === 'sell' || section === 'buy' ? section : (game.ui && game.ui._tradeTab === 'sell' ? 'sell' : 'buy');
         if (game.ui) game.ui._tradeTab = tab;

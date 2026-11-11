@@ -6,6 +6,7 @@ import { icon } from '../icons.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Scenarios } from '../../player/scenarios.js';
 import { Dawn } from '../../world/dawn.js';
+import { Barter } from '../../world/barter.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Languages } from '../../systems/languages.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
@@ -258,6 +259,18 @@ export function initTitleScreen() {
  * Start a new game.
  * @param {Object} [settingsObj] - Settings from React. If omitted, reads from DOM (legacy).
  */
+/** A world saved from the World Editor, by id (systems/modStore.js), or null. */
+async function _loadCustomWorld(id) {
+    try {
+        await ModStore.init();
+        const data = await ModStore.loadWorld(id);
+        return data && data.width && data.height ? data : null;
+    } catch (err) {
+        console.error('Could not load the custom world', id, err);
+        return null;
+    }
+}
+
 export async function startNewGame(settingsObj) {
     console.log('Starting new game with custom settings...');
 
@@ -373,7 +386,8 @@ export async function _doStartNewGame(settingsOverride) {
     const snowPeakLevel = parseFloat(s.snowPeakLevel) || 0.88;
     const kingdomCount = parseInt(s.kingdomCount) || 6;
     // The calendar's first year; before the dawn year there are no towns or realms yet (world/dawn.js)
-    const startYear = Math.max(1, parseInt(s.startYear) || 853);
+    // (a hand-made map can't begin at the Dawn of Man: it has no wandering clans)
+    const startYear = Math.max(s.customWorldId ? Dawn.dawnYear() : 1, parseInt(s.startYear) || 853);
     const dawnStart = Dawn.isDawnStart({ startYear });
     const independentSettlements = s.independentSettlements || 'normal';
     const ruinsFreq = s.ruinsFreq || 'normal';
@@ -393,15 +407,22 @@ export async function _doStartNewGame(settingsOverride) {
     CustomBuildings.reset();
     InnerMapRenderer.reset();
 
-    // Generate world
+    // A map made in the World Editor (chosen on the New Game screen), or a new world generated
+    const customWorld = s.customWorldId ? await _loadCustomWorld(s.customWorldId) : null;
+    if (customWorld) {
+        this.world = new World(customWorld.width, customWorld.height);
+        // (the calendar starts in the chosen year; the map is yours as you made it)
+        this.world.loadFromEditorData(customWorld, kingdomCount, { startYear });
+    } else {
     this.world = new World(width, height);
     this.world.generate({
         seed: mapSeed,
         // Current terrain generator: 2 = peaks on land, rivers that reach the
         // sea; 3 = generated with the true hex distance (core/hex.js); 4 =
         // towns built in their culture's own architecture (data/architecture.json); 5 = towns
-        // with a churchyard planned beside the church (world/churchyard.js)
-        terrainGen: 5,
+        // with a churchyard planned beside the church (world/churchyard.js); 6 = a start
+        // year before the mature year ages the world back (world/worldAge.js)
+        terrainGen: 6,
         continentCount,
         terrainFreq,
         riverCount,
@@ -433,6 +454,7 @@ export async function _doStartNewGame(settingsOverride) {
         independentSettlements,
         ruinsFreq
     });
+    }
 
     // Create player
     this.player = new Player({
@@ -523,6 +545,9 @@ export async function _doStartNewGame(settingsOverride) {
         // Born to a Family (player/parentage.js): whose child, and how old
         parents: s.parents, birthAge: s.birthAge,
     });
+    // At the dawn there is no coin (world/barter.js): the start purse is given as
+    // goods of its worth, and the purse is reckoned in the goods carried
+    Barter.beginPlayer(this.player, this.world);
     {
         // An origin may begin somewhere else: look there
         const pos = this.renderer.getHexPixelPos(this.player.q, this.player.r);

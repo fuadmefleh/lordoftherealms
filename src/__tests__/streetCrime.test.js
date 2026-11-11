@@ -152,6 +152,44 @@ describe('StreetCrime: the crime is recorded', () => {
     });
 });
 
+describe('StreetCrime: the ruler in their own town', () => {
+    const crowned = () => {
+        const world = makeWorld();
+        world.getKingdom = id => (id === 'k1' ? { id: 'k1', name: 'Kelmar', isAlive: true } : null);
+        const player = makePlayer();
+        player.throne = { ruling: { kingdomId: 'k1' } };
+        return { world, player };
+    };
+
+    it('the watch stands down: no arrest, no heat, nothing left to answer for', () => {
+        const { world, player } = crowned();
+        expect(StreetCrime.aboveLaw(player, world, world.getTile(5, 5).settlement)).toBe(true);
+        const s = street();
+        const w = StreetCrime.selectWitnesses(s.all, { q: 10, r: 10 }, s.victim).find(x => x.role === 'guard');
+        expect(StreetCrime.reactionFor(w, 'assault', { seed: 't', royal: true }).act).toBe('stand');
+        const { res } = recordOn(s, 'assault', player, world);
+        expect(res.witnessed).toBe(true); // the town still saw it, and will talk
+        expect(Underworld.getHeat(player, 'k1')).toBe(0);
+        expect(res.incident).toMatchObject({ royal: true, answered: true });
+        expect(StreetCrime.pendingAt(player, '5,5', world.day)).toBe(null);
+    });
+
+    it('caught over a body, the watch looks away', () => {
+        const guard = npc('Knut', 'guard', 3, 3);
+        const r = StreetCrime.foundReaction(guard, { name: 'Ulf' }, { playerOver: true, royal: true, seed: 'x' });
+        expect(r.act).not.toBe('arrest');
+    });
+
+    it('in another realm the law is the law', () => {
+        const { world, player } = crowned();
+        player.throne = { ruling: { kingdomId: 'k2' } };
+        world.getKingdom = id => ({ id, name: 'X', isAlive: true });
+        expect(StreetCrime.aboveLaw(player, world, world.getTile(5, 5).settlement)).toBe(false);
+        const { res } = recordOn(street(), 'assault', player, world);
+        expect(res.incident.answered).toBe(false);
+    });
+});
+
 describe('StreetCrime: witnesses remember', () => {
     it('writes what each witness saw into their memory and sours them', () => {
         const player = makePlayer();

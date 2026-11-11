@@ -781,6 +781,9 @@ Object.assign(InnerMap, {
             }
         }
 
+        // ── Which way the water runs in each cell, down its run (no rng) ──
+        this._recordRiverFlow(tiles, near, runs, W);
+
         // ── Crossings: a bridge (or the ford the world road has) where a street runs over it ──
         const roadCells = [];
         for (const [c] of near) {
@@ -863,6 +866,33 @@ Object.assign(InnerMap, {
         this._stampWater(tiles);
         tiles._river = { crossings: crossings.length, runs: runs.length };
         return { path: runs[0].pts.map(([x, y]) => ({ q: Math.round(x), r: Math.round(y) })), cells: cells.length, crossings };
+    },
+
+    /**
+     * Each cell of a river's runs learns which way its water runs and where
+     * the run's line passes it: t._flow = { x, y (downstream, a unit vector),
+     * cx, cy (the nearest point of the run's line, off the cell), d (how far
+     * off the line the cell is), k (that point's index down the run), n (the
+     * run's points, a cell apart), run (0 the main run, else a tributary
+     * flowing to its join) }. Pools at a spring or a river's end are still
+     * water (none). Read by the living water (ui/innerMapLayers/waterFx.js)
+     * and by things adrift on it (ui/innerMapRiverDrift.js), which rebuild
+     * the runs' lines from cx/cy and k. Plain numbers: it saves with the map.
+     */
+    _recordRiverFlow(tiles, near, runs, W) {
+        const r2 = v => Math.round(v * 100) / 100, r1 = v => Math.round(v * 10) / 10;
+        for (const [c, n] of near) {
+            if (!(n.run >= 0)) continue;
+            const pts = runs[n.run] && runs[n.run].pts;
+            if (!pts || pts.length < 2) continue;
+            const a = pts[Math.max(0, n.k - 2)], b = pts[Math.min(pts.length - 1, n.k + 2)];
+            let fx = b[0] - a[0], fy = b[1] - a[1];
+            const l = Math.hypot(fx, fy) || 1;
+            fx /= l; fy /= l;
+            const q = c % W, r = (c - q) / W;
+            const p = pts[n.k];
+            tiles[r][q]._flow = { x: r2(fx), y: r2(fy), cx: r1(p[0] - q), cy: r1(p[1] - r), d: r1(n.d), k: n.k, n: pts.length, run: n.run };
+        }
     },
 
     /**

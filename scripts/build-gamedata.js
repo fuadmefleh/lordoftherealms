@@ -47,6 +47,7 @@ const topLevel = [
     'npcTasks',
     'npcKnowledge',
     'townLife',
+    'townScenes',
     'knockout',
     'jail',
     'seats',
@@ -83,6 +84,7 @@ const topLevel = [
     'performTasks',
     'wildTasks',
     'dawn',
+    'eras',
     'birth',
     'cultures',
     'architecture',
@@ -100,7 +102,8 @@ const topLevel = [
     'livestock',
     'graves',
     'ambient',
-    'autoUpkeep'
+    'autoUpkeep',
+    'riverDrift'
 ];
 
 const merged = {};

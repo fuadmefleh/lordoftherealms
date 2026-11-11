@@ -188,6 +188,8 @@ export const Hospitality = {
      */
     kindsFor(settlement) {
         if (!settlement || !this.enabled()) return [];
+        // A clan's camp at the dawn keeps no inn (world/dawn.js syncCamps; older saves: a dawn village)
+        if (settlement.dawnBorn && (settlement.campEra === true || (settlement.campEra == null && settlement.type === 'village'))) return [];
         const type = settlement.type || 'village';
         const plan = this.config().towns[type] || [];
         const out = [];
@@ -254,7 +256,10 @@ export const Hospitality = {
         if (!tile || !tile.settlement) return [];
         const st = this.state(world);
         const key = _key(q, r);
-        const kinds = this.kindsFor(tile.settlement);
+        // (and only the kinds of house its age has: data/dawn.json eraBuildings, by the world's year)
+        const since = (DataLoader._gamedata && DataLoader._gamedata.dawn && DataLoader._gamedata.dawn.eraBuildings && DataLoader._gamedata.dawn.eraBuildings.since) || null;
+        const year = Number(world.year);
+        const kinds = this.kindsFor(tile.settlement).filter(k => !since || !Number.isFinite(year) || !(k in since) || year >= since[k]);
         let ids = st.towns[key];
         if (!Array.isArray(ids)) ids = st.towns[key] = [];
         // A town grown into a city opens the houses its new size brings
@@ -725,11 +730,16 @@ export const Hospitality = {
         let spendMult = 1;
         for (const [k, def] of Object.entries(P.staff || {})) spendMult += _num(def.spend) * Math.min(_num(h.staff[k]), _num(def.max, 9));
         const perGuest = this.revenuePerGuest(property.type, view.stars, h.priceMult);
-        const takings = Math.round(guests * perGuest * spendMult * incomeMult);
+        // The guests' bills come out of the town's purse; the staff's wages and the
+        // supplies are paid back into it (a town with no purse record pays in full)
+        const town = tile && tile.settlement;
+        const bills = Math.round(guests * perGuest * spendMult * incomeMult);
+        const takings = town ? Math.floor(Economy.drawTown(town, bills)) : bills;
         let wages = 0;
         for (const [k, def] of Object.entries(P.staff || {})) wages += _num(def.wage) * _num(h.staff[k]);
         const supplies = Math.round(guests * _num(K.costPerGuest, 2));
         const costs = wages + supplies;
+        if (town && costs > 0) Economy.payTown(town, costs);
         player.gold += takings - costs - upkeep;
         if (takings) Ledger.record(player, 'hospitality', takings);
         if (costs) Ledger.record(player, 'hospitalityCosts', -costs);
@@ -854,6 +864,12 @@ export const Hospitality = {
 
     // ──────────── THE WEEK OF THE NPC HOUSES ────────────
 
+    /** The live settlement on a tile (its purse is the town's), or null. */
+    _townAt(world, q, r) {
+        const t = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
+        return t && t.settlement && t.settlement.economy ? t.settlement : null;
+    },
+
     _npcWeek(world, player) {
         const C = this.config();
         const N = C.npc;
@@ -871,7 +887,23 @@ export const Hospitality = {
                 const guests = _num(occ[h.id]);
                 const rate = guests / Math.max(1, h.rooms);
                 h.guests = guests;
-                h.cash = Math.round(_num(h.cash) + C.weekDays * guests * (this.revenuePerGuest(h.kind, h.stars, h.priceMult) - _num(K.costPerGuest, 2)) - _num(K.weeklyCosts, 20));
+                // Real coin: the guests' bills come out of the town's purse (travellers and
+                // townsfolk spending there), the house's costs (food, wages, linen) go back
+                // into it as far as the house can pay, and an innkeeper with more than
+                // `cashKeep` spends `spendShare` of the rest in town each week
+                const town = this._townAt(world, h.q, h.r);
+                const bills = Math.round(C.weekDays * guests * this.revenuePerGuest(h.kind, h.stars, h.priceMult));
+                const takings = town ? Math.floor(Economy.drawTown(town, bills)) : 0;
+                const costs = Math.round(C.weekDays * guests * _num(K.costPerGuest, 2) + _num(K.weeklyCosts, 20));
+                const cash0 = _num(h.cash) + takings;
+                const paid = Math.min(costs, Math.max(0, Math.floor(cash0)));
+                if (town && paid > 0) Economy.payTown(town, paid);
+                h.cash = Math.round(cash0 - costs);
+                const keep = _num(N.cashKeep, 800);
+                if (town && h.cash > keep) {
+                    const spend = Math.floor((h.cash - keep) * _num(N.spendShare, 0.5));
+                    if (spend > 0) { h.cash -= spend; Economy.payTown(town, spend); }
+                }
                 // Full houses dear, empty ones cheap
                 if (rate >= N.fullAt) h.priceMult = Math.min(N.priceMax, h.priceMult + N.priceStep);
                 else if (rate <= N.emptyAt) h.priceMult = Math.max(N.priceMin, h.priceMult - N.priceStep);

@@ -76,6 +76,8 @@ export const InnerMapDigging = {
         if (!tile || tile._isInterior || InnerMap._insideBuilding) return false;
         if (tile._dug && tile._dug.kind !== 'filled') return false;
         if (!tile.subTerrain || !tile.subTerrain.passable) return false;
+        // (no hole or grave in the shallows, a ford, a beach's wash)
+        if (tile._wet || tile._sea || tile._shallow || tile._ford || /water/.test(tile.subTerrain.id || '')) return false;
         if (tile.isRoad || tile._doorMarker || tile.building || tile.customBuilding) return false;
         if (tile.customObject || tile.customObjectPart || tile.groundItem) return false;
         if (InnerMap.playerInnerQ === tile.q && InnerMap.playerInnerR === tile.r && InnerMap._playerWalking) return false;

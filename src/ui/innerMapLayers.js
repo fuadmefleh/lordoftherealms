@@ -4,5 +4,6 @@ import './innerMapLayers/terrainRoads.js';
 import './innerMapLayers/objectsBuildings.js';
 import './innerMapLayers/entities.js';
 import './innerMapLayers/waterFx.js';
+import './innerMapLayers/riverDrift.js';
 import './innerMapLayers/underwater.js';
 import './innerMapLayers/ambient.js';

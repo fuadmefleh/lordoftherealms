@@ -151,11 +151,15 @@ Object.assign(InnerMap, {
             // Homes, work, the watch, and where the hour finds everyone (world/innerMap/townLife.js)
             let tseed = ((worldTile.q * 92837111 ^ worldTile.r * 689287499) + (game.world ? game.world.day || 0 : 0)) >>> 0;
             this._settleTownLife(worldTile.settlement, () => { tseed = (tseed * 1664525 + 1013904223) & 0x7fffffff; return tseed / 0x7fffffff; });
+            // Its stalls kept, its crier, its faith and its news (world/innerMap/townScenes.js)
+            if (this._settleTownScenes) this._settleTownScenes(worldTile.settlement, game.world);
         } else {
             // A roadhouse on the open road keeps its keeper and a guest or two
             this._spawnRoadhouseFolk(game.world);
             // A clan of the Dawn of Man makes camp here: tents, a fire, its people (world/innerMap/camp.js)
             if (this._pitchCamps) this._pitchCamps(game);
+            // (no town's scenes here: world/innerMap/townScenes.js)
+            if (this._settleTownScenes) this._settleTownScenes(null, game.world);
         }
         // The hex's deer, grazing where the hash puts their herds (world/innerMap/animals.js)
         if (this._spawnAnimals) this._spawnAnimals(game, worldTile, worldQ, worldR);
@@ -772,6 +776,7 @@ Object.assign(InnerMap, {
 
         // Interior NPCs drop whatever they were doing in here
         for (const npc of this.npcs) {
+            if (this._sceneDrop) this._sceneDrop(npc);
             npc._act = null;
             npc.activity = null;
             npc.path = null;

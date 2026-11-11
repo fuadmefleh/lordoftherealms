@@ -1626,16 +1626,17 @@ export const Finance = {
         f.purity = _round2(f.purity - step);
         f.debasements++;
         // The mint recoins the circulating coin at the lower standard: more pieces
-        // from the same silver, and the realm's coin swells (world/moneySupply.js)
+        // from the same silver. The holders get back as many pieces as they brought;
+        // the crown keeps the extra pieces (new coin in its chests, which swell the
+        // coin in circulation as the crown spends them: world/moneySupply.js)
         const R = MoneySupply.realm(world, k.id);
         const swell = R && f.purity > 0 ? R.coin * (before / f.purity - 1) : 0;
-        if (R && f.purity > 0) MoneySupply.adjust(world, k.id, R.coin * (before / f.purity - 1) * _num(MoneySupply.config().debase.coinShare, 1), 'debase');
         f.lastDebaseDay = day;
-        // With real books the crown keeps the extra pieces the recoinage strikes (no more)
         const gain = CrownBooks.enabled() && swell > 0 ? Math.round(swell)
             : Math.round(Math.max(_num(f.income), 200) * _num(G.mintDays, 15));
         k.treasury = _num(k.treasury) + gain;
         CrownBooks.note(k, 'debase', gain);
+        MoneySupply.note(world, k.id, gain, 'debase');
         for (const b of st.banks) if (b.relations && b.relations[k.id] != null) b.relations[k.id] = Math.max(-100, b.relations[k.id] - _num(C.debaseRelation, 10));
         Finance._record(st, world, { kind: 'debased', kingdomId: k.id, kingdom: k.name, purity: f.purity });
         const text = `The mint of ${k.name} clips its coin to ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown, and prices in its markets rise ${Math.round((Coinage.priceMultiplier(world, { kingdom: k.id }) - 1) * 100)}%.`;

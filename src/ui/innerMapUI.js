@@ -10,6 +10,8 @@ import { InnerMap } from '../world/innerMap.js';
 import { Terrain } from '../world/terrain.js';
 import { Utils } from '../core/utils.js';
 import { ActionMenu } from './actionMenu.js';
+import { InnerMapEscort } from './innerMapEscort.js';
+import { RealmEscort } from '../player/realmEscort.js';
 import { CustomObjects } from '../world/customObjects.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { InnerMapDigging } from './innerMapDigging.js';
@@ -37,6 +39,7 @@ import { InnerMapGranary } from './innerMapGranary.js';
 import { InnerMapGates } from './innerMapGates.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
+import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
 import { NpcDisposition } from '../systems/npcDisposition.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { PracticeSkills } from '../systems/practiceSkills.js';
@@ -254,6 +257,28 @@ Object.assign(InnerMapRenderer, {
 
         const menuItems = [];
 
+        // Your household guard, walking with you (ui/innerMapEscort.js): who they are, orders
+        const guardMen = InnerMapEscort.menAt(q, r);
+        if (guardMen.length) {
+            const g = RealmEscort.guard(game.player);
+            const crown = !!(g && g.rank === 'crown');
+            menuItems.push({ type: 'header', label: `🛡️ ${g && g.kingdomName ? `The household guard of ${g.kingdomName}` : 'Your household guard'}` });
+            for (const m of guardMen) {
+                const u = m.unit || {};
+                const what = String(u.name || u.type || 'company').replace(/_/g, ' ');
+                menuItems.push({ type: 'disabled', label: `${m.horse ? '🐎' : '⚔️'} ${what.charAt(0).toUpperCase() + what.slice(1)}${Number.isFinite(u.strength) ? ` · ${u.strength} strong` : ''}` });
+            }
+            menuItems.push({ type: 'action', action: 'escort_panel', label: 'Command the Guard', icon: '📯', desc: 'Their companies, pay, morale and orders' });
+            if (crown) {
+                menuItems.push({ type: 'disabled', label: "👑 The crown's guard: they defend you against anyone, the watch too" });
+            } else {
+                const all = game.player.escortStance === 'all';
+                menuItems.push({ type: 'action', action: 'escort_stance', label: all ? 'Stand Aside for the Law' : 'Defend Me Against Anyone', icon: all ? '⚖️' : '🗡️',
+                    desc: all ? "They will no longer raise a hand against the watch, a gaoler or a castle's guards" : 'They will fight for you even against the town watch, gaolers and castle guards' });
+            }
+            menuItems.push({ type: 'separator' });
+        }
+
         // Inside the town's granary: the keeper sells grain wherever you are (ui/innerMapGranary.js)
         const inGranary = InnerMap._insideBuilding && InnerMap._insideBuilding.type === 'granary'
             ? InnerMapGranary.menuItems(game, InnerMap._insideBuilding) : [];
@@ -454,6 +479,8 @@ Object.assign(InnerMapRenderer, {
                     menuItems.push({ type: 'action', action: 'fish_here', label: 'Fish Here', icon: '🎣', desc: tile._deep ? 'Deep water: bigger fish, and a harder fight' : 'Cast a line from the bank' });
                 }
                 // Water deep enough to swim: dive and scavenge the bottom (ui/innerMapDiving.js)
+                // A river: throw something in, fish out what floats by (ui/innerMapRiverDrift.js)
+                menuItems.push(...InnerMapRiverDrift.menuItems(game, tile, q, r));
                 menuItems.push(...InnerMapDiving.menuItems(game, tile, q, r));
                 // A crag's rock face: up it or down it (ui/innerMapClimbing.js)
                 menuItems.push(...InnerMapClimbing.menuItems(game, tile, q, r));
@@ -828,11 +855,21 @@ Object.assign(InnerMapRenderer, {
         if (/^grave_/.test(item.action || '') && InnerMapGraves.handle(game, item)) return;
         if (/^furnish_/.test(item.action || '') && InnerMapFurnish.handle(game, item)) return;
         if (/^farm_/.test(item.action || '') && InnerMapFarming.handle(game, item, q, r)) return;
+        if (/^drift_/.test(item.action || '') && InnerMapRiverDrift.handle(game, item, q, r)) return;
         if (item.action === 'hunt_animal') {
             if (item.animal && InnerMap.animals.includes(item.animal)) ActionMenu.huntAnimal(game, item.animal);
             return;
         }
         if (item.action === 'herd_panel') { ActionMenu.showHerds(game); return; }
+        // Your household guard (ui/innerMapEscort.js)
+        if (item.action === 'escort_panel') { ActionMenu.showHouseholdGuard(game); return; }
+        if (item.action === 'escort_stance') {
+            game.player.escortStance = game.player.escortStance === 'all' ? null : 'all';
+            const all = game.player.escortStance === 'all';
+            game.ui.showNotification(all ? '🗡️ Against All Comers' : '⚖️ For the Law',
+                all ? 'Your guard will fight for you even against the watch.' : 'Your guard will stand aside when the law comes for you.', 'info');
+            return;
+        }
         if (/^animal_/.test(item.action || '') && InnerMapAnimals.handle(game, item)) return;
         const action = item.action;
         const playerQ = InnerMap.playerInnerQ;

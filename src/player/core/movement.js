@@ -5,6 +5,7 @@
 // ============================================
 
 import { Hex } from '../../core/hex.js';
+import { Dawn } from '../../world/dawn.js';
 import { Endurance } from '../endurance.js';
 import { Utils } from '../../core/utils.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
@@ -313,6 +314,8 @@ export const PlayerMovementMethods = {
 
             this.movementRemaining = Math.max(0, this.movementRemaining - moveCost);
             this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+            // The Dawn of Man: a clan kept in step walks with you, hex for hex (world/dawn.js)
+            if (this.dawnInStep) Dawn.keepStep(world, this);
             // The miles build Endurance (player/endurance.js)
             Endurance.walked(this, 'hex', 1);
 

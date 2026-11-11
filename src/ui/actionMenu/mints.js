@@ -21,7 +21,7 @@ const TH = 'text-align:left; padding:3px 6px; font-size:9.5px; letter-spacing:1.
 const TD = 'padding:4px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
 const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
 const TABS = [['coin', '💰 Coin'], ['mint', '🏛️ The Mint'], ['crown', '👑 Your coin'], ['coiners', '🕯️ Coiners']];
-const FLOW_LABEL = { trade: 'Trade', tribute: 'Tribute', loans: 'Crown loans', gresham: 'Gresham', flight: 'Flight', mint: 'Mint', wear: 'Wear', debase: 'Debasement', recoin: 'Recoinage', counterfeit: 'False coin', player: 'Other', drift: 'Travellers & pilgrims', fisc: 'Taxes & crown spending' };
+const FLOW_LABEL = { trade: 'Trade', tribute: 'Tribute (chests)', loans: 'Crown loans (chests)', plunder: 'Plunder (chests)', gresham: 'Gresham', flight: 'Flight', mint: 'Mint', wear: 'Wear', debase: 'Debasement (chests)', recoin: 'Recoinage', counterfeit: 'False coin (purse)', cheat: 'Conjured (purse)', drift: 'Travellers & pilgrims', fisc: 'Taxes & crown spending', other: 'Wages, rents & spending' };
 
 let _tab = 'coin';
 
@@ -85,7 +85,9 @@ function coinTab(game) {
             ['', 'In the crown\'s chests', `${Math.round(broad.treasury).toLocaleString()}g`],
             ['', 'In the banks\' vaults', `${Math.round(broad.banks).toLocaleString()}g`],
         ]);
-        body += `<div style="${NOTE}">The chests and vaults move no prices until they are spent.</div>`;
+        if (broad.coffers > 0) body += chips([['', "In the great houses' coffers", `${Math.round(broad.coffers).toLocaleString()}g`]]);
+        if (broad.player > 0) body += chips([['', 'In your purse', `${Math.round(broad.player).toLocaleString()}g`]]);
+        body += `<div style="${NOTE}">The coin about is every purse in the realm: its towns, its people, guilds, gangs, inns, merchants, caravans. The crown's chests, the great houses' coffers, the vaults and your own purse move no prices until they are spent.</div>`;
         html += card(body, { icon: '💰', title: `${esc(here.name)}'s coin`, side: intelBadge(mineWhy) });
     }
     const st = player.mints;

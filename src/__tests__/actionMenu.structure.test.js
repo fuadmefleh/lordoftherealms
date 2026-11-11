@@ -108,6 +108,8 @@ const EXPECTED_KEYS = [
     'showBackRoomDoor', 'backRoomEnter',
     // Born to a family: your parents' rules and the parents picker (ui/actionMenu/parents.js): +3
     'showParents', 'showParentPicker', 'parentsAct',
+    // The barter table, a market before coin (ui/actionMenu/barterTable.js): +6
+    'showBarterTable', 'barterAsk', 'barterOffer', 'barterDrop', 'barterClear', 'barterStrike',
     'AP_COSTS', 'DEFERRED_AP_ACTIONS', '_appointTitle', '_buskFortuneTelling', '_buskJuggling',
     '_buskPreaching', '_buskSinging', '_buskStorytelling', '_buskingReward', '_categorizeActions',
     '_doForageMinigame', '_doHuntMinigame', '_doMeditateMinigame', '_doProspectMinigame',
@@ -171,8 +173,8 @@ describe('ActionMenu split — structural equivalence', () => {
         expect(actual).toEqual([...EXPECTED_KEYS].sort());
     });
 
-    it('has 388 members', () => {
-        expect(Object.keys(ActionMenu)).toHaveLength(388);
+    it('has 394 members', () => {
+        expect(Object.keys(ActionMenu)).toHaveLength(394);
     });
 
     it('every member except the known data props is a function', () => {

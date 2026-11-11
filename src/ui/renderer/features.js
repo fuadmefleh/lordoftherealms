@@ -169,7 +169,9 @@ Object.assign(Renderer.prototype, {
 
                 switch (settlement.type) {
                     case 'capital':
-                        imageName = 'walledCity.png';
+                        // The walled city once its castle stands; before the castle age, a great
+                        // town about its lord's hall (world/castles.js)
+                        imageName = settlement.castle === false ? 'village03.png' : 'walledCity.png';
                         labelSize = 13;
                         break;
                     case 'town':

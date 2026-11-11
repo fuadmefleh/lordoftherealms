@@ -10,6 +10,7 @@ import { Deeds } from './deeds.js';
 import { Ships } from './ships.js';
 import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
+import { Barter } from '../world/barter.js';
 import { NpcTasks } from './npcTasks.js';
 
 
@@ -878,11 +879,17 @@ export const Quests = {
         if (rewards.gold) {
             const t = quest.payer && world && typeof world.getTile === 'function' ? world.getTile(quest.payer.q, quest.payer.r) : null;
             const town = t && t.settlement;
-            const purse = Economy.townPurse(town);
-            const pay = purse == null ? rewards.gold : Math.min(rewards.gold, Math.floor(purse));
-            if (purse != null) Economy.drawTown(town, pay);
-            if (pay < rewards.gold) quest.rewardShort = rewards.gold - pay;
-            player.gold += pay;
+            if (Barter.paysInKind(player, town)) {
+                // A barter town pays in goods out of its stores (world/barter.js)
+                const pay = Math.floor(Barter.townPays(player, town, rewards.gold));
+                if (pay < rewards.gold) quest.rewardShort = rewards.gold - pay;
+            } else {
+                const purse = Economy.townPurse(town);
+                const pay = purse == null ? rewards.gold : Math.min(rewards.gold, Math.floor(purse));
+                if (purse != null) Economy.drawTown(town, pay);
+                if (pay < rewards.gold) quest.rewardShort = rewards.gold - pay;
+                player.gold += pay;
+            }
         }
 
         if (rewards.karma) {

@@ -350,8 +350,15 @@ Object.assign(InnerMap, {
     // no streets, no churchyard — and it's laid out as a village once it has
     // grown to CAMP_OUTGROWN souls; once outgrown it never goes back to tents)
     _isDawnVillage(settlement) {
-        if (!settlement || settlement.type !== 'village') return false;
-        if (settlement.dawnBorn) return true;
+        if (!settlement) return false;
+        if (settlement.dawnBorn) {
+            // While the world is in its dawn a dawn-born place keeps camp, even raised to a
+            // town; after it, streets (world/dawn.js syncCamps). Older saves: villages camp.
+            if (settlement.campEra === true) return settlement.type === 'village' || settlement.type === 'town';
+            if (settlement.campEra === false) return false;
+            return settlement.type === 'village';
+        }
+        if (settlement.type !== 'village') return false;
         if (!settlement.colony || settlement.campOutgrown) return false;
         if ((Number(settlement.population) || 0) >= CAMP_OUTGROWN) {
             settlement.campOutgrown = true;

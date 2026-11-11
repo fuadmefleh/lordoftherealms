@@ -1,0 +1,104 @@
+{
+    "_doc": "What people wear in each era of the world (world/eraWardrobe.js). The era is the CURRENT world year's (world.year), so the wardrobe moves on as the centuries pass. Each era lists `before` (the first year past it; the last era has none) and `rules`: run in order over a character's LPC layer recipe (paths under assets/lpc/Characters), each rule rewriting every layer its `match` (a regex) fits into `to` — a path (with $1..$9 from the match), null (the layer is left off), a list of layers, or `pick`: a list of such choices, one chosen per character by a hash of who they are, so a person keeps their look until the era changes. In a path, {in:<list>:<value>} is the value when it is in `lists.<list>`, else that list's first entry. `recolour` then dyes cloth: `layers` (a regex) whose last folder is a colour take one of `palette` (by hash of the character and the colour) when theirs is not in it. The last era (the mature world, from year 750 and the default 853 start) has no rules: today's wardrobe, unchanged. Assets used: Clothing/<build>/Torso/Shirt 01-09, Legs/Pants 01-05 + Shorts 01, Feet/Shoes 01-02, Armour/Leather|Gambeson|Mail|Plate|Brigandine/<colour>|Tabard/<colour>; Head Accessories/Helm 01-06 (Bascinet open/closed, Norman, Chainmail Hood, Kettle, Morion) + Cap 01 - Leather; Props/Spear|Axe|Dagger|Mace in Bronze/Iron/Steel, Bow/Wood, Shield 03 - Round Shield, Shield 04 - Kite Shield.",
+    "variants": 3,
+    "lists": {
+        "roundPaints": ["Brown", "Black", "Blue", "Cyan", "Forest", "Green", "Navy", "Purple", "Red", "White", "Wine", "Yellow"]
+    },
+    "eras": [
+        {
+            "id": "dawn",
+            "label": "the Dawn of Man",
+            "hint": "hides, bare feet, flint and wood",
+            "before": 200,
+            "rules": [
+                { "_": "cloth tops become a hide wrap; a man may go in a hide jerkin over his bare chest",
+                  "match": "^Clothing/(Masculine, Thin)/Torso/Shirt 0[1-47-9][^/]*/([^/]+)$",
+                  "pick": ["Clothing/$1/Torso/Shirt 06 - Scoop T-shirt/$2", "Clothing/$1/Torso/Shirt 05 - V-neck T-shirt/$2", "Clothing/$1/Armour/Leather"] },
+                { "match": "^Clothing/(Feminine, Thin)/Torso/Shirt 0[1-47-9][^/]*/([^/]+)$",
+                  "pick": ["Clothing/$1/Torso/Shirt 06 - Scoop T-shirt/$2", "Clothing/$1/Torso/Shirt 05 - V-neck T-shirt/$2"] },
+                { "match": "^Clothing/[^/]+/(Torso 2|Accessories)/", "to": null },
+                { "_": "legs in a hide wrap or leggings",
+                  "match": "^Clothing/([^/]+)/Legs/(?!Shorts 01|Pants 02)[^/]+/([^/]+)$",
+                  "pick": ["Clothing/$1/Legs/Shorts 01 - Shorts/$2", "Clothing/$1/Legs/Pants 02 - Leggings/$2"] },
+                { "_": "barefoot", "match": "^Clothing/[^/]+/Feet/", "to": null },
+                { "_": "no metal armour: hide (the leather jerkin) at most",
+                  "match": "^Clothing/([^/]+)/Armour/(Mail|Plate|Gambeson|Brigandine)(/[^/]+)?$", "to": "Clothing/$1/Armour/Leather" },
+                { "match": "^Clothing/[^/]+/Armour/Tabard/", "to": null },
+                { "match": "^Head Accessories/(Helm|Eyewear 0[12])", "to": null },
+                { "_": "a club (the mace's bronze head reads as a knotted club), stone axe, flint-tipped spear and knife, the bow",
+                  "match": "^Props/Sword 01 - Arming Sword/(_Behind/)?[^/]+$", "pick": ["Props/Mace/$1Bronze", "Props/Spear/$1Bronze"] },
+                { "match": "^Props/(Axe|Mace|Dagger|Spear)/(_Behind/)?[^/]+$", "to": "Props/$1/$2Bronze" },
+                { "match": "^Props/(Dane Axe|Halberd|Bill|Pike)/(_Behind/)?[^/]+$", "to": "Props/Spear/$2Bronze" },
+                { "match": "^Props/Crossbow/(_Behind/)?[^/]+$", "to": "Props/Bow/$1Wood" },
+                { "_": "no shields yet", "match": "^Props/Shield ", "to": null }
+            ],
+            "recolour": {
+                "layers": "^Clothing/[^/]+/(Torso|Legs)/[^/]+/[^/]+$",
+                "palette": ["Leather", "Brown", "Umber", "Sepia", "Chocolate", "Coffee"]
+            }
+        },
+        {
+            "id": "early",
+            "label": "the early kingdoms",
+            "hint": "tunics, cloaks and leggings; leather and mail for warriors, no plate",
+            "before": 500,
+            "rules": [
+                { "_": "buttoned shirts and polos are not yet: plain tunics",
+                  "match": "^Clothing/([^/]+)/Torso/Shirt 07[^/]*/([^/]+)$", "to": "Clothing/$1/Torso/Shirt 01 - Longsleeve Shirt/$2" },
+                { "match": "^Clothing/([^/]+)/Torso/Shirt 0[89][^/]*/([^/]+)$", "to": "Clothing/$1/Torso/Shirt 04 - T-shirt/$2" },
+                { "match": "^Clothing/[^/]+/(Torso 2|Accessories)/", "to": null },
+                { "match": "^Clothing/([^/]+)/Legs/(Pants 04|Pants 05)[^/]*/([^/]+)$", "to": "Clothing/$1/Legs/Pants 03 - Pants/$3" },
+                { "match": "^Clothing/([^/]+)/Legs/Shorts 02[^/]*/([^/]+)$", "to": "Clothing/$1/Legs/Pants 02 - Leggings/$2" },
+                { "match": "^Clothing/[^/]+/Feet/Socks", "to": null },
+                { "_": "mail at most: no plate, no coat of plates, no surcoats",
+                  "match": "^Clothing/([^/]+)/Armour/Plate$", "to": "Clothing/$1/Armour/Mail" },
+                { "match": "^Clothing/([^/]+)/Armour/Brigandine(/[^/]+)?$", "to": "Clothing/$1/Armour/Leather" },
+                { "match": "^Clothing/[^/]+/Armour/Tabard/", "to": null },
+                { "_": "the spangenhelm (Norman) and the mail hood", "match": "^Head Accessories/Helm 0[1256] - [^/]+/([^/]+)$", "to": "Head Accessories/Helm 03 - Norman/$1" },
+                { "match": "^Head Accessories/(Helm Accessory|Eyewear 0[12])", "to": null },
+                { "_": "iron, not steel", "match": "^(Head Accessories/Helm [^/]+|Props/.+)/Steel$", "to": "$1/Iron" },
+                { "match": "^Props/Crossbow/(_Behind/)?[^/]+$", "to": "Props/Bow/$1Wood" },
+                { "match": "^Props/(Halberd|Bill|Pike)/(_Behind/)?([^/]+)$", "to": "Props/Spear/$2$3" },
+                { "_": "the round shield: the heater's board and paint, without its steel trim",
+                  "match": "^Props/Shield 01 - Heater Shield/Wood/[^/]+/_Behind$", "to": "Props/Shield 03 - Round Shield/_Behind/Base" },
+                { "match": "^Props/Shield 01 - Heater Shield/Wood/[^/]+$", "to": "Props/Shield 03 - Round Shield/Base" },
+                { "match": "^Props/Shield 01 - Heater Shield/Paint/([^/]+)$", "to": "Props/Shield 03 - Round Shield/Paint/{in:roundPaints:$1}" },
+                { "match": "^Props/Shield 01 - Heater Shield/", "to": null },
+                { "match": "^Props/Shield 0[45] - [^/]+/(.+)$", "to": "Props/Shield 03 - Round Shield/$1" }
+            ],
+            "recolour": {
+                "layers": "^Clothing/[^/]+/(Torso|Legs|Feet)/[^/]+/[^/]+$",
+                "palette": ["Brown", "Leather", "Tan", "Beige", "Linen", "White", "Gray", "Charcoal", "Black", "Umber", "Sepia", "Chocolate", "Ochre", "Mustard", "Green", "Forest", "Red", "Wine", "Garnet", "Blue", "Navy", "Teal", "Plum", "Purple", "Midnight"]
+            }
+        },
+        {
+            "id": "high",
+            "label": "the high kingdoms",
+            "hint": "tunics and gowns, mail and helms; plate only on a few",
+            "before": 750,
+            "rules": [
+                { "match": "^Clothing/([^/]+)/Torso/Shirt 07[^/]*/([^/]+)$", "to": "Clothing/$1/Torso/Shirt 01 - Longsleeve Shirt/$2" },
+                { "match": "^Clothing/([^/]+)/Torso/Shirt 0[89][^/]*/([^/]+)$", "to": "Clothing/$1/Torso/Shirt 04 - T-shirt/$2" },
+                { "match": "^Clothing/[^/]+/(Torso 2|Accessories)/", "to": null },
+                { "match": "^Clothing/([^/]+)/Legs/(Pants 04|Pants 05)[^/]*/([^/]+)$", "to": "Clothing/$1/Legs/Pants 03 - Pants/$3" },
+                { "match": "^Clothing/([^/]+)/Legs/Shorts 02[^/]*/([^/]+)$", "to": "Clothing/$1/Legs/Pants 02 - Leggings/$2" },
+                { "match": "^Clothing/[^/]+/Feet/Socks", "to": null },
+                { "_": "plate on one in three; the rest in mail",
+                  "match": "^Clothing/([^/]+)/Armour/Plate$", "pick": ["Clothing/$1/Armour/Plate", "Clothing/$1/Armour/Mail", "Clothing/$1/Armour/Mail"] },
+                { "_": "a coat of plates is not yet: mail under a surcoat of its colour",
+                  "match": "^Clothing/([^/]+)/Armour/Brigandine/([^/]+)$", "to": ["Clothing/$1/Armour/Mail", "Clothing/$1/Armour/Tabard/$2"] },
+                { "match": "^Clothing/([^/]+)/Armour/Brigandine$", "to": "Clothing/$1/Armour/Mail" },
+                { "match": "^Head Accessories/Helm 02 - Bascinet, Closed/([^/]+)$", "to": "Head Accessories/Helm 01 - Bascinet, Open/$1" },
+                { "match": "^Head Accessories/Helm 06 - Morion/([^/]+)$", "to": "Head Accessories/Helm 05 - Kettle Helm/$1" },
+                { "match": "^Head Accessories/(Helm Accessory 02|Eyewear 0[12])", "to": null },
+                { "match": "^Props/Halberd/(_Behind/)?([^/]+)$", "to": "Props/Bill/$1$2" },
+                { "match": "^Props/Shield 05 - Pavise/(.+)$", "to": "Props/Shield 04 - Kite Shield/$1" }
+            ]
+        },
+        {
+            "id": "late",
+            "label": "the mature realms",
+            "hint": "today's wardrobe"
+        }
+    ]
+}

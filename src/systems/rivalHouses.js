@@ -1264,9 +1264,16 @@ export const RivalHouses = {
                 if (!unit) unit = this._spawnRetinue(world, rival);
                 if (!unit) continue;
                 if (day > 0 && day % 7 === 0) {
-                    rival.gold += C.estate.weekly + C.estate.perStewardship * _num(rival.head.stewardship);
+                    // (real coin: the estate's dues come out of its seat town's purse, and
+                    // what the household spends goes back into it)
+                    const seatT = rival.seat && typeof world.getTile === 'function' ? world.getTile(rival.seat.q, rival.seat.r) : null;
+                    const seatTown = seatT && seatT.settlement && seatT.settlement.economy ? seatT.settlement : null;
+                    const dues = C.estate.weekly + C.estate.perStewardship * _num(rival.head.stewardship);
+                    rival.gold += seatTown ? Math.floor(Economy.drawTown(seatTown, dues)) : dues;
                     // ...and a great House lives grandly: the household spends a share of the purse
-                    rival.gold -= C.upkeep.weekly + Math.round(rival.gold * _num(C.upkeep.share));
+                    const spent = Math.min(Math.max(0, rival.gold), C.upkeep.weekly + Math.round(rival.gold * _num(C.upkeep.share)));
+                    rival.gold -= spent;
+                    if (seatTown && spent > 0) Economy.payTown(seatTown, spent);
                     if (rival.gold < 0) rival.gold = 0;
                     this._landWeek(world, rival);
                     this._courtWeek(world, rival, live);

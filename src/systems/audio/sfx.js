@@ -182,6 +182,9 @@ Object.assign(AudioManager.prototype, {
             case 'tree_thud':     this._sfxTreeThud(); break;
             case 'pick':          this._sfxPick(); break;
             case 'rock_break':    this._sfxRockBreak(); break;
+            // Town scenes (world/innerMap/townScenes.js): the smith at the anvil, the church bell
+            case 'anvil':         this._sfxAnvil(); break;
+            case 'bell':          this._sfxBell(); break;
         }
     },
 
@@ -232,6 +235,22 @@ Object.assign(AudioManager.prototype, {
     _sfxPick() {
         this._knock('triangle', 1250, 900, 0.09, 0.16);
         this._noiseBurst(0.05, 'highpass', 3000, 0.16);
+    },
+
+    /** Hammer on anvil: a bright ringing clang. */
+    _sfxAnvil() {
+        this._knock('triangle', 1850, 1700, 0.35, 0.1);
+        this._knock('sine', 2950, 2900, 0.5, 0.05);
+        this._noiseBurst(0.04, 'highpass', 4000, 0.12);
+    },
+
+    /** A church bell: three slow, deep tolls with their hum. */
+    _sfxBell() {
+        for (let i = 0; i < 3; i++) {
+            this._knock('sine', 392, 388, 2.2, 0.14, i * 1.4);
+            this._knock('sine', 784, 780, 1.6, 0.05, i * 1.4);
+            this._knock('triangle', 196, 195, 2.6, 0.06, i * 1.4);
+        }
     },
 
     /** A rock gives: a crack and the stones tumbling down. */

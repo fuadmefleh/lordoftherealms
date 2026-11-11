@@ -16,6 +16,7 @@ import { Crafting } from '../player/crafting.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { Arms } from '../systems/arms.js';
 import { itemPicture } from './icons.js';
+import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
 
 const SLOT_COUNT = 7;
 
@@ -245,6 +246,10 @@ export const Hotbar = {
      * Different item types have different placement effects.
      */
     _placeItem(itemId, q, r, tile) {
+        // Clicked on a river: into the water it goes, and off downstream (ui/innerMapRiverDrift.js;
+        // the packs are emptied below)
+        if (InnerMapRiverDrift.isRiverCell(q, r)) return InnerMapRiverDrift.throwItem(_game, itemId, q, r, { keep: true });
+
         // Don't place on impassable tiles
         if (tile.subTerrain && tile.subTerrain.passable === false) {
             _game.ui.showNotification('Blocked', 'Cannot place items on impassable terrain.', 'error');

@@ -10,6 +10,7 @@
 // of the harness is to exercise the same sequence the player gets.
 
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { Barter } from '../../world/barter.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Lots } from '../../systems/lots.js';
@@ -145,6 +146,8 @@ export function newGame(seed, gen = {}) {
     Titles.initialize(player);
     Councils.initializePlayer(player);
     FirstSteps.initialize(player, world, { enabled: true });
+    // (at the dawn the start purse is goods: world/barter.js, as gameSetup.js)
+    Barter.beginPlayer(player, world);
     player.updateVisibility(world, 4);
     return { seed, world, player, log: [] };
 }
@@ -225,6 +228,7 @@ function _endDay(game) {
         },
     });
     mark(game, 'world.advanceDay');
+    Barter.syncPlayer(world, player);
     player.endDay(world);
     mark(game, 'player.endDay');
     const eventEffects = WorldEvents.applyPlayerDailyEffects(world, player) || {};

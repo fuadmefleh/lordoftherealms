@@ -196,7 +196,10 @@ describe('defeating a legendary creature', () => {
         expect(player.inventory.gold).toBeUndefined();
         expect(player.gold).toBeGreaterThanOrEqual(900);
         expect(player.inventory.dragon_scale).toBe(2);
-        expect(res.inventoryLoot).toMatchObject({ gold: 900, dragon_scale: 2 });
+        // (the battle's own loot comes out of the same purse first: the two together are its 900, no more)
+        expect(res.inventoryLoot.dragon_scale).toBe(2);
+        expect((res.inventoryLoot.gold || 0) + (res.loot || 0)).toBe(900);
+        expect(player.gold).toBe(900);
     });
 
     it('a full pack leaves new treasure behind (slot cap respected)', () => {

@@ -242,7 +242,9 @@ export const GraveBook = {
         if (!ground) return [];
         const out = [];
         const held = ground.crypt && Array.isArray(ground.crypt.plots) ? new Set(ground.crypt.plots) : null;
-        for (let i = 0; i < ground.cap; i++) if (!ground.plots[i] && !(held && held.has(i))) out.push(i);
+        // (plots the water has taken on the street map: world/innerMap/graves.js)
+        const drowned = Array.isArray(ground.drowned) && ground.drowned.length ? new Set(ground.drowned) : null;
+        for (let i = 0; i < ground.cap; i++) if (!ground.plots[i] && !(held && held.has(i)) && !(drowned && drowned.has(i))) out.push(i);
         return out;
     },
 

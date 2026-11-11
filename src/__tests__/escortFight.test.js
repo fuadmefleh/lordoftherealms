@@ -125,6 +125,25 @@ describe('the guard in a fight', () => {
         expect(InnerMapEscort._foe(game).npc).toBe(thug);
     });
 
+    it('the crown\'s guard, or a guard ordered to defend you against all, fights even the watch', () => {
+        openMap();
+        const watch = { id: 'w9', name: 'Watchman', type: 'guard', q: 65, r: 64, state: 'idle' };
+        InnerMap.npcs = [watch];
+        InnerMapCombat._npcHealth.set('w9', { current: 100, max: 100 });
+        InnerMapCombat._npcReactions.set('w9', { mode: 'fight', attackTimer: 1 });
+        // a lord's guard stands aside...
+        const lord = stubGame();
+        lord.player.realmEscort = { guard: { rank: 'lord' } };
+        expect(InnerMapEscort._foe(lord)).toBe(null);
+        // ...unless told to defend against anyone
+        lord.player.escortStance = 'all';
+        expect(InnerMapEscort._foe(lord).npc).toBe(watch);
+        // the crown's guard serves the ruler, not the watch
+        const king = stubGame();
+        king.player.realmEscort = { guard: { rank: 'crown' } };
+        expect(InnerMapEscort._foe(king).npc).toBe(watch);
+    });
+
     it('keeps out of a job\'s fair fight (an arena bout, a brawler on the watch round)', () => {
         openMap();
         const game = stubGame();

@@ -61,8 +61,7 @@
         "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4
     },
 
-    "_coin": "Taxes are paid in coin out of circulation and wages paid back into it (world/moneySupply.js 'fisc' flow): each week the realm's coin moves by -share x (collected - spent), at most maxShare of its coin.",
-    "coin": { "share": 0.1, "maxShare": 0.02 },
+    "_coin": "Taxes come out of the towns' purses into the crown's chests and the wages go back into them; the money supply (world/moneySupply.js) counts the purses, so this moves the realm's coin in circulation by itself (booked daily as the 'fisc' flow). No tunables left here.",
 
     "_farms": "Tax farming. A crown short of money (below needDays of spending, deficitWeeks weeks in deficit, at war below warDays, or with its soldiers unpaid) auctions, at most once every `cooldown` days, the taxes of one town (not its capital; at most maxShare of its towns) for term days: the lot's estimate is the town's recent crown taxes x term; a banking house bids discount (a hash in the range) of it, the player may outbid by `outbid`; the lot closes after `close` days. The farmer collects the town's taxes x squeeze (less collectCost) in place of the crown. Player squeeze levels: mult, reputation lost in the realm a day, the town's happiness a day. A house squeezes `bankSqueeze`.",
     "farms": {
@@ -115,7 +114,7 @@
             "<b>The people's burden</b> rises (base {pct:burden.base} × the tax index). Every class's welfare falls by (burden − 15%) × its weight, so people drift along the trade roads to towns that treat them better.",
             "<b>Tax revolts</b>: above a burden of {pct:revolts.burdenAt} (or where the peasants are hard-pressed), each town risks a revolt each week (at most {pct:revolts.max}): no taxes for {num:revolts.days} days, −{num:revolts.happiness} happiness there, −{num:revolts.stability} stability.",
             "<b>Stability</b>: the realm's target falls {num:stability.perLevel} for each whole step the tax index stands above Standard (and rises as much below it).",
-            "<b>Coin</b>: taxes take coin out of circulation and wages put it back; each week the realm's coin moves by {pct:coin.share} of the difference."
+            "<b>Coin</b>: taxes take real coin out of the towns' purses into the chests, and wages put it back. The coin in the chests moves no prices until it is spent."
         ],
         "lower": "Lowering does the reverse: less gold, a lighter burden (people stay and settlers come), fewer revolts, a steadier realm. Light taxes can leave the army unpaid: soldiers unpaid more than {num:army.desert.afterDays} days desert.",
         "army": "Army wages: {num:army.pay}g a day per soldier (×{num:army.warPay} at war, × the realm's upkeep bonuses), + {num:army.bounty}g for each new recruit, × the pay level. Paid before the court. Soldiers spend it where they are quartered.",

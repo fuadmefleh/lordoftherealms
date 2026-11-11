@@ -67,7 +67,9 @@ export const InnerMapEscort = {
         const h = _hash(`guard:${unit.realmGuard}:${unit.type}:${i}`);
         const fill = { skin: skins[h % skins.length], hair: hairs[(h >>> 4) % hairs.length], shirt: liv.shirt, legs: liv.legs || 'Charcoal', paint: liv.paint || 'Red', plume: liv.plume || 'White' };
         const layers = recipe.map(l => l.replace(/\{(\w+)\}/g, (_, k) => fill[k] || ''));
-        return unit.kit ? Arms.lookLayers(layers, Arms.kitView(unit), { paint: fill.paint }) : layers;
+        const worn = unit.kit ? Arms.lookLayers(layers, Arms.kitView(unit), { paint: fill.paint }) : layers;
+        // ...as the world's era wears it (world/eraWardrobe.js: no plate before the high kingdoms)
+        return InnerMapCharacters.eraLayers(worn, `guard:${unit.realmGuard}:${unit.type}:${i}`);
     },
 
     _preset(unit, i) {
@@ -86,7 +88,7 @@ export const InnerMapEscort = {
         const units = RealmEscort.units(player);
         // (knights ride ahead of the foot: nearest the player first)
         const order = units.slice().sort((a, b) => (b.type === 'knight') - (a.type === 'knight')).slice(0, MAX);
-        const sig = order.map(u => `${u.type}:${u.realmGuard}:${u.kit ? Arms.kitLabel(u) : ''}`).join('|');
+        const sig = InnerMapCharacters.eraId() + '|' + order.map(u => `${u.type}:${u.realmGuard}:${u.kit ? Arms.kitLabel(u) : ''}`).join('|');
         if (sig === InnerMapEscort._sig && InnerMapEscort._men.length === order.length) return;
         InnerMapEscort._sig = sig;
         const old = InnerMapEscort._men;
@@ -228,9 +230,10 @@ export const InnerMapEscort = {
         }
         const ok = (npc) => {
             if (!npc || npc._taskFoe || npc.state === 'gone' || npc.state === 'inside_building') return false;
-            // The law: the town watch, the gaoler and a castle's guards. A realm's
-            // household guard won't brawl with them; it stands aside for the law
-            if (InnerMapEscort.isLaw(npc)) return false;
+            // The law: the town watch, the gaoler and a castle's guards. A lord's
+            // household guard stands aside for the law; the crown's guard (and any
+            // guard ordered to defend you against all comers) does not
+            if (InnerMapEscort.isLaw(npc) && !InnerMapEscort.defendsAgainstLaw(game)) return false;
             const h = InnerMapCombat._npcHealth.get(npc.id);
             return !!h && h.current > 0 && cheb(npc.q, npc.r) <= range;
         };
@@ -241,6 +244,25 @@ export const InnerMapEscort = {
             if (ok(npc)) return { kind: 'npc', npc };
         }
         return null;
+    },
+
+    /**
+     * Does the guard fight the law for you? Always when it is the crown's guard
+     * (it serves the ruler, not the watch); otherwise only when you've ordered it
+     * to defend you against all comers (player.escortStance === 'all').
+     */
+    defendsAgainstLaw(game) {
+        const player = game && game.player;
+        if (!player) return false;
+        if (player.escortStance === 'all') return true;
+        const g = RealmEscort.guard(player);
+        return !!(g && g.rank === 'crown');
+    },
+
+    /** The guard's figures standing on an inner-map tile (for a click). */
+    menAt(q, r) {
+        if (!InnerMapEscort._shown) return [];
+        return InnerMapEscort._men.filter(m => Math.round((m.x - T_PX / 2) / T_PX) === q && Math.round((m.y - T_PX / 2) / T_PX) === r);
     },
 
     /** Is this one the law (the watch, the gaoler, a castle's guard)? The escort stands aside for them. */

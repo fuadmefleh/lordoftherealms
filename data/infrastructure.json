@@ -74,6 +74,21 @@
       "description": "A timber landing stage on open coast. Your ships can sail in and dock here, and cargo moves between hold and shore without the boat-load limit — like a port, but with no market.",
       "renderColor": "#C8A165",
       "renderWidth": 3
+    },
+    "RIVER_DAM": {
+      "id": "river_dam",
+      "name": "Timber Dam",
+      "icon": "🪵",
+      "cost": 90,
+      "buildTime": 3,
+      "moveCostOverride": null,
+      "moveCostReduction": null,
+      "requiredTech": null,
+      "requiredTerrain": null,
+      "requiresRiver": true,
+      "description": "A weir of logs and planks across the river. Whatever the current carries down this hex fetches up against it, to be taken off at your leisure (systems/riverDrift.js).",
+      "renderColor": "#9a6a3a",
+      "renderWidth": 3
     }
   }
 }

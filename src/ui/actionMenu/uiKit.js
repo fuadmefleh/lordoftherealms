@@ -59,7 +59,15 @@ export function chips(items) {
 /** The player's purse as a chip: "💰 Purse 1,250g". */
 export function purse(gold) {
     const n = Math.floor(Number(gold) || 0);
+    if (_coinless) return { icon: '🎒', label: 'Goods', value: `~${n.toLocaleString('en-US')}`, cls: 'gold' };
     return { icon: '💰', label: 'Purse', value: `${n.toLocaleString('en-US')}g`, cls: 'gold' };
+}
+
+// Before coin (world/barter.js; the HUD sets it from where the player stands):
+// the purse chip and row prices read as goods' worth (⚖), not gold
+let _coinless = false;
+export function setCoinless(on) {
+    _coinless = !!on;
 }
 
 /** A small uppercase section heading. */
@@ -134,7 +142,7 @@ export function card(bodyHtml, o = {}) {
 /** A price for a row's side column: "41g", red when the purse can't meet it. */
 export function price(n, canPay = true) {
     const v = Math.round(Number(n) || 0).toLocaleString('en-US');
-    return `<span class="pk-price${canPay ? '' : ' pk-price--short'}">${v}<small>g</small></span>`;
+    return `<span class="pk-price${canPay ? '' : ' pk-price--short'}">${_coinless ? '~' : ''}${v}<small>${_coinless ? ' ⚖' : 'g'}</small></span>`;
 }
 
 /**

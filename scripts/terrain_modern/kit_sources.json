@@ -182,6 +182,21 @@
    "sheet": "assets/lpc/Structure/Walls/Adobe Brick Wall.png",
    "x": 0,
    "y": 3
+  },
+  "logs": {
+   "sheet": "assets/buildingKit/wall_logs.png",
+   "x": 0,
+   "y": 0
+  },
+  "wattle": {
+   "sheet": "assets/buildingKit/wall_wattle.png",
+   "x": 0,
+   "y": 0
+  },
+  "mudbrick": {
+   "sheet": "assets/buildingKit/wall_mudbrick.png",
+   "x": 0,
+   "y": 0
   }
  },
  "roofs": {

@@ -1,6 +1,6 @@
 // InnerMap — terrain members (split from the original monolith).
 import { InnerMap } from './_ref.js';
-import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures } from './_imports.js';
+import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures, SettlementWealth } from './_imports.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // What the bare fill under the grass layer reads as, by base terrain (groundName)
@@ -587,11 +587,17 @@ Object.assign(InnerMap, {
                 const culture = gen >= 3 ? Cultures.cultureOf(game.world, worldTile.settlement) : null;
                 const palette = culture ? Cultures.palette(worldTile.settlement.culture) : null;
                 const arch = culture && gen >= 4 ? Cultures.architecture(worldTile.settlement.culture) : null;
+                // Its wealth (world/settlementWealth.js) decides what each of its culture's buildings is
+                // made of (the same footprints: older saves' towns keep their plan, in their tier's
+                // materials); since terrainGen 7 a poor town's mix of houses is humbler, a rich one's grander
+                const wealth = arch ? SettlementWealth.standing(worldTile.settlement, world && Number.isFinite(world.day) ? world.day : null) : null;
                 // (since terrainGen 5 the mill goes down to the water, once the water is laid: below)
-                if (gen >= 5) millOpts = { palette, arch };
+                if (gen >= 5) millOpts = { palette, arch, wealth };
                 const genResult = SettlementGenerator.generate(
-                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5, terrain: landId }
+                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5, terrain: landId, wealth, wealthMix: gen >= 7 }
                 );
+                // (a house put up on a lot later is built of the culture's stuff, in the tier of its day: lots.js)
+                if (arch) tiles._townBuild = { culture: arch.culture };
                 // Store layout data for road generation at enter() time
                 tiles._settlementLayout = genResult;
             } else if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny()) {

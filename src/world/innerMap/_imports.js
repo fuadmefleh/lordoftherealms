@@ -13,6 +13,7 @@ export { Townsfolk } from '../../systems/townsfolk.js';
 export { PracticeSkills } from '../../systems/practiceSkills.js';
 export { Hospitality } from '../../systems/hospitality.js';
 export { Cultures } from '../cultures.js';
+export { SettlementWealth } from '../settlementWealth.js';
 export { TownProps } from '../townProps.js';
 export { Economy } from '../economy.js';
 export { SettlementMarket } from '../settlementMarket.js';

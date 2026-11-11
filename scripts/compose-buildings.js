@@ -437,6 +437,130 @@ function expandCultureFamily(culture, f, kit) {
     return out;
 }
 
+// ── Wealth tiers (data/architecture.json culture `tiers`, top-level `wealth`) ──
+const TIERS = ['poor', 'mid', 'rich'];
+
+/** A stable pick from a list by a string (no shared generator: a variant never moves another) */
+function hashPick(arr, str) {
+    if (!arr || !arr.length) return null;
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return arr[(h >>> 0) % arr.length];
+}
+
+/**
+ * A recipe as a tier builds it: its walls and roof from the tier's lists (a flat roof
+ * stays flat where the tier has flat roofs, else it is pitched in as many rows), its
+ * windows the tier's look of the same size, a poor house's panel door plain and its
+ * porch and flower boxes gone. Everything that sets the footprint stays as it was.
+ */
+function tierRecipe(r, tier, spec, rules, kit) {
+    const v = JSON.parse(JSON.stringify(r));
+    v.id = `${r.id}~${tier}`;
+    const R = r.wallRows || 3;
+    const wallsFor = (rows) => (spec.walls || []).filter(w => kit.walls[w] && (!kit.walls[w].stack || rows % 3 === 0));
+    const plainWalls = (spec.walls || []).filter(w => kit.walls[w] && !kit.walls[w].stack);
+    const pitched = (spec.roofs || []).filter(k => kit.roofs[k] && kit.roofs[k].kind !== 'parapet');
+    const flat = (spec.flatRoofs || []).filter(k => kit.roofs[k] && kit.roofs[k].kind === 'parapet');
+    const roofFor = (roof, rows, salt) => {
+        const was = kit.roofs[roof] || {};
+        if (was.kind === 'parapet') {
+            if (flat.length) return { roof: hashPick(flat, v.id + salt), rows };
+            if (pitched.length) return { roof: hashPick(pitched, v.id + salt), rows: 2 };   // (a parapet is 2 rows)
+            return { roof, rows };
+        }
+        return { roof: hashPick(pitched, v.id + salt) || roof, rows };
+    };
+    v.wall = hashPick(wallsFor(R), v.id) || r.wall;
+    const main = roofFor(r.roof, r.roofRows, ':roof');
+    v.roof = main.roof;
+    v.roofRows = main.rows;
+    const winMap = (rules.windows || {})[tier] || {};
+    // (a poor house has no tall glazed windows: one of its own rough ones stands on the sill instead)
+    const poorWin = tier === 'poor' && rules.poorWindow && kit.windows[rules.poorWindow] ? rules.poorWindow : null;
+    const win = (st) => {
+        if (poorWin && kit.windows[st] && kit.windows[st].cells.length > 1) return poorWin;
+        const to = winMap[st];
+        if (to && kit.windows[to] && kit.windows[st] && kit.windows[to].cells.length === kit.windows[st].cells.length) return to;
+        return poorWin && kit.windows[st] && kit.windows[st].cells.length > 1 ? poorWin : st;
+    };
+    v.windows = (v.windows || []).map(w => ({ ...w, style: win(w.style) }));
+    const annexes = v.annexes || (v.annex ? [v.annex] : []);
+    annexes.forEach((a, i) => {
+        if (a.wall) a.wall = hashPick(plainWalls, `${v.id}:annex${i}`) || a.wall;
+        // (an annex under the house's own roof keeps it: the variant's)
+        if (a.roof) {
+            const ar = roofFor(a.roof, a.roofRows || 2, `:annexroof${i}`);
+            a.roof = ar.roof;
+            a.roofRows = ar.rows;
+        }
+        a.windows = (a.windows || []).map(w => ({ ...w, style: win(w.style) }));
+    });
+    if (tier === 'poor') {
+        // (a plain plank door: a wide arched pair is a richer house's)
+        if (kit.doors[r.door] && Array.isArray(rules.poorDoors) && rules.poorDoors.length) v.door = hashPick(rules.poorDoors, v.id + ':door');
+        delete v.porch;
+        delete v.flowerBoxes;
+    }
+    return v;
+}
+
+/** Whether a variant stands on exactly the building's ground (so either fits wherever the other does) */
+function sameFootprint(a, b) {
+    if (!a || !b) return false;
+    if (JSON.stringify(a.bounds) !== JSON.stringify(b.bounds)) return false;
+    return JSON.stringify(a.meta) === JSON.stringify(b.meta);
+}
+
+/**
+ * The variant as a patch on its building (a full copy of every culture building three
+ * times over would treble data/buildings.json): per layer, the cells that differ by
+ * index ([i, sheet, sx, sy, sw?, sh?]), or the whole layer ([q, r, sheet, sx, sy, sw, sh])
+ * where its cells no longer line up. world/customBuildings.js lays the patch back on.
+ */
+function derive(base, v, tier, stands = base, arch = null) {
+    const sheets = [];
+    const si = (p) => { let i = sheets.indexOf(p); if (i < 0) { i = sheets.length; sheets.push(p); } return i; };
+    const patch = {};
+    for (const [ln, cells] of Object.entries(v.layers)) {
+        const was = base.layers[ln] || [];
+        const now = stands.layers[ln] || [];
+        const same = (c, o) => c.sheetPath === o.sheetPath && c.sx === o.sx && c.sy === o.sy && c.sw === o.sw && c.sh === o.sh;
+        // Lined up: the same cells in the same order, as composed and as the building stands
+        // (a cell touched up since composing, a porch, is kept as it stands where the tier keeps it)
+        const lined = was.length === cells.length && now.length === cells.length
+            && cells.every((c, i) => c.q === was[i].q && c.r === was[i].r && (same(c, was[i]) || (c.q === now[i].q && c.r === now[i].r)));
+        if (lined) {
+            const diff = [];
+            cells.forEach((c, i) => {
+                const o = was[i];
+                if (same(c, o)) return;
+                const e = [i, si(c.sheetPath), c.sx, c.sy];
+                if (c.sw !== T || c.sh !== T) e.push(c.sw, c.sh);
+                diff.push(e);
+            });
+            if (diff.length) patch[ln] = diff;
+        } else {
+            patch[ln] = { all: cells.map(c => [c.q, c.r, si(c.sheetPath), c.sx, c.sy, c.sw, c.sh]) };
+        }
+    }
+    return {
+        id: v.id,
+        derivedFrom: base.id,
+        tier,
+        // (a hut built of brick under slate is no hut: data/architecture.json wealth.names)
+        name: (((arch && arch.wealth && arch.wealth.names) || {})[tier] || {})[base.name] || base.name,
+        buildingType: base.buildingType,
+        style: base.style,
+        ...(base.culture ? { culture: base.culture } : {}),
+        wall: v.wall,
+        roof: v.roof,
+        tags: ['composed', 'tier', `tier:${tier}`],
+        sheets,
+        patch,
+    };
+}
+
 function main() {
     const kitFile = JSON.parse(fs.readFileSync(path.join(dataDir, 'buildingKit.json'), 'utf8'));
     const out = path.join(dataDir, 'buildings.json');
@@ -449,13 +573,38 @@ function main() {
     for (const [culture, a] of Object.entries(arch.cultures || {})) {
         for (const f of a.families || []) recipes.push(...expandCultureFamily(culture, f, kitFile.kit));
     }
-    const composed = recipes.map(r => compose(r, kitFile.kit));
+    const fresh = recipes.map(r => compose(r, kitFile.kit));
+    // --tiers-only: every building stays exactly as data/buildings.json has it (some were
+    // touched up after composing: the door-wide porch awnings); only the tier variants are made anew
+    const tiersOnly = process.argv.includes('--tiers-only');
+    const had = new Map(existing.filter(b => !b.derivedFrom).map(b => [b.id, b]));
+    const composed = tiersOnly ? existing.filter(b => (b.tags || []).includes('composed') && !b.derivedFrom) : fresh;
+    // Each culture building as the poor, middling and rich build it (data/architecture.json
+    // `tiers`, `wealth`): the same footprint in that tier's materials, stored as a patch on it
+    const variants = [];
+    let skipped = 0;
+    recipes.forEach((r, i) => {
+        const tiers = r.culture && (arch.cultures[r.culture] || {}).tiers;
+        if (!tiers) return;
+        const base = fresh[i];
+        const stands = tiersOnly ? had.get(r.id) : base;
+        if (!stands) return;
+        for (const tier of TIERS) {
+            if (!tiers[tier]) continue;
+            const v = compose(tierRecipe(r, tier, tiers[tier], arch.wealth || {}, kitFile.kit), kitFile.kit);
+            if (!sameFootprint(base, v) || !sameFootprint(stands, v)) { skipped++; continue; }
+            variants.push(derive(base, v, tier, stands, arch));
+        }
+    });
+    if (skipped) console.warn(`${skipped} tier variant(s) skipped: their footprint differed from the building's`);
     // One cell to a line: hundreds of buildings of a few dozen cells each
     const text = JSON.stringify([...kept, ...composed], null, 2)
         .replace(/\{\n\s+([^{}[\]]*?)\n\s+\}/g, (m, body) => `{ ${body.split(/,\n\s+/).join(', ')} }`);
-    fs.writeFileSync(out, text + '\n');
-    console.log(`Composed ${composed.length} building(s) into data/buildings.json (${kept.length} authored kept)`);
+    // (the tier variants a line each: their patches are long lists of short ones)
+    const tail = variants.map(v => '  ' + JSON.stringify(v)).join(',\n');
+    fs.writeFileSync(out, (variants.length ? text.replace(/\n\]$/, ',\n' + tail + '\n]') : text) + '\n');
+    console.log(`${tiersOnly ? 'Kept' : 'Composed'} ${composed.length} building(s) and made ${variants.length} tier variant(s) in data/buildings.json (${kept.length} authored kept)`);
 }
 
 if (require.main === module) main();
-module.exports = { compose, expandFamily, expandCultureFamily };
+module.exports = { compose, expandFamily, expandCultureFamily, tierRecipe, derive, sameFootprint };

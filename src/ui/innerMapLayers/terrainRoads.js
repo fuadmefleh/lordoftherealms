@@ -9,6 +9,7 @@ import { InnerMapCombat } from '../innerMapCombat.js';
 import { furnitureGlyph } from '../icons.js';
 import { engraveGlyph } from '../mapInk.js';
 import { sheetScale } from '../sheetScale.js';
+import { tintedWallSheet } from '../wallTint.js';
 import { drawKerbs } from '../pavingEdges.js';
 import { drawLaneGround, drawLaneTufts } from '../laneEdges.js';
 import { drawTilledSoil } from '../tilledSoil.js';
@@ -602,6 +603,8 @@ Object.assign(InnerMapRenderer, {
      * above: its top (the material's `top` texture), lit along the edges that meet the floor.
      */
     _drawWallTile(ctx, tile, mat, img, kb, cellOf, at, walled, dx, dy, sz) {
+        // (in the outside wall's own colour, where the building says what that is: ui/wallTint.js)
+        if (tile._wallTint) img = tintedWallSheet(img, mat, tile._wallTint, kb);
         const mod = (v, n) => ((v % n) + n) % n;
         const fw = mat.tw ? ((mat.face && mat.face.tw) || mat.tw) / 32 : 1;
         const faceCell = () => (mat.face ? [mat.face.sx + mod(tile.q, fw) * 32, mat.face.sy] : [mat.sx + mod(tile.q, fw) * 32, mat.sy]);

@@ -16,7 +16,7 @@
 // systems/lots.js; the menu ui/innerMapLots.js.
 
 import { InnerMap } from './_ref.js';
-import { CustomBuildings } from './_imports.js';
+import { CustomBuildings, SettlementWealth } from './_imports.js';
 import { LotBook } from '../lotBook.js';
 
 function _hash(q, r, salt) {
@@ -86,7 +86,7 @@ Object.assign(InnerMap, {
             // (a property the player built stands as that property; a house they raised to let stands like the AI's)
             if (!b || (b.by === 'player' && b.kind !== 'house') || (b.readyDay != null && day < b.readyDay)) continue;
             if (this._lotHasBuilding(lot)) continue;
-            this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.name}|${lot.id}|${b.type}`));
+            this._standOnLot(lot, b.type || 'house', _strHash(`${settlement.name}|${lot.id}|${b.type}`), settlement);
         }
     },
 
@@ -99,13 +99,23 @@ Object.assign(InnerMap, {
     },
 
     /** A design of this type that fits the lot, stood with its door on the lot's front row. */
-    _standOnLot(lot, type, seed) {
-        const defs = (CustomBuildings.getByType(type) || []).concat(type === 'house' ? [] : CustomBuildings.getByType('house') || [])
-            .filter(d => d && d.meta && d.bounds && d.style !== 'farmstead');
+    _standOnLot(lot, type, seed, settlement = null) {
+        // A town that builds by its culture (tiles._townBuild, world/innerMap/terrain.js) builds its
+        // own designs first, in the tier the town's wealth allows today (world/settlementWealth.js):
+        // a house put up now is built as the town now is, whatever its older houses are
+        const tb = this.tiles && this.tiles._townBuild;
+        const own = tb && tb.culture && settlement && typeof CustomBuildings.getByCulture === 'function'
+            ? [...CustomBuildings.getByCulture(tb.culture, type), ...(type === 'house' ? [] : CustomBuildings.getByCulture(tb.culture, 'house'))] : [];
+        const tier = own.length ? SettlementWealth.buildingTier(SettlementWealth.score(settlement), { ring: 'mid', key: `lot:${lot.id}` }) : null;
+        const usable = arr => arr.filter(d => d && d.meta && d.bounds && d.style !== 'farmstead');
+        const turn = arr => arr.map((_, i) => arr[(seed + i) % arr.length]);
+        const ownDefs = usable(own.map(d => CustomBuildings.tierVariant(d, tier)));
+        const common = usable((CustomBuildings.getByType(type) || []).concat(type === 'house' ? [] : CustomBuildings.getByType('house') || []));
+        // (the culture's own first, each list turned by the lot's seed)
+        const defs = [...turn(ownDefs), ...turn(common)];
         if (!defs.length) return false;
-        const start = seed % defs.length;
         for (let i = 0; i < defs.length; i++) {
-            const def = defs[(start + i) % defs.length];
+            const def = defs[i];
             const bw = def.bounds.maxCol - def.bounds.minCol + 1;
             const bh = def.bounds.maxRow - def.bounds.minRow + 1;
             if (bw > lot.w || bh > lot.h || def.bounds.maxRow > 0) continue;

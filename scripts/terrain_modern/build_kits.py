@@ -46,6 +46,9 @@ TEX = {
     'clay':       ('clay_tile.png', 1),
     'shingle':    ('shingle_tile.png', 1),
     'turf':       ('turf_tile.png', 1),
+    'logs':       ('logs_tile.png', 1),      # make_poor_walls.py
+    'daub':       ('daub_tile.png', 1),      # make_poor_walls.py
+    'mudrough':   ('mudrough_tile.png', 1),  # make_poor_walls.py
 }
 
 
@@ -56,6 +59,9 @@ def material(tab, key):
         if key.startswith('stone_'): return 'ashlar', 'ashlar', 'ref'
         if key == 'fieldstone': return 'fieldstone', 'ashlar', 'ref'
         if key == 'planks': return 'planks', 'planks', 'ref'
+        if key == 'logs': return 'logs', 'planks', 'ref'          # rough logs (make_poor_walls.py)
+        if key == 'wattle': return 'daub', 'planks', 'ref'        # wattle-and-daub between rough posts
+        if key == 'mudbrick': return 'mudrough', 'plaster', 'ref'  # rough sun-dried brick, half rendered
         if key.startswith('siding'): return 'siding', 'planks', 'ref'
         if key.startswith('timber'): return 'plaster', 'planks', 'light'
         if key.startswith('adobe_brick'): return 'mudbrick', 'plaster', 'ref'
@@ -78,10 +84,10 @@ def frame(tab, key):
         if key.startswith('brick'): return (9, 7, 4, 4)
         if key.startswith('stone_'): return (12, 10, 4, 4)
         if key.startswith('siding'): return (2, 3, 6, 6)
-        if key.startswith('adobe_brick'): return (0, 2, 2, 2)
+        if key.startswith('adobe_brick') or key == 'mudbrick': return (0, 2, 2, 2)
         if key.startswith('adobe'): return (0, 3, 2, 2)
         if key.startswith('timber'): return (0, 0, 0, 0)
-        if key == 'planks': return (10, 10, 8, 8)
+        if key in ('planks', 'logs'): return (10, 10, 8, 8)
         return (10, 11, 8, 8)          # plaster*, whitewash, fieldstone
     if key.startswith('adobe_brick'): return (13, 11, 9, 8)    # parapets (3x2)
     if key in ('adobe_stucco', 'flat_white'): return (15, 8, 8, 8)

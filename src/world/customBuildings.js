@@ -26,6 +26,7 @@ import { loadSheetInto } from '../core/customSheets.js';
 const _defs     = new Map();   // id → normalised def
 const _byType   = new Map();   // buildingType → [def, ...]
 const _byCulture = new Map();  // 'Culture|buildingType' → [def, ...] (a culture's own buildings)
+const _tiers    = new Map();   // 'baseId|tier' → the building as that tier builds it (kept out of every pool)
 const _imgCache = new Map();   // sheetPath → HTMLImageElement | null (pending)
 let   _loaded   = false;
 
@@ -47,7 +48,46 @@ function loadImg(path) {
     });
 }
 
-function registerBuilding(b) {
+/**
+ * A tier variant (scripts/compose-buildings.js `derive`): its building's layers with the
+ * patch laid on: per layer the cells that differ by index, or the whole layer anew.
+ */
+function expandDerived(b) {
+    const base = _defs.get(b.derivedFrom);
+    if (!base || !base.layers) return null;
+    const sheets = Array.isArray(b.sheets) ? b.sheets : [];
+    const layers = {};
+    for (const [ln, arr] of Object.entries(base.layers)) layers[ln] = Array.isArray(arr) ? arr.map(c => ({ ...c })) : arr;
+    for (const [ln, p] of Object.entries(b.patch || {})) {
+        if (p && Array.isArray(p.all)) {
+            layers[ln] = p.all.map(([q, r, si, sx, sy, sw, sh]) => ({ q, r, sheetPath: sheets[si], sx, sy, sw, sh }));
+            continue;
+        }
+        const cells = layers[ln];
+        if (!Array.isArray(cells) || !Array.isArray(p)) continue;
+        for (const [i, si, sx, sy, sw, sh] of p) {
+            const c = cells[i];
+            if (!c) continue;
+            c.sheetPath = sheets[si];
+            c.sx = sx; c.sy = sy;
+            c.sw = sw != null ? sw : 32;
+            c.sh = sh != null ? sh : 32;
+        }
+    }
+    const { patch: _p, sheets: _s, ...rest } = b;
+    return { ...base, ...rest, layers, meta: base.meta, bounds: base.bounds, _layerMaps: undefined, _metaMap: undefined };
+}
+
+function registerBuilding(b, pooled = true) {
+    // A culture building as the poor, middling or rich build it: registered by its own id
+    // (a tile names it) and found from its building by tierVariant, never drawn from a pool
+    if (b && b.derivedFrom) {
+        const full = expandDerived(b);
+        if (!full) return;
+        registerBuilding({ ...full, derivedFrom: undefined, _derivedFrom: b.derivedFrom }, false);
+        _tiers.set(`${b.derivedFrom}|${b.tier}`, _defs.get(b.id));
+        return;
+    }
     if (!b.id || !b.layers) {
         console.warn(`[Buildings] skipping building: missing id=${b.id} or layers`, b.name || b);
         return;
@@ -83,6 +123,7 @@ function registerBuilding(b) {
 
     const def = { ...b, bounds, _layerMaps: layerMaps, _metaMap: metaMap };
     _defs.set(b.id, def);
+    if (!pooled) return;
 
     const t = b.buildingType || 'other';
     // A culture's own building (data/architecture.json) stands only in that culture's towns,
@@ -117,6 +158,7 @@ export const CustomBuildings = {
         _defs.clear();
         _byType.clear();
         _byCulture.clear();
+        _tiers.clear();
         _imgCache.clear();
         _loaded = false;
     },
@@ -126,6 +168,17 @@ export const CustomBuildings = {
     /** A culture's own buildings of a type (data/architecture.json), [] when it has none */
     getByCulture(culture, type) { return _byCulture.get(`${culture}|${type}`) || []; },
     getImg(path)    { return _imgCache.get(path) || null; },
+
+    /**
+     * The building as a wealth tier builds it ('poor' | 'mid' | 'rich': data/architecture.json
+     * culture `tiers`): the same footprint in that tier's walls, roof and windows. The building
+     * itself where it has no such variant (a common building, an unknown tier).
+     */
+    tierVariant(def, tier) {
+        if (!def || !tier) return def;
+        const id = def._derivedFrom || def.id;
+        return _tiers.get(`${id}|${tier}`) || (def._derivedFrom ? _defs.get(id) || def : def);
+    },
 
     /**
      * Return all building defs eligible for the given settlement type,

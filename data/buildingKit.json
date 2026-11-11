@@ -183,6 +183,21 @@
         "sheet": "assets/buildingKit/modern/walls_adobe_brick_mauve.png",
         "x": 0,
         "y": 0
+      },
+      "logs": {
+        "sheet": "assets/buildingKit/modern/walls_logs.png",
+        "x": 0,
+        "y": 0
+      },
+      "mudbrick": {
+        "sheet": "assets/buildingKit/modern/walls_mudbrick.png",
+        "x": 0,
+        "y": 0
+      },
+      "wattle": {
+        "sheet": "assets/buildingKit/modern/walls_wattle.png",
+        "x": 0,
+        "y": 0
       }
     },
     "roofs": {
@@ -658,6 +673,9 @@
           ]
         ]
       },
+      "poor_shut": { "sheet": "assets/lpc/Structure/Windows/Poor Windows.png", "cells": [[0, 0]] },
+      "poor_open": { "sheet": "assets/lpc/Structure/Windows/Poor Windows.png", "cells": [[32, 0]] },
+      "poor_cloth": { "sheet": "assets/lpc/Structure/Windows/Poor Windows.png", "cells": [[64, 0]] },
       "small_dark": {
         "sheet": "assets/lpc/Structure/Windows/Stone Windows A.png",
         "cells": [

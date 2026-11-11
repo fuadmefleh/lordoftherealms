@@ -33,6 +33,7 @@ import { TownProps, FIELD_W, FIELD_H } from './townProps.js';
 import { LotBook } from './lotBook.js';
 import { planChurchyard } from './churchyard.js';
 import { Cultures } from './cultures.js';
+import { SettlementWealth } from './settlementWealth.js';
 import { DataLoader } from '../core/dataLoader.js';
 
 /** How each size of settlement is laid out. */
@@ -134,6 +135,14 @@ function _ring(type, d) {
 }
 
 /** Do palms grow on this hex's land (data/innerMap.json palms.townTerrains)? No terrain known: yes. */
+/** A ring one further out for a poor town (its middle built like a richer town's outskirts), one further in for a rich one. */
+function _shiftRing(ring, tier) {
+    const R = ['core', 'mid', 'edge'];
+    const i = R.indexOf(ring);
+    if (i < 0) return ring;
+    return R[Math.max(0, Math.min(2, i + (tier === 'poor' ? 1 : tier === 'rich' ? -1 : 0)))];
+}
+
 function _palmsGrowIn(terrain) {
     if (!terrain) return true;
     const d = (DataLoader._gamedata && DataLoader._gamedata.innerMap && DataLoader._gamedata.innerMap.palms) || {};
@@ -342,6 +351,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         const door = doorOf(def);
         const r = front - 1 - setback;
         if (!fitsBuilding(def, q, r)) return null;
+        // Built as the town's wealth there allows (the same footprint: it fits where its building fits)
+        def = tierDef(def, q + door.q, r);
         // The door must open onto the lane, or onto a short path down to it
         const path = [];
         let y = r + door.r + 1;
@@ -359,6 +370,19 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         placed.push(rec);
         count++;
         return rec;
+    };
+
+    // What the town can afford to build with (world/settlementWealth.js): a culture's building
+    // stands as its tier (poor, middling, rich) builds it, by the town's wealth, its ring of town
+    // (the core richer, the edge poorer), a landmark richer than a house, and a hash of its place.
+    // Hashes only: no draw on the plan's dice, so the plan stands where it stood.
+    const wealth = arch && planOpts && Number.isFinite(planOpts.wealth) ? planOpts.wealth : null;
+    const placeKey = `${settlement.q},${settlement.r}`;
+    const tierDef = (def, q, r) => {
+        if (wealth == null || !def || !def.culture || typeof CustomBuildings.tierVariant !== 'function') return def;
+        const landmark = !['house', 'farm'].includes(def.buildingType || 'house');
+        const tier = SettlementWealth.buildingTier(wealth, { ring: _ring(type, reach(q, r)), landmark, key: `${placeKey}:${q},${r}` });
+        return CustomBuildings.tierVariant(def, tier);
     };
 
     // A culture's own buildings of a type (data/architecture.json); else the common ones, its materials first
@@ -482,7 +506,9 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         const d = reach(x, y);
         // A culture's own mix of its own house styles, by ring of town
         if (arch && arch.mix && ownHouses.length) {
-            const mix = arch.mix[_ring(type, d)] || arch.mix.mid || {};
+            // (in worlds since terrainGen 7 a poor town builds as a richer one's outskirts, a rich one as its core)
+            const ring = planOpts && planOpts.wealthMix && wealth != null ? _shiftRing(_ring(type, d), SettlementWealth.tierOf(wealth)) : _ring(type, d);
+            const mix = arch.mix[ring] || arch.mix.mid || {};
             if (Object.keys(mix).length) return _pickWeighted(rng, mix);
         }
         for (const [lim, mix] of STYLE_MIX[type]) {
@@ -590,7 +616,12 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     }
 
     // The square: a fountain well in the middle (a culture's own centre piece), stalls round it, lamps at the corners
-    const SQ = (arch && AP.plaza) || {};
+    // (since terrainGen 7 a poor place's square has a well for its fountain or pool, and no columns
+    // or planters at its corners; a green's oak or a rune-stone stays)
+    const fine = id => /fountain|pool|column|obelisk|statue|planter/.test(String(id || ''));
+    const poorSquare = !!(arch && planOpts && planOpts.wealthMix && wealth != null && SettlementWealth.tierOf(wealth) === 'poor' && propDef('tp_well'));
+    const SQ0 = (arch && AP.plaza) || {};
+    const SQ = poorSquare ? { ...SQ0, centre: fine(SQ0.centre || 'tp_fountain') ? 'tp_well' : SQ0.centre, corners: (SQ0.corners || []).filter(id => !fine(id)) } : SQ0;
     const centreDef = propDef(SQ.centre || 'tp_fountain');
     const cw = centreDef ? centreDef.bounds.maxCol - centreDef.bounds.minCol + 1 : 2;
     const pcx = arch ? pq0 + Math.floor((pw - cw) / 2) : pq0 + Math.floor(pw / 2) - 1;
@@ -637,7 +668,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         }
     }
     // A culture lights its town its own way: not at all, the square, the high street, or every lane
-    const lamps = arch ? (AP.lamps || 'none') : (P.lamps ? 'street' : 'none');
+    // (a poor place lights no lamps in its streets: terrainGen 7, poorSquare)
+    const lamps = poorSquare ? 'none' : arch ? (AP.lamps || 'none') : (P.lamps ? 'street' : 'none');
     const lampsOut = lamps === 'all' && type === 'village' ? 'street' : lamps;
     if (lampsOut !== 'none') {
         putProp('tp_lamp_a', pq0, plazaTop + 2, opts);

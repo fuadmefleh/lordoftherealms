@@ -23,6 +23,7 @@
         "assets/lpc/Structure/Doors/32x64px Doors/15 Panel Door A.png": 896,
         "assets/lpc/Structure/Doors/64x64px Arched Doors/Arched Double Doors A.png": 256,
         "assets/lpc/Structure/Windows/Stone Windows A.png": 96,
+        "assets/lpc/Structure/Windows/Poor Windows.png": 96,
         "assets/lpc/Structure/Windows/Ornamental Windows A.png": 96,
         "assets/lpc/Structure/Windows/Ornamental Windows B.png": 96,
         "assets/lpc/Structure/Windows/Window Awnings A.png": 288,
@@ -322,6 +323,7 @@
             "whitewash": { "sheet": "assets/buildingKit/interior_shell.png", "sx": 288, "sy": 544, "tw": 96, "th": 96, "top": { "sx": 384, "sy": 544 }, "face": { "sx": 96, "sy": 768 } },
             "siding_red": { "sheet": "assets/buildingKit/interior_shell.png", "sx": 768, "sy": 640, "tw": 192, "th": 64, "top": { "sx": 0, "sy": 704 } },
             "logs": { "sheet": "assets/buildingKit/interior_shell.png", "sx": 576, "sy": 704, "tw": 96, "th": 64, "top": { "sx": 672, "sy": 704 } },
+            "wattle": { "sheet": "assets/buildingKit/interior_wattle.png", "sx": 0, "sy": 32, "tw": 96, "th": 96, "top": { "sx": 0, "sy": 32 }, "face": { "sx": 0, "sy": 0 } },
             "painted": { "sheet": "assets/buildingKit/interior_shell.png", "sx": 192, "sy": 704, "tw": 192, "th": 64, "top": { "sx": 384, "sy": 704 } }
         },
         "door": { "sheet": "assets/buildingKit/furniture48.png", "sx": 48, "sy": 432, "sw": 48, "sh": 48 },

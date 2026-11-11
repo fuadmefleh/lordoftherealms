@@ -421,8 +421,9 @@ export async function _doStartNewGame(settingsOverride) {
         // sea; 3 = generated with the true hex distance (core/hex.js); 4 =
         // towns built in their culture's own architecture (data/architecture.json); 5 = towns
         // with a churchyard planned beside the church (world/churchyard.js); 6 = a start
-        // year before the mature year ages the world back (world/worldAge.js)
-        terrainGen: 6,
+        // year before the mature year ages the world back (world/worldAge.js); 7 = a town's house
+        // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js)
+        terrainGen: 7,
         continentCount,
         terrainFreq,
         riverCount,

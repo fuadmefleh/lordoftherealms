@@ -21,7 +21,7 @@
 // their plan.
 
 import { InnerMap } from './_ref.js';
-import { CustomBuildings, CustomObjects, Cultures } from './_imports.js';
+import { CustomBuildings, CustomObjects, Cultures, SettlementWealth } from './_imports.js';
 
 /** A hash stream of a hex, its own salt */
 function _rng(a, b, salt) {
@@ -82,6 +82,12 @@ Object.assign(InnerMap, {
             return null;
         }
         if (old) this._clearFlankProps(tiles, old.def, old.q, old.r);
+        // A mill built anew here is built as the town's wealth allows (world/settlementWealth.js; the
+        // planner's own, moved, keeps the tier it had): out at the edge, a landmark; the same footprint
+        if (!old && opts && Number.isFinite(opts.wealth) && spot.def.culture && CustomBuildings.tierVariant) {
+            const tier = SettlementWealth.buildingTier(opts.wealth, { ring: 'edge', landmark: true, key: `mill:${worldQ},${worldR}` });
+            spot.def = CustomBuildings.tierVariant(spot.def, tier);
+        }
         this._standBuilding(tiles, spot.def, spot.q, spot.r);
         // The mill race along its wall, and the water drawn afresh with it
         if (this._markWet && this._stampWater) {

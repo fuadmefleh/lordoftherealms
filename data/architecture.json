@@ -4,6 +4,45 @@
     "streetSheet": "assets/lpc/Structure/Floor/streets_modern.png",
     "streetBlock": 2,
 
+    "_wealth": "What a town's wealth makes of its buildings (world/settlementWealth.js; each culture's own `tiers`, composed by scripts/compose-buildings.js as same-footprint variants of each of its buildings, ids <id>~poor|mid|rich). A town's score (0-1) comes from its size (log of population: popLow scores 0, popHigh 1) and its purse (coin a head against purseNorm, each doubling worth purseStep, capped at purseCap either way); a village scores at most villageMax, a capital at least capitalMin. Inside a town the core is richer and the edge poorer (ring), a landmark (not a house) richer still (landmark), and each building a little either way by a hash of its place (jitter); poor below tiers.poor, rich from tiers.rich. A town keeps the score it was first seen with (settlement.buildWealth) until it has scored another tier for restampDays; a house put up later (on a lot) uses the score of the day. Tiers: poor = mud, logs, wattle or rough stone under thatch; mid = timber, plaster, boards under wooden shingle; rich = dressed stone or brick under slate or tile (a flat roof stays flat: flatRoofs; a poor one is thatched). windows: what a tier makes of a window style (the same size: a building's footprint never changes; a poor house has rough timber-framed windows, shuttered, open or clothed); poorDoors: the plain door a poor house has for its door, poorWindow: the rough window it has for a tall glazed one; names: what a tier calls a building (a hut of brick under slate is a house). wallColours: each outside wall's own colour (the middle of its kit sheet, scripts/terrain_modern/make_poor_walls.py --colours), to which the inside wall is tinted (wallTint: how strongly; skip: inside walls whose pattern is their colour, timber framing) so inside and out are one colour. interiorWall: the inside wall (innerMapRenderer.json interiorArt.walls) of an outside wall, by exact key then prefix. floors: the floor by tier and kind of building (home, or hall; work buildings keep their own floor), a culture's tiers.<tier>.floor first for a rich one. furnish: poor drops the finery and beds down on straw; rich adds a carpet, candles, a chest and a bookshelf or hanging where the room has space.",
+    "wealth": {
+        "popLow": 100, "popHigh": 10000, "purseNorm": 2, "purseStep": 0.08, "purseCap": 0.2,
+        "villageMax": 0.62, "capitalMin": 0.55,
+        "tiers": { "poor": 0.36, "rich": 0.75 },
+        "ring": { "core": 0.12, "mid": 0, "edge": -0.3 }, "landmark": 0.1, "jitter": 0.06,
+        "maxStep": 1,
+        "restampDays": 1800,
+        "windows": {
+            "poor": { "small": "poor_open", "small_lit": "poor_cloth", "small_dark": "poor_shut", "ogee": "poor_open", "ogee_lit": "poor_cloth", "ogee_dark": "poor_shut", "round": "poor_open", "round_lit": "poor_cloth", "round_dark": "poor_shut" },
+            "rich": { "small": "small_lit", "small_dark": "small_lit", "ogee": "ogee_lit", "ogee_dark": "ogee_lit", "round": "round_lit", "round_dark": "round_lit", "lattice": "lattice_lit", "lattice_dark": "lattice_lit", "ornate": "ornate_lit", "ornate_dark": "ornate_lit", "tall": "tall_lit", "arched": "arched_lit" }
+        },
+        "poorDoors": ["walnut"], "poorWindow": "poor_shut",
+        "names": { "poor": { "Townhouse": "House", "Merchant's Palace": "Merchant's House" }, "mid": { "Hut": "Cottage", "Hovel": "Cottage" }, "rich": { "Hut": "House", "Hovel": "House", "Croft": "Farmhouse" } },
+        "interiorWall": {
+            "exact": { "mudbrick": "adobe", "fieldstone": "fieldstone", "planks": "planks", "logs": "logs", "wattle": "wattle", "whitewash": "whitewash", "adobe_white": "whitewash", "stone_dark": "dark_stone", "stone_slate": "dark_stone", "brick_dark": "dark_stone", "siding_red": "siding_red", "siding_rust": "siding_red", "siding_brown": "planks", "siding_dark": "planks", "siding_tar": "logs" },
+            "prefix": { "brick_": "brick", "stone_": "stone", "timber": "timber", "plaster": "plaster", "adobe": "adobe", "siding_": "painted" }
+        },
+        "wallColours": {"brick_beige": "#c1b29f", "brick_grey": "#887f7e", "brick_slate": "#4b4b60", "brick_red": "#b44c36", "brick_dark": "#282439", "brick_brown": "#5f3429", "timber": "#947764", "plaster": "#dfc7a6", "fieldstone": "#817875", "planks": "#8a5c42", "stone_beige": "#ada29b", "stone_grey": "#817275", "stone_slate": "#434358", "stone_ochre": "#9a613e", "stone_dark": "#222030", "stone_gold": "#72592c", "whitewash": "#eeeee8", "plaster_ochre": "#dfb666", "plaster_rose": "#db9b8a", "plaster_blue": "#acc4d7", "adobe_white": "#f8f6ec", "siding_red": "#8f331c", "siding_rust": "#ac462c", "siding_blue": "#7981c7", "siding_teal": "#7badb9", "siding_yellow": "#efc872", "siding_white": "#d5d3c4", "siding_green": "#5a7f4a", "siding_brown": "#8c663f", "siding_grey": "#7b8691", "siding_dark": "#593228", "siding_tar": "#6f4e2d", "timber_black": "#756f69", "adobe": "#c3b49f", "adobe_brick": "#bdae9c", "adobe_brick_mauve": "#907d7c", "logs": "#6c5f50", "mudbrick": "#896d53", "wattle": "#917857"},
+        "wallTint": { "strength": 0.85, "keepContrast": 1.0, "skip": ["timber"] },
+        "floors": {
+            "work": ["blacksmith", "smithy", "stable", "barn", "mill", "granary", "warehouse", "bakery", "barracks", "guard_tower", "jail", "well", "marketplace", "market", "mint"],
+            "hall": ["town_hall", "manor", "church", "temple", "chapel", "bank", "guildhall", "library", "hotel", "post_house", "castle", "bathhouse"],
+            "poor": { "home": "dirt_floor", "hall": "dirt_floor" },
+            "mid": { "home": "wood_floor", "hall": "stone_floor" },
+            "rich": { "home": "herringbone_floor", "hall": "marble_floor" }
+        },
+        "furnish": {
+            "poor": { "drop": ["candle", "banner", "rug", "statue", "bookshelf"], "art": { "bed": "straw" }, "names": { "bed": "Straw Pallet" } },
+            "rich": { "add": [
+                { "type": "rug", "name": "Fine Carpet", "icon": "♦️", "at": "centre", "passable": true },
+                { "type": "candle", "name": "Candelabra", "icon": "🕯️", "at": "table", "passable": true },
+                { "type": "chest", "name": "Linen Chest", "icon": "📦", "at": "wall" },
+                { "type": "bookshelf", "name": "Bookshelf", "icon": "📚", "at": "wall", "home": true },
+                { "type": "banner", "name": "Hanging", "icon": "🚩", "at": "wall", "passable": true }
+            ] }
+        }
+    },
+
     "cultures": {
         "Imperial": {
             "summary": "Red brick and terracotta in a grid of straight streets; a great paved square with a fountain and columns, lamp posts everywhere, rows of tall townhouses shoulder to shoulder.",
@@ -20,6 +59,11 @@
                 "edge": { "row": 0.5, "cottage": 0.3, "farmstead": 0.2 }
             },
             "interior": { "wall": "brick", "floor": "herringbone_floor" },
+            "tiers": {
+                "poor": { "walls": ["wattle", "mudbrick", "fieldstone"], "roofs": ["thatch"] },
+                "mid": { "walls": ["plaster_ochre", "timber", "plaster_rose", "brick_brown"], "roofs": ["shingle_rust", "shingle_brown"] },
+                "rich": { "walls": ["brick_red", "brick_red", "brick_beige", "stone_beige"], "roofs": ["clay"] }
+            },
             "families": [
                 { "id": "townhouse", "name": "Townhouse", "style": "townhouse", "count": 7, "widths": [4, 5], "walls": ["brick_red", "brick_red", "brick_brown", "brick_beige"], "wallRows": [6], "roofs": ["clay", "clay", "shingle_rust"], "roofRows": [2, 3], "doors": ["red", "green", "navy", "blue"], "windowStyles": ["small_lit", "small"], "upperWindowStyles": ["small", "small_lit"], "chimneys": ["red", "brown"], "chimneyChance": 0.9, "flowerBoxChance": 0.4 },
                 { "id": "row", "name": "House", "style": "row", "count": 5, "widths": [4, 5], "walls": ["brick_red", "brick_brown", "plaster_ochre"], "wallRows": [4], "roofs": ["clay", "shingle_rust"], "roofRows": [2], "doors": ["red", "green", "navy", "oak"], "windowStyles": ["small", "small_lit"], "chimneys": ["red"], "chimneyChance": 0.7 },
@@ -48,6 +92,11 @@
                 "edge": { "house": 0.5, "cottage": 0.3, "farmstead": 0.2 }
             },
             "interior": { "wall": "whitewash", "floor": "marble_floor" },
+            "tiers": {
+                "poor": { "walls": ["wattle", "fieldstone"], "roofs": ["thatch"] },
+                "mid": { "walls": ["whitewash", "plaster", "timber"], "roofs": ["shingle_grey", "shingle_brown"] },
+                "rich": { "walls": ["stone_beige", "stone_beige", "stone_grey"], "roofs": ["slate"], "floor": "marble_floor" }
+            },
             "families": [
                 { "id": "house", "name": "House", "style": "house", "count": 6, "widths": [4, 5], "walls": ["whitewash", "stone_beige", "whitewash"], "wallRows": [4], "roofs": ["slate", "slate", "clay"], "roofRows": [2, 3], "doors": ["walnut", "oak", "navy"], "windowMix": ["ogee", "ogee_lit", "ogee"], "chimneys": ["beige", "grey"], "chimneyChance": 0.6, "flowerBoxChance": 0.3 },
                 { "id": "townhouse", "name": "Townhouse", "style": "townhouse", "count": 5, "widths": [5], "walls": ["stone_beige", "whitewash"], "wallRows": [6], "roofs": ["slate"], "roofRows": [3], "doors": ["walnut", "navy"], "windowStyles": ["ogee_lit"], "upperWindowStyles": ["ogee"], "chimneys": ["grey"], "chimneyChance": 0.7 },
@@ -75,6 +124,11 @@
                 "edge": { "house": 0.6, "cottage": 0.2, "farmstead": 0.2 }
             },
             "interior": { "wall": "dark_stone", "floor": "tile_floor" },
+            "tiers": {
+                "poor": { "walls": ["fieldstone", "siding_dark", "wattle"], "roofs": ["thatch_dark"] },
+                "mid": { "walls": ["timber_black", "brick_slate", "plaster"], "roofs": ["shingle_purple", "shingle_dark"] },
+                "rich": { "walls": ["stone_dark", "brick_grey", "stone_grey"], "roofs": ["slate", "clay_teal"], "floor": "tile_floor" }
+            },
             "families": [
                 { "id": "tower", "name": "Townhouse", "style": "tower", "count": 6, "widths": [3, 4], "walls": ["stone_dark", "brick_grey", "stone_grey"], "wallRows": [6], "roofs": ["shingle_purple", "clay_teal", "shingle_dark"], "roofRows": [3], "doors": ["navy", "dark", "blue"], "windowStyles": ["ornate_lit", "ornate"], "upperWindowStyles": ["small_lit"], "chimneys": ["dark", "slate"], "chimneyChance": 0.5 },
                 { "id": "house", "name": "House", "style": "house", "count": 5, "widths": [4, 5], "walls": ["stone_grey", "brick_grey", "brick_slate"], "wallRows": [4], "roofs": ["shingle_purple", "clay_teal"], "roofRows": [2, 3], "doors": ["navy", "dark"], "windowMix": ["small_lit", "ogee_lit", "small"], "chimneys": ["slate", "dark"], "chimneyChance": 0.6 },
@@ -103,6 +157,11 @@
                 "edge": { "cottage": 0.5, "hovel": 0.2, "farmstead": 0.3 }
             },
             "interior": { "wall": "timber", "floor": "wood_floor" },
+            "tiers": {
+                "poor": { "walls": ["wattle", "wattle", "logs", "planks"], "roofs": ["thatch"] },
+                "mid": { "walls": ["timber", "timber_black", "whitewash", "plaster"], "roofs": ["shingle_brown"] },
+                "rich": { "walls": ["brick_brown", "stone_beige"], "roofs": ["slate"] }
+            },
             "families": [
                 { "id": "timbered", "name": "Cottage", "style": "timbered", "count": 6, "widths": [4, 5, 6], "walls": ["timber_black", "timber"], "stackRows": [3, 6], "roofs": ["thatch"], "roofRows": [3], "doors": ["green", "oak", "red"], "porches": ["green", "yellow", "white"], "porchChance": 0.4, "flowerBoxChance": 0.6, "windowMix": ["small", "small_lit"], "chimneys": ["brown", "red"], "chimneyChance": 0.7, "annex": { "chance": 0.4, "widths": [2, 3], "wallRows": [3], "sameWall": false, "walls": ["planks", "whitewash"] } },
                 { "id": "cottage", "name": "Cottage", "style": "cottage", "count": 5, "widths": [4, 5], "walls": ["whitewash", "plaster", "planks"], "wallRows": [3], "roofs": ["thatch"], "roofRows": [3], "doors": ["green", "oak", "walnut"], "porches": ["green", "yellow"], "porchChance": 0.4, "flowerBoxChance": 0.6, "windowMix": ["small", "small_lit"], "chimneys": ["brown"], "chimneyChance": 0.6, "annex": { "chance": 0.4, "widths": [2], "wallRows": [3], "sameWall": false, "walls": ["planks"] } },
@@ -130,6 +189,11 @@
                 "edge": { "hut": 0.7, "farmstead": 0.3 }
             },
             "interior": { "wall": "logs", "floor": "dirt_floor" },
+            "tiers": {
+                "poor": { "walls": ["logs", "wattle", "siding_dark"], "roofs": ["thatch_dark"] },
+                "mid": { "walls": ["planks", "siding_brown", "siding_tar"], "roofs": ["shingle_dark", "shingle_brown"] },
+                "rich": { "walls": ["stone_grey", "brick_brown"], "roofs": ["slate"] }
+            },
             "families": [
                 { "id": "hut", "name": "Hut", "style": "hut", "count": 6, "widths": [3, 4], "walls": ["siding_dark", "siding_brown", "planks"], "wallRows": [3], "roofs": ["thatch_dark", "turf"], "roofRows": [2], "doors": ["dark", "walnut"], "windowStyles": ["small_dark"], "windowSkip": 0.5, "chimneyChance": 0 },
                 { "id": "house", "name": "House", "style": "house", "count": 4, "widths": [5, 6], "walls": ["siding_dark", "planks", "siding_grey"], "wallRows": [3], "roofs": ["thatch_dark"], "roofRows": [3], "doors": ["dark", "walnut"], "windowMix": ["small_dark", "small"], "windowSkip": 0.3, "chimneys": ["dark"], "chimneyChance": 0.4, "annex": { "chance": 0.5, "widths": [2], "wallRows": [3], "sameWall": false, "walls": ["planks"], "sameRoof": false, "roofs": ["turf"] } },
@@ -157,6 +221,11 @@
                 "edge": { "house": 0.4, "longhouse": 0.3, "farmstead": 0.3 }
             },
             "interior": { "wall": "siding_red", "floor": "wood_floor" },
+            "tiers": {
+                "poor": { "walls": ["logs", "siding_tar"], "roofs": ["thatch_dark", "turf"] },
+                "mid": { "walls": ["siding_red", "siding_rust", "siding_yellow"], "roofs": ["shingle_dark"] },
+                "rich": { "walls": ["stone_grey", "stone_slate"], "roofs": ["slate"] }
+            },
             "families": [
                 { "id": "longhouse", "name": "Longhouse", "style": "longhouse", "count": 6, "widths": [7, 8, 9], "walls": ["siding_red", "siding_red", "siding_tar", "siding_brown"], "wallRows": [3], "roofs": ["turf", "turf", "shingle_dark"], "roofRows": [3], "doors": ["dark", "walnut", "red"], "windowMix": ["small", "small_dark"], "windowSkip": 0.3, "chimneys": ["dark", "grey"], "chimneyChance": 0.8 },
                 { "id": "house", "name": "House", "style": "house", "count": 5, "widths": [4, 5], "walls": ["siding_red", "siding_rust", "siding_yellow", "siding_dark"], "wallRows": [3, 4], "roofs": ["turf", "shingle_dark"], "roofRows": [2, 3], "doors": ["dark", "walnut", "red"], "windowMix": ["small", "small_lit"], "chimneys": ["grey"], "chimneyChance": 0.7, "annex": { "chance": 0.4, "widths": [2, 3], "wallRows": [3], "sameWall": false, "walls": ["siding_dark", "fieldstone"] } },
@@ -183,6 +252,11 @@
                 "edge": { "cottage": 0.6, "farmstead": 0.4 }
             },
             "interior": { "wall": "fieldstone", "floor": "stone_floor" },
+            "tiers": {
+                "poor": { "walls": ["fieldstone"], "roofs": ["thatch_dark"] },
+                "mid": { "walls": ["fieldstone", "plaster"], "roofs": ["shingle_dark", "shingle_grey"] },
+                "rich": { "walls": ["stone_dark", "stone_grey"], "roofs": ["slate"], "floor": "stone_floor" }
+            },
             "families": [
                 { "id": "house", "name": "House", "style": "house", "count": 7, "widths": [4, 5, 6], "walls": ["fieldstone", "stone_dark", "stone_grey"], "wallRows": [4], "roofs": ["slate", "slate", "shingle_dark"], "roofRows": [2], "doors": ["dark", "walnut"], "windowMix": ["small", "small_dark"], "windowSkip": 0.3, "chimneys": ["dark", "grey"], "chimneyChance": 0.9 },
                 { "id": "cottage", "name": "Cottage", "style": "cottage", "count": 4, "widths": [4, 5], "walls": ["fieldstone", "stone_slate"], "wallRows": [3], "roofs": ["slate"], "roofRows": [2], "doors": ["dark"], "windowStyles": ["small_dark"], "windowSkip": 0.4, "chimneys": ["grey"], "chimneyChance": 0.9 },
@@ -210,6 +284,11 @@
                 "edge": { "flat": 0.4, "house": 0.3, "farmstead": 0.3 }
             },
             "interior": { "wall": "adobe", "floor": "dirt_floor" },
+            "tiers": {
+                "poor": { "walls": ["mudbrick", "adobe", "wattle"], "roofs": ["thatch"] },
+                "mid": { "walls": ["adobe_brick", "adobe_brick_mauve", "adobe"], "roofs": ["shingle_brown"], "flatRoofs": ["adobe_brick_tan", "adobe_brick"] },
+                "rich": { "walls": ["stone_ochre", "adobe_white", "whitewash"], "roofs": ["clay_brown", "clay"], "flatRoofs": ["flat_white", "adobe_stucco"], "floor": "tile_floor" }
+            },
             "families": [
                 { "id": "house", "name": "House", "style": "house", "count": 5, "widths": [4, 5], "walls": ["adobe", "adobe_brick", "adobe_brick_mauve"], "wallRows": [3], "roofs": ["clay_brown", "thatch"], "roofRows": [2], "doors": ["red", "blue", "walnut"], "windowStyles": ["small"], "windowSkip": 0.3, "chimneyChance": 0 },
                 { "id": "flat", "name": "House", "style": "flat", "count": 4, "widths": [4, 5, 6], "walls": ["adobe", "adobe_brick"], "wallRows": [3], "roofs": ["adobe_brick_tan"], "doors": ["red", "blue", "oak"], "windowStyles": ["small"], "windowSkip": 0.4, "chimneyChance": 0 },
@@ -237,6 +316,11 @@
                 "edge": { "flat": 0.5, "house": 0.3, "farmstead": 0.2 }
             },
             "interior": { "wall": "adobe", "floor": "tile_floor" },
+            "tiers": {
+                "poor": { "walls": ["mudbrick", "adobe", "mudbrick"], "roofs": ["thatch"] },
+                "mid": { "walls": ["adobe", "adobe_white", "adobe_brick"], "roofs": ["shingle_brown"], "flatRoofs": ["adobe_stucco", "adobe_brick_tan"] },
+                "rich": { "walls": ["adobe_white", "whitewash", "stone_ochre", "stone_gold"], "roofs": ["clay"], "flatRoofs": ["flat_white"], "floor": "tile_floor" }
+            },
             "families": [
                 { "id": "flat", "name": "House", "style": "flat", "count": 7, "widths": [4, 5, 6], "walls": ["adobe_white", "adobe", "adobe_white", "whitewash"], "wallRows": [3, 4], "roofs": ["flat_white", "adobe_stucco"], "doors": ["blue", "navy", "green", "oak"], "windowMix": ["lattice", "lattice_lit", "ogee"], "windowSkip": 0.2, "chimneyChance": 0 },
                 { "id": "house", "name": "House", "style": "house", "count": 4, "widths": [4, 5], "walls": ["adobe", "stone_ochre", "adobe_brick"], "wallRows": [4], "roofs": ["adobe_stucco", "adobe_brick", "clay"], "roofRows": [2], "doors": ["blue", "green", "red"], "windowMix": ["ogee", "ogee_lit", "lattice"], "chimneyChance": 0 },
@@ -264,6 +348,11 @@
                 "edge": { "cottage": 0.6, "farmstead": 0.4 }
             },
             "interior": { "wall": "painted", "floor": "wood_floor" },
+            "tiers": {
+                "poor": { "walls": ["siding_grey", "planks", "wattle"], "roofs": ["thatch"] },
+                "mid": { "walls": ["siding_blue", "siding_teal", "siding_yellow", "siding_white", "plaster_blue", "plaster_rose"], "roofs": ["shingle_grey"] },
+                "rich": { "walls": ["stone_grey", "brick_red", "stone_beige"], "roofs": ["slate_blue", "slate"] }
+            },
             "families": [
                 { "id": "house", "name": "House", "style": "house", "count": 8, "widths": [4, 5], "walls": ["siding_blue", "siding_teal", "siding_yellow", "siding_white", "plaster_blue", "plaster_rose", "whitewash"], "wallRows": [4, 6], "roofs": ["slate_blue", "shingle_grey", "slate"], "roofRows": [2, 3], "doors": ["red", "navy", "blue", "green"], "windowMix": ["small", "small_lit"], "upperWindowStyles": ["small"], "chimneys": ["grey", "slate"], "chimneyChance": 0.7, "flowerBoxChance": 0.3 },
                 { "id": "cottage", "name": "Fisher's Cottage", "style": "cottage", "count": 4, "widths": [4], "walls": ["siding_white", "siding_grey", "whitewash", "siding_teal"], "wallRows": [3], "roofs": ["slate_blue", "shingle_grey"], "roofRows": [2], "doors": ["red", "blue"], "windowStyles": ["small"], "chimneys": ["grey"], "chimneyChance": 0.6 },

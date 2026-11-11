@@ -694,6 +694,159 @@ Object.assign(InnerMap, {
      */
     PIECE_SPANS: { bed: [1, 2], table: [2, 1], desk: [2, 1], tub: [2, 1], stall: [2, 1], altar: [2, 1], forge: [2, 1] },
 
+    /** The wealth rules (data/architecture.json `wealth`) */
+    _wealthRules() {
+        const g = DataLoader._gamedata;
+        return (g && g.architecture && g.architecture.wealth) || {};
+    },
+
+    /** The inside wall (interiorArt.walls) of an outside wall of the building kit, or null */
+    _insideWallOf(outside) {
+        if (!outside) return null;
+        const M = this._wealthRules().interiorWall || {};
+        const exact = M.exact || {};
+        if (exact[outside]) return exact[outside];
+        let best = null;
+        for (const [pre, wall] of Object.entries(M.prefix || {})) {
+            if (String(outside).startsWith(pre) && (!best || pre.length > best.pre.length)) best = { pre, wall };
+        }
+        return best ? best.wall : null;
+    },
+
+    /**
+     * What a building is inside, from what it is outside (data/architecture.json `wealth`):
+     * { wall, floor, tier, kind, tint }. Its walls are its outside walls' inside face (stone
+     * outside, stone in; timber framing, timber; logs, logs; mud brick, adobe). A building
+     * of a wealth tier (a culture building as the poor, middling or rich build it,
+     * world/customBuildings.js tierVariant) has that tier's floor for its kind (home, hall;
+     * a workshop keeps its own); an older culture building without one keeps its culture's
+     * `interior`; any other building with a known wall, that wall inside; else the layout's.
+     */
+    _interiorLook(def, type, layout) {
+        const t = String(type || '').replace(/^player_/, '');
+        const W = this._wealthRules();
+        const F = W.floors || {};
+        const kind = (F.work || []).includes(t) ? 'work' : (F.hall || []).includes(t) ? 'hall' : 'home';
+        const ok = (f) => !!(f && this.INTERIOR_FLOORS[f]);
+        const look = { wall: layout.wall, floor: layout.floor, tier: null, kind, tint: null };
+        if (!def) return look;
+        const insideWall = this._insideWallOf(def.wall);
+        // The inside wall takes the outside wall's own colour (wealth.wallColours), but where its
+        // pattern is its colour (timber framing: wallTint.skip)
+        const tintOf = (inside) => {
+            const T = W.wallTint || {};
+            const c = (W.wallColours || {})[def.wall];
+            return c && inside && !(T.skip || []).includes(inside) ? c : null;
+        };
+        if (def.tier && ['poor', 'mid', 'rich'].includes(def.tier)) {
+            look.tier = def.tier;
+            if (insideWall) look.wall = insideWall;
+            look.tint = insideWall ? tintOf(insideWall) : null;
+            if (kind !== 'work') {
+                const g = DataLoader._gamedata;
+                const own = def.culture && g && g.architecture && g.architecture.cultures && g.architecture.cultures[def.culture];
+                const tierSpec = (own && own.tiers && own.tiers[def.tier]) || {};
+                const want = tierSpec.floor || ((F[def.tier] || {})[kind]);
+                if (ok(want)) look.floor = want;
+            }
+            return look;
+        }
+        if (def.culture) {
+            // (a culture building without a tier: its culture's own stuff inside, as before)
+            const inside = (Cultures.architecture(def.culture) || {}).interior || null;
+            if (inside) {
+                look.wall = inside.wall || look.wall;
+                if (ok(inside.floor) && ['house', 'farm', 'guest_house'].includes(layout === this.INTERIOR_LAYOUTS.house ? 'house' : t)) look.floor = inside.floor;
+            }
+            return look;
+        }
+        if (insideWall) { look.wall = insideWall; look.tint = tintOf(insideWall); }
+        return look;
+    },
+
+    /**
+     * A layout's furniture as a tier keeps house (furnish.poor): the poor without the
+     * finery (candles, hangings, carpets, statues, books), sleeping on straw. A workshop's
+     * pieces are never taken, nor the trade's: the forge, the bar and the pews stay.
+     */
+    _furnishByTier(list, tier, kind) {
+        if (tier !== 'poor' || kind === 'work') return list;
+        const P = (this._wealthRules().furnish || {}).poor || {};
+        const drop = new Set((P.drop || []).filter(t => kind === 'home' || t !== 'bookshelf'));   // (a hall keeps its books)
+        const art = P.art || {}, names = P.names || {};
+        return list.filter(f => !drop.has(f.type)).map(f => {
+            if (!art[f.type]) return f;
+            return { ...f, art: art[f.type], name: names[f.type] || f.name, noJoin: true };
+        });
+    },
+
+    /**
+     * A rich room's finery (furnish.rich.add): a carpet in the middle, a candelabra by
+     * the table, a chest, a bookshelf (in a home) and a hanging against the back wall,
+     * each only where the room has a free tile for it and never shutting a walkable tile
+     * off from the door. Placed by a scan of the room: no dice.
+     */
+    _addFinery(tiles, w, h, kind) {
+        const A = ((this._wealthRules().furnish || {}).rich || {}).add || [];
+        const T = (q, r) => (tiles[r] && tiles[r][q]) || null;
+        const door = { q: Math.floor(w / 2), r: h - 1 };
+        const free = (t) => !!(t && t.baseTerrain !== 'wall' && !t._isDoor && !t._furniture && t.subTerrain.passable);
+        const has = (type) => tiles.some(row => row.some(t => t && t._furniture && t._furniture.type === type));
+        const reachAll = () => {
+            const seen = new Set([`${door.q},${door.r}`]);
+            const queue = [door];
+            while (queue.length) {
+                const { q, r } = queue.shift();
+                for (const [dq, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    const t = T(q + dq, r + dr), key = `${q + dq},${r + dr}`;
+                    if (!t || seen.has(key) || !t.subTerrain.passable) continue;
+                    seen.add(key);
+                    queue.push({ q: q + dq, r: r + dr });
+                }
+            }
+            return seen;
+        };
+        const before = reachAll();
+        const set = (t, a) => {
+            const prev = t.subTerrain;
+            t._furniture = { type: a.type, icon: a.icon, name: a.name, passable: !!a.passable };
+            if (a.passable) return true;
+            t.subTerrain = { id: `furniture_${a.type}`, name: a.name, icon: a.icon, color: this.FURNITURE_COLORS[a.type] || '#6a5a4a', passable: false };
+            const seen = reachAll();
+            for (const key of before) {
+                const [q, r] = key.split(',').map(Number);
+                if (T(q, r).subTerrain.passable && !seen.has(key)) { t._furniture = null; t.subTerrain = prev; return false; }
+            }
+            return true;
+        };
+        // (nothing in the door's column or beside it near the door: the way in stays open)
+        const clearOfDoor = (q, r) => !(Math.abs(q - door.q) <= 1 && r >= h - 3);
+        for (const a of A) {
+            if (!a || !a.type || (a.home && kind !== 'home')) continue;
+            if (a.type === 'rug' && has('rug')) continue;
+            const spots = [];
+            if (a.at === 'centre') {
+                const cq = Math.floor(w / 2), cr = Math.floor(h / 2);
+                for (let d = 0; d <= 2; d++) for (const [dq, dr] of [[0, d], [0, -d], [d, 0], [-d, 0]]) spots.push([cq + dq, cr + dr]);
+            } else if (a.at === 'table') {
+                for (let r = 1; r < h - 1; r++) for (let q = 1; q < w - 1; q++) {
+                    const t = T(q, r);
+                    if (t && t._furniture && t._furniture.type === 'table') for (const [dq, dr] of [[0, -1], [1, 0], [-1, 0], [0, 1]]) spots.push([q + dq, r + dr]);
+                }
+            } else {
+                // against the back wall, from the corners in
+                for (let i = 1; i < w - 1; i++) spots.push([i % 2 ? Math.ceil(i / 2) : w - 1 - i / 2, 1]);
+            }
+            for (const [q, r] of spots) {
+                const t = T(q, r);
+                if (!free(t) || !clearOfDoor(q, r)) continue;
+                // (a piece against the back wall keeps the tile in front of it free)
+                if (a.at === 'wall' && !a.passable && !free(T(q, r + 1))) continue;
+                if (set(t, a)) break;
+            }
+        }
+    },
+
     /**
      * Join the furniture of a room into its big pieces (PIECE_SPANS). Each tile of a piece keeps
      * the piece's furniture, with piece = { q, r, w, h, i, j } (its head's tile, its size, this
@@ -729,7 +882,7 @@ Object.assign(InnerMap, {
         for (let r = 0; r < h; r++) {
             for (let q = 0; q < w; q++) {
                 const t = T(q, r), f = t && t._furniture;
-                if (!f || f.piece || /horse/i.test(f.name || '')) continue;
+                if (!f || f.piece || f.noJoin || /horse/i.test(f.name || '')) continue;
                 const span = this.PIECE_SPANS[f.type];
                 if (!span) continue;
                 const [sw, sh] = span;
@@ -1026,15 +1179,11 @@ Object.assign(InnerMap, {
         const baseLayout = this.INTERIOR_LAYOUTS[building.type]
             || this.INTERIOR_LAYOUTS[String(building.type || '').replace(/^player_/, '')]
             || this.INTERIOR_LAYOUTS.house;
-        // A culture's own building is built of its own stuff inside too (data/architecture.json
-        // `interior`): its walls everywhere, its floors in the homes
+        // Inside as it is outside: the walls of what the building is built of, the floor and the
+        // furnishing of its wealth (_interiorLook); the layout's own where the building says nothing
         const ownDef = building._customDefId && typeof CustomBuildings !== 'undefined' ? CustomBuildings.getBuilding(building._customDefId) : null;
-        const inside = ownDef && ownDef.culture ? ((Cultures.architecture(ownDef.culture) || {}).interior || null) : null;
-        const layout = inside ? {
-            ...baseLayout,
-            wall: inside.wall || baseLayout.wall,
-            floor: inside.floor && ['house', 'farm', 'guest_house'].includes(baseLayout === this.INTERIOR_LAYOUTS.house ? 'house' : building.type) && this.INTERIOR_FLOORS[inside.floor] ? inside.floor : baseLayout.floor,
-        } : baseLayout;
+        const look = this._interiorLook(ownDef, building.type, baseLayout);
+        const layout = { ...baseLayout, wall: look.wall, floor: look.floor, furniture: this._furnishByTier(baseLayout.furniture || [], look.tier, look.kind) };
         const w = layout.width;
         const h = layout.height;
         const floorDef = this.INTERIOR_FLOORS[layout.floor] || this.INTERIOR_FLOORS.wood_floor;
@@ -1066,6 +1215,8 @@ Object.assign(InnerMap, {
                     _isInterior: true,
                     _interiorBuildingType: building.type,
                     _wallMaterial: layout.wall || null,
+                    // (the inside wall in the outside wall's own colour: ui/innerMapLayers/terrainRoads.js)
+                    ...(isWall && look.tint ? { _wallTint: look.tint } : {}),
                     _furniture: null,
                     effectiveTemp: 20,
                     moisture: 0.3,
@@ -1094,8 +1245,9 @@ Object.assign(InnerMap, {
                     name: furn.name,
                     passable: furn.passable,
                 };
-                // (its own look, where a type's usual sprite would mislead: coal in the sacks)
+                // (its own look, where a type's usual sprite would mislead: coal in the sacks, a poor bed of straw)
                 if (furn.art) tile._furniture.art = furn.art;
+                if (furn.noJoin) tile._furniture.noJoin = true;
                 // Pews face the altar ahead of them: seen from the door, their backs
                 if (furn.type === 'pew' && (layout.furniture || []).some(a => a.type === 'altar' && a.r < furn.r)) tile._furniture.facing = 'up';
                 if (!furn.passable) {
@@ -1109,6 +1261,9 @@ Object.assign(InnerMap, {
                 }
             }
         }
+
+        // A rich house's finery, where the room has the space for it (furnish.rich.add)
+        if (look.tier === 'rich' && look.kind !== 'work') this._addFinery(tiles, w, h, look.kind);
 
         // Beds, tables, baths, stalls, altars and forges at their own size, where the room allows
         this._joinPieces(tiles, w, h, { q: Math.floor(w / 2), r: h - 1 });

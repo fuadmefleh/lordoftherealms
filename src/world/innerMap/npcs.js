@@ -456,6 +456,9 @@ Object.assign(InnerMap, {
         if (!this._insideBuilding && this._updateTownChopping) this._updateTownChopping(deltaTime);
 
         for (const npc of this.npcs) {
+            // The downed lie where they were laid (a bed, a cell), the carried go with the player
+            // (ui/innerMapCarry.js, ui/innerMapDowned.js): no wandering, no relocating
+            if (npc.state === 'unconscious' || npc.state === 'bound' || npc._carried) continue;
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
             // (not someone asleep in bed: they lie on it — world/innerMap/floors.js)
             const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];

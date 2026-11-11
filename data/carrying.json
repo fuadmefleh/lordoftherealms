@@ -1,0 +1,20 @@
+{
+    "_note": "Carrying someone senseless over the shoulder on the street map (systems/carrying.js; ui/innerMapCarry.js). speed: the player's walk while carrying (base, + perStrength for each point of strength over 5, at most max; a child weighs childShare as much). handsActions: the menu orders that need free hands, refused while carrying anyone (a body too). struggle: a sleeper who comes round on the shoulder kicks free (lines by mood); angerTraits turn it to anger, the rest fear. bed: laid on a bed, they lie in it. witnesses: seeing the player carry someone senseless is evidence of the beating (systems/streetCrime.js found.barks.carriedAlive); the watch who sees it arrests (an assault, recorded if not already), the ruler's own watch looks away. blood: a body's pool stays where it fell (dripping on the ground behind it for dripSeconds after death, one drop every dripEvery tiles); a pool with no body is evidence (found.barks.blood).",
+    "speed": { "base": 0.55, "perStrength": 0.03, "max": 0.8, "childShare": 0.6 },
+    "handsActions": [
+        "attack_npc", "attack_object", "harvest_object", "dig_hole", "fill_hole", "exhume_grave", "dig_grave",
+        "search_body", "carry_body", "ko_rob", "ko_finish", "ko_carry", "pickup_ground_item", "fish_here", "dive_spear", "climb_face",
+        "hunt_animal", "animal_carry", "animal_butcher", "animal_fight", "animal_slaughter_own",
+        "farm_till", "farm_plant", "farm_plant_row", "farm_harvest", "farm_harvest_all", "farm_water", "farm_water_all", "farm_clear",
+        "field_work", "field_steal", "interact_furniture", "interact_object", "lock_door", "raise_marker",
+        "downed_bind", "downed_untie", "downed_gag", "downed_ungag", "downed_tend", "downed_slap", "downed_douse", "downed_drag", "downed_dig_bury"
+    ],
+    "struggle": {
+        "angerTraits": ["bold", "stern", "stubborn", "aggressive", "proud"],
+        "lines": {
+            "anger": ["Get your hands OFF me!", "Put me down, you brute!", "*kicks and thrashes free*", "What do you think you're doing?!"],
+            "fear": ["Help! HELP! Someone help me!", "No — no, let me go!", "*screams and wriggles free*", "Where are you taking me?!"]
+        }
+    },
+    "blood": { "dripSeconds": 90, "dripEvery": 2, "keepDays": 3 }
+}

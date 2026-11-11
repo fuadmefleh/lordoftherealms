@@ -1,0 +1,31 @@
+{
+    "_comment": "In-browser language models (WebLLM, systems/llm/webllmProvider.js). Ids are WebLLM prebuiltAppConfig model_ids for @mlc-ai/web-llm 0.2.86; download = the one-time download, vram = the GPU memory it needs while loaded.",
+    "webllm": {
+        "defaultModel": "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+        "timeoutMs": 60000,
+        "maxTokens": 160,
+        "models": [
+            {
+                "id": "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+                "label": "Llama 3.2 3B (best writing)",
+                "downloadMB": 1800,
+                "vramMB": 2264,
+                "note": "About 1.8 GB download; needs about 2.3 GB of graphics memory. The default: the best prose of the three."
+            },
+            {
+                "id": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+                "label": "Qwen 2.5 1.5B (fast)",
+                "downloadMB": 900,
+                "vramMB": 1630,
+                "note": "About 0.9 GB download; needs about 1.6 GB of graphics memory. Quicker replies, plainer lines."
+            },
+            {
+                "id": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+                "label": "Qwen 2.5 0.5B (tiny, weak GPUs)",
+                "downloadMB": 300,
+                "vramMB": 945,
+                "note": "About 0.3 GB download; needs under 1 GB of graphics memory. For integrated graphics: fast but simple-minded."
+            }
+        ]
+    }
+}

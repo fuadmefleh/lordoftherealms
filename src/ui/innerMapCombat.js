@@ -35,6 +35,10 @@ import { Ailments } from '../systems/ailments.js';
 import { Duels } from '../systems/duels.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { Knockout } from '../systems/knockout.js';
+import { Carrying } from '../systems/carrying.js';
+import { Downed } from '../systems/downed.js';
+import { InnerMapCarry } from './innerMapCarry.js';
+import { InnerMapDowned } from './innerMapDowned.js';
 import { CombatSkills } from '../systems/combatSkills.js';
 import { StreetCrime } from '../systems/streetCrime.js';
 import { Laws } from '../systems/laws.js';
@@ -91,6 +95,9 @@ export const InnerMapCombat = {
     _today: 0,
     // The body the player is carrying (ui/innerMapDigging.js moves it along)
     _carrying: null,
+    // ── The blood the dead leave: where they fell, whoever moves the body (systems/carrying.js) ──
+    // { q, r, key, at, day, size, name, drip, victim }
+    _blood: [],
     // How many bodies are kept at once (oldest carried off first)
     MAX_CORPSES: 40,
 
@@ -129,6 +136,8 @@ export const InnerMapCombat = {
      * If the player is too far away, queues a _pendingCombat walk-then-attack.
      */
     startAttackNPC(game, npc) {
+        // (someone over the shoulder: no hand free to swing — ui/innerMapCarry.js)
+        if (InnerMapCarry.person) { this._handsFull(game); return; }
         // Setting on someone is crime to a child's parents (a job's bout is not: ui/parentsGuard.js)
         if (npc && !npc._taskFoe && !ParentsGuard.ok(game, 'assault', null, { each: true })) return;
         // Cancel whatever was happening before
@@ -157,6 +166,7 @@ export const InnerMapCombat = {
      * and from then on onObjectHit() is called each swing.
      */
     startAttackObject(game, anchorQ, anchorR, defId) {
+        if (InnerMapCarry.person) { this._handsFull(game); return; }
         if (this._attackState) this.cancelAttack();
 
         const def = (typeof CustomObjects !== 'undefined') ? CustomObjects.getDef(defId) : null;
@@ -262,6 +272,12 @@ export const InnerMapCombat = {
     },
 
     /** Cancel any active attack (and stop chasing). */
+    _handsFull(game) {
+        if (game && game.ui && typeof game.ui.showNotification === 'function') {
+            game.ui.showNotification('Your hands are full', `Put ${InnerMapCarry.person ? InnerMapCarry.person.name : 'them'} down first.`, 'warning');
+        }
+    },
+
     cancelAttack() {
         const ia = this._attackState;
         if (ia && ia.chasePath && InnerMap._playerPath === ia.chasePath) InnerMap.cancelPlayerWalk();
@@ -505,6 +521,10 @@ export const InnerMapCombat = {
         npc._activity = null;
         npc._bark = null;
         npc._ko = { at: _nowMs(), until: _nowMs() + wake.seconds * 1000, hpShare: wake.hpShare, side: InnerMap.playerInnerQ > npc.q ? -1 : 1 };
+        // (beaten down indoors: they lie in that room, not out on the street — ui/innerMapCarry.js)
+        InnerMapCarry.markLying(npc);
+        // A hard blow may leave them bleeding out (ui/innerMapDowned.js)
+        InnerMapDowned.onKnockedOut(npc, game);
         InnerMapReactions._responders.delete(npc.id);
         this._npcReactions.delete(npc.id);
         const T = InnerMapRenderer.TILE_SIZE;
@@ -517,8 +537,10 @@ export const InnerMapCombat = {
 
     /** Kill a knocked-out NPC where they lie: a murder, seen or unseen. */
     finishOff(npc, game) {
-        if (!npc || npc.state !== 'unconscious') return false;
+        // (the senseless, or tied up awake: systems/downed.js)
+        if (!npc || (npc.state !== 'unconscious' && npc.state !== 'bound')) return false;
         if (!ParentsGuard.ok(game, 'assault', null, { each: true })) return false;
+        if (InnerMapCarry.person === npc) InnerMapCarry.putDown(game);
         npc.state = 'idle';
         npc._ko = null;
         this._killNPC(npc, game);
@@ -527,7 +549,7 @@ export const InnerMapCombat = {
 
     /** Go through a knocked-out NPC's pockets (once). */
     robKnockedOut(npc, game) {
-        if (!npc || npc.state !== 'unconscious' || npc._koSearched) return null;
+        if (!npc || (npc.state !== 'unconscious' && npc.state !== 'bound') || npc._koSearched) return null;
         if (!ParentsGuard.ok(game, 'theft', null, { each: true })) return null;
         npc._koSearched = true;
         const { gold, items } = this._takeSpoils(npc, game);
@@ -536,6 +558,11 @@ export const InnerMapCombat = {
         for (const it of items) parts.push(`${it.qty} ${String(it.id).replace(/_/g, ' ')}`);
         // They'll know who did it when they come round
         NpcDisposition.adjustDisposition(npc, -15, game && game.player);
+        // Robbing the senseless in sight of the street: a crime as a beating is (the watch comes)
+        if (game && game.player && !npc._robSeen) {
+            const sight = StreetCrime.selectWitnesses(InnerMap.npcs || [], { q: npc.q, r: npc.r, indoors: !!InnerMap._insideBuilding }, npc);
+            if (sight.some(w => w.seen)) { npc._robSeen = true; InnerMapReactions.onViolence(game, npc, 'assault'); }
+        }
         if (game && game.ui) {
             if (typeof game.ui.updateStats === 'function' && game.player) game.ui.updateStats(game.player, game.world);
             game.ui.showNotification(`🖐️ ${npc.name}'s pockets`, parts.length ? `You take ${parts.join(', ')}.` : 'Their pockets are empty.', parts.length ? 'success' : 'info');
@@ -548,10 +575,23 @@ export const InnerMapCombat = {
         const now = _nowMs();
         for (const npc of InnerMap.npcs || []) {
             if (npc.state !== 'unconscious' || !npc._ko || now < npc._ko.until) continue;
+            // Bleeding out: they don't come round until the wound is bound (ui/innerMapDowned.js)
+            if (npc._bleed) continue;
+            // Over the player's shoulder: they kick free (ui/innerMapCarry.js)
+            if (npc._carried) { InnerMapCarry.wakeOnShoulder(npc, game); continue; }
             const ko = npc._ko;
+            // Tied up: awake, but going nowhere — they plead, threaten, call for help
+            if (npc._bound) {
+                const hpB = this._npcHealth.get(npc.id);
+                if (hpB) hpB.current = Math.max(1, Math.round(hpB.max * ko.hpShare));
+                InnerMapDowned.wokeBound(npc);
+                continue;
+            }
             npc._ko = null;
             npc.state = 'idle';
             npc.idleTimer = 2;
+            // Laid in a bed, or down in a room: up beside it, and about the house again
+            InnerMapCarry.wokeWhereLaid(npc);
             const hp = this._npcHealth.get(npc.id);
             if (hp) {
                 hp.current = Math.max(1, Math.round(hp.max * ko.hpShare));
@@ -1152,7 +1192,7 @@ export const InnerMapCombat = {
 
     /** Leave a body where the NPC fell. */
     _leaveBody(npc, game) {
-        this._corpses.push({
+        const body = {
             name: npc.name, type: npc.type, icon: npc.icon,
             preset: npc.preset || (InnerMapCharacters.isReady() ? InnerMapCharacters.getPresetForNPC(npc.type, npc.id, npc.gender) : null),
             q: npc.q, r: npc.r,
@@ -1160,8 +1200,72 @@ export const InnerMapCombat = {
             side: InnerMap.playerInnerQ > npc.q ? -1 : 1,
             at: _nowMs(), day: this._day(game), key: this._mapKey(),
             _npc: npc, searched: false,
-        });
+        };
+        this._corpses.push(body);
+        // The blood is the ground's, not the body's: it stays where they fell
+        this._blood.push(Carrying.bloodPool(body, body.at, body.day, body.type === 'child' ? 0.7 : 1));
+        if (this._blood.length > this.MAX_CORPSES * 3) this._blood.splice(0, this._blood.length - this.MAX_CORPSES * 3);
         if (this._corpses.length > this.MAX_CORPSES) this._corpses.splice(this._corpses.findIndex(c => c !== this._carrying), 1);
+    },
+
+    /** The blood on the map the player is on (washed away after blood.keepDays). */
+    bloodHere() {
+        const key = this._mapKey();
+        this._blood = this._blood.filter(p => Carrying.bloodKept(p, this._today));
+        return this._blood.filter(p => p.key === key);
+    },
+
+    /** A drop of blood where a carried body passes (a fresh one bleeds). */
+    dripBlood(body, q, r) {
+        this._blood.push({ q, r, key: body.key, at: _nowMs(), day: this._today, size: 0.3, name: body.name, drip: true, victim: body._npc || null });
+    },
+
+    /** Is a body lying on (or right by) the pool? */
+    bodyOnBlood(p) {
+        return this.corpsesHere().some(c => c !== this._carrying && Math.max(Math.abs(c.q - p.q), Math.abs(c.r - p.r)) <= 1);
+    },
+
+    /**
+     * The blood on the ground, flat under every sprite: a pool spreading out where someone fell
+     * (darkening as it dries), a few drops where a body was carried.
+     */
+    renderBlood(ctx, camera, T) {
+        const pools = this.bloodHere();
+        if (!pools.length) return;
+        const ds = T * camera.zoom, now = _nowMs();
+        ctx.save();
+        for (const p of pools) {
+            const s = camera.worldToScreenFast(p.q * T + T / 2, p.r * T + T / 2);
+            const sx = s.x, sy = s.y;
+            if (sx < -ds || sx > ctx.canvas.width + ds || sy < -ds || sy > ctx.canvas.height + ds) continue;
+            const grow = p.drip ? 1 : Math.min(1, (now - p.at) / 3000);
+            const dry = Math.min(1, Math.max(0, this._today - p.day) / 3);
+            const k = (p.size || 1) * grow;
+            const h = (((p.q * 73856093) ^ (p.r * 19349663)) >>> 0);
+            if (p.drip) {
+                ctx.fillStyle = `rgba(${110 - 40 * dry}, 8, 8, ${0.8 - 0.3 * dry})`;
+                for (let i = 0; i < 3; i++) {
+                    const a = ((h >> (i * 5)) % 64) / 64 * Math.PI * 2, rr = ds * (0.06 + ((h >> (i * 3)) % 7) / 40);
+                    ctx.beginPath();
+                    ctx.ellipse(sx + Math.cos(a) * rr, sy + ds * 0.15 + Math.sin(a) * rr * 0.5, ds * (0.035 + i * 0.012), ds * (0.025 + i * 0.008), 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                continue;
+            }
+            // Spread out from under where the body lay (across its own tile), a darker heart
+            ctx.fillStyle = `rgba(${120 - 50 * dry}, ${10 - 4 * dry}, ${10 - 4 * dry}, ${0.72 - 0.15 * dry})`;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy + ds * 0.12, ds * 0.62 * k, ds * 0.3 * k, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(sx + ds * 0.42 * k * ((h % 2) ? 1 : -1), sy + ds * 0.2, ds * 0.16 * k, ds * 0.09 * k, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(60, 0, 0, ${0.35 - 0.1 * dry})`;
+            ctx.beginPath();
+            ctx.ellipse(sx, sy + ds * 0.12, ds * 0.34 * k, ds * 0.15 * k, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
     },
 
     /** Bodies on the map the player is on (one found is carried off by the day after next). */
@@ -1172,25 +1276,68 @@ export const InnerMapCombat = {
     },
 
     /**
-     * A body held over the player's shoulders: lying crosswise, centred on
-     * (sx, sy) (the shoulders), no blood and no name.
+     * Someone carried over the player's shoulder (a body, or the living senseless — c.alive keeps
+     * their colour): folded at the hips over one shoulder, the legs hanging down the player's front,
+     * the torso, arms and head hanging head-down the back. Drawn in two parts about the player:
+     * part 'back' before the player's sprite, 'front' after it — which half is which goes by the way
+     * the player faces (facing away, the torso hangs on the side we see).
+     * @param {number} px @param {number} py the player's tile centre on screen
+     * @param {number} facing InnerMapCharacters.DIR_*
+     * @param {'back'|'front'} part
      */
-    drawCarriedCorpse(ctx, camera, c, sx, sy) {
+    drawCarriedCorpse(ctx, camera, c, px, py, facing = InnerMapCharacters.DIR_DOWN, part = 'front') {
         const T = InnerMapRenderer.TILE_SIZE;
         const ds = T * camera.zoom;
         const scale = (c.type === 'child' ? 0.7 : 1) * 0.8;
-        ctx.save();
-        if (c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset)) {
-            const cw = ds * 1.2 * scale, ch = ds * 1.8 * scale;
-            ctx.translate(sx, sy);
-            ctx.rotate(c.side * (Math.PI / 2));
-            ctx.filter = 'grayscale(0.45) brightness(0.75)';
-            InnerMapCharacters.drawCharacter(ctx, c.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
-            ctx.filter = 'none';
-        } else {
-            drawGlyph(ctx, 'skull', sx, sy, Math.max(10, ds * 0.35), '#d8cfc4', 2);
+        if (!(c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset))) {
+            if (part === 'front') drawGlyph(ctx, 'skull', px, py - ds * 0.6, Math.max(10, ds * 0.35), '#d8cfc4', 2);
+            return;
         }
-        ctx.restore();
+        const D = InnerMapCharacters;
+        const cw = ds * 1.2 * scale, ch = ds * 1.8 * scale;
+        const HIP = 0.62;   // (where the frame folds: the hips, as a share of its height from the top)
+        // Over which shoulder, and which half hangs on the side we see
+        const side = facing === D.DIR_UP ? -1 : facing === D.DIR_LEFT ? 1 : facing === D.DIR_RIGHT ? -1 : 1;
+        const sideways = facing === D.DIR_LEFT || facing === D.DIR_RIGHT;
+        const sx = px + side * ds * (sideways ? 0.02 : 0.17), sy = py - ds * 0.58;
+        // legs: in front unless facing away; torso: behind unless facing away (side on: both in sight)
+        const legsPart = facing === D.DIR_UP ? 'back' : 'front';
+        const torsoPart = facing === D.DIR_UP ? 'front' : 'back';
+        const toward = facing === D.DIR_LEFT ? -1 : facing === D.DIR_RIGHT ? 1 : 0;   // (side on: legs forward, torso back)
+        const filter = c.alive ? 'none' : 'grayscale(0.45) brightness(0.75)';
+        const bonds = c.bound || c.gagged ? { _bound: c.bound, _gagged: c.gagged } : null;
+        if (part === legsPart) {
+            ctx.save();
+            ctx.translate(sx + toward * ds * 0.16, sy);
+            ctx.rotate(side * 0.12 - toward * 0.25);
+            ctx.translate(0, (0.5 - HIP) * ch);
+            ctx.beginPath();
+            ctx.rect(-cw, (HIP - 0.5) * ch, cw * 2, ch);
+            ctx.clip();
+            ctx.filter = filter;
+            D.drawCharacter(ctx, c.preset, 'idle', D.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+            ctx.filter = 'none';
+            // (tied at the ankles: the rope on the legs that hang in front)
+            if (bonds && bonds._bound) this._drawBonds(ctx, { _bound: true }, cw, ch, ds, { anklesOnly: true });
+            ctx.restore();
+        }
+        if (part === torsoPart) {
+            ctx.save();
+            // (hanging down beside the player's body, so the head and arms show past it)
+            ctx.translate(sx - toward * ds * 0.24 + (sideways ? 0 : side * ds * 0.16), sy + ds * 0.02);
+            ctx.rotate(-side * 0.1 + toward * 0.2);
+            ctx.scale(1, -1);
+            ctx.translate(0, -(HIP - 0.5) * ch);
+            ctx.beginPath();
+            ctx.rect(-cw, -ch, cw * 2, ch * (HIP + 0.5));
+            ctx.clip();
+            ctx.filter = filter;
+            // (their back toward us when they hang behind the player; their face when we see that side)
+            D.drawCharacter(ctx, c.preset, 'idle', torsoPart === 'front' && !sideways ? D.DIR_UP : sideways ? (toward > 0 ? D.DIR_LEFT : D.DIR_RIGHT) : D.DIR_UP, 0, -cw / 2, -ch / 2, cw, ch);
+            ctx.filter = 'none';
+            if (bonds && bonds._gagged) this._drawBonds(ctx, { _gagged: true }, cw, ch, ds);
+            ctx.restore();
+        }
     },
 
     /** A body lying on the ground: falls over, a pool of blood spreads under it. */
@@ -1200,17 +1347,9 @@ export const InnerMapCombat = {
         const age = _nowMs() - c.at;
         const fall = Math.min(1, age / 450);
         const ease = 1 - (1 - fall) * (1 - fall);
-        // The blood stays where they fell: a body carried elsewhere leaves none
-        const pool = c.moved ? 0 : Math.min(1, age / 3000);
+        // (the blood under it is the ground's — renderBlood — and stays where they fell)
         const scale = c.type === 'child' ? 0.7 : 1;
         ctx.save();
-        if (pool > 0) {
-            ctx.beginPath();
-            // Spreads out from under the body (lying across its own tile)
-            ctx.ellipse(sx, sy + ds * 0.12, ds * 0.62 * pool * scale, ds * 0.3 * pool * scale, 0, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(120, 10, 10, 0.72)';
-            ctx.fill();
-        }
         const useSprite = c.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(c.preset);
         if (useSprite) {
             // Falls over to lie across its own tile (centred on it, so a click
@@ -1227,7 +1366,7 @@ export const InnerMapCombat = {
         }
         ctx.restore();
         if (camera.zoom > 0.7 && fall >= 1) {
-            drawMapText(ctx, `\u2020 ${c.name}`, sx, sy + ds * 0.3, {
+            drawMapText(ctx, `\u2020 ${c.name} — Dead`, sx, sy + ds * 0.3, {
                 size: 10 * labelZoom(camera.zoom), min: 9, weight: 600, family: 'body', baseline: 'top', color: 'rgba(214, 196, 186, 0.7)',
             });
         }
@@ -1251,12 +1390,14 @@ export const InnerMapCombat = {
             ctx.translate(sx, sy - ds * 0.35 * (1 - ease));
             ctx.rotate(ko.side * (Math.PI / 2) * ease);
             InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -cw / 2, -ch / 2, cw, ch);
+            // Tied hand and foot (and gagged): rope round the wrists and the ankles, a cloth across the mouth
+            if (npc._bound || npc._gagged) this._drawBonds(ctx, npc, cw, ch, ds);
         } else {
             ctx.globalAlpha = 0.85;
             drawGlyph(ctx, 'skull', sx, sy, Math.max(10, ds * 0.4), '#d8cfc4', 2);
         }
         ctx.restore();
-        if (fall >= 1) {
+        if (fall >= 1 && npc.state === 'unconscious') {
             // Stars circling the head (the head lies toward the side they fell)
             const t = _nowMs() / 1000;
             const hx = sx + ko.side * ds * 0.45 * scale, hy = sy - ds * 0.15;
@@ -1272,9 +1413,37 @@ export const InnerMapCombat = {
             ctx.restore();
         }
         if (camera.zoom > 0.7 && fall >= 1) {
-            drawMapText(ctx, `${npc.name} (senseless)`, sx, sy + ds * 0.3, {
-                size: 10 * labelZoom(camera.zoom), min: 9, weight: 600, family: 'body', baseline: 'top', color: 'rgba(255, 224, 138, 0.8)',
+            // (its state: Unconscious, Bleeding out, Bound — systems/downed.js)
+            const bleeding = !!npc._bleed;
+            drawMapText(ctx, `${npc.name} — ${Downed.label(npc) || 'Unconscious'}`, sx, sy + ds * 0.3, {
+                size: 10 * labelZoom(camera.zoom), min: 9, weight: 600, family: 'body', baseline: 'top', color: bleeding ? 'rgba(255, 120, 110, 0.9)' : 'rgba(255, 224, 138, 0.8)',
             });
+        }
+    },
+
+    /** Rope and gag on someone lying (drawn in their own turned frame: cw x ch about the middle). */
+    _drawBonds(ctx, npc, cw, ch, ds, opts = {}) {
+        const lw = Math.max(1.5, ds * 0.035);
+        const band = (y, w) => {
+            ctx.fillStyle = '#b89a62';
+            ctx.fillRect(-w / 2, y - lw / 2, w, lw);
+            ctx.fillStyle = 'rgba(70, 50, 25, 0.8)';
+            ctx.fillRect(-w / 2, y + lw / 2, w, Math.max(1, lw * 0.4));
+            ctx.fillRect(-w / 2 + w * 0.3, y - lw / 2, Math.max(1, lw * 0.4), lw);
+            ctx.fillRect(-w / 2 + w * 0.65, y - lw / 2, Math.max(1, lw * 0.4), lw);
+        };
+        if (npc._bound && !opts.anklesOnly) {
+            band(-ch / 2 + ch * 0.6, cw * 0.36);   // the wrists, bound before them
+            band(-ch / 2 + ch * 0.66, cw * 0.36);
+        }
+        if (npc._bound) {
+            band(-ch / 2 + ch * 0.86, cw * 0.22);  // the ankles
+        }
+        if (npc._gagged) {
+            ctx.fillStyle = '#ddd3c0';
+            ctx.fillRect(-cw * 0.12, -ch / 2 + ch * 0.5, cw * 0.24, Math.max(2, ds * 0.05));
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.fillRect(-cw * 0.12, -ch / 2 + ch * 0.5 + Math.max(2, ds * 0.05), cw * 0.24, Math.max(1, ds * 0.012));
         }
     },
 

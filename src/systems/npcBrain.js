@@ -116,7 +116,8 @@ export const NpcBrain = {
                 detail: p.detail || `no response from ${LlmClient.getConfig().endpoint}`,
                 hint: (LlmClient.getConfig().provider === 'openai' && (state === 'unreachable' || state === 'timeout'))
                     ? NpcBrain.HINTS.openaiUnreachable
-                    : NpcBrain.HINTS[state] || NpcBrain.HINTS.unreachable,
+                    : (LlmClient.getConfig().provider === 'webllm' && NpcBrain.HINTS[`webllm_${state}`])
+                        || NpcBrain.HINTS[state] || NpcBrain.HINTS.unreachable,
             };
         }
         const res = await LlmClient.chat(
@@ -137,6 +138,11 @@ export const NpcBrain = {
         nokey: 'Paste your OpenAI API key (platform.openai.com → API keys) into the API Key box.',
         badkey: 'OpenAI turned the key down: check it was copied whole and is still active.',
         nomodel: 'Check the model name (e.g. gpt-6-luna) and that your OpenAI account can use it.',
+        // The in-browser model (systems/llm/webllmProvider.js)
+        webllm_unsupported: 'This browser has no WebGPU: use a recent Chrome or Edge (or the desktop app), or pick another provider.',
+        webllm_notloaded: 'Press Download / Load model first; the download happens once and stays in this browser.',
+        webllm_loading: 'The model is still downloading or loading onto the GPU. Wait for Ready, then test again.',
+        webllm_error: 'The model failed to load: the GPU may lack the memory for it. Try a smaller model.',
     },
 
     /**
@@ -402,6 +408,66 @@ export const NpcBrain = {
         if (text.length > max) text = text.slice(0, max).replace(/\s+\S*$/, '') + '…';
         cacheSet(key, { kind: 'scribe', value: text });
         return { ok: true, text, cached: false };
+    },
+
+    // ── Letters (on-demand async) ───────────────────────────────
+
+    /**
+     * Rephrase a letter in its writer's voice (systems/mailVoice.js). The
+     * written letter is the only source of facts: the model must keep every
+     * number and every name, and may bring no name or number of its own —
+     * _letterOk throws away anything that does, and the written letter
+     * stands. draft { paras, salutation, closing, ps }; sketch { writer,
+     * persona, tone, type, place, kind }. Resolves { ok, paras } or { ok:
+     * false, reason }; never throws.
+     */
+    async writeLetter(draft, sketch = {}) {
+        if (!enabled) return { ok: false, reason: 'disabled' };
+        const paras = (draft && Array.isArray(draft.paras) ? draft.paras : []).filter(p => typeof p === 'string' && p.trim());
+        if (!paras.length) return { ok: false, reason: 'nothing to write' };
+        const key = `letter:${NpcBrain._hash(paras.join('\n'))}:${sketch.persona || ''}`;
+        const cached = cache.get(key);
+        if (cached && cached.kind === 'letter') return { ok: true, paras: cached.value, cached: true };
+        if (!(await LlmClient.isAvailable())) return { ok: false, reason: 'unavailable' };
+        const res = await LlmClient.chat([
+            { role: 'system', content: 'You are a letter-writer in a medieval world. Rewrite the letter body in the voice of its writer: their persona and their tone. Keep every name, place and number exactly as written; add no new names, places, numbers, events, gifts or promises; drop nothing that matters. Keep the same number of paragraphs. Reply with ONLY JSON: {"paras": ["...", "..."]}.' },
+            { role: 'user', content: NpcBrain._noThink(`Writer: ${sketch.writer || 'a correspondent'} (${sketch.type || 'person'}${sketch.place ? ` of ${sketch.place}` : ''}). Persona: ${sketch.persona || 'plain'}. Tone toward the reader: ${sketch.tone || 'cool'}.\n\nThe letter body, one paragraph per line:\n${paras.join('\n')}`) },
+        ], { maxTokens: 700, temperature: 0.7 });
+        if (!res.ok) return { ok: false, reason: res.reason };
+        const obj = NpcBrain._extractJson(res.text);
+        const out = obj && Array.isArray(obj.paras) ? obj.paras.filter(p => typeof p === 'string' && p.trim()).map(p => p.trim()) : null;
+        if (!out || !NpcBrain._letterOk(paras, out)) return { ok: false, reason: 'rejected' };
+        cacheSet(key, { kind: 'letter', value: out });
+        return { ok: true, paras: out, cached: false };
+    },
+
+    /** The rewrite keeps every number and brings no name or number the letter didn't have. */
+    _letterOk(src, out) {
+        const a = src.join(' ');
+        const b = out.join(' ');
+        if (out.length !== src.length) return false;
+        if (b.length < a.length * 0.5 || b.length > a.length * 1.9) return false;
+        const nums = (t) => (t.match(/\d+/g) || []);
+        const srcNums = new Set(nums(a));
+        if (nums(a).some(n => !b.includes(n))) return false;
+        if (nums(b).some(n => !srcNums.has(n))) return false;
+        // Capitalised words not opening a sentence are names: every one must be in the letter already
+        const allowed = new Set(['I', 'I\'ll', 'I\'m', 'I\'d', 'I\'ve', 'Majesty', 'Your', 'My', 'God', 'Gods']);
+        const srcWords = new Set(a.match(/[A-Za-zÀ-ɏ']+/g) || []);
+        const re = /([^.!?:;"\s—-]\s+)([A-ZÀ-Þ][A-Za-zÀ-ɏ']+)/g;
+        let m;
+        while ((m = re.exec(b))) {
+            const w = m[2];
+            if (!allowed.has(w) && !srcWords.has(w)) return false;
+        }
+        // A word opening a sentence may be any common word, or one the letter has — not a new name
+        const lowerSrc = new Set([...srcWords].map(w => w.toLowerCase()));
+        const starters = new Set(['the', 'our', 'we', 'your', 'my', 'i', 'it', 'there', 'this', 'that', 'these', 'those', 'a', 'an', 'and', 'but', 'so', 'yet', 'as', 'if', 'when', 'now', 'here', 'may', 'let', 'you', 'he', 'she', 'they', 'his', 'her', 'their', 'what', 'how', 'with', 'for', 'in', 'on', 'at', 'by', 'no', 'not', 'all', 'every', 'still', 'thank', 'thanks', 'forgive', 'please', 'do', 'be', 'be', 'pray', 'alas', 'indeed', 'truly', 'well', 'yes', 'of', 'to', 'from', 'since', 'though', 'until', 'one', 'even', 'such', 'too', 'only', 'nor', 'or', 'then', 'perhaps', 'surely', 'know', 'rest', 'write', 'come', 'send', 'keep', 'tell', 'give', 'should', 'would', 'could', 'will', 'shall', 'must', 'is', 'are', 'was', 'were', 'have', 'has', 'had', 'nothing', 'something', 'everyone', 'nobody', 'none', 'some', 'many', 'much', 'more', 'most', 'little', 'few', 'after', 'before', 'while', 'again', 'once', 'oh', 'ah', 'p', 's']);
+        for (const sm of b.matchAll(/(?:^|[.!?:;"—]\s*)([A-ZÀ-Þ][A-Za-zÀ-ɏ']+)/g)) {
+            const w = sm[1];
+            if (!allowed.has(w) && !srcWords.has(w) && !lowerSrc.has(w.toLowerCase()) && !starters.has(w.toLowerCase())) return false;
+        }
+        return true;
     },
 
     // ── Prompt building ─────────────────────────────────────────

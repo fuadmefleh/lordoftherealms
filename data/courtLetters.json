@@ -194,6 +194,29 @@
             },
             "ignored": "{from}'s terms for {child} lapsed unanswered."
         },
+        "mail_request": {
+            "_doc": "A correspondent in want asks for food or the coin to buy it (systems/mail.js _hooks: their market short of a food good). Goods go into their town's market, coin to their purse or their town's; their goodwill rises and the town talks of it (Gossip famine_dole). Refused or ignored, a little goodwill is lost.",
+            "icon": "🥖", "weight": 0, "mail": true, "lapseEffect": true, "expiry": 12,
+            "subject": "{subject}",
+            "body": "{body}",
+            "choices": {
+                "goods": { "label": "Send {qty} {good}", "tooltip": "From your packs, into {town}'s market. {from} will not forget it.", "result": "You send {qty} {good} to {town}." },
+                "coin": { "label": "Send {gold} gold", "tooltip": "Coin to buy what they need. {from} will not forget it.", "result": "You send {gold} gold to {from}." },
+                "refuse": { "label": "Write that you cannot", "tooltip": "{from} thinks a little less of you.", "result": "You write that you cannot help." }
+            },
+            "ignored": "{from}'s plea went unanswered."
+        },
+        "mail_invite": {
+            "_doc": "A correspondent asks the player to visit their town by a deadline (systems/mail.js _hooks). A promise is kept by standing in the town in time (goodwill), or broken (a little lost); regrets cost nothing.",
+            "icon": "🏡", "weight": 0, "mail": true, "expiry": 12,
+            "subject": "{subject}",
+            "body": "{body}",
+            "choices": {
+                "promise": { "label": "Promise to come to {town} by {deadline}", "tooltip": "Be in {town} by day {until}: {from} will be glad of it. Miss it and they will remember.", "result": "You promise {from} you will come." },
+                "regrets": { "label": "Send your regrets", "tooltip": "No harm done.", "result": "You send your regrets." }
+            },
+            "ignored": "You never answered {from}'s invitation."
+        },
         "mail_blackmail": {
             "icon": "🐍", "weight": 0, "mail": true, "lapseEffect": true, "expiry": 8,
             "subject": "Your letter to {lover}",

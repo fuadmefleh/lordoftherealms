@@ -1,0 +1,32 @@
+{
+    "_note": "Someone downed on the street map (systems/downed.js; ui/innerMapDowned.js). states: what a downed person is, by label: unconscious (comes round in time — data/knockout.json npc.wakeSeconds — sooner if roused), bleeding (bleeding out: dies at the end of bleedSeconds unless tended), bound (tied up, awake: can't flee or fight; pleads, threatens or calls for help unless gagged), dead. bleed: the chance a knockout leaves them bleeding (more for a hard blow: overkill share of their health over overkillAt adds overkillChance), tendItems: what stops it (one used). bind: rope used; gag: one of gagItems. rouse: slap brings them round in slapSeconds (at most, of what's left), douse (one of douseItems, poured on them) in douseSeconds. drag: the walk while dragging (slower than carrying, no lift). boundCall: a bound, ungagged person calls out every callSeconds; those within hearRadius hear (the first who hears comes to help, the watch to arrest). buryAlive: someone buried living cries out under the earth (cryEvery seconds) for windowSeconds (awakeWindowSeconds if they came round or were bound awake), then dies there; a passer-by within hearRadius may dig them out (rescueChance a cry, after rescueSeconds of digging); leaving the map ends it (offMapRescue chance someone heard). The crime is murder; a rescued victim reports it (an assault, they the witness), fears or hates the one who did it (rescuedDisposition). lines: what the bound and the buried say.",
+    "states": { "unconscious": "Unconscious", "bleeding": "Bleeding out", "bound": "Bound", "dead": "Dead" },
+    "bleed": { "chance": 0.25, "overkillAt": 0.2, "overkillChance": 0.35, "bleedSeconds": [70, 130], "tendItems": ["poultice", "linen", "textiles", "clothes"] },
+    "bind": { "items": ["rope"] },
+    "gag": { "items": ["linen", "textiles", "clothes"] },
+    "rouse": { "slapSeconds": 6, "douseSeconds": 2, "douseItems": ["wine", "fine_wine", "holy_water"] },
+    "drag": { "speed": 0.38 },
+    "boundCall": { "callSeconds": 7, "hearRadius": 9 },
+    "buryAlive": {
+        "cryEvery": 3.5,
+        "windowSeconds": 40,
+        "awakeWindowSeconds": 120,
+        "hearRadius": 8,
+        "rescueChance": 0.12,
+        "rescueSeconds": 10,
+        "offMapRescue": 0.15,
+        "rescuedDisposition": -70,
+        "cause": "buried alive"
+    },
+    "lines": {
+        "plead": ["Please... please let me go. I won't tell anyone.", "I have a family! Please!", "What do you want? Gold? Take it!", "Untie me, I beg you..."],
+        "threaten": ["When I get loose you're a dead man.", "The watch will hang you for this!", "My brothers will find you.", "You'll pay for this, I swear it."],
+        "call": ["HELP! Somebody help me!", "Guards! GUARDS!", "Help! I'm tied up in here!"],
+        "gagged": ["Mmmph! Mmmph!", "*muffled shouting*", "Mmm-mmph!"],
+        "buried": ["*muffled screaming*", "Mmmph... help...", "*scrabbling under the earth*", "...let me out... let me OUT..."],
+        "buriedWake": ["*a muffled shriek from under the earth*", "*the earth stirs*"],
+        "rescued": ["Oh gods... oh gods, the earth...", "*gasping, clawing at the dirt*", "You... YOU did this!", "I couldn't breathe... I couldn't breathe..."],
+        "horror": ["They're burying them ALIVE!", "Gods above — they're still moving!", "Monster! Someone stop them!", "*screams in horror*"],
+        "hearCry": ["What's that? Under the ground...?", "Someone's down there! DIG!", "Gods, I hear someone under the earth!"]
+    }
+}

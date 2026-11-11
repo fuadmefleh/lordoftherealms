@@ -32,7 +32,9 @@ Object.assign(InnerMap, {
     isBareDug(tile) {
         if (!tile || !tile._tilled) return false;
         if (tile.subTerrain && tile.subTerrain.id === 'tilled_soil') return false;
-        return !(tile._dug && tile._dug.kind === 'tilled');
+        // (a hole, filled earth or a grave keeps the grass round it: its soil is drawn over the ground
+        // ragged-edged, ui/innerMapDigging.js — never a square of bare dirt)
+        return !(tile._dug && ['tilled', 'hole', 'filled', 'grave'].includes(tile._dug.kind));
     },
 
     /** Can this tile still carry the player's field? */

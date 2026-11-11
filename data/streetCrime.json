@@ -274,7 +274,7 @@
         }
     },
     "found": {
-        "_comment": "Coming upon a body. radius: how far off a body is noticed (indoors: the whole room). gatherShare of the unafraid walk over to look; the rest stop and stare. Standing within overRadius of a body when it is found, or carrying one, makes the finders witnesses to the killing. barks: kin/friend (grief, {kin} = my wife / my son…, {victim} = name), guard, bystander.fear/anger, caught.{guard,kin,fear,anger}, carried.{guard,fear,anger}.",
+        "_comment": "Coming upon a body (and carriedAlive: seeing the player carry someone senseless — evidence of the beating; blood: a pool of blood whose body is gone — the watch looks into it, systems/carrying.js). radius: how far off a body is noticed (indoors: the whole room). gatherShare of the unafraid walk over to look; the rest stop and stare. Standing within overRadius of a body when it is found, or carrying one, makes the finders witnesses to the killing. barks: kin/friend (grief, {kin} = my wife / my son…, {victim} = name), guard, bystander.fear/anger, caught.{guard,kin,fear,anger}, carried.{guard,fear,anger}.",
         "radius": 6,
         "gatherShare": 0.5,
         "overRadius": 1,
@@ -371,6 +371,38 @@
                 "anger": [
                     "Where are you taking {victim}?!",
                     "Guards! They're hauling off {victim}!"
+                ]
+            },
+            "carriedAlive": {
+                "guard": [
+                    "You there! Put that man down — now!",
+                    "Halt! Where are you taking {victim}?",
+                    "Stop! Set {victim} down and step away!"
+                ],
+                "fear": [
+                    "They've got {victim} over their shoulder — out cold!",
+                    "Gods, they're carrying someone off!",
+                    "*gasps and backs away*"
+                ],
+                "anger": [
+                    "Put {victim} down! What did you do to them?!",
+                    "Guards! They're dragging {victim} off senseless!"
+                ]
+            },
+            "blood": {
+                "guard": [
+                    "Blood on the ground... and no body. Someone's been busy.",
+                    "That's a lot of blood. Who's hurt? Where are they?",
+                    "Fresh blood. Nobody leaves until I know whose."
+                ],
+                "fear": [
+                    "Is — is that blood?",
+                    "Gods, there's blood all over the stones!",
+                    "*steps back from the blood*"
+                ],
+                "anger": [
+                    "Who's been bleeding here? Somebody answer me!",
+                    "Blood in the street! Fetch the watch!"
                 ]
             }
         }

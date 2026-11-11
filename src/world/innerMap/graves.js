@@ -19,12 +19,19 @@
 //
 // Markers are editor objects (world/graveArt.js defs): they draw, block and
 // click like any prop. A marker with no art yet is left to the ground layer.
+//
+// The player's own burials off the churchyard (world/burials.js,
+// world.burials[hex]) are laid here too, on every map they lie on
+// (`_bindBurials` on entry, `layBurial` after a burial or a marker): the
+// mound's tile carries the record as its `_dug`, a marker stands at its head
+// (the tile above, `_burialOf` pointing back) as a churchyard grave's does.
 
 import { InnerMap } from './_ref.js';
 import { CustomObjects } from './_imports.js';
 import { GraveBook } from '../graveBook.js';
 import { GraveArt, GROUND_ART } from '../graveArt.js';
 import { Graveyards } from '../../systems/graveyards.js';
+import { Burials } from '../burials.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // Water laid over the ground after the planner marked it (a river, a pond, the sea's edge):
@@ -206,6 +213,118 @@ Object.assign(InnerMap, {
         if (t && t.customObject && t.customObject.defId === GraveArt.defId('crypt')) return;
         for (let rr = r - ch + 1; rr <= r; rr++) for (let qq = q; qq < q + cw; qq++) this._unstandGrave(this.getTile(qq, rr));
         this._standObject(GraveArt.defId('crypt'), q, r);
+    },
+
+    // ──────────── THE PLAYER'S OWN BURIALS (world/burials.js) ────────────
+
+    /** The hex key of this map ('q,r' of its world tile), or null. */
+    _burialHex() {
+        const wt = this.currentWorldTile;
+        return wt ? `${wt.q},${wt.r}` : null;
+    },
+
+    /** The day on this map (the bound world's, else the map's own). */
+    _burialDay() {
+        const w = this._burialWorld;
+        return w && Number.isFinite(w.day) ? w.day : (this.worldDay || 0);
+    },
+
+    /**
+     * On entering a map: lay the player's burials on it (a mound, a grave, its
+     * marker standing at the head) — the map may have been drawn afresh, or
+     * come back from a save without them.
+     */
+    _bindBurials(world, hexKey, day) {
+        this._burialWorld = world || null;
+        const rec = Burials.record(world, hexKey);
+        if (!rec || !this.tiles || this._insideBuilding) return 0;
+        const d = Number.isFinite(day) ? day : this._burialDay();
+        let n = 0;
+        for (const k of Object.keys(rec)) {
+            const [q, r] = k.split(',').map(Number);
+            if (this.layBurial(q, r, rec[k], d, false)) n++;
+        }
+        if (n) this._refreshGrassLayer(this.tiles);
+        return n;
+    },
+
+    /**
+     * Lay a burial on its tile: bare earth, the tile's `_dug` the record itself,
+     * named as it reads (Burials.label), its marker stood at the head when it has
+     * one there. refresh: re-edge the grass now.
+     */
+    layBurial(q, r, g, day = this._burialDay(), refresh = true) {
+        const tile = this.getTile(q, r);
+        if (!tile || !g) return false;
+        // (the ground as it was before the spade, kept with the burial: an unmarked mound settles back into it)
+        // (a map drawn afresh: its tile is the untouched ground)
+        const undug = tile._undug || (!tile._dug ? { baseTerrain: tile.baseTerrain, subTerrain: tile.subTerrain || null, terrainDetail: tile.terrainDetail || null, tilled: !!tile._tilled } : null);
+        if (!g.was && undug && undug.subTerrain && undug.subTerrain.id !== 'grave') {
+            try { g.was = JSON.parse(JSON.stringify(undug)); } catch { g.was = null; }
+        }
+        tile._dug = g;
+        tile._cachedFill = null;
+        tile._cachedOverlay = undefined;
+        const was = Burials.overgrown(g, day) && g.was && g.was.subTerrain ? g.was : null;
+        if (was) {
+            // Settled level and grown over: the ground looks as it did; only the record knows
+            tile.baseTerrain = was.baseTerrain;
+            tile._tilled = !!was.tilled;
+            tile.terrainDetail = was.terrainDetail || null;
+            tile.subTerrain = { ...was.subTerrain, passable: true };
+        } else {
+            // (the ground about it stays — grass and all — the mound and its soil drawn over it, ragged-edged:
+            // ui/innerMapDigging.js; no square of bare dirt)
+            if (undug && undug.baseTerrain) { tile.baseTerrain = undug.baseTerrain; tile.terrainDetail = undug.terrainDetail || null; }
+            tile._tilled = true;
+            tile.subTerrain = { id: 'grave', name: Burials.label(g, day), icon: '⚰️', color: '#6b5034', passable: true };
+        }
+        this._standBurialMarker(q, r, g, day);
+        if (refresh) this._refreshGrassLayer(this.tiles);
+        return true;
+    },
+
+    /** Could a marker stand at the head of the burial at (q, r) (the tile above, clear ground)? */
+    burialHeadFree(q, r) {
+        const t = this.getTile(q, r - 1);
+        if (!t || this._insideBuilding || !t.subTerrain || !t.subTerrain.passable || _wet(t)) return false;
+        if (t.customObject || t.customObjectPart || t.building || t.customBuilding || t.customBuildingPart) return false;
+        if (t.isRoad || t._doorMarker || t._dug || t._plotRef || t.groundItem || t._shallow || t._ford) return false;
+        if (this.playerInnerQ === t.q && this.playerInnerR === t.r) return false;
+        return true;
+    },
+
+    /** The burial a tile belongs to (its mound, or the marker at its head): { q, r, grave } or null. */
+    burialAt(q, r) {
+        const t = this.getTile(q, r);
+        if (!t || this._insideBuilding) return null;
+        if (t._dug && t._dug.kind === 'grave') return { q, r, grave: t._dug };
+        const b = t._burialOf;
+        const m = b ? this.getTile(b.q, b.r) : null;
+        return m && m._dug && m._dug.kind === 'grave' ? { q: b.q, r: b.r, grave: m._dug } : null;
+    },
+
+    /** Stand (or take down) the marker over a burial at its head, as the day leaves it. */
+    _standBurialMarker(q, r, g, day) {
+        const head = this.getTile(q, r - 1);
+        const m = Burials.markerNow(g, day);
+        const ours = head && head._burialOf && head._burialOf.q === q && head._burialOf.r === r;
+        const want = m && g.head && GraveArt.hasArt(m) ? GraveArt.defId(m) : null;
+        if (ours && head.customObject && head.customObject.defId === want) return;
+        if (ours) { this._unstandGrave(head); head._burialOf = null; }
+        if (!want || !head) return;
+        if (!CustomObjects.getDef(want) || (!ours && !this.burialHeadFree(q, r))) { g.head = false; return; }
+        if (this._standObject(want, q, r - 1)) head._burialOf = { q, r };
+        else g.head = false;
+    },
+
+    /** Take a burial off the map (dug up): its marker comes down, the record goes. */
+    clearBurialMarker(q, r) {
+        const head = this.getTile(q, r - 1);
+        if (head && head._burialOf && head._burialOf.q === q && head._burialOf.r === r) {
+            this._unstandGrave(head);
+            head._burialOf = null;
+        }
     },
 
     /** The player's bone mills and ossuaries, standing on their lots once built. */

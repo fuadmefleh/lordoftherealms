@@ -12,6 +12,7 @@ import { ActionMenu } from './_ref.js';
 import { NPCLords } from './_imports.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Mail } from '../../systems/mail.js';
+import { MailVoice } from '../../systems/mailVoice.js';
 import { Couriers } from '../../systems/couriers.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { Kingship } from '../../systems/kingship.js';
@@ -22,12 +23,13 @@ const _subOf = (r) => (r.sub && !String(r.name || '').includes(r.sub) ? r.sub : 
 
 const TABS = [['inbox', '✉️ Inbox'], ['write', '✍️ Write'], ['transit', '📮 In Transit'], ['post', '🐎 Post'], ['answered', '📜 Answered'], ['accounts', '🏦 Debts & Promises'], ['memory', '🧠 What Lords Remember']];
 const FROM = { lord: 'Lord', liege: 'Your liege', rival: 'Rival House', spouse: 'Your spouse', child: 'Your child', mail: 'In answer to your letter', courier: 'Your courier house' };
-const OUTCOME = { ignored: ['🕯️', '#e0846a', 'Left unanswered'], reply: ['📨', '#9fc8ff', 'A reply'] };
+const OUTCOME = { ignored: ['🕯️', '#e0846a', 'Left unanswered'], reply: ['📨', '#9fc8ff', 'A reply'], letter: ['✉️', '#d8c89f', 'Unbidden'] };
 const STATUS = { delivered: ['✔', '#8fd18a', 'Delivered'], lost: ['📭', '#e0846a', 'Lost'], robbed: ['🗡️', '#e0846a', 'Robbed'], undelivered: ['↩️', '#cbbf9f', 'Returned'] };
 const TONE = { warm: ['#8fd18a', 'warmly received'], cool: ['#d8c89f', 'coolly received'], hostile: ['#e0846a', 'badly received'] };
 const MUTED = 'font-size:11px; color:#9d937c;';
 
 let _tab = 'inbox';
+let _reading = null; // the archived letter open in full (Answered)
 let _draft = { to: null, kind: null, courier: null, gold: 0, item: null };
 
 /** A small button routed to ActionMenu.lettersAct (several on one line: toggles, staff ±). */
@@ -47,13 +49,39 @@ const none = (text) => `<div style="${MUTED} margin:2px 2px 8px;">${text}</div>`
 const pct = (x) => `${Math.round((Number(x) || 0) * 100)}%`;
 const dangerWord = (d) => (d >= 0.4 ? ['#e0846a', 'dangerous roads'] : d >= 0.15 ? ['#d8c89f', 'some danger'] : ['#8fd18a', 'safe roads']);
 
-function inboxTab(v) {
+// A letter in its writer's hand (systems/mailVoice.js): who held the pen, the
+// tongue it came in, the salutation, the body, a P.S., the closing and the
+// signature on a sheet of parchment; what came with it underneath.
+const SHEET = 'background:linear-gradient(175deg,#efe1bd 0%,#e6d3a6 60%,#dcc694 100%); color:#3a2a17; border-radius:4px; padding:12px 16px 10px; margin:6px 0 4px; box-shadow:inset 0 0 24px rgba(120,84,30,0.28), 0 1px 3px rgba(0,0,0,0.45); font-family:Georgia,serif; font-size:13px; line-height:1.5;';
+export function letterSheet(player, letter) {
+    const r = MailVoice.read(player, letter);
+    if (!r) return '';
+    let html = '';
+    for (const n of r.notes) html += `<div style="font-size:11px; color:#b9ad8e; font-style:italic; margin:2px 0;">✒️ ${esc(n)}</div>`;
+    html += `<div style="${SHEET}">`;
+    if (r.salutation) html += `<div style="margin-bottom:6px;">${esc(r.salutation)}</div>`;
+    for (const p of r.paras) html += `<p style="margin:0 0 7px; text-indent:1.2em;">${esc(p)}</p>`;
+    if (r.ps) html += `<p style="margin:4px 0 7px; font-style:italic;">${esc(r.ps)}</p>`;
+    if (r.closing || r.signature) {
+        html += '<div style="text-align:right; margin-top:6px;">';
+        if (r.closing) html += `<div>${esc(r.closing)}</div>`;
+        if (r.signature) html += `<div style="font-style:italic; font-size:14px;">${esc(r.signature)}</div>`;
+        html += '</div>';
+    }
+    html += '</div>';
+    const came = [...(r.enclosed || []).map(e => `📎 ${esc(e)}`), ...((letter.received || []).map(x => esc(x)))];
+    if (came.length) html += `<div style="font-size:11px; color:#d8c89f; margin:2px 0 4px;">${came.join(' · ')}</div>`;
+    if (r.voiced) html += `<div style="${MUTED}">(in their own words, by the AI voice)</div>`;
+    return html;
+}
+
+function inboxTab(v, player) {
     if (!v.open.length) return lede('No letters await an answer. When the great write to you, a herald will say so. (Write your own from the ✍️ Write tab.)');
     let html = '';
     for (const l of v.open) {
         const urgent = l.daysLeft <= 2;
         let body = `<div style="${MUTED}">${esc(FROM[l.fromType] || 'From')}: ${esc(l.from)}</div>`;
-        body += `<div style="color:#ece2c8; font-style:italic; margin:6px 0;">${esc(l.body)}</div>`;
+        body += l.letter ? letterSheet(player, l.letter) : `<div style="color:#ece2c8; font-style:italic; margin:6px 0;">${esc(l.body)}</div>`;
         body += rowList(l.choices.map((c, i) => row({
             icon: i === 0 ? '✒️' : '·', name: esc(c.label), desc: c.tooltip ? esc(c.tooltip) : '', title: c.ok ? c.tooltip : c.why,
             why: c.why ? esc(c.why) : '', tone: i === 0 ? 'gold' : '',
@@ -67,20 +95,41 @@ function inboxTab(v) {
     return html;
 }
 
-function answeredTab(v) {
+function answeredTab(v, game) {
     if (!v.archive.length) return none('No letters answered yet.');
-    return rowList(v.archive.map(a => {
+    let html = '';
+    const open = _reading != null ? v.archive.find(a => a.id === _reading && a.letter) : null;
+    if (open) {
+        html += card(letterSheet(game.player, open.letter), {
+            icon: '📜', title: `${esc(open.subject || 'A letter')} <span style="${MUTED}">— ${esc(open.from && open.from.name)}, day ${open.day}</span>`,
+            side: act('Fold it away', ['read', null], BTN_PLAIN),
+        });
+    }
+    html += rowList(v.archive.map(a => {
         const [icon, color, label] = OUTCOME[a.outcome] || ['✔', '#8fd18a', 'Answered'];
-        return {
-            icon, name: esc(a.subject), desc: `— ${esc(a.from && a.from.name)}`,
+        const row0 = {
+            icon, name: esc(a.subject || 'A letter'), desc: `— ${esc(a.from && a.from.name)}`,
             note: a.text ? `<span style="color:#cbbf9f;">${esc(a.text)}</span>` : '',
-            side: `<span style="color:${color};">${label}</span><br><span style="${MUTED}">day ${a.day}</span>`,
+            side: `<span style="color:${color};">${label}</span><br><span style="${MUTED}">day ${a.day}${a.letter ? ' · read ›' : ''}</span>`,
         };
+        return a.letter ? row(row0, ['read', a.id]) : row0;
     }), 'Letters answered');
+    const keep = Mail.view(game.player, game.world).keepsakes || [];
+    if (keep.length) html += sectionHead('Keepsakes') + `<div style="font-size:11.5px; color:#d8c89f; margin:0 2px 8px;">${keep.map(k => `${esc(k.what)} <span style="${MUTED}">(from ${esc(k.from)}, day ${k.day})</span>`).join('<br>')}</div>`;
+    return html;
 }
 
-function accountsTab(v) {
-    let html = sectionHead('Gold lent to crowns');
+function accountsTab(v, game) {
+    let html = '';
+    const visits = game ? (Mail.view(game.player, game.world).visits || []) : [];
+    if (visits.length) {
+        html += sectionHead('Visits promised');
+        html += rowList(visits.map(x => ({
+            icon: '🏡', name: `You promised <b>${esc(x.name)}</b> to come to ${esc(x.town)}`,
+            desc: 'Stand in the town before the day is out', side: `<b>${x.daysLeft}</b> day${x.daysLeft === 1 ? '' : 's'}`, tone: x.daysLeft <= 3 ? 'bad' : 'warn',
+        })));
+    }
+    html += sectionHead('Gold lent to crowns');
     if (!v.loans.length) html += none('You hold no crown\'s debt.');
     html += rowList(v.loans.map(l => ({
         icon: '🏦', name: `<b>${esc(l.kingdomName)}</b> owes ${l.principal + l.interest} gold`,
@@ -392,13 +441,13 @@ Object.assign(ActionMenu, {
             attrsFor: (k) => `data-am-act="lettersAct" data-am-args='${esc(JSON.stringify(['tab', k]))}'`,
         });
         try {
-            if (_tab === 'answered') html += answeredTab(v);
-            else if (_tab === 'accounts') html += accountsTab(v);
+            if (_tab === 'answered') html += answeredTab(v, game);
+            else if (_tab === 'accounts') html += accountsTab(v, game);
             else if (_tab === 'memory') html += memoryTab(game);
             else if (_tab === 'write') html += writeTab(game);
             else if (_tab === 'transit') html += transitTab(game);
             else if (_tab === 'post') html += postTab(game);
-            else html += inboxTab(v);
+            else html += inboxTab(v, player);
         } catch (e) {
             html += `<div class="pk-card" style="color:#e0846a;">This page could not be drawn (${esc(e && e.message)}).</div>`;
         }
@@ -436,6 +485,12 @@ Object.assign(ActionMenu, {
         switch (op) {
             case 'tab':
                 _tab = a || 'inbox';
+                _reading = null;
+                ActionMenu.showLetters(game);
+                return;
+            case 'read':
+                _reading = a;
+                _tab = 'answered';
                 ActionMenu.showLetters(game);
                 return;
             case 'answer': {

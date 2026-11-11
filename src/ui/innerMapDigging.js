@@ -7,8 +7,15 @@
 //
 //   dig    — any bare outdoor ground: a hole (and sometimes something in it)
 //   fill   — a hole: turned earth again, walkable
-//   bury   — a hole with a body in it, next to it or carried: a grave
-//   exhume — a grave: a hole again, with the body lying in it
+//   bury   — a hole with a body in it, next to it or carried: a burial mound,
+//            plain earth with no name on it, settling into the ground
+//   mark   — a burial mound: raise a grave marker (one carried, or a cross
+//            carved from wood carried) and it is a named grave
+//   exhume — a grave or mound: a hole again, the body lying in it (the marker
+//            comes back to the pack)
+//
+// Burials are kept on the world (world/burials.js, world.burials[hex], saved),
+// the tile's _dug the record itself; world/innerMap/graves.js lays them.
 //
 // The work takes time at the spot (InnerMapDigging.update, from the game
 // loop): the player walks beside the tile, faces it and swings; walking off
@@ -25,6 +32,12 @@ import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapCombat } from './innerMapCombat.js';
 import { drawTilledSoil } from './tilledSoil.js';
 import { Endurance } from '../player/endurance.js';
+import { Carrying } from '../systems/carrying.js';
+import { InnerMapDowned } from './innerMapDowned.js';
+import { Burials } from '../world/burials.js';
+import { GraveArt } from '../world/graveArt.js';
+import { GraveBook } from '../world/graveBook.js';
+import { CustomObjects } from '../world/customObjects.js';
 
 const DEFAULTS = {
     seconds: { dig: 5, fill: 3, bury: 4, exhume: 5 },
@@ -39,10 +52,10 @@ const DEFAULTS = {
 const GROUND = {
     hole: { id: 'dug_hole', name: 'Hole', icon: '🕳️', color: '#3b2a1c', passable: false },
     filled: { id: 'turned_earth', name: 'Turned Earth', icon: '⬛', color: '#6b5034', passable: true },
-    grave: { id: 'grave', name: 'Grave', icon: '⚰️', color: '#6b5034', passable: true },
+    grave: { id: 'grave', name: 'Burial Mound', icon: '⚰️', color: '#6b5034', passable: true },
 };
 
-const VERB = { dig: 'Digging', fill: 'Filling in', bury: 'Burying', exhume: 'Digging up' };
+const VERB = { dig: 'Digging', fill: 'Filling in', bury: 'Burying', exhume: 'Digging up', mark: 'Raising the marker' };
 
 function _cheb(aq, ar, bq, br) {
     return Math.max(Math.abs(aq - bq), Math.abs(ar - br));
@@ -257,19 +270,57 @@ export const InnerMapDigging = {
         } else if (job.kind === 'exhume') {
             if (!tile._dug || tile._dug.kind !== 'grave') return;
             const g = tile._dug;
+            // Someone still breathing down there: dug out alive (ui/innerMapDowned.js)
+            const live = InnerMapDowned.liveAt(job.q, job.r);
+            if (live) { InnerMapDowned.rescue(game, live, null); return; }
+            // The marker comes down and back to the pack; the burial goes off the record (world/burials.js)
+            const item = Burials.takeMarker(g, player, day);
+            InnerMap.clearBurialMarker(job.q, job.r);
+            Burials.unbury(game && game.world, InnerMap._burialHex(), job.q, job.r);
             this.setGround(tile, 'hole', { day });
             const body = g.body || { name: g.name || 'someone', type: 'villager', preset: null };
             InnerMapCombat.restoreBody(body, job.q, job.r, day);
-            this._note(game, '⛏️ Dug up', _fill(C.text.exhume || 'You dig {name} up.', { name: body.name }), 'warning');
+            const back = item ? ` You pull up the marker and keep it (${item.replace(/_/g, ' ')}).` : '';
+            this._note(game, '⛏️ Dug up', _fill(C.text.exhume || 'You dig {name} up.', { name: body.name }) + back, 'warning');
+            if (item && game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, game.world);
         }
     },
 
+    /** Lay a body in the hole: a plain, unmarked mound of earth (on the world's record, world/burials.js). */
     _buryBody(game, tile, body, day) {
         const C = this.config();
         if (InnerMapCombat._carrying === body) this.drop();
         InnerMapCombat.removeBody(body);
-        this.setGround(tile, 'grave', { day, name: body.name, body });
+        const g = Burials.bury(game && game.world, InnerMap._burialHex(), tile.q, tile.r, body, day, InnerMap._graveSettlement());
+        if (g) InnerMap.layBurial(tile.q, tile.r, g, day);
+        else this.setGround(tile, 'grave', { day, name: body.name, body: Burials.plainBody(body) });
         this._note(game, '⚰️ Buried', _fill(C.text.bury || 'You bury {name}.', { name: body.name }), 'info');
+    },
+
+    /**
+     * Raise a grave marker on the burial at (q, r): walk beside it and set it
+     * (choice from Burials.markerOptions: one from the pack, or a cross carved).
+     */
+    raiseMarker(game, q, r, choice) {
+        if (!choice) return 'none';
+        const secs = Number(choice.seconds) > 0 ? Number(choice.seconds) : 3;
+        return this.start(game, 'mark', q, r, {
+            seconds: secs,
+            verb: choice.how === 'carve' ? 'Carving a cross' : VERB.mark,
+            needs: {},
+            onDone: (g) => this._raiseMarker(g, q, r, choice, (g.world && g.world.day) || 0),
+        });
+    },
+
+    _raiseMarker(game, q, r, choice, day) {
+        const world = game && game.world;
+        const head = InnerMap.burialHeadFree(q, r);
+        const res = Burials.placeMarker(world, game && game.player, InnerMap._burialHex(), q, r, choice, day, head);
+        if (!res.success) { this._note(game, '🪦 No marker', res.reason, 'error'); return res; }
+        InnerMap.layBurial(q, r, res.grave, day);
+        this._note(game, '🪦 A grave', res.text, 'success');
+        if (game.ui && typeof game.ui.updateStats === 'function') game.ui.updateStats(game.player, world);
+        return res;
     },
 
     /** A body lying in the hole at (q, r), next to it, or carried by the player standing beside it. */
@@ -300,9 +351,24 @@ export const InnerMapDigging = {
     payRespects(game, q, r) {
         const d = this.dugAt(q, r);
         if (!d || d.kind !== 'grave') return;
-        const lines = this.config().text.respects || [];
+        // (a grave with a marker, or a bare mound only you know is a grave)
+        const day = (game && game.world && game.world.day) || 0;
+        const marked = Burials.isLegible(d, day);
+        const T = this.config().text;
+        const lines = (marked ? T.respects : T.respectsMound || T.respects) || [];
+        const years = GraveBook.yearsBetween(d.day, day);
         const line = lines.length ? lines[Math.floor(Utils.random() * lines.length)] : 'You stand a while by the grave.';
-        this._note(game, '⚰️ A grave', _fill(line, { name: d.name || 'someone' }));
+        this._note(game, marked ? '🕯️ A Grave' : '🕯️ A Burial Mound', _fill(line, { name: d.name || 'someone', years: `${years} year${years === 1 ? '' : 's'}` }));
+    },
+
+    /** Read a marked grave of the player's own (as a churchyard grave reads). */
+    readGrave(game, q, r) {
+        const d = this.dugAt(q, r);
+        if (!d || d.kind !== 'grave') return;
+        const day = (game && game.world && game.world.day) || 0;
+        const m = Burials.markerNow(d, day);
+        const title = m ? (GraveBook.markerDef(m) || {}).name || 'A Grave' : 'A Burial Mound';
+        this._note(game, `🪦 ${title}`, Burials.readLines(d, game && game.world, day).join(' '));
     },
 
     /**
@@ -312,14 +378,18 @@ export const InnerMapDigging = {
     setGround(tile, kind, extra = {}) {
         const g = GROUND[kind];
         if (!tile || !g) return;
+        // (the ground as it was before the spade: a burial mound left long enough grows back over to it, world/burials.js)
+        if (!tile._dug && !tile._undug) tile._undug = { baseTerrain: tile.baseTerrain, subTerrain: tile.subTerrain ? { ...tile.subTerrain } : null, terrainDetail: tile.terrainDetail || null, tilled: !!tile._tilled };
         tile._dug = { kind, ...extra };
-        tile.baseTerrain = 'dirt';
+        // (the ground stays as it was — grass and all — and the turned soil is drawn over it, ragged-edged
+        // (_soilPatch): no square of bare dirt. Tilled soil likewise keeps the ground under it.)
+        const was = tile._undug;
+        if (was && was.baseTerrain) { tile.baseTerrain = was.baseTerrain; tile.terrainDetail = was.terrainDetail || null; }
         tile._tilled = true;
         tile._cachedFill = null;
         tile._cachedOverlay = undefined;
-        // (tilled soil keeps the ground under it, the soil drawn over it soft-edged; a hole or grave is bare earth)
-        if (kind !== 'tilled') tile.terrainDetail = null;
-        tile.subTerrain = { ...g, name: kind === 'grave' && extra.name ? `Grave of ${extra.name}` : g.name };
+        // (a burial is a nameless mound until a marker is raised over it: world/burials.js)
+        tile.subTerrain = { ...g, name: kind === 'grave' ? Burials.label(tile._dug, extra.day || 0) || 'Burial Mound' : g.name };
         if (InnerMap.tiles) InnerMap._refreshGrassLayer(InnerMap.tiles);
     },
 
@@ -353,8 +423,11 @@ export const InnerMapDigging = {
             this.drop();
             return;
         }
-        body.q = InnerMap.playerInnerQ;
-        body.r = InnerMap.playerInnerR;
+        const q = InnerMap.playerInnerQ, r = InnerMap.playerInnerR;
+        // A fresh body bleeds on the ground behind it, a drop every few steps (systems/carrying.js)
+        if ((body.q !== q || body.r !== r) && Carrying.drips(body, typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())) InnerMapCombat.dripBlood(body, body.q, body.r);
+        body.q = q;
+        body.r = r;
     },
 
     // ══════════════════════════════════════════════
@@ -374,7 +447,9 @@ export const InnerMapDigging = {
                 const kind = tile._dug ? tile._dug.kind : (tile.subTerrain && tile.subTerrain.id === 'tilled_soil' ? 'tilled' : null);
                 if (!kind) continue;
                 const s = camera.worldToScreenFast(q * T, r * T);
-                this._drawFeature(ctx, kind, s.x, s.y, ds, q, r);
+                // (a burial of the player's: its mound and, wanting a standing one, its marker)
+                if (kind === 'grave') this._drawBurial(ctx, tile._dug, s.x, s.y, ds, q, r);
+                else this._drawFeature(ctx, kind, s.x, s.y, ds, q, r);
             }
         }
         // The work under way: a ring filling round the spot
@@ -406,10 +481,166 @@ export const InnerMapDigging = {
         return drawTilledSoil(ctx, (dq, dr) => this.isTilledAt(q + dq, r + dr), q, r, x, y, ds, which);
     },
 
+    /** A grave sprite (world/graveArt.js), loaded, or null. */
+    _graveImg(id) {
+        if (!GraveArt.hasArt(id)) return null;
+        const img = CustomObjects.getImage(GraveArt.path(id));
+        return img && img.complete && img.naturalWidth ? img : null;
+    },
+
+    /**
+     * A burial: the churchyard's fresh mound of turned earth (its painted art,
+     * centred on the tile, fading as it settles), and its marker drawn at the
+     * mound's head when none stands on the tile above (world/innerMap/graves.js).
+     */
+    _drawBurial(ctx, g, x, y, ds, q, r) {
+        const day = InnerMap._burialDay ? InnerMap._burialDay() : (InnerMap.worldDay || 0);
+        const P = Number(GraveBook.config().artTile) || 128;
+        const smooth = ctx.imageSmoothingEnabled;
+        ctx.save();
+        ctx.globalAlpha = Burials.moundAlpha(g, day);
+        const mound = this._graveImg('grave_mound');
+        // Fresh (burial.freshDays): bare, dark, damp turned earth with its clods — the churchyard's
+        // grassed mound, flowers and all, only once it has weathered
+        const fresh = !g.marker && (day - (Number(g.day) || 0)) < (Number((this.config().burial || {}).freshDays) || 30);
+        if (fresh) {
+            this._freshMound(ctx, x + ds / 2, y + ds / 2, ds, q, r);
+        } else if (mound) {
+            const w = mound.naturalWidth * ds / P, h = mound.naturalHeight * ds / P;
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(mound, Math.floor(x + (ds - w) / 2), Math.floor(y + (ds - h) / 2), w, h);
+        } else {
+            // (the art still loading) a low heap of turned earth
+            const cx = x + ds / 2, cy = y + ds / 2;
+            const grad = ctx.createLinearGradient(cx - ds * 0.3, cy, cx + ds * 0.3, cy);
+            grad.addColorStop(0, '#5e4229');
+            grad.addColorStop(0.45, '#8a6845');
+            grad.addColorStop(1, '#4e361f');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, ds * 0.28, ds * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+        const m = Burials.markerNow(g, day);
+        const head = InnerMap.getTile(q, r - 1);
+        const standing = head && head._burialOf && head._burialOf.q === q && head._burialOf.r === r && head.customObject;
+        if (m && !standing) {
+            const img = this._graveImg(m);
+            if (img) {
+                // set into the head of the mound, a little smaller than a stone in the churchyard
+                const k = 0.7;
+                const w = img.naturalWidth * ds / P * k, h = img.naturalHeight * ds / P * k;
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(img, Math.floor(x + (ds - w) / 2), Math.floor(y + ds * 0.35 - h), w, h);
+            } else {
+                this._drawFeature(ctx, 'grave', x, y, ds, q, r);
+            }
+        }
+        ctx.imageSmoothingEnabled = smooth;
+    },
+
+    /**
+     * Turned soil over the ground: a ragged-edged patch (a hash of the tile shapes it), darker at its
+     * heart, crumbs of earth scattered round its rim — so a dug spot blends into the grass about it.
+     */
+    _soilPatch(ctx, cx, cy, ds, q, r, rad = 0.48) {
+        const h = (i) => ((((q * 73856093) ^ (r * 19349663) ^ (i * 83492791)) >>> 0) % 1000) / 1000;
+        const n = 16;
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+            const a = (i % n) / n * Math.PI * 2;
+            const k = rad * (0.82 + 0.3 * h(i % n));
+            const px = cx + Math.cos(a) * ds * k, py = cy + Math.sin(a) * ds * k * 0.92;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        const grad = ctx.createRadialGradient(cx, cy, ds * 0.05, cx, cy, ds * rad * 1.1);
+        grad.addColorStop(0, '#4a3220');
+        grad.addColorStop(0.75, '#5e4129');
+        grad.addColorStop(1, 'rgba(94, 65, 41, 0.75)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        // crumbs thrown out over the grass
+        for (let i = 0; i < 10; i++) {
+            const a = h(i + 40) * Math.PI * 2, d = ds * rad * (0.95 + 0.35 * h(i + 60));
+            const s = Math.max(1.5, ds * (0.025 + 0.03 * h(i + 80)));
+            ctx.fillStyle = i % 2 ? '#5a3d26' : '#3f2a19';
+            ctx.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.92, s, s * 0.8);
+        }
+        ctx.restore();
+    },
+
+    /**
+     * A fresh grave: a long low heap of dark, damp, freshly turned earth on its soil patch —
+     * lumpy, clods of earth on it and round it, a wet sheen here and there. No grass, no flowers.
+     */
+    _freshMound(ctx, cx, cy, ds, q, r) {
+        const h = (i) => ((((q * 2654435761) ^ (r * 40503) ^ (i * 2246822519)) >>> 0) % 1000) / 1000;
+        this._soilPatch(ctx, cx, cy + ds * 0.04, ds, q, r, 0.5);
+        ctx.save();
+        // its shadow, then the heap: a long rounded hump lying along the tile
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.beginPath();
+        ctx.ellipse(cx + ds * 0.03, cy + ds * 0.1, ds * 0.32, ds * 0.44, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const n = 18;
+        ctx.beginPath();
+        for (let i = 0; i <= n; i++) {
+            const a = (i % n) / n * Math.PI * 2;
+            const k = 0.92 + 0.12 * h(i % n);
+            const px = cx + Math.cos(a) * ds * 0.29 * k, py = cy + Math.sin(a) * ds * 0.42 * k;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        const g = ctx.createLinearGradient(cx - ds * 0.3, cy - ds * 0.3, cx + ds * 0.3, cy + ds * 0.3);
+        g.addColorStop(0, '#6b4a2e');
+        g.addColorStop(0.4, '#55391f');
+        g.addColorStop(1, '#2f1f12');
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(25, 15, 8, 0.6)';
+        ctx.lineWidth = Math.max(1, ds * 0.02);
+        ctx.stroke();
+        // the ridge along its top, and the spade's cuts across it
+        ctx.strokeStyle = 'rgba(140, 105, 70, 0.35)';
+        ctx.lineWidth = Math.max(1, ds * 0.025);
+        ctx.beginPath();
+        ctx.moveTo(cx - ds * 0.04, cy - ds * 0.34);
+        ctx.quadraticCurveTo(cx - ds * 0.07, cy, cx - ds * 0.03, cy + ds * 0.32);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(20, 12, 6, 0.45)';
+        for (let i = 0; i < 4; i++) {
+            const yy = cy - ds * 0.24 + i * ds * 0.15;
+            ctx.beginPath();
+            ctx.moveTo(cx - ds * 0.2, yy + ds * 0.02);
+            ctx.lineTo(cx + ds * 0.18, yy - ds * 0.02 + h(i + 5) * ds * 0.03);
+            ctx.stroke();
+        }
+        // clods, lit on top; a wet sheen
+        for (let i = 0; i < 12; i++) {
+            const a = h(i + 20) * Math.PI * 2, d = h(i + 30);
+            const x = cx + Math.cos(a) * ds * 0.24 * d, y = cy + Math.sin(a) * ds * 0.36 * d;
+            const s = Math.max(2, ds * (0.04 + 0.04 * h(i + 50)));
+            ctx.fillStyle = i % 3 ? '#3b2716' : '#62452a';
+            ctx.fillRect(Math.round(x), Math.round(y), s, s * 0.85);
+            ctx.fillStyle = 'rgba(160, 125, 90, 0.35)';
+            ctx.fillRect(Math.round(x), Math.round(y), s, Math.max(1, s * 0.3));
+        }
+        ctx.fillStyle = 'rgba(200, 210, 220, 0.12)';
+        ctx.beginPath();
+        ctx.ellipse(cx - ds * 0.1, cy - ds * 0.12, ds * 0.06, ds * 0.03, -0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    },
+
     _drawFeature(ctx, kind, x, y, ds, q, r) {
         const cx = x + ds / 2, cy = y + ds / 2;
         const jitter = (((q * 7919) ^ (r * 104729)) >>> 0) % 7 / 7;
         ctx.save();
+        // Holes, filled earth: their turned soil, ragged-edged over the ground (no square of dirt)
+        if (kind === 'hole' || kind === 'filled') this._soilPatch(ctx, cx, cy, ds, q, r, kind === 'hole' ? 0.5 : 0.44);
         if (kind === 'hole') {
             // The spoil heap, then the dark pit
             ctx.fillStyle = '#7a5a3a';

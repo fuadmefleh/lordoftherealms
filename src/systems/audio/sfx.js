@@ -185,6 +185,8 @@ Object.assign(AudioManager.prototype, {
             // Town scenes (world/innerMap/townScenes.js): the smith at the anvil, the church bell
             case 'anvil':         this._sfxAnvil(); break;
             case 'bell':          this._sfxBell(); break;
+            // Someone buried alive (ui/innerMapDowned.js): a cry through the earth, the soil shifting
+            case 'muffled_cry':   this._sfxMuffledCry(); break;
         }
     },
 
@@ -242,6 +244,35 @@ Object.assign(AudioManager.prototype, {
         this._knock('triangle', 1850, 1700, 0.35, 0.1);
         this._knock('sine', 2950, 2900, 0.5, 0.05);
         this._noiseBurst(0.04, 'highpass', 4000, 0.12);
+    },
+
+    /** A voice through the earth: a low wavering moan, everything high filtered away, and grit trickling. */
+    _sfxMuffledCry() {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const vib = this.ctx.createOscillator();
+        const vibGain = this.ctx.createGain();
+        const f = this.ctx.createBiquadFilter();
+        const g = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.linearRampToValueAtTime(310, now + 0.35);
+        osc.frequency.linearRampToValueAtTime(200, now + 1.0);
+        vib.frequency.value = 6;
+        vibGain.gain.value = 9;
+        vib.connect(vibGain);
+        vibGain.connect(osc.frequency);
+        f.type = 'lowpass';
+        f.frequency.value = 420;
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.09, now + 0.12);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 1.05);
+        osc.connect(f);
+        f.connect(g);
+        g.connect(this.sfxGain);
+        osc.start(now); vib.start(now);
+        osc.stop(now + 1.1); vib.stop(now + 1.1);
+        this._noiseBurst(0.35, 'lowpass', 600, 0.05, 0.4);
     },
 
     /** A church bell: three slow, deep tolls with their hum. */

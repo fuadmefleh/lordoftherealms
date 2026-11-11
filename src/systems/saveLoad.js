@@ -227,6 +227,8 @@ export const SaveLoad = {
             gates: world.gates ? JSON.parse(JSON.stringify(world.gates)) : null,
             // The trees felled on the maps, their stumps and what grows back (world/innerMap/felling.js)
             felled: world.felled ? JSON.parse(JSON.stringify(world.felled)) : null,
+            // The player's own dead buried on the maps, and the markers raised over them (world/burials.js)
+            burials: world.burials ? JSON.parse(JSON.stringify(world.burials)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
@@ -811,6 +813,8 @@ export const SaveLoad = {
         world.gates = saveData.gates && typeof saveData.gates === 'object' ? saveData.gates : {};
         // The trees felled (older saves: none — the woods stand whole)
         world.felled = saveData.felled && typeof saveData.felled === 'object' ? saveData.felled : {};
+        // The player's burials (older saves: none)
+        world.burials = saveData.burials && typeof saveData.burials === 'object' ? saveData.burials : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
         // Never hand out an id the save already used

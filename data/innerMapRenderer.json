@@ -300,7 +300,7 @@
     },
 
     "interiorArt": {
-        "_note": "Procedural interiors (INTERIOR_LAYOUTS): floor variants by floor id, the wall face by wall material, the door, and one sprite per furniture type. A floor or wall with tw/th is a seamless texture of whole 32px tiles (assets/buildingKit/interior_shell.png, PixelLab paintings made tileable): each tile draws its own cell by position; a wall's face (tw x 32) is the back wall seen front-on. A piece may name its own look (furniture.art, e.g. sack_coal); flat pieces cast no shadow. Furniture: 48px PixelLab pieces in the look of the pew (assets/buildingKit/furniture48.png, sw/sh 48; the old 32px assets/buildingKit/furniture.png stays for town props)",
+        "_note": "Procedural interiors (INTERIOR_LAYOUTS): floor variants by floor id, the wall face by wall material, the door, and one sprite per furniture type. A floor or wall with tw/th is a seamless texture of whole 32px tiles (assets/buildingKit/interior_shell.png, PixelLab paintings made tileable): each tile draws its own cell by position; a wall's face (tw x 32) is the back wall seen front-on. A piece may name its own look (furniture.art, e.g. sack_coal); flat pieces cast no shadow. A bed's pillow/cover: where the head lies and where its own covers start (a sleeper is drawn under the piece's own art from there down); a bed with blanket instead (a straw pallet) lays a plain blanket of that colour over the sleeper, never another bed's covers. straw_1x2: the poor's long straw pallet (a two-tile bed of straw, composed from the straw cell); one that can't join stays the round 1x1 heap, its sleeper lying across it. blanketTop: where its blanket starts (the shoulders). tub_wood: the poor's wooden bathing tubs (PixelLab). rim: where a bather is cut off (the front lip), sink: how far below it they sit (tiles; 0.42 when unsaid). Furniture: 48px PixelLab pieces in the look of the pew (assets/buildingKit/furniture48.png, sw/sh 48; the old 32px assets/buildingKit/furniture.png stays for town props)",
         "defaultFloor": "wood_floor",
         "defaultWall": "plaster",
         "floors": {
@@ -366,7 +366,10 @@
             "sack_coal": { "sheet": "assets/buildingKit/furniture48.png", "sx": 0, "sy": 384, "sw": 48, "sh": 48 },
             "flagstone": { "sheet": "assets/buildingKit/furniture48.png", "sx": 48, "sy": 384, "sw": 48, "sh": 48, "flat": true },
             "stool": { "sheet": "assets/buildingKit/furniture48.png", "sx": 96, "sy": 384, "sw": 48, "sh": 48 },
-            "straw": { "sheet": "assets/buildingKit/furniture48.png", "sx": 96, "sy": 432, "sw": 48, "sh": 48, "flat": true },
+            "straw": { "sheet": "assets/buildingKit/furniture48.png", "sx": 96, "sy": 432, "sw": 48, "sh": 48, "flat": true, "pillow": 0.3, "blanket": "#5f4a36" },
+            "straw_1x2": { "sheet": "assets/buildingKit/straw_pallet.png", "sx": 0, "sy": 0, "sw": 48, "sh": 88, "flat": true, "pillow": 0.2, "blanketTop": 0.4, "blanket": "#5f4a36" },
+            "tub_wood": { "sheet": "assets/buildingKit/tub_wood.png", "sx": 96, "sy": 33, "sw": 40, "sh": 23, "rim": 0.68, "sink": 0.3 },
+            "tub_wood_2x1": { "sheet": "assets/buildingKit/tub_wood.png", "sx": 0, "sy": 0, "sw": 96, "sh": 56, "rim": 0.68, "sink": 0.3 },
             "bench": { "sheet": "assets/buildingKit/furniture48.png", "sx": 144, "sy": 432, "sw": 48, "sh": 48 },
             "bed_1x2": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 0, "sy": 0, "sw": 48, "sh": 87, "pillow": 0.19, "cover": 0.28 },
             "table_2x1": { "sheet": "assets/buildingKit/furniture_big.png", "sx": 48, "sy": 0, "sw": 96, "sh": 62 },

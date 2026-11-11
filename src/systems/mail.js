@@ -33,6 +33,7 @@
 // the daily tick. State on player.mail (saved). No import-time effects.
 
 import { Utils } from '../core/utils.js';
+import { DataLoader } from '../core/dataLoader.js';
 import { Hex } from '../core/hex.js';
 import { PlayerInventory } from '../core/inventory.js';
 import { NPCLords } from '../world/npcLords.js';
@@ -49,6 +50,10 @@ import { Gossip } from './gossip.js';
 import { Ledger } from './ledger.js';
 import { Companions } from './companions.js';
 import { Holdings } from './holdings.js';
+import { MailVoice } from './mailVoice.js';
+import { Whispers } from './whispers.js';
+import { RivalAgents } from './rivalAgents.js';
+import { SettlementMarket } from '../world/settlementMarket.js';
 
 // What a learned intel key means in a sentence ('military' → 'armies'), joined "a, b and c"
 const _INTEL_WORDS = { ruler: 'ruler', military: 'armies', diplomacy: 'alliances and quarrels', economy: 'trade and treasury' };
@@ -82,6 +87,15 @@ const MAIL_DEFAULTS = {
     intercept: 0.04, interceptPerEnemy: 0.04, interceptRival: 0.05, interceptMax: 0.25, foundOut: 0.6,
     ownRiderFee: 12, ownRiderPerHex: 0.5, ownRiderReliability: 0.85, ownRiderHexes: 8,
     replyChance: 0.85, replyExpiry: 14, favourDays: 60, giftPresets: [25, 100, 300], ransom: [150, 2000], freeReleaseRegard: 45,
+    // Unprompted letters and the hooks a letter may carry (data/couriers.json → config.mail.voice)
+    voice: {
+        firstDay: 12, gap: [9, 22], minRegard: 15, maxPending: 2, eventDays: 40, eventMax: 2,
+        requestChance: 0.35, requestDays: 45, requestQty: [4, 10],
+        inviteChance: 0.18, inviteDays: 40, inviteDeadline: 30, visitDisposition: 8, visitScore: 5, visitApproval: 4, visitAffection: 6, missedVisit: -3,
+        feastChance: 0.2, tipChance: 0.6, tipSuspicion: 45, lairTipChance: 0.5, secretChance: 0.35,
+        coinChance: 0.12, goodsChance: 0.15, tokenChance: 0.35, maxKeepsakes: 20,
+        requestThanks: 6, requestRefused: -2, requestLapsed: -3,
+    },
 };
 
 export const Mail = {
@@ -89,7 +103,8 @@ export const Mail = {
     // ──────────── DATA ────────────
 
     config() {
-        return { ...MAIL_DEFAULTS, ...(Couriers.config().mail || {}) };
+        const m = Couriers.config().mail || {};
+        return { ...MAIL_DEFAULTS, ...m, voice: { ...MAIL_DEFAULTS.voice, ...(m.voice || {}) } };
     },
 
     kinds() {
@@ -109,7 +124,8 @@ export const Mail = {
     _blank() {
         return {
             outbox: [], replies: [], sent: [], recent: {}, favours: {}, nextId: 1, today: { day: -1, n: 0 },
-            stats: { sent: 0, delivered: 0, lost: 0, robbed: 0, intercepted: 0, replies: 0, delayed: 0 },
+            corr: {}, visits: [], keepsakes: [], heard: {}, nextUnprompted: null,
+            stats: { sent: 0, delivered: 0, lost: 0, robbed: 0, intercepted: 0, replies: 0, delayed: 0, unprompted: 0 },
         };
     },
 
@@ -121,8 +137,9 @@ export const Mail = {
             return player.mail;
         }
         const blank = this._blank();
-        for (const k of ['outbox', 'replies', 'sent']) if (!Array.isArray(st[k])) st[k] = [];
-        for (const k of ['recent', 'favours']) if (!st[k] || typeof st[k] !== 'object') st[k] = {};
+        for (const k of ['outbox', 'replies', 'sent', 'visits', 'keepsakes']) if (!Array.isArray(st[k])) st[k] = [];
+        for (const k of ['recent', 'favours', 'corr', 'heard']) if (!st[k] || typeof st[k] !== 'object' || Array.isArray(st[k])) st[k] = {};
+        if (st.nextUnprompted === undefined) st.nextUnprompted = null;
         if (!(st.nextId > 0)) st.nextId = 1;
         if (!st.today || typeof st.today !== 'object') st.today = { day: -1, n: 0 };
         st.stats = { ...blank.stats, ...(st.stats || {}) };
@@ -447,7 +464,12 @@ export const Mail = {
     /** Letters due today meet their fate; replies due come home. → { notices, delivered, replies } */
     processDay(world, player) {
         const out = { notices: [], delivered: [], replies: [] };
-        if (!world || !player || !player.mail) return out;
+        if (!world || !player) return out;
+        // (a spouse or a governing companion away may write first, before the player ever has)
+        if (!player.mail) {
+            Utils.withRng(this._rng(world, 'unprompted', _day(world)), () => this._unprompted(world, player, out));
+            return out;
+        }
         const st = this.state(player);
         const day = _day(world);
         for (const L of st.outbox.slice()) {
@@ -458,6 +480,8 @@ export const Mail = {
             if (day < R.due) continue;
             Utils.withRng(this._rng(world, `R${R.id}`, day), () => this._reply(world, player, R, out));
         }
+        this._visits(world, player, out);
+        Utils.withRng(this._rng(world, 'unprompted', day), () => this._unprompted(world, player, out));
         return out;
     },
 
@@ -520,7 +544,11 @@ export const Mail = {
         this._done(player, L, 'delivered', r.text);
         out.delivered.push(L);
         if (r.reply && Utils.random() < (r.reply.always ? 1 : M.replyChance)) {
-            st.replies.push({ id: L.id, due: day + Math.max(1, L.days), sentDay: day, from: { ...L.to }, back: L.from ? { ...L.from } : null, kind: L.kind, tone: r.tone, ...r.reply });
+            const R = { id: L.id, due: day + Math.max(1, L.days), sentDay: day, from: { ...L.to }, back: L.from ? { ...L.from } : null, kind: L.kind, tone: r.tone, ...r.reply };
+            R.inReplyTo = L.kind;
+            if (R.kind === 'plain' || !R.kind) R.kind = 'plain';
+            this._write(world, player, R, { L, to, sub });
+            st.replies.push(R);
         } else if (!r.reply) {
             out.notices.push({ icon: K.icon || '✉️', title: 'A Letter Delivered', text: r.text, type: 'info' });
         }
@@ -667,8 +695,11 @@ export const Mail = {
         const greedy = !!(s.companion && (s.companion.values || []).includes('greed'));
         let tone = this._tone(regard);
         let textKey = null;
+        let outcome = null;
         let reply = { kind: 'plain' };
         const lines = [];
+        // What the answer refers back to (data/couriers.json → letters.answers)
+        const av = { gift: this._giftPhrase(L), gold: L.gold || '' };
 
         switch (L.kind) {
             case 'courtesy': {
@@ -691,6 +722,7 @@ export const Mail = {
                 else if (to.type === 'house') rivalry(-3 * f);
                 if (to.type === 'child' && s.kingdom) {
                     tone = 'warm';
+                    outcome = 'child';
                     lines.push(CourtLetters._news(world, s.kingdom));
                     if (typeof player.learnAboutKingdom === 'function') player.learnAboutKingdom(kid, ['ruler', 'diplomacy']);
                 }
@@ -723,6 +755,7 @@ export const Mail = {
                         tone = 'warm';
                         const gov = s.npc && s.npc.governing;
                         reply = { kind: 'mail_proposal', always: true, data: { seal: 'rejoin', npcId: to.npcId }, sealLabel: `Welcome ${to.name} back to your company`, sealTip: gov ? 'They hand over their governorship and ride to join you.' : 'They rejoin your travelling party.' };
+                        outcome = gov ? 'come_gov' : 'come';
                         lines.push(gov ? 'They will hand over the governorship and come, if you still want them.' : 'They will come, if you still want them.');
                     } else {
                         tone = _num(c.approval, 50) < 25 ? 'hostile' : 'cool';
@@ -735,22 +768,48 @@ export const Mail = {
                     tone = this._tone(regard, 20, -20);
                     if (tone === 'warm' && s.kingdom) {
                         const g = Math.round(Math.min(_num(s.kingdom.treasury) * 0.04, 40 + regard * 3));
-                        if (g >= 10) { s.kingdom.treasury -= g; reply.gold = g; lines.push(`A purse of ${g} gold comes with the reply.`); } else { rep(3); lines.push('The treasury is bare, but they will speak well of you at court.'); }
+                        if (g >= 10) { s.kingdom.treasury -= g; reply.gold = g; outcome = 'warm_gold'; lines.push(`A purse of ${g} gold comes with the reply.`); } else { rep(3); outcome = 'warm_word'; lines.push('The treasury is bare, but they will speak well of you at court.'); }
                     }
                 } else if (to.type === 'npc') {
                     tone = rel && (_num(rel.score) >= 30 || _num(rel.affection) >= 50) ? 'warm' : 'cool';
-                    if (tone === 'warm') { reply.gold = Utils.randInt(15, 50); bump('score', -2); lines.push(`${reply.gold} gold comes with the reply.`); } else bump('score', -1);
+                    if (tone === 'warm') {
+                        // A friend who is one of a town's people pays out of their own purse
+                        const want = Utils.randInt(15, 50);
+                        const lp = s.npc && s.npc.folkUid ? MailVoice._personByUid(world, s.npc.folkUid) : null;
+                        const purse = lp ? Townsfolk.purse(lp.folk, lp.person, world) : want;
+                        reply.gold = Math.min(want, purse);
+                        if (lp) lp.person.purse = purse - reply.gold;
+                        bump('score', -2);
+                        if (reply.gold > 0) { outcome = 'warm_gold'; lines.push(`${reply.gold} gold comes with the reply.`); } else { tone = 'cool'; reply.gold = 0; }
+                    } else bump('score', -1);
                 } else if (to.type === 'folk') {
                     const disp = s.person && s.person.mem ? _num(s.person.mem.disposition, 50) : 50;
                     tone = disp >= 70 ? 'warm' : 'cool';
-                    if (tone === 'warm') { reply.gold = Utils.randInt(5, 20); this._adjustFolk(player, s.person, -3); lines.push(`${reply.gold} gold, all they could spare, comes with the reply.`); } else this._adjustFolk(player, s.person, -1);
+                    // What they can spare comes out of their own purse (systems/townsfolk.js)
+                    const purse = s.person && s.folk ? Townsfolk.purse(s.folk, s.person, world) : 0;
+                    const spare = Math.min(Utils.randInt(5, 20), Math.floor(purse * 0.6));
+                    if (tone === 'warm' && spare >= 2) {
+                        reply.gold = spare;
+                        s.person.purse = purse - spare;
+                        this._adjustFolk(player, s.person, -3);
+                        outcome = 'warm_gold';
+                        lines.push(`${reply.gold} gold, all they could spare, comes with the reply.`);
+                    } else {
+                        if (tone === 'warm') tone = 'cool';
+                        this._adjustFolk(player, s.person, -1);
+                    }
                 } else if (to.type === 'house') {
                     tone = _num(s.house && s.house.rivalry) <= 20 ? 'warm' : 'cool';
-                    if (tone === 'warm') { rep(3); lines.push(`They will put in a good word for you in ${(s.kingdom && s.kingdom.name) || 'their town'}.`); }
+                    if (tone === 'warm') { rep(3); outcome = 'warm_word'; lines.push(`They will put in a good word for you in ${(s.kingdom && s.kingdom.name) || 'their town'}.`); }
                 } else if (to.type === 'child') {
                     tone = 'warm';
                     const learned = typeof player.learnAboutKingdom === 'function' ? player.learnAboutKingdom(kid, ['ruler', 'military', 'diplomacy', 'economy']) : [];
-                    if (s.kingdom) lines.push(`${s.kingdom.name}: army ${Math.round(_num(s.kingdom.military))}, treasury about ${Math.round(_num(s.kingdom.treasury) / 100) * 100} gold${learned.length ? ` · you learn of its ${_intelPhrase(learned)}` : ''}.`);
+                    if (s.kingdom) {
+                        const foes = (s.kingdom.wars || []).map(id => (world.getKingdom(id) || {}).name).filter(Boolean);
+                        av.intel = `the court keeps an army of about ${Math.round(_num(s.kingdom.military))}, the treasury holds some ${Math.round(_num(s.kingdom.treasury) / 100) * 100} gold, and the realm is ${foes.length ? `at war with ${foes.join(' and ')}` : 'at peace'}.`;
+                        outcome = 'warm_intel';
+                        lines.push(`${s.kingdom.name}: army ${Math.round(_num(s.kingdom.military))}, treasury about ${Math.round(_num(s.kingdom.treasury) / 100) * 100} gold${learned.length ? ` · you learn of its ${_intelPhrase(learned)}` : ''}.`);
+                    }
                 }
                 break;
             }
@@ -761,20 +820,24 @@ export const Mail = {
                     if (L.compromised) tone = tone === 'warm' ? 'cool' : tone;
                     if (tone === 'warm') {
                         remember('letter_proposal');
+                        outcome = ruled ? 'warm_alliance' : 'warm_pact';
                         reply = { kind: 'mail_proposal', always: true, data: { seal: ruled ? 'alliance' : 'pact', ruledId: ruled ? ruled.id : null }, sealLabel: ruled ? `Seal the alliance with ${s.kingdom.name}` : `Seal a pact of friendship with ${s.kingdom.name}`, sealTip: ruled ? 'Your realms become allies.' : 'Reputation in the realm, and the lord remembers it.' };
                     } else if (tone === 'cool') remember('letter_proposal', { weight: 1 });
                     else remember('insult', { weight: -3, note: 'a presumptuous proposal' });
                 } else if (to.type === 'rival') {
                     tone = _num(s.rival && s.rival.feud) < 50 ? 'warm' : 'hostile';
+                    if (tone === 'warm') outcome = 'warm_truce';
                     if (tone === 'warm') reply = { kind: 'mail_proposal', always: true, data: { seal: 'truce' }, sealLabel: `Agree a truce with ${to.name}`, sealTip: 'The feud cools by 25.' };
                     else feud(3, 'a proposal scorned');
                 } else if (to.type === 'npc') {
                     const ok = rel && rel.romantic && _num(rel.affection) >= 60 && !player.spouse && !(s.npc && s.npc.isMarried);
                     tone = ok ? 'warm' : 'cool';
+                    if (ok) outcome = 'warm_marry';
                     if (ok) reply = { kind: 'mail_proposal', always: true, data: { seal: 'marriage', npcId: to.npcId }, sealLabel: `Wed ${to.name}`, sealTip: 'You marry by letter and banns.' };
                     else bump('affection', -3, 0, 100);
                 } else if (to.type === 'house') {
                     tone = _num(s.house && s.house.rivalry) < 40 ? 'warm' : 'cool';
+                    if (tone === 'warm') outcome = 'warm_partner';
                     if (tone === 'warm') reply = { kind: 'mail_proposal', always: true, data: { seal: 'partnership', houseId: to.houseId }, sealLabel: `Partner with ${to.name}`, sealTip: 'Their rivalry with you cools by 20, and they speak well of you.' };
                 }
                 break;
@@ -804,17 +867,20 @@ export const Mail = {
                     const strong = this._armyStrength(player) > _num(s.kingdom.military) * 1.2;
                     if (strong && regard < 30 && Utils.random() < 0.4) {
                         const g = Math.round(Math.min(_num(s.kingdom.treasury) * 0.05, 250));
-                        if (g >= 10) { s.kingdom.treasury -= g; reply.gold = g; tone = 'warm'; lines.push(`${g} gold comes with the reply, and a request to be left in peace.`); } else tone = 'cool';
+                        if (g >= 10) { s.kingdom.treasury -= g; reply.gold = g; tone = 'warm'; outcome = 'paid'; lines.push(`${g} gold comes with the reply, and a request to be left in peace.`); } else tone = 'cool';
                     } else { tone = 'hostile'; rep(-5); }
                 } else if (to.type === 'rival') { feud(12, 'a threatening letter'); tone = 'hostile'; }
                 else if (to.type === 'folk') {
                     this._adjustFolk(player, s.person, -20);
                     if (s.person && s.person.mem) s.person.mem.threatened = true;
-                    if (Utils.random() < 0.3) { reply.gold = Utils.randInt(5, 25); tone = 'warm'; lines.push(`${reply.gold} gold is sent, with shaking hands.`); } else tone = 'hostile';
+                    // Frightened enough to pay — out of their own purse
+                    const purse = s.person && s.folk ? Townsfolk.purse(s.folk, s.person, world) : 0;
+                    const pay = Math.min(Utils.randInt(5, 25), purse);
+                    if (Utils.random() < 0.3 && pay >= 2) { reply.gold = pay; s.person.purse = purse - pay; tone = 'warm'; outcome = 'paid'; lines.push(`${reply.gold} gold is sent, with shaking hands.`); } else tone = 'hostile';
                 } else if (to.type === 'npc') { bump('score', -15); bump('affection', -10, 0, 100); tone = 'hostile'; }
                 else if (to.type === 'house') {
                     rivalry(15);
-                    if (Utils.random() < 0.25) { reply.gold = Utils.randInt(50, 150); tone = 'warm'; lines.push(`${reply.gold} gold, to be left alone.`); } else tone = 'hostile';
+                    if (Utils.random() < 0.25) { reply.gold = Utils.randInt(50, 150); tone = 'warm'; outcome = 'paid'; lines.push(`${reply.gold} gold, to be left alone.`); } else tone = 'hostile';
                 }
                 break;
             }
@@ -828,16 +894,20 @@ export const Mail = {
                 const child = (player.children || []).find(c => c && c.id === L.childId);
                 const held = child && Upbringing.ensure(child).heldBy;
                 const vars = { child: child ? child.firstName : 'your child' };
-                if (!child || !held || held.kingdomId !== kid) { tone = 'cool'; lines.push(`${vars.child} is no longer held there.`); break; }
+                av.child = vars.child;
+                if (!child || !held || held.kingdomId !== kid) { tone = 'cool'; outcome = 'gone'; lines.push(`${vars.child} is no longer held there.`); break; }
                 if (regard >= M.freeReleaseRegard) {
                     this.release(player, world, child, kid);
                     tone = 'warm';
+                    outcome = 'free';
                     lines.push(`${vars.child} is already on the road home, with an escort.`);
                     break;
                 }
                 const [lo, hi] = M.ransom;
                 const amount = Math.round(_clamp(lo + (20 - regard) * 8 + _num(player.gold) * 0.05, lo, hi) / 10) * 10;
                 tone = regard <= -25 ? 'hostile' : 'cool';
+                outcome = 'price';
+                av.amount = amount;
                 reply = { kind: 'mail_ransom', always: true, data: { childId: child.id, amount }, amount, child: vars.child };
                 break;
             }
@@ -846,10 +916,14 @@ export const Mail = {
                     // A word of danger about their road or their post
                     approve(4 * f, 'a warning by letter');
                     tone = f < 1 ? 'cool' : 'warm';
-                    if (tone === 'warm') lines.push(s.npc && s.npc.governing ? 'They double the watch on the walls.' : 'They keep to the safer roads.');
+                    if (tone === 'warm') {
+                        outcome = s.npc && s.npc.governing ? 'gov' : 'road';
+                        lines.push(s.npc && s.npc.governing ? 'They double the watch on the walls.' : 'They keep to the safer roads.');
+                    }
                     break;
                 }
                 const enemy = L.enemyId && world.getKingdom ? world.getKingdom(L.enemyId) : null;
+                if (enemy) av.enemy = enemy.name;
                 const w = 6 * f * (L.compromised ? 0.5 : 1);
                 if (regard <= -40) { tone = 'hostile'; remember('letter_warning', { weight: Math.max(0.5, w / 3) }); break; }
                 remember('letter_warning', { weight: Math.max(0.5, w), note: enemy ? `of ${enemy.name}` : undefined });
@@ -864,9 +938,11 @@ export const Mail = {
         if (reply) {
             reply.body = text;
             reply.subject = `Re: ${_fill(K.subject || 'your letter', vars)}`;
+            reply.outcome = outcome || textKey || tone;
+            reply.answerVars = { ...av, replyGold: reply.gold || '' };
             if (reply.kind === 'plain' && !reply.gold && tone === 'hostile' && (to.type === 'folk' || to.type === 'npc')) reply = null; // no answer at all
         }
-        return { tone, text, reply };
+        return { tone, text, reply, outcome: outcome || textKey || tone };
     },
 
     /**
@@ -905,6 +981,465 @@ export const Mail = {
         if (player.house) House._chronicle(player.house, world, `${child.firstName} is released by the court of ${(world.getKingdom(kid) || {}).name || 'their captors'} and comes home.`, ['heirs']);
     },
 
+    // ──────────── WRITING THE LETTER ────────────
+
+    /** "the 100 gold", "the bolt of silk", "the 100 gold and the wine". */
+    _giftPhrase(L) {
+        const bits = [];
+        if (L && L.gold) bits.push(`the ${L.gold} gold`);
+        if (L && L.item) bits.push(`the ${this._goodName(L.item.id)}`);
+        return bits.join(' and ');
+    },
+
+    _goodName(id) {
+        const G = (DataLoader._gamedata && DataLoader._gamedata.playerEconomy && DataLoader._gamedata.playerEconomy.GOODS) || {};
+        const def = G[String(id || '').toUpperCase()];
+        return String((def && def.name) || id || 'goods').replace(/_/g, ' ').toLowerCase();
+    },
+
+    /** What the model may know of the writer (systems/npcBrain.js writeLetter). */
+    _sketch(R) {
+        return { type: R.from.type, place: R.from.place || '', kind: R.inReplyTo || (R.unprompted ? 'unprompted' : '') };
+    },
+
+    /**
+     * Write a letter for a reply or an unprompted letter R: the writer, the
+     * hooks it carries (decided and paid for at the writer's end now; what
+     * rides with it is handed over on arrival, _arrive), and the letter itself.
+     */
+    _write(world, player, R, ctx = {}) {
+        const to = ctx.to || R.from;
+        const sub = ctx.sub || this._subject(player, world, to);
+        const W = MailVoice.writer(player, world, to, sub);
+        const plain = R.kind === 'plain';
+        const hooks = this._hooks(world, player, to, sub, W, R.tone, { L: ctx.L || null, reason: R.reason || null, plain });
+        const decision = plain ? hooks.find(h => h.decision) : null;
+        if (decision) {
+            R.kind = decision.decision;
+            R.data = { ...(decision.data || {}) };
+            R.decisionVars = { ...(decision.decisionVars || decision.vars || {}) };
+        }
+        // A plea that found nothing to ask for is only news
+        if (R.reason === 'request' && !(decision && decision.k === 'request_food')) {
+            R.reason = 'news';
+            if (/^A plea from/.test(R.subject || '')) R.subject = `News from ${to.place || 'afar'}`;
+        }
+        R.hooks = hooks.filter(h => !h.decision || h === decision).map(h => ({ k: h.k, arrive: h.arrive || null }));
+        R.summary = R.body || '';
+        R.letter = MailVoice.compose(player, world, {
+            // (paid to be left alone is fear, not warmth)
+            to, s: sub, W, kind: ctx.L ? ctx.L.kind : 'unprompted', outcome: R.outcome, tone: R.outcome === 'paid' ? 'cool' : R.tone, vars: { ...(R.answerVars || {}), ...(R.vars || {}) },
+            L: ctx.L || null, reason: R.reason || null, hooks: hooks.filter(h => !h.decision || h === decision),
+        });
+        R.body = MailVoice.plain(player, R.letter);
+        if (!R.summary) R.summary = R.body.length > 160 ? `${R.body.slice(0, 157).replace(/\s+\S*$/, '')}…` : R.body;
+        return R;
+    },
+
+    /**
+     * What a letter carries besides words, decided by the writer's state:
+     * [{ k, vars, decision?, data?, arrive?, enclosed? }]. Only true things:
+     * a dearth in their market, an agent of a rival House in their town, an
+     * outlaw lair near them, a court scandal's truth, coin from their own
+     * purse, goods bought in their own market.
+     */
+    _hooks(world, player, to, s, W, tone, ctx = {}) {
+        const V = this.config().voice;
+        const out = [];
+        if (tone === 'hostile') return out;
+        const st = this.state(player);
+        const day = _day(world);
+        const corr = MailVoice.corr(player, to.key);
+        const settlement = W.town && W.town.settlement;
+        const people = ['folk', 'npc', 'companion', 'spouse'];
+        const open = CourtLetters.state(player).inbox;
+        const r = () => Utils.random();
+
+        // A request: their market is short of food
+        if (ctx.plain && people.includes(to.type) && settlement && settlement.market && (corr.lastRequest == null || day - corr.lastRequest >= V.requestDays)
+            && !open.some(l => l.kind === 'mail_request' && l.key === `mail:${to.key}`) && !st.replies.some(x => x.from && x.from.key === to.key && x.kind === 'mail_request')) {
+            const short = SettlementMarket.worstShortage(settlement, 1.6);
+            const food = short && (SettlementMarket.good(short.id) || {}).group === 'food' ? short.id : (SettlementMarket.inDearth(settlement) ? 'grain' : null);
+            if (food && (ctx.reason === 'request' || r() < V.requestChance)) {
+                const qty = Utils.randInt(V.requestQty[0], V.requestQty[1]);
+                const unit = Math.max(1, PlayerInventory.goodValue(food) || 3);
+                const gold = Math.max(5, Math.round(qty * unit * 1.5));
+                const goodName = this._goodName(food);
+                corr.lastRequest = day;
+                out.push({
+                    k: 'request_food', vars: { good: goodName, qty, gold }, decision: 'mail_request',
+                    data: { request: { good: food, goodName, qty, gold, town: W.town.name } }, decisionVars: { good: goodName, qty, gold, town: W.town.name },
+                });
+            }
+        }
+        // An invitation: come and see them
+        const here = Number.isFinite(player.q) && player.q === to.q && player.r === to.r;
+        if (ctx.plain && !out.some(h => h.decision) && tone === 'warm' && people.includes(to.type) && !here && (corr.lastInvite == null || day - corr.lastInvite >= V.inviteDays)
+            && !st.visits.some(v => v.key === to.key) && Number.isFinite(to.q) && r() < V.inviteChance) {
+            const until = day + V.inviteDeadline;
+            corr.lastInvite = day;
+            const deadline = this._dayWord(world, until);
+            out.push({
+                k: 'invite_visit', vars: { deadline, town: W.town.name }, decision: 'mail_invite',
+                data: { visit: { key: to.key, type: to.type, name: to.name, q: to.q, r: to.r, town: W.town.name, until, npcId: to.npcId != null ? to.npcId : null, personId: to.personId != null ? to.personId : null } },
+                decisionVars: { town: W.town.name, until, deadline },
+            });
+        }
+        // A lord's feast: the steward's letter follows (a real courtLetters feast_invite)
+        if (to.type === 'lord' && tone === 'warm' && ctx.L && (ctx.L.kind === 'courtesy' || ctx.L.kind === 'gift') && r() < V.feastChance
+            && !open.some(l => l.kind === 'feast_invite' && l.key === to.key)) {
+            const cand = CourtLetters._candidates(world, player, 'feast_invite').find(c => c.key === to.key);
+            if (cand) out.push({ k: 'invite_feast', vars: {}, arrive: { feast: to.kingdomId } });
+        }
+        // A tip: someone in their town is in a rival House's pay
+        if ((to.type === 'folk' || to.type === 'npc' || to.type === 'companion') && tone === 'warm') {
+            const writerPid = W.person && W.person.person ? W.person.person.id : null;
+            const agent = RivalAgents.list(player).find(a => a && !a.known && !a.turned && a.q === to.q && a.r === to.r && a.pid !== writerPid);
+            if (agent && r() < V.tipChance) out.push({ k: 'tip_agent', vars: { agent: agent.name, role: agent.role || 'townsman', rival: agent.rivalName || 'a rival House' }, arrive: { agentId: agent.id } });
+        }
+        // A tip: where the outlaws who trouble them have their lair
+        if (people.concat(['lord']).includes(to.type)) {
+            const lairs = (player.outlawLairs && Array.isArray(player.outlawLairs.lairs)) ? player.outlawLairs.lairs : [];
+            let best = null;
+            for (const l of lairs) {
+                if (!l || l.status !== 'active' || l.known || !Number.isFinite(l.q)) continue;
+                const d = Hex.wrappingDistance(l.q, l.r, to.q, to.r, world.width || 0);
+                if (d <= 6 && (!best || d < best.d)) best = { d, l };
+            }
+            if (best && r() < V.lairTipChance) {
+                const where = this._nearestName(world, best.l.q, best.l.r) || W.town.name;
+                out.push({ k: 'tip_lair', vars: { lair: best.l.name, leader: (best.l.leader && best.l.leader.name) || 'their chief', where }, arrive: { lairId: best.l.id != null ? best.l.id : null, lairName: best.l.name } });
+            }
+        }
+        // A secret: the truth of a tale told about the great of their realm
+        if (['lord', 'rival', 'npc', 'companion', 'child', 'spouse'].includes(to.type) && tone === 'warm') {
+            const sc = Whispers.secretIn(player, to.kingdomId || (W.town && W.town.kingdomId));
+            if (sc && r() < V.secretChance) out.push({ k: sc.truth ? 'secret_true' : 'secret_false', vars: { subject: sc.subject.name }, arrive: { secret: sc.id } });
+        }
+        // An enclosure from the writer's own means (not from someone begging bread in the same letter)
+        if (tone === 'warm' && ctx.plain && !out.some(h => h.k === 'request_food')) {
+            const lp = W.person;
+            if (to.type === 'folk' && lp && r() < V.coinChance) {
+                const purse = Townsfolk.purse(lp.folk, lp.person, world);
+                const coin = Math.min(6, Math.floor(purse / 3));
+                if (coin >= 2) {
+                    lp.person.purse = purse - coin;
+                    out.push({ k: 'enclose_coin', vars: { coin: `${coin} gold` }, arrive: { gold: coin }, enclosed: `${coin} gold` });
+                }
+            } else if ((to.type === 'folk' || (to.type === 'npc' && lp)) && lp && settlement && r() < V.goodsChance) {
+                // Something cheap from their own market, paid for out of their purse into the town's
+                const ids = ['bread', 'cheese', 'honey', 'beer', 'wool', 'linen', 'fish', 'preserved_fish', 'spices', 'wine'];
+                const purse = Townsfolk.purse(lp.folk, lp.person, world);
+                const opts = ids.filter(id => SettlementMarket.tracks(id) && SettlementMarket.available(settlement, id) >= 6 && PlayerInventory.goodValue(id) > 0 && PlayerInventory.goodValue(id) * 2 <= purse);
+                if (opts.length) {
+                    const id = opts[Math.floor(r() * opts.length)];
+                    const qty = 2;
+                    const cost = Math.ceil(PlayerInventory.goodValue(id) * qty);
+                    SettlementMarket.take(settlement, id, qty);
+                    lp.person.purse = purse - cost;
+                    if (settlement.economy && Number.isFinite(settlement.economy.gold)) settlement.economy.gold += cost;
+                    const name = this._goodName(id);
+                    out.push({ k: 'enclose_goods', vars: { goodsLine: `${qty} ${name}` }, arrive: { goods: { id, qty } }, enclosed: `${qty} ${name}` });
+                }
+            } else if ((to.type === 'spouse' || (to.type === 'npc' && to.romantic)) && r() < V.tokenChance) {
+                const T = MailVoice.data().tokens || {};
+                const season = String(world.season || 'spring').toLowerCase();
+                const kids = to.type === 'spouse' ? (player.children || []).filter(c => c && c.isAlive !== false && _num(c.age) < 12 && !Upbringing.isAway(c)) : [];
+                // (never the same keepsake twice from the same hand)
+                const given = new Set(Array.isArray(corr.tokens) ? corr.tokens : []);
+                const fresh = (list) => list.filter(t => !given.has(t));
+                let token;
+                if (kids.length && Array.isArray(T.kid) && T.kid.length && r() < 0.5) {
+                    const c = kids[Math.floor(r() * kids.length)];
+                    const opts = fresh(T.kid.map(t => _fill(t, { child: c.firstName })));
+                    token = opts.length ? opts[Math.floor(r() * opts.length)] : null;
+                }
+                if (!token) {
+                    const pool = fresh([...(T[season] || []), ...(T.any || [])]);
+                    token = pool.length ? pool[Math.floor(r() * pool.length)] : null;
+                }
+                if (token) {
+                    corr.tokens = [...given, token].slice(-20);
+                    out.push({ k: 'enclose_token', vars: { token }, arrive: { token }, enclosed: token });
+                }
+            }
+        }
+        return out;
+    },
+
+    /** "the turn of the season" — a deadline as a letter writes it: "the 14th day of summer". */
+    _dayWord(world, day) {
+        const Y = 120;
+        const d = Math.max(1, Math.round(day));
+        const season = ['spring', 'summer', 'autumn', 'winter'][Math.floor(((d - 1) % Y) / 30)] || 'spring';
+        const n = ((d - 1) % 30) + 1;
+        const th = n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th';
+        return `the ${n}${th} day of ${season} (day ${d})`;
+    },
+
+    _nearestName(world, q, r) {
+        let best = null;
+        for (const t of Couriers.towns(world).values()) {
+            const d = Hex.wrappingDistance(q, r, t.q, t.r, world.width || 0);
+            if (!best || d < best.d) best = { d, t };
+        }
+        return best ? best.t.name : null;
+    },
+
+    /** What rides with a letter is handed over as it arrives. → { lines, lost } */
+    _arrive(world, player, R, out) {
+        const st = this.state(player);
+        const lines = [];
+        let lost = false;
+        for (const h of R.hooks || []) {
+            const a = h.arrive;
+            if (!a) continue;
+            if (a.gold) {
+                if (R.robbed) { lost = true; continue; }
+                player.gold = _num(player.gold) + a.gold;
+                Ledger.record(player, 'mailReceipts', a.gold);
+                lines.push(`+${a.gold} gold enclosed.`);
+            }
+            if (a.goods) {
+                if (R.robbed) { lost = true; continue; }
+                if (!player.inventory) player.inventory = {};
+                player.inventory[a.goods.id] = _num(player.inventory[a.goods.id]) + a.goods.qty;
+                lines.push(`+${a.goods.qty} ${this._goodName(a.goods.id)} enclosed.`);
+            }
+            if (a.token) {
+                st.keepsakes.unshift({ what: a.token, from: R.from.name, day: _day(world) });
+                if (st.keepsakes.length > this.config().voice.maxKeepsakes) st.keepsakes.length = this.config().voice.maxKeepsakes;
+            }
+            if (a.agentId != null) {
+                const ag = RivalAgents.list(player).find(x => x && x.id === a.agentId && !x.known);
+                if (ag) {
+                    ag.suspicion = _num(ag.suspicion) + this.config().voice.tipSuspicion;
+                    const need = _num(((RivalAgents.config() || {}).suspicion || {}).known, 100);
+                    if (ag.suspicion >= need) RivalAgents._reveal(player, world, ag, out);
+                    else lines.push(`You have your eye on ${ag.name} now.`);
+                }
+            }
+            if (a.lairName) {
+                const lairs = (player.outlawLairs && Array.isArray(player.outlawLairs.lairs)) ? player.outlawLairs.lairs : [];
+                const lair = lairs.find(l => l && (a.lairId != null ? l.id === a.lairId : l.name === a.lairName));
+                if (lair && !lair.known) { lair.known = true; lair.rumoured = true; lines.push(`You know where ${lair.name} lies now.`); }
+            }
+            if (a.secret != null) {
+                const sc = Whispers.get(player, a.secret);
+                if (sc && !sc.truthKnown) Whispers.reveal(player, a.secret);
+            }
+            if (a.feast) {
+                const k = world.getKingdom && world.getKingdom(a.feast);
+                const cand = k ? CourtLetters._candidates(world, player, 'feast_invite').find(c => c.key === `lord:${k.id}`) : null;
+                if (cand && !CourtLetters.state(player).inbox.some(l => l.kind === 'feast_invite' && l.key === cand.key)) CourtLetters.deliver(player, CourtLetters.compose(world, player, 'feast_invite', cand));
+            }
+        }
+        return { lines, lost };
+    },
+
+    /** Goodwill (or ill) for a correspondent, by what they are to the player. */
+    _warmth(player, world, to, n, why) {
+        if (!to || !n) return;
+        const s = this._subject(player, world, to);
+        switch (to.type) {
+            case 'folk': this._adjustFolk(player, s.person, n); break;
+            case 'npc':
+            case 'spouse':
+                if (s.rel) {
+                    s.rel.score = Math.round(_clamp(_num(s.rel.score) + n, -100, 100) * 10) / 10;
+                    if (n > 0 || to.type === 'spouse') s.rel.affection = Math.round(_clamp(_num(s.rel.affection) + n / 2, 0, 100) * 10) / 10;
+                }
+                break;
+            case 'companion': if (s.npc) Companions.adjust(s.npc, n, why, _day(world)); break;
+            case 'lord': if (s.lord) NPCLords.rememberDeed(world, s.lord, n > 0 ? 'letter_kind' : 'letter_tiresome', { note: why }); break;
+            case 'rival': House.accrueRivalFeud(player, world, to.kingdomId, -n, why); break;
+            case 'house': if (s.house) s.house.rivalry = Math.round(_clamp(_num(s.house.rivalry) - n, 0, 100)); break;
+            default: break;
+        }
+    },
+
+    /** Send what a correspondent in want asked for, or refuse. → { success, lines } */
+    _answerRequest(player, world, letter, choiceId) {
+        const V = this.config().voice;
+        const d = letter.data || {};
+        const q = d.request;
+        const to = d.to;
+        if (!q || !to) return { success: true, lines: [] };
+        const lines = [];
+        const tile = world.getTile && world.getTile(to.q, to.r);
+        const settlement = tile && tile.settlement;
+        if (choiceId === 'goods') {
+            const have = _num(player.inventory && player.inventory[q.good]);
+            if (have < q.qty) return { success: false, reason: `You carry only ${have}.` };
+            player.inventory[q.good] = have - q.qty;
+            if (player.inventory[q.good] <= 0) delete player.inventory[q.good];
+            if (settlement) SettlementMarket.add(settlement, q.good, q.qty);
+            lines.push(`📦 ${q.qty} ${q.goodName || q.good} ride to ${q.town || to.place}.`);
+        } else if (choiceId === 'coin') {
+            if (_num(player.gold) < q.gold) return { success: false, reason: `You need ${q.gold} gold.` };
+            player.gold = _num(player.gold) - q.gold;
+            Ledger.record(player, 'mailGifts', -q.gold);
+            // The coin goes to them (a townsperson's purse), or to their town's market purse
+            const s = this._subject(player, world, to);
+            if (to.type === 'folk' && s.person) s.person.purse = _num(s.person.purse) + q.gold;
+            else if (settlement && settlement.economy && Number.isFinite(settlement.economy.gold)) settlement.economy.gold += q.gold;
+            lines.push(`💰 ${q.gold} gold rides to ${q.town || to.place}.`);
+        }
+        if (choiceId === 'refuse') {
+            this._warmth(player, world, to, V.requestRefused, 'a plea refused');
+            return { success: true, lines };
+        }
+        this._warmth(player, world, to, V.requestThanks, 'help in hard times');
+        if (settlement) Gossip.spreadDeed(player, world, 'famine_dole', { q: to.q, r: to.r, location: q.town || to.place, kingdom: settlement.kingdom || to.kingdomId, victim: to.name });
+        const corr = MailVoice.corr(player, to.key);
+        corr.helped = _day(world);
+        lines.push(`🤝 ${to.name} will not forget it.`);
+        return { success: true, lines };
+    },
+
+    /** Promised visits: kept by standing in their town in time, or missed. */
+    _visits(world, player, out) {
+        const st = this.state(player);
+        if (!st.visits.length) return;
+        const V = this.config().voice;
+        const day = _day(world);
+        for (const v of st.visits.slice()) {
+            if (player.q === v.q && player.r === v.r) {
+                st.visits = st.visits.filter(x => x !== v);
+                const to = this.recipient(player, world, v.key) || { ...v, place: v.town };
+                const n = v.type === 'folk' ? V.visitDisposition : v.type === 'companion' ? V.visitApproval : v.type === 'spouse' ? V.visitAffection : V.visitScore;
+                this._warmth(player, world, to, n, 'a promised visit kept');
+                const corr = MailVoice.corr(player, v.key);
+                corr.visited = day;
+                out.notices.push({ icon: '🏡', title: `${v.name} Welcomes You`, text: `You kept your word and came to ${v.town}. ${v.name} has a bed and a supper ready, and is gladder of it than words say.`, type: 'success' });
+            } else if (day > v.until) {
+                st.visits = st.visits.filter(x => x !== v);
+                const to = this.recipient(player, world, v.key) || { ...v, place: v.town };
+                this._warmth(player, world, to, V.missedVisit, 'a promised visit missed');
+                out.notices.push({ icon: '🕯️', title: 'A Visit Missed', text: `You promised ${v.name} you would come to ${v.town}, and never came.`, type: 'warning' });
+            }
+        }
+    },
+
+    // ──────────── LETTERS NOBODY ASKED FOR ────────────
+
+    /**
+     * Correspondents write first: condolence when someone of the player's
+     * family dies, congratulations on a birth, a marriage, a crown, word of
+     * the player's deeds as it reached their town, a plea in a dearth, news,
+     * a spouse missing them — at a sane rate (data: config.mail.voice).
+     */
+    _unprompted(world, player, out) {
+        const V = this.config().voice;
+        const day = _day(world);
+        if (day < V.firstDay) return;
+        // No mail yet: only a spouse away or a companion governing writes, and the mailbag is begun for them
+        if (!player.mail) {
+            if (!(player.spouse || Companions.away(player, world).some(a => a.status === 'governing'))) return;
+            this.state(player);
+        }
+        const st = this.state(player);
+        if (st.nextUnprompted == null) st.nextUnprompted = day + Utils.randInt(V.gap[0], V.gap[1]);
+        const pending = () => st.replies.filter(x => x.unprompted).length;
+        // The family's news, as the House's chronicle has it
+        const since = _num(st.heard.scan, day - 1);
+        st.heard.scan = day;
+        const events = this._familyEvents(player, world, since, day);
+        for (const ev of events) {
+            if (st.heard[ev.key]) continue;
+            st.heard[ev.key] = day;
+            const who = this._correspondents(player, world, V.minRegard).filter(r => r.key !== ev.not);
+            for (const to of who.slice(0, V.eventMax)) {
+                if (pending() >= V.maxPending + V.eventMax) break;
+                this._sendUnprompted(world, player, to, ev.reason, ev.vars, ev.subject);
+            }
+        }
+        // A letter now and then from those who write to you
+        if (day < st.nextUnprompted || pending() >= V.maxPending) return;
+        st.nextUnprompted = day + Utils.randInt(V.gap[0], V.gap[1]);
+        const cands = this._correspondents(player, world, V.minRegard).filter(r => {
+            const c = st.corr[r.key];
+            return !(c && c.last != null && day - c.last < 15) && !st.replies.some(x => x.from && x.from.key === r.key);
+        });
+        if (!cands.length) return;
+        const to = cands[Math.floor(Utils.random() * cands.length)];
+        const sub = this._subject(player, world, to);
+        const W = MailVoice.writer(player, world, to, sub);
+        const tile = world.getTile && world.getTile(to.q, to.r);
+        const settlement = tile && tile.settlement;
+        let reason = 'news';
+        if (settlement && settlement.market && ['folk', 'npc', 'companion', 'spouse'].includes(to.type) && (SettlementMarket.inDearth(settlement) || (SettlementMarket.worstShortage(settlement, 1.6) && (SettlementMarket.good(SettlementMarket.worstShortage(settlement, 1.6).id) || {}).group === 'food'))) reason = 'request';
+        else if (to.type === 'spouse' || (to.type === 'npc' && to.romantic)) reason = Utils.random() < 0.5 ? 'missing' : 'news';
+        else {
+            const deed = MailVoice.facts(player, world, W, sub).find(f => /^deed_(duel_won|beast_slain|feast_given|famine_dole|pilgrimage_made|pardon|wilds_rescue)$/.test(f.k));
+            const c = st.corr[to.key];
+            if (deed && !(c && c.told && c.told[`${deed.k}:${deed.x}`] != null)) reason = 'deed';
+        }
+        this._sendUnprompted(world, player, to, reason, {}, null);
+    },
+
+    /** The people who write to the player: those they have written to, and a spouse or companion away. */
+    _correspondents(player, world, minRegard) {
+        const st = this.state(player);
+        const out = [];
+        for (const r of this.recipients(player, world)) {
+            const known = st.corr[r.key] && st.corr[r.key].n > 0;
+            if (!known && r.type !== 'spouse' && !(r.type === 'companion' && r.status === 'governing')) continue;
+            if (r.type === 'spouse' && Number.isFinite(player.q) && Hex.wrappingDistance(player.q, player.r, r.q, r.r, world.width || 0) <= 2) continue;
+            if (r.type === 'rival' || r.type === 'house') continue;
+            if (this.regard(player, world, r) < minRegard) continue;
+            out.push(r);
+        }
+        return out.sort((a, b) => a.key.localeCompare(b.key));
+    },
+
+    /** The family's news since `since`: [{ key, reason, vars, subject, not }]. */
+    _familyEvents(player, world, since, day) {
+        const out = [];
+        for (const h of ((player.house && player.house.history) || [])) {
+            if (!h || !(h.day > since) || h.day > day) continue;
+            const tags = h.tags || [];
+            const key = `h:${h.day}:${String(h.text).slice(0, 24)}`;
+            if (tags.includes('widowed')) {
+                const dead = String(h.text).split(',')[0].trim();
+                out.push({ key, reason: 'condolence_spouse', vars: { dead }, subject: 'With deepest sympathy' });
+            } else if (tags.includes('birth')) {
+                const child = String(h.text).split(' is born')[0].trim();
+                const c = (player.children || []).find(x => x && x.firstName === child);
+                out.push({ key, reason: 'congrats_birth', vars: { child, childWord: c && c.gender === 'female' ? 'daughter' : c && c.gender === 'male' ? 'son' : 'child' }, subject: `On the birth of ${child}` });
+            } else if (tags.includes('marriage') && tags.includes('love')) {
+                const m = / weds (.+)\.$/.exec(String(h.text));
+                if (m) out.push({ key, reason: 'congrats_wed', vars: { spouse: m[1] }, subject: 'On your marriage' });
+            } else if (tags.includes('throne') && Throne.ruledKingdom(player, world) && /crown|throne|king|queen/i.test(String(h.text)) && !/ends/.test(String(h.text))) {
+                out.push({ key, reason: 'congrats_crown', vars: {}, subject: 'On your crown' });
+            }
+        }
+        for (const c of player.children || []) {
+            if (!c || c.isAlive !== false || !Number.isFinite(c.deathDay) || !(c.deathDay > since) || c.deathDay > day) continue;
+            out.push({ key: `child:${c.id}`, reason: 'condolence_child', vars: { dead: c.firstName, deadWord: c.gender === 'female' ? 'daughter' : 'son' }, subject: `For ${c.firstName}` });
+        }
+        return out;
+    },
+
+    _sendUnprompted(world, player, to, reason, vars = {}, subject = null) {
+        const st = this.state(player);
+        const day = _day(world);
+        const sub = this._subject(player, world, to);
+        const regard = this.regard(player, world, to);
+        const dest = Number.isFinite(player.q) ? { q: player.q, r: player.r } : { q: to.q, r: to.r };
+        const days = Math.max(1, Couriers.travelDays(world, { q: to.q, r: to.r }, dest, 7));
+        const subj = subject || ({ news: `News from ${to.place || 'afar'}`, request: `A plea from ${to.place || 'afar'}`, missing: 'From home', deed: 'Word of you' }[reason]) || `A letter from ${to.name}`;
+        const R = {
+            id: st.nextId++, due: day + days, sentDay: day, from: { ...to }, back: null, kind: 'plain', tone: this._tone(regard),
+            unprompted: true, reason, subject: subj, vars: { ...vars }, outcome: null, answerVars: {}, body: '',
+        };
+        if (R.tone === 'hostile') return null;
+        this._write(world, player, R, { to, sub });
+        st.replies.push(R);
+        st.stats.unprompted = _num(st.stats.unprompted) + 1;
+        return R;
+    },
+
     // ──────────── REPLIES ────────────
 
     /** A reply comes home: a plain one is filed (Letters → Answered), one that needs a decision goes to the inbox. */
@@ -919,21 +1454,37 @@ export const Mail = {
             player.gold = _num(player.gold) + R.gold;
             Ledger.record(player, 'mailReceipts', R.gold);
         }
-        if (R.kind === 'plain' || !R.kind || (R.kind !== 'mail_proposal' && R.kind !== 'mail_ransom')) {
-            this._file(player, { kind: 'mail_reply', day, from: { type: R.from.type, name: R.from.name, kingdomId: R.from.kingdomId || null }, subject: R.subject, outcome: 'reply', text: R.body });
+        const got = this._arrive(world, player, R, out);
+        // The tales a letter tells are tales the player has now heard (systems/whispers.js)
+        for (const id of (R.letter && R.letter.heard) || []) { const sc = Whispers.get(player, id); if (sc) sc.known = true; }
+        if (R.letter) {
+            if (R.robbed) R.letter.handNote = [R.letter.handNote, `The messenger was robbed by ${R.robbed.by} near ${R.robbed.where} on the way${R.robbed.gold || got.lost ? ', and what came with the letter is gone' : ''}.`].filter(Boolean).join(' ');
+            if (got.lines.length) R.letter.received = got.lines;
+        }
+        const sub = R.unprompted ? (R.subject || `A letter from ${R.from.name}`) : R.subject;
+        const isDecision = R.kind === 'mail_proposal' || R.kind === 'mail_ransom' || R.kind === 'mail_request' || R.kind === 'mail_invite';
+        if (!isDecision) {
+            const filed = { kind: 'mail_reply', day, from: { type: R.from.type, name: R.from.name, kingdomId: R.from.kingdomId || null }, subject: sub, outcome: R.unprompted ? 'letter' : 'reply', text: R.summary || R.body };
+            if (R.letter) filed.letter = R.letter;
+            this._file(player, filed);
+            if (R.letter) MailVoice.voice(R.letter, this._sketch(R));
             out.replies.push(R);
-            out.notices.push({ icon: '📨', title: `A Reply from ${R.from.name}`, text: R.body + (R.gold ? ` (+${R.gold} gold)` : ''), type: R.tone === 'warm' ? 'success' : R.tone === 'hostile' ? 'warning' : 'info' });
+            const gist = R.unprompted ? `${R.from.name} writes from ${R.from.place || 'afar'}. Read it in Journal → Letters → Answered.` : `${R.summary || R.body} (Journal → Letters → Answered)`;
+            out.notices.push({ icon: '📨', title: R.unprompted ? `A Letter from ${R.from.name}` : `A Reply from ${R.from.name}`, text: gist + (R.gold ? ` (+${R.gold} gold)` : '') + (got.lines.length ? ` ${got.lines.join(' ')}` : ''), type: R.tone === 'warm' ? 'success' : R.tone === 'hostile' ? 'warning' : 'info' });
             return;
         }
         const CK = CourtLetters.kind(R.kind) || {};
         const realm = R.from.kingdomId && world.getKingdom ? (world.getKingdom(R.from.kingdomId) || {}).name : '';
-        const vars = { from: R.from.name, subject: R.subject, body: R.body, sealLabel: R.sealLabel || 'Agree', sealTip: R.sealTip || '', amount: R.amount || (R.data && R.data.amount) || 0, child: R.child || '', realm: realm || '' };
+        const body = R.letter ? MailVoice.plain(player, R.letter) : R.body;
+        const vars = { from: R.from.name, subject: sub, body, sealLabel: R.sealLabel || 'Agree', sealTip: R.sealTip || '', amount: R.amount || (R.data && R.data.amount) || 0, child: R.child || '', realm: realm || '', ...(R.decisionVars || {}) };
         const letter = CourtLetters.deliver(player, {
             id: 0, kind: R.kind, day, expires: day + _num(CK.expiry, this.config().replyExpiry),
             from: { type: 'mail', name: R.from.name, kingdomId: R.from.kingdomId || null, npcId: R.from.npcId != null ? R.from.npcId : undefined },
             key: `mail:${R.from.key}`, vars, data: { ...(R.data || {}), to: { ...R.from }, amount: vars.amount },
             subject: _fill(CK.subject, vars), body: _fill(CK.body, vars), read: false,
+            ...(R.letter ? { letter: R.letter } : {}),
         });
+        if (R.letter) MailVoice.voice(R.letter, this._sketch(R));
         out.replies.push(R);
         out.notices.push({ icon: CK.icon || '📨', title: `A Reply from ${R.from.name}`, text: `${letter.subject}. Answer it in Journal → Letters.`, type: 'info' });
     },
@@ -975,6 +1526,19 @@ export const Mail = {
             case 'stolen_mailbag:sell':
                 if (!letter.data || !letter.data.enemyId) return { ok: false, why: 'No enemy of theirs to sell it to.', hide: true };
                 break;
+            case 'mail_request:goods': {
+                const q = letter.data && letter.data.request;
+                if (!q) return { ok: false, why: '', hide: true };
+                const have = _num(player.inventory && player.inventory[q.good]);
+                if (have < q.qty) return { ok: false, why: `You carry ${have} ${q.goodName || q.good}; they asked for ${q.qty}.` };
+                break;
+            }
+            case 'mail_request:coin': {
+                const q = letter.data && letter.data.request;
+                if (!q) return { ok: false, why: '', hide: true };
+                if (_num(player.gold) < q.gold) return { ok: false, why: `You need ${q.gold} gold.` };
+                break;
+            }
         }
         return { ok: true, why: '' };
     },
@@ -1051,6 +1615,25 @@ export const Mail = {
             }
             case 'mail_ransom:refuse':
                 break;
+            case 'mail_request:goods':
+            case 'mail_request:coin':
+            case 'mail_request:refuse': {
+                const res = this._answerRequest(player, world, letter, choiceId);
+                if (!res.success) return res;
+                lines.push(...res.lines);
+                break;
+            }
+            case 'mail_invite:promise': {
+                const v = d.visit;
+                if (!v) break;
+                const st = this.state(player);
+                st.visits = st.visits.filter(x => x.key !== v.key);
+                st.visits.push({ ...v });
+                lines.push(`🗓️ You promise to be at ${v.town} by day ${v.until}.`);
+                break;
+            }
+            case 'mail_invite:regrets':
+                break;
             case 'mail_blackmail:pay': {
                 const amount = _num(d.amount);
                 player.gold = _num(player.gold) - amount;
@@ -1105,6 +1688,8 @@ export const Mail = {
     /** An inbox letter of a mail kind left to lapse. */
     lapseReply(world, player, letter) {
         if (letter.kind === 'mail_blackmail' && letter.data && letter.data.to) this._scandal(world, player, letter.data.to);
+        // A plea left unanswered is remembered
+        if (letter.kind === 'mail_request' && letter.data && letter.data.to) this._warmth(player, world, letter.data.to, this.config().voice.requestLapsed, 'a plea unanswered');
         if (letter.kind === 'courier_bag') {
             const c = Couriers.get(world, letter.data && letter.data.courierId);
             if (c) c.reputation = _clamp(_num(c.reputation, 50) + 1, 0, 100);
@@ -1120,6 +1705,8 @@ export const Mail = {
             transit: st.outbox.map(L => ({ id: L.id, kind: L.kind, icon: (this.kind(L.kind) || {}).icon || '✉️', name: (this.kind(L.kind) || {}).name || L.kind, to: L.to.name, place: L.to.place, courier: L.courier.name, sentDay: L.sentDay, daysLeft: Math.max(0, L.arriveDay - day), delayed: !!L.delayed, gold: L.gold, item: L.item })),
             replies: st.replies.map(R => ({ id: R.id, from: R.from.name, daysLeft: Math.max(0, R.due - day) })),
             sent: st.sent.slice(0, 15),
+            visits: st.visits.map(v => ({ ...v, daysLeft: Math.max(0, v.until - day) })),
+            keepsakes: st.keepsakes.slice(0, 12),
             stats: st.stats,
             limits: { inTransit: st.outbox.length, maxInTransit: this.config().maxInTransit, today: st.today.day === day ? st.today.n : 0, perDay: this.config().perDay },
         };

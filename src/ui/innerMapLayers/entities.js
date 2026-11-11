@@ -13,6 +13,8 @@ import { InnerMapFarming } from '../innerMapFarming.js';
 import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
+import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
 import { InnerMapEscort } from '../innerMapEscort.js';
@@ -100,7 +102,7 @@ Object.assign(InnerMapRenderer, {
         if (!f) return null;
         const pc = f.piece;
         const fa = (this._interiorArt && this._interiorArt.furniture) || {};
-        const big = pc && fa[`${f.type}_${pc.w}x${pc.h}`];
+        const big = pc && ((f.art && fa[`${f.art}_${pc.w}x${pc.h}`]) || fa[`${f.type}_${pc.w}x${pc.h}`]);
         const art = big || (f.art && fa[f.art]) || (f.facing === 'up' && fa[`${f.type}_back`]) || fa[f.type] || null;
         const q0 = pc ? pc.q : at.q, r0 = pc ? pc.r : at.r, w = pc ? pc.w : 1, h = pc ? pc.h : 1;
         const dw = big ? art.sw * T / 48 : T, dh = big ? art.sh * T / 48 : T;
@@ -118,6 +120,24 @@ Object.assign(InnerMapRenderer, {
         const useSprite = npc.preset && InnerMapCharacters.isReady() && InnerMapCharacters.getComposited(npc.preset);
         const cw = ds * 1.2 * 0.8, ch = ds * 1.8 * 0.8;
         const headY = top + h * (A.pillow || 0.2);
+        // A piece with no covers of its own (a straw pallet) lays its own plain blanket over them
+        if (!A.cover && A.blanket) {
+            // (a pallet one tile long: they lie across it, head to one end — a body won't fit along it)
+            if (h < ds * 1.3) {
+                ctx.save();
+                ctx.translate(x, top + h * 0.55);
+                ctx.rotate(-Math.PI / 2);
+                const k = 0.72, bw = cw * k, bh = ch * k;
+                if (useSprite) InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, -bw / 2, -bh / 2, bw, bh);
+                if (A.blanket !== 'none') InnerMapSleepers.drawWool(ctx, -bw * 0.34, -bh / 2 + bh * 0.45, bw * 0.68, bh * 0.47, A.blanket, ds, npc.id || 0, true);
+                ctx.restore();
+                return;
+            }
+            // (a long pallet: head at its top end, the blanket low and flat over them from the shoulders down)
+            if (useSprite) InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, x - cw / 2, headY - ch * 0.3, cw, ch);
+            if (A.blanket !== 'none') InnerMapSleepers.drawWool(ctx, left + w * 0.12, top + h * (A.blanketTop || 0.3), w * 0.76, h * (0.93 - (A.blanketTop || 0.3)), A.blanket, ds, npc.id || 0, true);
+            return;
+        }
         if (useSprite) InnerMapCharacters.drawCharacter(ctx, npc.preset, 'idle', InnerMapCharacters.DIR_DOWN, 0, x - cw / 2, headY - ch * 0.3, cw, ch);
         if (p.img && A.sw) {
             const k = this._sheetScale(p.img), cut = A.cover || 0.35;
@@ -845,6 +865,10 @@ Object.assign(InnerMapRenderer, {
         InnerMapDigging.renderGround(ctx, camera, this._frameRange, T);
         // ── Graves: a fresh grave's mound, a cleared grave's open pit (ui/innerMapGraves.js) ──
         InnerMapGraves.renderGround(ctx, camera, this._frameRange, T);
+        // ── Blood on the ground: where the dead fell, drops where a body was carried (ui/innerMapCombat.js) ──
+        InnerMapCombat.renderBlood(ctx, camera, T);
+        // ── A mound with someone living under it: the earth stirring, muffled cries (ui/innerMapDowned.js) ──
+        InnerMapDowned.renderMounds(ctx, camera, T);
 
         // ── Phase 2b: The dead, lying where they fell (under anyone standing on that row) ──
         for (const body of InnerMapCombat.corpsesHere()) {
@@ -854,9 +878,10 @@ Object.assign(InnerMapRenderer, {
                 // (worldToScreenFast reuses one object: copy the numbers out now)
                 const ps = camera.worldToScreenFast(pos.x, pos.y);
                 const px = ps.x, py = ps.y;
-                items.push({ sortY: pos.y + T / 2 + 0.5, zLayer: 2, draw() {
-                    InnerMapCombat.drawCarriedCorpse(ctx, camera, body, px, py - ds * 0.85);
-                }});
+                // (over one shoulder: half hangs down the player's back, drawn before them, half down the front)
+                const face = self._playerFacing != null ? self._playerFacing : InnerMapCharacters.DIR_DOWN;
+                items.push({ sortY: pos.y + T / 2 - 0.5, zLayer: 2, draw() { InnerMapCombat.drawCarriedCorpse(ctx, camera, body, px, py, face, 'back'); } });
+                items.push({ sortY: pos.y + T / 2 + 0.5, zLayer: 2, draw() { InnerMapCombat.drawCarriedCorpse(ctx, camera, body, px, py, face, 'front'); } });
                 continue;
             }
             const screen = camera.worldToScreenFast(body.q * T + T / 2, body.r * T + T / 2);
@@ -880,7 +905,7 @@ Object.assign(InnerMapRenderer, {
                 if (npc._asleep && InnerMap._insideBuilding) {
                     // (in a bed of two tiles: under its own covers, as anyone lying in it)
                     const bedP = !npc._asleep.bedroll && self._pieceRect({ q: npc.q, r: npc.r }, T);
-                    if (bedP && bedP.art && bedP.art.cover) {
+                    if (bedP && bedP.art && (bedP.art.cover || bedP.art.blanket)) {
                         const bs = camera.worldToScreenFast(bedP.x + bedP.w / 2, bedP.y);
                         const zRef = npc, bx = bs.x, by = bs.y;
                         items.push({ sortY: bedP.y + bedP.h - 1, zLayer: 2, draw() {
@@ -891,12 +916,41 @@ Object.assign(InnerMapRenderer, {
                     }
                     const zs = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
                     const zx = zs.x, zy = zs.y;
-                    const zRef = npc;
-                    items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() { InnerMapSleepers.draw(ctx, zRef, zx, zy, ds); } });
+                    const zRef = npc, zArt = bedP && bedP.art;
+                    items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() { InnerMapSleepers.draw(ctx, zRef, zx, zy, ds, undefined, zArt); } });
                     continue;
                 }
                 // Beaten senseless: lying where they fell, under anyone standing on that row
-                if (npc.state === 'unconscious') {
+                // (and the bound, awake but tied hand and foot; and anyone the player carries or drags — ui/innerMapDowned.js)
+                if (npc.state === 'unconscious' || npc.state === 'bound' || npc._carried) {
+                    // Over the player's shoulder (ui/innerMapCarry.js): drawn just after the player, as a body carried is
+                    if (npc._carried && !npc._dragged) {
+                        const pos = InnerMap.getPlayerWorldPos();
+                        const ps = camera.worldToScreenFast(pos.x, pos.y);
+                        const px = ps.x, py = ps.y, cRef = npc;
+                        const face = self._playerFacing != null ? self._playerFacing : InnerMapCharacters.DIR_DOWN;
+                        const carried = { preset: cRef.preset, type: cRef.type, alive: true, bound: cRef._bound, gagged: cRef._gagged };
+                        items.push({ sortY: pos.y + T / 2 - 0.5, zLayer: 2, draw() { InnerMapCombat.drawCarriedCorpse(ctx, camera, carried, px, py, face, 'back'); } });
+                        items.push({ sortY: pos.y + T / 2 + 0.5, zLayer: 2, draw() { InnerMapCombat.drawCarriedCorpse(ctx, camera, carried, px, py, face, 'front'); } });
+                        continue;
+                    }
+                    // Left lying in a room the player isn't in: not here
+                    if (!npc._carried && !InnerMapCarry.lyingHere(npc)) continue;
+                    // Laid in a bed: under its covers, as a sleeper lies (no z's — they're out cold)
+                    const koBed = npc._koBed && InnerMap._insideBuilding ? self._pieceRect({ q: npc.q, r: npc.r }, T) : null;
+                    if (koBed) {
+                        const kRef = npc;
+                        if (koBed.art && (koBed.art.cover || koBed.art.blanket)) {
+                            const bs = camera.worldToScreenFast(koBed.x + koBed.w / 2, koBed.y);
+                            const bx = bs.x, by = bs.y;
+                            items.push({ sortY: koBed.y + koBed.h - 1, zLayer: 2, draw() { self._drawInBed(ctx, kRef, koBed, bx, by, ds / T, ds); } });
+                        } else {
+                            const zs = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
+                            const zx = zs.x, zy = zs.y, zArt = koBed.art;
+                            items.push({ sortY: npc.r * T + T / 2, zLayer: 0, draw() { InnerMapSleepers.draw(ctx, kRef, zx, zy, ds, undefined, zArt, { still: true }); } });
+                        }
+                        continue;
+                    }
                     const ks = camera.worldToScreenFast(npc.q * T + T / 2, npc.r * T + T / 2);
                     const kx = ks.x, ky = ks.y;
                     if (kx < -ds * 2 || kx > ctx.canvas.width + ds * 2 || ky < -ds * 2 || ky > ctx.canvas.height + ds * 2) continue;
@@ -941,7 +995,7 @@ Object.assign(InnerMapRenderer, {
                         const mode = npc.activity.on, A = onPiece.art || {};
                         worldX = onPiece.x + onPiece.w / 2;
                         if (mode === 'sit') worldY = onPiece.y + (A.seat || 0.6) * onPiece.h + T * 0.38;
-                        else if (mode === 'soak') { soakAt = onPiece.y + (A.rim || 0.4) * onPiece.h; worldY = soakAt + T * 0.42; }
+                        else if (mode === 'soak') { soakAt = onPiece.y + (A.rim || 0.4) * onPiece.h; worldY = soakAt + T * (A.sink != null ? A.sink : 0.42); }   // (sink: how deep they sit below the rim)
                         else if (mode === 'lie') {
                             const ls = camera.worldToScreenFast(worldX, onPiece.y);
                             const lRef = npc, lp = onPiece, lx = ls.x, ly = ls.y;

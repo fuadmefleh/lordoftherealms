@@ -106,6 +106,8 @@ Object.assign(InnerMap, {
         this._bindGates(game.world, `${worldQ},${worldR}`);
         // ── The trees felled here: their stumps, saplings, or the trees grown back (world/innerMap/felling.js) ──
         if (this._bindFelling) this._bindFelling(game.world, `${worldQ},${worldR}`, this.worldDay);
+        // ── The player's own dead buried here: mounds, graves and their markers (world/burials.js, world/innerMap/graves.js) ──
+        if (this._bindBurials) this._bindBurials(game.world, `${worldQ},${worldR}`, this.worldDay);
         // ── Its granary stocked from the first day (world/economy.js), for the farmers to carry into and the keeper to sell from ──
         if (hasSettlement && worldTile && worldTile.settlement && !worldTile.settlement.economy) Economy.initSettlement(worldTile.settlement);
 
@@ -774,9 +776,13 @@ Object.assign(InnerMap, {
         const P = (this._wealthRules().furnish || {}).poor || {};
         const drop = new Set((P.drop || []).filter(t => kind === 'home' || t !== 'bookshelf'));   // (a hall keeps its books)
         const art = P.art || {}, names = P.names || {};
+        // (join: a type that still makes its two-tile piece in its own look — the wooden tub, <art>_2x1)
+        const join = new Set(P.join || []);
         return list.filter(f => !drop.has(f.type)).map(f => {
             if (!art[f.type]) return f;
-            return { ...f, art: art[f.type], name: names[f.type] || f.name, noJoin: true };
+            const out = { ...f, art: art[f.type], name: names[f.type] || f.name };
+            if (!join.has(f.type)) out.noJoin = true;
+            return out;
         });
     },
 

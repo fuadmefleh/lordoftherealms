@@ -1,6 +1,45 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
 const { spawn } = require('child_process');
+
+// ── The game's own origin: app://game/ ──────────────────────────────
+// The build references /js/…, /data/… and /assets/… from the site root, which
+// a file:// page can't resolve, and the in-browser LLM (WebLLM) wants a
+// secure, standard origin: its Web Worker, the Cache API that holds the
+// downloaded model, and WebGPU. So the window loads from a privileged app://
+// scheme that serves dist-web/ first, then the app folder (data/, assets/).
+// Saves, settings and the model cache all live under this one origin.
+protocol.registerSchemesAsPrivileged([{
+    scheme: 'app',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true },
+}]);
+
+function serveApp() {
+    const roots = [path.join(__dirname, 'dist-web'), __dirname];
+    protocol.handle('app', (request) => {
+        let rel;
+        try { rel = decodeURIComponent(new URL(request.url).pathname); } catch { rel = '/'; }
+        if (!rel || rel === '/') rel = '/index.html';
+        for (const root of roots) {
+            const file = path.normalize(path.join(root, rel));
+            // Never outside the app folder
+            if (!file.startsWith(root + path.sep)) continue;
+            try {
+                if (fs.statSync(file).isFile()) return net.fetch(pathToFileURL(file).toString());
+            } catch { /* not in this root */ }
+        }
+        return new Response('Not found', { status: 404 });
+    });
+}
+
+// WebGPU (the in-browser LLM) is on by default in Electron's Chromium on
+// Windows and macOS; Linux still needs it switched on, over Vulkan.
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('enable-unsafe-webgpu');
+    app.commandLine.appendSwitch('enable-features', 'Vulkan');
+}
 
 let mainWindow;
 let llamaServer = null;
@@ -59,8 +98,8 @@ function createWindow() {
     // Remove the default menu bar for a cleaner game experience
     Menu.setApplicationMenu(null);
 
-    // Load the game from dist-web/ (built by Vite)
-    mainWindow.loadFile(path.join(__dirname, 'dist-web', 'index.html'));
+    // Load the game from dist-web/ (built by Vite), through the app:// origin above
+    mainWindow.loadURL('app://game/index.html');
 
     // Show window when ready to avoid visual flash
     mainWindow.once('ready-to-show', () => {
@@ -76,6 +115,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    serveApp();
     startLlamaServer();
     createWindow();
 });

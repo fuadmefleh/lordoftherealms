@@ -17,7 +17,28 @@
         "exhume": "You dig {name} back up out of the grave.",
         "respects": [
             "You stand a while by {name}'s grave.",
-            "You bow your head over {name}'s grave."
+            "You bow your head over {name}'s grave.",
+            "You say a word for {name}, {years} in the ground."
+        ],
+        "respectsMound": [
+            "You stand a while by the bare mound where {name} lies.",
+            "You bow your head over the turned earth. Only you know it is {name} under it."
         ]
+    },
+    "_burial": "A body buried by the player (world/burials.js; ui/innerMapDigging.js) is a plain, unmarked mound: named 'Burial Mound', not the grave of anyone. freshDays: days a mound is bare, dark, freshly turned earth (no grass, no flowers) before it weathers into the churchyard's grassed mound; settleDays: days for an unmarked mound to settle level and the ground to grow back over it (drawn fading down to minAlpha; the record stays: still dug up, still marked). markers: what may be raised over it, the churchyards' kinds (data/graves.json markers, their art): item, a marker carried in the pack (bought at a market: grave carvers and masons make them, data/markets.json), used up when raised; carve, the wood or planks carried that a cross is carved from on the spot (the first the player has); seconds / carveSeconds the work at the spot. Dug up, a marker comes back to the pack as its item. Burials are saved on world.burials[hex]['q,r'].",
+    "burial": {
+        "freshDays": 30,
+        "settleDays": 360,
+        "minAlpha": 0.12,
+        "markers": {
+            "cross_wood": { "item": "grave_cross", "carve": [{ "planks": 1 }, { "wood": 1 }], "seconds": 3, "carveSeconds": 10 },
+            "headstone_plain": { "item": "headstone", "seconds": 4 },
+            "headstone_carved": { "item": "carved_headstone", "seconds": 4 }
+        },
+        "text": {
+            "marked": "You raise a {marker} over {name}. It is a grave now, with a name on it.",
+            "carved": "You carve a rough {marker}, cut {name}'s name into it and set it at the head of the mound.",
+            "alreadyMarked": "A marker already stands over this grave."
+        }
     }
 }

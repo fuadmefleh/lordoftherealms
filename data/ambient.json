@@ -59,7 +59,7 @@
 
     "_objectsDoc": "Map objects by def id. frames: play the sheet cells to the right (count, step in cells [dx, dy], fps) — the campfire sheet already holds 4 flame frames. emit: particles at 'at'. glow: a soft warm halo (radius tiles, day/night strength, flicker). light: a light in the night light map (radius tiles). lit: a schedule that turns the whole thing on (a lamp lit only in the dark).",
     "objects": {
-        "tp_fountain": { "frames": { "count": 4, "step": [2, 0], "fps": 5 } },
+        "tp_fountain": { "frames": { "count": 9, "step": [3, 0], "fps": 8 } },
         "tp_campfire": {
             "frames": { "count": 4, "step": [1, 0], "fps": 7 },
             "emit": [{ "kind": "fireSmoke", "at": [0.5, 0.2], "rate": 2.2 }, { "kind": "ember", "at": [0.5, 0.5], "rate": 5 }],

@@ -73,6 +73,12 @@ export default defineConfig({
       '@components': path.resolve(__dirname, 'src/components'),
     },
   },
+  // The in-browser LLM (systems/llm/webllmProvider.js): its worker imports
+  // @mlc-ai/web-llm, which code-splits, so workers are built as ES modules.
+  // Pre-bundling it up front stops the dev server reloading the page the first
+  // time a player picks the WebLLM provider mid-game.
+  worker: { format: 'es' },
+  optimizeDeps: { include: ['@mlc-ai/web-llm'] },
   build: {
     outDir: 'dist-web',
     assetsDir: 'js',

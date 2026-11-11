@@ -25,7 +25,16 @@
             "ownRiderFee": 12, "ownRiderPerHex": 0.5, "ownRiderReliability": 0.85, "ownRiderHexes": 8,
             "replyChance": 0.85, "replyExpiry": 14, "favourDays": 60,
             "giftPresets": [25, 100, 300], "ransom": [150, 2000], "freeReleaseRegard": 45,
-            "recallApproval": 45, "recallDeserted": 60
+            "recallApproval": 45, "recallDeserted": 60,
+            "_voice": "Letters in their writers' voices (systems/mailVoice.js; grammar in letters below) and what mail.js lets them carry. Unbidden letters: from firstDay, one every gap days at most from a correspondent (written to before, or a spouse or governing companion away) whose regard is at least minRegard, maxPending on the road at once; family news (a death, a birth, a wedding, a crown) brings up to eventMax letters within eventDays. Hooks: a plea for food from a town in want (requestChance, once per requestDays; requestQty units or 1.5x their price in gold), an invitation to visit (inviteChance, once per inviteDays, inviteDeadline days to come; kept: visit* goodwill, missed: missedVisit), a lord's steward's feast invitation (feastChance), a tip about a rival House's agent in their town (tipChance, +tipSuspicion) or an outlaw lair near it (lairTipChance), a court scandal's truth (secretChance), coin from their purse (coinChance), goods bought in their market (goodsChance), a keepsake from a spouse or love (tokenChance).",
+            "voice": {
+                "firstDay": 12, "gap": [9, 22], "minRegard": 15, "maxPending": 2, "eventDays": 40, "eventMax": 2,
+                "requestChance": 0.35, "requestDays": 45, "requestQty": [4, 10],
+                "inviteChance": 0.18, "inviteDays": 40, "inviteDeadline": 30, "visitDisposition": 8, "visitScore": 5, "visitApproval": 4, "visitAffection": 6, "missedVisit": -3,
+                "feastChance": 0.2, "tipChance": 0.6, "tipSuspicion": 45, "lairTipChance": 0.5, "secretChance": 0.35,
+                "coinChance": 0.12, "goodsChance": 0.15, "tokenChance": 0.35, "maxKeepsakes": 20,
+                "requestThanks": 6, "requestRefused": -2, "requestLapsed": -3
+            }
         }
     },
 
@@ -131,6 +140,1127 @@
             "warm": "{to} thanks you for the warning.",
             "cool": "{to} thanks you, though they knew most of it.",
             "hostile": "{to} suspects your motives."
+        }
+    },
+
+    "letters": {
+        "_doc": "The grammar replies and unprompted letters are written from (systems/mailVoice.js). Every list holds lines: a string, or { t, r, p, tone, rank, rel, type, when, not, w }. r: the writer's register or group (high: lords, rival Houses, merchant houses; trade: merchant houses; low: townsfolk and friends; kin: spouse and children; comrade: companions away). p: personas (formal, blunt, flowery, pious, sly, nervous, warm) — a line tagged with the writer's persona is three times as likely, one tagged with another is never drawn. tone: warm/cool/hostile. rank: how the player stands (crown, noble, common). rel: spouse/child/love/friend/comrade/none. type: the writer's recipient type. when/not: flags (first, again, often, reply, unprompted, old, scribe, mouth, delayed). A line whose {placeholders} the facts can't fill is never drawn. facts[k] are told only when true where the writer lives; k_still / k_over continue a thread an earlier letter began.",
+        "personaMap": {
+            "pious": "pious",
+            "devout": "pious",
+            "mystic": "pious",
+            "healer": "pious",
+            "value_piety": "pious",
+            "value_loyalty_faith": "pious",
+            "cunning": "sly",
+            "scheming": "sly",
+            "grasping": "sly",
+            "greedy": "sly",
+            "merchant": "sly",
+            "merchant_prince": "sly",
+            "envious": "sly",
+            "value_greed": "sly",
+            "witty": "sly",
+            "cruel": "blunt",
+            "tyrant": "blunt",
+            "tyrannical": "blunt",
+            "wrathful": "blunt",
+            "brave": "blunt",
+            "brilliant_strategist": "blunt",
+            "stern": "blunt",
+            "stubborn": "blunt",
+            "bold": "blunt",
+            "stoic": "blunt",
+            "value_freedom": "blunt",
+            "silver_tongue": "flowery",
+            "charismatic": "flowery",
+            "patron_of_arts": "flowery",
+            "decadent": "flowery",
+            "courtly": "flowery",
+            "passionate": "flowery",
+            "curious": "flowery",
+            "drunkard": "flowery",
+            "cowardly": "nervous",
+            "weak_willed": "nervous",
+            "paranoid": "nervous",
+            "cautious": "nervous",
+            "quiet": "nervous",
+            "shy": "nervous",
+            "kind": "warm",
+            "generous": "warm",
+            "jovial": "warm",
+            "gentle": "warm",
+            "homebody": "warm",
+            "value_compassion": "warm",
+            "fertile": "warm",
+            "just_ruler": "formal",
+            "wise": "formal",
+            "scholar": "formal",
+            "honorable": "formal",
+            "proud": "formal",
+            "ambitious": "formal",
+            "frugal": "formal",
+            "master_builder": "formal",
+            "explorer": "formal",
+            "value_honour": "formal",
+            "value_ambition": "formal",
+            "value_loyalty_kingdom": "formal"
+        },
+        "salutations": [
+            { "t": "Your Majesty,", "rank": "crown", "tone": ["warm", "cool"] },
+            { "t": "Most gracious Majesty,", "rank": "crown", "p": ["flowery", "pious", "nervous"], "tone": ["warm", "cool"] },
+            { "t": "To Your Majesty, greeting.", "rank": "crown", "r": "high", "p": ["formal", "blunt"] },
+            { "t": "Your Majesty, begging your pardon for the liberty,", "rank": "crown", "r": "low", "p": "nervous" },
+            { "t": "Brother crown,", "rank": "crown", "type": "lord", "tone": "warm", "p": ["warm", "blunt", "formal"] },
+            { "t": "To the ruler of {yourRealm}.", "rank": "crown", "tone": "hostile" },
+            { "t": "{Sir},", "rank": "noble", "tone": ["warm", "cool"] },
+            { "t": "{Sir} {player},", "rank": "noble", "tone": ["warm", "cool"] },
+            { "t": "Right worshipful and well-beloved {sir},", "rank": "noble", "r": "high", "p": ["flowery", "formal"], "tone": "warm" },
+            { "t": "Good {sir},", "rank": "noble", "r": "low", "tone": ["warm", "cool"] },
+            { "t": "Kind {sir}, if I may,", "rank": "noble", "r": "low", "p": ["nervous", "warm"], "tone": "warm" },
+            { "t": "To {playerFull}, greeting.", "r": "high", "rank": ["common", "noble"], "p": ["formal", "blunt", "sly"] },
+            { "t": "{Sir},", "r": "high", "rank": "common" },
+            { "t": "Good {Sir},", "r": "high", "rank": "common", "tone": "warm", "p": ["warm", "flowery"] },
+            { "t": "Friend {player},", "r": "low", "rank": "common", "tone": "warm", "not": "first" },
+            { "t": "Dear {player},", "r": "low", "rank": "common", "tone": "warm" },
+            { "t": "{Sir} {player},", "r": "low", "rank": "common", "tone": ["warm", "cool"] },
+            { "t": "Good {Sir},", "r": "low", "rank": "common", "tone": "cool" },
+            { "t": "{player},", "r": "low", "rank": "common", "p": ["blunt", "sly"] },
+            { "t": "To {player}, wherever this finds you,", "r": "low", "p": ["warm", "flowery"], "tone": "warm" },
+            { "t": "{player} —", "r": ["low", "high"], "tone": "hostile", "p": ["blunt", "sly"] },
+            { "t": "{playerFull}.", "tone": "hostile" },
+            { "t": "{Sir}.", "tone": "hostile", "rank": ["noble", "common"] },
+            { "t": "My dearest heart,", "rel": "spouse", "tone": "warm" },
+            { "t": "My love,", "rel": "spouse", "tone": "warm" },
+            { "t": "Dear {player},", "rel": "spouse", "tone": "warm" },
+            { "t": "My own {player},", "rel": "spouse", "tone": "warm", "p": ["flowery", "warm"] },
+            { "t": "{player},", "rel": "spouse", "tone": ["cool", "hostile"] },
+            { "t": "Husband,", "rel": "spouse", "p": ["blunt", "formal"], "when": "toMale" },
+            { "t": "Wife,", "rel": "spouse", "p": ["blunt", "formal"], "when": "toFemale" },
+            { "t": "Dear {parentWord},", "rel": "child", "tone": ["warm", "cool"] },
+            { "t": "My dear {parentWord},", "rel": "child", "tone": "warm" },
+            { "t": "Honoured {parentWord},", "rel": "child", "p": ["formal", "nervous"] },
+            { "t": "{parentWord} —", "rel": "child", "p": "blunt" },
+            { "t": "My dearest {player},", "rel": "love", "tone": "warm" },
+            { "t": "Dear heart,", "rel": "love", "tone": "warm", "p": ["warm", "flowery"] },
+            { "t": "Captain,", "r": "comrade", "p": ["blunt", "formal"], "tone": ["warm", "cool"] },
+            { "t": "{player}, you old dog,", "r": "comrade", "tone": "warm", "p": ["warm", "sly", "blunt"], "rank": ["common", "noble"] },
+            { "t": "Old friend,", "r": "comrade", "tone": "warm" },
+            { "t": "{player},", "r": "comrade" },
+            { "t": "Well met, {player},", "r": ["low", "comrade"], "rank": "common", "tone": "warm", "p": ["blunt", "warm", "sly"] },
+            { "t": "Honoured {Sir},", "r": "low", "rank": ["noble", "common"], "p": ["formal", "pious", "nervous"] }
+        ],
+        "openings": [
+            { "t": "Your letter from {fromPlace} reached me after {daysWord} on the road.", "not": ["mouth"] },
+            { "t": "Your letter came to {town} {daysWord} after you wrote it.", "not": ["mouth"] },
+            { "t": "Your letter from {fromPlace} came safe to my hand.", "tone": ["warm", "cool"], "not": ["mouth", "scribe"] },
+            { "t": "We have received your letter, written at {fromPlace}.", "r": "high", "p": ["formal", "blunt", "sly"] },
+            { "t": "Your letter found us at {town}, and was read aloud before the whole court, as befits it.", "type": "lord", "p": ["flowery", "warm"], "tone": "warm" },
+            { "t": "Your letter was put into my hand at {town}; I have read it with attention.", "r": "high", "p": ["formal", "sly"] },
+            { "t": "Your letter is come. I will answer it as plainly as you wrote it.", "r": "high", "p": "blunt" },
+            { "t": "The rider brought your letter, and I have read it twice over.", "r": ["low", "kin", "comrade"], "tone": "warm", "not": ["scribe", "mouth"] },
+            { "t": "Got your letter.", "r": ["low", "comrade"], "p": "blunt", "not": ["scribe", "mouth"] },
+            { "t": "{scribe} read me your letter at my own table, and I made {scribe} read it again.", "when": "scribe", "tone": "warm" },
+            { "t": "{scribe} has read me your letter, and now sets down what I say, so forgive the plainness.", "when": "scribe" },
+            { "t": "Your letter came and was read out to me, and to half the street besides.", "when": "mouth" },
+            { "t": "Your letter was held up somewhere on the road, but it came at last.", "when": "delayed" },
+            { "t": "Your letter came — late, the roads being what they are, but it came.", "when": "delayed", "r": ["low", "comrade"] },
+            { "t": "Another letter from you, and it is only {lastAgo} since the last.", "when": "again", "tone": ["warm", "cool"] },
+            { "t": "It is {lastAgo} since I last had a letter from you, and here is another.", "when": "again" },
+            { "t": "This is the {count} letter between us, and I keep every one in the chest by the bed.", "when": "often", "tone": "warm", "r": ["low", "kin", "comrade"] },
+            { "t": "You write often. A {sir} might begin to wonder why.", "when": "often", "p": "sly" },
+            { "t": "Your letters come thick as autumn leaves, {sir}.", "when": "often", "r": "high", "p": ["flowery", "sly"] },
+            { "t": "Forgive me for answering late: your letter took {daysWord} to come, and I have been all at sixes and sevens since.", "p": "nervous", "not": "mouth" },
+            { "t": "Your letter came safe, the gods be thanked for the roads and the rider both.", "p": "pious", "tone": ["warm", "cool"] },
+            { "t": "Your letter came, and I read it by the window until the light went.", "rel": ["spouse", "love"], "tone": "warm" },
+            { "t": "Your letter came all the way to {town}, and I could not stop smiling.", "rel": "child", "tone": "warm" },
+            { "t": "Your letter reached me at {town}. I read it twice, once for the news and once for your hand.", "r": "comrade", "tone": "warm", "not": ["mouth", "scribe"] },
+            { "t": "Your letter arrived.", "tone": "hostile" },
+            { "t": "I have your letter. I had hoped for a better one.", "tone": "hostile", "r": ["high", "low"] },
+            { "t": "Your rider waited at the gate for an answer. Here it is.", "tone": "hostile", "r": "high" },
+            { "t": "Your letter is here, and so, it seems, is the rest of your news.", "tone": "warm", "r": ["low", "kin", "comrade"], "p": ["warm", "sly"] },
+            { "t": "You do write, I'll give you that.", "when": "again", "p": ["blunt", "sly"], "r": ["low", "comrade", "kin"] },
+            { "t": "I had scarcely folded your last letter away when this one came.", "when": "again", "tone": ["warm", "cool"] },
+            { "t": "Your rider found me at {town} and would not leave the kitchen until I had written back.", "r": ["low", "comrade"], "p": ["warm", "sly", "blunt"], "not": ["mouth", "scribe"] },
+            { "t": "Your letter came on a grey day and made it less so.", "tone": "warm", "p": ["flowery", "warm", "nervous"] },
+            { "t": "We have your letter of the {daysWord} past, and answer it now.", "r": "high", "p": ["formal", "blunt"] },
+            { "t": "Your messenger has been fed and rested, and carries this back to you.", "r": "high", "p": ["formal", "warm", "flowery"] },
+            { "t": "Your letter reached us at {town} in good order, its seal whole.", "r": "high", "p": ["sly", "formal"] },
+            { "t": "Your letter came. I read it at the well, and then again at home.", "r": "low", "p": ["warm", "nervous"], "not": ["scribe", "mouth"] },
+            { "t": "It was good to see your hand again.", "when": "again", "tone": "warm", "not": ["scribe", "mouth"] },
+            { "t": "Your letters keep finding me, wherever I go.", "r": "comrade", "tone": "warm" }
+        ],
+        "answers": {
+            "courtesy": {
+                "warm": [
+                    { "t": "It was good to hear from you, and better to know you think of {town}.", "r": ["low", "comrade"] },
+                    { "t": "You are kind to remember us, and kinder to say so in ink.", "r": ["low", "high"], "p": ["warm", "flowery"] },
+                    { "t": "We take your courtesy in the spirit it was sent, and return it gladly.", "r": "high", "p": ["formal", "blunt"] },
+                    { "t": "Your words were a gift in themselves; I had them read twice at supper, and the second time the whole hall fell quiet to listen.", "type": "lord", "p": "flowery" },
+                    { "t": "A kind letter is a rarer thing than a rich one. I thank you for it.", "p": ["pious", "warm", "formal"] },
+                    { "t": "Your news was welcome, and so is the friendship behind it — though I wonder what you will want of me next.", "p": "sly" },
+                    { "t": "Thank you for writing. I don't get many letters, and none so kind.", "r": "low", "p": ["nervous", "warm"] },
+                    { "t": "Your letter warmed the house better than the fire does.", "r": ["low", "kin"], "p": ["warm", "flowery"] },
+                    { "t": "Good to have your news. Keep writing.", "r": ["low", "comrade"], "p": "blunt" },
+                    { "t": "I am glad of your letter. The house is too quiet without you.", "rel": "spouse" },
+                    { "t": "Your news is all over the house — the servants want to know everything.", "rel": "spouse", "p": ["warm", "flowery"] },
+                    { "t": "The road has not changed you, I see; your letters are as long-winded as your stories.", "r": "comrade", "p": ["sly", "warm"] },
+                    { "t": "Your letter came at the right time; I needed a friendly word.", "p": ["nervous", "warm", "pious"] },
+                    { "t": "What a long letter! I read every word, even the boring ones.", "r": ["low", "kin", "comrade"], "p": ["sly", "warm", "flowery"] },
+                    { "t": "It is a rare pleasure to hear from someone who wants nothing.", "r": "high", "p": ["sly", "flowery", "blunt"] },
+                    { "t": "Your letter was passed round the hall and came back to me with a wine stain on it.", "type": ["lord", "rival"], "p": ["warm", "flowery", "sly"] }
+                ],
+                "cool": [
+                    { "t": "I acknowledge your letter, and your good wishes.", "r": "high" },
+                    { "t": "Your courtesy is noted.", "r": "high", "p": ["blunt", "formal"] },
+                    { "t": "Thank you for your letter. I am not sure what you mean by it, but thank you.", "r": "low", "p": ["nervous", "sly"] },
+                    { "t": "Your letter came. I have little to say in answer.", "r": ["low", "comrade"] },
+                    { "t": "We are obliged for your letter, though our affairs leave little room for correspondence.", "r": "high", "p": ["formal", "flowery"] },
+                    { "t": "You are kind to write. I will be honest and say I did not expect it.", "r": ["low", "comrade"], "p": ["blunt", "warm"] },
+                    { "t": "Your letter came. I have read it.", "rel": "spouse" },
+                    { "t": "Thank you for your letter. Things are as they are here.", "r": ["low", "kin", "comrade"], "p": ["blunt", "nervous", "pious"] },
+                    { "t": "Your letter is kind. I hardly know what to answer.", "r": ["low"], "p": ["nervous", "warm", "flowery"] },
+                    { "t": "Your news came. Mine is soon told.", "p": ["blunt", "sly", "formal"] },
+                    { "t": "We note your letter, and your continued interest in our affairs.", "r": "high", "p": ["sly", "formal"] },
+                    { "t": "I read your letter. I am still deciding what I think of you.", "p": ["sly", "blunt"], "r": ["low", "comrade"] }
+                ],
+                "hostile": [
+                    { "t": "I have no need of your compliments, and less of your friendship." },
+                    { "t": "Spare your ink. Courtesy from you is a dagger with a ribbon tied on it.", "p": ["sly", "flowery"] },
+                    { "t": "You will forgive me if I do not pretend to be glad.", "p": ["formal", "nervous", "warm", "pious"] },
+                    { "t": "Don't write to me again.", "r": ["low", "comrade"], "p": "blunt" },
+                    { "t": "We are not friends, whatever your letter says.", "r": "high", "p": "blunt" }
+                ],
+                "tiresome": [
+                    { "t": "You have written a great many letters to me of late, and I have answered a great many. This answer will be short." },
+                    { "t": "A great many letters from you lately — the rider knows the way better than I do. I have little new to say." },
+                    { "t": "Your letters come faster than I can answer them, {sir}. A great many letters say less than a few.", "p": ["sly", "blunt", "formal"] },
+                    { "t": "So many letters! A great many letters, and I have nothing new to put in mine.", "r": ["low", "kin"], "p": ["nervous", "warm"] }
+                ],
+                "child": [
+                    { "t": "I miss home more than I can say, and your letter made me miss it more." },
+                    { "t": "Thank you for your letter. I have read it so often the creases are coming through." },
+                    { "t": "I am well, and doing my duty here as you taught me.", "p": ["formal", "blunt"] }
+                ]
+            },
+            "gift": {
+                "warm": [
+                    { "t": "Thank you for {gift}. It was more than generous.", "r": ["low", "comrade"] },
+                    { "t": "Bless you for {gift}. I have never had such a thing come by letter.", "r": "low", "p": ["pious", "warm", "nervous"] },
+                    { "t": "We have received {gift} and thank you for it handsomely; our steward has put it where it will do most good.", "r": "high", "p": ["formal", "flowery"] },
+                    { "t": "{gift} came safe with your letter. A gift like that is not forgotten.", "r": "high", "p": ["blunt", "formal"] },
+                    { "t": "{gift}! You are a dear, foolish, generous thing, and I am keeping every bit of it.", "r": ["kin", "low"], "p": ["warm", "flowery"], "rel": ["spouse", "love", "friend"] },
+                    { "t": "{gift} came with your letter, and I wept a little, which you are not to tell anyone.", "rel": ["spouse", "child", "love"] },
+                    { "t": "Thank you for {gift}. I shall find a use for it — and remember who sent it.", "p": "sly" },
+                    { "t": "{gift}, by the gods! I lit a candle at the shrine for you the same day.", "p": "pious" },
+                    { "t": "Thank you for {gift}. I'll not pretend it isn't needed.", "r": ["low", "comrade"], "p": "blunt" },
+                    { "t": "{gift} — you remembered. The lads were jealous.", "r": "comrade" },
+                    { "t": "{gift} came safe. The whole street knew of it by evening — you cannot keep a secret in {town}.", "r": "low", "p": ["warm", "sly", "flowery"] },
+                    { "t": "I have {gift} in a jar by the hearth, and I look at it more than I should.", "r": "low", "p": ["nervous", "warm"] },
+                    { "t": "{gift} reached us intact, which says something for your rider and more for your generosity.", "r": "high" },
+                    { "t": "Our thanks for {gift}. Such tokens bind friends more surely than oaths.", "r": "high", "p": ["flowery", "pious", "warm"] },
+                    { "t": "{gift}. Well. I won't pretend I didn't need it.", "p": ["blunt", "sly"] }
+                ],
+                "cool": [
+                    { "t": "{gift} arrived with your letter. I thank you for it.", "r": ["low", "high"] },
+                    { "t": "We acknowledge {gift}. Gifts are easily sent; we will see what follows.", "r": "high", "p": ["sly", "blunt", "formal"] },
+                    { "t": "Thank you for {gift}. I hope it does not come with strings.", "r": "low", "p": ["nervous", "sly"] },
+                    { "t": "{gift} came. I will keep it, since you sent it.", "p": "blunt" },
+                    { "t": "{gift} came with your letter. I hardly know what I have done to deserve it.", "r": "low", "p": ["nervous", "warm", "pious"] },
+                    { "t": "{gift} is noted in our books.", "type": ["lord", "house", "rival"], "p": ["formal", "sly", "blunt"] }
+                ],
+                "hostile": [
+                    { "t": "{gift} came. I have kept it, and the grudge besides." },
+                    { "t": "You think {gift} buys you back into my good graces? It buys you this letter, and no more.", "p": ["blunt", "sly"] },
+                    { "t": "We have received {gift}. Do not mistake our accepting it for forgiveness.", "r": "high" }
+                ],
+                "stolen": [
+                    { "t": "Your letter came with its seal cut and nothing inside it. Whatever you meant to send, someone on the road has it now." },
+                    { "t": "Your letter came to me opened and empty. If you sent something with it, the road has taken it.", "p": ["nervous", "warm"] },
+                    { "t": "Your letter arrived slit open and empty. You should choose your couriers better.", "p": ["blunt", "sly"] }
+                ]
+            },
+            "favour": {
+                "tiresome": [
+                    { "t": "Letter upon letter from you this season, and now a favour besides. Let me draw breath before I answer that." },
+                    { "t": "You write often, {sir}, and now you ask. I am not a well to be drawn on every week.", "p": ["sly", "blunt"] },
+                    { "t": "I am sorry. You have written so often lately, and I have nothing more to give just now.", "r": ["low", "kin", "comrade"], "p": ["nervous", "warm", "pious"] },
+                    { "t": "So many letters this season, and now a request. We will consider it when the season turns.", "r": "high", "p": ["formal", "flowery"] }
+                ],
+                "warm_gold": [
+                    { "t": "You asked, and I would be a poor friend to refuse. {replyGold} gold comes with this letter.", "r": ["low", "comrade"] },
+                    { "t": "Our treasurer has been told to send you {replyGold} gold. Spend it well, and remember the hand that gave it.", "type": "lord", "p": ["formal", "sly", "blunt"] },
+                    { "t": "I send {replyGold} gold — all I could spare, and I am glad to spare it.", "r": "low", "p": ["warm", "nervous", "pious"] },
+                    { "t": "{replyGold} gold rides back with this letter. Don't thank me; you'd have done the same.", "p": ["blunt", "warm"] },
+                    { "t": "You shall have {replyGold} gold from our coffers, sent with our good will, which is worth rather more.", "type": "lord", "p": ["flowery", "warm"] },
+                    { "t": "Here is {replyGold} gold, wrapped in a rag so the rider won't hear it chink.", "type": "folk" }
+                ],
+                "warm_word": [
+                    { "t": "The treasury is bare just now — I will not pretend otherwise — but you have my word, and I will speak well of you at court.", "type": "lord" },
+                    { "t": "We will put in a good word for you in {realm}, where our word is listened to.", "type": "house" },
+                    { "t": "Our books are full, our coffers less so; but your name will be spoken well of at every counting-table in {realm}.", "type": "house", "p": ["flowery", "sly"] }
+                ],
+                "warm_intel": [
+                    { "t": "You asked what is said here, so here it is, plainly: {intel}" }
+                ],
+                "come": [
+                    { "t": "You want me back? Then I will come, if you still want me when you see my face." },
+                    { "t": "I have thought of little else since I left. Say the word and I ride.", "p": ["warm", "flowery"] },
+                    { "t": "I'll come. Have someone sharpen my good blade, it's gone dull from idleness.", "p": "blunt" }
+                ],
+                "come_gov": [
+                    { "t": "I will hand over the keys of {town} and come, if you truly want me at your side again." },
+                    { "t": "Governing {town} has taught me I'd rather be on the road with you. Say the word and the keys go to the reeve.", "p": ["warm", "blunt"] }
+                ],
+                "cool": [
+                    { "t": "I regret that I cannot help you at present." },
+                    { "t": "We are unable to oblige you in this.", "r": "high", "p": ["formal", "blunt"] },
+                    { "t": "I wish I could help. I can't. I'm sorry.", "r": ["low", "comrade"], "p": ["nervous", "warm"] },
+                    { "t": "You ask a great deal on a short acquaintance.", "p": ["sly", "blunt", "formal"] },
+                    { "t": "Not this time.", "p": "blunt" },
+                    { "t": "I don't think I'll come back. Not yet. Perhaps not at all.", "type": "companion" }
+                ],
+                "hostile": [
+                    { "t": "I am astonished that you would ask anything of me." },
+                    { "t": "You ask a favour of me? After everything? No.", "p": ["blunt", "warm"] },
+                    { "t": "Come back to you? I'd sooner swim home through a winter river.", "type": "companion" }
+                ]
+            },
+            "proposal": {
+                "warm_pact": [
+                    { "t": "Your proposal of friendship pleases us. Let it be sealed, and let {realm} know you for a friend.", "type": "lord" },
+                    { "t": "A pact between us would serve us both, and we are not too proud to say so. Send your seal.", "type": "lord", "p": ["blunt", "sly"] },
+                    { "t": "Your offer of friendship is the most welcome thing to come by courier this season. We accept it gladly; it wants only your seal.", "type": "lord", "p": ["flowery", "warm"] }
+                ],
+                "warm_alliance": [
+                    { "t": "An alliance between our crowns? We have thought the same. Seal it, and {realm} stands with you.", "type": "lord" },
+                    { "t": "Our council has debated your proposal and found it good. Let our realms be allies; we wait only for your seal.", "type": "lord", "p": ["formal", "flowery"] }
+                ],
+                "warm_truce": [
+                    { "t": "A truce, then. Our Houses have bled each other long enough. Put your seal to it and I will put mine.", "type": "rival" },
+                    { "t": "I did not expect to agree with you about anything. I agree to a truce.", "type": "rival", "p": ["blunt", "sly"] }
+                ],
+                "warm_marry": [
+                    { "t": "Yes. Yes, a hundred times. I have read your letter until the ink smudged. Send for me, or come, and let the banns be read." },
+                    { "t": "I will marry you. I wrote it three times before I could make my hand steady enough.", "p": ["nervous", "warm"] }
+                ],
+                "warm_partner": [
+                    { "t": "We have read your proposal at the counting-table and found the sums good. A partnership, then, if you will seal it." },
+                    { "t": "Rivals make the best partners: they already know where to look. We accept, if you will put your seal to it.", "p": "sly" }
+                ],
+                "cool": [
+                    { "t": "We will think on your proposal — which is to say, not now." },
+                    { "t": "Your proposal is noted. The time is not right.", "r": "high", "p": ["formal", "blunt"] },
+                    { "t": "I am touched, truly. But I cannot answer yes, not yet.", "rel": ["love", "friend"] },
+                    { "t": "We are flattered, but our ledgers say no.", "type": "house" }
+                ],
+                "hostile": [
+                    { "t": "Your proposal was read out at table, and laughed at. I thought you should know." },
+                    { "t": "A truce? Pay what you owe in blood and we will talk of truces.", "type": "rival" },
+                    { "t": "Friendship with you would be a stain on {realm}.", "type": "lord", "p": ["blunt", "formal"] }
+                ]
+            },
+            "apology": {
+                "warm": [
+                    { "t": "Your apology is accepted. Let what is past stay there." },
+                    { "t": "It takes a good heart to write such a letter. I forgive you, and I will not throw it at you again.", "p": ["warm", "pious"] },
+                    { "t": "Apology accepted. Don't make me need another.", "p": "blunt" },
+                    { "t": "We accept your apology, and will see whether your deeds keep pace with your ink.", "r": "high", "p": ["sly", "formal"] }
+                ],
+                "cool": [
+                    { "t": "Your apology is noted. The wound is not healed." },
+                    { "t": "Words are a beginning. Only a beginning.", "p": ["blunt", "formal", "pious"] },
+                    { "t": "I have read your apology. I am trying.", "r": ["low", "kin"] }
+                ],
+                "hostile": [
+                    { "t": "I do not forgive so easily, nor so cheaply as a letter." },
+                    { "t": "An apology from you is worth the paper, and you sent poor paper.", "p": ["sly", "blunt"] }
+                ],
+                "puzzled": [
+                    { "t": "Your apology puzzles me: I can think of nothing that needs forgiving." },
+                    { "t": "An apology? Whatever for? There was nothing to forgive. Are you quite well?", "r": ["low", "kin", "comrade"], "p": ["warm", "nervous"] },
+                    { "t": "We know of no offence. If there is one we have not heard of, perhaps it is better left so.", "r": "high", "p": "sly" },
+                    { "t": "You apologise, but for what? Whatever it was, I never noticed it.", "r": ["low", "kin", "comrade"] },
+                    { "t": "Your apology came. I searched my memory and found no wrong in it.", "r": "high", "p": ["formal", "pious", "warm"] },
+                    { "t": "An apology? I have nothing against you — or nothing yet.", "p": ["sly", "blunt"] },
+                    { "t": "There is nothing between us that needs mending. Put your mind at rest.", "p": ["warm", "pious", "nervous"] }
+                ]
+            },
+            "threat": {
+                "paid": [
+                    { "t": "We would rather have peace than be right. {replyGold} gold comes with this letter; leave us be.", "r": "high" },
+                    { "t": "Here — {replyGold} gold. It is what I have. Please, leave my family out of it.", "r": "low" },
+                    { "t": "{replyGold} gold, as you demand. Do not think this is the end of it.", "p": ["blunt", "sly"] }
+                ],
+                "cool": [
+                    { "t": "We refuse your demand. You may do as you think best; so shall we." },
+                    { "t": "No.", "p": "blunt" }
+                ],
+                "hostile": [
+                    { "t": "You threaten me? Come and try. My people know the roads to {town} better than you do." },
+                    { "t": "Your threat has been read out in our hall, and every sword in it has answered.", "r": "high", "p": ["blunt", "flowery", "formal"] },
+                    { "t": "I will give you nothing, and I will tell everyone who will listen what kind of letters you write.", "r": "low" },
+                    { "t": "Threats are a coward's ink. Write another and I will answer it with steel.", "r": "high", "p": ["blunt", "formal"] },
+                    { "t": "I have taken your letter to the reeve, and the priest has seen it too. Don't write to us again.", "r": "low", "p": ["nervous", "pious"] }
+                ]
+            },
+            "love": {
+                "warm": [
+                    { "t": "Your letter is under my pillow, and I am not ashamed to say it." },
+                    { "t": "I have read your letter so often I could say it back to you. You say such things — say them again soon.", "p": ["warm", "flowery"] },
+                    { "t": "I keep your letter where I can touch it. I needn't tell you more than that.", "p": ["blunt", "nervous"] },
+                    { "t": "There is no one in the world who writes as you do, and I would not want there to be.", "p": ["flowery", "sly"] },
+                    { "t": "I prayed for you at the shrine this morning, and came home to find your letter. The gods are kind.", "p": "pious" }
+                ],
+                "cool": [
+                    { "t": "Your letter touched me. I must be careful in what I answer." },
+                    { "t": "You write very sweetly. I don't know what to write back, so I will say only: thank you.", "p": ["nervous", "warm"] },
+                    { "t": "Such words should not come by courier. People talk.", "p": ["sly", "blunt", "formal"] }
+                ]
+            },
+            "ransom": {
+                "free": [
+                    { "t": "We hold no grudge worth a child. {child} is already on the road home, with an escort of our own." },
+                    { "t": "Your letter shamed us a little, as it was meant to. {child} rides home today, and our good will rides too.", "p": ["warm", "pious", "flowery"] }
+                ],
+                "price": [
+                    { "t": "{child} is well, and well kept. The price of {child}'s freedom is {amount} gold, paid to our treasury." },
+                    { "t": "We are not unreasonable. {amount} gold, and {child} comes home.", "p": ["blunt", "sly"] },
+                    { "t": "{child} eats at our table and wants for nothing — but we are not a charity. {amount} gold.", "p": ["sly", "formal"] }
+                ],
+                "gone": [
+                    { "t": "{child} is no longer held here. You are writing to the wrong court." }
+                ]
+            },
+            "warning": {
+                "warm": [
+                    { "t": "Your warning about {enemy} is taken to heart. Our captains will look to the borders." },
+                    { "t": "Your word on {enemy} came none too soon. We are in your debt.", "p": ["blunt", "formal"] },
+                    { "t": "A true friend warns before the blow falls. What you tell of {enemy} has gone straight to our marshal.", "p": ["warm", "flowery", "pious"] },
+                    { "t": "What you write of {enemy} squares with what our own spies say. We shall not ask how you know it.", "p": "sly" }
+                ],
+                "cool": [
+                    { "t": "We thank you for your warning about {enemy}, though we knew most of it." },
+                    { "t": "{enemy}'s strength is no secret to us. Still, we thank you.", "p": ["blunt", "sly"] },
+                    { "t": "Thank you for the warning. I had heard most of it already, but it is good to know you think of me." },
+                    { "t": "Your warning came. Most of it was old news here, but I am grateful all the same.", "p": ["warm", "nervous", "pious"] }
+                ],
+                "hostile": [
+                    { "t": "We wonder why you trouble to warn us of {enemy}, and what you hope to gain from our fear." },
+                    { "t": "A warning from you smells of a trap. We will watch {enemy} — and you." },
+                    { "t": "I don't need your warnings." }
+                ],
+                "gov": [
+                    { "t": "Your warning came. I have doubled the watch on the walls of {town}, and the gate shuts at dusk now." },
+                    { "t": "Heard and heeded. The watch at {town} walks in pairs now, and I sleep in my boots.", "p": "blunt" }
+                ],
+                "road": [
+                    { "t": "Thank you for the warning. I keep to the safer roads now, and keep my knife handy." },
+                    { "t": "You fret like an old hen, but I'll heed you. The safe roads it is.", "p": ["sly", "warm"] }
+                ]
+            }
+        },
+        "facts": {
+            "war": [
+                { "t": "The war with {enemy} is all anyone talks of here.", "r": ["low", "comrade"] },
+                { "t": "Everyone at {town} talks of the war with {enemy}; we pray it keeps its distance.", "r": "low", "p": ["pious", "nervous", "warm"] },
+                { "t": "{realm} is at war with {enemy}, and {town} feels it in every market.", "r": ["high", "low"] },
+                { "t": "There is war with {enemy}. Men talk big in the tavern and quiet at home.", "p": ["blunt", "sly"] }
+            ],
+            "war_still": [
+                { "t": "The war with {enemy} goes on, and no one here sees the end of it." },
+                { "t": "Still the war with {enemy}. I am tired of writing that word." }
+            ],
+            "war_over": [
+                { "t": "You will be glad to hear the war with {enemy} is over, or over for now." },
+                { "t": "There is peace with {enemy} at last; I wrote to you of that war, and now I can write that it is done." }
+            ],
+            "lord_war": [
+                { "t": "We are at war with {enemy}, as you will know; our captains are in the field and our treasury feels every day of it.", "r": "high" },
+                { "t": "{enemy} tests our borders, and we test their patience. It will end when one of us tires.", "p": ["sly", "blunt"] },
+                { "t": "The war with {enemy} weighs on us; I have not slept a full night since it began.", "p": ["nervous", "warm", "pious"] }
+            ],
+            "lord_war_still": [
+                { "t": "Our war with {enemy} goes on, as it did when last I wrote." }
+            ],
+            "lord_war_over": [
+                { "t": "Our war with {enemy}, of which I wrote, is ended. We are at peace with them, for what peace is worth." }
+            ],
+            "siege": [
+                { "t": "There is a siege at {siegeTown}; we hear the news of it every day, none of it good." },
+                { "t": "All eyes here are on {siegeTown} and its walls.", "p": ["formal", "flowery"] }
+            ],
+            "siege_still": [
+                { "t": "{siegeTown} is still besieged. Every rider brings the same news." }
+            ],
+            "siege_over": [
+                { "t": "The siege at {siegeTown} is lifted, one way or another. The road there is open again." }
+            ],
+            "ev_plague": [
+                { "t": "There is plague in these parts. We keep our doors shut and burn rosemary, and pray.", "r": ["low", "kin"] },
+                { "t": "The plague has come near {town}. We bar the gates to strangers and trust the physicians as little as we must.", "r": "high" },
+                { "t": "Plague. I will not write more of it than that word; you know what it means.", "p": "blunt" },
+                { "t": "The gods have sent plague among us. The priests say it is our sins; I say it is the rats.", "p": ["sly", "pious"] }
+            ],
+            "ev_plague_still": [
+                { "t": "The plague is still among us. We have buried more since I last wrote." }
+            ],
+            "ev_plague_over": [
+                { "t": "The plague I wrote of has passed us by at last. The bells rang for a whole morning." }
+            ],
+            "ev_famine": [
+                { "t": "There is famine here. The children are thin and the old ones give their bread away.", "r": ["low", "kin"] },
+                { "t": "Famine grips the country about {town}; our granaries are open and still it is not enough.", "r": "high" }
+            ],
+            "ev_famine_still": [
+                { "t": "The famine goes on. I will not pretend otherwise." }
+            ],
+            "ev_famine_over": [
+                { "t": "The hunger I wrote of has eased. There is bread on the tables again." }
+            ],
+            "ev_drought": [
+                { "t": "No rain for weeks. The wells are low and the fields crack." },
+                { "t": "The drought holds; the river is a stripe of mud.", "p": ["blunt", "flowery"] }
+            ],
+            "ev_flood": [
+                { "t": "The river came over its banks and half the low fields are under water." }
+            ],
+            "ev_blizzard": [
+                { "t": "The snow came down for three days together and the roads are buried." },
+                { "t": "We are snowed in. I write by the fire with my feet in a basket of straw.", "r": ["low", "kin"] }
+            ],
+            "ev_bandit_uprising": [
+                { "t": "Bandits are bold everywhere this season; no cart goes out without a guard." }
+            ],
+            "ev_monster_sighting": [
+                { "t": "There is talk of a beast in the country about {town}. The shepherds bring the flocks in early." }
+            ],
+            "ev_festival": [
+                { "t": "It is festival time here: music in the square every night and no work done in the mornings." },
+                { "t": "The festival keeps the whole town awake. I have danced more this week than in a year.", "p": ["warm", "flowery"] }
+            ],
+            "ev_comet_sighting": [
+                { "t": "A comet hangs over us at night. The priests argue over what it means; the children just stare.", "p": ["warm", "sly", "flowery"] },
+                { "t": "There is a comet in the sky. Some say it is a sign; I say it is a comet.", "p": "blunt" },
+                { "t": "A comet burns over {town}. The priests say it is a sign, and I fear they are right.", "p": ["pious", "nervous"] }
+            ],
+            "ev_eclipse": [
+                { "t": "The sun went dark at noon a few days since. The dogs howled and old women wept." }
+            ],
+            "ev_refugee_wave": [
+                { "t": "People are coming through {town} with their lives on their backs, fleeing somewhere worse." }
+            ],
+            "ev_rebellion": [
+                { "t": "There is rebellion in the realm. Nobody knows whom to trust." }
+            ],
+            "ev_religious_schism": [
+                { "t": "The priests here are at each other's throats over a point of doctrine. The faithful don't know which way to bow.", "p": ["sly", "blunt", "warm"] },
+                { "t": "There is schism in the faith; it grieves me more than I can say.", "p": "pious" }
+            ],
+            "ev_gold_rush": [
+                { "t": "Gold has been found in the hills, and every fool with a shovel is off to dig." }
+            ],
+            "ev_market_crash": [
+                { "t": "The markets have crashed; merchants who were rich last month are selling their furniture." }
+            ],
+            "ev_trade_boom": [
+                { "t": "Trade is booming; the wharves and markets have never been so busy." }
+            ],
+            "ev_bountiful_harvest": [
+                { "t": "The harvest is the best anyone remembers; the barns are bursting." }
+            ],
+            "ev_earthquake": [
+                { "t": "The ground shook here a few days ago; there are cracks in the chapel wall you could put your hand in." }
+            ],
+            "ev_pirate_surge": [
+                { "t": "Pirates are thick on the coast; ships come in late or not at all." }
+            ],
+            "event": [
+                { "t": "Here everyone speaks of the {event}." }
+            ],
+            "outlaws": [
+                { "t": "The outlaws of {lair} are bold this season; {leader}'s men take carts on the road to {town} in broad day.", "r": ["low", "high"] },
+                { "t": "Nobody goes far from {town} after dark — {lair} is too close, and {leader} too bold.", "p": ["nervous", "warm", "pious"] },
+                { "t": "{leader} and his rabble at {lair} need hanging, and nobody in {town} has the rope.", "p": ["blunt", "sly"] }
+            ],
+            "outlaws_still": [
+                { "t": "{leader}'s outlaws at {lair} are still a plague on our roads." },
+                { "t": "{leader} still holds {lair}, and the carters still go round by the long road.", "p": ["blunt", "sly", "warm"] },
+                { "t": "Nobody has rid us of {lair} yet. The reeve talks; {leader} rides.", "p": ["sly", "blunt"] },
+                { "t": "We still bar the doors at night for fear of {leader}'s men.", "r": ["low", "kin"], "p": ["nervous", "pious", "warm"] }
+            ],
+            "outlaws_over": [
+                { "t": "The outlaws of {lair} I wrote you of are broken — the roads about {town} are quiet again." }
+            ],
+            "dearth": [
+                { "t": "{good} is short at {town}; there is little to be had in the market, and that little is dear.", "r": ["low", "high"] },
+                { "t": "We cannot get {good} for love nor money in {town}.", "r": ["low", "kin", "comrade"], "p": ["blunt", "warm", "sly"] },
+                { "t": "The market at {town} is bare of {good}, and my stewards tell me the price climbs every week.", "r": "high" },
+                { "t": "No {good} to be had at {town}. The traders say it will come; the traders always say that.", "r": "trade" },
+                { "t": "There's no {good} in {town} worth the name, and what there is costs the earth.", "r": ["low", "comrade"] }
+            ],
+            "dearth_still": [
+                { "t": "There is still no {good} to be had at {town}." },
+                { "t": "{good} is as scarce at {town} as when I last wrote — scarcer, if anything." },
+                { "t": "Still no {good} at {town}. We have learned to do without, more or less.", "r": ["low", "kin", "comrade"] },
+                { "t": "{good} is no easier to come by at {town} than when I last wrote.", "r": "high" }
+            ],
+            "dearth_over": [
+                { "t": "You will be glad to know there is {good} in the market again at {town}, and at a price a body can pay." },
+                { "t": "The {good} came back to the market at {town} at last — the shortage I wrote of is over." },
+                { "t": "We have {good} again at {town}. You never know how much you miss a thing.", "r": ["low", "kin", "comrade"] }
+            ],
+            "glut": [
+                { "t": "There is more {good} at {town} than anyone can sell; the traders practically beg in the street.", "r": ["low", "high"] },
+                { "t": "{good} is a drug on the market at {town} just now — if you have any to sell, don't bring it here.", "r": "trade" },
+                { "t": "You can't give {good} away at {town} this season.", "r": ["low", "kin", "comrade"], "p": ["blunt", "sly", "warm"] },
+                { "t": "{town} is drowning in {good}; the price has fallen through the floor.", "r": ["high", "low"] }
+            ],
+            "dear_food": [
+                { "t": "Bread costs {pct} in the hundred more than it did in the {since}, and wages are what they were.", "r": ["low", "kin", "comrade"] },
+                { "t": "Food at {town} is dearer by {pct} in the hundred since the {since}; the poor feel it first.", "r": "high" },
+                { "t": "Everything to eat costs more — {pct} in the hundred more than in the {since}, the baker's wife says, and she would know.", "r": "low", "p": ["warm", "sly", "flowery"] }
+            ],
+            "cheap_food": [
+                { "t": "Bread is cheap here this season, which is a mercy." }
+            ],
+            "inflation": [
+                { "t": "Everything costs more at {town} — {pct} in the hundred since the {since}, and nobody can say why." }
+            ],
+            "engrossing": [
+                { "t": "The grain dealers at {town} have their lofts full and their doors shut, waiting for the price to climb.", "p": ["blunt", "sly", "formal"] },
+                { "t": "The grain is in the dealers' lofts at {town}, and they will not sell. It is a sin, I say.", "p": ["pious", "warm", "nervous"] }
+            ],
+            "harvest_failing": [
+                { "t": "The crops look poorly about {town}; the old men shake their heads at the fields.", "r": ["low", "kin"] },
+                { "t": "The harvest about {town} is failing; we shall be buying grain before the winter is out.", "r": "high" }
+            ],
+            "harvest_failing_still": [
+                { "t": "The harvest is no better than I wrote. We shall be hungry by spring." }
+            ],
+            "harvest_failing_over": [
+                { "t": "The harvest came in better than we feared, after all I wrote." }
+            ],
+            "harvest_bumper": [
+                { "t": "The fields about {town} look fit to burst; it will be a fine harvest." }
+            ],
+            "harvest_poor": [
+                { "t": "The harvest was poor here, and everyone knows it." }
+            ],
+            "harvest_plenty": [
+                { "t": "The harvest was a good one, and the barns are full." }
+            ],
+            "money_levy": [
+                { "t": "The crown has laid a war levy on us, and the tax men are at every door." }
+            ],
+            "money_debased": [
+                { "t": "The new coin is half copper; the merchants weigh every penny and trust none.", "p": ["blunt", "sly", "formal"] },
+                { "t": "The coin is clipped and debased; you can bend a penny in your teeth.", "r": "low" }
+            ],
+            "money_heavy_taxes": [
+                { "t": "The taxes are heavy this year, and heavier on those who can least pay." }
+            ],
+            "money_army_unpaid": [
+                { "t": "The soldiers have not been paid in weeks, and an unpaid soldier is a dangerous thing." }
+            ],
+            "money_tax_revolt": [
+                { "t": "There was trouble at {town} over the taxes — stones thrown at the collector, and worse." }
+            ],
+            "money_coin_short": [
+                { "t": "There is no coin about; half the market here is done in barter." }
+            ],
+            "money_default": [
+                { "t": "The crown cannot pay its debts, they say. The bankers are very quiet." }
+            ],
+            "labour_strike": [
+                { "t": "The workers at {town} have downed tools and nothing is getting made." }
+            ],
+            "labour_idle": [
+                { "t": "There are too many hands and not enough work at {town}; men stand in the square waiting to be hired." }
+            ],
+            "labour_refugees": [
+                { "t": "{town} is full of people who fled their homes; they sleep in the church porch." }
+            ],
+            "labour_hardship": [
+                { "t": "Times are hard for working folk at {town}. Many go without." }
+            ],
+            "labour_boom": [
+                { "t": "There is work for anyone who wants it at {town}; folk are coming in from the villages." }
+            ],
+            "strike": [
+                { "t": "The {guild} at {town} are on strike, and there is no {good} to be had until they settle." }
+            ],
+            "strike_still": [
+                { "t": "The {guild} are still out at {town}." }
+            ],
+            "strike_over": [
+                { "t": "The {guild} have gone back to work at {town}." }
+            ],
+            "road_pass_closed": [
+                { "t": "The pass is snowed shut, so your next letter may be slow." }
+            ],
+            "road_flood": [
+                { "t": "The roads out of {town} are under water in places; the post is late." }
+            ],
+            "road_ruined": [
+                { "t": "The road to {town} is all holes and ruin; a cart broke its axle by my door last week." }
+            ],
+            "road_mud": [
+                { "t": "The roads are deep in spring mud; it is a wonder your letter came at all." }
+            ],
+            "road_washed_out": [
+                { "t": "The ford below {town} is washed out; the carts go the long way round." }
+            ],
+            "road_highway": [
+                { "t": "The new highway makes the ride from {town} a joy; your letters come quicker for it." }
+            ],
+            "road_canal": [
+                { "t": "The barges on the canal bring all sorts to {town} now." }
+            ],
+            "road_works": [
+                { "t": "They are building a new road near {town}, and every idle man has found work on it." }
+            ],
+            "new_ruler": [
+                { "t": "We have a new ruler: {ruler}, now that {oldRuler} is gone. Nobody knows yet what to make of it." },
+                { "t": "{oldRuler} is dead and {ruler} sits the throne. The criers have been hoarse for a week.", "p": ["blunt", "sly"] }
+            ],
+            "revolt": [
+                { "t": "There is revolt in {realm}, and the roads are not safe for anyone wearing the crown's colours." }
+            ],
+            "herald": [
+                { "t": "The criers came through {town} with news: {text}" },
+                { "t": "You will have heard it, but here they cried it in the square: {text}", "r": ["low", "kin", "comrade"] },
+                { "t": "The heralds were through {town} lately: {text}", "r": "high" }
+            ],
+            "scandal": [
+                { "t": "The talk at {town} is all of {subject}: \"{taleQ}\" I don't know if it is true; I only tell you what is said.", "r": ["low", "kin", "comrade"] },
+                { "t": "At {town} they are saying of {subject}: \"{taleQ}\" I set no store by it, but you should know what is said.", "r": "high", "p": ["formal", "warm", "pious"] },
+                { "t": "Here is a thing they whisper about {subject} — and I only say what they say: \"{taleQ}\"", "p": ["sly", "nervous"] },
+                { "t": "Every tavern in {town} has a tale of {subject}: \"{taleQ}\" People will believe anything with a drink in them.", "p": ["blunt", "sly", "warm", "flowery"] },
+                { "t": "They tell a story of {subject} at {town}, and tell it often: \"{taleQ}\"", "r": "high" }
+            ],
+            "deed_duel_won": [
+                { "t": "Even here we heard how you won your duel {atPlace}. The young men talk of nothing else." },
+                { "t": "Word came of your duel {atPlace}. I am glad you are alive to read this.", "p": ["warm", "nervous"] }
+            ],
+            "deed_beast_slain": [
+                { "t": "They say at {town} that you slew a beast {nearPlace}. I said I knew you, and nobody believed me." }
+            ],
+            "deed_feast_given": [
+                { "t": "We heard of your feast {atPlace}; they say the wine ran till dawn." }
+            ],
+            "deed_famine_dole": [
+                { "t": "Word reached {town} of the bread you gave out {atPlace}. That is a thing people remember.", "p": ["pious", "warm", "formal"] },
+                { "t": "People here speak well of you for the bread you gave out {atPlace}. Don't let it go to your head.", "p": ["blunt", "sly"] }
+            ],
+            "deed_pilgrimage_made": [
+                { "t": "They say you made a pilgrimage {toPlace}. The gods will remember it." }
+            ],
+            "deed_pardon": [
+                { "t": "We heard you showed mercy {atPlace}. Mercy is talked of more than cruelty, whatever men think." }
+            ],
+            "deed_wilds_rescue": [
+                { "t": "The tale of how you brought someone out of the wilds {nearPlace} has reached even {town}." }
+            ],
+            "deed_sack": [
+                { "t": "We have heard what was done {atPlace}, and by whose order.", "tone": ["cool", "hostile"] },
+                { "t": "They speak of {place} here in low voices, and of you in lower ones." }
+            ],
+            "deed_murder": [
+                { "t": "There is talk here of a killing {atPlace}, and your name is in it. I hope it is a lie.", "tone": ["warm", "cool"] },
+                { "t": "They say at {town} that you have blood on your hands from {place}. I believe it.", "tone": "hostile" }
+            ],
+            "deed_theft": [
+                { "t": "There is talk at {town} of a theft {atPlace}, and your name comes up. I said nothing.", "tone": ["warm", "cool"] },
+                { "t": "Thief. They know your name in {town} now.", "tone": "hostile" }
+            ],
+            "deed_assault": [
+                { "t": "They say at {town} you beat a man {atPlace}. I hope he had it coming.", "tone": ["warm", "cool"] },
+                { "t": "Word of what you did {atPlace} has reached {town}. Nobody here is surprised.", "tone": "hostile" }
+            ],
+            "deed_affair": [
+                { "t": "There is talk here — idle talk, I hope — of you and {victim}. Be careful what you put in letters.", "tone": ["warm", "cool"] },
+                { "t": "All {town} knows about you and {victim}. So does everyone who matters.", "tone": "hostile" }
+            ],
+            "fashion": [
+                { "t": "The fashion at court is {fashion}, and every merchant in {place} is selling {goods} at twice the price.", "r": ["high", "low"] }
+            ],
+            "season_spring": [
+                { "t": "Spring has come; the lambs are out and the roads are mud.", "r": ["low", "kin"] },
+                { "t": "The spring here is late and cold, and the blossom is only just showing.", "p": ["flowery", "nervous"] },
+                { "t": "The fields are being ploughed and the ditches cleared; spring keeps everyone busy.", "r": ["low", "comrade"], "p": ["blunt", "warm"] }
+            ],
+            "season_summer": [
+                { "t": "It is high summer; the days are long and the flies are worse.", "r": ["low", "kin", "comrade"] },
+                { "t": "Summer is here, and the court is restless as it always is in the heat.", "r": "high" },
+                { "t": "The hay is in, or most of it. My arms ache from the scything.", "type": "folk", "p": ["blunt", "warm"] }
+            ],
+            "season_autumn": [
+                { "t": "The leaves are turning and the swallows have gone; there is woodsmoke on the air every evening.", "p": ["flowery", "warm", "nervous"] },
+                { "t": "Autumn is here; we are getting the harvest in and the wood stacked.", "r": ["low", "kin"] },
+                { "t": "It is autumn, and the court talks of nothing but the hunting.", "r": "high" }
+            ],
+            "season_winter": [
+                { "t": "It is bitter here; the water froze in the jug last night.", "r": ["low", "kin", "comrade"] },
+                { "t": "Winter has us shut indoors with the fire and each other's tempers.", "p": ["sly", "warm", "blunt"] },
+                { "t": "Winter is upon us, and our halls are cold however many logs we burn.", "r": "high" }
+            ],
+            "ruler_ill": [
+                { "t": "I write this from my bed. The physicians bleed me and frown, and I frown back.", "p": ["blunt", "sly", "warm"] },
+                { "t": "We have been unwell this past while; our physicians are hopeful, which is what physicians are paid to be.", "p": ["formal", "flowery"] },
+                { "t": "I have been ill, and am not yet well. Pray for me, if you pray.", "p": ["pious", "nervous"] }
+            ],
+            "ruler_ill_still": [
+                { "t": "I am still abed, as when I last wrote; the physicians promise much and do little." }
+            ],
+            "ruler_ill_over": [
+                { "t": "You will be glad to know the fever I wrote of has left me. I rode out yesterday for the first time in weeks." },
+                { "t": "We are recovered from the illness of which we wrote, the gods be thanked.", "p": ["pious", "formal", "flowery"] }
+            ],
+            "spouse_ill": [
+                { "t": "My consort {spouse} has been ill these past weeks; I sit with {spouse} in the evenings." }
+            ],
+            "lord_birth": [
+                { "t": "We have been blessed with a {childWord}, {child}, born this season. The bells have not stopped." },
+                { "t": "I have a new {childWord}: {child}. Small, loud, and already the master of the household.", "p": ["warm", "sly", "blunt"] }
+            ],
+            "lord_heir": [
+                { "t": "My {childWord} {child} is {age} now and rides better than I ever did." },
+                { "t": "{child}, my {childWord}, is {age}, and has begun to sit in council with me. Heaven help the council.", "p": ["sly", "warm"] }
+            ],
+            "lord_new": [
+                { "t": "You will know {oldRuler} is dead, and the crown of {realm} has come to me. It is heavier than it looks.", "p": ["warm", "nervous", "blunt"] },
+                { "t": "Since the death of {oldRuler} the governance of {realm} is in our hands, and we mean to keep it well.", "p": ["formal", "flowery", "sly", "pious"] }
+            ],
+            "rival_child": [
+                { "t": "My {childWord} {child} is {age} now, and asks about your House more than I would like." },
+                { "t": "{child}, my {childWord}, turns {age} this year. Children grow; feuds, it seems, do not.", "p": ["sly", "formal"] }
+            ],
+            "rival_errand": [
+                { "t": "I ride for {place} within the week, on business you will hear of soon enough." },
+                { "t": "My people are bound for {place}. Make of that what you will.", "p": ["sly", "blunt"] }
+            ],
+            "rival_passion": [
+                { "t": "{line}" }
+            ],
+            "spouse_kid": [
+                { "t": "{child} asks for you every night, and every night I say soon." },
+                { "t": "{child} is {age} now and {he} has your temper, I am sorry to say.", "p": ["sly", "blunt", "warm"] },
+                { "t": "{child} wanted to write to you too; I have folded {his} letter inside mine. It is mostly drawings of horses.", "p": ["warm", "flowery"] },
+                { "t": "{child} is well and growing, and keeps asking when you will come home.", "p": ["formal", "nervous", "pious"] }
+            ],
+            "spouse_missing": [
+                { "t": "The bed is too wide without you." },
+                { "t": "I keep your place at the table. The servants think me foolish.", "p": ["warm", "nervous", "flowery"] },
+                { "t": "Come home when you can. I am not asking, I am telling.", "p": ["blunt", "sly"] },
+                { "t": "I light a candle for you every evening.", "p": "pious" }
+            ],
+            "child_court": [
+                { "t": "Here {news}." }
+            ],
+            "child_held": [
+                { "t": "They are courteous to me here in {realm}, but I see the guards at my door, and they see me." }
+            ],
+            "child_spouse": [
+                { "t": "{spouse} is kind to me, and I am learning to be kind back." }
+            ],
+            "governing": [
+                { "t": "{town} keeps me busy from first light: petitions, quarrels, the watch, the tolls. I never knew how much paper a town eats." },
+                { "t": "Governing {town} is a slower kind of fighting. I am learning it.", "p": ["blunt", "sly", "formal"] }
+            ],
+            "life_wed": [
+                { "t": "I have news: I am married! {name} and I were wed this season." },
+                { "t": "I wed {first} this season. You would like {first}, I think.", "p": ["warm", "flowery"] },
+                { "t": "I got married. {first}. It's done.", "p": "blunt" }
+            ],
+            "life_birth": [
+                { "t": "We have a little {childWord}, {child}, born this season. Loud as a crow and twice as hungry." },
+                { "t": "The gods sent us a {childWord} this season; we named the child {child}.", "p": ["pious", "formal"] }
+            ],
+            "widowed": [
+                { "t": "I must tell you my {spouseWord} {name} is dead — {cause}. The house is very quiet." },
+                { "t": "{name} is gone. {cause}. I don't know what else to write.", "p": ["blunt", "nervous"] }
+            ],
+            "widowed_still": [
+                { "t": "I still set two cups on the table some mornings, from habit." }
+            ],
+            "widowed_over": [
+                { "t": "The grief I wrote you of is lighter now. Not gone, but lighter." }
+            ],
+            "life_child_died": [
+                { "t": "We lost our {childWord} {name} — {cause}. I cannot write more of it." }
+            ],
+            "life_parent_died": [
+                { "t": "My {parentWord} {name} passed this season. It was time, they say. It never feels like time." }
+            ],
+            "life_kid_left": [
+                { "t": "Our {name} has gone off to {to}. The house feels bigger and emptier." },
+                { "t": "{name} left for {to}. Young folk always think the grass is greener.", "p": ["blunt", "sly"] }
+            ],
+            "life_retired": [
+                { "t": "I have given up the work of a {work}; my back would not have it any longer." }
+            ],
+            "hurt": [
+                { "t": "I am still mending from a beating — it will heal, the wise-woman says." },
+                { "t": "I have been laid up hurt. Don't fuss; it is mending.", "p": ["blunt", "warm"] }
+            ],
+            "hurt_still": [
+                { "t": "I am still not right from that beating I wrote of." }
+            ],
+            "hurt_over": [
+                { "t": "I am mended now, thank you for asking — or for not asking." }
+            ],
+            "family_kid": [
+                { "t": "My {childWord} {child} is {age} now and into everything." },
+                { "t": "{child} is {age} and asks who writes me letters. I said a friend.", "p": ["warm", "sly"] }
+            ],
+            "family_grown": [
+                { "t": "My {childWord} {child} is grown, and a {work} now." },
+                { "t": "{child} is a {work} now, and thinks they know everything.", "p": ["blunt", "sly", "warm"] }
+            ],
+            "neighbour": [
+                { "t": "News of the town: {text}." },
+                { "t": "You'll remember the folk here, maybe. {text}.", "r": "low" }
+            ]
+        },
+        "hooks": {
+            "request_food": [
+                { "t": "I would not ask if it were not hard, but we are short of {good} here. If you could send {qty} {good} — or {gold} gold to buy it, if you have it to spare — we would bless your name.", "r": ["low", "kin"] },
+                { "t": "I have a thing to ask. {good} is not to be had at {town}. Could you send {qty}? Or {gold} gold, and we will find some.", "p": ["blunt", "sly"] },
+                { "t": "Forgive me for asking. We are hungry here, and there is no {good}. {qty} {good}, or {gold} gold — anything would help.", "p": ["nervous", "pious", "warm"] },
+                { "t": "{town} is short of {good}. If you could spare {qty}, or {gold} gold towards it, the town would remember who helped.", "r": ["comrade", "high"] },
+                { "t": "I hate to ask. But there is no {good} at {town}, and the children ask for it. {qty} {good} would do, or {gold} gold.", "rel": "spouse" },
+                { "t": "The larder is low — no {good} in {town} for any money. If you could send {qty}, or {gold} gold, I would be easier.", "r": ["kin", "low"], "p": ["formal", "warm", "flowery"] }
+            ],
+            "invite_visit": [
+                { "t": "Come and see us at {town} if your road brings you near, before {deadline}. There will be a bed for you, and supper." },
+                { "t": "You must come to {town} — truly, I mean it. Before {deadline}, if you can.", "p": ["warm", "flowery", "nervous"] },
+                { "t": "If you are near {town} before {deadline}, come by. I'll not ask twice.", "p": ["blunt", "sly"] },
+                { "t": "Come home to {town} before {deadline}, if you can. I would like to see your face.", "rel": "spouse" }
+            ],
+            "invite_feast": [
+                { "t": "You will have a letter from our steward bidding you to our table; come, and be seen to come." },
+                { "t": "My steward writes separately about a feast. Do come — the company is dull without enemies or friends, and you may be either.", "p": ["sly", "flowery"] }
+            ],
+            "tip_agent": [
+                { "t": "A word to you, quietly: {agent}, the {role} here, has been drinking with men in the colours of {rival}, and asks a great many questions about your affairs." },
+                { "t": "I should not say this, but you have been kind to me. Watch {agent}, the {role}. Money from {rival} goes into that purse.", "p": ["nervous", "warm", "pious"] },
+                { "t": "Watch {agent}, the {role} at {town}. {rival} pays for something, and it isn't the ale.", "p": ["blunt", "sly"] }
+            ],
+            "tip_lair": [
+                { "t": "If you ride this way, beware the country near {where}: {leader}'s outlaws keep {lair} there, and they are not gentle with travellers." },
+                { "t": "The outlaws who trouble us have their hole at {lair}, near {where} — {leader} leads them. I tell you so that you will know the road.", "p": ["formal", "warm"] }
+            ],
+            "secret_true": [
+                { "t": "One thing more, for your eyes only: the tale they tell of {subject} is true. I have it from one who knows. Burn this.", "p": ["sly", "nervous", "formal", "blunt"] },
+                { "t": "You will have heard what they say of {subject}. I will tell you plainly: it is true. Keep it close.", "p": ["warm", "pious", "flowery"] }
+            ],
+            "secret_false": [
+                { "t": "And this, between ourselves: what they say of {subject} is a lie, and I know who began it. Don't be taken in.", "p": ["sly", "nervous", "formal", "blunt"] },
+                { "t": "Do not believe what is said of {subject}. It is false, and I know it for certain.", "p": ["warm", "pious", "flowery"] }
+            ],
+            "enclose_coin": [
+                { "t": "I put {coin} in with this. Don't argue; it's yours." },
+                { "t": "There are {coin} in the fold of this letter, for your road. It is not much.", "p": ["nervous", "warm", "pious"] }
+            ],
+            "enclose_goods": [
+                { "t": "I send {goodsLine} with the rider, bought in the market here — something from {town} to remember us by." },
+                { "t": "The rider carries {goodsLine} from {town}. Don't say I never gave you anything.", "p": ["blunt", "sly", "warm"] }
+            ],
+            "enclose_token": [
+                { "t": "Inside I have put {token}. You will know why." },
+                { "t": "Inside is {token}. Keep it near you.", "p": ["warm", "flowery", "pious"] },
+                { "t": "There is {token} in with this. Don't laugh.", "p": ["blunt", "nervous", "sly"] }
+            ]
+        },
+        "tokens": {
+            "spring": ["a pressed primrose", "a sprig of blossom, a little crushed", "a pressed violet"],
+            "summer": ["a pressed cornflower", "a dried rose, a little crushed", "a sprig of lavender"],
+            "autumn": ["a red leaf from the garden", "a pressed heather sprig", "a sprig of rosemary"],
+            "winter": ["a sprig of holly", "a sprig of rosemary", "a pressed snowdrop"],
+            "any": ["a lock of hair, tied with red thread", "a ribbon you will know", "a little knot of plaited grass"],
+            "kid": [
+                "a drawing by {child} of a horse — or possibly a dog",
+                "a little carved horse {child} made for you",
+                "a pebble {child} says is lucky"
+            ]
+        },
+        "closings": [
+            { "t": "Your servant,", "r": "high", "tone": ["warm", "cool"], "p": ["formal", "nervous"] },
+            { "t": "Given under our hand and seal at {town}.", "type": "lord", "p": ["formal", "blunt", "sly"] },
+            { "t": "With every good wish for your health and your House,", "r": "high", "tone": "warm", "p": ["formal", "flowery", "warm"] },
+            { "t": "May the gods keep you, as we pray they will.", "tone": ["warm", "cool"], "p": "pious" },
+            { "t": "Ever your friend, whatever the world says,", "tone": "warm", "p": ["warm", "flowery"], "not": "first", "rel": ["none", "friend", "comrade"] },
+            { "t": "We remain, as ever, watchful of our friends,", "r": "high", "p": "sly", "tone": ["warm", "cool"] },
+            { "t": "Till we meet,", "r": ["low", "comrade"], "tone": "warm" },
+            { "t": "Write again soon,", "r": ["low", "kin", "comrade"], "tone": "warm" },
+            { "t": "Take care on the roads,", "r": ["low", "kin", "comrade"], "tone": "warm", "p": ["nervous", "warm", "pious"] },
+            { "t": "That's all,", "r": ["low", "comrade"], "p": "blunt" },
+            { "t": "In haste, the rider waiting,", "p": ["nervous", "blunt"], "tone": ["warm", "cool"] },
+            { "t": "Yours in friendship,", "tone": "warm", "rel": ["none", "friend", "comrade"] },
+            { "t": "Yours,", "tone": "cool" },
+            { "t": "As ever,", "rel": ["spouse", "child", "love"] },
+            { "t": "Your servant, and your friend,", "r": "high", "tone": "warm", "p": ["warm", "pious", "nervous"] },
+            { "t": "Commending you to the gods,", "r": "high", "tone": ["warm", "cool"], "p": ["pious", "formal"] },
+            { "t": "Respectfully,", "tone": "cool", "r": ["high", "low"], "rel": ["none", "friend"] },
+            { "t": "With the honour you have earned of us, and no more,", "tone": "cool", "r": "high", "p": ["sly", "blunt", "formal"] },
+            { "t": "With all my heart, and more than this paper holds,", "rel": ["spouse", "love"], "tone": "warm" },
+            { "t": "Your loving {spouseOf},", "rel": "spouse", "tone": "warm" },
+            { "t": "Your devoted {childOf},", "rel": "child" },
+            { "t": "Your old comrade,", "r": "comrade", "tone": ["warm", "cool"] },
+            { "t": "Do not write again.", "tone": "hostile" },
+            { "t": "No more.", "tone": "hostile", "p": ["blunt", "sly"] },
+            { "t": "Look to yourself.", "tone": "hostile", "p": ["blunt", "formal"] }
+        ],
+        "signatures": {
+            "lord": [
+                { "t": "{sig}" }
+            ],
+            "rival": [
+                { "t": "{sig}" }
+            ],
+            "house": [
+                { "t": "{sig}" }
+            ],
+            "folk": [
+                { "t": "{sig}, {role} of {town}" },
+                { "t": "{sig}" }
+            ],
+            "npc": [
+                { "t": "{sig}" }
+            ],
+            "spouse": [
+                { "t": "{first}" }
+            ],
+            "child": [
+                { "t": "{first}" }
+            ],
+            "companion": [
+                { "t": "{sig}" }
+            ],
+            "mark": [
+                { "t": "+ the mark of {sig}" },
+                { "t": "{sig}, X, her mark", "when": "female" },
+                { "t": "{sig}, X, his mark", "when": "male" }
+            ],
+            "default": [
+                { "t": "{sig}" }
+            ]
+        },
+        "hands": {
+            "clerk": [
+                { "t": "Written fair by a clerk of the chancery, and sealed with the seal of {realm}.", "type": "lord", "not": ["yourTongue", "theirTongue"] },
+                { "t": "A clerk's careful hand, under the great seal of {realm}.", "type": "lord", "not": ["yourTongue", "theirTongue"] },
+                { "t": "Put into your own tongue by a clerk of the chancery of {realm}, and sealed with its seal.", "type": "lord", "when": "yourTongue" },
+                { "t": "A clerk's careful hand, in your own tongue, under the great seal of {realm}.", "type": "lord", "when": "yourTongue" },
+                { "t": "Under the seal of {realm} — and in the court's own tongue: nobody troubled to put it into yours.", "type": "lord", "when": "theirTongue" },
+                { "t": "In a clerk's hand, on the counting-house's paper.", "type": "house" }
+            ],
+            "scribe": [
+                { "t": "Set down by {scribe} of {town} for {writer}, who cannot write." },
+                { "t": "Written by {scribe} at {town}, word for word as {first} said it." }
+            ],
+            "mouth": [
+                { "t": "No letter came: a carter from {town} brought word from {writer} by mouth, and gave it like this." },
+                { "t": "A pedlar out of {town} carried word from {writer}, who cannot write, and repeated it as best he could." }
+            ],
+            "rival": [
+                { "t": "In a secretary's hand, put into your tongue, under the seal of {sigHouse}.", "when": "yourTongue" },
+                { "t": "Written in the tongue of {realm}, and sealed with {sigHouse}'s seal. No courtesy of translation.", "when": "theirTongue" }
+            ],
+            "own": [
+                { "t": "In {first}'s own hand, a little blotted.", "p": ["nervous", "warm"], "r": ["low", "kin", "comrade"] },
+                { "t": "In a large, careful hand.", "type": "child" }
+            ]
+        },
+        "ps": [
+            { "t": "Forgive the blots; the ink is poor and so is my hand.", "p": ["nervous", "warm"], "not": ["scribe"] },
+            { "t": "Burn this when you have read it. Or don't — I don't suppose it matters.", "p": "sly" },
+            { "t": "I have said a prayer for your road.", "p": "pious" },
+            { "t": "Give my regards to whoever is fool enough to ride with you.", "p": ["blunt", "sly"], "r": ["low", "comrade"] },
+            { "t": "The rider ate all our bread. Tip him less next time.", "p": ["blunt", "warm", "sly"], "r": ["low", "kin"] },
+            { "t": "Write back. Even a line.", "r": ["kin", "low"], "p": ["warm", "nervous"] },
+            { "t": "Our compliments to your House.", "r": "high", "p": ["formal", "flowery"] },
+            { "t": "I meant to write more, but the candle is out.", "p": ["warm", "nervous", "flowery"] },
+            { "t": "Mind your health; you never do.", "rel": ["spouse", "child", "love"] },
+            { "t": "I nearly forgot — the dog had pups.", "r": ["low", "kin"], "p": ["warm", "flowery", "nervous"] },
+            { "t": "Do not trust the courier from the south road; he reads what he carries.", "p": ["sly", "nervous"] },
+            { "t": "Send word that this arrived.", "p": ["formal", "nervous", "blunt"] },
+            { "t": "Excuse the brevity; there is a petitioner at the door.", "r": "high", "p": ["formal", "blunt", "sly"] },
+            { "t": "The seal is a new one; the old cracked in the cold.", "r": "high", "p": ["formal", "flowery"] },
+            { "t": "The roof leaks again. I mention it only so you know I am not complaining about anything else.", "r": ["low", "kin"], "p": ["sly", "blunt", "warm"] },
+            { "t": "Burn the candle at both ends if you must, but sleep sometimes.", "rel": ["spouse", "child", "love", "comrade"] },
+            { "t": "There is a cough going round {town}; mind yourself if you pass through.", "r": ["low", "kin"], "p": ["nervous", "warm", "pious"] }
+        ],
+        "unprompted": {
+            "openings": [
+                { "t": "I have not heard from you in a while, so I write first." },
+                { "t": "No letter from you, so here is one from me.", "p": ["blunt", "warm", "sly"] },
+                { "t": "I take up my pen without waiting for yours.", "r": "high", "p": ["formal", "flowery"] },
+                { "t": "{scribe} has kindly agreed to write this for me.", "when": "scribe" },
+                { "t": "A rider is going your way, so I send this with him.", "r": ["low", "comrade"] },
+                { "t": "I write because there is news, and you should have it from a friend.", "tone": "warm" },
+                { "t": "It has been too long since we wrote, so I am writing.", "tone": "warm", "r": ["low", "kin", "comrade"] },
+                { "t": "The carrier leaves at first light, and I would not let him go empty-handed.", "r": ["low", "comrade"], "p": ["warm", "flowery", "sly"] },
+                { "t": "We write unbidden, which we do not often do.", "r": "high", "p": ["formal", "sly", "blunt"] }
+            ],
+            "reasons": {
+                "condolence_spouse": [
+                    { "t": "I heard of {dead}'s death and could not let it pass without a word. I am so sorry." },
+                    { "t": "We have learned with great sorrow of the death of {dead}. Our thoughts are with your House.", "r": "high" },
+                    { "t": "{dead} is gone, and I grieve with you. The gods keep {dead} now.", "p": "pious" },
+                    { "t": "{dead} was a good soul. I don't know what else to say, except that I am here if you need me.", "p": ["warm", "blunt", "nervous"] }
+                ],
+                "condolence_child": [
+                    { "t": "I have heard about {dead}. There are no words for it, so I will not pretend to have any. I am sorry." },
+                    { "t": "We learn with deep sorrow of the loss of your {deadWord} {dead}. No crown or House is proof against such grief.", "r": "high" },
+                    { "t": "{dead}. I lit a candle the hour I heard. The gods hold {dead} gently now.", "p": "pious" },
+                    { "t": "I heard about {dead}. I am crying as I write this.", "rel": ["spouse", "child"] }
+                ],
+                "congrats_birth": [
+                    { "t": "I hear you have a new {childWord}, {child}! A thousand blessings on the little one." },
+                    { "t": "We have heard of the birth of {child} to your House, and send our congratulations.", "r": "high" },
+                    { "t": "A {childWord}! {child}! Kiss the little one for me.", "p": ["warm", "flowery"] },
+                    { "t": "Heard about {child}. Good. May the child have your luck and none of your enemies.", "p": ["blunt", "sly"] }
+                ],
+                "congrats_wed": [
+                    { "t": "I hear you are married to {spouse}! I am so glad for you." },
+                    { "t": "We have heard of your marriage to {spouse}, and wish you both every joy.", "r": "high" },
+                    { "t": "Married! To {spouse}! I always said you would be, and nobody believed me.", "p": ["warm", "sly", "flowery"] }
+                ],
+                "congrats_crown": [
+                    { "t": "We have heard that {yourRealm} is yours. We salute a fellow crown.", "type": "lord" },
+                    { "t": "A crown! I knew you when you had holes in your boots.", "r": ["low", "comrade"] },
+                    { "t": "The crown of {yourRealm}, they say. May you wear it better than most.", "p": ["blunt", "sly"] }
+                ],
+                "news": [
+                    { "t": "Nothing has happened that you need to act upon; I only wanted you to know how things stand with us.", "r": "high" },
+                    { "t": "Nothing much has happened here, but I said I would write, so I am writing.", "r": ["low", "comrade"], "p": ["blunt", "warm"] },
+                    { "t": "It has been a while, and I wanted you to know how we are getting on.", "r": ["low", "kin"] },
+                    { "t": "There is no great news, only the small kind — but you always said you liked the small kind.", "when": "again", "r": ["low", "kin", "comrade"] },
+                    { "t": "I hope you don't mind my writing without being written to.", "p": "nervous" },
+                    { "t": "Our affairs leave a moment's leisure, and we spend it on you.", "r": "high", "p": ["flowery", "sly", "warm"] },
+                    { "t": "I prayed for you at the evening bell, and it put me in mind to write.", "p": "pious" },
+                    { "t": "The house is asleep and I am writing to you by the last of the candle.", "rel": "spouse" },
+                    { "t": "Quiet here. Too quiet. So I am writing to you instead of sharpening things.", "r": "comrade" },
+                    { "t": "I thought you would want the news, such as it is.", "r": ["low", "kin", "comrade"] },
+                    { "t": "We thought it right to keep you informed of affairs in {realm}.", "r": "high" }
+                ],
+                "request": [
+                    { "t": "I write to ask a thing of you, and I would not, if I had anyone else to ask." },
+                    { "t": "I must ask your help.", "p": ["blunt", "nervous"] }
+                ],
+                "missing": [
+                    { "t": "You have been gone a long while. I am not complaining. I am only telling you.", "rel": "spouse" },
+                    { "t": "I miss you. There, I have written it.", "rel": ["spouse", "love"] },
+                    { "t": "It is very quiet here without you.", "rel": ["spouse", "child"] }
+                ],
+                "deed": [
+                    { "t": "I had to write when I heard the news of you." },
+                    { "t": "Word of you has reached us, and I could not keep my pen still.", "p": ["warm", "flowery"] },
+                    { "t": "We hear of you even here.", "r": "high" }
+                ]
+            }
         }
     }
 }

@@ -10,6 +10,13 @@
 // non-200, malformed — resolves to a graceful { ok:false, reason } so the
 // caller can fall back to deterministic/templated behaviour. It is inert until
 // configured and is off by default (see NpcBrain / settings).
+//
+// Providers: 'local' (llama-server), 'openai' (OpenAI's API) and 'webllm' — a
+// model run inside the game on the player's GPU (systems/llm/webllmProvider.js,
+// imported lazily). Callers never see the difference: chat / chatStream /
+// probe keep the same shapes whichever provider answers.
+
+import { WebLlm } from './llm/webllmProvider.js';
 
 const DEFAULTS = {
     // 'local' (a llama.cpp llama-server, no key) or 'openai' (OpenAI's API, with an API key)
@@ -29,7 +36,14 @@ const DEFAULTS = {
 export const LLM_PROVIDERS = {
     local: { endpoint: 'http://127.0.0.1:8080', model: 'local', label: 'Local (llama.cpp)' },
     openai: { endpoint: 'https://api.openai.com', model: 'gpt-6-luna', label: 'OpenAI' },
+    // No address: the model runs in the page. '' = the default of data/llmModels.json
+    webllm: { endpoint: '', model: '', label: 'In-browser (WebLLM)' },
 };
+
+function isWebLlm() {
+    return config.provider === 'webllm';
+}
+
 
 function isOpenAI() {
     return config.provider === 'openai';
@@ -66,6 +80,18 @@ function chatBody(messages, opts, stream) {
 }
 
 let config = { ...DEFAULTS };
+
+/**
+ * Options for the in-browser model: the caller's, else the client's
+ * temperature; timeouts and token caps fall to WebLLM's own (slower GPUs,
+ * data/llmModels.json) unless the caller set them.
+ */
+function webllmOpts(opts) {
+    return {
+        ...opts,
+        temperature: opts.temperature != null ? opts.temperature : config.temperature,
+    };
+}
 let availability = { ok: false, checkedAt: -Infinity };
 
 function nowMs() {
@@ -88,6 +114,8 @@ export const LlmClient = {
 
     /** Cheap health probe, cached for availabilityTtlMs. Never throws. */
     async isAvailable(force = false) {
+        // In-browser: a local state check, no network — always fresh
+        if (isWebLlm()) return (await LlmClient.probe()).ok;
         const t = nowMs();
         if (!force && (t - availability.checkedAt) < config.availabilityTtlMs) {
             return availability.ok;
@@ -105,6 +133,11 @@ export const LlmClient = {
     async probe() {
         const t = nowMs();
         let out;
+        if (isWebLlm()) {
+            try { out = await WebLlm.probe(config.model); } catch { out = { ok: false, state: 'error', detail: 'WebLLM failed' }; }
+            availability = { ok: out.ok, checkedAt: t, state: out.state, detail: out.detail, progress: out.progress };
+            return out;
+        }
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), Math.min(config.timeoutMs, 3000));
         try {
@@ -143,6 +176,21 @@ export const LlmClient = {
         return { ok: availability.ok, state: availability.state || null, detail: availability.detail || '', checkedAt: availability.checkedAt };
     },
 
+    /** The in-browser provider itself (download / load / delete / status for the settings UI). */
+    webllm: WebLlm,
+
+    /**
+     * Load the in-browser model in the background if it is already
+     * downloaded (the UI calls this a little after a game has loaded). Never
+     * downloads, never throws; a no-op for the other providers.
+     */
+    async warmUp() {
+        if (!isWebLlm()) return { ok: false, reason: 'not webllm' };
+        const r = await WebLlm.warmUp(config.model);
+        availability = { ok: false, checkedAt: -Infinity };
+        return r;
+    },
+
     /**
      * Send a chat completion. `messages` is an OpenAI-style array
      * [{ role, content }]. Resolves { ok:true, text } or { ok:false, reason }.
@@ -151,6 +199,9 @@ export const LlmClient = {
     async chat(messages, opts = {}) {
         if (!Array.isArray(messages) || messages.length === 0) {
             return { ok: false, reason: 'no messages' };
+        }
+        if (isWebLlm()) {
+            try { return await WebLlm.chat(messages, webllmOpts(opts)); } catch { return { ok: false, reason: 'webllm error' }; }
         }
         const timeoutMs = opts.timeoutMs || config.timeoutMs;
         const ctrl = new AbortController();
@@ -189,6 +240,9 @@ export const LlmClient = {
     async chatStream(messages, opts = {}, onDelta = null) {
         if (!Array.isArray(messages) || messages.length === 0) {
             return { ok: false, reason: 'no messages' };
+        }
+        if (isWebLlm()) {
+            try { return await WebLlm.chatStream(messages, webllmOpts(opts), onDelta); } catch { return { ok: false, reason: 'webllm error' }; }
         }
         const timeoutMs = opts.timeoutMs || config.timeoutMs;
         const ctrl = new AbortController();

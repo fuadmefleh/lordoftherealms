@@ -195,6 +195,26 @@ describe('inside as outside', () => {
         if (smith) expect(inside(CustomBuildings.tierVariant(smith, 'rich')).floor).toBe(InnerMap.INTERIOR_LAYOUTS.blacksmith.floor);
     });
 
+    it('the poor bathe in wooden tubs (still joined into their two-tile piece); their straw keeps its own blanket', () => {
+        const out = InnerMap._furnishByTier([{ type: 'tub', name: 'Bath' }, { type: 'bed', name: 'Bed' }], 'poor', 'hall');
+        const tub = out.find(f => f.type === 'tub'), bed = out.find(f => f.type === 'bed');
+        expect(tub.art).toBe('tub_wood');
+        expect(tub.noJoin).toBeUndefined();
+        expect(bed.art).toBe('straw');
+        // (a long straw pallet where the room has the length for it: straw_1x2)
+        expect(bed.noJoin).toBeUndefined();
+        // middling keeps the copper bath
+        expect(InnerMap._furnishByTier([{ type: 'tub', name: 'Bath' }], 'mid', 'hall')[0].art).toBeUndefined();
+        // the art: a wooden 2x1 and 1x1 tub, a bather's rim; straw with a plain wool blanket, no bed covers
+        const F = DataLoader._gamedata.innerMapRenderer.interiorArt.furniture;
+        expect(F.tub_wood_2x1.rim).toBeGreaterThan(0);
+        expect(F.tub_wood.rim).toBeGreaterThan(0);
+        expect(F.straw.cover).toBeUndefined();
+        expect(F.straw.blanket).toMatch(/^#/);
+        expect(F.straw_1x2.blanket).toMatch(/^#/);
+        expect(F.straw_1x2.cover).toBeUndefined();
+    });
+
     it('the poor sleep on straw without finery; the rich have more, and the way in stays open', () => {
         const d = CustomBuildings.getByCulture('Imperial', 'house')[0];
         const poor = inside(CustomBuildings.tierVariant(d, 'poor'));

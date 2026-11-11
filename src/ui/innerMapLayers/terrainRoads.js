@@ -526,7 +526,8 @@ Object.assign(InnerMapRenderer, {
         // A big piece (world/innerMap/interiors.js _joinPieces) is drawn once, from its last tile
         // (the others are drawn by then, so it lies over them), in its own art: `<type>_<w>x<h>`
         const piece = furniture && furniture.piece;
-        const pieceArt = piece && art.furniture[`${furniture.type}_${piece.w}x${piece.h}`];
+        // (a piece with its own look keeps it at its size: the poor's wooden tub, tub_wood_2x1)
+        const pieceArt = piece && ((furniture.art && art.furniture[`${furniture.art}_${piece.w}x${piece.h}`]) || art.furniture[`${furniture.type}_${piece.w}x${piece.h}`]);
         // (a piece may name its own look: coal in a sack, `art: 'sack_coal'`)
         const furnArt = furniture && (pieceArt
             || (furniture.art && art.furniture[furniture.art])

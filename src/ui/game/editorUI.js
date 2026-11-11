@@ -7,10 +7,14 @@ import { Afterlife } from '../../player/afterlife.js';
 import { Scenarios } from '../../player/scenarios.js';
 import { House } from '../../systems/house.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
+import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapDowned } from '../innerMapDowned.js';
 
 export function resumeGame() {
     const result = SaveLoad.loadGame();
     if (!result.success) return;
+    // (the street maps aren't saved: whoever was over your shoulder is let go, nothing left dangling)
+    InnerMapCarry.reset();
 
     const data = result.data;
 
@@ -26,6 +30,8 @@ export function resumeGame() {
     // Reconstruct player
     this.player = new Player();
     SaveLoad.restorePlayer(data.player, this.player, this.world);
+    // Anyone left under the earth when the game was saved died there (ui/innerMapDowned.js)
+    InnerMapDowned.settleAll(this.world);
 
     // Restore fog of war visibility around player position
     this.player.updateVisibility(this.world, 4);

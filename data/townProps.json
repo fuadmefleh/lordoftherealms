@@ -3,7 +3,7 @@
     "sheets": {
         "fence":    "assets/lpc/ThatchedHouses/tilesets/fence.png",
         "pfence":   "assets/lpc/Structure/Fences/Plain Fence A.png",
-        "fountain": "assets/lpc/Structure/Misc/Fountain A.png",
+        "fountain": "assets/buildingKit/fountain_pl.png",
         "lamp":     "assets/lpc/Objects/Furniture/Lighting, Outdoors.png",
         "hay":      "assets/lpc/Objects/Small Items/Hay & Straw.png",
         "planter":  "assets/lpc/Objects/Furniture/Planter.png",
@@ -133,7 +133,7 @@
         { "id": "tp_stump_palm_young", "name": "Young Palm Stump", "sheet": "stumps", "rect": [3, 4, 3, 2], "solid": 1, "tags": ["stump", "palm"], "grub": {"hardness": 20, "firewood": 2} },
         { "id": "tp_stump_palm_dead", "name": "Dead Palm Stump", "sheet": "stumps", "rect": [6, 4, 3, 2], "solid": 1, "tags": ["stump", "palm"], "grub": {"hardness": 20, "firewood": 2} },
         { "id": "tp_stump_palm_low", "name": "Low Palm Stump", "sheet": "stumps", "rect": [9, 4, 3, 2], "solid": 1, "tags": ["stump", "palm"], "grub": {"hardness": 20, "firewood": 2} },
-        { "id": "tp_fountain",      "name": "Fountain Well",    "sheet": "fountain", "rect": [0, 0, 2, 3], "solid": 2, "tags": ["square"] },
+        { "id": "tp_fountain",      "name": "Fountain Well",    "sheet": "fountain", "rect": [0, 0, 3, 3], "solid": 2, "tags": ["square"] },
         { "id": "tp_lamp_a",        "name": "Lamp Post",        "sheet": "lamp",     "rect": [0, 0, 1, 3], "solid": 1, "tags": ["lamp"] },
         { "id": "tp_lamp_b",        "name": "Lamp Post",        "sheet": "lamp",     "rect": [1, 0, 1, 3], "solid": 1, "tags": ["lamp"] },
         { "id": "tp_stall",         "name": "Market Stall",     "sheet": "farm",     "rect": [5, 3, 3, 5], "solid": 2, "tags": ["stall"] },

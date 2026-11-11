@@ -3,6 +3,7 @@ import { icon } from '../icons.js';
 import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { LlmClient } from '../../systems/llmClient.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 /** The AI Brain status line, from NpcBrain.status(). */
@@ -17,8 +18,116 @@ function _llmStatusText(st) {
         case 'off': return `● Off — ${s.detail || 'NPCs speak their written lines.'}`;
         case 'unknown': return '● On — not checked yet.';
         case 'ready': return '● On — the model is reachable.';
-        case 'loading': return '● On — the server is still loading its model; written lines until it is ready.';
+        case 'loading': return `● On — the model is still loading${s.detail ? ` (${s.detail})` : ''}; written lines until it is ready.`;
+        case 'unsupported': return '● On, but this browser has no WebGPU — written lines are used.';
+        case 'notloaded': return '● On — the in-browser model is not loaded yet; written lines until it is.';
         default: return `● On, but not reachable (${s.detail || s.state || 'unknown'}) — written lines are used.`;
+    }
+}
+
+/** The in-browser model's line: what it is doing now. */
+function _webllmStatusText(st) {
+    const s = st || {};
+    switch (s.state) {
+        case 'unsupported': return `Unsupported: ${s.detail || 'your browser has no WebGPU'}.`;
+        case 'loading': return `Downloading / loading ${Math.round((s.progress || 0) * 100)}%${s.text ? ` — ${s.text}` : ''}`;
+        case 'ready': return `Ready: ${s.model} is loaded on your graphics card.`;
+        case 'error': return `Error: ${s.detail || 'the model failed to load'}`;
+        default: return 'Not loaded. Nothing is downloaded until you press Download / Load model.';
+    }
+}
+
+/** The In-browser (WebLLM) block of the AI Brain settings: model, size, download/load, delete. */
+function _webllmBlockHtml(s) {
+    const cat = LlmClient.webllm.catalog();
+    const picked = s.llmWebModel || (s.llmProvider === 'webllm' && s.llmModel) || cat.defaultModel;
+    const opts = (cat.models || []).map((m) => `<option value="${_escAttr(m.id)}" ${m.id === picked ? 'selected' : ''}>${_escAttr(m.label)}</option>`).join('');
+    const note = ((cat.models || []).find((m) => m.id === picked) || {}).note || '';
+    const st = LlmClient.webllm.status();
+    return `
+                <div id="gsLlmWebBlock" style="${s.llmProvider === 'webllm' ? '' : 'display:none;'}">
+                    <div class="gs-row">
+                        <label>Model<br><span style="font-size:10px;color:var(--text-secondary);">Runs on your graphics card (WebGPU)</span></label>
+                        <select id="gsLlmWebModel" class="gs-select">${opts}</select>
+                    </div>
+                    <div class="gs-row">
+                        <div id="gsLlmWebNote" style="font-size:11px;color:var(--text-secondary);flex:1;">${_escAttr(note)}</div>
+                    </div>
+                    <div class="gs-row" style="gap:6px;">
+                        <button class="gs-btn" id="gsLlmWebLoad" style="flex:1;">⬇ Download / Load model</button>
+                        <button class="gs-btn" id="gsLlmWebDelete" title="Free the disk space the downloaded model takes">🗑 Delete downloaded model</button>
+                    </div>
+                    <div class="gs-row">
+                        <div style="flex:1;height:6px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:3px;overflow:hidden;">
+                            <div id="gsLlmWebBar" style="height:100%;width:${Math.round((st.progress || 0) * 100)}%;background:var(--accent-gold, #c9a227);transition:width 0.2s;"></div>
+                        </div>
+                    </div>
+                    <div class="gs-row">
+                        <div id="gsLlmWebStatus" style="font-size:11px;color:var(--text-secondary);flex:1;word-break:break-word;">${_escAttr(_webllmStatusText(st))}</div>
+                    </div>
+                </div>`;
+}
+
+/** Wire the WebLLM block: live progress, Download / Load, Delete, the model's note. */
+function _bindWebllmBlock() {
+    const W = LlmClient.webllm;
+    const sel = document.getElementById('gsLlmWebModel');
+    const bar = document.getElementById('gsLlmWebBar');
+    const line = document.getElementById('gsLlmWebStatus');
+    const loadBtn = document.getElementById('gsLlmWebLoad');
+    const delBtn = document.getElementById('gsLlmWebDelete');
+    if (!sel || !line) return;
+    const paint = (st) => {
+        if (bar) bar.style.width = `${Math.round((st.progress || 0) * 100)}%`;
+        line.textContent = _webllmStatusText(st);
+        line.style.color = st.state === 'ready' ? '#7fd07f' : (st.state === 'error' || st.state === 'unsupported') ? '#e08080' : 'var(--text-secondary)';
+        if (loadBtn) loadBtn.disabled = st.state === 'loading' || st.state === 'unsupported';
+    };
+    const off = W.onStatus((st) => {
+        // The panel was closed: stop listening
+        if (!line.isConnected) { off(); return; }
+        paint(st);
+    });
+    paint(W.status());
+    // Say at once whether WebGPU is there, and whether the picked model is on disk already
+    const describe = async () => {
+        const sup = await W.checkSupport();
+        if (!line.isConnected) return;
+        if (!sup.ok) { paint({ state: 'unsupported', detail: sup.detail }); return; }
+        const st = W.status();
+        if (st.state === 'ready' && st.model === sel.value) return paint(st);
+        if (st.state === 'loading') return paint(st);
+        const cached = await W.isCached(sel.value);
+        if (!line.isConnected) return;
+        line.style.color = 'var(--text-secondary)';
+        line.textContent = cached ? 'Downloaded — press Download / Load model to load it (or it loads by itself after a game starts).' : _webllmStatusText({ state: 'idle' });
+    };
+    describe();
+    sel.addEventListener('change', () => {
+        const m = (W.catalog().models || []).find((x) => x.id === sel.value);
+        const noteEl = document.getElementById('gsLlmWebNote');
+        if (noteEl) noteEl.textContent = (m && m.note) || '';
+        describe();
+    });
+    if (loadBtn) {
+        loadBtn.addEventListener('click', async () => {
+            loadBtn.disabled = true;
+            const r = await W.load(sel.value);
+            if (!r.ok && line.isConnected) paint(W.status());
+            if (line.isConnected) loadBtn.disabled = false;
+        });
+    }
+    if (delBtn) {
+        delBtn.addEventListener('click', async () => {
+            delBtn.disabled = true;
+            const r = await W.deleteModel(sel.value);
+            if (line.isConnected) {
+                line.style.color = r.ok ? 'var(--text-secondary)' : '#e08080';
+                line.textContent = r.ok ? 'Deleted: the model is no longer stored in this browser.' : `Could not delete: ${r.reason}`;
+                if (bar && r.ok) bar.style.width = '0%';
+                delBtn.disabled = false;
+            }
+        });
     }
 }
 
@@ -836,6 +945,11 @@ Object.assign(UI.prototype, {
         // Wire (or unwire) the local LLM NPC brain per settings.
         if (typeof NpcBrain !== 'undefined') {
             NpcBrain.applyFromSettings(settings, House);
+            // The in-browser model: load it in the background once the game is up,
+            // only if the player downloaded it before (never downloads by itself)
+            if (settings.llmEnabled && settings.llmProvider === 'webllm') {
+                setTimeout(() => { LlmClient.warmUp().catch(() => {}); }, 8000);
+            }
         }
     },
 
@@ -937,7 +1051,7 @@ Object.assign(UI.prototype, {
             <div class="gs-section">
                 <div class="gs-section-title">AI Brain (Experimental)</div>
                 <div class="gs-row">
-                    <label>Enable AI NPCs<br><span style="font-size:10px;color:var(--text-secondary);">A local llama-server or OpenAI. Falls back safely when off/offline.</span></label>
+                    <label>Enable AI NPCs<br><span style="font-size:10px;color:var(--text-secondary);">A local llama-server, OpenAI, or a model run in the browser. Falls back safely when off/offline.</span></label>
                     <label class="gs-toggle">
                         <input type="checkbox" id="gsLlmEnabled" ${s.llmEnabled ? 'checked' : ''}>
                         <span class="gs-toggle-slider"></span>
@@ -948,19 +1062,21 @@ Object.assign(UI.prototype, {
                     <select id="gsLlmProvider" class="gs-select">
                         <option value="local" ${(s.llmProvider || 'local') === 'local' ? 'selected' : ''}>Local (llama.cpp)</option>
                         <option value="openai" ${s.llmProvider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                        <option value="webllm" ${s.llmProvider === 'webllm' ? 'selected' : ''}>In-browser (WebLLM)</option>
                     </select>
                 </div>
+                ${_webllmBlockHtml(s)}
                 <div class="gs-row" id="gsLlmKeyRow" style="${s.llmProvider === 'openai' ? '' : 'display:none;'}">
                     <label>API Key<br><span style="font-size:10px;color:var(--text-secondary);">Kept in this browser's settings only; sent only to the endpoint</span></label>
                     <input type="password" id="gsLlmApiKey" autocomplete="off" value="${_escAttr(s.llmApiKey || '')}" placeholder="sk-…" style="flex:1;min-width:0;padding:4px 6px;">
                 </div>
-                <div class="gs-row">
+                <div class="gs-row" id="gsLlmEndpointRow" style="${s.llmProvider === 'webllm' ? 'display:none;' : ''}">
                     <label>Server Endpoint</label>
                     <input type="text" id="gsLlmEndpoint" value="${s.llmEndpoint || 'http://127.0.0.1:8080'}" style="flex:1;min-width:0;padding:4px 6px;">
                 </div>
-                <div class="gs-row">
+                <div class="gs-row" id="gsLlmModelRow" style="${s.llmProvider === 'webllm' ? 'display:none;' : ''}">
                     <label>Model</label>
-                    <input type="text" id="gsLlmModel" value="${s.llmModel || 'local'}" style="flex:1;min-width:0;padding:4px 6px;">
+                    <input type="text" id="gsLlmModel" value="${s.llmProvider === 'webllm' ? 'local' : (s.llmModel || 'local')}" style="flex:1;min-width:0;padding:4px 6px;">
                 </div>
                 <div class="gs-row">
                     <label>Temperature</label>
@@ -987,6 +1103,7 @@ Object.assign(UI.prototype, {
                             <li>Set <b>Server Endpoint</b> to its address (default <code>http://127.0.0.1:8080</code>). <b>Model</b> can stay <code>local</code> — llama-server serves the one it loaded.</li>
                             <li>Press <b>Test Connection</b>, then turn on <b>Enable AI NPCs</b> and press Apply.</li>
                             <li><b>Or use OpenAI:</b> set <b>Provider</b> to OpenAI, paste an API key from platform.openai.com, keep the endpoint <code>https://api.openai.com</code> and model <code>gpt-6-luna</code> (fast and cheap, answering without reasoning), press <b>Test Connection</b>, then enable and Apply. Each line spoken is a small paid request on your account.</li>
+                            <li><b>Or run it in the browser:</b> set <b>Provider</b> to In-browser (WebLLM), pick a model, press <b>Download / Load model</b> (a one-time download kept in this browser; needs WebGPU — recent Chrome or Edge, or the desktop app), then enable and Apply. It runs on your graphics card, offline, free.</li>
                             <li>The desktop build can start the server for you: set <code>LOTR_LLAMA_SERVER</code> (the llama-server program), <code>LOTR_LLAMA_MODEL</code> (the .gguf), and optionally <code>LOTR_LLAMA_PORT</code> / <code>LOTR_LLAMA_ARGS</code> before launching.</li>
                         </ol>
                         <div style="margin-top:4px;">The model only gives lords and rivals a voice and suggests their next move from what the game allows; the game decides everything. When it is off or unreachable, the written lines are used.</div>
@@ -1201,6 +1318,12 @@ Object.assign(UI.prototype, {
                 const pv = provSel.value;
                 const keyRow = document.getElementById('gsLlmKeyRow');
                 if (keyRow) keyRow.style.display = pv === 'openai' ? '' : 'none';
+                // The in-browser model has no address or typed model name: its own block instead
+                const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+                show('gsLlmEndpointRow', pv !== 'webllm');
+                show('gsLlmModelRow', pv !== 'webllm');
+                show('gsLlmWebBlock', pv === 'webllm');
+                if (pv === 'webllm') return;
                 const ep = document.getElementById('gsLlmEndpoint');
                 const md = document.getElementById('gsLlmModel');
                 const D = { local: { endpoint: 'http://127.0.0.1:8080', model: 'local' }, openai: { endpoint: 'https://api.openai.com', model: 'gpt-6-luna' } };
@@ -1209,6 +1332,9 @@ Object.assign(UI.prototype, {
                 if (md && (!md.value || md.value === other.model)) md.value = D[pv].model;
             });
         }
+
+        // LLM — the in-browser model: pick, download/load with progress, delete
+        _bindWebllmBlock();
 
         // LLM — Test Connection (uses the values currently in the inputs)
         const llmTestBtn = document.getElementById('gsLlmTest');
@@ -1219,11 +1345,13 @@ Object.assign(UI.prototype, {
                 const provider = getVal('gsLlmProvider') || 'local';
                 const apiKey = provider === 'openai' ? getVal('gsLlmApiKey') : '';
                 const endpoint = getVal('gsLlmEndpoint') || (provider === 'openai' ? 'https://api.openai.com' : 'http://127.0.0.1:8080');
-                const model = getVal('gsLlmModel') || (provider === 'openai' ? 'gpt-6-luna' : 'local');
+                const model = provider === 'webllm'
+                    ? getVal('gsLlmWebModel')
+                    : (getVal('gsLlmModel') || (provider === 'openai' ? 'gpt-6-luna' : 'local'));
                 const temperature = parseFloat(getVal('gsLlmTemperature')) || 0.7;
                 if (resultEl) {
                     resultEl.style.color = 'var(--text-secondary)';
-                    resultEl.textContent = `⏳ Testing ${endpoint} …`;
+                    resultEl.textContent = `⏳ Testing ${provider === 'webllm' ? 'the in-browser model' : endpoint} …`;
                 }
                 llmTestBtn.disabled = true;
                 try {
@@ -1359,7 +1487,11 @@ Object.assign(UI.prototype, {
             llmProvider: getVal('gsLlmProvider') || 'local',
             llmApiKey: getVal('gsLlmProvider') === 'openai' ? (getVal('gsLlmApiKey') || '').trim() : '',
             llmEndpoint: getVal('gsLlmEndpoint') || (getVal('gsLlmProvider') === 'openai' ? 'https://api.openai.com' : 'http://127.0.0.1:8080'),
-            llmModel: getVal('gsLlmModel') || (getVal('gsLlmProvider') === 'openai' ? 'gpt-6-luna' : 'local'),
+            llmModel: getVal('gsLlmProvider') === 'webllm'
+                ? (getVal('gsLlmWebModel') || '')
+                : (getVal('gsLlmModel') || (getVal('gsLlmProvider') === 'openai' ? 'gpt-6-luna' : 'local')),
+            // The in-browser model picked, kept apart so switching providers keeps it
+            llmWebModel: getVal('gsLlmWebModel') || UI.loadSettings().llmWebModel || '',
             llmTemperature: parseFloat(getVal('gsLlmTemperature')) || 0.7,
         };
 

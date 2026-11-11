@@ -18,6 +18,7 @@ import { InnerMapDigging } from './innerMapDigging.js';
 import { Relationships } from '../systems/relationships.js';
 import { Containers } from '../systems/containers.js';
 import { CustomBuildings } from '../world/customBuildings.js';
+import { Burials } from '../world/burials.js';
 import { BuildingCreator } from './buildingCreator.js';
 import { Hotbar } from './hotbar.js';
 import { PlayerInventory } from '../player/inventory.js';
@@ -47,6 +48,10 @@ import { Gathering } from '../player/gathering.js';
 import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
+import { InnerMapCarry } from './innerMapCarry.js';
+import { InnerMapDowned } from './innerMapDowned.js';
+import { Downed } from '../systems/downed.js';
+import { Carrying } from '../systems/carrying.js';
 
 /** Building actions that open a town panel, offered only where the town keeps that business. */
 const TOWN_SERVICES = new Set(['guildhall', 'bank', 'found_bank', 'underwriter', 'bourse', 'post_house', 'seek_physician',
@@ -376,19 +381,28 @@ Object.assign(InnerMapRenderer, {
         // Built-in overlay interactions removed (editor-authored objects only)
 
         // ── Bodies, and the ground dug here (ui/innerMapDigging.js) ──
-        if (!building) this._groundMenu(menuItems, tile, q, r);
+        if (!building) this._groundMenu(menuItems, tile, q, r, game);
         // ── A grave, a plot, a bone mill or ossuary of yours (ui/innerMapGraves.js) ──
         if (!building) menuItems.push(...InnerMapGraves.menuItems(game, tile, q, r));
 
         // ── Someone beaten senseless (ui/innerMapCombat.js, systems/knockout.js) ──
-        for (const npc of npcsHere.filter(n => n.state === 'unconscious').slice(0, 2)) {
+        // (not the one over the player's shoulder, nor one left lying in a room the player isn't in)
+        // (downed: Unconscious, Bleeding out, or Bound awake — systems/downed.js; what can be done, ui/innerMapDowned.js)
+        for (const npc of npcsHere.filter(n => Downed.isDown(n) && !n._carried && InnerMapCarry.lyingHere(n)).slice(0, 2)) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
-            menuItems.push({ type: 'header', label: `💫 ${npc.name}, senseless` });
+            menuItems.push({ type: 'header', label: `${npc._bleed ? '🩸' : npc.state === 'bound' ? '🪢' : '💫'} ${npc.name} — ${Downed.label(npc)}` });
             menuItems.push({ type: 'action', action: 'ko_finish', label: 'Finish Them Off', icon: '🗡️', desc: 'Kill them where they lie. It is murder.', npc });
             if (!npc._koSearched) menuItems.push({ type: 'action', action: 'ko_rob', label: 'Go Through Their Pockets', icon: '🖐️', desc: 'Take what they carry while they\'re out', npc });
-            menuItems.push({ type: 'action', action: 'ko_leave', label: 'Leave Them Be', icon: '🚶', desc: 'They\'ll come round in a while', npc });
+            menuItems.push({ type: 'action', action: 'ko_leave', label: 'Leave Them Be', icon: '🚶', desc: npc.state === 'bound' ? 'Leave them lying there, tied' : 'They\'ll come round in a while', npc });
+            menuItems.push(...InnerMapCarry.menuItems(game, tile, q, r, [npc]));
+            menuItems.push(...InnerMapDowned.menuItems(game, npc));
         }
-        const standing = npcsHere.filter(n => n.state !== 'unconscious');
+        // Someone over the player's shoulder: put them down, or lay them on a bed (ui/innerMapCarry.js)
+        if (InnerMapCarry.person) {
+            if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+            menuItems.push(...InnerMapCarry.menuItems(game, tile, q, r, []));
+        }
+        const standing = npcsHere.filter(n => n.state !== 'unconscious' && n.state !== 'bound' && !n._carried);
 
         // ── NPC actions ──
         if (standing.length > 0) {
@@ -751,7 +765,7 @@ Object.assign(InnerMapRenderer, {
     },
 
     /** The menu entries for bodies on a tile and for a hole or grave dug there. */
-    _groundMenu(menuItems, tile, q, r) {
+    _groundMenu(menuItems, tile, q, r, game = null) {
         const sep = () => { if (menuItems.length > 0) menuItems.push({ type: 'separator' }); };
         const carried = InnerMapCombat._carrying;
         if (carried) {
@@ -774,7 +788,10 @@ Object.assign(InnerMapRenderer, {
                 if (spot) menuItems.push({ type: 'action', action: 'dig_grave', label: 'Dig a Grave for Them', icon: '⛏️', desc: 'Dig a hole beside the body, then bury them', body, holeQ: spot.q, holeR: spot.r });
             }
         }
-        const dug = tile && tile._dug;
+        // (a marker standing at a burial's head answers for the burial: world/innerMap/graves.js)
+        const burial = !(tile && tile._dug) && InnerMap.burialAt ? InnerMap.burialAt(q, r) : null;
+        if (burial) { q = burial.q; r = burial.r; }
+        const dug = burial ? burial.grave : tile && tile._dug;
         if (!dug) return;
         if (dug.kind === 'hole') {
             sep();
@@ -787,12 +804,31 @@ Object.assign(InnerMapRenderer, {
                 const b = inside || beside;
                 menuItems.push({ type: 'action', action: 'bury_body', label: `Bury ${b.name} Here`, icon: '⚰️', desc: 'Lay them in the hole and fill it in', body: b, holeQ: q, holeR: r });
             }
+            // Someone living: carried to it, or lying downed beside it (ui/innerMapDowned.js)
+            menuItems.push(...InnerMapDowned.holeItems(game, q, r));
+            for (const n of (InnerMap.npcs || []).filter(x => Downed.isDown(x) && !x._carried && Math.max(Math.abs(x.q - q), Math.abs(x.r - r)) <= 1).slice(0, 2)) {
+                menuItems.push({ type: 'action', action: 'downed_bury', label: `Bury ${n.name} Alive`, icon: '⚰️', desc: 'Roll them into the hole and fill it in over them. A grave crime.', npc: n, holeQ: q, holeR: r });
+            }
             menuItems.push({ type: 'action', action: 'fill_hole', label: 'Fill In the Hole', icon: '⬛', desc: inside ? `Fill it in over ${inside.name}` : 'Shovel the earth back in', holeQ: q, holeR: r });
         } else if (dug.kind === 'grave') {
+            // A burial of yours: a bare mound until a marker is raised over it (world/burials.js)
             sep();
-            menuItems.push({ type: 'header', label: `⚰️ Grave of ${dug.name || 'someone'}` });
-            menuItems.push({ type: 'action', action: 'pay_respects', label: 'Pay Your Respects', icon: '🕯️', desc: 'Stand a while by the grave', holeQ: q, holeR: r });
-            menuItems.push({ type: 'action', action: 'exhume_grave', label: 'Dig Up the Grave', icon: '⛏️', desc: 'Dig the body back up', holeQ: q, holeR: r });
+            const day = (game && game.world && game.world.day) || 0;
+            const marked = !!Burials.markerNow(dug, day);
+            menuItems.push({ type: 'header', label: `${marked ? '🪦' : '⚰️'} ${Burials.label(dug, day)}` });
+            if (marked) menuItems.push({ type: 'action', action: 'read_burial', label: Burials.isLegible(dug, day) ? 'Read the Grave' : 'Look at the Grave', icon: '📜', desc: 'Who lies here, and since when', holeQ: q, holeR: r });
+            if (Burials.canMark(dug, day)) {
+                const opts = Burials.markerOptions(game && game.player);
+                for (const choice of opts) {
+                    const cost = choice.cost ? Object.entries(choice.cost).map(([id, n]) => `${n} ${id.replace(/_/g, ' ')}`).join(', ') : '';
+                    menuItems.push(choice.how === 'carve'
+                        ? { type: 'action', action: 'raise_marker', label: `Carve a ${choice.name} Here`, icon: '🪓', desc: `Cut and set a ${choice.name.toLowerCase()} over ${dug.name || 'them'} (uses ${cost})`, choice, holeQ: q, holeR: r }
+                        : { type: 'action', action: 'raise_marker', label: `Raise a ${choice.name}`, icon: '🪦', desc: `Set the ${choice.name.toLowerCase()} from your pack over ${dug.name || 'them'}: a named grave`, choice, holeQ: q, holeR: r });
+                }
+                if (!opts.length) menuItems.push({ type: 'disabled', label: 'Raise a Marker: you carry none (buy a grave cross or headstone at a market, or carry wood or planks to carve a cross)' });
+            }
+            menuItems.push({ type: 'action', action: 'pay_respects', label: 'Pay Your Respects', icon: '🕯️', desc: marked ? 'Stand a while by the grave' : 'Stand a while by the mound', holeQ: q, holeR: r });
+            menuItems.push({ type: 'action', action: 'exhume_grave', label: marked ? 'Dig Up the Grave' : 'Dig Up the Mound', icon: '⛏️', desc: marked ? 'Dig the body back up (the marker comes back to your pack)' : 'Dig the body back up', holeQ: q, holeR: r });
         }
     },
 
@@ -813,6 +849,16 @@ Object.assign(InnerMapRenderer, {
                 if (body) game.ui.showNotification('⬇️ Put down', `You lay ${body.name} down.`, 'info');
                 return true;
             }
+            case 'raise_marker': {
+                const res = InnerMapDigging.raiseMarker(game, item.holeQ, item.holeR, item.choice);
+                if (res === 'unreachable') game.ui.showNotification('Blocked', 'You can\'t reach that spot.', 'error');
+                return true;
+            }
+            case 'read_burial': {
+                const go = () => InnerMapDigging.readGrave(game, item.holeQ, item.holeR);
+                if (InnerMap.approachAndThen(item.holeQ, item.holeR, go) === 'unreachable') go();
+                return true;
+            }
             case 'pay_respects': {
                 const go = () => InnerMapDigging.payRespects(game, item.holeQ, item.holeR);
                 if (InnerMap.approachAndThen(item.holeQ, item.holeR, go) === 'unreachable') go();
@@ -822,7 +868,7 @@ Object.assign(InnerMapRenderer, {
             case 'ko_finish': case 'ko_rob': {
                 const npc = item.npc;
                 const act = () => {
-                    if (!npc || npc.state !== 'unconscious') return;
+                    if (!npc || !Downed.isDown(npc)) return;
                     if (item.action === 'ko_finish') InnerMapCombat.finishOff(npc, game);
                     else InnerMapCombat.robKnockedOut(npc, game);
                 };
@@ -849,6 +895,13 @@ Object.assign(InnerMapRenderer, {
     },
 
     _handleContextAction(game, item, q, r) {
+        // Hands full (someone over the shoulder, a body, a carcass): what needs them waits (systems/carrying.js)
+        if (InnerMapCarry.handsFull() && Carrying.handsBlocked(item.action)) {
+            game.ui.showNotification('🙌 Your hands are full', InnerMapCarry.person ? `Put ${InnerMapCarry.person.name} down first.` : 'Put down what you are carrying first.', 'warning');
+            return;
+        }
+        if (InnerMapCarry.handle(game, item)) return;
+        if (InnerMapDowned.handle(game, item)) return;
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;
         if (/^(lot|vacancy)_/.test(item.action || '') && InnerMapLots.handle(game, item)) return;

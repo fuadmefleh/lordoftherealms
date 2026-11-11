@@ -471,7 +471,7 @@ export const CourtLetters = {
     _archive(player, letter, outcome, text) {
         const st = this.state(player);
         st.inbox = st.inbox.filter(l => l !== letter);
-        st.archive.unshift({ id: letter.id, kind: letter.kind, day: letter.day, from: letter.from, subject: letter.subject, outcome, text });
+        st.archive.unshift({ id: letter.id, kind: letter.kind, day: letter.day, from: letter.from, subject: letter.subject, outcome, text, ...(letter.letter ? { letter: letter.letter } : {}) });
         if (st.archive.length > this.config().maxArchive) st.archive.length = this.config().maxArchive;
     },
 
@@ -954,7 +954,7 @@ export const CourtLetters = {
         return {
             open: st.inbox.map(l => ({
                 id: l.id, kind: l.kind, icon: (this.kind(l.kind) || {}).icon || '✉️', from: l.from.name, fromType: l.from.type,
-                subject: l.subject, body: l.body, daysLeft: Math.max(0, l.expires - day), read: !!l.read,
+                subject: l.subject, body: l.body, letter: l.letter || null, daysLeft: Math.max(0, l.expires - day), read: !!l.read,
                 choices: this.choicesFor(player, world, l),
             })),
             archive: st.archive.slice(0, 12),

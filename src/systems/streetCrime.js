@@ -289,7 +289,9 @@ export const StreetCrime = {
      * Someone comes upon a dead body (or sees the player carrying one).
      * @param {object} npc who sees it
      * @param {object} body { name, _npc } (a corpse from InnerMapCombat)
-     * @param {object} [ctx] { carried, playerOver (the player stands over it), seed }
+     * @param {object} [ctx] { carried, playerOver (the player stands over it), seed,
+     *   alive (the one carried is senseless, not dead: found.barks.carriedAlive),
+     *   blood (only the blood is left — the body is gone: found.barks.blood; the watch looks into it) }
      * @returns {{ act:'flee'|'cower'|'mourn'|'gather'|'stare'|'investigate'|'arrest', mood:'fear'|'anger'|'grief',
      *             role:'kin'|'friend'|'guard'|'bystander', kinWord, bark:string|null, implicates:boolean }}
      *   implicates: they saw the player with the body — they count as witnesses to the killing
@@ -320,7 +322,14 @@ export const StreetCrime = {
             mood = role === 'kin' || angry || isGuard ? 'anger' : 'fear';
             act = isGuard ? 'arrest' : role === 'kin' ? (angry ? 'stand' : 'mourn') : mood === 'anger' ? 'stand' : 'flee';
             pool = (_obj(B.caught) || {})[isGuard ? 'guard' : role === 'kin' ? 'kin' : mood];
-            if (ctx.carried) pool = (_obj(B.carried) || {})[isGuard ? 'guard' : mood] || pool;
+            if (ctx.carried) pool = (_obj(ctx.alive ? B.carriedAlive : B.carried) || {})[isGuard ? 'guard' : mood] || (_obj(B.carried) || {})[isGuard ? 'guard' : mood] || pool;
+            if (ctx.blood && !ctx.carried) pool = (_obj(B.blood) || {})[isGuard ? 'guard' : mood] || pool;
+        } else if (ctx.blood) {
+            // A pool of blood and no body: the watch looks into it, the rest stare, gasp or back away
+            const BB = _obj(B.blood) || {};
+            if (isGuard) { act = 'investigate'; mood = 'anger'; pool = BB.guard; }
+            else if (fearful) { act = _frac(`${seed}|cower`) < _num(R.cowerShare, 0.35) ? 'cower' : 'flee'; mood = 'fear'; pool = BB.fear; }
+            else { act = 'stare'; mood = angry ? 'anger' : 'fear'; pool = BB[mood] || BB.fear; }
         } else if (role === 'kin' || role === 'friend') {
             act = 'mourn';
             mood = 'grief';

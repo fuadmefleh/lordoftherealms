@@ -7,6 +7,8 @@ import { Afterlife } from '../../player/afterlife.js';
 import { Parentage } from '../../player/parentage.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
+import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapClimbing } from '../innerMapClimbing.js';
 import { InnerMapReactions } from '../innerMapReactions.js';
@@ -428,6 +430,10 @@ export function gameLoop(timestamp, loopId) {
         InnerMapTasks.update(simDelta, this);
         // Digging, filling in, burying (ui/innerMapDigging.js)
         InnerMapDigging.update(simDelta, this);
+        // Someone senseless over your shoulder: through doors with you, waking, laid down (ui/innerMapCarry.js)
+        InnerMapCarry.update(simDelta, this);
+        // The downed: bleeding out, the bound calling out, the buried alive (ui/innerMapDowned.js)
+        InnerMapDowned.update(simDelta, this);
         // Under the water, scavenging the bottom (ui/innerMapDiving.js)
         InnerMapDiving.update(simDelta, this);
         // Aboard ship: the crew, the sea's events, boarders (ui/innerMapDeck.js)

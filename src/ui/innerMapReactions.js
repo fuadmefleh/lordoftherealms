@@ -28,6 +28,7 @@ import { SocialSkills } from '../systems/socialSkills.js';
 import { InnerMapCharacters } from './innerMapCharacters.js';
 import { InnerMapRenderer } from './innerMapRenderer.js';
 import { InnerMapCombat } from './innerMapCombat.js';
+import { InnerMapCarry } from './innerMapCarry.js';
 import { ActionMenu } from './actionMenu.js';
 import { NpcDialog } from './npcDialog.js';
 import { labelZoom, textPx } from './mapInk.js';
@@ -482,7 +483,16 @@ export const InnerMapReactions = {
     _scanBodies(game) {
         this._settleGatherers();
         this._cueMourners();
-        const bodies = InnerMapCombat.corpsesHere();
+        const bodies = InnerMapCombat.corpsesHere().slice();
+        // Someone senseless over the player's shoulder is seen as a body carried is (ui/innerMapCarry.js)
+        const held = InnerMapCarry.person && InnerMapCarry.person._carryBody;
+        if (held) bodies.push(held);
+        // A pool of blood whose body is gone (carried off, buried): evidence (systems/carrying.js)
+        for (const p of InnerMapCombat.bloodHere()) {
+            if (p.drip || InnerMapCombat.bodyOnBlood(p)) continue;
+            p._asBody = p._asBody || { name: p.name, _npc: p.victim, _blood: true, at: p.at, q: p.q, r: p.r };
+            bodies.push(p._asBody);
+        }
         if (!bodies.length || !game || !game.player) return;
         const F = StreetCrime.config().found || {};
         const radius = Number(F.radius) || 6;
@@ -495,7 +505,7 @@ export const InnerMapReactions = {
         const day = (game.world && game.world.day) || 0;
         const secs = (StreetCrime.config().reactions || {}).barkSeconds || 3.6;
         for (const body of bodies) {
-            const isCarried = body === carried;
+            const isCarried = body === carried || body === held;
             const at = isCarried ? { q: pq, r: pr } : { q: body.q, r: body.r };
             const set = isCarried ? (body._seenCarried = body._seenCarried || new Set()) : (body._found = body._found || new Set());
             const sawKilling = body._npc && body._npc._reacted;
@@ -509,7 +519,7 @@ export const InnerMapReactions = {
                 if (this._responders.has(npc.id) || this._fleeing.has(npc.id)) continue;
                 if (!indoors && _dist(npc.q, npc.r, at.q, at.r) > radius) continue;
                 set.add(npc.id);
-                const r = StreetCrime.foundReaction(npc, body, { carried: isCarried, playerOver, royal: this._royal(game), seed: `${day}|${body.name}|${body.at}` });
+                const r = StreetCrime.foundReaction(npc, body, { carried: isCarried, alive: !!body._alive, blood: !!body._blood, playerOver, royal: this._royal(game), seed: `${day}|${body.name}|${body.at}` });
                 if (r.mood === 'fear' || r.mood === 'anger') npc.mood = r.mood;
                 // Everyone visibly reacts: kin, the watch and the first of the crowd say a line;
                 // the rest of the crowd gasp, recoil, shout — a crowd of full sentences is noise
@@ -596,23 +606,38 @@ export const InnerMapReactions = {
     _bodyFound(game, body, fresh, isCarried, day) {
         const caught = fresh.filter(f => f.r.implicates);
         const victim = body._npc || { name: body.name };
-        const incident = victim._incidentId != null ? StreetCrime._incident(game.player, victim._incidentId) : null;
-        if (caught.length) {
-            StreetCrime.addWitnesses(game.player, incident,
-                caught.map(f => ({ npc: f.npc, seen: true, role: f.r.role === 'guard' ? 'guard' : f.r.role, kinWord: f.r.kinWord, mood: f.r.mood === 'grief' ? 'fear' : f.r.mood })),
-                victim, 'murder', day);
-            for (const f of caught) {
-                if (f.r.act === 'arrest' && incident) this._responders.get(f.npc.id).incidentId = incident.id;
-            }
+        // (the living carried senseless: evidence of a beating, not a killing)
+        const crime = body._alive ? 'assault' : 'murder';
+        let incident = victim._incidentId != null ? StreetCrime._incident(game.player, victim._incidentId) : null;
+        const seen = caught.map(f => ({ npc: f.npc, seen: true, role: f.r.role === 'guard' ? 'guard' : f.r.role, kinWord: f.r.kinWord, mood: f.r.mood === 'grief' ? 'fear' : f.r.mood }));
+        if (caught.length && !incident && body._alive) {
+            // Carrying off someone no one saw the player beat: the carrying is the crime they saw
+            const wt = InnerMap.currentWorldTile || {};
+            const res = StreetCrime.record(game.player, game.world, { crime, victim, witnesses: seen, q: wt.q, r: wt.r, scene: { q: InnerMap.playerInnerQ, r: InnerMap.playerInnerR, indoors: !!InnerMap._insideBuilding }, onMap: InnerMap.npcs || [], royal: this._royal(game) });
+            incident = res && res.incident;
+            if (incident) { victim._incidentId = incident.id; victim._crime = crime; }
+        } else if (caught.length) {
+            StreetCrime.addWitnesses(game.player, incident, seen, victim, crime, day);
+        }
+        for (const f of caught) {
+            const resp = f.r.act === 'arrest' && incident ? this._responders.get(f.npc.id) : null;
+            if (resp) resp.incidentId = incident.id;
         }
         if (!game.ui || typeof game.ui.showNotification !== 'function') return;
         const first = fresh[0].npc.name || 'Someone';
         if (caught.length) {
             const guards = caught.filter(f => f.r.act === 'arrest').length;
-            game.ui.showNotification(isCarried ? '👁️ Seen with a body!' : '👁️ Caught over the body!',
-                `${caught.slice(0, 3).map(f => f.npc.name).join(', ')}${caught.length > 3 ? '…' : ''} saw you ${isCarried ? `carrying ${body.name}'s body` : `standing over ${body.name}'s body`}.${guards ? ' The watch is coming!' : ' They will remember it.'}`,
+            const what = body._alive ? `carrying ${body.name} off senseless` : body._blood ? `standing in ${body.name}'s blood` : isCarried ? `carrying ${body.name}'s body` : `standing over ${body.name}'s body`;
+            game.ui.showNotification(body._alive ? '👁️ Seen carrying someone!' : body._blood ? '👁️ Caught by the blood!' : isCarried ? '👁️ Seen with a body!' : '👁️ Caught over the body!',
+                `${caught.slice(0, 3).map(f => f.npc.name).join(', ')}${caught.length > 3 ? '…' : ''} saw you ${what}.${guards ? ' The watch is coming!' : ' They will remember it.'}`,
                 'warning');
-        } else if (!body._announced) {
+        } else if (body._blood && !body._announced) {
+            body._announced = true;
+            const guard = fresh.find(f => f.r.act === 'investigate');
+            game.ui.showNotification('🩸 Blood Found',
+                guard ? `${guard.npc.name} of the watch has found blood on the ground where ${body.name} fell — and no body. They are asking questions.` : `${first} has found a pool of blood with no body by it. Folk are talking.`,
+                'info');
+        } else if (!body._announced && !body._alive) {
             body._announced = true;
             const mourner = fresh.find(f => f.r.act === 'mourn' && f.r.kinWord);
             game.ui.showNotification('💀 A Body Found',
@@ -744,7 +769,9 @@ export const InnerMapReactions = {
             const charScale = npc.type === 'child' ? 0.7 : 1.0;
             const left = (b.until - now) / 1000;
             const alpha = Math.min(1, left / 0.4);
-            this._drawBubble(ctx, b.text, s.x, s.y - ds * 1.75 * charScale, camera.zoom, alpha);
+            // (someone lying on the ground or in a bed speaks from there, not from a standing head's height)
+            const lying = npc.state === 'unconscious' || npc.state === 'bound';
+            this._drawBubble(ctx, b.text, s.x, s.y - ds * (lying ? 0.75 : 1.75 * charScale), camera.zoom, alpha);
         }
     },
 

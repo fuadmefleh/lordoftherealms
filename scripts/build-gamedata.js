@@ -25,7 +25,7 @@ const topLevel = [
     'gossip', 'streetCrime', 'traits', 'petitions', 'companions', 'delves',
     'underworld', 'throne', 'holdings', 'rivals', 'ailments', 'upbringing',
     'sagas', 'discovery', 'merchantHouses', 'kingship', 'counsel', 'chatter',
-    'patronage', 'digging', 'npcChat',
+    'patronage', 'digging', 'carrying', 'downed', 'npcChat', 'llmModels',
     'outlawLairs',
     'finance',
     'markets',

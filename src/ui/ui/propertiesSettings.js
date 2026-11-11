@@ -1091,6 +1091,15 @@ Object.assign(UI.prototype, {
                 <div class="gs-row">
                     <div id="gsLlmTestResult" style="font-size:11px;color:var(--text-secondary);min-height:14px;flex:1;word-break:break-word;"></div>
                 </div>
+                <div class="gs-row" style="flex-direction:column;align-items:stretch;gap:4px;">
+                    <label style="font-size:11px;">💬 Talk to the model (uses the settings above, nothing is saved)</label>
+                    <div id="gsLlmChatLog" style="max-height:180px;overflow-y:auto;font-size:12px;line-height:1.4;background:rgba(0,0,0,0.25);border:1px solid var(--border-color, #3a3a4a);border-radius:4px;padding:6px;min-height:40px;color:var(--text-secondary);"><i>Say something to hear how the model answers.</i></div>
+                    <div style="display:flex;gap:4px;">
+                        <input type="text" id="gsLlmChatInput" placeholder="Good morrow, what news?" style="flex:1;min-width:0;">
+                        <button class="gs-btn" id="gsLlmChatSend">Send</button>
+                        <button class="gs-btn" id="gsLlmChatClear" title="Start the conversation over">Clear</button>
+                    </div>
+                </div>
                 <div class="gs-row">
                     <div id="gsLlmStatus" title="Whether the game can reach the local model right now" style="font-size:11px;color:var(--text-secondary);flex:1;word-break:break-word;">${_llmStatusText(NpcBrain.status())}</div>
                 </div>
@@ -1335,6 +1344,54 @@ Object.assign(UI.prototype, {
 
         // LLM — the in-browser model: pick, download/load with progress, delete
         _bindWebllmBlock();
+
+        // LLM — a test chat with the values currently in the inputs
+        const chatSend = document.getElementById('gsLlmChatSend');
+        if (chatSend) {
+            const log = document.getElementById('gsLlmChatLog');
+            const input = document.getElementById('gsLlmChatInput');
+            const history = [];
+            const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+            const render = (pending) => {
+                if (!log) return;
+                log.innerHTML = history.map(m => m.role === 'user'
+                    ? `<div style="color:var(--text-primary);"><b>You:</b> ${esc(m.content)}</div>`
+                    : m.role === 'error'
+                        ? `<div style="color:#e08080;">✗ ${esc(m.content)}</div>`
+                        : `<div style="color:#d8c89f;margin-bottom:4px;"><b>Model:</b> ${esc(m.content)}${m.ms != null ? ` <span style="opacity:0.55;font-size:10px;">(${(m.ms / 1000).toFixed(1)}s)</span>` : ''}</div>`).join('')
+                    + (pending ? '<div style="opacity:0.7;"><i>⏳ thinking…</i></div>' : '');
+                log.scrollTop = log.scrollHeight;
+            };
+            const send = async () => {
+                const text = input ? input.value.trim() : '';
+                if (!text || chatSend.disabled) return;
+                input.value = '';
+                history.push({ role: 'user', content: text });
+                render(true);
+                chatSend.disabled = true;
+                const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+                const provider = getVal('gsLlmProvider') || 'local';
+                try {
+                    const r = await NpcBrain.testChat({
+                        provider,
+                        apiKey: provider === 'openai' ? getVal('gsLlmApiKey') : '',
+                        endpoint: getVal('gsLlmEndpoint') || (provider === 'openai' ? 'https://api.openai.com' : 'http://127.0.0.1:8080'),
+                        model: provider === 'webllm' ? getVal('gsLlmWebModel') : (getVal('gsLlmModel') || (provider === 'openai' ? 'gpt-6-luna' : 'local')),
+                        temperature: parseFloat(getVal('gsLlmTemperature')) || 0.7,
+                    }, history.filter(m => m.role !== 'error'));
+                    history.push(r.ok ? { role: 'assistant', content: r.text || '(no words)', ms: r.ms } : { role: 'error', content: r.detail || 'no answer' });
+                } catch (e) {
+                    history.push({ role: 'error', content: e && e.message ? e.message : String(e) });
+                }
+                chatSend.disabled = false;
+                render(false);
+                if (input) input.focus();
+            };
+            chatSend.addEventListener('click', send);
+            if (input) input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') send(); });
+            const clear = document.getElementById('gsLlmChatClear');
+            if (clear) clear.addEventListener('click', () => { history.length = 0; if (log) log.innerHTML = '<i>Say something to hear how the model answers.</i>'; });
+        }
 
         // LLM — Test Connection (uses the values currently in the inputs)
         const llmTestBtn = document.getElementById('gsLlmTest');

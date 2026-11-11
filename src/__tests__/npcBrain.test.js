@@ -147,6 +147,28 @@ describe('NpcBrain — Phase B', () => {
         expect(r).toEqual({ ok: true, detail: 'Working' });
     });
 
+    it('testChat sends the conversation in character and returns the reply', async () => {
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(true);
+        const chat = vi.spyOn(LlmClient, 'chat').mockResolvedValue({ ok: true, text: '<think>hm</think>The harvest was poor, stranger.' });
+        const r = await NpcBrain.testChat({ endpoint: 'http://127.0.0.1:8080', model: 'm' }, [
+            { role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Well met.' }, { role: 'user', content: 'What news?' },
+        ]);
+        expect(r.ok).toBe(true);
+        expect(r.text).toBe('The harvest was poor, stranger.');
+        const msgs = chat.mock.calls[0][0];
+        expect(msgs[0].role).toBe('system');
+        expect(msgs.map(m => m.role)).toEqual(['system', 'user', 'assistant', 'user']);
+        expect(msgs[3].content).toContain('What news?');
+    });
+
+    it('testChat reports an unreachable model without sending', async () => {
+        vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(false);
+        const chat = vi.spyOn(LlmClient, 'chat');
+        const r = await NpcBrain.testChat({ endpoint: 'http://127.0.0.1:1234' }, [{ role: 'user', content: 'Hi' }]);
+        expect(r.ok).toBe(false);
+        expect(chat).not.toHaveBeenCalled();
+    });
+
     it('testConnection reports an unreachable server (health stage)', async () => {
         vi.spyOn(LlmClient, 'isAvailable').mockResolvedValue(false);
         const chat = vi.spyOn(LlmClient, 'chat');

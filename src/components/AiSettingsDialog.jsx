@@ -42,6 +42,10 @@ export default function AiSettingsDialog({ onClose }) {
   const [temperature, setTemperature] = useState(saved.llmTemperature != null ? saved.llmTemperature : 0.7);
   const [result, setResult] = useState(null);
   const [testing, setTesting] = useState(false);
+  // A free chat with the model, to hear how it talks before saving
+  const [chat, setChat] = useState([]);
+  const [chatText, setChatText] = useState('');
+  const [chatting, setChatting] = useState(false);
   // The in-browser model (systems/llm/webllmProvider.js; list from data/llmModels.json)
   const [catalog, setCatalog] = useState(W.catalog());
   const [webModel, setWebModel] = useState(saved.llmWebModel || (saved.llmProvider === 'webllm' && saved.llmModel) || '');
@@ -124,6 +128,23 @@ export default function AiSettingsDialog({ onClose }) {
       setResult({ ok: false, text: `Error: ${(e && e.message) || 'unknown'}` });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const sendChat = async () => {
+    const text = chatText.trim();
+    if (!text || chatting) return;
+    const history = [...chat.filter(m => m.role !== 'error'), { role: 'user', content: text }];
+    setChat([...chat, { role: 'user', content: text }]);
+    setChatText('');
+    setChatting(true);
+    try {
+      const r = await NpcBrain.testChat(current(), history);
+      setChat(c => [...c, r.ok ? { role: 'assistant', content: r.text || '(no words)', ms: r.ms } : { role: 'error', content: r.detail || 'no answer' }]);
+    } catch (e) {
+      setChat(c => [...c, { role: 'error', content: (e && e.message) || 'unknown' }]);
+    } finally {
+      setChatting(false);
     }
   };
 
@@ -226,6 +247,25 @@ export default function AiSettingsDialog({ onClose }) {
               {result.text}
             </div>
           )}
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ fontSize: '12px', marginBottom: '4px' }}>💬 Talk to the model <span style={{ opacity: 0.6 }}>(uses the settings above; nothing is saved)</span></div>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', fontSize: '12px', lineHeight: 1.4, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '6px', minHeight: '40px' }}
+              ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
+              {!chat.length && <i style={{ opacity: 0.6 }}>Say something to hear how the model answers.</i>}
+              {chat.map((m, i) => (
+                <div key={i} style={{ color: m.role === 'user' ? '#ece2c8' : m.role === 'error' ? '#e08080' : '#d8c89f', marginBottom: m.role === 'assistant' ? '4px' : 0 }}>
+                  {m.role === 'user' ? <><b>You:</b> {m.content}</> : m.role === 'error' ? <>✗ {m.content}</> : <><b>Model:</b> {m.content} {m.ms != null && <span style={{ opacity: 0.55, fontSize: '10px' }}>({(m.ms / 1000).toFixed(1)}s)</span>}</>}
+                </div>
+              ))}
+              {chatting && <div style={{ opacity: 0.7 }}><i>⏳ thinking…</i></div>}
+            </div>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+              <input style={{ ...input, flex: 1 }} type="text" placeholder="Good morrow, what news?" value={chatText}
+                onChange={(e) => setChatText(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') sendChat(); }} />
+              <button className="title-btn" style={btn} onClick={sendChat} disabled={chatting || !chatText.trim()}>Send</button>
+              <button className="title-btn" style={btn} onClick={() => setChat([])} disabled={chatting || !chat.length}>Clear</button>
+            </div>
+          </div>
           {provider === 'openai' && (
             <p style={{ fontSize: '11px', color: 'var(--text-secondary, #888)', margin: '8px 0 0' }}>
               Your key stays in this browser's storage and goes only to the endpoint above. Each line spoken is a small paid request on your account.

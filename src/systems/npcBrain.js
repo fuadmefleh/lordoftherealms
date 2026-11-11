@@ -98,7 +98,8 @@ export const NpcBrain = {
      *   { ok:true,  detail:<model reply> }
      *   { ok:false, stage:'health'|'query', detail:<reason> }
      */
-    async testConnection(opts = {}) {
+    /** Point the client at the settings being tried (the form's values, not yet saved). */
+    _configureFrom(opts = {}) {
         const clientOpts = {};
         if (opts.provider) clientOpts.provider = opts.provider;
         if (opts.apiKey != null) clientOpts.apiKey = String(opts.apiKey || '').trim();
@@ -106,6 +107,31 @@ export const NpcBrain = {
         if (opts.model) clientOpts.model = opts.model;
         if (opts.temperature != null && opts.temperature !== '') clientOpts.temperature = Number(opts.temperature);
         if (Object.keys(clientOpts).length) LlmClient.configure(clientOpts);
+    },
+
+    /**
+     * A free chat with the model from the settings panel, to hear how it talks.
+     * history: [{ role: 'user'|'assistant', content }], the newest last.
+     * → { ok, text, ms } or { ok:false, detail }
+     */
+    async testChat(opts = {}, history = []) {
+        NpcBrain._configureFrom(opts);
+        if (!(await LlmClient.isAvailable(true))) {
+            const p = LlmClient.lastProbe();
+            return { ok: false, detail: p.detail || 'the model cannot be reached' };
+        }
+        const system = 'You are a person living in a medieval realm, speaking with a traveller. Answer in character, plainly and briefly (one to three sentences).';
+        const msgs = [{ role: 'system', content: system }, ...history.slice(-12).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))];
+        const last = msgs[msgs.length - 1];
+        if (last && last.role === 'user') last.content = NpcBrain._noThink(last.content);
+        const t0 = Date.now();
+        const res = await LlmClient.chat(msgs, { maxTokens: 200 });
+        if (!res.ok) return { ok: false, detail: res.reason };
+        return { ok: true, text: String(res.text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim(), ms: Date.now() - t0 };
+    },
+
+    async testConnection(opts = {}) {
+        NpcBrain._configureFrom(opts);
 
         const available = await LlmClient.isAvailable(true);
         if (!available) {

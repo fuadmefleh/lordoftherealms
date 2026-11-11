@@ -1022,6 +1022,8 @@ Object.assign(InnerMap, {
                     name: furn.name,
                     passable: furn.passable,
                 };
+                // Pews face the altar ahead of them: seen from the door, their backs
+                if (furn.type === 'pew' && (layout.furniture || []).some(a => a.type === 'altar' && a.r < furn.r)) tile._furniture.facing = 'up';
                 if (!furn.passable) {
                     tile.subTerrain = {
                         id: `furniture_${furn.type}`,

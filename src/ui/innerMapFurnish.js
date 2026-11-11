@@ -328,7 +328,7 @@ export const InnerMapFurnish = {
                 ctx.globalAlpha = 0.65;
                 if (img) {
                     const k = sheetScale(img);
-                    ctx.drawImage(img, art.sx * k, art.sy * k, 32 * k, 32 * k, x, y, ds, ds);
+                    ctx.drawImage(img, art.sx * k, art.sy * k, (art.sw || 32) * k, (art.sh || 32) * k, x, y, ds, ds);
                 } else {
                     const g = furnitureGlyph(v);
                     if (g) drawGlyph(ctx, g, x + ds / 2, y + ds / 2, ds * 0.6, '#f0e0b0');

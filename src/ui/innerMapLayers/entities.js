@@ -899,7 +899,10 @@ Object.assign(InnerMapRenderer, {
                 const sy = counter ? stallFoot - ds * 0.6 : screen.y;
                 if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
                 if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
-                const clipY = counter ? stallFoot - ds * 0.95 : null;
+                // (sat in a pew facing the altar: its back hides them below the shoulders)
+                const pewT = !counter && npc._seatOn ? InnerMap.getTile(npc.q, npc.r) : null;
+                const pewBack = !!(pewT && pewT._furniture && pewT._furniture.type === 'pew' && pewT._furniture.facing === 'up');
+                const clipY = counter ? stallFoot - ds * 0.95 : pewBack ? camera.worldToScreenFast(worldX, npc.r * T).y + ds * 0.54 : null;
 
                 const sortY = counter ? (counter.row + 1) * T + 0.5 : worldY + T / 2;   // bottom-of-tile for consistent depth sort
                 // A town woodcutter at a tree (world/innerMap/townWoodcutters.js): the swing timed to

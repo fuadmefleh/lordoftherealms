@@ -504,7 +504,7 @@ Object.assign(InnerMapRenderer, {
         }
         if (!base) return false;
         const furniture = tile._furniture;
-        const furnArt = furniture && (art.furniture[furniture.type] || null);
+        const furnArt = furniture && ((furniture.facing === 'up' && art.furniture[`${furniture.type}_back`]) || art.furniture[furniture.type] || null);
         const furnImg = furnArt ? pick(furnArt) : null;
         if (furnArt && !furnImg) return false; // wait for the sheet rather than flash a box
 
@@ -532,7 +532,7 @@ Object.assign(InnerMapRenderer, {
             ctx.ellipse(dx + sz / 2, dy + sz * 0.9, sz * 0.38, sz * 0.09, 0, 0, Math.PI * 2);
             ctx.fill();
             const kf = this._sheetScale(furnImg.img);
-            ctx.drawImage(furnImg.img, furnImg.c.sx * kf, furnImg.c.sy * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
+            ctx.drawImage(furnImg.img, furnImg.c.sx * kf, furnImg.c.sy * kf, (furnImg.c.sw || 32) * kf, (furnImg.c.sh || 32) * kf, dx, dy, sz, sz);
         } else if (furniture) {
             // A piece with no sprite yet: its glyph cut into a dark plate
             const pad = sz * 0.14;
@@ -588,7 +588,7 @@ Object.assign(InnerMapRenderer, {
             const fImg = fa && this._getSheetByPath(fa.sheet);
             if (fImg) {
                 const kf = this._sheetScale(fImg);
-                ctx.drawImage(fImg, fa.sx * kf, fa.sy * kf, 32 * kf, 32 * kf, dx, dy, sz, sz);
+                ctx.drawImage(fImg, fa.sx * kf, fa.sy * kf, (fa.sw || 32) * kf, (fa.sh || 32) * kf, dx, dy, sz, sz);
                 return;
             }
         }

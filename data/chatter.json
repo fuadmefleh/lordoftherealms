@@ -36,6 +36,7 @@
             "tax_revolt": 5, "tax_farm": 3, "taxes_raised": 4, "army_unpaid": 6, "offices_sold": 4, "crown_land_sold": 4,
             "estate_enclosure": 3, "estate_riot": 5, "estate_sold": 3, "estate_confiscated": 4, "estate_ceded": 4, "estate_bequest": 2, "estate_dowry": 2, "estate_rent_riot": 5, "linen_glut": 3,
             "grain_engrossed": 4, "engrossing_edict": 5,
+            "law_pestilence_quarantine": 6, "law_pestilence_open": 4,
             "market_fair": 4, "market_dearth": 5, "market_glut": 3,
             "labour_refugees": 5, "labour_strike": 4, "labour_boom": 3,
             "guild_strike": 5, "guild_election": 3, "guild_chartered": 3, "guild_abolished": 5,
@@ -55,6 +56,7 @@
             "tax_revolt": "🔥", "tax_farm": "📜", "taxes_raised": "💰", "army_unpaid": "⚔️", "offices_sold": "📜", "crown_land_sold": "🌾",
             "estate_enclosure": "🐑", "estate_riot": "🔥", "estate_sold": "🌾", "estate_confiscated": "⚖️", "estate_ceded": "📜", "estate_bequest": "⛪", "estate_dowry": "💍", "estate_rent_riot": "🔥", "linen_glut": "👚",
             "grain_engrossed": "🌾", "engrossing_edict": "📜",
+            "law_pestilence_quarantine": "🚧", "law_pestilence_open": "🔓",
             "market_fair": "🎪", "market_dearth": "🥖", "market_glut": "🌾",
             "labour_refugees": "🧳", "labour_strike": "✊", "labour_boom": "🏗️", "guild_strike": "✊", "guild_election": "🗳️", "guild_chartered": "📜", "guild_abolished": "⚖️",
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
@@ -129,6 +131,16 @@
             "grain_engrossed": [
                 "The harvest is failing in {kingdom}, and the grain dealers are buying it up: {amount} loads gone into their lofts. Bread will be dear.",
                 "Engrossers in {kingdom}! The dealers hoard grain against the hungry months, and the price climbs already."
+            ],
+            "law_pestilence_quarantine": [
+                "The {ruler} closes the gates against the plague! No town of {kingdom} with sickness in it opens to travellers or trade, by order of the crown.",
+                "Quarantine in {kingdom}: with the plague at {other}, the {ruler} shuts the gates of every sick town. Carts are turned back at {place}.",
+                "By proclamation of the {ruler}: the plague is too near, and the sick towns of {kingdom} are shut. Merchants curse; the physicians nod."
+            ],
+            "law_pestilence_open": [
+                "The plague has passed from {kingdom}, and the {ruler} opens the gates again. Trade comes back to {place}.",
+                "The {ruler} lifts the quarantine: the gates of {kingdom} stand open to travellers once more.",
+                "No new sickness these many weeks: by order of the {ruler}, the towns of {kingdom} open their gates and the carts roll in."
             ],
             "engrossing_edict": [
                 "By order of the crown of {kingdom}: no man shall hoard grain. The dealers' lofts at {place} are thrown open; {amount} grain comes to market.",

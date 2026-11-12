@@ -106,8 +106,8 @@
         },
         "woodworker": {
             "name": "Woodworker", "stall": "Woodware Stall", "icon": "🌲",
-            "goods": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin"],
-            "buys": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin", "wood"],
+            "goods": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin", "handcart"],
+            "buys": ["joinery", "barrel", "planks", "bow", "arrows", "bolts", "resin", "wood", "handcart"],
             "tiers": ["poor", "mid", "rich"], "weight": 0.8, "land": { "forest": 1.5 },
             "cultures": { "Woodland": 1.6, "Nordic": 1.2 },
             "cries": ["Turned and carved! Good {good}!", "Barrels, bows and boards!", "{good}, made by these hands!"]

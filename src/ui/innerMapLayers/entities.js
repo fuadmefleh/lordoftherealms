@@ -14,6 +14,7 @@ import { InnerMapAnimals } from '../innerMapAnimals.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapSleepers } from '../innerMapSleepers.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapFelling } from '../innerMapFelling.js';
 import { InnerMapBattle } from '../innerMapBattle.js';
@@ -933,6 +934,8 @@ Object.assign(InnerMapRenderer, {
                 // Beaten senseless: lying where they fell, under anyone standing on that row
                 // (and the bound, awake but tied hand and foot; and anyone the player carries or drags — ui/innerMapDowned.js)
                 if (npc.state === 'unconscious' || npc.state === 'bound' || npc._carried) {
+                    // Laid on a cart: drawn lying on it (ui/innerMapCarts.js collect)
+                    if (npc._onCart) continue;
                     // Over the player's shoulder (ui/innerMapCarry.js): drawn just after the player, as a body carried is
                     if (npc._carried && !npc._dragged) {
                         const pos = InnerMap.getPlayerWorldPos();
@@ -1041,8 +1044,13 @@ Object.assign(InnerMapRenderer, {
                 const stallFoot = counter ? camera.worldToScreenFast(worldX, (counter.row + 1) * T).y : 0;
                 // (a stall of two tiles: they stand in it, face under the awning, the counter before them)
                 const stallBox = counter && counter.piece ? self._pieceRect(counter.piece, T) : null;
-                const stallScr = stallBox ? camera.worldToScreenFast(stallBox.x, stallBox.y) : null;
-                const sy = stallBox ? stallFoot + ds * 0.22 : counter ? stallFoot - ds * 0.6 : screen.y + (kbK ? fkb.dy * kbK * ds : 0);
+                // (copied: worldToScreenFast hands back one shared object, overwritten before this deferred draw runs —
+                // the stall would be drawn wherever the last thing (the player) was put)
+                const stallS0 = stallBox ? camera.worldToScreenFast(stallBox.x, stallBox.y) : null;
+                const stallScr = stallS0 ? { x: stallS0.x, y: stallS0.y } : null;
+                // (a hall stall: head and shoulders over the counter, before the awning's valance — the gap under
+                // the awning is too narrow for a face, and any lower the counter and its wares hide them whole)
+                const sy = stallBox ? stallFoot - ds * 0.45 : counter ? stallFoot - ds * 0.6 : screen.y + (kbK ? fkb.dy * kbK * ds : 0);
                 if (sx < -ds * 2 || sx > ctx.canvas.width + ds * 2) continue;
                 if (sy < -ds * 2 || sy > ctx.canvas.height + ds * 2) continue;
                 // (sat in a pew facing the altar: its back hides them below the shoulders)
@@ -1149,8 +1157,12 @@ Object.assign(InnerMapRenderer, {
                     }
                     if (clipY != null) ctx.restore();
                     if (stallBox && stallBox.img) {
+                        // Only the wares and the counter over them (the art's lower part, below the gap under the
+                        // awning: assets/buildingKit/stalls_trade.png): the whole stall again would hide them entirely
                         const sc = ds / T, k = self._sheetScale(stallBox.img), a = stallBox.art;
-                        ctx.drawImage(stallBox.img, a.sx * k, a.sy * k, a.sw * k, a.sh * k, Math.round(stallScr.x), Math.round(stallScr.y), Math.round(stallBox.w * sc), Math.round(stallBox.h * sc));
+                        const cut = 0.43, dTop = Math.round(stallScr.y + stallBox.h * sc * cut);
+                        ctx.drawImage(stallBox.img, a.sx * k, (a.sy + a.sh * cut) * k, a.sw * k, a.sh * (1 - cut) * k,
+                            Math.round(stallScr.x), dTop, Math.round(stallBox.w * sc), Math.round(stallScr.y + stallBox.h * sc) - dTop);
                     }
                     // (behind a counter their feet are hidden: the name goes over their head, clear of the
                     // customers before the stall)
@@ -1186,6 +1198,8 @@ Object.assign(InnerMapRenderer, {
         InnerMapBattle.collect(items, ctx, camera, T);
         // ── Phase 3f: The realm's household guard behind you (ui/innerMapEscort.js) ──
         InnerMapEscort.collect(items, ctx, camera, T);
+        // ── Phase 3g: Handcarts and wagons, and whoever lies on one (ui/innerMapCarts.js) ──
+        InnerMapCarts.collect(items, ctx, camera, T);
 
         // ── Phase 4: Collect Player ─────────────────────────────────────────────
         {

@@ -260,7 +260,17 @@ export const InnerMapRites = {
             if (b1.state !== 'walking' || F.walkT - (F.followAt || 0) > 1.2) {
                 F.followAt = F.walkT;
                 const tq = b0.prevQ != null ? b0.prevQ : b0.q, tr = b0.prevR != null ? b0.prevR : b0.r;
-                if (_dist(b1, { q: tq, r: tr }) > 0) InnerMap._goStand(b1, { q: tq, r: tr }, 'rite');
+                const walking = b1.state === 'walking' && b1.path && b1.pathIndex < b1.path.length;
+                const goal = walking ? b1.path[b1.path.length - 1] : null;
+                if (_dist(b1, { q: tq, r: tr }) > 0 && (!goal || goal.q !== tq || goal.r !== tr)) {
+                    // (a fresh path starts the stride over: mid-step toward the same tile, keep it,
+                    // or at the slow pace a bearer re-pathed every beat never takes a step)
+                    const next = walking ? b1.path[b1.pathIndex] : null;
+                    const keep = walking ? _num(b1.moveProgress) : 0;
+                    InnerMap._goStand(b1, { q: tq, r: tr }, 'rite');
+                    const first = b1.path && b1.path[0];
+                    if (keep && next && first && first.q === next.q && first.r === next.r) b1.moveProgress = keep;
+                }
             }
             F.mourners.forEach((n, i) => {
                 if (!n._rite || n._riteGo || F.walkT < 2 + i * 0.8) return;

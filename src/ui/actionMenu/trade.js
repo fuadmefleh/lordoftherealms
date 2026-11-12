@@ -21,6 +21,7 @@ import { BackRooms } from '../../systems/backRooms.js';
 import { ParentsGuard } from '../parentsGuard.js';
 import { Barter } from '../../world/barter.js';
 import { MarketStalls } from '../../world/marketStalls.js';
+import { NpcShops } from '../../systems/npcShops.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -1284,7 +1285,11 @@ Object.assign(ActionMenu, {
      * Uses the NPC's shopInventory instead of the settlement market.
      */
     showNpcTradeMenu(game, npc, section = null) {
-        if (!npc || !npc.shopInventory) {
+        // The trader's goods are real (systems/npcShops.js): their wares, their market's stock on consignment
+        const shopTile = game.world && typeof game.world.getTile === 'function' && game.player ? game.world.getTile(game.player.q, game.player.r) : null;
+        const shopTown = (shopTile && shopTile.settlement) || null;
+        const shopStock = npc && npc.shopInventory && shopTown ? NpcShops.stock(game.world, shopTown, npc) : {};
+        if (!npc || !npc.shopInventory || !shopTown) {
             game.ui.showNotification('No Goods', `${npc?.name || 'This person'} has nothing to trade.`, 'info');
             return;
         }
@@ -1329,10 +1334,10 @@ Object.assign(ActionMenu, {
 
         // Resolve inventory items
         const shopGoods = [];
-        for (const [itemId, data] of Object.entries(npc.shopInventory)) {
+        for (const [itemId, data] of Object.entries(shopStock)) {
             const goodDef = PlayerEconomy.GOODS[itemId.toUpperCase()] || Object.values(PlayerEconomy.GOODS).find(g => g.id === itemId);
             if (!goodDef || data.qty <= 0) continue;
-            const price = NpcDisposition.buyPrice(npc, goodDef.basePrice * (data.markup || 1), fameCtx);
+            const price = NpcDisposition.buyPrice(npc, data.price, fameCtx);
             shopGoods.push({ ...goodDef, quantity: data.qty, price, _itemId: itemId });
         }
 
@@ -1351,6 +1356,8 @@ Object.assign(ActionMenu, {
                 if (quantity <= 0) continue;
                 const good = PlayerEconomy.GOODS[goodId.toUpperCase()];
                 if (!good) continue;
+                // (they buy only what their market trades, for its purse)
+                if (!NpcShops.buys(game.world, shopTown, npc, goodId)) continue;
                 const sellPrice = Math.floor(NpcDisposition.sellPrice(npc, good.basePrice * 0.65, fameCtx) * Crafting.saleMult(game.player, goodId));
                 sellItems.push({ ...good, quantity, sellPrice, quality: Crafting.qualityTag(game.player, goodId) });
             }
@@ -1475,12 +1482,14 @@ Object.assign(ActionMenu, {
                     game.ui.showNotification('🎒 Inventory Full', PlayerInventory.fullMessage(game.player), 'error');
                     return;
                 }
-                // Deduct gold, add to player inventory, reduce NPC stock
-                game.player.gold -= totalCost;
-                PlayerInventory.addItem(game.player, itemId, qty);
-                npc.shopInventory[itemId].qty -= qty;
-                if (npc.shopInventory[itemId].qty <= 0) delete npc.shopInventory[itemId];
-                game.ui.showNotification('Purchase Complete', `Bought ${qty}x ${displayName} for ${totalCost} gold`, 'success');
+                // The units out of the trader's real stock, the coin to whose goods they were
+                const res = NpcShops.buy(game.player, game.world, shopTown, npc, itemId, qty, price);
+                if (!res.ok) {
+                    game.ui.showNotification('No Sale', res.reason || 'They have none of that left.', 'error');
+                    ActionMenu.showNpcTradeMenu(game, npc);
+                    return;
+                }
+                game.ui.showNotification('Purchase Complete', `Bought ${res.qty}x ${displayName} for ${res.cost} gold`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showNpcTradeMenu(game, npc);
             });
@@ -1493,17 +1502,20 @@ Object.assign(ActionMenu, {
             ActionMenu.showQuantityInput(`Sell ${displayName}`, maxQty, (qty) => {
                 // (the row's price is for the first unit sold — Common first; the grades of the rest count too, core/grades.js)
                 const unitBase = sellPrice / Math.max(0.01, Crafting.saleMult(game.player, goodId, 1));
-                const totalEarned = Math.floor(unitBase * qty * Crafting.saleMult(game.player, goodId, qty));
                 // Remove from player inventory
                 if (!game.player.inventory || (game.player.inventory[goodId] || 0) < qty) {
                     game.ui.showNotification('Cannot Sell', 'You don\'t have enough of this item.', 'error');
                     return;
                 }
-                Crafting.takeForSale(game.player, goodId, qty);
-                game.player.inventory[goodId] -= qty;
-                if (game.player.inventory[goodId] <= 0) delete game.player.inventory[goodId];
-                game.player.gold += totalEarned;
-                game.ui.showNotification('Sale Complete', `Sold ${qty}x ${displayName} for ${totalEarned} gold`, 'success');
+                // Bought for their market: the goods into its stock, the coin out of its town's purse (as far as it has it)
+                const res = NpcShops.sell(game.player, game.world, shopTown, npc, goodId, qty,
+                    (q) => Math.floor(unitBase * q * Crafting.saleMult(game.player, goodId, q)),
+                    { take: (q) => Crafting.takeForSale(game.player, goodId, q) });
+                if (!res.ok) {
+                    game.ui.showNotification('No Sale', res.reason || 'They will not buy that.', 'error');
+                    return;
+                }
+                game.ui.showNotification('Sale Complete', `Sold ${res.qty}x ${displayName} for ${res.paid} gold${res.qty < qty ? ' (all they could pay for)' : ''}`, 'success');
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.showNpcTradeMenu(game, npc);
             });

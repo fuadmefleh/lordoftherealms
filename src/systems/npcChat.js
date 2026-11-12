@@ -33,6 +33,7 @@ import { Chatter } from './chatter.js';
 import { PlayerInventory } from '../core/inventory.js';
 // (what they carry and the coin they take: real stock and purses, systems/townTrade.js)
 import { TownTrade } from './townTrade.js';
+import { NpcShops } from './npcShops.js';
 import { Economy } from '../world/economy.js';
 
 const DEFAULTS = {
@@ -216,16 +217,25 @@ export const NpcChat = {
                     }
                     return npc._chatWares.items;
                 }
-                if (npc.shopInventory && typeof npc.shopInventory === 'object' && Object.keys(npc.shopInventory).length) return npc.shopInventory;
+                // (a trader's shop: their wares, their market's on consignment — systems/npcShops.js)
+                const shopTown = town || _townNamed(world, opts.place);
+                if (npc.shopInventory && typeof npc.shopInventory === 'object' && Object.keys(npc.shopInventory).length && shopTown) return NpcShops.stock(world, shopTown, npc);
                 return _carried(mem(), [npc.type, String(npc.roleTitle || '').toLowerCase()], world, town || _townNamed(world, opts.place));
             },
             take: (world, id, qty) => {
                 const town = _townOfFolk(world, npc._folk);
-                if (npc._person && town && TownTrade.enabled()) TownTrade.takeWares(town, npc._person, id, qty);
+                if (npc._person && town && TownTrade.enabled()) { TownTrade.takeWares(town, npc._person, id, qty); return; }
+                const shopTown = town || _townNamed(world, opts.place);
+                if (npc.shopInventory && typeof npc.shopInventory === 'object' && shopTown) {
+                    Object.defineProperty(npc, '_chatShopTaken', { value: NpcShops.take(world, shopTown, npc, id, qty), configurable: true, enumerable: false, writable: true });
+                }
             },
             receive: (world, n, why = 'sale') => {
                 const town = _townOfFolk(world, npc._folk) || _townNamed(world, opts.place);
                 if (npc._person) { npc._person.purse = Math.round(((typeof npc._person.purse === 'number' ? npc._person.purse : 0) + n) * 100) / 100; return n; }
+                // (a sale out of a trader's shop: to whose goods they were)
+                const shopTaken = why === 'sale' ? npc._chatShopTaken : null;
+                if (shopTaken && shopTaken.n > 0 && town) { npc._chatShopTaken = null; return NpcShops.pay(world, town, npc, shopTaken, n); }
                 const paid = why === 'sale' ? (TownTrade.consignPaid(world, mem(), n) || (town ? Economy.payTown(town, n) : 0)) : 0;
                 if (paid >= n) return paid;
                 npc.purse = Math.round(((typeof npc.purse === 'number' ? npc.purse : 0) + n - paid) * 100) / 100;

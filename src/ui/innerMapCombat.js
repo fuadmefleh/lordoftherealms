@@ -45,6 +45,7 @@ import { Laws } from '../systems/laws.js';
 import { MapTasks } from '../systems/mapTasks.js';
 import { PlayerInventory } from '../player/inventory.js';
 import { Utils } from '../core/utils.js';
+import { NpcShops } from '../systems/npcShops.js';
 import { drawGlyph } from './icons.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapThieves } from './innerMapThieves.js';
@@ -1168,12 +1169,14 @@ export const InnerMapCombat = {
         const items = [];
         if (player) {
             player.gold = (player.gold || 0) + gold;
+            // (a trader's wares are real: out of their own stock or their market's — systems/npcShops.js)
+            const town = (InnerMap._currentWorldTileRef && InnerMap._currentWorldTileRef.settlement) || null;
             for (const it of Duels.brawlSpoils(npc)) {
-                const r = PlayerInventory.addItem(player, it.id, it.qty);
-                if (r.success) {
-                    items.push(it);
-                    if (npc.shopInventory && npc.shopInventory[it.id]) npc.shopInventory[it.id].qty -= it.qty;
-                }
+                if (!PlayerInventory.canAdd(player, it.id)) continue;
+                const got = town && npc.shopInventory ? NpcShops.take(game.world, town, npc, it.id, it.qty).n : 0;
+                if (!(got > 0)) continue;
+                const r = PlayerInventory.addItem(player, it.id, got, { force: true });
+                if (r.success) items.push({ id: it.id, qty: got });
             }
         }
         return { gold, items };

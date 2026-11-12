@@ -113,7 +113,8 @@ const topLevel = [
     'illness',
     'townFamily',
     'townSchool',
-    'townTrade'
+    'townTrade',
+    'carts'
 ];
 
 const merged = {};

@@ -116,8 +116,9 @@ describe('a new life', () => {
     }, 240000);
 
     // (seeds where the bot has bought into the world by day 300: since the towns' gangs
-    // turn weekly (systems/gangs.js), seed 36's bot ends the run owning nothing)
-    for (const seed of [35, 37]) {
+    // turn weekly (systems/gangs.js), seed 36's bot ends the run owning nothing; since townsfolk
+    // pickpocket, burgle and keep their own larders, seed 37's does too — 38 to 42 all buy in)
+    for (const seed of [35, 38]) {
         it(`hands the old House's holdings on and plays on as someone new (seed ${seed})`, () => {
             const game = played(seed, 300);
             const { world } = game;

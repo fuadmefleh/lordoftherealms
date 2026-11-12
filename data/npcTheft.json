@@ -36,6 +36,9 @@
         "coinShare": [0.3, 0.7],
         "maxKinds": 3,
         "unitShare": [0.5, 1],
+        "_pantry": "The household's pantry (systems/townTrade.js larder, what it eats from): a burglar also takes up to pantryKinds kinds of its food and small goods, pantryShare of each (whole units); the household eats short and buys again at its next market step.",
+        "pantryKinds": 2,
+        "pantryShare": [0.3, 0.7],
         "catch": {
             "base": { "village": 0.06, "town": 0.1, "city": 0.14, "capital": 0.17 },
             "nightOccupied": 0.12,

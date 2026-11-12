@@ -68,6 +68,7 @@ const ESTATE_KINDS = { enclosure: 'estate_enclosure', riot: 'estate_riot', sold:
 const _estateKind = h => (h.kind === 'riot' && h.why === 'rent' ? 'estate_rent_riot' : ESTATE_KINDS[h.kind]);
 // The grain dealers (world.engrossing.history, systems/engrossing.js): a realm's dealers buying up grain, a crown's edict
 const ENGROSS_KINDS = { engross: 'grain_engrossed', edict: 'engrossing_edict' };
+// The AI crowns' laws (world.lawNews.history, systems/lawCouncil.js): a record's kind is its proclamation (law_<law>_<option>)
 
 const _num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -243,6 +244,15 @@ export const Heralds = {
         for (const x of Heralds._fiscalRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._estateRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._engrossRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._lawRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** A crown's proclamation of a law: gates shut against the plague, opened again (world.lawNews.history). */
+    _lawRecords(world) {
+        const t = world && world.lawNews;
+        const T = Heralds.data().templates || {};
+        return (t && Array.isArray(t.history) ? t.history : []).filter(h => h && h.key && h.kind && T[h.kind])
+            .map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** Tax revolts, tax farms, taxes raised, armies unpaid (world.fiscal.history, systems/fiscal.js). */
@@ -630,6 +640,17 @@ export const Heralds = {
             Heralds._proclaim(st, world, ENGROSS_KINDS[h.kind], {
                 kingdom: h.kingdom || (k ? k.name : 'the realm'), place: h.place || (k ? k.name : 'the realm'), amount: _num(h.units) || 'much',
             }, at, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
+        // The crowns' laws: the gates shut against the plague, and opened again (systems/lawCouncil.js)
+        for (const x of Heralds._lawRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            const k = _kingdom(world, h.kingdomId);
+            const kingdom = h.kingdom || (k ? k.name : 'the realm');
+            Heralds._proclaim(st, world, h.kind, {
+                kingdom, ruler: h.ruler || `crown of ${kingdom}`, place: h.place || kingdom, other: h.near || h.place || 'the next town',
+            }, h.q != null ? { q: h.q, r: h.r } : Heralds._capital(world, k), { kingdomId: h.kingdomId != null ? h.kingdomId : null });
         }
 
         // The cost of living and the fashions at court

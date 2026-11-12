@@ -214,4 +214,38 @@ export const Laws = {
         if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);
         return { success: true, text: `By your proclamation, ${L.name.toLowerCase()} in ${k.name}: ${o.label.toLowerCase()}${was ? ` (was ${was.label.toLowerCase()})` : ''}. ${can.cost}g from the treasury; stability −${can.stability}.` };
     },
+
+    // ──────────── THE AI RULERS' HAND ────────────
+
+    /** The AI's rules for changing laws (data/laws.json ai.rules): { lawId: rule }. */
+    aiRules() {
+        const ai = _obj(Laws.config().ai) || {};
+        const out = {};
+        for (const [id, r] of Object.entries(_obj(ai.rules) || {})) if (!id.startsWith('_') && _obj(r) && Laws.law(id)) out[id] = r;
+        return out;
+    },
+
+    /**
+     * An AI ruler proclaims a law (systems/lawCouncil.js decides when): no
+     * treasury spent — a crown's emergency order — but the option's own
+     * stability is paid (a hard law grumbled at), the day noted, the history
+     * kept (by: 'crown'). → { from, to } or null (already the law, no such option).
+     */
+    proclaim(world, kingdom, lawId, optionId, opts = {}) {
+        const k = kingdom;
+        const L = Laws.law(lawId);
+        const o = L && L.options.find(x => x.id === optionId);
+        if (!k || !o || Laws.value(world, k.id, lawId) === optionId) return null;
+        const day = _num(world && world.day);
+        if (!k.laws || typeof k.laws !== 'object') k.laws = {};
+        if (!k.laws.changed || typeof k.laws.changed !== 'object') k.laws.changed = {};
+        const was = Laws.option(world, k.id, lawId);
+        k.laws[lawId] = optionId;
+        k.laws.changed[lawId] = day;
+        k.stability = Math.max(0, Math.min(100, _num(k.stability, 50) - Math.max(0, -_num(o.stability))));
+        if (!Array.isArray(k.laws.history)) k.laws.history = [];
+        k.laws.history.push({ day, law: lawId, from: was ? was.id : null, to: optionId, by: 'crown', why: opts.why || null });
+        if (k.laws.history.length > 30) k.laws.history.splice(0, k.laws.history.length - 30);
+        return { from: was ? was.id : null, to: optionId };
+    },
 };

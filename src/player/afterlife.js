@@ -63,6 +63,7 @@ import { MerchantCaravans } from '../systems/merchantCaravans.js';
 import { MarketFairs } from '../systems/marketFairs.js';
 import { Harvests } from '../world/harvests.js';
 import { Engrossing } from '../systems/engrossing.js';
+import { LawCouncil } from '../systems/lawCouncil.js';
 import { LandMarket } from '../systems/landMarket.js';
 import { PuttingOut } from '../systems/puttingOut.js';
 import { TradePolicy } from '../systems/tradePolicy.js';
@@ -139,6 +140,7 @@ const WORLD_DAY = [
     (w) => MarketFairs.processDay(w, null),
     (w) => Harvests.processDay(w, null),
     (w) => Engrossing.processDay(w, null),
+    (w) => LawCouncil.processDay(w, null),
     (w) => Concessions.processDay(w, null),
     (w) => LandMarket.processDay(w, null),
     (w) => PuttingOut.processDay(w, null),

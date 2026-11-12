@@ -165,6 +165,8 @@ export const InnerMapScavengers = {
             spawned = true;
         }
         npc._graveRobber = true;
+        // (whatever they were hauling — a sack, a load of logs — set down: a spade, not the load, in their hands)
+        if (npc._carry) { npc._carryLaid = npc._carry; npc._carry = null; }
         const R = { npc, plan, spot, stand, phase: 'go', t: 0, tries: 0, key, day, spawned, told: false };
         if (!this._walk(npc, stand)) { npc.q = npc.prevQ = stand.q; npc.r = npc.prevR = stand.r; }
         return R;
@@ -231,6 +233,7 @@ export const InnerMapScavengers = {
         R.phase = 'leave';
         R.t = 0;
         npc._graveRobber = false;
+        if (npc._carryLaid) { npc._carry = npc._carryLaid; npc._carryLaid = null; }
         InnerMapReactions._flee(npc, { indoors: false });
     },
 
@@ -264,6 +267,7 @@ export const InnerMapScavengers = {
         R.npc._dialogFrozen = false;
         R.npc._graveRobber = false;
         R.npc.activity = null;
+        if (R.npc._carryLaid) { R.npc._carry = R.npc._carryLaid; R.npc._carryLaid = null; }
     },
 
     _removeNpc(npc) {
@@ -535,12 +539,25 @@ export const InnerMapScavengers = {
         ctx.beginPath();
         ctx.arc(s.x, s.y, ds * 2.4 * flick, 0, Math.PI * 2);
         ctx.fill();
-        // the lantern set down beside them
-        const lx = s.x + ds * 0.38, ly = s.y + ds * 0.12;
+        // the lantern set down beside them: a cap and a ring to carry it by, the glass lit within
+        const lx = s.x + ds * 0.4, ly = s.y + ds * 0.3;
+        const w = ds * 0.17, h = ds * 0.24;
+        ctx.strokeStyle = '#2b1d10';
+        ctx.lineWidth = Math.max(1, ds * 0.025);
+        ctx.beginPath();
+        ctx.arc(lx, ly - h - ds * 0.04, ds * 0.045, Math.PI, 0);
+        ctx.stroke();
         ctx.fillStyle = '#2b1d10';
-        ctx.fillRect(lx - ds * 0.07, ly - ds * 0.16, ds * 0.14, ds * 0.2);
-        ctx.fillStyle = `rgba(255, 214, 120, ${0.85 * flick})`;
-        ctx.fillRect(lx - ds * 0.05, ly - ds * 0.13, ds * 0.1, ds * 0.13);
+        ctx.beginPath();
+        ctx.moveTo(lx - w * 0.62, ly - h + ds * 0.02);
+        ctx.lineTo(lx, ly - h - ds * 0.05);
+        ctx.lineTo(lx + w * 0.62, ly - h + ds * 0.02);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(lx - w / 2, ly - h + ds * 0.02, w, h - ds * 0.02);
+        ctx.fillRect(lx - w * 0.6, ly - ds * 0.03, w * 1.2, ds * 0.04);
+        ctx.fillStyle = `rgba(255, 214, 120, ${0.9 * flick})`;
+        ctx.fillRect(lx - w * 0.32, ly - h + ds * 0.05, w * 0.64, h - ds * 0.1);
         ctx.restore();
     },
 };

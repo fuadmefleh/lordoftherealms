@@ -51,6 +51,7 @@ import { _dispositionLabel } from './npcDialog/helpers.js';
 import { drawGlyph, buildingGlyph, pictureIcon } from './icons.js';
 import { uiZoom } from './uiScale.js';
 import { InnerMapCarry } from './innerMapCarry.js';
+import { InnerMapCarts } from './innerMapCarts.js';
 import { InnerMapDowned } from './innerMapDowned.js';
 import { Downed } from '../systems/downed.js';
 import { Carrying } from '../systems/carrying.js';
@@ -405,6 +406,14 @@ Object.assign(InnerMapRenderer, {
         if (InnerMapCarry.person) {
             if (menuItems.length > 0) menuItems.push({ type: 'separator' });
             menuItems.push(...InnerMapCarry.menuItems(game, tile, q, r, []));
+        }
+        // A cart here or at hand, the one hauled, laying the carried on one (ui/innerMapCarts.js)
+        if (!building) {
+            const cartItems = InnerMapCarts.menuItems(game, tile, q, r);
+            if (cartItems.length) {
+                if (menuItems.length > 0) menuItems.push({ type: 'separator' });
+                menuItems.push(...cartItems);
+            }
         }
         const standing = npcsHere.filter(n => n.state !== 'unconscious' && n.state !== 'bound' && !n._carried);
 
@@ -960,6 +969,7 @@ Object.assign(InnerMapRenderer, {
             return;
         }
         if (InnerMapCarry.handle(game, item)) return;
+        if (InnerMapCarts.handle(game, item)) return;
         if (InnerMapDowned.handle(game, item)) return;
         if (InnerMapJail.handle(game, item)) return;
         if (InnerMapDeck.handle(game, item)) return;

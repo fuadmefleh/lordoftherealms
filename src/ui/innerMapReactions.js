@@ -770,8 +770,9 @@ export const InnerMapReactions = {
             const left = (b.until - now) / 1000;
             const alpha = Math.min(1, left / 0.4);
             // (someone lying on the ground or in a bed speaks from there, not from a standing head's height)
-            const lying = npc.state === 'unconscious' || npc.state === 'bound';
-            this._drawBubble(ctx, b.text, s.x, s.y - ds * (lying ? 0.75 : 1.75 * charScale), camera.zoom, alpha);
+            // (one slung over a shoulder speaks from above the carrier's head, not over their face: ui/innerMapCarry.js)
+            const lying = !npc._carried && (npc.state === 'unconscious' || npc.state === 'bound');
+            this._drawBubble(ctx, b.text, s.x, s.y - ds * (npc._carried ? 2.05 : lying ? 0.75 : 1.75 * charScale), camera.zoom, alpha);
         }
     },
 

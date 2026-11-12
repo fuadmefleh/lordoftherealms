@@ -54,6 +54,8 @@ Object.assign(InnerMap, {
     _playerMayEnter(tile, q, r) {
         if (!tile) return false;
         if (this._underwater) return this.isDivable(q, r);
+        // A cart in the street is in the way (not the one the player pushes: world/innerMap/carts.js)
+        if (this._cartBlocks && q != null && this._cartBlocks(q, r, 'player')) return false;
         // Up on a crag, or below one: only ground at your own height (world/innerMap/climbing.js)
         const lv = this.standLevel(tile), mine = this.playerLevel();
         if (lv !== 0 || mine !== 0) return lv === mine;

@@ -8,6 +8,7 @@ import { Parentage } from '../../player/parentage.js';
 import { InnerMapTasks } from '../innerMapTasks.js';
 import { InnerMapDigging } from '../innerMapDigging.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 import { InnerMapDiving } from '../innerMapDiving.js';
 import { InnerMapClimbing } from '../innerMapClimbing.js';
@@ -447,6 +448,8 @@ export function gameLoop(timestamp, loopId) {
         InnerMapDigging.update(simDelta, this);
         // Someone senseless over your shoulder: through doors with you, waking, laid down (ui/innerMapCarry.js)
         InnerMapCarry.update(simDelta, this);
+        // Handcarts and wagons: carters, the death cart, a caravan loading, the player's own (ui/innerMapCarts.js)
+        InnerMapCarts.update(simDelta, this);
         // The downed: bleeding out, the bound calling out, the buried alive (ui/innerMapDowned.js)
         InnerMapDowned.update(simDelta, this);
         // Under the water, scavenging the bottom (ui/innerMapDiving.js)

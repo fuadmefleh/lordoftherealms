@@ -266,7 +266,18 @@ export const InnerMapCourting = {
                 continue;
             }
             if (this._clock >= w.until) { this._release(w); this._weddings.delete(key); continue; }
-            if (w.phase === 'gather' && this._clock >= w.inAt) { this._goIn(game, key, w); continue; }
+            if (w.phase === 'gather' && this._clock >= w.inAt) {
+                // (not without the couple: wait at the door while one of them is still on the way, a while)
+                const late = w.couple.some(n => n && n.state !== 'gone' && n.state !== 'inside_building' && _dist(n, w.door) > 3);
+                if (late && this._clock < w.inAt + 45) continue;
+                // (the service and what follows it run from now)
+                const wait = this._clock - w.inAt;
+                w.outAt += wait;
+                w.until += wait;
+                w.cheer += wait;
+                this._goIn(game, key, w);
+                continue;
+            }
             if (w.phase === 'service' && this._clock >= w.outAt) { this._comeOut(game, key, w); continue; }
             if (w.phase === 'service' || w.phase === 'gather' || this._clock < w.cheer) continue;
             w.cheer = this._clock + 4 + this._roll(key, 'cheer') * 4;

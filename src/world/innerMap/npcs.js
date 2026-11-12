@@ -463,6 +463,8 @@ Object.assign(InnerMap, {
             // The downed lie where they were laid (a bed, a cell), the carried go with the player
             // (ui/innerMapCarry.js, ui/innerMapDowned.js): no wandering, no relocating
             if (npc.state === 'unconscious' || npc.state === 'bound' || npc._carried) continue;
+            // At a cart's handles, or leading a wagon: ui/innerMapCarts.js walks them
+            if (npc._cartDriver) continue;
             // Safety: if NPC is somehow on an impassable tile, relocate to nearest passable
             // (not someone asleep in bed: they lie on it — world/innerMap/floors.js)
             const curTile = this.tiles[npc.r] && this.tiles[npc.r][npc.q];
@@ -514,6 +516,9 @@ Object.assign(InnerMap, {
                             npc.prevQ = npc.q;
                             npc.prevR = npc.r;
                             const step = npc.path[npc.pathIndex];
+
+                            // A cart in the way (world/innerMap/carts.js): wait for it, then go round
+                            if (this._cartBlocks && this._cartBlocks(step.q, step.r, npc) && this._npcWaitForCart(npc, step, deltaTime)) continue;
 
                             // Defensive: never step onto impassable tile
                             const stepTile = this.tiles[step.r] && this.tiles[step.r][step.q];

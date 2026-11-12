@@ -329,6 +329,8 @@ Object.assign(InnerMap, {
             return beds.length ? beds[h % beds.length] : 0;
         }
         const home = npc._home;
+        // (home for a meal: down at the family table — world/innerMap/townWork.js _homeMealSeat)
+        if (home && home.q === b.q && home.r === b.r && (npc._meal === 'supper' || npc._meal === 'breakfast')) return 0;
         if (home && home.q === b.q && home.r === b.r) return h % n;
         if (this._isLodger && this._isLodger(npc, b)) return 1 + (h % (n - 1));
         return 0;

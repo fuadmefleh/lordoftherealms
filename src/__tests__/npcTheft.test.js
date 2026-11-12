@@ -8,6 +8,7 @@ import { Townsfolk } from '../systems/townsfolk.js';
 import { Containers } from '../systems/containers.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Utils } from '../core/utils.js';
+import { TownTrade } from '../systems/townTrade.js';
 
 beforeAll(async () => {
     await loadData();
@@ -352,5 +353,107 @@ describe('saves', () => {
         expect(stores.length).toBe(1);
         expect(ash.larders[stores[0].key]).toBe(stores[0].rec);
         for (const id of Object.keys(stores[0].rec.stock)) expect(Containers.good(id).basePrice).toBeGreaterThan(0);
+    });
+});
+
+describe('the household\'s pantry (systems/townTrade.js larders and purses)', () => {
+    /** A roster town whose households have shopped a few times (their larders stocked, their purses full). */
+    function stocked() {
+        const { world, ash } = makeWorld(40);
+        ash.population = 3000;
+        for (const id of SettlementMarket.config().goodIds) if (SettlementMarket.tracks(id)) ash.market.stock[id] = SettlementMarket.target(ash, id) * 2;
+        for (const p of ash.folk.people) p.purse = Townsfolk.age(p, world.day) >= 16 ? 40 : 0;
+        for (let i = 0; i < 3; i++) { TownTrade.step(world, ash, world.day); world.day += 4; }
+        return { world, ash };
+    }
+    /** A plan aimed at a household with food in its larder (never the thief's own). */
+    function planAtPantry(world, ash) {
+        const plan = { ...nextPlan(world, ash, world.day), caught: false, seen: false };
+        const thief = Townsfolk.get(ash.folk, plan.thief.pid);
+        const tkey = thief ? TownTrade.hhKey(ash.folk, thief, world.day) : null;
+        const head = Townsfolk.residents(ash.folk).find(p => {
+            if (Townsfolk.age(p, world.day) < 16 || p.id === plan.thief.pid) return false;
+            const pan = TownTrade.pantryOf(ash, p, world.day);
+            return pan && pan.key !== tkey && pan.H && Object.values(pan.H.l).some(n => n > 0.005) && pan.hh.adults.length >= 1;
+        });
+        world.day = plan.day;
+        return { plan: { ...plan, target: { ...plan.target, pid: head.id } }, head };
+    }
+    const goods = (s, cases = []) => {
+        const o = {};
+        const add = (id, n) => { o[id] = (o[id] || 0) + n; };
+        for (const [id, n] of Object.entries((s.market && s.market.stock) || {})) add(id, n);
+        const h = TownTrade.holdings(s);
+        for (const [id, n] of Object.entries(h.goods)) add(id, n);
+        for (const [id, n] of Object.entries(h.gone)) add(id, n);
+        for (const rec of Object.values(s.larders || {})) for (const [id, n] of Object.entries(rec.stock || {})) add(id, n);
+        for (const c of cases) if (c.status === 'open') for (const [id, n] of Object.entries(c.goods || {})) add(id, n);
+        return o;
+    };
+    const coin = (s) => s.economy.gold + TownTrade.holdings(s).coin + s.folk.people.reduce((t, p) => t + (typeof p.purse === 'number' ? p.purse : 0), 0);
+
+    it('a burglar takes food and small goods out of the larder and coin from everyone who eats there; nothing is made or lost', () => {
+        const { world, ash } = stocked();
+        const { plan, head } = planAtPantry(world, ash);
+        const pan = TownTrade.pantryOf(ash, head, plan.day);
+        NpcTheft._houseStores(world, ash, head.id);
+        const larder0 = { ...pan.H.l };
+        const g0 = goods(ash), c0 = coin(ash);
+        const c = NpcTheft.commitBurglary(world, ash, plan);
+        expect(c.status).toBe('open');
+        const fromPantry = c.from[`tt|${pan.key}`];
+        expect(fromPantry).toBeTruthy();
+        for (const [id, n] of Object.entries(fromPantry)) {
+            expect(n).toBeGreaterThan(0);
+            expect(larder0[id] - (pan.H.l[id] || 0)).toBeCloseTo(n, 6);
+        }
+        expect(pan.H.robbed).toBe(plan.day);
+        // Coin from the purses of the household's grown people, all of them
+        for (const id of Object.keys(c.purses)) expect(pan.hh.adults.some(a => a.id === Number(id)) || Number(id) === head.spouse).toBe(true);
+        // Conserved: the goods in the thief's hands, the coin in the thief's purse
+        const g1 = goods(ash, [c]);
+        for (const id of Object.keys({ ...g0, ...g1 })) expect(g1[id] || 0, id).toBeCloseTo(g0[id] || 0, 6);
+        expect(coin(ash)).toBeCloseTo(c0, 6);
+        // Fenced into the market as before (the fence paid out of the town's purse): still nothing made
+        NpcTheft._fence(world, ash, c, null);
+        const g2 = goods(ash, [c]);
+        for (const id of Object.keys({ ...g0, ...g2 })) expect(g2[id] || 0, id).toBeCloseTo(g0[id] || 0, 1);
+        expect(coin(ash)).toBeCloseTo(c0, 6);
+    });
+
+    it('the household goes short and buys it again at its next market step', () => {
+        const { world, ash } = stocked();
+        const { plan, head } = planAtPantry(world, ash);
+        const pan = TownTrade.pantryOf(ash, head, plan.day);
+        const c = NpcTheft.commitBurglary(world, ash, plan);
+        const taken = c.from[`tt|${pan.key}`] || {};
+        const id = Object.keys(taken)[0];
+        expect(id).toBeTruthy();
+        const short = pan.H.l[id] || 0;
+        ash.market.stock[id] = SettlementMarket.target(ash, id) * 2;
+        const bought = ash.townTrade.book.bought || 0;
+        world.day = plan.day + 4;
+        TownTrade.step(world, ash, world.day);
+        expect(ash.townTrade.book.bought).toBeGreaterThan(bought);
+        expect(TownTrade.pantryOf(ash, head, world.day).H.l[id] || 0).toBeGreaterThan(short);
+    });
+
+    it('caught later, the watch puts the goods back in the larder', () => {
+        const { world, ash } = stocked();
+        const { plan, head } = planAtPantry(world, ash);
+        const pan = TownTrade.pantryOf(ash, head, plan.day);
+        const before = { ...pan.H.l };
+        const c = NpcTheft.commitBurglary(world, ash, plan);
+        expect(NpcTheft.catchCase(world, ash, c)).toBe(true);
+        for (const [id, n] of Object.entries(before)) expect(pan.H.l[id] || 0, id).toBeCloseTo(n, 6);
+    });
+
+    it('a town that keeps no trade yet (an old save) is robbed as before', () => {
+        const { world, ash } = makeWorld();
+        const plan = { ...nextPlan(world, ash), caught: false };
+        const { pantry } = NpcTheft._houseStores(world, ash, plan.target.pid);
+        expect(pantry).toBe(null);
+        const c = NpcTheft.commitBurglary(world, ash, plan);
+        expect(Object.keys(c.from).some(k => k.startsWith('tt|'))).toBe(false);
     });
 });

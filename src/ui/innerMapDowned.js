@@ -523,7 +523,12 @@ export const InnerMapDowned = {
             if (InnerMap.clearBurialMarker) InnerMap.clearBurialMarker(lb.q, lb.r);
             InnerMapDigging.setGround(tile, 'hole', { day });
         }
-        const spot = [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([dq, dr]) => InnerMap.getTile(lb.q + dq, lb.r + dr)).find(t => t && t.subTerrain && t.subTerrain.passable) || tile;
+        // (not up under the digger's feet, nor anyone else's)
+        const clear = t => t && t.subTerrain && t.subTerrain.passable
+            && !(t.q === InnerMap.playerInnerQ && t.r === InnerMap.playerInnerR)
+            && !(InnerMap.npcs || []).some(n => n !== npc && n.q === t.q && n.r === t.r && n.state !== 'gone' && n.state !== 'inside_building');
+        const around = [[0, 1], [1, 0], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]].map(([dq, dr]) => InnerMap.getTile(lb.q + dq, lb.r + dr));
+        const spot = around.find(clear) || around.find(t => t && t.subTerrain && t.subTerrain.passable) || tile;
         npc.q = npc.prevQ = npc.targetQ = spot ? spot.q : lb.q;
         npc.r = npc.prevR = npc.targetR = spot ? spot.r : lb.r;
         npc.path = null;

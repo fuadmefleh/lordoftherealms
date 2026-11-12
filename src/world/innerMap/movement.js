@@ -609,6 +609,8 @@ Object.assign(InnerMap, {
         const tiles = this.tiles;
         // Tiles to keep clear of (a brawl's ground), for everyone's paths but the player's
         const avoid = !levels && this._avoidTiles && this._avoidTiles.size && this._avoidTiles.w === W ? this._avoidTiles : null;
+        // Carts parked in the street are solid: everyone's paths go round them (world/innerMap/carts.js)
+        const parked = !this._insideBuilding && this._cartParkedIdx && this._cartParkedIdx.w === W && this._cartsTiles === tiles ? this._cartParkedIdx : null;
         // Flat index helpers
         const idx = (q, r) => r * W + q;
         const endIdx = idx(endQ, endR);
@@ -724,6 +726,7 @@ Object.assign(InnerMap, {
                 if (tile._fieldSoil && !high) ng += FIELD_PATH_COST - 1;
                 // (not the player's walk: theirs keeps to its levels)
                 if (avoid && ni !== endIdx && avoid.has(ni)) ng += AVOID_PATH_COST;
+                if (parked && ni !== endIdx && parked.has(ni)) continue;
                 // Blocked tile sides (interior floor edges, see core/tileSides.js)
                 if ((tile.blockedSides || tiles[cr][cq].blockedSides) &&
                     stepBlockedBySides(tiles[cr][cq].blockedSides, tile.blockedSides, dq[d], dr[d])) continue;

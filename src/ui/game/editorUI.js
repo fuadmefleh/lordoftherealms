@@ -8,6 +8,7 @@ import { Scenarios } from '../../player/scenarios.js';
 import { House } from '../../systems/house.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
+import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
 
 export function resumeGame() {
@@ -15,6 +16,7 @@ export function resumeGame() {
     if (!result.success) return;
     // (the street maps aren't saved: whoever was over your shoulder is let go, nothing left dangling)
     InnerMapCarry.reset();
+    InnerMapCarts.reset();
 
     const data = result.data;
 

@@ -138,7 +138,8 @@ export const InnerMapThieves = {
         if (!house) return; // (not on this map: the day's end resolves it)
         let npc = plan.thief.pid != null ? (InnerMap.npcs || []).find(n => n._person && n._person.id === plan.thief.pid && n.state !== 'gone') : null;
         if (!npc && plan.thief.kind === 'outlaw') npc = this._spawnOutlaw(plan);
-        if (!npc) return;
+        // (one already on their way out of town — run off from a fight, barred — keeps going: the day's end resolves it)
+        if (!npc || npc.departing) return;
         // Out of bed and into the night
         if (npc.state === 'inside_building') {
             if (npc._outsideQ != null) { npc.q = npc.prevQ = npc._outsideQ; npc.r = npc.prevR = npc._outsideR; }
@@ -473,6 +474,16 @@ export const InnerMapThieves = {
 
     // ──────────── THE PLAYER'S CHOICE ────────────
 
+    /** What the player sees of a burglar: still creeping up, at the door, or slipping away. */
+    _doorText(npc, a) {
+        const who = npc.name || 'someone';
+        const whose = `${a.plan.target.name}'s house`;
+        if (a.phase === 'away') return `In the dark, ${who} is slipping away from the door of ${whose}.`;
+        const door = a.house && InnerMap._findPassableAdjacentTile ? InnerMap._findPassableAdjacentTile(a.house.q, a.house.r) : null;
+        if (door && _dist(npc, door) > 2) return `In the dark, ${who} is creeping along the houses, making for the door of ${whose}${a.plan.force ? ', a bar under the arm' : ''}.`;
+        return `In the dark, ${who} is at the door of ${whose}${a.plan.force ? ', working at it with a bar' : ''}.`;
+    },
+
     /** The 'catch_thief' scene's options (ui/actionMenu/thiefScenes.js). */
     view(game, st) {
         const npc = this._npc(st.npcId);
@@ -488,7 +499,7 @@ export const InnerMapThieves = {
             stats: [npc.name || 'someone', (s && s.name) || 'town'],
             text: pick
                 ? `You feel fingers at your purse and turn — ${npc.name || 'someone'} is right there, hand still out.`
-                : `In the dark, ${npc.name || 'someone'} is ${a.phase === 'away' ? 'slipping away from' : 'at'} the door of ${a.plan.target.name}'s house${a.plan.force ? ', working at it with a bar' : ''}.`,
+                : this._doorText(npc, a),
             options: [
                 { id: 'grab', icon: '✊', label: 'Seize them', hint: near ? 'Grab them and hold on until the watch comes.' : 'Run at them and grab hold.', chance: NpcTheft.grabChance(game.player, thief) },
                 { id: 'shout', icon: '📣', label: 'Shout "Thief!"', hint: 'Raise the alarm: the watch gives chase.', chance: null, odds: false },

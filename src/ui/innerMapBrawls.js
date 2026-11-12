@@ -683,8 +683,8 @@ export const InnerMapBrawls = {
         const pair = this._line(pool, F.fight.key, 'pair') || ['…', '…'];
         const feud = F.fight.cause === 'grudge' && a._person && b._person ? Brawls.feud(F.town, a._person.id, b._person.id) : null;
         const why = feud ? Brawls.whyText(feud) : 'what you did';
-        this._say(a, _fill(pair[0], { name: (b.name || '').split(' ')[0], why }), 2.4);
-        this._say(b, _fill(pair[1], { name: (a.name || '').split(' ')[0], why }), 2.4, 1.6);
+        this._say(a, _fill(pair[0], { name: (b.name || '').split(' ')[0], why }), 1.8);
+        this._say(b, _fill(pair[1], { name: (a.name || '').split(' ')[0], why }), 2.4, 1.9);
         F.said++;
     },
 
@@ -694,10 +694,12 @@ export const InnerMapBrawls = {
         for (const n of [a, b]) if (n && n._fight) n._fight.anim = 'emotes';
         F.saidT -= dt;
         if (F.saidT <= 0) {
-            if (!F.said) this._sayPair(F, a, b, game);
+            // (the pair's two lines one after the other: side by side, two bubbles at once overlap)
+            const pair = !F.said;
+            if (pair) this._sayPair(F, a, b, game);
             else this._say(F.said % 2 ? a : b, this._line(Brawls.config().barks.taunt, F.fight.key, F.said), 1.8);
             F.said++;
-            F.saidT = 2.2;
+            F.saidT = pair ? 4.3 : 2.2;
         }
         if (F.stageT < F.stageLeft) return;
         const r = Brawls.escalate(F.fight);

@@ -1,0 +1,50 @@
+{
+    "_note": "Carts on the street map (systems/carts.js rules; world/innerMap/carts.js the ground they take; ui/innerMapCarts.js spawns, drives, draws and lets the player use them). A cart is a train behind whoever leads it: the puller (or the merchant at the horse's head) on the front tile, the cart's body on the tile(s) behind (kinds.length). A parked cart is solid (paths go round it); a moving one is waited for; a cart never steps onto anyone and never goes indoors (gateways yes).",
+    "enabled": true,
+    "_art": "Sprites made with PixelLab's object creator (8 sides, 4 used): one sheet per kind, a column per facing (up, left, down, right: the game's facing order) and a row per variant. cell: the source cell in px. scale: drawn size of a cell in tiles (a standing person is about 1 x 1.8 tiles). lead: how far the sprite's middle sits from the body's tile toward the one leading it, in tiles. lift: drawn this many tiles up from the tile's middle.",
+    "art": {
+        "handcart": { "sheet": "assets/carts/handcart.png", "cell": 68, "scale": 1.7, "rows": { "empty": 0, "loaded": 1, "plague": 2 }, "lead": 0.42, "lift": 0.18 },
+        "wagon": { "sheet": "assets/carts/wagon.png", "cell": 97, "scale": 3.2, "rows": { "loaded": 0 }, "lead": 0.1, "lift": 0.35 }
+    },
+    "_kinds": "length: tiles the cart's body (and a wagon's horse) take behind the one leading it. speed: share of the leader's walk. good: the market good a player's cart is (in the pack: a handcart of their own on every street map they walk).",
+    "kinds": {
+        "handcart": { "name": "handcart", "length": 1, "speed": 0.8, "good": "handcart", "icon": "🛒" },
+        "wagon": { "name": "merchant's wagon", "length": 2, "speed": 0.7, "icon": "🐴" }
+    },
+    "_push": "The player hauling a cart: share of their own walk (base, + perStrength a point of strength over 5, at most max; laden: x this with someone or goods on it).",
+    "push": { "base": 0.62, "perStrength": 0.02, "max": 0.8, "laden": 0.8 },
+    "_use": "Using a cart that isn't yours (any cart standing with no one at it) is theft of its use: seen by anyone within seenWithin tiles, it is a petty theft (underworld 'theft' x crimeScale, the owner's opinion of you down by disposition) and they shout. A cart someone is pulling is never free to take.",
+    "use": { "seenWithin": 7, "crimeScale": 0.4, "disposition": -12, "reach": 1 },
+    "_carters": "Mornings (hours) the town's carters (job carter, else a labourer or a farmer) push handcarts loaded with goods between the stores (from, to: building types), at most max at once on the map, one start every gapSecs at the most. Not in a village with fewer than minStores stores. parked: handcarts left standing by the stores (owned by the town, free for anyone to take — theft of use), at most parkedMax.",
+    "carters": {
+        "hours": [6, 11], "max": 2, "gapSecs": 40, "minStores": 2,
+        "jobs": ["carter", "labourer", "farmer", "miller"],
+        "from": ["warehouse", "granary", "mill", "barn", "farm"],
+        "to": ["marketplace", "warehouse", "granary", "mill"],
+        "parkedMax": 2,
+        "lines": ["Mind the cart!", "Coming through!", "Out of the way, there!", "Steady, steady...", "Heavy load this morning."]
+    },
+    "_plague": "A plague in town (Illness: a plague sickness at epidemic, or plague doors marked): in its hours a death cart goes house to house to the marked doors, its crier calling; at each door it stops stopSecs; bodies (the town's dead these last bodyDays days, at most maxBodies) are loaded at the doors; then to the churchyard's gate, else a plague pit outside the nearest gate. At most once a day.",
+    "plague": {
+        "hours": [[5, 9], [18, 22]], "stopSecs": 7, "bodyDays": 3, "maxBodies": 4, "maxDoors": 8,
+        "lines": {
+            "cry": ["Bring out your dead!", "Bring out your dead! Bring out your dead!", "Any dead? Bring them out!", "The cart is here! Bring out your dead!"],
+            "load": ["Gently now. Gently.", "God keep them.", "Another one...", "Lift — on three."],
+            "pit": ["Into the pit with them. God forgive us.", "Lime on them, quick.", "No priest for these, poor souls."],
+            "fear": ["Keep back from the cart!", "Don't breathe near it!"]
+        }
+    },
+    "_caravan": "A merchant caravan leaving the town the player is in today (systems/merchantCaravans.js, its trade_caravan from this town): in its hours its wagon is loaded at the market (loadSecs, porters carrying sacks to it), then rolls out by the nearest gate and is gone. At most one at a time.",
+    "caravan": {
+        "hours": [6, 13], "loadSecs": 30, "porters": 2,
+        "lines": {
+            "load": ["Lash it down tight!", "That's the last of the {good}.", "Mind the axle, it's full.", "Count the sacks again."],
+            "leave": ["Off we go — {to} by nightfall, God willing!", "Open the gate! Wagon coming through!", "Hup! Walk on!"]
+        }
+    },
+    "lines": {
+        "theft": ["Oi! That's not your cart!", "Thief! That cart's not yours!", "Hey — bring that back!"],
+        "laid": ["You lay {name} on the cart."],
+        "blocked": ["Someone's in the way."]
+    }
+}

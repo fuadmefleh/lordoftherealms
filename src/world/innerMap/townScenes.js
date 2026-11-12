@@ -985,8 +985,11 @@ Object.assign(InnerMap, {
     _sceneFreeSeat(I, npc) {
         const busy = new Set(this.npcs.filter(n => n !== npc && n._scene && n._scene.spot).map(n => `${n._scene.spot.q},${n._scene.spot.r}`));
         const S = this._scn || { seed: 1 };
-        const free = I.seats.filter(s => !busy.has(`${s.q},${s.r}`));
-        if (!free.length) return null;
+        const all = I.seats.filter(s => !busy.has(`${s.q},${s.r}`));
+        if (!all.length) return null;
+        // (the pews themselves first: only when they're full do the rest kneel beside them)
+        const on = all.filter(s => s.on);
+        const free = on.length ? on : all;
         return free[Math.floor(_hs(S.seed, 'seat', npc.uid || npc.id, this.worldDay || 0) * free.length) % free.length];
     },
 
@@ -1154,8 +1157,17 @@ Object.assign(InnerMap, {
         }
         if (!sv) {
             // Between services: the priest at the altar, a few at prayer, kneeling
-            if (priest && priest.activity) { priest.activity.anim = 'idle'; priest.activity.icon = '🙏'; priest.activity.label = 'Tending the altar'; }
-            for (const n of flock) { n._pose = 0; if (n.activity) n.activity.label = 'At prayer'; }
+            // (on a school morning the pupils sit at their lessons, the priest teaching: world/innerMap/townKin.js)
+            const pupils = flock.some(n => n._pupil);
+            if (priest && priest.activity) {
+                priest.activity.anim = pupils ? 'emotes' : 'idle';
+                priest.activity.icon = pupils ? '📖' : '🙏';
+                priest.activity.label = pupils ? 'Teaching the children' : 'Tending the altar';
+            }
+            for (const n of flock) {
+                n._pose = n._pupil && n._scene.spot.on ? 2 : 0;
+                if (n.activity) n.activity.label = n._pupil ? 'At lessons' : 'At prayer';
+            }
             I.eventIn -= step;
             if (I.eventIn <= 0) {
                 I.eventIn = 9 + _hs(S.seed, 'pray', S.n = (S.n || 0) + 1) * 8;

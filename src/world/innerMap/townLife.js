@@ -497,7 +497,8 @@ Object.assign(InnerMap, {
         // The cells round its edge a hand can stand on
         const ring = [];
         const top = f.r - f.h + 1;
-        for (let q = f.q - 1; q <= f.q + f.w; q++) for (const r of [top - 1, f.r + 1]) ring.push({ q, r });
+        // (not the corners: stood off a corner they'd face the grass, not the crop)
+        for (let q = f.q; q < f.q + f.w; q++) for (const r of [top - 1, f.r + 1]) ring.push({ q, r });
         for (let r = top; r <= f.r; r++) for (const q of [f.q - 1, f.q + f.w]) ring.push({ q, r });
         const free = ring.filter(s => {
             const t = this.tiles[s.r] && this.tiles[s.r][s.q];

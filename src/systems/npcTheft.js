@@ -16,7 +16,18 @@
 //   purses and goods from its boxes — the house's own containers' stores
 //   (Containers.larder, settlement.larders) where the player has seen the
 //   house, else the household's strongbox (a store of the same kind, stocked
-//   from the town's market). Those boxes are really emptier after.
+//   from the town's market). Those boxes are really emptier after. And the
+//   household's PANTRY (systems/townTrade.js: settlement.townTrade.hh[key].l,
+//   what it eats from): a little of its food and small goods (pantryKinds,
+//   pantryShare) — gone from the larder, so the household eats short and
+//   buys it again at its next market step. The coin comes out of the purses
+//   of everyone grown who eats at its table (the townTrade household: the
+//   family house, not just the couple). The chests (Containers' stores) and
+//   the pantry are two real stores of one household — its chattels, kept by
+//   the box and topped up each period, and its larder, eaten from daily —
+//   so a burglary takes from both, and the watch's recovery puts each lot
+//   back where it was taken from (case.from: a box's key, or 'tt|' + the
+//   household's key for the pantry).
 //
 //   CUTPURSES — work the crowds: the market, the square, the tavern. A lift is
 //   the thief's skill against the mark's awareness (lift(): the player's own
@@ -60,6 +71,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { RivalAgents } from './rivalAgents.js';
 import { Containers } from './containers.js';
 import { SocialSkills } from './socialSkills.js';
+import { TownTrade } from './townTrade.js';
 
 const DEFAULTS = {
     enabled: true,
@@ -74,7 +86,7 @@ const DEFAULTS = {
     burglary: {
         perNight: { village: 0.01, town: 0.025, city: 0.04, capital: 0.05 }, dearthMult: 1.8, lairMult: 1.6, nightShare: 0.7,
         nightFrom: 22, nightTo: 4, emptyMult: { day: 1.8, night: 1, away: 2.5 }, lockByWealth: [1, 2, 3, 4, 5, 7], forceAbove: 2,
-        coinShare: [0.3, 0.7], maxKinds: 3, unitShare: [0.5, 1],
+        coinShare: [0.3, 0.7], maxKinds: 3, unitShare: [0.5, 1], pantryKinds: 2, pantryShare: [0.3, 0.7],
         catch: { base: { village: 0.06, town: 0.1, city: 0.14, capital: 0.17 }, nightOccupied: 0.12, forced: 0.08, perSkill: -0.025, min: 0.02, max: 0.8 },
         seenChance: 0.3, fenceDays: [2, 6], fenceShare: 0.35, watchLater: { village: 0.03, town: 0.05, city: 0.06, capital: 0.07 },
         reportedMult: 2.5, namedMult: 2, forcedDays: 6, rummageSeconds: 10,
@@ -436,7 +448,20 @@ export const NpcTheft = {
             const rec = tile && tile.settlement === s ? Containers.larder(null, world, ctx) : NpcTheft._looseLarder(world, s, ctx);
             if (rec) stores.push({ key: Containers.key(ctx), rec });
         }
-        return { bkey, stores };
+        return { bkey, stores, pantry: NpcTheft._pantry(world, s, pid) };
+    },
+
+    /**
+     * The household's pantry (systems/townTrade.js larder) as a store to rifle:
+     * { key: 'tt|' + its key, rec: { stock: the larder itself }, holders: [its
+     * grown people] } — or null where the town keeps no trade yet.
+     */
+    _pantry(world, s, pid) {
+        const p = s && s.folk ? Townsfolk.get(s.folk, pid) : null;
+        const day = _num(world && world.day);
+        const pan = p ? TownTrade.pantryOf(s, p, day) : null;
+        if (!pan) return null;
+        return { key: `tt|${pan.key}`, rec: pan.H ? { stock: pan.H.l } : null, H: pan.H, holders: pan.hh ? pan.hh.adults.slice() : [] };
     },
 
     /** A strongbox's store when the town isn't on a tile we can reach (a bare test town). */
@@ -455,8 +480,9 @@ export const NpcTheft = {
     },
 
     /** Take the best of some stores: valuables first, up to maxKinds kinds. → { goods, from: { key: { id: n } } } */
-    _rifle(stores, key, share = null) {
+    _rifle(stores, key, share = null, maxKinds = null) {
         const B = NpcTheft.config().burglary;
+        const kindsMax = maxKinds != null ? maxKinds : _num(B.maxKinds, 3);
         const all = [];
         for (const { key: k, rec } of stores) {
             for (const [id, n] of Object.entries(rec.stock || {})) if (_num(n) >= 1) all.push({ k, rec, id, n: Math.floor(n), v: _num(Containers.good(id).basePrice, 1) });
@@ -466,7 +492,7 @@ export const NpcTheft = {
         const from = {};
         let kinds = 0;
         for (const x of all) {
-            if (!goods[x.id] && kinds >= _num(B.maxKinds, 3)) continue;
+            if (!goods[x.id] && kinds >= kindsMax) continue;
             const sh = share != null ? share : (_num(B.unitShare[0], 0.5) + _frac(`${key}|share|${x.id}`) * (_num(B.unitShare[1], 1) - _num(B.unitShare[0], 0.5)));
             const n = Math.max(1, Math.min(x.n, Math.round(x.n * sh)));
             if (!goods[x.id]) kinds++;
@@ -476,6 +502,31 @@ export const NpcTheft = {
             if (!_obj(x.rec.stolen)) x.rec.stolen = {};
             x.rec.stolen[x.id] = _num(x.rec.stolen[x.id]) + n;
             (from[x.k] = from[x.k] || {})[x.id] = _num((from[x.k] || {})[x.id]) + n;
+        }
+        return { goods, from };
+    },
+
+    /**
+     * Take a share of the pantry's goods — the dearest kinds it holds (by the
+     * worth of what is there), up to maxKinds — exactly, as the larder keeps
+     * them (a household's few days of bread is a fraction of a market lot).
+     * → { goods, from: { key: { id: n } } }
+     */
+    _raid(pantry, key, share, maxKinds) {
+        const L = pantry && pantry.rec && pantry.rec.stock;
+        const goods = {};
+        const from = {};
+        if (!L) return { goods, from };
+        const all = Object.entries(L).filter(([, n]) => _num(n) > 0.001)
+            .map(([id, n]) => ({ id, n: _num(n), v: _num(n) * _num(Containers.good(id).basePrice, 1) }))
+            .sort((a, b) => (b.v - a.v) || (_frac(`${key}|${a.id}`) - _frac(`${key}|${b.id}`)));
+        for (const x of all.slice(0, Math.max(0, maxKinds))) {
+            const n = x.n * _clamp(share, 0, 1);
+            if (!(n > 0)) continue;
+            L[x.id] = x.n - n;
+            if (!(L[x.id] > 0)) delete L[x.id];
+            goods[x.id] = n;
+            (from[pantry.key] = from[pantry.key] || {})[x.id] = n;
         }
         return { goods, from };
     },
@@ -499,7 +550,11 @@ export const NpcTheft = {
         if (!head) return null;
         const people = [head];
         if (head.spouse != null) { const sp = Townsfolk.get(s.folk, head.spouse); if (sp && Townsfolk.isHere(sp)) people.push(sp); }
-        const { bkey, stores } = NpcTheft._houseStores(world, s, head.id);
+        const { bkey, stores, pantry } = NpcTheft._houseStores(world, s, head.id);
+        // (everyone grown who eats at the household's table holds its purses — the thief never among them)
+        for (const a of (pantry && pantry.holders) || []) {
+            if (a && Townsfolk.isHere(a) && a.id !== plan.thief.pid && !people.includes(a)) people.push(a);
+        }
         const c = NpcTheft._newCase(st, {
             k: 'burglary', d: day, thief: plan.thief, victim: { kind: 'npc', pid: head.id, name: Townsfolk.name(head) },
             forced: !!plan.force, inside: !!plan.inside, when: plan.when, bkey,
@@ -518,6 +573,14 @@ export const NpcTheft = {
             const r = NpcTheft._rifle(stores, plan.key);
             c.goods = r.goods;
             c.from = r.from;
+            // And from the pantry: a little of the household's food and small goods
+            if (pantry && pantry.rec) {
+                const ps = _num(B.pantryShare[0], 0.3) + _frac(`${plan.key}|pantry`) * (_num(B.pantryShare[1], 0.7) - _num(B.pantryShare[0], 0.3));
+                const pr = NpcTheft._raid(pantry, `${plan.key}|pantry`, ps, _num(B.pantryKinds, 2));
+                for (const [id, n] of Object.entries(pr.goods)) c.goods[id] = _num(c.goods[id]) + n;
+                for (const [k, items] of Object.entries(pr.from)) c.from[k] = items;
+                if (Object.keys(pr.goods).length && pantry.H) pantry.H.robbed = day;
+            }
             NpcTheft._pay(world, s, player, plan.thief, coin);
             c.fenceDay = day + _span(B.fenceDays, _frac(`${plan.key}|fence`));
         } else {
@@ -622,7 +685,8 @@ export const NpcTheft = {
         if (!c) return '';
         const parts = [];
         if (_num(c.coin) > 0) parts.push(`${c.coin} gold`);
-        for (const [id, n] of Object.entries(c.goods || {})) if (n > 0) parts.push(`${n} ${_goodName(id)}`);
+        // (a pantry's lots are a share of what a household keeps: "some bread")
+        for (const [id, n] of Object.entries(c.goods || {})) if (n > 0) parts.push(n >= 1 ? `${Math.round(n)} ${_goodName(id)}` : `some ${_goodName(id)}`);
         if (!parts.length) return '';
         return parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
     },
@@ -1083,6 +1147,11 @@ export const NpcTheft = {
             }
         }
         for (const [k, items] of Object.entries(c.from || {})) {
+            // (the household's pantry: back into its larder)
+            if (k.startsWith('tt|')) {
+                for (const [id, n] of Object.entries(items)) if (!TownTrade.toPantry(s, k.slice(3), id, n)) SettlementMarket.add(s, id, n);
+                continue;
+            }
             const rec = _obj(s.larders) && s.larders[k];
             for (const [id, n] of Object.entries(items)) {
                 if (rec && _obj(rec.stock)) rec.stock[id] = _num(rec.stock[id]) + n;

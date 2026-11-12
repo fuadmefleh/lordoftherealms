@@ -95,6 +95,18 @@
         "jobs": ["merchant"],
         "logEvery": 90
     },
+    "shops": {
+        "_doc": "The street map's merchants, travelling traders and smiths (systems/npcShops.js; the roll of what each deals in: world/innerMap/state.js _generateNpcShop; the menu: ui/actionMenu/trade.js showNpcTradeMenu). Their goods are real: a trader on the town's roster sells their own wares first (the coin to their purse), then the town market's stock on consignment (the coin to the town's purse, commission of it to theirs); a trader with no roster record sells the town market's stock; a travelling trader sells their home town's (a neighbouring town by who they are, else this one). The shop shows the roll's quantity capped at what the source has above keepShare of the market's target. A good no market trades is dealt as its standIn, else not at all. Bought from the player: only goods a market trades, into that market's stock, paid out of that town's purse as far as it has the coin. A town that barters sells nothing on consignment and buys nothing for coin.",
+        "commission": 0.1,
+        "keepShare": 0.25,
+        "standIn": {
+            "silk": "luxuries", "perfume": "luxuries", "exotic_spices": "spices", "dried_meat": "sausage",
+            "tea": "herbs", "potion": "tonic", "elixir": "tonic", "amulet": "silver_jewellery",
+            "enchanted_ring": "silver_jewellery", "rare_book": "book", "pelts": "hide", "incense": "resin",
+            "lantern": "lamp_oil", "ore": "iron", "treasure_map": "parchment", "dyes": "textiles",
+            "military_parts": "weapons", "ancient_coin": "silver_jewellery"
+        }
+    },
     "deals": { "max": 30 },
     "onMap": {
         "_doc": "The street map: shoppers at a stall buy what their larder wants (world/innerMap/townTrading.js), carry a sack home; producers take their wares to market at dawn; bakers, fishers and brewers cry their wares in the street of a morning; neighbours stop to swap; a pedlar in town walks the streets crying his pack. Chances per pick of an hour's business.",

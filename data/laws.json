@@ -2,6 +2,32 @@
     "_doc": "The laws of each realm (systems/laws.js; the Laws panel ui/actionMenu/laws.js). Each law has options; a realm's law is set on kingdom.laws (saved with the realm). Until a ruler sets one, a realm keeps its old custom: share[option] of realms hold each (a hash of the realm, the same all game). Only the ruler of a realm may change its law: each change costs changeCost.treasury from the crown's treasury and changeCost.stability of the realm's stability (folk dislike upheaval), plus the option's own stability (adopting a hard law costs more), and a law may be changed again only after cooldownDays. Every law is read by the game: privatePrisons by systems/knockout.js (a private citizen may drag the beaten off to their prison camp only where it's allowed); foreignLand by systems/lots.js (where only subjects may hold land, a stranger can't buy a lot or a house, nor rent one); punishment by systems/streetCrime.js and systems/underworld.js (arrests: fines and days in the cells) (the watch's fines and days in the cells, × fine and × jail) and by systems/knockout.js (× deter: the chance that whoever downs you finishes you or goes through your purse, and that one who hates you sets on you at home); vice by systems/gangs.js (what the gangs' gambling dens take, the crackdown they draw, and the licence the crown takes).",
     "changeCost": { "treasury": 150, "stability": 2 },
     "cooldownDays": 30,
+    "ai": {
+        "_doc": "The AI realms' rulers change their laws (systems/lawCouncil.js, every everyDays). Each rule names a law, the trigger that weighs the danger (plague: the plague in, or within radius hexes of, one of the realm's towns: a town's roster sick of it, or the plague world event's town; a town's sickness record counts staleDays), the option proclaimed while it stands (on) and the one gone back to after (off). Hysteresis: the danger must stand actDays before the crown acts; it relents only once nothing is within clearRadius (wider than radius) for clearDays, and the law has held minHoldDays. The ruler's traits shift act and clear (days) and radius (hexes): the wise and the fearful act sooner and relent later; the greedy and merchant princes, who lose the trade, wait and open early. A proclamation pays the option's own stability, not the treasury, and the heralds cry it (data/chatter.json heralds law_<law>_<option>). A realm the player rules is the player's to decide.",
+        "enabled": true,
+        "everyDays": 1,
+        "rules": {
+            "pestilence": {
+                "trigger": "plague", "on": "quarantine", "off": "open",
+                "radius": 4, "clearRadius": 7, "staleDays": 12,
+                "actDays": 2, "clearDays": 20, "minHoldDays": 20,
+                "traits": {
+                    "wise": { "act": -1, "clear": 6, "radius": 1 },
+                    "paranoid": { "act": -2, "clear": 12, "radius": 2 },
+                    "cowardly": { "act": -2, "clear": 8, "radius": 1 },
+                    "healer": { "act": -1, "clear": 5, "radius": 1 },
+                    "just_ruler": { "act": -1 },
+                    "scholar": { "act": -1, "clear": 3 },
+                    "greedy": { "act": 4, "clear": -8, "radius": -2 },
+                    "merchant_prince": { "act": 3, "clear": -6, "radius": -1 },
+                    "decadent": { "act": 3, "clear": -4 },
+                    "slothful": { "act": 3, "clear": 6 },
+                    "brave": { "act": 1, "clear": -3 },
+                    "frugal": { "act": 1, "clear": -3 }
+                }
+            }
+        }
+    },
     "local": {
         "_doc": "A town's own ordinances (Laws.localVice): settlement.ordinances.vice = 'forbidden' | 'follow', set by whoever holds the town; until then a town keeps its old custom, a hash of the town (banShare of towns ban dice and cards whatever the realm allows). A town may be stricter than its realm, never laxer.",
         "vice": { "banShare": 0.2 }

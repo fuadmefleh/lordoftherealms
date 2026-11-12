@@ -18,6 +18,7 @@ import { loadData } from './playtest/harness.js';
 import { Townsfolk } from '../systems/townsfolk.js';
 import { TownJobs } from '../systems/townJobs.js';
 import { TownTrade } from '../systems/townTrade.js';
+import { NpcShops } from '../systems/npcShops.js';
 
 beforeAll(async () => {
     await loadData();
@@ -249,5 +250,121 @@ describe('the townsfolk trade among themselves (systems/townTrade.js)', () => {
         const raw = new Set(['eggs', 'cabbage', 'turnips', 'onions', 'apples', 'fish', 'wool', 'carrots', 'beans']);
         expect(Object.keys(held).some(id => raw.has(id))).toBe(true);
         for (const [id, n] of Object.entries(held)) if (raw.has(id)) expect(y.market.stock[id] - x.market.stock[id], id).toBeCloseTo(n * Math.pow(1 - SettlementMarket.good(id).spoil, 4), 1);
+    });
+});
+
+describe('the street map\'s traders sell real goods (systems/npcShops.js)', () => {
+    /** Two towns, the first with a roster, both markets stocked and their purses full. */
+    function shopTowns() {
+        const a = town({ q: 5, r: 7, economy: { gold: 3000 } }), b = town({ name: 'Brightwater', q: 8, r: 7, economy: { gold: 3000 } });
+        const tiles = { '5,7': { q: 5, r: 7, settlement: a }, '8,7': { q: 8, r: 7, settlement: b } };
+        const world = { day: 40, generationParams: { seed: 99 }, activeEvents: [], units: [], getSettlementViews: () => [a, b], getKingdom: () => null, getTile: (q, r) => tiles[`${q},${r}`] || null };
+        for (const s of [a, b]) {
+            SettlementMarket.ensure(s);
+            for (const id of SettlementMarket.config().goodIds) if (SettlementMarket.tracks(id)) s.market.stock[id] = SettlementMarket.target(s, id) * 2;
+        }
+        a.market.links = [[8, 7, 2, false, true, 1]];
+        Townsfolk.seed(a, world, { q: 5, r: 7 });
+        for (const p of a.folk.people) p.purse = 20;
+        TownTrade.state(a, world.day);
+        return { a, b, world };
+    }
+    const goodsOf = (towns, pl, ids) => Object.fromEntries(ids.map(id => [id, towns.reduce((t, s) => t + units(s, id) + (TownTrade.holdings(s).goods[id] || 0), 0) + (pl.inventory[id] || 0)]));
+    const coinOf = (towns, pl, npcs = []) => towns.reduce((t, s) => t + s.economy.gold + (s.folk ? s.folk.people.reduce((x, p) => x + (typeof p.purse === 'number' ? p.purse : 0), 0) : 0), 0)
+        + pl.gold + npcs.reduce((t, n) => t + (typeof n.purse === 'number' ? n.purse : 0), 0);
+
+    it('a town merchant sells their own wares, then the market\'s on consignment: goods and coin only move', () => {
+        const { a, b, world } = shopTowns();
+        const p = Townsfolk.residents(a.folk).find(x => Townsfolk.age(x, world.day) >= 16);
+        a.townTrade.wares[p.id] = { bread: 3 };
+        const npc = { id: 7, type: 'merchant', name: 'Hal', _person: p, shopInventory: { grain: { qty: 5, markup: 1.1 }, silk: { qty: 2, markup: 1 }, compass: { qty: 1, markup: 1 } } };
+        const pl = player({ gold: 500 });
+        const ids = ['grain', 'bread', 'luxuries', 'silk', 'compass'];
+        const g0 = goodsOf([a, b], pl, ids), c0 = coinOf([a, b], pl, [npc]);
+        const inv = NpcShops.sync(world, a, npc);
+        // What no market trades is dealt as its stand-in, else not at all; the own wares are on the board
+        expect(inv.silk).toBeUndefined();
+        expect(inv.compass).toBeUndefined();
+        expect(inv.luxuries.qty).toBe(2);
+        expect(inv.bread.qty).toBe(3);
+        expect(inv.grain.qty).toBe(5);
+        // Own wares first: the coin to the merchant's purse
+        const purse0 = p.purse;
+        const r1 = NpcShops.buy(pl, world, a, npc, 'bread', 2, 4);
+        expect(r1).toMatchObject({ ok: true, qty: 2, cost: 8 });
+        expect(p.purse).toBeCloseTo(purse0 + 8, 6);
+        expect(a.townTrade.wares[p.id].bread).toBe(1);
+        // Consigned: off the market, the coin to the town's purse less the merchant's commission
+        const stock0 = units(a, 'grain'), gold0 = a.economy.gold, purse1 = p.purse;
+        const r2 = NpcShops.buy(pl, world, a, npc, 'grain', 3, 10);
+        expect(r2).toMatchObject({ ok: true, qty: 3, cost: 30 });
+        expect(units(a, 'grain')).toBeCloseTo(stock0 - 3, 6);
+        expect(a.economy.gold - gold0 + p.purse - purse1).toBeCloseTo(30, 6);
+        expect(p.purse - purse1).toBeCloseTo(30 * NpcShops.config().commission, 6);
+        expect(npc.shopInventory.grain.qty).toBe(2);
+        // Nothing made, nothing lost
+        const g1 = goodsOf([a, b], pl, ids);
+        for (const id of ids) expect(g1[id], id).toBeCloseTo(g0[id], 6);
+        expect(coinOf([a, b], pl, [npc])).toBeCloseTo(c0, 6);
+    });
+
+    it('a shop never sells past what its source holds', () => {
+        const { a, world } = shopTowns();
+        const npc = { id: 8, type: 'blacksmith_npc', name: 'Wat', shopInventory: { tools: { qty: 9, markup: 1 } } };
+        a.market.stock.tools = SettlementMarket.target(a, 'tools') * NpcShops.config().keepShare + 2.4;
+        expect(NpcShops.sync(world, a, npc).tools.qty).toBe(2);
+        const pl = player({ gold: 500 });
+        const r = NpcShops.buy(pl, world, a, npc, 'tools', 9, 5);
+        expect(r.qty).toBe(2);
+        expect(pl.inventory.tools).toBe(2);
+        expect(NpcShops.buy(pl, world, a, npc, 'tools', 1, 5).ok).toBe(false);
+    });
+
+    it('a travelling trader sells their home town\'s goods, and its purse is paid', () => {
+        const { a, b, world } = shopTowns();
+        const npc = { id: 9, type: 'traveler', name: 'Jory', shopInventory: { salt: { qty: 4, markup: 1.2 } } };
+        expect(NpcShops.source(world, a, npc).town).toBe(b);
+        const pl = player({ gold: 500 });
+        const sa = units(a, 'salt'), sb = units(b, 'salt'), gb = b.economy.gold;
+        const r = NpcShops.buy(pl, world, a, npc, 'salt', 3, 6);
+        expect(r.ok).toBe(true);
+        expect(units(a, 'salt')).toBe(sa);
+        expect(units(b, 'salt')).toBeCloseTo(sb - 3, 6);
+        expect(b.economy.gold).toBeCloseTo(gb + 18, 6);
+    });
+
+    it('selling to a trader puts the goods in their market and the coin comes out of its town\'s purse, as far as it goes', () => {
+        const { a, b, world } = shopTowns();
+        const npc = { id: 10, type: 'merchant', name: 'Mab', shopInventory: { grain: { qty: 2, markup: 1 } } };
+        const pl = player({ gold: 0, inventory: { iron: 5, compass: 1 } });
+        const ids = ['iron', 'compass'];
+        const g0 = goodsOf([a, b], pl, ids), c0 = coinOf([a, b], pl);
+        const iron0 = units(a, 'iron');
+        const r = NpcShops.sell(pl, world, a, npc, 'iron', 3, q => q * 7);
+        expect(r).toMatchObject({ ok: true, qty: 3, paid: 21 });
+        expect(units(a, 'iron')).toBeCloseTo(iron0 + 3, 6);
+        expect(pl.inventory.iron).toBe(2);
+        expect(coinOf([a, b], pl)).toBeCloseTo(c0, 6);
+        // What no market trades they won't take
+        expect(NpcShops.sell(pl, world, a, npc, 'compass', 1, 30).ok).toBe(false);
+        // A short purse buys fewer, an empty one none
+        a.economy.gold = 10;
+        const r2 = NpcShops.sell(pl, world, a, npc, 'iron', 2, q => q * 7);
+        expect(r2).toMatchObject({ ok: true, qty: 1, paid: 7 });
+        expect(a.economy.gold).toBe(3);
+        a.economy.gold = 0;
+        expect(NpcShops.sell(pl, world, a, npc, 'iron', 1, 7).ok).toBe(false);
+        const g1 = goodsOf([a, b], pl, ids);
+        for (const id of ids) expect(g1[id], id).toBeCloseTo(g0[id], 6);
+        expect(pl.gold).toBe(28);
+    });
+
+    it('an old save\'s shop (no record of its roll) syncs on first look; a town that barters sells nothing on consignment', () => {
+        const { a, world } = shopTowns();
+        const npc = { id: 11, type: 'merchant', name: 'Ned', shopInventory: { wine: { qty: 3, markup: 1 } } };
+        expect(NpcShops.stock(world, a, npc).wine.qty).toBe(3);
+        a.inKind = true;
+        expect(NpcShops.sync(world, a, npc).wine.qty).toBe(0);
+        expect(NpcShops.buys(world, a, npc, 'wine')).toBe(false);
     });
 });

@@ -55,6 +55,11 @@
 //   (systems/npcChat.js) sells from the same real stock (`personStock`,
 //   `consign` for those without a roster).
 //
+//   BURGLARS (systems/npcTheft.js) rob a household's pantry — this larder —
+//   and its grown people's purses (`pantryOf`); what they take is gone from
+//   it, so the household eats short and buys it again at its next step. The
+//   watch's recovery puts it back (`toPantry`).
+//
 // Conservation: every unit moved is taken from one holder and given to
 // another; `holdings` sums the larders, wares and packs, and the books
 // (`book.eaten`, `book.spoiled`) count what left the economy. Deterministic:
@@ -1238,6 +1243,33 @@ export const TownTrade = {
         const [q, r] = String(at).split(',').map(Number);
         const t = world && typeof world.getTile === 'function' ? world.getTile(q, r) : null;
         return t && t.settlement ? Economy.payTown(t.settlement, n) : 0;
+    },
+
+    // ──────────── THE PANTRY (burglars: systems/npcTheft.js) ────────────
+
+    /**
+     * A person's household pantry, the larder it eats from: { key, H, hh } —
+     * H the larder record (H.l = { goodId: units }, null when it has never
+     * shopped), hh the household (its grown people hold its purses). Null
+     * where the town keeps no trade yet (an old save, a town never stepped).
+     */
+    pantryOf(s, p, day) {
+        const st = s && _obj(s.townTrade);
+        if (!st || !p || !_obj(s.folk) || !TownTrade.enabled()) return null;
+        const key = TownTrade.hhKey(s.folk, p, day);
+        if (!key) return null;
+        const hh = TownTrade.households(s.folk, day).find(h => h.key === key) || null;
+        const H = _obj(st.hh[key]) && _obj(st.hh[key].l) ? st.hh[key] : null;
+        return { key, H, hh };
+    },
+
+    /** Goods back into a household's pantry (stolen goods recovered by the watch). → units */
+    toPantry(s, key, g, n) {
+        const st = s && _obj(s.townTrade);
+        if (!st || !key || !(n > 0)) return 0;
+        const H = TownTrade.larder(st, key);
+        H.l[g] = _num(H.l[g]) + n;
+        return n;
     },
 
     // ──────────── THE STREET MAP ────────────

@@ -179,8 +179,10 @@ Object.assign(InnerMap, {
 
     /** The NPC currently occupying or heading for the furniture at (q, r), or null. */
     getFurnitureOccupant(q, r) {
+        // (a table the household sits at for a meal is taken: world/innerMap/townWork.js _jobTableMeal)
         return this.npcs.find(n => (n._act && n._act.spot && n._act.spot.q === q && n._act.spot.r === r)
-            || (n._asleep && n._asleep.q === q && n._asleep.r === r)) || null;
+            || (n._asleep && n._asleep.q === q && n._asleep.r === r)
+            || (n._mealSeat && n._mealSeat.at && n._mealSeat.at.q === q && n._mealSeat.at.r === r)) || null;
     },
 
     /** Make an NPC give up the furniture they're using or heading for. */

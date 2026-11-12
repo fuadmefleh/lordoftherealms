@@ -41,5 +41,6 @@ import './climbing.js';
 import './palms.js';
 import './gates.js';
 import './felling.js';
+import './carts.js';
 
 export { InnerMap };

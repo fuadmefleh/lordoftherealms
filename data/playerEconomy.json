@@ -816,6 +816,7 @@
         "INK": { "id": "ink", "name": "Ink", "icon": "🖋️", "basePrice": 12, "description": "Soot and resin ground into a black ink." },
         "JOINERY": { "id": "joinery", "name": "Joinery", "icon": "💺", "basePrice": 48, "description": "Stools, chests and tables: a joiner's honest work." },
         "BARREL": { "id": "barrel", "name": "Barrel", "icon": "🛢️", "basePrice": 24, "description": "An iron-hooped oak barrel, wanted by every brewer and fishmonger." },
+        "HANDCART": { "id": "handcart", "name": "Handcart", "icon": "🛒", "basePrice": 45, "description": "A plank bed on two spoked wheels, with long handles: goods, or someone who can't walk, wheeled through the streets. Yours stands beside you in every town." },
         "GRAVE_CROSS": { "id": "grave_cross", "name": "Grave Cross", "icon": "✝️", "basePrice": 10, "description": "A wooden cross cut and pegged by the grave carver, to set at the head of a grave." },
         "HEADSTONE": { "id": "headstone", "name": "Headstone", "icon": "⚰️", "basePrice": 34, "description": "A dressed stone slab from the mason's yard, cut with a name: a grave that is remembered." },
         "CARVED_HEADSTONE": { "id": "carved_headstone", "name": "Carved Headstone", "icon": "⚰️", "basePrice": 85, "description": "A tall headstone carved with a border and a verse by a master mason: the gentry's grave." },

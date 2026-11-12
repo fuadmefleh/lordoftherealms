@@ -121,7 +121,7 @@ const DEFAULTS = {
     relief: {
         chance: { village: 0.4, town: 0.7, city: 0.8, capital: 1.0 },
         minMilitary: 60, share: 0.35, min: 30, max: 300,
-        hexesPerDay: 3, extraDays: [2, 5], minDays: 3, maxDays: 20,
+        hexesPerDay: 2, extraDays: [2, 5], minDays: 3, maxDays: 20,
         sally: 0.25, sallyMorale: 40, returnShare: 0.8, stuckDays: 8,
     },
     civilWar: { momentum: 15, capitalMomentum: 40 },

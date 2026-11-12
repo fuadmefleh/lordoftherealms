@@ -45,6 +45,7 @@ import { Townsfolk } from './townsfolk.js';
 import { SocialSkills } from './socialSkills.js';
 import { Ledger } from './ledger.js';
 import { Names } from '../core/names.js';
+import { Infrastructure } from './infrastructure.js';
 
 const DEFAULTS = {
     expertise: {
@@ -409,9 +410,9 @@ export const NpcKnowledge = {
         return R;
     },
 
-    /** How a walk of `d` hexes is put ("a day's walk", "two or three days"). */
+    /** How a walk of `d` days is put — days on foot, data/travel.json ("a day's walk", "two or three days"). */
     roadDays(d) {
-        const steps = Array.isArray(NpcKnowledge.roadConfig().days) ? NpcKnowledge.roadConfig().days : [[1, 'less than a day\'s walk'], [2, 'a day\'s walk'], [4, 'two or three days'], [7, 'the best part of a week'], [999, "more than a week away"]];
+        const steps = Array.isArray(NpcKnowledge.roadConfig().days) ? NpcKnowledge.roadConfig().days : [[0.8, 'less than a day\'s walk'], [1.5, 'a day\'s walk'], [3.5, 'two or three days'], [7, 'the best part of a week'], [999, "more than a week away"]];
         for (const [max, words] of steps) if (d <= max) return words;
         return 'a long road';
     },
@@ -428,7 +429,8 @@ export const NpcKnowledge = {
         const here = world.getTile(q, r);
         out.onRoad = !!(here && here.hasRoad);
         const seen = new Set([`${q},${r}`]);
-        let frontier = [{ q, r, d: 0, first: null }];
+        // (days: the walk along the road, days per hex — data/travel.json)
+        let frontier = [{ q, r, d: 0, days: 0, first: null }];
         const found = [];
         while (frontier.length && out.onRoad) {
             const next = [];
@@ -442,11 +444,13 @@ export const NpcKnowledge = {
                     const t = world.getTile(nq, nb.r);
                     if (!t) continue;
                     const first = n.first || key;
+                    const step = t.terrain ? Infrastructure.getPlayerHexDays(t, null) : Infrastructure.openDays();
+                    const days = n.days + (Number.isFinite(step) ? step : Infrastructure.openDays());
                     if (t.settlement) {
-                        if (!found.some(f => f.first === first || f.name === t.settlement.name)) found.push({ name: t.settlement.name, d: n.d + 1, q: nq, r: nb.r, first });
+                        if (!found.some(f => f.first === first || f.name === t.settlement.name)) found.push({ name: t.settlement.name, d: n.d + 1, days, q: nq, r: nb.r, first });
                         continue;
                     }
-                    if (t.hasRoad) next.push({ q: nq, r: nb.r, d: n.d + 1, first });
+                    if (t.hasRoad) next.push({ q: nq, r: nb.r, d: n.d + 1, days, first });
                 }
             }
             frontier = next;
@@ -458,12 +462,12 @@ export const NpcKnowledge = {
             let best = null;
             for (const s of views) {
                 const d = _dist(world, q, r, s.q, s.r);
-                if (!best || d < best.d) best = { name: s.name, d, q: s.q, r: s.r };
+                if (!best || d < best.d) best = { name: s.name, d, days: d * Infrastructure.openDays(), q: s.q, r: s.r };
             }
             if (best) found.push(best);
             out.onRoad = false;
         }
-        out.ends = found.slice(0, 2).map(f => ({ name: f.name, d: f.d, q: f.q, r: f.r, dir: NpcTasks.direction(world, q, r, f.q, f.r) }));
+        out.ends = found.slice(0, 2).map(f => ({ name: f.name, d: f.d, days: f.days, q: f.q, r: f.r, dir: NpcTasks.direction(world, q, r, f.q, f.r) }));
         return out;
     },
 
@@ -513,7 +517,7 @@ export const NpcKnowledge = {
             years: 3 + (_h(`${seed}|years`) % 24),
             from: A ? A.name : 'the last town', to: B ? B.name : (A ? A.name : 'the next town'),
             townA: A && A.name, townB: B && B.name, dirA: A && A.dir, dirB: B && B.dir,
-            daysA: A && NpcKnowledge.roadDays(A.d), daysB: B && NpcKnowledge.roadDays(B.d),
+            daysA: A && NpcKnowledge.roadDays(A.days), daysB: B && NpcKnowledge.roadDays(B.days),
         };
         const parts = [];
 
@@ -531,7 +535,7 @@ export const NpcKnowledge = {
             const flip = _h(`${seed}|way`) % 2 === 1 && B;
             const from = flip ? B : A, to = flip ? A : (B || null);
             if (to && T.journey) {
-                parts.push(_fill(pick(T.journey, 'journey'), { ...vars, from: from.name, to: to.name, daysTo: _cap(NpcKnowledge.roadDays(to.d)), daysFrom: NpcKnowledge.roadDays(from.d) }));
+                parts.push(_fill(pick(T.journey, 'journey'), { ...vars, from: from.name, to: to.name, daysTo: _cap(NpcKnowledge.roadDays(to.days)), daysFrom: NpcKnowledge.roadDays(from.days) }));
             } else if (T.nowhere) parts.push(pick(T.nowhere, 'nowhere'));
             if (house && R.other && R.other.house) parts.push(_fill(pick(R.other.house, 'h'), vars));
         } else if (house && R.other && R.other.house) {

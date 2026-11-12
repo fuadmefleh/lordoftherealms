@@ -177,8 +177,8 @@ export default function GameView() {
                 <span className="hud-region-stat-val" id="regionTerrain">Forest</span>
               </div>
               <div className="hud-region-stat">
-                <span className="hud-region-stat-label">Move Cost</span>
-                <span className="hud-region-stat-val" id="regionMoveCost">2</span>
+                <span className="hud-region-stat-label">Crossing</span>
+                <span className="hud-region-stat-val" id="regionMoveCost">1 day</span>
               </div>
             </div>
           </div>

@@ -1279,10 +1279,9 @@ Object.assign(UI.prototype, {
 
         this._setHudText('regionTerrain', tile.terrain.name);
         this._setHudText('regionTerrainIcon', tile.terrain.icon || '');
-        const moveCost = (Infrastructure && Infrastructure.getPlayerMoveCost)
-            ? Infrastructure.getPlayerMoveCost(tile, player)
-            : tile.terrain.moveCost;
-        this._setHudText('regionMoveCost', moveCost === Infinity ? '—' : moveCost);
+        // How long the hex takes to cross on foot (days per hex, data/travel.json)
+        const days = Infrastructure.getPlayerHexDays(tile, player);
+        this._setHudText('regionMoveCost', Infrastructure.formatDays(days));
 
         // Region name + description, memoized by regionId.
         if (!this._regionCache) this._regionCache = {};

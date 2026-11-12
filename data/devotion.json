@@ -82,7 +82,7 @@
             "break": { "karma": -6, "deeds": { "greed": 1 } }
         },
         "pilgrimage": {
-            "name": "Vow of Pilgrimage", "icon": "🥾", "baseDays": 8, "perHex": 1.6,
+            "name": "Vow of Pilgrimage", "icon": "🥾", "baseDays": 8, "perWalkDay": 2, "maxWalkDays": 60, "perHex": 1.6, "_days": "Days allowed: baseDays + perWalkDay x the days on foot there, the quickest way (data/travel.json days per hex); a shrine the land does not reach: perHex x hexes as the crow flies.",
             "desc": "Walk to {site} and kneel there within {days} days.",
             "keep": { "karma": 6, "faith": 0.25, "renown": 4, "deeds": { "piety": 2, "travel": 1 } },
             "break": { "karma": -6, "renown": -2, "deeds": { "deceit": 0.5 } }

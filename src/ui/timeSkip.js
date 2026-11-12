@@ -98,6 +98,11 @@ async function _realDay(game) {
     return !!game.world && game.world.day > before;
 }
 
+/** A crossing under way (player/core/movement.js crossingStatus), or null. */
+function _crossing(p, world) {
+    return p && typeof p.crossingStatus === 'function' ? p.crossingStatus(world) : null;
+}
+
 export const TimeSkip = {
     APPROACH,
     THRESHOLDS,
@@ -132,7 +137,8 @@ export const TimeSkip = {
         if (game.isProcessingTurn) return { ok: false, reason: 'The day is still ending.' };
         if (Afterlife.active(p)) return { ok: true, interregnum: true };
         if (p._isDead) return { ok: false, reason: 'You are dead.' };
-        if (p.isMoving || p.queuedPath || p.autoChart) return { ok: false, reason: 'You are on the road. Arrive first, or stop the journey (Escape).' };
+        // Camped part-way across a hex of days (a mountain): the skip carries the crossing on
+        if (p.isMoving || (p.queuedPath && !_crossing(p, game.world)) || p.autoChart) return { ok: false, reason: 'You are on the road. Arrive first, or stop the journey (Escape).' };
         if ((p.ships || []).some(s => s && s.voyage)) return { ok: false, reason: 'You are at sea. The voyage goes a day at a time.' };
         if (game._pendingEncounter) return { ok: false, reason: 'A band stands in your way.' };
         if (game._scene) return { ok: false, reason: 'A matter waits on your choice.' };
@@ -204,6 +210,7 @@ export const TimeSkip = {
         try { ailments = Ailments.list(p).map(a => a.id); } catch (e) { ailments = []; }
         return {
             day: world.day,
+            crossing: !!_crossing(p, world),
             near,
             letters,
             ailments,
@@ -235,7 +242,8 @@ export const TimeSkip = {
         if (game._pendingEncounter) return { icon: '⚔️', reason: 'A band fell on you on the road.' };
         if (game._scene) return { icon: '❗', reason: 'A matter needs your choice.' };
         if (game._fieldBattle) return { icon: '🚩', reason: 'A battle is joined.' };
-        if (p.isMoving || p.queuedPath) return { icon: '🧭', reason: 'You are on the move.' };
+        if (before && before.crossing && !_crossing(p, world)) return { icon: '⛰️', reason: 'You have made the crossing.' };
+        if (p.isMoving || (p.queuedPath && !_crossing(p, world))) return { icon: '🧭', reason: 'You are on the move.' };
         if (_hasDoc()) {
             if (document.getElementById('actionMenu')) return { icon: '❗', reason: 'Something needs your attention.' };
             if (!before.panelOpen && document.getElementById('customPanel')) return { icon: '📜', reason: 'Something needs your attention.' };

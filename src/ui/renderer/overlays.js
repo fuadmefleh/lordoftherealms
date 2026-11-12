@@ -69,7 +69,16 @@ Object.assign(Renderer.prototype, {
      */
     renderPlayer(ctx) {
         const size = this.hexSize;
-        const pixelPos = this.getHexPixelPos(this.player.q, this.player.r);
+        let pixelPos = this.getHexPixelPos(this.player.q, this.player.r);
+        // Camped part-way across a hex that takes days (a mountain): drawn on the way
+        const cross = typeof this.player.crossingProgress === 'function' ? this.player.crossingProgress() : 0;
+        if (cross > 0 && this.player.crossing) {
+            const to = this.getHexPixelPos(this.player.crossing.q, this.player.crossing.r);
+            if (Math.abs(to.x - pixelPos.x) < size * 4) {
+                const t = cross * 0.8;
+                pixelPos = { x: pixelPos.x + (to.x - pixelPos.x) * t, y: pixelPos.y + (to.y - pixelPos.y) * t };
+            }
+        }
         const screen = this.camera.worldToScreen(pixelPos.x, pixelPos.y);
         const renderSize = size * this.camera.zoom;
         const isDead = !!this.player._isDead;

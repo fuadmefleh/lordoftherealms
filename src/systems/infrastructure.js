@@ -9,6 +9,7 @@ import { Economy } from '../world/economy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Transport } from '../world/transport.js';
 import { Construction } from './construction.js';
+import { DataLoader } from '../core/dataLoader.js';
 
 
 /** Player-built works a road search may cross (Infrastructure._roadReach). */
@@ -500,6 +501,192 @@ export const Infrastructure = {
         const base = Infrastructure.getEffectiveMoveCost(tile);
         if (base === Infinity) return base;
         return base + Infrastructure.getRiverPenalty(tile, player);
+    },
+
+    /** data/travel.json (with defaults when the data isn't loaded). */
+    travelConfig() {
+        const T = (DataLoader._gamedata && DataLoader._gamedata.travel) || {};
+        const obj = (v) => (v && typeof v === 'object' ? v : {});
+        return {
+            hexDays: obj(T.hexDays),
+            floorDays: obj(T.floorDays),
+            roads: obj(T.roads),
+            roadTerrain: obj(T.roadTerrain),
+            roadExtraDays: Number.isFinite(T.roadExtraDays) ? T.roadExtraDays : 0.25,
+            riverFordDays: Number.isFinite(T.riverFordDays) ? T.riverFordDays : 0.25,
+            speed: obj(T.speed),
+            crossingNames: obj(T.crossingNames),
+        };
+    },
+
+    /**
+     * The road the player would travel on this hex, in days per hex (before
+     * rough ground, extras and speed), or null when there is none: a finished
+     * road or bridge the player built, else the world's road by its tier and
+     * repair (a ruined one is no road).
+     */
+    _roadDays(tile, C) {
+        const R = C.roads;
+        const num = (v, d) => (Number.isFinite(v) && v > 0 ? v : d);
+        const inf = tile.infrastructure;
+        if (inf && !inf.underConstruction) {
+            if (inf.id === 'stone_road') return num(R.stone, 0.25);
+            if (inf.id === 'bridge') return num(R.bridge, num(R.stone, 0.25));
+            if (inf.id === 'dirt_road') return num(R.dirt, 0.5);
+        }
+        if (!tile.hasRoad) return null;
+        const m = tile.roadMove > 0 ? tile.roadMove : 0.5;
+        if (m >= 1) return null; // ruined: no better than open country
+        let tierMove = 0.5, days = num(R.defaultWorldRoad, 0.5);
+        if (tile.roadTier) {
+            const T = Transport.tier(tile.roadTier);
+            if (T && T.move > 0) tierMove = T.move;
+            days = num(R[tile.roadTier], days);
+        }
+        // Rutted: slower by the same factor its move multiplier is
+        return days * Math.max(1, m / tierMove);
+    },
+
+    /**
+     * Days it takes the player to cross this hex on foot (data/travel.json):
+     * the terrain's days, or a road's; a river with no crossing adds a little;
+     * the player's travel speed (player._travelSpeed, bonuses, capped) shaves
+     * a little off, but never below the terrain's floor off the road.
+     * Infinity when impassable.
+     */
+    getPlayerHexDays(tile, player) {
+        if (!tile || !tile.terrain || !tile.terrain.passable) return Infinity;
+        const C = Infrastructure.travelConfig();
+        const id = tile.terrain.id;
+        const num = (v, d) => (Number.isFinite(v) && v > 0 ? v : d);
+        const speed = player && Number.isFinite(player._travelSpeed) && player._travelSpeed > 0 ? player._travelSpeed : 1;
+        const road = Infrastructure._roadDays(tile, C);
+        let days;
+        if (road != null) {
+            days = road * num(C.roadTerrain[id], 1) / speed;
+            if (!tile.infrastructure && tile.roadExtra > 0) days += tile.roadExtra * C.roadExtraDays;
+        } else {
+            days = num(C.hexDays[id], num(C.hexDays.default, 0.75)) / speed;
+            const floor = C.floorDays[id];
+            if (Number.isFinite(floor) && floor > 0) days = Math.max(days, floor);
+        }
+        // Fording: the stamina penalty's share of a full wade (a road's ford or ferry is half, a bridge none)
+        const pen = Infrastructure.getRiverPenalty(tile, player);
+        if (pen > 0) days += C.riverFordDays * pen / Infrastructure.RIVER_CROSSING_PENALTY;
+        return days;
+    },
+
+    /** Open land's days per hex (data/travel.json hexDays.default): the crow-flies fallback. */
+    openDays() {
+        const d = Infrastructure.travelConfig().hexDays.default;
+        return Number.isFinite(d) && d > 0 ? d : 0.75;
+    },
+
+    /**
+     * Days on foot from (q, r) to every passable hex within `maxDays`, the
+     * quickest way (getPlayerHexDays, so roads, fords and rough ground count;
+     * `player` for their speed and fording, or null for an ordinary walker).
+     * Stops early once `target` ({ q, r }) is settled. → Map 'q,r' → days.
+     */
+    travelDaysFrom(world, q, r, maxDays = 12, player = null, target = null) {
+        const out = new Map();
+        if (!world || typeof world.getTile !== 'function' || !Number.isFinite(q) || !Number.isFinite(r)) return out;
+        const W = world.width || 0;
+        const H = world.height || 0;
+        const wrap = (x) => (W ? ((x % W) + W) % W : x);
+        const startKey = `${wrap(q)},${r}`;
+        const tKey = target ? `${wrap(target.q)},${target.r}` : null;
+        const best = new Map([[startKey, 0]]);
+        // A small binary heap of [days, q, r]
+        const heap = [[0, wrap(q), r]];
+        const push = (n) => {
+            heap.push(n);
+            let i = heap.length - 1;
+            while (i > 0) {
+                const p = (i - 1) >> 1;
+                if (heap[p][0] <= heap[i][0]) break;
+                [heap[p], heap[i]] = [heap[i], heap[p]];
+                i = p;
+            }
+        };
+        const pop = () => {
+            const top = heap[0];
+            const last = heap.pop();
+            if (heap.length) {
+                heap[0] = last;
+                let i = 0;
+                for (;;) {
+                    const a = 2 * i + 1, b = a + 1;
+                    let m = i;
+                    if (a < heap.length && heap[a][0] < heap[m][0]) m = a;
+                    if (b < heap.length && heap[b][0] < heap[m][0]) m = b;
+                    if (m === i) break;
+                    [heap[m], heap[i]] = [heap[i], heap[m]];
+                    i = m;
+                }
+            }
+            return top;
+        };
+        while (heap.length) {
+            const [d, cq, cr] = pop();
+            const key = `${cq},${cr}`;
+            if (d > best.get(key) + 1e-9 || out.has(key)) continue;
+            out.set(key, d);
+            if (key === tKey) break;
+            for (const n of Hex.neighbors(cq, cr)) {
+                if (H && (n.r < 0 || n.r >= H)) continue;
+                const nq = wrap(n.q);
+                const nk = `${nq},${n.r}`;
+                if (out.has(nk)) continue;
+                const t = world.getTile(nq, n.r);
+                if (!t) continue;
+                const step = Infrastructure.getPlayerHexDays(t, player);
+                if (!Number.isFinite(step)) continue;
+                const nd = d + step;
+                if (nd > maxDays + 1e-9) continue;
+                if (!best.has(nk) || nd < best.get(nk) - 1e-9) {
+                    best.set(nk, nd);
+                    push([nd, nq, n.r]);
+                }
+            }
+        }
+        return out;
+    },
+
+    /**
+     * Days on foot from `a` to `b` ({ q, r }) the quickest way, or null when
+     * there is no way by land within `maxDays` (or no world map to walk).
+     */
+    routeDays(world, a, b, player = null, maxDays = 60) {
+        if (!a || !b) return null;
+        const m = Infrastructure.travelDaysFrom(world, a.q, a.r, maxDays, player, b);
+        const W = world && world.width;
+        const d = m.get(`${W ? ((b.q % W) + W) % W : b.q},${b.r}`);
+        return Number.isFinite(d) ? d : null;
+    },
+
+    /** A crossing time for the eye: '¾ day', '1 day', '1½ days', '0.6 day'. */
+    formatDays(days) {
+        if (!Number.isFinite(days)) return '—';
+        const whole = Math.floor(days + 1e-6);
+        const frac = days - whole;
+        const F = [[0, ''], [0.25, '¼'], [0.5, '½'], [0.75, '¾']];
+        const hit = F.find(([f]) => Math.abs(frac - f) < 0.02) || (Math.abs(frac - 1) < 0.02 ? [1, ''] : null);
+        if (hit) {
+            const w = whole + (hit[0] === 1 ? 1 : 0);
+            const text = `${w > 0 ? w : ''}${hit[1]}` || '0';
+            return `${text} ${w + (hit[0] === 1 ? 0 : hit[0]) > 1 ? 'days' : 'day'}`;
+        }
+        const r = Math.round(days * 10) / 10;
+        return `${r} ${r > 1 ? 'days' : 'day'}`;
+    },
+
+    /** What a long crossing of this terrain is called ('the mountains'). */
+    crossingName(terrain) {
+        const id = terrain && terrain.id;
+        const n = id && Infrastructure.travelConfig().crossingNames[id];
+        if (n) return n;
+        return terrain && terrain.name ? `the ${String(terrain.name).toLowerCase()}` : 'the wilds';
     },
 
     /**

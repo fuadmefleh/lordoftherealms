@@ -84,7 +84,7 @@ const DEFAULTS = {
 // The march from a settlement with no jail to one with (data/jail.json → transport)
 const TRANSPORT_DEFAULTS = {
     jailTypes: ['town', 'city', 'capital'],
-    hexesPerDay: 4,
+    hexesPerDay: 2,
     raid: { base: 0.06, perHostile: 0.2, radius: 3, max: 0.6 },
     events: { bribe: 0.1, delay: 0.08, kindness: 0.08, cruelty: 0.08 },
     slip: { base: 0.3, stealth: 0.05, agility: 0.02 },
@@ -617,7 +617,8 @@ export const Prison = {
         // How they got out (the jail map opens the cell door, or sees them over the wall)
         player.lastJailRelease = { how, day: _day(world), settlement: jail ? jail.settlement : null };
         player.stamina = player.maxStamina;
-        player.movementRemaining = player.maxStamina;
+        // A day's walk, scaled as each morning's (data/travel.json dayScale)
+        if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
         if (!pr) return { text: '', friends: [] };
         const out = [];
         for (const m of pr.cellmates.filter(c => c.friend && !c.sold)) {
@@ -760,7 +761,8 @@ export const Prison = {
             const captor = s.captor;
             player.indenturedServitude = null;
             player.stamina = player.maxStamina;
-            player.movementRemaining = player.maxStamina;
+            // A day's walk, scaled as each morning's (data/travel.json dayScale)
+            if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
             Traits.recordDeed(player, 'deceit', 1);
             return { success: true, freed: true, cost, text: `${cost} gold, and the overseer of ${captor} found you "dead of fever". You walk free.` };
         }
@@ -840,7 +842,7 @@ export const Prison = {
         const to = at && Prison.jailTownFor(world, at);
         if (!to) return null;
         const T = Prison.transportConfig();
-        const days = Math.max(1, Math.ceil(to.distance / Math.max(1, _num(T.hexesPerDay, 4))));
+        const days = Math.max(1, Math.ceil(to.distance / Math.max(1, _num(T.hexesPerDay, 2))));
         const path = Hex.lineDraw(at.q, at.r, to.q, to.r);
         jail.transport = {
             from: { name: at.name, q: at.q, r: at.r, kingdom: at.kingdom != null ? at.kingdom : null },

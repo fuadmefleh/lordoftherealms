@@ -50,6 +50,7 @@ import { NpcDisposition } from './npcDisposition.js';
 import { NpcMemory } from './npcMemory.js';
 import { Gossip } from './gossip.js';
 import { SoulPact } from './soulPact.js';
+import { Infrastructure } from './infrastructure.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -836,14 +837,21 @@ export const Devotion = {
         const creed = Devotion.creed(player);
         const P = (Devotion.vowDef('pilgrimage') || {});
         const list = [];
+        // The time allowed: baseDays plus perWalkDay for each day of the walk there,
+        // the quickest way on foot (days per hex, data/travel.json: a mountain is
+        // three); a shrine the land doesn't reach (an isle) by the crow at perHex
+        const walk = Infrastructure.travelDaysFrom(world, player.q, player.r, _num(P.maxWalkDays, 60), player);
+        const W = world.width;
         for (const h of Devotion.holySites(world)) {
-            const d = world.width ? Hex.wrappingDistance(player.q, player.r, h.q, h.r, world.width) : Hex.distance(player.q, player.r, h.q, h.r);
+            const d = W ? Hex.wrappingDistance(player.q, player.r, h.q, h.r, W) : Hex.distance(player.q, player.r, h.q, h.r);
             if (d < 1) continue;
+            const walkDays = walk.get(`${W ? ((h.q % W) + W) % W : h.q},${h.r}`);
             const risk = Devotion.siteRisk(player, world, h.site);
             const f = h.site.faithId ? Religion.FAITHS[h.site.faithId] : null;
             list.push({
                 q: h.q, r: h.r, name: h.site.name, icon: h.site.icon || '⛲', dist: d,
-                days: Math.round(_num(P.baseDays, 8) + d * _num(P.perHex, 1.6)),
+                days: Math.round(_num(P.baseDays, 8) + (Number.isFinite(walkDays) ? walkDays * _num(P.perWalkDay, 2) : d * _num(P.perHex, 1.6))),
+                walkDays: Number.isFinite(walkDays) ? Math.round(walkDays * 10) / 10 : null,
                 faith: f ? f.name : null, match: Devotion.matchOf(creed, h.site.faithId),
                 holder: risk.holder ? risk.holder.name : null, hostile: risk.hostile, contested: risk.contested,
                 visits: _num((st.pilgrimages[_key(h.q, h.r)] || {}).n),

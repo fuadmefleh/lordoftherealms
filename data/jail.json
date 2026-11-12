@@ -50,7 +50,7 @@
             "city",
             "capital"
         ],
-        "hexesPerDay": 4,
+        "hexesPerDay": 2,
         "raid": {
             "base": 0.06,
             "perHostile": 0.2,

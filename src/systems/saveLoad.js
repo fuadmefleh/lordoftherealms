@@ -623,6 +623,11 @@ export const SaveLoad = {
             queuedPath: player.queuedPath || null,
             queuedPathIndex: player.queuedPathIndex || 0,
             travelDestination: player.travelDestination || null,
+            // A crossing under way (days per hex, player/core/movement.js) and the day's pace
+            crossing: player.crossing ? { ...player.crossing } : null,
+            _dayPace: player._dayPace || 0,
+            _travelSpeed: player._travelSpeed || 1,
+            _dayMovement: player._dayMovement || 0,
 
             // Dynasty & Relationships
             dynasty: player.dynasty || null,

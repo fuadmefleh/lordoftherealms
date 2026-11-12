@@ -104,6 +104,15 @@ export const PlayerLifecycleMethods = {
         // A hardy walker goes further (player/endurance.js)
         staminaBonus += Endurance.stride(this);
         this.movementRemaining = this.stamina + staminaBonus;
+        // The day's full, unimpaired strength, and how much the bonuses quicken
+        // the pace: travel is counted in days per hex (data/travel.json), so a
+        // horse or a road technology only shaves a little off each hex
+        // (Player._hexMoveCost); hunger, mood and wounds still shorten the day
+        const fullDay = this.stamina + staminaBonus;
+        const Tsp = (DataLoader._gamedata && DataLoader._gamedata.travel && DataLoader._gamedata.travel.speed) || {};
+        const spCap = Number.isFinite(Tsp.cap) ? Math.max(0, Tsp.cap) : 0.2;
+        const spW = Number.isFinite(Tsp.bonusWeight) ? Math.max(0, Tsp.bonusWeight) : 0.5;
+        this._travelSpeed = 1 + Math.min(spCap, spW * Math.max(0, staminaBonus) / Math.max(1, this.stamina || this.maxStamina || 10));
 
         // Only regenerate health if not starving
         if (this.starvationDays === 0) {
@@ -168,11 +177,28 @@ export const PlayerLifecycleMethods = {
         const T = DataLoader._gamedata && DataLoader._gamedata.travel;
         const dayScale = T && Number.isFinite(T.dayScale) && T.dayScale > 0 ? T.dayScale : 1;
         if (dayScale !== 1 && this.movementRemaining > 0) this.movementRemaining = Math.max(1, Math.round(this.movementRemaining * dayScale));
-        // The day's full strength (stepAlongPath lets it carry you one hex, however rough)
+        // What a whole day of travel is worth in movement (a hex's days x this)
+        this._dayPace = Math.max(1, Math.round(Math.max(1, fullDay) * dayScale));
+        // The day's full strength (what is left of a long crossing is spread over such days)
         this._dayMovement = this.movementRemaining;
 
         // Reset daily need tracking
         this.resetDailyNeedTracking();
+    },
+
+    /**
+     * A fresh day's travel after a release (jail, servitude): the day's
+     * strength scaled as endDay scales it (data/travel.json dayScale), so the
+     * freed traveller has one day's walk, not the raw stamina's 1⅔.
+     */
+    restoreDayMovement() {
+        const T = DataLoader._gamedata && DataLoader._gamedata.travel;
+        const dayScale = T && Number.isFinite(T.dayScale) && T.dayScale > 0 ? T.dayScale : 1;
+        const full = Math.max(1, Math.round(Math.max(1, this.maxStamina || this.stamina || 10) * dayScale));
+        this.movementRemaining = full;
+        this._dayMovement = full;
+        if (!(this._dayPace >= full)) this._dayPace = full;
+        return full;
     },
 
     /**

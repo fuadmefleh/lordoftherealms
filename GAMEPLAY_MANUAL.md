@@ -231,7 +231,7 @@ The world wraps east-west, so you can circumnavigate the globe.
 
 Time advances one day at a time. Each day you receive:
 - **10 Action Points (AP)** — Spent on actions (trading, recruiting, building, etc.)
-- **10 Stamina** — Spent on movement (each hex costs stamina equal to terrain difficulty)
+- **10 Stamina** — Your day's strength for travel: a hex takes part of a day, or several days, to cross (see [Movement & Exploration](#3-movement--exploration))
 
 **Action points and the clock.** The day has one clock, shown in the top bar. You wake at 8 AM, and every action point you spend passes an hour and a half on it, whatever you spend it on: walking a hex, a market errand, a day's labour (4 AP, six hours), building (6 AP, nine hours). A full day's 10 AP takes you to about 11 PM. It works the other way too: time spent in person on a town or country map (walking about, work in a field, a fight, sleep) runs the same clock, and you can never hold more action points than the hours left before midnight allow. An afternoon spent wandering a town leaves fewer points for the evening. Ending the day sends you to bed and you wake at 8; staying up on a map until midnight carries you straight into the next day. The settings are in `data/innerMap.json` under `dayClock`.
 
@@ -561,27 +561,38 @@ A notice (**⚖️ The Estate Settled**) and the death and waiting screens show 
 
 ### Terrain & Movement Costs
 
-The world features 24 terrain types. Movement cost determines how much stamina each hex requires:
+Travel is counted in **days per hex**. Your day's strength (stamina plus your bonuses, less hunger, a bad mood or wounds) is one day of travel; each hex takes part of it, or several days:
 
-| Cost | Terrain Types |
+| Days per hex | Terrain Types |
 |------|---------------|
-| 2 (easy) | Plains, Grassland, Woodland, Beach, Tundra, Savanna |
-| 3 (moderate) | Hills, Desert, Snow, Ice Sheet, Boreal Forest, Seasonal Forest, Temperate Rainforest, Island |
-| 4 (difficult) | Tropical Rainforest, Swamp, Highlands |
-| 5 (very hard) | Mountains |
+| ¾ day | Plains, Grassland, Savanna, Island |
+| 1 day | Woodland, Seasonal / Boreal Forest, Temperate / Tropical Rainforest, Beach, Tundra, Desert |
+| 1½ days | Hills |
+| 2 days | Highlands, Swamp, Snow, Ice Sheet |
+| 3 days | Mountains |
 | Impassable | Deep Ocean, Ocean, Coastal Waters, Sea, Lake, Snow Peak |
 
-Roads reduce movement costs (see [Infrastructure](#13-infrastructure)). When you plan a journey, the route keeps to the road even where it saves no stamina (on open ground a road hex and the grass beside it both cost 1): it leaves the road only when cutting across is clearly shorter. Ships ignore roads. How much depends on the road: a track, a road or a paved highway, and its repair (see [Roads, Canals & Logistics](#roads-canals--logistics)).
+So a day covers about one and a third hexes of open country, one hex of forest, and a mountain takes three days.
 
-**Rivers:** entering a river hex on foot costs **+2** stamina on top of its terrain cost. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty (unless the road's bridge has washed out: then it is a ford, +1, or a ferry, +1 and a fare), and researching **Bridge Construction** halves the fording penalty to **+1** everywhere else. The hex info panel and Region Details show the river surcharge, and pathfinding routes around unbridged rivers when it's cheaper.
+**Roads** are what make distance short, whatever the ground beneath them: a **dirt road** takes ½ day a hex, a **paved road** (and a bridge) ¼ day. The world's roads go by their tier: a track 0.6 day, a road ½, a paved highway ¼; a rutted road is slower, a ruined one no road at all, spring mud adds ¼ day and a pass closed by snow ¾. A road through rough ground is a little slower: ×1.5 over a mountain pass (¾ day on a road), ×1.25 through highlands, snow, ice and marsh. When you plan a journey, the route keeps to the road unless cutting across is clearly shorter. Ships ignore roads. See [Infrastructure](#13-infrastructure) and [Roads, Canals & Logistics](#roads-canals--logistics).
+
+**Speed bonuses** (a riding horse, technology, a stable, scouts, Endurance, a night at home) only shave a little off: at most a fifth quicker (each hex's days ÷ up to 1.2). And however quick you are, off the road a forest never takes less than ¾ day, hills 1¼, highlands, marsh, snow and ice 1½, and a mountain 2½ days. On a road the road's figure holds.
+
+**Crossing a hex of days.** When what is left of the day won't take you across the next hex, the rest of the day goes into it: you make camp on the way and go on in the morning, arriving when the crossing is done. A mountain is three days: "Crossing the mountains — day 1 of 3", camping on its slopes. Your marker stands part-way into the hex while you cross. Press **Escape** to turn back (the way made into the hex is lost). No standing order runs while you are crossing (self-care still does, from what is in your pack), and you may **let days pass** (⏩) in the middle of a crossing: the days carry it on and the wait ends when you are across. A crossing is saved with the game.
+
+The numbers are in `data/travel.json`.
+
+**Rivers:** entering a river hex on foot with no crossing adds **¼ day** on top of its terrain. A road (world-generated or built) or a Bridge on that hex carries you across with no penalty (unless the road's bridge has washed out: then it is a ford or a ferry, ⅛ day and a fare for the ferry), and researching **Bridge Construction** halves the fording time everywhere else. Region Details shows how long your hex takes to cross, and pathfinding routes around unbridged rivers when it's quicker.
 
 ### Pathfinding
 
 Click any visible hex to set a destination. The game uses A* pathfinding to calculate the optimal route.
 
-**Planning a trip.** Hover over an explored hex and the label by the cursor says how far it is and when you would arrive: "4 hexes, today", "9 hexes, arrive tomorrow", "23 hexes, 4 days". A faint dotted line shows the route, with a crescent moon wherever the day's strength or action points run out and you would camp for the night. The estimate uses what you have left today and a full day's strength and 10 AP each morning after.
+**Planning a trip.** Hover over an explored hex and the label by the cursor says how far it is and when you would arrive: "1 hex, today", "3 hexes, arrive tomorrow", "6 hexes, 5 days", with the long crossings on the way ("· mountains 3d"). A faint dotted line shows the route, with a crescent moon wherever you would camp for the night — part-way into a hex that takes days (two moons on a mountain's slopes). The estimate uses what you have left today and a full day's strength and 10 AP each morning after.
 
-**Long journeys.** When your stamina or action points run out partway, you make camp: the day ends by itself and you set off again at first light, until you arrive. This also happens if you give the order with nothing left today. While you are camped, the rest of the route stays drawn on the map. Press **Escape** to cancel the journey.
+**Where you can get to.** The hexes you can reach today glow gold. Those you would reach in the next two days are washed more faintly and numbered with the day you would arrive (2 = tomorrow, 3 = the day after): an adjacent mountain reads 3.
+
+**Long journeys.** When your strength or action points run out partway, you make camp (on the way into the next hex, if you had strength left): the day ends by itself and you set off again at first light, until you arrive. Setting out across a hex takes an action point; going on with a crossing the next morning doesn't. This also happens if you give the order with nothing left today. While you are camped, the rest of the route stays drawn on the map. Press **Escape** to cancel the journey.
 
 **Ending the day.** Press **Enter** (or the End Turn button) to end the day. Enter works on the open map only, not while a panel, menu or dialog is open. Once your action points are spent, the End Turn button glows.
 
@@ -1192,7 +1203,7 @@ Every price you know keeps its age ("12 days old"). Talk only says what a good i
 **The Merchant's Ledger** (**📒 Ledger** in a town's trade window, or from the map-mode menu) has four pages:
 
 - **📖 Price Book.** For each good, every known town's asking price, what its stalls pay, its stock, distance and the age and source of the news. **🗺️ Show on the trade map** opens the map on that good.
-- **⚖️ Best Spreads.** The best known buy-here, sell-there margin for each good between two towns within 3, 5, 8 or 12 days' travel (about 3 hexes a day). It uses only what you know, so stale news can mislead, and a big lot moves the price against you.
+- **⚖️ Best Spreads.** The best known buy-here, sell-there margin for each good between two towns within 3, 5, 8 or 12 days' travel on foot from where you stand, the quickest way (roads, forests and mountains counted; a town across the water by the crow at open land's ¾ day a hex). It uses only what you know, so stale news can mislead, and a big lot moves the price against you.
 - **📈 Price History.** The asking prices you saw in the 10 markets you visited last, a sample every 3 days.
 - **💹 Profit & Loss.** Your books. First the **income statement** for the last 30 days (a season) or 120 days (a year): every gold flow you had, by source and grouped (trading margins; works, properties and company; interest and loans; dues, tolls and tariffs; taxes, office and faith; work and adventure; soldiers and ships; household). Below it the **capital and stock** you moved (goods bought and sold, works funded, properties built, money borrowed and principal repaid — not profit or loss), the guild tolls hidden inside your sale prices, and your **net worth**. Then your trading margins: each sale against the average cost of what you bought of that good (goods found, looted or made count as free), by good and by route (where you bought it → where you sold it). Every trading channel counts: the stalls, the ports, your store-rooms, forward contracts, guild contracts and the traders you hail on the road.
 
@@ -2817,7 +2828,7 @@ Tuning: `data/townWorship.json`; service times in `data/townScenes.json` (`churc
 
 ### Pilgrimages
 
-There are **12 types** of holy sites. Swear a **pilgrimage** (📿 *Your devotions* → *Swear to walk there*): you have 8 + 1.6 days per hex to reach the shrine. At a holy site you **kneel with an offering** — a candle (5g), alms (25g) or a rich offering (80g); **the pilgrim pays, and the shrine's holder takes it**. Completion gives karma (½ the site's faith bonus), renown (+5), faith (+0.5) and **the site's blessing**:
+There are **12 types** of holy sites. Swear a **pilgrimage** (📿 *Your devotions* → *Swear to walk there*): you have 8 days plus twice the days the walk there takes, the quickest way on foot (a mountain on the way counts three; a shrine on an isle the land doesn't reach: 8 + 1.6 days per hex). At a holy site you **kneel with an offering** — a candle (5g), alms (25g) or a rich offering (80g); **the pilgrim pays, and the shrine's holder takes it**. Completion gives karma (½ the site's faith bonus), renown (+5), faith (+0.5) and **the site's blessing**:
 
 | Site | Blessing |
 |------|----------|
@@ -2982,15 +2993,15 @@ Build roads, bridges, and irrigation to improve your territory. Requires relevan
 
 | Structure | Cost | Work-days | Required Tech | Effect |
 |-----------|------|-----------|---------------|--------|
-| Dirt Road | 30g | 10 | Road Building | Halves terrain movement cost |
-| Stone Road | 80g | 40 | Paved Roads | Reduces movement cost to 1 |
-| Bridge | 150g | 90 | Bridge Construction | Eliminates river/swamp penalty (cost = 1) |
+| Dirt Road | 30g | 10 | Road Building | ½ day a hex, whatever the terrain |
+| Stone Road | 80g | 40 | Paved Roads | ¼ day a hex |
+| Bridge | 150g | 90 | Bridge Construction | No fording; ¼ day a hex |
 | Irrigation Channel | 60g | 25 | Irrigation Systems | +50% farm productivity |
 | Timber Dam | 90g | 30 | — (a river hex only) | A weir across the river: whatever floats down it fetches up there |
 
-Roads dramatically speed up travel and trade. Stone roads make every hex cost just 1 stamina — connect your properties and trade destinations for maximum efficiency.
+Roads dramatically speed up travel and trade. Off the road open land takes ¾ of a day a hex and a mountain three; a stone road makes every hex ¼ day (about four hexes a day) — connect your properties and trade destinations for maximum efficiency.
 
-A caravan whose start and destination are joined by roads (the world's roads or ones you build) is **road-linked**: it earns **+15%**, its wagon moves one extra hex a day (a timer-only caravan arrives in two-thirds of the time), and road wardens drive off half of the robbers who come for it. Roads also halve weather travel penalties.
+A caravan whose start and destination are joined by roads (the world's roads or ones you build) is **road-linked**: it earns **+15%**, its wagon moves one extra hex a day (a timer-only caravan goes at a walker's pace the quickest way, so roads already speed it: ¼–½ day a hex on a road, ¾ off it), and road wardens drive off half of the robbers who come for it. Roads also halve weather travel penalties.
 
 ### Roads, Canals & Logistics
 

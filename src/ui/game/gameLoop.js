@@ -570,7 +570,13 @@ export function gameLoop(timestamp, loopId) {
         } else if (!this.player.isMoving && this.player.queuedPath && !this.isProcessingTurn) {
             // Too spent for the next hex (or out of action points as you set out): the step queued
             // the way for tomorrow, so make camp and go on in the morning, as running out mid-step does
-            if (this.player.autoChart) {
+            const crossing = this.player.crossingStatus ? this.player.crossingStatus(this.world) : null;
+            if (crossing && crossing.longHex) {
+                // A hex of days (data/travel.json): camp on the way, go on in the morning
+                const left = crossing.days - crossing.day;
+                this.ui.showNotification(`⛺ Crossing ${crossing.name}`,
+                    `Day ${crossing.day} of ${crossing.days}: you make camp on the way${left > 0 ? ` and go on at first light (${left} more day${left === 1 ? '' : 's'})` : ''}. Press Escape to turn back.`, 'info');
+            } else if (this.player.autoChart) {
                 this.ui.showNotification('🧭 Resting for the Night', 'You make camp and will go on charting in the morning. Press Escape to stop.', 'info');
             } else {
                 const remaining = this.player.queuedPath.length - this.player.queuedPathIndex;
@@ -830,8 +836,10 @@ export function _updateHoverRoute() {
     const est = tile && tile.explored && typeof p.travelEstimate === 'function' ? p.travelEstimate(this.world, h.q, h.r) : null;
     r.hoverRoute = est;
     r.hoverRouteLabel = !est ? ''
-        : est.days === 0 ? `${est.steps} hex${est.steps === 1 ? '' : 'es'}, today`
-            : `${est.steps} hexes, ${est.days === 1 ? 'arrive tomorrow' : `${est.days + 1} days`}`;
+        : (est.days === 0 ? `${est.steps} hex${est.steps === 1 ? '' : 'es'}, today`
+            : `${est.steps} hex${est.steps === 1 ? '' : 'es'}, ${est.days === 1 ? 'arrive tomorrow' : `${est.days + 1} days`}`)
+            // The long crossings on the way (a mountain: 3 days)
+            + ((est.crossings || []).length ? ` · ${est.crossings.slice(0, 2).map(c => `${c.name.replace(/^the /, '')} ${Math.ceil(c.days - 1e-6)}d`).join(', ')}${est.crossings.length > 2 ? '…' : ''}` : '');
 }
 
 /**

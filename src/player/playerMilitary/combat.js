@@ -381,7 +381,8 @@ Object.assign(PlayerMilitary, {
             };
             player.indenturedServitude = null;
             player.stamina = player.maxStamina;
-            player.movementRemaining = player.maxStamina;
+            // A day's walk, scaled as each morning's (data/travel.json dayScale)
+            if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
             player.karma += 2; // Sympathy karma
             return result;
         }
@@ -411,7 +412,8 @@ Object.assign(PlayerMilitary, {
             };
             player.indenturedServitude = null;
             player.stamina = player.maxStamina;
-            player.movementRemaining = player.maxStamina;
+            // A day's walk, scaled as each morning's (data/travel.json dayScale)
+            if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
             player.karma -= 1; // Minor karma hit for breaking contract
             Traits.recordDeed(player, 'deceit', 2);
             player.skills.stealth = Math.min(10, (player.skills.stealth || 1) + 0.5);
@@ -444,7 +446,8 @@ Object.assign(PlayerMilitary, {
         const captor = player.indenturedServitude.captor;
         player.indenturedServitude = null;
         player.stamina = player.maxStamina;
-        player.movementRemaining = player.maxStamina;
+        // A day's walk, scaled as each morning's (data/travel.json dayScale)
+        if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
 
         return {
             success: true,

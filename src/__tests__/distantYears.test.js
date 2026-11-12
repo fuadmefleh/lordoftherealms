@@ -14,6 +14,10 @@ import { MarketDynamics } from '../systems/marketDynamics.js';
 import { TimeSkip } from '../ui/timeSkip.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { Utils } from '../core/utils.js';
+import { CoinCensus } from '../systems/coinCensus.js';
+import { KingdomAI } from '../world/kingdomAI.js';
+import { KingdomNavy } from '../world/kingdomNavy.js';
+import { Colonization } from '../world/colonization.js';
 
 beforeAll(async () => {
     await loadData();
@@ -88,6 +92,37 @@ describe('the distant years (a long interregnum wait)', () => {
             expect(s.population).toBeGreaterThan(0);
             for (const x of Object.values((s.market && s.market.stock) || {})) expect(Number.isFinite(x) && x >= 0).toBe(true);
             if (s.economy) expect(Number.isFinite(s.economy.gold)).toBe(true);
+        }
+    }, 180000);
+    it('the coarser steps make and lose no coin (the full census: towns, folk, crowns, coffers, banks, rivals…)', () => {
+        const game = interregnum(7171);
+        const w = game.world;
+        const total = () => CoinCensus.total(w, game.player).total;
+        const span = Afterlife.config().distant.marketSpan;
+        const every = Afterlife.config().distant.realmEvery;
+        w._distant = { ...Afterlife.config().distant };
+        w.holdSettlementScan();
+        try {
+            for (let turn = 0; turn < 3; turn++) {
+                w.day = (Math.floor(w.day / span) + 1) * span;
+                // A market turn of `span` days: goods for coin between towns, nothing minted or lost
+                let before = total();
+                MarketDynamics.updatePrices(w, null);
+                expect(Math.abs(total() - before)).toBeLessThan(1);
+                // A realm's week at once: output, food, armies, fleet, colonies — coin only moves
+                before = total();
+                for (const k of w.kingdoms) {
+                    if (!k.isAlive) continue;
+                    KingdomAI.updateEconomy(k, w, {}, every);
+                    KingdomAI.updateMilitary(k, w, every);
+                    KingdomNavy.updateFleet(k, w, every);
+                    Colonization.processKingdomColonies(k, w, {}, null, every);
+                }
+                expect(Math.abs(total() - before)).toBeLessThan(1);
+            }
+        } finally {
+            w.releaseSettlementScan();
+            delete w._distant;
         }
     }, 180000);
 });

@@ -158,7 +158,10 @@ describe('walking', () => {
         const player = new Player();
         player.q = 0; player.r = 3;
         expect(player.moveTo(5, 3, world)).toBe(true);
-        player.movementRemaining = 2; // one grassland step, then not enough for the hills
+        // (travel by days per hex, data/travel.json: a day's pace of 4 makes grassland ¾ day = 3
+        // and the hills 1½ days = 6 — was a flat stamina 2 per grass hex)
+        player._dayPace = 4;
+        player.movementRemaining = 3; // one grassland step, then nothing left for the hills
         let guard = 0;
         while (player.isMoving && guard++ < 50) player.stepAlongPath(world, 1);
         expect(player.q).toBe(1);

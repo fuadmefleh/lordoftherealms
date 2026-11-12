@@ -94,6 +94,13 @@ Object.assign(PlayerEconomy, {
             status: 'traveling',
             lots,
         };
+        // The wagons go at a walker's pace, the quickest way (days per hex,
+        // data/travel.json: roads already counted, so no road-link shortcut)
+        const walk = Infrastructure.routeDays(world, fromPos, toSettlement, null, 60);
+        if (walk != null) {
+            caravan.daysRemaining = Math.max(1, Math.ceil(walk / (1 + Technology.getEffectTotal(player, 'caravanSpeedBonus')) - 1e-9));
+            caravan.daysByRoute = true;
+        }
 
         PlayerEconomy._applyRoadLink(world, caravan, null);
 
@@ -223,7 +230,7 @@ Object.assign(PlayerEconomy, {
         if (unit) {
             unit.speed = (unit.speed || 1) + 1;
             unit.roadLinked = true;
-        } else if (typeof caravan.daysRemaining === 'number') {
+        } else if (typeof caravan.daysRemaining === 'number' && !caravan.daysByRoute) {
             caravan.daysRemaining = Math.max(1, Math.ceil(caravan.daysRemaining * 2 / 3));
         }
         return true;

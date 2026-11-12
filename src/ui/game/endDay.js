@@ -1007,12 +1007,27 @@ export function endDay() {
             // Resume queued multi-day travel if any (not while a band stands in the
             // way: the journey goes on once that is settled, ActionMenu._resumeHeldJourney)
             if (this.player.queuedPath && !this._pendingEncounter) {
-                const resumed = this.player.resumeQueuedPath();
-                if (resumed) {
-                    const dest = this.player.travelDestination;
-                    const remaining = this.player.path.length - this.player.pathIndex;
-                    this.ui.showNotification('Resuming Travel',
-                        `Continuing journey${dest ? ` to (${dest.q}, ${dest.r})` : ''} — ~${remaining} tiles remaining`, 'info');
+                const crossing = typeof this.player.crossingStatus === 'function' ? this.player.crossingStatus(this.world) : null;
+                if (skipping && crossing && typeof this.player.advanceCrossing === 'function') {
+                    // Letting days pass mid-crossing: the day's march goes into the hex
+                    // (no frames run between the skip's days); arriving ends the skip
+                    const step = this.player.advanceCrossing(this.world);
+                    if (step && step.arrived) {
+                        this.ui.showNotification('⛰️ Across', `You are across ${step.name} after ${step.day} day${step.day === 1 ? '' : 's'}.`, 'info');
+                        if (!this.player.queuedPath) this.onPlayerArrived();
+                    }
+                } else {
+                    const resumed = this.player.resumeQueuedPath();
+                    if (resumed) {
+                        const dest = this.player.travelDestination;
+                        const remaining = this.player.path.length - this.player.pathIndex;
+                        if (crossing && crossing.longHex) {
+                            this.ui.showNotification(`⛺ Crossing ${crossing.name}`, `Day ${crossing.day} of ${crossing.days}: you break camp and press on.`, 'info');
+                        } else {
+                            this.ui.showNotification('Resuming Travel',
+                                `Continuing journey${dest ? ` to (${dest.q}, ${dest.r})` : ''} — ~${remaining} tiles remaining`, 'info');
+                        }
+                    }
                 }
             }
 

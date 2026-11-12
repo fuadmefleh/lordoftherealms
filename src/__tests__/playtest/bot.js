@@ -2095,12 +2095,12 @@ export function botDay(game, stats) {
                 travelTo(game, town.q, town.r);
                 // No road to any town (an island landing): row back out to the anchored ship
                 const anchored = (player.ships || []).find(s => s.status === 'anchored' && Hex.distance(s.q, s.r, player.q, player.r) <= 1);
-                if (from === `${player.q},${player.r}` && anchored && Ships.rowToShip(player, anchored.id).success) count(stats, 'rowedToShip');
+                if (from === `${player.q},${player.r}` && !player.crossing && anchored && Ships.rowToShip(player, anchored.id).success) count(stats, 'rowedToShip');
                 const now = world.getTile(player.q, player.r);
                 if (now && now.settlement) booked(game, 'buyFood', () => buyFood(game, now, stats));
                 count(stats, 'foodRuns');
                 // No way there: that town is no help today — off to find food in the wild
-                if (from === `${player.q},${player.r}` && !player.boardedShip) {
+                if (from === `${player.q},${player.r}` && !player.boardedShip && !player.crossing) {
                     foodless[`${town.q},${town.r}`] = world.day;
                     game.dest = null;
                     cantBuy = true;
@@ -2292,7 +2292,8 @@ export function botDay(game, stats) {
         const from = `${player.q},${player.r}`;
         travelTo(game, game.dest.q, game.dest.r);
         // No way there (another island, or beyond the pathfinder's reach): pick again
-        if (`${player.q},${player.r}` === from) {
+        // (a day spent part-way across a hex of days is progress: travel by days per hex, data/travel.json)
+        if (`${player.q},${player.r}` === from && !player.crossing) {
             if (game.dest.delve || game.dest.company) (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
             game.dest = null;
             count(stats, 'unreachable');

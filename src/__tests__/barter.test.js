@@ -227,7 +227,8 @@ describe('a dawn world left to grow', () => {
         w.generate({ ...GEN });
         let first = null;
         const spreads = [];
-        for (let d = 0; d < 120 * 18 && spreads.length < 2; d++) {
+        // (the dawn unfolds over generations since 2026-11-12: coin comes later)
+        for (let d = 0; d < 120 * 40 && spreads.length < 2; d++) {
             w.advanceDay(null, {});
             MarketDynamics.updatePrices(w, null);
             const rec = w.barter;
@@ -507,7 +508,7 @@ describe('coin comes at the same stage on a small and a large map', () => {
             Utils.setSeed(77);
             const wd = new World(w, h);
             wd.generate({ seed, kingdomCount: 4, startYear: 1, terrainGen: 3 });
-            for (let d = 0; d < 120 * 30 && wd.barter.coinDay == null; d++) {
+            for (let d = 0; d < 120 * 60 && wd.barter.coinDay == null; d++) {
                 wd.advanceDay(null, {});
                 MarketDynamics.updatePrices(wd, null);
             }
@@ -521,6 +522,8 @@ describe('coin comes at the same stage on a small and a large map', () => {
             expect(r.trading).toBeGreaterThanOrEqual(DataLoader._gamedata.dawn.barter.coinEmerges.tradingShare);
         }
         expect(Math.max(small.perLand, large.perLand) / Math.min(small.perLand, large.perLand)).toBeLessThan(1.35);
-        expect(Math.abs(small.year - large.year)).toBeLessThanOrEqual(6);
+        // (since the slower dawn of 2026-11-12 a big map fills more slowly than a small one —
+        // seed 3131/4242: years 19 and 45 at 42 and 32 souls a tile — so the stage, not the year, is what matches)
+        expect(Math.abs(small.year - large.year)).toBeLessThanOrEqual(30);
     }, 300000);
 });

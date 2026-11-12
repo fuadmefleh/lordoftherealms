@@ -1025,9 +1025,15 @@ Object.assign(Renderer.prototype, {
         ctx.setLineDash([3 * z, 5 * z]);
         ctx.stroke();
         ctx.setLineDash([]);
-        // A crescent at each night's camp
+        // A crescent at each night's camp — part-way into a hex that takes days
+        // to cross (a mountain: two camps on its slopes)
         for (const stop of est.stops || []) {
-            const p = at(stop);
+            let p = at(stop);
+            if (stop.toQ != null && stop.t > 0) {
+                const b = at({ q: stop.toQ, r: stop.toR });
+                // (not across the world's seam, where the two ends lie a map apart)
+                if (Math.abs(b.x - p.x) < 3 * s) p = { x: p.x + (b.x - p.x) * stop.t * 0.85, y: p.y + (b.y - p.y) * stop.t * 0.85 };
+            }
             const r = 0.16 * s;
             const cy = p.y - 0.3 * s;
             ctx.beginPath();
@@ -1056,6 +1062,43 @@ Object.assign(Renderer.prototype, {
         const pulse = Math.sin(this.time * 3) * 0.1 + 0.2;
 
         const yScaleR = Math.sqrt(3) / 2;
+
+        // The days after today (Player.getReachableHexes → .days): a fainter
+        // wash and the day's count, so a forest reads 1 and a mountain 3
+        const later = this.reachableHexes.days;
+        if (later && later.size) {
+            const s = size * this.camera.zoom;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `bold ${Math.max(9, Math.round(0.34 * s))}px sans-serif`;
+            for (const [key, d] of later) {
+                const [q, r] = key.split(',').map(Number);
+                const pos = this.getHexPixelPos(q, r);
+                const sc = this.camera.worldToScreen(pos.x, pos.y);
+                if (sc.x < -50 || sc.x > this.canvas.width + 50 || sc.y < -50 || sc.y > this.canvas.height + 50) continue;
+                const X = 0.866 * s;
+                ctx.beginPath();
+                ctx.moveTo(sc.x, sc.y - 0.732 * s);
+                ctx.lineTo(sc.x + X, sc.y - 0.305 * s);
+                ctx.lineTo(sc.x + X, sc.y + 0.567 * s);
+                ctx.lineTo(sc.x, sc.y + 1.000 * s);
+                ctx.lineTo(sc.x - X, sc.y + 0.567 * s);
+                ctx.lineTo(sc.x - X, sc.y - 0.305 * s);
+                ctx.closePath();
+                ctx.fillStyle = `rgba(245, 197, 66, ${Math.max(0.03, pulse * (d === 1 ? 0.45 : 0.22))})`;
+                ctx.fill();
+                if (s >= 14) {
+                    ctx.fillStyle = 'rgba(16, 20, 32, 0.55)';
+                    ctx.beginPath();
+                    ctx.arc(sc.x, sc.y + 0.13 * s, 0.24 * s, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffe9a8';
+                    ctx.fillText(String(d + 1), sc.x, sc.y + 0.14 * s);
+                }
+            }
+            ctx.restore();
+        }
 
         for (const [key] of this.reachableHexes) {
             const [q, r] = key.split(',').map(Number);

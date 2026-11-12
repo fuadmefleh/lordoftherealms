@@ -78,9 +78,9 @@ const DEFAULT_CFG = {
     enabled: true, weekDays: 7, firstDay: 3,
     demand: { perPop: 0.004, type: { village: 0.4, town: 1, city: 1.6, capital: 2.4 }, min: 1, max: 40, unservedToFound: 16, revenuePerLetter: 1.5 },
     speeds: {
-        standard: { name: 'Standard post', icon: '✉️', hexesPerDay: 7, price: 1, wage: 1, appeal: 1 },
-        express: { name: 'Express riders', icon: '🏇', hexesPerDay: 11, price: 1.5, wage: 1.5, appeal: 1.3 },
-        relay: { name: 'Relay of fresh horses', icon: '🐎', hexesPerDay: 16, price: 2.2, wage: 2, appeal: 1.6, horsesPerStation: 2 },
+        standard: { name: 'Standard post', icon: '✉️', hexesPerDay: 3, price: 1, wage: 1, appeal: 1 },
+        express: { name: 'Express riders', icon: '🏇', hexesPerDay: 5, price: 1.5, wage: 1.5, appeal: 1.3 },
+        relay: { name: 'Relay of fresh horses', icon: '🐎', hexesPerDay: 8, price: 2.2, wage: 2, appeal: 1.6, horsesPerStation: 2 },
     },
     costs: { riderWage: 6, horseUpkeep: 2, stationUpkeep: 8, guardWage: 5, riderHire: 20, horsePrice: 30, guardHire: 15, stationPrice: 150, foundPrice: 400, licence: 100, maxRiders: 60, maxHorses: 60, maxGuards: 30 },
     price: { base: 4, min: 1, max: 20, perHex: 0.12, elasticity: 1.3 },
@@ -260,10 +260,10 @@ export const Couriers = {
     /** Hexes a day: the tier's pace, slowed by too few relay horses. */
     hexesPerDay(c) {
         const S = this.speed(c && c.speed);
-        let h = _num(S.hexesPerDay, 7);
+        let h = _num(S.hexesPerDay, 3);
         if (c && S.horsesPerStation) {
             const need = Math.max(1, (c.stations || []).length * S.horsesPerStation);
-            if (_num(c.horses) < need) h = Math.max(this.speed('express').hexesPerDay || 11, h * (0.6 + 0.4 * _num(c.horses) / need));
+            if (_num(c.horses) < need) h = Math.max(this.speed('express').hexesPerDay || 5, h * (0.6 + 0.4 * _num(c.horses) / need));
         }
         return h;
     },
@@ -294,7 +294,7 @@ export const Couriers = {
     travelDays(world, a, b, hexesPerDay) {
         const M = this.config().mail;
         const dist = _dist(world, a, b);
-        let speed = Math.max(1, _num(hexesPerDay, 7));
+        let speed = Math.max(1, _num(hexesPerDay, 3));
         let extra = 0;
         let band = null;
         try { band = Transport.linkBand(world, a, b); } catch (e) { band = null; }

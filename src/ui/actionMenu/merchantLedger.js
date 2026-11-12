@@ -90,7 +90,7 @@ function bookTab(game) {
 function spreadsTab(game) {
     const { player, world } = game;
     const C = PriceKnowledge.config();
-    let html = lede(`The best margins your news shows between two towns within reach (about ${C.hexesPerDay} hexes a day): buy at the cheapest known asking price, sell where the stalls are known to pay most.`);
+    let html = lede(`The best margins your news shows between two towns within reach (days on foot, the quickest way: roads ¼–½ day a hex, open land ¾, a forest a day, mountains three): buy at the cheapest known asking price, sell where the stalls are known to pay most.`);
     html += bullets(['Old news may be wrong.', 'A big lot moves the price against you.']);
     html += `<div style="margin:6px 0;"><span style="${NOTE}">Within</span> ${RANGES.map(d => act(`${d} days`, ['days', d], d === view.days ? BTN_GOLD : BTN_PLAIN)).join('')}</div>`;
     const list = PriceKnowledge.spreads(player, world, { days: view.days, limit: 15 });

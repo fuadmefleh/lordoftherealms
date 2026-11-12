@@ -406,7 +406,8 @@ export const PlayerActions = {
                 const rel = hadCell ? Prison.releaseServed(player, world) : null;
                 player.jailState = null;
                 player.stamina = player.maxStamina;
-                player.movementRemaining = player.maxStamina;
+                // A day's walk, scaled as each morning's (data/travel.json dayScale)
+                if (typeof player.restoreDayMovement === 'function') player.restoreDayMovement(); else player.movementRemaining = player.maxStamina;
                 results.jailUpdate = { freed: true, message: `You have served your sentence and are released from jail in ${settlement}.${rel && rel.text ? ` ${rel.text}` : ''}` };
             } else {
                 results.jailUpdate = { freed: false, daysRemaining: player.jailState.daysRemaining, message: `${player.jailState.daysRemaining} day(s) of jail time remain.` };

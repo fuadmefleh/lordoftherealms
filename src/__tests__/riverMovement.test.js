@@ -83,22 +83,26 @@ describe('Player movement respects the river penalty', () => {
         return { width: 5, height: 1, tiles: [tiles], getTile: (q, r) => (r === 0 ? tiles[q] : null) };
     }
 
-    it('charges the penalty per step and in the reachable-hex preview', () => {
+    // Travel is counted in days per hex (data/travel.json; was flat stamina: plains 2, a ford +2,
+    // a bridge 1). A day's pace of 4: plains ¾ day = 3, a ford + ¼ day = +1, a bridge ¼ day = 1.
+    it('charges the ford per step and in the reachable-hex preview', () => {
         const p = new Player();
-        p.q = 0; p.r = 0; p.movementRemaining = 4;
+        p.q = 0; p.r = 0; p._dayPace = 4; p.movementRemaining = 4;
         const world = strip();
-        expect(p._hexMoveCost(world.getTile(1, 0))).toBe(4);
-        expect(p._hexMoveCost(world.getTile(2, 0))).toBe(2);
+        expect(p._hexMoveCost(world.getTile(1, 0))).toBeCloseTo(4);
+        expect(p._hexMoveCost(world.getTile(2, 0))).toBeCloseTo(3);
         const reach = p.getReachableHexes(world);
-        expect(reach.get('1,0')).toBe(4);
+        expect(reach.get('1,0')).toBeCloseTo(4);
         expect(reach.has('2,0')).toBe(false);
+        // …the far plains are tomorrow's
+        expect(reach.days.get('2,0')).toBe(1);
     });
 
     it('a bridge makes the far bank reachable', () => {
         const p = new Player();
-        p.q = 0; p.r = 0; p.movementRemaining = 4;
+        p.q = 0; p.r = 0; p._dayPace = 4; p.movementRemaining = 4;
         const reach = p.getReachableHexes(strip({ infrastructure: built('BRIDGE') }));
-        expect(reach.get('1,0')).toBe(1);
-        expect(reach.get('2,0')).toBe(3);
+        expect(reach.get('1,0')).toBeCloseTo(1);
+        expect(reach.get('2,0')).toBeCloseTo(4);
     });
 });

@@ -36,7 +36,7 @@ import { Fiscal } from './fiscal.js';
 import { Engrossing } from './engrossing.js';
 import { LlmProse } from './llmProse.js';
 
-const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
+const DEFAULT_CONFIG = { speed: 4, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
 const SIEGE_WON = ['captured', 'sacked', 'terms'];
 // Market records (player.merchantPrince.history) and the proclamation each makes

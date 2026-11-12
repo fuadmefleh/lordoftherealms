@@ -95,3 +95,12 @@ describe('Road talk marks only what it tells', () => {
         spy.mockRestore();
     });
 });
+
+describe('road talk in days (travel by days per hex, data/travel.json)', () => {
+    it('puts a walk of days in words', () => {
+        expect(NpcKnowledge.roadDays(0.5)).toBe('less than a day\'s walk');
+        expect(NpcKnowledge.roadDays(1)).toBe('a day\'s walk');
+        expect(NpcKnowledge.roadDays(3)).toBe('two or three days');
+        expect(NpcKnowledge.roadDays(6)).toBe('the best part of a week');
+    });
+});

@@ -168,7 +168,8 @@ describe('HUD redesign — right rail', () => {
         const world = buildWorld();
         ui.updateRegionPanel(basePlayer(), world);
         expect(reg.regionTerrain.textContent).toBe('Woodland');
-        expect(reg.regionMoveCost.textContent).toBe('2');
+        // (travel by days per hex, data/travel.json: the old stamina cost 2 is now a woodland's day)
+        expect(reg.regionMoveCost.textContent).toBe('1 day');
         expect(reg.regionName.textContent).toBe('Coastal Woodlands');
         expect(reg.regionSubtitle.textContent).toBe('Unclaimed Lands');
     });

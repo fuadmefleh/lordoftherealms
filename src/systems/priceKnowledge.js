@@ -34,6 +34,7 @@ import { Hex } from '../core/hex.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Economy } from '../world/economy.js';
 import { Ledger } from './ledger.js';
+import { Infrastructure } from './infrastructure.js';
 
 const DEFAULTS = {
     maxTowns: 30, reportEvery: 3, historyTowns: 10, historySamples: 10, historyEvery: 3, hailRadius: 1,
@@ -384,13 +385,22 @@ export const PriceKnowledge = {
      */
     spreads(player, world, { q = player && player.q, r = player && player.r, days = null, maxAge = Infinity, goods = null, limit = 12 } = {}) {
         const C = PriceKnowledge.config();
-        const reach = Math.max(0, _num(days, C.maxTravelDays)) * C.hexesPerDay;
+        const maxDays = Math.max(0, _num(days, C.maxTravelDays));
         const W = world && world.width;
         const dist = (a, b) => (W ? Hex.wrappingDistance(a.q, a.r, b.q, b.r, W) : Hex.distance(a.q, a.r, b.q, b.r));
         const from = { q, r };
+        // Within reach: days on foot the quickest way (travel by days per hex,
+        // data/travel.json — roads, forests, mountains); a town the land doesn't
+        // reach (across water) by the crow at open land's pace
+        const walk = Number.isFinite(q) && maxDays > 0 ? Infrastructure.travelDaysFrom(world, q, r, maxDays, player) : new Map();
+        const open = Infrastructure.openDays();
+        const daysTo = (x) => {
+            const d = walk.get(`${W ? ((x.q % W) + W) % W : x.q},${x.r}`);
+            return Number.isFinite(d) ? d : dist(from, x) * open;
+        };
         const out = [];
         for (const id of goods || PriceKnowledge.knownGoods(player)) {
-            const list = PriceKnowledge.known(player, world, id).filter(x => x.age <= maxAge && Number.isFinite(q) && dist(from, x) <= reach);
+            const list = PriceKnowledge.known(player, world, id).filter(x => x.age <= maxAge && Number.isFinite(q) && daysTo(x) <= maxDays + 1e-9);
             let best = null;
             for (const b of list) {
                 if (!(b.ask > 0)) continue;

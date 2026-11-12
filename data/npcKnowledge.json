@@ -158,6 +158,7 @@
             "Autumn": ["Autumn now. Folk hurry to get where they're going before the snow."],
             "Winter": ["Winter. Hardly a soul on the road — you're brave or desperate."]
         },
-        "days": [[1, "less than a day's walk"], [2, "a day's walk"], [4, "two or three days"], [7, "the best part of a week"], [999, "more than a week away"]]
+        "_days": "How a walk of so many days is put (days on foot along the road, days per hex from data/travel.json).",
+        "days": [[0.8, "less than a day's walk"], [1.5, "a day's walk"], [3.5, "two or three days"], [7, "the best part of a week"], [999, "more than a week away"]]
     }
 }

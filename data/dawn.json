@@ -17,12 +17,13 @@
         "hintGood": "grain",
         "coinEmerges": {
             "checkDays": 30,
-            "popPerLand": 53,
-            "tradePerLand": 40,
+            "popPerLand": 32,
+            "tradePerLand": 25,
             "tradingShare": 0.5,
             "minTradingTowns": 4,
             "hubTrade": 1500,
-            "fallbackYear": 600
+            "fallbackYear": 600,
+            "_pace": "2026-11-12: lowered from 53/40 with the slower dawn (villages grow ~12%/yr, not ~36%), so coin still comes within a few generations"
         },
         "spread": {
             "minValue": 100,

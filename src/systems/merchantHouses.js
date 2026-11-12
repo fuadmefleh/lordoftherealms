@@ -69,7 +69,7 @@ const DEFAULT_CONFIG = {
     },
     robbery: { base: 0.03, guildTown: 0.02, perGuard: 0.006, minChance: 0.01, guildFriendRank: 2, guildFriendMult: 0.3, insiderMult: 1.5, stockLoss: [0.2, 0.5] },
     contracts: { maxBoard: 5, spawnPerWeek: [1, 2], minReputation: 10, reputationReward: 6, reputationPenalty: 10, kingdomReputation: 3, rivalBidAfter: [6, 14] },
-    convoy: { hexesPerDay: 5, shipHexesPerDay: 9, feePerUnitPerDay: 0.08, minFee: 5, riskPerDay: 0.012, shipRiskPerDay: 0.006, lossShare: [0.4, 1] },
+    convoy: { hexesPerDay: 2, shipHexesPerDay: 9, feePerUnitPerDay: 0.08, minFee: 5, riskPerDay: 0.012, shipRiskPerDay: 0.006, lossShare: [0.4, 1] },
     rivals: {
         count: [3, 5], minActive: 3, weeklyReturn: [-0.035, 0.05], contestedDrag: 0.006,
         dividendShare: 0.5, capitalCap: 60000, sharePremium: 1.15, sellDiscount: 0.85, ruinCapital: 400,

@@ -111,8 +111,11 @@ export const PlayerMovementMethods = {
     },
 
     /**
-     * Stamina cost to enter a tile — sailing is 2 per hex (up to 4 when short-handed). On foot it's
-     * terrain/roads plus the river-fording penalty (unless bridged).
+     * Movement cost to enter a tile — sailing is 2 per hex (up to 4 when short-handed). On foot
+     * travel is counted in days per hex (data/travel.json, Infrastructure.getPlayerHexDays: open
+     * land ¾ of a day, a forest a day, a mountain three, roads quicker), worth the day's full
+     * strength (_travelPace) each: a hex of more days than are left is crossed over several
+     * (stepAlongPath, this.crossing).
      */
     _hexMoveCost(tile) {
         if (this.boardedShip) {
@@ -120,7 +123,65 @@ export const PlayerMovementMethods = {
             const ship = Ships.getShipById(this, this.boardedShip);
             return ship ? Ships.getSailHexCost(ship) : 2;
         }
-        return (typeof Infrastructure !== 'undefined') ? Infrastructure.getPlayerMoveCost(tile, this) : tile.terrain.moveCost;
+        const days = this._hexDays(tile);
+        return Number.isFinite(days) ? days * this._travelPace() : Infinity;
+    },
+
+    /** Days to cross a tile on foot (or, aboard ship, its sailing cost as a share of the day). */
+    _hexDays(tile) {
+        if (this.boardedShip) return this._hexMoveCost(tile) / this._travelPace();
+        return Infrastructure.getPlayerHexDays(tile, this);
+    },
+
+    /**
+     * What a whole day of travel is worth in movement: the day's full,
+     * unimpaired strength (set each morning by endDay; before the first
+     * night, the stamina the player starts with).
+     */
+    _travelPace() {
+        if (this._dayPace > 0) return this._dayPace;
+        return Math.max(1, this.maxStamina || this.stamina || 10);
+    },
+
+    /** The day's full strength, for spreading a crossing over the days to come. */
+    _fullDayMovement() {
+        return Math.max(1e-6, this._dayMovement > 0 ? this._dayMovement : this._travelPace());
+    },
+
+    /** Floating-point slack when comparing movement against a hex's cost. */
+    MOVE_EPS: 1e-6,
+
+    /** The crossing under way into hex (q, r) from where the player stands, or null. */
+    _crossingTo(q, r) {
+        const c = this.crossing;
+        if (!c || c.q !== q || c.r !== r || c.fromQ !== this.q || c.fromR !== this.r) return null;
+        return c;
+    },
+
+    /**
+     * A crossing under way: { name, day, days, done, need, q, r, longHex } with
+     * `day` the day of it the next stretch falls on (world.day given), or null.
+     */
+    crossingStatus(world) {
+        const c = this.crossing;
+        if (!c || c.fromQ !== this.q || c.fromR !== this.r) return null;
+        const today = world && Number.isFinite(world.day) ? world.day : c.lastDay;
+        const day = (c.day || 1) + (today !== c.lastDay ? 1 : 0);
+        return { name: c.name, day, days: Math.max(day, c.days || 1), done: c.done, need: c.need, q: c.q, r: c.r, longHex: !!c.longHex };
+    },
+
+    /** "crossing the mountains, day 2 of 3" (or "on the way across the woods" for a short hex). */
+    crossingText(world) {
+        const st = this.crossingStatus(world);
+        if (!st) return '';
+        return st.longHex ? `crossing ${st.name}, day ${st.day} of ${st.days}` : `on the way across ${st.name}`;
+    },
+
+    /** How far into the hex being crossed the player is (0..1), for drawing them on the way. */
+    crossingProgress() {
+        const c = this.crossing;
+        if (!c || !(c.need > 0) || c.fromQ !== this.q || c.fromR !== this.r) return 0;
+        return Math.max(0, Math.min(1, c.done / c.need));
     },
 
     /**
@@ -166,6 +227,8 @@ export const PlayerMovementMethods = {
         );
 
         if (path && path.length > 1) {
+            // Turning back (or anywhere else) gives up the crossing under way
+            if (this.crossing && !this._crossingTo(path[1].q, path[1].r)) this.crossing = null;
             this.path = path;
             this.pathIndex = 1; // Skip first element (current position)
             this.isMoving = true;
@@ -196,29 +259,48 @@ export const PlayerMovementMethods = {
             (q, r) => this._hexPathCost(world.getTile(q, r))
         );
         if (!path || path.length < 2) return null;
-        const fullMove = Math.max(1, this._dayMovement || this.stamina || this.movementRemaining || 1);
+        const EPS = this.MOVE_EPS;
+        const pace = this._travelPace();
+        const fullMove = this._fullDayMovement();
         const fullAP = Math.max(1, this.maxActionPoints || 10);
-        let move = this.movementRemaining || 0;
+        let move = Math.max(0, this.movementRemaining || 0);
         let ap = this.actionPoints || 0;
-        let fresh = this._dayMovement > 0 && move >= this._dayMovement;
         let days = 0;
+        let travelDays = 0;
         const stops = [];
-        for (let i = 1; i < path.length; i++) {
+        const crossings = [];
+        // A night's camp: at the last hex, or part-way (t) into the next
+        const camp = (from, to, t) => {
+            days++;
+            stops.push(to ? { q: from.q, r: from.r, toQ: to.q, toR: to.r, t } : { q: from.q, r: from.r });
+            move = fullMove;
+            ap = fullAP;
+        };
+        for (let i = 1; i < path.length && days <= 365; i++) {
             const tile = world.getTile(path[i].q, path[i].r);
-            const cost = tile ? this._hexMoveCost(tile) : 1;
-            if ((move < cost && !fresh) || ap < 1) {
-                days++;
-                stops.push(path[i - 1]);
-                move = fullMove;
-                ap = fullAP;
-                fresh = true;
-                if (days > 365) break;
+            const under = i === 1 ? this._crossingTo(path[1].q, path[1].r) : null;
+            const full = under ? under.need : (tile ? this._hexMoveCost(tile) : 1);
+            let left = under ? Math.max(0, under.need - under.done) : full;
+            travelDays += left / pace;
+            // Setting out across a hex takes an action point (going on with one doesn't)
+            if (!under) {
+                if (ap < 1) camp(path[i - 1]);
+                ap--;
             }
-            move = Math.max(0, move - cost);
-            ap--;
-            fresh = false;
+            // Aboard ship a hex is sailed whole: short of it, lie at anchor till morning
+            if (this.boardedShip && move + EPS < left) camp(path[i - 1]);
+            // Each night on the way across: a camp part-way into the hex
+            while (move + EPS < left && days <= 365) {
+                left -= move;
+                camp(path[i - 1], path[i], Math.max(0, Math.min(1, (full - left) / Math.max(EPS, full))));
+            }
+            move = Math.max(0, move - left);
+            const hexDays = full / pace;
+            if (hexDays > 1 + EPS && tile) {
+                crossings.push({ q: path[i].q, r: path[i].r, days: Math.round(hexDays * 100) / 100, name: Infrastructure.crossingName(tile.terrain) });
+            }
         }
-        return { path, steps: path.length - 1, days, stops };
+        return { path, steps: path.length - 1, days, stops, crossings, travelDays };
     },
 
     /**
@@ -228,6 +310,8 @@ export const PlayerMovementMethods = {
         this.queuedPath = null;
         this.queuedPathIndex = 0;
         this.travelDestination = null;
+        // Turning back from a crossing: the way made into it is lost
+        this.crossing = null;
         if (this.isMoving) {
             this.isMoving = false;
             this.path = null;
@@ -256,6 +340,27 @@ export const PlayerMovementMethods = {
     },
 
     /**
+     * A day of a crossing under way, without the walk animation (days let
+     * pass, ui/timeSkip.js): the day's strength goes into the hex, arriving
+     * when it is done. The rest of the trip stays queued.
+     * → { arrived, name, day, days } or null when there is no crossing.
+     */
+    advanceCrossing(world) {
+        const st = this.crossingStatus(world);
+        if (!st || !this.queuedPath) return null;
+        if (!this.resumeQueuedPath()) return null;
+        this.moveAnimProgress = 1;
+        const arrived = this.stepAlongPath(world, 0);
+        if (this.isMoving && this.path) {
+            this.queuedPath = this.path;
+            this.queuedPathIndex = this.pathIndex;
+            this.isMoving = false;
+            this.path = null;
+        }
+        return { arrived, name: st.name, day: st.day, days: st.days };
+    },
+
+    /**
      * Step along path (called each frame during movement)
      */
     stepAlongPath(world, deltaTime) {
@@ -278,20 +383,55 @@ export const PlayerMovementMethods = {
                 return false;
             }
 
-            // Check stamina and action points (each move step costs 1 AP). Too
-            // tired for the next hex: queue the rest of the way for tomorrow,
-            // as running out exactly on a step does (it used to drop the trip)
-            const moveCost = this._hexMoveCost(tile);
-            // A whole day's strength always carries you one hex, however rough
-            // the ground — a starving traveller weakened below a hill's cost
-            // would otherwise never reach the town next door
-            const freshDay = this._dayMovement > 0 && this.movementRemaining >= this._dayMovement;
-            if ((this.movementRemaining < moveCost && !freshDay) || (this.actionPoints || 0) < 1) {
+            // Travel is counted in days per hex (data/travel.json): what the
+            // next hex still takes — all of it, or the rest of a crossing under
+            // way. Setting out across a hex costs 1 AP; going on with one doesn't.
+            const EPS = this.MOVE_EPS;
+            const under = this.boardedShip ? null : this._crossingTo(nextHex.q, nextHex.r);
+            const moveCost = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(tile);
+            const queueRest = () => {
                 this.queuedPath = this.path;
                 this.queuedPathIndex = this.pathIndex;
                 this.isMoving = false;
                 this.path = null;
                 return false;
+            };
+            if (!under && (this.actionPoints || 0) < 1) return queueRest();
+            if (this.movementRemaining + EPS < moveCost) {
+                // A ship sails a hex whole, or waits for the morning wind (a full
+                // day always carries it one hex, however short-handed)
+                if (this.boardedShip) {
+                    const freshDay = this._dayMovement > 0 && this.movementRemaining >= this._dayMovement;
+                    if (!freshDay) return queueRest();
+                } else {
+                    // Not across by nightfall: the rest of the day goes into the
+                    // hex, the traveller camps on the way and goes on in the
+                    // morning; a mountain takes days ("crossing the mountains, day 2 of 3")
+                    if (!(this.movementRemaining > EPS)) return queueRest();
+                    const today = world && Number.isFinite(world.day) ? world.day : null;
+                    let c = under;
+                    if (!c) {
+                        const full = this._fullDayMovement();
+                        const spent = this.movementRemaining;
+                        c = this.crossing = {
+                            fromQ: this.q, fromR: this.r, q: nextHex.q, r: nextHex.r,
+                            need: moveCost, done: 0, day: 1, lastDay: today,
+                            days: 1 + Math.max(1, Math.ceil((moveCost - spent) / full - EPS)),
+                            longHex: moveCost / this._travelPace() > 1 + EPS,
+                            terrain: tile.terrain && tile.terrain.id,
+                            name: Infrastructure.crossingName(tile.terrain),
+                        };
+                        this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+                    } else if (c.lastDay !== today) {
+                        c.day = (c.day || 1) + 1;
+                        c.lastDay = today;
+                        // (the reckoning of days held to what is now known: a hungry day is shorter)
+                        c.days = Math.max(c.day, c.day - 1 + Math.ceil((c.need - c.done) / this._fullDayMovement() - EPS));
+                    }
+                    c.done += this.movementRemaining;
+                    this.movementRemaining = 0;
+                    return queueRest();
+                }
             }
 
             // Move
@@ -313,7 +453,9 @@ export const PlayerMovementMethods = {
             }
 
             this.movementRemaining = Math.max(0, this.movementRemaining - moveCost);
-            this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+            if (this.movementRemaining < EPS) this.movementRemaining = 0;
+            if (!under) this.actionPoints = Math.max(0, (this.actionPoints || 0) - 1);
+            this.crossing = null;
             // The Dawn of Man: a clan kept in step walks with you, hex for hex (world/dawn.js)
             if (this.dawnInStep) Dawn.keepStep(world, this);
             // The miles build Endurance (player/endurance.js)
@@ -387,13 +529,23 @@ export const PlayerMovementMethods = {
     /**
      * Get reachable hexes from current position with remaining movement
      */
-    getReachableHexes(world) {
-        const reachable = new Map();
+    getReachableHexes(world, opts = {}) {
+        const EPS = this.MOVE_EPS;
+        const today = Math.max(0, this.movementRemaining || 0);
+        const full = this._fullDayMovement();
+        // The days after today, drawn faintly with their count (renderer
+        // renderReachableHexes) — not when the day is boundless (a cheat)
+        const moreDays = Number.isFinite(opts.days) ? Math.max(0, Math.floor(opts.days))
+            : (today > full * 10 ? 0 : this.REACH_DAYS);
+        const limit = today + moreDays * full;
+        const best = new Map();
+        const startKey = `${this.q},${this.r}`;
+        best.set(startKey, 0);
         const queue = [{ q: this.q, r: this.r, cost: 0 }];
-        reachable.set(`${this.q},${this.r}`, 0);
 
         while (queue.length > 0) {
             const current = queue.shift();
+            if (current.cost > best.get(`${current.q},${current.r}`) + EPS) continue;
             const neighbors = Hex.neighbors(current.q, current.r);
 
             for (const n of neighbors) {
@@ -404,16 +556,30 @@ export const PlayerMovementMethods = {
                 // Same rules as actual movement, so the overlay shows water while sailing
                 if (!this._canEnterHex(wq, wr, world)) continue;
 
-                const newCost = current.cost + this._hexMoveCost(world.getTile(wq, wr));
+                // A crossing under way: only what is left of it
+                const under = current.cost === 0 && current.q === this.q && current.r === this.r ? this._crossingTo(wq, wr) : null;
+                const step = under ? Math.max(0, under.need - under.done) : this._hexMoveCost(world.getTile(wq, wr));
+                const newCost = current.cost + step;
                 const key = `${wq},${wr}`;
 
-                if (newCost <= this.movementRemaining && (!reachable.has(key) || reachable.get(key) > newCost)) {
-                    reachable.set(key, newCost);
+                if (newCost <= limit + EPS && (!best.has(key) || best.get(key) > newCost + EPS)) {
+                    best.set(key, newCost);
                     queue.push({ q: wq, r: wr, cost: newCost });
                 }
             }
         }
 
+        // Today's hexes (key → movement spent); the later days on .days (key → 1, 2, …)
+        const reachable = new Map();
+        const days = new Map();
+        for (const [key, cost] of best) {
+            if (cost <= today + EPS) reachable.set(key, cost);
+            else days.set(key, Math.max(1, Math.ceil((cost - today) / full - EPS)));
+        }
+        reachable.days = days;
         return reachable;
     },
+
+    /** How many days beyond today the reachable-hex overlay shows. */
+    REACH_DAYS: 2,
 };

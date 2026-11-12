@@ -21,7 +21,7 @@
 
     "heralds": {
         "config": {
-            "speed": 8,
+            "speed": 4,
             "lifeDays": 40,
             "minGapDays": 2,
             "maxPerDay": 1,

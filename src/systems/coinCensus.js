@@ -206,8 +206,11 @@ export const CoinCensus = {
      * holder[key]. The same holders as count() walks, plus the crowns' royal
      * banks; the player's own purse is left out (world/barter.js keeps it).
      */
-    each(world, player, fn) {
+    each(world, player, fn, opts = {}) {
         if (!world) return;
+        // opts.once: a unit's coin once — a trade caravan's inventory.gold is a mirror of
+        // its purse (systems/merchantCaravans.js _syncInventory), as count() reads it;
+        // purge (the default) clears both
         const views = typeof world.getSettlementViews === 'function' ? world.getSettlementViews() : [];
         for (const v of views) {
             const tile = typeof world.getTile === 'function' ? world.getTile(v.q, v.r) : null;
@@ -233,7 +236,7 @@ export const CoinCensus = {
         for (const u of Array.isArray(world.units) ? world.units : []) {
             if (!u || u.destroyed) continue;
             if (typeof u.purse === 'number') fn(u, 'purse', 'roads');
-            if (u.inventory && typeof u.inventory.gold === 'number') fn(u.inventory, 'gold', 'roads');
+            if (u.inventory && typeof u.inventory.gold === 'number' && !(opts.once && typeof u.purse === 'number')) fn(u.inventory, 'gold', 'roads');
         }
         for (const k of world.kingdoms || []) {
             if (!k || k.isAlive === false) continue;
@@ -267,7 +270,7 @@ export const CoinCensus = {
         CoinCensus.each(world, player, (h, key, kind) => {
             const n = _pos(h[key]);
             if (n > 0) { byKind[kind] = Math.round(((byKind[kind] || 0) + n) * 100) / 100; total += n; }
-        });
+        }, { once: true });
         const own = player ? _pos(Barter.coinOf(player)) : 0;
         if (own > 0) { byKind.player = own; total += own; }
         return { total: Math.round(total * 100) / 100, byKind };

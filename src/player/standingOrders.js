@@ -166,7 +166,10 @@ export const StandingOrders = {
         if (player.delves && player.delves.active) return 'You are below ground.';
         if (player.dive) return 'You are under water.';
         if (player.boardedShip) return 'You are aboard ship.';
-        if (player.isMoving || player.queuedPath) return 'You are on the road.';
+        if (player.isMoving || player.queuedPath) {
+            const c = typeof player.crossingStatus === 'function' ? player.crossingStatus(world) : null;
+            return c && c.longHex ? `You are crossing ${c.name}.` : 'You are on the road.';
+        }
         return null;
     },
 

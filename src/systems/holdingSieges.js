@@ -29,6 +29,16 @@
 //              goes to the enemy through RealmWars' capture path; Holdings
 //              then sees it lost; the House chronicle records it).
 //
+//   PRESSURE   a mighty House draws sieges on a believable cadence, not by
+//              chance: a clock (systems/pressure.js, on
+//              player.realmWars.siegeClock) winds weekly while the player
+//              holds a colony or a town in their own name, faster the
+//              mightier they are. When it is ripe the realm most hostile to
+//              them and nearest a holding moves on it: at war, it sends a
+//              host straight at the holding; at peace, it demands tribute
+//              (RealmWars.issueUltimatum) and, refused, marches on it. A
+//              cooldown follows; a weak House is seldom troubled.
+//
 // State lives on player.realmWars.besieged (keyed "q,r", saved with the
 // player's war record) with history and stats beside it. Randomness flows
 // through Utils only, and nothing is drawn unless a holding is under siege.
@@ -49,6 +59,8 @@ import { PlayerMilitary } from '../player/playerMilitary.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Throne } from './throne.js';
 import { Kingship } from './kingship.js';
+import { Pressure } from './pressure.js';
+import { NpcMemory } from './npcMemory.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = (world) => (world && world.day) || 0;
@@ -445,10 +457,155 @@ export const HoldingSieges = {
      */
     processDay(world, player) {
         const out = { notices: [], ended: [] };
+        if (world && player && !player.interregnum) HoldingSieges._pressureDay(world, player, out);
         const b = player && player.realmWars && player.realmWars.besieged;
         if (!world || !b || !Object.keys(b).length) return out;
         for (const s of Object.values(b)) HoldingSieges._tick(player, world, s, out);
         return out;
+    },
+
+    // ── The pressure clock: realms move on the holdings of a mighty House ──
+
+    /** The holdings a realm could besiege (colonies and towns held in the player's own name). */
+    _siegeable(player, world) {
+        return RealmWars.holdings(player, world).filter(h => h.kind === 'colony');
+    },
+
+    /** Weekly: wind the siege clock; when ripe, the likeliest realm moves on a holding. Draws no RNG. */
+    _pressureDay(world, player, out) {
+        const PC = Pressure.clockConfig('siege');
+        const day = _day(world);
+        const cad = Math.max(1, _num(PC.cadence, 7));
+        if (day <= 0 || day % cad !== 0 || !Array.isArray(world.kingdoms)) return;
+        const targets = HoldingSieges._siegeable(player, world);
+        const rw = player.realmWars;
+        if (!targets.length && !(rw && rw.siegeClock)) return; // nothing to besiege, nothing wound: touch no state
+        const st = HoldingSieges.state(player);
+        const holder = st.siegeClock || (st.siegeClock = { cooldownUntil: 0, pending: null, log: [] });
+        if (!Array.isArray(holder.log)) holder.log = [];
+        if (holder.pending) HoldingSieges._pursue(player, world, st, holder, out);
+        const busy = !targets.length || !!holder.pending || Object.keys(st.besieged).length > 0 || day < _num(holder.cooldownUntil);
+        const { might } = Pressure.might(player, world);
+        const seed = _num(world.generationParams && world.generationParams.seed, 1);
+        const clk = Pressure.wind(holder, 'siege', might, day, { days: cad, seed, paused: busy, generation: _num(player.house && player.house.generation, 1) });
+        if (!clk.ripe || busy) return;
+        if (HoldingSieges._provoke(player, world, st, holder, targets, out)) {
+            Pressure.spend(holder, day);
+            holder.cooldownUntil = day + _num(PC.cooldownDays, 90);
+        }
+    },
+
+    /** The realm most likely to move on a holding: { kingdom, target, base, hostility } or null. */
+    _aggressor(player, world, st, targets) {
+        const PC = Pressure.clockConfig('siege');
+        const day = _day(world);
+        const realm = Throne.ruledKingdom(player, world);
+        const regard = (player.coalitions && player.coalitions.realms) || {};
+        const towns = typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : [];
+        let best = null;
+        for (const k of world.kingdoms) {
+            if (!k || !k.isAlive || k.id === player.allegiance || (realm && k.id === realm.id)) continue;
+            const atWar = !!st.wars[k.id];
+            if (!atWar && (_num(st.truces[k.id]) > day || st.ultimatums[k.id])) continue;
+            if (_num(k.military) < RealmWars.CONFIG.minMilitaryToSend) continue;
+            const hostility = _num(regard[k.id] && regard[k.id].hostility);
+            if (!atWar && hostility < _num(PC.minHostility, 12)) continue;
+            const bases = towns.filter(t => t.kingdom === k.id);
+            if (!bases.length) continue;
+            let near = null;
+            for (const t of targets) {
+                for (const b of bases) {
+                    const d = Hex.wrappingDistance(t.q, t.r, b.q, b.r, world.width || 0);
+                    if (!near || d < near.d) near = { d, t, b };
+                }
+            }
+            const score = (hostility + (atWar ? 30 : 0)) / (1 + near.d / 15);
+            if (!best || score > best.score) best = { kingdom: k, target: near.t, base: near.b, hostility, atWar, score };
+        }
+        return best;
+    },
+
+    /** The clock is ripe: a realm moves on a holding. Returns true when one did. */
+    _provoke(player, world, st, holder, targets, out) {
+        const pick = HoldingSieges._aggressor(player, world, st, targets);
+        if (!pick) return false;
+        const { kingdom: k, target } = pick;
+        const day = _day(world);
+        if (pick.atWar) {
+            const rec = HoldingSieges._march(player, world, k, st.wars[k.id], target, pick.base);
+            if (!rec) return false;
+            HoldingSieges._clockLog(holder, day, `${k.name} marched on ${target.name}`);
+            out.notices.push({ title: `🚩 ${k.name} Marches on ${target.name}`, text: `${rec.name} (strength ${rec.strength}) has left ${pick.base.name || 'its muster'} to besiege ${target.name}. Garrison it, stock it, or meet the host in the field.`, type: 'error' });
+            return true;
+        }
+        const u = RealmWars.issueUltimatum(player, world, k);
+        u.covets = { q: target.q, r: target.r, name: target.name };
+        holder.pending = { kingdomId: k.id, name: k.name, q: target.q, r: target.r, target: target.name, day };
+        HoldingSieges._clockLog(holder, day, `${k.name} demanded tribute for ${target.name}`);
+        if (player.house) House._chronicle(player.house, world, `${k.name} casts covetous eyes on ${target.name} and demands tribute of ${player.house.name}.`, ['war', 'siege']);
+        out.notices.push({ title: `⚔️ ${k.name} Covets ${target.name}`, text: `${k.lord && k.lord.name ? `${k.lord.name} of ${k.name}` : k.name} watches your rise and wants ${target.name}. Pay ${u.tribute} gold within ${Math.max(1, u.dueDay - day)} days (Realm Wars), or its host marches on the town.`, type: 'warning' });
+        return true;
+    },
+
+    /** A realm that demanded tribute for a holding follows through: at war, its host marches on it. */
+    _pursue(player, world, st, holder, out) {
+        const P = holder.pending;
+        const PC = Pressure.clockConfig('siege');
+        const day = _day(world);
+        const k = world.getKingdom ? world.getKingdom(P.kingdomId) : null;
+        const war = st.wars[P.kingdomId];
+        if (!k || !k.isAlive) { holder.pending = null; return; }
+        if (war) {
+            const target = HoldingSieges._siegeable(player, world).find(h => h.q === P.q && h.r === P.r);
+            const already = war.hosts.some(h => h.targetQ === P.q && h.targetR === P.r);
+            if (!target || already) { holder.pending = null; return; }
+            const bases = (typeof world.getAllSettlements === 'function' ? world.getAllSettlements() : []).filter(t => t.kingdom === k.id);
+            let base = null;
+            for (const b of bases) {
+                const d = Hex.wrappingDistance(target.q, target.r, b.q, b.r, world.width || 0);
+                if (!base || d < base.d) base = { d, b };
+            }
+            const rec = base ? HoldingSieges._march(player, world, k, war, target, base.b) : null;
+            if (rec) {
+                holder.pending = null;
+                HoldingSieges._clockLog(holder, day, `${k.name} marched on ${target.name}`);
+                out.notices.push({ title: `🚩 ${k.name} Marches on ${target.name}`, text: `Its tribute refused, ${k.name} sends ${rec.name} (strength ${rec.strength}) to take ${target.name}.`, type: 'error' });
+            }
+        } else if (!st.ultimatums[P.kingdomId]) {
+            holder.pending = null; // the tribute was paid
+            HoldingSieges._clockLog(holder, day, `${k.name} was paid off`);
+        }
+        if (holder.pending && day - _num(P.day) > _num(PC.pendingDays, 40)) holder.pending = null;
+    },
+
+    /** A war host raised to besiege one holding (RealmWars._dispatchHost, aimed). Draws no RNG. */
+    _march(player, world, kingdom, war, target, base) {
+        if (!war || !base || (war.hosts || []).length >= RealmWars.CONFIG.maxHosts + 1) return null;
+        if (_num(kingdom.military) < RealmWars.CONFIG.minMilitaryToSend) return null;
+        const strength = Utils.clamp(Math.round(20 + _num(kingdom.military) * 0.04), 25, 180);
+        kingdom.military = Math.max(0, _num(kingdom.military) - strength);
+        const arms = RealmArms.detach(kingdom, strength);
+        const rec = {
+            id: `wh_${kingdom.id}_${_day(world)}_p${war.hosts.length}`,
+            name: `${kingdom.name} War Host`,
+            q: base.q, r: base.r,
+            targetQ: target.q, targetR: target.r,
+            target: { kind: 'colony', q: target.q, r: target.r, name: target.name },
+            strength,
+            arms: arms ? arms.stock : null,
+            armed: arms ? arms.armed : 1,
+            aimed: true,
+        };
+        war.hosts.push(rec);
+        war.lastHostDay = _day(world);
+        if (!Array.isArray(world.units)) world.units = [];
+        RealmWars._spawnUnit(world, kingdom, rec);
+        return rec;
+    },
+
+    _clockLog(holder, day, text) {
+        holder.log.unshift({ day, text });
+        if (holder.log.length > 8) holder.log.length = 8;
     },
 
     _tick(player, world, s, out) {
@@ -727,6 +884,9 @@ export const HoldingSieges = {
             result.message = text;
         } else {
             result.message = `${s.hostName} is broken before ${s.name}. The siege is lifted!`;
+            // The town remembers who broke the siege (systems/npcMemory.js)
+            const settlement = HoldingSieges._settlement(world, s);
+            if (settlement) NpcMemory.rememberTown(world, settlement, { kind: 'defended', player });
         }
         return result;
     },

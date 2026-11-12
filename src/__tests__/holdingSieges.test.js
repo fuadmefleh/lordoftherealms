@@ -247,9 +247,12 @@ describe("HoldingSieges — the player's options", () => {
         player.q = 5; player.r = 5;
         const score = war.score;
         const loyalty = settlement.colony.loyalty;
+        settlement.folk = settlement.folk || { people: [] };
         const res = HoldingSieges.relieve(player, world, siege.key);
         expect(res.success).toBe(true);
         expect(res.victory).toBe(true);
+        // ...and the town remembers who broke the siege (systems/npcMemory.js 'defended')
+        expect((settlement.folk.nm || []).some(m => m.k === 'defended')).toBe(true);
         expect(HoldingSieges.list(player)).toHaveLength(0);
         expect(war.score).toBe(score + RealmWars.CONFIG.scorePerHostDefeated);
         expect(settlement.colony.loyalty).toBeGreaterThan(loyalty);

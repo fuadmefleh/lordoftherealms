@@ -35,6 +35,7 @@ import { Barter } from '../world/barter.js';
 import { CoinCensus } from './coinCensus.js';
 import { Coinage } from '../world/coinage.js';
 import { Economy } from '../world/economy.js';
+import { KingdomAI } from '../world/kingdomAI.js';
 import { Finance } from './finance.js';
 import { Bourse } from './bourse.js';
 import { RealmWars } from './realmWars.js';
@@ -150,13 +151,36 @@ export const Mints = {
         return k && k.isAlive !== false ? k : null;
     },
 
-    /** The money changers' fee (a share of the purse) between two realms' coins. */
+    /**
+     * The money changers' fee (a share of the purse) between two realms' coins:
+     * the gap in what a piece in hand is worth (the standard, the old coin not yet
+     * restruck, the clipping: MoneySupply.spread). The same spread is friction on
+     * the NPC trade across that border.
+     */
     exchangeFee(world, fromKid, toKid) {
-        if (fromKid == null || toKid == null || fromKid === toKid) return 0;
-        const E = Mints.config().exchange;
-        const gap = Math.abs(_purity(_kingdom(world, fromKid)) - _purity(_kingdom(world, toKid)));
-        if (!(gap > 1e-9)) return 0;
-        return _clamp(gap * _num(E.perPurity), 0, _num(E.max, 0.05));
+        return MoneySupply.spread(world, fromKid, toKid);
+    },
+
+    /**
+     * A realm's coin in a line, for the market panels and the Treasury: null for
+     * sound coin at full weight; else { text, tone ('warn' | 'bad'), fn, trust }.
+     */
+    coinNote(world, k) {
+        if (!world || !k || !Mints.enabled()) return null;
+        const fn = MoneySupply.fineness(world, k);
+        const tol = _num(Mints.config().clip.tolerance, 0.03);
+        const bits = [];
+        if (fn.standard < 1) bits.push(`the mint strikes at ${Math.round(fn.standard * 100)}% silver`);
+        if (fn.lag > 0.005) bits.push(`older, finer pieces still pass (${Math.round(fn.circulating * 100)}% in hand): the rise in prices is still coming`);
+        else if (fn.lag < -0.005) bits.push(`the new, finer coin is still mixing in (${Math.round(fn.circulating * 100)}% in hand)`);
+        if (fn.clip > tol) bits.push(`the pieces are clipped (${Math.round(fn.clip * 100)}% of their weight gone)`);
+        else if (fn.clip > 0.01) bits.push(`a little worn and clipped, still passing by tale`);
+        if (!bits.length) return null;
+        const R = MoneySupply.realm(world, k.id);
+        const trust = R ? Math.round(_num(R.trust, 100)) : MoneySupply.trust(world, k, _day(world));
+        const pct = Math.round((Coinage.purityFactor(k, world) - 1) * 100);
+        const text = `${k.name}'s coin: ${bits.join('; ')}.${pct > 0 ? ` Prices here stand ${pct}% higher for it.` : ''} The people's trust in it: ${trust}/100.`;
+        return { text, tone: fn.effective < 0.9 || trust < 60 ? 'bad' : 'warn', fn, trust, pct };
     },
 
     /**
@@ -168,8 +192,10 @@ export const Mints = {
         for (const k of (world && world.kingdoms) || []) {
             if (!k || k.isAlive === false) continue;
             const R = MoneySupply.realm(world, k.id);
+            const fn = MoneySupply.fineness(world, k);
             out.push({
                 id: k.id, name: k.name, purity: _purity(k), level: MoneySupply.level(world, k.id),
+                inHand: fn.circulating, clip: fn.clip, effective: fn.effective, trust: R ? Math.round(_num(R.trust, 100)) : 100,
                 mult: Coinage.priceMultiplier(world, { kingdom: k.id }),
                 coin: R ? Math.round(R.coin) : null, perHead: R && R.pop > 0 ? _r2(R.coin / R.pop) : null,
                 trend: MoneySupply.trend(world, k.id, 4), vel: R ? R.vel : 1,
@@ -229,21 +255,30 @@ export const Mints = {
         return out;
     },
 
-    /** Crowns out of trouble call in their clipped coin. */
+    /**
+     * Crowns out of trouble call in their debased or clipped coin: when what a
+     * piece in hand is worth has fallen minGap below full weight, the debts are
+     * light, no levy runs and the chests hold treasuryCover × the cost (by the
+     * crown's temper: recoinage.cover). The realm the player rules only when the
+     * ruler left the coin to the treasurers (kingdom.finance.treasurersCoin).
+     */
     _crownsWeek(world, player, out) {
         const R = Mints.config().recoinage;
         const ruled = player ? Finance._ruledId(player) : null;
         for (const k of (world.kingdoms || []).filter(x => x && x.isAlive !== false).sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
-            if (k.id === ruled) continue;
             const f = k.finance;
-            if (!f || !(f.purity < 1 - _num(R.minGap, 0.05))) continue;
+            if (!f) continue;
+            const own = k.id === ruled;
+            if (own && f.treasurersCoin !== true) continue;
+            if (!(MoneySupply.effective(world, k) < 1 - _num(R.minGap, 0.05))) continue;
             if (_num(f.debtRatio) >= _num(R.maxDebtRatio, 0.3) || (f.levy && _num(f.levy.until) >= _day(world))) continue;
             const q = Mints.recoinQuote(world, k);
-            if (!q.ok || _num(k.treasury) < q.cost * _num(R.treasuryCover, 4)) continue;
-            const res = Mints.recoin(world, k);
-            if (res.success && player && (player.allegiance === k.id || (Mints.realmHere(player, world) || {}).id === k.id)) {
-                out.notices.push({ icon: '💰', title: 'Recoinage', text: res.text, type: 'info' });
-            }
+            const cover = _num((R.cover || {})[KingdomAI.personalityId(k)], _num(R.treasuryCover, 4));
+            if (!q.ok || _num(k.treasury) < q.cost * cover) continue;
+            const res = Mints.recoin(world, k, own ? { own: true } : {});
+            if (!res.success || !player) continue;
+            if (own) out.notices.push({ icon: '📒', title: 'The Treasurers Recoin', text: `As you allowed, your treasurers proclaim a recoinage. ${res.text}`, type: 'info' });
+            else if (player.allegiance === k.id || (Mints.realmHere(player, world) || {}).id === k.id) out.notices.push({ icon: '💰', title: 'Recoinage', text: res.text, type: 'info' });
         }
     },
 
@@ -251,9 +286,10 @@ export const Mints = {
     recoinQuote(world, k) {
         const R = Mints.config().recoinage;
         const rec = k ? MoneySupply.realm(world, k.id) : null;
-        const p = _purity(k);
+        // (what a piece in hand is worth: the standard, the old coin, the clipping)
+        const p = k ? MoneySupply.effective(world, k) : 1;
         if (!k || !rec) return { ok: false, cost: 0, reason: 'The realm has no mint yet.' };
-        if (p >= 1) return { ok: false, cost: 0, reason: 'The coin is already of full weight.' };
+        if (p >= 0.995 && _purity(k) >= 1) return { ok: false, cost: 0, reason: 'The coin is already of full weight.' };
         const last = rec.mint.lastRecoin;
         if (last != null && _day(world) - last < _num(R.cooldown, 120)) return { ok: false, cost: 0, reason: `The last recoinage was on day ${last}: the mint cannot call the coin in again so soon.` };
         // (the coin called in is the coin in the towns' purses: the markets bring it to the mint)
@@ -270,17 +306,38 @@ export const Mints = {
         if (_num(k.treasury) < q.cost) return { success: false, reason: `The treasury needs ${q.cost}g to make up the silver.` };
         const R = Mints.config().recoinage;
         const rec = MoneySupply.realm(world, k.id);
-        // The crown's silver goes into the new coin; the holders get back purity + crownShare × (1 − purity)
-        // of each piece: the towns' purses shrink by the rest
-        k.treasury = _num(k.treasury) - q.cost;
+        // The crown's coin pays for it: `labour` of the cost is the mint's wages (paid into the
+        // capital's purse: the coin moves), the rest is melted and its silver goes into the new
+        // coin. The holders get back purity + crownShare × (1 − purity) of each piece: the towns'
+        // purses shrink by the rest (their silver too is in the new coin). Every piece that leaves
+        // the world is booked 'recoin' (R.mint.melted: the treasury's, recoinTowns: the towns')
         const p = q.purity, share = _num(R.crownShare, 0.5);
-        MoneySupply.recoinTowns(world, k, p + (1 - p) * share);
+        const cut = MoneySupply.recoinTowns(world, k, p + (1 - p) * share);
+        k.treasury = _r2(_num(k.treasury) - q.cost);
+        const labour = Math.floor(q.cost * _clamp(_num(R.labour, 0.1), 0, 1));
+        const melted = _r2(q.cost - labour);
+        MoneySupply._book(rec, 'recoin', -q.cost);
+        if (labour > 0) {
+            const towns = MoneySupply.towns(world, k.id).filter(s => s.economy && Number.isFinite(s.economy.gold));
+            const cap = k.capital ? towns.find(s => s.q === k.capital.q && s.r === k.capital.r) : null;
+            const at = cap || towns.slice().sort((a, b) => _num(b.population) - _num(a.population))[0];
+            if (at) {
+                at.economy.gold = _r2(at.economy.gold + labour);
+                MoneySupply.note(world, k.id, labour, 'recoin');
+            } else {
+                // (no town to pay: the wages stay in the chests)
+                k.treasury = _r2(k.treasury + labour);
+                MoneySupply._book(rec, 'recoin', labour);
+            }
+        }
+        rec.mint.melted = _r2(_num(rec.mint.melted) + melted);
         const f = Finance.kingdomState(k);
         f.purity = 1;
+        MoneySupply.renewCoin(world, k);
         rec.mint.lastRecoin = _day(world);
         k.stability = _clamp(_num(k.stability, 50) + _num(R.stability, 2), 0, 100);
         MoneySupply.record(world, { kind: 'recoinage', kingdomId: k.id, kingdom: k.name, purity: Math.round(q.purity * 100), cost: q.cost, own: !!opts.own });
-        return { success: true, cost: q.cost, text: `${k.name} calls in its clipped coin (${Math.round(q.purity * 100)}% silver) and strikes it anew at full weight. The crown pays ${q.cost}g to make up the silver; there is less coin about, and prices ease.` };
+        return { success: true, cost: q.cost, melted, labour, cut, text: `${k.name} calls in its debased and clipped coin (${Math.round(q.purity * 100)}% silver) and strikes it anew at full weight. The crown pays ${q.cost}g to make up the silver; there is less coin about, and prices ease.` };
     },
 
     /** The player's mint lease: paid its share each week, ended by its term, by war or by conquest. */
@@ -343,7 +400,7 @@ export const Mints = {
         Ledger.record(player, 'exchange', -fee);
         st.stats.exchangeFees += fee;
         const fk = _kingdom(world, from);
-        out.notices.push({ icon: '💱', title: 'Money Changers', text: `The changers of ${here.name} assay your ${fk ? fk.name : 'foreign'} coin (${Math.round(_purity(fk) * 100)}% silver against ${Math.round(_purity(here) * 100)}%) and keep ${fee}g for the exchange.`, type: 'info' });
+        out.notices.push({ icon: '💱', title: 'Money Changers', text: `The changers of ${here.name} assay your ${fk ? fk.name : 'foreign'} coin (${Math.round(MoneySupply.effective(world, fk) * 100)}% silver against ${Math.round(MoneySupply.effective(world, here) * 100)}%) and keep ${fee}g for the exchange.`, type: 'info' });
     },
 
     // ── The mint: selling bullion ─────────────────────────
@@ -456,6 +513,23 @@ export const Mints = {
         return Finance.royalDebase(player, world);
     },
 
+    /** Whether the ruler's treasurers may debase the coin in a crisis and recoin it when the chests allow (kingdom.finance.treasurersCoin). */
+    setTreasurersCoin(player, world, on) {
+        const k = Finance.ruledKingdom(player, world);
+        if (!k) return { success: false, reason: 'You rule no realm.' };
+        const f = Finance.kingdomState(k);
+        f.treasurersCoin = !!on;
+        return { success: true, text: on
+            ? `Your treasurers may now strike baser coin when the chests of ${k.name} run dry, and call it in for a recoinage when they are full again.`
+            : `Your treasurers will not touch the coin of ${k.name}: debasing and recoining are yours alone.` };
+    },
+
+    /** May the ruler's treasurers touch the coin? */
+    treasurersCoin(player, world) {
+        const k = Finance.ruledKingdom(player, world);
+        return !!(k && k.finance && k.finance.treasurersCoin === true);
+    },
+
     // ── Counterfeiting ────────────────────────────────────
 
     counterfeitQuote(player, world, tile, stake = null) {
@@ -552,8 +626,8 @@ export const Mints = {
         if (!k || !Mints.enabled()) return null;
         const N = Mints.config().news;
         const level = MoneySupply.level(world, k.id);
-        const purity = _purity(k);
-        if (purity < 1) return { kind: 'debased', level, purity, kingdom: k.name, recoin: Mints.recoinQuote(world, k) };
+        const purity = Math.min(_purity(k), MoneySupply.effective(world, k));
+        if (purity < 0.98) return { kind: 'debased', level, purity, kingdom: k.name, recoin: Mints.recoinQuote(world, k) };
         if (level <= _num(N.shortAt, 0.94)) return { kind: 'short', level, purity, kingdom: k.name };
         if (level >= _num(N.floodAt, 1.07)) return { kind: 'flood', level, purity, kingdom: k.name };
         return null;

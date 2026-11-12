@@ -143,7 +143,7 @@ export const TownTrade = {
                 cheats: { chance: 0.04, crookedTraits: ['bold', 'stubborn'], crookedShare: 0.08, short: 0.2, caughtChance: 0.35, fineMult: 3, noticeChance: 0.4, heat: [25, 45], ...(_obj(d.cheats) || {}) },
                 wares: { perHand: 0.06, maxShare: 0.25, keep: 2, trades: {}, ...(_obj(d.wares) || {}) },
                 barter: { pairs: 3, chance: 0.25, inKind: 0.8, poorBonus: 0.25, minValue: 0.05, warm: 4, cool: 6, maxTies: 40, ...(_obj(d.barter) || {}) },
-                pedlars: { enabled: true, everyDays: 24, seed: 30, seedShare: 0.02, packValue: 36, packUnits: 4, minMargin: 1.12, daysPerHex: 1, stayDays: 6, undercut: 0.06, sellShare: 0.9, maxTrips: 8, minPurse: 6, goods: [], names: ['Wat'], bynames: ['Pedlar'], ...(_obj(d.pedlars) || {}) },
+                pedlars: { enabled: true, everyDays: 24, seed: 30, seedShare: 0.02, packValue: 36, packUnits: 4, minMargin: 1.12, daysPerHex: 1, stayDays: 6, undercut: 0.06, sellShare: 0.9, maxTrips: 8, minPurse: 6, soldOutBelow: 1, restockDays: 12, goods: [], names: ['Wat'], bynames: ['Pedlar'], ...(_obj(d.pedlars) || {}) },
                 merchants: { jobs: ['merchant'], logEvery: 90, ...(_obj(d.merchants) || {}) },
                 deals: { max: 30, ...(_obj(d.deals) || {}) },
                 onMap: { deliverChance: 0.5, hawkChance: 0.25, hawkers: [], barterChance: 0.08, barterRadius: 12, hawkStay: [18, 30], barterStay: [10, 16], ...(_obj(d.onMap) || {}) },
@@ -980,9 +980,17 @@ export const TownTrade = {
 
     /** A pedlar in this town today (walking its streets), or null. */
     pedlarIn(s, day) {
-        // (one come in off the road today walks the streets, though the town's trade step hasn't seen them yet)
+        // (one come in off the road today walks the streets, though the town's trade step hasn't seen them yet;
+        // one sold out has packed up and gone)
         return TownTrade.pedlars(s).find(p => (p.phase === 'town' || p.phase === 'road') && _num(p.arrive) <= day
-            && (p.until == null || _num(p.until) >= day)) || null;
+            && (p.until == null || _num(p.until) >= day) && !TownTrade.soldOut(p)) || null;
+    },
+
+    /** A pedlar's pack is sold out: less than pedlars.soldOutBelow units left in it. */
+    soldOut(ped) {
+        if (!ped) return true;
+        const units = Object.values(ped.pack || {}).reduce((t, n) => t + Math.max(0, _num(n)), 0);
+        return units < _num(TownTrade.config().pedlars.soldOutBelow, 1);
     },
 
     /** Fill a pedlar's pack at `from`'s market for `to`: what's dearer there, within the pack's limits. → value bought. */
@@ -1035,8 +1043,14 @@ export const TownTrade = {
             phase: 'road', arrive: day + Math.ceil(o.d * _num(P.daysPerHex, 1)), until: null, trips: 0, sold: 0,
         };
         TownTrade._fillPack(world, o.s, s, ped, day);
-        st.pedlars.push(ped);
         st.lastPedlar = day;
+        // Nothing at that market worth carrying here: no pedlar sets out, the stake goes home
+        if (TownTrade.soldOut(ped)) {
+            for (const [g, n] of Object.entries(ped.pack)) TownTrade._stockAdd(o.s, g, n);
+            Economy.payTown(o.s, ped.purse);
+            return null;
+        }
+        st.pedlars.push(ped);
         return ped;
     },
 
@@ -1085,6 +1099,11 @@ export const TownTrade = {
             else TownTrade._spawnPedlar(world, s, st, day);
         }
         for (const ped of st.pedlars.slice()) {
+            // Waiting here off the streets for this market to have something worth a pack
+            if (ped.phase === 'stock') {
+                TownTrade._pedlarRestock(world, s, st, ped, day);
+                continue;
+            }
             if (ped.phase === 'road' && _num(ped.arrive) <= day) {
                 ped.phase = 'town';
                 ped.until = day + _num(P.stayDays, 6);
@@ -1093,7 +1112,8 @@ export const TownTrade = {
             }
             if (ped.phase !== 'town') continue;
             TownTrade._doorToDoor(world, s, st, folk, hhs, rates, price, ped, day);
-            if (_num(ped.until) <= day) TownTrade._pedlarMoveOn(world, s, st, ped, day, player);
+            // The stay over, or the pack sold out: packed up and on the road
+            if (_num(ped.until) <= day || TownTrade.soldOut(ped)) TownTrade._pedlarMoveOn(world, s, st, ped, day, player);
         }
     },
 
@@ -1148,26 +1168,62 @@ export const TownTrade = {
         }
         st.pedlars = st.pedlars.filter(x => x !== ped);
         ped.trips = _num(ped.trips) + 1;
-        const next = TownTrade.neighbours(world, s).filter(n => _obj(n.s.folk) && !TownTrade.inKind(n.s) && _key(n.s) !== ped.from);
-        const to = next.length ? _pick(next, _frac(ped.id, day, 'next')) : null;
-        if (!to || ped.trips >= _num(P.maxTrips, 8) || ped.purse < _num(P.minPurse, 6)) {
-            // Off the road: the purse and what's left stay here
-            for (const [g, n] of Object.entries(ped.pack)) TownTrade._stockAdd(s, g, n);
-            Economy.payTown(s, ped.purse);
-            TownTrade._book(st, 'pedlarsSettled', 1);
-            return null;
-        }
+        const prev = ped.from;
         ped.from = _key(s);
         ped.fromName = s.name || 'a town';
+        void player;
+        return TownTrade._pedlarSetOut(world, s, st, ped, day, prev);
+    },
+
+    /**
+     * Off to the next town with a roster with a new pack bought at this one's
+     * market. When it has nothing worth carrying the pedlar waits here off the
+     * streets (phase 'stock': _pedlarRestock tries again each step); with no
+     * town to go to, too many trips or too thin a purse, off the road for good.
+     * Returns the pedlar, or null when they settled.
+     */
+    _pedlarSetOut(world, s, st, ped, day, notTo = null) {
+        const P = TownTrade.config().pedlars;
+        const next = TownTrade.neighbours(world, s).filter(n => _obj(n.s.folk) && !TownTrade.inKind(n.s) && _key(n.s) !== notTo);
+        const to = next.length ? _pick(next, _frac(ped.id, day, 'next')) : null;
+        if (!to || _num(ped.trips) >= _num(P.maxTrips, 8) || ped.purse < _num(P.minPurse, 6)) return TownTrade._pedlarSettle(s, st, ped);
+        TownTrade._fillPack(world, s, to.s, ped, day);
+        if (TownTrade.soldOut(ped)) {
+            ped.phase = 'stock';
+            if (ped.waitFrom == null) ped.waitFrom = day;
+            ped.until = null;
+            ped.prevFrom = notTo;
+            if (!st.pedlars.includes(ped)) st.pedlars.push(ped);
+            return ped;
+        }
+        st.pedlars = st.pedlars.filter(x => x !== ped);
+        delete ped.waitFrom;
+        delete ped.prevFrom;
         ped.phase = 'road';
         ped.arrive = day + Math.ceil(to.d * _num(P.daysPerHex, 1));
         ped.until = null;
-        TownTrade._fillPack(world, s, to.s, ped, day);
         const nst = TownTrade.state(to.s, day);
         nst.pedlars.push(ped);
         nst.lastPedlar = day;
-        void player;
         return ped;
+    },
+
+    /** A pedlar waiting at a town for goods: try the market again, or give up the road after restockDays. */
+    _pedlarRestock(world, s, st, ped, day) {
+        const P = TownTrade.config().pedlars;
+        if (day - _num(ped.waitFrom, day) >= _num(P.restockDays, 12)) return TownTrade._pedlarSettle(s, st, ped);
+        return TownTrade._pedlarSetOut(world, s, st, ped, day, ped.prevFrom != null ? ped.prevFrom : null);
+    },
+
+    /** Off the road: the purse and what's left stay in this town. */
+    _pedlarSettle(s, st, ped) {
+        st.pedlars = st.pedlars.filter(x => x !== ped);
+        for (const [g, n] of Object.entries(ped.pack || {})) TownTrade._stockAdd(s, g, n);
+        ped.pack = {};
+        Economy.payTown(s, ped.purse);
+        ped.purse = 0;
+        TownTrade._book(st, 'pedlarsSettled', 1);
+        return null;
     },
 
     // ──────────── MERCHANTS ────────────
@@ -1271,6 +1327,12 @@ export const TownTrade = {
         player.gold = _num(player.gold) - total;
         ped.purse = _r2(_num(ped.purse) + total);
         ped.sold = _r2(_num(ped.sold) + total);
+        // The last of the pack: packed up and off to restock (the scraps to this market, a new pack for the next town)
+        const st = _obj(s && s.townTrade);
+        if (TownTrade.soldOut(ped) && st && st.pedlars.includes(ped) && (ped.phase === 'town' || ped.phase === 'road')) {
+            TownTrade._pedlarMoveOn(world, s, st, ped, _num(world && world.day, 1), player);
+            return { ok: true, text: L.soldOut || L.done || 'Done.', price: total, qty: n, packedUp: true };
+        }
         return { ok: true, text: L.done || 'Done.', price: total, qty: n };
     },
 

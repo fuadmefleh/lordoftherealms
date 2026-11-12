@@ -234,7 +234,9 @@ export const LandMarket = {
             if (!arrears && _num(e.arrears) > 0) {
                 back = Math.min(_num(e.arrears), Math.max(0, cap - owed) * _num(R.arrearsShare, 0.5) * LandMarket.collectFactor(e.loyalty));
             }
-            const net = (paid + back) * (1 - _num(R.steward, 0.08));
+            // A bailiff over the player's estates (systems/stewards.js publishes player.stewards.estatesFx): their cut and pressure
+            const bf = e.holder === 'player' && player && player.stewards ? _obj(player.stewards.estatesFx) : null;
+            const net = (paid + back) * (1 - (bf ? _clamp(_num(bf.cut, 0.08), 0, 0.5) : _num(R.steward, 0.08))) * (bf ? _num(bf.collect, 1) : 1);
             e.lastDue = Math.round(due);
             e.lastPaid = Math.round(paid + back);
             e.lastBack = Math.round(back);
@@ -259,6 +261,11 @@ export const LandMarket = {
                         e.earned = _num(e.earned) + take;
                         e.lastRent = take;
                     }
+                    // (the bailiff's skim, out of the tenants' coin into the bailiff's pocket)
+                    if (bf && _num(bf.skim) > 0) {
+                        const pk = Math.floor(Math.min((paid + back) * _num(bf.skim), Math.max(0, _num(econ.gold))));
+                        if (pk > 0) { econ.gold = _num(econ.gold) - pk; bf.pocket = _num(bf.pocket) + pk; }
+                    }
                 }
             } else if (Estates.kindOf(e.holder) !== 'crown') {
                 // ...out of the tenants' coin (the town's purse), as the player's rent is
@@ -274,7 +281,7 @@ export const LandMarket = {
             }
             // Loyalty drifts to what the rent and the times make of it
             const target = _num(L.loyalty, 55) + (e.mode === 'kind' ? _num(R.kindBonus, 6) : 0) - (arrears ? _num(R.arrearsHit, 8) : 0)
-                + (poRecent ? _num(R.putOutBonus, 5) : 0) + (e.drained ? _num(R.drainBonus, 3) : 0) - (strike ? 5 : 0);
+                + (poRecent ? _num(R.putOutBonus, 5) : 0) + (e.drained ? _num(R.drainBonus, 3) : 0) - (strike ? 5 : 0) + (bf ? _num(bf.loyalty) : 0);
             e.loyalty = Math.round(_clamp(_num(e.loyalty, 55) + _num(R.loyaltyStep, 0.35) * (target - _num(e.loyalty, 55)), 0, 100));
             if (e.holder === 'player') LandMarket._tenantsMood(world, player, rec, live, e, L, strike, day, out);
             e.value = LandMarket.value(world, e, live, rate);

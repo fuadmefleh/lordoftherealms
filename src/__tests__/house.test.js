@@ -357,12 +357,24 @@ describe('House — Phase 4: succession with stakes', () => {
     it('a disputed succession fragments holdings when not secured', () => {
         const player = makePlayer({ gold: 1000, currentTitle: 'tax_collector', name: 'Ada' });
         House.initialize(player, { day: 0 });
+        // The rival claimants: the coin skimmed goes to the House with the deepest feud
+        player.house.rivals = { 1: { name: 'House Vell', feud: 10 }, 2: { name: 'House Orm', feud: 40, gold: 50 } };
         const res = House.processSuccession(player, { day: 1 }, { disputeChance: 1, secure: false });
         expect(res.disputed).toBe(true);
         expect(res.secured).toBe(false);
         expect(res.fragmented.length).toBeGreaterThan(0);
         expect(player.currentTitle).toBeNull(); // office lost
-        expect(player.gold).toBeLessThan(1000);  // gold skimmed
+        expect(player.gold).toBeLessThan(1000);  // gold skimmed...
+        expect(player.house.rivals[2].gold).toBe(50 + 1000 - player.gold); // ...into the claimant's purse
+        expect(player.house.rivals[1].gold).toBeUndefined();
+    });
+
+    it('a disputed succession with no rival claimant skims no coin (none is lost to nobody)', () => {
+        const player = makePlayer({ gold: 1000, name: 'Ada' });
+        House.initialize(player, { day: 0 });
+        player.house.rivals = {};
+        House.processSuccession(player, { day: 1 }, { disputeChance: 1, secure: false });
+        expect(player.gold).toBe(1000);
     });
 
     it('a disputed succession can be secured by spending Prestige', () => {

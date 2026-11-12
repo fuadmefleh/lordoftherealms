@@ -34,9 +34,19 @@
 //              league's resolve wears down week by week, with each host
 //              broken and each member lost, and grows when the player keeps
 //              growing.
+//   THE CLOCK  short of formAt, the courts' patience still wears thin: a
+//              pressure clock (systems/pressure.js, st.clock) winds weekly,
+//              faster the mightier the player (from about the watch mark
+//              up), paused while a league stands or its memory is fresh. When
+//              it is ripe the envoys ride (st.primed): for primedDays the
+//              realms band together at joinShare × joinAt hostility, so a
+//              powerful House draws a league every year or two, a middling
+//              one now and then, a weak one never.
 //   ENDINGS    appeased (concessions), humbled (the player cut down below
 //              dissolvePowerShare × formAt), broken (too few members, or
-//              resolve spent — its wars end in exhaustion). A cooldown follows.
+//              resolve spent). Every ending ends the wars the league started
+//              (in exhaustion; a member's own older war runs on). A cooldown
+//              follows.
 //   SPLITTING  the player can buy a member out (gold), seal it with a marriage
 //              (Heirs.marryForAlliance) or cede it a holding — each ends that
 //              member's war and leaves the league weaker.
@@ -70,6 +80,7 @@ import { Ships } from './ships.js';
 import { EconomyChronicle } from './economyChronicle.js';
 import { Taxation } from './marketDynamics.js';
 import { CourtLetters } from './courtLetters.js';
+import { Pressure } from './pressure.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -126,7 +137,7 @@ const DEFAULTS = {
         hostBroken: -4, holdingTaken: 3, powerGrowth: 0.2, turnedAgent: -4, exposedAgent: -8,
     },
     dissolvePowerShare: 0.6,
-    cooldown: { appeased: 360, broken: 240, humbled: 180 },
+    cooldown: { appeased: 600, broken: 480, humbled: 360 },
     heirShare: 0.6,
     chill: { leader: 25, member: 15 },
     relationsFloor: -40,
@@ -189,6 +200,8 @@ export const Coalitions = {
             active: null,        // the league against the player, or null
             history: [],         // past leagues: { id, name, leader, members, formed, ended, how }
             cooldownUntil: 0,
+            primed: null,        // the pressure clock ran out: envoys ride ({ day, might, score }; systems/pressure.js)
+            clock: null,         // the pressure clock (systems/pressure.js)
             generation: null,    // the House generation last seen (heirs)
             nextId: 1,
             stats: { formed: 0, appeased: 0, humbled: 0, broken: 0, boughtOff: 0, married: 0, ceded: 0, defied: 0 },
@@ -203,6 +216,7 @@ export const Coalitions = {
         if (!_obj(st.realms)) st.realms = {};
         if (!Array.isArray(st.history)) st.history = [];
         if (!_obj(st.active)) st.active = null;
+        if (!_obj(st.primed)) st.primed = null;
         st.pressure = _num(st.pressure);
         st.cooldownUntil = _num(st.cooldownUntil);
         if (!Number.isFinite(st.nextId)) st.nextId = 1;
@@ -462,10 +476,21 @@ export const Coalitions = {
             Coalitions._tickActive(player, world, power, assessed, out);
             return;
         }
-        if (power.score >= form) st.pressure++;
+        // The pressure clock: the courts tire of a rising House even short of formAt
+        const PC = Pressure.clockConfig('coalition');
+        const might = Pressure.mightOf(power.score);
+        const clk = Pressure.wind(st, 'coalition', might, day, { days: _num(C.cadence, 7), seed: _seed(world), paused: day < st.cooldownUntil, generation: gen });
+        if (st.primed && day - _num(st.primed.day) > _num(PC.primedDays, 28)) st.primed = null; // the talk came to nothing
+        if (clk.ripe && !st.primed && day >= st.cooldownUntil) {
+            st.primed = { day, might, score: power.score };
+            Pressure.spend(st, day);
+        }
+        const primed = !!st.primed;
+        if (power.score >= form || primed) st.pressure++;
         else st.pressure = Math.max(0, st.pressure - 1);
         if (day < st.cooldownUntil) return;
-        const hostile = assessed.filter(a => a.hostility >= _num(C.joinAt));
+        const joinAt = primed && power.score < form ? _num(C.joinAt) * _num(PC.joinShare, 0.6) : _num(C.joinAt);
+        const hostile = assessed.filter(a => a.hostility >= joinAt);
         if (st.pressure === 1 && hostile.length >= _num(C.minMembers, 2)) {
             out.notices.push({ icon: '🕊️', title: 'Envoys on the Roads', text: `Envoys ride between ${hostile.slice(0, 3).map(a => a.name).join(', ')}. Talk in the courts is of a league against ${player.house ? player.house.name : 'you'}. (See Dynasty → Threats.)`, type: 'warning' });
         }
@@ -551,8 +576,10 @@ export const Coalitions = {
             members, bought: [], log: [], tally: {},
             terms: Coalitions.concessionQuote(player, world, { power: power.score, members: pool.length }),
         };
+        if (st.primed) c.via = 'pressure';
         st.active = c;
         st.pressure = 0;
+        st.primed = null;
         st.stats.formed++;
         Coalitions._log(c, day, `${name} is sworn at the court of ${leader.k.name}: ${pool.map(x => x.k.name).join(', ')}. ${casusBelli}`);
         if (player.house) House._chronicle(player.house, world, `${name} is sworn against ${houseName} — ${pool.map(x => x.k.name).join(', ')}, led by ${leader.k.name}. ${casusBelli}`, ['coalition', 'war']);
@@ -642,6 +669,7 @@ export const Coalitions = {
             declared = true;
         } else if (RealmWars.atWarWith(player, k.id)) {
             m.war = 'holdings';
+            m.priorWar = true; // its own war, older than the league: the league's end does not end it
         }
         // A crown the player rules: a war between the realms and an embargo
         if (realm && realm !== k) {
@@ -651,7 +679,7 @@ export const Coalitions = {
                 if (Array.isArray(world.events)) world.events.push({ text: `⚔️ ${k.name} marches on ${realm.name} for ${c.name}!`, type: 'military', kingdom: realm.id });
                 m.realmWar = realm.id;
                 declared = true;
-            } else if ((k.wars || []).includes(realm.id)) m.realmWar = realm.id;
+            } else if ((k.wars || []).includes(realm.id)) { m.realmWar = realm.id; m.priorRealmWar = true; }
             TradePolicy._embargo(world, k, realm, 'coalition');
             m.embargo = realm.id;
         }
@@ -679,8 +707,9 @@ export const Coalitions = {
             if (e && e.why === 'coalition') TradePolicy._lift(world, k, realm);
         }
         if (opts.endWars && k) {
-            if (RealmWars.atWarWith(player, k.id)) RealmWars.endWar(player, world, k.id, opts.how || 'exhaustion');
-            if (realm && (k.wars || []).includes(realm.id)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${realm.name} and leaves ${c.name}.` });
+            // (a disbanding league ends only the wars it started: opts.leagueWarsOnly)
+            if (RealmWars.atWarWith(player, k.id) && !(opts.leagueWarsOnly && m.priorWar)) RealmWars.endWar(player, world, k.id, opts.how || 'exhaustion');
+            if (realm && (k.wars || []).includes(realm.id) && !(opts.leagueWarsOnly && m.priorRealmWar)) KingdomAI.endWar(k, realm, world, { text: `🕊️ ${k.name} makes peace with ${realm.name} and leaves ${c.name}.` });
         }
         Coalitions._log(c, day, `${m.name} leaves ${c.name}: ${why}.`);
     },
@@ -767,7 +796,13 @@ export const Coalitions = {
         }
     },
 
-    /** The league disbands. how: 'appeased' | 'humbled' | 'broken'. */
+    /**
+     * The league disbands. how: 'appeased' | 'humbled' | 'broken'. The wars
+     * it started end with it (in exhaustion, unless opts.how says otherwise):
+     * with no league and no resolve left, nothing else would end them. A
+     * member's own war, older than the league, runs on. opts.endWars: false
+     * keeps every war.
+     */
     _end(player, world, how, why, out, opts = {}) {
         const C = Coalitions.config();
         const st = Coalitions.state(player);
@@ -775,15 +810,21 @@ export const Coalitions = {
         if (!c) return null;
         const day = _day(world);
         for (const m of Coalitions.members(player)) {
-            Coalitions._leave(player, world, c, m, how === 'appeased' ? 'the terms were met' : 'the league disbands', { endWars: !!opts.endWars, how: opts.how || 'exhaustion' });
+            Coalitions._leave(player, world, c, m, how === 'appeased' ? 'the terms were met' : 'the league disbands',
+                { endWars: opts.endWars !== false, leagueWarsOnly: true, how: opts.how || 'exhaustion' });
         }
         c.stage = 'ended';
         c.ended = day;
         c.how = how;
         if (!opts.keepLetter) Coalitions._closeLetter(player, c);
         st.history.unshift({
-            id: c.id, name: c.name, leaderName: c.leaderName, casusBelli: c.casusBelli,
+            id: c.id, name: c.name, leaderName: c.leaderName, casusBelli: c.casusBelli, cb: c.cb || null,
             members: Object.values(c.members).map(m => m.name), formed: c.formed, ended: day, how, why,
+            activeDay: Number.isFinite(c.activeDay) ? c.activeDay : null,
+            // who left before the end, and why (bought out, wed, humbled, fallen...)
+            left: Object.values(c.members).filter(m => m.left && m.why && m.why !== 'the league disbands' && m.why !== 'the terms were met')
+                .map(m => ({ name: m.name, why: m.why, day: Number.isFinite(m.leftDay) ? m.leftDay : null })),
+            via: c.via || null,
             generation: c.generation,
         });
         if (st.history.length > 12) st.history.length = 12;
@@ -952,7 +993,7 @@ export const Coalitions = {
             }
         }
         if (Coalitions.members(player).length < _num(C.minMembers, 2)) {
-            Coalitions._end(player, world, 'broken', 'you split its members apart', out, { endWars: false });
+            Coalitions._end(player, world, 'broken', 'you split its members apart', out);
         } else if (c.resolve <= 0) {
             Coalitions._end(player, world, 'broken', 'its members have lost heart', out, { endWars: true });
         }
@@ -1005,6 +1046,7 @@ export const Coalitions = {
         return {
             power, realms, active: st.active, history: st.history, pressure: st.pressure,
             cooldownUntil: st.cooldownUntil, stats: st.stats,
+            clock: Pressure.progress(st, 'coalition', _seed(world)), primed: st.primed || null,
             concern: Coalitions.concernThreshold(player), form: Coalitions.formThreshold(player),
             joinAt: Coalitions.config().joinAt, quote: st.active ? Coalitions.concessionQuote(player, world) : null,
         };

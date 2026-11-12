@@ -495,7 +495,7 @@ describe('royal bonds', () => {
 });
 
 describe('coinage and debasement', () => {
-    it('debasement gives the crown gold and raises prices in its markets only, via Economy.marketPrice', () => {
+    it('debasement gives the crown gold and raises prices in its markets only, via Economy.marketPrice (no coin in hand yet: at once)', () => {
         const game = fresh();
         const w = game.world;
         const k = w.kingdoms.find(x => x.isAlive !== false);

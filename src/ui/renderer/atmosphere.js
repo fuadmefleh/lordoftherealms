@@ -4,6 +4,7 @@
 // eased across the last days of each season. Presentation only.
 import { Renderer } from './core.js';
 import { Hex } from './_imports.js';
+import { Climate } from '../../world/climate.js';
 
 const SEASON_ORDER = ['Spring', 'Summer', 'Autumn', 'Winter'];
 // soft: a soft-light wash [r, g, b, a]; desat: how far colour is drained (0–1); frost: a pale lift (0–1)
@@ -32,8 +33,12 @@ Object.assign(Renderer.prototype, {
         const t = Math.max(0, (dayOfSeason - (30 - BLEND_DAYS)) / BLEND_DAYS);
         const mix = (a, b) => a + (b - a) * t;
         const soft = cur.soft.map((v, i) => mix(v, next.soft[i]));
-        const desat = mix(cur.desat, next.desat);
-        const frost = mix(cur.frost, next.frost);
+        let desat = mix(cur.desat, next.desat);
+        let frost = mix(cur.frost, next.frost);
+        // The climate's era tints the age (world/climate.js): a pale little ice age, a dusty drought
+        let era = null;
+        try { era = Climate.grade(world); } catch (e) { era = null; }
+        if (era) { desat = Math.min(0.7, desat + era.desat); frost = Math.min(0.2, frost + era.frost); }
 
         const w = this.canvas.width, h = this.canvas.height;
         ctx.save();
@@ -45,6 +50,11 @@ Object.assign(Renderer.prototype, {
         if (soft[3] > 0.01) {
             ctx.globalCompositeOperation = 'soft-light';
             ctx.fillStyle = `rgba(${soft[0] | 0},${soft[1] | 0},${soft[2] | 0},${soft[3].toFixed(3)})`;
+            ctx.fillRect(0, 0, w, h);
+        }
+        if (era && era.soft[3] > 0.005) {
+            ctx.globalCompositeOperation = 'soft-light';
+            ctx.fillStyle = `rgba(${era.soft[0] | 0},${era.soft[1] | 0},${era.soft[2] | 0},${era.soft[3].toFixed(3)})`;
             ctx.fillRect(0, 0, w, h);
         }
         if (frost > 0.005) {

@@ -62,6 +62,7 @@
         "giftMedicine": 0.55,
         "giftFood": 0.85,
         "giftSaveChance": 0.3,
+        "giftKarma": 1,
         "min": 0.2,
         "medicines": ["herbs", "rare_herbs", "healing_salve", "potion", "elixir", "holy_water", "antidote"],
         "foods": ["bread", "food", "meat", "fish", "cheese", "sausage", "apples", "pears", "eggs", "honey", "berries", "cabbage", "carrots", "turnips", "beans", "game_meat", "cider", "mead"]
@@ -73,7 +74,9 @@
         "fundedCare": 0.6,
         "alms": { "village": 25, "town": 45, "city": 70, "capital": 100 },
         "almsDays": 30,
-        "karma": 2
+        "karma": 2,
+        "karmaMinNeedy": 1,
+        "_karma": "Karma for paying the healer or giving alms comes only for real charity: when at least karmaMinNeedy are sick (the healer) or poor (alms) here, and once per fund's month — paying again while it runs tops up the pool and earns none."
     },
     "player": { "perCase": 0.0035, "cap": 0.06, "contactMult": 4, "contactDays": 1 },
     "outbreak": { "minCases": 3, "plagueMin": 1, "epidemicShare": 0.12 },

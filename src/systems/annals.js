@@ -35,6 +35,12 @@ import { Fame } from './fame.js';
 import { Ledger } from './ledger.js';
 import { Achievements } from './achievements.js';
 import { NpcBrain } from './npcBrain.js';
+import { LlmProse } from './llmProse.js';
+
+// What the daily scribe tick last saw, per world (not saved: a load just looks once more)
+const _autoMemo = new WeakMap();
+import { Crises } from './crises.js';
+import { Climate } from '../world/climate.js';
 
 const DEFAULTS = {
     minWeight: 4, minEvents: 4, maxEventsPerChapter: 40, maxEventsPerYear: 6, quietGapYears: 3,
@@ -241,7 +247,7 @@ export const Annals = {
         const inReign = (d) => Number.isFinite(d) && d >= from && d <= to;
         const name = _firstName(reign.name);
         const out = [];
-        const add = (day, text, tags) => {
+        const add = (day, text, tags, battle = null) => {
             let t = _clean(text);
             for (const [re, to] of _arr(C.rewrites)) {
                 const m = new RegExp(re).exec(t);
@@ -249,7 +255,7 @@ export const Annals = {
             }
             t = _pastTense(t, C.pastTense);
             t = _sentence(t);
-            if (t) out.push({ day: _num(day), text: t, tags, weight: Annals.weight(tags), theme: Annals.theme(tags) });
+            if (t) out.push({ day: _num(day), text: t, tags, weight: Annals.weight(tags), theme: Annals.theme(tags), ...(_obj(battle) ? { battle } : {}) });
         };
 
         // The House chronicle: this generation's entries (the accession and the
@@ -261,7 +267,7 @@ export const Annals = {
             if (!reign.live && _num(h.day) > to) continue;
             if (tags.includes('succession') || tags.includes('founding') || tags.includes('ended')) continue;
             seen.add(h.text);
-            add(h.day, h.text, tags);
+            add(h.day, h.text, tags, h.battle);
         }
         // A reign whose entries the chronicle no longer holds keeps its highlights
         for (const hl of _arr(reign.highlights)) {
@@ -305,7 +311,8 @@ export const Annals = {
         for (const [key, rec] of Object.entries(pil)) {
             if (!rec || !rec.name || !inReign(_num(rec.day, NaN))) continue;
             const n = _num(rec.n, 1);
-            add(rec.day, _fill(_pick(C.pilgrimage, `pil:${key}:${rec.day}`), { name, site: rec.name, times: n > 1 ? `, for the ${_ord(n)} time` : '' }), ['faith']);
+            // (a devotion: the faith theme's 'piety' tag, data/annals.json themes)
+            add(rec.day, _fill(_pick(C.pilgrimage, `pil:${key}:${rec.day}`), { name, site: rec.name, times: n > 1 ? `, for the ${_ord(n)} time` : '' }), ['faith', 'piety']);
         }
         // The same tidings told again (a claim's strength rising, a guild pressing
         // once more): the latest telling stands
@@ -539,6 +546,9 @@ export const Annals = {
         }
         const religion = reign.religion || (reign.live && player.religion && player.religion.name);
         if (religion && (!ctx.prevReign || ctx.prevReign.religion !== religion)) faith.push(_fill(S.faithFounded, { ...v, religion }));
+        // A pious name (faithTraits: the traits that speak of faith)
+        const pious = _arr(reign.traits).filter(id => _arr(C.faithTraits).includes(id)).map(id => Traits.TRAITS[id]).filter(Boolean).map(t => `the ${t.name}`);
+        if (pious.length) faith.push(_fill(S.faithName || 'Men called {obj} {traits}.', { ...v, traits: _list(pious) }));
         para('faith', faith);
 
         // Infamy: blood, crime, whispers, a dark name
@@ -565,7 +575,15 @@ export const Annals = {
         dv.yearsS = _s(dv.years);
         const death = [];
         if (reign.live) death.push(_fill(_pick(D.live, `dl:${k}`), dv));
-        else death.push(_fill(_pick(reign.cause ? D.closed : D.closedNoCause, `dc:${k}`), dv));
+        else if (reign.abdicated && D.abdicated) {
+            // Stepped down, not dead: the abdication, then the years out of the seat (systems/abdication.js)
+            const ab = reign.abdicated;
+            const ed = reign.elderDeath;
+            const av = { ...dv, heir: ab.to || 'the heir' };
+            death.push(_fill(_pick(ab.how === 'forced' && D.abdicatedForced ? D.abdicatedForced : D.abdicated, `da:${k}`), av));
+            if (ed) death.push(_fill(_pick(D.elderDied, `de:${k}`), { ...av, diedYear: Annals.year(world, ed.day), diedAge: ed.age || '?', elderCause: ed.cause || 'old age' }));
+            else death.push(_fill(_pick(D.elderLives, `dz:${k}`), av));
+        } else death.push(_fill(_pick(reign.cause ? D.closed : D.closedNoCause, `dc:${k}`), dv));
         if (!reign.live && epithet) death.push(_fill(_pick(D.remembered, `rm:${k}`), dv));
         para('death', death);
         return out;
@@ -730,6 +748,10 @@ export const Annals = {
             chapters,
             legacy: Annals._legacy(player, world, reigns, ctx),
             before: ctx.archived ? [] : _arr(player.annalsPast),
+            // The age's crises the House lived through, each a chapter of its own (systems/crises.js)
+            // ...and the climate's eras: little ice ages, droughts, warm ages (world/climate.js)
+            ages: [...Crises.annalChapters(world, _num(house.foundedDay)), ...Climate.annalChapters(world, _num(house.foundedDay))]
+                .sort((a, b) => _num(a.fromYear) - _num(b.fromYear)),
             day: _num(world && world.day),
         };
     },
@@ -770,15 +792,155 @@ export const Annals = {
             }
         };
         tell(book);
+        for (const a of _arr(book.ages)) {
+            lines.push('', a.title, '-'.repeat(Math.min(72, a.title.length)), '');
+            for (const p of a.paragraphs || []) lines.push(p.text, '');
+        }
         for (const b of _arr(book.before).slice().reverse()) { lines.push(''); tell(b); }
         return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
     },
 
     // ── The court scribe ────────────────────────────────
 
-    /** Is the scribe (the local LLM, systems/npcBrain.js) switched on? */
+    /** Is the scribe (the LLM, systems/npcBrain.js) switched on, and allowed the Annals? */
     scribeAvailable() {
-        return NpcBrain.isEnabled();
+        return NpcBrain.isEnabled() && LlmProse.category('annals');
+    },
+
+    /** The House's id in prose keys (as the chronicle book has it: house.id, else its name). */
+    proseHouseId(player) {
+        const h = player && player.house;
+        return (h && (h.id || h.name)) || 'house';
+    },
+
+    /** world.prose key of a chapter's retelling (systems/llmProse.js; data/chronicleBook.json proseKeys). */
+    chapterKey(player, chapterOrId) {
+        const id = chapterOrId && typeof chapterOrId === 'object' ? chapterOrId.id : chapterOrId;
+        return `annals:${Annals.proseHouseId(player)}:${id}`;
+    },
+
+    /** world.prose key of a closed reign's summary. */
+    reignKey(player, chapterOrId) {
+        const id = chapterOrId && typeof chapterOrId === 'object' ? chapterOrId.id : chapterOrId;
+        return `reign:${Annals.proseHouseId(player)}:${id}`;
+    },
+
+    /** A chapter's facts for the scribe: its title, ruler, years and the annals' own sentences. */
+    chapterFacts(chapter) {
+        return {
+            title: chapter.title, ruler: chapter.ruler, epithet: chapter.epithet || null,
+            years: chapter.fromYear === chapter.toYear ? `${chapter.fromYear}` : `${chapter.fromYear} to ${chapter.live ? 'the present' : chapter.toYear}`,
+            stillReigning: !!chapter.live,
+            annals: _arr(chapter.paragraphs).map(p => p.text).filter(Boolean),
+        };
+    },
+
+    /** Hand a chapter to the scribe (LlmProse); returns the text shown now. Never throws. */
+    writeChapter(world, player, chapter) {
+        if (!chapter || !chapter.text) return chapter ? chapter.text || '' : '';
+        const S = Annals.config().scribe || {};
+        return LlmProse.write(world, {
+            kind: 'annals', key: Annals.chapterKey(player, chapter),
+            facts: Annals.chapterFacts(chapter), fallback: chapter.text,
+            style: typeof S.style === 'string' ? S.style : null,
+        });
+    },
+
+    /** A closed reign's facts (Legacy's record) and its plain summary. */
+    reignFacts(world, rec) {
+        const facts = {
+            ruler: rec.name, epithet: rec.epithet || null, generation: rec.generation || 1,
+            fromYear: Annals.year(world, _num(rec.startDay)), toYear: Annals.year(world, _num(rec.endDay)),
+            yearsReigned: Math.max(0, Math.round(_num(rec.years))), ageAtDeath: _num(rec.endAge) || null, cause: rec.cause || null,
+            crown: rec.crown || null, office: rec.title || null,
+        };
+        const tallies = [['battles', 'battles won'], ['crownsWon', 'crowns won'], ['titles', 'titles gained'], ['settlements', 'settlements taken'],
+            ['wars', 'wars declared'], ['children', 'children born'], ['nobleMarriages', 'noble marriages'], ['greatWorks', 'great works raised'],
+            ['rebellionsCrushed', 'rebellions crushed'], ['rivalsBested', 'rivals bested'], ['petitionsRuled', 'petitions ruled'], ['prestigeGained', 'prestige gained']];
+        facts.deeds = tallies.filter(([k]) => _num(rec[k]) > 0).map(([k, label]) => `${_num(rec[k])} ${label}`);
+        facts.knownAs = _arr(rec.traits).map(id => Traits.TRAITS[id]).filter(Boolean).map(t => `the ${t.name}`);
+        facts.highlights = _arr(rec.highlights).slice(-8).map(h => h && h.text).filter(Boolean);
+        const name = rec.name || 'The ruler';
+        const parts = [`${name}${rec.epithet ? ` ${rec.epithet}` : ''} ruled ${facts.yearsReigned} year${_s(facts.yearsReigned)}, from the year ${facts.fromYear} to the year ${facts.toYear}${rec.abdicated ? `, and stepped down${rec.abdicated.how === 'forced' ? ' at the demand of the court' : ''}${rec.elderDeath ? `; died of ${rec.elderDeath.cause || 'old age'} in the year ${Annals.year(world, rec.elderDeath.day)}` : ''}` : rec.cause ? `, and died of ${rec.cause}` : ''}.`];
+        if (rec.crown) parts.push(`${name} wore the crown of ${rec.crown}.`);
+        if (facts.deeds.length) parts.push(`The reign counted ${_list(facts.deeds.slice(0, 5))}.`);
+        if (facts.knownAs.length) parts.push(`Men called ${name} ${_list(facts.knownAs)}.`);
+        return { facts, fallback: parts.join(' ') };
+    },
+
+    /** File a closed reign's summary with the scribe (kept forever). Never throws. */
+    writeReign(world, player, rec) {
+        try {
+            if (!rec || rec.startDay == null) return '';
+            const id = `g${rec.generation || 1}_${rec.startDay}`;
+            const { facts, fallback } = Annals.reignFacts(world, rec);
+            return LlmProse.write(world, { kind: 'reign', key: Annals.reignKey(player, id), facts, fallback });
+        } catch (e) {
+            return '';
+        }
+    },
+
+    /** world.prose key of an ended House's epitaph (data/chronicleBook.json proseKeys). */
+    epitaphKey(player) {
+        return `epitaph:${Annals.proseHouseId(player)}`;
+    },
+
+    /**
+     * An ended House's epitaph (Legacy.epitaph's view) for the scribe — kept
+     * forever. Returns the text shown now (the plain epitaph). Never throws.
+     * Callers: player/afterlife.js (a new life), ui/actionMenu/heirs.js (the line let end).
+     */
+    writeEpitaph(world, player, epitaph) {
+        try {
+            if (!epitaph || !player || !player.house) return '';
+            const house = player.house;
+            const ended = _obj(house.ended) || {};
+            const rulers = _arr(epitaph.reigns).map(r => `${r.name}${r.epithet ? ` ${r.epithet}` : ''}`).filter(Boolean);
+            const years = Math.round(_num(epitaph.years));
+            const gens = _num(epitaph.generations, 1);
+            const crowns = _num(epitaph.crowns);
+            const facts = {
+                house: epitaph.houseName, motto: epitaph.motto || null, generations: gens, yearsOfTheLine: years,
+                crownsWon: crowns || null, standing: epitaph.rank && epitaph.rank.label, rulers,
+                rememberedFor: epitaph.best ? `${epitaph.best.name}${epitaph.best.epithet ? ` ${epitaph.best.epithet}` : ''}` : null,
+                lastRuler: ended.lastRuler || null, cause: ended.cause || null,
+                endedInYear: ended.day != null ? Annals.year(world, _num(ended.day)) : null,
+            };
+            const fallback = `Here ends the line of ${epitaph.houseName}: ${gens} generation${_s(gens)} over ${years} year${_s(years)}${crowns ? `, and ${crowns} crown${_s(crowns)} won` : ''}.${epitaph.line ? ` ${epitaph.line}` : ''}`;
+            return LlmProse.write(world, { kind: 'epitaph', key: Annals.epitaphKey(player), facts, fallback });
+        } catch (e) {
+            return '';
+        }
+    },
+
+    /**
+     * The daily tick (ui/game/endDay.js). With the scribe on (and allowed the
+     * Annals): every closed reign gets its summary once (from Legacy's record),
+     * every closed chapter is written once, and the living chapter afresh each year — all
+     * kept in world.prose and saved. Reads only; draws no randomness; never throws.
+     */
+    processDay(world, player) {
+        try {
+            if (!world || !player || !player.house || player._isDead) return;
+            const house = player.house;
+            const reigns = _arr(house.reigns);
+            const hid = Annals.proseHouseId(player);
+            const memo = _autoMemo.get(world) || {};
+            const on = LlmProse.canWrite('annals');
+            const year = Annals.year(world, _num(world.day));
+            const changed = memo.reigns !== reigns.length || memo.hid !== hid;
+            // (the model off: nothing is filed — the chapters' own death paragraphs stand)
+            if (on && (changed || !memo.on)) for (const rec of reigns) Annals.writeReign(world, player, rec);
+            if (on && (changed || memo.year !== year || !memo.on)) {
+                const book = Annals.compose(player, world);
+                for (const c of book.chapters) Annals.writeChapter(world, player, c);
+            }
+            _autoMemo.set(world, { reigns: reigns.length, hid, year, on });
+        } catch (e) {
+            /* the annals stand as written */
+        } finally {
+            if (world) LlmProse.processDay(world);
+        }
     },
 
     /**

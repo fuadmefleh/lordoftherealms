@@ -28,6 +28,14 @@
 // no RNG during world generation or before its first saga starts. Templates
 // are chosen to fit the world (coasts for Sea Reavers, peaks for the wyrm).
 //
+// Pressure: the stage grows with the player (systems/pressure.js, tuned in
+// data/coalitions.json → pressure.clocks.saga). The mightier the House, the
+// shorter the gap between sagas (gapMult, weak → strong), the sooner a told
+// story may come round again (repeatMult), one more may run at once
+// (extraActiveAt), and past hookAt word of a new saga is brought to the
+// player's court at once, so it can be joined. A weak wanderer waits longer
+// and hears of them by chance. The gap roll is drawn as before and scaled.
+//
 // Content lives in data/sagas.json; state on player.sagas (saved with the
 // player). World-side traces live where they belong (world.activeEvents,
 // tile.improvement, kingdom.religion.heresies, player.throne crises); saga
@@ -50,6 +58,7 @@ import { Quests } from './quests.js';
 import { Ailments } from './ailments.js';
 import { Underworld } from './underworld.js';
 import { Taxation } from './marketDynamics.js';
+import { Pressure } from './pressure.js';
 
 const DEFAULT_CONFIG = {
     firstStart: [60, 120],
@@ -1024,8 +1033,10 @@ export const Sagas = {
         const day = _day(world);
         const cfg = Sagas.config();
         const running = new Set(st.active.map(s => s.id));
+        // A mighty House sees the great stories come round sooner
+        const repeat = cfg.repeatAfterDays * Pressure.lerp(Pressure.clockConfig('saga').repeatMult, Pressure.might(player, world).might, 1);
         return Object.entries(Sagas.templates())
-            .filter(([id]) => !running.has(id) && !(st.used[id] != null && day - st.used[id] < cfg.repeatAfterDays))
+            .filter(([id]) => !running.has(id) && !(st.used[id] != null && day - st.used[id] < repeat))
             .map(([id, t]) => ({ id, t, weight: _num(t.weight) || 1 }));
     },
 
@@ -1090,14 +1101,22 @@ export const Sagas = {
         const notify = (icon, title, text, type = 'info') => out.notices.push({ icon, title, text, type });
         const cfg = Sagas.config();
 
-        // Schedule (no RNG until a saga actually starts)
+        // Schedule (no RNG until a saga actually starts). The House's might
+        // shortens the gap, lets one more run, and brings word to its court.
         if (st.nextStartDay == null) st.nextStartDay = Sagas._firstStartDay(world);
-        if (day >= st.nextStartDay && st.active.length < cfg.maxActive) {
+        const SP = Pressure.clockConfig('saga');
+        const might = day >= st.nextStartDay ? Pressure.might(player, world).might : 0;
+        const maxActive = cfg.maxActive + (Pressure.config().enabled !== false && SP.extraActiveAt != null && might >= SP.extraActiveAt ? 1 : 0);
+        if (day >= st.nextStartDay && st.active.length < maxActive) {
             const saga = Sagas.start(player, world);
-            st.nextStartDay = day + _roll(cfg.gapDays);
+            st.nextStartDay = day + Math.max(10, Math.round(_roll(cfg.gapDays) * Pressure.lerp(SP.gapMult, might, 1)));
             if (saga) {
                 const tmpl = Sagas.template(saga.id);
                 Sagas._enter(player, world, saga, tmpl.start, notify);
+                if (Pressure.config().enabled !== false && SP.hookAt != null && might >= SP.hookAt && !saga.known) {
+                    saga.hooked = true;
+                    Sagas._hear(player, world, saga, 'Word is brought to your court, as to one of the great of the land:', notify);
+                }
             }
         }
 

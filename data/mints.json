@@ -71,16 +71,39 @@
         },
         "seignHistory": 8
     },
-    "_recoinage": "A recoinage edict calls in the coin in the towns' purses and strikes it anew at full purity. Holders get back purity + crownShare x (1 - purity) of each piece (the towns' purses shrink: prices fall); the crown pays crownShare x (1 - purity) x that coin from its treasury (its silver goes into the new coin), and the realm's stability moves `stability`. A crown out of trouble (debt ratio under maxDebtRatio, treasury above treasuryCover x the cost) proclaims one by itself; the player as ruler may at any time. Not again within cooldown days. (Debasement, systems/finance.js: the holders get back as many pieces as they brought; the crown keeps the extra pieces in its treasury, and they swell the coin in circulation as it spends them.)",
+    "_recoinage": "A recoinage edict calls in the coin in the towns' purses and strikes it anew at full purity. Holders get back purity + crownShare x (1 - purity) of each piece (the towns' purses shrink: prices fall); the crown pays crownShare x (1 - purity) x that coin from its treasury: `labour` of it is the mint's wages, paid into the capital's purse; the rest is melted and its silver goes into the new coin (booked 'recoin'; R.mint.melted), and the realm's stability moves `stability`. A crown out of trouble (debt ratio under maxDebtRatio, treasury above treasuryCover x the cost) proclaims one by itself; the player as ruler may at any time. Not again within cooldown days. (Debasement, systems/finance.js: the holders get back as many pieces as they brought; the crown keeps the extra pieces in its treasury, and they swell the coin in circulation as it spends them.)",
     "recoinage": {
         "crownShare": 0.5,
+        "labour": 0.1,
         "stability": 2,
         "maxDebtRatio": 0.3,
         "treasuryCover": 4,
         "cooldown": 120,
-        "minGap": 0.05
+        "minGap": 0.05,
+        "cover": { "mercantile": 2.5, "peaceful": 3, "balanced": 4, "militaristic": 5, "aggressive": 6 }
     },
-    "_exchange": "Money changers: carrying gold into a realm whose coin is of another purity costs perPurity x the purity gap of the gold carried (at most max), when the purse holds at least minGold and was not assayed in the last cooldownDays (a traveller criss-crossing a border pays once, not at every crossing). Recorded as 'exchange' in the ledger. The rate shown between two coins is their silver content (purity) ratio.",
+    "_debasement": "Debasing (systems/finance.js debase; MoneySupply.setStandard / restrike): the mint's standard (kingdom.finance.purity) drops a step at once, but the coin in hand does not: the old finer pieces (the 'lag') are brought in to be restruck week by week. The crown restrikes its own chests at once and firstCall of the old coin is brought in on the day; then restrike of what is left each week. Each time the holders get back as many pieces as they brought and the crown keeps the extra pieces the same silver makes (coin made only from silver already struck: booked 'debase'). Prices follow the coin in hand (Coinage.purityFactor with the world), so the inflation comes on over months. hoard: while the old finer pieces are about, people keep them back and spend the base ones (velocity falls by hoard x lag: Gresham at home). mix: a better standard (new silver, recoinPerDay) mixes into the coin in hand at this share of the gap a week.",
+    "debasement": {
+        "firstCall": 0.3,
+        "restrike": 0.12,
+        "mix": 0.1,
+        "hoard": 0.6
+    },
+    "_clip": "Clipping: every week the clippers shave rate x (0.5 + unrest x (1 - stability/100)) x the coin's fineness of the weight off the pieces in hand, up to max. The shavings are silver: melted and sold in the realm's largest market as silver ore (fine coin / mint.fine.silver_ore a unit), which the mint buys back like any ore, so no metal is lost. Coin passes by tale until it is clipped past `tolerance`; beyond that what a piece is worth (MoneySupply.fineness effective) falls and prices rise. A recoinage ends the clipping.",
+    "clip": {
+        "rate": 0.0006,
+        "max": 0.12,
+        "tolerance": 0.03,
+        "unrest": 1
+    },
+    "_trust": "The people's and merchants' trust in their coin, 0-100 (MoneySupply.trust): 100 - perPurity x (1 - the baser of standard and coin in hand) - perClip x the clipping past tolerance - a recent crown default - 10 a past default (at most 30). Below moodAt, each of the realm's towns loses mood x (moodAt - trust) / moodAt happiness a week.",
+    "trust": {
+        "moodAt": 80,
+        "mood": 1,
+        "perPurity": 150,
+        "perClip": 150
+    },
+    "_exchange": "Money changers: carrying gold into a realm whose coin is of another worth costs perPurity x the gap in what a piece in hand is worth (the standard, old coin not yet restruck, clipping: MoneySupply.spread) of the gold carried (at most max); the same spread is extra friction NPC trade across that border must beat (link.changers), when the purse holds at least minGold and was not assayed in the last cooldownDays (a traveller criss-crossing a border pays once, not at every crossing). Recorded as 'exchange' in the ledger. The rate shown between two coins is their silver content (purity) ratio.",
     "exchange": {
         "perPurity": 0.25,
         "max": 0.05,

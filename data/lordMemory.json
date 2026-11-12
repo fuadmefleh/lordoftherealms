@@ -16,6 +16,7 @@
         "gift_treasure": { "weight": 8, "halfLife": 240, "icon": "🎁", "label": "a treasure you laid before the throne", "recall": "Your gift still graces my hall." },
         "oath_sworn": { "weight": 10, "halfLife": 365, "icon": "🏳️", "label": "the oath of fealty you swore", "recall": "You knelt to me once. I remember it." },
         "oath_broken": { "vendetta": true, "weight": -25, "halfLife": 720, "icon": "💔", "label": "the oath you renounced", "recall": "You broke faith with me. That is not forgotten." },
+        "nemesis_poison": { "weight": -8, "halfLife": 360, "icon": "🐍", "label": "the tales your enemy poured in his ear", "recall": "I have heard things of you, from one who knows you well." },
         "threat": { "weight": -12, "halfLife": 365, "icon": "🗡️", "label": "the threats you made at sword-point", "recall": "The last time we met you threatened me." },
         "extorted": { "vendetta": true, "weight": -20, "halfLife": 540, "icon": "💸", "label": "the tribute you wrung from the realm", "recall": "My treasury still bears the mark of your extortion." },
         "raid": { "vendetta": true, "weight": -10, "halfLife": 240, "icon": "🔥", "label": "a town of the realm you put to the torch", "recall": "My people still bury the dead of your raid." },
@@ -67,6 +68,11 @@
         "loan_refused": { "weight": -4, "halfLife": 120, "icon": "🏦", "label": "the loan you refused", "recall": "You would not lend to me." },
         "loan_forgiven": { "weight": 10, "halfLife": 540, "icon": "🤲", "label": "the debt you forgave", "recall": "You forgave what I owed. I do not forget it." },
         "letter_ignored": { "weight": -3, "halfLife": 90, "icon": "✉️", "label": "a letter you never answered", "recall": "My letters go unanswered, it seems." },
+        "office_ignored": { "weight": -6, "halfLife": 180, "icon": "🏅", "label": "the office you never troubled to answer for", "recall": "I offered you an office, and you did not even reply." },
+        "feast_snubbed": { "weight": -4, "halfLife": 120, "icon": "🍖", "label": "the empty place at the feast", "recall": "Your seat at my feast stood empty, and no word came." },
+        "tourney_snubbed": { "weight": -2, "halfLife": 60, "icon": "🏇", "label": "the tournament you ignored", "recall": "My heralds cried your name in the lists. You never came." },
+        "loan_ignored": { "weight": -5, "halfLife": 150, "icon": "🏦", "label": "the plea for a loan you left unanswered", "recall": "I asked you for help and heard nothing." },
+        "letters_scorned": { "weight": -10, "halfLife": 360, "icon": "📜", "label": "letter after letter left unanswered", "recall": "I have written to you again and again. I am done writing." },
         "insult": { "weight": -10, "halfLife": 360, "icon": "😤", "label": "the insult you sent", "recall": "I remember your insolent letter." },
         "kept_promise": { "weight": 6, "halfLife": 360, "icon": "🤝", "label": "a promise you kept", "recall": "You keep your word. That is rare." },
         "broken_promise": { "vendetta": true, "weight": -12, "halfLife": 540, "icon": "🕯️", "label": "a promise you broke", "recall": "You promised, and you did not come." },
@@ -84,6 +90,8 @@
         "fostered_heir": { "weight": 14, "halfLife": 1500, "icon": "🏰", "label": "the heir you let us raise at our court", "recall": "I raised the one who rules your House now. I have not forgotten." },
         "envoy_received": { "weight": 5, "halfLife": 360, "icon": "📜", "label": "the envoy of your blood you sent to court", "recall": "Your child came to us as envoy. A courteous embassy." },
         "betrothal_made": { "weight": 8, "halfLife": 1200, "icon": "💍", "label": "the betrothal you made with our House", "recall": "Our Houses are promised to one another." },
-        "betrothal_broken": { "weight": -14, "halfLife": 900, "icon": "💔", "label": "the betrothal you broke", "recall": "You broke the promise between our Houses." }
+        "betrothal_broken": { "weight": -14, "halfLife": 900, "icon": "💔", "label": "the betrothal you broke", "recall": "You broke the promise between our Houses." },
+        "amends_made": { "weight": 12, "halfLife": 900, "icon": "🕊️", "label": "the amends you made for an old wrong", "recall": "You came to set right what your House did. I respect that." },
+        "amends_refused": { "weight": -8, "halfLife": 540, "icon": "🗡️", "label": "the old wrong you would not mend", "recall": "You knew what your House owed mine, and did nothing." }
     }
 }

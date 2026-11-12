@@ -43,7 +43,7 @@
             "mine_strike": 4, "mine_vein": 2, "mine_exhausted": 4, "mine_accident": 3,
             "trade_embargo": 4, "trade_treaty": 3, "trade_war": 4, "trade_ban": 5, "trade_granary": 3,
             "econ_dear": 5, "econ_inflation": 4, "fashion": 3,
-            "harvest_failing": 5, "harvest_bumper": 3, "harvest_blight": 4, "harvest_poor": 5, "harvest_plenty": 3,
+            "crisis": 7, "crisis_grave": 9, "harvest_failing": 5, "harvest_bumper": 3, "harvest_blight": 4, "harvest_poor": 5, "harvest_plenty": 3,
             "road_washout": 4, "pass_closed": 4, "highway_opened": 3, "bridge_built": 3, "canal_opened": 5, "harbour_built": 4,
             "underwriter_failed": 5, "great_claim": 3, "insured_catastrophe": 4, "bourse_mania": 4, "bourse_crash": 6, "bourse_panic": 4
         },
@@ -62,7 +62,7 @@
             "mine_strike": "⛏️", "mine_vein": "💎", "mine_exhausted": "🕳️", "mine_accident": "💥",
             "trade_embargo": "⛔", "trade_treaty": "🤝", "trade_war": "📈", "trade_ban": "🌾", "trade_granary": "🍞",
             "econ_dear": "🍞", "econ_inflation": "💰", "fashion": "👗",
-            "harvest_failing": "🥀", "harvest_bumper": "🌾", "harvest_blight": "🦗", "harvest_poor": "🥀", "harvest_plenty": "🌾",
+            "crisis": "📯", "crisis_grave": "🔔", "harvest_failing": "🥀", "harvest_bumper": "🌾", "harvest_blight": "🦗", "harvest_poor": "🥀", "harvest_plenty": "🌾",
             "road_washout": "🌊", "pass_closed": "❄️", "highway_opened": "🛣️", "bridge_built": "🌉", "canal_opened": "🚣", "harbour_built": "⚓",
             "underwriter_failed": "🏚️", "great_claim": "🛡️", "insured_catastrophe": "🌊", "bourse_mania": "🎈", "bourse_crash": "📉", "bourse_panic": "😱"
         },
@@ -247,6 +247,14 @@
             "harvest_bumper": [
                 "Hear ye! The fields of {place} stand heavy: a bumper harvest is coming, {pct}% of a common year. Grain will be cheap there.",
                 "Good news from {place}: the finest crop in memory ripens, {pct}% of the usual. The brewers rejoice."
+            ],
+            "crisis": [
+                "Hear ye! {text}",
+                "News from afar: {text}"
+            ],
+            "crisis_grave": [
+                "Hear ye, hear ye! {text}",
+                "Grave tidings: {text}"
             ],
             "harvest_blight": [
                 "Hear ye! {blight} is in the fields of {place}. The farmers burn what they cannot save.",

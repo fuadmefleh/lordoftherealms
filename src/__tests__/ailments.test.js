@@ -487,6 +487,20 @@ describe('medicine', () => {
         expect(Ailments.treat(p, w, city, rec.key).success).toBe(false);
     });
 
+    it('the temple tending your own fever is paid care, not charity: no karma however often', () => {
+        const w = makeWorld();
+        const p = makePlayer();
+        p.gold = 5000;
+        p.karma = 0;
+        for (let i = 0; i < 3; i++) {
+            Ailments.inflict(p, w, 'chill');
+            const rec = Ailments.list(p).find(a => a.kind === 'disease');
+            expect(Ailments.treat(p, w, city, rec.key, true).success).toBe(true);
+        }
+        expect(Ailments.getState(p).stats.treatments).toBe(3);
+        expect(p.karma).toBe(0);
+    });
+
     it('no charity for a player who could pay', () => {
         const w = makeWorld();
         const p = makePlayer();

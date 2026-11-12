@@ -7,6 +7,7 @@ import { ActionMenu } from './_ref.js';
 import { peopleLine } from './labour.js';
 import { Holdings, PlayerMilitary } from './_imports.js';
 import { HoldingSieges } from '../../systems/holdingSieges.js';
+import { Construction } from '../../systems/construction.js';
 import { BTN_PLAIN, BTN_DIM, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 
 const SMALL = 'padding:2px 8px; margin:0 0 0 4px; font-size:11px;';
@@ -119,9 +120,11 @@ Object.assign(ActionMenu, {
         const projectRows = [];
         for (const p of h.queue) {
             const def = defs[p.id] || { name: p.id, icon: '🏗️' };
-            const left = Math.max(0, Math.ceil(p.days - p.progress));
+            // work-days left, and the days that will take at the pace of the seasons (systems/construction.js)
+            const work = Math.max(0, Math.ceil(p.days - p.progress));
+            const left = Construction.eta({ underConstruction: true, constructionDaysTotal: p.days, workDone: p.progress }, world, q, r);
             projectRows.push(actRow({
-                icon: def.icon, name: esc(def.name), desc: `under construction · ~${left} day(s)`,
+                icon: def.icon, name: esc(def.name), desc: `under construction · ${work} work-day(s) left · done in ~${left} day(s)`,
                 note: bar(p.progress, p.days, 'var(--gold)'),
                 side: `<span style="color:#ffcf6a;">~${left} day(s)</span>${smallBtn(true, `window._holding.cancel('${p.id}')`, 'Abandon (refund half)')}`,
             }));
@@ -188,6 +191,8 @@ Object.assign(ActionMenu, {
             });
             html += `<details class="pk-more"><summary>Appoint a governor…</summary>${rowList(rows)}</details>`;
         }
+        // Standing orders, townsfolk and courtiers, audits and rewards: the Stewards panel (systems/stewards.js)
+        html += rowList([{ icon: '🏛️', name: h.governor ? 'Orders, audit, reward or punish' : 'Appoint from your court or the townsfolk', desc: 'In the Stewards panel', act: 'showStewards', args: h.governor ? ['seat', `holding:${q},${r}`] : ['appoint', `holding:${q},${r}`], side: '›' }]);
 
         // ── Garrison ──
         html += sectionHead('🛡️ Garrison');

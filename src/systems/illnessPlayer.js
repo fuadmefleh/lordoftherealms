@@ -138,13 +138,29 @@ export const IllnessPlayer = {
             eased = true;
         }
         Townsfolk.note(p, day, 'nursed', null, kind);
-        if (player) player.karma = _num(player.karma) + 1;
+        // Karma once per sickness nursed (care.giftKarma), not for every gift heaped on the same bed
+        if (player && !c.karmed) {
+            player.karma = _num(player.karma) + _num(C.giftKarma, 1);
+            c.karmed = true;
+        }
         const d = Illness.def(c.k) || {};
         let thanks = Illness.line('thanks', null, `${p.id}|${day}|${itemId}`) || 'Thank you.';
         if (p !== giver) thanks = `For ${p.first}? ${thanks}`;
         const text = eased ? `${thanks} *the ${d.label ? d.label.toLowerCase() : 'fever'} seems to ease at once*` : thanks;
         if (p !== giver) Townsfolk.note(giver, day, 'favour');
         return { text, boost: kind === 'medicine' ? 10 : 5, eased, person: p };
+    },
+
+    /**
+     * The karma a gift of coin to the town earns (data/illness.json fund):
+     * `karma` when there are at least karmaMinNeedy in need of it and no
+     * earlier gift's month (prior.karmaUntil) still runs; 0 otherwise.
+     */
+    _charityKarma(prior, day, needy) {
+        const F = Illness.config().fund || {};
+        if (_num(needy) < Math.max(1, _num(F.karmaMinNeedy, 1))) return 0;
+        if (prior && _num(prior.karmaUntil, -Infinity) >= day) return 0;
+        return _num(F.karma, 2);
     },
 
     /** What paying the healer and giving alms cost here. */
@@ -166,10 +182,16 @@ export const IllnessPlayer = {
         const st = Illness.state(world, s, folk, day);
         player.gold -= cost;
         const F = Illness.config().fund;
-        st.fund = { until: day + _num(F.physicianDays, 30), gold: _num(st.fund && st.fund.gold) + cost, by: 'player', d: day };
-        player.karma = _num(player.karma) + _num(F.karma, 2);
-        for (const p of Townsfolk.residents(folk)) if (Illness.isSick(p, day)) _regard(p, 4);
-        return { success: true, cost, text: `You put ${cost} gold in ${doc.name}'s hand. For a month ${doc.name} will go round every sick house in ${s.name}, your coin paying the fees and the herbs.` };
+        const sick = Townsfolk.residents(folk).filter(p => Illness.isSick(p, day));
+        // Karma for real charity only: someone here sick to be seen to, and once per
+        // fund's month (paying again while it runs tops up the pool, no more)
+        const prior = st.fund && _num(st.fund.until) >= day ? st.fund : null;
+        const karma = IllnessPlayer._charityKarma(prior, day, sick.length);
+        const until = day + _num(F.physicianDays, 30);
+        st.fund = { until, gold: _num(st.fund && st.fund.gold) + cost, by: 'player', d: day, karmaUntil: karma > 0 ? until : (prior ? prior.karmaUntil : null) };
+        player.karma = _num(player.karma) + karma;
+        for (const p of sick) _regard(p, 4);
+        return { success: true, cost, karma, text: `You put ${cost} gold in ${doc.name}'s hand. For a month ${doc.name} will go round every sick house in ${s.name}, your coin paying the fees and the herbs.` };
     },
 
     /** Alms for the poor of the town: coin into the poorest households' purses; they eat better for a month. */
@@ -196,8 +218,12 @@ export const IllnessPlayer = {
         // (no poor to give to: the parish takes it for them)
         if (given < cost && s.economy) Economy.payTown(s, cost - given);
         const F = Illness.config().fund;
-        st.alms = { until: day + _num(F.almsDays, 30), gold: _num(st.alms && st.alms.gold) + cost, d: day };
-        player.karma = _num(player.karma) + _num(F.karma, 2);
-        return { success: true, cost, text: `You give ${cost} gold in alms to the poor of ${s.name}. They will eat better this month, and fall sick the less for it.` };
+        // Karma once per month of alms, and only with poor hands to take it
+        const prior = st.alms && _num(st.alms.until) >= day ? st.alms : null;
+        const karma = IllnessPlayer._charityKarma(prior, day, takers.length);
+        const until = day + _num(F.almsDays, 30);
+        st.alms = { until, gold: _num(st.alms && st.alms.gold) + cost, d: day, karmaUntil: karma > 0 ? until : (prior ? prior.karmaUntil : null) };
+        player.karma = _num(player.karma) + karma;
+        return { success: true, cost, karma, text: `You give ${cost} gold in alms to the poor of ${s.name}. They will eat better this month, and fall sick the less for it.` };
     },
 };

@@ -40,6 +40,8 @@ import { Ledger } from './ledger.js';
 import { Laws } from './laws.js';
 import { SocialSkills } from './socialSkills.js';
 import { Throne } from './throne.js';
+// (what the townsfolk remember of the player's House: systems/npcMemory.js)
+import { NpcMemory } from './npcMemory.js';
 
 const DEFAULTS = {
     sight: { radius: 7, guardHearRadius: 16, hiddenStates: ['inside_building', 'leaving_building', 'gone'] },
@@ -381,6 +383,12 @@ export const StreetCrime = {
         const crime = CRIMES.includes(opts.crime) ? opts.crime : 'assault';
         const victim = opts.victim || {};
         const witnesses = Array.isArray(opts.witnesses) ? opts.witnesses : [];
+        // Testimony: a witness who owes the player's House enough keeps quiet (systems/npcMemory.js)
+        if (player && world) {
+            for (const w of witnesses) {
+                if (w.seen && w.npc && w.npc._person && w.npc !== victim && NpcMemory.shields(world, w.npc, player)) { w.seen = false; w.shielded = true; }
+            }
+        }
         const seenBy = witnesses.filter(w => w.seen);
         const day = _num(world && world.day, 0);
         const tile = world && typeof world.getTile === 'function' && opts.q != null ? world.getTile(opts.q, opts.r) : null;
@@ -459,6 +467,9 @@ export const StreetCrime = {
                 Townsfolk.record(folk, world, day, { k: 'beaten', a: person.id, x: witnessed && player ? (player.name || 'a stranger') : '' });
             }
         }
+
+        // Remembered for years: the beaten and their kin, the kin of the killed (systems/npcMemory.js)
+        if (player && world && person) NpcMemory.onHarm(world, player, victim, crime, witnessed || crime === 'assault');
 
         return { incident, witnessed, witnessCount: _num(g.witnessCount), rumour: g.rumor || null, heat };
     },

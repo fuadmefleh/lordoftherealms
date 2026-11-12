@@ -366,7 +366,7 @@ describe('public works: goods, labour, tolls', () => {
         const site = res.work.tq === g.A.q ? g.A : g.B;
         expect(site.market.stock.stone).toBeLessThan(60);
         expect(SettlementMarket.scarcity(site, 'stone')).toBeGreaterThan(priceBefore - 1e-9);
-        for (let d = 42; d < 90 && res.work.status !== 'done'; d++) { g.world.day = d; PublicWorks.processDay(g.world, player); }
+        for (let d = 42; d < 42 + res.work.days * 3 && res.work.status !== 'done'; d++) { g.world.day = d; PublicWorks.processDay(g.world, player); }
         expect(res.work.status).toBe('done');
         expect(Transport.segState(g.world, ab).t).toBe('highway');
         expect(Transport.segState(g.world, ab).toll).toBe(res.work.id);
@@ -476,7 +476,7 @@ describe('public works: goods, labour, tolls', () => {
         for (const s of [g.B, g.C]) { s.market.stock.stone = 400; s.market.stock.wood = 200; s.market.stock.iron = 40; }
         const res = PublicWorks.commission(g.world, null, 'canal', '8,5|14,5', { by: 'k1' });
         expect(res.success).toBe(true);
-        for (let d = 41; d < 160 && res.work.status !== 'done'; d++) { g.world.day = d; PublicWorks.processDay(g.world, null); }
+        for (let d = 41; d < 41 + res.work.days * 3 && res.work.status !== 'done'; d++) { g.world.day = d; PublicWorks.processDay(g.world, null); }
         expect(res.work.status).toBe('done');
         expect(g.world.transport.canals['8,5|14,5']).toBeTruthy();
         expect(g.world.transport.history.some(h => h.kind === 'canal_opened')).toBe(true);

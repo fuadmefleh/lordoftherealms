@@ -1,0 +1,57 @@
+{
+    "_doc": "Climate over centuries (src/world/climate.js): a slow, seeded curve of climate ERAS — little ice ages, warm periods, droughts, wet decades — one at a time with quiet years between. Every roll is a hash of the world seed and the era's index (never the shared RNG), so the curve is the same every time for a world. Times are in game years (Seasons.DAYS_PER_YEAR days). An era ramps in and out over rampYears. temp is added to the weather's 0..1 temperature (0.1 = 8°C), scaled by latitude (equator..polar); wet is added to the weather's 0..1 precipitation. Drought and wet eras strike a band of latitudes (band = its half-width as a share of the map's height). Phrase lists are picked by hash; {tokens} are filled by the system.",
+    "enabled": true,
+    "firstYears": [14, 30],
+    "gapYears": [20, 45],
+    "rampYears": 4,
+    "weights": { "cold": 1.2, "warm": 1, "drought": 1, "wet": 0.8 },
+    "kinds": {
+        "cold": { "icon": "❄️", "label": "Little Ice Age", "years": [20, 45], "temp": [-0.05, -0.08], "wet": [0, 0.02],
+            "names": ["the Long Winter", "the Little Ice Age", "the Grey Years", "the Frost Years", "the Years Without Summer"] },
+        "warm": { "icon": "☀️", "label": "Warm Period", "years": [22, 45], "temp": [0.04, 0.07], "wet": [-0.02, 0],
+            "names": ["the Warm Age", "the Golden Summers", "the Kind Years", "the Long Summer"] },
+        "drought": { "icon": "🏜️", "label": "Great Drought", "years": [8, 18], "temp": [0.01, 0.03], "wet": [-0.12, -0.18], "band": [0.18, 0.28],
+            "names": ["the Great Drought", "the Dust Years", "the Dry Decades", "the Thirsting"] },
+        "wet": { "icon": "🌧️", "label": "Wet Decades", "years": [8, 16], "temp": [-0.01, 0], "wet": [0.08, 0.12], "band": [0.2, 0.3],
+            "names": ["the Drowned Years", "the Wet Decade", "the Rotting Rains", "the Years of Flood"] }
+    },
+    "latitude": { "equator": 0.6, "polar": 1.5 },
+    "yield": {
+        "_doc": "Harvest factor per point of local anomaly (Harvests: the region's crop and herds). cold: lost per point of cold; warmCold/warmHot: gained in cool lands / lost in hot ones per point of warmth; drought: lost per point of dryness (×dryMargin on dry land); wetRot: lost per point of wet on moist land, wetDry: gained on dry land.",
+        "cold": 1.4, "warmCold": 1.2, "warmMild": 0.3, "warmHot": 1.0, "coolBelow": 0.4, "hotAbove": 0.7,
+        "drought": 1.6, "dryMargin": 1.3, "dryBelow": 0.35, "wetRot": 0.6, "wetDry": 0.8,
+        "min": 0.6, "max": 1.2
+    },
+    "disease": { "_doc": "Townsfolk sickness risk × (1 + wet·wet + warmth·warm, + cold·coldWinter in winter), at most max.", "wet": 2.5, "warm": 2, "coldWinter": 2.5, "max": 1.4 },
+    "ice": { "_doc": "A port freezes when its seasonal temperature (with the era) falls below `below`: sea trade links from it carry seaTrade of their goods, and ships cannot make port there.", "below": 0.17, "seaTrade": 0.15 },
+    "migration": { "_doc": "Townsfolk drift (systems/labour.js) toward towns the era spares: welfare pull = −hardship × pull; hardship = (1 − harvest factor) × hardshipK.", "pull": 0.15, "hardshipK": 2.5 },
+    "crisisBias": {
+        "_doc": "At an era's height, the odds of the next age-defining crisis (systems/crises.js weights) are multiplied by these (eased by the era's ramp).",
+        "cold": { "famine": 1.8, "invasion": 1.6 },
+        "warm": { "plague": 1.3, "rush": 1.2 },
+        "drought": { "famine": 2.5, "schism": 1.2 },
+        "wet": { "plague": 1.8, "famine": 1.3 }
+    },
+    "text": {
+        "cold": {
+            "begin": ["The winters lengthen and the summers fail to warm: {name} has come upon the world, hardest in the north.", "Snow lies late into spring and the rivers freeze early; the old folk say they have never known such cold. So began {name}."],
+            "mid": ["Still {name} held the world; harbours in the north lay frozen half the year, and wood was worth its weight in bread.", "In the long cold the northern fields gave thin harvests, and many went south looking for kinder land."],
+            "end": ["After {years} years the cold loosened its grip, and {name} passed into memory.", "The summers came back warm, and {name} was over after {years} years."]
+        },
+        "warm": {
+            "begin": ["Mild winters and long summers: {name} began, and the northern fields bore as never before.", "The snowline drew back up the mountains and vines grew where none had grown. So began {name}."],
+            "mid": ["In {name} the north prospered, while the hot lands of the south baked and thirsted.", "Still the warm years ran on; fevers came oftener in the hot months."],
+            "end": ["After {years} years the warmth faded, and {name} ended.", "The cold returned to the winters, and {name} was over after {years} years."]
+        },
+        "drought": {
+            "begin": ["The rains failed over {region}, and failed again the next year. So began {name}.", "Wells ran dry and the desert's edge crept toward the fields about {region}: {name} had begun."],
+            "mid": ["Still no rain came to {region}; the dust lay on the roads and the herds were sold off cheap.", "In {name} the people of {region} took to the roads for wetter country."],
+            "end": ["After {years} years the rains came back to {region}, and {name} was over.", "The rains returned, and the green came back to {region}; {name} lasted {years} years."]
+        },
+        "wet": {
+            "begin": ["Rain without end fell over {region}; the rivers broke their banks and the grain rotted standing. So began {name}.", "Summer after summer the rain came down on {region}: {name} had begun."],
+            "mid": ["Still the rains fell on {region}; fevers rose from the flooded meadows.", "In {name} the low fields about {region} lay under water, and the granaries smelled of rot."],
+            "end": ["After {years} years the skies cleared over {region}, and {name} ended.", "The floods drew back from {region}; {name} lasted {years} years."]
+        }
+    }
+}

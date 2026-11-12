@@ -29,6 +29,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Quests } from './quests.js';
 import { Traits } from './traits.js';
 import { Ledger } from './ledger.js';
+import { Heirlooms } from './heirlooms.js';
 
 const DEFAULTS = {
     legacyItems: { ancient_relic: 'ancient_artifact' },
@@ -195,7 +196,9 @@ export const TreasureDigs = {
             b.discovered = true;
             if (tile.improvement && tile.improvement.type === 'treasure_cache') tile.improvement = null;
         }
-        return { gold, added: res.added, left };
+        // A cache dug up for the first time may hold a named thing for the House (systems/heirlooms.js)
+        const heirloom = b.leftover ? null : Heirlooms.onDig(player, world, tile);
+        return { gold, added: res.added, left, heirloom };
     },
 
     /** The cache is lost to someone else (rivals got it). */
@@ -349,6 +352,7 @@ export const TreasureDigs = {
             const got = PlayerInventory.describe(res.added);
             const left = PlayerInventory.describe(res.left);
             let body = `You dug up ${res.gold} gold${got ? ` and ${got}` : ''}.`;
+            if (res.heirloom) body += ` Among it lay ${res.heirloom.name}: it is the House's now.`;
             if (left) body += ` Your packs are full: ${left} stay${Object.keys(res.left).length === 1 ? 's' : ''} buried here for another day.`;
             return { endDay: true, gold: res.gold, added: res.added, left: res.left, notification: { title: `${o.icon} Treasure Found!`, body, type: left ? 'warning' : 'success' } };
         }

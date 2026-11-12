@@ -105,7 +105,7 @@ Object.assign(ActionMenu, {
         html += rowList(rows, 'The priests');
         if (rites.length) {
             html += sectionHead('🕯️ Healing Rites');
-            html += `<div style="${NOTE}">The priests pray over the sick and dose them with temple remedies. Your faith counts (${Math.round(Ailments.templeQuality(player) * 100)}% care). +1 karma.</div>`;
+            html += `<div style="${NOTE}">The priests pray over the sick and dose them with temple remedies. Your faith counts (${Math.round(Ailments.templeQuality(player) * 100)}% care).${(((Ailments.cfg().treatment || {}).temple || {}).karma || 0) > 0 ? ` +${Ailments.cfg().treatment.temple.karma} karma.` : ''}</div>`;
             html += rowList(rites.map((o, i) => _row({
                 icon: o.icon, name: `Tend your ${o.name.toLowerCase()}`, why: o.reason || 'Out of reach',
                 side: price(o.cost, (player.gold || 0) >= o.cost),

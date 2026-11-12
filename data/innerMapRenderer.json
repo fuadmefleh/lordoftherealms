@@ -15,6 +15,8 @@
         "ThatchedHouses/tilesets/plowed_soil_wet.png": 96,
         "ThatchedHouses/tilesets/wheat.png": 96,
         "buildingKit/modern/": 96,
+        "buildingKit/town_walls.png": 544,
+        "buildingKit/town_spires.png": 384,
         "Floor/streets_modern.png": 512
     },
     "modernSheets": {

@@ -1,0 +1,111 @@
+{
+    "_doc": "Delegation: stewards, reeves, bailiffs and governors over the player's holdings, estates, company and the realm's demesne towns (systems/stewards.js). Days are game days (120 a year). Effects of standing orders scale with the office-holder's skill (skill / 5: an average steward gives the listed numbers).",
+    "config": {
+        "weekDays": 7,
+        "reportDays": 30,
+        "maxReports": 12,
+        "logCap": 40,
+        "pendingDays": 20,
+        "maxTownsfolkCandidates": 4,
+        "townsfolkMinAge": 18,
+        "townsfolkWage": [2, 5],
+        "provinceWage": [4, 8],
+        "companyWage": [6, 12],
+        "honesty": { "base": 0.62, "jitter": 0.3, "kin": 0.12, "min": 0.05, "max": 0.98, "guessNoise": 0.2 },
+        "embezzle": { "below": 0.62, "rate": 0.5, "max": 0.3, "fearDecay": 0.02, "auditFear": 0.5, "punishFear": 0.8 },
+        "abuse": { "chance": 0.05, "unrest": 6, "happiness": 4, "extortShare": 0.15, "suspicion": 12 },
+        "excel": { "minSkill": 6, "chance": 0.06, "unrest": 8, "happiness": 3, "buildDays": 2, "renown": 1 },
+        "bribe": { "minFeud": 35, "chance": 0.03, "gold": [60, 220], "skim": 0.08, "loyalty": -12, "suspicion": 8, "acceptBelow": 0.55 },
+        "power": { "perYear": 6, "ambition": 0.6, "intrigue": 0.4, "mood": 0.05, "kin": 10, "cap": 100, "recallDrop": 100, "decayWhenLoyal": 0.4 },
+        "revolt": { "power": 70, "loyalty": 35, "ambition": 6, "chance": 0.08, "rebelBonus": 0.5, "defyDays": 60 },
+        "marriage": { "ambition": 5, "loyalty": 50, "power": 35, "chance": 0.04, "minAge": 16, "everyDays": 360, "acceptLoyalty": 20, "acceptPower": 15, "acceptAmbition": -2, "refuseLoyalty": -12, "prestige": 2 },
+        "audit": { "cost": 40, "costPerIncome": 0.1, "cooldown": 30, "baseChance": 0.4, "perSkill": 0.05, "recover": 0.7, "insult": -4, "suspicionShown": 35 },
+        "reward": { "goldLoyalty": 0.06, "goldMin": 20, "honourPrestige": 4, "honourLoyalty": 10, "honourPower": 6 },
+        "punish": { "fineLoyalty": -25, "disgraceRenown": 2, "innocentLoyalty": -6, "innocentRenown": -3, "shamePower": 30 },
+        "recall": { "refuseChance": 0.5, "refusePower": 60, "refuseLoyalty": 30 },
+        "succession": { "houseStay": true, "personStayLoyalty": 60, "personStayHonesty": 0.75, "loyaltyShift": -8, "defyPower": 55 },
+        "allowanceSteps": [0, 100, 250, 500, 1000],
+        "worksPad": 0.25
+    },
+    "titles": {
+        "holding": ["Reeve", "Reeve", "Steward", "Governor"],
+        "province": "Royal Governor",
+        "estates": "Bailiff",
+        "company": "Chief Factor"
+    },
+    "orders": {
+        "balanced": {
+            "name": "Keep things as they are", "icon": "⚖️", "for": ["holding", "province", "estates", "company"],
+            "desc": "No great push either way. Revenue, food and order as the town gives them.",
+            "fx": {}, "embezzle": 1, "abuse": 1
+        },
+        "revenue": {
+            "name": "Maximise revenue", "icon": "💰", "for": ["holding", "province", "estates"],
+            "desc": "Squeeze every penny: more taxes and rents, a sullen people, and more for a crooked steward to pocket.",
+            "fx": { "tax": 0.1, "happiness": -4, "order": -0.1 }, "skill": "stewardship",
+            "collect": 0.08, "provinceMood": -0.4, "estateLoyalty": -6, "embezzle": 1.3, "abuse": 1.8,
+            "works": ["market_square", "workshop_quarter", "harbour", "tavern_inn"]
+        },
+        "fed": {
+            "name": "Keep them fed", "icon": "🌾", "for": ["holding", "province", "estates"],
+            "desc": "Grain laid by, rents forgiven in a bad month. A content, growing town that pays a little less.",
+            "fx": { "reserveDays": 3, "happiness": 3, "growth": 0.002, "tax": -0.05 }, "skill": "stewardship",
+            "collect": -0.05, "provinceMood": 0.4, "estateLoyalty": 5, "estateCollect": -0.05, "embezzle": 0.9, "abuse": 0.6,
+            "works": ["granary", "market_square", "shrine"]
+        },
+        "defences": {
+            "name": "Build defences", "icon": "🛡️", "for": ["holding"],
+            "desc": "Walls mended, the militia drilled, the roads watched. Raiders and rebels find it hard going; the tax take slips.",
+            "fx": { "defense": 0.12, "militia": 4, "raidReduction": 0.1, "tax": -0.05 }, "skill": "martial",
+            "embezzle": 1, "abuse": 1.1,
+            "works": ["palisade", "stone_walls", "watchtower", "barracks"]
+        },
+        "peace": {
+            "name": "Keep the peace", "icon": "🕊️", "for": ["holding", "province", "estates"],
+            "desc": "Grievances heard, feuds settled, the watch on the streets. Unrest falls; a little revenue is given up.",
+            "fx": { "order": 0.35, "happiness": 1, "tax": -0.03 }, "skill": "intrigue",
+            "collect": -0.03, "provinceMood": 0.25, "estateLoyalty": 3, "embezzle": 0.9, "abuse": 0.4,
+            "works": ["moot_hall", "shrine", "watchtower"]
+        },
+        "growth": {
+            "name": "Grow the town", "icon": "🏗️", "for": ["holding"],
+            "desc": "Building lots let, builders hired, newcomers welcomed. Works go up faster and the town grows.",
+            "fx": { "growth": 0.003, "buildSpeed": 0.15, "tax": -0.03 }, "skill": "stewardship",
+            "embezzle": 1.1, "abuse": 0.8,
+            "works": ["market_square", "workshop_quarter", "tavern_inn", "granary"]
+        },
+        "watch": {
+            "name": "Watch the factors", "icon": "🔎", "for": ["company"],
+            "desc": "The chief factor goes over the posts' books every month (the auditors' fees from company capital): a skimming factor is found out and replaced.",
+            "embezzle": 0.9, "abuse": 0.5
+        }
+    },
+    "folkTraits": {
+        "kind": ["honest", "generous"], "quiet": ["homebody", "serious"], "bold": ["brave", "adventurous"],
+        "witty": ["humorous", "cunning"], "jovial": ["humorous", "romantic"], "stern": ["serious", "loyal"],
+        "cautious": ["cautious", "practical"], "generous": ["generous", "loyal"], "stubborn": ["loyal", "practical"],
+        "curious": ["scholarly", "adventurous"], "greedy": ["greedy"], "sly": ["cunning", "greedy"], "proud": ["ambitious"]
+    },
+    "folkRoles": {
+        "merchant": { "occupation": "merchant", "stewardship": 2 },
+        "noble": { "occupation": "noble", "stewardship": 2, "intrigue": 1 },
+        "priest": { "occupation": "priest", "stewardship": 1, "intrigue": 1 },
+        "guard": { "occupation": "guard", "martial": 2 },
+        "farmer": { "occupation": "farmer", "stewardship": 1 },
+        "blacksmith_npc": { "occupation": "blacksmith", "martial": 1, "stewardship": 1 },
+        "villager": { "occupation": "artisan" }
+    },
+    "honesty": {
+        "honest": 0.25, "loyal": 0.1, "generous": 0.08, "serious": 0.04, "pious": 0.08,
+        "greedy": -0.3, "cunning": -0.12, "ambitious": -0.1, "fickle": -0.1, "cruel": -0.1, "romantic": -0.02
+    },
+    "ambition": { "ambitious": 4, "cunning": 2, "proud": 2, "brave": 1, "homebody": -2, "loyal": -1, "humble": -2 },
+    "cruel": ["cruel", "greedy", "stern"],
+    "oathOfHouse": ["family", "courtier"],
+    "lines": {
+        "good": ["All is well here, my lord.", "The people bless your name.", "The accounts are in good order.", "We do well, and better every month."],
+        "fair": ["We manage, my lord.", "A quiet season.", "Nothing to trouble you."],
+        "bad": ["Hard times, my lord.", "The people grumble.", "I do what I can."],
+        "rosy": ["All is well here, my lord. Better than ever.", "Never a better season, my lord."]
+    }
+}

@@ -56,6 +56,7 @@ import { Arms } from '../systems/arms.js';
 import { PlayerEconomy } from '../player/playerEconomy.js';
 import { InnerMapReactions } from './innerMapReactions.js';
 import { InnerMapScavengers } from './innerMapScavengers.js';
+import { NpcMemory } from '../systems/npcMemory.js';
 import { rowList, lede, esc, BTN_PLAIN } from './actionMenu/uiKit.js';
 
 const DEFAULTS = {
@@ -447,6 +448,8 @@ export const InnerMapDigging = {
         if (g && c) Burials.dropCache(world, hex, tile.q, tile.r);
         if (g) InnerMap.layBurial(tile.q, tile.r, g, day);
         else this.setGround(tile, 'grave', { day, name: body.name, body: Burials.plainBody(body) });
+        // Their family will remember who laid them to rest (systems/npcMemory.js)
+        if (body._npc && game && game.player) NpcMemory.onBurial(world, game.player, body._npc);
         const with_ = g && g.goods ? ` With them: ${Burials.describe(g.goods, _nameOf)}.` : '';
         this._note(game, '⚰️ Buried', _fill(C.text.bury || 'You bury {name}.', { name: body.name }) + with_, 'info');
     },

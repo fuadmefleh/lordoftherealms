@@ -1,0 +1,77 @@
+{
+    "_comment": "Heirlooms (systems/heirlooms.js): named things of the House that carry their own story down the generations. Bonuses grow with the legend (each history line adds its weight). Read through DataLoader._gamedata.heirlooms.",
+    "kinds": {
+        "sword":  { "icon": "🗡️", "label": "Sword",  "bonus": { "battlePower": 0.02 }, "nouns": ["brand", "fang", "edge", "bite", "song", "keeper", "thorn"], "titles": ["the Sword of {founder}", "{founder}'s Blade"] },
+        "ring":   { "icon": "💍", "label": "Ring",   "bonus": { "negotiation": 0.015 }, "nouns": ["band", "seal", "circle", "promise"], "titles": ["the Ring of {house}", "the Signet of {founder}"] },
+        "crown":  { "icon": "👑", "label": "Crown",  "bonus": { "negotiation": 0.01 }, "prestigeYear": 2, "nouns": ["crown", "circlet", "diadem"], "titles": ["the Crown of {founder}", "the Circlet of {house}"] },
+        "book":   { "icon": "📕", "label": "Book",   "bonus": { "negotiation": 0.01 }, "prestigeYear": 1, "nouns": ["book", "codex", "testament", "ledger"], "titles": ["the Book of {house}", "{founder}'s Codex"] },
+        "banner": { "icon": "🚩", "label": "Banner", "bonus": { "battlePower": 0.015 }, "prestigeYear": 1, "nouns": ["banner", "standard", "pennon"], "titles": ["the Banner of {house}", "{founder}'s Standard"] },
+        "armour": { "icon": "🛡️", "label": "Armour", "bonus": { "damageReduction": 0.04 }, "nouns": ["mail", "plate", "harness", "ward"], "titles": ["the Harness of {founder}", "the Mail of {house}"] },
+        "relic":  { "icon": "🏺", "label": "Relic",  "prestigeYear": 2, "bonus": {}, "nouns": ["relic", "cup", "horn", "stone"], "titles": ["the Relic of {house}", "{founder}'s Horn"] }
+    },
+    "adjectives": ["Dawn", "Grey", "Oath", "Storm", "Raven", "Ember", "Winter", "Iron", "Gold", "Ash", "Star", "Wolf", "Moon", "Thorn", "Red", "Hollow", "Sun", "River"],
+    "titleChance": 0.4,
+    "legend": {
+        "perPoint": 0.04,
+        "cap": 50,
+        "tiers": [
+            { "min": 0,  "label": "Unsung" },
+            { "min": 5,  "label": "Storied" },
+            { "min": 15, "label": "Renowned" },
+            { "min": 30, "label": "Legendary" }
+        ]
+    },
+    "caps": { "battlePower": 0.08, "negotiation": 0.06, "damageReduction": 0.12 },
+    "weights": { "battle": 3, "crowned": 6, "deed": 1, "succession": 2, "recovered": 3, "made": 1, "dowry": 2, "regency": 1 },
+    "deedMinPrestige": 8,
+    "battlePattern": "army|broke|defeated|battle|took .+ for|outlasted|revolt|retook|relief|crushed",
+    "skipPattern": "^(an heir takes up the mantle|legacy dynasty prestige|quest:|contract:)",
+    "historyCap": 30,
+    "forges": [
+        { "stat": "crowned",     "at": [1, 4],      "kind": "crown",  "line": "Made for the crowning of {ruler}" },
+        { "stat": "battleWon",   "at": [5, 30, 90], "kind": "banner", "line": "Raised over the field after {ruler}'s {n}th victory" },
+        { "stat": "battleWon",   "at": [15, 60],    "kind": "sword",  "line": "Forged for {ruler}, victor of {n} battles" },
+        { "stat": "greatWork",   "at": [1, 5],      "kind": "book",   "line": "Bound to record the great works of {ruler}" },
+        { "stat": "titleGained", "at": [3],         "kind": "ring",   "line": "Cut as the signet of {ruler}'s many titles" }
+    ],
+    "masterworks": {
+        "steel_sword": "sword", "steel_arming_sword": "sword", "iron_sword": "sword", "bronze_sword": "sword", "dane_axe": "sword",
+        "rondel_dagger": "sword", "halberd": "sword", "flanged_mace": "sword",
+        "amulet": "ring", "gold_jewellery": "ring", "silver_jewellery": "ring",
+        "chainmail": "armour", "plate_armor": "armour", "brigandine": "armour", "steel_helm": "armour",
+        "fine_garments": "banner", "book": "book", "rare_book": "book"
+    },
+    "treasures": {
+        "enchanted_weapon": "sword", "dragonscale_armor": "armour", "royal_seal": "ring", "relics": "relic",
+        "ancient_artifact": "relic", "scriptures": "book", "dragon_scale": "relic", "enchanted_ring": "ring"
+    },
+    "finds": { "delveChance": 0.15, "digChance": 0.1 },
+    "theft": { "yearlyChance": 0.025, "minLegend": 3 },
+    "succession": { "disputeTakeChance": 0.5, "fieldLossChance": 0.35, "fieldCausePattern": "battle|slain|killed|wound|fell|duel|murder|assassin" },
+    "pawn": { "base": 120, "perLegend": 12, "redeemMult": 1.25, "termDays": 360 },
+    "recover": { "buyMult": 1.6, "takeBase": 0.35, "takePerSkill": 0.05, "takeHurt": 25, "searchChance": 0.3, "surfaceDays": 720, "askReputation": 40 },
+    "dowry": { "prestige": 4, "reputation": 12 },
+    "lines": {
+        "made":        "Made by {ruler}'s own hand: a masterwork {item}",
+        "fromTreasure":"Taken into the House by {ruler}: {item}",
+        "found":       "Found by {ruler} in {place}",
+        "deed":        "Carried by {ruler} when {who} {reason}",
+        "battle":      "Carried by {ruler} when {who} {reason}",
+        "crowned":     "Borne at the crowning of {ruler}",
+        "succession":  "Passed to {heir} on the death of {ruler}",
+        "regency":     "Kept by the regent {regent} for the young {heir}",
+        "given":       "Given by {ruler} to {child}",
+        "returned":    "Returned to {ruler} by {child}",
+        "pawned":      "Pawned by {ruler} in {place} for {gold} gold",
+        "redeemed":    "Redeemed from the moneylenders of {place} by {ruler}",
+        "sold":        "Sold away by the moneylenders of {place} when the pledge ran out",
+        "stolen":      "Stolen from {ruler} by {thief}; carried off towards {place}",
+        "dispute":     "Carried off by {thief} in the disputed succession of {heir}",
+        "fieldLost":   "Lost on the field where {ruler} fell",
+        "surfaced":    "Seen again, for sale in {place}",
+        "dowry":       "Sent with {child} as dowry into {realm}",
+        "recovered":   "Recovered by {ruler} in {place}",
+        "askedBack":   "Given back to {ruler} by the court of {realm}"
+    },
+    "thieves": ["a light-fingered steward", "a band of road thieves", "a disgraced cousin", "a rival's hired thief", "a household servant who fled", "a travelling pedlar"]
+}

@@ -10,6 +10,7 @@
 // Every roll is a hash of the person's uid — no draws on the shared RNG.
 import { Relationships } from './_ref.js';
 import { Utils, Townsfolk, House } from './_imports.js';
+import { NpcMemory } from '../npcMemory.js';
 
 // Townsfolk temper → relationship personality and NPC traits
 const PERSONALITY = {
@@ -184,6 +185,8 @@ Object.assign(Relationships, {
                 const name = player.firstName || player.name || 'a traveller';
                 const to = withPlayer === 'wed' ? `wed to ${name}` : `the road with ${name}`;
                 if (!p.away) Townsfolk._log(p, day, withPlayer === 'wed' ? 'wedPlayer' : 'leftWithPlayer', null, name);
+                // A wedding the family will speak of for generations (systems/npcMemory.js)
+                if (withPlayer === 'wed' && player.name) NpcMemory.remember(world, { folk, person: p }, { kind: 'wed', player, kin: true });
                 p.away = { d: day, to, withPlayer };
             }
         } else if (p.away && (p.away.withPlayer === 'wed' || p.away.withPlayer === 'party')) {

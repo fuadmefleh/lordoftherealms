@@ -367,3 +367,27 @@ describe('the player', () => {
         expect(Brawls.breakUpChance({ strength: 9, charisma: 8 }, { stage: 'weapons' })).toBeLessThan(strong);
     });
 });
+
+describe('what the town says', () => {
+    it('names the one left standing first, whichever side started it', () => {
+        const { ash } = makeWorld();
+        const { a, b } = pair(ash);
+        const lines = { ko: ['{a} knocked {b} senseless {place} {when}.'] };
+        const C = Brawls.config();
+        const saved = C.rumours;
+        C.rumours = { ...saved, ...lines };
+        try {
+            const started = Brawls.begin(a, b, { key: 'say1', place: 'street' });
+            Brawls.end(started, 'ko', 0);
+            expect(Brawls.rumour(started)).toBe(`${a.name} knocked ${b.name} senseless in the street {when}.`);
+            // The one picked on won: they did the knocking
+            const turned = Brawls.begin(a, b, { key: 'say2', place: 'street' });
+            Brawls.end(turned, 'ko', 1);
+            expect(Brawls.rumour(turned)).toBe(`${b.name} knocked ${a.name} senseless in the street {when}.`);
+            // (the same with names handed in)
+            expect(Brawls.rumour(turned, { a: 'Ann', b: 'Bo' })).toBe('Bo knocked Ann senseless in the street {when}.');
+        } finally {
+            C.rumours = saved;
+        }
+    });
+});

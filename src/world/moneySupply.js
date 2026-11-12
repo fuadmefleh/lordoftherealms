@@ -36,6 +36,14 @@
 //                the player (paid into the player's purse); the crown's
 //                seigniorage is struck into the treasury; foreign coin that
 //                came in is restruck for the same charge, drawn from the towns
+//   • the coin   (2026-11) the mint's standard (kingdom.finance.purity) is not
+//     in hand   the coin in hand: after a debasement the old finer pieces
+//                (R.lag) are restruck week by week — the crown keeps the extra
+//                pieces their silver makes, prices follow the coin in hand —
+//                and people hoard them meanwhile (velocity); clippers shave the
+//                pieces (R.clip) and sell the silver as ore; the changers'
+//                spread between two coins is friction on trade across their
+//                border; a coin the people do not trust sours the towns
 // Hoarding: a realm at war, or in a panic, hoards part of its coin
 // (velocity). The realm's price level then follows its coin × velocity per
 // head against the world's — level = clamp(ratio ^ elasticity), smoothed —
@@ -88,15 +96,18 @@ const DEFAULTS = {
         },
         seignHistory: 8,
     },
-    recoinage: { crownShare: 0.5, stability: 2, maxDebtRatio: 0.3, treasuryCover: 4, cooldown: 120, minGap: 0.05 },
+    recoinage: { crownShare: 0.5, labour: 0.1, stability: 2, maxDebtRatio: 0.3, treasuryCover: 4, cooldown: 120, minGap: 0.05 },
     exchange: { perPurity: 0.25, max: 0.05, minGold: 50 },
     concession: { termDays: 120, share: 0.5, feeShare: 0.9, minFee: 40 },
     counterfeit: { minRank: 1, minStake: 100, maxStake: 600, gain: 0.55, base: 0.16, heatPer: 0.004, rankCut: 0.02, looser: 0.6, fineShare: 1, caughtHeat: 15, passHeat: 4, arrestChance: 0.5, cooldown: 7 },
     news: { shortAt: 0.94, floodAt: 1.07, gapWeeks: 8, cap: 30, historyWeeks: 26 },
     counsel: { bullionGain: 0.05, mintRadius: 25 },
+    debasement: { firstCall: 0.3, restrike: 0.12, mix: 0.1, hoard: 0.6 },
+    clip: { rate: 0.0006, max: 0.12, tolerance: 0.03, unrest: 1 },
+    trust: { moodAt: 80, mood: 1, perPurity: 150, perClip: 150 },
 };
 
-const SECTIONS = ['level', 'velocity', 'trade', 'gresham', 'flight', 'income', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel'];
+const SECTIONS = ['level', 'velocity', 'trade', 'gresham', 'flight', 'income', 'recoinage', 'exchange', 'concession', 'counterfeit', 'news', 'counsel', 'debasement', 'clip', 'trust'];
 
 let _cfgSrc;
 let _cfg = null;
@@ -117,6 +128,12 @@ function _alive(world) {
     return (world && Array.isArray(world.kingdoms) ? world.kingdoms : [])
         .filter(k => k && k.isAlive !== false && k.id != null)
         .slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+}
+
+/** The key of a pair of realms, the same both ways round. */
+function _pairKey(a, b) {
+    const x = String(a), y = String(b);
+    return x < y ? `${x}|${y}` : `${y}|${x}`;
 }
 
 function _flows() {
@@ -236,6 +253,8 @@ export const MoneySupply = {
         if (!_obj(st.trade)) st.trade = {};
         if (!Array.isArray(st.news)) st.news = [];
         if (!_obj(st.newsAt)) st.newsAt = {};
+        // (the changers' spread between each pair of realms' coins, set weekly: 'a|b' → share)
+        if (!_obj(st.spreads)) st.spreads = {};
         if (st.lastDay === undefined) st.lastDay = null;
         if (typeof st.seq !== 'number') st.seq = _num(st.seq);
         return st;
@@ -282,9 +301,21 @@ export const MoneySupply = {
         m.seign = _num(m.seign);
         m.lastStruck = _num(m.lastStruck);
         m.lastSeign = _num(m.lastSeign);
+        // (coin melted by recoinages: its silver went into the new coin)
+        m.melted = _num(m.melted);
         if (!Array.isArray(m.seignHist)) m.seignHist = [];
         if (m.lastRecoin === undefined) m.lastRecoin = null;
         if (m.lease === undefined) m.lease = null;
+        // The coin in hand (2026-11 minting and debasement): lag = how much finer the
+        // pieces in circulation are than the mint's standard (old coin not yet
+        // restruck; < 0: the mint strikes finer coin than circulates), clip = the
+        // share of their weight clipped off; restruck / shaved: running totals
+        R.lag = _clamp(_num(R.lag), -0.9, 0.9);
+        R.clip = _clamp(_num(R.clip), 0, 0.9);
+        R.restruck = _num(R.restruck);
+        R.shaved = _num(R.shaved);
+        R.silverCarry = _num(R.silverCarry);
+        R.trust = _num(R.trust, 100);
         return R;
     },
 
@@ -371,10 +402,124 @@ export const MoneySupply = {
         return R ? Math.round(R.coin) : null;
     },
 
-    /** Silver content of a's coin in b's coin (what the money changers reckon): purity a / purity b. */
+    /** Silver content of a's coin in b's coin (what the money changers reckon): fineness in hand a / b. */
     exchangeRate(world, fromKid, toKid) {
         const a = _kingdom(world, fromKid), b = _kingdom(world, toKid);
-        return _r4(_purity(a) / _purity(b));
+        return _r4(MoneySupply.effective(world, a) / MoneySupply.effective(world, b));
+    },
+
+    /**
+     * The silver in a realm's coin (O(1): read per price): { standard (the
+     * mint's purity), circulating (the pieces in hand: standard + lag, the old
+     * finer coin not yet restruck), clip (share of their weight clipped off),
+     * effective (what a piece in hand is worth: circulating × (1 − the clipping
+     * past `tolerance` — worn coin passes by tale until it is badly clipped)),
+     * lag }. Without a record (or with the system off) all are the standard.
+     */
+    fineness(world, k) {
+        const standard = _purity(k);
+        const st = world && world.money;
+        const R = st && st.realms && k ? st.realms[k.id] : null;
+        if (!R || !MoneySupply.enabled()) return { standard, circulating: standard, clip: 0, effective: standard, lag: 0 };
+        const lag = _num(R.lag);
+        const circulating = _clamp(standard + lag, 0.1, 1);
+        const clip = _clamp(_num(R.clip), 0, 0.9);
+        const tol = _num(MoneySupply.config().clip.tolerance, 0.03);
+        const effective = _clamp(circulating * (1 - Math.max(0, clip - tol)), 0.1, 1);
+        return { standard, circulating, clip, effective, lag };
+    },
+
+    /** What a piece of the realm's coin in hand is worth in silver (1 = full weight). */
+    effective(world, k) {
+        return MoneySupply.fineness(world, k).effective;
+    },
+
+    /**
+     * How far a realm's people and merchants trust the coin in their hands,
+     * 0–100: a debased standard or coin (whichever is baser), clipping past the
+     * tolerance, a recent crown default, past defaults.
+     */
+    trust(world, k, day = null) {
+        if (!k) return 100;
+        const C = MoneySupply.config();
+        const fn = MoneySupply.fineness(world, k);
+        let t = 100 - (1 - Math.min(fn.standard, fn.circulating)) * _num(C.trust.perPurity, 150)
+            - Math.max(0, fn.clip - _num(C.clip.tolerance, 0.03)) * _num(C.trust.perClip, 150);
+        const f = k.finance;
+        if (f) {
+            if (day != null && f.lastDefaultDay != null) t -= Math.max(0, 40 - (day - f.lastDefaultDay) / 6);
+            t -= Math.min(30, _num(f.defaults) * 10);
+        }
+        return _clamp(Math.round(t), 0, 100);
+    },
+
+    /** The money changers' spread between two realms' coins (a share): perPurity × the gap in what a piece is worth, at most max. */
+    spread(world, fromKid, toKid) {
+        if (fromKid == null || toKid == null || fromKid === toKid) return 0;
+        const E = MoneySupply.config().exchange;
+        const gap = Math.abs(MoneySupply.effective(world, _kingdom(world, fromKid)) - MoneySupply.effective(world, _kingdom(world, toKid)));
+        if (!(gap > 1e-9)) return 0;
+        return _clamp(gap * _num(E.perPurity, 0.25), 0, _num(E.max, 0.05));
+    },
+
+    // ── The mint's standard: debasement and its slow spread ──
+
+    /**
+     * Set the mint's standard (kingdom.finance.purity). The coin in hand does
+     * not change at once: the gap is carried as lag and closes week by week as
+     * the old pieces are brought in to be restruck (a baser standard) or as the
+     * new finer coin mixes in (a better one). @returns the new standard
+     */
+    setStandard(world, k, purity) {
+        if (!k) return 1;
+        if (!_obj(k.finance)) k.finance = { purity: 1 };
+        const before = _purity(k);
+        const p = _clamp(Math.round(_num(purity, before) * 1000) / 1000, 0.1, 1);
+        k.finance.purity = p;
+        const R = world && MoneySupply.enabled() && k.isAlive !== false && k.id != null ? MoneySupply.ensureRealm(world, k) : null;
+        if (R) {
+            MoneySupply._fill(R);
+            let lag = R.lag + before - p;
+            // (never finer than full weight, never baser than the floor)
+            if (p + lag > 1) lag = 1 - p;
+            if (p + lag < 0.1) lag = 0.1 - p;
+            R.lag = _r4(lag);
+        }
+        return p;
+    },
+
+    /**
+     * The mint calls in `share` of the old, finer coin still in hand and
+     * strikes it anew at the (baser) standard: the holders get back as many
+     * pieces as they brought, the crown keeps the extra pieces the same silver
+     * makes. The pieces in hand are unchanged (and now baser); the crown's
+     * gain is new coin made from that silver — booked 'debase', in the chests
+     * until it is spent. @returns the crown's gain (whole coin)
+     */
+    restrike(world, k, share) {
+        const R = k ? MoneySupply.realm(world, k.id) : null;
+        if (!R || !MoneySupply.enabled()) return 0;
+        MoneySupply._fill(R);
+        if (!(R.lag > 1e-6)) return 0;
+        const dl = R.lag * _clamp(_num(share), 0, 1);
+        const gain = Math.floor(Math.max(0, R.coin) * dl / _purity(k));
+        R.lag = _r4(Math.max(0, R.lag - dl));
+        if (gain > 0) {
+            k.treasury = _r2(_num(k.treasury) + gain);
+            CrownBooks.note(k, 'debase', gain);
+            MoneySupply._book(R, 'debase', gain);
+            R.restruck = _r2(R.restruck + gain);
+        }
+        return gain;
+    },
+
+    /** A recoinage struck the coin anew at full weight: nothing old, nothing clipped in hand. */
+    renewCoin(world, k) {
+        const R = k ? MoneySupply.realm(world, k.id) : null;
+        if (!R) return;
+        MoneySupply._fill(R);
+        R.lag = 0;
+        R.clip = 0;
     },
 
     /** How the coin moved over `weeks` (coin now / coin then − 1), or null. */
@@ -466,7 +611,17 @@ export const MoneySupply = {
         const on = MoneySupply.enabled();
         const book = on ? MoneySupply.state(world).trade : null;
         let total = 0;
+        // The money changers at the border: the spread between the two coins is
+        // friction the next day's NPC trade must beat (link.changers, read by
+        // SettlementMarket.flows; the week's spreads: world.money.spreads)
+        const spreads = on ? MoneySupply.state(world).spreads : null;
         for (const link of links) {
+            if (spreads) {
+                const ka = link.a && link.a.kingdom, kb = link.b && link.b.kingdom;
+                const sp = ka != null && kb != null && ka !== kb ? _num(spreads[_pairKey(ka, kb)]) : 0;
+                if (sp > 0) link.changers = sp;
+                else if (link.changers) link.changers = 0;
+            }
             const ab = link.valAB, ba = link.valBA;
             if (!(ab > 0) && !(ba > 0)) continue;
             link.valAB = 0;
@@ -767,6 +922,43 @@ export const MoneySupply = {
             MoneySupply.mintWeek(world, k, st.realms[k.id], typeof ctx.coinTown === 'function' ? list.filter(ctx.coinTown) : list);
         }
 
+        // 3b. The coin in hand: after a debasement the old, finer pieces are brought
+        // in to be restruck at the baser standard (the crown keeps the extra pieces
+        // the same silver makes); after a better standard the finer new coin mixes
+        // in; and the clippers shave the pieces, selling the silver in the realm's
+        // largest market (the mint buys it back: the metal is never lost)
+        const DB = C.debasement, CL = C.clip;
+        const hasSilver = SettlementMarket.config().goodIds.indexOf('silver_ore') >= 0;
+        const perSilver = _num(C.mint.fine.silver_ore, 16);
+        for (const k of alive) {
+            const R = st.realms[k.id];
+            if (R.lag > 1e-6) MoneySupply.restrike(world, k, _num(DB.restrike, 0.12));
+            else if (R.lag < -1e-6) R.lag = _r4(R.lag * (1 - _clamp(_num(DB.mix, 0.1), 0, 1)));
+            const fn = MoneySupply.fineness(world, k);
+            const unruly = 0.5 + _num(CL.unrest, 1) * (1 - _clamp(_num(k.stability, 50), 0, 100) / 100);
+            const dclip = Math.min(Math.max(0, _num(CL.max, 0.12) - R.clip), _num(CL.rate) * unruly * fn.circulating);
+            if (!(dclip > 0) || !(R.coin > 0)) continue;
+            R.clip = Math.round((R.clip + dclip) * 1e6) / 1e6;
+            const silver = R.coin * fn.circulating * dclip;
+            R.shaved = _r2(R.shaved + silver);
+            if (!hasSilver) continue;
+            R.silverCarry = _num(R.silverCarry) + silver / perSilver;
+            const units = Math.floor(R.silverCarry * 100) / 100;
+            if (!(units >= 0.01)) continue;
+            // (shared among the realm's markets by their people: the clippers are everywhere)
+            const mk = (towns.get(k.id) || []).filter(s => s.market && _obj(s.market.stock));
+            if (!mk.length) continue;
+            const pop = mk.reduce((t, s) => t + Math.max(0, _num(s.population)), 0);
+            let left = units;
+            mk.forEach((s, i) => {
+                const part = i === mk.length - 1 ? _r2(left) : Math.floor(units * (pop > 0 ? Math.max(0, _num(s.population)) / pop : 1 / mk.length) * 100) / 100;
+                if (!(part > 0)) return;
+                s.market.stock.silver_ore = _r2(_num(s.market.stock.silver_ore) + part);
+                left = _r2(left - part);
+            });
+            R.silverCarry = _r4(R.silverCarry - units);
+        }
+
         // 4. The invisible balance: pilgrims, mercenaries' pay, smugglers and
         // travellers carry coin from the realms that have much of it to those that
         // have little, trade or no trade (drift × the log gap): what leaves the rich
@@ -835,7 +1027,9 @@ export const MoneySupply = {
                 MoneySupply._book(R, 'wear', -lost);
             }
             const war = Array.isArray(k.wars) && k.wars.length > 0;
-            const target = Math.max(_num(V.floor, 0.6), 1 - (war ? _num(V.war) : 0) - (inPanic(k) ? _num(V.panic) : 0));
+            // (Gresham at home: while the old finer pieces are still about, people keep them back and spend the base ones)
+            const hoardGood = Math.max(0, _num(R.lag)) * _num(DB.hoard, 0.6);
+            const target = Math.max(_num(V.floor, 0.6), 1 - (war ? _num(V.war) : 0) - (inPanic(k) ? _num(V.panic) : 0) - hoardGood);
             R.vel = _r4(R.vel + (target - R.vel) * _num(V.adjust, 0.3));
             R.pop = Math.max(1, _num(k.population));
             sumCV += R.coin * R.vel;
@@ -867,6 +1061,26 @@ export const MoneySupply = {
             if (!kind) continue;
             st.newsAt[k.id] = day;
             made.push(MoneySupply.record(world, { kind, kingdomId: k.id, kingdom: k.name, pct: Math.round((R.level - 1) * 100) }));
+        }
+
+        // 6. The changers' spread between every two coins (friction on the NPC trade
+        // across their borders: collectTrade), and the people's trust in their coin —
+        // a coin they do not trust sours the towns (settlement.happiness)
+        st.spreads = {};
+        for (let i = 0; i < alive.length; i++) {
+            for (let j = i + 1; j < alive.length; j++) {
+                const sp = MoneySupply.spread(world, alive[i].id, alive[j].id);
+                if (sp > 0) st.spreads[_pairKey(alive[i].id, alive[j].id)] = _r4(sp);
+            }
+        }
+        const TR = C.trust;
+        for (const k of alive) {
+            const R = st.realms[k.id];
+            R.trust = MoneySupply.trust(world, k, day);
+            const at = _num(TR.moodAt, 80);
+            if (!(R.trust < at) || !(_num(TR.mood) > 0)) continue;
+            const d = _num(TR.mood) * (at - R.trust) / at;
+            for (const s of towns.get(k.id) || []) s.happiness = _r2(_clamp(_num(s.happiness, 50) - d, 0, 100));
         }
         return made;
     },

@@ -18,6 +18,7 @@ const PART_LABELS = {
     wealth: '💰 Wealth', prestige: '⭐ Prestige', renown: '📣 Renown', conquests: '🔥 Recent conquests',
 };
 const HOW = { appeased: '🕊️ appeased', humbled: '🏳️ disbanded (you were cut down)', broken: '🏆 broken' };
+const CB_ICON = { vendetta: '🔴', conquest: '🔥', crown: '👑', power: '⚖️' };
 
 function _bar(value, max, color) {
     const pct = Math.max(0, Math.min(100, Math.round((value / Math.max(1, max)) * 100)));
@@ -48,10 +49,11 @@ Object.assign(ActionMenu, {
         html += `<div style="${CARD}">`;
         html += `<div style="display:flex;justify-content:space-between;"><b>Your power in the courts' eyes</b><span style="color:${color};font-weight:bold;">${Math.round(p.score)}</span></div>`;
         html += _bar(p.score, v.form, color);
-        html += `<div style="color:var(--text-secondary);font-size:11px;">The realms watch at ${v.concern}; past ${v.form} for ${Coalitions.config().brewWeeks} weeks they may swear a league against you.${p.day != null ? ` Last reckoned on day ${p.day}.` : ' Reckoned weekly.'}</div>`;
+        html += `<div style="color:var(--text-secondary);font-size:11px;">The realms watch at ${v.concern}; past ${v.form} for ${Coalitions.config().brewWeeks} weeks they may swear a league against you; short of it, the mightier you grow the sooner their patience runs out.${p.day != null ? ` Last reckoned on day ${p.day}.` : ' Reckoned weekly.'}</div>`;
         const parts = Object.entries(p.parts || {}).filter(([, n]) => n > 0);
         if (parts.length) html += `<div style="margin-top:4px;font-size:11px;color:#bbb;">${parts.map(([k, n]) => `${PART_LABELS[k] || k} ${Math.round(n)}`).join(' · ')}</div>`;
-        if (!v.active && v.pressure > 0) html += `<div style="margin-top:4px;color:#f5c542;">🕊️ Envoys ride between the courts: ${v.pressure} week${v.pressure > 1 ? 's' : ''} of talk of a league.</div>`;
+        if (!v.active && v.pressure > 0) html += `<div style="margin-top:4px;color:#f5c542;">🕊️ Envoys ride between the courts: ${v.pressure} week${v.pressure > 1 ? 's' : ''} of talk of a league${v.primed && p.score < v.form ? ' (the courts have tired of your rise: lesser grudges will serve)' : ''}.</div>`;
+        else if (!v.active && v.clock > 0.05) html += `<div style="margin-top:4px;color:#bbb;">⏳ The courts' patience with your rise: ${Math.round((1 - v.clock) * 100)}% left. The mightier you grow, the faster it wears.</div>`;
         if (!v.active && v.cooldownUntil > (world.day || 0)) html += `<div style="margin-top:4px;color:#999;">The last league's memory is fresh: none will be sworn before day ${v.cooldownUntil}.</div>`;
         html += '</div>';
 
@@ -62,10 +64,16 @@ Object.assign(ActionMenu, {
             html += `<div style="${CARD} border-color:rgba(224,96,96,0.5);">`;
             html += `<div style="font-weight:bold;color:#e08080;font-size:13px;">⚜️ ${esc(c.name)}</div>`;
             html += `<div style="color:#ccc;">Against ${esc(c.target)} · led by ${esc(c.leaderName)} · ${c.stage === 'forming' ? `<span style="color:#f5c542;">terms open until day ${c.dueDay}</span>` : '<span style="color:#e06060;">at war</span>'} · sworn day ${c.formed}${c.generation && player.house && c.generation < (player.house.generation || 1) ? ' · against your forebear' : ''}</div>`;
-            html += `<div style="font-style:italic;color:#bbb;margin:3px 0;">"${esc(c.casusBelli)}"</div>`;
+            html += `<div style="font-style:italic;color:#bbb;margin:3px 0;">${CB_ICON[c.cb] || ''} "${esc(c.casusBelli)}"</div>`;
+            if (c.stage === 'active' && Number.isFinite(c.activeDay)) html += `<div style="font-size:11px;color:#999;">At war since day ${c.activeDay}.</div>`;
             html += `<div style="font-size:11px;">Resolve ${Math.round(Math.max(0, c.resolve))}</div>${_bar(c.resolve, 100, '#e06060')}`;
-            html += bullets([
-                `Its members levy ${Math.round(Coalitions.config().embargoLevy * 100)}% on what you sell in their towns, cancel your licences, and their lords will not receive you.`,
+            const levy = Math.round(Coalitions.config().embargoLevy * 100);
+            html += bullets(c.stage === 'forming' ? [
+                `While its terms stand, only ${esc(c.leaderName)}'s lord refuses to receive you; the other members still trade and talk.`,
+                `If it marches, its members levy ${levy}% on what you sell in their towns, cancel your licences, and none of their lords will receive you.`,
+                'Splitting its members now, before it marches, is cheaper than breaking it in the field.',
+            ] : [
+                `Its members levy ${levy}% on what you sell in their towns, cancel your licences, and their lords will not receive you.`,
                 'Breaking their hosts, outlasting them, and splitting them wears its resolve down; your growth hardens it.',
             ]);
             const q = v.quote;
@@ -88,6 +96,8 @@ Object.assign(ActionMenu, {
                 for (const h of cedable.slice(0, 2)) html += _btn(`🏰 Cede ${esc(h.name)}`, 'split', [m.kingdomId, 'cede', `${h.q},${h.r}`], BTN_RED, true, 'A town of yours to them; they leave the league and remember the gift.');
                 html += '</div>';
             }
+            const gone = Object.values(c.members || {}).filter(m => m.left);
+            if (gone.length) html += `<div style="margin-top:6px;font-size:11px;color:#999;">Gone from it: ${gone.map(m => `${esc(m.name)} (${esc(m.why || 'left')}${Number.isFinite(m.leftDay) ? `, day ${m.leftDay}` : ''})`).join('; ')}</div>`;
             if (Array.isArray(c.log) && c.log.length) {
                 html += `<div style="margin-top:6px;font-size:11px;color:#999;">${c.log.slice(-4).reverse().map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
             }
@@ -130,7 +140,13 @@ Object.assign(ActionMenu, {
             html += _btn(`🍺 Ask around ${esc(tile.settlement.name)} (${inq.gold}g)`, 'inquire', [player.q, player.r], BTN_DARK, gold >= inq.gold, 'Loosen tongues: anyone here in a rival\'s pay is likelier to be found out.');
         }
         const s = st.stats;
-        if (s.exposed || s.turned || s.sabotaged) html += `<div style="font-size:11px;color:#999;margin-top:4px;">Exposed ${s.exposed} · turned ${s.turned} · sabotage suffered ${s.sabotaged}</div>`;
+        // The rival Houses' work against you so far (RivalAgents.tally: bought, leaks, sabotage, exposed, turned, inquiries)
+        const tally = typeof RivalAgents.tally === 'function' ? RivalAgents.tally(player, world) : null;
+        if (tally && (tally.recruited || tally.leaks || tally.inquiries || tally.turned || tally.exposed || tally.sabotaged)) {
+            html += `<div style="font-size:11px;color:#999;margin-top:4px;">Agents against you so far: ${esc(tally.text)}</div>`;
+            const serving = (tally.serving || []).filter(a => a.days != null);
+            if (serving.length) html += `<div style="font-size:11px;color:#7fd07f;">Turned and serving you: ${serving.map(a => `${esc(a.name)} (against ${esc(a.rivalName)}, ${a.days} day${a.days === 1 ? '' : 's'})`).join('; ')}</div>`;
+        } else if (s.exposed || s.turned || s.sabotaged) html += `<div style="font-size:11px;color:#999;margin-top:4px;">Exposed ${s.exposed} · turned ${s.turned} · sabotage suffered ${s.sabotaged}</div>`;
         if (st.log.length) html += `<div style="font-size:11px;color:#888;margin-top:4px;">${st.log.slice(0, 4).map(e => `Day ${e.day}: ${esc(e.text)}`).join('<br>')}</div>`;
 
         // ── Past leagues ──
@@ -139,7 +155,15 @@ Object.assign(ActionMenu, {
             const L = v.stats || {};
             html += `<div style="font-size:11px;color:#999;">Sworn ${L.formed || 0} · broken ${L.broken || 0} · appeased ${L.appeased || 0} · disbanded ${L.humbled || 0} · members bought ${L.boughtOff || 0}, wed ${L.married || 0}, given towns ${L.ceded || 0} · terms defied ${L.defied || 0}</div>`;
             for (const h of v.history.slice(0, 5)) {
-                html += `<div style="font-size:11px;color:#bbb;padding:2px 0;">⚜️ <b>${esc(h.name)}</b> (${esc(h.members.join(', '))}), day ${h.formed}–${h.ended}: ${HOW[h.how] || h.how}</div>`;
+                html += '<div style="font-size:11px;color:#bbb;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
+                html += `⚜️ <b>${esc(h.name)}</b> (${esc((h.members || []).join(', '))}), day ${h.formed}–${h.ended}: ${HOW[h.how] || esc(h.how)}${h.why ? ` — ${esc(h.why)}` : ''}`;
+                const sub = [];
+                if (h.casusBelli) sub.push(`${CB_ICON[h.cb] || ''} sworn "${esc(h.casusBelli)}"`.trim());
+                if (h.via === 'pressure') sub.push('the courts tired of your rise');
+                sub.push(Number.isFinite(h.activeDay) ? `marched day ${h.activeDay}` : 'never marched');
+                if (Array.isArray(h.left) && h.left.length) sub.push(`left early: ${h.left.map(m => `${esc(m.name)} (${esc(m.why)}${Number.isFinite(m.day) ? `, day ${m.day}` : ''})`).join('; ')}`);
+                html += `<div style="color:#888;padding-left:14px;">${sub.join(' · ')}</div>`;
+                html += '</div>';
             }
         }
         html += '</div>';

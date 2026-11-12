@@ -49,6 +49,7 @@ import { Ledger } from './ledger.js';
 import { Containers } from './containers.js';
 import { StreetCrime } from './streetCrime.js';
 import { Scavengers } from './scavengers.js';
+import { NpcMemory } from './npcMemory.js';
 import { Burials } from '../world/burials.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -993,6 +994,8 @@ export const Graveyards = {
         }
         if (res.caught) {
             gr.robbedBy = player.name || 'a stranger';
+            // The family of the dead will remember whose spade it was (systems/npcMemory.js)
+            NpcMemory.onGraveRobbed(world, player, s, gr);
             const R = GraveBook.config().robbery;
             if (ctx.kingdom != null && player.reputation) player.reputation[ctx.kingdom] = _num(player.reputation[ctx.kingdom]) - _num(R.reputation, 6);
             return { success: false, caught: true, opened: true, reason: `${res.text} Robbing the dead: the town will not soon forget it.` };

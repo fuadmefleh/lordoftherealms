@@ -56,6 +56,8 @@ import { Romance } from './romance.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { Ledger } from './ledger.js';
 import { TownSchool } from './townSchool.js';
+// (what they remember of the player's House: systems/npcMemory.js)
+import { NpcMemory } from './npcMemory.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : null);
@@ -604,7 +606,10 @@ export const TownJobs = {
         const master = j.rank === 'master' && TownJobs.occ(j.id) && (_arr(TownJobs.occ(j.id).goods).length || _arr(TownJobs.occ(j.id).recipes).length);
         const wage = Math.round(_num(K.wage) * (master ? _num(C.masterAsk, 2) : 1));
         const disp = p.mem ? _num(p.mem.disposition, 50) : 50;
-        let chance = _num(C.accept, 0.55) + (disp - 50) * _num(C.dispositionPer, 0.008);
+        // Long memory: the House that wronged their family is refused; one that did them good is served gladly
+        const mt = NpcMemory.workTerms(world, { folk, person: p }, player);
+        if (mt.refuse) return { kind, wage: K.wage, chance: 0, refuse: mt.refuse };
+        let chance = _num(C.accept, 0.55) + (disp - 50) * _num(C.dispositionPer, 0.008) + mt.chanceShift;
         if (['unemployed', 'beggar', 'labourer'].includes(j.id)) chance += _num(C.joblessBonus, 0.35);
         if (master) chance -= 0.25;
         return { kind, wage, chance: Math.max(0.02, Math.min(0.97, chance)) };
@@ -633,14 +638,17 @@ export const TownJobs = {
         p.job = { id: (K.job && TownJobs.occ(K.job) ? K.job : null) || (kind === 'guard' ? 'guard' : kind === 'servant' ? 'servant' : 'labourer'), rank: 'master', since: day, employer: 'player', pk: kind, wage: T.wage, paid: day, prev };
         Townsfolk._log(p, day, 'job', null, `hiredPlayer|${K.name}`);
         Townsfolk._annal(folk, world, day, { k: 'job', a: p.id, b: null, x: `hiredPlayer|${player.name || 'a stranger'}` }, []);
+        NpcMemory.remember(world, { folk, person: p }, { kind: 'hired', player });
         _crewCache.delete(folk);
         return { ok: true, text: _pick([`Gladly! I'll start at once. ${T.wage} gold a week, then.`, `You've got yourself ${_article(K.name)}. I'll not let you down.`], u), wage: T.wage };
     },
 
     /** Let one of the player's people go: back to look for work in town. */
-    dismiss(world, folk, p, why = 'dismissed') {
+    dismiss(world, folk, p, why = 'dismissed', player = null) {
         if (!p || !p.job || p.job.employer !== 'player') return false;
         const day = _num(world && world.day, 1);
+        // Turned out, or left unpaid: remembered (systems/npcMemory.js)
+        if (player) NpcMemory.remember(world, { folk, person: p }, { kind: why === 'unpaid' ? 'wages_unpaid' : 'dismissed', player });
         const prev = p.job.prev;
         const back = prev && TownJobs.occ(prev) && !['servant', 'guard'].includes(prev) ? prev : 'unemployed';
         p.job = { id: back, rank: back === 'unemployed' ? 'master' : 'journeyman', since: day };
@@ -673,7 +681,7 @@ export const TownJobs = {
             if (day - _num(p.job.paid, day) < every) continue;
             const w = _num(p.job.wage);
             if (_num(player.gold) < w) {
-                TownJobs.dismiss(world, folk, p, 'unpaid');
+                TownJobs.dismiss(world, folk, p, 'unpaid', player);
                 notes.push(`${Townsfolk.name(p)} has left your service in ${town}: unpaid.`);
                 continue;
             }

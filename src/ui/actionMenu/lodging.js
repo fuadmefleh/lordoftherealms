@@ -107,7 +107,7 @@ Object.assign(ActionMenu, {
         html += '<div style="font-weight:bold; margin-top:8px;">Rooms for the night</div>';
         for (const t of q.tiers) {
             const T = Hospitality.tier(t.id) || {};
-            const fx = [T.comfort ? `comfort ${T.comfort > 0 ? '+' : ''}${T.comfort}` : '', T.hygiene ? `hygiene ${T.hygiene > 0 ? '+' : ''}${T.hygiene}` : '', T.health ? `health +${T.health}` : '', T.theft ? 'keep a hand on your purse' : ''].filter(Boolean).join(' · ');
+            const fx = [T.comfort ? `comfort ${T.comfort > 0 ? '+' : ''}${T.comfort}` : '', T.hygiene ? `hygiene ${T.hygiene > 0 ? '+' : ''}${T.hygiene}` : '', T.health ? `health +${T.health}` : '', T.theft >= 0.05 && v.owner !== 'player' ? 'keep a hand on your purse' : ''].filter(Boolean).join(' · ');
             html += `<div style="${CARD} display:flex; justify-content:space-between; align-items:center; gap:8px;"><div><b>${t.icon} ${esc(t.short)}</b> — ${t.free ? '<span style="color:#9fd89f;">free</span>' : `${t.price} gold`}`;
             html += `<div style="font-size:10px; color:#999;">An inn's night's rest${v.breakfastIncluded ? ', breakfast included' : ''}${fx ? ` · ${esc(fx)}` : ''}</div></div><div style="flex-shrink:0;">`;
             html += t.ok ? act('Book', ['book', v.id, t.id]) + act('💤 Book & sleep', ['sleep', v.id, t.id], BTN_GOLD) : off('Book', t.reason);
@@ -143,7 +143,7 @@ Object.assign(ActionMenu, {
             const label = `${Math.round(m * 100)}%`;
             html += m === rep.priceMult ? `<button disabled style="${BTN_GOLD}">${label}</button>` : act(label, ['price', v.id, m]);
         }
-        html += `<div style="font-size:10px; color:#999;">Of the going rate for a ${esc((Hospitality.kind(v.kind) || {}).noun || 'house')} of ${v.stars} stars. Dearer rooms draw fewer guests.</div></div>`;
+        html += `<div style="font-size:10px; color:#999;">Of the going rate for ${/^[aeiou]/i.test((Hospitality.kind(v.kind) || {}).noun || '') ? 'an' : 'a'} ${esc((Hospitality.kind(v.kind) || {}).noun || 'house')} of ${v.stars} stars. Dearer rooms draw fewer guests.</div></div>`;
 
         html += '<div style="font-weight:bold; margin-top:8px;">Staff</div>';
         for (const [role, def] of Object.entries(C.staff || {})) {

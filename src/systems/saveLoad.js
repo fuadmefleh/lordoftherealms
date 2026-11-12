@@ -6,6 +6,7 @@ import { Characters } from '../world/characters.js';
 import { Dawn } from '../world/dawn.js';
 import { Barter } from '../world/barter.js';
 import { House } from './house.js';
+import { CadetBranches } from './cadetBranches.js';
 import { Titles } from './titles.js';
 import { Espionage } from './espionage.js';
 import { Festivals } from './festivals.js';
@@ -35,12 +36,19 @@ import { Feasts } from './feasts.js';
 import { Fame } from './fame.js';
 import { CourtLetters } from './courtLetters.js';
 import { Regency } from './regency.js';
+import { Abdication } from './abdication.js';
 import { Coalitions } from './coalitions.js';
 import { RivalAgents } from './rivalAgents.js';
+import { Nemesis } from './nemesis.js';
+import { HouseQuests } from './houseQuests.js';
 import { Mail } from './mail.js';
 import { Couriers } from './couriers.js';
 import { Hospitality } from './hospitality.js';
 import { RiverDrift } from './riverDrift.js';
+import { LlmProse } from './llmProse.js';
+import { Crises } from './crises.js';
+import { Climate } from '../world/climate.js';
+import { RealmTimeline } from './realmTimeline.js';
 import { Sagas } from './sagas.js';
 import { Sieges } from './sieges.js';
 import { HoldingSieges } from './holdingSieges.js';
@@ -85,23 +93,55 @@ import { Utils } from '../core/utils.js';
 
 export const SaveLoad = {
     SAVE_KEY: 'lord_of_realms_save',
+    // Ironman runs keep their one save apart (world.run.ironman, systems/metaLegacy.js):
+    // written at each day's end and on quit, never loaded by hand, gone when the run is over
+    IRONMAN_KEY: 'lord_of_realms_ironman',
     AUTO_SAVE_INTERVAL: 5, // Auto-save every 5 days
 
+    /** Is this game an Ironman run? */
+    isIronman(game) {
+        return !!(game && game.world && game.world.run && game.world.run.ironman);
+    },
+
+    /** The slot this game saves to. */
+    slotKey(game) {
+        return SaveLoad.isIronman(game) ? SaveLoad.IRONMAN_KEY : SaveLoad.SAVE_KEY;
+    },
+
+    /** Should today's end save the game? Ironman: every day; else every AUTO_SAVE_INTERVAL days. */
+    shouldAutoSave(game) {
+        if (!game || !game.world) return false;
+        if (SaveLoad.isIronman(game)) return !game.world.run.final;
+        return SaveLoad.AUTO_SAVE_INTERVAL > 0 && game.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0;
+    },
+
     /**
-     * Save game state to localStorage
+     * Save game state to localStorage (the game's slot: SaveLoad.slotKey)
      */
     saveGame(game) {
         try {
+            const run = game.world && game.world.run;
+            // An Ironman run that is over saves no more (its slot is gone)
+            if (run && run.ironman && run.final) return { success: false, error: 'This Ironman run is over' };
+            const house = game.player && game.player.house;
             const saveData = {
                 version: '1.0',
                 timestamp: Date.now(),
+                // What the save list shows without reading the whole world
+                meta: {
+                    ironman: !!(run && run.ironman),
+                    tainted: !!(run && run.tainted),
+                    runId: run ? run.id : null,
+                    playerName: game.player ? game.player.name : '',
+                    houseName: house ? house.name : '',
+                },
                 world: SaveLoad.serializeWorld(game.world),
                 player: SaveLoad.serializePlayer(game.player),
                 notificationLog: game.ui ? game.ui.notificationLog.slice(-200) : [],
             };
 
             const json = JSON.stringify(saveData);
-            localStorage.setItem(SaveLoad.SAVE_KEY, json);
+            localStorage.setItem(SaveLoad.slotKey(game), json);
 
             return { success: true, timestamp: saveData.timestamp };
         } catch (error) {
@@ -113,9 +153,9 @@ export const SaveLoad = {
     /**
      * Load game state from localStorage
      */
-    loadGame() {
+    loadGame(key = SaveLoad.SAVE_KEY) {
         try {
-            const json = localStorage.getItem(SaveLoad.SAVE_KEY);
+            const json = localStorage.getItem(key);
             if (!json) {
                 return { success: false, error: 'No save data found' };
             }
@@ -136,15 +176,20 @@ export const SaveLoad = {
     /**
      * Check if save exists
      */
-    hasSave() {
-        return localStorage.getItem(SaveLoad.SAVE_KEY) !== null;
+    hasSave(key = null) {
+        try {
+            if (key) return localStorage.getItem(key) !== null;
+            return localStorage.getItem(SaveLoad.SAVE_KEY) !== null || localStorage.getItem(SaveLoad.IRONMAN_KEY) !== null;
+        } catch (err) {
+            return false;
+        }
     },
 
     /**
      * Delete save
      */
-    deleteSave() {
-        localStorage.removeItem(SaveLoad.SAVE_KEY);
+    deleteSave(key = SaveLoad.SAVE_KEY) {
+        try { localStorage.removeItem(key); } catch (err) { /* nothing to remove */ }
     },
 
     /**
@@ -231,10 +276,23 @@ export const SaveLoad = {
             burials: world.burials ? JSON.parse(JSON.stringify(world.burials)) : null,
             // Things the player buried in the ground with no one: caches (world/burials.js)
             caches: world.caches ? JSON.parse(JSON.stringify(world.caches)) : null,
+            // The battles remembered on the open field: their cairns and mounds (world/townMarks.js;
+            // a town's own history travels with it: settlement.memory)
+            fieldMarks: world.fieldMarks ? JSON.parse(JSON.stringify(world.fieldMarks)) : null,
             // Things adrift on the rivers, caught on weirs, lying in lakes (systems/riverDrift.js)
             riverDrift: RiverDrift.serialize(world),
+            // The age-defining crises: the one running and those on record (systems/crises.js)
+            crises: Crises.serialize(world),
+            // The climate's eras begun and their chronicle (world/climate.js)
+            climate: Climate.serialize(world),
+            // The Timeline of the Realm: borders by season as deltas, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
+            timeline: RealmTimeline.serialize(world),
             // Ids for characters, maps, spies, ... keep counting from here
             idCounter: Utils.getIdCounter(),
+            // The run: Ironman, tainted by cheats, the Hall of Houses' gifts (systems/metaLegacy.js)
+            run: world.run ? JSON.parse(JSON.stringify(world.run)) : null,
+            // The chronicler's prose: Annals, reign summaries, epitaphs kept forever; flavour bounded (systems/llmProse.js)
+            prose: LlmProse.serialize(world),
         };
     },
 
@@ -368,6 +426,8 @@ export const SaveLoad = {
      */
     EXTRA_PLAYER_FIELDS: [
         'charisma', 'intelligence', 'faith', 'maxInventory',
+        // What the player did in the age's crises (systems/crises.js)
+        'crises',
         // The household guard's standing order: defend against anyone, the watch too (ui/innerMapEscort.js)
         'escortStance',
         'loans', 'taxRate', 'activeContract',
@@ -397,6 +457,8 @@ export const SaveLoad = {
         'mapGrudges',
         // Dead and waiting out the years; or a new life begun in the world (player/afterlife.js)
         'interregnum', 'origin',
+        // An heirless House's money settled once: creditors paid, the rest to the crown (player/estateSettlement.js)
+        'estateSettled',
         // The book of the line that ended for this new life (systems/annals.js archive)
         'annalsPast',
         // Origin, difficulty and victory goal (player/scenarios.js, core/difficulty.js)
@@ -434,6 +496,10 @@ export const SaveLoad = {
         // Your beasts, head by head, at the places you keep them (systems/livestock.js;
         // each town's livestock market travels with it: settlement.livestockMarket)
         'livestock',
+        // Tonight's booked room and its services; the rest type the night will be
+        // (inn, camp) and the last one slept (systems/hospitality.js, player/core/lifecycle.js;
+        // _lastRestType is read by ailments.js, worldEvents.js and firstSteps.js)
+        'lodging', '_restTypeOverride', '_lastRestType',
     ],
 
     _pickDefined(obj, keys) {
@@ -620,6 +686,8 @@ export const SaveLoad = {
             throne: Throne.serialize(player),
             // Holdings ledger (per-settlement development is saved with the tiles)
             holdings: Holdings.serialize(player),
+            // Stewards, bailiffs and governors over the seats that are not holdings; proposals, dispatches (systems/stewards.js)
+            stewards: player.stewards ? JSON.parse(JSON.stringify(player.stewards)) : null,
             // Rival adventurers: the cast, their attitude/memory, news, partner, race (systems/rivals.js)
             rivals: Rivals.serialize(player),
             // Court scandals and whisper campaigns: live tales, what the player knows of them, the record (systems/whispers.js)
@@ -636,10 +704,16 @@ export const SaveLoad = {
             letters: CourtLetters.serialize(player),
             // A child's reign under a regent: the regent's loyalty, skimming, plots, the choice at majority (systems/regency.js)
             regency: Regency.serialize(player),
+            // Abdications: the old rulers living on (pension, respect, plots), the court's pressure to step down (systems/abdication.js)
+            abdication: Abdication.serialize(player),
             // Directed opposition: the realms' regard, a league against the player, past leagues (systems/coalitions.js);
             // the rival Houses' bought townsfolk (systems/rivalAgents.js)
             coalitions: Coalitions.serialize(player),
             rivalAgents: RivalAgents.serialize(player),
+            // Nemeses: named enemies, their hatred, what they learnt of your habits, past feuds (systems/nemesis.js)
+            nemesis: Nemesis.serialize(player),
+            // The House's unfinished business: quests from its own history, open and settled (systems/houseQuests.js)
+            houseQuests: HouseQuests.serialize(player),
             // Letters the player sent: on the road, replies awaited, the record (systems/mail.js)
             mail: Mail.serialize(player),
             // Sagas: running and concluded storylines, what the player heard (systems/sagas.js)
@@ -719,6 +793,8 @@ export const SaveLoad = {
         world.activeEvents = saveData.activeEvents || [];
         world.warHistory = saveData.warHistory || [];
         world.warHistorySeq = saveData.warHistorySeq || 0;
+        // The run (systems/metaLegacy.js); older saves have none (MetaLegacy.ensureRun makes one)
+        world.run = saveData.run || null;
         if (saveData.weather && world.weather && world.weather.deserialize) world.weather.deserialize(saveData.weather);
 
         // Restore tile data
@@ -821,8 +897,18 @@ export const SaveLoad = {
         world.burials = saveData.burials && typeof saveData.burials === 'object' ? saveData.burials : {};
         // The player's caches (older saves: none)
         world.caches = saveData.caches && typeof saveData.caches === 'object' ? saveData.caches : {};
+        // The open field's cairns (older saves: none)
+        world.fieldMarks = saveData.fieldMarks && typeof saveData.fieldMarks === 'object' ? saveData.fieldMarks : {};
         // Things adrift on the rivers (older saves: none)
         RiverDrift.restore(saveData.riverDrift, world);
+        // The chronicler's prose (older saves: none — the Annals' scribe writes again)
+        LlmProse.restore(saveData.prose, world);
+        // The crises (older saves: none yet; the first is scheduled on the next day)
+        Crises.restore(saveData.crises, world);
+        // The climate's eras (older saves: none recorded — the curve is the seed's, so it runs on the same)
+        Climate.restore(saveData.climate, world);
+        // The timeline (older saves: none — recording begins on the next day)
+        RealmTimeline.restore(saveData.timeline, world);
         // Never hand out an id the save already used
         if (typeof saveData.idCounter === 'number') {
             Utils.setIdCounter(Math.max(Utils.getIdCounter(), saveData.idCounter));
@@ -886,6 +972,8 @@ export const SaveLoad = {
         if (typeof House !== 'undefined') {
             House.deserialize(player, null, saveData.house);
         }
+        // The House's cadet branches ride with it (house.cadets; their retinues in world.units)
+        CadetBranches.loadState(player);
 
         // Restore title progress (convert Arrays back to Sets)
         if (typeof Titles !== 'undefined' && player.titleProgress) {
@@ -986,9 +1074,15 @@ export const SaveLoad = {
         // The regency — older saves have none (null); a child's fosterings, commissions and record
         // ride inside player.children (child.upbringing.agency, backfilled by HeirAgency.ensure)
         Regency.loadState(player);
+        // Abdications — older saves have none (null)
+        Abdication.loadState(player);
         // Leagues and rival agents — older saves get blank records (the realms take their measure next week)
         Coalitions.loadState(player);
         RivalAgents.loadState(player);
+        // Nemeses — older saves get a blank record
+        Nemesis.loadState(player);
+        // The House's unfinished business — older saves get a blank record
+        HouseQuests.loadState(player);
         // Mail sent — older saves get a blank record
         Mail.loadState(player);
         // Sagas — older saves get a blank record (the first saga starts on schedule)
@@ -1176,13 +1270,21 @@ export const SaveLoad = {
     /**
      * Get save info without loading
      */
-    getSaveInfo() {
-        const json = localStorage.getItem(SaveLoad.SAVE_KEY);
+    getSaveInfo(key = SaveLoad.SAVE_KEY) {
+        let json = null;
+        try { json = localStorage.getItem(key); } catch (err) { return null; }
         if (!json) return null;
 
         try {
             const saveData = JSON.parse(json);
+            const meta = saveData.meta || {};
+            const run = (saveData.world && saveData.world.run) || {};
             return {
+                key,
+                ironman: !!(meta.ironman || run.ironman),
+                tainted: !!(meta.tainted || run.tainted),
+                playerName: meta.playerName || (saveData.player && saveData.player.name) || '',
+                houseName: meta.houseName || '',
                 timestamp: saveData.timestamp,
                 day: saveData.world.day,
                 season: saveData.world.season,
@@ -1193,5 +1295,13 @@ export const SaveLoad = {
         } catch (error) {
             return null;
         }
+    },
+
+    /** Every save on this machine for the save list: the ordinary slot and the Ironman one. */
+    listSaves() {
+        return [SaveLoad.SAVE_KEY, SaveLoad.IRONMAN_KEY]
+            .map(k => SaveLoad.getSaveInfo(k))
+            .filter(Boolean)
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     },
 };

@@ -872,7 +872,7 @@ Object.assign(ActionMenu, {
 
         window._boardShip = (shipId) => {
             // Board the ship (needs a skeleton crew)
-            const boarded = Ships.boardShip(player, shipId);
+            const boarded = Ships.boardShip(player, shipId, game.world);
             if (!boarded.success) {
                 game.ui.showNotification('Cannot Sail', boarded.message, 'error');
                 return;

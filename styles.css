@@ -3473,13 +3473,15 @@ body {
 
 .settings-groups-container {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    /* (minmax 0: a long option in a select — the Hall's House names — must not widen its column past the sheet) */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 24px;
 }
+.settings-group .input-row select { min-width: 0; }
 
 @media (max-width: 900px) {
     .settings-groups-container {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -4722,6 +4724,8 @@ button#turnDisplay:focus-visible { box-shadow: 0 0 0 1px var(--gold-dark); }
 .hud-end-turn:hover { border-color: var(--hud-teal); box-shadow: 0 0 20px rgba(107, 214, 207, 0.35); transform: translateY(-1px); }
 .hud-end-turn:active { transform: translateY(0); }
 .hud-end-turn-icon { font-size: 13px; }
+/* Pass the Time beside End Turn (ui/actionMenu/timeSkip.js) */
+.hud-skip-btn { padding: 8px 12px; letter-spacing: 1px; font-size: 12px; }
 /* Out of action points: the button breathes, nothing left but to rest (ui/ui/hud.js _markDaySpent) */
 .hud-end-turn--spent { animation: hudEndTurnSpent 1.6s ease-in-out infinite; border-color: var(--gold); }
 @keyframes hudEndTurnSpent {

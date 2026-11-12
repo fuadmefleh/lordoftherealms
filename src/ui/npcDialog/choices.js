@@ -19,6 +19,7 @@ import { renderTalkBox } from '../conversationScene.js';
 import { NpcPortrait } from '../npcPortrait.js';
 import { SocialSkills } from '../../systems/socialSkills.js';
 import { IllnessPlayer } from '../../systems/illnessPlayer.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
 
 /** The questions a disliked player can be refused, by rebuff topic. */
 const ASK_TOPICS = {
@@ -158,8 +159,10 @@ export function _handleChoice(action) {
                 const allNpcs = InnerMap.npcs || [];
                 // A townsperson's whole family, the living and the dead (systems/townsfolk.js)
                 const story = Townsfolk.familyLines(dialogState._npc, dialogState._game?.world);
-                if (story) {
-                    responseText = story;
+                // ...and the stories their family tells of yours (systems/npcMemory.js)
+                const told = dialogState._game?.player ? NpcMemory.familyStories(dialogState._game.world, dialogState._npc, { about: dialogState._game.player, limit: 2 }).map(m => m.text).filter(Boolean) : [];
+                if (story || told.length) {
+                    responseText = [story, ...told].filter(Boolean).join(' ');
                     dispositionChange = 3;
                     if (dialogState._game?.player?.modifyNeed) dialogState._game.player.modifyNeed('social', 5);
                     break;
@@ -763,6 +766,8 @@ export function _giveGoldGift(amount) {
     // Earlier gifts make each new one count for more; then record this one
     boost = NpcDisposition.adjustDisposition(dialogState._npc, boost, dialogState._game?.player);
     const giftResult = NpcDisposition.recordGift(dialogState._npc, dialogState._game?.player);
+    // Remembered for years (systems/npcMemory.js)
+    NpcMemory.onGift(dialogState._game?.world, dialogState._game?.player, dialogState._npc, { gold: amount });
 
     // Karma boost
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
@@ -815,6 +820,7 @@ export function _giveItemGift(itemId) {
 
     boost = NpcDisposition.adjustDisposition(dialogState._npc, boost, dialogState._game?.player);
     const giftResult = NpcDisposition.recordGift(dialogState._npc, dialogState._game?.player);
+    NpcMemory.onGift(dialogState._game?.world, dialogState._game?.player, dialogState._npc, { healed: !!nursed });
     if (dialogState._game.player) dialogState._game.player.karma = (dialogState._game.player.karma || 0) + 1;
 
     const responses = {

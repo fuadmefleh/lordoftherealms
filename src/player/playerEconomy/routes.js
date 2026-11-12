@@ -3,6 +3,7 @@ import { PlayerEconomy } from './_ref.js';
 import { Trading } from './trading.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, Economy } from './_imports.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
+import { Difficulty } from '../../core/difficulty.js';
 
 Object.assign(PlayerEconomy, {
     /**
@@ -206,6 +207,7 @@ Object.assign(PlayerEconomy, {
             unitPrice *= sizeMultiplier[toTile.settlement.type] || 1.0;
             // Markets near gems, spices, salt, horses or oil draw more buyers
             unitPrice *= Economy.caravanProfitMultiplier(world, toTile.settlement);
+            unitPrice *= Difficulty.mult(player, 'sellPrice'); // the difficulty (1 on Normal)
             expectedProfit = Math.floor(unitPrice * route.quantity);
         }
 

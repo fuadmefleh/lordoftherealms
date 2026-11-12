@@ -20,7 +20,8 @@
 //                     counted in the realm whose land they stand on (none in
 //                     the wilds or at sea); pedlars' purses (systems/townTrade.js)
 //                     in the realm of the town they are bound for or in
-//     • court         court and relationship NPCs' purses, in their realm
+//     • court         court and relationship NPCs' purses, in their realm, and
+//                     the House's children's portions (child.purse) where it stands
 //     • outlaws       outlaw lairs' hoards (none in the wilds)
 //     • rivals        adventurer rivals' gold, where they stand
 //
@@ -158,6 +159,8 @@ export const CoinCensus = {
             // Rival Houses, at their seat
             const rivals = player.house && _obj(player.house.rivals);
             if (rivals) for (const h of Object.values(rivals)) if (h && !h.extinct) add(h.kingdomId != null ? h.kingdomId : h.seat ? _realmAt(world, h.seat.q, h.seat.r) : null, 'coffers', h.gold);
+            // The House's cadet branches (systems/cadetBranches.js), at their seat
+            for (const b of player.house && Array.isArray(player.house.cadets) ? player.house.cadets : []) if (b && !b.ended) add(b.kingdomId != null ? b.kingdomId : b.seat ? _realmAt(world, b.seat.q, b.seat.r) : null, 'coffers', b.gold);
             // Court and relationship NPCs (once a courtier leaves, the purse is the townsperson's)
             const npcs = Array.isArray(Relationships._npcs) && Relationships._npcs.length ? Relationships._npcs
                 : Array.isArray(player._relationshipNpcs) ? player._relationshipNpcs : [];
@@ -166,6 +169,8 @@ export const CoinCensus = {
                 const kid = n.kingdomId != null ? n.kingdomId : _realmAt(world, n.settlementQ, n.settlementR);
                 add(kid, 'court', n.purse);
             }
+            // The House's children's portions (systems/inheritance.js), where the House stands
+            for (const c of Array.isArray(player.children) ? player.children : []) if (c && c.purse > 0) add(_realmAt(world, player.q, player.r), 'court', c.purse);
             // Rival merchant houses' capital, at their seat (with the banks: a hoard)
             const mer = _obj(player.merchant);
             if (mer && Array.isArray(mer.rivals)) for (const r of mer.rivals) if (r && r.seat && !r.bankrupt) add(_realmAt(world, r.seat.q, r.seat.r), 'banks', r.capital);
@@ -238,9 +243,11 @@ export const CoinCensus = {
         if (!player) return;
         const rivals = player.house && _obj(player.house.rivals);
         if (rivals) for (const h of Object.values(rivals)) if (h && !h.extinct) fn(h, 'gold', 'coffers');
+        for (const b of player.house && Array.isArray(player.house.cadets) ? player.house.cadets : []) if (b && !b.ended) fn(b, 'gold', 'coffers');
         const npcs = Array.isArray(Relationships._npcs) && Relationships._npcs.length ? Relationships._npcs
             : Array.isArray(player._relationshipNpcs) ? player._relationshipNpcs : [];
         for (const n of npcs) if (n && typeof n.purse === 'number') fn(n, 'purse', 'court');
+        for (const c of Array.isArray(player.children) ? player.children : []) if (c && typeof c.purse === 'number') fn(c, 'purse', 'court');
         const mer = _obj(player.merchant);
         if (mer && Array.isArray(mer.rivals)) for (const r of mer.rivals) if (r) fn(r, 'capital', 'banks');
         const ol = _obj(player.outlawLairs);

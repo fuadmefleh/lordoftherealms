@@ -47,6 +47,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Guilds } from './guilds.js';
 import { Townsfolk } from './townsfolk.js';
 import { NpcDisposition } from './npcDisposition.js';
+import { NpcMemory } from './npcMemory.js';
 import { Gossip } from './gossip.js';
 import { SoulPact } from './soulPact.js';
 
@@ -793,6 +794,8 @@ export const Devotion = {
                 Object.defineProperty(npc, '_dialogMemory', { get: () => p.mem, set: v => { p.mem = v; }, enumerable: true });
                 const disp = NpcDisposition.adjustDisposition(npc, Math.min(_num(R.maxDisposition, 20), eff * _num(R.disposition, 0.4)), player);
                 NpcDisposition.recordGift(npc, player);
+                // ...and they do not (systems/npcMemory.js)
+                NpcMemory.remember(world, { folk, person: p }, { kind: 'alms', player, weight: amount >= 50 ? 7.5 : undefined });
                 notes.push(`${p.first} ${p.last} will not forget it${disp > 0 ? ` (regard +${disp})` : ''}.`);
             }
             Traits.recordDeeds(player, { generosity: Math.min(2, eff / 50), mercy: Math.min(2, eff / 50) });

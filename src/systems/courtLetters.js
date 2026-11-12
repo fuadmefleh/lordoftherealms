@@ -26,6 +26,15 @@
 // gold (through the Ledger), reputation, spouse affection, war chests, House
 // Prestige, a child's marriage.
 //
+// Silence costs too (lapseCosts / _lapse): each kind's `lapse` block in the
+// data names its base price — a deed the lord remembers, reputation, renown,
+// feud, a spouse's affection, a lost offer (st.withdrawn: that sender sends no
+// such letter for a while; read by the daily tick) — scaled by who wrote
+// (senderScale: your liege most, a child least, a strong crown more) and by
+// how often you have left them unanswered (st.snubs; every few in a year the
+// lord takes a grievance). The inbox shows the price before the deadline;
+// the lapse notice and the archived letter say what it cost.
+//
 // At most one new letter every few days, a small open inbox. The daily tick
 // draws from its own seeded stream (world seed + day); the player's answers
 // draw from Utils.random. State on player.letters (saved). Content:
@@ -47,6 +56,7 @@ import { Duels } from './duels.js';
 import { Ledger } from './ledger.js';
 import { Mail } from './mail.js';
 import { Coalitions } from './coalitions.js';
+import { LlmProse } from './llmProse.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -103,7 +113,10 @@ export const CourtLetters = {
     _blank() {
         return {
             inbox: [], archive: [], loans: [], promises: [], pending: [], nextId: 1, nextDay: null, lastFrom: {}, unread: 0,
-            stats: { received: 0, answered: 0, ignored: 0, kept: 0, broken: 0, lent: 0, repaid: 0, defaulted: 0 },
+            // snubs: sender → days their letters lapsed (the repeat scale, grievances);
+            // withdrawn: 'kind|sender' → the day that sender writes such a letter again
+            snubs: {}, withdrawn: {},
+            stats: { received: 0, answered: 0, ignored: 0, kept: 0, broken: 0, lent: 0, repaid: 0, defaulted: 0, grievances: 0 },
         };
     },
 
@@ -119,6 +132,8 @@ export const CourtLetters = {
         if (!(st.nextId > 0)) st.nextId = st.inbox.length + st.archive.length + 1;
         if (st.nextDay === undefined) st.nextDay = null;
         if (!st.lastFrom || typeof st.lastFrom !== 'object') st.lastFrom = {};
+        if (!st.snubs || typeof st.snubs !== 'object') st.snubs = {};
+        if (!st.withdrawn || typeof st.withdrawn !== 'object') st.withdrawn = {};
         if (!Number.isFinite(st.unread)) st.unread = 0;
         st.stats = { ...blank.stats, ...(st.stats || {}) };
         return st;
@@ -405,15 +420,41 @@ export const CourtLetters = {
         };
     },
 
-    /** Put a letter in the inbox. Returns it. */
-    deliver(player, letter) {
+    /** Put a letter in the inbox. Returns it. Given the world, the court scribe may write its body (voice). */
+    deliver(player, letter, world = null) {
         const st = this.state(player);
         letter.id = st.nextId++;
         st.inbox.push(letter);
         st.lastFrom[letter.key] = letter.day;
         st.unread++;
         st.stats.received++;
+        if (world) this.voice(world, letter);
         return letter;
+    },
+
+    /**
+     * Hand a letter's body to the court scribe (systems/llmProse.js): the
+     * written body is the fallback and every fact the model may use; the
+     * panel reads the body through bodyOf. No RNG; never throws.
+     */
+    voice(world, letter) {
+        try {
+            if (!letter || !letter.body) return;
+            letter.proseKey = `letter:${letter.day}:${letter.kind}:${letter.id}:${letter.key || ''}`;
+            const K = this.kind(letter.kind) || {};
+            const from = letter.from || {};
+            LlmProse.write(world, {
+                kind: 'letter', key: letter.proseKey, fallback: letter.body,
+                facts: { sender: from.name || null, senderIs: from.type || null, realm: (letter.vars && letter.vars.realm) || null, matter: K.name || letter.kind, subject: letter.subject, body: letter.body },
+                style: from.type === 'lord' ? 'a lord writing formally to a peer' : null,
+            });
+        } catch (e) { /* the written body stands */ }
+    },
+
+    /** A letter's body as the reader sees it: the scribe's, once written, else the written one. */
+    bodyOf(world, letter) {
+        if (!letter) return '';
+        return letter.proseKey ? LlmProse.text(world, letter.proseKey, letter.body) : letter.body;
     },
 
     // ──────────── DAILY TICK ────────────
@@ -457,62 +498,183 @@ export const CourtLetters = {
             if (!(K.weight > 0)) continue;
             const cands = this._candidates(world, player, id).filter(c =>
                 !st.inbox.some(l => l.key === c.key && l.kind === id)
-                && !(st.lastFrom[c.key] != null && day - st.lastFrom[c.key] < cfg.sameSenderDays));
+                && !(st.lastFrom[c.key] != null && day - st.lastFrom[c.key] < cfg.sameSenderDays)
+                && !this.isWithdrawn(player, id, c.from, day));
             if (cands.length) pool.push({ value: { id, cands }, weight: K.weight });
         }
         st.nextDay = day + Utils.randInt(cfg.gap[0], cfg.gap[1]);
         if (!pool.length) return;
         const pick = Utils.weightedPick(pool);
-        const letter = this.deliver(player, this.compose(world, player, pick.id, Utils.randPick(pick.cands)));
+        const letter = this.deliver(player, this.compose(world, player, pick.id, Utils.randPick(pick.cands)), world);
         out.arrived.push(letter);
-        out.notices.push({ icon: '✉️', title: 'A Letter Arrives', text: `${letter.from.name}: ${letter.subject}. Read it in Journal → Letters (answer within ${letter.expires - day} days).`, type: 'info' });
+        const silence = this.lapseCosts(world, player, letter).lines;
+        out.notices.push({ icon: '✉️', title: 'A Letter Arrives', text: `${letter.from.name}: ${letter.subject}. Read it in Journal → Letters (answer within ${letter.expires - day} days${silence.length ? `; silence would cost ${silence.slice(0, 2).join(', ')}` : ''}).`, type: 'info' });
     },
 
-    _archive(player, letter, outcome, text) {
+    _archive(player, letter, outcome, text, extra = null) {
         const st = this.state(player);
         st.inbox = st.inbox.filter(l => l !== letter);
-        st.archive.unshift({ id: letter.id, kind: letter.kind, day: letter.day, from: letter.from, subject: letter.subject, outcome, text, ...(letter.letter ? { letter: letter.letter } : {}) });
+        st.archive.unshift({ id: letter.id, kind: letter.kind, day: letter.day, from: letter.from, subject: letter.subject, outcome, text, ...(letter.letter ? { letter: letter.letter } : {}), ...(extra || {}) });
         if (st.archive.length > this.config().maxArchive) st.archive.length = this.config().maxArchive;
     },
 
-    /** A letter's deadline passed unanswered: silence has its price. */
+    // ──────────── THE PRICE OF SILENCE ────────────
+
+    /** data/courtLetters.json config.lapse, with defaults. */
+    lapseConfig() {
+        const L = this.config().lapse || {};
+        return {
+            sender: { liege: 1.6, lord: 1, rival: 1, spouse: 1, child: 0.8, mail: 0.5, commoner: 0.3, ...(L.sender || {}) },
+            realm: { min: 0.75, max: 1.4, ...(L.realm || {}) },
+            repeatStep: _num(L.repeatStep, 0.25), repeatMax: _num(L.repeatMax, 1),
+            minScale: _num(L.minScale, 0.25), maxScale: _num(L.maxScale, 3),
+            grievanceWindow: _num(L.grievanceWindow, 365), grievanceAt: Math.max(1, _num(L.grievanceAt, 3)),
+            grievanceDeed: L.grievanceDeed || 'letters_scorned', warnDays: _num(L.warnDays, 2),
+        };
+    },
+
+    /** Who a letter is from, as one key across its kinds: the lord of a realm, a rival House, the spouse, a child. */
+    senderKey(from) {
+        if (!from) return '?';
+        if (from.type === 'lord' || from.type === 'liege') return `lord:${from.kingdomId}`;
+        if (from.type === 'rival') return `rival:${from.kingdomId}`;
+        if (from.type === 'spouse') return `spouse:${from.npcId}`;
+        if (from.type === 'child') return `child:${from.childId}`;
+        return `${from.type || 'other'}:${from.kingdomId || from.npcId || from.name || '?'}`;
+    },
+
+    /** Has this sender stopped offering letters of `kindId` (a lost offer after a lapse)? */
+    isWithdrawn(player, kindId, from, day) {
+        const until = this.state(player).withdrawn[`${kindId}|${this.senderKey(from)}`];
+        return Number.isFinite(until) && day < until;
+    },
+
+    /** How many of this sender's letters lapsed in the grievance window before `day`. */
+    snubCount(player, from, day) {
+        const L = this.lapseConfig();
+        const list = this.state(player).snubs[this.senderKey(from)];
+        return Array.isArray(list) ? list.filter(d => day - d < L.grievanceWindow).length : 0;
+    },
+
+    /**
+     * How much a silence toward this sender weighs: their standing (your
+     * liege most, a child least), the strength of their realm, and how
+     * often you have left them unanswered already. Returns { scale, parts }.
+     */
+    senderScale(world, player, letter) {
+        const L = this.lapseConfig();
+        const day = _day(world);
+        const from = letter.from || {};
+        let type = from.type || 'lord';
+        if (type === 'lord' && player && player.allegiance && from.kingdomId === player.allegiance) type = 'liege';
+        let scale = _num(L.sender[type], 1);
+        let realm = 1;
+        if ((type === 'lord' || type === 'liege' || type === 'rival') && from.kingdomId) {
+            const k = world.getKingdom(from.kingdomId);
+            const alive = this._kingdoms(world);
+            const mean = alive.length ? alive.reduce((s, x) => s + _num(x.military), 0) / alive.length : 0;
+            if (k && mean > 0) realm = Utils.clamp(Math.sqrt(_num(k.military) / mean), L.realm.min, L.realm.max);
+        }
+        const snubs = this.snubCount(player, from, day);
+        const repeat = 1 + Math.min(L.repeatMax, snubs * L.repeatStep);
+        scale = Utils.clamp(scale * realm * repeat, L.minScale, L.maxScale);
+        return { scale: Math.round(scale * 100) / 100, type, realm: Math.round(realm * 100) / 100, snubs, repeat };
+    },
+
+    /**
+     * What leaving this letter unanswered will cost (pure: no state change,
+     * no RNG): { scale, effects: [{ type, n, deed?, days? }], lines: [text],
+     * special } — special names a kind whose silence works its own way
+     * (a held child, a written-off debt, a league, the player's own mail).
+     */
+    lapseCosts(world, player, letter) {
+        const K = this.kind(letter.kind) || {};
+        const out = { scale: 1, effects: [], lines: [], special: null };
+        if (K.mail) { out.special = 'mail'; out.lines.push(K.lapseEffect ? 'their goodwill' : 'nothing but the moment'); return out; }
+        if (letter.kind === 'child_hostage') { out.special = 'hostage'; out.lines.push(`${letter.vars.child || 'your child'} is left to the mercy of ${letter.vars.realm || 'that court'}`); return out; }
+        if (letter.kind === 'loan_default') { out.special = 'writeoff'; out.lines.push(`the debt of ${_num(letter.data.amount)} gold is written off`); return out; }
+        if (letter.kind === 'coalition_ultimatum') { out.special = 'league'; out.lines.push('the league marches on its own day'); return out; }
+        if (letter.kind === 'family_report') { out.special = 'none'; return out; }
+        const spec = K.lapse || { deed: 'letter_ignored' };
+        const s = this.senderScale(world, player, letter);
+        out.scale = s.scale;
+        const k = letter.from.kingdomId ? world.getKingdom(letter.from.kingdomId) : null;
+        const lordName = k && k.lord ? k.lord.name : letter.from.name;
+        const realmName = k ? k.name : 'their realm';
+        const sc = (n) => Math.round(_num(n) * s.scale);
+        if (spec.deed && k && k.lord) {
+            const d = NPCLords.deedDef(spec.deed);
+            const w = d ? Math.round(_num(d.weight) * _num(spec.deedShare, 1) * s.scale * 10) / 10 : 0;
+            if (w) { out.effects.push({ type: 'deed', deed: spec.deed, n: w }); out.lines.push(`${w > 0 ? '+' : ''}${Math.round(w)} opinion with ${lordName}`); }
+        }
+        const rep = sc(spec.reputation);
+        if (rep && letter.from.kingdomId) { out.effects.push({ type: 'reputation', n: rep }); out.lines.push(`${rep} reputation in ${realmName}`); }
+        const renown = sc(spec.renown);
+        if (renown) { out.effects.push({ type: 'renown', n: renown }); out.lines.push(`${renown} renown`); }
+        const feud = sc(spec.feud);
+        if (feud && letter.from.kingdomId) { out.effects.push({ type: 'feud', n: feud }); out.lines.push(`+${feud} feud with ${letter.from.name}`); }
+        const aff = sc(spec.affection);
+        if (aff && letter.from.npcId) { out.effects.push({ type: 'affection', n: aff }); out.lines.push(`${aff} affection with ${letter.from.name}`); }
+        const days = Math.round(_num(spec.withdraw) * Math.max(1, s.scale));
+        if (days > 0) { out.effects.push({ type: 'withdraw', days }); out.lines.push(`${spec.lost || 'no such letter again'} (${days} days)`); }
+        const L = this.lapseConfig();
+        // A crown written to in vain, again and again, takes a grievance (its own lord's letters only)
+        if (k && k.lord && (s.type === 'lord' || s.type === 'liege') && (s.snubs + 1) % L.grievanceAt === 0 && NPCLords.deedDef(L.grievanceDeed)) {
+            out.effects.push({ type: 'grievance', deed: L.grievanceDeed, n: _num(NPCLords.deedDef(L.grievanceDeed).weight) });
+            out.lines.push(`${lordName} takes a grievance: ${s.snubs + 1} letters unanswered`);
+        }
+        return out;
+    },
+
+    /** Apply lapseCosts' effects; returns the cost lines. */
+    _applyLapse(world, player, letter, costs) {
+        const st = this.state(player);
+        const day = _day(world);
+        const kid = letter.from.kingdomId;
+        const k = kid ? world.getKingdom(kid) : null;
+        const lord = k && k.lord;
+        const note = letter.subject;
+        for (const e of costs.effects) {
+            switch (e.type) {
+                case 'deed': if (lord) NPCLords.rememberDeed(world, lord, e.deed, { weight: e.n, note }); break;
+                case 'grievance':
+                    if (lord) NPCLords.rememberDeed(world, lord, e.deed, { note: 'letters left unanswered' });
+                    st.stats.grievances++;
+                    break;
+                case 'reputation': this._rep(player, kid, e.n); break;
+                case 'renown': player.renown = Math.max(0, _num(player.renown) + e.n); break;
+                case 'feud': House.accrueRivalFeud(player, world, kid, e.n, `${letter.kind.replace(/_/g, ' ')} ignored`); break;
+                case 'affection': this._affection(player, letter.from.npcId, e.n); break;
+                case 'withdraw': st.withdrawn[`${letter.kind}|${this.senderKey(letter.from)}`] = day + e.days; break;
+            }
+        }
+        // The sender keeps count (the repeat scale; every grievanceAt-th, a grievance)
+        const key = this.senderKey(letter.from);
+        const L = this.lapseConfig();
+        st.snubs[key] = [...(st.snubs[key] || []).filter(d => day - d < L.grievanceWindow), day];
+        for (const [w, until] of Object.entries(st.withdrawn)) if (!(until > day)) delete st.withdrawn[w];
+        return costs.lines;
+    },
+
+    /** A letter's deadline passed unanswered: silence has its price, scaled to who wrote. */
     _lapse(world, player, letter, out) {
         const st = this.state(player);
         const K = this.kind(letter.kind) || {};
-        const k = letter.from.kingdomId ? world.getKingdom(letter.from.kingdomId) : null;
-        const lord = k && k.lord;
-        const remember = (deed, opts = {}) => lord && NPCLords.rememberDeed(world, lord, deed, { note: opts.note || letter.subject, ...opts });
-        switch (letter.kind) {
-            case 'call_to_arms':
-                remember('call_ignored');
-                this._rep(player, letter.from.kingdomId, _num(K.ignoreReputation, -15));
-                break;
-            case 'marriage_proposal': {
-                const d = NPCLords.deedDef('match_refused');
-                remember('match_refused', { weight: d ? d.weight / 2 : undefined });
-                break;
-            }
-            case 'rival_truce': House.accrueRivalFeud(player, world, letter.from.kingdomId, _num(K.ignoreFeud, 3), 'truce ignored'); break;
-            case 'rival_tribute':
-                House.accrueRivalFeud(player, world, letter.from.kingdomId, _num(K.ignoreFeud, 12), 'tribute ignored');
-                remember('rival_defied');
-                break;
-            case 'rival_marriage': House.accrueRivalFeud(player, world, letter.from.kingdomId, Math.round(_num(K.refuseFeud, 8) / 2), 'match ignored'); break;
-            case 'spouse_plea': this._affection(player, letter.from.npcId, _num(K.ignoreAffection, -20)); break;
-            case 'child_news': this._rep(player, letter.from.kingdomId, -1); break;
-            case 'child_hostage': this._risk(world, player, letter, false); break;
-            case 'loan_default': this._loanStatus(player, letter.data.loanId, 'written off'); break;
-            case 'coalition_ultimatum': break; // the league marches on its own deadline (systems/coalitions.js)
-            case 'family_report': break; // a child's account (systems/heirAgency.js): silence costs nothing
-            default:
-                // Replies to the player's mail (systems/mail.js): silence costs only what lapseReply says
-                if (K.mail) Mail.lapseReply(world, player, letter);
-                else remember('letter_ignored');
+        const costs = this.lapseCosts(world, player, letter);
+        switch (costs.special) {
+            case 'hostage': this._risk(world, player, letter, false); break;
+            case 'writeoff': this._loanStatus(player, letter.data.loanId, 'written off'); break;
+            case 'mail': Mail.lapseReply(world, player, letter); break; // replies to the player's mail (systems/mail.js)
+            case 'league': case 'none': break; // a league marches on its own deadline (systems/coalitions.js); a child's account costs nothing
+            default: this._applyLapse(world, player, letter, costs);
         }
         st.stats.ignored++;
-        const text = _fill(K.ignored, letter.vars);
-        this._archive(player, letter, 'ignored', text);
-        out.notices.push({ icon: '✉️', title: 'A Letter Unanswered', text, type: 'warning' });
+        const flavour = _fill(K.ignored, letter.vars);
+        const waited = Math.max(0, _day(world) - _num(letter.day));
+        const cost = costs.special ? [] : costs.lines;
+        const text = cost.length ? `${flavour} Cost: ${cost.join('; ')}.` : flavour;
+        this._archive(player, letter, 'ignored', text, { lapsed: _day(world), waited, costs: cost, scale: costs.scale });
+        out.notices.push({ icon: '✉️', title: 'A Letter Unanswered', text, type: costs.scale >= 1.5 || costs.effects.some(e => e.type === 'grievance') ? 'error' : 'warning' });
     },
 
     _rep(player, kid, n) {
@@ -567,7 +729,7 @@ export const CourtLetters = {
                 const letter = this.deliver(player, this.compose(world, player, 'loan_default', {
                     key: `loan:${loan.id}`, from: { type: 'lord', kingdomId: k.id, name: this._lordName(k) }, kingdom: k,
                     amount: owed, loanId: loan.id,
-                }));
+                }), world);
                 out.arrived.push(letter);
                 out.notices.push({ icon: '📉', title: 'A Loan Defaulted', text: `${loan.kingdomName} cannot repay the ${owed} gold it owes you. A letter has come begging your patience.`, type: 'warning' });
             }
@@ -951,13 +1113,22 @@ export const CourtLetters = {
     view(player, world) {
         const st = this.state(player);
         const day = _day(world);
+        const L = this.lapseConfig();
         return {
-            open: st.inbox.map(l => ({
-                id: l.id, kind: l.kind, icon: (this.kind(l.kind) || {}).icon || '✉️', from: l.from.name, fromType: l.from.type,
-                subject: l.subject, body: l.body, letter: l.letter || null, daysLeft: Math.max(0, l.expires - day), read: !!l.read,
-                choices: this.choicesFor(player, world, l),
-            })),
+            open: st.inbox.map(l => {
+                const costs = this.lapseCosts(world, player, l);
+                return {
+                    id: l.id, kind: l.kind, icon: (this.kind(l.kind) || {}).icon || '✉️', from: l.from.name, fromType: l.from.type,
+                    subject: l.subject, body: this.bodyOf(world, l), letter: l.letter || null, daysLeft: Math.max(0, l.expires - day), read: !!l.read,
+                    // Awaiting a reply since `since` (`waited` days); due by `due`; what silence would cost
+                    since: _num(l.day), waited: Math.max(0, day - _num(l.day)), due: _num(l.expires), urgent: l.expires - day <= L.warnDays,
+                    ifIgnored: costs.lines, ignoreScale: costs.scale, special: costs.special,
+                    snubs: this.snubCount(player, l.from, day),
+                    choices: this.choicesFor(player, world, l),
+                };
+            }),
             archive: st.archive.slice(0, 12),
+            unansweredThisYear: Object.values(st.snubs).reduce((s, list) => s + (Array.isArray(list) ? list.filter(d => day - d < 360).length : 0), 0),
             loans: st.loans.filter(l => l.status === 'open'),
             promises: st.promises.map(p => ({ ...p, daysLeft: Math.max(0, p.due - day) })),
             stats: st.stats,

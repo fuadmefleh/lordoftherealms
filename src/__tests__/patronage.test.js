@@ -350,7 +350,8 @@ describe('rival Houses poach clients', () => {
 // ─────────────────────────────────────────────────────────────
 
 /** Supply and build every stage of a work at Ashford, returning the day's outs. */
-function buildAll(world, player, projectId, guard = 1000) {
+// (Great Works take years since 2026-11: a cathedral is ~650 work-days, stalled in winter)
+function buildAll(world, player, projectId, guard = 4000) {
     const outs = [];
     for (let i = 0; i < guard; i++) {
         const p = Patronage.project(player, projectId);
@@ -488,6 +489,8 @@ describe('Great Works: completion and the effects other systems read', () => {
         const host0 = Festivals.getReputation(player).hostBonus;
         const riverTile = { hasRiver: true, terrain: { passable: true, moveCost: 2 }, infrastructure: null };
         const river0 = Infrastructure.getRiverPenalty(riverTile, player);
+        // (four Great Works one after another now take a decade: keep the crowns from racing us to a wonder)
+        for (const k of world.kingdoms) k.treasury = 0;
         for (const [workId, q, r] of [['cathedral', 3, 3], ['hippodrome', 1, 5], ['grand_bridge', 3, 3], ['observatory', 6, 6]]) {
             const res = Patronage.found(player, world, q, r, workId);
             expect(res.success, `${workId}: ${res.reason}`).toBe(true);

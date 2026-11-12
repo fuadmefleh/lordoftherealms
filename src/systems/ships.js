@@ -1,5 +1,6 @@
 
 import { DataLoader } from '../core/dataLoader.js';
+import { Difficulty } from '../core/difficulty.js';
 import { Shipcraft } from '../world/shipcraft.js';
 import { Hex } from '../core/hex.js';
 import { Utils } from '../core/utils.js';
@@ -15,6 +16,7 @@ import { KingdomNavy } from '../world/kingdomNavy.js';
 import { Economy } from '../world/economy.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
+import { Climate } from '../world/climate.js';
 import { Underworld } from './underworld.js';
 import { Ailments } from './ailments.js';
 import { VoyageMethods } from './shipVoyages.js';
@@ -433,12 +435,14 @@ export const Ships = {
     /**
      * Board a docked ship to sail it yourself. Needs a skeleton crew.
      */
-    boardShip(player, shipId) {
+    boardShip(player, shipId, world = null) {
         const ship = this.getShipById(player, shipId);
         if (!ship) return { success: false, message: 'Ship not found.' };
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to board.' };
         const noCrew = this.crewSailReason(ship);
         if (noCrew) return { success: false, message: noCrew };
+        const ice = this.iceSailReason(world, ship);
+        if (ice) return { success: false, message: ice };
         player.boardedShip = shipId;
         ship.status = 'at_sea';
         return { success: true, ship };
@@ -847,6 +851,19 @@ export const Ships = {
         };
     },
 
+    /**
+     * Why a docked ship cannot put out today, or null: her harbour is frozen
+     * in (world/climate.js icebound — the cold north's winter, longer in a
+     * little ice age). `world` null (headless callers): no ice.
+     */
+    iceSailReason(world, ship) {
+        if (!world || !ship || ship.status !== 'docked' || typeof ship.q !== 'number') return null;
+        if (!Climate.icebound(world, ship.q, ship.r, world.day)) return null;
+        const tile = typeof world.getTile === 'function' ? world.getTile(ship.q, ship.r) : null;
+        const port = (tile && tile.settlement && tile.settlement.name) || ship.dockedAt || 'the harbour';
+        return `${ship.name} is frozen in at ${port}: the harbour ice will not break until the thaw.`;
+    },
+
     /* ── Moving ships between ports ──────────────────────────── */
 
     moveShip(player, shipId, destQ, destR, destName, world) {
@@ -855,6 +872,8 @@ export const Ships = {
         if (ship.status !== 'docked') return { success: false, message: 'Ship must be docked to move.' };
         const noCrewMove = this.crewSailReason(ship);
         if (noCrewMove) return { success: false, message: noCrewMove };
+        const iceMove = this.iceSailReason(world, ship);
+        if (iceMove) return { success: false, message: iceMove };
 
         const dist = Hex.distance(ship.q, ship.r, destQ, destR);
         const speed = this.getSailingSpeed(player, ship);
@@ -1228,7 +1247,8 @@ export const Ships = {
         }
 
         const playerPower = shipStr * (0.8 + Utils.random() * 0.4);
-        const enemyPower = enemyStrength * (0.8 + Utils.random() * 0.4);
+        // Tougher / softer foes (core/difficulty.js enemyStrength): exactly 1 on Normal
+        const enemyPower = enemyStrength * Difficulty.mult(player, 'enemyStrength') * (0.8 + Utils.random() * 0.4);
 
         const crewToll = this._crewAfterBattle(ship, playerPower > enemyPower);
         if (playerPower > enemyPower) {
@@ -1644,6 +1664,7 @@ export const Ships = {
         let totalUpkeep = 0;
         const stormReports = [];
         const storms = {};
+        const iceReports = [];
 
         for (const ship of ships) {
             // A Shipyard you own repairs docked ships beside it for free
@@ -1704,7 +1725,16 @@ export const Ships = {
             }
 
             // Ship movement
-            if (ship.status === 'moving') {
+            // A harbour frozen in (the cold north's winter, longer in a little ice
+            // age: world/climate.js) — the ship stands off the ice till the thaw
+            const iceHeld = ship.status === 'moving' && (ship.travelDaysLeft || 1) <= 1 && !!world
+                && typeof ship.destQ === 'number' && Climate.icebound(world, ship.destQ, ship.destR, world.day);
+            if (iceHeld) {
+                ship.travelDaysLeft = 1;
+                if (!ship.iceHeld) iceReports.push({ shipId: ship.id, name: ship.name, port: ship.destinationName || 'port' });
+                ship.iceHeld = true;
+            } else if (ship.iceHeld) delete ship.iceHeld;
+            if (ship.status === 'moving' && !iceHeld) {
                 ship.travelDaysLeft = (ship.travelDaysLeft || 1) - 1;
                 if (ship.travelDaysLeft <= 0) {
                     ship.q = ship.destQ;
@@ -1758,7 +1788,7 @@ export const Ships = {
         const sailing = this._sailingDay(player, storms, voyage);
         if (voyage && sailing) this._voyageLog(this.getShipById(player, voyage.shipId) || {}, sailing.icon, sailing.text, world);
         if (voyage) this._logVoyageDay(player, world, voyage, { stormReports, interceptions, provisions, crew });
-        return { stormReports, crew, interceptions, upkeepShort, provisions, voyage, sailing };
+        return { stormReports, iceReports, crew, interceptions, upkeepShort, provisions, voyage, sailing };
     },
 
     /**

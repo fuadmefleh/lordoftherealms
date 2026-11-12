@@ -18,6 +18,10 @@ import { Arms } from '../../systems/arms.js';
 import { Hotbar } from '../hotbar.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
+import { Heirlooms } from '../../systems/heirlooms.js';
+import { HouseQuests } from '../../systems/houseQuests.js';
+import { houseQuestsHtml } from '../houseQuestsPanel.js';
+import { rowList as _hlRows, esc as _hlEsc } from '../actionMenu/uiKit.js';
 import { PlayerInventory, Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, Titles, KingdomBonuses, KingdomStability, Treasures, KingdomAI, KingdomNavy } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -969,6 +973,10 @@ Object.assign(UI.prototype, {
                     if (info.prestige > 0 && player.house) extra += `<button data-ui-act="dedicateTreasure" data-ui-args='["${itemId}"]' style="${btn}">🏛️ Enshrine (+${info.prestige} Prestige)</button>`;
                     if (info.consume) extra += `<button data-ui-act="useTreasure" data-ui-args='["${itemId}"]' style="${btn}">✋ Use</button>`;
                 }
+                // A masterwork or a treasure can become a named heirloom of the House (systems/heirlooms.js)
+                if (Heirlooms.eligible(player).some(e => e.itemId === itemId)) {
+                    extra += `<button data-am-act="heirloomForge" data-am-args='["${itemId}"]' style="padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(245,197,66,0.5); background: rgba(245,197,66,0.12); color: var(--text-primary); cursor: pointer;">🗝️ Make an heirloom</button>`;
+                }
                 // Arms and armour: take it up in its slot, or put it away (systems/arms.js)
                 if (Arms.isArms(itemId)) {
                     const btn = 'padding: 3px 8px; margin: 4px 6px 0 0; font-size: 11px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(129,199,132,0.15); color: var(--text-primary); cursor: pointer;';
@@ -1000,6 +1008,15 @@ Object.assign(UI.prototype, {
         inventoryHtml = `<div style="font-size: 12px; margin-bottom: 8px; color: ${used >= cap ? '#ff9800' : 'var(--text-secondary)'};"
             title="Each kind of good takes a slot. A mount (+5) and each house (+3) add room.">🎒 Packs: ${used}/${cap} kinds of goods</div>` + inventoryHtml;
 
+        // The House's heirlooms: not in the packs (they pass to the heir), but shown here
+        const hl = Heirlooms.list(player);
+        if (hl.length) {
+            const where = { held: 'in hand', child: 'with a child', pawned: 'in pawn', stolen: 'stolen', lost: 'lost', sold: 'sold away', dowry: 'in dowry' };
+            inventoryHtml = _hlRows(hl.map(h => ({
+                icon: h.icon, name: _hlEsc(h.name), desc: `${_hlEsc(Heirlooms.tier(h).label)}${Heirlooms.describeBonus(h) ? ` · ${_hlEsc(Heirlooms.describeBonus(h))}` : ''}`,
+                act: 'showHeirloom', args: [h.id], side: where[h.status] || h.status, tone: h.status === 'held' ? 'good' : (['stolen', 'lost', 'sold'].includes(h.status) ? 'bad' : ''),
+            })), '🗝️ Heirlooms of the House') + inventoryHtml;
+        }
         this.showCustomPanel('Inventory', inventoryHtml);
     },
 
@@ -1052,6 +1069,22 @@ Object.assign(UI.prototype, {
     },
 
     /** Take a task's other way out from the journal (sell the locket, let the son go). */
+    /** Settle a matter of the House's own history from the journal (systems/houseQuests.js). */
+    houseQuestAct(id, choice) {
+        const r = HouseQuests.act(this.game.world, this.game.player, id, choice);
+        if (r.success) this.showNotification('📜 The Matter Settled', r.text || 'It is done.', 'success');
+        else this.showNotification('📜 Not Settled', r.reason || 'Nothing came of it.', r.failed ? 'warning' : 'info');
+        this.updateStats && this.updateStats();
+        this.showQuestsPanel();
+    },
+
+    /** Let a matter of the House's history lie (it ends as if left too long). */
+    houseQuestDismiss(id) {
+        const r = HouseQuests.dismiss(this.game.world, this.game.player, id);
+        if (r.success) this.showNotification('📜 Left to Lie', r.text || 'You let it be.', 'info');
+        this.showQuestsPanel();
+    },
+
     resolveTaskAlt(questId) {
         const result = Quests.resolveTaskAlt(this.game.player, this.game.world, questId);
         if (result.success) {
@@ -1228,6 +1261,9 @@ Object.assign(UI.prototype, {
         } else {
             html += '<p style="color: var(--text-secondary); font-style: italic;">No active jobs or commitments.</p>';
         }
+
+        // ── THE HOUSE'S UNFINISHED BUSINESS (systems/houseQuests.js) ──
+        html += houseQuestsHtml(world, player);
 
         // ── ACTIVE QUESTS ──
         html += '<h4 style="margin-top: 24px; color:var(--text-primary); border-bottom: 2px solid var(--gold); padding-bottom: 8px;">Active Quests</h4>';

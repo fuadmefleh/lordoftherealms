@@ -31,7 +31,7 @@ afterEach(() => {
 function makeWorld(day = 100) {
     const world = {
         day, width: 30, height: 20, units: [], events: [], generationParams: { seed: 31 },
-        kingdoms: [{ id: 'k1', name: 'Arvenland', isAlive: true, wars: [], allies: [], relations: {}, culture: 'Imperial', territory: [], lord: { name: 'Queen Maud', kingdomId: 'k1', traits: [] } }],
+        kingdoms: [{ id: 'k1', name: 'Arvenland', isAlive: true, treasury: 5000, wars: [], allies: [], relations: {}, culture: 'Imperial', territory: [], lord: { name: 'Queen Maud', kingdomId: 'k1', traits: [] } }],
         getTile: () => null,
         getKingdom: (id) => world.kingdoms.find(k => k.id === id) || null,
         getSettlementViews: () => [],
@@ -59,6 +59,7 @@ function makeDyingRuler(world, kids) {
     p.name = 'Old Vane';
     p.age = 60;
     p.gold = 2000;
+    p.allegiance = 'k1'; // (a council regent answers to this crown: what he takes goes to its treasury)
     p.relationships = {};
     p.reputation = {};
     p.children = kids;
@@ -167,6 +168,41 @@ describe('the regent', () => {
         expect(notices.some(n => /Coup/.test(n.title))).toBe(true);
         expect(p.regency.coups).toBeGreaterThanOrEqual(1);
         expect(p.currentTitle).toBeNull();
+    });
+
+    it('what a council regent skims and carries off in a coup goes to the crown he answers to; coin conserved', () => {
+        const world = makeWorld();
+        DataLoader.upbringing.regency.baseLoyalty = { ...baseRegency.baseLoyalty, council: 10 };
+        const p = regencyOf(world, { loyalty: 10, ambition: 90 });
+        p.house.prestige = 0;
+        p.house.rivals = {}; // (no rival claimant: the coup's fragmentation skims no coin)
+        const k = world.kingdoms[0];
+        const before = p.gold + k.treasury;
+        weeks(p, world, 12);
+        expect(p.regency.coups).toBeGreaterThanOrEqual(1);
+        expect(p.gold).toBeLessThan(2000);
+        expect(p.gold + k.treasury).toBe(before);
+        // Putting the exposed plotter aside takes part of it back, out of that same treasury
+        p.regency.rumoured = true;
+        p.house.prestige = 100;
+        const res = Regency.replace(p, world);
+        expect(res.success).toBe(true);
+        expect(res.recovered).toBeGreaterThan(0);
+        expect(p.gold + k.treasury).toBe(before);
+    });
+
+    it("a widowed regent's coup carries the gold into their own purse; gifts go there too", () => {
+        const world = makeWorld();
+        const sp = Relationships.generateNPC({ name: 'Arvenhold', kingdom: 'k1' }, world);
+        sp.purse = 10;
+        const p = regencyOf(world, { kind: 'spouse', id: sp.id, name: sp.firstName, loyalty: 50, ambition: 50 });
+        p.house.rivals = {};
+        const before = p.gold + sp.purse;
+        Regency._coup(p, world, p.regency, { notices: [] });
+        expect(sp.purse).toBeGreaterThan(10);
+        expect(p.gold + sp.purse).toBe(before);
+        expect(Regency.favour(p, world, 'gift').success).toBe(true);
+        expect(p.gold + sp.purse).toBe(before);
     });
 
     it('records the skimming in the Ledger under the regency', () => {

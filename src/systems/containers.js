@@ -43,6 +43,8 @@ import { Ledger } from './ledger.js';
 import { SocialSkills } from './socialSkills.js';
 import { SettlementMarket } from '../world/settlementMarket.js';
 import { Seasons } from '../world/seasons.js';
+// (the owner caught you at it, and remembers: systems/npcMemory.js)
+import { NpcMemory } from './npcMemory.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _day = world => (world && Number.isFinite(world.day) ? world.day : 0);
@@ -439,6 +441,7 @@ export const Containers = {
                 victim: { name: ctx.ownerName || (ctx.building && ctx.building.name) || 'the townsfolk', type: 'merchant', icon: '🧑' },
             });
             Containers._stealthXp(player, 'caught', 0);
+            NpcMemory.onTheftCaught(world, player, ctx);
             let jailDays = 0;
             const offences = player.criminalRecord.theft;
             if (offences >= _num(T.jailFrom, 3) && ctx.inSettlement) {

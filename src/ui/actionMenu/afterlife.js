@@ -6,7 +6,11 @@
 import { ActionMenu } from './_ref.js';
 import { Relationships, InnerMapRenderer, SaveLoad, InnerMap } from './_imports.js';
 import { Afterlife } from '../../player/afterlife.js';
+import { EstateSettlement } from '../../player/estateSettlement.js';
 import { Cultures } from '../../world/cultures.js';
+import { LlmProse } from '../../systems/llmProse.js';
+import { HallChronicles } from '../hallChronicles.js';
+import { ChronicleBookExport } from '../chronicleBook.js';
 import { BTN_GOLD, BTN_PLAIN, sectionHead, lede, chips, card, actRow, rowList } from './uiKit.js';
 
 const BAR_ID = 'interregnumBar';
@@ -101,10 +105,18 @@ function _become(game, cand, fromDeath, cause) {
     }
     // Leaving straight from the death screen: the reign is filed with its cause first
     if (fromDeath) Afterlife.begin(game.player, world, cause);
-    const res = Afterlife.becomeStranger(game.player, world, cand);
+    const old = game.player;
+    const res = Afterlife.becomeStranger(old, world, cand);
     if (!res.success) {
         game.ui.showNotification('Cannot', res.reason || 'Something went wrong.', 'error');
         return;
+    }
+    // The old House ended here, as on the epitaph: its chronicle book is kept
+    // with its Hall of Houses entry (ui/hallChronicles.js; optional), and the
+    // welcome offers it to save (the old House is gone once the game moves on)
+    if (old && old.house) {
+        res.oldPlayer = old;
+        if (world.run) HallChronicles.archive(game, { player: old });
     }
     ActionMenu._afterlifeTakeOver(game, res.player);
     ActionMenu._showNewLifeWelcome(game, cand, res);
@@ -260,6 +272,27 @@ Object.assign(ActionMenu, {
         window._afterlifeBecome = (i) => _become(game, people[i], fromDeath, cause);
     },
 
+    /**
+     * An heirless estate settled (player/estateSettlement.js): the chronicle
+     * line and what it held, who was paid, what went unpaid, where the rest went.
+     */
+    _estateHtml(world, rec) {
+        if (!rec) return '';
+        let body = `<div style="color:#c9b27a; font-style:italic;">${_esc(EstateSettlement.line(world, rec))}</div>`;
+        const rows = EstateSettlement.breakdown(rec);
+        if (rows.length) {
+            body += '<table style="width:100%; border-collapse:collapse; font-size:11.5px; margin-top:6px;">';
+            for (const r of rows) {
+                const c = r.tone === 'bad' ? '#e0846a' : r.tone === 'gold' ? '#ffcf6a' : '#cbbf9f';
+                body += `<tr><td style="padding:2px 0; color:#9d937c;">${_esc(r.label)}</td><td style="padding:2px 0; text-align:right; color:${c};">${r.value < 0 ? '−' : ''}${Math.abs(r.value).toLocaleString('en-US')}g</td></tr>`;
+            }
+            body += '</table>';
+        }
+        if (rec.runs && rec.runs.length) body += `<div style="color:#e0846a; margin-top:4px;">The loss starts a run on ${rec.runs.map(_esc).join(' and ')}.</div>`;
+        if (rec.bank) body += `<div style="color:#9d937c; margin-top:4px;">${_esc(rec.bank)} passes to its partners.</div>`;
+        return card(body, { icon: '⚖️', title: 'The Estate Settled' });
+    },
+
     _showNewLifeWelcome(game, cand, res) {
         const p = res.player;
         let html = '<div style="font-size:12px;">';
@@ -275,6 +308,11 @@ Object.assign(ActionMenu, {
         const e = res.epitaph;
         if (e) {
             let body = `<div style="color:#c9b27a;">${e.sigil && e.sigil.icon ? e.sigil.icon : '🛡️'} The line of ${_esc(e.houseName)} has ended: ${_esc(e.rank.label)} (legacy ${e.score}).</div>`;
+            // Its epitaph: the court scribe's once written (systems/llmProse.js), else the plain one
+            if (e.proseKey) {
+                const ep = LlmProse.text(game.world, e.proseKey, e.prose || '');
+                if (ep) body += `<div style="color:#e8dcc0;font-family:Georgia,serif;font-style:italic;margin-top:4px;">${_esc(ep)}</div>`;
+            }
             const x = res.escheat || {};
             const parts = [];
             if (x.estates) parts.push(_plural(x.estates, 'estate'));
@@ -286,13 +324,28 @@ Object.assign(ActionMenu, {
             if (parts.length) body += `<div style="color:#9d937c;margin-top:4px;">What it held (${parts.join(', ')}) passed to the crowns and towns.</div>`;
             html += card(body);
         }
+        if (res.estate) html += ActionMenu._estateHtml(game.world, res.estate);
         html += `<button data-am-act="closePanelAndRefresh" style="${BTN_GOLD}display:block;width:100%;margin-top:8px;padding:10px;font-size:14px;">Begin a New Life</button>`;
         // The old line's book goes with the new life as "Before" (systems/annals.js)
+        const rows = [];
         if (Array.isArray(p.annalsPast) && p.annalsPast.length) {
-            html += rowList([{ icon: '📖', name: 'Read the Annals of the life you left', attrs: 'onclick="window._newLifeAnnals()"' }]);
+            rows.push({ icon: '📖', name: 'Read the Annals of the life you left', attrs: 'onclick="window._newLifeAnnals()"' });
         }
+        // ...and its illustrated chronicle, to keep (ui/chronicleBook.js), as any ended House's
+        const oldHouse = res.oldPlayer && res.oldPlayer.house;
+        if (oldHouse) {
+            rows.push({ icon: '📜', name: `Save the chronicle of ${_esc(oldHouse.name || 'the House')}`, desc: 'The illustrated book of the line you left: arms, maps, the family tree', attrs: 'onclick="window._newLifeChronicle()"' });
+        }
+        if (rows.length) html += rowList(rows);
         html += '</div>';
         game.ui.showCustomPanel('🎭 A New Life', html);
+        window._newLifeChronicle = () => {
+            if (!res.oldPlayer) return;
+            ChronicleBookExport.exportBook({ player: res.oldPlayer, world: game.world }).then(
+                (r) => { if (r && r.ok) game.ui.showNotification('📜 The Chronicle', r.path ? `Saved to ${r.path}` : 'The chronicle of the line you left is saved.', 'success'); },
+                () => game.ui.showNotification('📜 The Chronicle', 'The chronicle could not be saved.', 'warning'),
+            );
+        };
         window._newLifeAnnals = () => ActionMenu.showAnnals(game, { chapter: `before${p.annalsPast.length - 1}`, onBack: () => ActionMenu._showNewLifeWelcome(game, cand, res), backLabel: '← Back' });
     },
 
@@ -326,6 +379,7 @@ Object.assign(ActionMenu, {
         const left = [];
         if (begun.disbanded) left.push(`${_plural(begun.disbanded, 'soldier')} of your army drift home`);
         if (begun.companions) left.push(`your companions go their own ways`);
+        if (begun.estate) game.ui.showNotification('⚖️ The Estate Settled', EstateSettlement.line(game.world, begun.estate), 'info');
         game.ui.showNotification('⏳ The World Turns', `The world goes on without you${left.length ? `: ${left.join(', and ')}` : ''}. Let time pass, and jump back in when you will.`, 'info');
     },
 
@@ -351,6 +405,7 @@ Object.assign(ActionMenu, {
         let heirLine;
         if (ready.length) heirLine = `<span style="color:#7fd07f;">👑 ${ready.map(c => _esc(c.firstName)).join(', ')} ${ready.length === 1 ? 'is' : 'are'} of age</span>`;
         else if (next) heirLine = `👶 ${_esc(next.child.firstName)} comes of age in ${_plural(next.years, 'year')}`;
+        else if (Afterlife.cadetsReady(player).length) heirLine = `<span style="color:#a8d68a;">🌿 ${_esc(Afterlife.cadetsReady(player)[0].name)} could take up the mantle</span>`;
         else heirLine = '<span style="color:#aaa;">No heir of the blood remains</span>';
         const busy = game._afterlifeBusy;
         const auto = !!game._afterlifeAuto;
@@ -418,10 +473,11 @@ Object.assign(ActionMenu, {
             // The autosave the daily turn would have made (ui/game/endDay.js), once if the
             // wait crossed an autosave day — years of "let it run" are not lost to a crash
             const every = SaveLoad.AUTO_SAVE_INTERVAL;
-            if (every > 0 && Math.floor(game.world.day / every) > Math.floor(fromDay / every)) {
+            // (an Ironman run saves after every wait: ui/game/ironman.js)
+            if (SaveLoad.isIronman(game) || (every > 0 && Math.floor(game.world.day / every) > Math.floor(fromDay / every))) {
                 try {
                     const res = SaveLoad.saveGame(game);
-                    if (res && res.success) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
+                    if (res && res.success && !SaveLoad.isIronman(game)) game.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
                 } catch (err) {
                     console.error('[Afterlife] autosave failed', err);
                 }
@@ -447,6 +503,7 @@ Object.assign(ActionMenu, {
                     const d = Afterlife.passDay(game.world, game.player);
                     busy.events.push(...d.events);
                     busy.cameOfAge.push(...d.cameOfAge);
+                    if (d.estate) game.ui.showNotification('⚖️ The Last of the Blood', `No heir of the blood remains. ${EstateSettlement.line(game.world, d.estate)}`, 'warning');
                     busy.left--;
                 }
             } catch (err) {
@@ -493,7 +550,18 @@ Object.assign(ActionMenu, {
         if (future.length) {
             html += rowList(future.map(f => ({ icon: '👶', name: `${_esc(f.child.firstName)} (age ${f.child.age})`, desc: `comes of age in ${_plural(f.years, 'year')}` })), 'Still to come of age');
         }
-        if (!ready.length && !future.length) html += '<p style="color:#9d937c;">No child of your blood remains to carry the line. A new life is the way back.</p>';
+        // No heir of the main line: a cadet branch's head (systems/cadetBranches.js)
+        const cadets = ready.length ? [] : Afterlife.cadetsReady(player);
+        if (cadets.length) {
+            html += sectionHead('The Cadet Line');
+            cadets.forEach((b, i) => {
+                let body = `<div style="color:#9d937c;">${_esc(b.name)} · seat at ${_esc(b.seat ? b.seat.name : '—')} · ${Math.round(b.gold)} gold · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
+                body += `<button onclick="window._afterlifeCadet('${b.id}')" style="${i === 0 ? BTN_GOLD : BTN_PLAIN}display:block;width:100%;margin-top:8px;">Play as ${_esc(b.head.firstName)}</button>`;
+                html += card(body, { icon: '🌿', title: `${_esc(b.head.firstName)} of ${_esc(b.name)}`, side: `Age ${b.head.age}${i === 0 ? ' · nearest' : ''}`, tone: i === 0 ? 'gold' : '' });
+            });
+        }
+        if (!ready.length && !future.length && !cadets.length) html += '<p style="color:#9d937c;">No child of your blood remains to carry the line. A new life is the way back.</p>';
+        if (EstateSettlement.settled(player)) html += ActionMenu._estateHtml(game.world, player.estateSettled);
         html += rowList([
             { icon: '🎭', name: 'A New Life', desc: 'Become someone in the world', attrs: 'onclick="window._afterlifeNewLife()"', tone: ready.length ? '' : 'gold', side: ready.length ? '' : '›' },
             { icon: '⏳', name: 'Keep Waiting', attrs: 'onclick="window._afterlifeKeepWaiting()"' },
@@ -505,10 +573,11 @@ Object.assign(ActionMenu, {
 
         window._afterlifeNewLife = () => ActionMenu.showNewLife(game, 0, it.cause);
         window._afterlifeKeepWaiting = () => game.ui.hideCustomPanel();
-        window._afterlifeHeir = (childId) => {
+        window._afterlifeCadet = (branchId) => window._afterlifeHeir(null, branchId);
+        window._afterlifeHeir = (childId, branchId = null) => {
             const estate = game.player;
             const oldName = it.name;
-            const res = Afterlife.returnAsHeir(estate, game.world, childId);
+            const res = branchId ? Afterlife.returnAsCadet(estate, game.world, branchId) : Afterlife.returnAsHeir(estate, game.world, childId);
             if (!res.success) {
                 game.ui.showNotification('Cannot', res.reason || 'That heir cannot take up the mantle.', 'error');
                 return;
@@ -518,6 +587,9 @@ Object.assign(ActionMenu, {
             out += `<div style="${TITLE}">👑 A New Chapter</div>`;
             out += lede(`You are now <strong>${_esc(res.newName)}</strong>, heir of ${_esc(oldName)}, ${years ? `${_plural(years, 'year')} after` : 'soon after'} their death.`);
             out += chips([['🎂', 'Age', res.heir.age], { icon: '💰', label: 'Inherited', value: `${Math.floor(estate.gold)} gold`, cls: 'gold' }, estate.house ? ['🛡️', `${_esc(estate.house.name)}, generation`, estate.house.generation || 1] : null]);
+            // Where the rest of the purse went: debts, the other children's portions, the heriot (systems/inheritance.js)
+            if (res.inheritance && res.inheritance.line) out += `<div style="font-size:11px;color:#c9b27a;margin:4px 0 8px;">💰 ${_esc(res.inheritance.line)}</div>`;
+            if (res.cadet) out += `<div style="font-size:11px;color:#8fd18a;margin:4px 0 8px;">🌿 ${_esc(res.cadet.text)}</div>`;
             out += `<button data-am-act="closePanelAndRefresh" style="${BTN_GOLD}display:block;width:100%;padding:10px;font-size:14px;">Begin Your Story</button>`;
             out += '</div>';
             game.ui.showCustomPanel('New Heir', out);

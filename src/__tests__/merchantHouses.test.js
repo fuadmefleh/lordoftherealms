@@ -150,6 +150,54 @@ describe('merchant houses: factors trade by the player\'s price rules', () => {
         if (sale > 0) expect(c.pnl.income.sales).toBeGreaterThan(0);
         // Bought and sold back in the same town: the company is poorer, not richer
         expect(c.capital).toBeLessThan(before);
+        // ...and its books say so, post by post, and why
+        expect(post.totals.purchases).toBe(c.pnl.expenses.purchases);
+        expect(post.totals.wages).toBeGreaterThan(0);
+        const d = MerchantHouses.diagnosis(player, world);
+        expect(d.trading.purchases).toBe(c.pnl.expenses.purchases);
+        expect(d.trading.stock).toBeGreaterThan(0);
+        expect(d.posts[0]).toMatchObject({ id: post.id, purchases: post.totals.purchases });
+        expect(d.trading.margin).toBeLessThan(0);
+        expect(d.advice.some(a => a.tone === 'bad' && /buy dearer than they sell/.test(a.text))).toBe(true);
+        expect(d.advice.some(a => /one post/.test(a.text))).toBe(true);
+    });
+
+    it('route ideas carry a good from a cheap post to a dearer one, after the carriage', () => {
+        const g = founded();
+        const { player, world, town } = g;
+        MerchantHouses.openPost(player, world, town, 0);
+        // A second post in another royal town that trades
+        const other = world.getAllSettlements().filter(s => s.kingdom && s.type !== 'village' && (s.q !== town.q || s.r !== town.r))
+            .map(s => world.getTile(s.q, s.r)).find(t => Trading.getAvailableGoods(t.settlement, t, world).length >= 3);
+        expect(MerchantHouses.openPost(player, world, other, 0).success).toBe(true);
+        Utils.setSeed(5);
+        const r0 = Utils.random();
+        Utils.setSeed(5);
+        const ideas = MerchantHouses.routeIdeas(player, world, { limit: 10, minMargin: 0 });
+        expect(Utils.random()).toBe(r0);
+        for (const r of ideas) {
+            expect(r.fromPostId).not.toBe(r.toPostId);
+            expect(r.sale - r.unit - r.carriage).toBeCloseTo(r.margin, 0);
+            expect(r.margin).toBeGreaterThan(0);
+        }
+    });
+
+    it('stock thieves carry off is a memo, not a second expense (its purchase is already booked)', () => {
+        const g = founded();
+        const { player, world, town } = g;
+        const post = MerchantHouses.openPost(player, world, town, 0).post;
+        const c = MerchantHouses.company(player);
+        post.stock = { grain: 100 };
+        const capital = c.capital;
+        const spent = Object.values(c.pnl.expenses).reduce((a, b) => a + b, 0);
+        let tries = 0;
+        while (!c.stats.robberies && tries++ < 500) MerchantHouses._robPost(player, world, post, { notices: [] });
+        expect(c.stats.robberies).toBeGreaterThan(0);
+        expect(c.capital).toBe(capital);
+        expect(Object.values(c.pnl.expenses).reduce((a, b) => a + b, 0)).toBe(spent);
+        expect(c.stats.robbedValue).toBeGreaterThan(0);
+        expect(MerchantHouses.diagnosis(player, world).losses.robbed).toBe(c.stats.robbedValue);
+        expect(c.ledger[0].kind).toBe('memo');
     });
 
     it('a skimming factor shows in thin books and is caught by an audit', () => {

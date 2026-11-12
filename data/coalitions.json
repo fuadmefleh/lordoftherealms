@@ -44,7 +44,7 @@
             "powerGrowth": 0.2, "turnedAgent": -4, "exposedAgent": -8
         },
         "dissolvePowerShare": 0.6,
-        "cooldown": { "appeased": 360, "broken": 240, "humbled": 180 },
+        "cooldown": { "appeased": 600, "broken": 480, "humbled": 360 },
         "heirShare": 0.6,
         "chill": { "leader": 25, "member": 15 },
         "relationsFloor": -40,
@@ -59,6 +59,16 @@
             "conquest": "To win back the towns {house} tore from its neighbours.",
             "crown": "To cast down the upstart crown of {realm}.",
             "power": "To check the overmighty {house} before it swallows them all."
+        }
+    },
+    "pressure": {
+        "_doc": "Pressure clocks (src/systems/pressure.js): the world answers a mighty House on a cadence that follows its power, not on rare rolls. might = (power score - floor) / (full - floor), clamped 0..1, from the weekly Coalitions.power reckoning (older than staleDays counts as 0). A clock winds by days / interval, the interval running from slowDays at minMight down to fastDays at might 1; below minMight it drains. It fires at 1 +/- jitter (a hash, no RNG). coalition: when ripe, for primedDays realms swear a league at joinShare x joinAt hostility even below formAt (paused while a league stands or in its cooldown). siege: weekly (cadence) while the player holds a colony or own-name town; when ripe the most hostile, nearest realm (hostility >= minHostility, or already at war) sends a host straight at a holding, or demands tribute and marches if refused (pendingDays); cooldownDays follow. heat: each firing adds 1 (to max), dividing the next interval by 1 + step x heat; it cools decayPerYear and an heir keeps heirKeep of it (escalation across a reign, capped for century-long games). Tuned for decades (120 days a year). saga: gap between sagas x lerp(gapMult[weak], gapMult[strong]), repeatAfterDays x lerp(repeatMult), +1 maxActive at extraActiveAt, and past hookAt word of a new saga is brought to the player's court.",
+        "might": { "floor": 25, "full": 140, "staleDays": 28 },
+        "heat": { "step": 0.2, "max": 3, "decayPerYear": 0.1, "heirKeep": 0.5, "yearDays": 120 },
+        "clocks": {
+            "coalition": { "minMight": 0.2, "slowDays": 1080, "fastDays": 360, "jitter": 0.25, "joinShare": 0.6, "primedDays": 28 },
+            "siege": { "minMight": 0.1, "slowDays": 720, "fastDays": 240, "jitter": 0.3, "cadence": 7, "cooldownDays": 240, "minHostility": 12, "pendingDays": 40 },
+            "saga": { "gapMult": [1.5, 0.75], "repeatMult": [1.25, 0.85], "extraActiveAt": 0.6, "hookAt": 0.2 }
         }
     },
     "agents": {

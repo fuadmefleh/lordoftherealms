@@ -492,3 +492,91 @@ describe('The royal audience remembers', () => {
         }
     });
 });
+
+describe('The price of silence (lapseCosts, senderScale, withdrawn offers, grievances)', () => {
+    const lapseAll = (w, p, letter) => { w.day = letter.expires + 1; return CourtLetters.processDay(w, p); };
+
+    it('a feast left unanswered costs opinion and reputation, withdraws the invitation, and says so', () => {
+        const k3 = world.kingdoms[2];
+        const letter = send(world, player, 'feast_invite', lordCtx(k3));
+        const preview = CourtLetters.view(player, world).open.find(l => l.id === letter.id);
+        expect(preview.ifIgnored.join(' ')).toMatch(/opinion with Duke Alys/);
+        expect(preview.since).toBe(letter.day);
+        expect(preview.due).toBe(letter.expires);
+        const rep = player.reputation.k3;
+        const out = lapseAll(world, player, letter);
+        expect(NPCLords.memoryOf(k3.lord, world.day).map(m => m.key)).toContain('feast_snubbed');
+        expect(player.reputation.k3).toBeLessThan(rep);
+        const notice = out.notices.find(n => n.title === 'A Letter Unanswered');
+        expect(notice.text).toMatch(/Cost: .*opinion with Duke Alys/);
+        const filed = CourtLetters.state(player).archive[0];
+        expect(filed).toMatchObject({ outcome: 'ignored', lapsed: world.day });
+        expect(filed.waited).toBe(world.day - letter.day);
+        expect(filed.costs.length).toBeGreaterThan(0);
+        // The lost offer: that court sends no feast invitation for a while (read by the daily tick)
+        expect(CourtLetters.isWithdrawn(player, 'feast_invite', letter.from, world.day)).toBe(true);
+        expect(CourtLetters.isWithdrawn(player, 'tournament_invite', letter.from, world.day)).toBe(false);
+        expect(CourtLetters.isWithdrawn(player, 'feast_invite', letter.from, world.day + 400)).toBe(false);
+    });
+
+    it('scales with the sender: snubbing your liege costs more than a lesser lord, a child least', () => {
+        player.allegiance = 'k1';
+        const liegeLetter = CourtLetters.compose(world, player, 'feast_invite', lordCtx(world.kingdoms[0]));
+        const lordLetter = CourtLetters.compose(world, player, 'feast_invite', lordCtx(world.kingdoms[2]));
+        const liege = CourtLetters.senderScale(world, player, liegeLetter);
+        const lord = CourtLetters.senderScale(world, player, lordLetter);
+        expect(liege.type).toBe('liege');
+        expect(liege.scale).toBeGreaterThan(lord.scale);
+        const child = CourtLetters.senderScale(world, player, { from: { type: 'child', childId: 'c1', kingdomId: 'k3', name: 'Ada' } });
+        expect(child.scale).toBeLessThan(liege.scale);
+        const cl = CourtLetters.lapseCosts(world, player, liegeLetter).effects.find(e => e.type === 'deed');
+        const cs = CourtLetters.lapseCosts(world, player, lordLetter).effects.find(e => e.type === 'deed');
+        expect(cl.n).toBeLessThan(cs.n); // more negative
+    });
+
+    it('each silence toward the same court weighs more, and the third brings a grievance', () => {
+        const k3 = world.kingdoms[2];
+        const scales = [];
+        let last;
+        for (let i = 0; i < 3; i++) {
+            const letter = send(world, player, 'loan_request', { ...lordCtx(k3), amount: 100 });
+            scales.push(CourtLetters.senderScale(world, player, letter).scale);
+            last = lapseAll(world, player, letter);
+        }
+        expect(scales[1]).toBeGreaterThan(scales[0]);
+        expect(scales[2]).toBeGreaterThan(scales[1]);
+        expect(NPCLords.memoryOf(k3.lord, world.day).map(m => m.key)).toContain('letters_scorned');
+        expect(CourtLetters.state(player).stats.grievances).toBe(1);
+        expect(last.notices.some(n => n.title === 'A Letter Unanswered' && /grievance/.test(n.text))).toBe(true);
+    });
+
+    it('a withdrawn offer keeps that sender out of the daily draw', () => {
+        const k3 = world.kingdoms[2];
+        const st = CourtLetters.state(player);
+        st.withdrawn[`feast_invite|lord:${k3.id}`] = world.day + 100;
+        st.withdrawn[`tournament_invite|lord:${k3.id}`] = world.day + 100;
+        st.withdrawn[`loan_request|lord:${k3.id}`] = world.day + 100;
+        for (let d = 0; d < 60; d++) {
+            world.day++;
+            CourtLetters.processDay(world, player);
+            for (const l of CourtLetters.open(player)) {
+                if (l.from.kingdomId === 'k3') expect(['feast_invite', 'tournament_invite', 'loan_request']).not.toContain(l.kind);
+                CourtLetters.state(player).inbox = [];
+            }
+        }
+    });
+
+    it('silence toward your spouse and a rival House still costs affection and feud; old saves gain the new state', () => {
+        const old = { inbox: [], archive: [], stats: { received: 1 } };
+        player.letters = old;
+        const st = CourtLetters.state(player);
+        expect(st.snubs).toEqual({});
+        expect(st.withdrawn).toEqual({});
+        const truce = CourtLetters.compose(world, player, 'rival_truce', { key: 'rival:k2', from: { type: 'rival', kingdomId: 'k2', name: 'House Osric' }, kingdom: world.kingdoms[1] });
+        const c = CourtLetters.lapseCosts(world, player, truce);
+        expect(c.effects.map(e => e.type)).toEqual(expect.arrayContaining(['feud', 'withdraw']));
+        const plea = CourtLetters.lapseCosts(world, player, { kind: 'spouse_plea', vars: {}, data: {}, from: { type: 'spouse', npcId: 'n1', kingdomId: 'k2', name: 'Elsa' } });
+        expect(plea.effects).toEqual([expect.objectContaining({ type: 'affection', n: -20 })]);
+        expect(CourtLetters.lapseCosts(world, player, { kind: 'family_report', vars: {}, data: {}, from: { type: 'child' } }).special).toBe('none');
+    });
+});

@@ -62,7 +62,7 @@ const DEFAULT_CONFIG = {
     found: { minCapital: 500, startReputation: 30 },
     post: { openCost: 350, foreignMult: 1.5, foreignMinReputation: -10, maxPosts: 6, capacity: 300, weeklyRent: 5, maxOrders: 4, reserveWeeks: 2 },
     factor: {
-        baseWage: 10, wagePerSkill: 3, volumeBase: 30, volumePerSkill: 8, skill: [2, 9], honesty: [0.35, 1], candidates: 3,
+        baseWage: 5, wagePerSkill: 2, commission: 0.04, volumeBase: 30, volumePerSkill: 8, skill: [2, 9], honesty: [0.35, 1], candidates: 3,
         skimRate: 0.18, dishonestBelow: 0.7, suspicionPerSkim: 4, suspicionShown: 12,
         auditCost: 60, auditFindChance: 0.85, auditRecover: 0.5, unpaidQuitWeeks: 2,
     },
@@ -84,6 +84,8 @@ const DEFAULT_CONFIG = {
 
 const FAMINE_EVENTS = ['famine', 'drought', 'blizzard', 'plague'];
 const FLOWS = ['paidIn', 'drawn'];
+/** A post's running books (post.totals): what its factor sold and bought, its wages and rent, and what thieves took. */
+const POST_TOTALS = ['sales', 'purchases', 'wages', 'rent', 'robbed'];
 // A timed event this hard on bread counts as hunger (a saga's hoarded granaries)
 const HUNGER_FOOD_PRICES = 0.2;
 
@@ -167,7 +169,7 @@ export const MerchantHouses = {
         if (!c.week || typeof c.week !== 'object') c.week = { income: 0, expenses: 0 };
         if (!c.flows || typeof c.flows !== 'object') c.flows = {};
         if (!c.candidates || typeof c.candidates !== 'object') c.candidates = {};
-        c.stats = { contractsDone: 0, contractsFailed: 0, robberies: 0, convoysLost: 0, ...(c.stats || {}) };
+        c.stats = { contractsDone: 0, contractsFailed: 0, robberies: 0, convoysLost: 0, robbedValue: 0, convoyLossValue: 0, ...(c.stats || {}) };
         for (const p of c.posts) {
             if (!p.stock || typeof p.stock !== 'object') p.stock = {};
             // The stock's bookings by realm (systems/tradePolicy.js: customs on the factor's sales)
@@ -175,6 +177,9 @@ export const MerchantHouses = {
             if (!Array.isArray(p.orders)) p.orders = [];
             p.skimmed = _num(p.skimmed);
             p.suspicion = _num(p.suspicion);
+            // The post's own books since it opened (MerchantHouses.diagnosis)
+            if (!p.totals || typeof p.totals !== 'object') p.totals = {};
+            for (const k of POST_TOTALS) p.totals[k] = _num(p.totals[k]);
             if (p.factor === undefined) p.factor = null;
         }
         if (c.nextWeekDay == null) c.nextWeekDay = _num(c.foundedDay) + 7;
@@ -261,6 +266,126 @@ export const MerchantHouses = {
         const income = sum(c.pnl.income);
         const expenses = sum(c.pnl.expenses);
         return { income, expenses, net: income - expenses, incomeBy: { ...c.pnl.income }, expensesBy: { ...c.pnl.expenses } };
+    },
+
+    /**
+     * Routes between the company's own posts that would pay today, best
+     * first: buy `good` at one post's market, carry it to another post and
+     * sell it there, after the carriage and the risk on the road. A factor
+     * sells at what the player would (about 0.7 of the ask), so buying and
+     * selling in one market never pays: the margin is in the carrying.
+     * → [{ fromPostId, toPostId, from, to, good, unit, sale, carriage, margin, qty, profit }]
+     */
+    routeIdeas(player, world, { qty = 30, limit = 5, minMargin = 0.12 } = {}) {
+        const c = MerchantHouses.company(player);
+        if (!c || !world) return [];
+        const posts = c.posts.filter(p => p.factor);
+        const out = [];
+        for (const a of posts) {
+            const ta = world.getTile(a.q, a.r);
+            if (!ta || !ta.settlement) continue;
+            const goods = Trading.getAvailableGoods(ta.settlement, ta, world).filter(g => g.quantity > 10 && g.price > 2);
+            for (const b of posts) {
+                if (b === a) continue;
+                const tb = world.getTile(b.q, b.r);
+                if (!tb || !tb.settlement) continue;
+                const plan = MerchantHouses.convoyPlan(player, world, a, b.q, b.r, qty);
+                for (const g of goods) {
+                    const unit = MerchantHouses.factorBuyUnit(player, world, ta, g.id);
+                    const sale = unit ? MerchantHouses.factorSaleUnit(player, world, tb, g.id, Math.ceil(qty / 2)) : 0;
+                    if (!unit || !sale) continue;
+                    const carriage = plan.fee / qty + sale * plan.risk * 0.7;
+                    const margin = sale - unit - carriage;
+                    if (margin < Math.max(1, unit * minMargin)) continue;
+                    const n = Math.min(qty, Math.floor(g.quantity));
+                    out.push({
+                        fromPostId: a.id, toPostId: b.id, from: a.name, to: b.name, good: g.id, unit,
+                        sale: Math.round(sale * 10) / 10, carriage: Math.round(carriage * 10) / 10,
+                        margin: Math.round(margin * 10) / 10, qty: n, profit: Math.round(margin * n),
+                    });
+                }
+            }
+        }
+        return out.sort((x, y) => y.profit - x.profit || (x.good < y.good ? -1 : 1)).slice(0, limit);
+    },
+
+    /**
+     * Why the company makes or loses money, from its books since it was
+     * founded: { trading: { sales, contracts, purchases, stock, inTransit,
+     * margin }, overhead: { wages, rent, posts, audits, convoys, lobbying,
+     * total }, losses: { robbed, convoys, skimmed }, investments: { out, back },
+     * posts: [{ id, name, weeks, sales, purchases, wages, rent, robbed,
+     * skimmed, stock, verdict }], advice: [{ icon, text, tone }] } (tone
+     * 'bad' | 'warn' | 'good'). Stock is valued at what it would sell for, so
+     * goods bought and not yet sold are not counted as a loss.
+     */
+    diagnosis(player, world) {
+        const c = MerchantHouses.company(player);
+        if (!c) return null;
+        const E = c.pnl.expenses, I = c.pnl.income;
+        const stockVal = (stock) => Object.entries(stock || {}).reduce((a, [id, q]) => {
+            const g = MerchantHouses._good(id);
+            return a + (g ? q * g.basePrice * Trading.SELL_SHARE : 0);
+        }, 0);
+        const stock = Math.round(c.posts.reduce((a, p) => a + stockVal(p.stock), 0));
+        const inTransit = Math.round(c.convoys.reduce((a, v) => a + stockVal({ [v.good]: v.qty }), 0));
+        const trading = { sales: _num(I.sales), contracts: _num(I.contracts), purchases: _num(E.purchases), stock, inTransit };
+        trading.margin = Math.round(trading.sales + trading.contracts + stock + inTransit - trading.purchases);
+        const overhead = { wages: _num(E.wages) + _num(E.commission), rent: _num(E.rent), posts: _num(E.posts), audits: _num(E.audits), convoys: _num(E.convoys), lobbying: _num(E.lobbying) };
+        overhead.total = Object.values(overhead).reduce((a, b) => a + b, 0);
+        const losses = {
+            // (older books kept robbery as an expense line)
+            robbed: Math.round(_num(c.stats.robbedValue) + _num(E.robbery)),
+            convoys: Math.round(_num(c.stats.convoyLossValue)),
+            skimmed: Math.round(c.posts.reduce((a, p) => a + _num(p.skimmed), 0)),
+        };
+        const investments = {
+            out: _num(E.ventures) + _num(E.shares) + _num(E.buyouts) + _num(E.priceWar),
+            back: _num(I.ventures) + _num(I.shares) + _num(I.dividends),
+        };
+        const day = _day(world);
+        const cfg = MerchantHouses.config();
+        const posts = c.posts.map(p => {
+            const t = p.totals || {};
+            const weeks = Math.max(0, Math.floor((day - _num(p.openedDay, day)) / 7));
+            const held = Math.round(stockVal(p.stock));
+            let verdict = 'ok';
+            if (!p.factor) verdict = 'noFactor';
+            else if (!p.orders.length) verdict = 'idle';
+            else if (_num(t.purchases) > 0 && _num(t.sales) === 0 && held > 0 && weeks >= 4) verdict = 'piling';
+            else if (_num(t.sales) + _num(t.purchases) === 0 && weeks >= 3) verdict = 'stalled';
+            return {
+                id: p.id, name: p.name, weeks, sales: _num(t.sales), purchases: _num(t.purchases), wages: _num(t.wages),
+                rent: _num(t.rent), robbed: _num(t.robbed), skimmed: _num(p.skimmed), stock: held, verdict,
+            };
+        });
+        const advice = [];
+        const g = (n) => `${Math.round(n)}g`;
+        const sold = trading.sales + trading.contracts;
+        if (sold + trading.purchases > 0 && trading.margin < 0) {
+            advice.push({ icon: '⚖️', tone: 'bad', text: `The factors have bought ${g(trading.purchases)} of goods and sold ${g(sold)} (${g(stock + inTransit)} still held): they buy dearer than they sell. A factor sells at what you would, about ${Math.round(Trading.SELL_SHARE * 100)}% of the ask, so buying and selling in one market loses. Carry goods to a post or a contract that pays more.` });
+        }
+        const weekly = c.posts.reduce((a, p) => a + cfg.post.weeklyRent + (p.factor ? MerchantHouses.factorWage(p.factor) : 0), 0);
+        if (overhead.wages + overhead.rent > 0 && trading.margin < overhead.wages + overhead.rent) {
+            advice.push({ icon: '🧾', tone: trading.margin > 0 ? 'warn' : 'bad', text: `Wages and rent (${g(overhead.wages + overhead.rent)}) outrun the trading margin (${g(trading.margin)}). ${c.posts.length} post${c.posts.length === 1 ? '' : 's'} cost about ${g(weekly)} a week whether they trade or not.` });
+        }
+        for (const p of posts) {
+            if (p.verdict === 'idle') advice.push({ icon: '💤', tone: 'warn', text: `${p.name} has no orders, so its factor's wage is pure cost. Give it a good to buy or sell, or close it.` });
+            else if (p.verdict === 'piling') advice.push({ icon: '📦', tone: 'warn', text: `${p.name} buys but has sold nothing: ${g(p.stock)} of stock sits in the warehouse and draws thieves. Send it by convoy to a post that pays more.` });
+            else if (p.verdict === 'stalled') advice.push({ icon: '⏸️', tone: 'warn', text: `${p.name} has not traded in ${p.weeks} weeks: its orders' prices are never met.` });
+        }
+        if (losses.robbed + losses.convoys > Math.max(200, sold * 0.1)) {
+            advice.push({ icon: '🗝️', tone: 'warn', text: `Thieves and the road have taken ${g(losses.robbed + losses.convoys)} of stock. Keep less in the warehouses, ship by sea, or win the friendship of a thieves' guild.` });
+        }
+        if (losses.skimmed > 0) advice.push({ icon: '🕵️', tone: 'warn', text: `A dishonest factor has skimmed ${g(losses.skimmed)}. Audit the post or replace them.` });
+        if (investments.out > 0 && investments.back < investments.out * 0.8) {
+            advice.push({ icon: '⛵', tone: 'warn', text: `Ventures and shares have taken ${g(investments.out)} and returned ${g(investments.back)} so far.` });
+        }
+        const idea = posts.length >= 2 ? MerchantHouses.routeIdeas(player, world, { limit: 1 })[0] : null;
+        if (idea) advice.push({ icon: '🧭', tone: 'good', text: `A route that pays today: buy ${MerchantHouses.goodName(idea.good)} at ${idea.from} (${idea.unit}g), sell it at ${idea.to} (${idea.sale}g), about ${idea.margin}g a unit after the carriage.` });
+        else if (c.posts.length < 2) advice.push({ icon: '🧭', tone: 'warn', text: 'With one post the factor can only buy and sell in one market. Open a second post where prices differ and carry goods between them.' });
+        if (!advice.some(a => a.tone !== 'good') && sold > 0) advice.unshift({ icon: '✅', tone: 'good', text: `The trade pays: a margin of ${g(trading.margin)} over ${g(overhead.total)} of running costs.` });
+        return { trading, overhead, losses, investments, posts, advice };
     },
 
     /** Capital + stock at sale value + shares held. */
@@ -651,6 +776,7 @@ export const MerchantHouses = {
             openedDay: _day(world),
             factor: { ...factor, hiredDay: _day(world), unpaid: 0 },
             stock: {}, lots: {}, orders: [], skimmed: 0, suspicion: 0, lastWeek: null,
+            totals: { sales: 0, purchases: 0, wages: 0, rent: 0, robbed: 0 },
         };
         c.posts.push(post);
         delete c.candidates[_key(tile.q, tile.r)];
@@ -1287,6 +1413,7 @@ export const MerchantHouses = {
             const lost = Math.max(1, Math.round(qty * Utils.randFloat(cfg.lossShare[0], cfg.lossShare[1])));
             qty -= Math.min(qty, lost);
             c.stats.convoysLost++;
+            c.stats.convoyLossValue = _num(c.stats.convoyLossValue) + Math.round(LossBook.saleValue({ [convoy.good]: lost }));
             LossBook.report(player, world, { kind: 'caravan', cause: convoy.mode === 'ship' ? 'storm and pirates' : 'bandits', value: LossBook.saleValue({ [convoy.good]: lost }), ref: `cv:${convoy.id}`, place: `${convoy.from} → ${convoy.to}`, q: convoy.q, r: convoy.r });
             out.notices.push({ icon: convoy.mode === 'ship' ? '🌊' : '🏴‍☠️', title: 'Convoy Struck', text: `Your ${convoy.mode} to ${convoy.to} lost ${lost} ${_label(convoy.good)} on the way${convoy.mode === 'ship' ? ' to storm and pirates' : ' to bandits'}.`, type: 'warning' });
         }
@@ -1410,13 +1537,16 @@ export const MerchantHouses = {
         const s = tile && tile.settlement;
         if (!s) return;
         const day = _day(world);
-        // Wages and rent
+        // Wages and rent: paid to the town's landlords and the factor, who
+        // spend them where they live (the town's purse)
         const rent = cfg.post.weeklyRent;
-        if (c.capital >= rent) MerchantHouses._debit(c, world, rent, 'rent', `Rent at ${post.name}`);
+        const toTown = (amt) => { if (amt > 0 && s.economy && Number.isFinite(s.economy.gold)) s.economy.gold = Math.round((s.economy.gold + amt) * 100) / 100; return amt; };
+        if (!post.totals) post.totals = { sales: 0, purchases: 0, wages: 0, rent: 0, robbed: 0 };
+        if (c.capital >= rent) post.totals.rent += toTown(MerchantHouses._debit(c, world, rent, 'rent', `Rent at ${post.name}`));
         if (post.factor) {
             const wage = MerchantHouses.factorWage(post.factor);
             if (c.capital >= wage) {
-                MerchantHouses._debit(c, world, wage, 'wages', `${post.factor.name}'s wage`);
+                post.totals.wages += toTown(MerchantHouses._debit(c, world, wage, 'wages', `${post.factor.name}'s wage`));
                 post.factor.unpaid = 0;
             } else if (++post.factor.unpaid >= cfg.factor.unpaidQuitWeeks) {
                 out.notices.push({ icon: '🚪', title: 'Factor Quits', text: `${post.factor.name} walks out of the ${post.name} post: no wages for ${post.factor.unpaid} weeks.`, type: 'warning' });
@@ -1492,6 +1622,11 @@ export const MerchantHouses = {
                 post.suspicion += cfg.factor.suspicionPerSkim;
             }
         }
+        // The factor's commission on what he sold: most of his pay rides on the trade
+        const commission = sales > 0 ? Math.floor(sales * _num(cfg.factor.commission)) : 0;
+        if (commission > 0) post.totals.wages += toTown(MerchantHouses._debit(c, world, Math.min(commission, c.capital), 'commission', `${post.factor.name}'s commission`));
+        post.totals.sales += sales;
+        post.totals.purchases += purchases;
         post.lastWeek = { sales, purchases, blocked };
     },
 
@@ -1538,7 +1673,12 @@ export const MerchantHouses = {
         if (!lost.length) return;
         c.stats.robberies++;
         LossBook.report(player, world, { kind: 'stock', cause: 'thieves', value: Math.round(value), ref: `post:${post.id}`, place: post.name, q: post.q, r: post.r });
-        MerchantHouses._book(c, world, 'expenses', 'robbery', value, `Thieves at ${post.name}: ${lost.join(', ')}`);
+        // (stock, not coin: its purchase is already on the books, so the loss is a
+        // memo line and in the diagnosis, not a second expense)
+        c.stats.robbedValue = _num(c.stats.robbedValue) + Math.round(value);
+        if (post.totals) post.totals.robbed += Math.round(value);
+        c.ledger.unshift({ day: _day(world), kind: 'memo', cat: 'robbery', amount: Math.round(value), text: `Thieves at ${post.name}: ${lost.join(', ')}` });
+        if (c.ledger.length > MerchantHouses.config().ledgerCap) c.ledger.length = MerchantHouses.config().ledgerCap;
         out.notices.push({ icon: '🗝️', title: 'Post Robbed', text: `Thieves broke into the ${post.name} warehouse and carried off ${lost.join(', ')}.`, type: 'error' });
     },
 

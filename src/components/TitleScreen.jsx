@@ -3,6 +3,15 @@ import { useGame } from '../context/GameContext';
 import { ModStore } from '../systems/modStore';
 import Icon from './Icon';
 import AiSettingsDialog from './AiSettingsDialog';
+import { SaveLoad } from '../systems/saveLoad.js';
+
+// The saves on this machine: the ordinary slot and an Ironman run's (systems/saveLoad.js)
+const _listSaves = () => {
+  try { return SaveLoad.listSaves(); } catch (err) { return []; }
+};
+const _saveWhen = (t) => {
+  try { return t ? new Date(t).toLocaleString() : ''; } catch (err) { return ''; }
+};
 
 export default function TitleScreen() {
   const { setPhase, setGameState } = useGame();
@@ -10,6 +19,13 @@ export default function TitleScreen() {
   const [worlds, setWorlds] = useState([]);
   const [loadingWorlds, setLoadingWorlds] = useState(false);
   const [showAiSettings, setShowAiSettings] = useState(false);
+  const [saves] = useState(_listSaves);
+  const [showSaves, setShowSaves] = useState(false);
+
+  const handleResume = useCallback((key) => {
+    setShowSaves(false);
+    setGameState(prev => ({ ...prev, phase: 'loading', settings: { _resumeKey: key } }));
+  }, [setGameState]);
 
   const handlePlayCustom = useCallback(async () => {
     try {
@@ -69,9 +85,11 @@ export default function TitleScreen() {
           <button
             className="title-btn"
             id="btnContinue"
-            disabled
+            disabled={saves.length === 0}
+            onClick={() => (saves.length === 1 ? handleResume(saves[0].key) : setShowSaves(true))}
+            title={saves.length === 1 && saves[0].ironman ? 'Continue your Ironman run' : undefined}
           >
-            Continue
+            {saves.length === 1 && saves[0].ironman ? '⚒️ Continue (Ironman)' : 'Continue'}
           </button>
         </div>
         <div id="titleButtonsSecondary">
@@ -98,6 +116,13 @@ export default function TitleScreen() {
           </button>
           <button
             className="title-btn secondary"
+            id="btnHallOfHouses"
+            onClick={() => setPhase('hall')}
+          >
+            <Icon name="crown" /> Hall of Houses
+          </button>
+          <button
+            className="title-btn secondary"
             id="btnAiSettings"
             onClick={() => setShowAiSettings(true)}
           >
@@ -108,6 +133,37 @@ export default function TitleScreen() {
       </div>
 
       {showAiSettings && <AiSettingsDialog onClose={() => setShowAiSettings(false)} />}
+
+      {/* The save list: an Ironman run is marked (it continues; it is never loaded back) */}
+      {showSaves && (
+        <div id="customWorldModal">
+          <div className="cw-modal-backdrop" onClick={() => setShowSaves(false)} />
+          <div className="cw-modal-panel">
+            <div className="cw-modal-header">
+              <span>Continue</span>
+              <button className="cw-modal-close" onClick={() => setShowSaves(false)}>&times;</button>
+            </div>
+            <div className="cw-modal-body">
+              {saves.map(sv => (
+                <div key={sv.key} className="cw-world-item" onClick={() => handleResume(sv.key)}>
+                  <div>
+                    <div className="cw-world-name">
+                      {sv.playerName || 'Unnamed'}{sv.houseName ? ` of ${sv.houseName}` : ''}
+                      {sv.ironman && <span style={{ marginLeft: 8, fontSize: '11px', color: '#e0846a', border: '1px solid #e0846a', borderRadius: 4, padding: '0 5px' }}>⚒️ IRONMAN</span>}
+                      {sv.tainted && <span style={{ marginLeft: 6, fontSize: '11px', color: '#b8a0d8', border: '1px solid #b8a0d8', borderRadius: 4, padding: '0 5px' }}>🧪 TAINTED</span>}
+                    </div>
+                    <div className="cw-world-meta">{`Year ${sv.year ?? '?'}, day ${sv.day ?? '?'} · saved ${_saveWhen(sv.timestamp)}`}</div>
+                  </div>
+                  <span className="cw-world-play">PLAY ▶</span>
+                </div>
+              ))}
+            </div>
+            <div className="cw-modal-footer">
+              <button className="title-btn" onClick={() => setShowSaves(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom World Picker Modal */}
       {showWorldPicker && (

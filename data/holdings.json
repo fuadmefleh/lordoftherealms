@@ -112,73 +112,73 @@
         "palisade": {
             "name": "Palisade", "icon": "🚧", "category": "defence",
             "description": "A ditch and a ring of sharpened stakes. Keeps out bandits and slows a war host.",
-            "gold": 150, "materials": { "wood": 20 }, "days": 6,
+            "gold": 150, "materials": { "wood": 20 }, "days": 30,
             "effects": { "defense": 0.25, "raidReduction": 0.2, "order": 0.1 }
         },
         "stone_walls": {
             "name": "Stone Walls", "icon": "🏰", "category": "defence", "upgradeOf": "palisade", "minTier": 1,
             "description": "Replaces the palisade with curtain walls and a gatehouse.",
-            "gold": 600, "materials": { "stone": 40, "tools": 4 }, "days": 15,
+            "gold": 600, "materials": { "stone": 40, "tools": 4 }, "days": 360,
             "effects": { "defense": 0.6, "raidReduction": 0.45, "order": 0.2 }
         },
         "market_square": {
             "name": "Market Square", "icon": "🏪", "category": "economy",
             "description": "A paved square with stalls and a weigh-house. Traders come, and so does coin.",
-            "gold": 300, "materials": { "wood": 10, "stone": 15 }, "days": 8,
+            "gold": 300, "materials": { "wood": 10, "stone": 15 }, "days": 45,
             "effects": { "tax": 0.12, "salePrice": 0.04, "happiness": 2, "growth": 0.01 }
         },
         "granary": {
             "name": "Granary", "icon": "🌾", "category": "economy",
             "description": "Raised stores against the lean weeks. The town counts as having more food put by.",
-            "gold": 200, "materials": { "wood": 25 }, "days": 6,
+            "gold": 200, "materials": { "wood": 25 }, "days": 40,
             "effects": { "reserveDays": 6, "growth": 0.01, "happiness": 1 }
         },
         "shrine": {
             "name": "Shrine", "icon": "🕯️", "category": "faith",
             "description": "A wayside shrine. If you founded a faith, it is yours that is tended here.",
-            "gold": 120, "materials": { "stone": 8 }, "days": 4,
+            "gold": 120, "materials": { "stone": 8 }, "days": 25,
             "effects": { "happiness": 3, "faith": 0.004, "order": 0.1 }
         },
         "temple": {
             "name": "Temple", "icon": "⛪", "category": "faith", "upgradeOf": "shrine", "minTier": 1,
             "description": "Raises the shrine into a temple with its own priests.",
-            "gold": 550, "materials": { "stone": 35, "wood": 10 }, "days": 12,
+            "gold": 550, "materials": { "stone": 35, "wood": 10 }, "days": 240,
             "effects": { "happiness": 6, "faith": 0.01, "order": 0.25 }
         },
         "barracks": {
             "name": "Barracks", "icon": "⚔️", "category": "military",
             "description": "Quarters and a drill yard. A local militia, more and cheaper recruits, and a cheaper garrison.",
-            "gold": 350, "materials": { "wood": 20, "iron": 8 }, "days": 9,
+            "gold": 350, "materials": { "wood": 20, "iron": 8 }, "days": 60,
             "effects": { "militia": 10, "recruitCapacity": 0.5, "recruitDiscount": 0.1, "garrisonUpkeep": -0.25, "order": 0.15 }
         },
         "harbour": {
             "name": "Harbour", "icon": "⚓", "category": "economy", "coastal": true,
             "description": "Quays and a breakwater. Only a holding beside the water can build one.",
-            "gold": 450, "materials": { "wood": 35, "stone": 10 }, "days": 12,
+            "gold": 450, "materials": { "wood": 35, "stone": 10 }, "days": 180,
             "effects": { "tax": 0.08, "portPrices": 0.08, "reserveDays": 2, "growth": 0.015, "port": 1 }
         },
         "watchtower": {
             "name": "Watchtower", "icon": "🗼", "category": "defence",
             "description": "Lookouts on the roads. Bandits are seen coming, and the watch is yours.",
-            "gold": 180, "materials": { "wood": 10, "stone": 10 }, "days": 5,
+            "gold": 180, "materials": { "wood": 10, "stone": 10 }, "days": 40,
             "effects": { "raidReduction": 0.4, "heatRelief": 0.5, "defense": 0.05, "order": 0.15 }
         },
         "workshop_quarter": {
             "name": "Workshop Quarter", "icon": "🔨", "category": "economy", "minTier": 1,
             "description": "Streets of smiths, coopers and weavers.",
-            "gold": 400, "materials": { "wood": 20, "iron": 10, "tools": 4 }, "days": 10,
+            "gold": 400, "materials": { "wood": 20, "iron": 10, "tools": 4 }, "days": 90,
             "effects": { "goods": 0.2, "tax": 0.06, "growth": 0.005 }
         },
         "tavern_inn": {
             "name": "Tavern and Inn", "icon": "🍺", "category": "people",
             "description": "Ale, beds and gossip. Travellers stop, and some of them stay.",
-            "gold": 250, "materials": { "wood": 20 }, "days": 7,
+            "gold": 250, "materials": { "wood": 20 }, "days": 45,
             "effects": { "happiness": 4, "growth": 0.015, "settlers": 0.1, "tax": 0.03 }
         },
         "moot_hall": {
             "name": "Moot Hall", "icon": "🏛️", "category": "people", "minTier": 1,
             "description": "Where the town meets and your court sits. Petitioners wait longer and quarrels cool.",
-            "gold": 320, "materials": { "stone": 15, "wood": 10 }, "days": 8,
+            "gold": 320, "materials": { "stone": 15, "wood": 10 }, "days": 60,
             "effects": { "petitionDays": 4, "happiness": 2, "order": 0.3 }
         }
     },

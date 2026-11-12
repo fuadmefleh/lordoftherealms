@@ -250,6 +250,12 @@ describe('pedlars', () => {
     });
 });
 
+/** `g` plentiful at `from` and scarce at `to`: worth a pedlar's pack between them (a pedlar with nothing to carry never sets out). */
+function cheapAt(from, to, g) {
+    from.market.stock[g] = SettlementMarket.target(from, g) * 3;
+    to.market.stock[g] = SettlementMarket.target(to, g) * 0.3;
+}
+
 describe('pedlars turn up', () => {
     it('a town finds its pedlars on a link kept on either end, or before the links are drawn, on its nearest towns', () => {
         const { world, s, other } = setup();
@@ -269,6 +275,7 @@ describe('pedlars turn up', () => {
     it('a town first seen may have a pedlar in its streets already, staked and packed at a neighbour, every coin and good kept', () => {
         tune('pedlars', { firstInTown: 1 });
         const { world, s, other } = setup();
+        cheapAt(other, s, 'candles');
         const g0 = goodsTotal([s, other]), c0 = coinTotal([s, other]);
         const ped = TownTrade.seePedlars(world, s, world.day);
         expect(ped).toBeTruthy();
@@ -288,7 +295,8 @@ describe('pedlars turn up', () => {
 
     it('a town first seen without one saw its last a while ago: the next comes within everyDays', () => {
         tune('pedlars', { firstInTown: 0 });
-        const { world, s } = setup();
+        const { world, s, other } = setup();
+        cheapAt(other, s, 'candles');
         expect(TownTrade.seePedlars(world, s, world.day)).toBe(null);
         const P = TownTrade.config().pedlars;
         expect(s.townTrade.lastPedlar).toBeLessThanOrEqual(world.day);
@@ -489,5 +497,108 @@ describe('the books', () => {
         delete c.s.townTrade;
         for (let d = 0; d < 9; d++) { c.world.day++; TownTrade.processDay(c.world, null); }
         expect(c.s.townTrade.book.bought).toBeGreaterThan(0);
+    });
+});
+
+describe('a pedlar sold out packs up and leaves', () => {
+    /** setup() plus a third town with a roster (Cray, west of Ashford) for a pedlar to walk on to. */
+    function setup3() {
+        const c = setup();
+        const cray = { name: 'Cray', type: 'town', q: 2, r: 7, population: 1500, happiness: 50, economy: { gold: 3000 }, kingdom: 0 };
+        const tiles = { '5,7': { q: 5, r: 7, settlement: c.s }, '8,7': { q: 8, r: 7, settlement: c.other }, '2,7': { q: 2, r: 7, settlement: cray } };
+        c.world.getTile = (q, r) => tiles[`${q},${r}`] || null;
+        c.world.getSettlementViews = () => [c.s, c.other, cray];
+        SettlementMarket.ensure(cray);
+        c.s.market.links.push([2, 7, 3, false, true, 1]);
+        cray.market.links = [[5, 7, 3, false, true, 1]];
+        Townsfolk.attach(cray, c.world, seedNpcs(), { q: 2, r: 7, target: 28 });
+        for (const p of cray.folk.people) p.purse = 30;
+        // Salt cheap in Ashford and dear in Cray: worth a pack for the road
+        c.s.market.stock.salt = SettlementMarket.target(c.s, 'salt') * 3;
+        cray.market.stock.salt = SettlementMarket.target(cray, 'salt') * 0.2;
+        return { ...c, cray };
+    }
+    /** A pedlar in Ashford's streets with `pack`, staying a good while yet. */
+    function pedlarIn(c, pack) {
+        tune('pedlars', { firstInTown: 1 });
+        cheapAt(c.other, c.s, 'candles');
+        const ped = TownTrade.seePedlars(c.world, c.s, c.world.day);
+        // (the pack they came with back to Brightwater's stalls: the test's own pack instead, out of Ashford's stock)
+        for (const [g, n] of Object.entries(ped.pack)) SettlementMarket.add(c.other, g, n);
+        ped.pack = {};
+        for (const [g, n] of Object.entries(pack)) { SettlementMarket.add(c.s, g, -Math.min(n, SettlementMarket.stock(c.s, g))); ped.pack[g] = n; }
+        ped.until = c.world.day + 30;
+        // (come from Brightwater, whichever neighbour staked them: Cray is the road on)
+        ped.from = '8,7';
+        ped.fromName = 'Brightwater';
+        return ped;
+    }
+
+    it('the player buying the last of the pack: they leave the streets at once, restocked at this market for the next town', () => {
+        const c = setup3();
+        const ped = pedlarIn(c, { candles: 2 });
+        const player = { name: 'Ash', gold: 500, inventory: {}, maxInventory: 99 };
+        const salt0 = SettlementMarket.stock(c.s, 'salt');
+        const gold0 = c.s.economy.gold;
+        expect(TownTrade.sellFromPedlar(player, c.world, c.s, ped, 'candles', 1).packedUp).toBeFalsy();
+        const r = TownTrade.sellFromPedlar(player, c.world, c.s, ped, 'candles', 1);
+        expect(r.ok).toBe(true);
+        expect(r.packedUp).toBe(true);
+        expect(player.inventory.candles).toBe(2);
+        // Gone from Ashford's streets, though their stay had weeks to run
+        expect(TownTrade.pedlarIn(c.s, c.world.day)).toBe(null);
+        expect(TownTrade.pedlars(c.s)).not.toContain(ped);
+        // On the road to Cray with a new pack bought (and paid for) at Ashford's market
+        expect(TownTrade.pedlars(c.cray)).toContain(ped);
+        expect(ped.phase).toBe('road');
+        expect(ped.fromName).toBe('Ashford');
+        expect(ped.pack.salt).toBeGreaterThan(0);
+        expect(SettlementMarket.stock(c.s, 'salt')).toBeCloseTo(salt0 - ped.pack.salt, 6);
+        expect(c.s.economy.gold).toBeGreaterThan(gold0);
+    });
+
+    it('sold out door to door: off at the trade step, not lingering out the stay', () => {
+        const c = setup3();
+        const ped = pedlarIn(c, { candles: 1.05 });
+        TownTrade.step(c.world, c.s, c.world.day);
+        for (const h of Object.values(c.s.townTrade.hh)) delete h.l.candles;
+        c.s.townTrade.lastPedlar = c.world.day;
+        c.world.day += 4;
+        TownTrade.step(c.world, c.s, c.world.day);
+        expect(c.s.townTrade.book.pedlarSales).toBeGreaterThan(0);
+        expect(TownTrade.pedlars(c.s)).not.toContain(ped);
+        expect(TownTrade.pedlarIn(c.s, c.world.day)).toBe(null);
+        expect(TownTrade.pedlars(c.cray)).toContain(ped);
+    });
+
+    it('with nothing at the market worth a pack, they wait off the streets, set out once there is, and give up the road after restockDays', () => {
+        const c = setup3();
+        const ped = pedlarIn(c, { candles: 1 });
+        const salt = SettlementMarket.stock(c.s, 'salt');
+        c.s.market.stock.salt = 0;
+        const player = { name: 'Ash', gold: 500, inventory: {}, maxInventory: 99 };
+        expect(TownTrade.sellFromPedlar(player, c.world, c.s, ped, 'candles', 1).packedUp).toBe(true);
+        expect(ped.phase).toBe('stock');
+        expect(TownTrade.pedlars(c.s)).toContain(ped);
+        expect(TownTrade.pedlarIn(c.s, c.world.day)).toBe(null);
+        // The salt comes in: the next step they buy their pack and go
+        c.s.market.stock.salt = salt;
+        TownTrade._pedlarStep(c.world, c.s, c.s.townTrade, c.s.folk, [], [], () => 1, c.world.day + 4, null);
+        expect(ped.phase).toBe('road');
+        expect(TownTrade.pedlars(c.cray)).toContain(ped);
+        expect(ped.pack.salt).toBeGreaterThan(0);
+
+        // Another left waiting with nothing to buy past restockDays: off the road, purse and scraps to the town
+        const c2 = setup3();
+        const p2 = pedlarIn(c2, { candles: 1 });
+        c2.s.market.stock.salt = 0;
+        TownTrade.sellFromPedlar(player, c2.world, c2.s, p2, 'candles', 1);
+        expect(p2.phase).toBe('stock');
+        const purse = p2.purse, gold0 = c2.s.economy.gold;
+        const days = TownTrade.config().pedlars.restockDays;
+        TownTrade._pedlarStep(c2.world, c2.s, c2.s.townTrade, c2.s.folk, [], [], () => 1, c2.world.day + days, null);
+        expect(TownTrade.pedlars(c2.s)).not.toContain(p2);
+        expect(c2.s.economy.gold).toBeCloseTo(gold0 + purse, 6);
+        expect(c2.s.townTrade.book.pedlarsSettled).toBe(1);
     });
 });

@@ -27,6 +27,7 @@ import { WorldUnit } from '../world/units.js';
 import { loadData, newGame, endDay, roundTrip, carryOn } from './playtest/harness.js';
 import { SaveLoad } from '../systems/saveLoad.js';
 import { RivalHouses } from '../systems/rivalHouses.js';
+import { CadetBranches } from '../systems/cadetBranches.js';
 import { botDay, personaOf } from './playtest/bot.js';
 import { Scenarios } from '../player/scenarios.js';
 
@@ -267,6 +268,8 @@ const SOAK_ORIGIN = ENV.SOAK_ORIGIN || null;
 
 function runSoak(seed) {
     let game = newGame(seed, SOAK_GEN);
+    // SOAK_TIMING=1: ms spent in each step of the day (harness mark()), in the verbose report
+    if (ENV.SOAK_TIMING) game.timing = {};
     if (SOAK_ORIGIN) Scenarios.apply(game.player, game.world, { origin: SOAK_ORIGIN });
     const stats = {};
     const problems = [];
@@ -349,8 +352,12 @@ describe('headless playtest soak', () => {
                     days, died, gold: Math.round(game.player.gold), lives, growth: growth.map(g => `y${g.year} ${g.msPerDay}ms/day ${g.saveKB}KB ${g.gold}g age ${g.age}/${g.life} realms ${g.standing}`), stats, ledger: game.ledger,
                     history: died ? history.map(h => h.join(' ')) : undefined,
                     rivalHouses: RivalHouses.rivals(game.player).filter(r => r.head).map(r => `${RivalHouses.headName(r)} ${r.head.age} (${r.name}, head #${(r.stats && r.stats.heads) || 1}): ${Math.round(r.gold)}g, feud ${Math.round(r.feud || 0)}, ${r.head.children.length} kids, trades ${r.stats.trades} (${Math.round(r.stats.tradeProfit)}g), court ${r.stats.courtVisits}, plots paid ${r.stats.plotsPaid}`),
+                    cadets: CadetBranches.list(game.player).map(b => `${CadetBranches.headName(b)} ${b.head.age} (${b.name}, depth ${b.depth}, head #${(b.stats && b.stats.heads) || 1}): ${Math.round(b.gold)}g, loyalty ${Math.round(b.loyalty)}${b.estranged ? ' ESTRANGED' : ''}, trades ${b.stats.trades}, court ${b.stats.courtVisits}, tribute ${Math.round(b.stats.tribute || 0)}g, levies ${b.stats.levies || 0}`),
+                    timing: game.timing && Object.entries(game.timing).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${k} ${(v / Math.max(1, days)).toFixed(2)}ms/day`)
+                        .concat(game.timing['CadetBranches.processDay'] != null ? [`CadetBranches.processDay ${(game.timing['CadetBranches.processDay'] / Math.max(1, days)).toFixed(2)}ms/day`] : []),
                     uw: uw && { guild: uw.guild, rackets: uw.rackets, stats: uw.stats, gangs: uw.gangs, dirty: uw.dirty },
-                    company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts }) => ({
+                    company: MerchantHouses.company(game.player) && (({ capital, reputation, posts, stats: cs, contracts, foundedDay }) => ({
+                        founded: `day ${foundedDay}, year ${Math.floor((foundedDay - (game.world.day - days)) / DAYS_PER_YEAR) + 1} of the run`,
                         capital: Math.round(capital), reputation, posts: posts.map(p => `${p.name}: ${JSON.stringify(p.stock)} ${JSON.stringify(p.lastWeek)}`),
                         stats: cs, contracts: contracts.length, pnl: MerchantHouses.profitAndLoss(game.player),
                         rivals: MerchantHouses.rivals(game.player).map(r => `${r.name} ${r.status} ${Math.round(r.capital)}`),

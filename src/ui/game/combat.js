@@ -10,6 +10,7 @@ import { InnerMapBattle } from '../innerMapBattle.js';
 import { PlayerReligion } from '../../player/playerReligion.js';
 import { Traits } from '../../systems/traits.js';
 import { Ailments } from '../../systems/ailments.js';
+import { recordIronmanDeath } from './ironman.js';
 
 export function playerPray() {
     if (!this.player) return;
@@ -273,6 +274,8 @@ export function _triggerDeath(cause) {
         this.exitInnerMap({ quiet: true });
     }
     this.player._isDead = true;
+    // Ironman: the death is saved before the deathbed shows, so a reload cannot undo it (ui/game/ironman.js)
+    recordIronmanDeath(this, cause);
     setTimeout(() => ActionMenu.showDeathScreen(this, cause), 1200);
 }
 

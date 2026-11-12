@@ -34,6 +34,8 @@ import { LotBook } from './lotBook.js';
 import { planChurchyard } from './churchyard.js';
 import { Cultures } from './cultures.js';
 import { SettlementWealth } from './settlementWealth.js';
+import { TownEras } from './townEras.js';
+import { TownWalls } from './townWalls.js';
 import { DataLoader } from '../core/dataLoader.js';
 
 /** How each size of settlement is laid out. */
@@ -178,8 +180,15 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     // across the street instead of repeating every tile.
     const FLOORS = (arch && arch.streetSheet) || 'assets/lpc/Structure/Floor/streets_modern.png';
     const BLOCK = arch && arch.streetSheet ? (arch.streetBlock || 1) : 2;
-    const PAVE = (arch && AP.streets) ? { main: AP.streets.main, lane: AP.streets.lane, plaza: AP.streets.plaza } : { main: [0, 0], lane: [0, 4], plaza: [14, 2] };
-    const paved = type !== 'village' && !(arch && !AP.streets);
+    // The town's era (world/townEras.js, worlds since terrainGen 8): how far out its masons have
+    // paved each kind of street (0..1 of the town, from the square out), and the high street a
+    // people without paving of its own lays at last. No era: every street paved, as it always was
+    const eraLook = (arch && planOpts && planOpts.era) || null;
+    const late = eraLook && !AP.streets && eraLook.lateStreets ? eraLook.lateStreets : null;
+    const PAVE = (arch && AP.streets) ? { main: AP.streets.main, lane: AP.streets.lane, plaza: AP.streets.plaza }
+        : late ? { main: late.main, lane: null, plaza: late.plaza || late.main } : { main: [0, 0], lane: [0, 4], plaza: [14, 2] };
+    const paved = type !== 'village' && !(arch && !AP.streets && !late);
+    const paveReach = kind => { const f = eraLook ? (eraLook.pave && eraLook.pave[kind]) || 0 : 1; return f > 0 ? 1.08 * f : -1; };
 
     const roadTiles = [];
     const roadSet = new Set();
@@ -188,7 +197,7 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         if (q < 0 || r < 0 || q >= W || r >= H) return;
         const k = r * W + q;
         const t = tiles[r][q];
-        if (paved && kind && reach(ref ? ref[0] : q, ref ? ref[1] : r) <= 1.08 && (!t.paving || kind === 'plaza' || (kind === 'main' && t._pave !== 'plaza'))) {
+        if (paved && kind && PAVE[kind] && reach(ref ? ref[0] : q, ref ? ref[1] : r) <= paveReach(kind) && (!t.paving || kind === 'plaza' || (kind === 'main' && t._pave !== 'plaza'))) {
             const [c, rr] = PAVE[kind];
             t.paving = { sheetPath: FLOORS, sx: (c + q % BLOCK) * 32, sy: (rr + r % BLOCK) * 32 };
             t._pave = kind;
@@ -365,6 +374,13 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         }
         if (y >= H) return null;
         putBuilding(def, q, r);
+        // (how worn it stands: its era's weather, world/townEras.js; drawn by ui/innerMapLayers/objectsBuildings.js)
+        if (eraLook && def.culture) {
+            const wear = eraLook.building(q + door.q, r).wear;
+            if (wear) tiles[r][q].customBuilding.wear = wear;
+            // (a Guild Age church, temple, guildhall or town hall: a belltower over its roof)
+            if (eraLook.spireStyle && eraLook.spires.includes(def.buildingType)) tiles[r][q].customBuilding.spire = TownEras.spireStyle(arch.culture, def.wall) || eraLook.spireStyle;
+        }
         for (const py of path) addRoad(q + door.q, py);
         const rec = { def, q, r, left, right, front: r, top: r + b.minRow, type: def.buildingType || 'house', style: def.style || 'row', line };
         placed.push(rec);
@@ -381,7 +397,9 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     const tierDef = (def, q, r) => {
         if (wealth == null || !def || !def.culture || typeof CustomBuildings.tierVariant !== 'function') return def;
         const landmark = !['house', 'farm'].includes(def.buildingType || 'house');
-        const tier = SettlementWealth.buildingTier(wealth, { ring: _ring(type, reach(q, r)), landmark, key: `${placeKey}:${q},${r}` });
+        let tier = SettlementWealth.buildingTier(wealth, { ring: _ring(type, reach(q, r)), landmark, key: `${placeKey}:${q},${r}` });
+        // (and no grander than the age it was last built in could raise: world/townEras.js)
+        if (eraLook) tier = TownEras.capTier(tier, eraLook.building(q, r).tierCap);
         return CustomBuildings.tierVariant(def, tier);
     };
 
@@ -507,7 +525,9 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
         // A culture's own mix of its own house styles, by ring of town
         if (arch && arch.mix && ownHouses.length) {
             // (in worlds since terrainGen 7 a poor town builds as a richer one's outskirts, a rich one as its core)
-            const ring = planOpts && planOpts.wealthMix && wealth != null ? _shiftRing(_ring(type, d), SettlementWealth.tierOf(wealth)) : _ring(type, d);
+            let ring = planOpts && planOpts.wealthMix && wealth != null ? _shiftRing(_ring(type, d), SettlementWealth.tierOf(wealth)) : _ring(type, d);
+            // (in the Hearth Age every house is a hut, croft or longhouse: its era's ring)
+            if (eraLook && eraLook.mixRing && arch.mix[eraLook.mixRing]) ring = eraLook.mixRing;
             const mix = arch.mix[ring] || arch.mix.mid || {};
             if (Object.keys(mix).length) return _pickWeighted(rng, mix);
         }
@@ -669,7 +689,8 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
     }
     // A culture lights its town its own way: not at all, the square, the high street, or every lane
     // (a poor place lights no lamps in its streets: terrainGen 7, poorSquare)
-    const lamps = poorSquare ? 'none' : arch ? (AP.lamps || 'none') : (P.lamps ? 'street' : 'none');
+    // (and no more than its era lights: none before the Age of Stone, the square in it)
+    const lamps = poorSquare ? 'none' : arch ? (eraLook ? TownEras.lamps(AP.lamps || 'none', eraLook.lamps) : (AP.lamps || 'none')) : (P.lamps ? 'street' : 'none');
     const lampsOut = lamps === 'all' && type === 'village' ? 'street' : lamps;
     if (lampsOut !== 'none') {
         putProp('tp_lamp_a', pq0, plazaTop + 2, opts);
@@ -729,6 +750,12 @@ export function planTown(tiles, settlement, rng, W, H, layoutIn = null, planOpts
             }
             if (room && TownProps.place(tiles, d, q, r)) put++;
         }
+    }
+
+    // ── 5½. Its walls, round all it has built, a gate on each road out (world/townWalls.js; draws no dice) ──
+    tiles._townWalls = null;
+    if (eraLook && eraLook.walls && eraLook.wallMaterial) {
+        TownWalls.lay(tiles, { kind: eraLook.walls, material: eraLook.wallMaterial, reach });
     }
 
     // ── 6. Farmland round the town: farmsteads by the roads, fields and pastures ──

@@ -54,11 +54,11 @@
     "_stability": "Stability target term 'Taxes & pay': -(tax index - 1) x perLevel, -arrearsPerDay a day the soldiers and officials go unpaid (at most arrearsCap), -corruption x `corruption`, plus the pay and court levels' own.",
     "stability": { "perLevel": 12, "arrearsPerDay": 0.4, "arrearsCap": 10, "corruption": 10 },
 
-    "_npc": "NPC crowns review their taxes every `every` days (staggered): from the standard level, + bias by personality, + 1 at war, + 1 below reserveLow days of spending in the chests (+2 below lowDays), - 1 above reserveHigh (-2 above highDays), + 1 with soldiers unpaid, - 1 when stability is under unrestAt or a tax revolt broke out in the last revoltDays; they move one step a review. Below halfPayDays of spending with soldiers unpaid they go to half pay.",
+    "_npc": "NPC crowns review their taxes every `every` days (staggered): from the standard level, + bias by personality, + 1 at war, + 1 below reserveLow days of spending in the chests (+2 below lowDays), - 1 above reserveHigh (-2 above highDays), + 1 with soldiers unpaid, - 1 when stability is under unrestAt or a tax revolt broke out in the last revoltDays; they move one step a review. Below halfPayDays of spending with soldiers unpaid they go to half pay. The realm the player rules is reviewed on the same days by its treasurers (systems/fiscal.js _review): no personality bias, never above ruledMaxTax nor into a lavish court on their own, and only the levers (taxes, court, army pay) the ruler has not set by hand in the Treasury; each change is told to the ruler. 2026-11: added when a crowned player who left the books alone saw the chests run dry and the realm sink into arrears, corruption and unrest within a few years, while the same realm under the AI kept a reserve.",
     "npc": {
         "every": 28, "reserveLow": 30, "lowDays": 10, "reserveHigh": 160, "highDays": 320,
         "bias": { "peaceful": -1, "mercantile": -1, "balanced": 0, "militaristic": 0, "aggressive": 1 },
-        "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4
+        "unrestAt": 35, "revoltDays": 60, "halfPayDays": 4, "ruledMaxTax": "heavy"
     },
 
     "_coin": "Taxes come out of the towns' purses into the crown's chests and the wages go back into them; the money supply (world/moneySupply.js) counts the purses, so this moves the realm's coin in circulation by itself (booked daily as the 'fisc' flow). No tunables left here.",
@@ -136,6 +136,8 @@
             "farms": "Lump sums paid by tax farmers who bought the right to collect a town's taxes.",
             "levy": "An extraordinary levy: an extra share on every tax while it runs (a crown deep in debt), and forced gifts from its subjects.",
             "sales": "One-off sales: offices, crown land, licences and petitions, and surplus arms sold off.",
+            "escheat": "What an heirless estate leaves the crown once its banks and creditors are paid (player/estateSettlement.js).",
+            "heriot": "Death duties: the share of a vassal's purse the crown takes when an heir inherits (systems/inheritance.js).",
             "army": "Soldiers' daily pay and recruits' bounties, the fleet's upkeep, field costs, and wages the crown pays its commissioned officers (you, when you serve).",
             "arms": "Weapons, shields, helms, harness and arrows the crown buys from its towns' markets to arm its soldiers.",
             "court": "The household, officers and clerks (by the realm's size), and the upkeep of royal edicts.",

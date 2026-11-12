@@ -102,6 +102,9 @@ function tend(game, tile) {
     p.health = Math.max(p.health, 90);
     if (p.needs) for (const k of Object.keys(p.needs)) p.needs[k] = Math.max(p.needs[k], 80);
     p.jailState = null;
+    // Builds take weeks now (data/construction.json): keep the innkeeper fed while they wait
+    p.hunger = Math.max(p.hunger ?? 100, 80);
+    p.starvationDays = 0;
     if (p.gold < 3000) p.gold = 3000;
 }
 

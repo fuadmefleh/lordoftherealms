@@ -35,12 +35,12 @@
 
     "_works": "Public works (systems/publicWorks.js). goods per hex (road works) or per work; days per hex or per work; hands: land hands hired in the site town while it builds (world/townLabour.js), paid the town's land wage x wageMult a day. Goods are bought from the site town's market (and its link partners) at the going price, at most drawShare of a stock a day: a short market slows the work and its prices climb. toll: the toll rate on the value carried over it (NPC trade; caravans pay it at the gate), playerToll the fee the player pays crossing it. cond: the condition it leaves. Canals join two towns of one region within maxDist (one a port, or a river between them) and cut the link's friction to friction x; harbours cut sea links' friction x friction at either end.",
     "works": {
-        "repair": { "name": "Road repairs", "icon": "🔧", "goods": { "stone": 0.4, "wood": 0.2 }, "perHex": true, "days": 0.25, "minDays": 2, "hands": 20 },
-        "upgrade_road": { "name": "Road (from a track)", "icon": "🛤️", "goods": { "stone": 1, "wood": 0.6 }, "perHex": true, "days": 0.8, "minDays": 4, "hands": 40, "from": "track", "to": "road" },
-        "upgrade_highway": { "name": "Paved highway", "icon": "🛣️", "goods": { "stone": 1.6, "wood": 0.5, "iron": 0.1 }, "perHex": true, "days": 1.2, "minDays": 6, "hands": 40, "from": "road", "to": "highway", "toll": 0.05, "playerToll": 2 },
-        "bridge": { "name": "Stone bridge", "icon": "🌉", "goods": { "stone": 10, "wood": 6, "iron": 1.5 }, "days": 8, "hands": 24, "toll": 0.08, "playerToll": 3 },
-        "canal": { "name": "Canal", "icon": "🚣", "goods": { "stone": 5, "wood": 2, "iron": 0.4 }, "perHex": true, "days": 3, "minDays": 20, "hands": 120, "toll": 0.05, "friction": 0.33, "maxDist": 10, "minDist": 3 },
-        "harbour": { "name": "Harbour works", "icon": "⚓", "goods": { "stone": 40, "wood": 30, "iron": 4 }, "days": 30, "hands": 60, "friction": 0.8 }
+        "repair": { "name": "Road repairs", "icon": "🔧", "goods": { "stone": 0.4, "wood": 0.2 }, "perHex": true, "days": 1.5, "minDays": 6, "hands": 8 },
+        "upgrade_road": { "name": "Road (from a track)", "icon": "🛤️", "goods": { "stone": 1, "wood": 0.6 }, "perHex": true, "days": 6, "minDays": 12, "hands": 12, "from": "track", "to": "road" },
+        "upgrade_highway": { "name": "Paved highway", "icon": "🛣️", "goods": { "stone": 1.6, "wood": 0.5, "iron": 0.1 }, "perHex": true, "days": 10, "minDays": 20, "hands": 14, "from": "road", "to": "highway", "toll": 0.05, "playerToll": 2 },
+        "bridge": { "name": "Stone bridge", "icon": "🌉", "goods": { "stone": 10, "wood": 6, "iron": 1.5 }, "days": 90, "hands": 10, "toll": 0.08, "playerToll": 3 },
+        "canal": { "name": "Canal", "icon": "🚣", "goods": { "stone": 5, "wood": 2, "iron": 0.4 }, "perHex": true, "days": 25, "minDays": 150, "hands": 40, "toll": 0.05, "friction": 0.33, "maxDist": 10, "minDist": 3 },
+        "harbour": { "name": "Harbour works", "icon": "⚓", "goods": { "stone": 40, "wood": 30, "iron": 4 }, "days": 240, "hands": 25, "friction": 0.8 }
     },
     "_build": "wageMult: the hands' daily pay (x the town's land wage). drawShare: most of a market's stock a work buys in a day. budgetPad: what the player puts up front beyond the estimate (the rest is refunded on completion). crownShare: the crown's cut of a foreign investor's tolls. maxPerRealm / maxPlayer: works under way at once.",
     "build": { "wageMult": 1, "drawShare": 0.3, "budgetPad": 0.15, "crownShare": 0.25, "maxPerRealm": 2, "maxPlayer": 4, "keepDone": 40 },

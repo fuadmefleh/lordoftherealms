@@ -392,7 +392,8 @@ export const Ailments = {
     /** Try to catch a disease with a base chance. Returns the report or null. */
     _tryCatch(player, world, diseaseId, chance, source, out) {
         if (!diseaseId || Ailments.has(player, diseaseId)) return null;
-        if (!(Utils.random() < chance * Ailments._catchMult(player) * Ailments._blessingMult(player, world))) return null;
+        // The difficulty's illness knob: how often sickness takes hold, as well as how hard (1 on Normal)
+        if (!(Utils.random() < chance * Ailments._catchMult(player) * Ailments._blessingMult(player, world) * Difficulty.mult(player, 'illness'))) return null;
         const rep = Ailments.inflict(player, world, diseaseId, { source });
         if (rep && out) out.caught.push({ ...rep, source });
         return rep;
@@ -970,7 +971,11 @@ export const Ailments = {
                 lines.push('tended and dosed — it should be less likely to worsen');
             }
         }
-        if (temple) player.karma = _num(player.karma) + _num((t.temple || {}).karma);
+        // (paying for your own care is no charity: temple.karma, once per ailment at most)
+        if (temple && !rec.templeKarma && _num((t.temple || {}).karma) > 0) {
+            player.karma = _num(player.karma) + _num((t.temple || {}).karma);
+            rec.templeKarma = true;
+        }
         if (opt.charity) rec.charity = true;
         const who = temple ? 'The priests' : (settlement && settlement.type === 'village' ? 'The village herbalist' : 'The physician');
         const paid = opt.charity ? 'for charity, as well as can be done for nothing' : `${opt.cost}g`;

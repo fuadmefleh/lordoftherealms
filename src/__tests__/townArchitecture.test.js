@@ -157,7 +157,8 @@ describe('a culture lays out its towns its own way (terrainGen 4)', () => {
         expect(centre(towns.Imperial.tiles).has('tp_fountain')).toBe(true);
         expect(centre(towns.Desert.tiles).has('tp_pool')).toBe(true);
         expect(centre(towns.Nordic.tiles).has('tp_runestone')).toBe(true);
-        expect(centre(towns.Woodland.tiles).has('tp_oak')).toBe(true);
+        // (the great oak drawn for the green: data/architecture.json Woodland plaza.centre)
+        expect(centre(towns.Woodland.tiles).has('tp_tree_great_oak')).toBe(true);
         expect(centre(towns.Arcane.tiles).has('tp_column_dark')).toBe(true);
     });
 

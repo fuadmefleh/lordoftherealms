@@ -39,6 +39,7 @@ import { Taxation } from './marketDynamics.js';
 import { Religion } from './religion.js';
 import { Gossip } from './gossip.js';
 import { Quests } from './quests.js';
+import { NpcMemory } from './npcMemory.js';
 
 const DEFAULT_CONFIG = {
     firstDelay: 3,
@@ -794,6 +795,8 @@ export const Petitions = {
         }
 
         Petitions._remove(player, petition);
+        // A hanging, a mercy, a hard judgement: the town keeps it for generations (systems/npcMemory.js)
+        NpcMemory.onRuling(world, player, ctx, choice);
         const st = Petitions._state(player);
         st.stats.ruled++;
         const followUp = Petitions._scheduleFollowUp(player, world, petition, choice);

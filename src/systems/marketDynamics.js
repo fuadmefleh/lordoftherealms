@@ -39,6 +39,7 @@ import { MoneySupply } from '../world/moneySupply.js';
 import { Estates } from '../world/estates.js';
 import { TownJobs } from './townJobs.js';
 import { Illness } from './illness.js';
+import { Climate } from '../world/climate.js';
 // (the townsfolk's own trading: producers keep back their wares at the market turn)
 import { TownTrade } from './townTrade.js';
 
@@ -158,6 +159,8 @@ export const MarketDynamics = {
         this._disrupt(world, player, links, turnArg);
         // A town shut by quarantine trades little, and few caravans take its road (systems/illness.js)
         this._quarantine(world, links, day);
+        // A frozen harbour in the cold north ships little till the thaw (world/climate.js)
+        this._ice(world, links, day);
         const bases = this._basePrices();
         // (goods for goods where a town barters: a world begun before coin, world/barter.js)
         const flow = SettlementMarket.flows(links, bases, day, Barter.flowOpts(world));
@@ -203,6 +206,32 @@ export const MarketDynamics = {
             if (!l || !(l.factor > 0) || !(closed(l.a) || closed(l.b))) continue;
             l.factor *= imports;
             if (l.embody && (Utils.hashStr(`quarantine|${l.a.q},${l.a.r}|${l.b.q},${l.b.r}|${day}`) >>> 0) % 1000 >= caravans * 1000) l.embody = false;
+            n++;
+        }
+        return n;
+    },
+
+    /**
+     * Sea links to or from a port frozen in today (world/climate.js icebound:
+     * the cold north's winters, longer and wider in a little ice age): their
+     * goods cut to ice.seaTrade, no ship sails them. → links cut
+     */
+    _ice(world, links, day) {
+        if (!Array.isArray(links) || !links.length || !Number.isFinite(day)) return 0;
+        const C = Climate.config();
+        if (!C.enabled) return 0;
+        const frozen = new Map();
+        const iced = (s) => {
+            if (!s) return false;
+            if (!frozen.has(s)) frozen.set(s, Climate.icebound(world, s.q, s.r, day));
+            return frozen.get(s);
+        };
+        const share = Math.max(0, Math.min(1, _num(C.ice.seaTrade, 0.15)));
+        let n = 0;
+        for (const l of links) {
+            if (!l || !l.sea || !(l.factor > 0) || !(iced(l.a) || iced(l.b))) continue;
+            l.factor *= share;
+            l.embody = false;
             n++;
         }
         return n;
@@ -726,6 +755,12 @@ export const Taxation = {
         return typeof v === 'number' && isFinite(v) ? v : 0;
     },
 
+    /** Mood points a town's memory adds: pride in its statues, grief for its dead (systems/townMemory.js → settlement.memory.mood). */
+    memoryMood(settlement) {
+        const v = settlement && settlement.memory && settlement.memory.mood;
+        return typeof v === 'number' && isFinite(v) ? v : 0;
+    },
+
     /** Mood points a settlement's peoples add to its happiness target (systems/peoples). */
     peoplesMood(settlement) {
         return (settlement && settlement.peoplesEffects && settlement.peoplesEffects.stability) || 0;
@@ -760,7 +795,7 @@ export const Taxation = {
         // Taverns, temples and squares in a developed holding lift the mood
         const holdingMood = Taxation.holdingFx(settlement, 'happiness');
         // Great works and donated art (systems/patronage.js → settlement.patronage)
-        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood + Taxation.patronageMood(settlement)));
+        const target = Math.max(0, Math.min(100, 50 + taxPolicy.happinessBonus * 1.5 + peoplesMood + holdingMood + Taxation.patronageMood(settlement) + Taxation.memoryMood(settlement)));
         const happiness = Taxation.getHappiness(settlement);
         settlement.happiness = Math.max(0, Math.min(100, happiness + (target - happiness) * 0.25));
         entry.happiness = Math.round(settlement.happiness);

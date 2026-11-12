@@ -54,6 +54,7 @@ import { TradeSkills } from './tradeSkills.js';
 import { PracticeSkills } from './practiceSkills.js';
 import { Laws } from './laws.js';
 import { TownFamily } from './townFamily.js';
+import { Climate } from '../world/climate.js';
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const ANNALS = ['outbreak', 'outbreakOver', 'fellIll'];
@@ -286,6 +287,8 @@ export const Illness = {
             if (ev) { env.plague = ev; env.plagueHere = ev.q === folk.q && ev.r === folk.r; }
         } catch (e) { env.plague = null; }
         env.quarantine = Illness.quarantined(world, s);
+        // The climate's era: fevers in wet decades and warm ages, winter sickness in a cold one (world/climate.js)
+        try { env.clim = Climate.diseaseMult(world, folk.q, folk.r, day); } catch (e) { env.clim = 1; }
         return env;
     },
 
@@ -350,6 +353,7 @@ export const Illness = {
         m *= env.town;
         m *= d.water ? env.hygiene : Math.sqrt(env.hygiene);
         if (env.dearth) m *= _num(R.dearth, 1.6);
+        if (env.clim && env.clim !== 1) m *= env.clim;
         if (env.alms && ['beggar', 'villager', 'farmer', 'child'].includes(p.role)) m *= _num(R.alms, 0.75);
         return m;
     },

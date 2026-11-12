@@ -167,6 +167,10 @@ export default function TopBar() {
               <span className="civ-dd-icon"><Icon name="book" /></span>
               <span className="civ-dd-text">The Annals</span>
             </button>
+            <button className="civ-dropdown-item" id="btnTimeline">
+              <span className="civ-dd-icon"><Icon name="map" /></span>
+              <span className="civ-dd-text">Timeline of the Realm</span>
+            </button>
             <button className="civ-dropdown-item" id="btnCalendar">
               <span className="civ-dd-icon"><Icon name="calendar" /></span>
               <span className="civ-dd-text">Calendar</span>
@@ -257,6 +261,8 @@ export default function TopBar() {
           </div>
         </div>
 
+        {/* Pass the Time: wait days at a go (ui/actionMenu/timeSkip.js wires it; Shift+Enter = a week) */}
+        <button className="tb-icon-btn" id="btnWait" title="Pass the Time: wait days at a go (Shift+Enter: a week)"><Icon name="hourglass" /></button>
         <button className="tb-icon-btn" id="btnHelp" title="How to Play"><Icon name="help" /></button>
         <button className="tb-icon-btn civ-audio-btn" id="btnAudioToggle" title="Toggle Music">
           <span className="audio-icon"><Icon name="sound" /></span>

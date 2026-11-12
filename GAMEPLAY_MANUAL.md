@@ -17,12 +17,13 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 4. [Economy & Trade](#4-economy--trade)
     - [Kingdom Trade Policy](#kingdom-trade-policy) — tariffs, export bans, embargoes, treaties, trade wars, state granaries; smuggling, licences and brokered treaties
     - [The Economic Chronicle](#the-economic-chronicle-the-gazette-your-books-and-fashions) — your books by source and net worth, the realms' weekly gazette, fashions at court
-    - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, recoinage, money changers, false coin
+    - [Specie, Mints & the Price Level](#specie-mints--the-price-level) — each realm's coin, where it flows and what it does to prices; selling bullion, leasing a mint, minting and debasement, clipped coin, trust, recoinage, money changers, false coin
     - [The Crown's Purse](#the-crowns-purse-taxes-wages--tax-farms) — every crown's budget: taxes out of its towns, wages back into them, arrears and desertion, tax levels, tax revolts, tax farms you can bid for, fiscal crises
     - [Land, Estates & the Putting-Out System](#land-estates--the-putting-out-system) — the estates about the towns, rents and tenants, land values, buying and selling land, drainage and enclosure; putting out wool and flax to the cottagers; flax and linen
     - [Market Stalls](#market-stalls) — each stall one trader: its trade's goods from the town's real stock, a keeper who buys only their line, which trades a town sets up
 5. [Properties & Production](#5-properties--production)
     - [Livestock: Buying, Keeping and Breeding Beasts](#livestock-buying-keeping-and-breeding-beasts) — the livestock market, where beasts can be kept, fodder, eggs, milk and wool, births, sickness and wolves, the herd behind a Pasture, Dairy or Ranch, riding your own horse
+    - [Building Takes Time](#building-takes-time-work-days-seasons-and-crews) — work-days, the pace of the seasons and the weather, hard ground, hiring crews of hands
 6. [Crafting](#6-crafting)
 7. [Caravans & Trade Routes](#7-caravans--trade-routes)
     - [Merchant Houses: the Trading Company](#merchant-houses-the-trading-company) — charters, factors and standing orders, supply contracts, rival houses, monopolies, shares and royal ventures
@@ -45,13 +46,19 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 17. [Titles & Royal Office](#17-titles--royal-office)
     - [Claims & Crowns: the Path to the Throne](#claims--crowns-the-path-to-the-throne)
 18. [Relationships & Dynasty](#18-relationships--dynasty)
+    - [Nemeses: Enemies Who Remember](#nemeses-enemies-who-remember) — up to three named enemies born of real wrongs; hatred that grows, habits they learn, worst moments, feuds passed down the generations; blood price, marriage, accusation
+    - [The Family Tree](#the-family-tree) — every generation of the House drawn as a tree: rulers, spouses, cadet lines, regents, the line of succession
+    - [Heirlooms](#heirlooms) — named swords, rings, crowns and relics that gather legend; give, pawn, send as dowry; stolen, lost on the field, won back
     - [The Annals: Your Story as a Book](#the-annals-your-story-as-a-book)
+    - [The Illustrated Chronicle](#the-illustrated-chronicle) — the Annals saved as a book: arms, portraits, maps of the realm through the years, the family tree; HTML or PDF
+    - [The Timeline of the Realm](#the-timeline-of-the-realm) — the world map season by season: borders as they were, battles, sieges, crises, crowns and towns, a year slider with play, a strip of ages, reigns and wars
     - [Townsfolk at Work](#townsfolk-at-work-trades-wages-and-service) — trades, ranks, wages and spending, hiring servants, guards and hands · [Meals and Sleep in Town](#meals-and-sleep-in-town)
     - [Townsfolk Families, Ageing and School](#townsfolk-families-ageing-and-school) — pregnancy, births, orphans, inheritance, grey hair; schools, literacy, giving to and founding schools
     - [Sickness in the Towns](#sickness-in-the-towns) — colds to plague among the townsfolk, contagion, healers, quarantine; paying the healer, alms, nursing by hand · [Townsfolk Brawls](#townsfolk-brawls) — grudges, tavern fights, the crowd and the watch; cheer, bet, break it up or join in
 19. [Culture](#19-culture)
 20. [Colonization](#20-colonization)
     - [Developing Your Holdings](#developing-your-holdings) — projects, governors, garrisons, unrest and rebellion
+    - [Stewards & Governors](#stewards--governors) — who runs your holdings, demesne towns, estates and company: standing orders, allowances, skimming, bribes, power, audits, rewards and punishments
     - [Patronage & Great Works](#patronage--great-works) — clients, commissions, the gallery, cathedrals, libraries and wonders, the race with the kingdoms
 21. [Tavern & Intelligence](#21-tavern--intelligence)
 22. [Quests](#22-quests)
@@ -59,9 +66,14 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 24. [World Events](#24-world-events)
     - [Court Scandals & Whispers](#court-scandals--whispers) — tales about rulers and rivals that spread, sap stability and are proven or debunked; fan, quash, dig, blackmail, sell, or start your own
     - [Lords' Memory & Court Letters](#lords-memory--court-letters) — rulers remember your deeds (and their heirs half-remember); lords, your liege, rival Houses, your spouse and children abroad write letters that demand an answer
+    - [What the Townsfolk Remember](#what-the-townsfolk-remember) — townsfolk and towns remember your House's kindnesses and wrongs for generations: prices, refusals, silent witnesses, unrest
     - [Coalitions & Threats](#coalitions--threats) — the realms weigh your power; past a mark they swear a league against you (terms, wars, trade levies, cold lords); buy members out, wed them, cede towns; blood feuds down the generations; rival Houses' informants, saboteurs and bribed officials in your towns
+    - [Pressure Clocks](#pressure-clocks-how-fast-the-world-answers) — the league, sieges of your holdings and the sagas come on clocks that wind faster the mightier your House; heat across a reign
     - [Mail & Courier Houses](#mail--courier-houses) — write to lords, rivals, loves and townsfolk; letters ride real days and can be lost, robbed or read; found and run a courier house, win the Royal Post
     - [Sagas](#sagas) — month-long world storylines: the wyrm, the plague cult, the lost heir, the long winter, sea reavers, schism, a rogue company, the comet
+    - [The Age: Age-Defining Crises](#the-age-age-defining-crises) — two to four a century: invasion from beyond the map, great plague, schism, famine decade, gold rush; what you can do in each
+    - [Climate Over Centuries](#climate-over-centuries) — little ice ages, warm periods, great droughts, wet decades: harvests, fuel, snow, frozen harbours, sickness, migration and the crises' odds
+    - [Town Memory](#town-memory-fires-ruins-statues-and-cairns) — fires and rebuilding, ruins of a sack, statues raised and toppled, renamed squares, battle cairns, new quarters
     - [Outlaw Lairs](#outlaw-lairs) — bandit camps, smugglers' dens, deserters' forts, cultist grottos and beast dens that grow, raid, and must be dealt with
     - [Digging, Caches and Robbing the Dead](#digging-caches-and-robbing-the-dead) — digging holes, burying the dead and your goods, who finds a cache, grave robbing in numbers
 25. [Cartography](#25-cartography)
@@ -70,9 +82,11 @@ Welcome to **Lord of the Realms**, a deep hex-grid strategy game where you begin
 28. [Festivals & Tournaments](#28-festivals--tournaments)
     - [Rival Adventurers](#rival-adventurers) — named rivals who delve, hunt bounties and compete with you; the Hall of Heroes
 29. [Saving & Loading](#29-saving--loading)
+    - [Ironman and the Hall of Houses](#ironman-and-the-hall-of-houses) — one save you cannot load back; every ended House kept across games, and the legacy starts and heirlooms it earns
 30. [Controls & UI](#30-controls--ui)
+    - [Pass the Time](#pass-the-time-letting-days-go-by) — wait a day to a season at once; where you sleep; what cuts the wait short; the digest
     - [The Steward's Counsel](#the-stewards-counsel): the advisor that ranks today's threats, opportunities and goals, with a morning brief
-    - [The AI Brain](#the-ai-brain-voiced-townsfolk-and-the-in-browser-model) — optional model-voiced townsfolk and letters: llama.cpp, OpenAI or a model run in the browser (WebLLM)
+    - [The AI Brain](#the-ai-brain-voiced-townsfolk-and-the-in-browser-model) — optional model-voiced townsfolk and letters: llama.cpp, OpenAI or a model run in the browser (WebLLM) · [The Court Scribe's Pen](#the-court-scribes-pen) — the model retells the chronicle, epitaphs, letters and heralds, from the facts only
 31. [Tips & Strategies](#31-tips--strategies)
 
 ---
@@ -110,7 +124,7 @@ The new-game screen's **Origin & Challenge** box sets who you start as, how hard
 | Origin | You begin with | Suggested goal |
 |---|---|---|
 | 🧭 **The Wanderer** | The classic start: 250 gold, 20 bread, the open road. Work your way up. Guided start on. | Sandbox |
-| 🥀 **The Disinherited** | A home town in the realm your blood runs to. A **Birthright** claim of 18 on its throne (25 is needed to press a claim, so you have to strengthen it: a royal marriage, a royal office, heralds, forgeries). 30 House Prestige, +10 reputation there, +2 charisma, +2 diplomacy, +1 leadership. **400 gold**, and an **elder sibling** at that court who is your House's bitterest rival (feud 55, which feeds the realm's hostility toward you and the rival schemes). | Wear a Crown |
+| 🥀 **The Disinherited** | A home town in the realm your blood runs to. A **Birthright** claim of 18 on its throne (40 is needed to press a claim, so you have to strengthen it: a royal marriage, a royal office, heralds, forgeries). 30 House Prestige, +10 reputation there, +2 charisma, +2 diplomacy, +1 leadership. **400 gold**, and an **elder sibling** at that court who is your House's bitterest rival (feud 55, which feeds the realm's hostility toward you and the rival schemes). | Wear a Crown |
 | ⚒️ **Guild Journeyman** | A guild town near where you would have started. You are a **journeyman** of one of its guilds (guild rates on inputs, no outsider toll, your works protected) with standing 20, 6 of the guild's goods, +3 commerce, +1 intelligence, and 300 gold. You owe **600 gold of indenture** to the guild, paid at 50 gold a week like a guild loan. Three missed payments and the guild throws you out. | Merchant Prince |
 | 👑 **The Exiled Monarch** | A **Birthright** claim of 45 on the realm with the lowest stability (enough to press it), where a usurper now rules and a **disputed succession** has just broken out (pressing your claim during it adds the crisis bonus to every town's lean). Four soldiers and a knight, 1,500 gold (enough to raise your banners), 60 Prestige, +15 reputation there, and the usurper's House as a rival (feud 40). You start in exile, in the nearest town outside the realm. | Wear a Crown |
 | 🏴‍☠️ **The Pirate's Widow/Widower** | A port near where you would have started, a fully crewed **sloop** of your own, 20 **infamy** at sea (hunters start looking for you at 25), +2 combat, +2 cartography, +1 stealth, and 700 gold. | Merchant Prince |
@@ -461,7 +475,7 @@ Your character becomes someone through what they do. Every notable deed is count
 
 ### Death & Succession
 
-Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with a child aged 16+, you choose which of them to continue as. The death screen shows each heir's profile: stats, skills, education and traits. The heir inherits 75% of your gold, 50% of your renown, and 30% of your reputation, and starts with the stats, skills and traits their upbringing gave them (see [Children & Heirs](#children--heirs)), plus what their life before the throne earned — fosterings, commands, embassies, a marriage (see [Playing the Heir Before They Inherit](#playing-the-heir-before-they-inherit)). With only younger children — or a designated heir still under 16 — you may install a **regency** and play the child's court until they come of age (see [A Regency](#a-regency)). Without any heir, the line ends and the **epitaph** screen scores your House's legacy (see [The House Chronicle and Legacy](#the-house-chronicle-and-legacy)).
+Your character has a natural lifespan of 55–85 years (randomized). After your maximum age, there is a 15% chance of death per year that increases over time. If you die with a child aged 16+, you choose which of them to continue as. The death screen shows each heir's profile: stats, skills, education and traits. The heir inherits 75% of your coin, 50% of your renown, and 30% of your reputation. The other quarter of the coin is not lost: it first pays your debts (wages owed to your court and companions, then your loans, overdue ones first), then 40% of what is left is set aside as portions for your other children (each holds theirs; it comes back to the House purse if they die, joins the purse if they inherit, and goes into the estate if the House ends), and the rest is the **heriot**, a death duty paid into the treasury of your liege crown (the crown you wore, else the realm you were sworn to, else the realm you died in; the nearest town if there is none). The succession notice tells you where it went. A disputed succession's skimmed tenth goes to the rival House with the deepest feud. The heir starts with the stats, skills and traits their upbringing gave them (see [Children & Heirs](#children--heirs)), plus what their life before the throne earned — fosterings, commands, embassies, a marriage (see [Playing the Heir Before They Inherit](#playing-the-heir-before-they-inherit)). With only younger children — or a designated heir still under 16 — you may install a **regency** and play the child's court until they come of age (see [A Regency](#a-regency)). Without any heir of your own line, the head of the nearest **cadet branch** may take up the mantle (see [Cadet Branches](#cadet-branches)); with no branch either, the line ends and the **epitaph** screen scores your House's legacy (see [The House Chronicle and Legacy](#the-house-chronicle-and-legacy)).
 
 The late ruler's own traits are **not** inherited. Instead your House keeps a *reputation of the dynasty*: the late ruler's two strongest traits at half strength. This echo only affects how others react to you (goodwill, lords, intimidation, reputation, council factions), and it fades by about a quarter of a percent a day until it is gone.
 
@@ -503,6 +517,41 @@ Besides an heir, the death screen offers two other ways on (`player/afterlife.js
   - or as **A New Life**.
 
   The bar shows who comes of age next, and a game saved while waiting resumes waiting.
+
+#### When the Blood Runs Out: Settling the Estate
+
+An heir who takes up the mantle inherits your loans, deposits and bonds as they stand. But when **no child or sibling of your blood is left alive**, the banks and creditors take their share and the rest goes to the crown. This happens once, at whichever comes first:
+- your death, if no one of the blood lives;
+- the day the last of them dies while you let time pass;
+- taking **A New Life** (heirs or not: the old House ends there);
+- letting the line end on the death screen.
+
+(`player/estateSettlement.js`.) No coin is made or lost. Every coin comes out of a real purse and goes into one.
+
+**1. Everything becomes coin:**
+- your purse;
+- the company's coffers (the outside shareholders' part goes to the merchants who hold it);
+- bank deposits, from each bank's vault (what a vault cannot pay is lost);
+- bills of exchange you hold, paid by the house that owes them;
+- royal bonds, redeemed from the issuing crown's treasury as far as it has coin (a bond on the crown that takes the estate is cancelled);
+- shares, sold on the exchange at the bid, less brokerage;
+- goods in your packs and store-rooms, sold to the town where they lie at **60%** of their base price, as far as its purse goes.
+
+**2. The land** (estates, buildings) escheats to the crown of its realm as usual, so it is not sold. The crown that takes it answers for the debts on it: if the coin falls short, it pays the unpaid creditors up to **half the land's worth** from its treasury.
+
+**3. The creditors**, paid in order. Inside a class the estate cannot cover, each creditor gets the same share:
+
+| Class | Who |
+|---|---|
+| I. The banks and the crown | bank and crown loans, old written-off debts, a mining lease's arrears |
+| II. Merchants and landlords | store-room rent |
+| III. Wages owed | courtiers' stipends, companions' pay |
+
+A bank left unpaid books the loss. If the loss is 15% or more of its vault, it starts a **run** on that bank.
+
+**4. The rest** goes to the crown of the realm you ruled, else the realm you died in (or the nearest one's), booked on its *escheat* line. With no realm, it goes to the town nearest where you lay. A bank you owned passes to its partners.
+
+A notice (**⚖️ The Estate Settled**) and the death and waiting screens show the reckoning: what the estate held, what each class was owed and paid, what went unpaid and where the rest went. One line enters the House chronicle, so the Annals tell it: *"Aldric's creditors took 3,200 crowns; the remaining 1,100 passed to the crown of Varr."*
 
 ---
 
@@ -1248,10 +1297,10 @@ The interest is a flat charge for the term, repaid in equal daily payments. Your
 
 **Crowns in debt.** Every crown keeps a reserve of about a month's income. War costs more than a realm earns, and a crown at war (or raising a wonder) that drops below its reserve borrows from the friendliest house with coin to spare. It pays interest from its taxes and pays its debts down every week. A crown in crisis (missed payments, unpaid armies, or debts beyond what its income can carry) chooses one of three ways out:
 - **A war levy:** more gold for two months, and unrest (stability −6).
-- **Debasing the coin:** gold from the mint at once. The mint recoins the coin about at the lower standard, so there is more of it (see [Specie, Mints & the Price Level](#specie-mints--the-price-level)). Prices in all of the realm's markets rise (+9% for each tenth of silver taken out, and more as the extra coin spreads), stability falls, the houses think less of it, trust in its coin drops, and the good coin starts leaving for sounder realms.
+- **Debasing the coin:** the mint strikes its coin a tenth baser. The crown restrikes its own chests at once and the first of the old coin is brought in, and the rest of the old coin comes in week by week (see [Minting and debasement](#minting-and-debasement)); each time the holders get back as many pieces as they brought and the crown keeps the extra pieces the same silver makes. Prices in all of the realm's markets rise as the baser coin spreads (+9% for each tenth of silver taken out, reached over a few months), stability falls, the houses think less of it, trust in its coin drops, and the good coin starts leaving for sounder realms. Warlike crowns reach for it readily; merchant crowns hardly ever.
 - **Default:** its lenders lose capital and may face a run, and the realm loses stability (−10 at once, −8 while the memory lasts). No house lends to it for months.
 
-Honest coin returns slowly once a crown is out of trouble, at once if new silver is found, or by a **recoinage** edict once the crown can pay for it.
+Honest coin returns only by a **recoinage** edict once the crown can pay for it, or, a step at a time, when new silver is found (the finer new coin then mixes into the coin in hand over some weeks).
 
 **Panics.** A run on a house is rare, but more likely when its vaults are low, after a crown defaults on it, or after a crown seizes its strongroom. During a run, withdrawals are rationed to a trickle a day and no loans are made. When the run ends, the house either stands, poorer, or **fails**. A new house opens at the seat about three months later. Heralds proclaim failed houses, crown defaults and debased coin, and townsfolk talk about clipped coin, levies and queues at the counting-house doors.
 
@@ -1304,7 +1353,7 @@ The Steward's Counsel warns of a ship at sea in dangerous waters with nothing in
 
 Gold does not come from nowhere. Every realm has **coin in circulation**: the real coin in its towns' purses and its people's, its guilds', gangs', inns' and couriers', and in the packs of the caravans and soldiers on its roads, counted every week. The crown's chests, the great houses' coffers, the banks' vaults and your own purse hold more, but that coin moves no prices until it is spent: gold you pay into a town, conjured or earned, becomes that realm's coin. How much coin a realm has for its people sets its **price level**.
 
-**The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with its coin's purity: clipped coin raises prices on top. The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default, or a panic on its Bourse) a tenth more, so its prices sag.
+**The price level.** Each week a realm's coin per head is set against the world's. A realm awash in coin is dear, one drained of it cheap: its price level runs from 90 to 112 (100 is the world's norm), and it moves only part of the way each week. It multiplies every price in the realm's markets, buying and selling alike, together with what its coin is worth in silver: debased and badly clipped coin raises prices on top, as the baser coin spreads (see [Minting and debasement](#minting-and-debasement)). The weekly gazette's cost of living shows it as inflation or deflation (the Economic Chronicle shows each realm's coin level beside its debt and silver). Hoarded coin buys nothing: a realm at war hoards about an eighth of its coin, and one in a panic (a run on its bank, a crown default, or a panic on its Bourse) a tenth more, so its prices sag.
 
 **Where the coin goes.** Each week:
 - **Trade.** When the realms' merchants carry goods across a border, part of the balance is paid in coin. A realm that buys more than it sells loses coin, its prices fall, its goods grow cheaper abroad, and the coin flows back. A persistent deficit settles a few points under the norm; a surplus a few over.
@@ -1318,14 +1367,32 @@ Gold does not come from nowhere. Every realm has **coin in circulation**: the re
 
 **Selling bullion to the mint.** At a capital, the **💰 Mint** action shows the mint and every realm's coin. The mint buys gold ore, silver ore and gold bars at their fine worth (36g of coin in a unit of gold ore, 16g in silver ore, 140g in a gold bar: about their base price), less its seigniorage, at the realm's price level, and never for more than 95% of what the market there asks. It takes up to about 3,000g of fine metal from you a week. A mint where the coin is clipped or dear pays the most: bullion bought where coin is sound and cheap fetches its best price there, which is Gresham's law working for you, within the mint's weekly room and minus the changers' fee.
 
-**Money changers.** Each realm's coin is assayed at the border. Crossing into a realm whose coin is of another purity costs a quarter of the purity gap on the gold you carry (at most 5%; a purse under 50g passes free): from a realm of 100% silver into one of 80%, 5%. Coins of the same purity change free. The Mint's 💰 Coin tab lists the rate of every realm's coin against the one you stand in, and the changers' fee. Your Ledger shows what the changers have taken.
+**Money changers.** Each realm's coin is assayed at the border. Crossing into a realm whose coin is worth a different amount of silver (its standard, the old coin still in hand, its clipping) costs a quarter of the gap on the gold you carry (at most 5%; a purse under 50g passes free): from a realm of 100% silver into one of 80%, 5%. Coins of the same worth change free. The merchants pay the same spread: it is extra friction their trade across that border must beat, so two realms with very different coins trade less with each other. The Mint's 💰 Coin tab lists the rate of every realm's coin against the one you stand in, and the changers' fee. Your Ledger shows what the changers have taken.
 
 **Leasing a mint.** At a capital you can lease its mint for 120 days: you pay up front 90% of half its recent seigniorage over the term (at least 40g), into the crown's treasury, and take half of its seigniorage each week. It is a small, steady income: most mints make 5–40g of seigniorage a week, and a mint in a mining realm, or one where foreign coin pours in, pays best. A war with the realm voids the lease.
 
 **As a ruler**, the Mint's 👑 Your coin tab runs the realm's mint:
 - **Seigniorage:** low (2%), usual (5%) or high (10%). A greedy mint keeps more of each piece, but sellers take their bullion elsewhere (it buys only 60% as much ore).
 - **Recoinage:** call in the clipped coin and strike it anew at full weight. The crown makes up half of the missing silver from the treasury, and the holders lose the rest: there is less coin about and prices fall. Honest coin also restores trust and some stability. Not again within 120 days. Crowns out of trouble (little debt, no levy, and a treasury four times the cost) proclaim one by themselves.
-- **Debasement:** clip the coin by a tenth (as in a crisis, see [Banks, Credit & Coin](#banks-credit--coin)).
+- **Debasement:** strike the coin a tenth baser (as in a crisis, see [Banks, Credit & Coin](#banks-credit--coin) and below).
+
+#### Minting and debasement
+
+Every coin comes from metal. A mint strikes coin only from the gold and silver ore and gold bars it takes in, from the realm's markets (the mines' ore, the merchants', the clippers' shavings) or from you: a unit of silver ore holds 16g of fine coin, and a mint striking at 80% silver makes 20 pieces of it. The crown's seigniorage is part of those pieces, never extra. No other coin is made (the cheat panel and false coin are booked as what they are).
+
+**The standard and the coin in hand.** Each realm's mint strikes at a **standard** (100% silver to start). A debasement lowers the standard by a tenth at once, but the coin already in people's purses is still the old, finer coin. The crown restrikes its own chests on the day, and about 30% of the old coin is brought in to be restruck at once; after that about 12% of what is left comes in each week. Each time, the holders get back as many pieces as they brought and the crown keeps the extra pieces the same silver makes, so the crown's gain comes over months, about a ninth of the realm's coin in all for each tenth taken out. The coin in hand gets baser as it does, and the realm's prices rise with it: a third of the rise at once, most of it within four months, all of it in about half a year. A better standard (new silver found) works the other way: the finer coin mixes in over some weeks, and the crown gains nothing by it.
+
+**Gresham's law at home.** While the old, finer pieces are still about, people keep them and spend the base ones: the realm's coin moves more slowly (its velocity falls by about 6% for each tenth of old coin still in hand), which holds the prices down a little until the old coin is gone. Abroad, merchants send the good coin to sounder realms (above).
+
+**Clipped coin.** Clippers shave the pieces in hand: a little every week, more in an unruly realm (low stability) and more when the coin is fine, up to 12% of their weight. The shavings are silver: they are sold in the realm's largest market as silver ore, and the mint buys them back, so no metal is lost. Worn and lightly clipped coin passes by tale; past 3% clipped, a piece is worth less, and prices rise and trust falls with it. Only a recoinage ends the clipping. A realm of middling stability loses about 1% of its coin's weight a year (a calm one about two thirds of that, an unruly one half again more), so the clipping starts to show in prices after some three years, and a crown with money to spare recoins every eight years or so.
+
+**Trust.** The people and the merchants trust their coin 100 out of 100 when it is sound. A baser standard or coin (15 points for each tenth of silver), clipping past 3% (15 points for each 10%), a recent crown default and past defaults lower it. Below 80, every town in the realm loses a little contentment each week (up to about a point a week when trust is gone).
+
+**Recoinage.** The edict calls in the coin in the towns' purses and strikes it anew at full weight: the old coin, the debased coin and the clipped coin alike. Its cost follows what a piece in hand is worth: the crown makes up half of the missing silver from its treasury, and the holders lose the rest. A tenth of the crown's cost is the mint workers' wages, paid into the capital's purse; the rest of the crown's coin is melted into the new coin. Afterwards the coin is full weight, unclipped and trusted, and prices ease. Crowns out of trouble proclaim one by themselves when the coin has lost 5% of its worth: a merchant crown when its chests hold two and a half times the cost, an aggressive one only at six times.
+
+**Your treasurers.** If you rule, the Treasury's 👑 Your crown tab has a **The coin** section: what the mint strikes, what is in hand, how much is clipped, what it does to prices and the people's trust, and three rows: debase, proclaim a recoinage (with its cost), and whether your treasurers may touch the coin. They may not unless you allow it. Allowed, they debase a step when the realm is in crisis (missed payments, unpaid soldiers, crushing debt) and recoin once the chests are full again, and tell you each time. Forbid it again with the same row.
+
+**In the market.** A market in a realm with debased, unsettled or clipped coin says so in its "Town & season" note (and above the stalls when it is bad), and each price's "Why this price?" names the standard, the coin in hand and the clipping beside the price level.
 
 The crown's taxes follow the coin a little: a realm drained of coin collects up to 3% less, one awash in it up to 3% more.
 
@@ -1395,6 +1462,8 @@ There you set:
 - each tax apart (land, hearth, excise);
 - the army's pay: half pay is cheap but the army shrinks to 88%; generous pay costs 25% more for a loyal 105% army;
 - the court: frugal breeds corruption, lavish adds stability.
+
+**Your treasurers keep what you leave alone.** Every four weeks they review the crown's books as an AI crown's do: taxes up a step when the chests run low, the realm is at war or the soldiers go unpaid, down when the chests overflow or the realm is restless; a frugal court when broke; half pay when the soldiers cannot be paid, full pay again once the chests recover. They never raise taxes past heavy nor keep a lavish court on their own word, and each change is told to you. A lever you set yourself (taxes, army pay, court) is yours until you hand it back with *Leave to the treasurers*. On your coronation the deposed lord's temper goes with him: his personal traits (a Tyrant's harshness, a Just lord's good name) no longer weigh on your realm.
 
 You can also put a town's taxes to auction, and sell offices or crown land. Your royal levy is a share of the crown's daily taxes. The 🏰 Realms tab compares every realm's purse.
 
@@ -1590,6 +1659,31 @@ Notable rulings, such as hanging a noble's son, raising a temple or pardoning a 
 
 Click your gold display to open a detailed 90-day financial breakdown showing income sources, expense categories, daily logs, and gold-over-time charts.
 
+### The World Ages: Architectural Eras, Weathering and Walls
+
+In worlds made with the current generator, towns change visibly over the centuries (data/townEras.json, world/townEras.js).
+
+- **Eras.** Every town passes through four ages, in order and never back:
+  - **Hearth Age.** Wattle, mud and log huts and longhouses under thatch, with dirt tracks and no lamps.
+  - **Timber Age** (from about year 250). Timber, plaster and boards under shingle. Nothing is built richer than middling.
+  - **Age of Stone** (from about 520). Dressed stone and brick appear, the high street and square are cobbled outward from the centre, and the square is lit.
+  - **Guild Age** (from about 760, towns and larger). Guildhalls and fine houses, every lane paved, and the culture's own street lamps.
+- **What decides a town's era.** It takes the next era when the year has come, its wealth (size and purse) is high enough and it is big enough.
+  - Its culture shifts the dates. Mountain and Imperial stonemasons build in stone early, while Woodland, Swamp and Nordic folk come late.
+  - Each town also lags by a few decades of its own, so neighbours don't all change in the same year.
+  - A poor hamlet can stay in timber for centuries.
+- **Houses weather and are rebuilt.** Each building stands in the style of the era it was last built in. It lasts a lifetime that depends on its materials (huts a few decades, stone a century or two), and a rich town renews faster.
+  - Whole quarters age together.
+  - Past half its life a house is weathered: duller, grimy at the foot of its walls, with moss on its roof. Near the end it is old: mossier and greyer.
+  - Then it is pulled down and rebuilt in the style of the day. Just after a town turns to stone, most of it is still old timber, and over a lifetime the stone spreads.
+  - New houses on building lots are built in the current era's style.
+- **Walls.** A town may raise a palisade in the early ages (a mud wall in the desert and steppe), and stone walls from the Age of Stone. Stone walls replace a palisade, never the other way round.
+  - Each year there is a small chance, which rises with the threat the town faces: its realm's wars, sacks, fires and battles in its memory, and an invasion crisis.
+  - Size and wealth gate the chance. A village walls itself only under real threat.
+  - The walls form a rectangle around everything the town has built, with gates where the roads run out. Stone walls have towers at the gates and corners.
+  - Water breaks the ring wherever a river or the sea runs.
+- **News.** When a town you know enters a new era or raises walls, you hear of it.
+
 ### Settlement Services
 
 Town buildings sell services with lasting effects. Use them from a building's menu on the local map, or from the furniture inside it. Prices scale with settlement size (village ×0.85 … capital ×1.3).
@@ -1638,65 +1732,95 @@ Properties are the backbone of your economy. Build them on appropriate terrain t
 
 ### Property Types
 
+Build times in these tables are **work-days**: on open ground in fair spring weather one work-day is one day, but winter halves the pace, bad weather slows it further, and hired crews speed it up. See [Building Takes Time](#building-takes-time-work-days-seasons-and-crews). The same holds for the temple, infrastructure, cultural, holding and hospitality tables.
+
 #### Raw producers
 
-| Property | Cost | Build Time | Produces | Upkeep | Where |
+| Property | Cost | Work-days | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🌾 Farm | 700g | 5 days | Grain (6/day) | 6g/day | Plains, Grassland, Woodland, Savanna |
-| 🐑 Pasture | 800g | 4 days | Wool (3/day) | 5g/day | Plains, Grassland, Hills |
-| 🪓 Logging Camp | 700g | 3 days | Wood (4/day) | 6g/day | Forests |
-| ⛏️ Mine | 1800g | 10 days | Iron (3/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
-| ⚓ Fishing Wharf | 800g | 8 days | Raw Fish | 10g/day | Coast, Beach |
-| ⛰️ Quarry | 900g | 8 days | Stone (5/day) | 8g/day | Resource: Stone |
-| 🧂 Salt Pans | 800g | 4 days | Salt (2/day) | 6g/day | Coast, Beach |
-| 🐝 Apiary | 1000g | 3 days | Honey (2/day) | 6g/day | Plains, Grassland, Forest, Woodland, Hills |
-| 🍎 Orchard | 700g | 5 days | Fresh Fruit (6/day) | 6g/day | Plains, Grassland, Hills, Woodland |
-| 🌿 Hemp Farm | 600g | 4 days | Hemp Fiber (5/day) | 5g/day | Plains, Grassland, Woodland, Savanna |
-| 🟫 Clay Pit | 450g | 3 days | Raw Clay (6/day) | 4g/day | In or next to a settlement |
-| 🧀 Dairy | 800g | 4 days | Aged Cheese (2/day) | 6g/day | Plains, Grassland, Woodland, Hills |
-| 🏹 Hunting Lodge | 650g | 4 days | Hide (4/day) | 5g/day | Forests |
-| 🐄 Cattle Ranch | 750g | 5 days | Meat (6/day) | 6g/day | Plains, Grassland, Savanna, Hills |
-| 🌱 Herb Garden | 500g | 3 days | Herbs (5/day) | 4g/day | Forests, plains & hills |
-| 🐎 Horse Ranch | 1100g | 10 days | Horses (1/day) | 12g/day | Plains, Grassland, Savanna, Hills |
-| 🫐 Forager's Hut | 450g | 2 days | Berries (8/day) | 3g/day | Forests |
+| 🌾 Farm | 700g | 30 | Grain (6/day) | 6g/day | Plains, Grassland, Woodland, Savanna |
+| 🐑 Pasture | 800g | 25 | Wool (3/day) | 5g/day | Plains, Grassland, Hills |
+| 🪓 Logging Camp | 700g | 15 | Wood (4/day) | 6g/day | Forests |
+| ⛏️ Mine | 1800g | 90 | Iron (3/day) | 15g/day | Resource: Iron/Gold Ore/Gems/Stone |
+| ⚓ Fishing Wharf | 800g | 40 | Raw Fish | 10g/day | Coast, Beach |
+| ⛰️ Quarry | 900g | 50 | Stone (5/day) | 8g/day | Resource: Stone |
+| 🧂 Salt Pans | 800g | 25 | Salt (2/day) | 6g/day | Coast, Beach |
+| 🐝 Apiary | 1000g | 12 | Honey (2/day) | 6g/day | Plains, Grassland, Forest, Woodland, Hills |
+| 🍎 Orchard | 700g | 30 | Fresh Fruit (6/day) | 6g/day | Plains, Grassland, Hills, Woodland |
+| 🌿 Hemp Farm | 600g | 20 | Hemp Fiber (5/day) | 5g/day | Plains, Grassland, Woodland, Savanna |
+| 🟫 Clay Pit | 450g | 12 | Raw Clay (6/day) | 4g/day | In or next to a settlement |
+| 🧀 Dairy | 800g | 25 | Aged Cheese (2/day) | 6g/day | Plains, Grassland, Woodland, Hills |
+| 🏹 Hunting Lodge | 650g | 20 | Hide (4/day) | 5g/day | Forests |
+| 🐄 Cattle Ranch | 750g | 30 | Meat (6/day) | 6g/day | Plains, Grassland, Savanna, Hills |
+| 🌱 Herb Garden | 500g | 12 | Herbs (5/day) | 4g/day | Forests, plains & hills |
+| 🐎 Horse Ranch | 1100g | 50 | Horses (1/day) | 12g/day | Plains, Grassland, Savanna, Hills |
+| 🫐 Forager's Hut | 450g | 6 | Berries (8/day) | 3g/day | Forests |
 
 #### Processing buildings (recipe-based)
 
-| Property | Cost | Build Time | Produces | Upkeep | Where |
+| Property | Cost | Work-days | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🔨 Workshop | 800g | 7 days | Any recipe (3 output/day) | 10g/day | In or next to a settlement |
-| 🍺 Brewery | 700g | 6 days | Beer / Liquor | 8g/day | In or next to a settlement |
-| 🌬️ Mill | 600g | 6 days | Flour | 6g/day | Plains, Grassland, Hills, Woodland, Savanna |
-| 🍞 Bakery | 700g | 7 days | Bread | 8g/day | In or next to a settlement |
-| 🔥 Forge | 1000g | 9 days | Tools / Weapons | 12g/day | In or next to a settlement |
-| 🦺 Tannery | 1100g | 6 days | Leather / Leather Armor / Parchment | 8g/day | In or next to a settlement |
-| 🪚 Sawmill | 500g | 5 days | Firewood | 7g/day | Forests, plains & hills |
-| 🍖 Smokehouse | 500g | 5 days | Smoked Fish / Dried Meat | 6g/day | In or next to a settlement |
-| 🥩 Butcher | 400g | 3 days | Dried Meat | 5g/day | In or next to a settlement |
-| 🪢 Rope Walk | 350g | 3 days | Rope | 5g/day | In or next to a settlement |
-| 🏺 Pottery Kiln | 700g | 4 days | Pottery | 5g/day | In or next to a settlement |
-| 🧵 Weaver | 900g | 5 days | Textiles / Clothes | 6g/day | In or next to a settlement |
-| 🍷 Winery | 1200g | 7 days | Fine Wine / Mead | 8g/day | In or next to a settlement |
-| ⚗️ Apothecary | 600g | 6 days | Healing Salve / Strange Potion | 8g/day | In or next to a settlement |
-| 🏹 Fletcher | 700g | 4 days | Arrows / Bow | 6g/day | In or next to a settlement |
-| 💍 Jeweler | 900g | 8 days | Amulet / Luxuries | 10g/day | In or next to a settlement |
-| 🎨 Dye Works | 900g | 4 days | Dyes | 6g/day | In or next to a settlement |
-| 🕯️ Chandlery | 350g | 3 days | Candles | 5g/day | In or next to a settlement |
-| 🔮 Glassworks | 750g | 7 days | Glass / Lantern | 10g/day | In or next to a settlement |
-| 📖 Scriptorium | 600g | 5 days | Parchment / Rare Book | 8g/day | In or next to a settlement |
-| ⚔️ Blacksmith | 800g | 7 days | Shield / Tools / Weapons | 10g/day | In or next to a settlement |
-| 🌸 Perfumery | 650g | 6 days | Perfume / Incense | 8g/day | In or next to a settlement |
+| 🔨 Workshop | 800g | 35 | Any recipe (3 output/day) | 10g/day | In or next to a settlement |
+| 🍺 Brewery | 700g | 30 | Beer / Liquor | 8g/day | In or next to a settlement |
+| 🌬️ Mill | 600g | 45 | Flour | 6g/day | Plains, Grassland, Hills, Woodland, Savanna |
+| 🍞 Bakery | 700g | 30 | Bread | 8g/day | In or next to a settlement |
+| 🔥 Forge | 1000g | 40 | Tools / Weapons | 12g/day | In or next to a settlement |
+| 🦺 Tannery | 1100g | 30 | Leather / Leather Armor / Parchment | 8g/day | In or next to a settlement |
+| 🪚 Sawmill | 500g | 35 | Firewood | 7g/day | Forests, plains & hills |
+| 🍖 Smokehouse | 500g | 20 | Smoked Fish / Dried Meat | 6g/day | In or next to a settlement |
+| 🥩 Butcher | 400g | 20 | Dried Meat | 5g/day | In or next to a settlement |
+| 🪢 Rope Walk | 350g | 20 | Rope | 5g/day | In or next to a settlement |
+| 🏺 Pottery Kiln | 700g | 20 | Pottery | 5g/day | In or next to a settlement |
+| 🧵 Weaver | 900g | 25 | Textiles / Clothes | 6g/day | In or next to a settlement |
+| 🍷 Winery | 1200g | 40 | Fine Wine / Mead | 8g/day | In or next to a settlement |
+| ⚗️ Apothecary | 600g | 25 | Healing Salve / Strange Potion | 8g/day | In or next to a settlement |
+| 🏹 Fletcher | 700g | 20 | Arrows / Bow | 6g/day | In or next to a settlement |
+| 💍 Jeweler | 900g | 35 | Amulet / Luxuries | 10g/day | In or next to a settlement |
+| 🎨 Dye Works | 900g | 25 | Dyes | 6g/day | In or next to a settlement |
+| 🕯️ Chandlery | 350g | 15 | Candles | 5g/day | In or next to a settlement |
+| 🔮 Glassworks | 750g | 40 | Glass / Lantern | 10g/day | In or next to a settlement |
+| 📖 Scriptorium | 600g | 45 | Parchment / Rare Book | 8g/day | In or next to a settlement |
+| ⚔️ Blacksmith | 800g | 35 | Shield / Tools / Weapons | 10g/day | In or next to a settlement |
+| 🌸 Perfumery | 650g | 25 | Perfume / Incense | 8g/day | In or next to a settlement |
 
 #### Commerce
 
-| Property | Cost | Build Time | Produces | Upkeep | Where |
+| Property | Cost | Work-days | Produces | Upkeep | Where |
 |----------|------|-----------|----------|--------|-------|
-| 🏪 Trading Post | 600g | 6 days | Attracts merchants | 5g/day | Settlement |
-| 🍻 Tavern | 1200g | 8 days | Gold from patrons | 8g/day | Settlement |
+| 🏪 Trading Post | 600g | 30 | Attracts merchants | 5g/day | Settlement |
+| 🍻 Tavern | 1200g | 45 | Gold from patrons | 8g/day | Settlement |
 
 A raw producer or a tavern repays its building in roughly **30–60 days** at first (a village tavern far slower), and faster as your Commerce skill, upgrades and techs raise its output (see `docs/economy-balance.md`). A **tavern** takes 14g a day in a village, 18g in a town or city and 22g in a capital, +2g per 250 inhabitants (up to +16), before your Commerce bonus, its level, and beer, liquor and gambling tables.
 
 A tile can hold **one of each property type** — a Farm, a Mill and a Bakery can all share a hex. When you manage a tile with several properties, pick which one from the list.
+
+### Building Takes Time: Work-Days, Seasons and Crews
+
+Everything you raise as a project is measured in **work-days**, not calendar days. That covers properties and tech buildings, temples and shrines, cultural buildings, roads, bridges and other infrastructure, and your holdings' projects. Each day the builders get through some of the work, at a **pace**:
+
+**pace = season × today's weather on the hex × (1 + 0.5 per crew)**, never below 0.05.
+
+| Season | Pace | Weather | Pace |
+|--------|------|---------|------|
+| Spring | ×1.0 | Clear, cloudy | ×1 |
+| Summer | ×1.1 | Heatwave | ×0.85 |
+| Autumn | ×0.9 | Rain | ×0.75 |
+| Winter | ×0.5 | Snow | ×0.5 |
+| | | Storm | ×0.35 |
+| | | Blizzard | ×0.1 |
+
+A Farm needs 30 work-days. In fair spring weather it stands in about 30 days. The same work in winter takes about 60. With three crews in summer (1.1 × 2.5) it is up in 11. The work goes on whether or not you are there. A property under construction produces nothing and costs no upkeep. Over a year of real weather a build takes about 1.2× its work-days with no crews (see `docs/economy-balance.md` for measured figures).
+
+**Longer or shorter:**
+- **Stone and timber nearby** shorten properties, tech buildings, infrastructure and holding projects (the *Construction* resource bonus; about 15% off at the median town). Temples, shrines and cultural buildings don't get this.
+- **Hard ground** multiplies the work on a Dirt Road, Stone Road, Irrigation Channel or Timber Dam: plains and grassland ×1, savanna ×1.1, island ×1.2, beach ×1.3, desert ×1.4, tundra ×1.6, woodland and hills ×1.8, seasonal forest and snow ×2, boreal forest ×2.1, highlands ×2.3, temperate rainforest ×2.4, tropical rainforest ×2.8, swamp and ice ×3, mountain ×3.5, snow peak ×4 (any other terrain ×1.3). A river on the hex adds ×1.5, except for a dam. A dirt road over hills and a river is 10 × 1.8 × 1.5 = 27 work-days.
+- **A holding's steward** speeds its projects (+6% pace per point of Stewardship; see [Stewards & Governors](#stewards--governors)).
+
+**Crews.** A property's Manage panel, or the Build Infrastructure panel on a road or bridge under way, shows an **Under Construction** card. It gives the share done, the work-days left, today's pace and why (the season, the weather, crews), and an estimate (*done in ~N days*) worked out through the coming seasons. **Hire a crew** takes on 6 labourers from the nearest settlement. Each is paid 1.5× that town's land wage, so a crew costs about 2.9g a day in a village, 3.6g in a town, 4.1g in a city and 4.7g in a capital at ordinary wages, more where hands are scarce. Each crew adds **+50% pace**, up to **3 crews** a site (×2.5). Wages go each day from your purse into the town's purse. A crew you cannot pay that day walks off. Crews are let go when the build is finished. The hex info panel shows any build as *% · ~N days*.
+
+**Not on this clock:** a house you raise on your own lot stands after a fixed 40 days (village), 50 (town), 60 (city) or 70 (capital), whatever the weather. Roads & Public Works use their own hands and materials (see [Roads, Canals & Logistics](#roads-canals--logistics)). The crowns' own cultural buildings follow the season and the weather, without crews.
+
+Tuning: `data/construction.json`; each build's work-days are in its own data file.
 
 ### The Mill
 
@@ -1955,7 +2079,7 @@ Caravans and routes are trade you run yourself. In the mid and late game you can
 **Founding.** Put in at least 500 gold of capital. The company's capital is separate from your purse: use **Pay in** and **Draw out** on the Ledger tab to move gold between them. Capital moved in or out does not count as profit or loss. The company starts with 30 reputation, which drifts back up by 1 a week while it is below 30.
 
 **Posts and factors.** In any town, open a **post** (350g, or ×1.5 for a foreign licence in a realm whose charter you lack; up to 6 posts) by hiring one of three factor candidates. Each candidate has:
-- **Skill** (2–9): units handled per week = 30 + 8 × skill. The wage is 10g + 3g × skill per week, plus 5g rent for the post.
+- **Skill** (2–9): units handled per week = 30 + 8 × skill. The wage is 5g + 2g × skill per week, plus a 4% commission on what he sells and 5g rent for the post. Wages and rent are paid into the town's purse.
 - **Honesty**, which is hidden. You see only the references people give, and they are not always right. A factor with honesty below 0.7 **skims** part of each week's turnover. After a few weeks of skimming the books "look thin". An **audit** (60g) finds the skim 85% of the time and claws back half of it. You can then replace the factor from the town's candidates while you are there.
 - A factor who goes unpaid for 2 weeks quits, and the post sits idle.
 
@@ -1967,11 +2091,13 @@ Each post's warehouse holds 300 units. When you stand at a post you can **store*
 - **Timing**: buy food after the harvest and sell it in the lean months.
 - **Moving goods**: send stock from one post to another, or to a contract.
 
+**Why it pays or loses.** The Ledger tab (and the Merchant's Ledger's Profit & Loss) reads the company's books for you: the trading margin with stock held valued at its sale price, wages and rent, what thieves and the road took, each post's own books since it opened, and plain advice: posts with no orders, posts buying but never selling, overhead outrunning the margin, a skimming factor, and a route between your posts that pays today.
+
 Food a factor sells goes into the town's granary. Contraband is never on a factor's books.
 
 **Competition and theft.**
 - A rival house with a post in the same town takes custom: your factor sells only 75% of his volume there, unless you hold the monopoly.
-- Thieves rob a post's warehouse now and then, taking 20–50% of the stock (about a 3% chance a week, 5% where the guild operates, less behind strong walls). Robberies are likelier in towns where the guild operates, rarer behind strong walls, and likelier still with a crooked factor inside. If you are a Thieves' Guild member of rank 2 or above, the guild mostly leaves your posts alone (×0.3).
+- Thieves rob a post's warehouse now and then, taking 20–50% of the stock (about a 3% chance a week, 5% where the guild operates, less behind strong walls). Robberies are likelier in towns where the guild operates, rarer behind strong walls, and likelier still with a crooked factor inside. Stolen stock is a memo line on the books (its purchase was already an expense), not a second loss. If you are a Thieves' Guild member of rank 2 or above, the guild mostly leaves your posts alone (×0.3).
 
 **Convoys.** From a post, **dispatch** goods to another post or to a contract town. The convoy goes by **ship** when both ends are ports (9 hexes a day, 0.6% risk a day) and by **caravan** otherwise (5 hexes a day, 1.2% risk a day). It costs about 0.08g per unit per day, minimum 5g. A struck convoy loses 40–100% of its load to bandits, storms or pirates.
 
@@ -2534,16 +2660,16 @@ There are also **6 extinct faiths** that can be discovered through scholarly res
 
 ### Religious Buildings
 
-| Building | Cost | Build Time | Faith/Day | Influence Radius | Special |
+| Building | Cost | Work-days | Faith/Day | Influence Radius | Special |
 |----------|------|-----------|-----------|-----------------|---------|
-| Shrine | 300g | 3 days | 5 | 3 hexes | — |
-| Temple | 1,000g | 12 days | 15 | 5 hexes | — |
-| Monastery | 800g | 9 days | 10 | 4 hexes | +2 karma/day |
-| Cathedral | 2,500g | 16 days | 30 | 8 hexes | +3 karma |
-| Oracle Tower | 1,200g | 10 days | 12 | 6 hexes | +5 scholarship (+10% research speed) |
-| Pilgrim Hospice | 600g | 5 days | 8 | 3 hexes | 3–9 pilgrim gold/day |
-| Sacred Grove | 500g | 4 days | 7 | 4 hexes | +1 karma |
-| Reliquary Vault | 1,500g | 12 days | 20 | 5 hexes | +1 renown/day |
+| Shrine | 300g | 20 | 5 | 3 hexes | — |
+| Temple | 1,000g | 180 | 15 | 5 hexes | — |
+| Monastery | 800g | 150 | 10 | 4 hexes | +2 karma/day |
+| Cathedral | 2,500g | 960 | 30 | 8 hexes | +3 karma |
+| Oracle Tower | 1,200g | 150 | 12 | 6 hexes | +5 scholarship (+10% research speed) |
+| Pilgrim Hospice | 600g | 45 | 8 | 3 hexes | 3–9 pilgrim gold/day |
+| Sacred Grove | 500g | 15 | 7 | 4 hexes | +1 karma |
+| Reliquary Vault | 1,500g | 120 | 20 | 5 hexes | +1 renown/day |
 
 ### Faith Spreading
 
@@ -2821,13 +2947,13 @@ While a **Plague Outbreak** rages over the realm you stand in, you lose 6 health
 
 Build roads, bridges, and irrigation to improve your territory. Requires relevant technologies.
 
-| Structure | Cost | Build Time | Required Tech | Effect |
+| Structure | Cost | Work-days | Required Tech | Effect |
 |-----------|------|-----------|---------------|--------|
-| Dirt Road | 30g | 2 days | Road Building | Halves terrain movement cost |
-| Stone Road | 80g | 4 days | Paved Roads | Reduces movement cost to 1 |
-| Bridge | 150g | 6 days | Bridge Construction | Eliminates river/swamp penalty (cost = 1) |
-| Irrigation Channel | 60g | 3 days | Irrigation Systems | +50% farm productivity |
-| Timber Dam | 90g | 3 days | — (a river hex only) | A weir across the river: whatever floats down it fetches up there |
+| Dirt Road | 30g | 10 | Road Building | Halves terrain movement cost |
+| Stone Road | 80g | 40 | Paved Roads | Reduces movement cost to 1 |
+| Bridge | 150g | 90 | Bridge Construction | Eliminates river/swamp penalty (cost = 1) |
+| Irrigation Channel | 60g | 25 | Irrigation Systems | +50% farm productivity |
+| Timber Dam | 90g | 30 | — (a river hex only) | A weir across the river: whatever floats down it fetches up there |
 
 Roads dramatically speed up travel and trade. Stone roads make every hex cost just 1 stamina — connect your properties and trade destinations for maximum efficiency.
 
@@ -3698,7 +3824,7 @@ The realm sends it on the first day you hold the rank, and it grows or shrinks w
 - **Morale** drifts back toward 65 and rises 6 with a victory. **Loyalty** to you starts at 30 (55 for the crown) and grows with each day of service (up to 85) and with victories.
 - **In battle** the guard fights as part of your army in road encounters, field battles and sieges. On the battlefield it stands as **companies of its own in its realm's livery**. On the street maps its companies follow you in single file (up to 6 figures, knights on their horses) in the realm's colours and the arms they were issued. They stay outside buildings and off the deck.
 - **It deters trouble.** Bands in sight are 40% less eager to come after a party in a crown's livery. Parleying with outlaws is 10% likelier to succeed. A rival's thieves (50%) and assassins (30%) may be turned back by the guard. A rival House weighs its strength before waylaying you, as it weighs your army.
-- **Your choices.** **Send them home**: the men and their arms ride back to the army, and the realm will not send them again for 60 days unless you ask. **Ask for more men**: first the companies the guard has lost, then up to 2 / 3 / 4 more companies (soldiers; knights for the crown). Each request costs 8 reputation with the realm (a ruler pays nothing) and is refused if your standing would fall below 10, if the army cannot spare the men, or if the treasury would be left with less than 300g + 30 days of the guard's pay.
+- **Your choices.** **Send them home**: the men and their arms ride back to the army, and the realm will not send them again for 60 days unless you ask. A guard whose last man deserted is not sent again for 45 days unless you ask either. **Ask for more men**: first the companies the guard has lost, then up to 2 / 3 / 4 more companies (soldiers; knights for the crown). Each request costs 8 reputation with the realm (a ruler pays nothing) and is refused if your standing would fall below 10, if the army cannot spare the men, or if the treasury would be left with less than 300g + 30 days of the guard's pay.
 - **It leaves** if you lose the rank, are exiled, swear to another crown, or make war on the realm. What the crown still owes the men becomes the realm army's arrears, and the coin in their pockets goes home with them to the capital.
 - **A coup.** A guard of the realm whose loyalty is **60 or more** joins your coup. Otherwise it stands with the crown: its men count against you rather than for you, and if you win it is gone. If the coup is crushed, a guard that joined loses half its men.
 
@@ -3799,7 +3925,7 @@ A claim on a kingdom's throne has a **strength** from 0 to 100, the sum of its s
 | 📜 Forged documents | +15 each, up to 30 | 300g and an idle spy. The chance is 40%, +10% per spy level above 1, +2% per point of Stealth (5–90%). A caught forgery costs −15 reputation with the realm, −10 spy loyalty and +5 rival feud. |
 | 🏛️ Royal office | 10 / 20 / 30 | Hold an office in your liege's realm long enough: an Official office 360 days (10), a Lord's office 240 days (20), Chancellor 180 days (30). |
 | ⚔️ Conquest | 35 | Storm a living kingdom's capital (the court flees to another town). |
-| 🛡️ Heralds and genealogists | +15 each, up to 30 | 30 Prestige. |
+| 🛡️ Heralds and genealogists | +10 each, up to 20 | 30 Prestige. |
 
 Claims on a realm that falls lapse.
 
@@ -3817,7 +3943,7 @@ When the crisis ends, the winner is drawn by support. If your claimant wins you 
 
 #### Pressing a claim: civil war
 
-With a claim of **25+**, a land army of **40+** strength and **300g**, you can **raise your banners**. If you were sworn to that crown, your oath is broken and you resign any office.
+With a claim of **40+**, a land army of **80+** strength, **300g**, and an **appeal of 5+** (the realm must lean your way: see below), you can **raise your banners**. Heralds and forgeries alone reach only 40 between them, so a throne usually wants a marriage, an office, a conquest or the blood as well. If you were sworn to that crown, your oath is broken and you resign any office.
 
 Every town and every great lord of the royal council chooses a side, by your **appeal**:
 
@@ -3833,7 +3959,8 @@ The civil war:
 - **Levies.** The rebel towns bring 80% of their share of the royal army, taken from the crown. Starting **momentum** is (rebel share − 50%) × 60, +3 per great lord who joins you.
 - **Loyalist war hosts** march on your holdings, as in any war against you (§16). Each host you break adds half its war score to your momentum (+15); a holding lost costs −10.
 - **Field battles** about one day in three. Your odds are (levies + your army) against 60% of the loyalist army, ± momentum ÷ 400 (10–90%). A win gives +6 momentum, costs the loyalists 5% of their army, and 35% of the time a loyalist town declares for you (the capital last). A loss gives −6 momentum, costs 7% of your levies, and a town may go back to the crown.
-- **Lead the assault yourself** (2 AP): fight a loyalist vanguard (8% of their army). A win gives +10 momentum and turns a town; a loss gives −8.
+- **Lead the assault yourself** (2 AP): fight a loyalist vanguard (15% of their army, 40–400). A win gives +10 momentum and turns a town 40% of the time; a loss gives −8.
+- **The capital holds** against field battles and vanguards until your momentum reaches **50**.
 - **Besiege a loyalist town**: taken by storm or surrender, it declares for you (+15 momentum, +40 for the capital) — see [Sieges and Raids](#sieges-and-raids).
 - The realm drifts toward whoever holds more of it, by (rebel share − 45%) × 2 a day, and loses 15 stability while the war lasts.
 - A war for a throne can't be bought off or ended by demanding peace.
@@ -3846,7 +3973,7 @@ The civil war:
 
 As ruler you are the realm's sovereign, and the crown passes to your heir with the House. From Claims & Crowns:
 
-- **The royal levy.** Each day you take a share of what the royal treasury gained since the day before: 8% (light taxes), 15% (standard) or 25% (heavy), at most 200g a day and never below a 500g reserve. A day of war spending or tribute paid brings nothing. It shows in your finances as *royal levy*.
+- **The royal levy.** Each day you take a share of the crown's daily taxes and dues: 8% (light taxes), 15% (standard) or 25% (heavy). A restless realm hides its coin: below stability 75 the share shrinks, to nothing at 25. It never takes more than 75% of what the revenue leaves over the crown's upkeep (army, court, works, debt, the dole), though your purse is a first charge: a crown in deficit still pays a quarter of the usual share. The treasury keeps 5 days of upkeep (at least 500g) in reserve, and the levy is at most 150g a day. The realm panel shows today's levy and what held it down. It shows in your finances as *royal levy*.
 - **Policies** feed the kingdom's AI (through its bonuses):
 
 | Policy | Option | Effect |
@@ -4138,6 +4265,62 @@ The agent then becomes a **suspect** for 90 days. Suspects are listed under **Dy
 | ⚖️ **Name them a traitor** | They are driven out of town into exile. A plot still in hand is broken. +3 standing with the realm. If they helped a theft that landed, half the gold is recovered. The rival is shamed (+5 feud). Their spouse, parents and children think 20 points worse of you |
 | 💰 **Turn them** (60 + 2 per feud point, in gold) | A plot still in hand comes to nothing. For 120 days they inform on that rival: +15% daily chance to uncover its next plots |
 | 🕊️ **Let them go** | +3 karma, a mercy deed, +25 disposition, and −3 feud. A plot still in hand goes on without them. Years later they will tell you they have not forgotten |
+
+### Nemeses: Enemies Who Remember
+
+Many systems keep grudges: a lord's memory and blood feuds, a rival House's feud, an adventurer's attitude, a townsman's memory of what your House did to his family. The **nemesis** layer picks the worst of them, **up to three at a time**, and turns each into a named enemy with a story. Their hatred grows over the years. They learn your habits, strike when you are weakest, and hand the feud to their children. Open **Dynasty → 🩸 Nemeses**. (`systems/nemesis.js`, `data/nemesis.json`.)
+
+**How one is born.** Each week, if fewer than three are active and 60 days have passed since the last was born, the strongest candidate becomes a nemesis:
+
+| Kind | Who | A candidate when |
+|---|---|---|
+| 👑 Ruling lord | A realm's lord | Their blood feud with you weighs 25+ (a town taken, kin killed, an oath broken; see [Lords' Memory](#lords-memory--court-letters)) |
+| 🛡️ Rival House head | The head of a rival House | The feud is 70+ and they remember a wrong at −8 or worse |
+| 🗡️ Adventurer | A rival adventurer | Their attitude is −70 or worse and they remember a slight |
+| ⚔️ Sworn avenger | A grown (16+) townsperson | They carry a bitter memory of your House (kin slain, a father hanged, a home burnt) at −20 or worse; at most one per town, the bitterest |
+| 🩸 Your own blood | An older brother or sister | Passed over for the seat when you succeed (50% each, if they are 16+ and older than the new head) |
+
+A feud that ended in the last 1,200 days (10 years) cannot start again. Siblings waiting for a free place show as **Grudges in the wings**. A new nemesis starts at 30–50 hatred, plus 0.3 × the strength of the grievance (75 at most), and writes to tell you.
+
+**Hatred and stages.** Hatred (0–100) grows by 3 a year. If it falls below 8, the feud fades out. Each stage strikes more often:
+
+| Stage | Hatred | Strikes about every |
+|---|---|---|
+| 😠 Grudge | 0+ | 240 days |
+| 😡 Enmity | 35+ | 150 days |
+| 🩸 Vendetta | 60+ | 100 days |
+| 💀 Obsession | 85+ | 70 days |
+
+Each blow is drawn from the acts their hatred has opened. The further their hatred is past an act's mark, the likelier they are to choose it:
+
+| Act | From | What happens |
+|---|---|---|
+| Slander | 0 | Your standing falls 3–8 in the realm of the town you keep to most (more if they know it, or the hour is ripe), and −1 renown |
+| Suit at court | 30 | They win 55% of the time, −4% per point of your Diplomacy, −0.4% per point of your standing there (10–90%). A win fines you 80–300g × (0.5 + hatred ÷ 100), paid to them |
+| Plot | 35 | A hidden scheme (theft, sabotage, unrest, slander or a raid on a property; see Rival Houses' schemes). It shows as *a plot in the dark* until it strikes or is found |
+| Raid | 45 | Needs a trade or smuggling route. 45%, plus up to 36% once they have read your busiest road, −12% per protection level. The caravan is lost and the route stands idle 10–30 days |
+| Bought allies | 50 | 200g from their purse. A House pays another rival House to share the quarrel (feud +8). Anyone else buys the ear of the court that likes you best (its lord remembers it against you) |
+| Assassin | 70 | 250g, once in 360 days at most. 30% base, up to +27% in the town you keep to most once they know it, +15% if you are sick, −25% with a household guard, −0.2% per soldier with you (up to −20%); 5–85% in all. A hit leaves a wound (gash, head wound, cracked ribs or slashed face) and costs 10–25 health |
+
+They pay from a real purse: a House's gold, a realm's treasury, an adventurer's coin, or their own. Avengers start with 100–400g and kin with 50–200g; either gains 150g a year, up to 5,000g. Fines they win go into it.
+
+**Revenge.** Each blow that lands sates them (slander 2, suit 4, plot 5, raid 8, allies 3, assassin 25) and cools their hatred by 0.4 × that. At 120 sated they count the debt paid and the feud ends. A blow that misses (a suit laughed out of court, raiders seen off, an assassin caught, a plot foiled) adds 5 hatred but gives you a piece of **proof**.
+
+**They learn you.** Three habits are tracked and shown under **Your habits**: the stance you use most in field battles, your busiest trade route, and the town where you spend most days. Each enemy reads them week by week, faster the more they hate, up to 90%. When you fight their men in your favourite stance, those men fight up to about 30% harder in that phase. Their raiders find your busiest road, and their slander and their assassins find you where you stay. Change a habit and they keep only a third of what they knew. Each enemy's card shows **What they know of you**.
+
+**The worst moments.** They strike sooner when you are sick (a disease, or under 40% health: ×2), at war (×1.6), in your first 120 days on the seat (×2) or under a regency (×1.5). These multiply, up to ×4, and bring the next blow forward. Suits and raids are 10% likelier at such times, slander bites harder, and they write to say they have noticed. The panel warns **The hour is ripe**.
+
+**Down the generations.** When a lord dies, his realm's next lord takes up the quarrel; when a House head dies, the House's next head does. An avenger, adventurer or sibling who dies may leave a child to take it up: the chance is 0.6 × (0.5 + hatred ÷ 100), +0.2 if you killed the parent. Whoever takes it up keeps 80% of the hatred (+20 if you killed the parent) and half of what the old enemy had learnt of you. Below 15 hatred, they let the quarrel lie. If the realm falls, the House is gone or nobody takes it up, the line has died out and the feud ends. Avengers age, and past 45 they may die of old age. On your side the feud passes to your heir with the seat: hatred ×0.9, and they test the new head within 20–45 days.
+
+**What you can do** (on each enemy's card):
+- 🕊️ **Offer a blood price.** Only while hatred is 70 or less. It costs 12g per point of hatred (at least 150g). The chance they accept is 75% − 0.9% per point of hatred + 3% per point of Diplomacy (5–95%). Accepted, the feud ends: a House's feud −40, an adventurer's attitude back to neutral, a lord remembers it as a gift. Refused: +6 hatred, and you must wait 120 days to offer again.
+- 💍 **Offer a child in marriage.** For an enemy with a realm or House behind them, at hatred 65 or less, with a grown (16+) unwed child of yours. The dowry is 6g per point of hatred (at least 200g). The feud ends at the altar (a House's feud −50).
+- ⚖️ **Accuse them at court.** This spends one piece of proof before the court of the realm you keep to: +3 standing there, and their next blow waits 120 days longer, but +6 hatred.
+- **Live differently.** Vary your stance, roads and haunts. Keep soldiers near you, take a household guard, and protect your routes.
+
+While a nemesis lives, the old grudge behind it stays hot. A rival House's feud is kept at 80% of the hatred or more, and an adventurer's attitude at −0.8 × hatred or colder, so those systems' waylays, ambushes and plots carry on too.
+
+**Not the same as an adventurer's "Nemesis" tier.** In [Rival Adventurers](#rival-adventurers), *Nemesis* is the adventurer's own attitude (−60 or worse), and it brings slander and ambushes. This layer is separate and wider: it can raise a lord, a House head, an avenger or your own kin, and it only takes an adventurer at −70 or worse.
 
 ### Ambitions That Follow
 
@@ -4733,6 +4916,97 @@ Ambition varies with the person and their traits. Every week the regent's loyalt
 
 Undecided after 14 days, the men stay. The regency's start, its turns and its end are written in the House Chronicle and the Annals.
 
+#### Abdication and Retirement
+
+You need not die to hand on the House. **House → 🪑 Succession & Retirement** (`systems/abdication.js`, tuned in `data/upbringing.json` → `abdication`) lets you step down while you live. You go on playing the child you choose. The old ruler is not played again (there is no "elder life" mode): they live on in the world as a real person, the **elder**.
+
+**Who may take the seat.** Any living child of yours (not your siblings):
+- **The rightful heir** (your named heir, else your eldest grown child). With your blessing the succession is seldom disputed (5%; 12% if you step down at the court's urging), the House gains 6 Prestige for an orderly abdication, and a realm you rule gains 5 stability.
+- **Another child.** This costs 12 Prestige and the realm 8 stability. The passed-over heir nurses a claim: the next succession is likelier to be disputed, and a passed-over elder sibling may become a nemesis.
+- **A child under 16.** They reign under a regent (see [A Regency](#a-regency)), with the regency's usual cost to the House. The regent may be **the old ruler themself**, ruling in the child's name from retirement, or one of the usual candidates. A regent elder answers to the regency's rules: their loyalty, their skimming, their coup.
+
+**What passes.** An abdication owes no death's dues: no heriot and no children's portions. The purse passes whole, less the old ruler's **endowment**: a tenth of the coin, at most 1,500 gold, taken into retirement. The heir keeps 80% of your renown and 70% of your reputation (at a death it is 50% and 30%). The reign is closed in the House Chronicle and the Annals as *stepped down*, not *died*. The family tree keeps the old ruler among the living.
+
+**Where they live.** You choose, and can change it later:
+- **At court.** Their counsel is at hand. A respected elder (respect 70+) steadies the House: the officers' loyalty rises each week, and the court's pressure on you falls by 10. But a soured elder has room here to meddle.
+- **A country estate.** Little counsel, little mischief.
+- **A monastery.** Cloistered: their ambition falls by 40 and they never plot. Going willingly costs them little respect. Sent against their will, it costs you 12 Prestige and them 20 respect. If their plot is already exposed, it costs only 4 Prestige, and half of what they took comes back.
+
+**The pension.** Each day the House purse pays the elder's pension into their own purse: 4 gold by default, set from 0 to 15 in the panel. It shows in the Ledger as *The old ruler*. Pension you cannot pay is owed and paid first when you can. The elder spends their keep (1–3 gold a day) in the town they retired to, into its purse. Their purse is real coin: it is counted in the realm's money, and nothing is minted.
+
+**Respect and ambition.** Respect (0–100) starts high for a willing abdication (72), lower at the court's urging (55), and low if they were deposed (22). Each week it drifts toward what the House gives them: a generous pension raises it, a cut or arrears lower it, and honours and being consulted add favour that fades. Ambition comes from their traits (greedy, cruel, cunning, deceitful, dread lords and kinslayers run high; the merciful, honest, pious, generous and beloved run low) and is 25 higher if they were deposed.
+
+**Dealing with them.**
+- **Seek their counsel** (once a month). At court and on good terms, they may uncover a hidden plot against the House. Otherwise they teach you a point of a skill they were better at, up to 5 in all. An elder in contempt (respect under 25) refuses.
+- **Honour them before the court** (6 Prestige): favour up, ambition down.
+- **A gift** (100 gold, into their purse).
+- **The pension:** raise it or cut it. They remember either.
+
+**Favourites and meddling.** The elder may have a favourite among your brothers and sisters. They give that child gifts from their own purse (into the child's portion). If the elder is soured (respect under 50) and ambitious, they may speak for the favourite at court. That leaves a claim for the next succession.
+
+**The power behind the throne.** An elder who is ambitious (55+) and disrespected (respect under 30) plots, unless cloistered. First comes a whisper (*The Old Ruler Plots*). Then their people take the seals for 90 days: 10 Prestige is lost, and each week up to 4% of your coin (at most 150 gold) is skimmed into the elder's purse while your officers' loyalty bleeds. It ends when the time runs out, or when you send them to a monastery with the plot exposed. Win them back before it comes to that.
+
+**Old age and death.** Elders age a year at a time, by their own lifespan. When one dies, 30% of their purse goes to their favourite child and the rest to the House purse (the Ledger's *Children's portions* line). Their death is written in the House Chronicle. The family tree closes their life, and their reign's chapter in the Annals adds when and how they died in retirement. Elders keep ageing through an interregnum, but no pension runs then.
+
+**Pressure to step down.** The court weighs your rule (shown in the panel, with its reasons):
+- low Prestige;
+- a war going badly (a negative war score or holdings lost);
+- overdue debts;
+- a disaffected court and officers (average loyalty under 40);
+- an unsettled realm, if you wear a crown (stability under 35);
+- infamy (karma under −40);
+- being old and frail (60+ and under half health), or simply old (70+).
+
+From a pressure of 35, the **Steward's Counsel** suggests stepping down. At 65 or more for four weeks, the lords **demand** it. The demand shows in the Counsel (critical) and on the House panel. You have 30 days to answer:
+- **Step down with grace.** Counselled, the elder keeps more respect than if deposed.
+- **Face the lords down** (15 Prestige).
+- **Buy the court's loyalty** (600 gold into your courtiers' purses; their loyalty +10).
+
+Holding the seat buys 180 days of quiet. If you ignore the demand and the pressure is still 55 or more when it runs out, the court **deposes** you. This is a forced abdication in favour of the rightful heir, decided in the day's tick: you wake as the heir. The deposed ruler leaves for an estate with no endowment, little respect and sharpened ambition, so they are often a plotter. The House pays 15 Prestige, and a realm you rule loses 12 stability. If the pressure has eased by the deadline, the demand lapses.
+
+The House panel's *Succession & Retirement* row shows who lives on in retirement, flags a demand or a plotting elder, and lists past abdications. (The crown-only abdication in the Royal Court panel is different: there you lay down a realm's crown and remain head of your House.)
+
+### Cadet Branches
+
+A grown child of the House who is not your heir can be sent out to found a **cadet branch**: a minor House of your blood, "House *Name* of *Seat*", with its own seat town, purse and retinue (🌿 on the map). Open it from **Dynasty → House → 🌿 Cadet Branches** (`systems/cadetBranches.js`, tuned in `data/cadetBranches.json`).
+
+**Founding.** The child must be 18 or older, not your heir, and at home (not fostered abroad, on an embassy or held captive). They leave the household for good: they are no longer in the line ahead of your siblings, and give up any office they held and any holding they governed (that governorship falls vacant). The branch's purse is their **portion** plus any **grant** you add (250 to 2,500 gold). Each 400 gold granted makes them a little warmer toward you. You may grant one of your estates instead; its rents then go to the branch. The branch sits in your liege's realm (or the one you stand in), at its largest town that is not the capital and not already another House's seat. Planting a branch earns +3 Prestige.
+
+A grown child with a portion of their own (300 gold or more, given at a succession) may also **leave on their own**. Once a year each such child has a 12% chance to do so. At most one leaves a year, and only while you have a living heir. A branch founded this way starts cooler toward you.
+
+**Its life.** A branch is run like a rival House (see [Rival Houses and Their Schemes](#rival-houses-and-their-schemes)), but it has no quarrel with you. Its retinue trades between town markets, sits at court (and can become a crown's favourite and draw a pension), buys land on the market, and rests at home. Its seat town pays it dues each week (14 + 4 × the head's stewardship), and its household spends back into the town. All of it is real coin. A branch with less than 400 gold stays at its seat and saves its dues instead of riding to market or court, so a branch sent out with little starts slowly. The head ages, marries, has children and dies; a grown child, or else a cousin, takes the branch on. When a branch child marries out, there is a 35% chance it is into one of your rival Houses, which cools that House's feud with you by 5.
+
+**Sub-branches.** Once a year a branch head's younger grown child (22+, not the eldest) may found a branch of their own with a quarter of the branch's purse (when it holds 900+). A sub-branch is a generation further from you, and a little less loyal. The House keeps at most **6** living branches, at most **3** generations out.
+
+**Loyalty** runs from 0 to 100:
+
+| Loyalty | Label | What the branch does |
+|---------|-------|----------------------|
+| 80+ | Devoted | As Loyal |
+| 60–79 | Loyal | At 70+ with more than 700 gold, sends you 6% of its purse every 120 days. At war, sends a levy of its own accord (at most every 180 days). |
+| 40–59 | Dutiful | Answers asks for gold (40+) and men (50+) |
+| 20–39 | Cool | Answers a summons (35+), little else |
+| below 20 | Estranged | Breaks with you (see below) |
+
+What moves loyalty:
+
+- **Raises it.** A gift raises it by gold ÷ 25, at most +15; a second gift within 60 days counts half. A summons answered: +4 (and +2 Prestige). Holding 100+ Prestige: +1 a year.
+- **Lowers it.** Asking for gold (a fifth of their purse): −8. Asking for men: −6. A refused ask: −3. Every year: −1. A year with no gift, summons or ask: −4 more.
+- **A new branch head.** Keeps 70% of the old head's lean away from 50, less 3 for each generation the branch stands from you.
+- **Attacking their retinue.** −40, −5 karma, and the House chronicle remembers it.
+
+**Asks, by letter** (each at most once every 90–120 days):
+
+- **Gold.** A fifth of their purse comes to yours.
+- **Men.** A levy of 6 men (+ their hired guards) joins your army for 90 days. The branch pays them 4 gold a man a week; if its purse runs dry, it calls them home.
+- **A summons.** The head rides to the town nearest you and stays 3–6 days.
+
+**Estranged branches.** Below 20 loyalty a branch breaks with the main line. Its feud with you is (50 − loyalty) × 2. Its head speaks against you at any court they visit (−3 reputation there, never below 0). It may **press a claim** on your seat, which makes your next succession more likely to be disputed. An estranged branch is counted with the rival Houses as a claimant: the coin lost in a disputed succession can go to it. Gifts can win it back: at 35 loyalty it is reconciled.
+
+**Succession through the cadet line.** If you die with no child or sibling to inherit, the death screen (and the interregnum's **Jump In**) offers the heads of your branches. The nearest is listed first: fewest generations out, then the oldest founding. The head takes up the mantle as your heir. Their branch's purse joins the inheritance, its estates become yours, its children become yours (the eldest your heir), and the branch folds back into the main line. While any branch lives, your House is not heirless: no estate settlement happens, and in the interregnum the branches go on living. If you take a new life instead, the branches go their own way as minor nobility: their purses are spent into their seat towns and their land passes to a noble holder.
+
+The dynasty tree shows each branch head as a person of the blood, with the branch named beneath. Branch heads are listed after your children and siblings in the line of succession.
+
 ### The House Chronicle and Legacy
 
 **Dynasty → 📜 House Chronicle** tells your House's story one ruler at a time. Each reign shows:
@@ -4764,6 +5038,47 @@ Each ruler also earns an epithet from their deeds ("the Crowned", "the Conqueror
 | Petition ruled | 1 |
 
 The House adds 40 per generation and 1 per point of Prestige.
+
+### The Family Tree
+
+**Dynasty → 🌳 Family Tree** draws every generation of your House on a canvas you can drag and zoom (mouse wheel, or ＋/－). It keeps the people the reign records alone would lose: each ruler, their spouses (with the House and realm they came from), their children, the brothers and sisters left after each succession, the founder's own parents if you were born to a family, and any regent. (`systems/dynastyTree.js`.)
+
+Each person is a card with a portrait, name and epithet, life dates, first title and the heirlooms in their hand:
+
+- **gold frame**: a ruler (the living one brightest);
+- **green, numbered**: the line of succession, starting with your designated heir, then your other children eldest first, then your siblings;
+- **grey with a cross**: the dead;
+- **dashed frame**: married into the House;
+- **R**: a reign under a regent.
+
+A brother or sister who wed into a foreign realm by an alliance or royal match is marked as *the cadet line wed into* that realm, and one who wed in the towns as *a cadet line in the towns*. Click anyone for their life: the House Chronicle lines that name them, a ruler's Annals chapter and Deeds counters, and the heirlooms they bore.
+
+### Heirlooms
+
+**Dynasty → 🗝️ Heirlooms** lists the named things of your House: a sword, ring, crown, book, banner, harness or relic with a name of its own (*Oathbrand*, *the Ring of House Vael*). They live with the House, not in your packs, so they pass to each heir. (`systems/heirlooms.js`, `data/heirlooms.json`.)
+
+**How one comes to the House:**
+- **Great deeds**: your 1st and 4th crowning (a crown); your 5th, 30th and 90th victory (a banner); your 15th and 60th (a sword); your 1st and 5th Great Work (a book); your 3rd title (a ring).
+- **From your packs**: a masterwork you crafted (swords, axes, maces, daggers and halberds → sword; jewellery and amulets → ring; mail, plate, brigandine and helms → armour; fine garments → banner; books → book) or a treasure (an enchanted weapon or ring, dragonscale, a royal seal, relics, scriptures, an ancient artifact). You may name it.
+- **The deep places**: each delve cleared to the bottom has a 15% chance to turn one up, and each treasure cache dug up whole a 10% chance.
+
+**Legend.** Every line added to an heirloom's history adds to its **legend**: borne in a battle won (+3), at a crowning (+6), passed to an heir (+2), recovered (+3), sent as dowry (+2), or carried while you earned 8+ Prestige (+1). Tiers: *Unsung*, *Storied* (5), *Renowned* (15), *Legendary* (30). Each point raises its bonus by 4%, up to ×3 at 50.
+
+| Kind | Bonus while the ruler holds it (new) |
+|---|---|
+| 🗡️ Sword | +2% battle power |
+| 🚩 Banner | +1.5% battle power, 1 Prestige a year |
+| 💍 Ring | +1.5% in negotiation |
+| 👑 Crown | +1% in negotiation, 2 Prestige a year |
+| 📕 Book | +1% in negotiation, 1 Prestige a year |
+| 🛡️ Armour | 4% less harm taken |
+| 🏺 Relic | 2 Prestige a year |
+
+Totals are capped at +8% battle power, +6% negotiation and 12% less harm. Only heirlooms in the ruler's own hand count.
+
+**What you can do with one:** **give** it to a child (no bonus while they hold it; it comes back if they die, and passes on if they become your heir); **pawn** it in any town for 120 + 12 per legend gold, redeemable there for 25% more within 360 days, after which the moneylenders sell it on; or send it as **dowry** with a child wed into a realm by alliance or royal match (+12 standing in that realm, +4 Prestige; it leaves the House).
+
+**Losing them.** Once a year there is a 2.5% chance that a thief takes a storied one (legend 3+). A ruler who dies in battle or by violence has a 35% chance to leave a sword, banner or armour on the field. In a disputed succession the heir does not secure, there is a 50% chance a rival claimant carries one off. A lost heirloom keeps a **trail**, a town shown in the panel. Go there to **buy** it back (1.6× its pawn value), try to **take** it (35% + 5% per point of stealth and half your combat; failing costs 25 health and 5 standing), **ask** a court that holds a dowry for it (standing 40+ there, which costs 20 of it), or **search** a battlefield (30% a day). Left on the field for 720 days, it surfaces for sale in some market.
 
 ### Deeds & Records
 
@@ -4825,9 +5140,37 @@ A reign that began in a save from before the ledger existed is counted from the 
 
 **Sharing.** *📋 Copy as text* puts the whole book (with any *Before* books) on the clipboard; if the browser will not allow it, the text is shown ready to select.
 
-**The court scribe.** With the local language model switched on (Settings → *Enable Local LLM NPCs*), each chapter offers *✒️ Have the court scribe write this chapter*: the model retells the chapter as flowing prose, using only the chapter's own facts. It takes a moment and never holds up the game; if the model is off, slow or unreachable, the annals simply stand as written. You can switch between the scribe's chapter and the plain annals.
+**The court scribe.** With the AI switched on (AI Settings → *Enable AI NPCs*), closed chapters are written once and the current chapter once a year (see [The Court Scribe's Pen](#the-court-scribes-pen)), and each chapter offers *✒️ Have the court scribe write this chapter*: the model retells the chapter as flowing prose, using only the chapter's own facts. It takes a moment and never holds up the game; if the model is off, slow or unreachable, the annals simply stand as written. You can switch between the scribe's chapter and the plain annals.
 
 The book is told in the past tense: the House chronicle's lines (*"Bran weds Tamsin"*) are put into the past (*"Bran wed Tamsin"*) as they enter it; titles in quotes are left as written. The phrasing is chosen by the event and its day, never by chance, so the same game always reads the same. The wealth curve is a mark of the purse each season, kept with the House (older marks are thinned so a long dynasty keeps its whole curve). Phrases and what counts as notable are in `data/annals.json`.
+
+### The Illustrated Chronicle
+
+The Annals can also be kept as a book outside the game. In the Annals panel, **📜 Save the illustrated chronicle** writes one self-contained HTML file that opens in any browser, offline. **🖨️ Print / PDF** prints it or saves it as a PDF: through a save dialog in the desktop app, through the browser's print dialog (*Save as PDF*) on the web. The file is named after the book and the year (*The Annals of House Ashford - year 1084.html*). (`systems/chronicleBook.js`, `ui/chronicleBook.js`, `data/chronicleBook.json`.)
+
+The text is the Annals' own (or the court scribe's prose, where it has written a chapter), so nothing new is told. What the book adds is pictures and an order:
+
+- **Title page**: the House's arms (a shield in the sigil's colour with its charge) and motto; then the contents and a foreword.
+- **A chapter per ruler**: a portrait (the painted likeness where one can be drawn, else a medallion with their initial), the chapter, a **map of the realm at the reign's end**, and the reign's key moments in three lists: *Wars and battles*, *Great works* and *Deaths* (up to 10 each).
+- **The Legacy** page and *the books of the lines before*, if you began a new life.
+- **The realm through the years**: an atlas of every map kept.
+- **The line of the House**: the family tree.
+- **Appendix: the House in numbers**: generations, years ruled, Prestige, Legacy score and gold; the purse's curve; the Ledger's last year; the lifetime tallies from Deeds & Records; and an epilogue.
+
+**The maps** cannot be drawn after the fact, so the game takes them as it goes: at the founding, at each reign's end, when a crown is won or lost, and every 30 years. Each is a coarse map of the realms' borders, seats and your holdings, and the book keeps up to 32 (the 30-year maps are thinned first). A House founded before this existed starts its atlas from the day it was loaded.
+
+When a line ends, its chronicle is also kept on this machine: **title screen → 🏛️ Hall of Houses → 📖 Open the chronicle** opens it again long after the game is gone (see [Ironman and the Hall of Houses](#ironman-and-the-hall-of-houses)).
+
+### The Timeline of the Realm
+
+The whole world's history on one map, season by season. Open it from the top bar's menu (**🗺️ Timeline of the Realm**, beside the Annals), from the Dynasty panel (**Timeline of the Realm**), or from a jump-to link: **🗺️ See these years on the map** in the Annals (a ruler's chapter opens at the start of the reign, an age at the crisis's start), **🗺️ See the realm in these years** under each reign in the House Chronicle, the **Day N** of any line in the Dynasty panel's chronicle, and **🌋 The Age** panel (the running crisis's *See it on the timeline*, and each crisis on record, which opens at its start with its place ringed).
+
+- **The map** is drawn in hexes laid out as on the world map, and shows the realms' borders as they stood on that day (coloured fills, dark lines where two realms meet), your holdings outlined in gold, the towns then standing (a green dot for one founded that season) and markers for what happened there: ⚔️ battles (all the fighting at one place in a season shares a marker, with the number of battles), 🏰 sieges of your holdings or by your host, 🚩 towns taken, 🌋 crises and their grave news, 🌅 realms risen, 💀 realms fallen, 👑 crowns you won or lost, 🕯️ successions, 🏚️ towns abandoned. Markers from earlier in the year are faded. Hover a marker for its line and date, or anywhere else for the realm and its ruler then.
+- **The slider** walks the record a season at a time; **▶ Play** runs the years past like a film (**⏸** pauses), **‹ ›** step a season, **⏮ ⏭** go to the first year and to today.
+- **The strip** under the slider has three lanes: the **Ages** (each crisis from its start to its end, and the climate's eras — a Little Ice Age, a Warm Period, a Great Drought, the Wet Decades — in blue beside them), **Your line** (each life you played, with its House) and the **Wars** between realms that lasted a month or more (with the victor, where there was one). The gold cursor marks the shown day; click any span to go to its start.
+- **The realms** lists those holding land that day, with their size; **In these seasons** lists the season's happenings, newest first — click one with a place to ring it on the map.
+
+The record is kept from the first day of a new game, or from the day an older save is first loaded (nothing before that can be recovered). It keeps going while no one lives (the interregnum) and through every heir and new life. It is small: a map of the borders on the first day, then each season only the tiles that changed hands; past 480 seasons (or about 60 KB of border changes) the two closest seasons are merged, so the early centuries thin out evenly while every season still kept shows exactly what was. Up to 360 markers are kept (small battles and successions make way first), 400 towns and 160 wars. A century of play adds well under 100 KB to the save. (`systems/realmTimeline.js`, `ui/actionMenu/timeline.js`, `data/timeline.json`.)
 
 ---
 
@@ -4835,13 +5178,13 @@ The book is told in the past tense: the House chronicle's lines (*"Bran weds Tam
 
 ### Cultural Buildings
 
-| Building | Cost | Build Time | Effect (level 1) |
+| Building | Cost | Work-days | Effect (level 1) |
 |----------|------|-----------|--------|
-| Scriptorium | 400g | 4 days | +10% research speed, 1 gold/day |
-| Library | 600g | 6 days | +15% research speed, 1.5 gold/day |
-| Theater | 800g | 8 days | +2% army morale, 2.5 gold/day |
-| Monument | 1,000g | 10 days | +1 renown/day, 2 gold/day |
-| University | 1,500g | 14 days | +30% research speed, 4 gold/day (requires 1,000 pop) |
+| Scriptorium | 400g | 45 | +10% research speed, 1 gold/day |
+| Library | 600g | 90 | +15% research speed, 1.5 gold/day |
+| Theater | 800g | 120 | +2% army morale, 2.5 gold/day |
+| Monument | 1,000g | 300 | +1 renown/day, 2 gold/day |
+| University | 1,500g | 480 | +30% research speed, 4 gold/day (requires 1,000 pop) |
 
 Effects start once construction finishes. **Research speed** from Scriptoria, Libraries and Universities adds up (capped at +50%) and shortens every technology you start researching, on top of INT, Writing/Printing Press and University properties. **Income** is a tenth of the building's culture rating per level per day (Philosophy and Printing Press multiply it); fractions carry over, so a Library pays 3 gold every 2 days. Theaters' morale bonus is capped at +6% across all of them.
 
@@ -4941,22 +5284,22 @@ Your **holdings** are the settlements you rule and tax: colonies you founded and
 | City | 2,000+ | 5 |
 | Great City | 5,000+ | 6 |
 
-A project costs gold, materials and days. Materials come out of your packs. Anything you lack is bought on the spot at 1.5× its price (wood and stone 12g, iron 30g, tools 52g). Stone and timber near the town shorten the work. A good steward speeds it up (+6% per point of stewardship). You can abandon a project under construction for half its gold back. The panel shows each project's effect before you build it, with the gold it would add to the weekly tax and the change in defence.
+A project costs gold, materials and work-days, built at the pace of the season and the weather (see [Building Takes Time](#building-takes-time-work-days-seasons-and-crews)). Materials come out of your packs. Anything you lack is bought on the spot at 1.5× its price (wood and stone 12g, iron 30g, tools 52g). Stone and timber near the town shorten the work. A good steward speeds it up (+6% per point of stewardship). You can abandon a project under construction for half its gold back. The panel shows each project's effect before you build it, with the gold it would add to the weekly tax and the change in defence.
 
-| Project | Cost | Days | Effect |
+| Project | Cost | Work-days | Effect |
 |---------|------|------|--------|
-| 🚧 Palisade | 150g, 20 wood | 6 | +25% defence, 20% fewer bandit raids, calms unrest |
-| 🏰 Stone Walls (replaces the Palisade, village+) | 600g, 40 stone, 4 tools | 15 | +60% defence, 45% fewer raids, calms unrest more |
-| 🏪 Market Square | 300g, 10 wood, 15 stone | 8 | +12% tax, +4% on what you sell there, +2 happiness, +1% growth a year |
-| 🌾 Granary | 200g, 25 wood | 6 | +6 days of food in store (the lean season), +1% growth, +1 happiness |
-| 🕯️ Shrine | 120g, 8 stone | 4 | +3 happiness, spreads your faith there (0.4% of the unbelievers a day), calms unrest |
-| ⛪ Temple (replaces the Shrine, village+) | 550g, 35 stone, 10 wood | 12 | +6 happiness, spreads your faith (1% a day), calms unrest more |
-| ⚔️ Barracks | 350g, 20 wood, 8 iron | 9 | +10 militia defence, +50% recruits a day and 10% cheaper recruits here, garrison upkeep −25% |
-| ⚓ Harbour (beside the water only) | 450g, 35 wood, 10 stone | 12 | +8% tax, 8% better port-market prices for you, free repairs (+5% a day) for your ships docked there, +2 days of food, +1.5% growth |
-| 🗼 Watchtower | 180g, 10 wood, 10 stone | 5 | 40% fewer raids, your underworld heat in the town's realm (for an independent town, the nearest realm) cools 0.5 a day faster, +5% defence |
-| 🔨 Workshop Quarter (village+) | 400g, 20 wood, 10 iron, 4 tools | 10 | +20% goods produced, +6% tax |
-| 🍺 Tavern and Inn | 250g, 20 wood | 7 | +4 happiness, +1.5% growth, +10% daily chance of settlers arriving at a young colony, +3% tax |
-| 🏛️ Moot Hall (village+) | 320g, 15 stone, 10 wood | 8 | petitioners from the town wait 4 days longer, +2 happiness, calms unrest most |
+| 🚧 Palisade | 150g, 20 wood | 30 | +25% defence, 20% fewer bandit raids, calms unrest |
+| 🏰 Stone Walls (replaces the Palisade, village+) | 600g, 40 stone, 4 tools | 360 | +60% defence, 45% fewer raids, calms unrest more |
+| 🏪 Market Square | 300g, 10 wood, 15 stone | 45 | +12% tax, +4% on what you sell there, +2 happiness, +1% growth a year |
+| 🌾 Granary | 200g, 25 wood | 40 | +6 days of food in store (the lean season), +1% growth, +1 happiness |
+| 🕯️ Shrine | 120g, 8 stone | 25 | +3 happiness, spreads your faith there (0.4% of the unbelievers a day), calms unrest |
+| ⛪ Temple (replaces the Shrine, village+) | 550g, 35 stone, 10 wood | 240 | +6 happiness, spreads your faith (1% a day), calms unrest more |
+| ⚔️ Barracks | 350g, 20 wood, 8 iron | 60 | +10 militia defence, +50% recruits a day and 10% cheaper recruits here, garrison upkeep −25% |
+| ⚓ Harbour (beside the water only) | 450g, 35 wood, 10 stone | 180 | +8% tax, 8% better port-market prices for you, free repairs (+5% a day) for your ships docked there, +2 days of food, +1.5% growth |
+| 🗼 Watchtower | 180g, 10 wood, 10 stone | 40 | 40% fewer raids, your underworld heat in the town's realm (for an independent town, the nearest realm) cools 0.5 a day faster, +5% defence |
+| 🔨 Workshop Quarter (village+) | 400g, 20 wood, 10 iron, 4 tools | 90 | +20% goods produced, +6% tax |
+| 🍺 Tavern and Inn | 250g, 20 wood | 45 | +4 happiness, +1.5% growth, +10% daily chance of settlers arriving at a young colony, +3% tax |
+| 🏛️ Moot Hall (village+) | 320g, 15 stone, 10 wood | 60 | petitioners from the town wait 4 days longer, +2 happiness, calms unrest most |
 
 A **governor** also keeps petitioners in hand while you are away: petitions from a governed town wait 1 extra day per 3 points of the governor's Stewardship (up to 3).
 
@@ -4998,6 +5341,48 @@ If the rebels still hold the town at the deadline, it becomes a free town and is
 A holding you lose — to rebels or a war host — keeps only its walls. Its harbour, markets, workshops and other works stop serving you until you take it back.
 
 Projects, governors, garrisons, unrest and rebellions are all saved with the game.
+
+### Stewards & Governors
+
+You cannot ride to every seat you hold. Open **Dynasty → House → 🏛️ Stewards & Governors** (or *Orders, audit, reward or punish* on a holding's panel) to put a real person over each one and tell them what to put first. (`systems/stewards.js`, tuning in `data/stewards.json`.)
+
+**The seats.** Each holding (its officer is a **Reeve** in the smallest towns, a **Steward**, then a **Governor** as it grows; this office *is* the holding's governor). If you wear a crown, there is a **Royal Governor** for each demesne town of your realm that no vassal holds. Your estate lands get a **Bailiff**, and your trading company a **Chief Factor**.
+
+**Who can serve.** Your spouse, children of 16 or over who are at home, your courtiers, travelling companions (holdings and demesne towns only), and up to four grown townsfolk (18–69) of the place. For the estates and the company, the townsfolk come from the town you stand in, or else your first holding. Each candidate shows Stewardship, Martial and Intrigue, a likely loyalty, an **ambition** (content, aspiring, ambitious) and a **reputation**: *spotless name*, *well spoken of*, *mixed talk* or *a doubtful past*. The reputation is the town's guess at their honesty, and it can be wrong by up to 20 points either way. Family and courtiers, and anyone Loyal, are **sworn to the House**; the rest serve you in person. Townsfolk draw 2–5 gold a day by skill (half as much again as a royal governor, paid from the realm's treasury), and a chief factor 6–12 a day from the company's capital. **Fill every vacant seat** names the best-suited of those free.
+
+**Standing orders.** The listed effects are for an average officer (skill 5). The good effects scale with the order's skill, from 0.3× to 2×.
+
+| Order | Seats | Effect | Skill |
+|---|---|---|---|
+| ⚖️ Keep things as they are | all | none | — |
+| 💰 Maximise revenue | holding, crown town, estates | +10% tax, −4 happiness, less order; +8% crown dues; +4% rents, tenants −6 loyalty. More skimming (×1.3) and bullying (×1.8) | Stewardship |
+| 🌾 Keep them fed | holding, crown town, estates | 3 days of grain laid by, +3 happiness, +0.2% growth, −5% tax / dues / rents; tenants +5 | Stewardship |
+| 🛡️ Build defences | holding | +12% defence, +4 militia, 10% fewer raids, −5% tax | Martial |
+| 🕊️ Keep the peace | holding, crown town, estates | more order, +1 happiness, −3% tax and dues; tenants +3; least bullying | Intrigue |
+| 🏗️ Grow the town | holding | +0.3% growth, +15% build speed, −3% tax | Stewardship |
+| 🔎 Watch the factors | company | each month goes over the posts' books; a skimming factor is caught (30% + 6% per Stewardship) and replaced | — |
+
+A skilled bailiff also takes a smaller fee than the old 8%: 9% less 0.6% per point of Stewardship (2–10%).
+
+**Works allowance** (holdings only): 0, 100, 250, 500 or 1,000 gold a season from your purse. Each week the steward may start one of the order's works (granary, walls, market square…) if nothing is building and you would keep 50 gold. A dishonest one pads the bill and pockets the difference (up to 25%).
+
+**What they do, week by week:**
+- **Skim.** Below an honesty of 0.62 they keep back part of the take, and more under *Maximise revenue*. Loyalty under 40 adds to it, fear of being caught cuts it, and a rival's bribe adds 8%. It never goes over 30%, and it comes on top of the skim a disloyal governor already takes (see above). The coin is real: it leaves the town's purse, the crown's collection, your rents or the company's capital.
+- **Excel.** An able (6+), honest, loyal (50+) officer may settle a feud: −8 unrest, +3 happiness, two days off the current work, +1 renown.
+- **Abuse.** The dishonest, and above all the cruel, greedy or stern, bully and extort: +6 unrest, −4 happiness, a cut of the town's purse. Once the talk passes a mark you get **Complaints**, and the panel says *they live well beyond the wage*.
+- **Bribes.** A rival House with a feud of 35+ may offer 60–220 gold, then about 70 a month while the feud lasts. The less honest or less loyal take it (−12 loyalty). An honest one sends the agents away and writes to tell you.
+- **Power.** Their hold on the seat grows by about 3–13 a year (more for the ambitious, the crafty and in a content town, +10 a year for kin), and by only 40% of that while their loyalty is 70+. At **power 70, loyalty under 35 and ambition 6+**, each week brings an 8% chance they **rise**. A governor raises the holding in rebellion (rebels up to half again as strong). A royal governor defies the crown and withholds the town's dues for 60 days. A chief factor goes to a rival house with 15% of the capital, and a bailiff flees with your rents.
+- **A match.** An ambitious (5+), loyal (50+), powerful (35+) officer who is not kin may ask for an unwed child of 16+ who is not your heir (at most once a year). You have 20 days to answer. Consent makes them kin and sworn to the House (+20 loyalty, +15 power) and costs up to 2 Prestige. Refusal costs −12 loyalty.
+
+**Dispatches.** Every 30 days one letter brings every officer's report (Journal → Letters, or *Dispatches* in the panel). A crooked steward's figure is rosier than the truth, and a dishonest one writes that all is well when it is not. The town's talk still shows through: *lives beyond the wage*, *much obeyed* (power 50+), *the letter is curt* (loyalty under 30).
+
+**Your hand:**
+- **🔎 Audit** (once in 30 days): 40 gold plus 10% of four weeks' income. The chance of finding a hand in the chest is 40%, +5% per point of your Commerce and Stewardship (more with a House Steward or Spymaster), −3% per point of their Intrigue, between 10% and 95%. If found, 70% of what they took comes back and any bribe is exposed. The honest (unless Loyal) take an audit as an insult (−4 loyalty).
+- **💰 Send a purse** (from 20 gold; about +6 loyalty per 100) or **🎖️ Honour them before the court** (4 Prestige: +10 loyalty, +6 power).
+- **⚖️ Fine them**: seize all they took, −25 loyalty, −30 power. They stay on, sullen and afraid. **⛓️ Strip them in disgrace**: seize it and remove them (+2 renown if they were caught). Punishing one never caught is tyranny: every other officer loses 6 loyalty and you lose 3 renown.
+- **🚪 Recall**: a strong (60+), disloyal (under 30) officer refuses half the time, and rises.
+
+An officer who leaves takes their pocket with them. **When you die**, those sworn to the House (or kin) stay. The rest stay if loyal (60+) or honest; a powerful, ambitious one stays but defies the heir (loyalty capped at 30); anyone else lays down the office.
 
 ---
 
@@ -5217,6 +5602,30 @@ Ask an NPC whether they need help and they may make a request. If you accept, it
 
 The reward depends on what they promised: gold, renown, karma, or forged weapons from a blacksmith.
 
+### Unfinished Business of the House
+
+Some quests are not posted on any board. They come out of your House's own history: what the world really remembers of you and your forebears. A few reach you each year (about one every 60 days, sooner the more renown and Prestige your House has, down to every 24 days for a famous House), at most **3 open at once**. The first comes after day 90. Each appears as a notice and as a card under **Unfinished Business of the House** at the top of the Quest Journal. The card holds the news, the person's own words, the objectives, and the ways to settle it.
+
+Where they come from (each memory is used once, then not again for 1,500 days):
+
+| Matter | Made from | What you can do |
+|--------|-----------|-----------------|
+| 🩸 **Blood price** | A townsperson who remembers a killing, a hanging, a robbed grave or a beating by your House. Often it is a story handed down: *"The Son of Bran Miller"*, whose father your grandfather hanged | **Pay the blood price** (gold scaled to the grudge, 60–900, paid into their purse), **ask forgiveness** (no coin; the chance rises with Diplomacy and falls with the depth of the grudge), or **face them down** |
+| ⚖️ **Old debt** | Wages your House never paid, a theft, a dismissal | **Repay** (25–400 gold to them) or **deny the debt** |
+| 🤝 **What is owed between friends** | The family of someone your House once helped (a burial, a healing, alms, a wedding, work) calls on the friendship: bread, firewood, clothes, candles or wine | **Bring the goods** from your packs, **send coin** instead, or **turn them away** |
+| 🛡️ **A plea for help** | The same kind of family begs protection | Reach the town **within 40 days** and **stand by them for 3 days**. It is checked day by day from where you stand |
+| 🏚️ **The memory of a town** | A town that remembers a raid, a conquest or a harsh court | **Pay to rebuild** (into the town's coffers) or **leave it be** |
+| 👑 **The grievance of a realm** | A ruling lord who still holds a wrong against your House, often one sworn to him by his father | Go to his seat and **pay reparations** (into the realm's treasury) or **defy** it |
+| 🏺 **The road to an heirloom** | An heirloom of the House stolen, sold, lost or given away, with a trail to a town | Go there and get it back by buying, taking, asking or searching (as in the Heirlooms panel). The quest ends when the House holds it again |
+
+**You must be there.** The ways to settle a matter open only when you stand in its town (or the lord's seat). Until then the card says *Go to … first*.
+
+**What it changes.** Settling a matter well gives Prestige (+2 to +6), renown, karma and standing in that realm. The holder also remembers it (*amends*, *kept faith*, *protected*). That memory weighs against the old grudge in their prices, work and testimony, and it is handed down to their children like any other memory. Denying, threatening or turning people away has costs: lost karma and standing, and the person remembers *threats* or *abandonment*. If you **face down a blood grudge**, the person swears a feud, and they may become a **Nemesis**. Every ending goes into the House chronicle. Coin always goes somewhere real (the Merchant's Ledger shows it as *Old debts and amends*).
+
+**Left too long.** Each matter has a deadline (40 days to reach a plea for help; 180–360 days for the rest). You can also **Let it lie** from the journal. If you don't come, a grudge hardens (*spurned*), and a deep blood grudge may become a feud. A family who begged for protection is hurt, and remembers that no help came. A lord takes the silence as an answer. If the holder dies first, the matter simply closes.
+
+**The telling.** The news, the person's words, the journal entry and the ending are templates. When the local AI model is on, the court chronicler rewrites them from the quest's facts only. Any rewrite that adds a name or number not in the facts is thrown away, and the template stays.
+
 ### Economic Quests (10)
 
 | Quest | Difficulty | Objective | Reward |
@@ -5295,7 +5704,7 @@ The game tracks **96 achievements** across multiple categories with Bronze, Silv
 |-------------|------|-------------|
 | First Fortune | Bronze | Accumulate 1,000 gold |
 | Wealthy | Silver | Accumulate 10,000 gold |
-| Tycoon | Gold | Accumulate 50,000 gold |
+| Tycoon | Gold | Accumulate 50,000 gold (purse and bank deposits) |
 | Recruit | Bronze | Recruit your first unit |
 | Commander | Silver | Have 10 units |
 | General | Gold | Reach 500+ army strength |
@@ -5508,6 +5917,39 @@ In the **royal audience** the lord's card lists the three memories that weigh mo
 
 Letters left unanswered: most cost −3 memory with the sender; an ignored call to arms −20 memory and −15 reputation; an ignored rival letter heats the feud; an ignored spouse's plea costs 20 affection; an ignored child's fear counts as trusting their in-laws, without the credit. **Journal → Letters** also lists the letters you answered, your loans to crowns and the promises you have given. Loans move through the Merchant's Ledger as *Loans to lords* and *Interest from lords' loans*. The inbox, loans and promises are saved with your game; a lord's memories are saved with the kingdom.
 
+### What the Townsfolk Remember
+
+The townsfolk keep a memory of your House too: *"You're the one who paid for my mother's burial." "Your grandfather hanged my father."* Each memory has a weight, and the weight halves over its half-life. (`systems/npcMemory.js`, `data/npcMemory.json`; lords keep theirs as above.)
+
+| Deed | Weight | Half-life (days) | Who remembers |
+|---|---|---|---|
+| A gift (×1.5 for 50+ gold) | +4 | 240 | the one given it |
+| Alms to the poor | +5 | 360 | the one given it |
+| Nursed through a sickness | +10 | 900 | the sick |
+| Hired for work | +5 | 360 | the worker |
+| Turned out of service / wages unpaid | −3 / −7 | 180 / 540 | the worker |
+| Wed | +15 | 2,400 | the spouse and their family |
+| Beaten in the street | −14 | 1,200 | the victim and their family |
+| Killed (seen) | −40 | 3,600 | the victim's family |
+| Caught stealing from their house | −8 | 600 | the owner |
+| Caught robbing a grave | −18 | 2,400 | the dead one's family |
+| Burying their dead | +14 | 2,400 | the dead one's family (not if they blame you for the killing) |
+
+**The town's own memory**, which every resident knows: a hanging ordered at court (−35), a merciful, generous, harsh or unjust ruling there (+8, +6, −8, −8), grain in a famine (+10), its defence (+15: breaking a siege of your holding there, or holding it on a realm's *defend* order), a raid (−25), a conquest (−15).
+
+A deed of weight 14 or more never fades below 35% of its weight. Each person keeps their six strongest memories and a town its eight. The same deed repeated within 5 days stacks, up to three times its weight.
+
+**Handed down.** Children hear their living parents' memories at half weight. When someone dies, what they remembered passes to their children (else siblings, else spouse) as a family story at 60% (85% for killings, hangings, grave robbing and raids), for up to four generations: *"It is a story in my family, from my grandfather's day."* Deeds count against whoever of your House did them: your own in full, your father's or mother's at 80%, a grandparent's at 60%, older forebears' at 45%.
+
+**What it does.** A person's memories, plus half the town's, add up to an **opinion** of your House (±40):
+- **Prices**: a trader sells to you up to 15% cheaper, or up to 20% dearer. At −30 they will not trade: *"I'll not trade with your House. Not after…"*
+- **Work**: each point shifts by 1% the chance they take your work, and at −25 they refuse.
+- **Witnesses**: at +25 or more, a witness to your crime keeps quiet.
+- **Your holdings**: a town that remembers you ill adds unrest every day (about 0.2 a day at −40), and one that remembers you well calms it.
+- **Greetings**: once a month someone may open with their strongest memory (*their face hardens*…). The language-model townsfolk are told their three strongest.
+
+A townsperson with a bitter enough memory may become a sworn avenger (see [Nemeses](#nemeses-enemies-who-remember)).
+
 ## Coalitions & Threats
 
 The realms watch you grow. While you are a wanderer nobody minds you; once you are a power, the courts start counting — and when you tower over them, the ones who fear and envy you most swear a **league** against you. Open **Dynasty → ⚜️ Threats** (also at the top of **Realm Wars**) to see where every enemy stands. (`systems/coalitions.js`, `systems/rivalAgents.js`, tuning in `data/coalitions.json`.)
@@ -5543,9 +5985,9 @@ At war, members' lords refuse you audiences. Realms that grow hostile enough (55
 **Resolve.** A league starts with 50 + 10 per member. Each week at war it wears down by 3; each war host you break costs it 4, each member it loses 12 (20 if you humbled that member on the field), each agent of its members you expose 8 (a turned one 4 a week). Each holding it takes from you adds 3, and **your growth hardens it** (0.2 per point of power above the most it has seen).
 
 **Ending a league:**
-- **Appeased** — you paid or bowed: every member stands down (and makes peace). No new league for 360 days. Paying in gold still costs a little Prestige.
-- **Humbled** — your power fell below 60% of the mark: they have what they wanted. 180 days' respite.
-- **Broken** — fewer than two members left, or its resolve is spent (then its wars end in exhaustion). Prestige for you. 240 days' respite.
+- **Appeased** — you paid or bowed: every member stands down (and makes peace). No new league for 600 days. Paying in gold still costs a little Prestige.
+- **Humbled** — your power fell below 60% of the mark: they have what they wanted. 360 days' respite.
+- **Broken** — fewer than two members left, or its resolve is spent (then its wars end in exhaustion). Prestige for you. 480 days' respite.
 
 **Splitting a member off** (Threats panel, per member): **buy it out** (250 + half its army + 8 per point of hostility, ×1.5 for the leader, less with Diplomacy Mastery) — its lord remembers the gold; **wed a grown, unwed child** into it (an alliance match, no dowry asked); or **cede it a colony or town** of yours (it remembers the gift, +15 standing, and the league loses more heart). Each ends that member's war, lifts its levy, gives you a truce with it and costs the league 10 resolve; if the leader goes, the next most hostile leads.
 
@@ -5566,6 +6008,36 @@ Rival Houses with a feud of 25+ (more readily while sworn into a league) **buy t
 - **Expose** them: named a traitor and driven out of town (their kin turn cold), +4 standing in the realm, the rival shamed (feud +5) and its league shaken.
 
 Agents leave when they die, move away, or their master's House falls. The leagues, the realms' regard and the agents are saved with your game; blood feuds are saved with the lords.
+
+### Pressure Clocks: How Fast the World Answers
+
+The league against you, the sieges of your holdings and the sagas do not wait on a lucky roll. Each runs on a **pressure clock** that winds faster the mightier your House is. (`systems/pressure.js`, tuning in `data/coalitions.json` → `pressure`.)
+
+**Might.** The clocks read the power score the courts reckon each week (the table above) as **might**, from 0 to 1: 0 at a score of 25 or less, 1 at 140 or more, in a straight line between (a score of 82 is might 0.5). The difficulty knob does not move these marks. A reckoning older than 28 days (during an interregnum, say) counts as no might at all. A starting wanderer has none, and no clock winds for them.
+
+**How a clock winds.** At each check a clock adds the days since the last check, divided by its **interval**. The interval runs from a slow figure (at the clock's lowest might) down to a fast one (at might 1). The clock fires when its charge reaches 1, give or take its jitter (fixed by the world seed, so reloading does not change it). The owner acts and the clock empties. If your might falls below the clock's lowest mark, the clock drains back down instead of winding.
+
+**Heat.** Each firing also warms the clock by 1 (up to 3), and its interval is divided by 1 + 0.2 × heat, so after three firings it runs 1.6 times as fast. Heat cools by 0.1 a year (a full 3 takes 30 years to go cold), and your heir inherits half of it. A long, mighty reign escalates, but only so far.
+
+| Clock | Starts winding at | Interval (slow → fast) | Jitter | When it fires |
+|---|---|---|---|---|
+| ⚜️ League | might 0.2 (score 48) | 1,080 → 360 days (9 → 3 years) | ±25% | Envoys ride: realms swear a league at lower hostility |
+| 🚩 Siege | might 0.1 (score ~37) | 720 → 240 days (6 → 2 years) | ±30% | The likeliest hostile realm moves on one of your holdings |
+| 📜 Sagas | (no clock) | Your might scales their schedule | — | Sooner, more at once, and word comes to your court |
+
+**The league clock** winds with the weekly reckoning. It stops while a league stands against you and during the respite after one ends. When it fires, envoys ride between the courts for **28 days**. In that time a realm with hostility of **24** or more (60% of the usual 40) counts as a willing member, even when your power is short of the league mark. If two or more such realms stand ready at two weekly reckonings in a row, the league is sworn (Threats lists its cause as "the courts tired of your rise"). If not, the talk comes to nothing and the clock starts again from empty. The **Threats** panel shows the clock as *The courts' patience with your rise: N% left*.
+
+**The siege clock** winds weekly while you hold a colony or a town in your own name. It pauses while any of your holdings is under siege, while a demand for one is pending, and for **240 days** after it fires. When it fires, it picks one realm. That realm cannot be your liege or a realm you rule, under truce with you, or already holding an ultimatum over you. It needs an army of at least 60 and hostility toward you of **12** or more (any hostility will do if it is already at war with you). Among those, the realm scoring highest on hostility (+30 at war), divided by 1 + its distance from your nearest holding ÷ 15, is picked:
+- **At war with you**, it sends a war host straight at the holding nearest its towns (strength 20 + 4% of its military, 25–180): *"X Marches on Y"*.
+- **At peace**, it covets that holding and sends a tribute ultimatum (300 + half its military, due in 10 days; see [Wars Against You](#wars-against-you)). Pay and it goes away: +20 reputation and a 60-day truce. Refuse, and once the war is declared its host marches on the coveted town. The demand lapses after 40 days.
+
+**Sagas** have no clock of their own, but your might shapes them:
+- The 45–90-day gap before the next saga is multiplied by 1.5 for a House with no might (68–135 days) and by 0.75 at full might (34–68 days).
+- A saga that has run may return after 750 days for a weak House, down to 510 for a mighty one.
+- At might **0.6** (score 94) or more, three sagas can run at once instead of two.
+- At might **0.2** (score 48) or more, word of each new saga is **brought to your court** as it begins, so you can join it from the first chapter.
+
+**What you can do.** The clocks read the same power score as the leagues, so whatever lowers it slows all of them: fewer towns and colonies, a smaller army, a smaller net worth. Hostility decides who answers. Keep realms' hostility below 24 (the league, when primed) and 12 (the siege pick) with gifts, marriages, good standing and settled grudges. A truce, or tribute paid, keeps a realm out of the siege pick while it lasts. Garrison and stock the holdings nearest your most hostile neighbours, because that is where a host will march.
 
 ## Mail & Courier Houses
 
@@ -5632,12 +6104,12 @@ Prices scale with the house's stars and its keeper's pricing. A booked room coun
 
 **Opening your own.** Under **Build Property → 🛏️ Hospitality**:
 
-| Property | Cost | Build | Upkeep | Where |
+| Property | Cost | Work-days | Upkeep | Where |
 |----------|------|-------|--------|-------|
-| Guest House | 650 | 6 days | 3/day | any settlement |
-| Inn | 1500 | 10 days | 6/day | any settlement |
-| Grand Hotel | 4200 | 16 days | 14/day | city or capital |
-| Roadhouse | 550 | 6 days | 2/day | a road hex, away from towns |
+| Guest House | 650 | 35 | 3/day | any settlement |
+| Inn | 1500 | 60 | 6/day | any settlement |
+| Grand Hotel | 4200 | 120 | 14/day | city or capital |
+| Roadhouse | 550 | 35 | 2/day | a road hex, away from towns |
 
 Each night the town's travellers look for beds. How many there are depends on the town's size, a road, the season (summer is busiest, winter quietest) and war. They choose among **all** the town's houses, yours included, by stars, price and reputation. A hotel only draws the wealthy share of them. A roadhouse's guests come from the road traffic. Your house earns its room takings plus what guests spend, and pays its upkeep, staff wages and supplies for each guest. All of this appears in the Ledger as *Guest houses, inns & hotels* and *Innkeeping: staff & supplies*.
 
@@ -5735,7 +6207,7 @@ Tuning: `data/digging.json`, `data/graves.json` (`robbery`, grave-goods classes)
 
 Beyond single events, the world tells **sagas**: storylines in 3–5 chapters that unfold over two to four months whether or not you take part. Each one is staged on the game's own systems. Its chapters start real timed events, plagues and famines, put monsters and fleets on the map, open delve sites, raise heresies and succession crises, bring petitioners to your court and post quests. Each saga ends in one of several ways, and every ending leaves the world changed.
 
-**When.** The first saga begins somewhere between day 60 and day 120 of a new game. After that a new one starts every 45–90 days, and at most two run at once. Sagas are chosen to fit the world: Sea Reavers needs a coast, The Wyrm Wakes needs mountains or hills, and the faith sagas need a realm with a faith. The same saga does not come round again for about five years.
+**When.** The first saga begins somewhere between day 60 and day 120 of a new game. After that the next one starts 45–90 days later, scaled by your House's might (×1.5 for a small House, ×0.75 for a mighty one), and at most two run at once (three for a mighty House; see [Pressure Clocks](#pressure-clocks-how-fast-the-world-answers)). Sagas are chosen to fit the world: Sea Reavers needs a coast, The Wyrm Wakes needs mountains or hills, and the faith sagas need a realm with a faith. The same saga does not come round again for about five years (510–750 days, sooner for a mightier House).
 
 **Hearing of them.** You only follow sagas you have heard about:
 - **Tavern notice boards** (free at any tavern) carry talk of sagas within about 28 hexes or in that town's kingdom.
@@ -5779,6 +6251,127 @@ The gold comes out of the realm's treasury. A realm that can't pay in full still
 While a wyrm, flagship or company roams, every **notice board** within 28 hexes posts it as a legendary bounty: where it was last seen, the price, and the realm that pays. Take the notice and the board tracks the beast for up to 120 days. When you kill it, you earn a **hunter's fee** on top of the realm's bounty: 25% more, plus your hunter rank's pay bonus. It counts as a bounty completed and toward your hunter rank. If the beast leaves the story (flies off, sails away, crosses into another realm), the notice lapses. Rival bounty hunters leave saga beasts to you.
 
 Saga monsters and fleets are named world units. A kingdom patrol cannot bring down the wyrm or the Iron Company, but royal war fleets do hunt reavers; if one sinks the flagship, the crown gets the credit. Everything a saga changes is saved with your game: its events, sites, crises and heresies with the world, and the saga itself with you. Its monsters return to the map when you load.
+
+---
+
+## The Age: Age-Defining Crises
+
+A few times a century the whole world lives through a **crisis**: an invasion from beyond the edge of the map, a great plague, a schism of a faith, a famine decade or a gold rush. Each runs for years in phases, and it works through the game's own systems: real hosts on the map, named townsfolk falling sick, harvests failing, people moving. Open **Dynasty → 🌋 The Age** to follow it. (`systems/crises.js`, `data/crises.json`.)
+
+**When.** The first crisis begins between **year 12 and year 22**. Only one runs at a time. After it ends and its aftermath passes, the world rests **18–30 years** before the next, so a century sees two to four. The same kind never comes twice in a row, and each kind needs a world that suits it. Weights: plague 1.1, invasion 1, famine 1, schism 0.9, gold rush 0.8. Crises run whether or not you take part, and they go on during an interregnum.
+
+| Crisis | Needs | How it runs | How it ends |
+|---|---|---|---|
+| ⚔️ **Invasion** | 3+ realms; open land at the map's north or south rim (else a far coast) 5–22 hexes from a town | **Omens** for 90–180 days. Then a host lands: the average army of the three nearest realms × 2.4–3.4 (at least 200), in 2–3 hosts. They march 2 hexes a day on the nearest towns and storm every 30 days. A year in, and again two years in, a fresh wave lands (45% of the first). The war lasts 3–6 years | **Settled**: their hosts are spent while they still hold towns, or the years run out. Peace is made and their realm stays on the map. **Repelled**: no town held and the hosts gone (or the years run out). They sail home |
+| ☠️ **Great Plague** | A port town with trade links | It comes ashore at one of the five busiest ports. Each week it spreads along trade links (20% a link, ×1.3 by road, ×1.6 by sea, ×0.3 if either town keeps quarantine; weaker week by week after the first year), up to 60% of all towns. A struck town suffers 90–150 days and loses 8–22% of its people (×0.8 for a village up to ×1.25 for a capital). Its named townsfolk really fall sick and die, and labour runs short | It wanes after 14 days with no town sick, 150 days with no new town, or 5 years. Within those 5 years it may **return** in spring (60%) at a port it has not struck |
+| ⛪ **Schism** | 3+ realms with a faith | **The dispute** (180–360 days): a reformer preaches in one realm's biggest town and its piety falls. **The split** (360–720 days): that realm takes the new church. Realms within 30 hexes declare one by one for the old church or the new, and the rest hold to the old church at the end. Same camp +12 relations, opposite camps −22. **The strife** (2–5 years): neighbours of opposite camps on bad terms may go to war over the faith (two wars at most) | **Triumph**: one camp's armies are twice the other's, and every realm in the dispute takes its faith. Otherwise **the Peace of the Faiths**: both churches stand, for good |
+| 🥀 **Famine** | A harvest year with 2+ regions | Every harvest region within 22 hexes of one town gets a blight each year for 6–10 years (35–60% severity, milder in the first and last year), and a murrain every second year. The dearth, doles, hoarders and hunger follow from the real shortage (see [Harvests](#harvests-good-years-and-bad)) | The harvests come back when its years are done |
+| 💰 **Gold Rush** | A town with a gold-mine prospect | A gold mine with 4× the usual reserve opens by the town and is quickly built. Each week 0.4% of the people of every town within 14 hexes move to the boomtown (up to 8% of each). The gold goes to market and to the mints | **The bust**: once the lode is under 15%, worked out, or 8 years old, 60% of the newcomers drift home over 180–360 days |
+
+**An invasion up close.** Realms whose capitals lie within 26 hexes of the landing are asked to swear a **Grand Alliance**. Up to five may join, at 60% base: honourable lords join more readily, ambitious ones less. Members end their wars with one another and become allies; the others stand aloof.
+
+**A storm** sets the hosts at the walls (× 0.85–1.15) against a defence made of:
+- the defending realm's garrison: 30% of its army, or 50% for its last town;
+- relief: 10% of the army of each alliance realm whose capital is within 14 hexes;
+- all of it multiplied by the walls: capital ×1.5, city ×1.3, town ×1.15.
+
+Losses stick to both sides. A town taken is **sacked**: 30% of its purse goes to the invaders' war chest, 20% of its stores are looted and 8% of its people are lost. The first town taken becomes the capital of a new **invader realm** at war with the whole alliance. The host rests there 45 days and leaves 15% of its men as a garrison. Away from their own land the hosts starve, losing 1.5% a week unless fed, and a host that falls below 30 is gone.
+
+**What you can do** (the panel lists each choice, greyed out with the reason when it isn't open to you):
+
+| Crisis | Choice | Cost | Needs | Effect |
+|---|---|---|---|---|
+| Invasion | ⚔️ Ride against the vanguard | — | A host within 3 hexes and an army | A battle against its vanguard (20% of the host). Win: the host loses 60% of the vanguard, +10 Prestige, +6 standing with each alliance realm. Lose: it still loses 15%, +2 standing |
+| | 🛡️ Fund the defence | 100, 250 or 500g | An alliance capital within 30 hexes | The gold goes into its treasury: 1 soldier per 4g, +1 standing per 50g, and its lord remembers it |
+| | 🍖 Sell victuals to the invaders | — | Within 5 hexes of a host, with grain or bread in your packs | They pay 2.2× value out of their plunder, and the host is fed (no starving) for a day per measure, up to 60. −3 karma, −5 standing with every alliance realm |
+| | 🏃 Flee to safety | 30g | A host within 10 hexes | You are set down in the nearest town at least 14 hexes from every host (leave the town streets first) |
+| Plague | ⚕️ Pay physicians | 200g | In a town | For 120 days 40% fewer of its people die of the plague. +4 standing with its realm, +2 karma |
+| | 🚧 Proclaim quarantine / open the gates | — | You rule a realm | Sets your realm's pestilence law: sick towns shut, the plague crosses a third as often, and trade dries up. AI crowns proclaim it themselves as the plague nears |
+| | 🏃 Flee the pestilence | 30g | The plague is in your town | Moves you to the nearest town at least 14 hexes from every stricken town |
+| Schism | 📣 Preach for a side | 150g | In a realm the new church has reached | The realm leans your way when it declares. +3 standing with realms of that side, −3 with the other |
+| | 📜 Sell indulgences | — | The same | You take 3% of the town's purse (up to 400g). −4 karma, the realm's piety −2, and it leans a little toward the reformers |
+| Famine | 🍞 Give your grain and bread | All your staples | A town in the famine lands | Your grain, bread, food, preserved fish and vegetables go into its market (bread gets cheaper). Up to +15 standing and +6 karma, and its lord remembers |
+| Gold rush | ⛏️ Stake a claim | — | — | A pointer: bid for the diggings' lease in the boomtown's Hinterland panel, or carry tools and food to the miners at boomtown prices |
+
+Every coin moves between real purses: your ledger lists them as *crisis aid* and *crisis trade*. Your deeds go into the House chronicle. The great turns of a crisis reach you as notices wherever you are, and the Steward's Counsel warns of a host or the plague near you and points out a choice that is open.
+
+**The Age panel** shows the running crisis (its phase, its hosts or the towns struck and the dead, the camps, the regions or the boomtown, and its last five events), what of it is near you, your purse and choices, and **the crises on record**. Each finished crisis becomes a chapter in the Annals. With the AI brain set up, the court scribe may write the narration (see [The Court Scribe's Pen](#the-court-scribes-pen)), with the template text as the fallback.
+
+## Climate Over Centuries
+
+Under the day-to-day weather the climate itself drifts. Every so often the world passes through a **climate era** that lasts years or decades and shifts harvests, winters, prices and sickness across a whole region. A long game (10,000 days, some 83 years) usually sees **one or two** eras, sometimes three. Between them the climate is settled and nothing changes. (`world/climate.js`, `data/climate.json`.)
+
+**When.** The first era begins between **year 14 and year 30**. After it ends, **20–45 quiet years** pass before the next. Only one runs at a time, and the same kind never comes twice in a row. Each era eases in and out over about 4 years and is strongest in the middle. The curve comes from the world's seed: the same world always has the same climate, and a loaded game carries on with it.
+
+| Era | Weight | Lasts | Where | What it does |
+|---|---|---|---|---|
+| ❄️ **Little Ice Age** (*the Long Winter*, *the Grey Years*, …) | 1.2 | 20–45 years | Everywhere, hardest toward the poles (×1.5 at the map's north and south edges, ×0.6 at the equator) | 4–6°C colder (up to 10°C at the edges). More snow and blizzards, cold days start earlier and end later, and firewood and warm clothes are in demand more of the year. Harvests fall by about 8–15% (worst in the far north and south). Harbours in the north freeze in winter. Winter sickness rises |
+| ☀️ **Warm Period** (*the Warm Age*, *the Golden Summers*, …) | 1 | 22–45 years | Everywhere | 3–5°C warmer. Cool lands toward the poles gain up to about +12% at harvest, temperate land a little, and the hot lands lose up to about −5%. Fewer northern harbours freeze. Summer fevers rise |
+| 🏜️ **Great Drought** (*the Dust Years*, …) | 1 | 8–18 years | A band of latitudes (about a fifth to a quarter of the map's height either side of its centre) | The rains fail: 12–18 points less rain, and heat waves come more often. Harvests in the band fall by up to about 30%, and by a third more on already dry land (the desert's edge); never below 60% |
+| 🌧️ **Wet Decades** (*the Drowned Years*, …) | 0.8 | 8–16 years | A band of latitudes | 8–12 points more rain and storms. Grain rots on moist land (down to about −7%) but dry land does better (up to +10%). Fevers rise |
+
+**What it touches.**
+- **Weather.** An era adds to the weather's temperature and rainfall. Snow, blizzards, heat waves and storms follow from that, and so do everything that reads the weather: travel, exposure, building pace and storms at sea.
+- **Harvests.** Each region's harvest is multiplied by the era's factor, averaged over its towns (shown as *climate* on the year's reckoning). Its herds feel half of it. Grain, wine, linen and livestock in the markets, the granaries, rents and your own farms all follow (see [Harvests](#harvests-good-years-and-bad)). A run of short harvests can bring the Hungry Months.
+- **Fuel and clothing.** A town counts as *cold* below 5°C or in snow. A colder age means more cold days, so firewood (×1.5) and warm clothes (×1.3) are dear more of the year.
+- **Frozen harbours.** A port freezes in winter when its temperature with the season falls below the ice line. In an ordinary age only the coldest northern ports freeze; a little ice age adds more and a warm age thaws them. Sea trade to or from a frozen port carries only **15%** of its goods and sends no ships. Your own ship cannot make port there: it stands off the ice until the thaw. A ship docked in a frozen harbour cannot put out either (sail, send or board her): she is frozen in until the thaw.
+- **Sickness.** Townsfolk fall ill more often: up to ×1.4 (wet decades and warm ages all year, a little ice age in winter).
+- **People move.** People drift from the towns an era starves toward those it spares or favours. This adds to the usual pull of welfare between linked towns.
+- **The crises.** While an era is at its height, the odds of the next [age-defining crisis](#the-age-age-defining-crises) shift. Little ice age: famine ×1.8, invasion ×1.6 (peoples driven out of a freezing north). Drought: famine ×2.5, schism ×1.2. Wet decades: plague ×1.8, famine ×1.3. Warm period: plague ×1.3, gold rush ×1.2. A famine begun during an era centres on one of the five towns it hits hardest.
+
+**Seeing it.**
+- A notice when an era begins and when it ends.
+- Hover the date in the top bar for a line on what the era does where you stand, for example *❄️ The Long Winter (since 932): long hard winters, more snow, fuel and warm clothes dear, harvests −11% here.*
+- The Steward's Counsel warns when it costs your land 5% or more of its harvest, or freezes its harbours, and points out land it favours (+4% or more).
+- The map takes on the era's light: paler and frostier in a cold age, dusty in a drought, grey-green in wet decades.
+- Each era becomes a chapter of the Annals (**The Long Winter, years 932–961**), told at its start, its height and its end, beside the crises. With the AI brain set up, the court scribe may write those lines.
+
+## Town Memory: Fires, Ruins, Statues and Cairns
+
+A town in its sixtieth year is not the town of its first. Each town keeps **marks** of its history, and its street map shows them: burnt shells and charred plots, ruins, statues in the square, cairns by the road out. Each town takes stock once a month, on its own day. (`systems/townMemory.js`, `world/townMarks.js`, `data/townMemory.json`.)
+
+**Fires.** A town can burn at most once a year. The chance each month:
+
+| Village | Town | City | Capital |
+|---|---|---|---|
+| 0.24% | 0.32% | 0.40% | 0.45% |
+
+The chance is ×1.6 in summer, ×1.25 in winter and ×1.5 while the town's realm is at war. The town's culture matters too: Woodland and Nordic ×1.35, Swamp ×1.2, Maritime ×1.1, Arcane ×0.85, Religious ×0.8, Imperial ×0.75, Mountain ×0.7, Nomadic ×0.6, Desert ×0.4. A town sees one or two fires a century.
+
+A fire burns 5–25% of the town; one in eight is a **great fire** that burns 35–70%. For the share burnt:
+- 1.2% × that share of the people die and 12% × it are burnt out and leave, named townsfolk among them;
+- happiness falls by 6 + 20 × the share;
+- half that share of the market's stores burns.
+
+On the street map the fire starts in a timber house and runs from roof to roof, more readily wall to wall than across a lane. Timber and thatch burn; stone and brick are only scorched. Burnt houses stand as roofless shells for 60 days (doors fallen in; nobody goes inside), then as cleared plots with charred timbers. They are rebuilt over 1–6 years: landmarks sooner, a poor town ×1.5 slower, a rich one ×0.7. About 45% come back in stone (70% in a rich town). After a fire that burned 30% or more, the council orders 90% rebuilt in stone.
+
+**The rebuilding** costs the town for years. It hires 3 hands for every building still to raise, so craft wages rise. Each month it takes 1.2 wood per building, and stone for those going up in stone, out of its market, so timber and stone stay dear there.
+
+**Sacks.** A town you sack (see [Sieges and Raids](#sieges-and-raids)), or one an invading host takes (see [The Age](#the-age-age-defining-crises)), keeps the ruins: 20–45% of it, worst at the heart of town, rebuilt over 2–12 years. Some plots are never rebuilt (35% in a poor town, 20% middling, 10% rich) and stay as rubble under a broken arch or a fallen column. About 35% come back in stone. Some named townsfolk are killed and others flee.
+
+**Cairns and grave mounds.** A battle where 40 or more fell within a hex of a town leaves a **cairn** by the road out of town, with a **grave mound** beside it if 300 or more fell. Battles on the open field leave theirs on the field, and each hex keeps its three greatest. A second battle at the same place within 240 days adds its dead to the same cairn. Cairns come from the realms' wars, an invasion's storms of a town, and the battles you fight in command of a realm's army. A town a great plague has passed through buries its dead in a **plague pit** outside the walls, a mound it keeps, where 25 or more died. The next month the town grieves: happiness −3, and −1 more per hundred dead, up to −15.
+
+**Statues.** A town raises a statue to the head of your House when your **standing** there reaches **70**. Standing is +50 if your House gave it a great work (see [Patronage & Great Works](#patronage--great-works)), +35 if you hold the town, plus half your net fame (good minus ill) in its realm. A capital with no such tie raises one on fame alone once your net fame there is 140 or more. Raising one gives +5 renown and +10 Prestige, then +3 Prestige for every year it stands. A town keeps only one of your House's statues, and raises no new one within 12 years of the last.
+
+If the town comes to **hate** you (net fame −25 or worse, or you sacked it in the last 30 years), your statue is **defaced**: scratched over, with *TYRANT* in red paint. Two years later, still hated, it is **toppled** (−4 renown), and any square named for your House goes back to its old name. Win the town back while the statue is only defaced and it is scrubbed and given a new head. A statue of a House that is no longer yours is defaced after 3 years and pulled down 2 years after that.
+
+**A renamed square.** Where your House is bound to the town (a great work or your lordship) and your standing reaches **110**, the market square takes your House's name (*Vael Square*), marked with a memorial plaque. The name reverts 6 years after the House is no longer yours, or when your statue there is toppled.
+
+**New quarters.** At most once every 12 years, a prosperous town (wealth score 0.58+) that has grown 20% since its last new quarter builds another: 5–9 houses along its high street, up to four quarters in all.
+
+**The town's mood.** Its memory adds −20 to +12 to the town's happiness:
+- +3 for each standing statue (two at most), −2 for a defaced one, +1 for a named square;
+- −5 to −9 for each cairn, by its dead;
+- −12 × the share burnt for a fire, −8 for a sack.
+
+The cairn, fire and sack figures all fade over 12 years.
+
+**Up close.** On a town's streets, or on a battlefield, click a statue, cairn, mound, plaque or ruin:
+- **Read the Inscription**: what is carved there (the AI model writes it when one is set up).
+- **Pay Your Respects** (cairns and mounds): +1 karma, and +1 renown if it was your own battle; once a year at each.
+- **The History of** the town: every fire, sack, statue, cairn and new quarter, year by year.
+
+Each event also goes into the townsfolk's own annals. You hear of fires, cairns and new quarters in towns you know (towns you have walked, or within 6 hexes), of any great fire anywhere, and of your own statues and squares wherever they are.
 
 ---
 
@@ -6071,6 +6664,40 @@ The game auto-saves every 5 in-game days.
 - **Load**: Load from your most recent save.
 - **Export/Import**: Export your save as a file to back up or share, and import saves from files.
 
+### Ironman and the Hall of Houses
+
+**Ironman.** Tick **Ironman** in the **Legacy & Ironman** group of the New Game sheet. An Ironman run keeps **one save**, in a slot of its own apart from your ordinary save. It is written at the end of every day (instead of every 5) and whenever you leave the page: the Main Menu button, a reload or a closed tab.
+
+- **No saving, exporting or loading by hand.** Those buttons only tell you that the run saves itself.
+- **A death is saved the moment it happens**, before the deathbed screen. Reloading brings you back to the deathbed, not to the day before.
+- **An heir, a new life or letting time pass** carries the run on. When your line ends (the epitaph), the run is over and its save is deleted.
+- **There is one Ironman slot.** Starting a new Ironman run replaces one under way, and the sheet warns you first. On the title screen the run shows as **⚒️ Continue (Ironman)** and is marked ⚒️ IRONMAN in the save list.
+- **The cheats panel is shut.** You may open it anyway, which **taints** the run for good: it stays Ironman, but it earns nothing in the Hall. Using a cheat in any game, Ironman or not, taints the run.
+
+**The Hall of Houses.** Every House whose line ends is entered in the Hall. Open it with **🏛️ Hall of Houses** on the title screen. The Hall is kept in your browser, outside every save, so it outlives the game it was earned in (up to 200 Houses). Each entry shows the House's sigil and motto, its rank and Legacy score, its years and generations, and up to three peak titles (crowns first). It also shows how, when and with whom the House ended, its origin and difficulty, the House it descended from, any victory, the heirlooms it still held (up to five) and every reign. Ironman and 🧪 tainted Houses are marked. **📖 Open the chronicle** downloads the House's chronicle book (see [The Illustrated Chronicle](#the-illustrated-chronicle)), which is built and kept when the line ends. **Forget** removes a House, and what it earned, for good.
+
+**What the Hall earns.** Only untainted Houses count:
+
+| Unlock | Needs | Gives |
+|--------|-------|-------|
+| 📜 A Remembered Name | 1 House ended | You may descend from a past House |
+| 👑 The Ancestral Claim | 1 House that wore a crown | A crowned line's descendant holds a weak claim to a throne |
+| 🗡️ The Grandsire's Blade | a House with a Legacy score of 250 | Inheritance: a sword heirloom |
+| 💍 The Family Silver | 40 years ruled, all Houses together | Inheritance: a ring heirloom and 1 Silver Jewellery |
+| 📖 The House Book | a House of 3 generations | Inheritance: a book heirloom |
+| 🦁 Blood of the Brave | a House with a Legacy score of 600 | Inheritance: the Brave trait |
+| ⚒️ Ironsworn | 1 Ironman House ended | Inheritance: the Honest trait and +5 renown |
+| 🕯️ Scion of a Fallen House | a House of 2 generations | A legacy start |
+| 🏛️ Keeper of the Hall | 5 Houses ended | A legacy start |
+
+**Starting with a legacy.** Below the Ironman box, the New Game sheet offers what you have earned. You may take one of each:
+
+- **Legacy start** (in place of the origin above). **Scion of a Fallen House:** 400g (scaled by the difficulty's starting gold), +10 Prestige, +1 Diplomacy, and always descended from a past House (your latest, if you pick none). **Keeper of the Hall:** 150g, +1 Diplomacy, +1 Commerce and two books.
+- **Descended from.** Pick a past House and the new world remembers it. You get a line of lore in your House chronicle and +5 Prestige, and one realm holds an old grudge against the name (a feud of 18). With the Ancestral Claim, a line that wore a crown also gives you a weak blood claim (strength 8) on another realm's throne.
+- **Inheritance** (one boon). If you descend from a House that held an heirloom of the same kind, the heirloom carries that heirloom's name.
+
+Tuning: `data/metaLegacy.json`.
+
 ---
 
 ## 30. Controls & UI
@@ -6099,6 +6726,30 @@ Click on your character or nearby hexes to open the **contextual radial action m
 - **Notification Toasts**: Stacked alerts for events, achievements, and quest completions.
 - **Finance Panel**: Click your gold to see a 90-day financial breakdown.
 
+### Pass the Time: Letting Days Go By
+
+To let several days pass at once, press **⏳** in the top bar, choose **Pass the Time…** in the action menu, or press **Shift+Enter** to wait a week. You can wait **a day, three days, a week, a fortnight, a month (30 days)** or **until the season turns** (1 to 30 days). Each choice shows the date it runs to and what the beds will cost.
+
+Every day of the wait is an ordinary End Turn: the realms move, your properties and builds work, wages and bills come due, and the game auto-saves as usual. A bar shows the days going by. **Stop** or **Escape** ends the wait once the day under way is over.
+
+**Where you sleep.** In your own house you rest at home. If you took a room at an inn tonight, it is taken again each night and paid for. In a town with no room taken, you sleep on a common-room bench, or you can switch to the cheapest room in town each night. Elsewhere you make camp. If you cannot get the room one night, the wait stops.
+
+**When you can't wait:** while travelling (arrive or stop first), with a ship on a voyage, with a band in your way, a choice waiting or a battle under way. If your life has ended and you are watching the world, waiting passes the world's days instead.
+
+**What cuts the wait short:**
+- your death;
+- a band falling on you, a choice scene, a field battle, or a menu or panel that opens by itself (a Season's Reckoning, for instance);
+- a hostile band coming within **3 hexes** (unless you are in a safe haven);
+- a new illness or wound;
+- a letter that wants an answer;
+- the death of one of your children, or the end of your marriage;
+- starvation setting in, hunger falling below **20**, energy below **12**, or health below **35%** of its maximum;
+- a crisis beginning, a nemesis sworn against you or striking home, or a House quest arriving;
+- a serious notice: any error, or a notice whose title speaks of war declared, a siege, an attack, an ambush, being waylaid, a crisis, a rebellion, an arrest, an assassin, a scheme striking, an ultimatum, a kidnapping, a capture or abduction, fire, plague or starving;
+- a day that fails to end.
+
+**While the Days Passed.** The notices of the wait are not shown one by one. They go to the Event Log, and at the end you get one digest. It shows the days passed, the change in your purse and health, and the beds paid for. It also shows what cut the wait short and the news (latest first; repeats are folded together with a count). Routine notices (taxes, upkeep, production, auto-saves) are folded away under *The daily round*. With the AI on, the court scribe adds a short paragraph at the top. The steward's morning brief follows. **⏳ Wait longer** opens the menu again. If a panel opened by itself, the digest waits behind a notice with a **What happened** button.
+
 ### The AI Brain: Voiced Townsfolk and the In-Browser Model
 
 A language model can, if you wish, give a voice to the people you talk to: townsfolk's replies, letters rephrased in their writer's voice, the court scribe's chapters of the Annals, and the proposals of rulers and rival heads of House. It is **off by default**, and the written lines stay the default. The model only narrates, and when it proposes, it chooses from a fixed menu. The game still rolls every die and checks every proposal, so the world runs the same with the model on or off. When the model is off, slow or out of reach, the written lines are used.
@@ -6119,6 +6770,29 @@ Open **AI Settings** on the title screen (in a game: Settings → *Enable AI NPC
 - **Try it first.** **Test Connection** checks that the model answers. **💬 Talk to the model** lets you say something and see its reply and how long it took (nothing is saved). **Temperature** sets how freely it writes. Press **Save** to keep the settings.
 
 Tuning: `data/llmModels.json` (the models, the timeout and the reply length).
+
+#### The Court Scribe's Pen
+
+Besides voicing the people you talk to, the model can retell the game's lasting prose. The game always writes each passage itself first, from its own facts, and shows it at once. With the AI on, the passage is also handed to the **court scribe**, who rewrites it in the background in a grave period voice. When the retelling is done it takes the place of the plain text, and it is saved with your game. (`systems/llmProse.js`.)
+
+**Scribe writes** in AI Settings picks which passages it retells (all are on by default):
+
+| Scribe writes | Passages |
+|---------------|----------|
+| Annals | Annals chapters (closed chapters once, the current chapter once a year, or on demand with ✒️ *Have the court scribe write this chapter*), reign summaries, crisis entries, town histories and monument inscriptions, deed summaries, the chronicle book's foreword and epilogue |
+| Epitaphs | your House's epitaph, the settling of a late ruler's estate |
+| Letters | court letters in their writer's voice, a nemesis's letters |
+| Heralds | the heralds' daily cry, the paragraph over a time-skip digest |
+
+Stewards' reports, a nemesis's taunts and life story, and your kin's family stories are retold whenever the AI is on.
+
+**Keeping to the facts.** The scribe is told to use only the facts it is given. A retelling that contains any number or capitalised name not found in the facts is thrown away, and the plain text stands. Titles such as King or Lady, and the seasons, are allowed. A request the model never answers is tried again the next time the game records that passage, up to two tries.
+
+**Its pace.** The passages wait in a queue, most important first: Annals, reigns and epitaphs, then crises, estates, the nemesis, deeds and towns, then letters, family stories, the digest and the heralds. The scribe writes at most **2 at a time**, fewer while a townsperson's reply is being written, so the person in front of you goes first. It starts at most **24 a game day**. Unfinished passages are saved and picked up again after loading.
+
+**What is kept.** The run's history (Annals chapters, reign summaries, epitaphs, the chronicle's foreword and epilogue, crisis entries) is kept for good. Other retellings are kept up to 300, oldest dropped first.
+
+**With no model.** With the AI off, nothing is queued and nothing is sent: every passage is the game's own text. The scribe rolls no dice, so the game plays out exactly the same either way. If the model is slow or out of reach, the plain text stays. Switch the AI on later and older passages are retold the next time their system records them (the current Annals chapter each year, for instance).
 
 ### The Steward's Counsel
 

@@ -55,14 +55,24 @@ export const Coinage = {
     priceMultiplier(world, settlement) {
         const k = Coinage.kingdomOf(world, settlement);
         if (!k) return 1;
-        return Coinage.purityFactor(k) * MoneySupply.level(world, k.id);
+        return Coinage.purityFactor(k, world) * MoneySupply.level(world, k.id);
     },
 
-    /** The purity term alone: 1 + (1 − purity) × elasticity (1 for pure coin). */
-    purityFactor(kingdom) {
-        const p = Coinage.purity(kingdom);
+    /**
+     * The purity term alone: 1 + (1 − fineness) × elasticity (1 for pure coin).
+     * With `world`, the fineness is that of the coin in hand (MoneySupply.fineness:
+     * a debasement reaches the prices week by week as the old coin is restruck,
+     * and badly clipped coin is worth less); without, the mint's standard.
+     */
+    purityFactor(kingdom, world = null) {
+        const p = world ? MoneySupply.effective(world, kingdom) : Coinage.purity(kingdom);
         if (p >= 1) return 1;
         return 1 + (1 - p) * _num(Coinage.config().elasticity, 0.9);
+    },
+
+    /** The silver in a realm's coin: { standard, circulating, clip, effective, lag } (world/moneySupply.js). */
+    fineness(world, kingdom) {
+        return MoneySupply.fineness(world, kingdom);
     },
 
     /** The quantity term alone: the realm's price level (world/moneySupply.js). */
@@ -70,8 +80,12 @@ export const Coinage = {
         return kingdom ? MoneySupply.level(world, kingdom.id) : 1;
     },
 
-    /** How far a realm's people trust its coin and its crown's word, 0–100. */
-    trust(kingdom, day = null) {
+    /**
+     * How far a realm's people trust its coin and its crown's word, 0–100.
+     * With `world`: the coin in hand, its clipping too (MoneySupply.trust).
+     */
+    trust(kingdom, day = null, world = null) {
+        if (world && kingdom && MoneySupply.realm(world, kingdom.id)) return MoneySupply.trust(world, kingdom, day);
         const f = kingdom && kingdom.finance;
         if (!f) return 100;
         let t = 100 - (1 - Coinage.purity(kingdom)) * 150;

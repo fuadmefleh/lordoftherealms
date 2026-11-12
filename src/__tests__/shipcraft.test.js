@@ -32,6 +32,8 @@ describe('shipcraft', () => {
         const s = res.success ? tile.settlement : null;
         expect(s).toBeTruthy();
         player.gold = 1e6;
+        // At the dawn the purse is in kind (world/barter.js): it holds what the village can give
+        const purse = player.gold;
         expect(Ships.canBuild(player, world, s, type('rowboat')).ok).toBe(true);
         for (const id of ['fishing_vessel', 'sloop', 'cog', 'caravel', 'war_galley', 'galleon']) {
             const c = Ships.canBuild(player, world, s, type(id));
@@ -41,7 +43,7 @@ describe('shipcraft', () => {
         const r = Ships.commissionShip(player, tile.q, tile.r, 'galleon', 'Folly', [], world);
         expect(r.success).toBe(false);
         expect(r.message).toMatch(/don't know how/);
-        expect(player.gold).toBe(1e6);
+        expect(player.gold).toBe(purse);
         // used hulls for sale: only what the shipwrights know
         for (const u of Ships.getUsedShipsForSale(tile, world)) expect(u.typeId).toBe('rowboat');
         // the player who researched Shipbuilding can teach them the sloop — not the galleon

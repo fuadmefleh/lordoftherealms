@@ -84,6 +84,11 @@ export const NpcBrain = {
 
         const on = !!s.llmEnabled;
         NpcBrain.enable(on);
+        // "Scribe writes: Annals / epitaphs / letters / heralds" (systems/llmProse.js reads these)
+        NpcBrain.proseCategories = {
+            annals: s.llmProseAnnals !== false, epitaphs: s.llmProseEpitaphs !== false,
+            letters: s.llmProseLetters !== false, heralds: s.llmProseHeralds !== false,
+        };
         if (House && typeof House.setBrain === 'function') {
             if (on) House.setBrain(NpcBrain.asHouseBrain());
             else House.resetBrain();
@@ -622,6 +627,9 @@ export const NpcBrain = {
         for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
         return (h >>> 0).toString(36);
     },
+
+    /** The concurrency budget and what is in flight (systems/llmProse.js shares it). */
+    budget() { return { maxConcurrent: settings.maxConcurrent, inFlight: pending.size }; },
 
     // ── Test helpers ────────────────────────────────────────────
 

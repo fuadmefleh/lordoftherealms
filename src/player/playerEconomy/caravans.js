@@ -4,6 +4,7 @@ import { Trading } from './trading.js';
 import { Underworld } from '../../systems/underworld.js';
 import { LossBook } from '../../systems/lossBook.js';
 import { TradePolicy } from '../../systems/tradePolicy.js';
+import { Difficulty } from '../../core/difficulty.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerInventory, Economy, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -68,6 +69,8 @@ Object.assign(PlayerEconomy, {
         }
         // Markets near gems, spices, salt, horses or oil draw more buyers
         expectedProfit = Math.floor(expectedProfit * Economy.caravanProfitMultiplier(world, toSettlement));
+        // A sale at a distance is still a sale: the difficulty's sellPrice (1 on Normal)
+        expectedProfit = Math.floor(expectedProfit * Difficulty.mult(player, 'sellPrice'));
 
         // Deduct cost and goods (their bookings by realm go with them)
         player.gold -= cost;
@@ -158,6 +161,7 @@ Object.assign(PlayerEconomy, {
                 };
                 price *= sizeMultiplier[toSettlement.type] || 1.0;
                 price *= Economy.caravanProfitMultiplier(world, toSettlement);
+                price *= Difficulty.mult(player, 'sellPrice'); // the difficulty (1 on Normal)
                 expectedProfit = Math.floor(price * property.storage);
             }
         }
@@ -463,7 +467,8 @@ Object.assign(PlayerEconomy, {
                     }
 
                     const bonus = 1 + player.skills.commerce * 0.05;
-                    let finalProfit = Math.floor(grossRevenue * bonus);
+                    // The difficulty's sellPrice reaches indirect sales too (1 on Normal)
+                    let finalProfit = Math.floor(grossRevenue * bonus * Difficulty.mult(player, 'sellPrice'));
 
                     let smuggleCaught = false;
                     if (caravan.isSmugglingRoute && routeRef) {

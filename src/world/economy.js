@@ -266,7 +266,8 @@ export const Economy = {
      * scarcity of the town's stock (world/settlementMarket.js).
      */
     marketPrice(good, settlement, tile, world = null) {
-        return Math.floor(Economy.marketAskBase(good, settlement, tile, world) * SettlementMarket.scarcity(settlement, good.id));
+        // Never free: a 1-coin good (eggs) in a big or glutted market still costs a coin
+        return Math.max(1, Math.floor(Economy.marketAskBase(good, settlement, tile, world) * SettlementMarket.scarcity(settlement, good.id)));
     },
 
     /**

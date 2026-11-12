@@ -65,6 +65,8 @@ import { PlayerMilitary } from './playerMilitary.js';
 import { RealmEscort } from './realmEscort.js';
 // (scenarios.js imports this module too: Scenarios is only reached inside functions, after both load)
 import { Scenarios } from './scenarios.js';
+import { NpcMemory } from '../systems/npcMemory.js';
+import { TownMarks } from '../world/townMarks.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 // A rival at court may be a lady: the texts written of 'him' read of 'her'
@@ -567,6 +569,12 @@ export const Generalship = {
             retinueLost = Array.isArray(cas) ? cas.length : _num(cas);
         }
         if (enemy) Harvests.noteBattle(world, enemy.id);
+        // A cairn where they fell, by the town fought over or on the open field (world/townMarks.js)
+        if (spec.where && Number.isFinite(spec.where.q)) {
+            TownMarks.noteBattle(world, spec.where.q, spec.where.r, { dead: hostLost + enemyLost, day,
+                victor: outcome.victory ? (k ? k.name : c.kingdomName) : (enemy ? enemy.name : spec.enemy.kingdomName),
+                loser: outcome.victory ? (enemy ? enemy.name : spec.enemy.kingdomName) : (k ? k.name : c.kingdomName), player: true });
+        }
         RealmEscort.afterBattle(player, !!outcome.victory);
         c.lastBattleDay = day;
         const res = { success: true, victory: !!outcome.victory, hostLost, enemyLost, retinueLost, spec };
@@ -598,6 +606,14 @@ export const Generalship = {
                 c.lieutenants = c.lieutenants.filter(lt => lt !== fallen);
             }
             res.message = `Defeat. ${spec.enemy.kingdomName} throws back the host: ${hostLost} of your men fall${retinueLost ? `, and ${retinueLost} of your own retinue` : ''}.${fallen ? ` Your lieutenant ${fallen.name} is among the dead.` : ''}`;
+        }
+        // Into the House chronicle (the Annals and the illustrated book): the field, its foe and outcome
+        // (a won assault is chronicled as the town is taken, Generalship._capture)
+        if (spec.kind === 'field' || (spec.kind === 'assault' && !outcome.victory)) {
+            House.recordBattle(player, world, {
+                kind: spec.kind, outcome: outcome.victory ? 'victory' : 'defeat', foe: spec.enemy.kingdomName,
+                q: spec.where && spec.where.q, r: spec.where && spec.where.r, place: (spec.where && spec.where.townName) || null,
+            });
         }
         Generalship._log(c, world, res.message);
         return res;
@@ -756,7 +772,10 @@ export const Generalship = {
         player.renown = _num(player.renown) + _num(S.renown, 10);
         NPCLords.rememberDeed(world, enemy.lord, 'conquest', { note: s.name });
         NPCLords.rememberDeed(world, k.lord, 'war_aid', { note: `took ${s.name}` });
+        // The town itself remembers who took it (systems/npcMemory.js)
+        NpcMemory.rememberTown(world, { q: sg.q, r: sg.r }, { kind: 'conquered', player });
         House.recordPlayerDeed(player, world, 'battleWon', { scale: 2, reason: `took ${s.name} for ${k.name}` });
+        House.recordBattle(player, world, { kind: how === 'stormed' ? 'assault' : 'siege', outcome: 'victory', foe: enemy.name, place: s.name });
         let text = `${s.name} ${how === 'stormed' ? 'is stormed' : 'opens its gates'} and passes to ${k.name}.`;
         const loot = Generalship._plunder(player, world, c, s, enemy, c.siegePolicy === 'sack' ? S.sack : S.spare, c.siegePolicy === 'sack');
         text += ` ${loot.text}`;
@@ -879,6 +898,7 @@ export const Generalship = {
         Generalship._favour(c, _num(R.favour, 1));
         if (c.order && c.order.kind === 'raid' && c.order.enemyId === enemy.id) c.order.progress = _num(c.order.progress) + 1;
         NPCLords.rememberDeed(world, enemy.lord, 'raid', { note: target.s.name });
+        NpcMemory.rememberTown(world, target.s, { kind: 'raided', player });
         res.message = `The host falls on ${target.s.name}. ${loot.text}`;
         Generalship._log(c, world, res.message);
         return res;
@@ -1441,6 +1461,8 @@ export const Generalship = {
         }
         if (done) {
             c.record.ordersDone++;
+            // A town held against the enemy remembers who held it (systems/npcMemory.js)
+            if (o.kind === 'defend') NpcMemory.rememberTown(world, { q: o.target.q, r: o.target.r }, { kind: 'defended', player });
             c.merit += _num((O.merit || {})[o.kind], 8);
             Generalship._favour(c, _num((O.kindFavour || {})[o.kind], _num(O.doneFavour, 10)));
             if (c.rival) c.rival.influence = Utils.clamp(c.rival.influence - 3, 0, 100);

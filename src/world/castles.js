@@ -24,7 +24,7 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Economy } from './economy.js';
 
-const DEFAULTS = { startYear: 650, spread: 150, cost: 1500 };
+const DEFAULTS = { startYear: 650, spread: 150, cost: 1500, buildYears: 1 };
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
@@ -80,14 +80,33 @@ export const Castles = {
             }
             // (made after its year: it stands, as it always has: no flag, so a full-grown world is unchanged)
             if (opts.creating) continue;
-            // In play: the crown pays the builders, then the castle stands
+            // (no flag: a castle standing since the world was made, or an older save's — never raised again)
+            if (s.castle == null) continue;
+            // In play: a castle takes buildYears to raise. Each year the crown
+            // pays that year's share of the cost to the builders in town; a
+            // year it cannot pay, the work stands still. (State: s.castleWorks)
             const k = s.kingdom != null && world.getKingdom ? world.getKingdom(s.kingdom) : null;
             const cost = _num(C.cost, 1500);
+            const years = Math.max(1, Math.round(_num(C.buildYears, 1)));
+            const works = s.castleWorks && typeof s.castleWorks === 'object' ? s.castleWorks : null;
+            if (works && works.lastYear === year) { s.castle = false; continue; }
+            const part = Math.ceil(cost / years);
             if (k) {
-                if (_num(k.treasury) < cost) { s.castle = false; continue; }
-                k.treasury = _num(k.treasury) - cost;
-                Economy.payTown(s, cost);
+                if (_num(k.treasury) < part) { s.castle = false; continue; }
+                k.treasury = _num(k.treasury) - part;
+                Economy.payTown(s, part);
             }
+            const w = works || (s.castleWorks = { begun: year, years, done: 0 });
+            w.done = _num(w.done) + 1;
+            w.lastYear = year;
+            if (w.done < years) {
+                s.castle = false;
+                if (!works && Array.isArray(world.events)) {
+                    world.events.push({ text: `🏗️ ${k ? k.name : 'Its lords'} begin a castle of stone at ${s.name}: ${years} years of work.`, type: 'growth' });
+                }
+                continue;
+            }
+            delete s.castleWorks;
             s.castle = true;
             out.push({ settlement: s, kingdom: k });
             if (Array.isArray(world.events)) {

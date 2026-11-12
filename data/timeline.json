@@ -1,0 +1,30 @@
+{
+    "_doc": "The Timeline of the Realm (systems/realmTimeline.js, ui/actionMenu/timeline.js): the world's borders, wars, crises, reigns and deeds recorded as the game runs, replayed on a map with a year slider. `every` days between frames of the tile→realm grid (a season); each frame keeps only the tiles that changed. Past `frameCap` frames, or `frameBytes` bytes of border changes, the two closest are merged, so old years thin evenly and every frame kept still reconstructs exactly. `eventCap` markers are kept (the least weighty go first by `priority` and size), `townCap` towns (the oldest ruins go first), `warCap` wars (the shortest go first). A battle with fewer than `minBattleDead` dead is not marked; battles within `battleMergeRange` hexes and `battleMergeDays` days of one another share a marker. `text` holds the markers' lines.",
+    "every": 30,
+    "frameCap": 480,
+    "frameBytes": 60000,
+    "eventCap": 360,
+    "townCap": 400,
+    "warCap": 160,
+    "minBattleDead": 60,
+    "battleMergeDays": 120,
+    "battleMergeRange": 3,
+    "priority": { "crisis": 9, "rise": 8, "fall": 8, "crown": 8, "siege": 6, "taken": 5, "battle": 3, "succession": 2 },
+    "icons": {
+        "battle": "⚔️", "siege": "🏰", "taken": "🚩", "crisis": "🌋", "rise": "🌅", "fall": "💀", "crown": "👑", "succession": "🕯️",
+        "founded": "🏘️", "ruined": "🏚️", "war": "🔥", "peace": "🕊️"
+    },
+    "text": {
+        "battle": "{victor} defeated {loser} {at}.",
+        "battleMany": "{victor} and {loser} fought {n} battles {at}.",
+        "siegeHolding": "{foe} laid siege to {town}.",
+        "siegePlayer": "{who} laid siege to {town} of {foe}.",
+        "taken": "{victor} took {town} from {loser}.",
+        "rise": "{realm} rose.",
+        "fall": "{realm} fell.",
+        "crownWon": "{who} took the crown of {realm}.",
+        "crownLost": "{who} no longer holds the crown of {realm}.",
+        "succession": "{ruler} succeeded {old} in {realm}.",
+        "crisisBegins": "{name} began."
+    }
+}

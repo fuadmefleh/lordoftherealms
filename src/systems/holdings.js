@@ -47,6 +47,8 @@ import { Underworld } from './underworld.js';
 import { Ships } from './ships.js';
 import { House } from './house.js';
 import { TownLabour } from '../world/townLabour.js';
+import { Construction } from './construction.js';
+import { NpcMemory } from './npcMemory.js';
 
 const FALLBACK_CONFIG = {
     ungovernedDistance: 6,
@@ -435,6 +437,12 @@ export const Holdings = {
             fx.order += m * G.orderPerMartial + s * G.orderPerStewardship + i * G.orderPerIntrigue;
             fx.raidReduction += i * G.raidPerIntrigue;
             fx.skim = Holdings.skimRate(gov);
+            // A steward's standing order and their own hand in the chest (systems/stewards.js keeps gov.st)
+            const so = gov.st && typeof gov.st === 'object' ? gov.st : null;
+            if (so) {
+                for (const [k, v] of Object.entries(so.fx || {})) if (FX_KEYS.includes(k)) fx[k] += _num(v);
+                fx.skim = _clamp(fx.skim + _num(so.skim), 0, 0.9);
+            }
         }
         // An official in a rival House's pay (systems/rivalAgents.js) skims the
         // collections and holds up the permits for the works
@@ -704,11 +712,15 @@ export const Holdings = {
         return out;
     },
 
-    /** Appoint a governor from governorCandidates (by id). */
-    appointGovernor(player, world, q, r, candidateId) {
+    /**
+     * Appoint a governor from governorCandidates (by id). opts.candidate: a
+     * candidate record from elsewhere (systems/stewards.js: courtiers,
+     * townsfolk); opts.extra: fields kept on the governor record (its `st`).
+     */
+    appointGovernor(player, world, q, r, candidateId, opts = {}) {
         const ref = Holdings.find(player, world, q, r);
         if (!ref) return { success: false, reason: 'You do not rule this settlement.' };
-        const cand = Holdings.governorCandidates(player, world, q, r).find(c => c.id === candidateId);
+        const cand = (opts && opts.candidate) || Holdings.governorCandidates(player, world, q, r).find(c => c.id === candidateId);
         if (!cand) return { success: false, reason: 'That candidate is not available.' };
         if (_num(cand.fee) > _num(player.gold)) return { success: false, reason: `Hiring costs ${cand.fee} gold.` };
         const h = Holdings.ensure(ref.settlement);
@@ -728,6 +740,7 @@ export const Holdings = {
             loyaltyMod: cand.loyaltyMod || 0, loyalty: cand.loyalty, wage: _num(cand.wage),
             appointedDay: _num(world && world.day), unpaid: 0, warned: false,
             ...(inParty && cand.kind !== 'companion' ? { rejoinParty: true } : {}),
+            ...((opts && opts.extra) || {}),
         };
         Holdings.ensureLedger(player);
         Holdings.refresh(ref.settlement);
@@ -1014,7 +1027,8 @@ export const Holdings = {
 
     _tickProjects(player, world, ref, h, out) {
         if (!h.queue.length) return;
-        const speed = Math.max(0.1, 1 + _num(h.fx && h.fx.buildSpeed));
+        // ...at the pace of the season and the weather (systems/construction.js)
+        const speed = Math.max(0.1, 1 + _num(h.fx && h.fx.buildSpeed)) * Construction.pace(world, ref.q, ref.r).pace;
         for (const p of h.queue.slice()) {
             p.progress = Math.round((_num(p.progress) + speed) * 100) / 100;
             if (p.progress < p.days) continue;
@@ -1056,6 +1070,8 @@ export const Holdings = {
         if (h.drifting) d += cfg.drift.unrest;
         // Idle hands and crime in the streets (world/townLabour.js)
         d += TownLabour.unrestPressure(s);
+        // Old wrongs and old kindnesses of the player's House, remembered by the town (systems/npcMemory.js)
+        d += NpcMemory.unrestPressure(world, ref.q != null ? { q: ref.q, r: ref.r } : s, player);
         if (present) d -= U.presentRelief;
         d -= _num(fx.order);
         const control = Holdings.garrisonStrength(h) / Math.max(cfg.garrison.controlMin, _num(s.population) * cfg.garrison.controlPerPop);
@@ -1166,7 +1182,7 @@ export const Holdings = {
             used: Holdings.usedSlots(h),
             population: _num(s.population),
             happiness: Math.round(Taxation.getHappiness(s)),
-            happinessTarget: Math.round(_clamp(50 + policy.happinessBonus * 1.5 + Taxation.peoplesMood(s) + _num(fx.happiness) + Taxation.patronageMood(s), 0, 100)),
+            happinessTarget: Math.round(_clamp(50 + policy.happinessBonus * 1.5 + Taxation.peoplesMood(s) + _num(fx.happiness) + Taxation.patronageMood(s) + Taxation.memoryMood(s), 0, 100)),
             loyalty: s.colony && typeof s.colony.loyalty === 'number' ? Math.round(s.colony.loyalty) : null,
             unrest: Math.round(h.unrest),
             defense: Math.round(Holdings.defenseRating(s)),

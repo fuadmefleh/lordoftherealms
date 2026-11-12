@@ -15,7 +15,8 @@
 //   enemyStrength  — the foe's might in the player's battles (playerMilitary/combat.js, fieldBattle.js),
 //                    on the road (player/roadEncounters.js: every escape/fight chance, the toll,
 //                    the harm of the old ambush) and in the wilds' fights (player/wilds.js)
-//   illness        — how often wounds fester and sickness kills (systems/ailments.js careFactor)
+//   illness        — how often sickness is caught (systems/ailments.js _tryCatch) and how
+//                    often wounds fester and sickness kills (ailments.js careFactor)
 // Normal is 1 on every knob, so a Normal game runs exactly as one without
 // difficulty did. No RNG here.
 

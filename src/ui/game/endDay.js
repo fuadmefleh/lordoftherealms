@@ -5,6 +5,7 @@
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Schemes, Petitions, RealmWars, Throne, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog, WorldEvents, WEATHER_TYPES, LegendaryArtifacts, Cartography } from './_gameImports.js';
 import { DayClock } from './dayClock.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
+import { PlayerWorks } from '../../player/playerWorks.js';
 import { BackRooms } from '../../systems/backRooms.js';
 import { Afterlife } from '../../player/afterlife.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
@@ -23,11 +24,18 @@ import { TownProps } from '../../world/townProps.js';
 import { Underworld } from '../../systems/underworld.js';
 import { Gangs } from '../../systems/gangs.js';
 import { Holdings } from '../../systems/holdings.js';
+import { Stewards } from '../../systems/stewards.js';
 import { Rivals } from '../../systems/rivals.js';
+import { Nemesis } from '../../systems/nemesis.js';
+import { HouseQuests } from '../../systems/houseQuests.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Regency } from '../../systems/regency.js';
+import { Abdication } from '../../systems/abdication.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
+import { TownMemory } from '../../systems/townMemory.js';
+import { TownEras } from '../../world/townEras.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
 import { Lots } from '../../systems/lots.js';
 import { Graveyards } from '../../systems/graveyards.js';
 import { NpcTheft } from '../../systems/npcTheft.js';
@@ -38,12 +46,15 @@ import { Livestock } from '../../systems/livestock.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
 import { Devotion } from '../../systems/devotion.js';
+import { DynastyTree } from '../../systems/dynastyTree.js';
+import { Heirlooms } from '../../systems/heirlooms.js';
 import { SoulPact } from '../../systems/soulPact.js';
 import { CourtLetters } from '../../systems/courtLetters.js';
 import { Couriers } from '../../systems/couriers.js';
 import { Mail } from '../../systems/mail.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { CadetBranches } from '../../systems/cadetBranches.js';
 import { PanelRefresh } from '../panelRefresh.js';
 import { Fame } from '../../systems/fame.js';
 import { Demands } from '../../systems/demands.js';
@@ -54,6 +65,8 @@ import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Chatter } from '../../systems/chatter.js';
 import { Heralds } from '../../systems/heralds.js';
+import { Annals } from '../../systems/annals.js';
+import { LlmProse } from '../../systems/llmProse.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
@@ -83,6 +96,9 @@ import { Engrossing } from '../../systems/engrossing.js';
 import { LawCouncil } from '../../systems/lawCouncil.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
+import { Crises } from '../../systems/crises.js';
+import { Climate } from '../../world/climate.js';
+import { RealmTimeline } from '../../systems/realmTimeline.js';
 import { onVoyageDay } from '../actionMenu/voyage.js';
 import { showMorningBrief, updateCounselBadge } from '../actionMenu/counsel.js';
 import { showDayBanner } from '../dayBanner.js';
@@ -91,6 +107,11 @@ import { Pirates } from '../../systems/pirates.js';
 import { Landings } from '../../systems/landings.js';
 import { MapTheft } from '../../systems/mapTheft.js';
 import { checkMapAccusation } from '../actionMenu/treasureScenes.js';
+import { MetaLegacy } from '../../systems/metaLegacy.js';
+import { settleIronmanDeath } from './ironman.js';
+
+// The prose pen handed to the systems with a prose seam (systems/llmProse.js), on the first day
+let _proseWired = false;
 
 export function onPlayerArrived() {
     const tile = this.world.getTile(this.player.q, this.player.r);
@@ -388,6 +409,10 @@ export function endDay() {
                     if (rep.crewLost) text += ' A sailor was lost overboard.';
                     this.ui.showNotification(`${wx.icon} Storm at Sea`, text, 'warning');
                 }
+                // A harbour frozen in: the ship stands off the ice (world/climate.js icebound)
+                for (const rep of (shipDay && shipDay.iceReports) || []) {
+                    this.ui.showNotification('🧊 Icebound', `${rep.name} cannot make ${rep.port}: the harbour is frozen. She stands off the ice until the thaw.`, 'warning');
+                }
                 // Sailing rose a level (systems/ships.js _sailingDay); on a voyage it is in the log too
                 if (shipDay && shipDay.sailing) this.ui.showNotification(`${shipDay.sailing.icon} ${shipDay.sailing.name} Improved`, shipDay.sailing.text, 'success');
                 const crewDay = shipDay && shipDay.crew;
@@ -415,82 +440,20 @@ export function endDay() {
                 }
             }
 
-            // Process building construction progress
-            if (this.player.properties) {
-                for (const propRef of this.player.properties) {
-                    const pTile = this.world.getTile(propRef.q, propRef.r);
-                    if (!pTile) continue;
-
-                    // Each ref is one property — tick only that one, not every
-                    // property sharing the tile
-                    const prop = PlayerEconomy.findPropertyAt(pTile, propRef.type);
-                    if (prop && prop.underConstruction && prop.constructionDaysLeft > 0) {
-                        prop.constructionDaysLeft--;
-                        if (prop.constructionDaysLeft <= 0) {
-                            prop.underConstruction = false;
-                            Quests.track(this.player, 'buildings_constructed');
-                            this.ui.showNotification('🏗️ Construction Complete!',
-                                `Your ${prop.name} is now operational!`, 'success');
-                        }
-                    }
+            // Building work on everything the player has under way: properties,
+            // temples, cultural buildings, roads (player/playerWorks.js — paced by
+            // season, weather and hired crews, systems/construction.js)
+            {
+                const works = PlayerWorks.processDay(this.player, this.world);
+                const praise = { religious: 'is now complete and will spread your faith!', infrastructure: 'is now open.' };
+                for (const c of works.completed) {
+                    this.ui.showNotification('🏗️ Construction Complete!', `Your ${c.name} ${praise[c.kind] || 'is now operational!'}`, 'success');
                 }
-            }
-
-            // Process religious building construction
-            if (this.player.religion && this.player.religion.buildings) {
-                for (const bRef of this.player.religion.buildings) {
-                    const bTile = this.world.getTile(bRef.q, bRef.r);
-                    if (!bTile || !bTile.religiousBuilding) continue;
-                    const rb = bTile.religiousBuilding;
-                    if (rb.underConstruction && rb.constructionDaysLeft > 0) {
-                        rb.constructionDaysLeft--;
-                        if (rb.constructionDaysLeft <= 0) {
-                            rb.underConstruction = false;
-                            Quests.track(this.player, 'buildings_constructed');
-                            this.ui.showNotification('🏗️ Construction Complete!',
-                                `Your ${rb.name} is now complete and will spread your faith!`, 'success');
-                        }
-                    }
+                for (const c of works.crewsLeft) {
+                    this.ui.showNotification('🏗️ Crews Walk Off', `${c.n} crew${c.n > 1 ? 's' : ''} at your ${c.name} went unpaid and left the work.`, 'warning');
                 }
-            }
-
-            // Process infrastructure construction
-            if (this.player.infrastructureUnderConstruction) {
-                for (let i = this.player.infrastructureUnderConstruction.length - 1; i >= 0; i--) {
-                    const ref = this.player.infrastructureUnderConstruction[i];
-                    const iTile = this.world.getTile(ref.q, ref.r);
-                    if (!iTile || !iTile.infrastructure || !iTile.infrastructure.underConstruction) {
-                        this.player.infrastructureUnderConstruction.splice(i, 1);
-                        continue;
-                    }
-                    iTile.infrastructure.constructionDaysLeft--;
-                    if (iTile.infrastructure.constructionDaysLeft <= 0) {
-                        Infrastructure.finishConstruction(this.world, iTile);
-                        this.ui.showNotification('🏗️ Construction Complete!',
-                            `Your ${iTile.infrastructure.name} is now operational!`, 'success');
-                        this.player.infrastructureUnderConstruction.splice(i, 1);
-                        // Recalculate reachable hexes now that infra is active
-                        this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
-                    }
-                }
-            }
-
-            // Process cultural building construction
-            if (this.player.culturalBuildings) {
-                for (const bRef of this.player.culturalBuildings) {
-                    const cTile = this.world.getTile(bRef.q, bRef.r);
-                    if (!cTile || !cTile.culturalBuilding) continue;
-                    const cb = cTile.culturalBuilding;
-                    if (cb.underConstruction && cb.constructionDaysLeft > 0) {
-                        cb.constructionDaysLeft--;
-                        if (cb.constructionDaysLeft <= 0) {
-                            cb.underConstruction = false;
-                            Quests.track(this.player, 'buildings_constructed');
-                            this.ui.showNotification('🏗️ Construction Complete!',
-                                `Your ${cb.name} is now operational!`, 'success');
-                        }
-                    }
-                }
+                // Recalculate reachable hexes once a road is open
+                if (works.completed.some(c => c.kind === 'infrastructure')) this.renderer.reachableHexes = this.player.getReachableHexes(this.world);
             }
 
             // Process relationships, aging, and dynasty
@@ -533,6 +496,13 @@ export function endDay() {
                 // and a child's reign under a regent (systems/heirAgency.js, systems/regency.js)
                 for (const n of HeirAgency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 for (const n of Regency.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The rulers who stepped down: pensions, counsel, plots; the court's pressure to step down (systems/abdication.js)
+                const abd = Abdication.processDay(this.player, this.world);
+                for (const n of abd.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                if (abd.abdicated) this.ui.updateStats(this.player, this.world);
+                // The family tree keeps every generation; heirlooms gather their stories (systems/dynastyTree.js, systems/heirlooms.js)
+                if (this.player.house) DynastyTree.sync(this.player, this.world, { npc: id => Relationships.getNPC(id) });
+                for (const n of Heirlooms.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // The townsfolk live a season: births, deaths, weddings, comings and goings.
                 // Building lots and houses to let: rent day, and the town's other buyers (systems/lots.js)
@@ -554,6 +524,8 @@ export function endDay() {
                     const where = town && town.settlement ? town.settlement.name : 'afar';
                     this.ui.showNotification(`${folkIcons[n.kind] || '📜'} Word from ${where}`, n.text, n.kind === 'died' ? 'warning' : 'info');
                 }
+                // Long memory: the dead hand down what they remembered of your House (systems/npcMemory.js)
+                NpcMemory.processDay(this.world, this.player);
                 // The townsfolk's sicknesses: caught, passed on, nursed, survived or not, town to town;
                 // the player may catch what the town they stand in has (systems/illness.js, systems/illnessPlayer.js)
                 const sickDay = IllnessPlayer.processDay(this.world, this.player, { contact: InnerMapSickness.takeContact() });
@@ -562,6 +534,11 @@ export function endDay() {
                     this.ui.showNotification(`${n.kind === 'died' ? '🕯️' : '🤒'} Word from ${town && town.settlement ? town.settlement.name : 'afar'}`, n.text, n.kind === 'died' ? 'warning' : 'info');
                 }
                 for (const n of sickDay.notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The world remembers: town fires and their rebuilding, statues raised and pulled down,
+                // cairns, new quarters (systems/townMemory.js)
+                for (const n of TownMemory.processDay(this.world, this.player).notices.slice(0, 3)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The towns age: a new era of building, walls raised (world/townEras.js; once a year)
+                for (const n of TownEras.processDay(this.world, this.player).notices.slice(0, 2)) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
                 // Townsfolk who are friends, lovers, companions or kin by marriage
                 Relationships.syncFolk(this.player, this.world);
 
@@ -596,6 +573,8 @@ export function endDay() {
 
                 // Rival Houses in the flesh — their heads ride, trade, sit at court, age and die (systems/rivalHouses.js)
                 for (const n of RivalHouses.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+                // The House's cadet branches: their lives, loyalty, tribute and levies (systems/cadetBranches.js)
+                for (const n of CadetBranches.processDay(this.player, this.world).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
                 // Rival schemes — plots revealed, plots striking
                 const plots = Schemes.processDaily(this.player, this.world);
@@ -649,6 +628,12 @@ export function endDay() {
             // Rival adventurers — their deeds near you, races, ambushes, slander
             const rivalDay = Rivals.processDay(this.world, this.player);
             for (const n of rivalDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Nemeses — named enemies who remember you, learn your habits and strike at your worst (systems/nemesis.js)
+            for (const n of Nemesis.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+
+            // Unfinished business of the House: quests from its own history — old grudges, debts, favours, lost heirlooms (systems/houseQuests.js)
+            for (const n of HouseQuests.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // Sagas — world storylines turning a chapter (systems/sagas.js)
             const sagaDay = Sagas.processDay(this.world, this.player);
@@ -789,6 +774,8 @@ export function endDay() {
             for (const r of holdingsDay.rebellions) this.ui.showNotification('🔥 Rebellion!', r.text, 'error');
             for (const l of holdingsDay.lost) this.ui.showNotification('🏴 Holding Lost', l.text, 'error');
             for (const text of holdingsDay.notices) this.ui.showNotification('🏰 Holdings', text, 'warning');
+            // Stewards and governors run their seats by standing orders: embezzle, excel, abuse, take bribes, rise; the season's dispatch (systems/stewards.js)
+            for (const n of Stewards.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
 
             // The trading company — factors' weekly trade, convoys, contracts, rival houses, ventures
             const companyDay = MerchantHouses.processDay(this.player, this.world);
@@ -804,6 +791,20 @@ export function endDay() {
             if (this.ui._heralds !== false) {
                 for (const n of heraldDay.notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
             }
+            // The court scribe writes the Annals: closed chapters and reigns once, the living
+            // chapter yearly; the prose pen's queue starts the day's work (systems/annals.js,
+            // systems/llmProse.js — the model off, nothing at all)
+            if (!_proseWired) {
+                // The systems that take the pen by hand (their prose seams): handed it once
+                _proseWired = true;
+                try {
+                    if (typeof Crises.useProse === 'function') Crises.useProse(LlmProse);
+                    if (typeof Climate.useProse === 'function') Climate.useProse(LlmProse);
+                    if (typeof Nemesis.setProse === 'function') Nemesis.setProse(LlmProse);
+                    if (typeof NpcMemory.setProse === 'function') NpcMemory.setProse(LlmProse);
+                } catch (e) { /* their templates stand */ }
+            }
+            Annals.processDay(this.world, this.player);
 
             // Merchant caravans and trading ships on the roads: tolls, ambushes,
             // escorts, road wardens; cargo lands on arrival (systems/merchantCaravans.js)
@@ -966,6 +967,12 @@ export function endDay() {
             // Specie & mints: the realms' coin, its flows and price levels (weekly), recoinages,
             // the player's mint lease, the money changers at a border (systems/mints.js, world/moneySupply.js)
             for (const n of Mints.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The climate of centuries: little ice ages, warm periods, droughts, wet decades (world/climate.js)
+            for (const n of Climate.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
+            for (const n of Crises.processDay(this.world, this.player).notices) this.ui.showNotification(`${n.icon} ${n.title}`, n.text, n.type);
+            // The Timeline of the Realm: borders each season, wars, crises, reigns, deeds with places (systems/realmTimeline.js)
+            RealmTimeline.processDay(this.world, this.player);
 
             // Collect taxes (every 7 days)
             let taxCollected = 0;
@@ -1274,10 +1281,13 @@ export function endDay() {
                 this.ui.showNotification('Achievement Unlocked!', `${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
             }
 
-            // Auto-save every N days (0 = disabled)
-            if (SaveLoad.AUTO_SAVE_INTERVAL > 0 && this.world.day % SaveLoad.AUTO_SAVE_INTERVAL === 0) {
+            // Auto-save every N days (0 = disabled); an Ironman run every day, quietly
+            // (SaveLoad.shouldAutoSave; the run record: systems/metaLegacy.js, ui/game/ironman.js)
+            MetaLegacy.ensureRun(this.world);
+            settleIronmanDeath(this);
+            if (SaveLoad.shouldAutoSave(this)) {
                 const result = SaveLoad.saveGame(this);
-                if (result.success) {
+                if (result.success && !SaveLoad.isIronman(this)) {
                     this.ui.showNotification('Auto-Saved', 'Game progress saved', 'default');
                 }
             }

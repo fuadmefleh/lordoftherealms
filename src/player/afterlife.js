@@ -6,21 +6,38 @@
 //   - a new life: the player becomes someone else living in the world, a
 //     townsperson of a town they knew or a local of one they didn't. The
 //     late ruler's House ends and what it held passes to crowns and towns;
-//   - the interregnum: the world turns on without the player — kingdoms,
-//     wars, markets, towns, rivals' banks and caravans — while the House is
-//     held in trust and its children grow up. The player jumps back in when
-//     they like, as an heir who has come of age or as someone new.
+//   - the interregnum: the world turns on without the player — kingdoms and
+//     their wars, markets, prices and harvests, towns and their folk, the
+//     merchants' caravans, fairs, guilds, customs and public works — while
+//     the House is held in trust and its children grow up. The player jumps
+//     back in when they like, as an heir who has come of age or as someone new.
 //
 // While waiting, the dead player object is the House's estate in trust:
 // `player.interregnum = { since, cause, name }` (saved with the player).
 // Nothing of the player's own runs (no ailments, upkeep, letters or quests);
 // the world's systems run as they do in ui/game/endDay.js, with no player.
+// What is kept on the player object waits with the estate rather than
+// running: the banks and their loans (Finance), the Bourse, underwriting, bills,
+// the merchant houses and the merchant prince's company, sagas, whispers,
+// outlaw lairs, heralds, discoveries, pirates at sea, the throne and
+// kingship, the House's sieges and wars, demands and delves. Those systems
+// keep their state on the player and settle the days they missed (or not)
+// when the next life takes it up; running them on the estate would charge
+// a dead ruler's purse, seize its holdings for missed loan payments and
+// raise its letters, so WORLD_DAY passes them no player.
+// An heirless House (no child of the blood alive at death or in the wait,
+// or a new life taken) has its money settled once: its creditors paid in
+// their order and the rest to the crown (player/estateSettlement.js). An heir
+// who takes up the mantle inherits the finances, debts and all, as they stand.
 // Strangers and their stations are tuned in data/afterlife.json.
 
 import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Difficulty } from '../core/difficulty.js';
 import { Townsfolk } from '../systems/townsfolk.js';
+import { TownMemory } from '../systems/townMemory.js';
+import { TownEras } from '../world/townEras.js';
+import { NpcMemory } from '../systems/npcMemory.js';
 import { Illness } from '../systems/illness.js';
 import { Relationships } from '../systems/relationships.js';
 import { Upbringing } from '../systems/upbringing.js';
@@ -57,6 +74,7 @@ import { Throne } from '../systems/throne.js';
 import { Kingship } from '../systems/kingship.js';
 import { Sieges } from '../systems/sieges.js';
 import { MerchantHouses } from '../systems/merchantHouses.js';
+import { Stewards } from '../systems/stewards.js';
 import { Patronage } from '../systems/patronage.js';
 import { Heralds } from '../systems/heralds.js';
 import { MerchantCaravans } from '../systems/merchantCaravans.js';
@@ -78,12 +96,19 @@ import { Underwriting } from '../systems/underwriting.js';
 import { Bills } from '../systems/bills.js';
 import { Bourse } from '../systems/bourse.js';
 import { Mints } from '../systems/mints.js';
+import { Coalitions } from '../systems/coalitions.js';
+import { EstateSettlement } from './estateSettlement.js';
 import { Player } from './player.js';
 import { DawnBirth } from './dawnBirth.js';
 import { Dawn } from '../world/dawn.js';
 import { Characters } from '../world/characters.js';
 import { Cultures } from '../world/cultures.js';
 import { Languages } from '../systems/languages.js';
+import { Crises } from '../systems/crises.js';
+import { CadetBranches } from '../systems/cadetBranches.js';
+import { Abdication } from '../systems/abdication.js';
+import { Climate } from '../world/climate.js';
+import { RealmTimeline } from '../systems/realmTimeline.js';
 
 const DEFAULTS = {
     candidates: 4,
@@ -108,34 +133,40 @@ function _num(v, d = 0) { return typeof v === 'number' && isFinite(v) ? v : d; }
  * that keeps the world itself turning, in the same order, given no player.
  * (Keep in step with endDay.js. Left out: the player's own — ailments,
  * ships, housing, construction, letters, schemes, rivals, quests, spies,
- * gossip, taxes, the ledger.)
+ * gossip, taxes, the ledger.) The steps marked "waits" keep their state on
+ * the player and return at once with none: they stay listed so the order
+ * matches endDay.js, and so a world-side half added to one later runs here.
  */
 const WORLD_DAY = [
     (w) => Townsfolk.processDay(w, null),
+    (w) => NpcMemory.processDay(w, null),
     (w) => Illness.processDay(w, null),
     (w) => Lots.processDay(w, null),
     (w) => Graveyards.processDay(w, null),
     (w) => NpcTheft.processDay(w, null),
     (w) => Brawls.processDay(w, null),
-    (w) => Demands.processDay(w, null),
-    (w) => Delves.processDay(w, null),
-    (w) => Sagas.processDay(w, null),
-    (w) => Whispers.processDay(w, null),
+    (w) => TownMemory.processDay(w, null),
+    (w) => TownEras.processDay(w, null),
+    (w) => Demands.processDay(w, null), // waits (player-held)
+    (w) => Delves.processDay(w, null), // waits (player-held)
+    (w) => Sagas.processDay(w, null), // waits (player-held)
+    (w) => Whispers.processDay(w, null), // waits (player-held)
     (w) => Couriers.processDay(w, null),
     (w) => CourierRiders.processDay(w, null),
     (w) => Hospitality.processDay(w, null),
     (w) => Gangs.processDay(w, null),
-    (w) => OutlawLairs.processDay(w, null),
-    (w) => Discovery.processDay(w, null),
-    (w) => Pirates.processDay(w, null),
-    (w) => RealmWars.processDaily(null, w),
+    (w) => OutlawLairs.processDay(w, null), // waits (player-held)
+    (w) => Discovery.processDay(w, null), // waits (player-held)
+    (w) => Pirates.processDay(w, null), // waits (player-held)
+    (w) => RealmWars.processDaily(null, w), // waits (player-held)
     (w) => HoldingSieges.processDay(w, null),
-    (w) => Throne.processDaily(null, w, { armyStrength: 0 }),
-    (w) => Kingship.processDay(w, null),
-    (w) => Sieges.processDay(w, null),
-    (w) => MerchantHouses.processDay(null, w),
+    (w) => Throne.processDaily(null, w, { armyStrength: 0 }), // waits (player-held)
+    (w) => Kingship.processDay(w, null), // waits (player-held)
+    (w) => Sieges.processDay(w, null), // waits (player-held)
+    (w) => Stewards.processDay(w, null), // waits (player-held)
+    (w) => MerchantHouses.processDay(null, w), // waits (player-held)
     (w) => Patronage.processDay(w, null),
-    (w) => Heralds.processDay(w, null),
+    (w) => Heralds.processDay(w, null), // waits (player-held)
     (w) => MerchantCaravans.processDay(w, null),
     (w) => MarketFairs.processDay(w, null),
     (w) => Harvests.processDay(w, null),
@@ -148,15 +179,24 @@ const WORLD_DAY = [
     (w) => PublicWorks.processDay(w, null),
     (w) => MarketDynamics.updatePrices(w, null),
     (w) => Labour.processDay(w, null),
-    (w) => MerchantPrince.processDay(null, w),
+    (w) => MerchantPrince.processDay(null, w), // waits (player-held)
     (w) => Guilds.processDay(w, null),
     (w) => EconomyChronicle.processDay(w, null),
     (w) => Fiscal.processDay(w, null),
-    (w) => Finance.processDay(w, null),
-    (w) => Underwriting.processDay(w, null),
-    (w) => Bills.processDay(w, null),
-    (w) => Bourse.processDay(w, null),
+    (w) => Finance.processDay(w, null), // waits (player-held)
+    (w) => Underwriting.processDay(w, null), // waits (player-held)
+    (w) => Bills.processDay(w, null), // waits (player-held)
+    (w) => Bourse.processDay(w, null), // waits (player-held)
     (w) => Mints.processDay(w, null),
+    // The climate of centuries: its eras begin and end (world/climate.js)
+    (w) => Climate.processDay(w, null),
+    // Age-defining crises: invasions, great plagues, schisms, famines, gold rushes (systems/crises.js)
+    (w) => Crises.processDay(w, null),
+    // The Timeline of the Realm keeps recording while no one lives (systems/realmTimeline.js)
+    (w) => RealmTimeline.processDay(w, null),
+    // The House's cadet branches live on while it is held in trust: they keep their
+    // state on the estate, so passDay runs them with it (systems/cadetBranches.js)
+    (w) => CadetBranches.processDay(null, w), // waits (player-held; run on the estate in passDay)
 ];
 
 export const Afterlife = {
@@ -183,8 +223,11 @@ export const Afterlife = {
      * @returns {{ disbanded: number, companions: number }}
      */
     begin(player, world, cause = null) {
-        if (!player || player.interregnum) return { disbanded: 0, companions: 0 };
+        if (!player || player.interregnum) return { disbanded: 0, companions: 0, estate: null };
         const day = _num(world && world.day);
+        // No child of the blood at all: the creditors and the crown take the
+        // estate now (player/estateSettlement.js), dated inside the reign
+        const estate = EstateSettlement.heirless(player) ? Afterlife.settleEstate(player, world, cause) : null;
         if (player.house && player.house.currentReign) Legacy.closeReign(player, world, { cause });
         const disbanded = (player.army || []).length;
         player.army = [];
@@ -200,7 +243,7 @@ export const Afterlife = {
         player.isMoving = false;
         player.boardedShip = null;
         player.interregnum = { since: day, cause: cause || 'old age', name: player.name };
-        return { disbanded, companions };
+        return { disbanded, companions, estate };
     },
 
     /**
@@ -223,13 +266,31 @@ export const Afterlife = {
                 const up = Upbringing.processDay(estate, world);
                 // Children abroad come home, betrothals are kept, embassies end (systems/heirAgency.js)
                 HeirAgency.processDay(estate, world);
+                // The House's retired rulers grow old in the wait (no pensions run: systems/abdication.js)
+                Abdication.processDay(estate, world, { interregnum: true });
+                // The cadet branches go on with their lives (nobody to ask or answer them)
+                const cadets = CadetBranches.processDay(estate, world, { interregnum: true });
+                if (cadets.notices.length) out.events.push(...cadets.notices.map(n => ({ text: n.text, type: 'cadet' })));
                 out.cameOfAge.push(...(up.comeOfAge || []));
+                // The last of the blood died while the world turned: the estate is settled
+                if (!EstateSettlement.settled(estate) && EstateSettlement.heirless(estate)) {
+                    out.estate = Afterlife.settleEstate(estate, world, estate.interregnum ? estate.interregnum.cause : null);
+                }
             }
         } finally {
             if (held && world._scanHolds > 0) world.releaseSettlementScan();
         }
         out.day = world.day;
         return out;
+    },
+
+    /**
+     * The heirless House's money, settled once: the creditors paid in their
+     * order, the rest to the crown (player/estateSettlement.js). → the record
+     * (the same one on a second call).
+     */
+    settleEstate(player, world, cause = null) {
+        return EstateSettlement.settle(player, world, { cause });
     },
 
     /** Children of the House who could take up the mantle now. */
@@ -253,6 +314,22 @@ export const Afterlife = {
         if (!it || !world) return 0;
         const Y = Relationships._getHeirSettings().daysPerYear || 120;
         return Math.floor((_num(world.day) - _num(it.since)) / Y);
+    },
+
+    /** Cadet branches whose head could take up the mantle, nearest the main line first. */
+    cadetsReady(estate) {
+        return estate ? CadetBranches.heirLine(estate) : [];
+    },
+
+    /** The main line ran dry: a cadet branch's head takes up the mantle after the wait. */
+    returnAsCadet(estate, world, branchId, opts = {}) {
+        const cause = estate && estate.interregnum ? estate.interregnum.cause : null;
+        const res = CadetBranches.succeed(estate, world, branchId, { cause, ...opts });
+        if (res.success) {
+            delete estate.interregnum;
+            estate._isDead = false;
+        }
+        return res;
     },
 
     /** Take up the mantle as an heir after the wait (succession as on the death screen). */
@@ -728,11 +805,27 @@ export const Afterlife = {
         // The old House: its last reign filed, its epitaph written
         let epitaph = null;
         let annalsPast = [];
+        // Its money first (heirs or not, the House ends here): the creditors
+        // paid and the rest to the crown, before the crown is passed on and
+        // the reign filed, so the Annals tell it (player/estateSettlement.js)
+        const estate = old ? Afterlife.settleEstate(old, world, cause) : null;
         if (old) {
             Relationships.prepareForSave(old);
             epitaph = old.house ? Legacy.endDynasty(old, world, cause) : null;
+            // The court scribe writes its epitaph, kept with the world's history
+            // (systems/llmProse.js; the plain epitaph stands until then — and with the model off)
+            if (epitaph) {
+                epitaph.proseKey = Annals.epitaphKey(old);
+                epitaph.prose = Annals.writeEpitaph(world, old, epitaph);
+            }
             // Its Annals close too, and go with the new life as "Before" (systems/annals.js)
             annalsPast = Annals.archive(old, world);
+        }
+        // The league that stood against the old House disbands with it: its
+        // levies, embargo on the crown and members' wars end now, not at the
+        // crowns' next weekly turn (systems/coalitions.js)
+        if (old && Coalitions.active(old)) {
+            Coalitions._end(old, world, 'humbled', 'the House it stood against is no more', null, { endWars: true });
         }
         const escheat = Afterlife.escheat(old, world);
 
@@ -771,7 +864,17 @@ export const Afterlife = {
         if (old) {
             player._relationshipNpcs = old._relationshipNpcs || [];
             player._relationshipNextId = old._relationshipNextId || 1;
+            // The banking houses are the world's, not the late ruler's: they
+            // carry on with what the estate paid them (and the crowns' debts to them)
+            const of = old.finance;
+            if (of && Array.isArray(of.banks) && of.banks.length) {
+                const nf = Finance.state(player);
+                nf.banks = of.banks;
+                nf.nextBankId = of.nextBankId || of.banks.length + 1;
+                nf.initialized = true;
+            }
         }
+        if (estate) player.origin.estate = { from: estate.name, paid: Math.round(estate.paid), unpaid: Math.round(estate.unpaid), toCrown: Math.round(estate.toCrown), toTown: Math.round(estate.toTown), line: estate.line };
 
         // Set up as a new game does (ui/game/gameSetup.js), the world kept as it is
         Quests.initialize(player);
@@ -808,6 +911,6 @@ export const Afterlife = {
         Titles.initialize(player);
         Councils.initializePlayer(player);
         player.updateVisibility(world, 4);
-        return { success: true, player, epitaph, escheat, kin: birth ? DawnBirth.kinLine(player) : null };
+        return { success: true, player, epitaph, escheat, estate, kin: birth ? DawnBirth.kinLine(player) : null };
     },
 };

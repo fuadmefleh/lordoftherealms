@@ -37,10 +37,11 @@ import { Ledger } from './ledger.js';
 import { Relationships } from './relationships.js';
 import { Upbringing } from './upbringing.js';
 import { Court } from './court.js';
+import { Inheritance } from './inheritance.js';
 
 const DEFAULTS = {
     majorityAge: 16, earlyMajorityYears: 2, earlyMajorityPrestige: 12,
-    cadence: 7, baseLoyalty: { spouse: 72, sibling: 58, courtier: 60, council: 55 }, baseAmbition: { spouse: 25, sibling: 55, courtier: 45, council: 40 },
+    cadence: 7, baseLoyalty: { spouse: 72, sibling: 58, courtier: 60, council: 55, elder: 65 }, baseAmbition: { spouse: 25, sibling: 55, courtier: 45, council: 40, elder: 35 },
     ambitionSpread: 30, drift: 3, prestigeLoyalty: 0.05, favourDecayDays: 60,
     embezzleBelow: 45, embezzleRate: 0.03, embezzleMax: 120,
     plotBelow: 25, plotAmbition: 50, plotRumourAt: 50, coupGoldShare: 0.25, coupPrestige: 10,
@@ -66,7 +67,7 @@ function _hash01(key) {
     return ((Utils.hashStr(String(key)) >>> 0) % 10000) / 10000;
 }
 
-const KIND_LABEL = { spouse: 'the late ruler\'s widow(er)', sibling: 'an elder sibling', courtier: 'a courtier of the House', council: 'a lord of the regency council' };
+const KIND_LABEL = { spouse: 'the late ruler\'s widow(er)', sibling: 'an elder sibling', courtier: 'a courtier of the House', council: 'a lord of the regency council', elder: 'the ruler who stepped down' };
 
 export const Regency = {
     config() {
@@ -192,6 +193,8 @@ export const Regency = {
 
     /** The regent picked by kind/id (or the first candidate). */
     pick(player, world, heirId, choice = null) {
+        // The ruler who abdicates for a child may rule in their name (systems/abdication.js)
+        if (choice && typeof choice === 'object' && choice.kind === 'elder' && choice.id) return choice;
         const list = Regency.candidates(player, world, heirId);
         if (!list.length) return null;
         if (choice) {
@@ -276,7 +279,7 @@ export const Regency = {
 
     _regentAlive(player, r) {
         if (!r) return false;
-        if (r.kind === 'spouse') {
+        if (r.kind === 'spouse' || r.kind === 'elder') {
             const npc = Relationships.getNPC(r.id);
             return !npc || npc.isAlive !== false;
         }
@@ -290,9 +293,54 @@ export const Regency = {
 
     /** The regent's own purse, where what they skim goes (a spouse or courtier NPC), or null. */
     _regentPurse(player, r) {
-        if (!r || (r.kind !== 'courtier' && r.kind !== 'spouse')) return null;
+        if (!r || (r.kind !== 'courtier' && r.kind !== 'spouse' && r.kind !== 'elder')) return null;
         const npc = Relationships.getNPC(r.id);
         return npc && npc.isAlive !== false ? npc : null;
+    },
+
+    /**
+     * Where coin the regent takes ends up: { holder, key } — a spouse's or
+     * courtier's purse, an elder sibling's portion (child.purse, systems/
+     * inheritance.js), or for a lord of the regency council the liege
+     * crown's treasury he answers to. null when there is nowhere real (the
+     * coin is then not taken: never lost to nobody).
+     */
+    _regentTill(player, world, r) {
+        if (!r) return null;
+        const npc = Regency._regentPurse(player, r);
+        if (npc) return { holder: npc, key: 'purse' };
+        if (r.kind === 'sibling') {
+            const c = ((player && player.children) || []).find(x => x && x.id === r.id && x.isAlive !== false);
+            if (c) return { holder: c, key: 'purse' };
+        }
+        if (r.kind === 'council') {
+            const { kingdom, town } = Inheritance.liegeOf(player, world);
+            if (kingdom) return { holder: kingdom, key: 'treasury' };
+            if (town && town.economy && Number.isFinite(town.economy.gold)) return { holder: town.economy, key: 'gold' };
+        }
+        return null;
+    },
+
+    /** Take back up to `amt` from the regent's till into the player's purse. → what came back. */
+    _fromRegent(player, world, r, amt) {
+        const till = Regency._regentTill(player, world, r);
+        const a = till ? Math.min(Math.floor(_num(amt)), Math.floor(Math.max(0, _num(till.holder[till.key])))) : 0;
+        if (!(a > 0)) return 0;
+        till.holder[till.key] = _num(till.holder[till.key]) - a;
+        Inheritance.setCoin(player, Inheritance.coin(player) + a);
+        Ledger.record(player, 'regency', a);
+        return a;
+    },
+
+    /** Move `amt` of the player's real coin into the regent's till. → what moved. */
+    _toRegent(player, world, r, amt) {
+        const till = Regency._regentTill(player, world, r);
+        const a = Math.min(Math.floor(_num(amt)), Math.floor(Inheritance.coin(player)));
+        if (!till || !(a > 0)) return 0;
+        Inheritance.setCoin(player, Inheritance.coin(player) - a);
+        till.holder[till.key] = _num(till.holder[till.key]) + a;
+        Ledger.record(player, 'regency', -a);
+        return a;
     },
 
     _council(player, world, st) {
@@ -321,12 +369,8 @@ export const Regency = {
         // A disloyal regent's hand in the coffers
         if (r.loyalty < cfg.embezzleBelow && _num(player.gold) > 0) {
             const share = cfg.embezzleRate * (cfg.embezzleBelow - r.loyalty) / cfg.embezzleBelow;
-            const amt = Math.min(cfg.embezzleMax, Math.floor(_num(player.gold) * share));
+            const amt = Regency._toRegent(player, world, r, Math.min(cfg.embezzleMax, Math.floor(_num(player.gold) * share)));
             if (amt > 0) {
-                player.gold -= amt;
-                Ledger.record(player, 'regency', -amt);
-                const into = Regency._regentPurse(player, r);
-                if (into) into.purse = _num(into.purse) + amt;
                 st.embezzled += amt;
                 st.skimMonth += amt;
             }
@@ -353,11 +397,8 @@ export const Regency = {
         const cfg = Regency.config();
         const r = st.regent;
         const day = _day(world);
-        const gold = Math.floor(_num(player.gold) * cfg.coupGoldShare);
-        if (gold > 0) {
-            player.gold -= gold;
-            Ledger.record(player, 'regency', -gold);
-        }
+        // What the regent carries off goes into their own purse (or, for a council lord, the crown's treasury)
+        const gold = Regency._toRegent(player, world, r, Math.floor(Inheritance.coin(player) * cfg.coupGoldShare));
         const lost = House._fragmentHoldings(player, 1);
         if (player.house) {
             const amt = Math.min(cfg.coupPrestige, Math.max(0, _num(player.house.prestige)));
@@ -381,9 +422,9 @@ export const Regency = {
         const r = st.regent;
         const day = _day(world);
         if (how === 'gift') {
-            if (_num(player.gold) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${cfg.giftGold} gold.` };
-            player.gold -= cfg.giftGold;
-            Ledger.record(player, 'regency', -cfg.giftGold);
+            if (Inheritance.coin(player) < cfg.giftGold) return { success: false, reason: `A fitting gift is ${cfg.giftGold} gold.` };
+            // (into the regent's own purse: systems/inheritance.js keeps the coin real)
+            if (Regency._toRegent(player, world, r, cfg.giftGold) <= 0) return { success: false, reason: `There is no one to take the gift.` };
             r.loyalty = Utils.clamp(r.loyalty + cfg.giftLoyalty, 0, 100);
             st.favour = Math.min(30, _num(st.favour) + 4);
             return { success: true, text: `${r.name} accepts your gift graciously (+${cfg.giftLoyalty} loyalty).` };
@@ -424,9 +465,8 @@ export const Regency = {
         }
         let recovered = 0;
         if (exposed && st.embezzled > 0) {
-            recovered = Math.floor(st.embezzled * cfg.exposedRecovery);
-            player.gold = _num(player.gold) + recovered;
-            Ledger.record(player, 'regency', recovered);
+            // (out of the regent's own purse, as far as it holds it)
+            recovered = Regency._fromRegent(player, world, r, Math.floor(st.embezzled * cfg.exposedRecovery));
             st.embezzled -= recovered;
         }
         // A sibling put aside without cause nurses a claim (House._disputeChance)
@@ -506,13 +546,11 @@ export const Regency = {
                 player.renown = _num(player.renown) + cfg.keepRenown;
                 text = `${r.name}'s men stay on: steady hands, and the realm sees continuity (+${cfg.keepDiplomacy} diplomacy, +${cfg.keepRenown} renown).`;
             } else {
-                const loss = Math.min(cfg.embezzleMax * 2, Math.floor(_num(player.gold) * cfg.embezzleRate * 2));
-                if (loss > 0) { player.gold -= loss; Ledger.record(player, 'regency', -loss); }
+                const loss = Regency._toRegent(player, world, r, Math.min(cfg.embezzleMax * 2, Math.floor(_num(player.gold) * cfg.embezzleRate * 2)));
                 text = `${r.name}'s men stay on — and ${loss} more gold leaves the treasury before you learn their ways.`;
             }
         } else if (choice === 'purge') {
-            const back = Math.floor(_num(st.embezzled) * cfg.purgeRecovery);
-            if (back > 0) { player.gold = _num(player.gold) + back; Ledger.record(player, 'regency', back); }
+            const back = Regency._fromRegent(player, world, r, Math.floor(_num(st.embezzled) * cfg.purgeRecovery));
             const plotted = st.rumoured || st.coups > 0;
             const pr = plotted ? cfg.purgePlotterPrestige : cfg.purgePrestige;
             if (house) {
@@ -522,9 +560,8 @@ export const Regency = {
             }
             text = `You purge ${r.name}'s men from your household${back ? `, recovering ${back} gold` : ''}. ${plotted ? 'The court approves: they had it coming.' : 'The court whispers that you are ungrateful.'}`;
         } else if (choice === 'reward') {
-            if (_num(player.gold) < cfg.rewardGold) return { success: false, reason: `A fitting reward is ${cfg.rewardGold} gold.` };
-            player.gold -= cfg.rewardGold;
-            Ledger.record(player, 'regency', -cfg.rewardGold);
+            if (Inheritance.coin(player) < cfg.rewardGold) return { success: false, reason: `A fitting reward is ${cfg.rewardGold} gold.` };
+            if (Regency._toRegent(player, world, r, cfg.rewardGold) <= 0) return { success: false, reason: 'There is no one to take the reward.' };
             if (house) {
                 House.award(house, cfg.rewardPrestige, `${r.name} rewarded`, day);
                 for (const id of Object.keys(house.roleLoyalty || {})) house.roleLoyalty[id] = Utils.clamp(_num(house.roleLoyalty[id]) + cfg.rewardRoleLoyalty, 0, 100);

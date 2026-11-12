@@ -121,6 +121,12 @@ export const PlayerActions = {
             icon: '⛺',
             description: 'Recover stamina and wait for the next day'
         });
+        actions.push({
+            type: 'pass_time',
+            label: 'Pass the Time…',
+            icon: '⏳',
+            description: 'Wait a few days, a week or until the season turns'
+        });
 
         // Arms & Armour: what you wield and wear, and your soldiers' kits (systems/arms.js)
         if (Object.keys(Arms.items()).some(id => (player.inventory && player.inventory[id] > 0))

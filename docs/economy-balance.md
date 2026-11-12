@@ -148,7 +148,7 @@ something that earns, and that really hurts when it doesn't.
 | **Deposit** | 4.05% a year at a house with full reserves, compounded daily: 5,000 g became 5,176–5,212 g in a year. The rate runs from 3% to 7.5% as reserves fall | Trading company about 12% a year. A raw producer repays itself in 30–55 days, roughly 200–400% a year |
 | **Royal bond** (healthy crown) | 6.0% a year: a 5,000 g bond for 120 days paid 289 g in coupons, plus +10 reputation and +12 Prestige | Up to 20% for a crown in debt or with debased coin, with real default risk: coupons can be missed, repayment put off and the principal cut |
 | **Small loan** (500 g, 30 days) | 9.4% flat at a fresh score of 560, 8.1% at 647 | |
-| **Medium loan** (2,000 g, 60 days) | 14.1% / 12.2% | Builds two raw producers that repay themselves inside the term |
+| **Medium loan** (2,000 g, 60 days) | 14.1% / 12.2% | Builds two raw producers that repay themselves inside the term (before builds took weeks: now only with hired crews, see *Construction takes real time*) |
 | **Large loan** (5,000 g, 90 days) | 18.8% / 16.3%. Needs a score of 600 | |
 | **Great loan** (15,000 g, 120 days) | 26.3% / 22.7%. Needs a score of 680 | |
 
@@ -1419,10 +1419,65 @@ Over the 480 days, by kind (seed 101): taken: dens 73.6k, protection 50.7k, blac
 - **Containers** in someone else's building (`Containers.larder`): what the owner has is topped up each 14 days out of the town's market stock (bought from the town's own sellers, so no coin moves between purses), so a theft takes the goods out of the town; goods no market trades are heirlooms that never come back. Before, every container restocked from nothing every 14 days.
 - **The bot** pays bail through `Prison.postBail` (into the town), where it used to subtract it from its purse with no payee.
 
+## Construction takes real time (2026-11)
+
+Builds are now projects measured in work-days (systems/construction.js, data/construction.json). Each day adds
+season x weather x crews of work: winter 0.5, rain 0.75, snow 0.5, a blizzard 0.1; each hired crew (6 hands from
+the nearest town at its land wage x 1.5, paid daily into that town) adds +50%, up to 3 crews. Roads, irrigation and
+dams are slower over hard ground (hills x1.8, forest x2, swamp x3, mountain x3.5, a river hex x1.5).
+
+Typical durations in work-days (base, on open level ground): a dirt road hex 10 (about 18 in hills, 30 in swamp),
+stone road 40, bridge 90; a farm 30, a mine 90, an inn 60, a grand hotel 120; a cathedral 960; stone walls 360; a
+castle 6 years. Properties and infrastructure are scaled by the site's stone and timber (`Economy.scaleBuildDays`),
+which takes about 15% off at the median town. Research takes twice as long (900 → 1,800 research-days over the tree).
+
+**On the calendar** (2026-11-12, `CPROBE=1 npx vitest run src/__tests__/construction.probe.test.js`: seeds 101 / 202 /
+303, 6 towns each, work begun on the first day of each season, the day's real weather on the hex). Calendar days from
+the order to the building standing, medians:
+
+| Build (cost) | Work-days, base → at a town | No crews: start in spring / summer / autumn / winter | 3 crews: spring / winter start | 3 crews' wages (spring) |
+|---|---|---|---|---|
+| Forager's hut (450 g) | 6 → 5 | 6 / 6 / 7 / 11 | 3 / 5 | 32 g |
+| Apiary (1,000 g) | 12 → 10 | 11 / 10 / 12 / 23 | 5 / 9 | 54 g |
+| Salt pans (800 g) | 25 → 21 | 22 / 21 / 26 / 38 | 9 / 19 | 108 g |
+| Farm (700 g) | 30 → 26 | 27 / 25 / 31 / 43 | 11 / 23 | 130 g |
+| Tavern (1,200 g) | 45 → 38 | 40 / 38 / 57 / 57 | 17 / 32 | 184 g |
+| Inn (1,500 g) | 60 → 51 | 52 / 54 / 72 / 69 | 22 / 37 | 248 g |
+| Mine (1,800 g) | 90 → 77 | 81 / 98 / 99 / 95 | 32 / 49 | 367 g |
+| Grand hotel (4,200 g) | 120 → 102 | 124 / 124 / 125 / 127 | 42 / 59 | 475 g |
+| Dirt road hex (town hex) | 10 → 9 | 10 / 9 / 10 / 20 | 4 / 8 | 54 g |
+| Stone road hex | 40 → 34 | 36 / 34 / 49 / 52 | 15 / 30 | 162 g |
+| Bridge | 90 → 77 | 81 / 98 / 99 / 95 | 32 / 49 | 367 g |
+| Shrine | 20 | 22 / 20 / 24 / 37 | 9 / 18 | 108 g |
+| Temple | 180 | 208 / 225 / 225 / 222 | 75 / 89 | 832 g |
+| Cathedral | 960 | 1,163 / 1,181 / 1,181 / 1,178 (about 10 years) | 464 / 473 | 5,238 g |
+| Library | 90 | 103 / 113 / 113 / 111 | 38 / 54 | 421 g |
+| University | 480 | 581 / 593 / 592 / 589 (about 5 years) | 232 / 236 | 2,624 g |
+| Monument | 300 | 369 / 369 / 369 / 375 | 144 / 160 | 1,588 g |
+
+- A crew costs **3.6 g a day** at the median town (p90 4.7 g). Three crews cut a build to about 40% of its time in a
+  good season for 5–20% of a property's price. That is cheap next to a season of lost income, so crews are the
+  sensible default for any producer; for a temple or cathedral the wages run to 5–6× a property's.
+- A build longer than a season averages out the seasons: about 1.2× its work-days with no crews, whenever it starts.
+  A short one is fast in spring and summer and 1.6–2× slower begun in winter.
+
+**Payback.** The payback columns in the Results table above count from the day the building stands. Add the build:
+a raw producer that repaid itself in 30–55 days now has its stake back in about **55–80 days** from the order when
+begun in spring or summer, **70–100** begun in winter, or **40–65** with three crews. A mine runs about **130–150**
+days from the order (about 80 with crews), an inn or tavern a season longer than before. The medium loan (60 days)
+no longer covers both the build and the repayment of two producers unless crews are hired.
+
+**Measured** (bot, 2 seeds x 10 years, the same seeds with the old durations restored at runtime): the bot built
+the same 4 properties in both runs and its gold path stayed in the same band (seed 101: 0–1,200 g both ways; seed
+202: 200–2,000 g new vs 370–2,700 g old). The crowns finished as many public works over the decade (44/54 vs 42/48),
+paced more slowly in the first years; AI cultural buildings reach the same count (27–32) a few years later.
+
 ## Re-measuring
 
 - **Long soak.** `SOAK=1 SOAK_VERBOSE=1 npx vitest run playtest.soak` prints each
   run's gold ledger by system.
+- **Build times.** `CPROBE=1 npx vitest run src/__tests__/construction.probe.test.js` (`CPROBE_SEEDS`,
+  `CPROBE_SITES`) prints the calendar table in *Construction takes real time*.
 - **Focused strategies.** Write a throwaway test next to the harness, as this pass did:
   `newGame(seed)`, a scripted daily loop, then `endDay`.
 - **Settle formulas first.** Start with the payback-days column. A building that repays

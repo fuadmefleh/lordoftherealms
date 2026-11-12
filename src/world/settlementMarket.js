@@ -1510,7 +1510,8 @@ export const SettlementMarket = {
             const sha = SettlementMarket._shape(a), shb = SettlementMarket._shape(b);
             const xa = arr(a), xb = arr(b);
             let budget = link.capacity * link.factor * (turn !== null ? k : 1);
-            const fr = 1 + link.friction;
+            // (+ the money changers' spread between two realms' coins: world/moneySupply.js collectTrade)
+            const fr = 1 + link.friction + (link.changers > 0 ? link.changers : 0);
             // The road's pace (world/transport.js applyLink: 1 = the old road)
             const rate = link.rate > 0 ? link.rate : 1;
             const shareR = Math.min(0.9, share * rate);

@@ -26,6 +26,7 @@ import { SettlementMarket } from '../world/settlementMarket.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { Cultures } from '../world/cultures.js';
 import { Characters } from '../world/characters.js';
+import { Names } from '../core/names.js';
 import { PracticeSkills } from './practiceSkills.js';
 // (courtship: who notices whom, and the weddings it comes to — systems/romance.js; called at run time only)
 import { Romance } from './romance.js';
@@ -265,16 +266,43 @@ export const Townsfolk = {
     /** First names for a town's people: its culture's (world/cultures.js), else the common pool */
     _firstNames(folk, gender) {
         const C = Townsfolk.config();
-        const own = folk && folk.culture ? Cultures.firstNames(folk.culture, gender, Characters.FIRST_NAMES) : null;
+        const culture = folk && folk.culture;
+        // The culture's noble names, its own tongue's, and its common folk's
+        // (data/cultures.json names / commonNames), each once
+        const own = culture ? Names.merge(
+            Cultures.firstNames(culture, gender, Characters.FIRST_NAMES),
+            Cultures.firstNames(culture, gender, null),
+            Cultures.commonNames(culture, gender)) : null;
         return own && own.length ? own : (C.names[gender] || []);
     },
 
-    /** Family names for a town's people: its culture's houses, else the common pool */
+    /** Family names for a town's people: its culture's common surnames and houses, else the common pool */
     _lastNames(folk) {
         const C = Townsfolk.config();
         const culture = folk && folk.culture;
-        const own = culture ? ((Characters.DYNASTY_NAMES && Characters.DYNASTY_NAMES[culture]) || Cultures.dynastyNames(culture)) : null;
+        const own = culture ? Names.merge(
+            Cultures.surnames(culture),
+            (Characters.DYNASTY_NAMES && Characters.DYNASTY_NAMES[culture]) || Cultures.dynastyNames(culture)) : null;
         return own && own.length ? own : C.lastNames;
+    },
+
+    /** Full names ("First Last") the living of a town answer to (away ones too) */
+    liveNames(folk) {
+        const out = new Set();
+        for (const p of (folk && folk.people) || []) if (p && p.died == null) out.add(`${p.first} ${p.last}`);
+        return out;
+    },
+
+    /**
+     * A first name of the town's culture for someone of family `last` that no
+     * living townsman shares in full (and not in `avoid`, a set of first
+     * names: living siblings, parents). `r` is ONE draw in [0, 1) — the pick
+     * never costs more, so the town's streams stay as they were.
+     */
+    freshFirst(folk, gender, last, r, avoid = null, live = null) {
+        const pool = Townsfolk._firstNames(folk, gender);
+        const held = live || Townsfolk.liveNames(folk);
+        return Names.pickFree(pool, r, n => (avoid && avoid.has(n)) || held.has(`${n} ${last}`));
     },
 
     _create(settlement, world, npcs, opts, day) {
@@ -289,16 +317,27 @@ export const Townsfolk = {
         if (settlement.culture) folk.culture = settlement.culture;
         const rng = _rng(world, folk, day, 'create');
         const byNpc = new Map();
+        const live = new Set();
         for (const npc of npcs) {
             if (npc.type === 'traveler') continue;
             const age = _num(npc.age, 30);
             const gender = npc.gender || (rng() < 0.5 ? 'male' : 'female');
             const names = Townsfolk._firstNames(folk, gender);
+            // (a name already of the culture's or the common pool is kept — unless
+            // someone here already answers to it in full; the draws are as before)
+            const fresh = names.length && !names.includes(npc.name) && !(C.names[gender] || []).includes(npc.name);
+            const rFirst = fresh ? rng() : null;
+            const last = npc.lastName || _pick(Townsfolk._lastNames(folk), rng);
+            let first = fresh ? Names.pickFree(names, rFirst, n => live.has(`${n} ${last}`)) : npc.name;
+            if (!fresh && live.has(`${first} ${last}`) && names.length) {
+                const at = Math.max(0, names.indexOf(first));
+                first = Names.pickFree(names, at / names.length, n => live.has(`${n} ${last}`));
+            }
+            live.add(`${first} ${last}`);
             const p = {
                 id: folk.n++,
-                // (a name already of the culture's or the common pool is kept)
-                first: names.length && !names.includes(npc.name) && !(C.names[gender] || []).includes(npc.name) ? _pick(names, rng) : npc.name,
-                last: npc.lastName || _pick(Townsfolk._lastNames(folk), rng),
+                first,
+                last,
                 gender,
                 born: day - age * Y - Math.floor(rng() * Y),
                 died: null, cause: null,
@@ -717,7 +756,11 @@ export const Townsfolk = {
         const bride = a.gender === 'female' ? a : b;
         const groom = bride === a ? b : a;
         // (two brides or two grooms keep their own names)
-        if (a.gender !== b.gender && bride.last !== groom.last) { bride.maiden = bride.maiden || bride.last; bride.last = groom.last; }
+        // (nor does a bride whose wedded name another living townswoman already bears)
+        if (a.gender !== b.gender && bride.last !== groom.last
+            && !folk.people.some(p => p !== bride && p.died == null && p.first === bride.first && p.last === groom.last)) {
+            bride.maiden = bride.maiden || bride.last; bride.last = groom.last;
+        }
         if (!quiet) {
             Townsfolk._log(a, day, 'wed', b.id);
             Townsfolk._log(b, day, 'wed', a.id);
@@ -727,21 +770,25 @@ export const Townsfolk = {
     _born(folk, mother, father, day, rng, quiet = false) {
         const C = Townsfolk.config();
         const gender = rng() < 0.5 ? 'male' : 'female';
-        const taken = new Set(mother.kids.map(id => Townsfolk.get(folk, id)).filter(k => k && k.died == null).map(k => k.first));
+        // Never a living brother's or sister's name (either parent's children), nor a
+        // parent's, nor a name someone living here already answers to in full
+        const taken = new Set([...mother.kids, ...father.kids].map(id => Townsfolk.get(folk, id)).filter(k => k && k.died == null).map(k => k.first));
         taken.add(mother.first);
         taken.add(father.first);
+        const live = Townsfolk.liveNames(folk);
+        const free = n => !taken.has(n) && !live.has(`${n} ${father.last}`);
         let first = null;
         let namedFor = null;
         if (rng() < C.birth.namedForKin) {
+            // Named for a grandparent who has died — the old name back in the house
             const elders = [...mother.parents, ...father.parents].map(id => Townsfolk.get(folk, id))
-                .filter(e => e && e.gender === gender && e.died != null && !taken.has(e.first));
+                .filter(e => e && e.gender === gender && e.died != null && free(e.first));
             const e = _pick(elders, rng);
             if (e) { first = e.first; namedFor = e.id; }
         }
         if (!first) {
             const pool = Townsfolk._firstNames(folk, gender);
-            const names = pool.filter(n => !taken.has(n));
-            first = _pick(names.length ? names : pool, rng) || 'Ash';
+            first = (pool.length ? Names.pickFree(pool, rng(), n => !free(n)) : null) || 'Ash';
         }
         const child = {
             id: folk.n++, first, last: father.last, gender, born: day, died: null, cause: null,
@@ -762,10 +809,13 @@ export const Townsfolk = {
     _newcomer(folk, day, rng, o = {}) {
         const C = Townsfolk.config();
         const gender = o.gender || (rng() < 0.5 ? 'male' : 'female');
+        // (the first name's draw comes first, as it always has; it is fitted to the family name after)
+        const rFirst = Townsfolk._firstNames(folk, gender).length ? rng() : null;
+        const last = o.last || _pick(Townsfolk._lastNames(folk), rng) || 'Stone';
         const p = {
             id: folk.n++,
-            first: _pick(Townsfolk._firstNames(folk, gender), rng) || 'Ash',
-            last: o.last || _pick(Townsfolk._lastNames(folk), rng) || 'Stone',
+            first: (rFirst != null ? Townsfolk.freshFirst(folk, gender, last, rFirst) : null) || 'Ash',
+            last,
             gender,
             born: day - _num(o.age, 25) * C.daysPerYear - Math.floor(rng() * C.daysPerYear),
             died: null, cause: null,
@@ -1068,6 +1118,8 @@ export const Townsfolk = {
         }
         // Burglaries and cutpurses (systems/npcTheft.js): x = the told line, {when} filled in
         if (entry.k === 'npcTheft') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
+        // The town's history: fires, sacks, statues, cairns (systems/townMemory.js): x = the told line, {when} filled in
+        if (entry.k === 'townMemory') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
         // Fights between townsfolk (systems/brawls.js): x = the told line, {when} filled in
         if (entry.k === 'brawl') return _cap2(String(entry.x || '').replace('{when}', when)) || null;
         // Apprenticed, made master, a trade taken up (systems/townJobs.js)

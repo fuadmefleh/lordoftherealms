@@ -1,9 +1,10 @@
 {
   "config": {
     "maxClaimStrength": 100,
-    "pressMinStrength": 25,
+    "pressMinStrength": 40,
     "pressGold": 300,
-    "pressMinArmy": 40,
+    "pressMinArmy": 80,
+    "pressMinAppeal": 5,
     "exileDays": 360,
     "exilePrestigeLoss": 30,
     "exileReputation": -80,
@@ -19,8 +20,8 @@
     "royalMatchMinReputation": 20,
 
     "forgeGold": 300,
-    "forgeStrength": 15,
-    "forgeCap": 30,
+    "forgeStrength": 10,
+    "forgeCap": 20,
     "forgeBase": 0.4,
     "forgePerSpyLevel": 0.1,
     "forgePerStealth": 0.02,
@@ -28,8 +29,8 @@
     "forgeFailSpyLoyalty": -10,
 
     "purchasePrestige": 30,
-    "purchaseStrength": 15,
-    "purchaseCap": 30,
+    "purchaseStrength": 10,
+    "purchaseCap": 20,
 
     "conquestStrength": 35,
 
@@ -82,11 +83,13 @@
       "lateVictoryMomentum": 30,
       "collapseDays": 10,
       "stabilityMod": -0.15,
-      "vanguardShare": 0.08,
-      "vanguardMin": 20,
+      "vanguardShare": 0.15,
+      "vanguardMin": 40,
       "vanguardMax": 400,
       "vanguardWin": 10,
-      "vanguardLoss": -8
+      "vanguardLoss": -8,
+      "vanguardFlipChance": 0.4,
+      "capitalMomentum": 50
     },
 
     "crisis": {
@@ -110,7 +113,11 @@
 
     "ruling": {
       "levyReserve": 500,
-      "levyCap": 200,
+      "levyCap": 150,
+      "levyReserveDays": 5,
+      "levyStability": [25, 75],
+      "levySurplusShare": 0.75,
+      "levyDeficitShare": 0.25,
       "peaceCooldownDays": 10,
       "peaceBaseChance": 0.35,
       "allianceMinRelations": 40,

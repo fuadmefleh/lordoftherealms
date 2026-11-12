@@ -9,6 +9,7 @@ import { Court } from '../../systems/court.js';
 import { MoneySupply } from '../../world/moneySupply.js';
 import { CoinCensus } from '../../systems/coinCensus.js';
 import { Barter } from '../../world/barter.js';
+import { MetaLegacy } from '../../systems/metaLegacy.js';
 
 // Movement granted by "infinite movement" — enough to cross a region in a day
 // without letting getReachableHexes flood the whole map
@@ -369,3 +370,54 @@ Object.assign(UI.prototype, {
         next();
     },
 });
+
+// ── Ironman & the Hall of Houses (systems/metaLegacy.js) ──
+// Any cheat taints the run: its Houses still go in the Hall of Houses, marked,
+// but earn no legacy. An Ironman run keeps the panel shut until the player
+// chooses, there, to taint the run.
+{
+    const renderPanel = UI.prototype.renderCheatsPanel;
+    Object.assign(UI.prototype, {
+        renderCheatsPanel() {
+            const world = this.game && this.game.world;
+            if (!this.game || !this.game.player) return;
+            if (!MetaLegacy.isIronman(world) || MetaLegacy.isTainted(world)) {
+                renderPanel.call(this);
+                return;
+            }
+            const html = `
+                <div class="cheats-panel">
+                    <p class="cheat-note">⚒️ This is an <strong>Ironman</strong> run: no cheats.</p>
+                    <p class="cheat-note">You may open them anyway. The run is then <strong>tainted</strong> for good:
+                    it stays Ironman, but its Houses are marked in the Hall of Houses and earn no legacy for later games.</p>
+                    <div class="cheat-row">
+                        <button class="gs-btn cheat-btn" data-ui-act="cheatsTaintRun">🧪 Taint this run and open the cheats</button>
+                    </div>
+                </div>`;
+            this.showCustomPanel('🧪 Cheats', html);
+        },
+
+        /** The player's choice: taint the Ironman run, then the real panel. */
+        cheatsTaintRun() {
+            const world = this.game && this.game.world;
+            if (MetaLegacy.taint(world, 'cheats', world && world.day)) {
+                this.showNotification('🧪 Run tainted', 'Cheats are open. This run earns no legacy in the Hall of Houses.', 'warning');
+            }
+            renderPanel.call(this);
+        },
+    });
+    // Every cheat taints the run first; in an untainted Ironman run it does nothing but show the gate
+    for (const key of Object.keys(UI.prototype).filter(k => /^cheat[A-Z]/.test(k))) {
+        const fn = UI.prototype[key];
+        if (typeof fn !== 'function') continue;
+        UI.prototype[key] = function (...args) {
+            const world = this.game && this.game.world;
+            if (MetaLegacy.isIronman(world) && !MetaLegacy.isTainted(world)) {
+                this.renderCheatsPanel();
+                return undefined;
+            }
+            if (world) MetaLegacy.taint(world, 'cheats', world.day);
+            return fn.apply(this, args);
+        };
+    }
+}

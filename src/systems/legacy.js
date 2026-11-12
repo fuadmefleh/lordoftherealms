@@ -22,6 +22,7 @@ import { DataLoader } from '../core/dataLoader.js';
 import { House } from './house.js';
 import { Traits } from './traits.js';
 import { Deeds } from './deeds.js';
+import { MetaLegacy } from './metaLegacy.js';
 
 const DEFAULT_LEGACY = {
     weights: {
@@ -285,7 +286,11 @@ export const Legacy = {
         const rank = Legacy.rank(score);
         house.ended = { day: (world && world.day) || 0, cause, score, rank: rank.label, lastRuler: last ? last.name : player.name };
         House._chronicle(house, world, `The line of ${house.name} ends with ${house.ended.lastRuler}. ${rank.label}.`, ['succession', 'ended']);
-        return Legacy.epitaph(player, world);
+        const epitaph = Legacy.epitaph(player, world);
+        // Filed in the Hall of Houses, kept across games (systems/metaLegacy.js; only a
+        // game with a run record — world.run — files anything)
+        if (world && world.run) MetaLegacy.recordHouseEnd(player, world, epitaph, cause);
+        return epitaph;
     },
 
     /** Epitaph screen data for an ended House. */

@@ -22,7 +22,8 @@ import { InnerMapEscort } from '../innerMapEscort.js';
 import { InnerMapSickness } from '../innerMapSickness.js';
 import { InnerMapRites } from '../innerMapRites.js';
 import { glyphFor } from '../icons.js';
-import { drawMapText, drawMapMarker, labelZoom } from '../mapInk.js';
+import { drawMapText, drawMapMarker, labelZoom, textPx, BODY_FONT } from '../mapInk.js';
+import { layoutLabels, labelPriority } from '../labelLayout.js';
 
 /** How far one sat in a pew (seen from behind, facing the altar) sinks below their standing place, in tiles. */
 const PEW_SINK = 0.26;
@@ -151,11 +152,49 @@ Object.assign(InnerMapRenderer, {
         }
     },
 
-    /** A townsfolk's name under their feet. */
-    _drawNpcName(ctx, name, sx, sy, ds, zoom) {
-        drawMapText(ctx, name, sx, sy + ds * 0.3, {
+    /**
+     * A townsfolk's name under their feet. With `npc` and this frame's label
+     * plan (_planNpcLabels), the name steps clear of its neighbours' or is
+     * left out when the crowd leaves it no room.
+     */
+    _drawNpcName(ctx, name, sx, sy, ds, zoom, npc = null) {
+        const spot = npc && this._npcLabelPlan ? this._npcLabelPlan.get(npc) : null;
+        if (spot && spot.hidden) return;
+        const draw = () => drawMapText(ctx, name, sx, sy + ds * 0.3 + (spot ? spot.dy : 0), {
             size: 10.5 * labelZoom(zoom), min: 10, weight: 600, family: 'body', baseline: 'top', color: 'rgba(244, 239, 228, 0.92)',
         });
+        // (in the depth-sorted pass the name waits until every body is drawn: in a crowd the
+        // row in front would otherwise stand over the names of the row behind)
+        if (this._deferredNames) this._deferredNames.push(draw);
+        else draw();
+    },
+
+    /**
+     * Lay out this frame's NPC names (ui/labelLayout.js): reqs [{ npc, text, x,
+     * y (the label's top), keeper }] in canvas px. The one under the mouse is
+     * always shown, then the nearest the player; the rest step a line down or
+     * up to clear them, or are left out. Returns Map npc → { dy, hidden }.
+     */
+    _planNpcLabels(ctx, reqs, zoom) {
+        const plan = new Map();
+        if (!reqs || reqs.length < 2) return plan;
+        const size = textPx(10.5 * labelZoom(zoom), 10);
+        const hov = this._hoveredInnerHex;
+        const pq = InnerMap.playerInnerQ, pr = InnerMap.playerInnerR;
+        ctx.save();
+        ctx.font = `600 ${size}px ${BODY_FONT}`;
+        const labels = reqs.map(q => {
+            const n = q.npc;
+            const hovered = !!(hov && hov.q === n.q && (hov.r === n.r || hov.r === n.r - 1));
+            const dist = Number.isFinite(pq) && Number.isFinite(pr) ? Math.hypot(n.q - pq, n.r - pr) : 50;
+            return {
+                npc: n, x: q.x, y: q.y, w: ctx.measureText(String(q.text || '')).width, h: size * 1.15,
+                always: hovered, priority: labelPriority(dist, { hovered, keeper: q.keeper }),
+            };
+        });
+        ctx.restore();
+        for (const l of layoutLabels(labels, { gap: 1, steps: 2, pad: 1 })) plan.set(l.npc, { dy: l.dy, hidden: l.hidden });
+        return plan;
     },
 
     /** The player while the sprites load: a struck token (a skull once dead). */
@@ -624,6 +663,7 @@ Object.assign(InnerMapRenderer, {
         const charReady = typeof InnerMapCharacters !== 'undefined' && InnerMapCharacters.isReady();
         const self = this;
         const items = []; // { sortY, draw() }
+        const labelReqs = []; // the NPCs' names wanted this frame, laid out before the draw (_planNpcLabels)
         const { qMin, qMax, rMin, rMax } = this._frameRange;
         const canvasW = ctx.canvas.width;
         const canvasH = ctx.canvas.height;
@@ -874,9 +914,12 @@ Object.assign(InnerMapRenderer, {
                         const sortY = (r + 1) * T;
                         const bldgH = def.bounds
                             ? (def.bounds.maxRow - def.bounds.minRow + 1) : 3;
-                        const cq = q, cr = r;
+                        const cq = q, cr = r, ruin = tile.customBuilding.ruin || null, wear = tile.customBuilding.wear || 0, spire = tile.customBuilding.spire || null;
+                        // (the player's property on its lot: a building site while it goes up, its name over it)
+                        const propRef = tile._propertyRef || null, propInfo = propRef ? tile.buildingInfo : null;
                         items.push({ sortY, zLayer: 1, sortH: bldgH, sortX: q, draw() {
-                            self._drawCustomBuilding(ctx, camera, def, cq, cr, ds);
+                            self._drawCustomBuilding(ctx, camera, def, cq, cr, ds, ruin, self._siteProgress(propRef), wear, spire);
+                            if (propInfo && camera.zoom > 0.4) self._drawBuildingLabel(ctx, camera, propInfo, cq, cr + (def.bounds ? def.bounds.minRow : -2));
                         }});
                     }
                 }
@@ -1098,6 +1141,7 @@ Object.assign(InnerMapRenderer, {
                 // (the name: over the stall's awning or the head behind a counter, clear of the marker and the
                 // customers; under the piece they sit or lie on)
                 const labelY = stallBox ? stallScr.y - ds * 0.55 : counter ? sy - ds * 2.25 : onPiece ? camera.worldToScreenFast(worldX, onPiece.y + onPiece.h).y - ds * 0.3 : sy;
+                if (camera.zoom > 0.7 && nRef.name) labelReqs.push({ npc: nRef, text: nRef.name, x: sx, y: labelY + ds * 0.3, keeper: !!counter });
 
                 items.push({ sortY, zLayer: 2, draw() {
                     if (clipY != null) { ctx.save(); ctx.beginPath(); ctx.rect(-1e4, -1e4, 2e4, clipY + 1e4); ctx.clip(); }
@@ -1187,11 +1231,13 @@ Object.assign(InnerMapRenderer, {
                     }
                     // (behind a counter their feet are hidden: the name goes over their head, clear of the
                     // customers before the stall)
-                    if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, labelY, ds, camera.zoom);
+                    if (camera.zoom > 0.7) self._drawNpcName(ctx, nRef.name, sx, labelY, ds, camera.zoom, nRef);
                     // (not over a woodcutter at work: the axe swung up over the head says it, and would be hidden)
                     // (nor over every drinker or worshipper sat in a scene: activity.quiet)
-                    // (a stall keeper's marker goes over their name, both above the awning)
-                    if (nRef.activity && !nRef.activity.quiet && chopP == null && swingP == null) self._drawNpcActivity(ctx, nRef, sx, stallBox ? labelY - ds * 0.05 + ds * 1.55 * (nRef._scale || (nRef.type === 'child' ? 0.7 : 1)) - ds * 0.3 : sy, ds, now);
+                    // (a stall keeper's marker goes over their name, both above the awning; behind a counter it
+                    // sits just over the name — from `sy` it covered the name's lower half)
+                    const cS = ds * 1.55 * (nRef._scale || (nRef.type === 'child' ? 0.7 : 1));
+                    if (nRef.activity && !nRef.activity.quiet && chopP == null && swingP == null) self._drawNpcActivity(ctx, nRef, sx, stallBox ? labelY - ds * 0.05 + cS - ds * 0.3 : counter ? labelY + ds * 0.03 + cS : sy, ds, now);
                     // ── Health bar (only shown when NPC has taken damage) ──
                     if (typeof InnerMapCombat !== 'undefined') {
                         const nHealth = InnerMapCombat.getNPCHealth(nRef.id);
@@ -1395,7 +1441,17 @@ Object.assign(InnerMapRenderer, {
             || ((b.sortH || 0) - (a.sortH || 0))
             || ((a.sortX || 0) - (b.sortX || 0))
         );
-        for (const item of items) item.draw();
+        // (the names laid out first, so none is drawn over another's: ui/labelLayout.js)
+        this._npcLabelPlan = this._planNpcLabels(ctx, labelReqs, camera.zoom);
+        this._deferredNames = [];
+        try {
+            for (const item of items) item.draw();
+            // The names over every body (each still stepped clear of its neighbours)
+            for (const d of this._deferredNames) d();
+        } finally {
+            this._npcLabelPlan = null;
+            this._deferredNames = null;
+        }
 
         // ── Phase 6: Combat overlays (hit flashes + floating damage numbers) ──
         // Always rendered on top of all sprites.

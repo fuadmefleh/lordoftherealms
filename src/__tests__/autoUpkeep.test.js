@@ -22,6 +22,64 @@ function toWild(world, player, pred) {
 }
 
 describe('AutoUpkeep', () => {
+    it("fun and social are seen to with the day's spare points: a pastime in the wilds, the locals and the street in town", () => {
+        const { world, player } = newGame(4242, { terrainGen: 3 });
+        Object.assign(player.needs, { hygiene: 90, energy: 90, comfort: 90, hunger: 90, social: 15, fun: 10 });
+        player.clothesFreshness = 95;
+        player.actionPoints = 4;
+        const res = AutoUpkeep.run(player, world, { mode: 'full' });
+        expect(res).toBeTruthy();
+        const ids = res.steps.map(s => s.id);
+        expect(ids.some(i => i === 'chat' || i === 'pastime')).toBe(true);
+        expect(player.needs.social).toBeGreaterThan(15);
+        expect(player.needs.fun).toBeGreaterThan(10);
+
+        toWild(world, player, t => !t.river);
+        Object.assign(player.needs, { social: 50, fun: 10 });
+        player.actionPoints = 3;
+        player._restTypeOverride = 'camp';
+        const wild = AutoUpkeep.run(player, world, { mode: 'full' });
+        expect(wild && wild.steps.some(s => s.id === 'pastime')).toBe(true);
+        expect(player.needs.fun).toBeGreaterThan(10);
+        // 'upkeep' leaves the leisure
+        Object.assign(player.needs, { fun: 10 });
+        player.actionPoints = 3;
+        const up = AutoUpkeep.run(player, world, { mode: 'upkeep' });
+        expect(!up || !up.steps.some(s => s.id === 'pastime')).toBe(true);
+    });
+
+    it('in town with an empty pack: buys food at the market and eats, even with no points left', () => {
+        const { world, player } = newGame(4242, { terrainGen: 3 });
+        expect(townOf(world, player)).toBeTruthy();
+        player.gold = 300;
+        for (const k of Object.keys(player.inventory || {})) if ((player.constructor.FOOD_TYPES || []).includes(k)) player.inventory[k] = 0;
+        expect(player.getFoodCount()).toBe(0);
+        player.needs.hunger = 10;
+        player.actionPoints = 0;
+        const gold = player.gold;
+        const res = AutoUpkeep.run(player, world, { mode: 'full' });
+        expect(res, 'something was done').toBeTruthy();
+        const ids = res.steps.map(s => s.id);
+        expect(ids).toContain('market');
+        expect(ids).toContain('eat');
+        expect(player.needs.hunger).toBeGreaterThan(10);
+        expect(player.getFoodCount()).toBeGreaterThan(0);
+        expect(player.gold).toBeLessThan(gold);
+        expect(gold - player.gold).toBeLessThanOrEqual(gold * AutoUpkeep.config().food.purseShare);
+    });
+
+    it('a pack with food in it buys nothing; the wilds have no market', () => {
+        const { world, player } = newGame(4242, { terrainGen: 3 });
+        player.gold = 300;
+        player.inventory.bread = 10;
+        player.needs.hunger = 90;
+        player.actionPoints = 0;
+        expect(AutoUpkeep._marketFood(player, world, world.getTile(player.q, player.r), AutoUpkeep.config())).toBeNull();
+        player.inventory.bread = 0;
+        const t = toWild(world, player, () => true);
+        expect(AutoUpkeep._marketFood(player, world, t, AutoUpkeep.config())).toBeNull();
+    });
+
     it('in town: a grimy, bored character bathes and passes the evening with the locals, the coin to the town', () => {
         const { world, player } = newGame(4242, { terrainGen: 3 });
         const town = townOf(world, player);

@@ -64,20 +64,34 @@ describe('castles come late', () => {
         const w = make({ startYear: 400 });
         const [s] = capitals(w);
         const k = w.getKingdom(s.kingdom);
-        const cost = Castles.config().cost;
-        // a poor crown: the year comes and goes, no castle
+        const { cost, buildYears } = Castles.config();
+        const years = Math.max(1, Math.round(buildYears));
+        const part = Math.ceil(cost / years);
+        // a poor crown: the year comes and goes, no castle, no works begun
         w.year = Castles.dueYear(s);
-        k.treasury = cost - 1;
+        k.treasury = part - 1;
         Castles.sync(w);
         expect(s.castle).toBe(false);
-        // the crown can pay: masons in town, a castle of stone
+        expect(s.castleWorks).toBeUndefined();
+        // the crown can pay: masons in town, a year's share of the cost each year
         k.treasury = cost + 100;
         if (!s.economy || !Number.isFinite(s.economy.gold)) s.economy = { ...(s.economy || {}), gold: 1000 };
         const purse = Economy.townPurse(s);
-        const raised = Castles.sync(w);
+        let raised = [];
+        for (let y = 0; y < years; y++) {
+            raised = Castles.sync(w);
+            // a second pass in the same year pays nothing more
+            Castles.sync(w);
+            if (y < years - 1) {
+                expect(s.castle).toBe(false);
+                expect(s.castleWorks.done).toBe(y + 1);
+                w.year++;
+            }
+        }
         expect(raised.some(r => r.settlement === s)).toBe(true);
         expect(s.castle).toBe(true);
-        expect(k.treasury).toBe(100);
+        expect(s.castleWorks).toBeUndefined();
+        expect(k.treasury).toBe(cost + 100 - part * years);
         expect(Economy.townPurse(s)).toBeGreaterThan(purse);
         expect(w.events.some(e => /castle of stone/.test(e.text))).toBe(true);
     });

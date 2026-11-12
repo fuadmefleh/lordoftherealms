@@ -310,6 +310,10 @@ Object.assign(InnerMapRenderer, {
                     if (spec) this._ambFromSpec(cfg, spec, q, r, seed, conds, ds, camera, T);
                     if (cfg.parts.length) this._ambPartsFor(cfg, 'object', tile.customObject.defId, null, q, r);
                 } else if (tile.customBuilding && CustomBuildings.isLoaded()) {
+                    // (a burnt-out or sacked shell has no hearth smoke, no lamp in its windows: world/townMarks.js)
+                    if (tile.customBuilding.ruin === 'burnt' || tile.customBuilding.ruin === 'sacked') continue;
+                    // (nor does a building still going up on its lot: no fire lit in a hearth not yet built)
+                    if (tile._propertyRef && tile._propertyRef.underConstruction) continue;
                     const def = CustomBuildings.getBuilding(tile.customBuilding.defId);
                     if (!def) continue;
                     const list = this._ambBuildingEmitters(cfg, def, null);

@@ -1,0 +1,125 @@
+{
+    "_doc": "The illustrated chronicle (systems/chronicleBook.js, ui/chronicleBook.js): the Annals made into a book to export — a self-contained HTML file with the House's arms, a chapter per ruler with a portrait and a map of the realm at the reign's end, the key battles, great works and deaths, a dynasty tree and an appendix from Deeds & Records and the Ledger. The maps are border snapshots taken as the game runs (house.chronicleBook.maps): a coarse grid of realm cells, run-length encoded, at the founding, at each reign's end, when a crown is won or lost, and every `eraYears` years. `maxCols` bounds a map's width in cells, `mapCap` the maps kept (the era maps are thinned first), so a century of play saves a few tens of kilobytes. `moments` sorts the House chronicle (house.history) into the book's three lists by tag, else by a word in the line; `momentCap` lines a list keeps per reign (a closed reign's are filed when it ends, so they outlive the chronicle's cap).",
+    "maxCols": 64,
+    "mapCap": 32,
+    "eraYears": 30,
+    "familyEvery": 30,
+    "momentCap": 10,
+    "moments": {
+        "battles": {
+            "title": "Wars and battles",
+            "icon": "⚔️",
+            "tags": [
+                "war",
+                "siege",
+                "conquest",
+                "peace",
+                "coalition",
+                "battle"
+            ],
+            "words": [
+                "battle",
+                "besieged",
+                "siege",
+                "war",
+                "routed",
+                "conquers"
+            ]
+        },
+        "works": {
+            "title": "Great works",
+            "icon": "🏛️",
+            "tags": [
+                "greatWork"
+            ],
+            "words": [
+                "great work",
+                "raised",
+                "completed the"
+            ]
+        },
+        "deaths": {
+            "title": "Deaths",
+            "icon": "🕯️",
+            "tags": [
+                "widowed",
+                "death",
+                "ended"
+            ],
+            "words": [
+                "dies",
+                "died",
+                "slain",
+                "killed",
+                "perishes",
+                "perished"
+            ]
+        }
+    },
+    "battleLines": {
+        "_doc": "How House.recordBattle tells a battle in the House chronicle (tagged war + battle, or siege, so the book's battles list has it with its date, place, foe and outcome). By kind (field, sea, assault, siege) and outcome; {who} the commander, {foe} the enemy, {place} the town, {at} 'at X' / 'near X' (a town within `near` steps) / 'in the hills'. A foe weaker than `minStrength` is a skirmish and not chronicled.",
+        "minStrength": 20,
+        "near": 6,
+        "field": {
+            "victory": "{who} defeated {foe} in battle {at}.",
+            "defeat": "{who} was defeated by {foe} in battle {at}."
+        },
+        "sea": {
+            "victory": "{who} defeated {foe} in a sea battle {at}.",
+            "defeat": "{who} was defeated by {foe} in a sea battle {at}."
+        },
+        "assault": {
+            "victory": "{who} stormed {place}, defended by {foe}.",
+            "defeat": "{who}'s assault on {place} was thrown back by {foe}."
+        },
+        "siege": {
+            "victory": "{who} took {place} from {foe} after a siege.",
+            "defeat": "{who} failed to take {place} from {foe}."
+        }
+    },
+    "labels": {
+        "founding": "The realm at the founding of {house}",
+        "end": "The realm at the death of {name}",
+        "era": "The realm in the year {year}",
+        "crownWon": "The realm as {name} took the crown of {crown}",
+        "crownLost": "The realm as the crown of {crown} passed from {house}",
+        "final": "The realm as this book was written, in the year {year}"
+    },
+    "_prose": "Where the language model has written the book's prose (systems/llmProse.js, LlmProse.text(world, key, fallback)), the book prints it in place of the template text. `proseKeys` are the keys tried, in order, per part: {house} is the House's id, {chapter} the Annals chapter id (g<gen>_<startDay>). The foreword and the epilogue are asked of LlmProse.write when the book is exported (kind 'foreword' / 'epilogue'), and read from their templates until written.",
+    "proseKeys": {
+        "chapter": [
+            "annals:{house}:{chapter}",
+            "annals:{chapter}",
+            "chapter:{house}:{chapter}"
+        ],
+        "summary": [
+            "reign:{house}:{chapter}",
+            "reignSummary:{house}:{chapter}"
+        ],
+        "epitaph": [
+            "epitaph:{house}",
+            "annals:{house}:epitaph"
+        ],
+        "legacy": [
+            "annals:{house}:legacy"
+        ],
+        "foreword": [
+            "book:{house}:foreword"
+        ],
+        "epilogue": [
+            "book:{house}:epilogue"
+        ]
+    },
+    "foreword": [
+        "Here are set down the deeds of {house}: {generations} {generationsWord} of rulers, from the year {from} to the year {to}. What the scribes saw, they wrote; what they did not, the maps remember."
+    ],
+    "forewordEnded": [
+        "Here are set down the deeds of {house}, from the year {from} until the line ended in the year {to}: {generations} {generationsWord}, and what was won and lost between."
+    ],
+    "epilogue": [
+        "So the book closes in the year {to}, with {last} at the head of {house}. The rest is yet to be written."
+    ],
+    "epilogueEnded": [
+        "So ends the line of {house}, in the year {to}, with {last}. {rank}."
+    ]
+}

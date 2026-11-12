@@ -26,6 +26,7 @@ import { Ailments } from '../systems/ailments.js';
 import { SocialSkills } from '../systems/socialSkills.js';
 import { Crafting } from './crafting.js';
 import { Arms } from '../systems/arms.js';
+import { Heirlooms } from '../systems/heirlooms.js';
 
 /** Tenet effect of the player's own religion (0 without one). */
 function _tenet(player, key) {
@@ -91,7 +92,8 @@ export const PlayerEffects = {
 
     /** A carried treasure's bonus: battlePower, damageReduction or negotiation. */
     treasureBonus(player, key) {
-        return Treasures.equipTotal(player, key);
+        // ...and the House's heirlooms in the ruler's hand (systems/heirlooms.js)
+        return Treasures.equipTotal(player, key) + Heirlooms.bonus(player, key);
     },
 
     // ──────────── DIVINE BLESSINGS (miracles) ────────────

@@ -452,7 +452,9 @@ export const TownLabour = {
         const wk = C.workOf;
         const jobs = {
             land: wk.peasants * tgt.peasants * effPop + Math.max(0, _num(hire.land)),
-            craft: wk.artisans * tgt.artisans * bpop * (_num(J.craftBase, 0.8) + _num(J.craftUtil, 0.3) * util) + Math.max(0, _num(hire.craft)),
+            craft: wk.artisans * tgt.artisans * bpop * (_num(J.craftBase, 0.8) + _num(J.craftUtil, 0.3) * util) + Math.max(0, _num(hire.craft))
+                // (the builders a burnt or sacked town hires to rebuild: systems/townMemory.js)
+                + Math.max(0, _num(settlement.memory && settlement.memory.rebuildHands)),
             trade: wk.merchants * tgt.merchants * bpop * (_num(J.tradeBase, 0.75) + _num(J.tradeAct, 0.25) * act),
         };
         const W = C.wages;

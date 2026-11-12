@@ -34,6 +34,7 @@ import { Harvests } from '../world/harvests.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { Fiscal } from './fiscal.js';
 import { Engrossing } from './engrossing.js';
+import { LlmProse } from './llmProse.js';
 
 const DEFAULT_CONFIG = { speed: 8, lifeDays: 40, minGapDays: 2, maxPerDay: 1, cap: 24 };
 const MAJOR = 9;
@@ -245,6 +246,13 @@ export const Heralds = {
         for (const x of Heralds._estateRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._engrossRecords(world)) st.seen[x.key] = x.day;
         for (const x of Heralds._lawRecords(world)) st.seen[x.key] = x.day;
+        for (const x of Heralds._crisisRecords(world)) st.seen[x.key] = x.day;
+    },
+
+    /** The age's crises: invasions, great plagues, schisms, famines, gold rushes (world.crises.news, systems/crises.js). */
+    _crisisRecords(world) {
+        const t = world && world.crises;
+        return (t && Array.isArray(t.news) ? t.news : []).filter(h => h && h.key && (h.kind === 'crisis' || h.kind === 'crisis_grave')).map(h => ({ key: h.key, day: _num(h.day), h }));
     },
 
     /** A crown's proclamation of a law: gates shut against the plague, opened again (world.lawNews.history). */
@@ -562,6 +570,13 @@ export const Heralds = {
             }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null, own: !!h.own });
         }
 
+        // The age's crises, cried as they turn (systems/crises.js)
+        for (const x of Heralds._crisisRecords(world).filter(fresh)) {
+            st.seen[x.key] = x.day;
+            const h = x.h;
+            Heralds._proclaim(st, world, h.kind, { text: h.text || '' }, { q: h.q, r: h.r }, { kingdomId: h.kingdomId != null ? h.kingdomId : null });
+        }
+
         // The fields: a harvest failing or a bumper one, a blight, the harvest in
         for (const x of Heralds._harvestRecords(world).filter(fresh)) {
             st.seen[x.key] = x.day;
@@ -721,6 +736,21 @@ export const Heralds = {
             st.lastNoticeDay = day;
             out.notices.push({ icon: icons[p.kind] || '📯', title: 'The Heralds Cry', text: p.text, type: 'info', kind: p.kind });
         }
+        // All the day's news that reached the player, as one digest the court
+        // scribe may cry in full (systems/llmProse.js; the plain lines otherwise)
+        const key = `heralds:${day}`;
+        st.lastDigest = { day, key };
+        out.digestKey = key;
+        const news = reached.map(p => p.text).filter(Boolean);
+        LlmProse.write(world, { kind: 'heralds', key, facts: { day, news }, fallback: news.join(' ') });
         return out;
+    },
+
+    /** The last day's digest of the news: { day, text, written } (written: the scribe's), or null. */
+    digest(world, player) {
+        const d = player && player.heralds && player.heralds.lastDigest;
+        if (!d || !d.key) return null;
+        const written = LlmProse.written(world, d.key);
+        return { day: d.day, text: written || LlmProse.text(world, d.key, ''), written: !!written };
     },
 };

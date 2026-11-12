@@ -7,6 +7,10 @@
 // where heat waves bake the land. It draws no randomness after construction,
 // so reading it never disturbs the game's RNG stream.
 //
+// Under it runs the climate of centuries (world/climate.js): an era's
+// temperature and precipitation anomalies are added here, so a little ice
+// age brings more snow and a drought fewer rains, still without any RNG.
+//
 // Each weather type carries gameplay effects (WEATHER_EFFECTS), read by:
 //   travelSpeed      → player stamina each morning (endDay → applyPlayerDailyEffects)
 //   farmProduction   → player farms (playerEconomy/property)
@@ -15,6 +19,7 @@
 //   seaDanger        → ships at sea: hull damage and storm delays (Ships.processDaily)
 
 import { Utils } from '../core/utils.js';
+import { Climate } from './climate.js';
 
 export const WEATHER_TYPES = {
     clear:    { name: 'Clear',     icon: '☀️' },
@@ -103,8 +108,9 @@ export class WeatherSystem {
         const a = this._valueNoise(x - day * 0.45, y, period);
         const b = this._valueNoise(x * 2 - day * 0.8 + 0.5 * period, y * 2 + 31, period * 2);
         const v = a * 0.65 + b * 0.35;
-        // Stretch the averaged noise back toward the full 0..1 range
-        return Math.max(0, Math.min(1, (v - 0.5) * 1.45 + 0.5));
+        // Stretch the averaged noise back toward the full 0..1 range; the
+        // climate's era (a drought, wet decades: world/climate.js) shifts it
+        return Math.max(0, Math.min(1, (v - 0.5) * 1.45 + 0.5 + Climate.wetAt(this.world, q, r, day)));
     }
 
     /**
@@ -182,7 +188,9 @@ export class WeatherSystem {
             case 'Autumn': seasonalOffset = -0.05; break;
             case 'Spring': seasonalOffset = 0.05; break;
         }
-        return Math.max(0, Math.min(1, base + seasonalOffset));
+        // The climate's era: a little ice age, a warm period (world/climate.js)
+        const climate = Climate.tempAt(this.world, tile, day === undefined ? this.world.day : day);
+        return Math.max(0, Math.min(1, base + seasonalOffset + climate));
     }
 
     /**

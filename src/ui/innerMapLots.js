@@ -25,7 +25,7 @@ const PANEL_ITEM = { type: 'action', action: 'lot_panel', label: 'Your Lots & To
 export const InnerMapLots = {
     /** Build-menu items for a tile on a town map, or null when the tile isn't in town (the usual build menu then). */
     tileItems(game, tile, q, r) {
-        const { s } = _settlement(game);
+        const { wt, s } = _settlement(game);
         if (!s || InnerMap._insideBuilding) return null;
         const at = InnerMap.lotAt(q, r);
         const items = [{ type: 'separator' }];
@@ -44,7 +44,9 @@ export const InnerMapLots = {
             items.push({ type: 'header', label: `📜 Your Lot — ${lot.w}×${lot.h}` });
             if (rec.built) {
                 const b = rec.built;
-                const going = b.readyDay != null && Number(game.world.day) < b.readyDay;
+                // (a property of yours on it goes up at the builders' pace: systems/construction.js)
+                const prop = (wt && wt.playerProperties || []).find(p => p && p.lotId === lot.id);
+                const going = (b.readyDay != null && Number(game.world.day) < b.readyDay) || !!(prop && prop.underConstruction);
                 const tenant = b.tenant ? ` — let to ${b.tenant.name}` : '';
                 items.push({ type: 'disabled', label: `🏠 ${b.kind === 'house' ? 'Your house to let' : (b.name || 'Your building')} ${going ? 'is going up' : 'stands here'}${tenant}` });
             } else {
@@ -104,7 +106,6 @@ export const InnerMapLots = {
             case 'lot_build': {
                 const ok = Lots.canBuildOnLot(s, item.lot.id);
                 if (!ok.ok) { game.ui.showNotification('Cannot Build', ok.reason, 'error'); return true; }
-                InnerMap._pendingPropertyPosition = InnerMap.lotBuildSpot(item.lot);
                 InnerMap._pendingLot = item.lot.id;
                 if (wt) ActionMenu.handleAction(game, wt, 'build_property');
                 return true;
@@ -127,13 +128,17 @@ export const InnerMapLots = {
         return false;
     },
 
-    /** After a property is built (ui/actionMenu/build.js): if it was for a lot, it stands there. */
+    /**
+     * After a property is built in town (ui/actionMenu/build.js; PlayerEconomy.buildProperty has
+     * bound it to its lot): it stands on that lot, a building of its kind (world/innerMap/lots.js).
+     */
     afterBuild(game, worldTile, property) {
-        const lotId = InnerMap._pendingLot;
+        const lotId = (property && property.lotId) || InnerMap._pendingLot;
         InnerMap._pendingLot = null;
+        InnerMap._pendingPropertyPosition = null;
         if (!lotId || !property) return;
         const s = worldTile && worldTile.settlement;
-        Lots.buildOnLot(game.player, game.world, s, lotId, property);
+        if (property.lotId !== lotId) Lots.buildOnLot(game.player, game.world, s, lotId, property);
         if (typeof InnerMap.placePropertyOnInnerMap === 'function') InnerMap.placePropertyOnInnerMap(worldTile, property, worldTile.q, worldTile.r);
     },
 };

@@ -7,6 +7,11 @@ import { House } from './_imports.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Heirs } from '../../systems/heirs.js';
 import { Legacy } from '../../systems/legacy.js';
+import { Annals } from '../../systems/annals.js';
+import { LlmProse } from '../../systems/llmProse.js';
+import { Afterlife } from '../../player/afterlife.js';
+import { endIronmanRun } from '../game/ironman.js';
+import { HallChronicles } from '../hallChronicles.js';
 import { Companions } from '../../systems/companions.js';
 import { Traits } from '../../systems/traits.js';
 import { Throne } from '../../systems/throne.js';
@@ -338,6 +343,8 @@ Object.assign(ActionMenu, {
             if (r.prestigeGained) body += `<div style="font-size:11px; color:#cbbf9f;">⭐ ${r.prestigeGained > 0 ? '+' : ''}${r.prestigeGained} Prestige</div>`;
             for (const n of r.notableRulings || []) body += `<div style="font-size:11px; color:#b8b4c8;">⚖️ ${_esc(n.text)}</div>`;
             for (const h of r.highlights || []) body += `<div style="font-size:11px; color:#9d937c;">· ${_esc(h.text)}</div>`;
+            // The realm in these years, on the Timeline of the Realm (ui/actionMenu/timeline.js)
+            body += `<div data-am-act="showTimeline" data-am-args="${_esc(JSON.stringify([{ day: r.startDay }]))}" style="font-size:11px; color:#c9b27a; cursor:pointer; margin-top:3px;" title="Open the Timeline of the Realm at the start of this reign">🗺️ <u>See the realm in these years</u></div>`;
             const title = `${_esc(r.name)}${r.epithet ? ` <i style="color:#c9b27a; font-weight:400;">${_esc(r.epithet)}</i>` : ''}`;
             const block = card(body, { title, side: `Gen ${r.generation}${r.live ? ' · reigning' : ''}`, tone: r.live ? 'gold' : '' });
             html += r.live ? block.replace('class="pk-card', 'style="border-color: rgba(245,197,66,0.45);" class="pk-card') : block;
@@ -348,6 +355,8 @@ Object.assign(ActionMenu, {
     /** The line has ended: the House's epitaph and legacy score. */
     showEpitaph(game, cause = null) {
         const player = game.player;
+        // No heir: the banks and creditors take their share, the rest goes to the crown (player/estateSettlement.js)
+        const estate = Afterlife.settleEstate(player, game.world, cause);
         const e = Legacy.endDynasty(player, game.world, cause);
         let html = '<div style="font-size: 12px;">';
         if (!e) {
@@ -363,10 +372,34 @@ Object.assign(ActionMenu, {
             html += `<div style="font-size:22px;">${e.rank.icon}</div><div style="font-family:var(--font-display); color:#ffe9a8; font-size:15px; font-weight:600;">${_esc(e.rank.label)}</div>`;
             html += `<div style="color:#9d937c;">Legacy score ${e.score}</div>`;
             if (e.line) html += `<div style="color:#c9b27a; font-style:italic; margin-top:4px;">${_esc(e.line)}</div>`;
+            // The court scribe's epitaph (systems/llmProse.js): shown when written, filled in if it comes while the page is open
+            Annals.writeEpitaph(game.world, player, e);
+            const epKey = Annals.epitaphKey(player);
+            const writ = LlmProse.written(game.world, epKey);
+            html += `<div id="epitaphProse" style="color:#e8dcc0; font-family: Georgia, serif; font-style:italic; margin-top:8px;${writ ? '' : ' display:none;'}">${writ ? `✒️ ${_esc(writ)}` : ''}</div>`;
+            if (!writ && ['queued', 'writing'].includes(LlmProse.status(game.world, epKey)) && typeof setInterval === 'function') {
+                let tries = 0;
+                const poll = setInterval(() => {
+                    const el = typeof document !== 'undefined' && document.getElementById('epitaphProse');
+                    const t = LlmProse.written(game.world, epKey);
+                    if (el && t) { el.textContent = `✒️ ${t}`; el.style.display = ''; }
+                    if (t || !el || ++tries > 60 || !['queued', 'writing'].includes(LlmProse.status(game.world, epKey))) clearInterval(poll);
+                }, 2500);
+            }
             html += '</div>';
             html += sectionHead('Reigns');
             html += ActionMenu._reignsHtml(e.reigns);
         }
+        // Filed in the Hall of Houses (systems/metaLegacy.js); an Ironman run ends here for good (ui/game/ironman.js)
+        const run = game.world && game.world.run;
+        const ironman = endIronmanRun(game);
+        if (e && run) {
+            // ...with its chronicle book, kept for the Hall (ui/hallChronicles.js; optional)
+            HallChronicles.archive(game);
+            html += `<div style="font-size:11px; color:#9d937c; text-align:center; margin-top:8px;">🏛️ ${_esc(e.houseName)} is entered in the Hall of Houses${run.tainted ? ' (a tainted run: it earns no legacy)' : ''}.</div>`;
+        }
+        if (ironman) html += '<div style="font-size:11px; color:#e0846a; text-align:center; margin-top:4px;">⚒️ Ironman: this run is over, and its save is gone.</div>';
+        if (estate) html += ActionMenu._estateHtml(game.world, estate);
         html += `<button onclick="location.reload();" style="${BTN_RED} display:block; width:100%; margin-top:10px; padding:10px;">Start New Game</button>`;
         html += '</div>';
         game.ui.showCustomPanel('🕯️ The Line Ends', html, { locked: true });

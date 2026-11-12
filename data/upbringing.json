@@ -380,5 +380,38 @@
         "rewardGold": 200, "rewardPrestige": 6, "rewardRoleLoyalty": 10,
         "councilNames": ["Lord Aubrey Tench", "Lady Isolde Marrow", "Lord Cedric Vane", "Lady Rowena Hale", "Lord Osmund Grey", "Lady Elsbeth Crane"],
         "forbidden": ["war", "siege"]
+    },
+    "abdication": {
+        "_comment": "systems/abdication.js — stepping down while alive; the old ruler lives on as an elder (pension, respect, ambition, plots); the court's pressure to step down.",
+        "cadence": 7,
+        "endowmentShare": 0.1, "endowmentMax": 1500,
+        "blessedDispute": 0.05, "counselledDispute": 0.12,
+        "orderlyPrestige": 6, "passOverPrestige": 12, "forcedPrestige": 15,
+        "keepRenown": 0.8, "keepReputation": 0.7,
+        "realmStability": { "orderly": 5, "passedOver": -8, "forced": -12 },
+        "pension": 4, "pensionChoices": [0, 2, 4, 8, 15],
+        "upkeep": { "court": 2, "estate": 3, "monastery": 1 },
+        "baseRespect": { "voluntary": 72, "counselled": 55, "forced": 22 },
+        "baseAmbition": 35, "forcedAmbition": 25, "ambitionSpread": 30,
+        "drift": 3, "favourDecay": 1, "pensionRespect": 3, "owedRespectPer": 20,
+        "monasteryAmbition": -40, "monasteryRespect": -20, "monasteryWillingRespect": -4, "estateRespect": -5,
+        "counselCooldown": 30, "counselRespect": 4, "maxTaught": 5,
+        "honourPrestige": 6, "honourFavour": 10, "honourAmbition": -6,
+        "giftGold": 100, "giftFavour": 6,
+        "steadyRespect": 70, "steadyRoleLoyalty": 1, "steadyPressure": 10,
+        "favouriteGiftChance": 0.25, "favouriteGiftShare": 0.1, "favouriteGiftMax": 100,
+        "championChance": 0.1, "championRespect": 50, "championAmbition": 40,
+        "plotBelow": 30, "plotAmbition": 55, "plotRumourAt": 50,
+        "shadowDays": 90, "shadowSkimShare": 0.04, "shadowSkimMax": 150, "shadowPrestige": 10, "shadowRoleLoyalty": -2,
+        "exposePrestige": 4, "accusePrestige": 12, "exposeRecovery": 0.5,
+        "willFavourite": 0.3,
+        "pressure": {
+            "counselAt": 35, "demandAt": 65, "weeksToDemand": 4, "answerDays": 30, "coupAt": 55, "cooldownDays": 180,
+            "holdPrestige": 15, "holdGold": 600,
+            "lowPrestige": 10, "warBase": 12, "warPerHolding": 8, "warMax": 35,
+            "debtBase": 6, "debtMax": 20, "courtBelow": 40, "courtMax": 20,
+            "stabilityBelow": 35, "stabilityMax": 25, "infamyBelow": -40, "infamyMax": 20,
+            "frailAge": 60, "frailHealth": 0.5, "frail": 15, "oldAge": 70, "old": 10
+        }
     }
 }

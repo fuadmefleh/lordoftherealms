@@ -237,6 +237,12 @@ Object.assign(InnerMap, {
             }
             const bType = (def && def.buildingType) || 'house';
             const bDef = this.BUILDING_TYPES[bType] || this.BUILDING_TYPES.house;
+            // A burnt-out or sacked shell (world/townMarks.js): nothing to do there but look
+            const ruin = customBuildingTile.customBuilding.ruin;
+            if (ruin === 'burnt' || ruin === 'sacked') {
+                return { q: anchorQ, r: anchorR, type: bType, name: ruin === 'burnt' ? 'Burnt-out Shell' : 'Sacked Ruin', icon: ruin === 'burnt' ? '🔥' : '🏚️',
+                    sprite: null, actions: [], _isCustomBuilding: true, _customDefId: defId, _ruin: ruin, _mark: customBuildingTile.customBuilding.mark || null };
+            }
             return {
                 q: anchorQ,
                 r: anchorR,
@@ -824,9 +830,14 @@ Object.assign(InnerMap, {
     },
 
     /**
-     * Get NPC at a specific tile position
+     * The NPCs on a tile — as drawn: one walking is on the tile it is more than
+     * half way into (the renderer slides it along its path), so a click on the
+     * figure finds it rather than the tile it set out from.
      */
     getNPCsAt(q, r) {
-        return this.npcs.filter(n => n.q === q && n.r === r);
+        return this.npcs.filter(n => {
+            const next = (n.state === 'walking' || n.state === 'inside_building') && n.path && n.moveProgress > 0.5 ? n.path[n.pathIndex] : null;
+            return next ? next.q === q && next.r === r : n.q === q && n.r === r;
+        });
     },
 });

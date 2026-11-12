@@ -515,7 +515,8 @@ export const RivalHouses = {
 
     /** The rival's id as a landholder (world/estates.js). */
     holderId(rival) {
-        return `rival:${rival.kingdomId}`;
+        // (a cadet branch run by this AI holds land under its own key: systems/cadetBranches.js)
+        return rival.landKey || `rival:${rival.kingdomId}`;
     },
 
     _landOn(world) {

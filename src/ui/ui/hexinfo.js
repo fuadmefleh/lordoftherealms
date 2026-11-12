@@ -9,6 +9,10 @@ import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { Fame } from '../../systems/fame.js';
 import { Kingship } from '../../systems/kingship.js';
 import { Pirates } from '../../systems/pirates.js';
+import { Construction } from '../../systems/construction.js';
+
+// '42% · ~37d' for a build under way (systems/construction.js)
+const _works = (rec, world, q, r) => `${Math.round(Construction.progress(rec) * 100)}% · ~${Construction.eta(rec, world, q, r)}d`;
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, WorldEvents, InnerMap, InnerMapRenderer, KingdomBonuses, KingdomStability, KingdomNavy, WEATHER_TYPES, Cartography, Terrain, Hinterland, Estates } from './_imports.js';
 
 Object.assign(UI.prototype, {
@@ -135,7 +139,7 @@ Object.assign(UI.prototype, {
         // Show infrastructure info
         if (tile.infrastructure) {
             const infraStatus = tile.infrastructure.underConstruction
-                ? ` <span style="color: #e0a040;">🔨 ${tile.infrastructure.constructionDaysLeft}d left</span>`
+                ? ` <span style="color: #e0a040;">🔨 ${_works(tile.infrastructure, this.game.world, q, r)}</span>`
                 : '';
             html += `
                 <div class="info-section-title">Infrastructure</div>
@@ -206,6 +210,7 @@ Object.assign(UI.prototype, {
                     <span class="info-label">Type</span>
                     <span class="info-value">${tile.settlement.type}</span>
                 </div>
+                ${tile.settlement.castleWorks ? `<div class="info-row"><span class="info-label">Castle</span><span class="info-value" style="color:#e0a040;">🏗️ rising: year ${tile.settlement.castleWorks.done || 0} of ${tile.settlement.castleWorks.years || '?'}</span></div>` : ''}
                 <div class="info-row">
                     <span class="info-label">Population</span>
                     <span class="info-value">${Utils.formatNumber(tile.settlement.population)}</span>
@@ -261,7 +266,7 @@ Object.assign(UI.prototype, {
 
             for (const prop of tile.playerProperties) {
                 const constructionStatus = prop.underConstruction
-                    ? `<div class="info-row"><span class="info-label">Status</span><span class="info-value" style="color:#e0a040;">🔨 Building (${prop.constructionDaysLeft}d left)</span></div>`
+                    ? `<div class="info-row"><span class="info-label">Status</span><span class="info-value" style="color:#e0a040;">🔨 Building (${_works(prop, this.game.world, q, r)})</span></div>`
                     : '';
                 html += `
                     <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom: 8px;${prop.underConstruction ? ' opacity: 0.7; border-left: 3px solid #e0a040;' : ''}">
@@ -349,7 +354,7 @@ Object.assign(UI.prototype, {
                 </div>
                 <div class="info-row">
                     <span class="info-label">Level</span>
-                    <span class="info-value">${building.level || 1}/${Culture.LEVELS.max}${building.underConstruction ? ` · 🏗️ ${building.constructionDaysLeft} days left` : ''}</span>
+                    <span class="info-value">${building.level || 1}/${Culture.LEVELS.max}${building.underConstruction ? ` · 🏗️ ${_works(building, this.game.world, q, r)}` : ''}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Influence</span>

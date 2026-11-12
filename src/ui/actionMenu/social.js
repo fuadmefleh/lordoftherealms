@@ -6,6 +6,7 @@ import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
 import { Demands } from '../../systems/demands.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { CadetBranches } from '../../systems/cadetBranches.js';
 import { Court } from '../../systems/court.js';
 import { Regency } from '../../systems/regency.js';
 import { ConversationScene } from '../conversationScene.js';
@@ -667,6 +668,12 @@ Object.assign(ActionMenu, {
             // Directed opposition: the realms' regard, a league against you, rival agents (systems/coalitions.js)
             const league = player.coalitions && player.coalitions.active;
             nav.push({ icon: '⚜️', name: 'Threats', desc: league ? league.name : '', act: 'showThreatsPanel', side: league ? 'league' : '', tone: league ? 'bad' : '' });
+            // Named enemies who remember you (ui/actionMenu/nemesis.js)
+            const foes = (player.nemesis && player.nemesis.list) || [];
+            nav.push({ icon: '🩸', name: 'Nemeses', desc: foes.length ? foes.map(n => n.name).join(', ') : '', act: 'showNemesisPanel', side: foes.length ? String(foes.length) : '', tone: foes.length ? 'bad' : '' });
+            // The age's crisis: an invasion, a great plague, a schism, a famine, a gold rush (systems/crises.js)
+            const crisis = game.world && game.world.crises && game.world.crises.active;
+            nav.push({ icon: '🌋', name: 'The Age', desc: crisis ? crisis.name.charAt(0).toUpperCase() + crisis.name.slice(1) : 'The great crises of the world', act: 'showCrisesPanel', side: crisis ? 'crisis' : '', tone: crisis ? 'bad' : '' });
         }
         {
             // A commission in a realm's army (ui/actionMenu/generalship.js)
@@ -677,8 +684,13 @@ Object.assign(ActionMenu, {
             nav.push({ icon: '🛡️', name: 'Household Guard', desc: hg ? hg.kingdomName : '', act: 'showHouseholdGuard' });
         }
         nav.push({ icon: '📜', name: 'House Chronicle', act: 'showHouseChronicle' });
+        // Every generation drawn as a tree, and the named things they handed down (ui/actionMenu/dynastyTree.js)
+        nav.push({ icon: '🌳', name: 'Family Tree', desc: 'Every generation of the House', act: 'showDynastyTree' });
+        nav.push({ icon: '🗝️', name: 'Heirlooms', act: 'showHeirlooms' });
         // The Annals: the House's story as a book (ui/actionMenu/annals.js)
         nav.push({ icon: '📖', name: 'The Annals', act: 'showAnnals' });
+        // The realm's borders and deeds season by season on a map (ui/actionMenu/timeline.js)
+        nav.push({ icon: '🗺️', name: 'Timeline of the Realm', desc: 'The borders and deeds of every season', act: 'showTimeline' });
         // The game's victory goal and its progress (ui/actionMenu/scenario.js)
         nav.push({ icon: '🏆', name: 'Ambition of this Life', act: 'showAmbitionPanel' });
         html += rowList(nav, 'The House');
@@ -851,6 +863,24 @@ Object.assign(ActionMenu, {
                 act: 'showHouseCourt', side: 'Open ›', tone: 'gold',
             },
         ], '👥 The Court');
+        // Stewards, bailiffs and governors over the House's seats (systems/stewards.js)
+        html += rowList([
+            { icon: '🏛️', name: 'Stewards & Governors', desc: 'Who runs your holdings, estates, company and demesne towns, by what order; audit, reward, recall, punish', act: 'showStewards', side: 'Open ›', tone: 'gold' },
+        ]);
+        // Stepping down while alive; the rulers who did, living on (systems/abdication.js, ui/actionMenu/abdication.js)
+        const abd = player.abdication || null;
+        const eldersAlive = ((abd && abd.elders) || []).filter(e => e && e.alive);
+        html += rowList([
+            {
+                icon: '🪑', name: 'Succession & Retirement',
+                desc: eldersAlive.length
+                    ? `${eldersAlive.map(e => esc(e.firstName || e.name)).join(', ')} ${eldersAlive.length === 1 ? 'lives' : 'live'} on in retirement`
+                    : 'Step down while you live, in favour of your heir',
+                note: abd && abd.demand ? '<span style="color:#e0846a;">The lords demand that you step down</span>'
+                    : eldersAlive.some(e => e.shadow || e.rumoured) ? '<span style="color:#f0b35a;">An old ruler plots</span>' : '',
+                act: 'showAbdication', side: 'Open ›', tone: abd && abd.demand ? 'bad' : 'gold',
+            },
+        ]);
 
         // Offices / roles: the row appoints
         html += rowList(House.ROLE_IDS.map(roleId => {
@@ -867,6 +897,21 @@ Object.assign(ActionMenu, {
                 side: member ? 'Assign ›' : '<span style="color:#9d937c;">Vacant</span><br><span style="font-size:10.5px; color:#9d937c;">Assign ›</span>',
             };
         }), '🏰 Offices');
+
+        // Cadet branches: the younger lines of the House out in the world (systems/cadetBranches.js)
+        const cadets = CadetBranches.heirLine(player);
+        const cadetKids = CadetBranches.candidates(player, game.world);
+        if (cadets.length || cadetKids.length) {
+            const rows = cadets.map(b => ({
+                icon: b.estranged ? '💢' : '🌿', name: esc(b.name),
+                desc: `${esc(CadetBranches.headName(b))}, ${b.head.age} · ${esc(RivalHouses.doing(game.world, b))}`,
+                side: `${CadetBranches.loyaltyLabel(b.loyalty)} (${Math.round(b.loyalty)})`,
+                tone: b.loyalty >= 60 ? 'good' : b.loyalty >= 40 ? '' : b.loyalty >= 20 ? 'warn' : 'bad',
+                act: 'showCadetBranches',
+            }));
+            rows.push({ icon: '🌱', name: cadets.length ? 'Cadet Branches' : 'Found a Cadet Branch', desc: cadets.length ? 'Gifts, asks and summons; send a child out to found another' : `${cadetKids.map(c => esc(c.firstName)).join(', ')} could found a House of your blood`, act: 'showCadetBranches', side: '›', tone: 'gold' });
+            html += rowList(rows, '🌿 Cadet Branches');
+        }
 
         // Rivals
         const rivalKeys = Object.keys(house.rivals || {});
@@ -977,7 +1022,8 @@ Object.assign(ActionMenu, {
         const recent = (house.history || []).slice(-6).reverse();
         html += '<div style="font-size:11px; color:#cbbf9f; max-height:120px; overflow-y:auto; margin:0 2px 8px;">';
         for (const h of recent) {
-            html += `<div style="padding:3px 0; border-bottom:1px solid rgba(245,197,66,0.07);"><span style="color:#9d937c;">Day ${h.day}:</span> ${h.text}</div>`;
+            // (the day opens the Timeline of the Realm at that season: ui/actionMenu/timeline.js)
+            html += `<div style="padding:3px 0; border-bottom:1px solid rgba(245,197,66,0.07);"><span data-am-act="showTimeline" data-am-args="${esc(JSON.stringify([{ day: h.day }]))}" title="See the realm on the timeline" style="color:#9d937c; cursor:pointer; text-decoration:underline dotted;">Day ${h.day}:</span> ${h.text}</div>`;
         }
         html += '</div>';
 
@@ -1312,7 +1358,7 @@ Object.assign(ActionMenu, {
 
         if (cause === 'starvation') {
             html += `<div style="${DEATH}">💀 Starvation</div>`;
-            html += lede(`${player.name} has perished from starvation after ${player.starvationDays || '?'} days without food, at the age of ${player.age}.`);
+            html += lede(`${player.name} has perished from starvation after ${player.starvationDays || '?'} day${player.starvationDays === 1 ? '' : 's'} without food, at the age of ${player.age}.`);
             html += `<p style="${QUOTE}">"Even the mightiest lord cannot defy hunger forever."</p>`;
         } else if (cause === 'drowning') {
             // Spent or frozen in the water (player/swimming.js)
@@ -1340,7 +1386,7 @@ Object.assign(ActionMenu, {
 
         // Offer to spend Prestige to secure a smooth succession (avoid disputes).
         const secureCost = (typeof House !== 'undefined') ? House._getSinks().secureSuccession : 20;
-        const canSecure = house && (house.prestige || 0) >= secureCost && eligibleHeirs.length > 0;
+        const canSecure = house && (house.prestige || 0) >= secureCost && (eligibleHeirs.length > 0 || CadetBranches.list(player).length > 0);
         if (canSecure) {
             html += `<label class="pk-card" style="display:flex; align-items:center; gap:8px; font-size:12px; color:#ece2c8; cursor:pointer;">
                 <input type="checkbox" id="secureSuccessionChk" />
@@ -1378,6 +1424,17 @@ Object.assign(ActionMenu, {
                 html += card(body, { icon: '👑', title: `${minorHeir.firstName} ${minorHeir.dynasty}`, side: `Age ${minorHeir.age} · 👑 Designated`, tone: 'gold' });
             }
         } else {
+            // No heir of the main line: the head of a cadet branch may take up the mantle (systems/cadetBranches.js)
+            const cadetLine = CadetBranches.heirLine(player);
+            if (cadetLine.length) {
+                html += sectionHead('The Cadet Line');
+                html += `<div style="${MUTED} margin:0 2px 8px;">No heir of your own line remains, but the House's blood runs on in its branches. Their head would bring the branch's purse and lands home.</div>`;
+                cadetLine.forEach((b, i) => {
+                    let body = `<div style="${MUTED}">${esc(b.name)} · seat at ${esc(b.seat ? b.seat.name : '—')} · ${esc(RivalHouses.wealthLabel(b.gold))} · loyalty ${Math.round(b.loyalty)}${b.estranged ? ' (estranged)' : ''}</div>`;
+                    body += `<button onclick="window._succeedAsCadet('${b.id}')" style="${i === 0 ? BTN_GOLD : BTN_PLAIN} display:block; width:100%; margin-top:8px; padding:8px;">Play as ${esc(b.head.firstName)}</button>`;
+                    html += card(body, { icon: '🌿', title: esc(CadetBranches.headName(b)), side: `Age ${b.head.age}${i === 0 ? ' · nearest' : ''}`, tone: i === 0 ? 'gold' : '' });
+                });
+            }
             // No adult heir — offer a regency if an under-age child exists.
             const assess = (typeof House !== 'undefined') ? House.assessSuccession(player) : { hasMinorHeir: false, regent: null };
             if (assess.hasMinorHeir && assess.regent) {
@@ -1389,7 +1446,7 @@ Object.assign(ActionMenu, {
                 body += `<button onclick="window._succeedViaRegency('${r.id}')" style="${BTN_GOLD} display:block; width:100%; margin-top:8px; padding:9px;">Install Regency for ${r.firstName}</button>`;
                 body += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; margin-top:6px; padding:8px;">Let the Dynasty End</button>`;
                 html += card(body, { icon: '👑', title: `${r.firstName}`, side: `Age ${r.age}`, tone: 'gold' });
-            } else {
+            } else if (!cadetLine.length) {
                 html += `<div style="${TITLE} color:#e0846a; font-size:15px; margin-top:12px;">No Eligible Heirs</div>`;
                 html += `<div style="${MUTED} text-align:center; margin:0 0 8px;">Without an heir, your dynasty ends here.</div>`;
                 html += `<button onclick="window._endDynasty()" style="${BTN_RED} display:block; width:100%; padding:10px;">🕯️ Read the Epitaph</button>`;
@@ -1410,11 +1467,11 @@ Object.assign(ActionMenu, {
         window._deathNewLife = () => ActionMenu.showNewLife(game, 0, cause || 'old age');
         window._deathLetTimePass = () => ActionMenu.beginInterregnum(game, cause || 'old age');
 
-        const finishSuccession = (childId, extraOpts) => {
+        const finishSuccession = (childId, extraOpts, run = null) => {
             const chk = document.getElementById('secureSuccessionChk');
             const opts = { secure: !!(chk && chk.checked), cause: cause || 'old age', ...(extraOpts || {}) };
             const goldBefore = Math.floor(player.gold || 0);
-            const result = Relationships.succeedAsHeir(player, childId, game.world, opts);
+            const result = run ? run(opts) : Relationships.succeedAsHeir(player, childId, game.world, opts);
             if (result.success) {
                 // Clear death animation state
                 InnerMapRenderer.clearDeathAnimation();
@@ -1428,12 +1485,16 @@ Object.assign(ActionMenu, {
                 successHtml += lede(`You are now <strong>${result.newName}</strong>, heir of ${result.oldName}.`);
                 // What the will passed on, then the purse after the succession's losses and costs
                 const inheritPct = Relationships._getHeirSettings().inheritanceGoldPercent;
-                const inherited = Math.floor(goldBefore * inheritPct);
+                const inh = result.inheritance || null;
+                const inherited = inh ? Math.floor(inh.kept) : Math.floor(goldBefore * inheritPct);
                 successHtml += kv('Age', result.heir.age);
-                successHtml += kv('Inherited', `${inherited} of ${goldBefore} gold (${Math.round(inheritPct * 100)}%)`);
+                successHtml += kv('Inherited', `${inherited} of ${inh ? Math.floor(inh.before) : goldBefore} gold (${Math.round(inheritPct * 100)}%)`);
+                // Where the rest went: debts, the other children's portions, the heriot (systems/inheritance.js)
+                if (inh && inh.line) successHtml += `<div style="font-size:11px; color:#c9b27a; margin:2px 0 6px;">💰 ${inh.line}</div>`;
                 if (Math.floor(player.gold) !== inherited) successHtml += kv('Purse after the succession', `${Math.floor(player.gold)} gold`);
                 if (player.house) successHtml += kv(player.house.name, `Prestige ${player.house.prestige || 0} · Generation ${hr.generation || player.house.generation || 1}`);
                 const notes = [];
+                if (result.cadet) notes.push(`<div style="color:#8fd18a;">🌿 ${esc(result.cadet.text)}</div>`);
                 if (hr.regency) notes.push(`<div style="color:#f0b35a;">Ascended under a regency — a weaker start.</div>`);
                 if (result.regency) notes.push(`<div style="color:#f0b35a;">👑 ${result.regency.regent.name} rules as regent until you come of age at ${result.regency.majorityAge}. Dynasty → Regency.</div>`);
                 // The life the heir lived before the throne (systems/heirAgency.js)
@@ -1464,6 +1525,7 @@ Object.assign(ActionMenu, {
         };
 
         window._succeedAsHeir = (childId) => finishSuccession(childId, {});
+        window._succeedAsCadet = (branchId) => finishSuccession(null, {}, (opts) => CadetBranches.succeed(player, game.world, branchId, opts));
         window._succeedViaRegency = (childId) => {
             const sel = document.getElementById('regentChoiceSel');
             finishSuccession(childId, { regency: true, regent: sel ? sel.value : null });

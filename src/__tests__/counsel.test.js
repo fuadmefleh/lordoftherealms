@@ -9,7 +9,8 @@ import { DataLoader } from '../core/dataLoader.js';
 import { Utils } from '../core/utils.js';
 import { Player } from '../player/player.js';
 import { SaveLoad } from '../systems/saveLoad.js';
-import { Counsel, GROUPS, SEVERITIES, fillTemplate } from '../systems/counsel.js';
+import { Counsel, GROUPS, SEVERITIES, fillTemplate, openNudges } from '../systems/counsel.js';
+import { Ledger } from '../systems/ledger.js';
 import { House } from '../systems/house.js';
 import { Seasons } from '../world/seasons.js';
 import { loadData, newGame, endDay } from './playtest/harness.js';
@@ -299,4 +300,67 @@ describe('Counsel over a played game', () => {
         expect(seenRules.has('legacy')).toBe(true); // scored on a shadow House, so even a new game's line counts
         expect(maxItems).toBeGreaterThan(0);
     }, 120000);
+});
+
+describe('Never done: the Steward nudges toward the untried (rule never_done)', () => {
+    const nudgeItems = (p, w) => Counsel.scan(p, w, { fresh: true }).items.filter(i => i.rule === 'never_done');
+
+    it('data nudges are well-formed: a text, a known panel, an achievement or ledger category to tell them by', () => {
+        const list = DataLoader.counsel.nudges;
+        expect(list.length).toBeGreaterThan(10);
+        const cats = Ledger.config().categories;
+        const seen = new Set();
+        for (const n of list) {
+            expect(seen.has(n.id), n.id).toBe(false);
+            seen.add(n.id);
+            expect(n.text.length).toBeGreaterThan(10);
+            expect(!!n.achievement || (n.ledger || []).length > 0, n.id).toBe(true);
+            for (const c of n.ledger || []) expect(cats[c], `${n.id}: ledger ${c}`).toBeTruthy();
+        }
+    });
+
+    it('shows one nudge at a time, rotating through the open ones without repeating, and only now and then in the brief', () => {
+        const p = freshPlayer();
+        const w = fakeWorld({ day: 400 });
+        const period = DataLoader.counsel.rules.find(r => r.id === 'never_done').params.period;
+        const open = openNudges(p, w);
+        expect(open.length).toBeGreaterThan(3);
+        const shown = [];
+        let briefed = 0;
+        for (let i = 0; i < open.length * period; i++) {
+            w.day = 400 + i;
+            const items = nudgeItems(p, w);
+            expect(items).toHaveLength(1);
+            if (!shown.length || shown[shown.length - 1] !== items[0].text) shown.push(items[0].text);
+            if (Counsel.brief(p, w, 10).some(x => x.rule === 'never_done')) briefed++;
+        }
+        expect(new Set(shown).size).toBe(shown.length); // a full cycle: each once
+        expect(shown.length).toBe(open.length);
+        expect(briefed).toBeGreaterThan(0);
+        expect(briefed).toBeLessThan(open.length); // rate-limited: not every turn reaches the brief
+    });
+
+    it('a deed done closes its nudge: an achievement won, a ledger category ever booked', () => {
+        const p = freshPlayer();
+        const w = fakeWorld({ day: 400 });
+        const has = (id) => openNudges(p, w).some(n => n.id === id);
+        expect(has('feast')).toBe(true);
+        expect(has('duel')).toBe(true);
+        p.achievements = { unlocked: ['DUELIST'], progress: {} };
+        expect(has('duel')).toBe(false);
+        Ledger.record(p, 'feast', -50);
+        expect(has('feast')).toBe(false);
+        // ...and stays closed once the day's row is long gone from the kept history
+        Ledger.closeDay(p, { day: 400 });
+        for (let d = 401; d < 401 + Ledger.config().days + 5; d++) Ledger.closeDay(p, { day: d });
+        expect(p.financeHistory.some(r => r.expenses && r.expenses.feast)).toBe(false);
+        expect(Ledger.everUsed(p).has('feast')).toBe(true);
+        expect(p.financeHistory.filter(r => r.ever).length).toBe(1);
+        expect(has('feast')).toBe(false);
+    });
+
+    it('waits for the early days to pass', () => {
+        const p = freshPlayer();
+        expect(nudgeItems(p, fakeWorld({ day: 5 }))).toHaveLength(0);
+    });
 });

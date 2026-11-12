@@ -34,22 +34,73 @@
     "chat": {
         "_comment": "Talk with the locals (the Talk to Locals / tavern-talk action: 1 AP, its own need effects). At most 'times' a night.",
         "ap": 1,
-        "needs": { "social": 10, "fun": 3 },
-        "times": 2
+        "needs": {
+            "social": 10,
+            "fun": 4
+        },
+        "times": 3
     },
     "campfire": {
         "_comment": "Build a campfire (the Build Campfire action: 2 AP, 2 wood, its warmth and its need effects).",
         "ap": 2,
         "wood": 2,
         "heal": 15,
-        "needs": { "comfort": 10, "fun": 3 }
+        "needs": {
+            "comfort": 10,
+            "fun": 3
+        }
     },
     "services": {
         "_comment": "Inn and hotel services (data/hospitality.json services) the character may buy for itself, by what they are for. Rooms: the cheapest tier at or above 'room'.",
         "laundry": "laundry",
         "bath": "bath",
         "supper": "supper",
-        "leisure": ["bathhouse", "fine_dining"],
+        "leisure": [
+            "bathhouse",
+            "fine_dining"
+        ],
         "room": "private"
+    },
+    "food": {
+        "_comment": "In a town, when the pack holds this few meals or fewer (buyBelow), buy the cheapest food on the stalls up to 'stock' meals, spending at most purseShare of the purse. Takes no action points, so it happens even after a full day. The coin goes to the town's market (Trading.buyGoods).",
+        "enabled": true,
+        "buyBelow": 2,
+        "stock": 6,
+        "purseShare": 0.5
+    },
+    "company": {
+        "_comment": "Talk by the fire with a travelling companion (Companions.talk: their approval too), anywhere, at most 'times' a night.",
+        "ap": 1,
+        "times": 2,
+        "needs": {
+            "social": 14,
+            "fun": 5
+        }
+    },
+    "pastime": {
+        "_comment": "A pastime of one's own (fun), anywhere: picked in turn from 'town' or 'wild'. At most 'times' a night. {town} = the town's name.",
+        "ap": 1,
+        "times": 2,
+        "needs": {
+            "fun": 8
+        },
+        "townNeeds": {
+            "fun": 8,
+            "social": 3
+        },
+        "town": [
+            "watched the street players in {town}",
+            "strolled the market of {town} and took in the sights",
+            "listened to a minstrel in the square of {town}",
+            "played a game of knucklebones with the children of {town}",
+            "sat on the steps of {town}'s well and watched the world go by"
+        ],
+        "wild": [
+            "played a tune on a reed pipe",
+            "whittled a little figure by the light of evening",
+            "watched the stars come out",
+            "skimmed stones and sang an old song to yourself",
+            "told yourself the old stories under the open sky"
+        ]
     }
 }

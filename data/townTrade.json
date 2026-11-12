@@ -88,6 +88,9 @@
         "sellShare": 0.9,
         "maxTrips": 8,
         "minPurse": 6,
+        "soldOutBelow": 1,
+        "restockDays": 12,
+        "_soldOut": "A pedlar whose pack holds less than soldOutBelow units is sold out: they pack up and leave the town at once (door to door, or the player buying the last of it), selling any scraps to its market, and buy a new pack at that market for the next town. When that market has nothing worth carrying they wait at the town off its streets, trying again each trade step, and give up the road after restockDays. A pedlar who could buy nothing at all never sets out (the stake goes back to the town's purse).",
         "goods": ["salt", "candles", "soap", "pottery", "clothes", "tools", "textiles", "linen", "spices", "rope", "boots", "cheese", "honey", "herbs"],
         "names": ["Wat", "Hob", "Jory", "Tam", "Kit", "Ned", "Mog", "Bess", "Joan", "Nell", "Agnes", "Mab"],
         "bynames": ["Pack", "Tinker", "Needle", "Ribbon", "Wayfarer", "Longstride", "Saltbag", "Pedlar"]
@@ -159,7 +162,8 @@
             "done": "Done. Mind you use it well.",
             "none": "I've nothing to spare, I'm afraid. It's all spoken for.",
             "noCoin": "We've no coin here, friend. Bring goods to swap.",
-            "poor": "That's more than you can pay."
+            "poor": "That's more than you can pay.",
+            "soldOut": "That's the last of my pack. Time I was on the road."
         }
     },
     "annals": {

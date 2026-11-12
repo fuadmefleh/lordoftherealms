@@ -99,81 +99,81 @@
             "name": "Grand Cathedral", "icon": "⛪", "unique": false, "minType": "town",
             "blurb": "A spire over the town: your faith converts faster and the town is happier.",
             "stages": [
-                { "name": "Foundations", "days": 40, "gold": 700, "labour": 8, "goods": { "stone": 60, "wood": 20 }, "outdoor": true },
-                { "name": "Nave and Walls", "days": 50, "gold": 900, "labour": 10, "goods": { "stone": 80, "iron": 10 }, "outdoor": true },
-                { "name": "Spire and Glass", "days": 40, "gold": 1100, "labour": 10, "goods": { "glass": 20, "wood": 20, "candles": 10 }, "outdoor": false }
+                { "name": "Foundations", "days": 200, "gold": 700, "labour": 2, "goods": { "stone": 60, "wood": 20 }, "outdoor": true },
+                { "name": "Nave and Walls", "days": 250, "gold": 900, "labour": 2.5, "goods": { "stone": 80, "iron": 10 }, "outdoor": true },
+                { "name": "Spire and Glass", "days": 200, "gold": 1100, "labour": 2.5, "goods": { "glass": 20, "wood": 20, "candles": 10 }, "outdoor": false }
             ],
             "effects": { "conversion": 0.25, "mood": 6 },
             "prestige": 60,
-            "npc": { "days": 360, "cost": 5000, "stability": 4 }
+            "npc": { "days": 1440, "cost": 5000, "stability": 4 }
         },
         "great_library": {
             "name": "The Great Library", "icon": "🏛️", "unique": true, "minType": "town",
             "blurb": "The one Great Library of the world: research goes faster. First to finish claims it.",
             "stages": [
-                { "name": "Halls", "days": 45, "gold": 900, "labour": 9, "goods": { "stone": 70, "wood": 30 }, "outdoor": true },
-                { "name": "Stacks and Reading Rooms", "days": 40, "gold": 1000, "labour": 9, "goods": { "wood": 40, "parchment": 20 }, "outdoor": false },
-                { "name": "The Collection", "days": 35, "gold": 1400, "labour": 6, "goods": { "rare_book": 4, "parchment": 20, "candles": 10 }, "outdoor": false }
+                { "name": "Halls", "days": 225, "gold": 900, "labour": 2.5, "goods": { "stone": 70, "wood": 30 }, "outdoor": true },
+                { "name": "Stacks and Reading Rooms", "days": 200, "gold": 1000, "labour": 2.5, "goods": { "wood": 40, "parchment": 20 }, "outdoor": false },
+                { "name": "The Collection", "days": 175, "gold": 1400, "labour": 1.5, "goods": { "rare_book": 4, "parchment": 20, "candles": 10 }, "outdoor": false }
             ],
             "effects": { "research": 0.2, "mood": 2 },
             "prestige": 90,
-            "npc": { "days": 420, "cost": 6500, "stability": 5 }
+            "npc": { "days": 1680, "cost": 6500, "stability": 5 }
         },
         "university": {
             "name": "University", "icon": "🎓", "unique": false, "minType": "town",
             "blurb": "Masters and students: the heirs of your House learn faster.",
             "stages": [
-                { "name": "Colleges", "days": 40, "gold": 800, "labour": 8, "goods": { "stone": 50, "wood": 30 }, "outdoor": true },
-                { "name": "Lecture Halls", "days": 40, "gold": 900, "labour": 8, "goods": { "wood": 30, "parchment": 15, "candles": 10 }, "outdoor": false }
+                { "name": "Colleges", "days": 200, "gold": 800, "labour": 2, "goods": { "stone": 50, "wood": 30 }, "outdoor": true },
+                { "name": "Lecture Halls", "days": 200, "gold": 900, "labour": 2, "goods": { "wood": 30, "parchment": 15, "candles": 10 }, "outdoor": false }
             ],
             "effects": { "education": 0.35, "mood": 2 },
             "prestige": 50,
-            "npc": { "days": 300, "cost": 4000, "stability": 3 }
+            "npc": { "days": 1200, "cost": 4000, "stability": 3 }
         },
         "observatory": {
             "name": "The Royal Observatory", "icon": "🔭", "unique": true, "minType": "village",
             "blurb": "The one great observatory of the world: you see further across the land. First to finish claims it.",
             "stages": [
-                { "name": "Tower", "days": 45, "gold": 800, "labour": 8, "goods": { "stone": 60, "iron": 10 }, "outdoor": true },
-                { "name": "Instruments", "days": 35, "gold": 1300, "labour": 6, "goods": { "glass": 20, "iron": 15, "compass": 2 }, "outdoor": false }
+                { "name": "Tower", "days": 225, "gold": 800, "labour": 2, "goods": { "stone": 60, "iron": 10 }, "outdoor": true },
+                { "name": "Instruments", "days": 175, "gold": 1300, "labour": 1.5, "goods": { "glass": 20, "iron": 15, "compass": 2 }, "outdoor": false }
             ],
             "effects": { "vision": 1 },
             "prestige": 70,
-            "npc": { "days": 360, "cost": 5000, "stability": 3 }
+            "npc": { "days": 1440, "cost": 5000, "stability": 3 }
         },
         "hippodrome": {
             "name": "Hippodrome", "icon": "🏟️", "unique": false, "minType": "town",
             "blurb": "Races and games: your festivals win more renown and the town is happier.",
             "stages": [
-                { "name": "Track and Earthworks", "days": 35, "gold": 600, "labour": 10, "goods": { "stone": 40, "wood": 30 }, "outdoor": true },
-                { "name": "Stands and Stables", "days": 40, "gold": 900, "labour": 10, "goods": { "stone": 50, "wood": 40, "horses": 4 }, "outdoor": true }
+                { "name": "Track and Earthworks", "days": 175, "gold": 600, "labour": 2.5, "goods": { "stone": 40, "wood": 30 }, "outdoor": true },
+                { "name": "Stands and Stables", "days": 200, "gold": 900, "labour": 2.5, "goods": { "stone": 50, "wood": 40, "horses": 4 }, "outdoor": true }
             ],
             "effects": { "festivalRenown": 4, "mood": 5 },
             "prestige": 45,
-            "npc": { "days": 300, "cost": 4000, "stability": 4 }
+            "npc": { "days": 1200, "cost": 4000, "stability": 4 }
         },
         "grand_bridge": {
             "name": "Grand Bridge", "icon": "🌉", "unique": false, "minType": "village", "requires": "river",
             "blurb": "A great stone bridge and the bridge-wardens it pays: fording rivers costs you half the effort everywhere.",
             "stages": [
-                { "name": "Piers", "days": 40, "gold": 700, "labour": 10, "goods": { "stone": 70, "wood": 20 }, "outdoor": true },
-                { "name": "Arches and Roadway", "days": 40, "gold": 800, "labour": 10, "goods": { "stone": 60, "iron": 10 }, "outdoor": true }
+                { "name": "Piers", "days": 200, "gold": 700, "labour": 2.5, "goods": { "stone": 70, "wood": 20 }, "outdoor": true },
+                { "name": "Arches and Roadway", "days": 200, "gold": 800, "labour": 2.5, "goods": { "stone": 60, "iron": 10 }, "outdoor": true }
             ],
             "effects": { "riverCross": 0.5, "mood": 1 },
             "prestige": 40,
-            "npc": { "days": 300, "cost": 3500, "stability": 2 }
+            "npc": { "days": 1200, "cost": 3500, "stability": 2 }
         },
         "colossus": {
             "name": "The Colossus", "icon": "🗽", "unique": true, "minType": "town", "requires": "port",
             "blurb": "The one Colossus of the world, astride the harbour: Prestige for your House every month. First to finish claims it.",
             "stages": [
-                { "name": "Plinth", "days": 40, "gold": 900, "labour": 10, "goods": { "stone": 80 }, "outdoor": true },
-                { "name": "Bronze Body", "days": 50, "gold": 1400, "labour": 12, "goods": { "iron": 40, "gold_ore": 6, "wood": 30 }, "outdoor": true },
-                { "name": "The Crown and Beacon", "days": 30, "gold": 1000, "labour": 8, "goods": { "oil": 10, "glass": 10 }, "outdoor": true }
+                { "name": "Plinth", "days": 200, "gold": 900, "labour": 2.5, "goods": { "stone": 80 }, "outdoor": true },
+                { "name": "Bronze Body", "days": 250, "gold": 1400, "labour": 3, "goods": { "iron": 40, "gold_ore": 6, "wood": 30 }, "outdoor": true },
+                { "name": "The Crown and Beacon", "days": 150, "gold": 1000, "labour": 2, "goods": { "oil": 10, "glass": 10 }, "outdoor": true }
             ],
             "effects": { "monthlyPrestige": 6, "mood": 3 },
             "prestige": 100,
-            "npc": { "days": 450, "cost": 7000, "stability": 6 }
+            "npc": { "days": 1800, "cost": 7000, "stability": 6 }
         }
     }
 }

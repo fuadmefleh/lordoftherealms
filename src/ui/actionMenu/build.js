@@ -6,9 +6,18 @@ import { SettlementSize } from '../../core/settlementSize.js';
 import { PlayerActions, PlayerEconomy, Trading, PlayerMilitary, Hex, Utils, Banking, MarketDynamics, Taxation, Technology, Titles, Quests, Terrain, Kingdom, NPCLords, Peoples, LegendaryArtifacts, BountyHunting, Religion, Espionage, Infrastructure, Tavern, Ships, Housing, Cartography, Colonization, Relationships, Councils, SaveLoad, Economy, DataLoader, PlayerReligion, InnerMap, PlayerInventory } from './_imports.js';
 import { Wilds } from '../../player/wilds.js';
 import { InnerMapLots } from '../innerMapLots.js';
+import { Lots } from '../../systems/lots.js';
 import { showWildsEncounter } from '../wildsEncounter.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_OFF, lede, chips, purse, sectionHead, kv, card, actRow, rowList, price } from './uiKit.js';
 import { ParentsGuard } from '../parentsGuard.js';
+import { worksCard } from './worksUI.js';
+
+/** The lot chosen on this town's map to build on (ui/innerMapLots.js lot_build), or null. */
+function _pendingLotFor(tile) {
+    const here = InnerMap.active && InnerMap.currentWorldTile && tile
+        && InnerMap.currentWorldTile.q === tile.q && InnerMap.currentWorldTile.r === tile.r;
+    return here ? InnerMap._pendingLot || null : null;
+}
 
 Object.assign(ActionMenu, {
     /**
@@ -232,17 +241,21 @@ Object.assign(ActionMenu, {
         window.currentBuildTile = tile;
         window.buildProperty = (propType) => {
             if (!ActionMenu.commitPendingAP(game)) return;
-            const result = PlayerEconomy.buildProperty(game.player, propType, tile, game.world);
+            const result = PlayerEconomy.buildProperty(game.player, propType, tile, game.world, { lotId: _pendingLotFor(tile) });
+            InnerMap._pendingLot = null;
             if (result.success) {
-                // Built on the player's lot in town: it stands within the lot (ui/innerMapLots.js)
-                if (InnerMap._pendingLot) InnerMapLots.afterBuild(game, tile, result.property);
+                // In town it stands on its lot, a building of its kind (ui/innerMapLots.js, world/innerMap/lots.js)
+                if (result.lotId) InnerMapLots.afterBuild(game, tile, result.property);
+                const lotNote = result.lotId && result.lotPrice > 0 ? ` A building lot was bought for it (${result.lotPrice}g).` : '';
                 if (result.underConstruction) {
-                    game.ui.showNotification('🏗️ Construction Started!', `${result.property.name} is under construction — ${result.constructionDays} days to completion.`, 'info');
+                    game.ui.showNotification('🏗️ Construction Started!', `${result.property.name} is under construction — ${result.constructionDays} days to completion.${lotNote}`, 'info');
                 } else {
                     game.ui.showNotification('Property Built!', `${result.property.name} is now operational`, 'success');
                 }
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.close();
+                // (the Build Property panel too: it would stand open on a stale purse)
+                if (game.ui.hideCustomPanel) game.ui.hideCustomPanel();
             } else {
                 game.ui.showNotification('Cannot Build', result.reason, 'error');
             }
@@ -259,6 +272,14 @@ Object.assign(ActionMenu, {
             if (!ActionMenu.commitPendingAP(game)) return;
             const buildCost = PlayerEconomy.getBuildCost(game.player, building, tile, game.world);
             const techBuildDays = PlayerEconomy.getConstructionDays(building, tile, game.world);
+            // In town it stands on a building lot (systems/lots.js)
+            const lot = tile.settlement ? Lots.lotForProperty(game.player, tile.settlement, { lotId: _pendingLotFor(tile) }) : null;
+            InnerMap._pendingLot = null;
+            if (lot && !lot.ok) { game.ui.showNotification('Cannot Build', lot.reason, 'error'); return; }
+            if (lot && (game.player.gold || 0) < buildCost + (lot.price || 0)) {
+                game.ui.showNotification('Cannot Build', `Needs ${buildCost}g to build and ${lot.price}g for a building lot`, 'error');
+                return;
+            }
 
             game.player.gold -= buildCost;
 
@@ -291,7 +312,8 @@ Object.assign(ActionMenu, {
                 produces: building.produces,
             });
 
-            // Place property on inner map
+            // Its lot in town, then its place on the town map
+            if (lot) Lots.claimLotForProperty(game.player, game.world, tile.settlement, newProperty, { lotId: lot.lotId });
             if (typeof InnerMap !== 'undefined') {
                 InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
             }
@@ -320,21 +342,21 @@ Object.assign(ActionMenu, {
         if (infraHint) html += `<div style="font-size: 11px; color: #8fd18a; margin: -4px 0 8px;" title="Stone and timber within 2 hexes">${infraHint}</div>`;
 
         if (tile.infrastructure) {
-            const constructionNote = tile.infrastructure.underConstruction
-                ? `🔨 Under construction (${tile.infrastructure.constructionDaysLeft} day${tile.infrastructure.constructionDaysLeft > 1 ? 's' : ''} left)`
-                : '';
-            html += rowList([{ icon: tile.infrastructure.icon, name: `Current: ${tile.infrastructure.name}`, desc: constructionNote || 'Standing on this tile', side: constructionNote ? '🔨' : '✓', tone: constructionNote ? 'warn' : 'good' }]);
+            const building = !!tile.infrastructure.underConstruction;
+            html += rowList([{ icon: tile.infrastructure.icon, name: `Current: ${tile.infrastructure.name}`, desc: building ? '🔨 Under construction' : 'Standing on this tile', side: building ? '🔨' : '✓', tone: building ? 'warn' : 'good' }]);
+            // progress, ETA and hired crews (ui/actionMenu/worksUI.js, systems/construction.js)
+            if (building) html += worksCard(game, tile.infrastructure, tile.q, tile.r, () => ActionMenu.showBuildInfrastructureMenu(game, tile));
         }
 
         if (available.length === 0) {
-            html += '<p style="color: #9d937c;">No infrastructure can be built here. Research more technologies or try a different terrain.</p>';
+            html += rowList([{ icon: '🚧', name: 'Nothing more to build here', desc: 'Research more technologies, or try another tile.', off: true }]);
         }
 
         const rows = [];
         for (const infra of available) {
             const isUpgrade = infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom;
             const buildDays = infra.actualDays != null ? infra.actualDays : (infra.buildTime || 0);
-            const buildTimeLabel = buildDays > 0 ? `<span style="color: #f0b35a;">⏱ ${buildDays} day${buildDays > 1 ? 's' : ''}</span>` : '<span style="color: #8fd18a;">⚡ Instant</span>';
+            const buildTimeLabel = buildDays > 0 ? `<span style="color: #f0b35a;" title="Work-days: winter, rain and snow slow the work; hired crews speed it">⏱ ${buildDays} work-day${buildDays > 1 ? 's' : ''}</span>` : '<span style="color: #8fd18a;">⚡ Instant</span>';
             rows.push({
                 icon: infra.icon, name: `${infra.name}${isUpgrade ? ' <span style="color: #ffcf6a; font-size: 10px; letter-spacing: 1px;">⬆ UPGRADE</span>' : ''}`,
                 desc: infra.description,
@@ -550,6 +572,8 @@ Object.assign(ActionMenu, {
                 }
                 game.ui.updateStats(game.player, game.world);
                 ActionMenu.close();
+                // (the Build Property panel too: it would stand open on a stale purse)
+                if (game.ui.hideCustomPanel) game.ui.hideCustomPanel();
             } else {
                 game.ui.showNotification('Cannot Build', result.reason, 'error');
             }

@@ -250,6 +250,24 @@ export const Cultures = {
         return own && Array.isArray(own[g]) && own[g].length ? own[g] : null;
     },
 
+    /**
+     * The common folk's first names of a culture (data/cultures.json
+     * commonNames) — the plainer names townspeople give, beside the noble
+     * ones above. Null when the data has none.
+     */
+    commonNames(culture, gender = 'male') {
+        const g = gender === 'female' ? 'female' : 'male';
+        const d = _obj(Cultures.data().commonNames);
+        const own = d && _obj(d[culture]);
+        return own && Array.isArray(own[g]) && own[g].length ? own[g] : null;
+    },
+
+    /** The common folk's family names of a culture (data/cultures.json surnames), or null */
+    surnames(culture) {
+        const d = _obj(Cultures.data().surnames);
+        return d && Array.isArray(d[culture]) && d[culture].length ? d[culture] : null;
+    },
+
     /** House names for a culture from the culture data, or null */
     dynastyNames(culture) {
         const d = _obj(Cultures.data().dynasties);

@@ -17,7 +17,7 @@
     "TYCOON": {
       "id": "tycoon",
       "name": "Tycoon",
-      "description": "Accumulate 50,000 gold",
+      "description": "Accumulate 50,000 gold (in your purse and on deposit with the banks)",
       "icon": "👑",
       "tier": "gold"
     },

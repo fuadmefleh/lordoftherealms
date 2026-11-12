@@ -47,6 +47,8 @@ import { Ledger } from '../systems/ledger.js';
 import { CombatSkills } from '../systems/combatSkills.js';
 import { Duels } from '../systems/duels.js';
 import { Arms } from '../systems/arms.js';
+import { Nemesis } from '../systems/nemesis.js';
+import { House } from '../systems/house.js';
 
 const DEFAULTS = {
     phases: [
@@ -188,6 +190,8 @@ export const FieldBattle = {
             pTerrain: PlayerMilitary._terrainMultiplier(terrainId, pComp),
             eTerrain: PlayerMilitary._terrainMultiplier(terrainId, eComp),
             commanderSlain: !!specials.commanderSlain,
+            // A nemesis's men who have learnt your favourite stance (systems/nemesis.js): { stance, mult, text } or null
+            nemesisRead: Nemesis.battleRead(player, world, enemy),
             // The battle's luck: hidden from the odds, felt in every phase
             fortune: Utils.randFloat(1 - cfg.fortuneSpread, 1 + cfg.fortuneSpread),
             navalSupport: parts.naval,
@@ -304,6 +308,7 @@ export const FieldBattle = {
             if (feint) { enemyPower *= st.successEnemyPower; enemyLoss *= st.successEnemyLoss; } else { stancePower *= st.failPower; ownLoss *= st.failOwnLoss; }
         }
         if (battle.ambushed && ph.id === 'opening') enemyPower *= cfg.ambushPower;
+        if (battle.nemesisRead && battle.nemesisRead.stance === stanceId) enemyPower *= battle.nemesisRead.mult || 1;
 
         const spread = cfg.rollSpread;
         const pPow = sim.pStr * battle.pMult * (1 + (battle.pCounter - 1) * cw) * FieldBattle._compWeight(battle.pComp, ph.weights)
@@ -449,6 +454,7 @@ export const FieldBattle = {
         if (stanceId === 'withdraw') return FieldBattle.withdraw(player, battle, world);
         const cfg = FieldBattle.config();
         if (!FieldBattle.stanceAllowed(battle, stanceId).can) stanceId = FieldBattle.defaultStance(battle);
+        Nemesis.noteStance(player, stanceId); // your habits in the field, for your enemies to learn
         const ph = cfg.phases[battle.sim.phase];
         const sim = battle.sim;
         const roll = FieldBattle._rollPhase(battle, sim, stanceId);
@@ -589,6 +595,14 @@ export const FieldBattle = {
             Object.assign(result, { captured: true, servitudeDays: spoils.servitudeDays, goldConfiscated: spoils.goldConfiscated });
         }
         if (!withdrew) result.skillUps = FieldBattle._battleSkills(player);
+        // Into the House chronicle (and so the Annals and the illustrated book): a real fight,
+        // not a skirmish below battleLines.minStrength nor a caravan robbed
+        if (!withdrew && !['caravan', 'ship', 'fishing_boat'].includes(battle.enemyType)) {
+            House.recordBattle(player, world, {
+                kind: battle.theatre === 'sea' ? 'sea' : 'field', outcome: victory ? 'victory' : 'defeat',
+                foe: battle.enemyName, q: player.q, r: player.r, strength: battle.eStr0,
+            });
+        }
 
         // A world unit: its losses stand, and its fate follows the usual rules
         const unit = battle.unitId && world && Array.isArray(world.units)

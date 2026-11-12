@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { UI } from '../ui/ui';
 import { NpcBrain } from '../systems/npcBrain';
 import { LlmClient } from '../systems/llmClient';
+import { LlmProse } from '../systems/llmProse';
+import { Nemesis } from '../systems/nemesis';
+import { NpcMemory } from '../systems/npcMemory';
 
 // The AI Brain settings, reachable from the title screen before any game is
 // made: the same saved settings the in-game Settings panel edits
@@ -40,6 +43,10 @@ export default function AiSettingsDialog({ onClose }) {
   // (an in-browser pick lives in llmWebModel; the typed model is the server's)
   const [model, setModel] = useState((saved.llmProvider !== 'webllm' && saved.llmModel) || savedDefaults.model);
   const [temperature, setTemperature] = useState(saved.llmTemperature != null ? saved.llmTemperature : 0.7);
+  const [scribe, setScribe] = useState({
+    annals: saved.llmProseAnnals !== false, epitaphs: saved.llmProseEpitaphs !== false,
+    letters: saved.llmProseLetters !== false, heralds: saved.llmProseHeralds !== false,
+  });
   const [result, setResult] = useState(null);
   const [testing, setTesting] = useState(false);
   // A free chat with the model, to hear how it talks before saving
@@ -160,8 +167,15 @@ export default function AiSettingsDialog({ onClose }) {
       // Kept apart so switching providers keeps the in-browser pick
       llmWebModel: provider === 'webllm' ? pickedWeb : (saved.llmWebModel || ''),
       llmTemperature: c.temperature,
+      // "Scribe writes: Annals / epitaphs / letters / heralds" (systems/llmProse.js)
+      llmProseAnnals: scribe.annals,
+      llmProseEpitaphs: scribe.epitaphs,
+      llmProseLetters: scribe.letters,
+      llmProseHeralds: scribe.heralds,
     });
     NpcBrain.applyFromSettings(UI.loadSettings());
+    LlmProse.applyFromSettings(UI.loadSettings());
+    try { Nemesis.setProse(LlmProse); NpcMemory.setProse(LlmProse); } catch (e) { /* their templates stand */ }
     onClose();
   };
 
@@ -181,6 +195,18 @@ export default function AiSettingsDialog({ onClose }) {
           <div style={row}>
             <span style={label}>Enable AI NPCs</span>
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+          </div>
+          {/* The court scribe's pen (systems/llmProse.js): which prose it writes, kept with the save */}
+          <div style={row}>
+            <span style={label} title="With the AI on, the court scribe rewrites these in a chronicler's voice from the game's own facts; it never invents events. Written in the background and saved with your game.">Scribe writes</span>
+            <span style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '12px', opacity: enabled ? 1 : 0.5 }}>
+              {[['annals', 'Annals'], ['epitaphs', 'Epitaphs'], ['letters', 'Letters'], ['heralds', 'Heralds']].map(([id, text]) => (
+                <label key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={scribe[id]} disabled={!enabled} onChange={(e) => setScribe({ ...scribe, [id]: e.target.checked })} />
+                  {text}
+                </label>
+              ))}
+            </span>
           </div>
           <div style={row}>
             <span style={label}>Provider</span>

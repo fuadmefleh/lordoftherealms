@@ -5,11 +5,21 @@
         "gap": [3, 7],
         "maxOpen": 4,
         "maxArchive": 30,
-        "sameSenderDays": 20
+        "sameSenderDays": 20,
+        "lapse": {
+            "_doc": "What silence costs (systems/courtLetters.js lapseCosts). Each kind's own 'lapse' block names its base cost: deed (data/lordMemory.json, remembered by the sender's lord; deedShare scales the deed's weight), reputation (in the sender's realm), renown, feud (with a rival House), affection (your spouse's), withdraw (days that sender sends no letter of that kind again: the lost offer, named by 'lost'). Every cost is scaled by who wrote: sender (by type; 'liege' is the lord you are sworn to), realm (a stronger crown's slight weighs more: its military over the world mean, square-rooted, clamped to min..max), and repeat (each letter of theirs left unanswered in the last grievanceWindow days adds repeatStep, up to repeatMax). Every grievanceAt snubs within the window the lord takes a grievance (grievanceDeed). warnDays: the inbox marks a letter urgent this close to its deadline.",
+            "sender": { "liege": 1.6, "lord": 1.0, "rival": 1.0, "spouse": 1.0, "child": 0.8, "mail": 0.5, "commoner": 0.3 },
+            "realm": { "min": 0.75, "max": 1.4 },
+            "repeatStep": 0.25, "repeatMax": 1.0,
+            "minScale": 0.25, "maxScale": 3,
+            "grievanceWindow": 365, "grievanceAt": 3, "grievanceDeed": "letters_scorned",
+            "warnDays": 2
+        }
     },
     "kinds": {
         "office_offer": {
             "icon": "🏅", "weight": 3, "expiry": 14, "minOpinion": 5,
+            "lapse": { "deed": "office_ignored", "reputation": -3, "withdraw": 120, "lost": "the office went to another" },
             "subject": "An office at court",
             "body": "{from} writes in a clerk's careful hand: the crown has need of a {title}, and your name was spoken. The seal of {realm} hangs from the ribbon.",
             "choices": {
@@ -20,6 +30,7 @@
         },
         "marriage_proposal": {
             "icon": "💍", "weight": 3, "expiry": 20, "minReputation": 0, "dowry": [100, 300],
+            "lapse": { "deed": "match_refused", "deedShare": 0.5, "withdraw": 180, "lost": "the match went elsewhere" },
             "subject": "A match for {child}",
             "body": "{from} proposes a match between {child} and a noble house of {realm}. They offer a dowry of {amount} gold, and the friendship of their crown.",
             "choices": {
@@ -30,6 +41,7 @@
         },
         "feast_invite": {
             "icon": "🍖", "weight": 4, "expiry": 8, "minOpinion": 0, "cost": [30, 70], "renown": 2, "reputation": 4,
+            "lapse": { "deed": "feast_snubbed", "reputation": -2, "withdraw": 60, "lost": "no more invitations to that hall for a while" },
             "subject": "An invitation to feast",
             "body": "{from} bids you to a feast at court: boar and venison, minstrels, and the great of {realm} at the long tables. A gift for the host is expected (about {amount} gold).",
             "choices": {
@@ -40,6 +52,7 @@
         },
         "tournament_invite": {
             "icon": "🏇", "weight": 3, "expiry": 8, "minOpinion": -10, "fee": [20, 50], "prize": [150, 400],
+            "lapse": { "deed": "tourney_snubbed", "renown": -1, "withdraw": 45, "lost": "the heralds stop crying your name" },
             "subject": "A tournament proclaimed",
             "body": "Heralds of {realm} proclaim a tournament under {from}'s banner, with a purse of {prize} gold for the champion. Entry is {amount} gold.",
             "choices": {
@@ -50,7 +63,8 @@
             "ignored": "The tournament came and went."
         },
         "call_to_arms": {
-            "icon": "⚔️", "weight": 6, "expiry": 7, "promiseDays": 30, "gold": [100, 1500], "goldShare": 0.1, "refuseReputation": -10, "ignoreReputation": -15,
+            "icon": "⚔️", "weight": 6, "expiry": 7, "promiseDays": 30, "gold": [100, 1500], "goldShare": 0.1, "refuseReputation": -10,
+            "lapse": { "deed": "call_ignored", "reputation": -15 },
             "subject": "A call to arms",
             "body": "{from} summons the sworn swords of {realm}: we are at war with {enemy}. Ride to the host, or send what you can.",
             "choices": {
@@ -62,6 +76,7 @@
         },
         "loan_request": {
             "icon": "🏦", "weight": 3, "expiry": 10, "minOpinion": -5, "share": 0.15, "min": 100, "max": 2000, "interest": [0.08, 0.2], "term": [60, 120],
+            "lapse": { "deed": "loan_ignored", "reputation": -2, "withdraw": 90, "lost": "that crown will ask another" },
             "subject": "A request for a loan",
             "body": "{from} writes, not without embarrassment, that the treasury of {realm} is pressed. Would you lend {amount} gold, to be repaid with {interest} in {days} days?",
             "choices": {
@@ -81,7 +96,8 @@
             "ignored": "The debt of {realm} is written off in silence."
         },
         "rival_truce": {
-            "icon": "🕊️", "weight": 3, "expiry": 12, "minFeud": 30, "feudCut": 25, "refuseFeud": 5, "ignoreFeud": 3,
+            "icon": "🕊️", "weight": 3, "expiry": 12, "minFeud": 30, "feudCut": 25, "refuseFeud": 5,
+            "lapse": { "feud": 3, "withdraw": 90, "lost": "no truce offered again soon" },
             "subject": "{from} offers a truce",
             "body": "A sealed letter from {from}: the quarrel between your Houses has cost both too much. They propose a truce.",
             "choices": {
@@ -91,7 +107,8 @@
             "ignored": "{from}'s offer of truce went unanswered, and the feud festers."
         },
         "rival_tribute": {
-            "icon": "💀", "weight": 3, "expiry": 10, "minFeud": 50, "share": 0.05, "min": 100, "max": 1000, "feudCut": 20, "refuseFeud": 10, "ignoreFeud": 12, "insultFeud": 20, "insultRenown": 3,
+            "icon": "💀", "weight": 3, "expiry": 10, "minFeud": 50, "share": 0.05, "min": 100, "max": 1000, "feudCut": 20, "refuseFeud": 10, "insultFeud": 20, "insultRenown": 3,
+            "lapse": { "feud": 12, "deed": "rival_defied" },
             "subject": "{from} demands tribute",
             "body": "{from} demands {amount} gold as the price of leaving your House in peace.",
             "choices": {
@@ -103,6 +120,7 @@
         },
         "rival_marriage": {
             "icon": "💍", "weight": 2, "expiry": 20, "minFeud": 20, "feudCut": 60, "refuseFeud": 8,
+            "lapse": { "feud": 4, "withdraw": 180, "lost": "the match is not offered again" },
             "subject": "{from} proposes a match to end the feud",
             "body": "{from} proposes that {child} wed into their House, and the feud between you be buried at the altar.",
             "choices": {
@@ -112,7 +130,8 @@
             "ignored": "{from}'s offer of a match went unanswered."
         },
         "spouse_plea": {
-            "icon": "💌", "weight": 6, "expiry": 10, "affection": 12, "refuseAffection": -15, "ignoreAffection": -20, "relations": 8, "liegeReputation": -5,
+            "icon": "💌", "weight": 6, "expiry": 10, "affection": 12, "refuseAffection": -15, "relations": 8, "liegeReputation": -5,
+            "lapse": { "affection": -20 },
             "subject": "{from} pleads for {realm}",
             "body": "{from} cannot sleep. Your realm is at war with {realm}, where {from} was born. \"Speak for peace, I beg you. Those are my people.\"",
             "choices": {
@@ -124,6 +143,7 @@
         },
         "child_news": {
             "icon": "📨", "weight": 3, "expiry": 12, "gift": 40, "giftReputation": 3,
+            "lapse": { "reputation": -1, "withdraw": 45, "lost": "they write home less often" },
             "subject": "Word from {child} in {realm}",
             "body": "{child} writes from the court of {realm}: {news}",
             "choices": {

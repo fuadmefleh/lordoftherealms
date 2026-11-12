@@ -76,11 +76,17 @@ export function letterSheet(player, letter) {
 }
 
 function inboxTab(v, player) {
-    if (!v.open.length) return lede('No letters await an answer. When the great write to you, a herald will say so. (Write your own from the ✍️ Write tab.)');
-    let html = '';
+    const year = v.unansweredThisYear ? ` ${v.unansweredThisYear} letter${v.unansweredThisYear === 1 ? '' : 's'} went unanswered this past year, and the senders keep count.` : '';
+    if (!v.open.length) return lede(`No letters await an answer. When the great write to you, a herald will say so. (Write your own from the ✍️ Write tab.)${year}`);
+    let html = year ? lede(`Silence has a price.${year}`) : '';
     for (const l of v.open) {
-        const urgent = l.daysLeft <= 2;
-        let body = `<div style="${MUTED}">${esc(FROM[l.fromType] || 'From')}: ${esc(l.from)}</div>`;
+        const urgent = l.urgent != null ? l.urgent : l.daysLeft <= 2;
+        let body = `<div style="${MUTED}">${esc(FROM[l.fromType] || 'From')}: ${esc(l.from)} · awaiting your reply since day ${l.since}${l.waited ? ` (${l.waited} day${l.waited === 1 ? '' : 's'})` : ' (today)'} · answer by day ${l.due}</div>`;
+        if (l.ifIgnored && l.ifIgnored.length) {
+            const heavy = l.ignoreScale >= 1.5 ? ' <b>They will not take silence lightly.</b>' : '';
+            const again = l.snubs ? ` You have left ${l.snubs} of their letters unanswered this year.` : '';
+            body += `<div style="font-size:11px; color:${urgent ? '#e0846a' : '#cf9f84'}; margin:2px 0;">🕯️ If left unanswered: ${esc(l.ifIgnored.join('; '))}.${again}${heavy}</div>`;
+        }
         body += l.letter ? letterSheet(player, l.letter) : `<div style="color:#ece2c8; font-style:italic; margin:6px 0;">${esc(l.body)}</div>`;
         body += rowList(l.choices.map((c, i) => row({
             icon: i === 0 ? '✒️' : '·', name: esc(c.label), desc: c.tooltip ? esc(c.tooltip) : '', title: c.ok ? c.tooltip : c.why,
@@ -107,9 +113,13 @@ function answeredTab(v, game) {
     }
     html += rowList(v.archive.map(a => {
         const [icon, color, label] = OUTCOME[a.outcome] || ['✔', '#8fd18a', 'Answered'];
+        // A lapsed letter's history: how long it waited, and what the silence cost
+        const lapsed = a.outcome === 'ignored' && a.lapsed != null
+            ? `<br><span style="color:#e0846a;">🕯️ Waited ${a.waited || 0} days; lapsed on day ${a.lapsed}${a.costs && a.costs.length ? ` · cost: ${esc(a.costs.join('; '))}` : ''}</span>` : '';
+        const text = a.outcome === 'ignored' && a.costs && a.costs.length ? String(a.text || '').replace(/ Cost: .*$/, '') : a.text;
         const row0 = {
             icon, name: esc(a.subject || 'A letter'), desc: `— ${esc(a.from && a.from.name)}`,
-            note: a.text ? `<span style="color:#cbbf9f;">${esc(a.text)}</span>` : '',
+            note: text || lapsed ? `<span style="color:#cbbf9f;">${esc(text || '')}</span>${lapsed}` : '',
             side: `<span style="color:${color};">${label}</span><br><span style="${MUTED}">day ${a.day}${a.letter ? ' · read ›' : ''}</span>`,
         };
         return a.letter ? row(row0, ['read', a.id]) : row0;
@@ -145,7 +155,7 @@ function accountsTab(v, game) {
     })));
     const s = v.stats;
     html += chips([
-        ['✉️', 'Received', s.received], ['✒️', 'Answered', s.answered], ['🕯️', 'Unanswered', s.ignored],
+        ['✉️', 'Received', s.received], ['✒️', 'Answered', s.answered], ['🕯️', 'Unanswered', s.ignored], ['📜', 'Grievances', s.grievances || 0],
         ['🤝', 'Promises kept', s.kept], ['💔', 'Broken', s.broken],
         ['🏦', 'Loans made', s.lent], ['💰', 'Repaid', s.repaid], ['📉', 'Defaulted', s.defaulted],
     ]);

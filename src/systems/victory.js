@@ -171,6 +171,13 @@ export const Victory = {
                 out.text = 'No claim on any throne yet: marry into a royal line, hold a royal office, forge or buy one, or found a realm from towns you hold.';
             }
             for (const c of claims.slice(1, 4)) out.lines.push(`Claim on ${c.kingdom.name}: ${c.strength}`);
+            // The realm the life began in (player.scenario.realm, set by an Origin: player/scenarios.js)
+            const realmId = _obj(player.scenario) ? player.scenario.realm : null;
+            const home = realmId != null && world && typeof world.getKingdom === 'function' ? world.getKingdom(realmId) : null;
+            if (home && home.isAlive !== false) {
+                const hc = claims.find(c => c.kingdom && c.kingdom.id === home.id);
+                out.lines.unshift(hc ? `Home realm: ${home.name} (your claim ${hc.strength})` : `Home realm: ${home.name}, on which you hold no claim yet`);
+            }
             return out;
         }
         if (def.id === 'merchant_prince') {

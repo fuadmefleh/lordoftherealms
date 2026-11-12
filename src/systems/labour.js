@@ -36,6 +36,7 @@ import { OutlawLairs } from './outlawLairs.js';
 import { Hinterland } from '../world/hinterland.js';
 import { Transport } from '../world/transport.js';
 import { Fiscal } from './fiscal.js';
+import { Climate } from '../world/climate.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -399,10 +400,19 @@ export const Labour = {
 
         // Migration: each class drifts toward the town where it fares better
         const budget = new Map();
+        // The climate's era drives people from the lands it starves toward those it spares
+        // (world/climate.js hardship; 0 everywhere in a settled age)
+        const CM = Climate.config().migration;
+        const climPull = new Map();
+        const climate = (t) => {
+            if (!climPull.has(t)) climPull.set(t, -Climate.hardship(world, t.q, t.r, day) * _num(CM.pull, 0.15));
+            return climPull.get(t);
+        };
         const pull = (t) => {
-            if (!ruled.has(_key(t.q, t.r))) return 0;
+            const clim = climate(t);
+            if (!ruled.has(_key(t.q, t.r))) return clim;
             const lab = t.labour;
-            return lab && _num(lab.idle && lab.idle.land) < 0.03 ? _num(M.colonyPull) : 0;
+            return clim + (lab && _num(lab.idle && lab.idle.land) < 0.03 ? _num(M.colonyPull) : 0);
         };
         for (const l of links) {
             const a = l.a, b = l.b;

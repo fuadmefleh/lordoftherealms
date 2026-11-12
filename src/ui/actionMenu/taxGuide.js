@@ -179,7 +179,7 @@ export function crownTaxGuide(b = null, open = false) {
 /** The books' line labels (the Treasury table's names). */
 export const LINE_LABEL = {
     land: 'Land tax', poll: 'Hearth tax', excise: 'Excise', customs: 'Customs & tolls', demesne: 'Demesne & monopolies',
-    seigniorage: 'Seigniorage', farms: 'Tax farms sold', levy: 'Extraordinary levy', sales: 'Offices & land sold',
+    seigniorage: 'Seigniorage', farms: 'Tax farms sold', levy: 'Extraordinary levy', sales: 'Offices & land sold', escheat: 'Escheats (heirless estates)', heriot: 'Heriots (death duties)',
     army: 'Army wages', arms: 'Arms & armour', court: 'Court & administration', works: 'Roads & works', debt: 'Debt service', dole: 'Dole & granaries',
     purse: 'The ruler\'s purse', loans: 'Borrowed', debase: 'Debasement', other: 'Other (events, tribute, temples)',
 };

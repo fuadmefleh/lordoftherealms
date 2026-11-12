@@ -1,0 +1,129 @@
+{
+    "_doc": "Nemeses (systems/nemesis.js): named enemies born of a real deed, whose hatred escalates over decades, learn your habits, strike at your worst moments and pass the feud to their children. Days are game days (120 a year).",
+    "config": {
+        "maxActive": 3,
+        "birthGapDays": 60,
+        "recentlyEndedDays": 1200,
+        "daysPerYear": 120,
+        "maxActs": 30,
+        "maxLetters": 8,
+        "maxPast": 20,
+        "maxGrudges": 6,
+        "birth": {
+            "lordVendetta": 25,
+            "houseFeud": 70,
+            "houseMemory": -8,
+            "rivalAttitude": -70,
+            "kinChance": 0.5,
+            "kinMinAge": 16,
+            "startHatred": [30, 50],
+            "perScore": 0.3
+        },
+        "stages": [
+            { "id": "grudge", "min": 0, "label": "Grudge", "icon": "😠", "every": 240 },
+            { "id": "enmity", "min": 35, "label": "Enmity", "icon": "😡", "every": 150 },
+            { "id": "vendetta", "min": 60, "label": "Vendetta", "icon": "🩸", "every": 100 },
+            { "id": "obsession", "min": 85, "label": "Obsession", "icon": "💀", "every": 70 }
+        ],
+        "growthPerYear": 3,
+        "fadeBelow": 8,
+        "revengeSated": 120,
+        "inherit": { "share": 0.8, "letGoBelow": 15, "slainBonus": 20, "bloodHeirChance": 0.6, "heirCarry": 0.9, "testWithin": [20, 45] },
+        "moments": { "sick": 2, "war": 1.6, "succession": 2, "regency": 1.5, "successionDays": 120, "earlyShare": 0.6, "bonus": 0.1 },
+        "learn": { "perWeek": 0.02, "resetShare": 0.35, "cap": 0.9, "minSamples": 3 },
+        "counter": { "stance": 0.35, "route": 0.4, "place": 0.3 },
+        "habitDecay": { "place": 0.985, "stance": 0.99 },
+        "reconcile": { "base": 0.75, "perHatred": 0.009, "perDiplomacy": 0.03, "costPerHatred": 12, "minCost": 150, "maxHatred": 70, "cooldown": 120, "failHatred": 6 },
+        "match": { "maxHatred": 65, "dowryPerHatred": 6, "minDowry": 200, "minAge": 16 },
+        "accuse": { "rep": 3, "hatred": 6, "stayDays": 120 },
+        "acts": {
+            "slander": { "min": 0, "weight": 3, "rep": [3, 8], "renown": 1 },
+            "suit": { "min": 30, "weight": 2, "fine": [80, 300], "winBase": 0.55, "perDiplomacy": -0.04, "perRep": -0.004 },
+            "scheme": { "min": 35, "weight": 3, "types": ["theft", "sabotage", "incite_unrest", "slander", "raid_property"], "maxActive": 3 },
+            "raid": { "min": 45, "weight": 3, "base": 0.45, "perProtection": -0.12, "delayDays": [10, 30] },
+            "allies": { "min": 50, "weight": 2, "cost": 200, "deedWeight": -8, "feud": 8 },
+            "assassin": { "min": 70, "weight": 1, "cooldown": 360, "cost": 250, "base": 0.3, "sick": 0.15, "guard": -0.25, "perArmy": -0.002, "maxArmy": 0.2, "wounds": ["gash", "head_wound", "cracked_ribs", "slashed_face"], "health": [10, 25] }
+        },
+        "sate": { "slander": 2, "suit": 4, "scheme": 5, "raid": 8, "allies": 3, "assassin": 25 },
+        "foiled": 5,
+        "purse": { "bloodStart": [100, 400], "kinStart": [50, 200], "incomePerYear": 150, "cap": 5000 }
+    },
+    "kinds": {
+        "lord": { "icon": "👑", "label": "a ruling lord" },
+        "house": { "icon": "🛡️", "label": "the head of a rival House" },
+        "rival": { "icon": "🗡️", "label": "an adventurer" },
+        "kin": { "icon": "🩸", "label": "your own blood" },
+        "blood": { "icon": "⚔️", "label": "a sworn avenger" }
+    },
+    "hows": {
+        "revenge": { "icon": "🗡️", "label": "Revenge taken" },
+        "reconciled": { "icon": "🕊️", "label": "Reconciled" },
+        "married": { "icon": "💍", "label": "Ended in marriage" },
+        "extinct": { "icon": "⚰️", "label": "The line died out" },
+        "faded": { "icon": "🍂", "label": "Forgotten" }
+    },
+    "taunts": {
+        "grudge": [
+            "I have not forgotten {deed}, {you}.",
+            "Men say you prosper. Enjoy it while you may.",
+            "{deed}. I keep it close, like a coin in a boot."
+        ],
+        "enmity": [
+            "Every road you ride, I have friends upon it.",
+            "Your name sours in every hall I visit. I see to it.",
+            "You will learn what {deed} cost you."
+        ],
+        "vendetta": [
+            "My father's blood calls for yours.",
+            "I know where you sleep, {you}. I know which road you take.",
+            "Pray your heirs are better guarded than your caravans."
+        ],
+        "obsession": [
+            "I dream of your ruin every night. Soon I will not need to dream.",
+            "There is nothing I would not give to see {house} in the dust.",
+            "You cannot hide in {place} forever."
+        ]
+    },
+    "inheritedTaunts": [
+        "My {parent} swore your House would pay for {deed}. I keep that oath.",
+        "You did not know my {parent}'s face. You will know mine."
+    ],
+    "letters": {
+        "birth": "To {you}. You will remember {deed}, though you may think it small. I do not think it small. I will have a reckoning, if it takes all my years. — {name}",
+        "inherit": "To {you}. My {parent} is dead, and their quarrel is mine now, whole. Do not think it died with them. — {name}",
+        "succession": "To the new head of {house}. Your predecessor owed me a debt of blood. It passes to you with the seat. — {name}",
+        "moment": "To {you}. I hear you are {why}. How sad. I will call on you soon. — {name}"
+    },
+    "momentWords": {
+        "sick": "laid low with sickness",
+        "war": "at war",
+        "succession": "new to your seat",
+        "regency": "a child ruled by a regent"
+    },
+    "acts": {
+        "slander": "{name}'s people spread foul tales of you in {place}. Your standing with {realm} falls by {n}.",
+        "suitWon": "{name} brought a suit against you before the court of {realm} and won. You pay {n}g.",
+        "suitLost": "{name} brought a suit against you before the court of {realm}, and was laughed out of the hall.",
+        "scheme": "Word reaches you that {name} has set a plot in motion against you.",
+        "raidRoute": "{name}'s hired swords knew your caravan's road from {from} to {to}. They fell on it, and your route stands idle.",
+        "raidMissed": "{name}'s men lay in wait on your road from {from} to {to}, but your guards saw them off.",
+        "allies": "{name} has bought the ear of {lord} of {realm}. That court thinks less of you now.",
+        "alliesHouse": "{name} pays {rival} to share the quarrel. {rival} turns colder toward you.",
+        "assassinHit": "An assassin in {name}'s pay struck at you{where}. You live, but bear a {wound}.",
+        "assassinFoiled": "An assassin in {name}'s pay was caught before the blade found you{where}.",
+        "moment": " They chose the hour well: you are {why}."
+    },
+    "ends": {
+        "revenge": "{name} counts the debt paid and turns away from {house}.",
+        "reconciled": "{name} and {house} have made their peace.",
+        "married": "{child} weds into {line}, and the feud with {name} ends at the altar.",
+        "extinct": "The line of {name} has died out. The feud dies with it.",
+        "faded": "{name}'s hatred has burned out with the years.",
+        "letGo": "{name} inherited the quarrel, and chose to let it lie."
+    },
+    "learnt": {
+        "stance": "They know you favour {what} in the field.",
+        "route": "They know your caravans' road from {what}.",
+        "place": "They know you keep to {what}."
+    }
+}

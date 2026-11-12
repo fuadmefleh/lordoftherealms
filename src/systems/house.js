@@ -19,6 +19,8 @@ import { Utils } from '../core/utils.js';
 import { DataLoader } from '../core/dataLoader.js';
 import { Ledger } from './ledger.js';
 import { Court } from './court.js';
+import { ChronicleMaps } from './chronicleMaps.js';
+import { Barter } from '../world/barter.js';
 
 // The five family-role slots. Each holds a family-member id (or null).
 const ROLE_IDS = ['steward', 'marshal', 'chancellor', 'spymaster', 'heir'];
@@ -72,6 +74,7 @@ const SOURCES = {
     festivalHosted: 3,      // Festivals.hostFestival (scaled by budget tier)
     achievement: 2,         // a deed for the records (Achievements.checkAchievements, scaled by tier)
     ambitionMilestone: 10,  // used from Phase 3
+    schoolFunded: 3,        // a town school founded or patronised (systems/townSchool.js)
 };
 
 // Per-deed multipliers by kind: House.deedScale(deedId, kind). A kind not
@@ -428,7 +431,7 @@ export const House = {
     },
 
     /** Append an entry to the generational chronicle (also the LLM memory seam). */
-    _chronicle(house, world, text, tags) {
+    _chronicle(house, world, text, tags, extra = null) {
         const cfg = House._getConfig();
         house.history = house.history || [];
         house.history.push({
@@ -436,6 +439,8 @@ export const House = {
             generation: house.generation || 1,
             text,
             tags: tags || [],
+            // A battle's particulars (House.recordBattle): { kind, outcome, foe, place }
+            ...(extra && extra.battle ? { battle: extra.battle } : {}),
         });
         if (house.history.length > cfg.historyCap) {
             house.history = house.history.slice(-cfg.historyCap);
@@ -462,8 +467,32 @@ export const House = {
         // Durable counter for ambition predicates and scoring.
         house.stats = house.stats || {};
         house.stats[deedId] = (house.stats[deedId] || 0) + count;
-        if (opts.chronicle) House._chronicle(house, world, opts.chronicle, opts.tags || [deedId]);
+        if (opts.chronicle) House._chronicle(house, world, opts.chronicle, opts.tags || [deedId], opts.battle ? { battle: opts.battle } : null);
         return amount;
+    },
+
+    /**
+     * A battle the House fought, into its chronicle (tagged war + battle, or
+     * siege), so the Annals and the illustrated book list it with its date,
+     * place, foe and outcome. opts { kind: 'field'|'sea'|'assault'|'siege',
+     * outcome: 'victory'|'defeat', foe, q, r (where), place (a town, when
+     * known), strength (the foe's: below battleLines.minStrength a skirmish
+     * is not chronicled), who }. Returns the entry or null. Draws no RNG.
+     */
+    recordBattle(player, world, opts = {}) {
+        const house = player && player.house;
+        if (!house || !opts.foe) return null;
+        const L = ChronicleMaps.config().battleLines || {};
+        if (opts.strength != null && Number(opts.strength) < (Number(L.minStrength) || 0)) return null;
+        const kind = opts.kind || 'field';
+        const outcome = opts.outcome === 'victory' ? 'victory' : 'defeat';
+        const where = opts.place ? { place: opts.place, at: `at ${opts.place}` } : ChronicleMaps.placeOf(world, opts.q, opts.r);
+        const who = opts.who || player.name || house.name;
+        const text = ChronicleMaps.battleLine({ who, foe: opts.foe, place: where.place, at: where.at, outcome, kind });
+        const tags = kind === 'siege' || kind === 'assault' ? ['war', 'battle', 'siege'] : ['war', 'battle'];
+        const battle = { kind, outcome, foe: String(opts.foe), place: where.place || null, at: where.at };
+        House._chronicle(house, world, text, tags, { battle });
+        return house.history[house.history.length - 1];
     },
 
     /** Convenience: record a deed straight from a player (no-op without a House). */
@@ -957,7 +986,14 @@ export const House = {
             const f = (rivals[k] && rivals[k].feud) || 0;
             if (f > max) max = f;
         }
+        // An estranged cadet branch is a claimant of the blood (systems/cadetBranches.js)
+        for (const b of House._estrangedCadets(house)) if ((b.feud || 0) > max) max = b.feud || 0;
         return max;
+    },
+
+    /** Cadet branches that have broken with the main line (systems/cadetBranches.js). */
+    _estrangedCadets(house) {
+        return (house && Array.isArray(house.cadets) ? house.cadets : []).filter(b => b && b.estranged && !b.ended && b.head);
     },
 
     /** Chance the succession is contested. High Prestige smooths it; rival feuds
@@ -981,10 +1017,21 @@ export const House = {
             player.kingdomTitle = null;
             player.title = 'Nobody';
         }
-        const goldLoss = Math.floor((player.gold || 0) * 0.1 * severity);
+        // The coin goes to the rival claimant: the rival House with the
+        // deepest feud (its purse, at its seat). With no rival to claim it the
+        // coin stays put — never lost to nobody. Real coin only (at the dawn
+        // the purse in kind keeps its goods: world/barter.js).
+        const rivals = Object.values((player.house && player.house.rivals) || {}).filter(h => h && !h.extinct)
+            .concat(House._estrangedCadets(player.house));
+        const claimant = rivals.sort((a, b) => ((b.feud || 0) - (a.feud || 0)))[0] || null;
+        const inKind = Barter.installed(player);
+        const coin = Math.max(0, Barter.coinOf(player) || 0);
+        const goldLoss = claimant ? Math.floor(coin * 0.1 * severity) : 0;
         if (goldLoss > 0) {
-            player.gold -= goldLoss;
-            lost.push({ type: 'gold', amount: goldLoss });
+            if (inKind) player._inKind.coin = coin - goldLoss;
+            else player.gold -= goldLoss;
+            claimant.gold = (typeof claimant.gold === 'number' && Number.isFinite(claimant.gold) ? claimant.gold : 0) + goldLoss;
+            lost.push({ type: 'gold', amount: goldLoss, to: claimant.name || null });
         }
         return lost;
     },
@@ -1054,6 +1101,8 @@ export const House = {
         const decayed = House.applyDecay(player.house, day);
         if (decayed > 0) results.prestigeDecayed = decayed;
         House.markWealth(player, world);
+        // The illustrated chronicle's border maps and rulers' notes (systems/chronicleMaps.js)
+        ChronicleMaps.processDay(player, world);
         const ambition = House.evaluateAmbition(player, world);
         if (ambition && (ambition.milestonesCompleted.length || ambition.capstoneCompleted)) {
             results.ambition = ambition;

@@ -7,6 +7,8 @@
 // purse), or a townsman. The player builds only within a lot they hold.
 //
 //   buyLot / buildOnLot      a lot, and the player's property standing on it
+//   claimLotForProperty      a property built in town takes a lot of the
+//                            player's (or buys a free one) to stand on
 //   rentHouse / buyHouse     a vacant house: by the day, or outright
 //   leaveHouse               give up a rented house
 //   buildHouseOnLot          raise a house to let on your own lot
@@ -116,9 +118,50 @@ export const Lots = {
     buildOnLot(player, world, settlement, lotId, property) {
         const rec = LotBook.lot(settlement, lotId);
         if (!LotBook.isPlayer(rec)) return false;
-        rec.built = { type: property && property.type, name: property && property.name, by: 'player', readyDay: _day(world) };
-        if (property) property.lotId = lotId;
-        return true;
+        return LotBook.bindProperty(settlement, lotId, property, _day(world), (player && player.name) || 'You');
+    },
+
+    /**
+     * The lot a new property in this town would stand on: the one asked for (opts.lotId,
+     * a lot of the player's chosen on the town map), else a bare lot they hold, else the
+     * cheapest free lot (bought at its price).
+     * → { ok, lotId, price, w, h, reason }
+     */
+    lotForProperty(player, settlement, opts = {}) {
+        if (!settlement) return { ok: false, reason: 'There is no town here.' };
+        if (opts.lotId) {
+            // (a free lot named outright is bought with the build)
+            const free = !LotBook.lot(settlement, opts.lotId) && LotBook.freeLots(settlement).find(l => l.id === opts.lotId);
+            if (free) return { ok: true, lotId: free.id, price: free.price, w: free.w, h: free.h };
+            const ok = this.canBuildOnLot(settlement, opts.lotId);
+            return ok.ok ? { ok: true, lotId: opts.lotId, price: 0 } : { ok: false, reason: ok.reason };
+        }
+        const bare = LotBook.bareLotsOfPlayer(settlement);
+        if (bare.length) return { ok: true, lotId: bare[0], price: 0 };
+        const free = LotBook.freeLots(settlement).sort((a, b) => a.price - b.price || (a.id < b.id ? -1 : 1));
+        if (!free.length) return { ok: false, reason: `Every building lot in ${settlement.name || 'town'} is taken; land in town goes by the lot.` };
+        const f = free[0];
+        return { ok: true, lotId: f.id, price: f.price, w: f.w, h: f.h };
+    },
+
+    /**
+     * A property just built in a town takes its lot (buying it when it is a free one):
+     * the lot's built record is the property, property.lotId the lot.
+     * → { success, lotId, price, reason }
+     */
+    claimLotForProperty(player, world, settlement, property, opts = {}) {
+        const at = this.lotForProperty(player, settlement, opts);
+        if (!at.ok) return { success: false, reason: at.reason };
+        const book = LotBook.of(settlement);
+        if (!book.lots[at.lotId]) {
+            if (_num(player && player.gold) < at.price) return { success: false, reason: `A building lot in ${settlement.name} costs ${at.price}g.` };
+            player.gold = _num(player.gold) - at.price;
+            Ledger.record(player, 'townLand', -at.price);
+            book.lots[at.lotId] = { holder: 'player', holderName: player.name || 'You', price: at.price, day: _day(world), built: null };
+            _holdings(player).push({ kind: 'lot', q: settlement.q, r: settlement.r, id: at.lotId, town: settlement.name, price: at.price });
+        }
+        if (!this.buildOnLot(player, world, settlement, at.lotId, property)) return { success: false, reason: 'That lot is not yours.' };
+        return { success: true, lotId: at.lotId, price: at.price };
     },
 
     /** May the player build on this lot (theirs, and nothing stands on it yet)? */

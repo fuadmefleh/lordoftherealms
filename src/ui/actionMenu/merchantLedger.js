@@ -16,6 +16,7 @@ import { DataLoader } from '../../core/dataLoader.js';
 import { Hex } from '../../core/hex.js';
 import { Ledger } from '../../systems/ledger.js';
 import { EconomyChronicle } from '../../systems/economyChronicle.js';
+import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { BTN_GOLD, BTN_PLAIN, panelTabs, lede, bullets, chips, purse, sectionHead, kv, rowList } from './uiKit.js';
 
 // The action menu's voice (uiKit): muted notes, quiet tables — a head in the
@@ -172,9 +173,40 @@ function statementHtml(game) {
     return html;
 }
 
+/**
+ * The trading company's books read for the owner (MerchantHouses.diagnosis):
+ * the trading margin with stock at its sale value, the running costs, what
+ * thieves and the road took, each post's own books, and why it is making or
+ * losing money. '' without a company. Shared with the Trading Company panel.
+ */
+export function companyDiagnosisHtml(player, world) {
+    const d = MerchantHouses.diagnosis(player, world);
+    if (!d) return '';
+    const g = (n) => `${Math.round(n).toLocaleString()}g`;
+    let html = sectionHead('🔎 Why the company makes or loses money');
+    html += kv('Sold (stalls and contracts)', g(d.trading.sales + d.trading.contracts));
+    html += kv('Bought', g(d.trading.purchases));
+    html += kv('Stock held and on the road (at sale value)', g(d.trading.stock + d.trading.inTransit));
+    html += kv('Trading margin', col(d.trading.margin));
+    html += kv('Wages, rent and running costs', col(-d.overhead.total));
+    if (d.losses.robbed + d.losses.convoys + d.losses.skimmed > 0) html += kv('Stolen, lost on the road, skimmed', col(-(d.losses.robbed + d.losses.convoys + d.losses.skimmed)));
+    if (d.investments.out > 0) html += kv('Ventures and shares (out / back)', `${g(d.investments.out)} / ${g(d.investments.back)}`);
+    const tone = { bad: BAD, warn: WARN, good: GOOD };
+    html += d.advice.map(a => `<div style="margin:3px 0; color:${tone[a.tone] || '#ece2c8'};">${a.icon} ${esc(a.text)}</div>`).join('');
+    if (d.posts.length) {
+        html += `<table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;"><tr><th style="${TH}">Post</th><th style="${TH}">Sold</th><th style="${TH}">Bought</th><th style="${TH}">Wages + rent</th><th style="${TH}">Stock</th></tr>`;
+        for (const p of d.posts) {
+            html += `<tr><td style="${TD}">${esc(p.name)}</td><td style="${TD}">${g(p.sales)}</td><td style="${TD}">${g(p.purchases)}</td><td style="${TD}">${g(p.wages + p.rent)}</td><td style="${TD}">${g(p.stock)}</td></tr>`;
+        }
+        html += '</table>';
+    }
+    return html;
+}
+
 function pnlTab(game) {
     const p = PriceKnowledge.pnl(game.player);
     let html = statementHtml(game);
+    html += companyDiagnosisHtml(game.player, game.world);
     html += sectionHead('⚖️ Trading margins by good');
     html += lede('Your dealings at the stalls, ports, store-rooms, forward contracts and with traders on the road.');
     html += bullets([

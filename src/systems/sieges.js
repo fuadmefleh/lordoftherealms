@@ -61,6 +61,7 @@ import { Gossip } from './gossip.js';
 import { PlayerMilitary } from '../player/playerMilitary.js';
 import { WorldUnit } from '../world/units.js';
 import { RealmArms } from '../world/realmArms.js';
+import { TownMemory } from './townMemory.js';
 
 const STANCES = ['blockade', 'works', 'sap'];
 const TERMS = ['surrender', 'ransom', 'tribute'];
@@ -1152,6 +1153,8 @@ export const Sieges = {
         // The market's stores are carried off or burned (world/settlementMarket.js)
         SettlementMarket.loot(settlement, 0.8);
         settlement.lastRaidedDay = _day(world);
+        // The town remembers: ruins on its streets for years, some for good (systems/townMemory.js)
+        TownMemory.mark(settlement, 'sack', { by: player.house ? player.house.name : (player.name || null), byPlayer: true }, world);
         player.karma = _num(player.karma) + K.karma;
         result.karmaChange = K.karma;
         Traits.recordAggression(player, s.kingdomId, { cruelty: 4, greed: 3, dread: 3 });

@@ -16,7 +16,7 @@
 // systems/lots.js; the menu ui/innerMapLots.js.
 
 import { InnerMap } from './_ref.js';
-import { CustomBuildings, SettlementWealth } from './_imports.js';
+import { CustomBuildings, CustomObjects, SettlementWealth } from './_imports.js';
 import { LotBook } from '../lotBook.js';
 
 function _hash(q, r, salt) {
@@ -98,19 +98,27 @@ Object.assign(InnerMap, {
         return false;
     },
 
-    /** A design of this type that fits the lot, stood with its door on the lot's front row. */
-    _standOnLot(lot, type, seed, settlement = null) {
+    /**
+     * A design of this type that fits the lot, stood with its door on the lot's front row.
+     * A type with no design that fits falls back to a house, unless opts.exact.
+     * → { q, r, defId } (its anchor), or false.
+     */
+    _standOnLot(lot, type, seed, settlement = null, opts = {}) {
+        const noHouse = type === 'house' || !!opts.exact;
         // A town that builds by its culture (tiles._townBuild, world/innerMap/terrain.js) builds its
         // own designs first, in the tier the town's wealth allows today (world/settlementWealth.js):
         // a house put up now is built as the town now is, whatever its older houses are
         const tb = this.tiles && this.tiles._townBuild;
         const own = tb && tb.culture && settlement && typeof CustomBuildings.getByCulture === 'function'
-            ? [...CustomBuildings.getByCulture(tb.culture, type), ...(type === 'house' ? [] : CustomBuildings.getByCulture(tb.culture, 'house'))] : [];
-        const tier = own.length ? SettlementWealth.buildingTier(SettlementWealth.score(settlement), { ring: 'mid', key: `lot:${lot.id}` }) : null;
+            ? [...CustomBuildings.getByCulture(tb.culture, type), ...(noHouse ? [] : CustomBuildings.getByCulture(tb.culture, 'house'))] : [];
+        let tier = own.length ? SettlementWealth.buildingTier(SettlementWealth.score(settlement), { ring: 'mid', key: `lot:${lot.id}` }) : null;
+        // (in its era's style: no grander than the age's builders raise, world/townEras.js)
+        const T3 = ['poor', 'mid', 'rich'];
+        if (tier && tb.eraCap && T3.indexOf(tb.eraCap) >= 0) tier = T3[Math.min(T3.indexOf(tier), T3.indexOf(tb.eraCap))];
         const usable = arr => arr.filter(d => d && d.meta && d.bounds && d.style !== 'farmstead');
         const turn = arr => arr.map((_, i) => arr[(seed + i) % arr.length]);
         const ownDefs = usable(own.map(d => CustomBuildings.tierVariant(d, tier)));
-        const common = usable((CustomBuildings.getByType(type) || []).concat(type === 'house' ? [] : CustomBuildings.getByType('house') || []));
+        const common = usable((CustomBuildings.getByType(type) || []).concat(noHouse ? [] : CustomBuildings.getByType('house') || []));
         // (the culture's own first, each list turned by the lot's seed)
         const defs = [...turn(ownDefs), ...turn(common)];
         if (!defs.length) return false;
@@ -118,18 +126,28 @@ Object.assign(InnerMap, {
             const def = defs[i];
             const bw = def.bounds.maxCol - def.bounds.minCol + 1;
             const bh = def.bounds.maxRow - def.bounds.minRow + 1;
-            if (bw > lot.w || bh > lot.h || def.bounds.maxRow > 0) continue;
+            // (opts.overhang: a taller design may reach that many rows past the lot's back, the side
+            // away from its street, onto open ground: up for a lot north of its street, down for one south)
+            const over = Math.max(0, Math.floor(Number(opts.overhang) || 0));
+            if (bw > lot.w || bh > lot.h + over || def.bounds.maxRow > 0) continue;
             const door = (def.meta || []).find(m => m.door) || { q: 0, r: 0 };
             // Centre it on the lot, the anchor's row the lot's front
             const left = lot.q0 + Math.floor((lot.w - bw) / 2);
             const q = left - def.bounds.minCol;
-            const r = lot.r1 - def.bounds.maxRow;
+            const down = bh > lot.h && lot.gate === 'north';
+            const r = down ? lot.r0 - def.bounds.minRow : lot.r1 - def.bounds.maxRow;
             if (q + door.q < lot.q0 || q + door.q > lot.q1) continue;
+            const top = Math.min(lot.r0, r + def.bounds.minRow), bottom = Math.max(lot.r1, r + def.bounds.maxRow);
             const fits = (def.meta || []).every(m => {
                 const fq = q + m.q, fr = r + m.r;
-                return fq >= lot.q0 && fq <= lot.q1 && fr >= lot.r0 && fr <= lot.r1;
+                return fq >= lot.q0 && fq <= lot.q1 && fr >= top && fr <= bottom;
             });
             if (!fits) continue;
+            // (reaching past the lot, a bush or a tree in the way is grubbed up, not a reason to build a cottage)
+            if (top < lot.r0 && !this._openNearLot(lot, q + def.bounds.minCol, q + def.bounds.maxCol, top, lot.r0 - 1, true)) continue;
+            if (bottom > lot.r1 && !this._openNearLot(lot, q + def.bounds.minCol, q + def.bounds.maxCol, lot.r1 + 1, bottom + 1, true)) continue;
+            if (top < lot.r0) this._clearFlora(q + def.bounds.minCol, q + def.bounds.maxCol, top, lot.r0 - 1);
+            if (bottom > lot.r1) this._clearFlora(q + def.bounds.minCol, q + def.bounds.maxCol, lot.r1 + 1, bottom + 1);
             this.tiles[r][q].customBuilding = { defId: def.id, lotId: lot.id };
             for (const m of def.meta || []) {
                 const t = this.tiles[r + m.r][q + m.q];
@@ -141,9 +159,151 @@ Object.assign(InnerMap, {
                     t.subTerrain.passable = false;
                 }
             }
-            return true;
+            return { q, r, defId: def.id };
         }
         return false;
+    },
+
+    /** Is the ground beyond a lot (rows r0..r1, columns q0..q1) open for a building to reach onto? */
+    _openNearLot(lot, q0, q1, r0, r1, floraOk = false) {
+        for (let r = r0; r <= r1; r++) for (let q = q0; q <= q1; q++) {
+            const t = this.tiles[r] && this.tiles[r][q];
+            if (!t || r < 1 || r >= this.tiles.length - 1 || t.isRoad || t.building || t.customBuilding || t.customBuildingPart
+                || t._wet || (t._lot && t._lot !== lot.id)) return false;
+            if (t.customObject || t.customObjectPart) {
+                if (floraOk && this._floraAnchor(t)) continue;
+                return false;
+            }
+            if (t.subTerrain && t.subTerrain.passable === false) return false;
+        }
+        return true;
+    },
+
+    /** The anchor tile of a bush or tree (a town prop or the scatter's) on t, or null — never a memorial, field or fence. */
+    _floraAnchor(t) {
+        const p = t && t.customObjectPart;
+        const a = p ? this.tiles[p.anchorR] && this.tiles[p.anchorR][p.anchorQ] : t;
+        const o = a && a.customObject;
+        if (!o || o.memory) return null;
+        const d = CustomObjects.getDef(o.defId);
+        if (!d) return null;
+        const tags = d.tags || [];
+        if (tags.some(x => x === 'field' || x === 'fence' || x === 'gate' || x === 'memory' || x === 'grave')) return null;
+        return d.objectType === 'tree' || d.objectType === 'plant' || tags.includes('tree') || tags.includes('bush') ? a : null;
+    },
+
+    /** Grub up the bushes and trees on rows r0..r1, columns q0..q1 (whole, every part), the ground left open. */
+    _clearFlora(q0, q1, r0, r1) {
+        const H = this.tiles.length, W = H ? this.tiles[0].length : 0;
+        const done = new Set();
+        for (let r = r0; r <= r1; r++) for (let q = q0; q <= q1; q++) {
+            const t = this.tiles[r] && this.tiles[r][q];
+            const a = t && (t.customObject || t.customObjectPart) ? this._floraAnchor(t) : null;
+            if (!a || done.has(a)) continue;
+            done.add(a);
+            const aq = a.q != null ? a.q : (t.customObjectPart ? t.customObjectPart.anchorQ : q);
+            const ar = a.r != null ? a.r : (t.customObjectPart ? t.customObjectPart.anchorR : r);
+            a.customObject = null;
+            if (a.subTerrain && !a._wet) a.subTerrain.passable = true;
+            for (let y = Math.max(0, ar - 8); y <= Math.min(H - 1, ar + 2); y++) for (let x = Math.max(0, aq - 4); x <= Math.min(W - 1, aq + 4); x++) {
+                const c = this.tiles[y][x];
+                const cp = c.customObjectPart;
+                if (cp && cp.anchorQ === aq && cp.anchorR === ar) {
+                    c.customObjectPart = null;
+                    if (c.subTerrain && !c._wet) c.subTerrain.passable = true;
+                }
+            }
+        }
+    },
+
+    // ──────────── THE PLAYER'S PROPERTIES ON THEIR LOTS ────────────
+
+    /** The anchor of the building standing on a lot, or null. */
+    _lotAnchor(lot) {
+        for (let r = lot.r0; r <= lot.r1; r++) for (let q = lot.q0; q <= lot.q1; q++) {
+            const t = this.tiles[r] && this.tiles[r][q];
+            if (t && t.customBuilding && t.customBuilding.lotId === lot.id) return { q, r, defId: t.customBuilding.defId };
+        }
+        return null;
+    },
+
+    /** An older map's whole-sprite property pasted at (innerQ, innerR): taken away again. */
+    _clearPastedProperty(p) {
+        const t = this.tiles[p.innerR] && this.tiles[p.innerR][p.innerQ];
+        if (!t || !t.building || t._buildingTypeHint !== 'player_property') return;
+        delete t.building; delete t._buildingTypeHint; delete t._propertyRef; delete t.buildingInfo;
+        for (let dq = -1; dq <= 1; dq++) for (let dr = -2; dr <= 0; dr++) {
+            const f = this.tiles[p.innerR + dr] && this.tiles[p.innerR + dr][p.innerQ + dq];
+            if (f && f.subTerrain && !f._wet && !f.building && !f.customBuilding && !f.customBuildingPart && !f.customObject && !f.customObjectPart) f.subTerrain.passable = true;
+        }
+        this.buildings = (this.buildings || []).filter(b => !(b && b.propertyRef === p));
+    },
+
+    /**
+     * The player's properties in this town, each standing on its lot as a tile-composed
+     * building of its kind (data/lots.json propertyKinds; a building site while it goes up,
+     * ui/innerMapLayers). A property with no lot here (an older save's, or a lot this
+     * town's plan hasn't) takes a bare lot of the player's, else a free one — the
+     * builders took it with the work. A lot whose property is gone (sold, seized) stands
+     * bare again. The anchor tile carries _propertyRef; property.innerQ/innerR is it.
+     */
+    _standPlayerProperties(settlement, day = 0, player = null) {
+        const wt = this._currentWorldTileRef;
+        if (!settlement || !wt || this._insideBuilding || !this.tiles) return;
+        const props = [...(wt.playerProperties || [])].filter(Boolean);
+        if (wt.playerProperty && !props.includes(wt.playerProperty)) props.push(wt.playerProperty);
+        const book = LotBook.of(settlement);
+        const lots = this.townLots();
+        for (const [id, rec] of Object.entries(book.lots)) {
+            if (LotBook.isPropertyBuild(rec) && !props.some(p => p.lotId === id)) rec.built = null;
+        }
+        if (player && !Array.isArray(player.lotHoldings)) player.lotHoldings = [];
+        const holdings = player ? player.lotHoldings : null;
+        const isHere = h => h && h.kind === 'lot' && h.q === settlement.q && h.r === settlement.r;
+        for (const p of props) {
+            let lot = p.lotId ? lots.find(l => l.id === p.lotId) || null : null;
+            const rec = p.lotId ? book.lots[p.lotId] : null;
+            if (lot && rec && !LotBook.isPlayer(rec)) lot = null;
+            if (!lot) {
+                const old = p.lotId || null;
+                // (the old record, on a lot this map hasn't, moves with it)
+                const oldRec = old && rec && LotBook.isPlayer(rec) ? rec : null;
+                if (old && oldRec) delete book.lots[old];
+                const mine = lots.find(l => { const r = book.lots[l.id]; return LotBook.isPlayer(r) && !r.built; });
+                const free = mine || lots.find(l => !book.lots[l.id]);
+                if (!free) { delete p.lotId; if (p.innerQ != null) this._clearPastedProperty(p); delete p.innerQ; delete p.innerR; continue; }
+                if (oldRec && !book.lots[free.id]) book.lots[free.id] = { ...oldRec, built: null };
+                LotBook.bindProperty(settlement, free.id, p, day, (player && player.name) || 'You');
+                if (holdings) {
+                    const h = old ? holdings.find(x => isHere(x) && x.id === old) : null;
+                    if (h) h.id = free.id;
+                    else if (!holdings.some(x => isHere(x) && x.id === free.id)) holdings.push({ kind: 'lot', q: settlement.q, r: settlement.r, id: free.id, town: settlement.name, price: 0 });
+                }
+                lot = free;
+            } else if (!LotBook.isPropertyBuild(book.lots[lot.id])) {
+                LotBook.bindProperty(settlement, lot.id, p, day, (player && player.name) || 'You');
+            }
+            let at = this._lotAnchor(lot);
+            if (!at && !this._lotHasBuilding(lot)) {
+                const seed = _strHash(`${settlement.name}|${lot.id}|${p.type}`);
+                // (its own kind within the lot; else reaching a few rows back onto open ground; else a house)
+                const kinds = LotBook.propertyKinds(p.type).filter(k => k !== 'house');
+                for (const [list, overhang] of [[kinds, 0], [kinds, 4], [['house'], 0]]) {
+                    for (const kind of list) {
+                        at = this._standOnLot(lot, kind, seed, settlement, { exact: true, overhang });
+                        if (at) break;
+                    }
+                    if (at) break;
+                }
+            }
+            if (p.innerQ != null && (!at || p.innerQ !== at.q || p.innerR !== at.r)) this._clearPastedProperty(p);
+            if (!at) { delete p.innerQ; delete p.innerR; continue; }
+            const t = this.tiles[at.r][at.q];
+            t._buildingTypeHint = 'player_property';
+            t._propertyRef = p;
+            p.innerQ = at.q;
+            p.innerR = at.r;
+        }
     },
 
     /** The town's vacant houses: a hash of the town picks them, the same each visit. Marks b._vacancy. */

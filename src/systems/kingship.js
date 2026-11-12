@@ -62,6 +62,7 @@ import { Seasons } from '../world/seasons.js';
 import { WorldEvents } from '../world/worldEvents.js';
 import { CrownBooks } from '../world/crownBooks.js';
 import { Couriers } from './couriers.js';
+import { NpcMemory } from './npcMemory.js';
 
 const OFFICES = ['chancellor', 'marshal', 'steward', 'spymaster', 'highPriest'];
 const TAX_STEPS = ['heavy', 'standard', 'light'];
@@ -1465,6 +1466,8 @@ export const Kingship = {
             const share = grain / want;
             if (share <= 0) continue;
             res.towns++;
+            // The town remembers who fed it in the famine (systems/npcMemory.js; days of dole stack)
+            if (kind === 'famine' && player) NpcMemory.rememberTown(world, s, { kind: 'dole', player, weight: Math.max(0.5, 2 * share) });
             const mood = Math.min(_num(s.leanMood), (_num(D.moodRelief) || 1) * share);
             if (mood > 0) {
                 s.leanMood = Math.round((_num(s.leanMood) - mood) * 100) / 100;

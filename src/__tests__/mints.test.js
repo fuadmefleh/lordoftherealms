@@ -311,10 +311,13 @@ describe('the mints', () => {
         const mult0 = Coinage.priceMultiplier(w, { kingdom: 'a' });
         const res = Finance.debase(w, player, ka);
         expect(res.success).toBe(true);
-        // The holders keep their pieces; the crown has the new ones
+        // The holders keep their pieces; the crown restrikes its chests and the first of the
+        // old coin brought in (debasement.firstCall), and keeps the extra pieces
         expect(MoneySupply.realm(w, 'a').coin).toBe(c0);
-        expect(ka.treasury - t0).toBe(Math.round(c0 * (1 / 0.9 - 1)));
+        const first = MoneySupply.config().debasement.firstCall;
+        expect(ka.treasury - t0).toBe(Math.floor(t0 * (1 / 0.9 - 1)) + Math.floor(c0 * 0.1 * first / 0.9));
         expect(MoneySupply.realm(w, 'a').wk.debase).toBe(ka.treasury - t0);
+        expect(MoneySupply.realm(w, 'a').lag).toBeCloseTo(0.1 * (1 - first), 6);
         // Trade partners: the good coin goes to the sound realm, purse to purse
         MoneySupply.collectTrade(w, [link('a', 'b', 100, 100)]);
         weeks(w, 1);
@@ -340,8 +343,10 @@ describe('the mints', () => {
         expect(res.success).toBe(true);
         expect(ka.finance.purity).toBe(1);
         expect(ka.treasury).toBe(t0 - q.cost);
-        expect(ta.economy.gold).toBeCloseTo(c0 * 0.9, 1);
-        expect(R.coin).toBeCloseTo(c0 * 0.9, 1);
+        // (the mint's wages, recoinage.labour of the cost, are paid into the town's purse)
+        const wages = Math.floor(q.cost * MoneySupply.config().recoinage.labour);
+        expect(ta.economy.gold).toBeCloseTo(c0 * 0.9 + wages, 1);
+        expect(R.coin).toBeCloseTo(c0 * 0.9 + wages, 1);
         expect(MoneySupply.news(w).some(h => h.kind === 'recoinage' && h.kingdomId === 'a')).toBe(true);
         expect(Mints.recoinQuote(w, ka).ok).toBe(false); // full weight now (and on cooldown)
         weeks(w, 10);

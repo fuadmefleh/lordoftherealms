@@ -24,6 +24,8 @@ import { Underworld } from './underworld.js';
 import { Fame } from './fame.js';
 import { StreetCrime } from './streetCrime.js';
 import { Romance } from './romance.js';
+// (what a townsperson remembers of the player's House, years on: systems/npcMemory.js)
+import { NpcMemory } from './npcMemory.js';
 
 /**
  * What a flattered NPC actually hands over — aligned index-for-index with the
@@ -159,7 +161,16 @@ export const NpcDisposition = {
         const street = StreetCrime.tradeRefusal(npc);
         if (street.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: street.reason };
 
+        // What they remember of the player's House: a grudge long held, a kindness not forgotten
+        const memPlayer = ctx && ctx.player;
+        const remembered = memPlayer && npc._person ? NpcMemory.priceShift((ctx && ctx.world) || null, npc, memPlayer) : null;
+        if (remembered && remembered.refuses) return { buy: 1, sell: 1, pct: 0, reasons, refuses: true, refuseReason: remembered.reason };
+
         let shift = 0;
+        if (remembered && remembered.shift) {
+            shift += remembered.shift;
+            reasons.push({ label: remembered.label, pct: Math.round(remembered.shift * 100) });
+        }
         const dispShift = Math.round(((50 - d) / 250) * 100) / 100; // ±0.20
         if (dispShift !== 0) {
             shift += dispShift;

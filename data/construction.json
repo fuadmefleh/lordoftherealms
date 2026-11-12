@@ -1,0 +1,17 @@
+{
+    "_doc": "How building work goes day by day (systems/construction.js), for everything raised as a project: the player's roads, bridges and other infrastructure (data/infrastructure.json buildTime, in work-days on open level ground), properties and tech buildings (data/playerEconomy.json, data/technology.json constructionDays), temples and shrines (data/religion.json), cultural buildings of the player and the AI crowns (data/culture.json), and holding projects (data/holdings.json days). A build needs its work-days done; each day adds `pace` of them: season[the season] x weather[today's weather on the hex] x (1 + crews.speedPerCrew x hired crews), never below minPace. So a 10-day road laid in winter snow takes far longer, and two extra crews take a third off it. Work goes on whether or not the builder is there to watch. Roads, irrigation and dams are slower across hard ground: terrain[the hex's terrain] x their buildTime (river: x more for a road over a river hex). crews: a crew is `hands` labourers hired in the nearest town at its land wage x wageMult a day, paid from the builder's purse into the town's (real coin, both ways); at most `max` crews; a crew unpaid for a day walks off.",
+    "season": { "Spring": 1.0, "Summer": 1.1, "Autumn": 0.9, "Winter": 0.5 },
+    "weather": { "clear": 1, "cloudy": 1, "rain": 0.75, "storm": 0.35, "snow": 0.5, "blizzard": 0.1, "heatwave": 0.85 },
+    "minPace": 0.05,
+    "terrainKinds": ["dirt_road", "stone_road", "irrigation_channel", "river_dam"],
+    "terrain": {
+        "default": 1.3,
+        "plains": 1.0, "grassland": 1.0, "savanna": 1.1, "beach": 1.3, "island": 1.2, "desert": 1.4,
+        "tundra": 1.6, "snow": 2.0, "ice": 3.0,
+        "woodland": 1.8, "seasonal_forest": 2.0, "boreal_forest": 2.1, "temperate_rainforest": 2.4, "tropical_rainforest": 2.8,
+        "hills": 1.8, "highlands": 2.3, "mountain": 3.5, "snow_peak": 4.0,
+        "swamp": 3.0
+    },
+    "river": 1.5,
+    "crews": { "hands": 6, "wageMult": 1.5, "speedPerCrew": 0.5, "max": 3 }
+}

@@ -25,6 +25,8 @@
 import { DataLoader } from '../core/dataLoader.js';
 import { Hospitality } from '../systems/hospitality.js';
 import { Gossip } from '../systems/gossip.js';
+import { Trading } from './playerEconomy.js';
+import { Companions } from '../systems/companions.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _obj = v => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
@@ -39,6 +41,9 @@ const DEFAULTS = {
     chat: { ap: 1, needs: { social: 10, fun: 3 }, times: 2 },
     campfire: { ap: 2, wood: 2, heal: 15, needs: { comfort: 10, fun: 3 } },
     services: { laundry: 'laundry', bath: 'bath', supper: 'supper', leisure: ['bathhouse', 'fine_dining'], room: 'private' },
+    food: { enabled: true, buyBelow: 2, stock: 6, purseShare: 0.5 },
+    company: { ap: 1, times: 2, needs: { social: 14, fun: 5 } },
+    pastime: { ap: 1, times: 2, needs: { fun: 8 }, townNeeds: { fun: 8, social: 3 }, town: [], wild: [] },
 };
 
 const ROOM_ORDER = ['common', 'private', 'suite'];
@@ -52,7 +57,7 @@ export const AutoUpkeep = {
         return {
             enabled: d.enabled !== false,
             below: merge('below'), weight: merge('weight'), coin: merge('coin'), coldBath: merge('coldBath'),
-            bathe: merge('bathe'), chat: merge('chat'), campfire: merge('campfire'), services: merge('services'),
+            bathe: merge('bathe'), chat: merge('chat'), campfire: merge('campfire'), services: merge('services'), food: merge('food'), company: merge('company'), pastime: merge('pastime'),
         };
     },
 
@@ -138,6 +143,49 @@ export const AutoUpkeep = {
         return best;
     },
 
+    /**
+     * A market run for food when the pack runs thin in a town → run() or null.
+     * Buys the cheapest edible goods on the stalls (Trading.buyGoods: the coin
+     * goes to the town's market) up to cfg.food.stock meals, within
+     * cfg.food.purseShare of the purse.
+     */
+    _marketFood(player, world, tile, cfg) {
+        const F = cfg.food || {};
+        if (F.enabled === false || !tile || !tile.settlement) return null;
+        if (typeof player.getFoodCount !== 'function') return null;
+        const have = player.getFoodCount();
+        if (have > _num(F.buyBelow, 2)) return null;
+        const edible = (player.constructor && player.constructor.FOOD_TYPES) || [];
+        if (!edible.length) return null;
+        let goods;
+        try { goods = Trading.getAvailableGoods(tile.settlement, tile, world) || []; } catch { return null; }
+        const stalls = goods.filter(g => g && edible.includes(g.id) && g.quantity > 0)
+            .sort((a, b) => (a.price || 0) - (b.price || 0));
+        if (!stalls.length) return null;
+        return () => {
+            const want = Math.max(1, Math.floor(_num(F.stock, 6)) - player.getFoodCount());
+            const allowance = Math.max(0, Math.floor(_num(player.gold) * _num(F.purseShare, 0.5)));
+            if (allowance <= 0) return null;
+            const bought = [];
+            let left = want;
+            for (const g of stalls) {
+                if (left <= 0) break;
+                const before = _num(player.gold);
+                const cap = allowance - Math.max(0, Math.round(_num(bought._spent)));
+                let qty = Trading.affordable(player, g, tile.settlement, left);
+                while (qty > 0 && Trading.buyCost(player, g, qty, tile.settlement) > cap) qty--;
+                if (qty <= 0) continue;
+                const res = Trading.buyGoods(player, g, qty, tile.settlement);
+                if (!res || !res.success) continue;
+                bought._spent = _num(bought._spent) + Math.max(0, before - _num(player.gold));
+                bought.push(`${qty} ${(g.name || g.id).toLowerCase().replace(/_/g, ' ')}`);
+                left -= qty;
+            }
+            if (!bought.length) return null;
+            return { icon: '🧺', text: `bought ${bought.join(' and ')} at the ${tile.settlement.name || 'town'} market` };
+        };
+    },
+
     /** What could be done now, each { id, ap, cost, score, leisure, run() → step | null }. */
     options(player, world, ctx) {
         const { cfg, mode, ap, budget, done } = ctx;
@@ -160,6 +208,13 @@ export const AutoUpkeep = {
         } else if (s('hunger') > 0 && !done.supper) {
             const offer = AutoUpkeep._service(world, player, houses, cfg.services.supper, budget);
             if (offer) add({ id: 'supper', ap: 0, cost: offer.price, score: s('hunger') * 0.9, run: () => AutoUpkeep._buy(world, player, offer, cfg.services.supper, 'had a hot supper at') });
+        }
+        // Provisions: in a town with a thin pack, buy a few days' food at the market (0 AP;
+        // food has its own allowance — no one starves to save a few coins for a bath)
+        const market = AutoUpkeep._marketFood(player, world, tile, cfg);
+        if (market && !done.market) {
+            const score = Math.max(s('hunger') * 1.2, 0.5);
+            out.push({ id: 'market', ap: 0, cost: 0, score, run: market });
         }
 
         // ── Body and clothes ──
@@ -233,6 +288,35 @@ export const AutoUpkeep = {
                 return { icon: '🗣️', text: `talked with the folk of ${town.name}`, merge: 'chat' };
             } });
         }
+        // Company on the road: a talk by the fire with a travelling companion (Companions.talk: their approval too)
+        const comp = cfg.company;
+        if ((s('social') > 0 || s('fun') > 0) && (done.company || 0) < _num(comp.times, 2)) {
+            let mates = [];
+            try { mates = Companions.members(player, world) || []; } catch { mates = []; }
+            const day = _num(world && world.day);
+            const mate = mates.find(n => n && n.isAlive !== false && !(n.companion && n.companion.lastTalkDay === day));
+            if (mate) {
+                add({ id: 'company', ap: _num(comp.ap, 1), cost: 0, leisure: true, score: (s('social') + s('fun') * 0.6) * 1.1, run: () => {
+                    const r = Companions.talk(player, mate.id, world);
+                    if (!r || !r.success) return null;
+                    for (const [need, amt] of Object.entries(_obj(comp.needs))) player.modifyNeed(need, amt);
+                    return { icon: '🔥', text: `passed the evening talking with ${mate.firstName || 'a companion'}` };
+                } });
+            }
+        }
+        // A pastime of one's own, anywhere: a tune, a carving, the street players, a walk
+        const past = cfg.pastime;
+        if (s('fun') > 0 && (done.pastime || 0) < _num(past.times, 2)) {
+            const lines = town ? past.town : past.wild;
+            const list = Array.isArray(lines) && lines.length ? lines : ['passed an hour at an idle pastime'];
+            const n = done.pastime || 0;
+            const text = list[(_num(world && world.day) + n) % list.length];
+            const needs = _obj(town ? past.townNeeds : past.needs);
+            add({ id: 'pastime', ap: _num(past.ap, 1), cost: 0, leisure: true, score: s('fun') * 0.8 + (town ? s('social') * 0.2 : 0), run: () => {
+                for (const [need, amt] of Object.entries(needs)) player.modifyNeed(need, amt);
+                return { icon: '🎶', text: String(text).replace('{town}', (town && town.name) || 'the town'), merge: 'pastime' };
+            } });
+        }
         if (s('fun') > 0 && !done.leisure) {
             for (const sid of cfg.services.leisure || []) {
                 const offer = AutoUpkeep._service(world, player, houses, sid, budget);
@@ -270,8 +354,8 @@ export const AutoUpkeep = {
         const cfg = AutoUpkeep.config();
         const mode = AutoUpkeep.mode(opts.mode);
         if (!cfg.enabled || mode === 'off' || AutoUpkeep.blocked(player)) return null;
+        // (no points left still lets the character eat and buy food: both take none)
         let ap = Math.max(0, Math.floor(_num(opts.ap != null ? opts.ap : player.actionPoints)));
-        if (ap < 1) return null;
         let budget = AutoUpkeep.budget(player, cfg);
         const done = {};
         const steps = [];
@@ -288,7 +372,8 @@ export const AutoUpkeep = {
             if (!step) continue;
             const paid = Math.max(0, Math.round(goldBefore - _num(player.gold)));
             ap -= pick.ap;
-            budget -= paid;
+            // (provisions have their own allowance: they don't eat the evening's comforts budget)
+            if (pick.id !== 'market') budget = Math.max(0, budget - paid);
             apSpent += pick.ap;
             coinSpent += paid;
             const last = steps[steps.length - 1];

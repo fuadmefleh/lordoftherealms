@@ -87,7 +87,7 @@ describe('the Crown\'s Treasury explains its taxes and lines', () => {
         expect(Guide.lineTip('army')).toMatch(/officers/i);
     });
 
-    it('the Budget and Your purse tabs show the guide, the hovers and the current levels', () => {
+    it('the Budget and Your crown tabs show the guide, the hovers and the current levels', () => {
         const { game } = ruler();
         const rec = shell(game);
         ActionMenu.showTreasury(game, 'budget');

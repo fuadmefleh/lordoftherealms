@@ -346,6 +346,9 @@ export const VoyageMethods = {
         }
         const noCrew = this.crewSailReason(ship);
         if (noCrew) return { success: false, message: noCrew };
+        // (a harbour frozen in: systems/ships.js iceSailReason, world/climate.js)
+        const ice = !atHelm && typeof this.iceSailReason === 'function' ? this.iceSailReason(world, ship) : null;
+        if (ice) return { success: false, message: ice };
         if (ship.q === destQ && ship.r === destR) return { success: false, message: 'You are already there.' };
         const route = world ? this.seaPath(world, ship, { q: destQ, r: destR }) : null;
         if (!route) return { success: false, message: `There is no sea route from here to ${destName}.` };

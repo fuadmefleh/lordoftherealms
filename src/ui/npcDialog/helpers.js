@@ -3,6 +3,7 @@ import { InnerMap } from '../../world/innerMap.js';
 import { ActionMenu } from '../actionMenu.js';
 import { NpcFamily } from '../../systems/npcFamily.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { _buildConversation, _render, _typewrite, _skipTypewrite, _renderChoices, _hasGiftableInventory } from './render.js';
@@ -279,6 +280,9 @@ export function _memoryLines(npc) {
     if (before > 1) out.push(`you have spoken with the player ${before} times before`);
     else if (before === 1) out.push('you have met the player once before');
     if (mem.lastAction && typeof mem.lastAction === 'string') out.push(`last time, the player chose to ${mem.lastAction.replace(/_/g, ' ')}`);
+    // The deeds of the player's House this person (and their family) remember, strongest first (systems/npcMemory.js)
+    const g = dialogState._game;
+    if (g && g.player && npc._person) out.push(...NpcMemory.llmLines(g.world, npc, g.player, 3));
     return out;
 }
 

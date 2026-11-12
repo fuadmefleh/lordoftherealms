@@ -61,7 +61,7 @@ export function _workChoices() {
         out.push({
             icon: '🚪', label: 'I\'ll not need you any longer.', group: 'deal', tooltip: 'Let them go from your service.',
             onPick: () => _say('work_dismiss', 'I\'ll not need you any longer.', (k) => {
-                TownJobs.dismiss(k.world, k.folk, k.p, 'dismissed');
+                TownJobs.dismiss(k.world, k.folk, k.p, 'dismissed', k.player);
                 k.npc.job = k.p.job.id;
                 return { text: 'As you wish. I\'ll find other work.', change: -3 };
             }),

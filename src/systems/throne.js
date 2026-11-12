@@ -45,14 +45,14 @@ import { Regency } from './regency.js';
 
 // Code defaults (data/throne.json → config overrides them key by key).
 const DEFAULT_CONFIG = {
-    maxClaimStrength: 100, pressMinStrength: 25, pressGold: 300, pressMinArmy: 40,
+    maxClaimStrength: 100, pressMinStrength: 40, pressGold: 300, pressMinArmy: 80, pressMinAppeal: 5,
     exileDays: 360, exilePrestigeLoss: 30, exileReputation: -80,
     crownedPrestige: 50, crownedRenown: 60, crownedReputation: 50,
     marriageBase: 30, marriagePerChild: 8, marriageChildCap: 24,
     royalMatchPrestige: 20, royalMatchGold: 500, royalMatchMinReputation: 20,
-    forgeGold: 300, forgeStrength: 15, forgeCap: 30, forgeBase: 0.4, forgePerSpyLevel: 0.1,
+    forgeGold: 300, forgeStrength: 10, forgeCap: 20, forgeBase: 0.4, forgePerSpyLevel: 0.1,
     forgePerStealth: 0.02, forgeFailReputation: -15, forgeFailSpyLoyalty: -10,
-    purchasePrestige: 30, purchaseStrength: 15, purchaseCap: 30,
+    purchasePrestige: 30, purchaseStrength: 10, purchaseCap: 20,
     conquestStrength: 35,
     officeClaims: { 2: { days: 360, strength: 10 }, 3: { days: 240, strength: 20 }, 4: { days: 180, strength: 30 } },
     lean: {
@@ -67,7 +67,8 @@ const DEFAULT_CONFIG = {
         loyalistLoss: 0.05, rebelLoss: 0.07, flipChance: 0.35, driftPivot: 0.45, driftWeight: 2,
         levyRegen: 0.02, hostScoreWeight: 0.5, victoryMomentum: 100, defeatMomentum: -100, maxDays: 360,
         lateVictoryMomentum: 30, collapseDays: 10, stabilityMod: -0.15,
-        vanguardShare: 0.08, vanguardMin: 20, vanguardMax: 400, vanguardWin: 10, vanguardLoss: -8,
+        vanguardShare: 0.15, vanguardMin: 40, vanguardMax: 400, vanguardWin: 10, vanguardLoss: -8,
+        vanguardFlipChance: 0.4, capitalMomentum: 50,
     },
     crisis: {
         chance: { regent: 0.6, distant_relative: 0.8, young_heir: 0.35, disputed: 1.0, heir: 0.08 },
@@ -77,7 +78,8 @@ const DEFAULT_CONFIG = {
         rewardGoldMultiplier: 1.5, rewardGold: 200, rewardReputation: 30, rewardPrestige: 15, loserReputation: -20,
     },
     ruling: {
-        levyReserve: 500, levyCap: 200, peaceCooldownDays: 10, peaceBaseChance: 0.35, allianceMinRelations: 40,
+        levyReserve: 500, levyCap: 150, levyReserveDays: 5, levyStability: [25, 75], levySurplusShare: 0.75, levyDeficitShare: 0.25,
+        peaceCooldownDays: 10, peaceBaseChance: 0.35, allianceMinRelations: 40,
         giftCost: 300, giftRelations: 10, peaceSeekChance: 0.05,
     },
     founding: {
@@ -670,6 +672,15 @@ export const Throne = {
         if (strength < cfg.pressMinStrength) return { ok: false, reason: `Your claim is too weak (${strength}; need ${cfg.pressMinStrength}).` };
         if ((opts.armyStrength || 0) < cfg.pressMinArmy) return { ok: false, reason: `You need an army of at least ${cfg.pressMinArmy} strength to raise your banners.` };
         if ((player.gold || 0) < cfg.pressGold) return { ok: false, reason: `Raising the banners costs ${cfg.pressGold} gold.` };
+        // Nobody rises for a pretender the realm does not want: its people and
+        // lords must lean your way (Throne.appeal: claim, standing, Prestige,
+        // the court's opinion, a weak or troubled crown, your army)
+        if (cfg.pressMinAppeal != null) {
+            const appeal = Throne.appeal(player, world, k, opts).value;
+            if (appeal < cfg.pressMinAppeal) {
+                return { ok: false, reason: `${k.name} does not want you (its lean toward you is ${appeal}; you need ${cfg.pressMinAppeal}). Win its people and lords first: reputation, Prestige, the court's opinion, a weak or troubled crown.` };
+            }
+        }
         return { ok: true };
     },
 
@@ -744,7 +755,11 @@ export const Throne = {
         return total > 0 ? rebel / total : 0;
     },
 
-    /** Swing one settlement toward the winner of a battle. Returns its name or null. */
+    /**
+     * Swing one settlement toward the winner of a battle. Returns its name or
+     * null. The capital falls to the pretender last, and only once the war
+     * has turned (momentum ≥ civilWar.capitalMomentum).
+     */
     _flipOne(world, kingdom, cw, toward) {
         const from = toward === 'pretender' ? 'loyalist' : 'pretender';
         const cap = kingdom.capital;
@@ -754,7 +769,9 @@ export const Throne = {
         if (!pool.length) return null;
         // The capital falls last
         const nonCapital = pool.filter(e => !e.isCapital);
-        const choices = nonCapital.length ? nonCapital : pool;
+        const capitalHolds = toward === 'pretender' && (cw.momentum || 0) < (Throne.config().civilWar.capitalMomentum || 0);
+        const choices = nonCapital.length ? nonCapital : capitalHolds ? [] : pool;
+        if (!choices.length) return null;
         const lean = e => cw.leans[e.key] || 0;
         choices.sort((a, b) => toward === 'pretender' ? lean(b) - lean(a) : lean(a) - lean(b));
         const pick = choices[0];
@@ -786,7 +803,8 @@ export const Throne = {
             cw.momentum += W.vanguardWin;
             cw.battlesWon++;
             k.military = Math.floor((k.military || 0) * (1 - W.loyalistLoss));
-            flipped = Throne._flipOne(world, k, cw, 'pretender');
+            // (a vanguard broken sways a town now and then, not every time)
+            if (Utils.random() < (W.vanguardFlipChance == null ? 1 : W.vanguardFlipChance)) flipped = Throne._flipOne(world, k, cw, 'pretender');
             House.recordPlayerDeed(player, world, 'battleWon', { reason: `battle for the throne of ${k.name}` });
         } else {
             cw.momentum += W.vanguardLoss;
@@ -957,6 +975,7 @@ export const Throne = {
         }
         kingdom.ruler = Characters.getDisplayName(ruler, kingdom);
         if (kingdom.lord) kingdom.lord.name = kingdom.ruler;
+        Throne._dismissLordTemper(kingdom);
         st.ruling = { kingdomId: kingdom.id, since: world.day, founded, policies: defaults, levyTotal: 0, peaceCooldown: {} };
         delete st.claims[kingdom.id];
         st.crises = st.crises.filter(c => c.kingdomId !== kingdom.id);
@@ -971,6 +990,22 @@ export const Throne = {
         _addRep(player, kingdom.id, 0);
         player.reputation[kingdom.id] = Math.max(player.reputation[kingdom.id], Throne.config().crownedReputation);
         Throne.syncCrowns(player, world);
+    },
+
+    /**
+     * The deposed lord's temper leaves with him: kingdom.lord stays as the
+     * crown's stand-in (named for the ruler, world/npcLords.js never ages it
+     * out nor lets it pursue its goals), but its personality traits (a Tyrant's
+     * -0.4 loyalty and +0.3 tax, a Hedonist's unrest...) no longer weigh on the
+     * realm (KingdomBonuses.get): the realm's character is now the ruler's
+     * policies, council and edicts. In an AI realm the traits pass with the
+     * lord's death; here they would have held for the whole reign (a founded
+     * realm has no lord at all).
+     */
+    _dismissLordTemper(kingdom) {
+        if (!kingdom || !kingdom.lord) return;
+        if (Array.isArray(kingdom.lord.traits) && kingdom.lord.traits.length) kingdom.lord.traits = [];
+        kingdom.lordModifiers = {};
     },
 
     _crown(player, world, kingdom, how) {
@@ -1283,6 +1318,53 @@ export const Throne = {
         return (opt && opt.levy) || 0;
     },
 
+    /**
+     * Today's royal levy, and why it is what it is: { levy, base, rate,
+     * stability, stabilityMult, revenue, upkeep, surplus, reserve, cap, limit }.
+     * The ruler takes the tax policy's share of the crown's taxes and dues
+     * (systems/fiscal.js), scaled by the realm's stability (a restless realm
+     * hides its coin from the collectors), never more than a share of what the
+     * revenue leaves over the crown's upkeep (army, court, works, debt, the
+     * dole; a crown in deficit still pays levyDeficitShare of it, the purse
+     * being a first charge), and never below the reserve the treasury keeps
+     * for that upkeep (levyReserveDays of it, at least levyReserve).
+     * The coin is the treasury's, which the towns' taxes filled. limit names
+     * what held it down: 'rate' | 'stability' | 'surplus' | 'reserve' | 'cap'.
+     */
+    levyQuote(player, world, kingdom = null) {
+        const R = Throne.config().ruling;
+        const k = kingdom || Throne.ruledKingdom(player, world);
+        const out = { levy: 0, base: 0, rate: Throne.levyRate(player), stability: 0, stabilityMult: 0, revenue: 0, upkeep: 0, surplus: 0, reserve: 0, cap: R.levyCap, limit: 'rate' };
+        if (!k) return out;
+        const treasury = k.treasury || 0;
+        const r = Throne.state(player).ruling;
+        if (CrownBooks.enabled()) {
+            out.revenue = CrownBooks.lastRevenue(k);
+            out.upkeep = CrownBooks.upkeep(k);
+        } else {
+            out.revenue = r && typeof r.lastTreasury === 'number' ? Math.max(0, treasury - r.lastTreasury) : 0;
+            out.upkeep = 0;
+        }
+        out.surplus = out.revenue - out.upkeep;
+        out.stability = typeof k.stability === 'number' ? k.stability : 60;
+        const [lo, hi] = Array.isArray(R.levyStability) ? R.levyStability : [25, 75];
+        out.stabilityMult = Utils.clamp((out.stability - lo) / Math.max(1, hi - lo), 0, 1);
+        out.base = Math.max(0, out.revenue) * out.rate;
+        out.reserve = Math.max(R.levyReserve, Math.round(out.upkeep * (R.levyReserveDays || 0)));
+        const lims = [
+            ['stability', out.base * out.stabilityMult],
+            // (the ruler's purse is a first charge on the revenue: a crown in
+            // deficit still pays a little of it, levyDeficitShare of the base)
+            ['surplus', Math.max(Math.max(0, out.surplus) * (R.levySurplusShare == null ? 1 : R.levySurplusShare), out.base * out.stabilityMult * (R.levyDeficitShare || 0))],
+            ['reserve', treasury - out.reserve],
+            ['cap', R.levyCap],
+        ];
+        let v = out.base;
+        for (const [id, x] of lims) if (x < v) { v = x; out.limit = id; }
+        out.levy = Math.max(0, Math.floor(v));
+        return out;
+    },
+
     _tickRuling(player, world, out) {
         const R = Throne.config().ruling;
         const st = Throne.state(player);
@@ -1308,13 +1390,9 @@ export const Throne = {
         if (k.lord) k.lord.name = k.ruler;
         Throne._styleRuler(player, k, ruler);
 
-        // The royal levy: a share of what the treasury gained since yesterday
-        const treasury = k.treasury || 0;
-        // (with the Crown's Purse, a share of the crown's taxes and dues a day: systems/fiscal.js)
-        const gain = CrownBooks.enabled() ? CrownBooks.lastRevenue(k)
-            : typeof r.lastTreasury === 'number' ? treasury - r.lastTreasury : 0;
-        const levy = Math.max(0, Math.min(R.levyCap, Math.floor(Math.max(0, gain) * Throne.levyRate(player)),
-            Math.floor(treasury - R.levyReserve)));
+        // The royal levy: a share of the crown's revenue, as far as its upkeep
+        // and the realm's temper allow (Throne.levyQuote)
+        const levy = Throne.levyQuote(player, world, k).levy;
         if (levy > 0) {
             k.treasury -= levy;
             CrownBooks.note(k, 'purse', levy);
@@ -1545,6 +1623,8 @@ export const Throne = {
                 if (!st.ruling.policies[axis]) st.ruling.policies[axis] = (Throne.policies()[axis] || FALLBACK_POLICIES[axis]).default;
             }
             if (!st.ruling.peaceCooldown) st.ruling.peaceCooldown = {};
+            // (saves from before 2026-11 kept the deposed lord's traits on the realm)
+            if (world) Throne._dismissLordTemper(Throne._kingdom(world, st.ruling.kingdomId));
         }
         if (world) Throne.syncCrowns(player, world);
     },

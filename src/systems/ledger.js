@@ -146,6 +146,10 @@ export const Ledger = {
         row.totalExpenses = Math.round(exp);
         row.netChange = row.totalIncome - row.totalExpenses;
         if (!Array.isArray(player.financeHistory)) player.financeHistory = [];
+        // Every category ever booked rides on the newest row (saved with it): Ledger.everUsed
+        const prev = player.financeHistory[player.financeHistory.length - 1];
+        row.ever = { ...((prev && _obj(prev.ever)) || {}), ...Object.fromEntries([...Object.entries(row.income), ...Object.entries(row.expenses)].filter(([, v]) => _num(v)).map(([k]) => [k, 1])) };
+        if (prev) delete prev.ever;
         player.financeHistory.push(row);
         const cap = Math.max(1, Math.floor(_num(Ledger.config().days, 120)));
         if (player.financeHistory.length > cap) player.financeHistory.splice(0, player.financeHistory.length - cap);
@@ -205,6 +209,23 @@ export const Ledger = {
         out.cap.sort(desc);
         out.memo.sort(desc);
         out.groups = Object.entries(groups).map(([id, net]) => ({ ...Ledger.group(id), net: Math.round(net) })).sort((a, b) => b.net - a.net || (a.id < b.id ? -1 : 1));
+        return out;
+    },
+
+    /**
+     * Every ledger category the player has ever booked (the newest row's
+     * `ever`, plus the kept rows and today's tally for older saves): a Set.
+     * Read by the Steward's never-done nudges (systems/counsel.js).
+     */
+    everUsed(player) {
+        const out = new Set();
+        const rows = player && Array.isArray(player.financeHistory) ? player.financeHistory : [];
+        const last = rows[rows.length - 1];
+        for (const k of Object.keys((last && _obj(last.ever)) || {})) out.add(k);
+        for (const r of [...rows, _obj(player && player.financeToday)]) {
+            if (!r) continue;
+            for (const side of [r.income, r.expenses]) for (const [k, v] of Object.entries(_obj(side) || {})) if (_num(v)) out.add(k);
+        }
         return out;
     },
 

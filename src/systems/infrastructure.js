@@ -8,6 +8,7 @@ import { Quests } from './quests.js';
 import { Economy } from '../world/economy.js';
 import { KingdomBonuses } from '../world/kingdomState.js';
 import { Transport } from '../world/transport.js';
+import { Construction } from './construction.js';
 
 
 export const Infrastructure = {
@@ -18,7 +19,7 @@ export const Infrastructure = {
             name: 'Dirt Road',
             icon: '🛤️',
             cost: 30,
-            buildTime: 2, // days
+            buildTime: 10, // work-days on open level ground (data/infrastructure.json; x terrain, systems/construction.js)
             moveCostOverride: 1, // always costs 1 to traverse
             moveCostReduction: null,
             requiredTech: null, // anyone can clear a dirt path
@@ -32,7 +33,7 @@ export const Infrastructure = {
             name: 'Stone Road',
             icon: '🛣️',
             cost: 80,
-            buildTime: 4,
+            buildTime: 40,
             moveCostOverride: 1, // always costs 1 to traverse
             moveCostReduction: null,
             requiredTech: 'paved_roads',
@@ -47,7 +48,7 @@ export const Infrastructure = {
             name: 'Bridge',
             icon: '🌉',
             cost: 150,
-            buildTime: 6,
+            buildTime: 90,
             moveCostOverride: 1,
             moveCostReduction: null,
             requiredTech: 'bridge_construction',
@@ -62,7 +63,7 @@ export const Infrastructure = {
             name: 'Irrigation Channel',
             icon: '💧',
             cost: 60,
-            buildTime: 3,
+            buildTime: 25,
             moveCostOverride: null,
             moveCostReduction: null,
             requiredTech: 'irrigation',
@@ -105,7 +106,11 @@ export const Infrastructure = {
             const roadFx = KingdomBonuses.crownEffect(world.getKingdom(tile.kingdom), 'roadCost');
             if (roadFx) cost = Math.max(1, Math.round(cost * Math.max(0.1, 1 + roadFx)));
         }
-        const buildDays = world ? Economy.scaleBuildDays(infra.buildTime || 0, world, tile.q, tile.r) : (infra.buildTime || 0);
+        // Work-days: hills, forest and marsh are slower ground (systems/construction.js), stone and timber near at hand faster
+        // (an upgrade lays stone on a bed already cleared and graded: a quarter less work)
+        const upgrading = !!(infra.upgradesFrom && tile.infrastructure && tile.infrastructure.id === infra.upgradesFrom);
+        const rawDays = Construction.infraDays(infra, tile, world);
+        const buildDays = upgrading && rawDays > 0 ? Math.max(1, Math.round(rawDays * 0.75)) : rawDays;
         if (player.gold < cost) {
             return { can: false, reason: `Need ${cost} gold (have ${Math.floor(player.gold)})` };
         }

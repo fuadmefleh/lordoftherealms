@@ -4,7 +4,7 @@
         "found": { "minCapital": 500, "startReputation": 30 },
         "post": { "openCost": 350, "foreignMult": 1.5, "foreignMinReputation": -10, "maxPosts": 6, "capacity": 300, "weeklyRent": 5, "maxOrders": 4, "reserveWeeks": 2 },
         "factor": {
-            "baseWage": 10, "wagePerSkill": 3, "volumeBase": 30, "volumePerSkill": 8,
+            "baseWage": 5, "wagePerSkill": 2, "commission": 0.04, "volumeBase": 30, "volumePerSkill": 8,
             "skill": [2, 9], "honesty": [0.35, 1.0], "candidates": 3,
             "skimRate": 0.18, "dishonestBelow": 0.7, "suspicionPerSkim": 4, "suspicionShown": 12,
             "auditCost": 60, "auditFindChance": 0.85, "auditRecover": 0.5,

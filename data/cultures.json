@@ -215,6 +215,79 @@
         "Swamp": ["Bogwater", "Mirelock", "Fenwick", "Reedholt", "Marshmoor", "Sedgefield", "Blackwater", "Toadstone"]
     },
 
+    "_commonNames": "The plainer first names common folk of each culture give their children (systems/townsfolk.js), joined to the noble pools (world/characters firstNames, and `names` above) so a long-lived town is not full of the same dozen names.",
+    "commonNames": {
+        "Imperial": {
+            "male": ["Alban", "Bertram", "Clement", "Dunstan", "Ewan", "Felix", "Gilbert", "Hugh", "Jasper", "Lambert", "Martin", "Nicholas", "Osric", "Piers", "Quentin", "Simon", "Walter", "Wystan", "Anselm", "Benedict"],
+            "female": ["Agnes", "Alice", "Avice", "Cecily", "Edith", "Emma", "Gisela", "Hawise", "Joan", "Juliana", "Lettice", "Mabel", "Margery", "Maud", "Petronilla", "Sybil", "Ursula", "Wilmot", "Isolde", "Rosamund"]
+        },
+        "Woodland": {
+            "male": ["Ash", "Birch", "Bryn", "Cadfael", "Dafydd", "Emrys", "Gareth", "Hazel", "Ifor", "Madoc", "Owain", "Rhys", "Taliesin", "Teilo", "Wyn", "Brannoc", "Cerdic", "Elm", "Hollin", "Sedge"],
+            "female": ["Bryony", "Ceridwen", "Clover", "Delyth", "Eirlys", "Gwen", "Heather", "Holly", "Juniper", "Meadow", "Nia", "Olwen", "Rosemary", "Rhian", "Sorrel", "Tegan", "Yarrow", "Angharad", "Briar", "Linnet"]
+        },
+        "Nomadic": {
+            "male": ["Arslan", "Batu", "Chagan", "Dorji", "Ganbold", "Jochi", "Kasar", "Mergen", "Nogai", "Orda", "Sukh", "Tolui", "Bekter", "Jebe", "Khasar", "Muqali", "Sartak", "Tumen", "Yesu", "Boroul"],
+            "female": ["Alaqa", "Checheyigen", "Doregene", "Ebegei", "Gerel", "Hoelun", "Ibaqa", "Jaliqa", "Khutulun", "Mongke", "Narantsetseg", "Oyun", "Saran", "Tuya", "Yesui", "Anu", "Bolor", "Delger", "Enkhe", "Sarnai"]
+        },
+        "Religious": {
+            "male": ["Abel", "Amos", "Asa", "Benedict", "Caleb", "Eli", "Enoch", "Gideon", "Hosea", "Jonah", "Josiah", "Levi", "Micah", "Obadiah", "Reuben", "Samuel", "Simeon", "Thaddeus", "Uriel", "Jude"],
+            "female": ["Abigail", "Agatha", "Anna", "Charity", "Deborah", "Dorcas", "Grace", "Hannah", "Honor", "Judith", "Leah", "Lydia", "Martha", "Mercy", "Patience", "Prudence", "Rachel", "Susanna", "Temperance", "Tabitha"]
+        },
+        "Maritime": {
+            "male": ["Ansel", "Barnaby", "Corin", "Dorian", "Ewald", "Fisk", "Gull", "Hale", "Jory", "Kestrel", "Lorcan", "Mordant", "Nolan", "Pell", "Rafe", "Skerry", "Tamar", "Wade", "Brine", "Cove"],
+            "female": ["Bryony", "Cerys", "Delphine", "Ebba", "Fenella", "Gwenna", "Ione", "Jessamy", "Kerra", "Loveday", "Morwenna", "Nessa", "Oriel", "Perpetua", "Rhoswen", "Senara", "Tamsin", "Wenna", "Marisol", "Sabine"]
+        },
+        "Mountain": {
+            "male": ["Ardin", "Balin", "Dain", "Farin", "Gloin", "Hrodgar", "Jorund", "Korvin", "Lodar", "Modsognir", "Nar", "Ori", "Skirfir", "Torgil", "Varr", "Bombur", "Durin", "Fundin", "Groin", "Thror"],
+            "female": ["Ardis", "Berga", "Disa", "Frida", "Grima", "Hedda", "Inga", "Jorunn", "Kelda", "Lotta", "Malla", "Rana", "Signy", "Tova", "Vigga", "Asta", "Bera", "Dora", "Hulda", "Runa"]
+        },
+        "Swamp": {
+            "male": ["Abner", "Bodkin", "Cotter", "Dagget", "Eben", "Fennick", "Gully", "Hobb", "Jeb", "Lem", "Mott", "Newt", "Puck", "Rudd", "Silt", "Tobble", "Wick", "Wort", "Ezra", "Nab"],
+            "female": ["Agrimony", "Belladonna", "Cattail", "Duckweed", "Eglantine", "Foxglove", "Gilly", "Henbane", "Iris", "Lobelia", "Mallow", "Nettle", "Peat", "Rue", "Sallow", "Tansy", "Vetch", "Wilhelmina", "Moss", "Bogbean"]
+        },
+        "Arcane": {
+            "male": ["Aurel", "Castor", "Dorian", "Evander", "Galen", "Ignatius", "Jovan", "Lysander", "Magnus", "Nestor", "Ozias", "Perrin", "Quill", "Ravel", "Soren", "Tarquin", "Ulric", "Xander", "Corvus", "Elian"],
+            "female": ["Althea", "Briseis", "Calliope", "Daphne", "Elektra", "Galatea", "Iolanthe", "Isadora", "Lumi", "Melisande", "Nyx", "Ondine", "Phaedra", "Rhea", "Sibyl", "Thessaly", "Vesper", "Xanthe", "Cassia", "Liora"]
+        },
+        "Nordic": {
+            "male": ["Alf", "Arnulf", "Bersi", "Egil", "Finnbogi", "Geir", "Grim", "Hallbjorn", "Hrafn", "Kari", "Ketil", "Ottar", "Orm", "Skuli", "Snorri", "Steinar", "Thord", "Ulf", "Vemund", "Asmund"],
+            "female": ["Alfhild", "Aud", "Bergljot", "Dagrun", "Eydis", "Gunnhild", "Hallveig", "Herdis", "Ingunn", "Jorunn", "Ketilrid", "Ragnfrid", "Rannveig", "Sigrid", "Svanhild", "Thorunn", "Tofa", "Valgerd", "Asa", "Geirny"]
+        },
+        "Desert": {
+            "male": ["Adil", "Bashir", "Faisal", "Ghassan", "Hamza", "Idris", "Jamil", "Karim", "Mahmud", "Nabil", "Qasim", "Rafiq", "Sami", "Tahir", "Wasim", "Yusuf", "Zayd", "Anwar", "Habib", "Munir"],
+            "female": ["Aisha", "Basma", "Dunya", "Farah", "Ghada", "Hana", "Inas", "Jamila", "Karima", "Lubna", "Maha", "Noor", "Rana", "Salma", "Tamar", "Wafa", "Yusra", "Zahra", "Hayat", "Safiya"]
+        },
+        "Frozen": {
+            "male": ["Aki", "Brandr", "Eldvar", "Fjolnir", "Gest", "Hjalti", "Isulf", "Jokul", "Kjarr", "Lodmund", "Myrkvi", "Nordri", "Rimbald", "Snaer", "Thjazi", "Vali", "Ylmir", "Hrafnkel", "Kold", "Skafti"],
+            "female": ["Alvdis", "Drifa", "Eira", "Frosta", "Fonn", "Hjordis", "Isgerd", "Jorvi", "Kaldra", "Mjoll", "Nyra", "Rimvor", "Sjofn", "Snaedis", "Thokk", "Vetra", "Ylva", "Hrimla", "Kari", "Rimdis"]
+        },
+        "Subterranean": {
+            "male": ["Agate", "Basalt", "Cobble", "Dross", "Flint", "Garnet", "Hob", "Jasp", "Kiln", "Lode", "Marl", "Nodule", "Pyrite", "Scree", "Tallow", "Umber", "Vug", "Wolfram", "Gneiss", "Slate"],
+            "female": ["Amber", "Beryl", "Citrine", "Druse", "Ember", "Geode", "Hematia", "Iolite", "Jet", "Kyanite", "Lazula", "Mica", "Opaline", "Perida", "Sard", "Topaza", "Ochre", "Zircona", "Glimmer", "Tourma"]
+        },
+        "Tropical": {
+            "male": ["Akoni", "Ewa", "Hemi", "Ikaika", "Kai", "Kale", "Kane", "Kekoa", "Mahina", "Nikau", "Pono", "Rangi", "Tama", "Tavita", "Wiremu", "Hoku", "Kalo", "Moku", "Ari", "Koa"],
+            "female": ["Ailani", "Anuhea", "Hana", "Iolana", "Kailani", "Keala", "Lani", "Malia", "Marama", "Nohea", "Pua", "Roimata", "Talia", "Tui", "Wai", "Ani", "Kiele", "Lokelani", "Mere", "Ngaio"]
+        }
+    },
+
+    "_surnames": "Family names of the common folk of each culture (systems/townsfolk.js: newcomers and first rosters), before the noble House names — trades, places and forebears in the culture's own manner.",
+    "surnames": {
+        "Imperial": ["Archer", "Baker", "Carter", "Cooper", "Fletcher", "Fuller", "Glover", "Mason", "Miller", "Porter", "Sawyer", "Shepherd", "Smith", "Thatcher", "Turner", "Tyler", "Walker", "Webster", "Wright", "Brewer", "Chandler", "Draper", "Hayward", "Marsh"],
+        "Woodland": ["Ashgrove", "Brackenridge", "Coppice", "Dell", "Elmsworth", "Fernside", "Glade", "Hazelby", "Hollins", "Leafward", "Mossbank", "Oakes", "Rowanfield", "Shaw", "Thicket", "Underwood", "Wildwood", "Woodward", "Ap Rhys", "Ap Owain"],
+        "Nomadic": ["Arslanid", "Borjigin", "Chonos", "Dorben", "Jalair", "Kereit", "Khongirad", "Merkit", "Naiman", "Olkhunut", "Tayichiud", "Uriankhai", "Baarin", "Besud", "Ikires", "Manghud", "Oronar", "Sunit", "Tatar", "Uru"],
+        "Religious": ["Almoner", "Bell", "Bishop", "Candle", "Chapel", "Clerk", "Deacon", "Faithful", "Goodfellow", "Hope", "Lamb", "Loveday", "Palmer", "Pilgrim", "Prior", "Psalter", "Sexton", "Steadfast", "Vigil", "Truelove"],
+        "Maritime": ["Anchor", "Baylis", "Bosun", "Capstan", "Fisher", "Gulley", "Harbourne", "Kellow", "Mariner", "Netley", "Penhale", "Quay", "Roper", "Salter", "Seaward", "Shoreham", "Tregear", "Trevose", "Wherry", "Pengelly"],
+        "Mountain": ["Axeson", "Boulder", "Cragson", "Delving", "Flintson", "Gravelhand", "Hewer", "Ironsson", "Kettleforge", "Lodeson", "Orrin", "Pickering", "Quarry", "Ridgewalker", "Shaftson", "Slatehand", "Tunnelson", "Vaultkin", "Brassbeard", "Coalhand"],
+        "Swamp": ["Bogsworth", "Cattails", "Ditchwater", "Eelby", "Fenn", "Frogmore", "Gloaming", "Mudlark", "Murk", "Peatman", "Pondsby", "Reed", "Rushworth", "Sludge", "Tarn", "Toadley", "Wade", "Wetherby", "Mossop", "Sedge"],
+        "Arcane": ["Aldane", "Brightglass", "Candlewick", "Dawnquill", "Embersly", "Fairweather", "Glimmer", "Inkwell", "Lanternby", "Mirrow", "Nightingale", "Orrery", "Penwright", "Quillon", "Runecroft", "Scrivener", "Starling", "Tome", "Vellum", "Wickham"],
+        "Nordic": ["Arnesson", "Bjarnason", "Egilsson", "Finnsson", "Gunnarsson", "Haraldsson", "Ivarsdal", "Ketilsson", "Leifsson", "Olafsson", "Orming", "Ragnarsson", "Sigurdsson", "Steinsson", "Svensson", "Thorsson", "Ulfsson", "Vidarsson", "Hallsten", "Skagi"],
+        "Desert": ["al-Amin", "al-Attar", "al-Bazzaz", "al-Haddad", "al-Jamal", "al-Khayyat", "al-Najjar", "al-Saffar", "al-Sayyad", "al-Tabbakh", "ibn Adil", "ibn Bashir", "ibn Faisal", "ibn Hamza", "ibn Idris", "ibn Karim", "ibn Nabil", "ibn Yusuf", "al-Warraq", "al-Hilali"],
+        "Frozen": ["Drifson", "Fellgard", "Floeson", "Frostbeard", "Hailson", "Icewright", "Jokulsson", "Kaldsson", "Rimeward", "Sleetby", "Snowhand", "Sledwright", "Tundrason", "Whiteholm", "Winterhall", "Wolfskin", "Ystad", "Glacierside", "Hoarfell", "Seal"],
+        "Subterranean": ["Barrowdeep", "Candlemine", "Cavehollow", "Chasmson", "Darkling", "Delvesby", "Dripstone", "Echoway", "Glowmoss", "Grotto", "Lampwright", "Lowtunnel", "Minerson", "Oreford", "Pitwick", "Rockhollow", "Shalebank", "Stonesong", "Undershaft", "Veinward"],
+        "Tropical": ["Akana", "Kahale", "Kaleo", "Kealoha", "Keawe", "Mahoe", "Nakoa", "Palakiko", "Tamatea", "Te Ao", "Te Rangi", "Waikato", "Ngata", "Rangitane", "Kahananui", "Pahia", "Haunani", "Moana-iti", "Pukui", "Kawai"]
+    },
+
     "lines": {
         "noWords": "*You share no words with {name}. They speak {language}.*",
         "someWords": "*You catch a word here and there of their {language}.*",

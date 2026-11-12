@@ -228,6 +228,7 @@
     "rivalFeudEnemy": 30,
     "archiveCap": 6,
     "infamousTraits": ["cruel", "greedy", "deceitful", "craven", "dread_lord", "kinslayer", "drunkard"],
+    "faithTraits": ["pious", "zealous"],
     "epithets": [
         { "from": "player", "field": "karma", "max": -60, "epithet": "the Wicked" },
         { "from": "player", "field": "renown", "min": 250, "epithet": "the Renowned" },
@@ -244,7 +245,7 @@
         "peace": 6, "betrayal": 6, "devoted": 5, "heirs": 5, "regency": 8, "saga": 5,
         "chronicle": 4, "patronage": 3, "companion": 4, "upbringing": 3,
         "court": 3, "rival": 3, "scheme": 4, "threat": 3, "suspect": 2, "demand": 2,
-        "achievement": 5, "trait": 5, "faith": 5, "highlight": 5
+        "achievement": 5, "trait": 5, "faith": 5, "highlight": 5, "crisis": 8
     },
     "themes": [
         { "id": "death", "tags": ["succession", "ended"] },
@@ -430,6 +431,7 @@
         ],
         "faithVows": "{kept} vow{keptS} kept, {broken} broken.",
         "faithFounded": "{name} founded a faith of {poss} own: {religion}.",
+        "faithName": "Men called {obj} {traits}, and meant it as praise.",
         "infamyKills": [
             "{kills} {lives} ended by {poss} hand{witnessed}.",
             "Blood: {kills} {lives} taken{witnessed}."
@@ -448,6 +450,22 @@
             "closedNoCause": [
                 "{name} died in the {season} of the year {year}, aged {age}, after {years} year{yearsS} at the head of the House.",
                 "The annals mark {poss} passing in the year {year}, at the age of {age}."
+            ],
+            "abdicated": [
+                "In the {season} of the year {year}, aged {age}, {name} set down the seat after {years} year{yearsS} at the head of the House.",
+                "{name} stepped down in the year {year}, at the age of {age}, and the House passed to {heir}."
+            ],
+            "abdicatedForced": [
+                "In the year {year} the lords of the court made {name} set down the seat, aged {age}, after {years} year{yearsS}.",
+                "{name} was put from the seat in the {season} of the year {year}; the House passed to {heir}."
+            ],
+            "elderLives": [
+                "{Pronoun} lives on in retirement.",
+                "The old ruler lives on, out of the seat."
+            ],
+            "elderDied": [
+                "{Pronoun} lived on out of the seat until the year {diedYear}, when {elderCause} took {obj}, aged {diedAge}.",
+                "Retired, {pronoun} died of {elderCause} in the year {diedYear}, aged {diedAge}."
             ],
             "live": [
                 "{name} lives still, aged {age}, in the {nth} year at the head of the House.",

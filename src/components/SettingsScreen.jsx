@@ -1,21 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import CharacterForge from './CharacterForge';
+import LegacySetup from './LegacySetup';
 import { buildForGender, defaultAppearance, eraMisfits, fitAppearanceToYear } from '../ui/playerAppearance';
 import erasData from '../../data/eras.json';
-import scenariosData from '../../data/scenarios.json';
 import dawnData from '../../data/dawn.json';
 import birthData from '../../data/birth.json';
 import { WorldAge } from '../world/worldAge.js';
 import { ModStore } from '../systems/modStore';
+import { DataLoader } from '../core/dataLoader';
+import { Scenarios } from '../player/scenarios.js';
 
-// Origin & Challenge choices (data/scenarios.json; applied by player/scenarios.js)
 const _entries = (o) => Object.entries(o || {}).filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object');
-const ORIGINS = _entries(scenariosData.origins);
-const DIFFICULTIES = _entries(scenariosData.difficulty);
-const VICTORIES = _entries(scenariosData.victory).map(([id, v]) => [id, {
-  ...v, blurb: String(v.blurb || '').replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? Number(v[k]).toLocaleString('en-US') : m)),
-}]);
+// Origin & Challenge choices: Scenarios.choices() (player/scenarios.js), read
+// through DataLoader so a mod's origins and difficulties are offered too.
+// Before the game data has loaded it gives the built-in defaults.
+const _choiceLists = () => {
+  const c = Scenarios.choices();
+  const pairs = (list) => list.map(x => [x.id, x]);
+  return { ORIGINS: pairs(c.origins), DIFFICULTIES: pairs(c.difficulties), VICTORIES: pairs(c.victories) };
+};
 // Start years before this begin at the Dawn of Man (world/dawn.js)
 const DAWN_YEAR = dawnData.dawnYear || 200;
 const _find = (list, id) => (list.find(([k]) => k === id) || [])[1] || null;
@@ -72,6 +76,16 @@ function SelectInput({ id, label, field, options, values, onChange }) {
 
 export default function SettingsScreen() {
   const { setPhase, setGameState } = useGame();
+  const [choiceLists, setChoiceLists] = useState(_choiceLists);
+  useEffect(() => {
+    // The game data (with any mods merged in) — loaded once, kept for the game itself
+    let live = true;
+    DataLoader._loadGamedata()
+      .then(() => { if (live) setChoiceLists(_choiceLists()); })
+      .catch(() => { /* the defaults stand */ });
+    return () => { live = false; };
+  }, []);
+  const { ORIGINS, DIFFICULTIES, VICTORIES } = choiceLists;
   const [preset, setPreset] = useState('medium');
 
   // Settings state
@@ -188,7 +202,7 @@ export default function SettingsScreen() {
       victory: o.suggestedVictory || 'none',
       guidedStart: o.guidedStart !== false,
     }));
-  }, []);
+  }, [ORIGINS]);
 
   const handleStartGame = useCallback(() => {
     // Store settings in game state for the Game class to read
@@ -391,6 +405,9 @@ export default function SettingsScreen() {
               {(_find(VICTORIES, settings.victory) || {}).blurb}
             </div>
           </div>
+
+          {/* Ironman, and what the Hall of Houses gives this game (components/LegacySetup.jsx) */}
+          <LegacySetup values={settings} onChange={handleChange} />
 
           {/* (a custom map keeps its own land: none of the generation settings apply) */}
           {!custom && (<>

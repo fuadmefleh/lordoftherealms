@@ -83,7 +83,7 @@
             "healthRestore": 10,
             "woundDaysCut": 0.4,
             "stageDownChance": 0.6,
-            "temple": { "base": 0.3, "perFaith": 0.03, "costMult": 0.6, "karma": 1 }
+            "temple": { "base": 0.3, "perFaith": 0.03, "costMult": 0.6, "karma": 0, "_karma": "Karma for the temple tending your own ailment: paying for your own care is no charity (0); when set, earned once per ailment" }
         },
         "prayer": { "ease": 0.85, "easeDays": 2, "miracleBase": 0.0, "miraclePerFaith": 0.008, "miracleKarma": 20, "miracleKarmaBonus": 0.03 },
         "remedies": {

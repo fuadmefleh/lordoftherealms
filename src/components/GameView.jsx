@@ -79,6 +79,11 @@ export default function GameView() {
         if (customWorldData) {
           // Start with custom world from editor
           game.startCustomWorld(customWorldData);
+        } else if (settings._resumeKey) {
+          // Continue a saved game from the title's save list (the ordinary slot or the
+          // Ironman run's: systems/saveLoad.js, ui/game/editorUI.js resumeGame)
+          game.resumeGame(settings._resumeKey);
+          if (!game.world || !game.player) throw new Error('The save could not be loaded');
         } else {
           // Start the game with settings
           await game.startNewGame(settings);
@@ -299,6 +304,13 @@ export default function GameView() {
             <button className="hud-speed-btn" id="simsTimeFast" title="Fast (2)"><Icon name="fast" /></button>
             <button className="hud-speed-btn" id="simsTimeUltra" title="Ultra (3)"><Icon name="ultra" /></button>
           </div>
+          {/* Pass the Time (ui/actionMenu/timeSkip.js): pick how long, or a week at a go */}
+          <button className="hud-end-turn hud-skip-btn" id="simsWait" title="Pass the Time: a day, three, a week, a fortnight, a month, or to the season's turn">
+            <span>Wait…</span>
+          </button>
+          <button className="hud-end-turn hud-skip-btn" id="simsSkipWeek" title="Skip a week (Shift+Enter) — stops early if something needs you; Escape stops it">
+            <span>⏩ Week</span>
+          </button>
           <button className="hud-end-turn" id="simsEndDay" title="End the day (Enter)">
             <span className="hud-end-turn-icon"><Icon name="hourglass" /></span>
             <span>End Turn</span>

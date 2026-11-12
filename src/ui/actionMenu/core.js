@@ -180,7 +180,7 @@ Object.assign(ActionMenu, {
         };
 
         const mapping = {
-            rest: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
+            rest: 'general', pass_time: 'general', eat_meal: 'general', seek_physician: 'general', explore_poi: 'general', delve: 'general', delve_resume: 'general', clear_trees: 'general', dig_treasure: 'general',
             forage: 'general', hunt: 'general', meditate: 'general', fish: 'general',
             trap_furs: 'general', ice_fish: 'general', planting_contract: 'commerce',
             prospect: 'general', tame_horse: 'general', craft_campfire: 'general', languages: 'social', dawn_settle: 'general', dawn_instep: 'general', your_parents: 'social', commissions: 'commerce',
@@ -885,6 +885,10 @@ Object.assign(ActionMenu, {
                 break;
             case 'seek_physician':
                 ActionMenu.showPhysicianMenu(game, tile);
+                break;
+            case 'pass_time':
+                // Wait a day, three, a week … (ui/actionMenu/timeSkip.js; each day the real End Turn)
+                ActionMenu.showWaitMenu(game);
                 break;
             case 'rest':
                 // Making camp on purpose beats collapsing by the roadside

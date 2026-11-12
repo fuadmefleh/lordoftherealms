@@ -7,6 +7,7 @@ import { Ledger } from '../../systems/ledger.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Livestock } from '../../systems/livestock.js';
 import { BackRooms } from '../../systems/backRooms.js';
+import { Lots } from '../../systems/lots.js';
 import { Utils, Hex, WorldUnit, MarketDynamics, Quests, Technology, Infrastructure, WorldEvents, PlayerEffects, PlayerInventory, WEATHER_EFFECTS, Economy, Seasons, SettlementSize, SettlementMarket } from './_imports.js';
 
 Object.assign(PlayerEconomy, {
@@ -165,7 +166,7 @@ Object.assign(PlayerEconomy, {
     /**
      * Build a property
      */
-    buildProperty(player, propertyType, tile, world) {
+    buildProperty(player, propertyType, tile, world, opts = {}) {
         const check = PlayerEconomy.canBuildProperty(player, propertyType, tile, world);
         if (!check.canBuild) return { success: false, reason: check.reason };
 
@@ -173,6 +174,13 @@ Object.assign(PlayerEconomy, {
 
         // Deduct cost (kept on the property: its book value in the ledger's net worth)
         const buildCost = PlayerEconomy.getBuildCost(player, prop, tile, world);
+        // In town it stands on a building lot: one of the player's (opts.lotId, chosen on the
+        // town map), else a bare lot they hold, else a free one bought now (systems/lots.js)
+        const lot = tile && tile.settlement ? Lots.lotForProperty(player, tile.settlement, { lotId: opts.lotId }) : null;
+        if (lot && !lot.ok) return { success: false, reason: lot.reason };
+        if (lot && lot.price > 0 && (player.gold || 0) < buildCost + lot.price) {
+            return { success: false, reason: `Needs ${buildCost}g to build and ${lot.price}g for a building lot in ${tile.settlement.name || 'town'}` };
+        }
         player.gold -= buildCost;
         Ledger.record(player, 'propertyBought', -buildCost);
         // (the builders and the timber merchants are the nearest town's: its purse is paid)
@@ -227,6 +235,13 @@ Object.assign(PlayerEconomy, {
             produces,
         });
 
+        // Its lot in town (bought now if it was a free one)
+        let lotId = null, lotPrice = 0;
+        if (lot) {
+            const claim = Lots.claimLotForProperty(player, world, tile.settlement, newProperty, { lotId: lot.lotId });
+            if (claim.success) { lotId = claim.lotId; lotPrice = claim.price; }
+        }
+
         // Initialize player inventory if needed
         if (!player.inventory) player.inventory = {};
 
@@ -239,7 +254,7 @@ Object.assign(PlayerEconomy, {
         //     InnerMap.placePropertyOnInnerMap(tile, newProperty, tile.q, tile.r);
         // }
 
-        return { success: true, property: newProperty, underConstruction: constructionDays > 0, constructionDays };
+        return { success: true, property: newProperty, underConstruction: constructionDays > 0, constructionDays, lotId, lotPrice };
     },
 
     /** Properties you can run before administrative overhead sets in. */

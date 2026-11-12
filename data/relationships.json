@@ -253,10 +253,17 @@
     "heirSettings": {
         "minAgeToPlay": 16,
         "inheritanceGoldPercent": 0.75,
+        "inheritance": {
+            "_comment": "What an heir does not keep of the coin (1 - inheritanceGoldPercent) goes into real purses (systems/inheritance.js): payDebts — the late ruler's wages owed and loans are paid down first; siblingShare — that share of what is left is split among the late ruler's other living children as portions (child.purse); the rest is the heriot, paid to the liege crown's treasury (the crown worn, else sworn to, else the realm died in; the nearest town with no crown).",
+            "payDebts": true,
+            "siblingShare": 0.4
+        },
         "inheritanceRenownPercent": 0.5,
         "inheritanceReputationPercent": 0.3,
         "startingAge": 16,
         "childbirthChancePerYear": 0.25,
+        "_namesakeChance": "Chance a child of the House is named for a forebear of its own blood who has died (systems/relationships/family.js generateChild) — never a living kinsman's name.",
+        "namesakeChance": 0.25,
     "heirOwnChildChance": 0.35,
         "maxChildren": 6,
         "motherMinAge": 18,

@@ -1,0 +1,111 @@
+{
+    "_doc": "How the world's towns age visibly over the centuries (world/townEras.js; worlds made since terrainGen 8). A town passes through the architectural eras in order, never back: it takes the next once the world's year has reached the era's `from` (plus its culture's `shift`, plus a lag of 0..lagYears by a hash of the town, so neighbours don't all turn in one year) and its wealth score (world/settlementWealth.js) is at least `minScore` and it is at least `minType` (village < town < city < capital). Its history (settlement.townEra.history: [era, year, pace]) is filled back to the town's founding the first time it is seen, then advanced once a year (processDay). What an era builds: `tierCap` (the richest wealth tier its builders can raise: hearth folk build only as the poor do, mud and wattle under thatch, whatever their purse), `mix` (a ring of the culture's house mix that every house is drawn from in that era: 'edge' = huts, crofts and longhouses), `lamps` (none, square, or null = the culture's own), `paving` (which streets its masons lay, if the culture paves at all: main = the high street and square, lane = every lane; each spreads out from the square over `paveYears`), `walls` (what the town may ring itself with: palisade or stone). Each building stands in the style of the era it was last (re)built in: it lasts `life` years (by the era's materials, times the town's `pace` that era — a rich town renews faster, a poor one patches and makes do), its first build spread by a phase hashed from its district (a block of districtSize tiles, so a whole quarter is old together) and a little of its own. A building past `wear.worn` of its life is weathered (dulled, grimed, moss on its roof), past `wear.old` old (mossier, its roof sagging); then it is pulled down and rebuilt in the era of the day. `walls`: a town raises a palisade, later stone, when its type, wealth and the threats it faces allow — the chance each year is `chance` × (1 + threat), threat being its realm's wars, the sacks, fires and battles its memory holds, and an invasion abroad; stone walls are raised over a palisade, never the other way. `art`: the wall's materials by culture (scripts/make_town_walls.py composes assets/buildingKit/town_walls.png from the building kit's wall tiles and the street sheet's stone).",
+
+    "eras": [
+        {
+            "id": "hearth", "label": "the Hearth Age", "hint": "wattle huts and longhouses under thatch, dirt tracks",
+            "from": 0, "minScore": 0, "minType": "village",
+            "tierCap": "poor", "mix": "edge", "lamps": "none", "paving": {}, "walls": "palisade",
+            "life": [35, 60]
+        },
+        {
+            "id": "timber", "label": "the Timber Age", "hint": "timber halls, plaster and boards, shingle roofs",
+            "from": 250, "minScore": 0.22, "minType": "village",
+            "tierCap": "mid", "lamps": "none", "paving": {}, "walls": "palisade",
+            "life": [55, 95]
+        },
+        {
+            "id": "stone", "label": "the Age of Stone", "hint": "stone houses, a cobbled high street, walls of stone",
+            "from": 520, "minScore": 0.42, "minType": "village",
+            "tierCap": "rich", "lamps": "square", "paving": { "main": true }, "walls": "stone",
+            "life": [110, 190]
+        },
+        {
+            "id": "guild", "label": "the Guild Age", "hint": "guildhalls and spires, every lane paved, lamps along the streets",
+            "from": 760, "minScore": 0.55, "minType": "town",
+            "tierCap": "rich", "lamps": null, "paving": { "main": true, "lane": true }, "walls": "stone",
+            "spires": ["church", "temple", "chapel", "guildhall", "town_hall"],
+            "life": [120, 220]
+        }
+    ],
+
+    "lagYears": 60,
+    "types": ["village", "town", "city", "capital"],
+
+    "cultures": {
+        "_doc": "Years added to each era's `from` for a culture's towns (a people of stonemasons builds in stone sooner, forest folk later), by era id or `all`; `streets`: the paving a culture without its own (architecture.json plan.streets null) lays at last in the guild age — the high street and square only (a block of the street sheet).",
+        "Imperial": { "stone": -80, "guild": -60 },
+        "Religious": { "stone": -40 },
+        "Arcane": { "guild": -40 },
+        "Mountain": { "stone": -120 },
+        "Woodland": { "stone": 120, "guild": 80, "streets": { "main": [14, 2], "plaza": [14, 2] } },
+        "Swamp": { "timber": 40, "stone": 160, "guild": 120, "streets": { "main": [12, 2], "plaza": [14, 2] } },
+        "Nordic": { "stone": 90, "guild": 60, "streets": { "main": [2, 2], "plaza": [6, 2] } },
+        "Nomadic": { "timber": 60, "stone": 60, "guild": 40, "streets": { "main": [8, 2], "plaza": [8, 2] } },
+        "Desert": { "timber": 40, "stone": -40 },
+        "Maritime": { "guild": -40 }
+    },
+
+    "pace": {
+        "_doc": "How fast a town renews its houses in an era: life × (slow − (slow − fast) × its wealth score then), stamped on the era's history entry so it never shifts after.",
+        "slow": 1.3, "fast": 0.75
+    },
+    "districtSize": 9,
+    "phaseJitter": 0.18,
+    "wear": { "worn": 0.6, "old": 0.85, "poorEarlier": 0.15 },
+
+    "paveYears": { "main": 45, "lane": 90 },
+
+    "walls": {
+        "minType": { "palisade": "town", "stone": "town" },
+        "minScore": { "palisade": 0.25, "stone": 0.5 },
+        "chance": { "palisade": 0.004, "stone": 0.003 },
+        "capitalBonus": 1.5,
+        "cityBonus": 0.8,
+        "threat": { "war": 1.2, "sack": 1.5, "fire": 0.3, "cairn": 0.6, "invasion": 2.0, "markYears": 80 },
+        "villageThreat": 2.5,
+        "margin": 2,
+        "minReach": 1.06,
+        "bins": 72,
+        "notice": { "palisade": "The folk of {town} ring their town with a palisade of sharpened stakes.", "stone": "The folk of {town} raise a wall of stone about their town." }
+    },
+
+    "eraNotice": {
+        "timber": "In {town} the old huts give way to timber halls and plastered houses.",
+        "stone": "{town} is building in stone now: masons from afar, and the high street cobbled.",
+        "guild": "{town} has come into its own: guildhalls, spires, and every lane paved."
+    },
+
+    "art": {
+        "spires": {
+            "_doc": "A Guild Age town's church, temple, guildhall or town hall raises a belltower over its roof (era `spires`): 2 cells wide and 5 tall, composed by scripts/make_town_walls.py into this sheet from the kit's walls, roof tiles and bell emblem, in this order; drawn by ui/buildingWear.js over the middle of the building's ridge.",
+            "sheet": "assets/buildingKit/town_spires.png",
+            "styles": ["slate_spire", "dark_spire", "beige_spire", "clay_campanile", "white_campanile", "timber_spire"],
+            "byCulture": { "Imperial": "clay_campanile", "Religious": "beige_spire", "Arcane": "dark_spire", "Woodland": "timber_spire", "Swamp": "timber_spire", "Nordic": "slate_spire", "Mountain": "slate_spire", "Nomadic": "white_campanile", "Desert": "white_campanile", "Maritime": "slate_spire", "default": "slate_spire" }
+        },
+        "sheet": "assets/buildingKit/town_walls.png",
+        "_doc": "Materials, each a band of rows in the sheet (scripts/make_town_walls.py): `face` the building kit wall the face is cut from, `cap` the street sheet block the wall walk is paved with (stone) or null (a palisade: stake tops). Cultures pick theirs by kind.",
+        "materials": {
+            "palisade_logs": { "kind": "palisade", "face": "logs", "name": "Palisade" },
+            "palisade_mud": { "kind": "palisade", "face": "mudbrick", "name": "Mud Wall" },
+            "stone_grey": { "kind": "stone", "face": "stone_grey", "cap": [6, 2], "name": "Town Wall" },
+            "stone_beige": { "kind": "stone", "face": "stone_beige", "cap": [6, 0], "name": "Town Wall" },
+            "stone_field": { "kind": "stone", "face": "fieldstone", "cap": [14, 2], "name": "Town Wall" },
+            "stone_dark": { "kind": "stone", "face": "stone_dark", "cap": [12, 0], "name": "Town Wall" },
+            "stone_adobe": { "kind": "stone", "face": "adobe_white", "cap": [10, 0], "name": "Town Wall" }
+        },
+        "byCulture": {
+            "Imperial": { "palisade": "palisade_logs", "stone": "stone_beige" },
+            "Religious": { "palisade": "palisade_logs", "stone": "stone_beige" },
+            "Arcane": { "palisade": "palisade_logs", "stone": "stone_dark" },
+            "Woodland": { "palisade": "palisade_logs", "stone": "stone_field" },
+            "Swamp": { "palisade": "palisade_logs", "stone": "stone_field" },
+            "Nordic": { "palisade": "palisade_logs", "stone": "stone_grey" },
+            "Mountain": { "palisade": "palisade_logs", "stone": "stone_grey" },
+            "Nomadic": { "palisade": "palisade_mud", "stone": "stone_adobe" },
+            "Desert": { "palisade": "palisade_mud", "stone": "stone_adobe" },
+            "Maritime": { "palisade": "palisade_logs", "stone": "stone_grey" },
+            "default": { "palisade": "palisade_logs", "stone": "stone_grey" }
+        }
+    }
+}

@@ -670,6 +670,16 @@ Object.assign(Renderer.prototype, {
                     ctx.globalAlpha = 1.0;
                     // Draw construction indicator
                     this.drawMapMarker(ctx, 'hammer', screen.x, screen.y - renderSize * 0.3, Math.max(9, renderSize * 0.26));
+                    // ...and how far the work has come (systems/construction.js: workDone of constructionDaysTotal)
+                    const cTot = infra.constructionDaysTotal || 0;
+                    const cDone = Number.isFinite(infra.workDone) ? infra.workDone : cTot - (infra.constructionDaysLeft || 0);
+                    const cPct = cTot > 0 ? Math.max(0, Math.min(1, cDone / cTot)) : 0;
+                    const bw = renderSize * 0.6, bh = Math.max(2, renderSize * 0.06);
+                    const bx = screen.x - bw / 2, by = screen.y - renderSize * 0.1;
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+                    ctx.fillStyle = '#f0b35a';
+                    ctx.fillRect(bx, by, bw * cPct, bh);
                 }
 
                 // Draw infrastructure name label at higher zoom
@@ -679,7 +689,7 @@ Object.assign(Renderer.prototype, {
                     
                     // Add to label queue with low priority
                     const labelText = isUnderConstruction
-                        ? `${infra.name} (${infra.constructionDaysLeft}d)`
+                        ? `${infra.name} (${infra.constructionDaysLeft} work-days)`
                         : infra.name;
                     this.addLabel(
                         labelText,

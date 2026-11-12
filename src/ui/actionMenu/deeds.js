@@ -6,6 +6,7 @@ import { ActionMenu } from './_ref.js';
 import { Deeds } from '../../systems/deeds.js';
 import { Achievements } from '../../systems/achievements.js';
 import { Heralds } from '../../systems/heralds.js';
+import { LlmProse } from '../../systems/llmProse.js';
 import { Foraging, Hunting } from '../../player/foraging.js';
 import { Crafting } from '../../player/crafting.js';
 import { lede, more } from './uiKit.js';
@@ -28,6 +29,43 @@ function _craftLine(label, rank) {
     return `<div style="${ROW}"><span>${label}</span><span style="color:#ccc;">${rank.icon} ${_esc(rank.name)} (level ${rank.practice})${next}</span></div>`;
 }
 
+/**
+ * The chronicler's reckoning of the record (systems/llmProse.js): the
+ * greatest tallies handed to the court scribe; shown once written (the
+ * tables are the record itself, so with the model off nothing is added).
+ */
+function _deedsProse(game, sections, ruler, gen) {
+    try {
+        const rows = [];
+        for (const sec of sections) {
+            if (sec.empty) continue;
+            for (const r of sec.rows) if (r.lifetime > 0 && !r.current) rows.push(r);
+        }
+        if (!rows.length) return '';
+        rows.sort((a, b) => b.lifetime - a.lifetime);
+        const top = rows.slice(0, 12);
+        const house = (game.player.house && game.player.house.name) || null;
+        const facts = {
+            house, ruler, generation: gen,
+            houseTotals: top.map(r => `${r.label}: ${Math.round(r.lifetime)}`),
+            thisReign: top.filter(r => r.reign > 0).map(r => `${r.label}: ${Math.round(r.reign)}`),
+        };
+        const fallback = `The record of ${house || ruler} counts ${top.slice(0, 4).map(r => `${r.label.toLowerCase()} ${Math.round(r.lifetime)}`).join(', ')}.`;
+        const hid = (game.player.house && (game.player.house.id || game.player.house.name)) || 'house';
+        const key = `deeds:${hid}:g${gen}`;
+        LlmProse.write(game.world, { kind: 'deeds', key, facts, fallback });
+        const writ = LlmProse.written(game.world, key);
+        // (the day's heralds' digest, when the scribe has cried it whole: systems/heralds.js)
+        const dig = Heralds.digest(game.world, game.player);
+        let html = '';
+        if (writ) html += `<div style="${CARD} font-family: Georgia, serif; font-style: italic; color: #e8dcc0;">✒️ ${_esc(writ)}</div>`;
+        if (dig && dig.written) html += `<div style="${CARD} font-family: Georgia, serif; color: #d8cfb8;">📯 <b>The heralds, day ${_fmt(dig.day)}:</b> ${_esc(dig.text)}</div>`;
+        return html;
+    } catch (e) {
+        return '';
+    }
+}
+
 Object.assign(ActionMenu, {
     /** Journal → Deeds & Records. */
     showDeeds(game) {
@@ -39,6 +77,7 @@ Object.assign(ActionMenu, {
 
         let html = '<div style="max-height: 560px; overflow-y: auto; font-size: 12px; min-width: 340px;">';
         html += lede(`Every deed the realm remembers. <b>House</b> is the lifetime total of your line; <b>Reign</b> is ${_esc(ruler)}'s share (generation ${gen})${counted}.`);
+        html += _deedsProse(game, sections, ruler, gen);
 
         const quiet = [];
         for (const sec of sections) {

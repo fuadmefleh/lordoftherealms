@@ -58,6 +58,7 @@ import { PlayerInventory } from '../core/inventory.js';
 import { Coinage } from '../world/coinage.js';
 import { MoneySupply } from '../world/moneySupply.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { KingdomAI } from '../world/kingdomAI.js';
 import { Technology } from './technology.js';
 import { House } from './house.js';
 import { Gossip } from './gossip.js';
@@ -1481,14 +1482,17 @@ export const Finance = {
             else if (f.levy) f.levy = null;
             // Honest coin returns slowly once the crown is out of trouble
             const G = Finance.cfg('coinage');
-            if (f.purity < 1 && f.debtRatio < _num(G.recoinMaxRatio, 0.3) && !f.levy) f.purity = Math.min(1, _round2((f.purity + _num(G.recoinPerDay, 0.001)) * 1000) / 1000);
+            // (recoinPerDay: a better standard for the new coin; the coin in hand improves only as it mixes in — MoneySupply.setStandard.
+            // 0 since 2026-11: honest coin comes back by a recoinage, which costs the crown)
+            if (f.purity < 1 && _num(G.recoinPerDay) > 0 && f.debtRatio < _num(G.recoinMaxRatio, 0.3) && !f.levy) MoneySupply.setStandard(world, k, Math.min(1, _round2((f.purity + _num(G.recoinPerDay)) * 1000) / 1000));
             // Crisis: the crown chooses how to get out of it
-            if (k.id !== ruled && day % 7 === 0
+            const crisis = day % 7 === 0
                 && (f.missed >= _num(C.crisisMissed, 2) || f.unpaid >= _num(C.crisisUnpaid, 14) || f.debtRatio > _num(C.crisisRatio, 1.2)
                     // ...or a budget weeks in deficit with the chests below the reserve
-                    || (fs && fs.deficitWeeks >= _num(C.crisisDeficitWeeks, 8) && _num(k.treasury) < reserve))) {
-                Finance._crownCrisis(world, player, st, k, out);
-            }
+                    || (fs && fs.deficitWeeks >= _num(C.crisisDeficitWeeks, 8) && _num(k.treasury) < reserve));
+            if (crisis && k.id !== ruled) Finance._crownCrisis(world, player, st, k, out);
+            // The realm the player rules: its treasurers clip the coin only if the ruler allowed it
+            else if (crisis && f.treasurersCoin === true) Finance._treasurersDebase(world, player, k, out);
             f.lastTreasury = _num(k.treasury);
         }
     },
@@ -1564,6 +1568,8 @@ export const Finance = {
         const day = _day(world);
         const w = { ...(C.choices || { levy: 3, debase: 3, default: 2 }) };
         if (f.levy) w.levy = 0;
+        // (a crown's temper: a warlike crown clips its coin readily, a merchant crown guards it — coinage.debaseBias)
+        w.debase = _num(w.debase) * _num((G.debaseBias || {})[KingdomAI.personalityId(k)], 1);
         if (f.purity - _num(G.debaseStep, 0.1) < _num(G.floor, 0.5) - 1e-9) w.debase = 0;
         if (!f.debt.length) w.default = 0;
         // The Crown's Purse adds two more ways out: sell offices (corruption after), sell crown land
@@ -1623,25 +1629,52 @@ export const Finance = {
         if (f.purity - step < _num(G.floor, 0.5) - 1e-9) return { success: false, reason: 'The coin is as base as it can be made.' };
         const day = _day(world);
         const before = f.purity;
-        f.purity = _round2(f.purity - step);
+        // The mint's new standard: more pieces from the same silver. The coin in hand
+        // is not changed at once (world/moneySupply.js setStandard: the old finer
+        // pieces are restruck week by week, and prices follow them)
+        MoneySupply.setStandard(world, k, _round2(before - step));
+        f.purity = _round2(f.purity);
         f.debasements++;
-        // The mint recoins the circulating coin at the lower standard: more pieces
-        // from the same silver. The holders get back as many pieces as they brought;
-        // the crown keeps the extra pieces (new coin in its chests, which swell the
-        // coin in circulation as the crown spends them: world/moneySupply.js)
-        const R = MoneySupply.realm(world, k.id);
-        const swell = R && f.purity > 0 ? R.coin * (before / f.purity - 1) : 0;
         f.lastDebaseDay = day;
-        const gain = CrownBooks.enabled() && swell > 0 ? Math.round(swell)
-            : Math.round(Math.max(_num(f.income), 200) * _num(G.mintDays, 15));
-        k.treasury = _num(k.treasury) + gain;
-        CrownBooks.note(k, 'debase', gain);
-        MoneySupply.note(world, k.id, gain, 'debase');
+        const R = MoneySupply.enabled() ? MoneySupply.realm(world, k.id) : null;
+        // The crown restrikes its own chests at once: the extra pieces the same silver makes
+        const chest = Math.floor(Math.max(0, _num(k.treasury)) * (before / f.purity - 1));
+        if (chest > 0) {
+            k.treasury = _num(k.treasury) + chest;
+            CrownBooks.note(k, 'debase', chest);
+            MoneySupply.note(world, k.id, chest, 'debase');
+        }
+        let gain = chest;
+        // ...and the first of the old coin in hand is brought in (debasement.firstCall): the holders
+        // get back as many pieces as they brought, the crown keeps the extra pieces. With no coin
+        // counted in hand (no tick yet, before the first coin) there is nothing old to restrike:
+        // the new standard is the coin at once, and the crown gains only from its own chests
+        if (R && R.coin > 0) gain += MoneySupply.restrike(world, k, _num(MoneySupply.config().debasement.firstCall, 0.3));
+        else if (R) R.lag = 0;
         for (const b of st.banks) if (b.relations && b.relations[k.id] != null) b.relations[k.id] = Math.max(-100, b.relations[k.id] - _num(C.debaseRelation, 10));
         Finance._record(st, world, { kind: 'debased', kingdomId: k.id, kingdom: k.name, purity: f.purity });
-        const text = `The mint of ${k.name} clips its coin to ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown, and prices in its markets rise ${Math.round((Coinage.priceMultiplier(world, { kingdom: k.id }) - 1) * 100)}%.`;
+        const full = Math.round((Coinage.purityFactor(k) - 1) * 100);
+        const text = `The mint of ${k.name} strikes its coin at ${Math.round(f.purity * 100)}% silver: ${gain}g for the crown now, and more as the old coin comes in to be restruck. Prices in its markets will rise by about ${full}% as the new coin spreads.`;
         if (out && Finance._touches(player, k)) Finance._note(out, '💱', 'Coin Debased', text, 'warning');
         return { success: true, gain, purity: f.purity, text };
+    },
+
+    /**
+     * The ruler's treasurers, allowed to touch the coin (kingdom.finance.treasurersCoin),
+     * debase it in a crisis rather than let the soldiers go unpaid: one step,
+     * never below the floor, and the ruler is told.
+     */
+    _treasurersDebase(world, player, k, out) {
+        const f = Finance.kingdomState(k);
+        const G = Finance.cfg('coinage');
+        if (f.purity - _num(G.debaseStep, 0.1) < _num(G.floor, 0.5) - 1e-9) return null;
+        const res = Finance.debase(world, player, k, null);
+        if (res && res.success) {
+            Finance._note(out, '📒', 'The Treasurers Clip the Coin', `The chests of ${k.name} are empty and its debts unpaid: as you allowed, your treasurers have the mint strike baser coin (${Math.round(f.purity * 100)}% silver), ${res.gain}g for the crown now. Forbid it in the Treasury.`, 'warning');
+            f.missed = 0;
+            f.unpaid = 0;
+        }
+        return res;
     },
 
     /** The crown repudiates (part of) its debts: its lenders take the loss. */
@@ -1773,7 +1806,8 @@ export const Finance = {
             for (const k of (world.kingdoms || []).filter(x => x && x.isAlive !== false && x.finance && x.finance.purity < 1)) {
                 if (Utils.random() >= _num(silver.chance)) continue;
                 const f = Finance.kingdomState(k);
-                f.purity = Math.min(1, _round2(f.purity + _num(silver.purity, 0.1)));
+                // (the mint strikes finer coin again; it mixes into the coin in hand week by week)
+                MoneySupply.setStandard(world, k, Math.min(1, _round2(f.purity + _num(silver.purity, 0.1))));
                 Finance._record(st, world, { kind: 'silver_find', kingdomId: k.id, kingdom: k.name, purity: f.purity });
                 if (Finance._touches(player, k)) Finance._note(out, silver.icon || '⛏️', silver.name || 'New silver', Finance._fill(silver.text, { kingdom: k.name }), 'success');
             }
@@ -1936,7 +1970,7 @@ export const Finance = {
         return {
             purity: Coinage.purity(kingdom), priceMult: Coinage.priceMultiplier(world, { kingdom: kingdom.id }),
             debt: Math.round(Finance.crownDebt(kingdom)), ratio: _num(f.debtRatio), income: _num(f.income),
-            levy: !!(f.levy && _num(f.levy.until) >= day), defaults: _num(f.defaults), trust: Coinage.trust(kingdom, day),
+            levy: !!(f.levy && _num(f.levy.until) >= day), defaults: _num(f.defaults), trust: Coinage.trust(kingdom, day, world),
             lastDefaultDay: f.lastDefaultDay != null ? f.lastDefaultDay : null,
         };
     },

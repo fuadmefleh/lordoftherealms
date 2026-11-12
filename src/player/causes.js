@@ -117,7 +117,8 @@ export const Causes = {
         const floor = Guilds.askFloor(settlement, good.id);
         const eff = Math.max(scarcity, floor);
         const exact = askBase * eff;
-        const price = Math.floor(exact);
+        // Economy.marketPrice's floor: a good never lists for nothing
+        const price = Math.max(1, Math.floor(exact));
         const base = good.basePrice;
 
         const factors = [];
@@ -177,10 +178,13 @@ export const Causes = {
             }
             case 'coinage': {
                 const k = Coinage.kingdomOf(world, settlement);
-                const purity = Coinage.purity(k);
+                // (the coin in hand: the mint's standard, old coin not yet restruck, clipping — MoneySupply.fineness)
+                const fn = Coinage.fineness(world, k);
                 const level = Coinage.level(world, k);
                 const bits = [];
-                if (purity < 1) bits.push(`coin ${Math.round(purity * 100)}% pure`);
+                if (fn.standard < 1) bits.push(`the mint strikes ${Math.round(fn.standard * 100)}% silver`);
+                if (Math.abs(fn.circulating - fn.standard) > 0.005) bits.push(`${Math.round(fn.circulating * 100)}% in hand (${fn.circulating > fn.standard ? 'old coin still passing: more rise to come' : 'the finer new coin mixing in'})`);
+                if (fn.clip > 0.01) bits.push(`${Math.round(fn.clip * 100)}% clipped`);
                 if (level !== 1) bits.push(`price level ×${_r2(level)}`);
                 return { label: `${k ? k.name : 'The realm'}'s money`, detail: bits.join(', ') };
             }

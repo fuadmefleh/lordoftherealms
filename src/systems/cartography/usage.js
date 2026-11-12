@@ -211,6 +211,7 @@ Object.assign(Cartography, {
                 player.renown = (player.renown || 0) + 10;
                 bonusText = ' You also found an ancient relic! (+10 renown)';
             }
+            if (loot.heirloom) bonusText += ` Among it lay ${loot.heirloom.name}: it is the House's now.`;
             const got = Object.entries(loot.added).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ');
             const left = Object.entries(loot.left).map(([k, v]) => `${v} ${k.replace(/_/g, ' ')}`).join(', ');
             if (got) bonusText += ` Into your packs: ${got}.`;

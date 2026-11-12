@@ -223,10 +223,20 @@ describe('Pressing a claim', () => {
         const world = makeWorld();
         const player = makePlayer(world);
         const k = target(world);
-        expect(Throne.canPress(player, world, k.id, { armyStrength: 100 }).ok).toBe(false);
-        Throne.grantClaim(player, world, k.id, 'conquest', 30);
-        expect(Throne.canPress(player, world, k.id, { armyStrength: 10 }).ok).toBe(false);
-        expect(Throne.canPress(player, world, k.id, { armyStrength: 100 }).ok).toBe(true);
+        const cfg = Throne.config();
+        expect(Throne.canPress(player, world, k.id, { armyStrength: 200 }).ok).toBe(false);
+        Throne.grantClaim(player, world, k.id, 'conquest', cfg.pressMinStrength - 5);
+        expect(Throne.canPress(player, world, k.id, { armyStrength: 200 }).reason).toMatch(/too weak/);
+        Throne.grantClaim(player, world, k.id, 'conquest', cfg.pressMinStrength);
+        expect(Throne.canPress(player, world, k.id, { armyStrength: cfg.pressMinArmy - 1 }).ok).toBe(false);
+        // A pretender the realm does not want raises no banners
+        player.reputation[k.id] = -100;
+        expect(Throne.appeal(player, world, k, { armyStrength: 200 }).value).toBeLessThan(cfg.pressMinAppeal);
+        expect(Throne.canPress(player, world, k.id, { armyStrength: 200 }).reason).toMatch(/does not want you/);
+        player.reputation[k.id] = 100;
+        player.house.prestige = 500;
+        expect(Throne.appeal(player, world, k, { armyStrength: 200 }).value).toBeGreaterThanOrEqual(cfg.pressMinAppeal);
+        expect(Throne.canPress(player, world, k.id, { armyStrength: 200 }).ok).toBe(true);
     });
 
     it('raising the banners splits the realm into a civil war fought through RealmWars', () => {
@@ -298,6 +308,16 @@ describe('Pressing a claim', () => {
         expect(player.throne.civilWar.momentum).toBe(m + Throne.config().civilWar.vanguardWin);
         Throne.recordThroneBattle(player, world, false);
         expect(player.throne.civilWar.momentum).toBe(m + Throne.config().civilWar.vanguardWin + Throne.config().civilWar.vanguardLoss);
+        // Vanguards broken never hand over the capital before the war has turned
+        const cw = player.throne.civilWar;
+        const cap = `${k.capital.q},${k.capital.r}`;
+        for (const key of Object.keys(cw.sides)) cw.sides[key] = key === cap ? 'loyalist' : 'pretender';
+        cw.momentum = Throne.config().civilWar.capitalMomentum - 20;
+        expect(Throne._flipOne(world, k, cw, 'pretender')).toBe(null);
+        expect(cw.sides[cap]).toBe('loyalist');
+        cw.momentum = Throne.config().civilWar.capitalMomentum;
+        expect(Throne._flipOne(world, k, cw, 'pretender')).toBeTruthy();
+        expect(cw.sides[cap]).toBe('pretender');
     });
 });
 
@@ -338,11 +358,12 @@ describe('Ruling a realm', () => {
         k.treasury = 11000;
         // The levy is a share of yesterday's taxes and dues (the Crown's Purse, world/crownBooks.js)
         const books = CrownBooks.state(k);
-        books.avg = { rev: 1000, exp: 0, n: 5 };
+        books.avg = { rev: 600, exp: 0, n: 5 };
+        k.stability = 80;
         const gold = player.gold;
         Throne.processDaily(player, world);
         const levy = player.gold - gold;
-        expect(levy).toBe(Math.floor(1000 * Throne.levyRate(player)));
+        expect(levy).toBe(Math.floor(600 * Throne.levyRate(player)));
         expect(k.treasury).toBe(11000 - levy);
         expect(books.day.purse).toBe(levy);
         // A day without taxes pays nothing; the levy is capped
@@ -354,6 +375,27 @@ describe('Ruling a realm', () => {
         books.avg.rev = 1e7;
         Throne.processDaily(player, world);
         expect(player.gold - g2).toBe(Throne.config().ruling.levyCap);
+        k.treasury = 50000;
+        // A restless realm hides its coin; a crown whose upkeep eats its revenue pays nothing
+        books.avg = { rev: 600, exp: 0, n: 5 };
+        k.stability = 50;
+        const [lo, hi] = Throne.config().ruling.levyStability;
+        expect(Throne.levyQuote(player, world, k)).toMatchObject({ levy: Math.floor(600 * Throne.levyRate(player) * (50 - lo) / (hi - lo)), limit: 'stability' });
+        k.stability = 80;
+        const R = Throne.config().ruling;
+        const base = 600 * Throne.levyRate(player);
+        books.avg = { rev: 600, exp: 520, purse: 0, n: 5 };
+        expect(Throne.levyQuote(player, world, k)).toMatchObject({ levy: Math.floor(Math.max(80 * R.levySurplusShare, base * R.levyDeficitShare)), limit: 'surplus' });
+        // (in deficit, only the purse's first charge: a quarter of the base)
+        books.avg = { rev: 600, exp: 700, purse: 0, n: 5 };
+        expect(Throne.levyQuote(player, world, k)).toMatchObject({ levy: Math.floor(base * R.levyDeficitShare), limit: 'surplus' });
+        // ...and nothing that would dip under the treasury's reserve of upkeep
+        k.treasury = 700 * R.levyReserveDays + 5;
+        expect(Throne.levyQuote(player, world, k)).toMatchObject({ levy: 5, limit: 'reserve' });
+        k.treasury = 50000;
+        // (the levy itself is not upkeep: it never eats its own base)
+        books.avg = { rev: 600, exp: 90, purse: 90, n: 5 };
+        expect(Throne.levyQuote(player, world, k).limit).toBe('rate');
 
         const foe = world.kingdoms.find(o => o.isAlive && o.id !== k.id && !(k.allies || []).includes(o.id));
         delete (k.truces || {})[foe.id];

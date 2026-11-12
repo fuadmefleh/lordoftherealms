@@ -698,7 +698,11 @@ export const Brawls = {
         const line = pool.length ? pool[Math.floor(_frac(`${fight.key}|rumour`) * pool.length) % pool.length] : '{a} and {b} came to blows {place} {when}.';
         const a = Brawls.instigatorOf(fight);
         const b = Brawls.foeOf(fight);
-        return _fill(line, { a: names.a || (a && a.name) || 'someone', b: names.b || (b && b.name) || 'someone', place: fight.placeName || C.places[fight.place] || 'the street' });
+        let na = names.a || (a && a.name) || 'someone';
+        let nb = names.b || (b && b.name) || 'someone';
+        // ("{a} knocked {b} senseless": {a} is the one left standing — when the one picked on won, it's them)
+        if (['ko', 'fled', 'death'].includes(how) && fight.cause !== 'retainers' && fight.ended && fight.ended.winner === 1) [na, nb] = [nb, na];
+        return _fill(line, { a: na, b: nb, place: fight.placeName || C.places[fight.place] || 'the street' });
     },
 
     /**

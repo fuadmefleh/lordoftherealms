@@ -52,6 +52,7 @@ const topLevel = [
     'jail',
     'seats',
     'lots',
+    'construction',
     'laws',
     'duels',
     'arms',
@@ -73,9 +74,14 @@ const topLevel = [
     'afterlife',
     'scenarios',
     'annals',
+    'heirlooms',
     'coalitions',
+    'crises',
+    'climate',
     'rivalHouses',
     'rivalVoice',
+    // Cadet branches of the House (systems/cadetBranches.js)
+    'cadetBranches',
     'realmIntel',
     'containers',
     'townProps',
@@ -114,7 +120,21 @@ const topLevel = [
     'townFamily',
     'townSchool',
     'townTrade',
-    'carts'
+    'carts',
+    // Stewards, bailiffs and governors (systems/stewards.js)
+    'stewards',
+    // The Hall of Houses' unlocks, kept across games (systems/metaLegacy.js)
+    'metaLegacy',
+    'chronicleBook',
+    'npcMemory',
+    'townMemory',
+    // The towns' architectural eras, weathering and walls (world/townEras.js)
+    'townEras',
+    'nemesis',
+    // Personal quests from the House's own history (systems/houseQuests.js)
+    'houseQuests',
+    // The Timeline of the Realm (systems/realmTimeline.js)
+    'timeline'
 ];
 
 const merged = {};

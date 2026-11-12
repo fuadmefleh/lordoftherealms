@@ -55,6 +55,7 @@ import { Seasons } from './seasons.js';
 import { WorldEvents } from './worldEvents.js';
 import { SettlementMarket } from './settlementMarket.js';
 import { TownLabour } from './townLabour.js';
+import { Climate } from './climate.js';
 
 const _num = (v, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -617,6 +618,16 @@ export const Harvests = {
                 rec.wn++;
                 rec.norm = _r3(norm / n);
             }
+            // The climate's era over the region's towns (world/climate.js): kept only when it bites
+            let cf = 0, cn = 0;
+            for (const key of rec.pts) {
+                const [q, r] = key.split(',').map(Number);
+                cf += Climate.yieldFactor(world, q, r, day);
+                cn++;
+            }
+            const clim = cn ? _r3(cf / cn) : 1;
+            if (clim !== 1) rec.clim = clim;
+            else if (rec.clim != null) delete rec.clim;
         }
         // War: the realm's wars, and raiders and war hosts on its land
         for (const [id, rec] of Object.entries(regions)) {
@@ -689,12 +700,16 @@ export const Harvests = {
             for (const c of (def ? def.hits : [])) if (hit[c] != null) hit[c] *= 1 - _clamp(_num(b.sev), 0, 0.95);
         }
         const yields = {};
-        const crop = weather * (1 - war);
+        // A little ice age, a drought, a warm age on the region (world/climate.js; 1 in a settled age)
+        const clim = _num(rec.clim, 1);
+        const crop = weather * clim * (1 - war);
         for (const c of ['grain', 'veg', 'fibre', 'vine', 'fodder']) yields[c] = _r3(crop * hit[c]);
         // The herds feel a drought on the pastures a little, war half as much
-        yields.stock = _r3((1 + (weather - 1) * 0.3) * (1 - war * 0.5) * hit.stock * (0.85 + 0.15 * hit.fodder));
+        yields.stock = _r3((1 + (weather - 1) * 0.3) * (1 + (clim - 1) * 0.5) * (1 - war * 0.5) * hit.stock * (0.85 + 0.15 * hit.fodder));
         const headline = _r3(yields.grain * 0.7 + yields.veg * 0.3);
-        return { weather: _r3(weather), war: _r3(war), hit, yields, y: headline, conf: _r3(conf) };
+        const res = { weather: _r3(weather), war: _r3(war), hit, yields, y: headline, conf: _r3(conf) };
+        if (clim !== 1) res.climate = clim;
+        return res;
     },
 
     /** The harvest is in: every region's reckoned, every town's fields and the player's farms take it up. */
@@ -705,7 +720,7 @@ export const Harvests = {
         for (const [id, rec] of Object.entries(cur.regions)) {
             const r = Harvests._reckon(rec, true);
             res[id] = {
-                name: rec.name, kingdomId: rec.kingdomId, y: r.y, ...r.yields, weather: r.weather, war: r.war,
+                name: rec.name, kingdomId: rec.kingdomId, y: r.y, ...r.yields, weather: r.weather, war: r.war, ...(r.climate ? { climate: r.climate } : {}),
                 blights: (rec.blights || []).map(b => b.kind),
             };
         }

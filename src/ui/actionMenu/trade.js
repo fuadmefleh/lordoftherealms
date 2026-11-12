@@ -22,6 +22,9 @@ import { ParentsGuard } from '../parentsGuard.js';
 import { Barter } from '../../world/barter.js';
 import { MarketStalls } from '../../world/marketStalls.js';
 import { NpcShops } from '../../systems/npcShops.js';
+import { worksCard } from './worksUI.js';
+import { Construction } from '../../systems/construction.js';
+import { Mints } from '../../systems/mints.js';
 
 /**
  * The market's tab bar: Buy and Sell here, and the town's other trade views
@@ -195,7 +198,7 @@ Object.assign(ActionMenu, {
         }
         const html = lede('You hold more than one property here. Which will you see to?') + rowList(props.map((p, i) => {
             const status = p.underConstruction
-                ? `🏗️ ${p.constructionDaysLeft} day(s) left`
+                ? `🏗️ ${Math.round(Construction.progress(p) * 100)}% · ~${Construction.eta(p, game.world, tile.q, tile.r)} day(s)`
                 : `Lv ${p.level} · ${p.storage > 0 && p.produces !== 'gold' ? `${p.storage} ${p.produces} stored` : 'running'}`;
             return { icon: p.icon || '🏠', name: p.name, side: status, attrs: `onclick="window._pickProperty(${i})"` };
         }));
@@ -269,14 +272,8 @@ Object.assign(ActionMenu, {
 
         // If under construction, show only the construction banner and sell button — no management
         if (prop.underConstruction) {
-            const pct = prop.constructionDaysTotal > 0 ? ((prop.constructionDaysTotal - prop.constructionDaysLeft) / prop.constructionDaysTotal * 100) : 100;
-            const barColor = pct > 66 ? '#8fd18a' : pct > 33 ? '#f0b35a' : '#e0846a';
-            html += card(bar(pct, barColor, 10) + muted(`${pct.toFixed(0)}% complete — no production or upkeep until finished`), {
-                icon: '🏗️',
-                title: 'Under Construction',
-                side: `${prop.constructionDaysLeft} day${prop.constructionDaysLeft !== 1 ? 's' : ''} remaining`,
-                tone: 'gold',
-            });
+            // progress, ETA and hired crews (ui/actionMenu/worksUI.js, systems/construction.js)
+            html += worksCard(game, prop, tile.q, tile.r, () => ActionMenu.showManagePropertyMenu(game, tile), { note: 'no production or upkeep until finished' });
             html += rowList([{
                 icon: '💰',
                 name: 'Sell Property',
@@ -1031,6 +1028,8 @@ Object.assign(ActionMenu, {
         if (outlook.producing.length) outlookParts.push(`<span style="color:#2ecc71;">Plenty: ${outlook.producing.map(p => p.label).join(', ')}</span>`);
         if (outlook.lean) outlookParts.push('<span style="color:#e74c3c;">Lean season</span>');
         const kingdom = tile.settlement && tile.settlement.kingdom != null ? game.world.getKingdom(tile.settlement.kingdom) : null;
+        // The realm's coin: debased, old coin still in hand, clipped (systems/mints.js coinNote)
+        const coin = kingdom ? Mints.coinNote(game.world, kingdom) : null;
         const fair = SettlementMarket.fair(tile.settlement);
         // One line up top (the season, and a dearth if there is one); the rest folds away
         const headline = [`${outlook.icon} ${outlook.season}, day ${outlook.dayInSeason}`];
@@ -1044,8 +1043,10 @@ Object.assign(ActionMenu, {
                 ${storesParts.length ? `<div class="trade-outlook-row">🏚️ ${storesParts.join('')}</div>` : ''}
                 ${people ? `<div>👥 ${people}</div>` : ''}
                 ${kingdom ? `<div>⚖️ ${policyLine(game.world, kingdom)}</div>` : ''}
+                ${coin ? `<div>💰 ${coin.text}</div>` : ''}
             </div>
         </details>
+        ${coin && coin.tone === 'bad' ? `<div class="pk-lede" style="color:#f0b35a;">💰 ${coin.text}</div>` : ''}
         ${fair ? `<div class="pk-lede" style="color:#ffcf6a;">🎪 The ${fair.name} is on until day ${fair.until}: the stalls ask less and buy dearer.</div>` : ''}`;
 
         // ── The town's craftsmanship (world/marketGrades.js): how much of its work is Fine, or Poor ──
@@ -1296,7 +1297,7 @@ Object.assign(ActionMenu, {
 
         // Disposition & personality set this trader's prices (both ways)
         // ...and the player's name in this realm (systems/fame.js)
-        const fameCtx = { player: game.player, kingdomId: Fame._kingdomAt(game.world, game.player.q, game.player.r) };
+        const fameCtx = { player: game.player, world: game.world, kingdomId: Fame._kingdomAt(game.world, game.player.q, game.player.r) };
         const priceMods = NpcDisposition.getPriceModifiers(npc, fameCtx);
         if (priceMods.refuses) {
             game.ui.showNotification('🚫 No Deal', priceMods.refuseReason, 'warning');

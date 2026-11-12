@@ -1,6 +1,9 @@
 // InnerMap — terrain members (split from the original monolith).
 import { InnerMap } from './_ref.js';
 import { Utils, Hex, CustomObjects, CustomBuildings, CustomInteriors, generateSpriteInterior, SettlementGenerator, DataLoader, Terrain, NpcFamily, Cultures, SettlementWealth } from './_imports.js';
+import { TownMarks } from '../townMarks.js';
+import { TownEras } from '../townEras.js';
+import { TownWalls } from '../townWalls.js';
 import { pickNineTileSlot, resolveBrushSeason, resolveNineTileCell, erodeUntileableStubs } from '../../core/nineTile.js';
 
 // What the bare fill under the grass layer reads as, by base terrain (groundName)
@@ -384,7 +387,13 @@ Object.assign(InnerMap, {
         this._worldYear = game && game.world && Number.isFinite(game.world.year) ? game.world.year : null;
         const era = st ? this.eraBuildingStamp(this._worldYear) : '';
         // (a capital whose castle has since risen is laid out anew: world/castles.js)
-        const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}` : null;
+        // (and a town whose history has changed its streets since — a fire, a statue, a new quarter: world/townMarks.js;
+        // an open hex where a battle has since been fought)
+        const wday = game && game.world && Number.isFinite(game.world.day) ? game.world.day : 0;
+        const memStamp = st ? TownMarks.stamp(st, wday) : (game && game.world ? TownMarks.fieldMarks(game.world, worldQ, worldR).map(m => m.id).join(',') : '');
+        // (and a town whose age has moved on — its era, its walls, its houses weathered and rebuilt by the decade: world/townEras.js)
+        const ageStamp = st && game && game.world ? TownEras.stamp(game.world, st) : '';
+        const settledAs = st ? `${st.name || 'settlement'}|${st.type || 'village'}|${this._isDawnVillage && this._isDawnVillage(st) ? 'camp' : 'town'}${st.type === 'capital' && st.castle === false ? '|hall' : ''}${era}${memStamp}${ageStamp}` : (memStamp ? `field|${memStamp}` : null);
         // (the open sea is drawn afresh each time: your ship may be another one)
         if (worldTile.terrain && Terrain.isWaterId(worldTile.terrain.id)) delete this._cache[key];
         const cached = this._cache[key];
@@ -593,11 +602,19 @@ Object.assign(InnerMap, {
                 const wealth = arch ? SettlementWealth.standing(worldTile.settlement, world && Number.isFinite(world.day) ? world.day : null) : null;
                 // (since terrainGen 5 the mill goes down to the water, once the water is laid: below)
                 if (gen >= 5) millOpts = { palette, arch, wealth };
+                const eraLook = arch && gen >= 8 ? TownEras.look(game.world, worldTile.settlement, { score: wealth }) : null;
                 const genResult = SettlementGenerator.generate(
-                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5, terrain: landId, wealth, wealthMix: gen >= 7 }
+                    tiles, worldTile.settlement, rng, this.width, this.height, { palette, arch, churchyard: gen >= 5, terrain: landId, wealth, wealthMix: gen >= 7,
+                        // since terrainGen 8 its age: the era it stands in, its houses weathered or rebuilt, its paving and walls (world/townEras.js)
+                        era: eraLook }
                 );
+                // What the town's history has left on its streets: burnt and rebuilt houses, ruins,
+                // statues, cairns, new quarters (world/townMarks.js; hash-placed, draws nothing from rng)
+                TownMarks.lay(tiles, worldTile.settlement, world && Number.isFinite(world.day) ? world.day : 0,
+                    { plaza: genResult.plaza, center: genResult.center, culture: arch ? arch.culture : null });
                 // (a house put up on a lot later is built of the culture's stuff, in the tier of its day: lots.js)
-                if (arch) tiles._townBuild = { culture: arch.culture };
+                // (and no grander than its era's builders raise: world/townEras.js)
+                if (arch) tiles._townBuild = { culture: arch.culture, eraCap: eraLook ? TownEras.tierCap(eraLook.eraIdx) : null };
                 // Store layout data for road generation at enter() time
                 tiles._settlementLayout = genResult;
             } else if (typeof CustomBuildings !== 'undefined' && CustomBuildings.isLoaded() && CustomBuildings.hasAny()) {
@@ -651,6 +668,8 @@ Object.assign(InnerMap, {
             this._millByWater(tiles, worldTile, worldQ, worldR, { ...millOpts, riverPath: river && river.path });
         }
         if (this._dressWater) this._dressWater(tiles, worldQ, worldR);
+        // (a town's walls joined anew where the water broke them, a tower at each end: world/townWalls.js)
+        if (tiles._townWalls) TownWalls.finish(tiles);
 
         // --- Player property placement ---
         this._placePlayerProperties(tiles, worldTile, rng);
@@ -678,6 +697,18 @@ Object.assign(InnerMap, {
             this._plantPalms(tiles, worldTile, worldQ, worldR, Number(wseed) || 0);
         }
 
+
+        // --- A town's memorials a later pass cleared (the harbour's pier, the water, the mill):
+        // stood again on the ground that is left (world/townMarks.js; hash-placed) ---
+        if (worldTile.settlement && game && game.world) {
+            const lay = tiles._settlementLayout || {};
+            TownMarks.relay(tiles, worldTile.settlement, Number.isFinite(game.world.day) ? game.world.day : 0, { plaza: lay.plaza || null, center: lay.center || null });
+        }
+
+        // --- The battles fought on an open hex: their cairns and grave mounds (world/townMarks.js) ---
+        if (!worldTile.settlement && game && game.world) {
+            TownMarks.layField(tiles, TownMarks.fieldMarks(game.world, worldQ, worldR), Number.isFinite(game.world.day) ? game.world.day : 0);
+        }
 
         // Ensure the center tile (player start) is always passable
         const centerQ = Math.floor(this.width / 2);

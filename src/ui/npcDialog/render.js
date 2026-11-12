@@ -6,6 +6,8 @@ import { NpcBrain } from '../../systems/npcBrain.js';
 import { NpcDisposition } from '../../systems/npcDisposition.js';
 import { Quests } from '../../systems/quests.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
+import { HouseQuests } from '../../systems/houseQuests.js';
 import { NpcTasks } from '../../systems/npcTasks.js';
 import { NpcKnowledge } from '../../systems/npcKnowledge.js';
 import { Relationships } from '../../systems/relationships.js';
@@ -18,7 +20,7 @@ import { _heartChoices } from './hearts.js';
 // (their work, your service, the church: systems/townJobs.js, systems/townWorship.js)
 import { _workChoices } from './work.js';
 import { _schoolChoices } from './schooling.js';
-import { _waresChoices } from './wares.js';
+import { _waresChoices, _pedlarEmptyChoice } from './wares.js';
 import { GREETINGS, RETURNING_GREETINGS, RESPECTFUL_GREETINGS, HOSTILE_GREETINGS, RUMORS, FAREWELLS, THREAT_RESPONSES, THREAT_SUCCESS, FLATTER_RESPONSES, FLATTER_SUCCESS, TIME_COMMENTS, WEATHER_COMMENTS, NPC_QUEST_HOOKS, LOCATION_INFO, KINGDOM_INFO } from '../npcDialog.data.js';
 import { dialogState } from './shared.js';
 import { renderChoiceGrid, formatSpokenLine } from '../conversationScene.js';
@@ -109,6 +111,10 @@ export function _buildConversation(npc) {
     if (world && !mem.threatened) {
         const reunion = street && street.kind === 'witness' ? null : Townsfolk.reunionLine(npc, world);
         if (reunion) greeting = reunion + ' ' + greeting;
+        // What they remember of your House, years on: "Your grandfather hanged my father." (systems/npcMemory.js)
+        // ...or, when it is open business of the House's (systems/houseQuests.js), the matter itself
+        const remembered = street || !player ? null : (HouseQuests.dialogLine(world, player, npc) || NpcMemory.greetLine(world, npc, player));
+        if (remembered) greeting = remembered + ' ' + greeting;
         // Sick, or sick kin at home (systems/illnessPlayer.js)
         const sick = street ? null : IllnessPlayer.greetLine(npc, world);
         if (sick) greeting = sick + ' ' + greeting;
@@ -501,9 +507,12 @@ export function _renderChoices(box) {
 
     // ── Trade (merchants, blacksmiths, travelers, and whoever keeps a market stall — world/innerMap/stalls.js) ──
     const keepsStall = !!(InnerMap.stallOfKeeper && InnerMap.stallOfKeeper(dialogState._npc));
-    if (npcType === 'merchant' || npcType === 'blacksmith_npc' || npcType === 'traveler' || keepsStall) {
+    // (a pedlar sells from the pack — its goods listed above — not the town's market: sold out, they say so)
+    const soldOut = dialogState._npc._pedlar ? _pedlarEmptyChoice() : null;
+    if (soldOut) choices.push(soldOut);
+    if (!dialogState._npc._pedlar && (npcType === 'merchant' || npcType === 'blacksmith_npc' || npcType === 'traveler' || keepsStall)) {
         const g0 = dialogState._game;
-        const pm = NpcDisposition.getPriceModifiers(dialogState._npc, g0 && g0.player ? { player: g0.player, kingdomId: Fame._kingdomAt(g0.world, g0.player.q, g0.player.r) } : null);
+        const pm = NpcDisposition.getPriceModifiers(dialogState._npc, g0 && g0.player ? { player: g0.player, world: g0.world, kingdomId: Fame._kingdomAt(g0.world, g0.player.q, g0.player.r) } : null);
         if (pm.refuses) {
             choices.push({ icon: '🚫', label: 'Show me your wares.', action: 'trade', tooltip: pm.refuseReason, cls: 'npc-dialog-choice-muted' });
         } else {

@@ -15,7 +15,7 @@ const UNIT_GLYPHS = {
     settler: 'tent', ship: 'ship', trade_ship: 'ship', war_fleet: 'ship', pirate: 'skull',
     fishing_boat: 'boat', lord_party: 'crown', mercenary_band: 'swords', war_host: 'swords',
     lair_expedition: 'swords', pilgrim_group: 'chalice', smuggler: 'moon', refugee: 'sack',
-    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown',
+    beast: 'paw', monster: 'claw', diplomatic_envoy: 'seal', courier_rider: 'horseshoe', rival_retinue: 'crown', cadet_retinue: 'crown',
     clan: 'fire', // a wandering clan's campfire of the Dawn of Man (world/dawn.js)
 };
 
@@ -28,6 +28,7 @@ const TOKEN_METALS = {
     settler: { rim: '#a9da70', hi: '#203317', lo: '#081106' },
     common: { rim: '#e6dcc4', hi: '#2a2e3a', lo: '#0c0e14' },
     rival: { rim: '#d89a4a', hi: '#4a1f1f', lo: '#180808' },
+    kin: { rim: '#a8d68a', hi: '#22381c', lo: '#0a1408' },
 };
 
 function unitMetal(unit) {
@@ -36,6 +37,7 @@ function unitMetal(unit) {
         case 'caravan': case 'trade_caravan': case 'ship': case 'trade_ship': case 'courier_rider': return TOKEN_METALS.merchant;
         case 'lord_party': return TOKEN_METALS.royal;
         case 'rival_retinue': return TOKEN_METALS.rival;
+        case 'cadet_retinue': return TOKEN_METALS.kin; // a cadet branch of the House (systems/cadetBranches.js)
         case 'patrol': case 'road_patrol': case 'war_fleet': return TOKEN_METALS.watch;
         case 'settler': case 'clan': return TOKEN_METALS.settler;
         default: return TOKEN_METALS.common;
@@ -590,7 +592,9 @@ Object.assign(Renderer.prototype, {
             const s = this.camera.worldToScreen(pos.x, pos.y);
             if (s.x < -40 || s.x > this.canvas.width + 40 || s.y < -40 || s.y > this.canvas.height + 40) continue;
             this.drawMapMarker(ctx, 'bed', s.x - size * 0.32, s.y - size * 0.32, Math.max(8, size * 0.22), { rim: 'rgba(214, 170, 100, 0.85)', color: '#f2e2c4' });
-            if (z > 1.1) {
+            // (no name under it while the player stands there: it ran into the player's own label)
+            const pl = this.player;
+            if (z > 1.1 && !(pl && pl.q === site.q && pl.r === site.r)) {
                 const h = Hospitality.roadhouseAt(this.world, site.q, site.r);
                 if (h) this.drawMapText(ctx, h.name, s.x, s.y + size * 0.7, { size: 9.5 * z, weight: 500, family: 'body', color: 'rgba(235, 215, 180, 0.95)' });
             }

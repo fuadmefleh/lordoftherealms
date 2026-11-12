@@ -753,7 +753,9 @@ export const Religion = {
      * Check if two kingdoms share the same faith
      */
     sameFaith(k1, k2) {
-        return k1.religion && k2.religion && k1.religion.faithId === k2.religion.faithId;
+        // A faith split by a schism (systems/crises.js): the old church and the new rite are not one
+        return k1.religion && k2.religion && k1.religion.faithId === k2.religion.faithId
+            && (k1.religion.rite || 'orthodox') === (k2.religion.rite || 'orthodox');
     },
 
     /**
@@ -761,7 +763,10 @@ export const Religion = {
      */
     faithCompatibility(k1, k2) {
         if (!k1.religion || !k2.religion) return 0;
-        if (k1.religion.faithId === k2.religion.faithId) return 30;
+        if (k1.religion.faithId === k2.religion.faithId) {
+            // Brethren divided by a schism (systems/crises.js) trust each other less than strangers
+            return (k1.religion.rite || 'orthodox') === (k2.religion.rite || 'orthodox') ? 30 : -15;
+        }
         // Different faiths — compare virtues
         const f1 = Religion.FAITHS[k1.religion.faithId];
         const f2 = Religion.FAITHS[k2.religion.faithId];

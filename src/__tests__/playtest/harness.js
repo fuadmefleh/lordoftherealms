@@ -10,12 +10,16 @@
 // of the harness is to exercise the same sequence the player gets.
 
 import { DawnBirth } from '../../player/dawnBirth.js';
+import { PlayerWorks } from '../../player/playerWorks.js';
 import { Barter } from '../../world/barter.js';
 import { AutoUpkeep } from '../../player/autoUpkeep.js';
 import { Languages } from '../../systems/languages.js';
 import { Lots } from '../../systems/lots.js';
 import { Infrastructure } from '../../systems/infrastructure.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
+import { TownMemory } from '../../systems/townMemory.js';
+import { TownEras } from '../../world/townEras.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
 import { DataLoader } from '../../core/dataLoader.js';
 import { Utils } from '../../core/utils.js';
 import { Hex } from '../../core/hex.js';
@@ -56,6 +60,8 @@ import { LegendaryArtifacts } from '../../systems/legendaryArtifacts.js';
 import { Cartography } from '../../systems/cartography.js';
 import { Ailments } from '../../systems/ailments.js';
 import { Rivals } from '../../systems/rivals.js';
+import { Nemesis } from '../../systems/nemesis.js';
+import { HouseQuests } from '../../systems/houseQuests.js';
 import { Sagas } from '../../systems/sagas.js';
 import { Whispers } from '../../systems/whispers.js';
 import { Devotion } from '../../systems/devotion.js';
@@ -72,9 +78,13 @@ import { Coalitions } from '../../systems/coalitions.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
 import { Discovery } from '../../systems/discovery.js';
 import { Holdings } from '../../systems/holdings.js';
+import { Stewards } from '../../systems/stewards.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { HeirAgency } from '../../systems/heirAgency.js';
+import { DynastyTree } from '../../systems/dynastyTree.js';
+import { Heirlooms } from '../../systems/heirlooms.js';
 import { Regency } from '../../systems/regency.js';
+import { Abdication } from '../../systems/abdication.js';
 import { MerchantHouses } from '../../systems/merchantHouses.js';
 import { Heralds } from '../../systems/heralds.js';
 import { Patronage } from '../../systems/patronage.js';
@@ -109,9 +119,13 @@ import { MapTheft } from '../../systems/mapTheft.js';
 import { FirstSteps } from '../../systems/firstSteps.js';
 import { Reckoning } from '../../systems/reckoning.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { CadetBranches } from '../../systems/cadetBranches.js';
 import { Commissions } from '../../systems/commissions.js';
 import { Victory } from '../../systems/victory.js';
 import { Fame } from '../../systems/fame.js';
+import { Crises } from '../../systems/crises.js';
+import { Climate } from '../../world/climate.js';
+import { RealmTimeline } from '../../systems/realmTimeline.js';
 
 export const WORLD_W = 80;
 export const WORLD_H = 60;
@@ -264,52 +278,9 @@ function _endDay(game) {
     mark(game, 'Ships.processDaily');
     game.voyageDay = (shipDay && shipDay.voyage) || null;
 
-    // Construction ticks (properties, religious, infrastructure, cultural)
-    for (const propRef of player.properties || []) {
-        const pTile = world.getTile(propRef.q, propRef.r);
-        if (!pTile) continue;
-        const prop = PlayerEconomy.findPropertyAt(pTile, propRef.type);
-        if (prop && prop.underConstruction && prop.constructionDaysLeft > 0) {
-            prop.constructionDaysLeft--;
-            if (prop.constructionDaysLeft <= 0) {
-                prop.underConstruction = false;
-                Quests.track(player, 'buildings_constructed');
-            }
-        }
-    }
-    for (const bRef of (player.religion && player.religion.buildings) || []) {
-        const bTile = world.getTile(bRef.q, bRef.r);
-        if (!bTile || !bTile.religiousBuilding) continue;
-        const rb = bTile.religiousBuilding;
-        if (rb.underConstruction && rb.constructionDaysLeft > 0) {
-            rb.constructionDaysLeft--;
-            if (rb.constructionDaysLeft <= 0) rb.underConstruction = false;
-        }
-    }
-    if (player.infrastructureUnderConstruction) {
-        for (let i = player.infrastructureUnderConstruction.length - 1; i >= 0; i--) {
-            const ref = player.infrastructureUnderConstruction[i];
-            const iTile = world.getTile(ref.q, ref.r);
-            if (!iTile || !iTile.infrastructure || !iTile.infrastructure.underConstruction) {
-                player.infrastructureUnderConstruction.splice(i, 1);
-                continue;
-            }
-            iTile.infrastructure.constructionDaysLeft--;
-            if (iTile.infrastructure.constructionDaysLeft <= 0) {
-                Infrastructure.finishConstruction(world, iTile);
-                player.infrastructureUnderConstruction.splice(i, 1);
-            }
-        }
-    }
-    for (const bRef of player.culturalBuildings || []) {
-        const cTile = world.getTile(bRef.q, bRef.r);
-        if (!cTile || !cTile.culturalBuilding) continue;
-        const cb = cTile.culturalBuilding;
-        if (cb.underConstruction && cb.constructionDaysLeft > 0) {
-            cb.constructionDaysLeft--;
-            if (cb.constructionDaysLeft <= 0) cb.underConstruction = false;
-        }
-    }
+    // Construction ticks (properties, religious, infrastructure, cultural) — as endDay.js
+    PlayerWorks.processDay(player, world);
+    mark(game, 'PlayerWorks.processDay');
 
     Relationships.processDailyEvents(player, world);
     mark(game, 'Relationships.processDailyEvents');
@@ -325,11 +296,24 @@ function _endDay(game) {
     mark(game, 'HeirAgency.processDay');
     Regency.processDay(player, world);
     mark(game, 'Regency.processDay');
+    Abdication.processDay(player, world);
+    mark(game, 'Abdication.processDay');
+    if (player.house) DynastyTree.sync(player, world, { npc: id => Relationships.getNPC(id) });
+    Heirlooms.processDay(player, world);
+    mark(game, 'Heirlooms.processDay');
     // Building lots and houses to let; the townsfolk live a season (endDay.js order)
     game.lotsDay = Lots.processDay(world, player);
     mark(game, 'Lots.processDay');
     Townsfolk.processDay(world, player);
     mark(game, 'Townsfolk.processDay');
+    // (endDay.js: the illness day sits between; the town's memory after it)
+    TownMemory.processDay(world, player);
+    mark(game, 'TownMemory.processDay');
+    // (endDay.js: the towns age once a year)
+    game.townErasDay = TownEras.processDay(world, player);
+    mark(game, 'TownEras.processDay');
+    NpcMemory.processDay(world, player);
+    mark(game, 'NpcMemory.processDay');
     Relationships.syncFolk(player, world);
     Relationships.prepareForSave(player);
     mark(game, 'Relationships.prepareForSave');
@@ -338,6 +322,8 @@ function _endDay(game) {
     mark(game, 'House.processDaily');
     RivalHouses.processDay(player, world);
     mark(game, 'RivalHouses.processDay');
+    CadetBranches.processDay(player, world);
+    mark(game, 'CadetBranches.processDay');
     Schemes.processDaily(player, world);
     mark(game, 'Schemes.processDaily');
     Demands.processDay(world, player);
@@ -348,6 +334,10 @@ function _endDay(game) {
     mark(game, 'Delves.processDay');
     Rivals.processDay(world, player);
     mark(game, 'Rivals.processDay');
+    Nemesis.processDay(world, player);
+    mark(game, 'Nemesis.processDay');
+    HouseQuests.processDay(world, player);
+    mark(game, 'HouseQuests.processDay');
     Sagas.processDay(world, player);
     mark(game, 'Sagas.processDay');
     Whispers.processDay(world, player);
@@ -403,6 +393,8 @@ function _endDay(game) {
     mark(game, 'Sieges.processDay');
     game.holdingsDay = Holdings.processDay(player, world);
     mark(game, 'Holdings.processDay');
+    game.stewardsDay = Stewards.processDay(world, player);
+    mark(game, 'Stewards.processDay');
     MerchantHouses.processDay(player, world);
     mark(game, 'MerchantHouses.processDay');
     game.patronageDay = Patronage.processDay(world, player);
@@ -468,6 +460,12 @@ function _endDay(game) {
     mark(game, 'Bourse.processDay');
     game.mintsDay = Mints.processDay(world, player);
     mark(game, 'Mints.processDay');
+    game.climateDay = Climate.processDay(world, player);
+    mark(game, 'Climate.processDay');
+    game.crisisDay = Crises.processDay(world, player);
+    mark(game, 'Crises.processDay');
+    RealmTimeline.processDay(world, player);
+    mark(game, 'RealmTimeline.processDay');
     game.taxDay = world.day % 7 === 0 ? Taxation.collectTaxes(player, world) : null;
     mark(game, 'Taxation.collectTaxes');
     if (player.queuedPath) player.resumeQueuedPath();
@@ -566,7 +564,7 @@ export function roundTrip(game) {
  * (ui/actionMenu/social.js showDeathScreen): the designated heir — else the
  * eldest own child of age, else a sibling — takes up the mantle (Relationships.succeedAsHeir); with no
  * heir, a new life as someone else in the world (Afterlife.becomeStranger),
- * which replaces game.player. Returns { how: 'heir'|'stranger'|null, name }.
+ * which replaces game.player. Returns { how: 'heir'|'cadet'|'stranger'|null, name }.
  */
 export function carryOn(game, cause) {
     const { world } = game;
@@ -577,6 +575,12 @@ export function carryOn(game, cause) {
         const heir = heirs.find(h => h.id === old.heir) || heirs[0];
         const res = Relationships.succeedAsHeir(old, heir.id, world, { cause });
         if (res.success) return { how: 'heir', name: old.name };
+    }
+    // No heir of the main line: the nearest cadet branch's head (systems/cadetBranches.js)
+    const branch = CadetBranches.heirLine(old)[0];
+    if (branch) {
+        const res = CadetBranches.succeed(old, world, branch.id, { cause });
+        if (res.success) return { how: 'cadet', name: old.name };
     }
     Afterlife.begin(old, world, cause);
     const cand = Afterlife.candidates(world)[0];

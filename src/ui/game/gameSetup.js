@@ -9,6 +9,9 @@ import { Dawn } from '../../world/dawn.js';
 import { Barter } from '../../world/barter.js';
 import { DawnBirth } from '../../player/dawnBirth.js';
 import { Languages } from '../../systems/languages.js';
+import { MetaLegacy } from '../../systems/metaLegacy.js';
+import { MetaLegacyStart } from '../../systems/metaLegacyStart.js';
+import { bindIronmanQuit } from './ironman.js';
 import { Camera, Renderer, Player, World, SaveLoad, Terrain, Banking, MarketDynamics, Taxation, Characters, Minimap, UI, Quests, Achievements, Technology, Relationships, Ships, Titles, Councils, InnerMap, InnerMapRenderer, InnerMapCharacters, InnerMapCombat, LightSystem, ModStore, audioManager, DataLoader, Hex, Utils, PlayerActions, PlayerEconomy, PlayerMilitary, ActionMenu, Housing, House, Espionage, Gossip, Tavern, Economy, TiledExport, CustomObjects, CustomBuildings, Hotbar, NpcDialog } from './_gameImports.js';
 
 export function _setupAudioControls() {
@@ -349,6 +352,9 @@ export async function _doStartNewGame(settingsOverride) {
 
     try {
 
+    // (the court scribe's retellings were of the world left behind: ui/actionMenu/annals.js)
+    this._annalsScribe = null;
+
     // Read settings — from React override or from DOM
     const s = settingsOverride || this._readSettingsFromDOM();
     const charFirstName = s.charFirstName || 'Wanderer';
@@ -422,8 +428,9 @@ export async function _doStartNewGame(settingsOverride) {
         // towns built in their culture's own architecture (data/architecture.json); 5 = towns
         // with a churchyard planned beside the church (world/churchyard.js); 6 = a start
         // year before the mature year ages the world back (world/worldAge.js); 7 = a town's house
-        // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js)
-        terrainGen: 7,
+        // mix humbler or grander by its wealth (world/settlementWealth.js, world/townPlanner.js); 8 =
+        // towns that age through architectural eras, weather, rebuild, pave and wall themselves (world/townEras.js)
+        terrainGen: 8,
         continentCount,
         terrainFreq,
         riverCount,
@@ -546,6 +553,16 @@ export async function _doStartNewGame(settingsOverride) {
         // Born to a Family (player/parentage.js): whose child, and how old
         parents: s.parents, birthAge: s.birthAge,
     });
+    // The run (systems/metaLegacy.js): Ironman or not, and what the Hall of Houses
+    // gives this game (a legacy start, an inheritance, a lineage: systems/metaLegacyStart.js)
+    this.world.run = MetaLegacy.newRun({
+        ironman: !!s.ironman, origin: this.player.scenario ? this.player.scenario.id : s.origin, difficulty: s.difficulty,
+        seed: (this.world.generationParams && this.world.generationParams.seed) || mapSeed, startYear: this.world.year,
+    });
+    const legacyStart = MetaLegacyStart.apply(this.player, this.world, {
+        lineage: s.legacyLineage || null, boon: s.legacyBoon || null, origin: s.legacyOrigin || null,
+    });
+    bindIronmanQuit(this);
     // At the dawn there is no coin (world/barter.js): the start purse is given as
     // goods of its worth, and the purse is reckoned in the goods carried
     Barter.beginPlayer(this.player, this.world);
@@ -577,6 +594,9 @@ export async function _doStartNewGame(settingsOverride) {
     setTimeout(() => {
         // (the origin's welcome — the Wanderer's is the classic one)
         this.ui.showNotification(`${scenarioStart.icon || ''} Welcome, ${this.player.name}`.trim(), (dawnStart && DawnBirth.welcome(this.player, this.world)) || scenarioStart.welcome || `You are a wanderer in a ${mapDesc} world of ${this.world.kingdoms.length} kingdoms. Click on the map to move, explore settlements, and forge your destiny.`, 'info');
+        // The Hall of Houses remembers (systems/metaLegacyStart.js); an Ironman run says so
+        if (legacyStart.welcome || legacyStart.lines.length) this.ui.showNotification('🏛️ The Hall remembers', [legacyStart.welcome, ...legacyStart.lines].filter(Boolean).join(' '), 'info');
+        if (this.world.run && this.world.run.ironman) this.ui.showNotification('⚒️ Ironman', "One save, kept at each day's end and when you leave. No loading back: what happens, happened.", 'warning');
         // Born to a Family, parents to be chosen: the picker (ui/actionMenu/parents.js)
         if (this.player.parentage && this.player.parentage.pending && typeof ActionMenu.showParentPicker === 'function') ActionMenu.showParentPicker(this);
     }, 1200);

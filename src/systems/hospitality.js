@@ -733,7 +733,7 @@ export const Hospitality = {
         // A valet's grooming: charisma for the rest of the day (PlayerEffects.moodCharisma reads it;
         // processDay takes it away the next morning)
         if (S.charisma) player.valet = { day: _day(world), charisma: _num(S.charisma) };
-        const cookNote = cook && cook.level >= 4 ? ` ${v.keeper || 'The keeper'} cooks like a ${cook.levelName.toLowerCase()} (🍳 ${cook.level}): it fills you ${Math.round((cook.mult - 1) * 100)}% more.` : '';
+        const cookNote = cook && cook.level >= 4 ? ` ${v.keeper || 'The keeper'} cooks like ${/^[aeiou]/i.test(cook.levelName) ? 'an' : 'a'} ${cook.levelName.toLowerCase()} (🍳 ${cook.level}): it fills you ${Math.round((cook.mult - 1) * 100)}% more.` : '';
         return { ok: true, text: `${S.icon} ${S.name} at ${v.name}${s.price > 0 ? ` (${s.price} gold)` : ''}.${cookNote}`, cost: s.price, item: S.item ? { id: S.item, qty: _num(S.qty, 1) } : null };
     },
 

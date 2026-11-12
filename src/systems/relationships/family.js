@@ -5,6 +5,10 @@ import { NPCLords } from '../../world/npcLords.js';
 import { HeirAgency } from '../heirAgency.js';
 import { Regency } from '../regency.js';
 import { PracticeSkills } from '../practiceSkills.js';
+import { DynastyTree } from '../dynastyTree.js';
+import { Heirlooms } from '../heirlooms.js';
+import { Names } from '../../core/names.js';
+import { Inheritance } from '../inheritance.js';
 
 Object.assign(Relationships, {
     // ────────────────────────────────────────────────────────────────────
@@ -199,6 +203,40 @@ Object.assign(Relationships, {
         return Relationships.generateChild(player, spouse, world);
     },
 
+    /**
+     * A new child's first name: never a living brother's or sister's, nor a
+     * parent's, nor that of anyone of the House's blood still living; now and
+     * then (heirSettings.namesakeChance) the name of a forebear of the blood
+     * who has died — the old name back in the House. ONE draw on the shared
+     * RNG, as a plain pick always cost. Returns { firstName, namedFor:
+     * { id, name }|null }.
+     */
+    _childName(player, spouse, pool, gender) {
+        const first = n => String(n || '').split(' ')[0];
+        const living = new Set();
+        living.add(player.firstName || first(player.name));
+        if (spouse) living.add(spouse.firstName || first(spouse.name));
+        for (const c of player.children || []) if (c && c.isAlive !== false && c.firstName) living.add(c.firstName);
+        const L = player.house && player.house.lineage;
+        const forebears = [];
+        for (const p of Object.values((L && L.people) || {})) {
+            if (!p || !p.first) continue;
+            if (p.alive !== false && p.died == null) { if (p.kind !== 'spouse') living.add(p.first); continue; }
+            if (p.kind !== 'spouse' && (!p.gender || p.gender === gender)) forebears.push(p);
+        }
+        const r = Utils.random();
+        const free = forebears.filter((p, i, a) => !living.has(p.first) && a.findIndex(o => o.first === p.first) === i);
+        const hs = (DataLoader.relationships && DataLoader.relationships.heirSettings) || {};
+        const chance = Number.isFinite(hs.namesakeChance) ? hs.namesakeChance : 0.25;
+        if (free.length && r < chance) {
+            const p = free[Math.min(free.length - 1, Math.floor((r / chance) * free.length))];
+            return { firstName: p.first, namedFor: { id: p.id, name: p.name || p.first } };
+        }
+        const rest = free.length ? (r - chance) / (1 - chance) : r;
+        const name = Names.pickFree(pool, rest, n => living.has(n)) || (gender === 'female' ? 'Helena' : 'Edmund');
+        return { firstName: name, namedFor: null };
+    },
+
     /** opts.quiet: no "is born" line in the House Chronicle (children counted in after the fact). */
     generateChild(player, spouse, world, opts = {}) {
         const culture = spouse.culture || 'Imperial';
@@ -208,7 +246,7 @@ Object.assign(Relationships, {
             ? Characters.FIRST_NAMES[culture]
             : { male: ['Edmund'], female: ['Helena'] };
 
-        const firstName = Utils.randPick(namePool[gender]);
+        const { firstName, namedFor } = Relationships._childName(player, spouse, namePool[gender] || [], gender);
 
         // Roll traits for child
         const childTraits = Relationships._getChildTraits();
@@ -270,13 +308,16 @@ Object.assign(Relationships, {
             }
         }
 
+        if (namedFor) child.namedFor = namedFor;
+
         // Upbringing record (systems/upbringing.js) — focus, tutor, seeds of character
         Upbringing.ensure(child);
 
         if (!player.children) player.children = [];
         player.children.push(child);
         if (player.house && !opts.quiet) {
-            House._chronicle(player.house, world, `${child.firstName} is born to ${player.name}.`, ['heirs', 'birth']);
+            const after = namedFor ? ` — named for ${namedFor.name}, of the House's blood` : '';
+            House._chronicle(player.house, world, `${child.firstName} is born to ${player.name}${after}.`, ['heirs', 'birth']);
         }
 
         // Auto-designate first child as heir if no heir set
@@ -319,6 +360,10 @@ Object.assign(Relationships, {
         const deaths = [];
         for (const npc of Relationships._npcs) {
             if (!npc.isAlive) continue;
+            // An abdicated ruler of this House ages and dies by their own lifespan
+            // (systems/abdication.js); one left behind by a new life ages as anyone
+            if (npc.elder && player.abdication && Array.isArray(player.abdication.elders)
+                && player.abdication.elders.some(e => e && e.alive && e.npcId === npc.id)) continue;
             if (npc.folkUid) {
                 // A townsperson (./folk.js): their town's seasons age them and,
                 // while they are at home, decide their death
@@ -507,6 +552,9 @@ Object.assign(Relationships, {
         // Store old player info for history
         const oldName = player.name;
         const oldAge = player.age;
+        // The family tree takes its last look at the late ruler's household (systems/dynastyTree.js)
+        const npcLookup = id => Relationships.getNPC(id);
+        if (player.house) DynastyTree.sync(player, world, { npc: npcLookup });
         // File the late ruler's reign in the House Chronicle (systems/legacy.js)
         const reign = player.house ? Legacy.closeReign(player, world, { cause: opts.cause || null }) : null;
 
@@ -548,14 +596,30 @@ Object.assign(Relationships, {
         player.maxHealth = child.maxHealth || 100;
         player.stamina = 10;
         player.maxStamina = 10;
+        // (the heir was fed: the late ruler's hunger and its count of starving days die with them)
+        player.starvationDays = 0;
+        if (player.needs && typeof player.needs === 'object') player.needs.hunger = Math.max(Number(player.needs.hunger) || 0, 80);
 
-        // Inheritance — partial gold, renown, reputation
-        player.gold = Math.floor(player.gold * settings.inheritanceGoldPercent);
-        player.renown = Math.floor((player.renown || 0) * settings.inheritanceRenownPercent);
+        // Inheritance — partial gold, renown, reputation. What the heir does
+        // not keep of the coin pays the late ruler's debts, the other
+        // children's portions and the heriot to the liege crown (systems/inheritance.js):
+        // every coin goes into a real purse. Dead children's portions come home first.
+        Inheritance.reclaimPortions(player);
+        const inheritance = Inheritance.settle(player, world, {
+            // (an abdication passes the purse whole: opts.keepShare 1 — systems/abdication.js)
+            keepShare: opts.keepShare != null ? opts.keepShare : settings.inheritanceGoldPercent, heirId: childId, npc: id => Relationships.getNPC(id),
+        });
+        // ...and the heir's own portion, if one was set aside for them, joins the purse
+        if (child.purse > 0) {
+            Inheritance.setCoin(player, Inheritance.coin(player) + child.purse);
+            child.purse = 0;
+        }
+        if (player.house && inheritance.line) House._chronicle(player.house, world, inheritance.line, ['heirs', 'inheritance']);
+        player.renown = Math.floor((player.renown || 0) * (opts.renownShare != null ? opts.renownShare : settings.inheritanceRenownPercent));
 
         // Reputation partially inherited
         for (const kId of Object.keys(player.reputation || {})) {
-            player.reputation[kId] = Math.floor(player.reputation[kId] * settings.inheritanceReputationPercent);
+            player.reputation[kId] = Math.floor(player.reputation[kId] * (opts.reputationShare != null ? opts.reputationShare : settings.inheritanceReputationPercent));
         }
 
         // Reset karma
@@ -577,8 +641,10 @@ Object.assign(Relationships, {
         player.children = player.children.filter(c => c.id !== childId);
         for (const c of player.children) c.isSibling = true;
 
-        // Keep properties, army, religion but clear personal items
-        player.inventory = { bread: 10 };
+        // Keep properties, army, religion — and the packs: the late ruler's
+        // goods pass to the heir (nothing is made or lost; at the dawn they
+        // are the purse in kind, world/barter.js)
+        if (!player.inventory || typeof player.inventory !== 'object') player.inventory = {};
         player.allegiance = null;
         player.kingdomTitle = null;
 
@@ -604,6 +670,8 @@ Object.assign(Relationships, {
                 headId: player.id,
                 secure: !!opts.secure,
                 regency: !!opts.regency,
+                // (an abdication with the old ruler's blessing is seldom disputed)
+                disputeChance: opts.disputeChance,
             });
         }
 
@@ -622,6 +690,14 @@ Object.assign(Relationships, {
                 if (player.house.roles && player.house.roles[r] === childId) player.house.roles[r] = null;
             }
             Legacy.openReign(player, world);
+            // The tree closes the late ruler; the heirlooms pass to the heir
+            // (systems/dynastyTree.js, systems/heirlooms.js)
+            DynastyTree.onSuccession(player, world, { heirId: childId, reign, cause: opts.cause || null, npc: npcLookup });
+            Heirlooms.onSuccession(player, world, {
+                oldName, heirId: childId, heirName: player.name, cause: opts.cause || (reign && reign.cause) || null,
+                disputed: !!(houseResult && houseResult.disputed), secured: !!(houseResult && houseResult.secured),
+                regent: regency && regency.regent ? regency.regent.name : null,
+            });
         }
 
         return {
@@ -637,6 +713,7 @@ Object.assign(Relationships, {
             regency,
             reign,
             ownChildren,
+            inheritance,
         };
     },
 
@@ -651,6 +728,8 @@ Object.assign(Relationships, {
         const events = [];
 
         Relationships.cleanupTravelParty(player);
+        // A child who died leaves their portion to the House purse (systems/inheritance.js)
+        Inheritance.reclaimPortions(player);
 
         // Marriage events
         if (player.spouse) {

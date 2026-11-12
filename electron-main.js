@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, protocol, net } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -89,7 +89,9 @@ function createWindow() {
         icon: path.join(__dirname, 'assets', 'icon.png'),
         webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true
+            contextIsolation: true,
+            // The desktop bridge (saving the illustrated chronicle)
+            preload: path.join(__dirname, 'electron-preload.js')
         },
         backgroundColor: '#0a0a1a',
         show: false
@@ -113,6 +115,48 @@ function createWindow() {
         mainWindow = null;
     });
 }
+
+// ── The illustrated chronicle: save the book, or print it to PDF ─────
+// (ui/chronicleBook.js through electron-preload.js)
+function chronicleName(name, ext) {
+    const base = String(name || 'Chronicle').replace(/[\\/:*?"<>|]+/g, '').slice(0, 120) || 'Chronicle';
+    return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
+}
+
+ipcMain.handle('chronicle:saveHtml', async (event, { html, name } = {}) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    const res = await dialog.showSaveDialog(win, {
+        title: 'Save the chronicle',
+        defaultPath: path.join(app.getPath('documents'), chronicleName(name, 'html')),
+        filters: [{ name: 'Web page', extensions: ['html'] }],
+    });
+    if (res.canceled || !res.filePath) return { ok: false, how: 'cancelled' };
+    fs.writeFileSync(res.filePath, String(html || ''), 'utf8');
+    return { ok: true, how: 'file', path: res.filePath };
+});
+
+ipcMain.handle('chronicle:savePdf', async (event, { html, name } = {}) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    const res = await dialog.showSaveDialog(win, {
+        title: 'Save the chronicle as PDF',
+        defaultPath: path.join(app.getPath('documents'), chronicleName(name, 'pdf')),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+    if (res.canceled || !res.filePath) return { ok: false, how: 'cancelled' };
+    // The book is self-contained: render it offscreen from a temp file, scripts off
+    const tmp = path.join(app.getPath('temp'), `lotr-chronicle-${Date.now()}.html`);
+    fs.writeFileSync(tmp, String(html || ''), 'utf8');
+    const printer = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+    try {
+        await printer.loadFile(tmp);
+        const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4', preferCSSPageSize: true });
+        fs.writeFileSync(res.filePath, pdf);
+        return { ok: true, how: 'pdf', path: res.filePath };
+    } finally {
+        printer.destroy();
+        try { fs.unlinkSync(tmp); } catch { /* gone */ }
+    }
+});
 
 app.whenReady().then(() => {
     serveApp();

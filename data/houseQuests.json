@@ -1,0 +1,199 @@
+{
+    "_doc": "Personal quests from the House's own history (systems/houseQuests.js). Each is generated from real state — a townsperson's memory of the House (npcMemory), a town's memory, a lord's grievance (lordMemory), a lost heirloom — with objectives the engine checks and consequences that write back into memory, Prestige, renown, karma, standing and feuds. Text here is the template fallback; LlmProse retells it from the quest's facts when the model is on.",
+    "config": {
+        "enabled": true,
+        "firstDay": 90,
+        "daysPerYear": 120,
+        "baseDays": 60,
+        "minDays": 24,
+        "retryDays": 30,
+        "jitter": 0.3,
+        "maxOpen": 3,
+        "reuseDays": 1500,
+        "doneCap": 40,
+        "seenCap": 400,
+        "fameRenown": 400,
+        "famePrestige": 600,
+        "fameMax": 1.5,
+        "minWeight": 3,
+        "folkMinAge": 16,
+        "inheritedBonus": 6,
+        "lordMinWeight": 10,
+        "lordGapDays": 1200,
+        "lordSkip": ["amends_refused", "amends_made", "nemesis_poison", "letter_", "letters_", "feast_", "tourney_", "office_", "loan_", "match_refused", "child_recalled"],
+        "townMinWeight": 6
+    },
+    "kinds": {
+        "blood_price": {
+            "icon": "🩸",
+            "sources": ["murdered", "hanged", "grave_robbed", "assaulted"],
+            "deadlineDays": 240,
+            "price": { "base": 40, "perWeight": 12, "min": 60, "max": 900 },
+            "title": "The {kinCap} of {victim}",
+            "titleSelf": "{holder}'s Grudge",
+            "hook": "{holder} of {town} has not forgotten. {kinLine}{line} Word has reached your hall that the grudge is still nursed at their hearth.",
+            "ask": "Go to {town} and settle what lies between your House and {holder}: pay a blood price, ask forgiveness, or face them down.",
+            "journal": "{holder}, {kinPhrase}, still carries {deed}. It happened {years}. The matter waits in {town}.",
+            "options": {
+                "pay": { "label": "Pay the blood price", "desc": "{price} gold into {holder}'s hands, and your head bowed.", "prestige": 6, "renown": 3, "karma": 6, "rep": 5, "memoryShare": 0.9, "trait": ["generosity", 2] },
+                "plead": { "label": "Ask forgiveness", "desc": "No coin: only words. They may spit at your feet.", "base": 0.3, "perDiplomacy": 0.03, "perWeight": -0.006, "min": 0.08, "max": 0.8, "prestige": 4, "karma": 5, "rep": 3, "memoryShare": 0.6, "failMemory": -6, "trait": ["mercy", 1] },
+                "confront": { "label": "Face them down", "desc": "Tell them the matter is closed — or else.", "karma": -5, "rep": -3, "memory": -8, "nemesisScore": 30, "trait": ["dread", 2] }
+            },
+            "lapse": { "memory": -6, "nemesisAt": 25, "nemesisScore": 25 }
+        },
+        "old_debt": {
+            "icon": "⚖️",
+            "sources": ["wages_unpaid", "robbed", "dismissed"],
+            "deadlineDays": 240,
+            "price": { "base": 20, "perWeight": 9, "min": 25, "max": 400 },
+            "title": "An Old Debt in {town}",
+            "hook": "A debt of your House is still counted in {town}. {kinLine}{line} {holder} says so to anyone who will listen.",
+            "ask": "Go to {town} and repay {holder} what your House owes, or deny the debt to their face.",
+            "journal": "{holder}, {kinPhrase}, still counts {deed} against your House. It happened {years}.",
+            "options": {
+                "pay": { "label": "Repay the debt", "desc": "{price} gold, owed and long overdue.", "prestige": 3, "renown": 2, "karma": 4, "rep": 4, "memoryShare": 1, "trait": ["honesty", 2] },
+                "confront": { "label": "Deny the debt", "desc": "Your House owes nothing to the likes of them.", "karma": -3, "rep": -2, "memory": -5, "trait": ["greed", 1] }
+            },
+            "lapse": { "memory": -4 }
+        },
+        "old_favour": {
+            "icon": "🤝",
+            "sources": ["burial", "healed", "alms", "wed", "hired", "gift"],
+            "deadlineDays": 180,
+            "goods": [
+                { "item": "bread", "qty": [6, 12], "need": "the family has gone hungry since the last harvest" },
+                { "item": "firewood", "qty": [8, 16], "need": "the winter came hard and the woodpile is gone" },
+                { "item": "clothes", "qty": [2, 4], "need": "the children go in rags" },
+                { "item": "candles", "qty": [4, 8], "need": "there is a death in the house and no light to keep the watch" },
+                { "item": "wine", "qty": [3, 6], "need": "there is to be a wedding and no wine to toast it" }
+            ],
+            "title": "What Is Owed Between Friends",
+            "hook": "{holder} of {town} sends word, calling on the old friendship. {kinLine}{line} Now {need}.",
+            "ask": "Bring {qty} {goodName} to {holder} in {town}, or send coin in their stead.",
+            "journal": "{holder}, {kinPhrase}, remembers {deed}. It happened {years}. They ask your House for help: {need}.",
+            "options": {
+                "deliver": { "label": "Bring the goods", "desc": "Hand over {qty} {goodName} from your packs.", "prestige": 4, "renown": 3, "karma": 4, "rep": 4, "memory": 8, "trait": ["generosity", 1] },
+                "coin": { "label": "Send coin instead", "desc": "{price} gold, so they may buy it themselves.", "prestige": 2, "renown": 1, "karma": 2, "rep": 2, "memory": 5 },
+                "refuse": { "label": "Turn them away", "desc": "Old favours are paid; your House owes nothing.", "karma": -2, "rep": -1, "memory": -6, "trait": ["greed", 1] }
+            },
+            "lapse": { "memory": -5 }
+        },
+        "protect": {
+            "icon": "🛡️",
+            "sources": ["burial", "healed", "alms", "wed", "hired", "defended"],
+            "chance": 0.35,
+            "deadlineDays": 40,
+            "stayDays": 3,
+            "threats": [
+                "men are coming to collect a debt with cudgels",
+                "a band of toughs has sworn to burn the family out",
+                "an old feud of the street has turned to knives"
+            ],
+            "title": "A Plea from {town}",
+            "hook": "A rider from {town} brings word: {holder} begs your House's protection. {kinLine}{line} Now {threat}.",
+            "ask": "Reach {town} within {days} days and stand by {holder} for {stay} days.",
+            "journal": "{holder}, {kinPhrase}, remembers {deed}, {years}, and has called on your House: {threat}.",
+            "done": { "prestige": 5, "renown": 5, "karma": 5, "rep": 5, "memory": 12, "trait": ["valor", 1] },
+            "lapse": { "memory": -8, "hurt": 30 }
+        },
+        "heirloom": {
+            "icon": "🏺",
+            "deadlineDays": 360,
+            "title": "The Road to {heirloom}",
+            "hook": "{heirloom} of your House is spoken of in {place}. {holderLine}It has been gone {years}.",
+            "ask": "Go to {place} and bring {heirloom} home: buy it back, take it, ask for it, or search.",
+            "journal": "{heirloom} left the House {years} ({how}). The trail leads to {place}, where {keeper} has it.",
+            "done": { "prestige": 6, "renown": 4 },
+            "lapse": {}
+        },
+        "lord_grievance": {
+            "icon": "👑",
+            "deadlineDays": 300,
+            "price": { "base": 100, "perWeight": 15, "min": 150, "max": 1500 },
+            "title": "The Grievance of {realm}",
+            "hook": "{lord} of {realm} still holds {deed} against your House. {fromLine}The court of {realm} waits to see whether your House will mend it.",
+            "ask": "Go to {seat} and make amends to the crown of {realm}, or defy them.",
+            "journal": "{lord} of {realm} remembers {deed}. {fromLine}The grievance waits at {seat}.",
+            "options": {
+                "pay": { "label": "Pay reparations", "desc": "{price} gold into the treasury of {realm}.", "prestige": 6, "renown": 3, "rep": 12, "lordDeed": "amends_made", "lordShare": 0.8, "trait": ["honesty", 1] },
+                "defy": { "label": "Defy the old grievance", "desc": "What your forebears did is done. Say so.", "prestige": 2, "rep": -8, "lordDeed": "amends_refused", "trait": ["dread", 1] }
+            },
+            "lapse": { "lordDeed": "amends_refused" }
+        },
+        "town_amends": {
+            "icon": "🏚️",
+            "sources": ["raided", "conquered", "ruled_harsh", "ruled_unjust", "hanged"],
+            "deadlineDays": 300,
+            "price": { "base": 120, "perWeight": 14, "min": 150, "max": 1200 },
+            "title": "The Memory of {town}",
+            "hook": "{town} has not forgotten {deed}. It happened {years}. {line}",
+            "ask": "Go to {town} and pay to rebuild and to remember, or leave the town to its bitterness.",
+            "journal": "{town} remembers {deed}, {years}. The town's folk speak of it still.",
+            "options": {
+                "pay": { "label": "Pay to rebuild", "desc": "{price} gold into the town's coffers, for its walls and its widows.", "prestige": 5, "renown": 3, "karma": 5, "rep": 6, "memory": 10, "trait": ["generosity", 1] },
+                "leave": { "label": "Leave it be", "desc": "The past is the past.", "memory": -3 }
+            },
+            "lapse": { "memory": -3 }
+        }
+    },
+    "words": {
+        "kin": {
+            "father": { "m": "son", "f": "daughter" },
+            "mother": { "m": "son", "f": "daughter" },
+            "grandfather": { "m": "grandson", "f": "granddaughter" },
+            "grandmother": { "m": "grandson", "f": "granddaughter" },
+            "great-grandfather": { "m": "great-grandson", "f": "great-granddaughter" },
+            "great-grandmother": { "m": "great-grandson", "f": "great-granddaughter" },
+            "forefather": { "m": "descendant", "f": "descendant" },
+            "foremother": { "m": "descendant", "f": "descendant" },
+            "husband": { "m": "husband", "f": "widow" },
+            "wife": { "m": "widower", "f": "wife" },
+            "brother": { "m": "brother", "f": "sister" },
+            "sister": { "m": "brother", "f": "sister" },
+            "son": { "m": "father", "f": "mother" },
+            "daughter": { "m": "father", "f": "mother" },
+            "uncle": { "m": "nephew", "f": "niece" },
+            "aunt": { "m": "nephew", "f": "niece" },
+            "great-uncle": { "m": "great-nephew", "f": "great-niece" },
+            "great-aunt": { "m": "great-nephew", "f": "great-niece" },
+            "nephew": { "m": "uncle", "f": "aunt" },
+            "niece": { "m": "uncle", "f": "aunt" }
+        },
+        "kinPhrase": "the {kin} of {victim}",
+        "kinLine": "They are the {kin} of {victim}. ",
+        "selfPhrase": "who lived it",
+        "yearsAgo": { "0": "this year", "1": "a year ago", "many": "{n} years ago" },
+        "fromLine": "It came to {lord} from {from}. ",
+        "holderLine": "{holder} of {place} has sent word of it. ",
+        "how": { "stolen": "stolen", "lost": "lost on the field", "sold": "sold away", "dowry": "sent as a dowry", "pawned": "pawned" }
+    },
+    "outcomes": {
+        "settled": "{holder} takes the {price} gold. The grudge is not gone, but it has been paid for.",
+        "forgiven": "{holder} hears you out, and at last gives a hand to shake. The old wrong is forgiven.",
+        "spurned": "{holder} turns their back on you. Your words were not enough.",
+        "confronted": "You face {holder} down. They say nothing more, but they will remember.",
+        "repaid": "{holder} counts the {price} gold twice and thanks you. The debt is cleared.",
+        "denied": "You deny the debt to {holder}'s face. Folk in {town} will hear of it.",
+        "kept_faith": "{holder} weeps to see the {goodName}. The old friendship holds.",
+        "coin_sent": "{holder} takes the {price} gold in place of the goods, with thanks.",
+        "refused": "You turn {holder} away. The old warmth between the families cools.",
+        "protected": "You stood by {holder} in {town} until the danger passed. No one came to harm.",
+        "abandoned": "No help came from your House. {holder} was hurt, and the family will not forget it.",
+        "recovered": "{heirloom} is back in the hands of the House.",
+        "cold_trail": "The trail to {heirloom} went cold.",
+        "lord_mended": "The crown of {realm} accepts the {price} gold. {lord} counts the old wrong mended.",
+        "lord_defied": "You defy the old grievance before the court of {realm}. {lord} will not forget it.",
+        "town_rebuilt": "The {price} gold goes to {town}'s walls and widows. The town will remember this too.",
+        "town_left": "You leave {town} to its memories.",
+        "lapsed": "The matter with {holder} was left too long. It has hardened.",
+        "lapsed_lord": "No word came from your House. {lord} of {realm} takes the silence as an answer.",
+        "lapsed_town": "Your House never came. {town} keeps its memory as it was.",
+        "gone": "{holder} died before the matter was settled."
+    },
+    "prose": {
+        "hook": "Write the news that reaches the ruler about this unfinished business of their House, in two or three sentences, as a steward reports it. Keep every name exactly.",
+        "line": "Write one or two spoken sentences in the voice of the person who holds this memory, said to the ruler's face. First person. Keep every name exactly.",
+        "journal": "Write the ruler's journal entry about this matter in two or three plain sentences. Keep every name and number exactly.",
+        "epilogue": "Write how this matter ended, as the House chronicle records it, in two or three sentences. Keep every name and number exactly."
+    }
+}

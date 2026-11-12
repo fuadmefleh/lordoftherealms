@@ -365,4 +365,46 @@ describe('Illness — the player', () => {
         expect(purses() - before).toBe(alms.cost);
         expect(folk.ill.alms.until).toBeGreaterThan(2);
     });
+
+    it('karma for charity comes for real need, once: not for paying the healer again and again, nor for every gift to one bed', () => {
+        const { world, towns } = makeWorld(13, [{ name: 'Ashford', type: 'town', q: 5, r: 7, population: 2500, kingdom: 1 }]);
+        const s = towns[0];
+        const folk = s.folk;
+        Illness.state(world, s, folk, 1);
+        world.day = 2;
+        const res = Townsfolk.residents(folk).filter(p => Townsfolk.age(p, 2) >= 18);
+        res[0].job = { id: 'healer', rank: 'master', since: 0 };
+        const F = Illness.config().fund;
+        const player = { gold: 5000, karma: 0 };
+        // No one sick: the healer is paid, but it is no charity
+        for (const p of Townsfolk.residents(folk)) p.ill = null;
+        let r = IllnessPlayer.fundPhysician(player, world, s);
+        expect(r.success).toBe(true);
+        expect(r.karma).toBe(0);
+        expect(player.karma).toBe(0);
+        // Folk sick: karma, once for the fund's month however often the healer is paid
+        const sick = res[1];
+        Illness._infect(folk, sick, 'fever', 1, () => 0.5, 'own');
+        sick.ill.on = 1; sick.ill.end = 60;
+        r = IllnessPlayer.fundPhysician(player, world, s);
+        expect(r.karma).toBe(F.karma);
+        for (let i = 0; i < 5; i++) expect(IllnessPlayer.fundPhysician(player, world, s).karma).toBe(0);
+        expect(player.karma).toBe(F.karma);
+        // ...and again once the month is out
+        world.day = 2 + F.physicianDays + 1;
+        sick.ill.end = world.day + 30;
+        expect(IllnessPlayer.fundPhysician(player, world, s).karma).toBe(F.karma);
+        // Alms: once a month too
+        const k0 = player.karma;
+        expect(IllnessPlayer.giveAlms(player, world, s).karma).toBe(F.karma);
+        expect(IllnessPlayer.giveAlms(player, world, s).karma).toBe(0);
+        expect(player.karma).toBe(k0 + F.karma);
+        // Herbs for the sick: karma for the first, not for each heaped on the same sickness
+        const k1 = player.karma;
+        const npc = { _person: sick, _folk: folk };
+        IllnessPlayer.giveToSick(npc, 'herbs', world, player);
+        IllnessPlayer.giveToSick(npc, 'herbs', world, player);
+        IllnessPlayer.giveToSick(npc, 'bread', world, player);
+        expect(player.karma).toBe(k1 + Illness.config().care.giftKarma);
+    });
 });

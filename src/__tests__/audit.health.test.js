@@ -9,6 +9,9 @@
 //   - the gold / net worth / prestige curve;
 //   - decision density: distinct actions offered per week, pending choices;
 //   - novelty: the first time anything happens, and the flat stretches after.
+// A death does not end a run: the heir takes over, or a new life begins
+// (harness.carryOn, as in the soak), so a long run crosses generations;
+// run.lives lists each death and who carried on.
 // The report goes to AUDIT_OUT (JSON; default: the OS temp dir) and a summary
 // to stdout. Knobs: AUDIT_SEEDS=1,2,3  AUDIT_DAYS=1200  AUDIT_SAMPLE=10.
 // The audit draws no RNG of its own and wraps no RNG-drawing code, so a run
@@ -20,7 +23,7 @@ import os from 'os';
 import crypto from 'crypto';
 import path from 'path';
 import { Utils } from '../core/utils.js';
-import { loadData, newGame, endDay } from './playtest/harness.js';
+import { loadData, newGame, endDay, carryOn } from './playtest/harness.js';
 import { botDay } from './playtest/bot.js';
 import { PlayerActions } from '../player/playerActions.js';
 import { Ledger } from '../systems/ledger.js';
@@ -190,7 +193,7 @@ function runAudit(seed) {
     S.game = game;
     const stats = {};
     const run = {
-        seed, days: 0, died: null, curve: [], weeks: [], firsts: {}, ledger: {}, events: {}, achievements: [],
+        seed, days: 0, died: null, lives: [], curve: [], weeks: [], firsts: {}, ledger: {}, events: {}, achievements: [],
         actionTypes: {}, botMs: 0, tickMs: 0, extraNotices: {},
     };
     const novel = (kind, key) => {
@@ -269,21 +272,38 @@ function runAudit(seed) {
             }
         }
         run.days++;
-        if (res.died) { run.died = `${res.died} on day ${game.world.day}`; }
-        if (game.world.day % 7 === 0 || res.died || i === DAYS - 1) {
+        let theEnd = false;
+        if (res.died) {
+            // The death screen's choice: the heir, else a new life (harness.carryOn).
+            // An heir takes over the same player object; a stranger is a new one
+            const was = { name: p.name, age: finiteR(p.age), gold: finiteR(p.gold) };
+            const next = carryOn(game, res.died);
+            run.lives.push({ day: game.world.day, cause: res.died, ...was, next: next.how, nextName: next.how ? game.player.name : null });
+            week.novel += novel('death', res.died);
+            if (next.how) week.novel += novel('succession', next.how);
+            if (game.player !== p) {
+                // (a new life's own record: what it starts with is not news)
+                unlockedSeen = ((game.player.achievements && game.player.achievements.unlocked) || []).length;
+                questsDone = ((game.player.quests && game.player.quests.completed) || []).length;
+            }
+            if (!next.how) { run.died = `${res.died} on day ${game.world.day}`; theEnd = true; }
+        }
+        if (game.world.day % 7 === 0 || theEnd || i === DAYS - 1) {
             run.weeks.push({ day: game.world.day, novel: week.novel, actions: week.actionTypes.size, pending: Math.round(week.pending / 7 * 10) / 10, notices: week.notices });
             week = { start: game.world.day, novel: 0, actionTypes: new Set(), pending: 0, notices: 0 };
         }
         if (game.world.day % 50 === 0 || res.died || i === DAYS - 1) {
+            // (after a death this is the life that carries on)
+            const cp = game.player;
             let worth = null;
-            try { worth = finiteR(EconomyChronicle.netWorth(p, game.world).total); } catch { /* */ }
+            try { worth = finiteR(EconomyChronicle.netWorth(cp, game.world).total); } catch { /* */ }
             run.curve.push({
-                day: game.world.day, gold: finiteR(p.gold), worth, prestige: finiteR(p.house && p.house.prestige), renown: finiteR(p.renown),
-                army: (p.army || []).length, props: (p.properties || []).length, colonies: (p.colonies || []).length, ships: (p.ships || []).length,
-                title: (p.titles && p.titles.current) || p.title || null, health: finiteR(p.health),
+                day: game.world.day, life: run.lives.length + 1, gold: finiteR(cp.gold), worth, prestige: finiteR(cp.house && cp.house.prestige), renown: finiteR(cp.renown),
+                army: (cp.army || []).length, props: (cp.properties || []).length, colonies: (cp.colonies || []).length, ships: (cp.ships || []).length,
+                title: (cp.titles && cp.titles.current) || cp.title || null, health: finiteR(cp.health),
             });
         }
-        if (res.died) break;
+        if (theEnd) break;
     }
     run.stats = stats;
     run.gameLedger = game.ledger;
@@ -325,7 +345,7 @@ describe.skipIf(!ON)('health audit (AUDIT=1)', () => {
                 r.ticks[label] = { calls: t.calls - b.calls, ms: Math.round(t.ms - b.ms), changedOn: t.changedOn - b.changedOn, sampled: t.sampled - b.sampled };
             }
             runs.push(r);
-            process.stdout.write(`seed ${seed}: ${r.days} days ${r.died ? `(died: ${r.died})` : ''} bot ${Math.round(r.botMs)}ms ticks ${Math.round(r.tickMs)}ms\n`);
+            process.stdout.write(`seed ${seed}: ${r.days} days, ${r.lives.length + 1} li${r.lives.length ? 'ves' : 'fe'} ${r.died ? `(the line ended: ${r.died})` : ''} bot ${Math.round(r.botMs)}ms ticks ${Math.round(r.tickMs)}ms\n`);
         }
         const ticks = {};
         for (const [label, t] of Object.entries(S.ticks)) {

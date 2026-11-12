@@ -306,6 +306,8 @@ Object.assign(InnerMap, {
             allProps.push(worldTile.playerProperty);
         }
         if (allProps.length === 0) return;
+        // In a town they stand on their lots as buildings of their kind, on entering (world/innerMap/lots.js)
+        if (worldTile.settlement) return;
 
         const height = tiles.length;
         const width = tiles[0] ? tiles[0].length : 0;
@@ -408,6 +410,17 @@ Object.assign(InnerMap, {
      * Picks a random suitable inner map tile and updates the cache.
      */
     placePropertyOnInnerMap(worldTile, property, worldQ, worldR) {
+        // In a town: on its lot, a building of its kind (world/innerMap/lots.js) — now if the
+        // town's map is open, else on entering
+        if (worldTile && worldTile.settlement) {
+            this._pendingPropertyPosition = null;
+            if (this.active && !this._insideBuilding && this.currentWorldTile
+                && this.currentWorldTile.q === worldQ && this.currentWorldTile.r === worldR && this._standPlayerProperties) {
+                this._standPlayerProperties(worldTile.settlement, this.worldDay || 0, null);
+                this._addPropertyBuildings();
+            }
+            return;
+        }
         // Create a seeded RNG for property placement
         const propCount = (worldTile.playerProperties ? worldTile.playerProperties.length : 0);
         const seed = ((worldQ * 73856093 ^ worldR * 19349663) + 7919 + propCount) >>> 0;
@@ -501,7 +514,9 @@ Object.assign(InnerMap, {
             const tile = this.tiles[prop.innerR] && this.tiles[prop.innerR][prop.innerQ];
             if (!tile) continue;
 
-            const def = this.PROPERTY_BUILDING_DEFS[prop.type];
+            // (a property on a town lot is always a building: one of no listed type is managed as any other)
+            const def = this.PROPERTY_BUILDING_DEFS[prop.type]
+                || (prop.lotId ? { name: prop.name || 'Property', icon: prop.icon || '🏠', actions: ['manage_property', 'collect_goods'] } : null);
             if (!def) continue;
 
             // Skip if already in buildings list
@@ -520,6 +535,11 @@ Object.assign(InnerMap, {
                 isPlayerProperty: true,
                 propertyRef: prop,
             };
+            // Stood on its lot as a tile-composed building: its design's interior, its lot
+            if (prop.lotId && tile.customBuilding) {
+                bldg._customDefId = tile.customBuilding.defId;
+                bldg.lotId = prop.lotId;
+            }
 
             tile.buildingInfo = bldg;
             this.buildings.push(bldg);

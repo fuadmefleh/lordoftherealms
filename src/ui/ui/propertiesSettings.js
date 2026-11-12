@@ -4,6 +4,10 @@ import { UI } from './core.js';
 import { applyUiScale, UI_SCALE_OPTIONS } from '../uiScale.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
 import { LlmClient } from '../../systems/llmClient.js';
+import { LlmProse } from '../../systems/llmProse.js';
+import { Nemesis } from '../../systems/nemesis.js';
+import { Crises } from '../../systems/crises.js';
+import { NpcMemory } from '../../systems/npcMemory.js';
 import { Utils, ActionMenu, Religion, Economy, PlayerEconomy, PlayerReligion, Infrastructure, Peoples, CustomObjects, Characters, Culture, Quests, Technology, Banking, MarketDynamics, Taxation, Hex, SaveLoad, audioManager, NpcFamily, Relationships, Housing, House, NpcBrain } from './_imports.js';
 
 /** The AI Brain status line, from NpcBrain.status(). */
@@ -951,6 +955,9 @@ Object.assign(UI.prototype, {
         // Wire (or unwire) the local LLM NPC brain per settings.
         if (typeof NpcBrain !== 'undefined') {
             NpcBrain.applyFromSettings(settings, House);
+            // The prose pen (systems/llmProse.js) to the systems that take it by hand
+            LlmProse.applyFromSettings(settings);
+            try { Nemesis.setProse(LlmProse); Crises.useProse(LlmProse); NpcMemory.setProse(LlmProse); } catch (e) { /* their templates stand */ }
             // The in-browser model: load it in the background once the game is up,
             // only if the player downloaded it before (never downloads by itself)
             if (settings.llmEnabled && settings.llmProvider === 'webllm') {
@@ -1072,6 +1079,13 @@ Object.assign(UI.prototype, {
                     </select>
                 </div>
                 ${_webllmBlockHtml(s)}
+                <div class="gs-row">
+                    <label>Scribe writes<br><span style="font-size:10px;color:var(--text-secondary);">The court scribe retells these from the game's own facts, inventing nothing; kept with the save</span></label>
+                    <span style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;">
+                        ${[['gsProseAnnals', 'llmProseAnnals', 'Annals'], ['gsProseEpitaphs', 'llmProseEpitaphs', 'Epitaphs'], ['gsProseLetters', 'llmProseLetters', 'Letters'], ['gsProseHeralds', 'llmProseHeralds', 'Heralds']]
+        .map(([id, k, t]) => `<label style="display:inline-flex;align-items:center;gap:3px;"><input type="checkbox" id="${id}" ${s[k] !== false ? 'checked' : ''}> ${t}</label>`).join('')}
+                    </span>
+                </div>
                 <div class="gs-row" id="gsLlmKeyRow" style="${s.llmProvider === 'openai' ? '' : 'display:none;'}">
                     <label>API Key<br><span style="font-size:10px;color:var(--text-secondary);">Kept in this browser's settings only; sent only to the endpoint</span></label>
                     <input type="password" id="gsLlmApiKey" autocomplete="off" value="${_escAttr(s.llmApiKey || '')}" placeholder="sk-…" style="flex:1;min-width:0;padding:4px 6px;">
@@ -1453,6 +1467,11 @@ Object.assign(UI.prototype, {
         const saveBtn = document.getElementById('gsSaveNow');
         if (saveBtn) {
             saveBtn.addEventListener('click', () => {
+                // Ironman: no saving by hand — the run saves itself (ui/game/ironman.js)
+                if (SaveLoad.isIronman(this.game)) {
+                    this.showNotification('⚒️ Ironman', "The run saves itself at each day's end and when you leave.", 'info');
+                    return;
+                }
                 const result = SaveLoad.saveGame(this.game);
                 this.showNotification(result.success ? 'Saved' : 'Error',
                     result.success ? 'Game saved successfully' : 'Failed to save: ' + result.error,
@@ -1464,6 +1483,11 @@ Object.assign(UI.prototype, {
         const exportBtn = document.getElementById('gsExport');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
+                // (a copy of an Ironman run would be a way back: there is none)
+                if (SaveLoad.isIronman(this.game)) {
+                    this.showNotification('⚒️ Ironman', 'An Ironman run keeps one save and no copies.', 'info');
+                    return;
+                }
                 if (typeof SaveLoad.exportSave === 'function') {
                     SaveLoad.exportSave();
                     this.showNotification('Export', 'Save file downloaded', 'success');
@@ -1475,6 +1499,10 @@ Object.assign(UI.prototype, {
         const importBtn = document.getElementById('gsImport');
         if (importBtn) {
             importBtn.addEventListener('click', () => {
+                if (SaveLoad.isIronman(this.game)) {
+                    this.showNotification('⚒️ Ironman', 'No loading in an Ironman run.', 'info');
+                    return;
+                }
                 if (typeof SaveLoad.importSave === 'function') {
                     SaveLoad.importSave(this.game);
                 }
@@ -1556,6 +1584,11 @@ Object.assign(UI.prototype, {
             // The in-browser model picked, kept apart so switching providers keeps it
             llmWebModel: getVal('gsLlmWebModel') || UI.loadSettings().llmWebModel || '',
             llmTemperature: parseFloat(getVal('gsLlmTemperature')) || 0.7,
+            // "Scribe writes: Annals / epitaphs / letters / heralds" (systems/llmProse.js)
+            llmProseAnnals: getChecked('gsProseAnnals'),
+            llmProseEpitaphs: getChecked('gsProseEpitaphs'),
+            llmProseLetters: getChecked('gsProseLetters'),
+            llmProseHeralds: getChecked('gsProseHeralds'),
         };
 
         // Apply audio settings directly to audioManager

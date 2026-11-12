@@ -65,7 +65,17 @@ Object.assign(ActionMenu, {
         const ruled = Throne.ruledKingdom(player, world);
         if (ruled) {
             const r = st.ruling;
-            let body = `<div style="${MUTED}">Since day ${r.since}${r.founded ? ' · founded by your hand' : ''} · Treasury ${Math.floor(ruled.treasury || 0)}g · Army ${Math.floor(ruled.military || 0)} · Stability ${Math.round(ruled.stability || 0)} · Levy so far ${r.levyTotal || 0}g (${Math.round(Throne.levyRate(player) * 100)}% of the treasury's daily gain, up to ${cfg.ruling.levyCap}g)</div>`;
+            let body = `<div style="${MUTED}">Since day ${r.since}${r.founded ? ' · founded by your hand' : ''} · Treasury ${Math.floor(ruled.treasury || 0)}g · Army ${Math.floor(ruled.military || 0)} · Stability ${Math.round(ruled.stability || 0)} · Levy so far ${r.levyTotal || 0}g</div>`;
+            // Why the levy is what it is (Throne.levyQuote): the rate, the realm's temper, the crown's upkeep
+            const lq = Throne.levyQuote(player, world, ruled);
+            const LIMIT = {
+                rate: 'the tax policy',
+                stability: `the realm's unrest (stability ${Math.round(lq.stability)}: ${Math.round(lq.stabilityMult * 100)}% of the dues reach you)`,
+                surplus: lq.surplus > 0 ? `the crown's upkeep (only ${Math.floor(lq.surplus)}g a day is left over the army, court and works)` : `the crown's deficit (its upkeep ${Math.floor(lq.upkeep)}g a day outruns its ${Math.floor(lq.revenue)}g of revenue, so only the purse's first charge is paid)`,
+                reserve: `the treasury's reserve (it keeps ${lq.reserve}g, ${cfg.ruling.levyReserveDays || 0} days of upkeep)`,
+                cap: `the customary cap of ${lq.cap}g a day`,
+            };
+            body += `<div style="${MUTED}">Today's levy: <b>${lq.levy}g</b>, ${Math.round(lq.rate * 100)}% of the crown's ${Math.floor(lq.revenue)}g of daily dues, held down by ${LIMIT[lq.limit] || lq.limit}.</div>`;
             for (const axis of Throne.POLICY_AXES) {
                 const def = Throne.policies()[axis];
                 if (!def) continue;

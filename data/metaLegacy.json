@@ -1,0 +1,116 @@
+{
+    "_comment": "The Hall of Houses: what one game leaves to the next (systems/metaLegacy.js). Every House whose line ends is filed in a profile kept outside the saves (localStorage). Houses ended in a tainted run (cheats used) are listed but earn nothing. Unlocks are flavour, not power: one modest boon, a lineage and a legacy start at most per new game. requires: housesEnded, bestScore, totalYears (all Houses together), generations (one House), crowns (Houses that held a crown), ironmanHouses (Houses ended in an untainted Ironman run). grants: boon (picked as the 'Inheritance'), lineage (descendant starts), claim (the ancestral claim of a crowned lineage), origin (a legacy start).",
+    "storageKey": "lord_of_realms_hall_v1",
+    "maxEntries": 200,
+    "lineage": {
+        "_comment": "A descendant of a past House: the world remembers it in its lore. rivalFeud is the grudge of one realm against the old name (house.rivals, read by RealmWars hostility and the rival schemes); claimStrength is a weak 'blood' claim (Throne.grantClaim), only for a lineage that once wore a crown and only with the ancestral-claim unlock.",
+        "rivalFeud": 18,
+        "claimStrength": 8,
+        "prestige": 5,
+        "loreLines": [
+            "Old songs still name {house}, {rank}, who held {peak} in an age now gone.",
+            "In {realm} they say the blood of {house} never quite died out.",
+            "Graybeards remember {house}: {years} years of it, until {cause} ended the line."
+        ],
+        "rivalLines": [
+            "{realm} has not forgotten {house}, nor forgiven it."
+        ]
+    },
+    "unlocks": [
+        {
+            "id": "remembered_name",
+            "name": "A Remembered Name",
+            "icon": "📜",
+            "blurb": "Start as a descendant of a House you played before. The world remembers it in song and grudge.",
+            "requires": { "housesEnded": 1 },
+            "grants": { "lineage": true }
+        },
+        {
+            "id": "ancestral_claim",
+            "name": "The Ancestral Claim",
+            "icon": "👑",
+            "blurb": "A descendant of a House that wore a crown starts with a weak blood claim on a throne.",
+            "requires": { "crowns": 1 },
+            "grants": { "claim": true }
+        },
+        {
+            "id": "grandsires_blade",
+            "name": "The Grandsire's Blade",
+            "icon": "🗡️",
+            "blurb": "A named sword handed down the line: an heirloom of your new House, with a story already behind it. If you descend from a past House, it is that House's own blade when it had one.",
+            "requires": { "bestScore": 250 },
+            "grants": { "boon": { "heirloom": { "kind": "sword", "fromLineage": true }, "text": "You carry your grandsire's sword, an heirloom of the line." } }
+        },
+        {
+            "id": "family_silver",
+            "name": "The Family Silver",
+            "icon": "💍",
+            "blurb": "The family ring as an heirloom, and a piece of silver: the last of an old fortune.",
+            "requires": { "totalYears": 40 },
+            "grants": { "boon": { "heirloom": { "kind": "ring", "fromLineage": true }, "items": { "SILVER_JEWELLERY": 1 }, "text": "You keep the family ring, and one piece of silver besides." } }
+        },
+        {
+            "id": "old_book",
+            "name": "The House Book",
+            "icon": "📖",
+            "blurb": "The old House's book, kept as an heirloom.",
+            "requires": { "generations": 3 },
+            "grants": { "boon": { "heirloom": { "kind": "book", "fromLineage": true }, "text": "You carry the House book of your forebears." } }
+        },
+        {
+            "id": "blood_of_the_brave",
+            "name": "Blood of the Brave",
+            "icon": "🦁",
+            "blurb": "Start with the Brave trait, as your forebears did.",
+            "requires": { "bestScore": 600 },
+            "grants": { "boon": { "traits": ["brave"], "text": "Courage runs in your blood." } }
+        },
+        {
+            "id": "ironsworn",
+            "name": "Ironsworn",
+            "icon": "⚒️",
+            "blurb": "Finished a House in an Ironman run. Start Honest, and a little known.",
+            "requires": { "ironmanHouses": 1 },
+            "grants": { "boon": { "traits": ["honest"], "renown": 5, "text": "Your word is iron, and a few already know it." } }
+        },
+        {
+            "id": "scion",
+            "name": "Scion of a Fallen House",
+            "icon": "🕯️",
+            "blurb": "A legacy start: the last scion of a past House, with a modest purse and a little name.",
+            "requires": { "generations": 2 },
+            "grants": { "origin": "scion" }
+        },
+        {
+            "id": "hall_pilgrim",
+            "name": "Keeper of the Hall",
+            "icon": "🏛️",
+            "blurb": "A legacy start: a chronicler who has read every House's annals. Learned, poor, well-spoken.",
+            "requires": { "housesEnded": 5 },
+            "grants": { "origin": "chronicler" }
+        }
+    ],
+    "origins": {
+        "scion": {
+            "name": "Scion of a Fallen House",
+            "icon": "🕯️",
+            "base": "wanderer",
+            "lineage": true,
+            "gold": 400,
+            "prestige": 10,
+            "skills": { "diplomacy": 1 },
+            "blurb": "The last of a House you once played. A small purse, an old name, and a realm that remembers it.",
+            "welcome": "You are the last scion of {house}. The name is old and little else is left: make it great again."
+        },
+        "chronicler": {
+            "name": "Keeper of the Hall",
+            "icon": "🏛️",
+            "base": "wanderer",
+            "gold": 150,
+            "skills": { "diplomacy": 1, "commerce": 1 },
+            "items": { "BOOK": 2 },
+            "blurb": "A wandering chronicler who knows the stories of every House. Two books in the pack, little coin.",
+            "welcome": "You have read the annals of the great Houses. Now go and write your own."
+        }
+    }
+}

@@ -36,9 +36,11 @@ export const Achievements = {
         TYCOON: {
             id: 'tycoon',
             name: 'Tycoon',
-            description: 'Accumulate 50,000 gold',
+            description: 'Accumulate 50,000 gold (in your purse and on deposit with the banks)',
             icon: '👑',
-            check: (player) => player.gold >= 50000,
+            // (a sensible fortune sits in a bank, out of the cutpurses' reach)
+            check: (player) => (player.gold || 0) + Object.values((player.finance && player.finance.accounts) || {})
+                .reduce((a, x) => a + (x && Number.isFinite(x.balance) ? x.balance : 0), 0) >= 50000,
             tier: 'gold',
         },
 

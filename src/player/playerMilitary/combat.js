@@ -9,6 +9,7 @@ import { Kingship } from '../../systems/kingship.js';
 import { MerchantCaravans } from '../../systems/merchantCaravans.js';
 import { CourierRiders } from '../../systems/courierRiders.js';
 import { RivalHouses } from '../../systems/rivalHouses.js';
+import { CadetBranches } from '../../systems/cadetBranches.js';
 import { SettlementMarket } from '../../world/settlementMarket.js';
 import { NPCLords } from '../../world/npcLords.js';
 import { RealmArms } from '../../world/realmArms.js';
@@ -588,11 +589,14 @@ Object.assign(PlayerMilitary, {
 
         const previousKingdom = settlement.kingdom;
 
+        // The assault into the House chronicle: won, the conquest line carries it (conquerSettlement)
+        const foe = (previousKingdom && world.getKingdom(previousKingdom) && world.getKingdom(previousKingdom).name) || `the garrison of ${settlement.name}`;
         if (result.victory) {
-            PlayerMilitary.conquerSettlement(player, settlement, tile, world, result);
+            PlayerMilitary.conquerSettlement(player, settlement, tile, world, result, { battle: { kind: 'assault', outcome: 'victory', foe, place: settlement.name, at: `at ${settlement.name}` } });
         } else {
             // --- DEFEAT ---
             result.conquered = false;
+            House.recordBattle(player, world, { kind: 'assault', outcome: 'defeat', foe, place: settlement.name });
 
             // Reputation hit even for failed attack
             if (previousKingdom) {
@@ -724,7 +728,9 @@ Object.assign(PlayerMilitary, {
             House.recordPlayerDeed(player, world, 'settlementHeld', {
                 reason: `conquered ${settlement.name}`,
                 chronicle: `${player.house ? player.house.name : 'The House'} conquers ${settlement.name}.`,
-                tags: ['conquest', 'war'],
+                tags: opts.battle ? ['conquest', 'war', 'battle', 'siege'] : ['conquest', 'war'],
+                // The assault that took it (attackSettlement): its foe, place and outcome
+                ...(opts.battle ? { battle: opts.battle } : {}),
             });
             // Taking a kingdom's settlement inflames its rival House.
             House.accrueRivalFeud(player, world, previousKingdom, 25, `conquered ${settlement.name}`);
@@ -804,6 +810,14 @@ Object.assign(PlayerMilitary, {
                 renownChange: 0,
                 inventoryLoot: {},
             };
+        }
+        // The one-shot fight into the House chronicle (the phased battle chronicles
+        // its own in FieldBattle.finish); robbing caravans and boats is no battle
+        if (!opts.combatResult && !['caravan', 'ship', 'fishing_boat'].includes(worldUnit.type)) {
+            House.recordBattle(player, world, {
+                kind: combatResult.theatre === 'sea' ? 'sea' : 'field', outcome: combatResult.victory ? 'victory' : 'defeat',
+                foe: worldUnit.name, q: worldUnit.q, r: worldUnit.r, strength: worldUnit.strength,
+            });
         }
 
         let karmaChange = 0;
@@ -897,6 +911,14 @@ Object.assign(PlayerMilitary, {
                     if (text && world.events) world.events.push({ text, type: 'military' });
                     break;
                 }
+                case 'cadet_retinue': {
+                    // A cadet branch of your own House (systems/cadetBranches.js): kinstrife
+                    const before = player.karma || 0;
+                    const text = CadetBranches.onAttacked(player, world, worldUnit, true);
+                    karmaChange = (player.karma || 0) - before;
+                    if (text && world.events) world.events.push({ text, type: 'military' });
+                    break;
+                }
                 case 'patrol':
                 case 'road_patrol':
                     karmaChange = -2;
@@ -945,6 +967,7 @@ Object.assign(PlayerMilitary, {
             if (MerchantCaravans.isTrader(worldUnit)) MerchantCaravans.onRobberyFailed(player, world, worldUnit);
             if (CourierRiders.isRider(worldUnit)) CourierRiders.onRobberyFailed(player, world, worldUnit);
             if (RivalHouses.isRetinue(worldUnit)) RivalHouses.onAttacked(player, world, worldUnit, false);
+            if (CadetBranches.isRetinue(worldUnit)) CadetBranches.onAttacked(player, world, worldUnit, false);
             // Log defeat event
             if (world.events) {
                 world.events.push({

@@ -4,10 +4,12 @@ import { InnerMap } from '../../world/innerMap.js';
 import { CustomObjects } from '../../world/customObjects.js';
 import { CustomBuildings } from '../../world/customBuildings.js';
 import { CustomInteriors } from '../../world/customInteriors.js';
+import { Construction } from '../../systems/construction.js';
 import { InnerMapCharacters } from '../innerMapCharacters.js';
 import { InnerMapCombat } from '../innerMapCombat.js';
 import { buildingGlyph, drawGlyph, glyphFor } from '../icons.js';
 import { drawMapText, drawMapMarker, inkText, labelZoom, textPx } from '../mapInk.js';
+import { BuildingWear } from '../buildingWear.js';
 
 Object.assign(InnerMapRenderer, {
     // ══════════════════════════════════════════════
@@ -216,7 +218,8 @@ Object.assign(InnerMapRenderer, {
             if (dy + ds * 4 < 0 || dy > ctx.canvas.height + ds * 4) continue;
 
             if (b.type === 'custom') {
-                this._drawCustomBuilding(ctx, camera, b.def, b.q, b.r, ds);
+                this._drawCustomBuilding(ctx, camera, b.def, b.q, b.r, ds, b.tile.customBuilding && b.tile.customBuilding.ruin, this._siteProgress(b.tile._propertyRef), (b.tile.customBuilding && b.tile.customBuilding.wear) || 0, (b.tile.customBuilding && b.tile.customBuilding.spire) || null);
+                if (b.tile._propertyRef && b.tile.buildingInfo && camera.zoom > 0.4) this._drawBuildingLabel(ctx, camera, b.tile.buildingInfo, b.q, b.r + (b.def.bounds ? b.def.bounds.minRow : -2));
                 continue;
             }
 
@@ -242,8 +245,12 @@ Object.assign(InnerMapRenderer, {
     /**
      * Draw an editor-authored custom building tile-by-tile at (anchorQ, anchorR).
      * Renders all 4 layers (floor → walls → roof → overlay) in order.
+     * `ruin` (world/townMarks.js): 'burnt' or 'sacked' — a roofless, blackened
+     * shell (no roof, no overlay); 'scorched' — standing, soot-blackened.
      */
-    _drawCustomBuilding(ctx, camera, def, anchorQ, anchorR, ds) {
+    _drawCustomBuilding(ctx, camera, def, anchorQ, anchorR, ds, ruin = null, site = null, wear = 0, spire = null) {
+        // A building still going up (the player's property on its lot): a building site
+        if (site != null && site < 1 && !ruin) return this._drawBuildingSite(ctx, camera, def, anchorQ, anchorR, ds, site);
         const T  = this.TILE_SIZE;
         const cs = Math.ceil(ds) + 1;
         // Keep the anchor fractional and place each cell on the true grid
@@ -254,12 +261,56 @@ Object.assign(InnerMapRenderer, {
         const ax = screen.x;
         const ay = screen.y;
 
+        const shell = ruin === 'burnt' || ruin === 'sacked';
+        const sooty = shell || ruin === 'scorched';
+        // A weathered house (world/townEras.js): dulled, its roof mossed, an old one's sagging (ui/buildingWear.js)
+        const worn = !ruin && wear > 0 ? wear : 0;
+        const wornRoof = worn >= 2 ? BuildingWear.roofBox(def) : null;
+        const sagOf = cell => (wornRoof ? BuildingWear.sagOf(cell, wornRoof, ds, worn) : 0);
+        // A shell's roof has fallen in (its roof and chimney cells, wherever the kit put them):
+        // the floor of the house open to the sky, ash and charred beams on it
+        const ROOF = /roofs_|\/Roofing\//i;
+        let roofBox = null;
+        if (shell) {
+            // (opaque: the cells overlap a pixel, and a translucent fill would draw a grid at the seams)
+            ctx.fillStyle = ruin === 'burnt' ? 'rgb(33, 28, 24)' : 'rgb(66, 59, 52)';
+            for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
+                for (const cell of def.layers[lyrName] || []) {
+                    // (the ash lies where the roof was; a chimney cell above it simply falls)
+                    if (!/roofs_/i.test(cell.sheetPath || '')) continue;
+                    ctx.fillRect(Math.floor(ax + cell.q * ds), Math.floor(ay + cell.r * ds), cs, cs);
+                    roofBox = roofBox || { q0: cell.q, q1: cell.q, r0: cell.r, r1: cell.r };
+                    roofBox.q0 = Math.min(roofBox.q0, cell.q); roofBox.q1 = Math.max(roofBox.q1, cell.q);
+                    roofBox.r0 = Math.min(roofBox.r0, cell.r); roofBox.r1 = Math.max(roofBox.r1, cell.r);
+                }
+            }
+        }
+        if (worn) {
+            ctx.save();
+            ctx.filter = BuildingWear.wearFilter(worn);
+        }
+        if (sooty) {
+            ctx.save();
+            ctx.filter = ruin === 'burnt' ? 'brightness(0.38) sepia(0.35) saturate(0.6)'
+                : ruin === 'sacked' ? 'brightness(0.55) saturate(0.45)' : 'brightness(0.7) saturate(0.7)';
+        }
         for (const lyrName of ['floor', 'walls', 'roof', 'overlay']) {
             const lyrArr = def.layers[lyrName];
             if (!lyrArr || !lyrArr.length) continue;
             for (const cell of lyrArr) {
+                // (of a fallen roof a few charred stretches still hang at its eaves; the middle is open)
+                if (shell && ROOF.test(cell.sheetPath || '')) {
+                    const eave = roofBox && cell.r === roofBox.r1;
+                    if (!(eave && /roofs_/i.test(cell.sheetPath) && ((anchorQ + cell.q) * 73 + (anchorR + cell.r) * 151) % 7 < 4)) continue;
+                }
                 const x = Math.floor(ax + cell.q * ds);
-                const y = Math.floor(ay + cell.r * ds);
+                const y = Math.floor(ay + cell.r * ds) + (worn ? sagOf(cell) : 0);
+                // A shell's door has fallen in: a dark gap in the frame where it hung
+                if (shell && /\/Doors\//i.test(cell.sheetPath || '') && !/doorframe/i.test(cell.sheetPath)) {
+                    ctx.fillStyle = 'rgb(14, 11, 9)';
+                    ctx.fillRect(x + Math.round(cs * 0.12), y, Math.round(cs * 0.76), cs);
+                    continue;
+                }
                 if (x + cs < 0 || x > ctx.canvas.width  + cs) continue;
                 if (y + cs < 0 || y > ctx.canvas.height + cs) continue;
                 const img = CustomBuildings.getImg(cell.sheetPath);
@@ -272,8 +323,129 @@ Object.assign(InnerMapRenderer, {
                 ctx.drawImage(img,
                     cell.sx * k, cell.sy * k, sw * k, sh * k,
                     x, y, sw === 32 ? cs : Math.round(cs * sw / 32), sh === 32 ? cs : Math.round(cs * sh / 32));
+                // (and its windows are empty holes, the glass and shutters gone)
+                if (shell && /\/Windows\//i.test(cell.sheetPath || '')) {
+                    const w = sw === 32 ? cs : Math.round(cs * sw / 32), h = sh === 32 ? cs : Math.round(cs * sh / 32);
+                    ctx.fillStyle = 'rgb(14, 11, 9)';
+                    ctx.fillRect(x + Math.round(w * 0.28), y + Math.round(h * 0.28), Math.round(w * 0.44), Math.round(h * 0.44));
+                }
             }
         }
+        if (sooty) ctx.restore();
+        if (worn) {
+            ctx.restore();
+            BuildingWear.grimeOn(ctx, def, ax, ay, ds, cs, worn);
+            BuildingWear.mossOn(ctx, def, ax, ay, ds, worn, `${anchorQ},${anchorR}`, wornRoof ? sagOf : null);
+        }
+        // A Guild Age landmark's belltower over its ridge (world/townEras.js; ui/buildingWear.js)
+        if (spire && !ruin) BuildingWear.spireOn(ctx, def, ax, ay, ds, spire);
+        // The fallen roof's beams in the shell (world/townMarks.js art: tm_charred / tm_rubble)
+        if (roofBox) {
+            const pile = CustomObjects.getDef(ruin === 'burnt' ? 'tm_charred' : 'tm_rubble');
+            if (pile && pile.tiles) {
+                const pw = pile.bounds.maxCol - pile.bounds.minCol + 1;
+                const bq = roofBox.q0 + Math.floor((roofBox.q1 - roofBox.q0 + 1 - pw) / 2);
+                for (const t of pile.tiles) {
+                    const img = CustomObjects.getImage(t.sheetPath);
+                    if (!img) continue;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(img, t.sx, t.sy, t.sw || 32, t.sh || 32,
+                        Math.floor(ax + (bq + t.localCol) * ds), Math.floor(ay + (roofBox.r1 + t.localRow) * ds), cs, cs);
+                }
+            }
+        }
+    },
+
+    /** How far a property's building has come (0..1), or null when it stands finished (or is none). */
+    _siteProgress(rec) {
+        if (!rec || !rec.underConstruction) return null;
+        return Construction.progress(rec);
+    },
+
+    /**
+     * Which of a design's cells a building site shows at `progress` (0..1), as
+     * { cells: [{ cell, layer }], wallTop, rows } — pure, for the renderer and its
+     * tests. The ground plan (floor) from the first day; the walls rise course by
+     * course from the bottom row up over the first 80% of the work; the roof goes
+     * on after, and the overlay (signs, awnings) only when it stands finished.
+     */
+    _siteCells(def, progress) {
+        const p = Math.max(0, Math.min(1, Number(progress) || 0));
+        const b = def.bounds || { minRow: -2, maxRow: 0 };
+        const rows = b.maxRow - b.minRow + 1;
+        const wallFrac = Math.min(1, p / 0.8);
+        const wallTop = b.maxRow - Math.ceil(wallFrac * rows) + 1;  // the highest row of wall laid
+        const ROOF = /roofs_|\/Roofing\//i;
+        // (the kit files cells by drawing order, not by what they are: a design's "floor" layer
+        // often holds its wall faces and roof, its "roof" layer its door — so each cell is staged
+        // by its sheet: the roof at the last, wall faces, doors and windows course by course,
+        // only the true ground plan from the first day)
+        const WALL = /walls_|\/Walls?\/|\/Doors\/|\/Windows\//i;
+        const out = [];
+        for (const lyr of ['floor', 'walls', 'roof']) {
+            for (const cell of (def.layers && def.layers[lyr]) || []) {
+                const path = cell.sheetPath || '';
+                if (ROOF.test(path)) { if (p >= 0.8) out.push({ cell, layer: 'roof' }); continue; }
+                if (lyr === 'floor' && !WALL.test(path)) { out.push({ cell, layer: 'floor' }); continue; }
+                if (p > 0.05 && cell.r >= wallTop) out.push({ cell, layer: 'walls' });
+            }
+        }
+        return { cells: out, wallTop, rows };
+    },
+
+    /**
+     * A building site on a lot: its ground plan staked out, walls rising behind
+     * timber scaffolding, the roof going on at the last (_siteCells), a hammer
+     * over it. Tile-composed from the building's own design, as it will stand.
+     * Returns how many cells it drew from the design.
+     */
+    _drawBuildingSite(ctx, camera, def, anchorQ, anchorR, ds, progress) {
+        const T = this.TILE_SIZE;
+        const cs = Math.ceil(ds) + 1;
+        const screen = camera.worldToScreenFast(anchorQ * T, anchorR * T);
+        const ax = screen.x, ay = screen.y;
+        const b = def.bounds || { minCol: -1, maxCol: 1, minRow: -2, maxRow: 0 };
+        const { cells, wallTop } = this._siteCells(def, progress);
+        // The plan staked out on bare earth
+        ctx.fillStyle = 'rgba(122, 92, 58, 0.55)';
+        ctx.fillRect(Math.floor(ax + b.minCol * ds), Math.floor(ay + b.maxRow * ds), Math.ceil((b.maxCol - b.minCol + 1) * ds), Math.ceil(ds));
+        let drawn = 0;
+        for (const { cell, layer } of cells) {
+            const img = CustomBuildings.getImg(cell.sheetPath);
+            if (!img) continue;
+            const x = Math.floor(ax + cell.q * ds), y = Math.floor(ay + cell.r * ds);
+            if (x + cs < 0 || x > ctx.canvas.width + cs || y + cs < 0 || y > ctx.canvas.height + cs) continue;
+            const k = this._sheetScale ? this._sheetScale(img) : 1;
+            ctx.imageSmoothingEnabled = k > 1;
+            const sw = cell.sw || 32, sh = cell.sh || 32;
+            // (the roof going on: its timbers before its tiles)
+            if (layer === 'roof') ctx.globalAlpha = 0.6;
+            ctx.drawImage(img, cell.sx * k, cell.sy * k, sw * k, sh * k,
+                x, y, sw === 32 ? cs : Math.round(cs * sw / 32), sh === 32 ? cs : Math.round(cs * sh / 32));
+            if (layer === 'roof') ctx.globalAlpha = 1;
+            drawn++;
+        }
+        // Scaffolding: poles at the corners and every other column, ledgers at each course laid
+        const top = Math.min(b.maxRow, wallTop) - 0.4;
+        const x0 = ax + b.minCol * ds + ds * 0.08, x1 = ax + (b.maxCol + 1) * ds - ds * 0.08;
+        const yBot = ay + (b.maxRow + 1) * ds, yTop = ay + top * ds;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(112, 78, 40, 0.95)';
+        ctx.lineWidth = Math.max(1, ds * 0.07);
+        ctx.beginPath();
+        for (let c = b.minCol; c <= b.maxCol + 1; c += 2) {
+            const x = Math.min(x1, Math.max(x0, ax + c * ds));
+            ctx.moveTo(x, yBot); ctx.lineTo(x, yTop);
+        }
+        ctx.moveTo(x1, yBot); ctx.lineTo(x1, yTop);
+        for (let r = b.maxRow + 1; r >= top; r -= 1) {
+            const y = ay + r * ds;
+            ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+        drawMapMarker(ctx, 'hammer', ax + ((b.minCol + b.maxCol + 1) / 2) * ds, ay + (top + 0.2) * ds, Math.max(10, ds * 0.3));
+        return drawn;
     },
 
     /**

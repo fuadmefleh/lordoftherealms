@@ -5,6 +5,7 @@ import { ActionMenu } from './_ref.js';
 import { MerchantHouses, PlayerEconomy, Trading } from './_imports.js';
 import { BTN_GOLD, BTN_DARK, BTN_RED, panelTabs, lede, chips, sectionHead, kv, card, rowList, price } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { companyDiagnosisHtml } from './merchantLedger.js';
 
 // The action menu's voice (uiKit): section heads, rows, soft cards; inputs dark with a hairline gold edge
 const INPUT = 'width: 56px; background:rgba(0,0,0,0.3); color:#ece2c8; border:1px solid rgba(245,197,66,0.2); border-radius:5px; padding:3px 5px; font-size:11px;';
@@ -164,6 +165,7 @@ function _companyLedgerHtml(player, world) {
     let html = card(body, { icon: '💱', title: 'The Company Purse' });
     html += sectionHead(`Profit &amp; Loss — net <span style="color:${pnl.net >= 0 ? GOOD : BAD};">${_g(pnl.net)}</span>`);
     html += `<div style="display:flex; gap:16px;"><div style="flex:1;"><div style="font-weight:600; color:${GOOD}; margin-bottom:2px;">Income ${_g(pnl.income)}</div>${_pnlRows(pnl.incomeBy)}</div><div style="flex:1;"><div style="font-weight:600; color:${BAD}; margin-bottom:2px;">Expenses ${_g(pnl.expenses)}</div>${_pnlRows(pnl.expensesBy)}</div></div>`;
+    html += companyDiagnosisHtml(player, world);
     if (c.weeks.length) {
         html += `${sectionHead('Recent Weeks')}<table style="${TABLE}">`;
         html += `<tr style="${THEAD}"><td>Day</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td><td style="text-align:right;">Capital</td></tr>`;
@@ -180,8 +182,10 @@ function _companyLedgerHtml(player, world) {
     }
     html += sectionHead('Ledger');
     for (const e of c.ledger.slice(0, 20)) {
-        const color = e.kind === 'income' ? GOOD : BAD;
-        html += `<div class="pk-kv" style="font-size:11px;"><span><span style="color:#7d7564;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${e.kind === 'income' ? '+' : '−'}${_g(e.amount)}</span></div>`;
+        // (a memo line — stock thieves took — moves no coin)
+        const color = e.kind === 'income' ? GOOD : e.kind === 'memo' ? WARN : BAD;
+        const sign = e.kind === 'income' ? '+' : e.kind === 'memo' ? '' : '−';
+        html += `<div class="pk-kv" style="font-size:11px;"><span><span style="color:#7d7564;">${e.day}</span> ${_esc(e.text)}</span><span style="color:${color};">${sign}${_g(e.amount)}${e.kind === 'memo' ? ' of stock' : ''}</span></div>`;
     }
     return html;
 }
@@ -219,7 +223,7 @@ function _companyPostsHtml(player, world, tile) {
         let body = '';
         if (post.factor) {
             const ref = MerchantHouses.reference(post.factor);
-            body += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${MerchantHouses.factorWage(post.factor)}g/week${post.factor.unpaid ? ` <span style="color:${BAD};">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
+            body += `<div>👤 ${_esc(post.factor.name)} — skill ${post.factor.skill} (${MerchantHouses.factorVolume(post.factor)} units/week), <span style="color:${ref.color};">${ref.label}</span>, ${MerchantHouses.factorWage(post.factor)}g/week + ${Math.round((cfg.factor.commission || 0) * 100)}% of sales${post.factor.unpaid ? ` <span style="color:${BAD};">(unpaid ${post.factor.unpaid} wk)</span>` : ''}</div>`;
         } else {
             body += `<div style="color:${BAD};">No factor — the post is idle.</div>`;
         }

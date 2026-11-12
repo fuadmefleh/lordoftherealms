@@ -159,6 +159,9 @@ function crownTab(game) {
     let html = lede(`<b>The mint of ${esc(k.name)}</b>.`);
     html += chips([
         ['', 'Silver', `${Math.round(purity * 100)}%`],
+        // (the coin in hand: old finer pieces not yet restruck, and the clipping — world/moneySupply.js fineness)
+        ['', 'In hand', `${Math.round(MoneySupply.fineness(world, k).circulating * 100)}%`],
+        ['', 'Clipped', `${Math.round(MoneySupply.fineness(world, k).clip * 100)}%`],
         ['', 'Price level', Math.round(MoneySupply.level(world, k.id) * 100)],
         ['', 'Coin about', `${Math.round(rec.coin).toLocaleString()}g`],
         ['', 'Last week', `${Math.round(rec.mint.lastStruck)}g struck, ${Math.round(rec.mint.lastSeign)}g seigniorage`, 'gold'],
@@ -175,7 +178,7 @@ function crownTab(game) {
     }));
     const rq = Mints.recoinQuote(world, k);
     html += sectionHead('Recoinage');
-    const recoinDesc = 'Call in the clipped coin and strike it anew at full weight.';
+    const recoinDesc = 'Call in the debased and clipped coin and strike it anew at full weight.';
     const recoinNote = 'The crown makes up half the missing silver; the holders lose the rest, so there is less coin about and prices fall.';
     html += rowList([rq.ok ? {
         icon: '💰', name: `Proclaim a recoinage (${rq.cost}g)`, desc: recoinDesc, note: recoinNote,

@@ -23,7 +23,7 @@
 // annal, heard in the town's news). Suspicion of each agent gathers week by
 // week: a spymaster, idle spies, counter-espionage posted near the town, the
 // player in town, the player knowing the person (they have spoken), the trail
-// a sabotage leaves, and the player's own inquiries (inquire: gold, in town).
+// a sabotage or a sold leak leaves, and the player's own inquiries (inquire: gold, in town).
 // At full suspicion the agent is known by name, and the player can TURN them
 // (gold: the rival's plots come to light, the bribe ends, a league the rival
 // is sworn to loses heart week by week) or EXPOSE them (driven out of town,
@@ -146,6 +146,30 @@ export const RivalAgents = {
     /** An unturned informant of this rival is at work (Schemes.revealChance reads it). */
     informing(player, rivalId) {
         return RivalAgents.list(player).some(a => a.rivalId === rivalId && a.kind === 'informant' && !a.turned);
+    },
+
+    /** What the agent was bought to do, in the data's words (kinds.*.deed: "{house}" the player's House). */
+    deed(player, a) {
+        const K = RivalAgents.kind(a && a.kind);
+        const house = (player && player.house && player.house.name) || 'your House';
+        return typeof K.deed === 'string' && K.deed ? K.deed.replace(/\{house\}/g, house) : null;
+    },
+
+    /**
+     * The record of the rival agents' work against the player, for the
+     * Threats panel: every count in state.stats, and the turned agents with
+     * the days they have served (from a.turnedDay).
+     */
+    tally(player, world) {
+        const st = RivalAgents.state(player);
+        if (!st) return null;
+        const day = _day(world);
+        const turned = RivalAgents.list(player).filter(a => a.turned)
+            .map(a => ({ id: a.id, name: a.name, rivalName: a.rivalName, days: Number.isFinite(a.turnedDay) ? Math.max(0, day - a.turnedDay) : null }));
+        const s = st.stats;
+        const parts = [`${s.recruited} bought`, `${s.leaks} leak${s.leaks === 1 ? '' : 's'}`, `${s.sabotaged} sabotage${s.sabotaged === 1 ? '' : 's'}`,
+            `${s.exposed} exposed`, `${s.turned} turned`, `${s.inquiries} inquir${s.inquiries === 1 ? 'y' : 'ies'}`];
+        return { ...s, serving: turned, text: parts.join(' · ') };
     },
 
     _log(st, day, text) {
@@ -351,7 +375,7 @@ export const RivalAgents = {
         const h = Holdings.ensure(s);
         if (on) {
             const K = RivalAgents.kind('official');
-            h.bribed = { skim: _num(K.skim), buildDrag: _num(K.buildDrag), agentId: a.id, rivalId: a.rivalId };
+            h.bribed = { skim: _num(K.skim), buildDrag: _num(K.buildDrag), agentId: a.id };
         } else if (h.bribed && h.bribed.agentId === a.id) {
             delete h.bribed;
         } else return;
@@ -376,6 +400,8 @@ export const RivalAgents = {
             a.lastAct = day;
             a.acts++;
             st.stats.leaks++;
+            // Selling word leaves a trail, as a fire does (suspicion.afterAct)
+            a.suspicion = _num(a.suspicion) + _num(RivalAgents.config().suspicion.afterAct);
             Coalitions.onAgent(player, world, a.rivalId, 'leak');
             // The rival moves on what it was told: a plot that strikes sooner than usual
             const house = player.house;
@@ -394,7 +420,6 @@ export const RivalAgents = {
                 rival.lastPlotDay = day;
                 if (rival.stats) rival.stats.plotsPaid = _num(rival.stats.plotsPaid) + 1;
                 scheme.dueDay = Math.min(scheme.dueDay, day + _num(K.leadDays, 4));
-                scheme.leakedBy = a.name;
                 if (f) Townsfolk.note(f.person, day, 'plotted', null, a.rivalName);
             }
             return;
@@ -467,7 +492,8 @@ export const RivalAgents = {
         a.knownDay = day;
         const K = RivalAgents.kind(a.kind);
         RivalAgents._log(RivalAgents.state(player), day, `${a.name}, ${a.role} of ${a.town}, found to be ${a.rivalName}'s ${K.label.toLowerCase()}.`);
-        if (out) out.notices.push({ icon: K.icon || '🕵️', title: 'An Agent Unmasked', text: `${a.name}, ${a.role} of ${a.town}, is in the pay of ${a.rivalName} (${K.label.toLowerCase()}). Turn or expose them from Dynasty → Threats.`, type: 'warning' });
+        const deed = a.acts > 0 || a.kind === 'official' ? RivalAgents.deed(player, a) : null;
+        if (out) out.notices.push({ icon: K.icon || '🕵️', title: 'An Agent Unmasked', text: `${a.name}, ${a.role} of ${a.town}, is in the pay of ${a.rivalName} (${K.label.toLowerCase()})${deed ? `, and has ${deed}` : ''}. Turn or expose them from Dynasty → Threats.`, type: 'warning' });
     },
 
     /** A turned agent's weekly report: the rival's plots come to light (house.informants, read by Schemes.revealChance). */
@@ -577,7 +603,8 @@ export const RivalAgents = {
         const st = RivalAgents.state(player);
         st.stats.exposed++;
         RivalAgents._log(st, day, `${a.name} of ${a.town} exposed as ${a.rivalName}'s agent and driven out.`);
-        House._chronicle(player.house, world, `${player.house.name} unmasks ${a.name} of ${a.town} as an agent of ${a.rivalName}.`, ['rival', 'agent']);
+        const deed = RivalAgents.deed(player, a);
+        House._chronicle(player.house, world, `${player.house.name} unmasks ${a.name} of ${a.town} as an agent of ${a.rivalName}${deed && (a.acts > 0 || a.kind === 'official') ? `, who ${deed}` : ''}.`, ['rival', 'agent']);
         return { success: true, text: `You name ${a.name} ${a.rivalName}'s creature before all ${a.town}, and they are driven out.${a.kind === 'official' ? ' The skimming stops.' : ''} ${a.rivalName} is shamed — and angrier.${hit ? ' The league it is sworn to is shaken.' : ''}` };
     },
 };

@@ -15,8 +15,10 @@ import { NpcPortrait } from '../npcPortrait.js';
 import { updatePrestigeChip } from '../prestigeChip.js';
 import { updateAPChip } from '../apChip.js';
 import { Calendar } from '../../systems/calendar.js';
+import { Climate } from '../../world/climate.js';
 import { Barter } from '../../world/barter.js';
 import { setCoinless } from '../actionMenu/uiKit.js';
+import { installTimeSkipControls } from '../actionMenu/timeSkip.js';
 
 Object.assign(UI.prototype, {
     setupEventListeners() {
@@ -59,6 +61,8 @@ Object.assign(UI.prototype, {
         document.getElementById('btnLaws')?.addEventListener('click', () => ActionMenu.showLaws(this.game));
         // The Annals: the life and dynasty told as a book (systems/annals.js)
         document.getElementById('btnAnnals')?.addEventListener('click', () => ActionMenu.showAnnals(this.game));
+        // The Timeline of the Realm: the borders and deeds of every season on a map (ui/actionMenu/timeline.js)
+        document.getElementById('btnTimeline')?.addEventListener('click', () => ActionMenu.showTimeline(this.game));
         // The Season's Reckoning: what your doings changed last season (systems/reckoning.js)
         document.getElementById('btnReckoning')?.addEventListener('click', () => ActionMenu.showReckoning(this.game, 'last'));
         document.getElementById('btnCalendar')?.addEventListener('click', () => ActionMenu.showCalendar(this.game));
@@ -223,6 +227,9 @@ Object.assign(UI.prototype, {
         if (simsEndDay && btnEndTurn) {
             simsEndDay.addEventListener('click', () => btnEndTurn.click());
         }
+
+        // Pass the Time: the top bar's ⏳, Shift+Enter (a week), Escape stops it (ui/actionMenu/timeSkip.js)
+        installTimeSkipControls(this.game);
 
         // Keyboard shortcuts: Space = toggle pause, 1/2/3 = speeds, Enter = end the day
         window.addEventListener('keydown', (e) => {
@@ -506,9 +513,17 @@ Object.assign(UI.prototype, {
         // The card: weather, the season, and the year so far
         const cal = Calendar.date(world);
         const played = Calendar.daysPlayed(world);
+        // The climate's era where you stand (world/climate.js): a little ice age, a drought...
+        let climate = null;
+        try {
+            const pl = this.game && this.game.player;
+            const d = pl ? Climate.describe(world, pl.q, pl.r) : null;
+            climate = d ? d.text : null;
+        } catch (e) { climate = null; }
         const title = [
             wxTitle,
             [`${outlook.icon} ${world.season}, day ${outlook.dayInSeason} of 30`, outlook.note, outlook.summary].filter(Boolean).join('\n'),
+            climate,
             `Day ${cal.dayOfYear} of ${cal.daysInYear} of the year · ${played.toLocaleString()} day${played === 1 ? '' : 's'} played`,
             'Click to open the Calendar',
         ].filter(Boolean).join('\n\n');
@@ -1103,6 +1118,20 @@ function hudEscHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+/**
+ * A notification's message as plain text for the Activity Log: showNotification
+ * renders HTML (line breaks, bold, escaped text), the log shows text — so "<br>"
+ * read literally there. Breaks become " · ", tags go, entities read as characters
+ * (escaped again by hudEscHtml).
+ */
+function hudPlainMsg(s) {
+    return String(s == null ? '' : s)
+        .replace(/<br\s*\/?>/gi, ' · ')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&');
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // REDESIGNED HUD — prototype update methods + navigation (additive)
 // ══════════════════════════════════════════════════════════════════════════
@@ -1296,7 +1325,7 @@ Object.assign(UI.prototype, {
                     + `<div class="hud-event-body">`
                     + `<span class="hud-event-head"><span class="hud-event-title">${hudEscHtml(e.title)}</span>`
                     + `<span class="hud-event-day">Day ${e.day}</span></span>`
-                    + `<span class="hud-event-msg">${hudEscHtml(e.message)}</span>`
+                    + `<span class="hud-event-msg">${hudEscHtml(hudPlainMsg(e.message))}</span>`
                     + `</div></div>`;
             }
             return rows;
@@ -1312,10 +1341,10 @@ Object.assign(UI.prototype, {
             const latest = log.slice(-2).reverse();
             ticker.innerHTML = latest.length === 0
                 ? '<span class="hud-ticker-empty">Your journey begins… the road awaits.</span>'
-                : latest.map(e => `<span class="hud-ticker-item" title="${hudEscHtml(e.title)}: ${hudEscHtml(e.message)}">`
+                : latest.map(e => `<span class="hud-ticker-item" title="${hudEscHtml(e.title)}: ${hudEscHtml(hudPlainMsg(e.message))}">`
                     + `<span class="hud-ticker-day">Day ${e.day}</span>`
                     + `<span class="hud-ticker-icon">${iconOf(e)}</span>`
-                    + `<span class="hud-ticker-msg">${hudEscHtml(e.message || e.title)}</span></span>`).join('');
+                    + `<span class="hud-ticker-msg">${hudEscHtml(hudPlainMsg(e.message) || e.title)}</span></span>`).join('');
         }
     },
 

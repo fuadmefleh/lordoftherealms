@@ -14,7 +14,7 @@
             "armor": 0,
             "crewRequired": 1,
             "dailyUpkeep": 1,
-            "buildDays": 3,
+            "buildDays": 6,
             "customizations": ["oar_upgrade"],
             "availableIn": ["village", "town", "city", "capital"]
         },
@@ -30,7 +30,7 @@
             "armor": 1,
             "crewRequired": 2,
             "dailyUpkeep": 3,
-            "buildDays": 5,
+            "buildDays": 20,
             "customizations": ["reinforced_hull", "fishing_nets"],
             "availableIn": ["village", "town", "city", "capital"]
         },
@@ -46,7 +46,7 @@
             "armor": 3,
             "crewRequired": 4,
             "dailyUpkeep": 6,
-            "buildDays": 10,
+            "buildDays": 45,
             "customizations": ["reinforced_hull", "extra_sails", "ram", "cargo_hold"],
             "availableIn": ["town", "city", "capital"]
         },
@@ -62,7 +62,7 @@
             "armor": 5,
             "crewRequired": 8,
             "dailyUpkeep": 10,
-            "buildDays": 18,
+            "buildDays": 90,
             "customizations": ["reinforced_hull", "cargo_hold", "navigator_quarters", "extra_sails"],
             "availableIn": ["town", "city", "capital"]
         },
@@ -78,7 +78,7 @@
             "armor": 5,
             "crewRequired": 10,
             "dailyUpkeep": 14,
-            "buildDays": 25,
+            "buildDays": 120,
             "customizations": ["reinforced_hull", "extra_sails", "navigator_quarters", "crows_nest", "ram"],
             "availableIn": ["capital"]
         },
@@ -94,7 +94,7 @@
             "armor": 8,
             "crewRequired": 20,
             "dailyUpkeep": 20,
-            "buildDays": 30,
+            "buildDays": 120,
             "customizations": ["reinforced_hull", "ram", "ballista", "boarding_planks", "greek_fire"],
             "availableIn": ["capital"]
         },
@@ -110,7 +110,7 @@
             "armor": 12,
             "crewRequired": 30,
             "dailyUpkeep": 35,
-            "buildDays": 45,
+            "buildDays": 240,
             "customizations": ["reinforced_hull", "extra_sails", "cargo_hold", "ballista", "ram", "boarding_planks", "navigator_quarters", "crows_nest", "greek_fire", "luxury_cabin"],
             "availableIn": ["capital"]
         }

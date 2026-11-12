@@ -6,6 +6,7 @@ import { Utils } from '../core/utils.js';
 import { Technology } from './technology.js';
 import { KingdomCulture } from '../world/kingdomState.js';
 import { CrownBooks } from '../world/crownBooks.js';
+import { Construction } from './construction.js';
 
 
 export const Culture = {
@@ -284,7 +285,8 @@ export const Culture = {
             }
             if (!kingdom.isAlive) continue;
             if (b.underConstruction) {
-                b.constructionDaysLeft = (b.constructionDaysLeft || 0) - 1;
+                // the crown's masons work at the pace of the season and the weather (systems/construction.js)
+                b.constructionDaysLeft = Math.round(((b.constructionDaysLeft || 0) - Construction.pace(world, b.q, b.r).pace) * 100) / 100;
                 if (b.constructionDaysLeft <= 0) {
                     b.underConstruction = false;
                     b.constructionDaysLeft = 0;

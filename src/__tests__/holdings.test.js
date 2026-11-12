@@ -86,6 +86,14 @@ function finish(player, world, days = 30) {
     }
 }
 
+// Run days until nothing is left in the queue (builds take months to years: systems/construction.js)
+function finishQueue(player, world, s, cap = 2000) {
+    for (let i = 0; i < cap && s.holding && s.holding.queue.length; i++) {
+        world.day++;
+        Holdings.processDay(player, world);
+    }
+}
+
 function soldier(n = 1) {
     return Array.from({ length: n }, () => ({ type: 'soldier', name: 'Soldier', icon: '⚔️', strength: 10, upkeep: 5, experience: 0, level: 1 }));
 }
@@ -150,10 +158,10 @@ describe('Projects', () => {
         expect(Holdings.canStart(player, world, 5, 5, 'stone_walls').reason).toMatch(/population/);
         s.population = 300;
         expect(Holdings.canStart(player, world, 5, 5, 'stone_walls').reason).toMatch(/Palisade first/);
-        finish(player, world, 10);
+        finishQueue(player, world, s);
         // An upgrade reuses its slot and replaces the base when done
         expect(Holdings.startProject(player, world, 5, 5, 'stone_walls').success).toBe(true);
-        finish(player, world, 20);
+        finishQueue(player, world, s);
         expect(s.holding.built.stone_walls).toBeTruthy();
         expect(s.holding.built.palisade).toBeUndefined();
         expect(Holdings.usedSlots(s.holding)).toBe(2);
@@ -522,7 +530,7 @@ describe('Save and load', () => {
         const player = makePlayer(world);
         const s = own(player, world, 5, 5);
         Holdings.startProject(player, world, 5, 5, 'granary');
-        finish(player, world, 10);
+        finishQueue(player, world, s);
         const saved = JSON.parse(JSON.stringify(SaveLoad.serializePlayer(player)));
         expect(saved.holdings.stats.projects).toBe(1);
         // The settlement record travels with the tiles

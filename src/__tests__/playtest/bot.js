@@ -39,6 +39,7 @@ import { Prison } from '../../player/prison.js';
 import { Companions } from '../../systems/companions.js';
 import { Upbringing } from '../../systems/upbringing.js';
 import { Heirs } from '../../systems/heirs.js';
+import { CadetBranches } from '../../systems/cadetBranches.js';
 import { Townsfolk } from '../../systems/townsfolk.js';
 import { Hospitality } from '../../systems/hospitality.js';
 import { Ailments } from '../../systems/ailments.js';
@@ -50,6 +51,8 @@ import { Quests } from '../../systems/quests.js';
 import { Patronage } from '../../systems/patronage.js';
 import { OutlawLairs } from '../../systems/outlawLairs.js';
 import { Finance } from '../../systems/finance.js';
+import { Fiscal } from '../../systems/fiscal.js';
+import { CrownBooks } from '../../world/crownBooks.js';
 import { Underwriting, KINDS as COVER_KINDS } from '../../systems/underwriting.js';
 import { Bills } from '../../systems/bills.js';
 import { Bourse } from '../../systems/bourse.js';
@@ -70,7 +73,9 @@ import { Mints } from '../../systems/mints.js';
 import { RivalAgents } from '../../systems/rivalAgents.js';
 import { Languages } from '../../systems/languages.js';
 import { Commissions } from '../../systems/commissions.js';
+import { Stewards } from '../../systems/stewards.js';
 import { travelTo } from './harness.js';
+import { HouseQuests } from '../../systems/houseQuests.js';
 
 const FOOD = ['grain', 'bread'];
 // Bought only when there's no grain or bread for sale
@@ -111,7 +116,69 @@ export function personaOf(game) {
 }
 /** The temperament in play: past the short soak's horizon (whose runs stay as they were), the life's own. */
 const temper = (game) => (game.world.day > 150 ? personaOf(game) : { id: 'labourer', ...PERSONAS.labourer });
-const poorBelow = (game) => temper(game).poorBelow;
+/**
+ * The company savings plan. A House with no trading company sets money by for
+ * one once it is settled in (past day 150): the charter of the cheapest crown
+ * that would grant one (in good standing, not at war: plan.kingdomId) and
+ * COMPANY_CAPITAL to put in. No crown will: no plan (it waits on its standing). Until its savings (the purse
+ * and its bank deposits) hold that, the bot lives as a poor wanderer does (day
+ * labour and the market, nothing grand, no soldiers on wages): poorBelow rises
+ * to the target, and what it earns goes to the bank, out of the cutpurses' and
+ * robbers' reach (banking). Once the sum is put by, it draws it at a branch of
+ * its bank and founds the company (company). A drifter never saves. A plan that has not
+ * come off in COMPANY_PLAN_DAYS (five years: wages and upkeep eating what the
+ * labour earns) is set aside for three years (the bot lives as it likes) and
+ * tried again. → the gold wanted, or 0.
+ */
+// (enough to open a first post, 350g, and keep 800 in the coffers for its orders)
+const COMPANY_CAPITAL = 1400;
+const COMPANY_PLAN_DAYS = 600;
+function companyTarget(game) {
+    const { player, world } = game;
+    if (world.day <= 150 || temper(game).id === 'drifter' || MerchantHouses.hasCompany(player)) return 0;
+    const plan = game.companyPlan || (game.companyPlan = { from: world.day });
+    if (world.day - plan.from > COMPANY_PLAN_DAYS) {
+        if (world.day - plan.from < COMPANY_PLAN_DAYS + 360) return 0;
+        plan.from = world.day;
+    }
+    if (MerchantHouses.hasCharter(player) || MerchantHouses.officeCharter(player)) return COMPANY_CAPITAL;
+    // (the cheapest willing crown, reckoned once a day)
+    if (plan.day !== world.day) {
+        const minRep = MerchantHouses.config().charter.minReputation;
+        const rep = player.reputation || {};
+        // (a crown whose every town the bot has failed to reach, over the sea, is no use)
+        const reachable = new Set(settlementTiles(world).filter(t => !(game.unreachableSites && game.unreachableSites.has(`${t.q},${t.r}`)))
+            .map(t => { const st = world.getTile(t.q, t.r).settlement; return st && st.kingdom; }));
+        let best = null;
+        for (const k of world.kingdoms || []) {
+            if (!k || !k.isAlive || (rep[k.id] || 0) < minRep || RealmWars.atWarWith(player, k.id) || !reachable.has(k.id)) continue;
+            const cost = MerchantHouses.charterCost(world, k);
+            if (!best || cost < best.cost) best = { id: k.id, cost };
+        }
+        plan.day = world.day;
+        plan.kingdomId = best ? best.id : null;
+        plan.charter = best ? best.cost : null;
+    }
+    return plan.charter == null ? 0 : plan.charter + COMPANY_CAPITAL;
+}
+/** The purse and what lies in the bank. */
+function savings(player) {
+    const accts = Object.values(Finance.state(player).accounts || {});
+    return (player.gold || 0) + accts.reduce((a, x) => a + Math.max(0, x.balance || 0), 0);
+}
+/** Putting money by for the company now: below the plan's sum, the bot labours for it. */
+const savingNow = (game) => {
+    const t = companyTarget(game);
+    return t > 0 && savings(game.player) < t;
+};
+const poorBelow = (game) => Math.max(temper(game).poorBelow, savingNow(game) ? companyTarget(game) : 0);
+/**
+ * While the plan runs (saving, or the sum put by and the bot on its way to a
+ * crown that will charter it) it spends on nothing it can do without: no new
+ * soldiers or companions, ventures, lessons or luxuries. (Investments keep
+ * their own thresholds, well above the plan's sum: a purse that rich founds first.)
+ */
+const frugal = (game) => companyTarget(game) > 0;
 const JOB_AP = 4;
 
 function count(stats, key, n = 1) {
@@ -191,8 +258,10 @@ function dayLabour(game, tile, stats) {
         // The best-paid work the bot is fit for: the job whose stat it is strongest in
         const job = jobs.reduce((a, b) => (OddJobs.statValue(player, b.stat) + b.pay.max / 10 > OddJobs.statValue(player, a.stat) + a.pay.max / 10 ? b : a));
         player.actionPoints -= JOB_AP;
-        OddJobs.complete(player, world, tile.settlement, job, 40 + Math.floor(Utils.random() * 40));
+        const res = OddJobs.complete(player, world, tile.settlement, job, 40 + Math.floor(Utils.random() * 40));
         count(stats, 'oddJobs');
+        // A broke town pays what its purse holds, maybe nothing: noted, so a pauper moves on (botDay)
+        if (res && res.factors && res.factors.short > 0) (game.brokeTowns || (game.brokeTowns = {}))[`${tile.q},${tile.r}`] = world.day;
     }
 }
 
@@ -415,6 +484,43 @@ function companions(game, tile, stats) {
     if (res.success) count(stats, 'companionsHired');
 }
 
+/**
+ * Stewards (systems/stewards.js): with several seats, put someone over each,
+ * set orders by what the place needs, audit the suspect, fine the caught,
+ * answer a steward's proposal. Weekly.
+ */
+export function stewards(game, stats) {
+    const { player, world } = game;
+    if ((world.day || 0) % 7 !== 3) return;
+    const seats = Stewards.seats(player, world);
+    // Several seats, or a holding that drifts ungoverned while the bot is on the road
+    if (seats.length < 2 && !seats.some(s => s.kind === 'holding')) return;
+    const filled = Stewards.fillVacant(player, world).filled;
+    if (filled) count(stats, 'stewardsAppointed', filled);
+    const v = Stewards.view(player, world);
+    for (const s of v.seats) {
+        const o = s.office;
+        if (!o) continue;
+        let want = s.kind === 'company' ? 'watch' : 'revenue';
+        if (s.kind === 'holding' && (s.unrest || 0) >= 45) want = 'peace';
+        else if ((s.happiness != null && s.happiness < 40) && (s.kind === 'holding' || s.kind === 'province' || s.kind === 'estates')) want = 'fed';
+        if (o.orders !== want && Stewards.orders(s.kind)[want]) Stewards.setOrders(player, world, s.id, want);
+        if (s.kind === 'holding' && !o.allowance && (player.gold || 0) > 3000) Stewards.setAllowance(player, world, s.id, 250);
+        if (o.caught) {
+            if (Stewards.punish(player, world, s.id, o.loyalty < 30 ? 'disgrace' : 'fine').success) count(stats, 'stewardsPunished');
+        } else if ((o.suspicion || o.power >= 60) && o.auditReady && (player.gold || 0) > o.auditCost * 4) {
+            const r = Stewards.audit(player, world, s.id);
+            if (r.success) count(stats, r.found ? 'stewardAuditsFound' : 'stewardAudits');
+        } else if (o.loyalty < 35 && (player.gold || 0) > 1000) {
+            if (Stewards.reward(player, world, s.id, 'gold').success) count(stats, 'stewardsRewarded');
+        }
+    }
+    for (const p of v.pending) {
+        const seat = v.seats.find(x => x.id === p.seatId);
+        if (Stewards.answer(player, world, p.id, !!(seat && seat.office && seat.office.loyalty >= 55)).success) count(stats, 'stewardProposals');
+    }
+}
+
 function court(game, stats) {
     const { player, world } = game;
     for (const pet of Petitions.pending(player).slice()) {
@@ -436,12 +542,45 @@ function company(game, tile, stats) {
         // follow each town's real stock — world/settlementMarket.js)
         // Not with the starting purse: a company founded in the first weeks
         // starves the bot of bread money (it founds one once there's a cushion)
-        if (player.gold < 3500 || Utils.random() > 0.3) return;
-        if (world.day < 40 && player.gold < 9000) return;
+        // Saving for it (companyTarget): found it as soon as the purse holds the plan's sum
+        const target = companyTarget(game);
+        if (target) {
+            if (savings(player) < target) return;
+            // The sum is put by, much of it in the bank: draw it here, or make for a branch that holds it
+            if (player.gold < target) {
+                const st = Finance.state(player);
+                for (const b of Finance.banksAt(player, world, tile)) {
+                    if (st.accounts[b.id] && Finance.withdraw(player, world, b.id).success) count(stats, 'savingsDrawn');
+                }
+                if (player.gold < target) {
+                    const town = nearest(world, player, settlementTiles(world), 30)
+                        .find(t => Finance.banksAt(player, world, world.getTile(t.q, t.r)).some(b => st.accounts[b.id]));
+                    if (town) game.dest = { q: town.q, r: town.r, company: true };
+                    return;
+                }
+            }
+        } else {
+            if (player.gold < 3500 || Utils.random() > 0.3) return;
+            if (world.day < 40 && player.gold < 9000) return;
+        }
         if (!MerchantHouses.hasCharter(player) && !MerchantHouses.officeCharter(player)) {
             if (MerchantHouses.buyCharter(player, world, tile).success) count(stats, 'chartersBought');
+            else if (target) {
+                // This crown won't (the plan's crown is game.companyPlan.kingdomId): make for that crown's nearest town
+                const kid = game.companyPlan && game.companyPlan.kingdomId;
+                const town = nearest(world, player, settlementTiles(world), 400)
+                    .find(t => {
+                        const st = world.getTile(t.q, t.r).settlement;
+                        return st && st.kingdom === kid && !(game.unreachableSites && game.unreachableSites.has(`${t.q},${t.r}`));
+                    });
+                // (held to until reached, like a delve site)
+                if (town) game.dest = { q: town.q, r: town.r, company: true };
+                count(stats, 'charterRefused');
+                return;
+            }
         }
-        const capital = Math.min(4000, Math.floor(player.gold * 0.5));
+        // (on the plan, the capital it saved for, keeping a bread purse of 250g; otherwise half the purse)
+        const capital = Math.min(4000, Math.floor(target ? Math.max(500, Math.min(COMPANY_CAPITAL, player.gold - 250)) : player.gold * 0.5));
         if (MerchantHouses.found(player, world, { capital }).success) count(stats, 'companyFounded');
         c = MerchantHouses.company(player);
         if (!c) return;
@@ -459,26 +598,16 @@ function company(game, tile, stats) {
         } else if (post.suspicion >= 12 && MerchantHouses.audit(player, world, post.id).success) {
             count(stats, 'audits');
         }
-        // A standing order on something this market sells: buy at today's
-        // price or better, sell a quarter dearer
-        if (!post.orders.length) {
-            const goods = Trading.getAvailableGoods(tile.settlement, tile, world).filter(g => g.quantity > 5 && g.price > 2);
-            if (goods.length) {
-                const g = Utils.randPick(goods);
-                // Buy on a dip, sell when the price has risen with the season
-                const unit = MerchantHouses.factorBuyUnit(player, world, tile, g.id);
-                const sale = MerchantHouses.factorSaleUnit(player, world, tile, g.id);
-                if (unit && sale && MerchantHouses.setOrder(player, post.id, { good: g.id, buyBelow: Math.floor(unit * 0.95), buyQty: 20, sellAbove: Math.ceil(sale * 1.15), sellQty: 20, keep: 0 }).success) {
-                    count(stats, 'ordersSet');
-                }
-            }
-        }
+        // (no local buy-low/sell-high order: a factor sells at what the player
+        // would, about 0.7 of the ask, so a round trip in one market only
+        // loses. The company earns on routes between its posts: below.)
         if (Utils.random() < 0.1) {
             const id = Utils.randPick(Object.keys(player.inventory || {}));
             if (id && MerchantHouses.depositStock(player, world, post.id, id, 5).success) {
                 count(stats, 'stockDeposited');
                 // ...and let the factor sell it off
-                if (!post.orders.some(o => o.good === id) && post.orders.length < 4) MerchantHouses.setOrder(player, post.id, { good: id, buyBelow: 0, buyQty: 0, sellAbove: 1, sellQty: 10, keep: 0 });
+                if (!post.orders.some(o => o.good === id) && post.orders.length < 4
+                    && MerchantHouses.setOrder(player, post.id, { good: id, buyBelow: 0, buyQty: 0, sellAbove: 1, sellQty: 10, keep: 0 }).success) count(stats, 'ordersSet');
             }
         }
         if (Utils.random() < 0.05 && c.capital > 2000) {
@@ -486,6 +615,8 @@ function company(game, tile, stats) {
             if (order && MerchantHouses.lobbyMonopoly(player, world, post.id, order.good).success) count(stats, 'lobbied');
         }
     }
+    // Routes: buy where a good is cheap at one post, carry it to a post that pays more
+    companyRoutes(game, c, stats);
     // Contracts: take one, buy its good at a post that sells it, send it on
     const m = MerchantHouses.state(player);
     // ...one a post can buy the goods for, cheaper than it pays
@@ -518,15 +649,16 @@ function company(game, tile, stats) {
                     + c.convoys.filter(v => v.contractId === ct.id).reduce((a, v) => a + v.qty, 0);
                 const need = Math.max(0, ct.qty - ct.delivered - held);
                 if (p.orders.length >= 4 && !p.orders.some(o => o.good === ct.good)) p.orders.shift();
-                MerchantHouses.setOrder(player, p.id, { good: ct.good, buyBelow: unit + 2, buyQty: need, sellAbove: 9999, sellQty: 0, keep: 0 });
+                if (MerchantHouses.setOrder(player, p.id, { good: ct.good, buyBelow: unit + 2, buyQty: need, sellAbove: 9999, sellQty: 0, keep: 0 }).success) count(stats, 'ordersSet');
                 break;
             }
         }
     }
-    // Stock bought for a contract that's gone: let the factor sell it
+    // Stock bought for a contract that's gone: let the factor sell it (a route's buying end is kept)
+    const routed = (p, good) => (game.companyRoutes || []).some(rt => rt.from === p.id && rt.good === good);
     for (const p of c.posts) {
         for (const o of p.orders) {
-            if (o.sellQty === 0 && !c.contracts.some(ct => ct.good === o.good)) Object.assign(o, { buyQty: 0, sellQty: 20, sellAbove: 1 });
+            if (o.sellQty === 0 && !routed(p, o.good) && !c.contracts.some(ct => ct.good === o.good)) Object.assign(o, { buyQty: 0, sellQty: 20, sellAbove: 1 });
         }
     }
     // Draw profits, top up a starved company, invest a little
@@ -542,6 +674,53 @@ function company(game, tile, stats) {
         else if (MerchantHouses.buyShares(player, world, rival.id, 5).success) count(stats, 'sharesBought');
     }
     if (rival && rival.shares.player > 0 && Utils.random() < 0.02 && MerchantHouses.sellShares(player, world, rival.id, rival.shares.player).success) count(stats, 'sharesSold');
+}
+
+/**
+ * The company's trade routes, as a sensible owner runs them: a buying order
+ * at the post where a good is cheap, a selling order at the post that pays
+ * enough more to cover the convoy, and the convoys between them. Routes are
+ * re-planned now and then from the posts' own markets; a route whose margin
+ * has gone is dropped (its stock is sold where it lies).
+ */
+function companyRoutes(game, c, stats) {
+    const { player, world } = game;
+    const posts = c.posts.filter(p => p.factor);
+    const byId = (id) => posts.find(p => p.id === id);
+    let routes = (game.companyRoutes || []).filter(rt => byId(rt.from) && byId(rt.to));
+    // Ship what the buying post holds once there is a load worth the carriage
+    for (const rt of routes) {
+        const from = byId(rt.from);
+        const have = Math.floor(from.stock[rt.good] || 0);
+        if (have >= 15 && MerchantHouses.dispatchConvoy(player, world, from.id, { postId: rt.to }, rt.good, have).success) count(stats, 'routeConvoys');
+    }
+    if (posts.length < 2 || (routes.length && Utils.random() > 0.08)) { game.companyRoutes = routes; return; }
+    // Re-plan: the best margins between the posts' markets, after the carriage
+    const cands = MerchantHouses.routeIdeas(player, world, { limit: 12 }).map(r => ({ from: r.fromPostId, to: r.toPostId, good: r.good, unit: r.unit }));
+    const keep = [];
+    for (const cd of cands) {
+        if (keep.length >= 2) break;
+        if (keep.some(k => k.from === cd.from || k.good === cd.good)) continue;
+        keep.push(cd);
+    }
+    // Old routes not kept: the buying stops, what is left sells where it lies
+    for (const rt of routes) {
+        if (keep.some(k => k.from === rt.from && k.to === rt.to && k.good === rt.good)) continue;
+        const from = byId(rt.from);
+        const o = from && from.orders.find(x => x.good === rt.good);
+        if (o) Object.assign(o, { buyQty: 0, sellQty: 20, sellAbove: 1 });
+    }
+    for (const k of keep) {
+        const from = byId(k.from), to = byId(k.to);
+        if (from.orders.length >= 4 && !from.orders.some(o => o.good === k.good)) from.orders.shift();
+        if (to.orders.length >= 4 && !to.orders.some(o => o.good === k.good)) to.orders.shift();
+        if (MerchantHouses.setOrder(player, from.id, { good: k.good, buyBelow: Math.ceil(k.unit * 1.03), buyQty: 40, sellAbove: 9999, sellQty: 0, keep: 0 }).success
+            && MerchantHouses.setOrder(player, to.id, { good: k.good, buyBelow: 0, buyQty: 0, sellAbove: Math.ceil(k.unit * 1.08), sellQty: 40, keep: 0 }).success) {
+            count(stats, 'routesPlanned');
+            count(stats, 'ordersSet', 2);
+        }
+    }
+    game.companyRoutes = keep.map(k => ({ from: k.from, to: k.to, good: k.good }));
 }
 
 function ships(game, tile, stats) {
@@ -741,12 +920,22 @@ function throne(game, stats) {
         return;
     }
     if (st.ruling) {
-        // Rule: try a policy now and then
-        const axes = Throne.POLICY_AXES || [];
-        if (axes.length && Utils.random() < 0.05) {
-            const axis = Utils.randPick(axes);
-            const opts = Object.keys((Throne.policies()[axis] || {}).options || {});
-            if (opts.length && Throne.setPolicy(player, world, axis, Utils.randPick(opts)).success) count(stats, 'policiesSet');
+        // Rule like a sensible monarch: light taxes while the realm is restless
+        // (a restless realm pays the levy little: Throne.levyQuote), standard
+        // once it settles; seek peace when the crown runs short; now and then
+        // try the faith policy
+        const k = Throne.ruledKingdom(player, world);
+        if (k && Utils.random() < 0.1) {
+            const stab = typeof k.stability === 'number' ? k.stability : 60;
+            const tax = stab < 45 ? 'light' : stab > 70 ? 'standard' : st.ruling.policies.tax === 'heavy' ? 'standard' : st.ruling.policies.tax;
+            if (tax !== st.ruling.policies.tax && Throne.setPolicy(player, world, 'tax', tax).success) count(stats, 'policiesSet');
+            const short = Throne.levyQuote(player, world, k).limit === 'surplus' || (k.wars || []).length > 1;
+            const stance = short ? 'peace' : 'defensive';
+            if (stance !== st.ruling.policies.stance && Throne.setPolicy(player, world, 'stance', stance).success) count(stats, 'policiesSet');
+            if (Utils.random() < 0.2) {
+                const opts = Object.keys((Throne.policies().faith || {}).options || {});
+                if (opts.length && Throne.setPolicy(player, world, 'faith', Utils.randPick(opts)).success) count(stats, 'policiesSet');
+            }
         }
         royalCourt(game, stats);
         return;
@@ -796,7 +985,27 @@ function royalCourt(game, stats) {
         const best = Kingship.candidates(player, world, office).find(c => !c.office);
         if (best && Kingship.appoint(player, world, office, best.kind, best.id).success) count(stats, 'councilAppointed');
     }
-    if (Utils.random() < 0.1) {
+    // Keep the crown's books (systems/fiscal.js): a player's crown never
+    // reviews its own taxes, so a ruler who never looks runs the chests dry
+    const ruled = Throne.ruledKingdom(player, world);
+    if (ruled && world.day % 7 === 0) {
+        const f = CrownBooks.state(ruled);
+        const days = Fiscal.reserveDays(ruled);
+        const levels = ['light', 'standard', 'heavy', 'crushing'];
+        const cur = Math.max(0, levels.indexOf(f.level));
+        const stab = typeof ruled.stability === 'number' ? ruled.stability : 60;
+        let want = cur;
+        if (days < 15 && stab > 30) want = Math.min(2, cur + 1);
+        else if (days > 90 || stab < 25) want = Math.max(0, cur - 1);
+        if (want !== cur && Fiscal.setRate(player, world, 'all', levels[want]).success) count(stats, 'crownTaxSet');
+        const court = days < 10 ? 'frugal' : days > 120 ? 'lavish' : 'standard';
+        if (court !== f.courtLevel && Fiscal.setCourt(player, world, court).success) count(stats, 'crownCourtSet');
+        const pay = f.arrearsDays > 0 && days < 4 ? 'half' : 'full';
+        if (pay !== f.armyPay && Fiscal.setArmyPay(player, world, pay).success) count(stats, 'crownPaySet');
+    }
+    // (edicts only from a treasury with a cushion: their upkeep is the crown's, every day)
+    const realm = Throne.ruledKingdom(player, world);
+    if (Utils.random() < 0.1 && realm && (realm.treasury || 0) > Throne.levyQuote(player, world, realm).reserve * 2) {
         const open = Object.keys(Kingship.edicts()).filter(id => Kingship.canPass(player, world, id).ok);
         if (open.length && Kingship.passEdict(player, world, Utils.randPick(open)).success) count(stats, 'edictsPassed');
     }
@@ -871,7 +1080,13 @@ function banking(game, tile, stats) {
     if (!here.length) return;
     const bank = here[0];
     const acct = st.accounts[bank.id];
-    if (player.gold > 9000 && Finance.deposit(player, world, bank.id, 2000).success) count(stats, 'deposits');
+    // Save like a sensible player: a quarter of what sits above a working
+    // purse goes to the bank (out of the cutpurses' and schemers' reach, earning)
+    // (a larger working purse until the trading company is founded: it wants 3,500)
+    // Saving for the company (companyTarget): all but a bread purse goes in
+    const saving = savingNow(game);
+    const SAVE_ABOVE = saving ? 300 : MerchantHouses.company(player) ? 2500 : 6000;
+    if (player.gold > SAVE_ABOVE + (saving ? 100 : 400) && Finance.deposit(player, world, bank.id, Math.floor((player.gold - SAVE_ABOVE) * (saving ? 1 : 0.25))).success) count(stats, saving ? 'savedForCompany' : 'deposits');
     else if (player.gold < 300 && acct && acct.balance >= 100 && Finance.withdraw(player, world, bank.id, 500).success) count(stats, 'withdrawals');
     // Borrow modestly, and only with money in hand to carry the payments: a
     // great loan taken by a near-broke bot drained it to nothing (seed 404)
@@ -1217,21 +1432,23 @@ function settlementBusiness(game, stats) {
     if (!tile || !tile.settlement) return;
     // Use the contextual list the action menu shows, as a sanity check that it builds
     PlayerActions.getAvailableActions(player, tile, world);
+    // (a bot saving for its company forgoes new soldiers and companions, ships, lessons and luxuries)
+    const saving = frugal(game);
     booked(game, 'buyFood', () => buyFood(game, tile, stats));
     booked(game, 'mints', () => mints(game, tile, stats));
     booked(game, 'sellGoods', () => sellGoods(game, tile, stats));
-    booked(game, 'speculate', () => speculate(game, tile, stats));
-    booked(game, 'recruit', () => recruit(game, tile, stats));
+    if (!saving) booked(game, 'speculate', () => speculate(game, tile, stats));
+    if (!saving) booked(game, 'recruit', () => recruit(game, tile, stats));
     booked(game, 'underworld', () => underworld(game, tile, stats));
     booked(game, 'gangs', () => gangLife(game, tile, stats));
-    booked(game, 'companions', () => companions(game, tile, stats));
+    if (!saving) booked(game, 'companions', () => companions(game, tile, stats));
     booked(game, 'work', () => work(game, tile, stats));
     booked(game, 'properties', () => properties(game, tile, stats));
-    booked(game, 'ships', () => ships(game, tile, stats));
-    booked(game, 'sea', () => seaActivity(game, tile, stats));
+    if (!saving) booked(game, 'ships', () => ships(game, tile, stats));
+    if (!saving) booked(game, 'sea', () => seaActivity(game, tile, stats));
     booked(game, 'heist', () => heist(game, tile, stats));
     booked(game, 'company', () => company(game, tile, stats));
-    booked(game, 'patronage', () => patronage(game, tile, stats));
+    if (!saving) booked(game, 'patronage', () => patronage(game, tile, stats));
     booked(game, 'banking', () => banking(game, tile, stats));
     booked(game, 'insurance', () => insurance(game, tile, stats));
     booked(game, 'bills', () => bills(game, tile, stats));
@@ -1242,9 +1459,9 @@ function settlementBusiness(game, stats) {
     booked(game, 'harvests', () => harvests(game, tile, stats));
     booked(game, 'land', () => land(game, tile, stats));
     booked(game, 'publicWorks', () => publicWorks(game, tile, stats));
-    booked(game, 'tongues', () => tongues(game, tile, stats));
-    booked(game, 'bathe', () => bathe(game, stats));
-    booked(game, 'hiredWork', () => hiredWork(game, tile, stats));
+    if (!saving) booked(game, 'tongues', () => tongues(game, tile, stats));
+    if (!saving) booked(game, 'bathe', () => bathe(game, stats));
+    if (!saving) booked(game, 'hiredWork', () => hiredWork(game, tile, stats));
 }
 
 /**
@@ -1612,6 +1829,31 @@ function marryOff(game, child, up, stats) {
     else count(stats, realms.length ? 'childWedRefused' : 'childWedNoRealm');
 }
 
+/**
+ * The House's cadet branches (systems/cadetBranches.js): now and then a spare
+ * grown child (never the heir, and only with another grown child kept home)
+ * is sent out with a grant; a cooling branch gets a gift; at war, a loyal one
+ * is asked for men.
+ */
+function cadets(game, stats) {
+    const { player, world } = game;
+    if (!player.house || world.day % 30 !== 0) return;
+    const list = CadetBranches.list(player);
+    const kids = CadetBranches.candidates(player, world).filter(c => !c.isSibling || list.length < 2);
+    const grownHome = (player.children || []).filter(c => c && c.isAlive !== false && c.age >= 16);
+    if (kids.length && grownHome.length >= 2 && list.length < 3 && world.day % 120 === 0) {
+        const c = kids.sort((a, b) => b.age - a.age)[0];
+        const grant = player.gold > 3000 ? Math.min(1000, Math.floor(player.gold * 0.1)) : 0;
+        if (CadetBranches.found(player, world, c.id, { grant }).success) count(stats, 'cadetsFounded');
+    }
+    const cool = list.filter(b => b.loyalty < 45).sort((a, b) => a.loyalty - b.loyalty)[0];
+    if (cool && player.gold > 2000 && CadetBranches.gift(player, world, cool.id, 300).success) count(stats, 'cadetGifts');
+    if (RealmWars.wars(player).length) {
+        const loyal = list.find(b => b.loyalty >= 55 && !CadetBranches.levyOf(player, b));
+        if (loyal && CadetBranches.askMen(player, world, loyal.id).success) count(stats, 'cadetLevies');
+    }
+}
+
 /** A spendthrift's day in town: supper, a bath, the laundry or the valet at the best house there. */
 function livingWell(game, tile, stats) {
     const { player, world } = game;
@@ -1712,6 +1954,31 @@ export function rivalHouses(game, stats) {
 }
 
 /** One day of the bot's play (before the harness ends the day). */
+/**
+ * The House's unfinished business (systems/houseQuests.js): a matter is settled
+ * on reaching its town (the kindest way the purse allows), and once a week the
+ * bot rides to the nearest one within a dozen hexes when it can pay.
+ */
+function houseBusiness(game, stats) {
+    const { player, world } = game;
+    const open = HouseQuests.open(player);
+    if (!open.length) return;
+    const order = ['pay', 'deliver', 'coin', 'plead', 'buy', 'ask', 'search'];
+    for (const q of [...open]) {
+        if (!HouseQuests.at(player, q)) continue;
+        const opts = HouseQuests.options(world, player, q.id).filter(o => o.ok);
+        const pick = order.map(id => opts.find(o => o.id === id)).find(Boolean);
+        if (!pick) continue;
+        const r = HouseQuests.act(world, player, q.id, pick.id);
+        if (r.success) count(stats, 'houseQuestsSettled');
+    }
+    if (world.day % 7 !== 3) return;
+    const near = HouseQuests.open(player)
+        .filter(q => q.target && (q.price == null || player.gold > q.price * 2) && Hex.distance(player.q, player.r, q.target.q, q.target.r) <= 12)
+        .sort((a, b) => Hex.distance(player.q, player.r, a.target.q, a.target.r) - Hex.distance(player.q, player.r, b.target.q, b.target.r))[0];
+    if (near && travelTo(game, near.target.q, near.target.r)) count(stats, 'houseQuestTrips');
+}
+
 export function botDay(game, stats) {
     const { player, world } = game;
     // Yesterday's finds (Discovery.processDay in the harness's endDay)
@@ -1748,6 +2015,7 @@ export function botDay(game, stats) {
     if (world.day > 150 && world.day % 7 === 0 && player.quests && player.quests.active.length < 3 && (player.quests.available || []).length) {
         if (Quests.acceptQuest(player, player.quests.available[0].id, world).success) count(stats, 'questsAccepted');
     }
+    if (world.day > 150 && !player.boardedShip && !Ships.getVoyage(player)) houseBusiness(game, stats);
     if (Ships.getVoyage(player)) {
         voyageDay(game, stats);
         return;
@@ -1780,6 +2048,12 @@ export function botDay(game, stats) {
         }
     }
 
+    // Saving for the company (companyTarget): soldiers' wages would eat what the
+    // labour earns, so pay them off (not in the middle of a siege)
+    if (frugal(game) && (player.army || []).length && !Sieges.active(player)) {
+        player.army.splice(0);
+        count(stats, 'disbandedToSave');
+    }
     // Broke: pay off soldiers and sailors rather than starve
     if (player.gold < 150 && (player.army || []).length > 2) {
         player.army.splice(0, Math.ceil(player.army.length / 2));
@@ -1879,6 +2153,7 @@ export function botDay(game, stats) {
     if (player.needs && player.needs.hunger < 60 && player.getFoodCount() > 0) player.eatMeal();
     booked(game, 'courtship', () => courtship(game, stats));
     if ((player.children || []).length) family(game, stats);
+    booked(game, 'cadets', () => cadets(game, stats));
     booked(game, 'rivalAgents', () => rivalAgents(game, stats));
     booked(game, 'rivalHouses', () => rivalHouses(game, stats));
     // Badly hurt: get to a town, see a physician and rest there (a pauper
@@ -1947,17 +2222,36 @@ export function botDay(game, stats) {
             return;
         }
     }
+    // The company savings plan come good: found it before anything else (soldiers,
+    // a claim, a venture) spends the sum
+    const plan = companyTarget(game);
+    if (plan && savings(player) >= plan) {
+        const here = world.getTile(player.q, player.r);
+        if (here && here.settlement) booked(game, 'company', () => company(game, here, stats));
+    }
     // Poor: earn a living before anything grand — a day's labour and the
     // market in town, as a player starting with a light purse would
     if (player.gold < poorBelow(game) && !(player.army || []).length) {
         const here = world.getTile(player.q, player.r);
+        // A town whose employers could not pay the day's wages lately is no place
+        // to earn bread (three lives starved labouring for nothing in one): move on
+        const broke = (t) => world.day - ((game.brokeTowns || {})[`${t.q},${t.r}`] ?? -1e9) < 30;
+        if (here && here.settlement && broke(here)) {
+            const next = nearest(world, player, settlementTiles(world), 6).find(t => !broke(t));
+            if (next) {
+                const from = `${player.q},${player.r}`;
+                game.dest = { q: next.q, r: next.r };
+                travelTo(game, next.q, next.r);
+                if (`${player.q},${player.r}` !== from) { count(stats, 'leftBrokeTown'); return; }
+            }
+        }
         if (here && here.settlement) {
             booked(game, 'labour', () => dayLabour(game, here, stats));
             if (player.getFoodCount() < 5) booked(game, 'buyFood', () => buyFood(game, here, stats));
             settlementBusiness(game, stats);
             return;
         }
-        const town = nearest(world, player, settlementTiles(world), 1)[0];
+        const town = nearest(world, player, settlementTiles(world), 6).find(t => !broke(t)) || nearest(world, player, settlementTiles(world), 1)[0];
         if (town) {
             game.dest = { q: town.q, r: town.r };
             travelTo(game, town.q, town.r);
@@ -1967,6 +2261,7 @@ export function botDay(game, stats) {
     if (booked(game, 'holdingSieges', () => defendHoldings(game, stats))) return;
     if (booked(game, 'siege', () => siege(game, stats))) return;
     booked(game, 'court', () => court(game, stats));
+    booked(game, 'stewards', () => stewards(game, stats));
     booked(game, 'throne', () => throne(game, stats));
     booked(game, 'treasures', () => treasures(game, stats));
     settlementBusiness(game, stats);
@@ -1979,7 +2274,8 @@ export function botDay(game, stats) {
     // A spendthrift lives well in town while the purse allows
     if (tile && tile.settlement && temper(game).spends) booked(game, 'livingWell', () => livingWell(game, tile, stats));
     // Grand ventures, for a temperament that risks them with what's saved
-    const venturing = player.gold >= temper(game).ventureAt;
+    // (not while saving for the company, or on the road to its charter)
+    const venturing = player.gold >= temper(game).ventureAt && !frugal(game);
     if (venturing && tile && tile.settlement && booked(game, 'expedition', () => expedition(game, tile, stats))) return;
     if (venturing && tile && tile.settlement && booked(game, 'sail', () => sail(game, tile, stats))) {
         settlementBusiness(game, stats);
@@ -1989,7 +2285,7 @@ export function botDay(game, stats) {
     if (venturing && booked(game, 'caravans', () => caravans(game, stats))) return;
 
     // A delve site is held to until reached; other destinations drift
-    if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve)) {
+    if (!game.dest || (game.dest.q === player.q && game.dest.r === player.r) || (Utils.random() < 0.05 && !game.dest.delve && !game.dest.company)) {
         game.dest = chooseDestination(game);
     }
     if (game.dest) {
@@ -1997,7 +2293,7 @@ export function botDay(game, stats) {
         travelTo(game, game.dest.q, game.dest.r);
         // No way there (another island, or beyond the pathfinder's reach): pick again
         if (`${player.q},${player.r}` === from) {
-            if (game.dest.delve) (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
+            if (game.dest.delve || game.dest.company) (game.unreachableSites || (game.unreachableSites = new Set())).add(`${game.dest.q},${game.dest.r}`);
             game.dest = null;
             count(stats, 'unreachable');
         }

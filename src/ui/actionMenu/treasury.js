@@ -12,6 +12,10 @@ import { CrownBooks } from '../../world/crownBooks.js';
 import { RealmArms } from '../../world/realmArms.js';
 import { BTN_GOLD, BTN_PLAIN, BTN_DIM, panelTabs, intelBadge, closedBooks, lede, bullets, chips, purse, sectionHead, card, rowList } from './uiKit.js';
 import { RealmIntel } from '../../systems/realmIntel.js';
+import { Mints } from '../../systems/mints.js';
+import { Finance } from '../../systems/finance.js';
+import { MoneySupply } from '../../world/moneySupply.js';
+import { Coinage } from '../../world/coinage.js';
 import { Causes } from '../../player/causes.js';
 import { whyIcon, stabilityWhy } from '../whyPopover.js';
 import { LINE_LABEL, lineTip, crownTaxGuide, taxControlNote, taxTip, levelEffectText, armyLevelText, courtLevelText } from './taxGuide.js';
@@ -24,7 +28,7 @@ const TD = 'padding:3px 6px; border-bottom:1px solid rgba(245,197,66,0.07);';
 const GOOD = '#8fd18a';
 const BAD = '#e0846a';
 const WARN = '#f0b35a';
-const TABS = [['budget', '📒 Budget'], ['realms', '🏰 Realms'], ['farms', '📜 Tax farms'], ['crown', '👑 Your purse']];
+const TABS = [['budget', '📒 Budget'], ['realms', '🏰 Realms'], ['farms', '📜 Tax farms'], ['crown', '👑 Your crown']];
 const LABEL = LINE_LABEL;
 
 // (the household guards the crown keeps for its lords and itself: player/realmEscort.js)
@@ -198,8 +202,48 @@ function farmsTab(game) {
     return html;
 }
 
+/**
+ * The realm's coin, for its ruler: what the mint strikes, what is in hand, the
+ * clipping, the prices and the people's trust; debase, recoin, and whether the
+ * treasurers may do either (systems/mints.js, systems/finance.js).
+ */
+function coinSection(game, ruled) {
+    const { world, player } = game;
+    if (!Mints.enabled()) return '';
+    const fn = MoneySupply.fineness(world, ruled);
+    const R = MoneySupply.realm(world, ruled.id);
+    const trust = R ? Math.round(R.trust != null ? R.trust : 100) : Coinage.trust(ruled, world.day, world);
+    const pct = Math.round((Coinage.purityFactor(ruled, world) - 1) * 100);
+    const full = Math.round((Coinage.purityFactor(ruled) - 1) * 100);
+    let html = sectionHead('The coin');
+    html += chips([
+        ['🏛️', 'Mint strikes', `${Math.round(fn.standard * 100)}%`],
+        ['💰', 'In hand', `${Math.round(fn.circulating * 100)}%`],
+        ['✂️', 'Clipped', `${Math.round(fn.clip * 100)}%`],
+        { icon: '📈', label: 'Prices', value: `<span style="color:${pct > 0 ? BAD : GOOD};">${pct > 0 ? '+' : ''}${pct}%</span>` },
+        { icon: '🤝', label: 'Trust', value: `<span style="color:${trust < 60 ? BAD : trust < 85 ? WARN : GOOD};">${trust}</span>` },
+    ]);
+    const notes = [];
+    if (fn.lag > 0.005) notes.push(`The old, finer coin is still coming in to be restruck: prices will rise toward +${full}% as it does, and your chests gain the extra pieces.`);
+    if (fn.lag < -0.005) notes.push('The new, finer coin is still mixing in: prices ease as it does.');
+    if (fn.clip > 0.005) notes.push(`Clippers have shaved ${Math.round(fn.clip * 100)}% off the pieces; past ${Math.round(MoneySupply.config().clip.tolerance * 100)}% it shows in the prices. Only a recoinage ends it.`);
+    if (R && R.restruck > 0) notes.push(`Restriking has brought the crown ${g0(R.restruck)}g in all.`);
+    html += `<div style="${NOTE} margin-bottom:4px;">${notes.length ? notes.join(' ') : 'Full weight, sound coin: the people trust it, and the changers at your borders take little.'}</div>`;
+    const G = Finance.cfg('coinage');
+    const step = Number(G.debaseStep) || 0.1, floor = Number(G.floor) || 0.5;
+    const canDebase = fn.standard - step >= floor - 1e-9;
+    const q = Mints.recoinQuote(world, ruled);
+    const leave = Mints.treasurersCoin(player, world);
+    html += rowList([
+        { icon: '⚖️', name: `Debase to ${Math.round((fn.standard - step) * 100)}% silver`, desc: 'Gold now from your own chests and the first coin brought in, more each week as the rest is restruck; prices rise as it spreads, trust and stability fall', off: !canDebase, why: 'The coin is as base as it can be made', act: 'treasuryAct', args: ['coin', 'debase'], tone: 'bad', side: canDebase ? 'Debase ›' : '' },
+        { icon: '🔨', name: 'Proclaim a recoinage', desc: q.ok ? `Call in ${g0(q.called)}g of town coin and strike it anew at full weight: the crown makes up the silver (${g0(q.cost)}g), the towns hold less coin and prices ease` : 'Call in the coin and strike it anew at full weight', off: !q.ok || (Number(ruled.treasury) || 0) < q.cost, why: q.ok ? `The treasury needs ${g0(q.cost)}g` : q.reason, act: 'treasuryAct', args: ['coin', 'recoin'], side: q.ok ? `${g0(q.cost)}g ›` : '' },
+        { icon: '📒', name: leave ? 'Forbid the treasurers the coin' : 'Leave the coin to the treasurers', desc: leave ? 'They may now debase when the chests run dry and recoin when they are full again' : 'As it is, only you debase or recoin; allow it and they will in a crisis and once it passes', act: 'treasuryAct', args: ['coin', 'leave', leave ? 0 : 1], side: leave ? 'Forbid ›' : 'Allow ›' },
+    ]);
+    return html;
+}
+
 function crownTab(game) {
-    const { world } = game;
+    const { world, player } = game;
     const { ruled } = realmFor(game);
     if (!ruled) return `<div style="${NOTE}">Only a ruler sets the taxes.</div>`;
     const b = Fiscal.budget(world, ruled);
@@ -214,15 +258,21 @@ function crownTab(game) {
     html += `<div style="${NOTE} margin-bottom:8px;">The <b>burden</b> is what the people feel (welfare, migration, tax revolts); <b>stability</b> is the realm's.</div>`;
     const tipOf = (blurb, fx) => [blurb, fx].filter(Boolean).join(' ');
     html += sectionHead('Taxes, pay and court');
+    // Levers the ruler has not set are kept by the treasurers' review (Fiscal._review)
+    const held = Fiscal.held(player, world);
+    const keeper = (on, args, what) => on
+        ? ` ${act('📒 Leave to the treasurers', args, BTN_PLAIN, true, `You set the ${what} yourself. Hand it back and the treasurers raise or lower it with the chests every few weeks.`)}`
+        : ` <span style="${NOTE}" title="Set it yourself and they leave it to you.">· kept by your treasurers</span>`;
+    html += `<div style="${NOTE} margin-bottom:4px;">Taxes${keeper(held.tax, ['rate', 'all', 'auto'], 'taxes')}</div>`;
     for (const tax of ['land', 'poll', 'excise']) {
         html += `<div class="pk-card"><b title="${esc(taxTip(tax))}" style="cursor:help; color:#ffe9a8;">${esc(LABEL[tax])}</b> <span style="${NOTE}">now ${lvl(b.rates[tax])} · ${esc(levelEffectText(tax, b.rates[tax]))}</span>${taxControlNote(tax)}`;
         html += '<div>';
         for (const id of CrownBooks.LEVELS) html += act(lvl(id), ['rate', tax, id], b.rates[tax] === id ? BTN_GOLD : BTN_PLAIN, b.rates[tax] !== id, tipOf((C.levels[id] || {}).blurb, levelEffectText(tax, id)));
         html += '</div></div>';
     }
-    html += `<div class="pk-card"><b style="color:#ffe9a8;">Army pay</b> <span style="${NOTE}">now ${esc((C.army.levels[b.armyPay] || {}).label || b.armyPay)} · ${esc(armyLevelText(b.armyPay))}</span><br>`;
+    html += `<div class="pk-card"><b style="color:#ffe9a8;">Army pay</b> <span style="${NOTE}">now ${esc((C.army.levels[b.armyPay] || {}).label || b.armyPay)} · ${esc(armyLevelText(b.armyPay))}</span>${keeper(held.army, ['army', 'auto'], "army's pay")}<br>`;
     for (const [id, L] of Object.entries(C.army.levels)) html += act(esc(L.label), ['army', id], b.armyPay === id ? BTN_GOLD : BTN_PLAIN, b.armyPay !== id, tipOf(L.blurb, armyLevelText(id)));
-    html += `</div><div class="pk-card"><b style="color:#ffe9a8;">Court</b> <span style="${NOTE}">now ${esc((C.court.levels[b.courtLevel] || {}).label || b.courtLevel)} · ${esc(courtLevelText(b.courtLevel))}</span><br>`;
+    html += `</div><div class="pk-card"><b style="color:#ffe9a8;">Court</b> <span style="${NOTE}">now ${esc((C.court.levels[b.courtLevel] || {}).label || b.courtLevel)} · ${esc(courtLevelText(b.courtLevel))}</span>${keeper(held.court, ['court', 'auto'], 'court')}<br>`;
     for (const [id, L] of Object.entries(C.court.levels)) html += act(esc(L.label), ['court', id], b.courtLevel === id ? BTN_GOLD : BTN_PLAIN, b.courtLevel !== id, tipOf(L.blurb, courtLevelText(id)));
     html += '</div>';
     html += `<div style="${NOTE} margin-top:4px;">Hover a level for what it does in figures.</div>`;
@@ -235,6 +285,7 @@ function crownTab(game) {
         { icon: '📜', name: 'Sell offices', desc: 'Gold now, corruption for years', act: 'treasuryAct', args: ['sale', 'offices'], tone: 'bad', side: 'Sell ›' },
         { icon: '🌾', name: 'Sell crown land', desc: 'Gold now, the crown\'s rents less for ever', why: 'The crown has no estates left to sell', off: !landLeft, act: 'treasuryAct', args: ['sale', 'land'], tone: 'bad', side: landLeft ? 'Sell ›' : '' },
     ]);
+    html += coinSection(game, ruled);
     html += sectionHead('Farm out a town\'s taxes');
     html += `<div style="${NOTE} margin-bottom:4px;">A house pays a lump now and collects the town's taxes (harder than your own men) for ${C.farms.term} days.</div>`;
     const towns = (world.getSettlementViews ? world.getSettlementViews() : []).filter(s => s && s.kingdom === ruled.id && !(ruled.capital && ruled.capital.q === s.q && ruled.capital.r === s.r));
@@ -292,6 +343,11 @@ Object.assign(ActionMenu, {
             case 'court': res = Fiscal.setCourt(player, world, a); break;
             case 'sale': res = Fiscal.royalSale(player, world, a); break;
             case 'farmOut': res = Fiscal.royalFarm(player, world, a); break;
+            case 'coin':
+                if (a === 'debase') res = Mints.royalDebase(player, world);
+                else if (a === 'recoin') res = Mints.royalRecoin(player, world);
+                else if (a === 'leave') res = Mints.setTreasurersCoin(player, world, !!b);
+                break;
             default: return;
         }
         if (res) {

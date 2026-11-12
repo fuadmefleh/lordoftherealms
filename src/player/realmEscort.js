@@ -391,6 +391,10 @@ export const RealmEscort = {
         if (st.past.length > 8) st.past.length = 8;
         st.guard = null;
         if (why === 'home') st.home[g.kingdomId] = _day(world) + _num((RealmEscort.config().sendHome || {}).days, 60);
+        // A guard that starved or went unpaid until the last man slipped away is
+        // not sent again the next morning, drawn afresh from the army and armed
+        // out of the armoury at the crown's cost (asked for, it still comes)
+        else if (why === 'deserted') st.home[g.kingdomId] = _day(world) + _num((RealmEscort.config().deserted || {}).days, 45);
         const R = RealmEscort.rankDef(g.rank) || {};
         const text = {
             title: `You hold no rank in ${g.kingdomName} now: its ${R.label || 'guard'} rides home to the realm's army.`,

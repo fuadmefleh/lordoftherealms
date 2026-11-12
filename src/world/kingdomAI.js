@@ -21,6 +21,7 @@ import { MoneySupply } from './moneySupply.js';
 import { CrownBooks } from './crownBooks.js';
 import { Cultures } from './cultures.js';
 import { RealmArms } from './realmArms.js';
+import { TownMarks } from './townMarks.js';
 
 const _fy = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
@@ -1202,6 +1203,11 @@ export const KingdomAI = {
         // The fallen's arms are lost; the field's holder gathers its own and strips the beaten
         const won = attackPower > defensePower;
         RealmArms.battle(won ? attacker : defender, won ? defender : attacker, menBefore);
+        // A cairn where they fell, by the town fought over or out on the field (world/townMarks.js)
+        if (frontline) {
+            const dead = Math.max(0, menBefore[attacker.id] - attacker.military) + Math.max(0, menBefore[defender.id] - defender.military);
+            TownMarks.noteBattle(world, frontline.q, frontline.r, { dead, victor: (won ? attacker : defender).name, loser: (won ? defender : attacker).name, day: world.day });
+        }
     },
 
     /**

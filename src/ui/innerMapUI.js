@@ -40,6 +40,7 @@ import { InnerMapFarming } from './innerMapFarming.js';
 import { InnerMapFields } from './innerMapFields.js';
 import { InnerMapGranary } from './innerMapGranary.js';
 import { InnerMapGates } from './innerMapGates.js';
+import { InnerMapMemory } from './innerMapMemory.js';
 import { InnerMapDiving } from './innerMapDiving.js';
 import { InnerMapClimbing } from './innerMapClimbing.js';
 import { InnerMapRiverDrift } from './innerMapRiverDrift.js';
@@ -307,8 +308,10 @@ Object.assign(InnerMapRenderer, {
             menuItems.push(...InnerMapLots.buildingItems(game, building));
             // The town's granary sells the grain it can spare (ui/innerMapGranary.js)
             menuItems.push(...InnerMapGranary.menuItems(game, building));
+            // A burnt-out or sacked shell: nothing inside but ash (world/townMarks.js; ui/innerMapMemory.js)
+            if (building._ruin) menuItems.push(...InnerMapMemory.menuItems(game, building._mark));
             // Add "Enter" action for buildings
-            menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
+            else menuItems.push({ type: 'action', action: 'enter_building', label: 'Enter', icon: '🚪', desc: `Enter ${building.name}`, building });
             // A barred seat's lock to pick (ui/innerMapLocks.js)
             menuItems.push(...InnerMapLocks.menuItems(game, building));
             // A building of several floors: straight up to one from the front door (world/innerMap/floors.js)
@@ -346,7 +349,8 @@ Object.assign(InnerMapRenderer, {
             let objActionItems = ObjectActions.buildMenuItems(game, customObjDef, objAnchorQ, objAnchorR);
             // Objects without editor-assigned actions are still usable when
             // their name says what they are (a sprite "Oak Bed", "Anvil", …).
-            if (objActionItems.length === 0) {
+            // (not a town's memorial: a "Defaced Statue" is no shrine to pray at — its own entries below)
+            if (objActionItems.length === 0 && !(customObjDef.tags || []).includes('memory')) {
                 const furnType = ObjectActions.inferFurnitureType(customObjDef.name || customObjDef.id);
                 if (furnType) {
                     objActionItems = ObjectActions.buildFurnitureMenuItems(game,
@@ -364,6 +368,9 @@ Object.assign(InnerMapRenderer, {
             if ((customObjDef.tags || []).includes('field')) menuItems.push(...InnerMapFields.menuItems(game, objAnchorQ, objAnchorR));
             // A gate in a fence: open it or shut it (ui/innerMapGates.js)
             if ((customObjDef.tags || []).includes('gate')) menuItems.push(...InnerMapGates.menuItems(game, objAnchorQ, objAnchorR));
+            // A statue, cairn, grave mound, memorial stone or ruin the town's history left (ui/innerMapMemory.js)
+            const _memTile = (customObjDef.tags || []).includes('memory') ? InnerMap.getTile(objAnchorQ, objAnchorR) : null;
+            if (_memTile && _memTile.customObject && _memTile.customObject.memory) menuItems.push(...InnerMapMemory.menuItems(game, _memTile.customObject.memory));
             // A tree to fell or a stump to grub out: one order, with how many blows it will
             // take you and what it gives (player/gathering.js; world/innerMap/felling.js)
             const _chopped = customObjDef.resource && (customObjDef.topples || customObjDef.objectType === 'stump');
@@ -1027,6 +1034,7 @@ Object.assign(InnerMapRenderer, {
         if (/^field_/.test(action) && InnerMapFields.handle(game, item)) return;
         if (/^granary_/.test(action) && InnerMapGranary.handle(game, item)) return;
         if (/^gate_/.test(action) && InnerMapGates.handle(game, item)) return;
+        if (/^memory_/.test(action) && InnerMapMemory.handle(game, item)) return;
         if (action === 'lock_door' && InnerMapLocks.handle(game, item, q, r, it => this._handleContextAction(game, it, q, r))) return;
         if (/^dive_/.test(action) && InnerMapDiving.handle(game, item, q, r)) return;
         if (/^climb_/.test(action) && InnerMapClimbing.handle(game, item, q, r)) return;

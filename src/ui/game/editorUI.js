@@ -10,13 +10,18 @@ import { FirstSteps } from '../../systems/firstSteps.js';
 import { InnerMapCarry } from '../innerMapCarry.js';
 import { InnerMapCarts } from '../innerMapCarts.js';
 import { InnerMapDowned } from '../innerMapDowned.js';
+import { MetaLegacy } from '../../systems/metaLegacy.js';
+import { bindIronmanQuit, pendingIronmanDeath } from './ironman.js';
 
-export function resumeGame() {
-    const result = SaveLoad.loadGame();
+export function resumeGame(key = null) {
+    // (the save list's slot: the ordinary one or the Ironman run's, systems/saveLoad.js)
+    const result = SaveLoad.loadGame(key || SaveLoad.SAVE_KEY);
     if (!result.success) return;
     // (the street maps aren't saved: whoever was over your shoulder is let go, nothing left dangling)
     InnerMapCarry.reset();
     InnerMapCarts.reset();
+    // (the court scribe's retellings were of the world left behind: ui/actionMenu/annals.js)
+    this._annalsScribe = null;
 
     const data = result.data;
 
@@ -25,6 +30,8 @@ export function resumeGame() {
     // Regenerate the same terrain from the saved seed (older saves had none)
     this.world.generate(data.world.generationParams || {});
     SaveLoad.restoreWorld(data.world, this.world);
+    // The run record: older saves get an ordinary (not Ironman) one (systems/metaLegacy.js)
+    MetaLegacy.ensureRun(this.world);
 
     // Recalculate regions for routing (important for older saves)
     Terrain.identifyRegions(this.world.tiles, this.world.width, this.world.height);
@@ -102,6 +109,13 @@ export function resumeGame() {
         if (this.camera) this.camera.following = false;
         ActionMenu.renderInterregnumBar(this);
     }
+    // Ironman: a death saved before its deathbed was settled comes back to it (ui/game/ironman.js)
+    const ironDeath = pendingIronmanDeath(this);
+    if (ironDeath && !Afterlife.active(this.player)) {
+        this.player._isDead = true;
+        setTimeout(() => ActionMenu.showDeathScreen(this, ironDeath.cause), 1200);
+    }
+    bindIronmanQuit(this);
 
     this.isRunning = true;
     this.lastTime = performance.now();

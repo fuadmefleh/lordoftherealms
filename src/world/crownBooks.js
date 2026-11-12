@@ -22,7 +22,9 @@ const _clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const _r2 = (v) => Math.round(v * 100) / 100;
 
 /** Revenue lines, in the order the panel shows them. */
-export const REVENUE_LINES = ['land', 'poll', 'excise', 'customs', 'demesne', 'seigniorage', 'farms', 'levy', 'sales'];
+// ('escheat': an heirless estate's remainder after its creditors, player/estateSettlement.js;
+//  'heriot': the death duty paid when an heir inherits, systems/inheritance.js)
+export const REVENUE_LINES = ['land', 'poll', 'excise', 'customs', 'demesne', 'seigniorage', 'farms', 'levy', 'sales', 'escheat', 'heriot'];
 /** Expense lines ('guard': the household guards the crown keeps for its lords and itself, player/realmEscort.js). */
 export const EXPENSE_LINES = ['army', 'arms', 'guard', 'court', 'works', 'debt', 'dole', 'purse'];
 /** Financing (not income): borrowing and the mint's debasement profit. */
@@ -188,6 +190,22 @@ export const CrownBooks = {
         const f = kingdom && _obj(kingdom.fisc);
         if (f && f.avg && _num(f.avg.n) > 0) return Math.max(0, _num(f.avg.rev));
         return CrownBooks.revenue(CrownBooks.lines(kingdom, 'last'));
+    },
+
+    /**
+     * The crown's upkeep a day, smoothed: its expense lines without the
+     * ruler's own levy (the army, the court, works, debt, the dole).
+     */
+    upkeep(kingdom) {
+        const f = kingdom && _obj(kingdom.fisc);
+        if (f && f.avg && _num(f.avg.n) > 0) return Math.max(0, _num(f.avg.exp) - _num(f.avg.purse));
+        const last = CrownBooks.lines(kingdom, 'last');
+        return Math.max(0, CrownBooks.expense(last) - _num(last.purse));
+    },
+
+    /** What the crown's taxes and dues leave over its upkeep a day (negative: a deficit). */
+    surplus(kingdom) {
+        return CrownBooks.lastRevenue(kingdom) - CrownBooks.upkeep(kingdom);
     },
 
     levelMult(id) {

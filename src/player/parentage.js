@@ -583,10 +583,13 @@ export const Parentage = {
     _addPerson(folk, o) {
         const Y = Townsfolk.config().daysPerYear;
         const names = Townsfolk._firstNames(folk, o.gender);
+        // (no one living there already answering to the same full name; same draws as ever)
+        const rFirst = names.length ? o.rng() : null;
+        const last = o.last || _pick(Townsfolk._lastNames(folk), o.rng) || 'Stone';
         const p = {
             id: folk.n++,
-            first: _pick(names, o.rng) || 'Ash',
-            last: o.last || _pick(Townsfolk._lastNames(folk), o.rng) || 'Stone',
+            first: (rFirst != null ? Townsfolk.freshFirst(folk, o.gender, last, rFirst) : null) || 'Ash',
+            last,
             gender: o.gender,
             born: o.day - o.age * Y - Math.floor(o.rng() * Y),
             died: null, cause: null,

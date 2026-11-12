@@ -709,6 +709,8 @@ export const Schemes = {
         Schemes._remove(player, scheme);
         const feudDelta = outcome === 'struck' ? CONFIG.feudOnSuccess : outcome === 'foiled' ? CONFIG.feudOnFoiled : 0;
         if (feudDelta) House.accrueRivalFeud(player, world, scheme.rivalId, feudDelta);
+        // A nemesis's plot (systems/nemesis.js reads the outcome on its weekly turn)
+        if (scheme.nemesisId && player.nemesis && Array.isArray(player.nemesis.settled)) player.nemesis.settled.push({ nemesisId: scheme.nemesisId, schemeId: scheme.id, outcome, day: (world && world.day) || 0 });
         if (text) House._chronicle(player.house, world, `${scheme.rivalName}: ${text}`, ['rival', 'scheme', outcome]);
         // The townsfolk it worked through (a plot settled by confronting its agent names no one new)
         const faces = text && !scheme._confronted ? Schemes._faces(player, world, scheme, outcome) : null;

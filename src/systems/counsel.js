@@ -68,6 +68,10 @@ import { TradePolicy } from './tradePolicy.js';
 import { EconomyIndex } from '../world/economyIndex.js';
 import { Fashions } from '../world/fashions.js';
 import { Fiscal } from './fiscal.js';
+import { Ledger } from './ledger.js';
+import { Crises } from './crises.js';
+import { Abdication } from './abdication.js';
+import { Climate } from '../world/climate.js';
 
 export const GROUPS = ['threat', 'opportunity', 'goal'];
 export const SEVERITIES = { critical: 3, warning: 2, notice: 1, info: 0 };
@@ -723,6 +727,29 @@ function _grownUnplaced(player) {
         && !c.spouseId && !c.upbringing.spouse
         && !(c.upbringing.placement && c.upbringing.placement.kind === 'ward' && !c.upbringing.placement.returned));
 }
+
+// Abdication: the court's murmurs and demand to step down; an old ruler plotting (systems/abdication.js)
+R.abdicationPressure = (ctx) => {
+    const st = _obj(ctx.player && ctx.player.abdication);
+    if (st && st.demand) return [];
+    const pr = Abdication.pressure(ctx.player, ctx.world);
+    const at = _num(Abdication.config().pressure.counselAt, 35);
+    if (pr.score < at || !Abdication.rightfulHeirId(ctx.player)) return [];
+    return [{ key: 'pressure', score: pr.score, why: pr.reasons.slice(0, 2).map(r => r.text).join('; ') }];
+};
+
+R.abdicationDemand = (ctx) => {
+    const st = _obj(ctx.player && ctx.player.abdication);
+    const d = st && _obj(st.demand);
+    if (!d) return [];
+    return [{ key: 'demand', days: Math.max(0, _num(d.due) - ctx.day), why: _arr(d.reasons).slice(0, 2).join('; ') }];
+};
+
+R.elderPlot = (ctx) => {
+    const st = _obj(ctx.player && ctx.player.abdication);
+    return _arr(st && st.elders).filter(e => e && e.alive && (e.rumoured || e.shadow))
+        .map(e => ({ key: e.npcId, name: e.firstName || e.name, severity: e.shadow ? 'critical' : 'warning', doing: e.shadow ? 'rules from behind your seat' : 'plots to rule again' }));
+};
 
 R.heirs = (ctx) => _grownUnplaced(ctx.player).map(c => ({ key: c.id, arg: c.id, name: c.firstName || 'Your child', age: _num(c.age) }));
 
@@ -1506,4 +1533,104 @@ R.fairs = (ctx, p) => {
     if (!ctx.world || typeof ctx.world.getSettlementViews !== 'function') return [];
     return MarketFairs.fairsNear(ctx.world, ctx.player.q, ctx.player.r, _num(p.radius, 12), _num(p.ahead, 6)).slice(0, 1)
         .map(f => ({ key: `fair:${f.town}:${f.name}`, q: f.q, r: f.r, name: f.name, town: f.town, when: f.on ? `is on until day ${f.until}` : `opens in ${f.inDays} days`, dist: f.dist }));
+};
+
+// ── Never done: nudges toward what the player has never tried ─────────────
+// data/counsel.json → nudges: [{ id, text, icon, panel, achievement, ledger,
+// minDay, minGold, unwed, army }]. A nudge is open while its achievement
+// (a key of systems/achievements.js) is still unwon and every one of its
+// ledger categories has never been booked (Ledger.everUsed). One shows at a
+// time, rotating every `period` days through the open ones in order, so the
+// Steward never repeats himself while there is something else to say; on
+// the first day of every `briefEvery`-th turn it is raised to `notice`, so
+// the morning brief carries it now and then rather than every day.
+
+/** The nudges open to this player now, in data order (pure). */
+export function openNudges(player, world) {
+    const day = world && Number.isFinite(world.day) ? world.day : 0;
+    const won = new Set(_arr(player && player.achievements && player.achievements.unlocked));
+    let ever = null;
+    const out = [];
+    for (const n of _arr(Counsel.data().nudges)) {
+        if (!n || typeof n.id !== 'string' || typeof n.text !== 'string' || n.enabled === false) continue;
+        if (day < _num(n.minDay)) continue;
+        if (n.minGold && _num(player.gold) < n.minGold) continue;
+        if (n.unwed && player.spouse) continue;
+        if (n.army && !_arr(player.army).length) continue;
+        if (n.achievement && won.has(n.achievement)) continue;
+        const cats = _arr(n.ledger);
+        if (!n.achievement && !cats.length) continue; // nothing to tell it by
+        if (cats.length) {
+            if (!ever) ever = Ledger.everUsed(player);
+            if (cats.some(c => ever.has(c))) continue;
+        }
+        out.push(n);
+    }
+    return out;
+}
+
+R.neverDone = (ctx, p) => {
+    if (ctx.day < _num(p.minDay, 30)) return [];
+    const open = openNudges(ctx.player, ctx.world);
+    if (!open.length) return [];
+    const period = Math.max(1, Math.floor(_num(p.period, 5)));
+    const turn = Math.floor(ctx.day / period);
+    const n = open[turn % open.length];
+    const every = Math.max(1, Math.floor(_num(p.briefEvery, 4)));
+    const loud = ctx.day % period === 0 && turn % every === 0;
+    return [{
+        key: n.id, text: n.text, icon: n.icon || undefined, panel: n.panel || null,
+        severity: loud ? 'notice' : undefined,
+    }];
+};
+
+// ── The age's crises (systems/crises.js) ─────────────────────
+
+/** The crisis's danger near the player: a host on the march, the plague near by, the famine lands. */
+R.crisisThreat = (ctx, p) => {
+    const c = Crises.active(ctx.world);
+    if (!c || c.phase === 'aftermath') return [];
+    const n = Crises.near(ctx.player, ctx.world);
+    const name = c.name.charAt(0).toUpperCase() + c.name.slice(1);
+    if (n.host && n.dist <= _num(p.radius, 12)) {
+        return [{ key: `host:${n.host.id}`, name, what: `${n.host.name} (${n.host.strength} strong) is ${n.dist} hexes away`, q: n.host.q, r: n.host.r, severity: n.dist <= _num(p.criticalRadius, 4) ? 'critical' : 'warning' }];
+    }
+    if (n.plague && n.dist <= _num(p.radius, 12)) {
+        return [{ key: `plague:${n.plague.name}`, name, what: n.dist === 0 ? `it is in ${n.plague.name}, where you stand` : `it is in ${n.plague.name}, ${n.dist} hexes away`, q: n.plague.q, r: n.plague.r, severity: n.dist <= 1 ? 'critical' : 'warning' }];
+    }
+    if (n.region) return [{ key: 'famine', name, what: `you stand in the famine lands; bread is dear and the harvests fail` }];
+    return [];
+};
+
+/** A choice the crisis opens to the player where they stand. */
+R.crisisChoice = (ctx) => {
+    const c = Crises.active(ctx.world);
+    if (!c) return [];
+    const ch = Crises.choices(ctx.player, ctx.world).filter(x => x.ok);
+    if (!ch.length) return [];
+    return [{ key: `${c.uid}:${ch[0].id}`, name: c.name.charAt(0).toUpperCase() + c.name.slice(1), what: ch.slice(0, 2).map(x => x.label.charAt(0).toLowerCase() + x.label.slice(1)).join(', or ') }];
+};
+
+// ── The climate of centuries (world/climate.js) ───────────────
+
+/**
+ * The climate's era where the player stands: a threat where it starves the
+ * land (harvests down, harbours frozen), an opening where it favours it
+ * (`p.mode`: 'threat' | 'opportunity').
+ */
+R.climateEra = (ctx, p) => {
+    if (!ctx.player || !ctx.world) return [];
+    const d = Climate.describe(ctx.world, ctx.player.q, ctx.player.r);
+    if (!d) return [];
+    const pct = Math.round((d.yield - 1) * 100);
+    if (p && p.mode === 'opportunity') {
+        if (pct < _num(p.gainAtLeast, 4)) return [];
+        return [{ key: `${d.era.id}:gain`, name: d.name, what: `the fields here yield ${pct}% more than in a settled age; land and farms here are worth having` }];
+    }
+    const hurt = -pct >= _num(p.lossAtLeast, 5);
+    if (!hurt && !d.ice) return [];
+    const bits = [];
+    if (hurt) bits.push(`harvests here run ${-pct}% short; lay in grain and fuel`);
+    if (d.ice) bits.push('the harbours freeze in winter; ship before the cold');
+    return [{ key: `${d.era.id}:hard`, name: d.name, what: bits.join(', and '), severity: -pct >= _num(p.criticalAtLeast, 20) ? 'warning' : undefined }];
 };
